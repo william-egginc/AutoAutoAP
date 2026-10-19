@@ -897,7 +897,8 @@ import {
 } from '@/search/autoWiden';
 import CarryOnOffer from './CarryOnOffer.vue';
 import BigBoxNote from './BigBoxNote.vue';
-import { bigBoxNote } from '@/search/bigBox';
+import { bigBoxNote, type BigBoxInput } from '@/search/bigBox';
+import { confirmBigBox } from '@/composables/useBigBoxConfirm';
 import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
 import ShareStatus from './ShareStatus.vue';
@@ -1914,21 +1915,20 @@ const costLabel = computed(() => `${secondsPerLeg.value.toFixed(secondsPerLeg.va
  * under Legs to simulate and the Est. wall clock beside it, with what the speed came from. Before a
  * run only: during one the time left is the run's own.
  */
-const bigBox = computed(() =>
-  store.deadlineRunning || !plannedLegs.value
-    ? null
-    : bigBoxNote({
-        routes: roundedRoutes(plannedRoutes.value),
-        approximate: true,
-        seconds: plan.value.seconds,
-        workers: store.workerBudget,
-        basis: store.deadlineWorkerSeconds
-          ? `${thisDevice()}'s speed from its last deadline search`
-          : "the typical speed for routes this long in players' runs",
-        device: thisDevice(),
-        where: 'site',
-      })
-);
+const bigBox = computed(() => (store.deadlineRunning || !plannedLegs.value ? null : bigBoxNote(bigBoxInput.value)));
+/** The note's figures: the "~N routes" and Est. wall clock, what the speed came from. What Exhaustive's
+ *  Find asks with too. */
+const bigBoxInput = computed<BigBoxInput>(() => ({
+  routes: roundedRoutes(plannedRoutes.value),
+  approximate: true,
+  seconds: plan.value.seconds,
+  workers: store.workerBudget,
+  basis: store.deadlineWorkerSeconds
+    ? `${thisDevice()}'s speed from its last deadline search`
+    : "the typical speed for routes this long in players' runs",
+  device: thisDevice(),
+  where: 'site',
+}));
 
 const runEstimate = ref(0);
 // The run's live figures (time so far, the estimate's basis, legs simulated) are in the run bar's Details
@@ -2140,7 +2140,13 @@ function stopDeadline(): void {
 }
 
 /** Find (or Find and submit) in box `kind`: Nearby routes' or Exhaustive's. */
-async function start(andSubmit: boolean, kind: ByDateKind): Promise<void> {
+async function start(andSubmit: boolean, kind: ByDateKind, asked = false): Promise<void> {
+  if (store.busy || instantWait.value) return;
+  // Exhaustive above 100,000 routes asks first, before anything is set: a Cancel starts nothing and
+  // leaves nothing behind (search/bigBox.ts, BigBoxConfirm.vue). Read before `startingKind` is set, while
+  // the plan is Exhaustive's (`readsAround`). Nearby routes (and its automatic widening) does not ask;
+  // `asked`: Widen and run again already did.
+  if (kind === 'boxes' && !asked && !(await confirmBigBox(bigBoxInput.value))) return;
   if (store.busy || instantWait.value) return;
   // The run reads this box's routes from here on (`simple`), and its workers fit this run.
   startingKind.value = kind;
@@ -2570,10 +2576,29 @@ async function widenAndRun(): Promise<void> {
   if (!w || store.busy) return;
   // From Nearby routes: its boxes into Exhaustive first (the same rows, in the same order), widened
   // there, and run as Exhaustive.
+  // What a Cancel of the big-box question puts back: the boxes as they were before the widening.
+  const before = {
+    chains: chains.value.map(r => ({ ...r })),
+    lastBox: lastBox.value,
+    mode: mode.value,
+    ascFollows: ascFollows.value,
+    suggestFrom: suggestFrom.value,
+  };
   if (result.value?.simple) openInAdvanced();
   typedRow(w.row, w.text);
   await nextTick();
-  if (canStart.value) await start(false, 'boxes');
+  if (!canStart.value) return;
+  // The wider box asks first when it is big (search/bigBox.ts), with its own estimate now on screen; a
+  // Cancel leaves the boxes as they were and starts nothing.
+  if (!(await confirmBigBox(bigBoxInput.value))) {
+    chains.value = before.chains;
+    lastBox.value = before.lastBox;
+    mode.value = before.mode;
+    ascFollows.value = before.ascFollows;
+    suggestFrom.value = before.suggestFrom;
+    return;
+  }
+  await start(false, 'boxes', true);
 }
 const atCeiling = computed(
   () => !!best.value && best.value.chain[best.value.chain.length - 1] >= (result.value!.ceiling ?? result.value!.lastHi)

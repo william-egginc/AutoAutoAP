@@ -289,14 +289,15 @@ export function readUploadCsv(text: string): UploadCsv {
 function readInventory(cell: string, out: UploadCsv): void {
   const [artifactPart, stonePart] = cell.split(/;\s*stones:\s*/);
   if (artifactPart && artifactPart !== 'empty') {
+    // ' · ' since 18 Oct 2026 (no commas in a comment line, for Numbers and Excel); ',' before.
     out.artifacts = artifactPart
-      .split(',')
+      .split(/[,·]/)
       .map(s => s.trim())
       .filter(s => /^T\d/.test(s));
   }
   if (stonePart) {
     out.stones = stonePart
-      .split(',')
+      .split(/[,·]/)
       .map(s => /^(\d+)x (.+)$/.exec(s.trim()))
       .filter((m): m is RegExpExecArray => !!m)
       .map(m => ({ label: m[2], count: Number(m[1]) }));

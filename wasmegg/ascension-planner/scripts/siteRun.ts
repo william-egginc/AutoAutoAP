@@ -25,6 +25,7 @@
 import { createWriteStream, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createGzip } from 'node:zlib';
+import { createInterface } from 'node:readline';
 import { Worker as NodeWorker } from 'node:worker_threads';
 import { getHeapStatistics } from 'node:v8';
 import { freemem, totalmem } from 'node:os';
@@ -41,7 +42,7 @@ import { hashID } from '@/lib/storage/db';
 import { scrubIdentifiers } from '@/search/submission';
 import { countBanded, formatBands, formatHours } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
-import { bigBoxNote } from '@/search/bigBox';
+import { bigBoxNote, cliConfirmBigBox, type BigBoxInput } from '@/search/bigBox';
 import { coverageAfterText, coverageBeforeText } from '@/search/bandCheck';
 import { byDatePlan, estimateNote, fallbackWorkerSecondsPerLeg, roundedRoutes } from '@/search/deadlineEstimate';
 import { buildOfflineSubmission, CSV_FILE, edgeLines, SUBMISSION_FILE, type OfflineKind } from '@/search/offline';
@@ -115,6 +116,8 @@ export interface SiteRunOptions {
   resume: boolean;
   /** Say what would run, and about how long it takes on the board's typical speeds, then stop. */
   dryRun: boolean;
+  /** `--yes`: start a box above 100,000 routes without asking (search/bigBox.ts `cliConfirmBigBox`). */
+  yes: boolean;
   /** Called with the run's state as it changes, so the directory can say "running", "stopped"... */
   onStatus?: (status: 'running' | 'stopped' | 'done' | 'failed') => void;
 }
@@ -264,7 +267,25 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
   if (o.out) console.log(`    files for \`submit --from\` go to ${o.out.dir}`);
   if (o.dryRun) return dryRun(o, store);
   // A box above 300,000 routes says so once, before anything runs (search/bigBox.ts), as --dry-run does.
-  for (const line of bigBoxLines(o, store)) console.log(`  ${line}`);
+  const noteLines = bigBoxLines(o, store);
+  for (const line of noteLines) console.log(`  ${line}`);
+  // Above 100,000 routes it asks first (once, on the whole run's box, a carried-on one too), and again
+  // above 500,000; --yes skips both, and input that is not a terminal needs --yes (search/bigBox.ts).
+  const box = runBigBoxInput(o, store);
+  if (box) {
+    const asked = await cliConfirmBigBox(box, {
+      yes: o.yes,
+      dryRun: o.dryRun,
+      interactive: !!process.stdin.isTTY,
+      textShown: noteLines.length > 0 && (o.kind !== 'full' || o.sweeps.length === 1),
+      prompt: askLine,
+      print: line => console.log(`  ${line}`),
+    });
+    if (!asked.go) {
+      console.error(asked.message);
+      return 1;
+    }
+  }
   const partition = await hashID(o.account);
 
   // Progress, every 15 seconds and whenever the stage changes.
@@ -430,26 +451,70 @@ function sweepLabel(sp: FullSweep): string {
  * words), or null: the routes and time `--dry-run` prints for the box, so the two agree.
  */
 function sweepBigBox(o: SiteRunOptions, store: Store, sp: FullSweep): string | null {
+  return bigBoxNote(sweepBigBoxInput(o, store, sp));
+}
+function sweepBigBoxInput(o: SiteRunOptions, store: Store, sp: FullSweep): BigBoxInput {
   const workers = store.workerBudget;
   const chains = sweepRoutes(o, store, sp);
-  return bigBoxNote({
+  return {
     routes: chains,
     seconds: sweepSeconds(chains, workers, workerSecondsPerChain(sp.asc)),
     workers,
     basis: `the board's typical speed for ${sp.asc}-ascension routes`,
     where: 'cli',
-  });
+  };
 }
 function byDateBigBox(o: SiteRunOptions, store: Store): string | null {
+  const input = byDateBigBoxInput(o, store);
+  return input ? bigBoxNote(input) : null;
+}
+function byDateBigBoxInput(o: SiteRunOptions, store: Store): BigBoxInput | null {
   if (!o.chains || !o.lastRange) return null;
   const plan = byDatePlanFor(o, store);
-  return bigBoxNote({
+  return {
     routes: roundedRoutes(plan.routes),
     approximate: true,
     seconds: plan.seconds,
     workers: store.workerBudget,
     basis: store.deadlineWorkerSeconds ? "this machine's last deadline search" : "the board's typical speed",
     where: 'cli',
+  };
+}
+/**
+ * The whole run's box, for asking before it starts (search/bigBox.ts `cliConfirmBigBox`): By a date's,
+ * or every queued Full sweep box added up (routes and hours), as the site's Start asks on all the boxes
+ * one click runs. Null for Smart search, which is not a box.
+ */
+function runBigBoxInput(o: SiteRunOptions, store: Store): BigBoxInput | null {
+  if (o.kind === 'by-date') return byDateBigBoxInput(o, store);
+  if (o.kind !== 'full' || !o.sweeps.length) return null;
+  const parts = o.sweeps.map(sp => sweepBigBoxInput(o, store, sp));
+  if (parts.length === 1) return parts[0];
+  return {
+    ...parts[0],
+    routes: parts.reduce((n, p) => n + p.routes, 0),
+    seconds: parts.reduce((n, p) => n + (p.seconds ?? 0), 0),
+    basis: "the board's typical speeds for routes of these lengths",
+  };
+}
+
+/** One line from the terminal, for `Continue? [y/N]`. Ctrl+C or the input ending is an empty answer (no). */
+function askLine(question: string): Promise<string> {
+  return new Promise(resolve => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    let done = false;
+    const finish = (answer: string) => {
+      if (done) return;
+      done = true;
+      rl.close();
+      resolve(answer);
+    };
+    rl.on('SIGINT', () => {
+      process.stdout.write('\n');
+      finish('');
+    });
+    rl.on('close', () => finish(''));
+    rl.question(question, finish);
   });
 }
 /** Every big box of the run, labelled when a Full sweep queues more than one. */

@@ -9,7 +9,7 @@
  *     code before the gate gave (pinned below from a build of ascension-chain-search c97f2423).
  *
  * The save is read where it is (never copied into the repo): LOWTE_SAVE, or the alt's backup in
- * ~/code/aap-private. SKIPPED when it is absent. About a minute when it runs.
+ * ~/code/aap-private. SKIPPED when it is absent, and unless AAP_SLOW_SPECS=1. About a minute when it runs.
  */
 import '../../scripts/node-shims';
 
@@ -80,7 +80,10 @@ const BEFORE_GATE: Record<string, { key: string; seconds: number; preC3Seconds: 
   '400@131': { key: '1-sale', seconds: 10211115.452676805, preC3Seconds: 1824.4548021566807, shiftCount: 12 },
 };
 
-describe.skipIf(!hasSave)('low-TE opening on a real save', () => {
+// SLOW (minutes of full simulation) and timing-sensitive: on a loaded machine it ran past its caps and failed
+// the suite (18 Oct 2026), so it runs only when asked, and only where the save is:
+//   AAP_SLOW_SPECS=1 npx vitest run src/auto/lowTeOpening.save.spec.ts
+describe.skipIf(!hasSave || !process.env.AAP_SLOW_SPECS)('low-TE opening on a real save', () => {
   let inputs: SearchInputs;
 
   beforeAll(async () => {

@@ -1136,7 +1136,8 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
 import BigBoxNote from './BigBoxNote.vue';
-import { bigBoxNote } from '@/search/bigBox';
+import { bigBoxNote, type BigBoxInput } from '@/search/bigBox';
+import { confirmBigBox } from '@/composables/useBigBoxConfirm';
 import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
 import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
@@ -1596,6 +1597,8 @@ async function widenAndRun(): Promise<void> {
   const w = edgeWiden.value;
   const sp = store.searchSpace;
   if (!w || !sp?.bands || store.busy) return;
+  // The wider box asks first when it is big, before the boxes on screen change (search/bigBox.ts).
+  if (!(await confirmBigBox(bigBoxInputFor(w.chains)))) return;
   const was = formatBands(sp.bands);
   const k = extraChains.value.findIndex((_, i) => formatBands(extraBands(i)) === was);
   if (formatBands(bands.value) !== was && k >= 0) {
@@ -1884,20 +1887,21 @@ const tooBig = computed(() => chainCount.value > 0 && hours.value > TOO_BIG_HOUR
  * Routes it will run and the hours shown as Est. wall clock, with what the speed came from. Before a
  * run only: during one the time left is the run's own.
  */
-const bigBox = computed(() =>
-  runLeft.value
-    ? null
-    : bigBoxNote({
-        routes: totalChains.value,
-        seconds: hours.value * 3600,
-        workers: store.workerBudget,
-        basis: measuredCost.value
-          ? `${store.rateSource === 'benchmark' ? 'benchmarked' : 'measured'} on ${thisDevice()}`
-          : speedSourceLabel.value,
-        device: thisDevice(),
-        where: 'site',
-      })
-);
+const bigBox = computed(() => (runLeft.value ? null : bigBoxNote(bigBoxInputFor(totalChains.value))));
+/** The note's figures for a box of `routes` (the count on screen, or Widen and run again's wider box):
+ *  the hours as Est. wall clock works them out, what the speed came from. What Start asks with too. */
+function bigBoxInputFor(routes: number): BigBoxInput {
+  return {
+    routes,
+    seconds: sweepSeconds(routes, store.workerBudget, workerSeconds.value),
+    workers: store.workerBudget,
+    basis: measuredCost.value
+      ? `${store.rateSource === 'benchmark' ? 'benchmarked' : 'measured'} on ${thisDevice()}`
+      : speedSourceLabel.value,
+    device: thisDevice(),
+    where: 'site',
+  };
+}
 
 onMounted(() => {
   void store.refreshSavedRuns(props.playerId);
@@ -1958,6 +1962,9 @@ const findAndSubmit = ref(false);
 
 /** Find; with `andSubmit`, each finished result is sent as Share this result would send it. */
 async function start(andSubmit = false): Promise<void> {
+  // Above 100,000 routes (all the boxes this click runs) it asks first, before anything is set: a
+  // Cancel starts nothing and leaves nothing behind (search/bigBox.ts, BigBoxConfirm.vue).
+  if (!(await confirmBigBox(bigBoxInputFor(totalChains.value)))) return;
   findAndSubmit.value = andSubmit && optIn.value;
   store.lastAutoSend = null;
   // The sweep link has done its job: later visits to this screen (and reloads) start from the
