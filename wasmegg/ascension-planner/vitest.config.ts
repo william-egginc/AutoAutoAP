@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
+  // Compiles .vue files for the server-render specs (src/components/instant/*.spec.ts).
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname,

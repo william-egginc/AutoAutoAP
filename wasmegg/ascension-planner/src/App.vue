@@ -77,6 +77,17 @@
                     >BETA</span
                   >
                 </button>
+                <button
+                  class="px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-300 flex items-center gap-2"
+                  :class="
+                    plannerTab === 'myruns'
+                      ? 'bg-slate-900 text-white shadow-lg shadow-slate-200'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                  "
+                  @click="plannerTab = 'myruns'"
+                >
+                  My runs
+                </button>
               </div>
             </div>
 
@@ -417,6 +428,10 @@
         <AutomaticPlanner />
       </div>
 
+      <div v-else-if="plannerTab === 'myruns' && playerId && !loading">
+        <MyRunsTab @simulate="simulateFromInstant" />
+      </div>
+
       <!-- Undo Confirmation Dialog -->
       <UndoConfirmationDialog
         v-if="undoAction"
@@ -542,6 +557,9 @@ import LoadingOverlay from '@/components/LoadingOverlay.vue';
 import PlanLibrary from '@/components/PlanLibrary.vue';
 import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import AutomaticPlanner from '@/components/auto/AutomaticPlanner.vue';
+import MyRunsTab from '@/components/instant/MyRunsTab.vue';
+import { requestSimulate, type SimulateRequest } from '@/instant/simulatePlan';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useSalesStore } from '@/stores/sales';
 import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
 import { useActionExecutor } from '@/composables/useActionExecutor';
@@ -884,6 +902,13 @@ async function handleRefreshReconcile() {
   } finally {
     loading.value = false;
   }
+}
+
+/** My runs' "Simulate this plan": the route into the Auto Planner's form, then the Auto tab as its own
+ *  button opens it; the planner runs it when it mounts (instant/simulatePlan.ts). */
+function simulateFromInstant(req: SimulateRequest) {
+  requestSimulate(useAutoPlannerStore(), req);
+  void handleAutoPlannerTabClick();
 }
 
 async function handleAutoPlannerTabClick() {
