@@ -91,6 +91,7 @@
         <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop &amp; keep best</template>
       </button>
     </div>
+    <p v-if="running && stopping" class="text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
     <p
       v-if="bestSoFarHere && store.bestSoFarStatus"
       class="text-[11px] font-semibold"
@@ -219,6 +220,7 @@ import { scrollToRun, type RunAnchorKind } from '@/lib/runAnchor';
 import AnimatedDots from './AnimatedDots.vue';
 import RunNoteBox from './RunNoteBox.vue';
 import SendingText from './SendingText.vue';
+import { STOPPING_NOTE } from '@/search/stopNote';
 import ShareExtras from './ShareExtras.vue';
 import ConsentSummary from './ConsentSummary.vue';
 import ConsentBox from './ConsentBox.vue';

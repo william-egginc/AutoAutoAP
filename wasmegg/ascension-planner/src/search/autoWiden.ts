@@ -355,6 +355,48 @@ export function betterRoute(
   return d > 0 || (d === 0 && a.spare >= b.spare);
 }
 
+/**
+ * Where the instant answer would be, with none for the player's TE (components/auto/NoInstantAnswer.vue;
+ * Jordan, 18 Oct 2026): one button that runs this whole fallback, the same as Find on Nearby routes with
+ * no instant answer (DeadlinePanel.vue `start`, then `findWithoutInstant`).
+ */
+export const QUICK_ESTIMATE_LABEL = 'Get a quick estimate (about 10-15 min)';
+
+/** The card's heading: below the table's lowest TE (`tableFrom`, the table header's `from`), or no table
+ *  for another reason (null). */
+export function noInstantHeading(tableFrom: number | null): string {
+  return tableFrom !== null && tableFrom > 0
+    ? `No instant answer below TE ${tableFrom}.`
+    : 'No instant answer for your TE yet.';
+}
+
+/** The Instant answer section's folded summary when it settled with none (it said "working out…"). */
+export const NO_INSTANT_SUMMARY = 'none for your TE';
+
+/** Why Get a quick estimate is greyed out, or '' when it can start. In this order: Your setup still
+ *  loading, another run (or Find waiting on the instant answer), a save problem, then whatever Nearby
+ *  routes' own Find would refuse (`aroundIssue`, or no date yet). */
+export function quickEstimateIssue(o: {
+  setupLoaded: boolean;
+  busy: boolean;
+  blocked: boolean;
+  canStart: boolean;
+  issue: string;
+}): string {
+  if (!o.setupLoaded) return 'Waiting for your setup to load…';
+  if (o.busy) return 'Another search is running; this can start once it ends.';
+  if (o.blocked) return 'Your save needs a look first (see the note above).';
+  if (!o.canStart) return o.issue || 'Pick a date and time first.';
+  return '';
+}
+
+/** Under the quick estimate's best route: it was a quick look, and what looks further. */
+export function quickEstimateNote(canWiden: boolean): string {
+  return canWiden
+    ? 'This is a quick estimate: Widen and run again looks further.'
+    : 'This is a quick estimate: Exhaustive looks further, in boxes you set.';
+}
+
 /** The plain note beside an answer the fallback found (`SavedDeadlineResult.fallback`). */
 export function autoFallbackNote(f: DeadlineFallback): string {
   const from = f.scanned ? 'started from a quick scan' : 'started from your last answer';

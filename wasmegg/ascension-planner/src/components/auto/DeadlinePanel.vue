@@ -136,7 +136,62 @@
         @check="checkByDate"
         @routes="onInstantRoutes"
         @state="st => (instantLoad = st)"
-      />
+      >
+        <!-- No instant answer for this TE (NoInstantAnswer.vue): the fallback's own button, the same run as
+             Find on Nearby routes without one (`start`, then `findWithoutInstant`; Jordan, 18 Oct 2026). -->
+        <template #no-answer>
+          <div class="space-y-2" data-testid="quick-estimate">
+            <template v-if="quickBest && result">
+              <ByDateRouteCard :route="quickBest" :deadline="result.deadline" :zone="plannerZone" />
+              <p class="text-[11px] text-slate-700 leading-relaxed" data-testid="quick-estimate-note">
+                {{ quickEstimateNote(!!edges.length && !!edgeWiden) }}
+              </p>
+            </template>
+            <template v-if="quickRunning">
+              <p class="text-[11px] font-semibold text-slate-700" data-testid="quick-estimate-status">
+                {{ quickStatus }}
+              </p>
+              <button
+                type="button"
+                class="min-h-[44px] px-4 rounded-lg border border-slate-400 bg-white text-[11px] font-black uppercase tracking-widest text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                :disabled="stopAsked"
+                data-testid="quick-estimate-stop"
+                @click="stopDeadline"
+              >
+                <SendingText v-if="stopAsked" text="Stopping" /><template v-else>Stop and keep the best</template>
+              </button>
+              <p v-if="stopAsked" class="text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
+            </template>
+            <template v-else>
+              <p v-if="!quickBest" class="text-[12px] text-slate-700 leading-relaxed">
+                A quick scan of 1 to 5 ascensions, then {{ NAMES.smart }} near its best, held to about
+                {{ Math.round(FALLBACK_BUDGET_SECONDS / 60) }} min on {{ thisDevice() }}. Stop keeps the best route so far.
+              </p>
+              <button
+                type="button"
+                class="min-h-[44px] px-4 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+                :disabled="!!quickIssue"
+                data-testid="quick-estimate-button"
+                @click="quickEstimate"
+              >
+                {{ QUICK_ESTIMATE_LABEL }}
+              </button>
+              <p v-if="quickIssue" class="text-[11px] font-semibold text-slate-600" data-testid="quick-estimate-issue">
+                {{ quickIssue }}
+              </p>
+            </template>
+            <button
+              v-if="quickRunning || quickBest"
+              type="button"
+              class="min-h-[44px] text-[11px] font-bold text-indigo-700 underline hover:text-indigo-900"
+              data-testid="quick-estimate-show"
+              @click="showQuickRun"
+            >
+              {{ quickRunning ? 'Show its progress' : `See it under ${NAMES.smart}` }}
+            </button>
+          </div>
+        </template>
+      </InstantRoute>
     </CollapsibleSection>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
@@ -596,6 +651,7 @@
           >
             <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
           </button>
+          <p v-if="store.isRunning && store.stopRequested" class="w-full text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
         </div>
         <RunErrorNotes
           v-if="reportKind === k"
@@ -882,8 +938,11 @@ import {
 import { defaultWorkerCount } from '@/search/batch';
 import { findBandEdges, noInstantAnswerText, widenEdges, type BandEdge } from '@/search/bandCheck';
 import {
+  FALLBACK_BUDGET_SECONDS,
   INSTANT_TIMEOUT_STATUS,
   INSTANT_WAIT_STATUS,
+  NO_INSTANT_SUMMARY,
+  QUICK_ESTIMATE_LABEL,
   QUICK_SCAN_STATUS,
   afterScanStatus,
   autoFallbackNote,
@@ -892,6 +951,8 @@ import {
   canCentreOn,
   nearbyBudgetSeconds,
   needsQuickScan,
+  quickEstimateIssue,
+  quickEstimateNote,
   quickScanSpec,
   roundChains,
   roundFits,
@@ -906,6 +967,7 @@ import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
 import ShareStatus from './ShareStatus.vue';
 import SendingText from './SendingText.vue';
+import { STOPPING_NOTE } from '@/search/stopNote';
 import { useByDateShare, useShareIdentity } from '@/composables/useShareResult';
 import { useShareExtras } from '@/composables/useShareExtras';
 import { agreeThisVisit } from '@/composables/useConsent';
@@ -942,7 +1004,7 @@ import {
 } from '@/search/byDateKinds';
 import CollapsibleSection from './CollapsibleSection.vue';
 import SearchTabs from './SearchTabs.vue';
-import { selectSearchTab, type SearchTabId } from '@/lib/searchTab';
+import { scrollToShownId, selectSearchTab, type SearchTabId } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { routeLine } from '@/search/sectionSummary';
 import SearchCompare from './SearchCompare.vue';
@@ -1214,7 +1276,12 @@ function weightedSecondsPerLeg(sp: SimpleSpace): number {
 // Each search's latest answer (stores/stronger.ts lastSearch), for the comparison block.
 useSearchSnapshots('date');
 const lines = computed(() => ({
-  instant: routeLine('date', stronger.instant.date, inPlannerZone, 'working out…'),
+  instant: routeLine(
+    'date',
+    stronger.instant.date,
+    inPlannerZone,
+    instantLoad.value === 'none' ? NO_INSTANT_SUMMARY : 'working out…'
+  ),
 }));
 /** The fallback's Nearby routes: how long its boxes may take on this machine; null otherwise. */
 const fallbackSeconds = ref<number | null>(null);
@@ -2296,6 +2363,45 @@ function boxesSeconds(rows: { asc: number; text: string }[], lastBox: string): n
 }
 /** Stop pressed during the fallback: no further run starts (the store's own flag resets each run). */
 const autoStop = ref(false);
+
+/**
+ * Get a quick estimate, where the instant answer would be (NoInstantAnswer.vue): exactly Find on Nearby
+ * routes with no instant answer, with no send (`start`, which goes to `findWithoutInstant`). Nothing new
+ * runs here; the card reads the same status line and answer the Nearby routes box shows.
+ */
+const quickIssue = computed(() =>
+  quickEstimateIssue({
+    setupLoaded: store.setupLoaded,
+    busy: store.busy || !!instantWait.value,
+    blocked: store.integrityBlocked || store.staleBackupBlocked,
+    canStart: canStartAround.value,
+    issue: aroundIssue.value,
+  })
+);
+function quickEstimate(): void {
+  if (quickIssue.value) return;
+  void start(false, 'around');
+}
+/** Nearby routes' run going (or Find waiting on the instant answer for it): with no instant answer, the
+ *  fallback. */
+const quickRunning = computed(() => runKind.value === 'around');
+const quickStatus = computed(
+  () =>
+    instantWait.value ||
+    autoStatus.value ||
+    `${NAMES.smart} is checking the routes near your last answer. Stop keeps the best route so far…`
+);
+/** The fallback's answer (`fallback` on the result), once it is done. */
+const quickBest = computed(() => {
+  const r = result.value as SavedDeadlineResult | null;
+  return r?.fallback && resultKind.value === 'around' && !store.deadlineRunning ? best.value : null;
+});
+/** The Nearby routes tab, at its run or its answer. */
+function showQuickRun(): void {
+  selectSearchTab('by-date', 'nearby');
+  void nextTick(() => scrollToShownId(quickRunning.value ? 'bd-around-controls' : 'bd-around-results'));
+}
+
 async function findWithoutInstant(timedOut = false): Promise<void> {
   autoStop.value = false;
   /** The whole fallback is held to about 15 min on this machine (search/autoWiden.ts). */

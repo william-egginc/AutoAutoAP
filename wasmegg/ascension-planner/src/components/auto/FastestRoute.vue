@@ -29,7 +29,13 @@
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
          Check exactly prices them on your save; its stronger check shows in the Search nearby tab. -->
     <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant">
-      <InstantRoute stronger-to="#stronger-check-results" @check="checkExactly" />
+      <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). -->
+      <InstantRoute
+        stronger-to="#stronger-check-results"
+        @check="checkExactly"
+        @state="st => (instantLoad = st)"
+        @by-date="emit('by-date')"
+      />
     </CollapsibleSection>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
@@ -82,7 +88,7 @@
 
 <script setup lang="ts">
 import { thisDevice } from '@/search/device';
-import { computed, nextTick, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
@@ -92,6 +98,7 @@ import SearchTabs from './SearchTabs.vue';
 import { revealRunTab, selectSearchTab, type SearchTabId } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { routeLine } from '@/search/sectionSummary';
+import { NO_INSTANT_SUMMARY, type InstantState } from '@/search/autoWiden';
 import { showDateTime } from '@/lib/displayTime';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import SearchCompare from './SearchCompare.vue';
@@ -114,7 +121,12 @@ const props = defineProps<{
   /** The running search's name when it runs on another screen: the searches are shown greyed out. */
   blockedBy: string;
 }>();
-const emit = defineEmits<{ 'update:depth': [depth: Depth]; goal: [goal: 'fastest' | 'deadline'] }>();
+const emit = defineEmits<{
+  'update:depth': [depth: Depth];
+  goal: [goal: 'fastest' | 'deadline'];
+  /** No instant answer here: By a date, for its quick estimate (NoInstantAnswer.vue). */
+  'by-date': [];
+}>();
 
 const store = useChainSearchStore();
 const ui = useUIStore();
@@ -124,8 +136,15 @@ const stronger = useStrongerStore();
 useSearchSnapshots('fastest');
 const planner = useAutoPlannerStore();
 const show = (u: number) => showDateTime(u, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+/** InstantRoute's `state`: still being worked out, in, or settled with none (then the summary says so). */
+const instantLoad = ref<InstantState>('loading');
 const lines = computed(() => ({
-  instant: routeLine('fastest', stronger.instant.fastest, show, 'working out…'),
+  instant: routeLine(
+    'fastest',
+    stronger.instant.fastest,
+    show,
+    instantLoad.value === 'none' ? NO_INSTANT_SUMMARY : 'working out…'
+  ),
 }));
 /** What each Nearby routes level would cost on this computer (store `smartEstimate`). */
 const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>(() => {
