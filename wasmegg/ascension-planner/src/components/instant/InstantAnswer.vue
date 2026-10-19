@@ -19,7 +19,7 @@
           v-for="g in goals"
           :key="g.value"
           type="button"
-          class="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.12em] transition-all"
+          class="px-3 py-1.5 max-sm:min-h-[44px] rounded-xl text-[10px] font-black uppercase tracking-[0.12em] transition-all"
           :class="goal === g.value ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-600'"
           :data-testid="`instant-goal-${g.value}`"
           @click="goal = g.value"
