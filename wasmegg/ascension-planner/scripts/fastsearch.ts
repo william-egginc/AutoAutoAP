@@ -533,6 +533,10 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
                             one; a different command in the same DIR is refused.
   --fresh                   With --out: throw away DIR's checkpoint and start again.
   --dry-run                 Say what would run (spaces, chain counts, about how long) and stop.
+  --yes                     Start a box above 100,000 routes without asking. Without it a real run
+                            asks "Continue? [y/N]" first (a second time above 500,000 routes), once,
+                            on the whole run's box; with input that is not a terminal it stops and
+                            says to add --yes. --dry-run never asks.
   --plain-csv               With --out: also write run.csv, uncompressed.
   --no-submit-csv           With --out/--submit: leave the table out of the send.
   --jobs N                  Worker threads. Default: your cores minus one, at most 12 (see the
@@ -560,6 +564,7 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
   --yes                     Needed to send to any collector that is not localhost/127.0.0.1, with
                             --submit or \`submit\`. Without it the send is refused (non-zero exit,
                             before a search starts) and nothing leaves this machine.
+                            (The same --yes also starts a big box without asking: see above.)
   --state FILE              Where the account's owner code is kept between runs, so your sends
                             fold together and can be renamed later, as a browser keeps it.
                             (default ~/.config/autoautoap/cli-state.json). Send from one machine, or
@@ -1949,6 +1954,7 @@ function siteOptions(o: {
     top: +(arg('top', '10')!),
     resume: has('out') && !has('dry-run'),
     dryRun: has('dry-run'),
+    yes: has('yes'),
     onStatus: has('dry-run') ? undefined : outStatus,
   };
 }

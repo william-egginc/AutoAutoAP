@@ -35,22 +35,28 @@ describe('the Exhaustive panels', () => {
   it('Fastest (InsanePanel): Routes it will run and Est. wall clock, before a run', () => {
     const src = read('./InsanePanel.vue');
     expect(src).toContain('<BigBoxNote :note="bigBox" />');
+    expect(src).toContain(
+      'const bigBox = computed(() => (runLeft.value ? null : bigBoxNote(bigBoxInputFor(totalChains.value))));'
+    );
     expect(src).toMatch(
-      /const bigBox = computed\(\(\) =>\s+runLeft\.value\s+\? null\s+: bigBoxNote\(\{\s+routes: totalChains\.value,\s+seconds: hours\.value \* 3600,\s+workers: store\.workerBudget,/
+      /function bigBoxInputFor\(routes: number\): BigBoxInput \{\s+return \{\s+routes,\s+seconds: sweepSeconds\(routes, store\.workerBudget, workerSeconds\.value\),\s+workers: store\.workerBudget,/
     );
     // The count it shows as Routes it will run, and the hours behind Est. wall clock.
     expect(src).toContain('const n = runLeft.value ? runLeft.value.chainsTotal : totalChains.value;');
     expect(src).toContain(
       'const hours = computed(() => sweepSeconds(totalChains.value, store.workerBudget, workerSeconds.value) / 3600);'
     );
-    expect(src).toMatch(/bigBoxNote\(\{[\s\S]{0,400}where: 'site'/);
+    expect(src).toMatch(/function bigBoxInputFor[\s\S]{0,500}where: 'site'/);
   });
   it('By a date (DeadlinePanel): the ~N routes and Est. wall clock, before a run', () => {
     const src = read('./DeadlinePanel.vue');
     expect(src).toContain('<BigBoxNote :note="bigBox" />');
     expect(src).toContain("~{{ plural(roundedRoutes(plannedRoutes), 'route') }}");
+    expect(src).toContain(
+      'const bigBox = computed(() => (store.deadlineRunning || !plannedLegs.value ? null : bigBoxNote(bigBoxInput.value)));'
+    );
     expect(src).toMatch(
-      /const bigBox = computed\(\(\) =>\s+store\.deadlineRunning \|\| !plannedLegs\.value\s+\? null\s+: bigBoxNote\(\{\s+routes: roundedRoutes\(plannedRoutes\.value\),\s+approximate: true,\s+seconds: plan\.value\.seconds,/
+      /const bigBoxInput = computed<BigBoxInput>\(\(\) => \(\{\s+routes: roundedRoutes\(plannedRoutes\.value\),\s+approximate: true,\s+seconds: plan\.value\.seconds,/
     );
     expect(src).toContain("return plannedLegs.value ? formatHours(plan.value.seconds / 3600) : '—';");
     // Inside Exhaustive's estimate box, not Nearby routes'.

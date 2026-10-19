@@ -19,6 +19,8 @@
       />
       <!-- A blocked account says so the moment its save loads, not after the form is filled in. -->
       <IntegrityAlert />
+      <!-- Starting a box above 100,000 routes asks first (search/bigBox.ts): one dialog for every start. -->
+      <BigBoxConfirm />
 
       <!-- The header, in three parts that always sit in this order (the user, 14 Oct): the title, backup and Player ID (folds
            away), the site tabs and the chevron (never fold), then what folds on Manual: the plan library and the action
@@ -776,6 +778,7 @@ import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
+import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { setConsentAccount } from '@/composables/useConsent';

@@ -310,9 +310,9 @@ export function describeVirtueInventory(rawBackup: unknown): string {
   const { artifacts, stones } = virtueInventory(rawBackup);
   const parts: string[] = [];
   const best = bestPerFamily(keepVirtueArtifacts(artifacts));
-  if (best.length) parts.push(best.map(x => x.label).join(', '));
+  if (best.length) parts.push(best.map(x => x.label).join(' · '));
   const keptStones = keepVirtueStones(stones);
-  if (keptStones.length) parts.push(`stones: ${keptStones.map(x => `${x.count}x ${x.label}`).join(', ')}`);
+  if (keptStones.length) parts.push(`stones: ${keptStones.map(x => `${x.count}x ${x.label}`).join(' · ')}`);
   return parts.length ? parts.join('; ') : 'empty';
 }
 
@@ -387,15 +387,15 @@ export function firstLegLine(leg: LegSummary | null | undefined, tz: string, mod
   const continued = kind !== 'fresh';
   const what =
     kind === 'continue'
-      ? 'continue (finishes the ascension in progress, buying nothing more)'
+      ? 'continue (finishes the ascension in progress; buys nothing more)'
       : kind === 'buildup'
-        ? `build-up (carries on the build in progress, ${leg.buildPhaseSaleCount ?? '?'}-sale)`
-        : `fresh (${leg.key} build, prestige now)`;
+        ? `build-up (carries on the build in progress · ${leg.buildPhaseSaleCount ?? '?'}-sale)`
+        : `fresh (${leg.key} build · prestige now)`;
   const r = leg.firstLegRival;
   const later = firstLegOtherLaterHours(leg);
   let other: string;
   if (leg.replayed) {
-    other = 'the other way unknown (this route was replayed from a saved checkpoint, which keeps no leg detail)';
+    other = 'the other way unknown (this route was replayed from a saved checkpoint: it keeps no leg detail)';
   } else if (r && later !== null) {
     const otherWhat =
       r.key === 'continue'
@@ -405,7 +405,7 @@ export function firstLegLine(leg: LegSummary | null | undefined, tz: string, mod
           : `the best fresh build (${r.key})`;
     const at = formatInZone(r.endTime, tz);
     other = at
-      ? `${otherWhat} would have ended leg 1 ${at}, ${Math.abs(later).toFixed(1)} h ${later >= 0 ? 'later' : 'earlier'}`
+      ? `${otherWhat} would have ended leg 1 ${at} (${Math.abs(later).toFixed(1)} h ${later >= 0 ? 'later' : 'earlier'})`
       : `${otherWhat} would never have ended leg 1`;
   } else if (continued) {
     other =
@@ -416,7 +416,7 @@ export function firstLegLine(leg: LegSummary | null | undefined, tz: string, mod
     other =
       mode === 'fresh'
         ? 'continue not simulated (Prestige Now)'
-        : 'continue not simulated (no farm in the save, a plan start over an hour ahead, or time off at the start)';
+        : 'continue not simulated (no farm in the save · a plan start over an hour ahead · or time off at the start)';
   }
   return `first leg (best route): ${what}; ${other}`;
 }
@@ -513,9 +513,9 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   note(count);
   for (const line of searchedCsvLines(meta.searched)) note(line);
   note('');
-  note('artifacts and stones — fixed for the whole run, never varied by the search.');
-  note('The simulator re-optimises the equipped set inside each leg, so what matters is what it');
-  note('had to choose FROM, not what happened to be equipped when the backup was taken.');
+  note('artifacts and stones — fixed for the whole run; never varied by the search.');
+  note('The simulator re-optimises the equipped set inside each leg: what matters is what it');
+  note('had to choose FROM (not what happened to be equipped when the backup was taken).');
   if (meta.inventory) note(`  virtue inventory: ${meta.inventory}`);
   for (const { label, loadout } of meta.loadouts) note(`  ${label}: ${describeLoadout(loadout)}`);
   note('  ("equipped" is empty whenever you are not mid-virtue-ascension. That is normal and');
@@ -582,8 +582,8 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
 
   const firstLeg = firstLegLine(ranked[0]?.legs[0], tz, meta.firstAscension);
   if (firstLeg) note(firstLeg);
-  note('One row per leg. Blank per-leg cells mean the chain was replayed from a saved checkpoint,');
-  note('which keeps per-leg detail for the best chain only — the total is still exact.');
+  note('One row per leg. Blank per-leg cells mean the chain was replayed from a saved checkpoint:');
+  note('it keeps per-leg detail for the best chain only — the total is still exact.');
   note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
 
   lines.push(COLUMNS.join(','));
@@ -701,7 +701,7 @@ export const DEADLINE_PRICED_COLUMNS = [
 ] as const;
 
 /** The line that starts the summary section (a comment, so position-based readers skip it). */
-export const PRICED_SECTION_LINE = '# every route priced, one summary line each';
+export const PRICED_SECTION_LINE = '# every route priced: one summary line each';
 
 /**
  * The order of the summary lines: the routes that make the date first (highest last stop, then most
@@ -764,18 +764,18 @@ export function* deadlineCsvChunks(
     [
       `highest TE by ${formatInZone(info.deadline, tz)} (${tz}); plan start ${formatInZone(meta.planStart, tz)} at ${meta.currentTE} TE`,
     ],
-    `${info.priced} routes priced${info.stoppedEarly ? ', stopped early' : ''}${info.ascendNeeded ? '; must ascend at the last stop in awake hours' : ''}`
+    `${info.priced} routes priced${info.stoppedEarly ? '; stopped early' : ''}${info.ascendNeeded ? '; must ascend at the last stop in awake hours' : ''}`
   );
   const note = (s: string) => lines.push(`# ${s}`);
   const firstLeg = firstLegLine(routes[0]?.legs?.[0], tz, meta.firstAscension);
   if (firstLeg) note(firstLeg);
-  note('One row per leg of each kept route (the same leg columns as the chain search), best route first.');
+  note('One row per leg of each kept route (the same leg columns as the chain search); best route first.');
   if (routes.slice(0, withLegs).some(r => r.legs?.some(l => l.replayed)))
     note(
-      'Some routes were replayed from a saved checkpoint (the run was carried on): their legs keep strategy, end and duration only, with blank start, peak delivery, shifts and first-leg cells.'
+      'Some routes were replayed from a saved checkpoint (the run was carried on): their legs keep only strategy · end · duration; their start · peak delivery · shifts · first-leg cells are blank.'
     );
   note(
-    "rank, route, stops, last_stop, reached_local, ascend_from_local and spare_hours repeat on each of a route's rows."
+    "rank · route · stops · last_stop · reached_local · ascend_from_local · spare_hours repeat on each of a route's rows."
   );
   note(`total_days is plan start to the last stop; gap_days is days behind the earliest arrival in this file.`);
   if (all) {
@@ -783,7 +783,7 @@ export function* deadlineCsvChunks(
       `Kept routes are each set of early stops' best route that makes the date. Legs are written for the top ${withLegs} of ${Math.max(routes.length, info.kept ?? 0)}.`
     );
     note(
-      `After them, every route priced (${all.size}), those that miss the date too, has ONE summary line starting "${PRICED_ROW_TAG}", under its own column header.`
+      `After them every route priced (${all.size}; those that miss the date too) has ONE summary line starting "${PRICED_ROW_TAG}" under its own column header.`
     );
   } else if (routes.length > withLegs) {
     note(
@@ -870,8 +870,8 @@ function pricedSectionHead(lines: string[], inDeltas: boolean): void {
   );
   note(
     inDeltas
-      ? "makes_it: yes, doesn't make it, or couldn't be priced (then the times are blank). In this file so far the lines are in the order the routes were priced, not ranked; the final file ranks them."
-      : "makes_it: yes, doesn't make it, or couldn't be priced (then the times are blank). Routes that make it come first, then the rest, highest last stop first."
+      ? "makes_it: yes · doesn't make it · or couldn't be priced (then the times are blank). In this file so far the lines are in the order the routes were priced (not ranked); the final file ranks them."
+      : "makes_it: yes · doesn't make it · or couldn't be priced (then the times are blank). Routes that make it come first; then the rest; highest last stop first."
   );
   lines.push(DEADLINE_PRICED_COLUMNS.join(','));
 }

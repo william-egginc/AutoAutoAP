@@ -62,6 +62,20 @@ describe('readUploadCsv', () => {
     ]);
   });
 
+  it('reads the inventory written with " · " (18 Oct 2026: no commas in a comment line) as with ","', () => {
+    const now = CSV.replace(
+      'T4L Gusset, T4L Quantum metronome; stones: 5x T4 Quantum stone, 6x T4 Tachyon stone',
+      'T4L Gusset · T4L Quantum metronome; stones: 5x T4 Quantum stone · 6x T4 Tachyon stone'
+    );
+    expect(now).not.toBe(CSV);
+    const c = readUploadCsv(now);
+    expect(c.artifacts).toEqual(['T4L Gusset', 'T4L Quantum metronome']);
+    expect(c.stones).toEqual([
+      { label: 'T4 Quantum stone', count: 5 },
+      { label: 'T4 Tachyon stone', count: 6 },
+    ]);
+  });
+
   it('reads the first ascension: the old force-continue line, or the word written after it', () => {
     expect(readUploadCsv(CSV).firstAscension).toBe('continue');
     const off = CSV.replace('force-continue on', 'force-continue off');
