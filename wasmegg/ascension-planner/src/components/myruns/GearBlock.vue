@@ -6,6 +6,7 @@
   answer does for its key (store `readInventory`). "+N with maxed gear" only when that what-if was worked out
   for this save on Fastest or By a date and kept with its answer. The Equipped row says which set it is (16 Oct
   2026, lib/gearMatch.ts): "Equipped now = your earnings set", "= your production set" or "= a mix".
+  Under the rows, folded: "Missing for a perfect set" (PerfectSetGaps.vue, lib/perfectSet.ts, Q9).
 -->
 <template>
   <div class="mt-3" data-testid="now-gear">
@@ -36,6 +37,7 @@
       <div class="mt-2 max-w-md"><LoadoutDisplay :loadout="r.set" /></div>
     </details>
     <p v-if="whatIfText" class="mt-1 text-[11px] text-emerald-800" data-testid="now-gear-maxed">{{ whatIfText }}</p>
+    <PerfectSetGaps :equipped="equipped" :earnings="earnings" :production="production" :match="match ?? null" />
   </div>
 </template>
 
@@ -43,6 +45,7 @@
 import { computed } from 'vue';
 import { iconURL } from 'lib';
 import LoadoutDisplay from '../auto/LoadoutDisplay.vue';
+import PerfectSetGaps from './PerfectSetGaps.vue';
 import { getArtifact } from '@/lib/artifacts';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import { gearWords } from '@/lib/gearWords';

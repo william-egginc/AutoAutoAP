@@ -10,6 +10,7 @@
     4. Two saved-answer tiles (SavedTile.vue): Fastest to 490 and Egg Day, each with when it was calculated,
        from which save, How sure and where it stands on the board.
     5. Try next (TryNext.vue): a few runs, each opening its screen set up.
+       Then "Your routes at a glance" (RouteScatter.vue, Q9): the rows of 6 as points, folded (closed on a phone).
     6. Your runs: ONE section, opening on the latest run (LatestRunView.vue, was "Your latest run"), switched
        to the latest By a date run or all your runs: the board (filters at the top of its list, LeaderboardPanel
        mode="myruns"), saved on this device and not sent yet. Next steps and the six cards fold under it.
@@ -104,6 +105,16 @@
 
       <TryNext :pills="pills" :line="oneMore" @open="to => emit('open', to)" />
     </template>
+
+    <!-- 5½. Your routes at a glance: the rows below as points (RouteScatter.vue, lib/routeScatter.ts). -->
+    <RouteScatter
+      :rows="boardRows"
+      :saved-runs="store.savedRuns"
+      :saved-answers="store.savedAnswers"
+      :egg-day-at="page.eggDayAt"
+      :egg-day-year="page.eggDayYear"
+      :zone="zone"
+    />
 
     <!-- 6. Your runs: one section. -->
     <section id="my-runs-your-runs" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3" data-testid="my-runs-your-runs">
@@ -260,6 +271,7 @@ import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
 import SavedTile from './myruns/SavedTile.vue';
 import TryNext from './myruns/TryNext.vue';
+import RouteScatter from './myruns/RouteScatter.vue';
 import LeaderboardPanel from './auto/LeaderboardPanel.vue';
 import SavedRuns from './auto/SavedRuns.vue';
 import SavedAnswers from './auto/SavedAnswers.vue';
