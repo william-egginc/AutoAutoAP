@@ -8,8 +8,8 @@
  * whole hour) from the save's own egg counts, or finishing the ascension in progress without buying
  * anything (continue) when that is sooner; every later one on the next whole hour after the last
  * ends, at any hour of the day; the save's delivery rate (deliveryScale.ts) on the maxed table's
- * builds. Joo's planner ("Simulate this plan") ascends at once instead, so its times can be a little
- * sooner.
+ * builds. Joo's planner ("Simulate this plan") is the exact check: its dates can differ from these
+ * by a fraction of a percent, earlier or later.
  */
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -44,7 +44,10 @@ export interface AnswerRequest {
 export async function workOutAnswer(
   table: Table,
   req: AnswerRequest,
-  onProgress?: (done: number, of: number) => void
+  onProgress?: (done: number, of: number) => void,
+  /** Awaited after the route search, before the polish; it may throw to stop the run (a newer
+   *  request came, instant.worker.ts). */
+  pause?: () => Promise<void>
 ): Promise<FoundRoutes> {
   // With a farm in progress, the first ascension is continue or the fresh build, whichever is sooner.
   const firstLegs = req.cont
@@ -73,6 +76,8 @@ export async function workOutAnswer(
     maxAscensions: MAX_ASCENSIONS,
     ...(onProgress ? { onProgress } : {}),
   });
+  // The route search runs to its end; a superseded run stops here, before the polish.
+  if (pause) await pause();
   const polished = polishFound(table.lookup, { ...base, ...STRONG_POLISH }, found);
   return { best: polished.best, byAscensions: polished.byAscensions, byDate: polished.byDate, byDateByAscensions: polished.byDateByAscensions };
 }
@@ -89,10 +94,25 @@ export type NoAnswer =
   | { kind: 'other-sim'; why: string }
   | { kind: 'below'; from: number; te: number }
   | { kind: 'above'; to: number; te: number }
-  | { kind: 'at-target'; te: number };
+  | { kind: 'at-target'; te: number }
+  | { kind: 'pick-date' }
+  | { kind: 'date-passed' };
 
-/** Why there is no instant answer for this save on this table, or null when there is one. */
-export function noAnswerFor(header: TableHeader | null, te: number, deadline?: number): NoAnswer | null {
+/** What the goal asks, beside the table: By a date needs a date that has not passed yet. */
+export interface GoalAsked {
+  /** True for Egg Day and Another date (a deadline is needed). */
+  dated?: boolean;
+  /** Unix seconds now (the deadline must be later). */
+  now?: number;
+}
+
+/**
+ * Why there is no instant answer for this save on this table, or null when there is one. The date
+ * checks come first: they need no table, and no run is made for them.
+ */
+export function noAnswerFor(header: TableHeader | null, te: number, deadline?: number, asked: GoalAsked = {}): NoAnswer | null {
+  if (asked.dated && deadline === undefined) return { kind: 'pick-date' };
+  if (deadline !== undefined && asked.now !== undefined && deadline <= asked.now) return { kind: 'date-passed' };
   if (!header) return { kind: 'no-table' };
   const why = tableSimMismatch(header);
   if (why) return { kind: 'other-sim', why };
@@ -133,6 +153,23 @@ export function rowsShown(found: FoundRoutes, deadline?: number): AnswerRow[] {
     });
   }
   return rows;
+}
+
+/** The goal an answer was worked out for: Fastest (no deadline) or By a date (the deadline). */
+export interface AnsweredGoal {
+  dated: boolean;
+  deadline?: number;
+}
+
+/**
+ * True when the answer on hand was worked out for the goal now chosen. The card shows rows, and
+ * Simulate records a plan, only then: Fastest's rows never stand under a date tab (or the reverse)
+ * while a new answer is coming or when the date field is empty.
+ */
+export function answerFits(answered: AnsweredGoal | null, chosen: AnsweredGoal): boolean {
+  if (!answered || answered.dated !== chosen.dated) return false;
+  if (!chosen.dated) return true;
+  return chosen.deadline !== undefined && answered.deadline === chosen.deadline;
 }
 
 /** Egg Day of `year` (14 July, 9:00 am Pacific), unix seconds. */

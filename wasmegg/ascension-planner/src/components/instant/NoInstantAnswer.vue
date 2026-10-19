@@ -37,6 +37,10 @@ export function noAnswerWords(r: NoAnswer): { heading: string; sub: string } {
       return { heading: `No instant answer above TE ${r.to} yet.`, sub: `Your save is at TE ${r.te}. ${plan}` };
     case 'at-target':
       return { heading: `You are at TE ${r.te}: there is no route left to find to 490.`, sub: 'Pick a date to see how far you can get by then.' };
+    case 'pick-date':
+      return { heading: 'Pick a date.', sub: 'The answer shows the highest TE you can reach by 9:00 am that day.' };
+    case 'date-passed':
+      return { heading: 'That date has passed: pick a later one.', sub: 'The deadline is 9:00 am that day, your timezone.' };
   }
 }
 </script>

@@ -3,6 +3,8 @@
  * repo has no component test library): what a player sees before any worker runs.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { createPinia, setActivePinia } from 'pinia';
@@ -126,6 +128,16 @@ describe('the instant answer’s rows (server render)', () => {
     expect(html).toMatch(/Jan 19, 2027, 10:00\s?AM/);
   });
 
+  it('on a phone: one card per route, the stops wrapped, a full-width 44 px Simulate; the table only from 640 px', async () => {
+    const html = await render(InstantRows, { rows, dated: false, timezone: 'America/Denver' });
+    expect(html.match(/data-testid="instant-card"/g)).toHaveLength(2);
+    expect(html.match(/data-testid="instant-card-simulate"/g)).toHaveLength(2);
+    expect(html).toMatch(/class="w-full min-h-\[44px\][^"]*" data-testid="instant-card-simulate"/);
+    expect(html).toMatch(/class="sm:hidden[^"]*" data-testid="instant-cards"/);
+    expect(html).toContain('class="hidden sm:block overflow-x-auto"');
+    expect(html).toContain('break-words');
+  });
+
   it('By a date says the TE reached', async () => {
     const html = await render(InstantRows, { rows, dated: true, timezone: 'UTC' });
     expect(html).toContain('TE by then');
@@ -133,7 +145,43 @@ describe('the instant answer’s rows (server render)', () => {
   });
 });
 
+describe('the instant answer card (source)', () => {
+  const src = readFileSync(fileURLToPath(new URL('./InstantAnswer.vue', import.meta.url)), 'utf8');
+
+  it('reads the save from the raw backup, never the live farm Joo’s continue load rewrites', () => {
+    expect(src).not.toContain('currentFarmState');
+    expect(src).not.toContain('createBaseEngineState');
+    expect(src).toContain('farmFromBackup(');
+    expect(src).toContain('eggsDeliveredFromBackup(');
+    expect(src).toContain('baseStateFromBackup(');
+  });
+
+  it('keeps the page’s one worker across visits (no terminate on unmount)', () => {
+    expect(src).not.toContain('terminate');
+    expect(src).not.toContain('new Worker');
+  });
+
+  it('says the Auto Planner is the exact check and can differ either way, by a fraction of a percent', () => {
+    const words = src.replace(/\s+/g, ' ');
+    expect(words).not.toContain('a little sooner');
+    expect(words).not.toContain('by days');
+    expect(words).toContain(
+      'The Auto Planner is the exact check (“Simulate this plan”): its dates can differ from these by a fraction of a percent, earlier or later.'
+    );
+  });
+
+  it('the date field and the goal pills are 44 px tall on a phone', () => {
+    expect(src).toMatch(/type="date"\s+class="[^"]*max-sm:min-h-\[44px\]/);
+    expect(src).toMatch(/max-sm:min-h-\[44px\][^"]*"\s+:class="goal === g.value/);
+  });
+});
+
 describe('no instant answer', () => {
+  it('By a date: asks for a date, or says it has passed', () => {
+    expect(noAnswerWords({ kind: 'pick-date' }).heading).toBe('Pick a date.');
+    expect(noAnswerWords({ kind: 'date-passed' }).heading).toBe('That date has passed: pick a later one.');
+  });
+
   it('says the table is still being built, with no quick-estimate button', async () => {
     const html = await render(NoInstantAnswer, { reason: { kind: 'no-table' } });
     expect(html).toContain('the table for this simulator is still being built');

@@ -3,7 +3,9 @@ import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './preco
 import { packTable, readTable, type TableHeader } from './precomputedTable';
 import { getNextSaleEnd } from '@/lib/events';
 import { SIM_VERSION } from './simVersion';
+import { latestOnly, pauseFor, Superseded } from './latestOnly';
 import {
+  answerFits,
   eggDaySeconds,
   FINAL_TE,
   nextEggDayYear,
@@ -36,6 +38,33 @@ describe('noAnswerFor', () => {
     expect(noAnswerFor(header(), 400)).toEqual({ kind: 'above', to: 339, te: 400 });
     expect(noAnswerFor(header(), 490)).toEqual({ kind: 'at-target', te: 490 });
     expect(noAnswerFor(header(), 200)).toBeNull();
+  });
+
+  it('By a date: an empty date asks for one, a date gone by (or its 9:00 am passed today) says so', () => {
+    const now = 1_800_000_000;
+    expect(noAnswerFor(header(), 200, undefined, { dated: true, now })).toEqual({ kind: 'pick-date' });
+    expect(noAnswerFor(null, 200, undefined, { dated: true, now })).toEqual({ kind: 'pick-date' });
+    expect(noAnswerFor(header(), 200, now - 86400, { dated: true, now })).toEqual({ kind: 'date-passed' });
+    expect(noAnswerFor(header(), 200, now, { dated: true, now })).toEqual({ kind: 'date-passed' });
+    expect(noAnswerFor(header(), 200, now + 60, { dated: true, now })).toBeNull();
+    // Fastest has no deadline to check.
+    expect(noAnswerFor(header(), 200, undefined, { dated: false, now })).toBeNull();
+  });
+});
+
+describe('answerFits', () => {
+  it('rows are shown (and simulated) only for the goal they were worked out for', () => {
+    const race = { dated: false };
+    const d1 = { dated: true, deadline: 1_900_000_000 };
+    expect(answerFits(race, { dated: false })).toBe(true);
+    expect(answerFits(race, { dated: true, deadline: 1_900_000_000 })).toBe(false);
+    // The date field cleared: no deadline, so no rows, not the race's.
+    expect(answerFits(race, { dated: true })).toBe(false);
+    expect(answerFits(d1, { dated: true })).toBe(false);
+    expect(answerFits(d1, { dated: true, deadline: 1_900_000_000 })).toBe(true);
+    expect(answerFits(d1, { dated: true, deadline: 1_900_086_400 })).toBe(false);
+    expect(answerFits(d1, { dated: false })).toBe(false);
+    expect(answerFits(null, { dated: false })).toBe(false);
   });
 });
 
@@ -132,6 +161,16 @@ describe('workOutAnswer and rowsShown', () => {
     for (const r of rows.filter(r => r.route.legs[0].label === 'continue')) expect(r.route.legs[0].start).toBe(START);
     const fresh = await workOutAnswer(table, req);
     expect(found.best!.end).toBeLessThanOrEqual(fresh.best!.end);
+  });
+
+  it('a superseded run stops before the polish instead of finishing', async () => {
+    const l = latestOnly();
+    l.note(1);
+    const run = workOutAnswer(table, req, () => l.note(2) /* a goal switch arrives during the run */, pauseFor(1, l));
+    await expect(run).rejects.toBeInstanceOf(Superseded);
+    // The newest one runs to the end.
+    const found = await workOutAnswer(table, req, undefined, pauseFor(2, l));
+    expect(found.best).not.toBeNull();
   });
 
   it('a slower delivery rate never finishes sooner', async () => {

@@ -1,9 +1,12 @@
 /**
  * The instant answer's worker: it fetches the table once (a few MB) and keeps it for its life, and
- * works out an answer per request (instantAnswer.ts `workOutAnswer`), off the page's thread.
+ * works out an answer per request (instantAnswer.ts `workOutAnswer`), off the page's thread. The
+ * newest answer request wins (latestOnly.ts): an older one still waiting is skipped and one running
+ * stops at its next pause, each answered 'dropped'.
  */
 import { fetchTable } from './tableFetch';
 import { workOutAnswer, type AnswerRequest } from './instantAnswer';
+import { latestOnly, pauseFor, Superseded } from './latestOnly';
 import type { Table, TableHeader } from './precomputedTable';
 import type { FoundRoutes } from './routeFinder';
 
@@ -15,11 +18,13 @@ export type InstantWorkerResponse =
   | { kind: 'header'; id: number; header: TableHeader }
   | { kind: 'progress'; id: number; done: number; of: number }
   | { kind: 'answer'; id: number; found: FoundRoutes }
+  | { kind: 'dropped'; id: number }
   | { kind: 'error'; id: number; message: string };
 
 const ctx = self as unknown as Worker;
 let table: Promise<Table> | null = null;
 let tableUrl = '';
+const latest = latestOnly();
 
 function load(url: string): Promise<Table> {
   if (!table || tableUrl !== url) {
@@ -37,12 +42,16 @@ function reply(m: InstantWorkerResponse): void {
 
 ctx.onmessage = async (event: MessageEvent<InstantWorkerRequest>) => {
   const m = event.data;
+  if (m.kind === 'answer') latest.note(m.id);
   try {
     const t = await load(m.url);
     if (m.kind === 'header') return reply({ kind: 'header', id: m.id, header: t.header });
-    const found = await workOutAnswer(t, m.req, (done, of) => reply({ kind: 'progress', id: m.id, done, of }));
+    const pause = pauseFor(m.id, latest);
+    await pause();
+    const found = await workOutAnswer(t, m.req, (done, of) => reply({ kind: 'progress', id: m.id, done, of }), pause);
     reply({ kind: 'answer', id: m.id, found });
   } catch (err) {
+    if (err instanceof Superseded) return reply({ kind: 'dropped', id: m.id });
     reply({ kind: 'error', id: m.id, message: err instanceof Error ? err.message : String(err) });
   }
 };
