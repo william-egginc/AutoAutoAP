@@ -48,6 +48,13 @@
     <template v-else-if="status === 'done' && shown">
       <p v-if="!rows.length" class="text-xs text-slate-500">No route reaches {{ goalWords }} on the table.</p>
       <InstantRows v-else :rows="rows" :dated="shown.dated" :timezone="timezone" @simulate="simulate" />
+      <p
+        v-if="gearCaveat"
+        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+        data-testid="instant-gear-differs"
+      >
+        {{ gearCaveat }}
+      </p>
       <p class="text-[10px] text-slate-500 leading-relaxed" data-testid="instant-caveat">
         Any hour: every ascension starts on the next whole hour after the last one ends, day or night.
         <template v-if="midAscension">
@@ -56,8 +63,8 @@
         </template>
         <template v-else>The first is a fresh start (prestige now) on your save’s eggs.</template>
         Fresh ascensions run at your delivery rate ({{ (scale * 100).toFixed(1) }}% of the table’s). The Auto Planner
-        is the exact check (“Simulate this plan”): its dates can differ from these by a fraction of a percent, earlier
-        or later.
+        is the exact check (“Simulate this plan”)<template v-if="gearCaveat">.</template
+        ><template v-else>: its dates can differ from these by a fraction of a percent, earlier or later.</template>
       </p>
     </template>
   </div>
@@ -84,6 +91,7 @@ import {
   type NoAnswer,
 } from '@/instant/instantAnswer';
 import { deliveryScale } from '@/instant/deliveryScale';
+import { earningsBonus, gearDiffers, gearDiffersText } from '@/instant/gearDiffers';
 import { continueTail, hasVirtueFarm, siloSeconds, staleSaveNote } from '@/instant/continueTail';
 import { baseStateFromBackup, eggsDeliveredFromBackup, farmFromBackup, saveSyncSeconds } from '@/instant/saveFarm';
 import { answer, isNewest, newRequestId, tableHeader } from '@/instant/instantClient';
@@ -177,6 +185,13 @@ const scale = computed(() =>
     ? deliveryScale(backup.value, header.value.k3, initialState.epicResearchLevels, initialState.colleggtibleModifiers)
     : 1
 );
+
+/** Below TE 340 with gear other than the table's: the answer can be a few percent off (gearDiffers.ts). */
+const gearCaveat = computed(() => {
+  if (!header.value) return null;
+  const gap = { bonusShort: header.value.cteBonus - earningsBonus(backup.value), scale: scale.value };
+  return gearDiffers(startTE.value, gap) ? gearDiffersText(gap) : null;
+});
 
 /** On a virtue farm: leg 1 can be continue (continueTail.ts). */
 const midAscension = computed(() => hasVirtueFarm(farm.value));

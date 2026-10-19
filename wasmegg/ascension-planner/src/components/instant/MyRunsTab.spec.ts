@@ -165,9 +165,15 @@ describe('the instant answer card (source)', () => {
     const words = src.replace(/\s+/g, ' ');
     expect(words).not.toContain('a little sooner');
     expect(words).not.toContain('by days');
+    expect(words).toContain('The Auto Planner is the exact check (“Simulate this plan”)');
     expect(words).toContain(
-      'The Auto Planner is the exact check (“Simulate this plan”): its dates can differ from these by a fraction of a percent, earlier or later.'
+      '<template v-else>: its dates can differ from these by a fraction of a percent, earlier or later.</template>'
     );
+  });
+
+  it('below TE 340 with other gear, says the answer can be a few percent off instead (gearDiffers.ts)', () => {
+    expect(src).toMatch(/v-if="gearCaveat"[^>]*data-testid="instant-gear-differs"/);
+    expect(src).toContain('<template v-if="gearCaveat">.</template');
   });
 
   it('the date field and the goal pills are 44 px tall on a phone', () => {
