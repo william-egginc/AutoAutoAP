@@ -309,6 +309,9 @@ export interface SavedDeadlineResult {
   lastTECost?: number;
   /** A run of the no-instant-answer fallback (`DeadlineRunSpec.fallback`). Absent otherwise. */
   fallback?: DeadlineFallback;
+  /** What the run looked at, as one line (search/searched.ts): its CSV's `# searched:` line and its
+   *  board row's `searched`. Absent before 18 Oct 2026 (then read off `bandSets` when it has them). */
+  searched?: string;
   at: number;
 }
 

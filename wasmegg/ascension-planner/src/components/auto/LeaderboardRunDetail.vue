@@ -79,6 +79,17 @@
         <div class="flex justify-between gap-3">
           <span>Routes priced</span><span class="font-bold">{{ row.chainsPriced ?? '—' }}</span>
         </div>
+        <!-- What the run looked at (search/searched.ts `searchedWords`): its boxes, the count range and
+             min gap, as it sent them. A re-check line was never searched, so it has none to show. -->
+        <div v-if="!isRecheck" class="flex justify-between gap-3" data-testid="run-searched">
+          <span class="shrink-0">What was searched</span>
+          <span
+            class="text-right break-words min-w-0"
+            :class="row.searched ? 'font-semibold' : 'text-slate-400'"
+            :title="row.searched || undefined"
+            >{{ searchedLine }}</span
+          >
+        </div>
         <div class="flex justify-between gap-3">
           <span>Shifts held</span><span class="font-bold">{{ row.holdShifts ? 'yes' : 'no' }}</span>
         </div>
@@ -344,6 +355,7 @@ import {
 } from '@/lib/leaderboardRank';
 import { FIRST_ASCENSION_WORDS } from '@/search/firstAscension';
 import { formatBand } from '@/search/exhaustive';
+import { searchedWords } from '@/search/searched';
 
 const props = defineProps<{
   row: BoardRow;
@@ -362,6 +374,9 @@ const firstAscension = computed(() => rowFirstAscension(props.row));
 
 /** A line made from a later run's re-check of this route, not a send of its own. */
 const isRecheck = computed(() => props.row.recheckOf != null);
+
+/** "What was searched", in words; "not recorded (older run)" for a row sent before runs said. */
+const searchedLine = computed(() => searchedWords(props.row.searched));
 
 /** When the result first appeared: the earliest copy, which is also what All runs' Submitted shows. */
 const firstSent = computed(() => (several.value ? props.copies![0].submittedAt : props.row.submittedAt));

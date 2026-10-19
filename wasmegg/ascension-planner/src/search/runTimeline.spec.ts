@@ -25,6 +25,8 @@ import {
   type TickInput,
   noteFaultIn,
   MAX_FAULTS,
+  workerHoursOf,
+  workersSummary,
 } from './runTimeline';
 
 const T0 = 1_760_000_000_000;
@@ -306,5 +308,42 @@ describe('faults (12 Oct: what and why memory errors happen)', () => {
     expect(p.faultCols).toMatch(/^min,what,worker/);
     for (let i = 0; i < 30; i++) t = noteFaultIn(t, { at: i, kind: 'stall', message: 'silent 10 minutes' });
     expect(t.faults).toHaveLength(MAX_FAULTS);
+  });
+});
+
+describe("the run's workers over its life (Q1, 18 Oct 2026: 19, then 5 for three hours, then 19)", () => {
+  // 19 from the start, 5 from minute 362, back to 19 at 542 (in four quick steps, as the slider gives
+  // them), 600 minutes in all, never hidden.
+  function jordans(): Timeline {
+    let t = fresh();
+    t = noteWorkerChange(t, T0 + 1 * MIN, 10, 18);
+    t = noteWorkerChange(t, T0 + 1.1 * MIN, 18, 19);
+    t = run(t, 0, 362 * MIN, () => ({ workers: 19 }));
+    t = noteWorkerChange(t, T0 + 362 * MIN, 19, 5);
+    t = run(t, 362 * MIN + 15_000, 542 * MIN, () => ({ workers: 5 }));
+    for (const [m, a, b] of [[542.1, 5, 16], [542.1, 16, 17], [542.1, 17, 18], [542.2, 18, 19]] as const)
+      t = noteWorkerChange(t, T0 + m * MIN, a, b);
+    return run(t, 542 * MIN + 15_000, 600 * MIN, () => ({ workers: 19 }));
+  }
+  const at = (s: number) => `min ${Math.round((s * 1000 - T0) / MIN)}`;
+
+  it('says each count with when it began, the worker-hours and the hidden time', () => {
+    const line = workersSummary(jordans(), at)!;
+    expect(line).toMatch(/^19 from the start; 5 from min 362; 19 from min 542\. \d+ worker-hours over \d+\.\d h; never hidden$/);
+    const w = workerHoursOf(jordans())!;
+    // 19 x (362 + 58) min + 5 x 180 min = 148 worker-hours.
+    expect(w.workerHours).toBeGreaterThan(144);
+    expect(w.workerHours).toBeLessThan(152);
+    expect(w.averageWorkers).toBeGreaterThan(14);
+    expect(w.averageWorkers).toBeLessThan(15.5);
+  });
+
+  it('a run that never changed is one count; a hidden one says how much', () => {
+    const steady = run(fresh(), 0, 60 * MIN, () => ({ workers: 7 }));
+    expect(workersSummary(steady, at)).toMatch(/^7 from the start\. 7 worker-hours over 1\.0 h; never hidden$/);
+    const hidden = run(fresh(), 0, 60 * MIN, x => ({ workers: 7, hidden: x > 30 * MIN }));
+    expect(workersSummary(hidden, at)).toMatch(/hidden 50% of the time$/);
+    expect(workersSummary(fresh(), at)).toBeNull();
+    expect(workerHoursOf(fresh())).toBeNull();
   });
 });

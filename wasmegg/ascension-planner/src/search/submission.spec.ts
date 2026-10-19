@@ -15,6 +15,7 @@ import {
   keepVirtueStones,
   keepVirtueArtifacts,
   MAX_RECHECKS,
+  MAX_SEARCHED,
   scrubIdentifiers,
   submissionFilename,
   SUBMISSION_SCHEMA,
@@ -824,5 +825,34 @@ describe('which way leg 1 went (firstLeg, 9 Oct)', () => {
     const ok = buildSubmission(inputs());
     expect(validateSubmission({ ...ok, firstLeg: 'auto' } as unknown as Submission).join()).toMatch(/firstLeg/);
     expect(validateSubmission({ ...ok, firstLegOtherHours: Infinity }).join()).toMatch(/firstLegOtherHours/);
+  });
+});
+
+describe('searched (what the run looked at, search/searched.ts; 18 Oct)', () => {
+  const line = '195-197:2; 209-240:1; last 300-320; ascensions: 3';
+  const BOXES = '195-197:2; 209-240:1; last 300-320; 2-5 ascensions, min gap 20';
+
+  it('is sent as given when the run said, and left off when empty or not recorded', () => {
+    const s = buildSubmission(inputs({ searched: line }));
+    expect(s.searched).toBe(line);
+    expect(validateSubmission(s)).toEqual([]);
+    expect(buildSubmission(inputs({ searched: BOXES })).searched).toBe(BOXES);
+    expect('searched' in buildSubmission(inputs())).toBe(false);
+    expect('searched' in buildSubmission(inputs({ searched: '  ' }))).toBe(false);
+    expect('searched' in buildSubmission(inputs({ searched: '  \n ' }))).toBe(false);
+  });
+
+  it('is held to the cap, one line, and refused by the validator only when over it', () => {
+    const long = Array.from({ length: 200 }, (_, k) => `${100 + k}-${110 + k}:1`).join('; ') + '; ascensions: 3-6';
+    const s = buildSubmission(inputs({ searched: long }));
+    expect(s.searched!.length).toBeLessThanOrEqual(MAX_SEARCHED);
+    expect(s.searched!.endsWith('…; ascensions: 3-6')).toBe(true);
+    expect(validateSubmission(s)).toEqual([]);
+    expect(buildSubmission(inputs({ searched: 'a-b:1; '.repeat(200) })).searched!.length).toBeLessThanOrEqual(600);
+    expect(buildSubmission(inputs({ searched: 'x\ny' })).searched).toBe('x y');
+    expect(validateSubmission({ ...s, searched: 'x'.repeat(MAX_SEARCHED + 1) })).toContain(
+      `searched must be a string of at most ${MAX_SEARCHED} characters`
+    );
+    expect(validateSubmission({ ...s, searched: 'z'.repeat(601) }).join()).toMatch(/searched/);
   });
 });

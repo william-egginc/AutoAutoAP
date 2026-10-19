@@ -2251,6 +2251,29 @@ describe('dupOf never ties an anonymous row to a named one', () => {
   });
 });
 
+describe('searched (18 Oct 2026): what the search looked at', () => {
+  const BOXES = '195-197:2; 209-240:1; 230-260:1; 255-300:1; last 300-320; 2-5 ascensions, min gap 20';
+
+  it('stores the text, serves it on /all and /mine, and leaves old rows without it', async () => {
+    await post('/submit', { ...MINIMAL, ownerToken: 'o'.repeat(40), searched: BOXES }, '6.6.6.1');
+    await post('/submit', { ...MINIMAL, durationDays: 801 }, '6.6.6.2');
+    const rows = (await (await get('/all')).json()).rows;
+    expect(rows.find(r => r.durationDays === 801)).not.toHaveProperty('searched');
+    expect(rows.find(r => r.durationDays !== 801).searched).toBe(BOXES);
+  });
+
+  it('cuts a long string, drops control characters and non-strings, and refuses nothing', async () => {
+    const long = await post('/submit', { ...MINIMAL, durationDays: 802, searched: '1-2:1; '.repeat(200) }, '6.6.6.3');
+    const junk = await post('/submit', { ...MINIMAL, durationDays: 803, searched: { a: 1 } }, '6.6.6.4');
+    const ctl = await post('/submit', { ...MINIMAL, durationDays: 804, searched: 'a\u0000b\nc' }, '6.6.6.5');
+    expect([long.status, junk.status, ctl.status]).toEqual([200, 200, 200]);
+    const rows = (await (await get('/all')).json()).rows;
+    expect(rows.find(r => r.durationDays === 802).searched.length).toBeLessThanOrEqual(600);
+    expect(rows.find(r => r.durationDays === 803)).not.toHaveProperty('searched');
+    expect(rows.find(r => r.durationDays === 804).searched).toBe('abc');
+  });
+});
+
 describe('Stronger check level (15 Oct 2026): level, atOnce, lightFrom', () => {
   const EGG_DAY = 1815926400;
   const FASTEST_LIGHT = { ...MINIMAL, schema: 7, chain: [195, 490], effort: 'light', level: 'light', atOnce: true, lightFrom: 'instant' };

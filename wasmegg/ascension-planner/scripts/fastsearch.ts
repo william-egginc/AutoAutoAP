@@ -115,6 +115,7 @@ import { EFFORT, EFFORT_ORDER, estimateChains } from '@/search/effort';
 import { DEFAULT_WORKER_CAP, splitByPrefix, workersForBatch } from '@/search/batch';
 import { exhaustiveChains } from '@/search/exhaustive';
 import { buildChainsCsv, describeVirtueInventory } from '@/search/csv';
+import { nearbySearched, searchedText } from '@/search/searched';
 import type { ChainResult, EffortTier, SearchInputs, TimeOffWindow } from '@/search/types';
 import {
   runUntilShift,
@@ -1298,6 +1299,8 @@ async function runExhaustive(
   const parts = (arg('prestiges', '5-8')!).split('-').map(Number);
   const lo = parts[0];
   const hi = parts[1] ?? parts[0];
+  // What this run looks at, in the CSV's `# searched:` lines (search/searched.ts), as the site writes them.
+  const searched = searchedText({ range: pool, ascensions: { min: lo, max: hi } });
 
   const chains = exhaustiveChains(pool, lo, hi, final, currentTE);
   // ~15 s per chain is the measured floor with a warm prefix memo; sharing makes the real figure
@@ -1359,7 +1362,7 @@ async function runExhaustive(
       if (csvPath) {
         const sofar = cache.filter(e => e.seconds > 0).sort((a, b) => a.seconds - b.seconds);
         if (sofar.length) {
-          writeCsv(csvPath, sofar, sofar[0].key.split(',').map(Number), { ...o, effort: 'exhaustive' });
+          writeCsv(csvPath, sofar, sofar[0].key.split(',').map(Number), { ...o, effort: 'exhaustive', searched });
         }
       }
       console.log('  ' + done + '/' + chains.length +
@@ -1372,6 +1375,7 @@ async function runExhaustive(
       ...o,
       note: 'EXHAUSTIVE over ' + chains.length.toLocaleString() + ' chains: this is the true optimum of that space, not a local one',
       effort: 'exhaustive',
+      searched,
     });
   } finally {
     workers?.close();
@@ -1497,6 +1501,9 @@ async function runPlanSearch(
         ? 'stopped early; answer is what "' + outcome.lastCompletedStage + '" guarantees'
         : 'completed through ' + outcome.lastCompletedStage,
       effort,
+      searched: searchedText(
+        nearbySearched({ seed, counts: outcome.countsProbed, limits: { min: minPrestiges, max: maxPrestiges } })
+      ),
     });
   } finally {
     pool?.close();
@@ -1535,6 +1542,8 @@ function writeCsv(
     final: number;
     availability: Availability | null;
     effort: string;
+    /** What the run looked at (search/searched.ts): the CSV's `# searched:` lines, as the site writes them. */
+    searched?: string;
   }
 ): void {
   const raw = (simContext() as any).rawBackup ?? null;
@@ -1552,6 +1561,7 @@ function writeCsv(
       availability: o.availability,
       timeOff: TIME_OFF_DATES,
       seedChain: chain,
+      searched: o.searched,
       inventory: raw ? describeVirtueInventory(raw) : undefined,
       loadouts: [],
     })
@@ -1575,6 +1585,7 @@ function report(
     t0: number;
     note: string;
     effort: string;
+    searched?: string;
   }
 ): void {
   const mins = (Date.now() - o.t0) / 60000;
