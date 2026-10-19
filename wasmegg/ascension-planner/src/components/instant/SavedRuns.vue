@@ -91,9 +91,9 @@
             <tbody>
               <tr v-for="(a, i) in p.ascensions" :key="i" class="border-t border-slate-100 align-top">
                 <td class="py-1.5 pr-2 whitespace-nowrap">{{ i + 1 }} · {{ a.to }} TE</td>
-                <td class="py-1.5 pr-2">{{ atText(a.start, timezone, { weekday: true }) }}</td>
+                <td class="py-1.5 pr-2">{{ cellText(a.start, timezone, nowSeconds) }}</td>
                 <td class="py-1.5">
-                  {{ atText(a.end, timezone, { weekday: true }) }}
+                  {{ cellText(a.end, timezone, nowSeconds) }}
                   <span
                     class="ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap"
                     :class="a.kind === 'exact' ? 'text-emerald-800 bg-emerald-50' : 'text-amber-800 bg-amber-50'"
@@ -120,7 +120,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import type { SimulateRequest } from '@/instant/simulatePlan';
 import { saveSyncSeconds } from '@/instant/saveFarm';
-import { atText } from '@/instant/findRun';
+import { cellText } from '@/instant/findRun';
 import { accountHash } from '@/instant/accountHash';
 import {
   againStart,

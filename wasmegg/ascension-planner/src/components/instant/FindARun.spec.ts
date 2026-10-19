@@ -153,7 +153,7 @@ describe('Find a run’s rows (server render)', () => {
   });
 
   it('an opened row: Ascension, Starts, Ends (estimate) and the buttons, the placeholders disabled', async () => {
-    const html = await render(InstantRows, { rows, dated: false, timezone: 'America/Los_Angeles', opened: 2 });
+    const html = await render(InstantRows, { rows, dated: false, timezone: 'America/Los_Angeles', opened: 2, now: T });
     const t = text(html);
     expect(html.match(/data-testid="find-open"/g)).toHaveLength(1);
     expect(t).toContain('▾ 2 asc');

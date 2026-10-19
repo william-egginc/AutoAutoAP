@@ -14,11 +14,11 @@
       <legend class="sr-only">Filters (coming)</legend>
       <label class="flex items-center gap-1.5">
         Ascensions
-        <select class="min-h-[44px] sm:min-h-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 cursor-not-allowed" aria-label="Fewest ascensions">
+        <select class="min-h-[44px] min-w-[3.5rem] sm:min-h-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 cursor-not-allowed" aria-label="Fewest ascensions">
           <option v-for="n in counts" :key="n" :selected="n === 4">{{ n }}</option>
         </select>
         to
-        <select class="min-h-[44px] sm:min-h-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 cursor-not-allowed" aria-label="Most ascensions">
+        <select class="min-h-[44px] min-w-[3.5rem] sm:min-h-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 cursor-not-allowed" aria-label="Most ascensions">
           <option v-for="n in counts" :key="n" :selected="n === 9">{{ n }}</option>
         </select>
       </label>
@@ -32,7 +32,7 @@
       </label>
       <label class="flex items-center gap-1.5">
         Gear
-        <select class="min-h-[44px] sm:min-h-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 cursor-not-allowed">
+        <select class="min-h-[44px] min-w-[3.5rem] sm:min-h-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 cursor-not-allowed">
           <option>your gear</option>
         </select>
       </label>

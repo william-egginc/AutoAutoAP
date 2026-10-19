@@ -9,6 +9,7 @@ import {
   countsText,
   finishOf,
   gearLabel,
+  cellText,
   inText,
   rowsByBest,
   whenAgo,
@@ -89,6 +90,12 @@ describe('find a run: words', () => {
     expect(atText(T, tz, { weekday: true })).toBe('Mon, Oct 19 at 7:30 am');
     expect(atText(T + 6 * 3600 - 30 * 60 + 14 * 60, tz, { year: true })).toBe('Oct 19, 2026 at 1:14 pm');
     expect(atText(T, 'America/New_York')).toBe('Oct 19 at 10:30 am');
+  });
+
+  it('a Starts / Ends cell gives the year only when it is not this year’s', () => {
+    const tz = 'America/Los_Angeles';
+    expect(cellText(T, tz, T)).toBe('Mon, Oct 19 at 7:30 am');
+    expect(cellText(T + 140 * D, tz, T)).toBe('Mon, Mar 8, 2027 at 6:30 am');
   });
 
   it('ago and in', () => {

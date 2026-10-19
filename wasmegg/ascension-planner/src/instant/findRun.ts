@@ -147,3 +147,12 @@ export function gearLabel(gap: GearGap | null): string {
   ];
   return `your gear (${bits.join(', ')})`;
 }
+
+function yearIn(unix: number, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric' }).format(new Date(unix * 1000));
+}
+
+/** A Starts / Ends cell: "Mon, Oct 19 at 7:30 am", with the year when it is not this year's. */
+export function cellText(unix: number, timeZone: string, nowSeconds: number): string {
+  return atText(unix, timeZone, { weekday: true, year: yearIn(unix, timeZone) !== yearIn(nowSeconds, timeZone) });
+}

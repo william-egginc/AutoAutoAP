@@ -41,8 +41,8 @@
           <tbody>
             <tr v-for="a in ascensionTimes(row.route)" :key="a.n" class="border-t border-slate-100 align-top">
               <td class="py-1.5 pr-2 whitespace-nowrap">{{ a.n }} · {{ a.to }} TE</td>
-              <td class="py-1.5 pr-2">{{ atText(a.start, timezone, { weekday: true }) }}</td>
-              <td class="py-1.5">{{ atText(a.end, timezone, { weekday: true }) }}</td>
+              <td class="py-1.5 pr-2">{{ cellText(a.start, timezone, nowSeconds) }}</td>
+              <td class="py-1.5">{{ cellText(a.end, timezone, nowSeconds) }}</td>
             </tr>
           </tbody>
         </table>
@@ -103,7 +103,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import type { AnswerRow } from '@/instant/instantAnswer';
-import { ascensionTimes, atText, behindText, finishOf } from '@/instant/findRun';
+import { ascensionTimes, atText, behindText, cellText, finishOf } from '@/instant/findRun';
 
 const props = defineProps<{
   /** The best first. */
@@ -113,12 +113,15 @@ const props = defineProps<{
   timezone: string;
   /** Routes already saved for this goal (stops joined with spaces). */
   saved?: string[];
+  /** Unix seconds now (specs): a cell shows its year when it is not this year's. */
+  now?: number;
   /** The row opened at first (specs). */
   opened?: number;
 }>();
 const emit = defineEmits<{ simulate: [row: AnswerRow]; save: [row: AnswerRow] }>();
 
 const open = ref<number | null>(props.opened ?? null);
+const nowSeconds = props.now ?? Math.floor(Date.now() / 1000);
 
 function behind(row: AnswerRow): string {
   return behindText(row, props.rows, props.dated);
