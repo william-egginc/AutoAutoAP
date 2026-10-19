@@ -41,6 +41,7 @@ import { hashID } from '@/lib/storage/db';
 import { scrubIdentifiers } from '@/search/submission';
 import { countBanded, formatBands, formatHours } from '@/search/exhaustive';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
+import { bigBoxNote } from '@/search/bigBox';
 import { coverageAfterText, coverageBeforeText } from '@/search/bandCheck';
 import { byDatePlan, estimateNote, fallbackWorkerSecondsPerLeg, roundedRoutes } from '@/search/deadlineEstimate';
 import { buildOfflineSubmission, CSV_FILE, edgeLines, SUBMISSION_FILE, type OfflineKind } from '@/search/offline';
@@ -262,6 +263,8 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
   }
   if (o.out) console.log(`    files for \`submit --from\` go to ${o.out.dir}`);
   if (o.dryRun) return dryRun(o, store);
+  // A box above 300,000 routes says so once, before anything runs (search/bigBox.ts), as --dry-run does.
+  for (const line of bigBoxLines(o, store)) console.log(`  ${line}`);
   const partition = await hashID(o.account);
 
   // Progress, every 15 seconds and whenever the stage changes.
@@ -412,6 +415,57 @@ function byDatePlanFor(o: SiteRunOptions, store: Store) {
   });
 }
 
+/** One Full sweep box's routes, as `--dry-run` counts them. */
+function sweepRoutes(o: SiteRunOptions, store: Store, sp: FullSweep): number {
+  return sp.asc <= 1 ? 1 : countBanded(sp.bands, o.final, store.currentTE, sp.minGap);
+}
+
+/** A Full sweep box's label, as `--dry-run` prints it: "4 ascensions (M2)". */
+function sweepLabel(sp: FullSweep): string {
+  return `${sp.asc} ascension${sp.asc === 1 ? '' : 's'}${sp.tag ? ` (${sp.tag})` : ''}`;
+}
+
+/**
+ * The note for an Exhaustive box above 300,000 routes (search/bigBox.ts `bigBoxNote`, the site's
+ * words), or null: the routes and time `--dry-run` prints for the box, so the two agree.
+ */
+function sweepBigBox(o: SiteRunOptions, store: Store, sp: FullSweep): string | null {
+  const workers = store.workerBudget;
+  const chains = sweepRoutes(o, store, sp);
+  return bigBoxNote({
+    routes: chains,
+    seconds: sweepSeconds(chains, workers, workerSecondsPerChain(sp.asc)),
+    workers,
+    basis: `the board's typical speed for ${sp.asc}-ascension routes`,
+    where: 'cli',
+  });
+}
+function byDateBigBox(o: SiteRunOptions, store: Store): string | null {
+  if (!o.chains || !o.lastRange) return null;
+  const plan = byDatePlanFor(o, store);
+  return bigBoxNote({
+    routes: roundedRoutes(plan.routes),
+    approximate: true,
+    seconds: plan.seconds,
+    workers: store.workerBudget,
+    basis: store.deadlineWorkerSeconds ? "this machine's last deadline search" : "the board's typical speed",
+    where: 'cli',
+  });
+}
+/** Every big box of the run, labelled when a Full sweep queues more than one. */
+function bigBoxLines(o: SiteRunOptions, store: Store): string[] {
+  if (o.kind === 'by-date') {
+    const note = byDateBigBox(o, store);
+    return note ? [note] : [];
+  }
+  if (o.kind !== 'full') return [];
+  const many = o.sweeps.length > 1;
+  return o.sweeps.flatMap(sp => {
+    const note = sweepBigBox(o, store, sp);
+    return note ? [many ? `${sweepLabel(sp)}: ${note}` : note] : [];
+  });
+}
+
 /** `--dry-run`: the size of what would run, as the panels show it before Start. Nothing is simulated. */
 function dryRun(o: SiteRunOptions, store: Store): number {
   const workers = store.workerBudget;
@@ -420,14 +474,18 @@ function dryRun(o: SiteRunOptions, store: Store): number {
   console.log('\n  dry run: nothing is priced.');
   if (o.kind === 'full') {
     for (const sp of o.sweeps) {
-      const chains = sp.asc <= 1 ? 1 : countBanded(sp.bands, o.final, store.currentTE, sp.minGap);
-      console.log(`  ${sp.asc} ascension${sp.asc === 1 ? '' : 's'}${sp.tag ? ` (${sp.tag})` : ''}: ${chains.toLocaleString()} chains, ${eta(chains, sp.asc)}${sp.asc > 1 ? `\n    ${formatBands(sp.bands)}   minimum gap ${sp.minGap}` : ''}`);
+      const chains = sweepRoutes(o, store, sp);
+      console.log(`  ${sweepLabel(sp)}: ${chains.toLocaleString()} routes, ${eta(chains, sp.asc)}${sp.asc > 1 ? `\n    ${formatBands(sp.bands)}   minimum gap ${sp.minGap}` : ''}`);
+      const note = sweepBigBox(o, store, sp);
+      if (note) console.log(`    ${note}`);
     }
   } else if (o.kind === 'by-date' && o.chains && o.lastRange) {
     const plan = byDatePlanFor(o, store);
     console.log(
       `  ${plan.sets.toLocaleString()} sets of early stops, about ${roundedRoutes(plan.routes).toLocaleString()} routes and ${roundedRoutes(plan.legs).toLocaleString()} legs (each set's first route simulates its early legs, every later one only its last), about ${formatHours(plan.seconds / 3600)} at ${plan.workerSecondsPerLeg.toFixed(2)} worker-seconds a leg (${store.deadlineWorkerSeconds ? "this machine's last deadline search" : "the board's typical speed"}) on ${workers} workers`
     );
+    const note = byDateBigBox(o, store);
+    if (note) console.log(`  ${note}`);
   } else if (o.kind === 'smart') {
     const n = store.estimateForCurrentSettings;
     console.log(`  up to about ${n.toLocaleString()} chains (an upper bound: it stops when no axis moves), ${eta(n, 5)}`);

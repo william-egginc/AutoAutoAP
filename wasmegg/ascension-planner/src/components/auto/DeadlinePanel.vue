@@ -503,6 +503,8 @@
               own</template
             >, on {{ store.workerBudget }} workers.
           </p>
+          <!-- Above 300,000 routes (search/bigBox.ts): about how many hours here, and the command line. -->
+          <BigBoxNote :note="bigBox" />
           <p v-if="store.longRunNote" class="text-[10px] font-semibold text-amber-800" data-testid="long-run-workers">
             <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
             <template v-else>
@@ -890,6 +892,8 @@ import {
   type InstantState,
 } from '@/search/autoWiden';
 import CarryOnOffer from './CarryOnOffer.vue';
+import BigBoxNote from './BigBoxNote.vue';
+import { bigBoxNote } from '@/search/bigBox';
 import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
 import ShareStatus from './ShareStatus.vue';
@@ -1870,6 +1874,26 @@ const backgroundLabel = computed(() => {
   return `${formatHours(legSeconds(plan.value.legs, bg, workerSecondsPerLeg.value) / 3600)} if left in the background (${bg} worker${bg === 1 ? '' : 's'})`;
 });
 const costLabel = computed(() => `${secondsPerLeg.value.toFixed(secondsPerLeg.value < 10 ? 2 : 1)} s`);
+/**
+ * Above 300,000 routes, the amber note under the estimate (search/bigBox.ts): the "~N routes" shown
+ * under Legs to simulate and the Est. wall clock beside it, with what the speed came from. Before a
+ * run only: during one the time left is the run's own.
+ */
+const bigBox = computed(() =>
+  store.deadlineRunning || !plannedLegs.value
+    ? null
+    : bigBoxNote({
+        routes: roundedRoutes(plannedRoutes.value),
+        approximate: true,
+        seconds: plan.value.seconds,
+        workers: store.workerBudget,
+        basis: store.deadlineWorkerSeconds
+          ? `${thisDevice()}'s speed from its last deadline search`
+          : "the typical speed for routes this long in players' runs",
+        device: thisDevice(),
+        where: 'site',
+      })
+);
 
 const runEstimate = ref(0);
 // The run's live figures (time so far, the estimate's basis, legs simulated) are in the run bar's Details
