@@ -735,6 +735,8 @@
               Leave the tab open: a closed tab stops the workers.
             </template>
           </p>
+          <!-- Above 300,000 routes (search/bigBox.ts): about how many hours here, and the command line. -->
+          <BigBoxNote :note="bigBox" />
         </div>
 
         <!-- The run controls (RunControls.vue): the same block on every search screen. A sweep link
@@ -1130,6 +1132,8 @@ import { useStartTimesStore } from '@/stores/startTimes';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useUIStore } from '@/stores/ui';
 import RunNoteBox from './RunNoteBox.vue';
+import BigBoxNote from './BigBoxNote.vue';
+import { bigBoxNote } from '@/search/bigBox';
 import ShareResult from './ShareResult.vue';
 import SentByRunNote from './SentByRunNote.vue';
 import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
@@ -1864,6 +1868,25 @@ const estimateLabel = computed(() => {
   return chainCount.value ? formatHours(hours.value) : '—';
 });
 const tooBig = computed(() => chainCount.value > 0 && hours.value > TOO_BIG_HOURS);
+/**
+ * Above 300,000 routes, the amber note under the estimate (search/bigBox.ts): the count shown as
+ * Routes it will run and the hours shown as Est. wall clock, with what the speed came from. Before a
+ * run only: during one the time left is the run's own.
+ */
+const bigBox = computed(() =>
+  runLeft.value
+    ? null
+    : bigBoxNote({
+        routes: totalChains.value,
+        seconds: hours.value * 3600,
+        workers: store.workerBudget,
+        basis: measuredCost.value
+          ? `${store.rateSource === 'benchmark' ? 'benchmarked' : 'measured'} on ${thisDevice()}`
+          : speedSourceLabel.value,
+        device: thisDevice(),
+        where: 'site',
+      })
+);
 
 onMounted(() => {
   void store.refreshSavedRuns(props.playerId);
