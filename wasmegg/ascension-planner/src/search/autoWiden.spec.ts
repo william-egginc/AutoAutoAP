@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   AUTO_WIDEN_ROUNDS,
   CENTRE_TE_SLACK,
+  FALLBACK_BUDGET_SECONDS,
+  NEARBY_MIN_SECONDS,
+  WIDEN_MAX_SETS,
+  afterScanStatus,
+  budgetBands,
+  nearbyBudgetSeconds,
+  roundChains,
+  roundFits,
   INSTANT_SETTLE_MS,
   INSTANT_TIMEOUT_STATUS,
   INSTANT_WAIT_STATUS,
@@ -35,9 +43,12 @@ const te78: WidenState = {
   busy: false,
 };
 
+/** The widening as it was before the round budget (18 Oct 2026), for the specs about which edges move. */
+const unbudgeted = { maxRounds: 3, maxSets: Infinity };
+
 describe('nextWidenRound', () => {
   it('TE 78, every stop on its floor: the 1st (79, your TE + 1) is a true floor; the 2nd and 3rd widen', () => {
-    const d = nextWidenRound({ ...te78, roundsDone: 0 });
+    const d = nextWidenRound({ ...te78, ...unbudgeted, roundsDone: 0 });
     expect(d.next).toBe(true);
     if (!d.next) return;
     expect(d.round).toBe(1);
@@ -49,9 +60,31 @@ describe('nextWidenRound', () => {
     expect(d.status).toBe('Round 1 of up to 3: widening the 2nd stop below 94 and the 3rd stop below 119…');
   });
 
-  it('stops after 3 rounds', () => {
-    expect(nextWidenRound({ ...te78, roundsDone: 2 })).toMatchObject({ next: true, round: 3 });
+  it('stops after its rounds: 1 by default (since 18 Oct 2026), and none at 0', () => {
+    expect(AUTO_WIDEN_ROUNDS).toBe(1);
+    expect(nextWidenRound({ ...te78, roundsDone: 0 })).toMatchObject({ next: true, round: 1 });
     expect(nextWidenRound({ ...te78, roundsDone: AUTO_WIDEN_ROUNDS })).toEqual({ next: false, why: 'rounds' });
+    expect(nextWidenRound({ ...te78, roundsDone: 2, maxRounds: 3 })).toMatchObject({ next: true, round: 3 });
+    expect(nextWidenRound({ ...te78, roundsDone: 3, maxRounds: 3 })).toEqual({ next: false, why: 'rounds' });
+    // Off: no automatic round at all (Widen and run again under the answer still goes by hand).
+    expect(nextWidenRound({ ...te78, roundsDone: 0, maxRounds: 0 })).toEqual({ next: false, why: 'rounds' });
+  });
+
+  it("holds the widened box to the round's budget: TE 78's 7 x 17 x 17 sets come down to 36 or fewer", () => {
+    const d = nextWidenRound({ ...te78, roundsDone: 0 });
+    expect(d.next).toBe(true);
+    if (!d.next) return;
+    const b = parseBands(d.text);
+    const sets = b.reduce((n, x) => n * x.length, 1);
+    expect(sets).toBeLessThanOrEqual(WIDEN_MAX_SETS);
+    // The 1st stop (not on a movable edge) pinned to the best route's; the 2nd and 3rd still reach
+    // below their old floors, and the best route is still in the box.
+    expect(b[0]).toEqual([79]);
+    expect(b[1][0]).toBeLessThan(94);
+    expect(b[2][0]).toBeLessThan(119);
+    expect(b[1]).toContain(94);
+    expect(b[2]).toContain(119);
+    expect(d.status).toBe('Widening the 2nd stop below 94 and the 3rd stop below 119, one small round…');
   });
 
   it('never with an instant answer, after a stop, or while another run goes', () => {
@@ -74,7 +107,14 @@ describe('nextWidenRound', () => {
   });
 
   it('widens a wide-step box down to the floor (80-90:5 at TE 77 tries 78 and 79)', () => {
-    const d = nextWidenRound({ ...te78, bands: [[80, 85, 90]], chain: [80, 160], currentTE: 77, roundsDone: 0 });
+    const d = nextWidenRound({
+      ...te78,
+      ...unbudgeted,
+      bands: [[80, 85, 90]],
+      chain: [80, 160],
+      currentTE: 77,
+      roundsDone: 0,
+    });
     expect(d.next && parseBands(d.text)[0]).toEqual([78, 79, 80, 85, 90]);
     expect(d.next && d.status).toBe('Round 1 of up to 3: widening the 1st stop below 80…');
   });
@@ -92,6 +132,7 @@ describe('runAutoWiden', () => {
     const statuses: string[] = [];
     const ran: string[] = [];
     const out = await runAutoWiden({
+      ...unbudgeted,
       read: () => state,
       onStatus: s => statuses.push(s),
       runRound: async d => {
@@ -117,6 +158,7 @@ describe('runAutoWiden', () => {
     let rounds = 0;
     expect(
       await runAutoWiden({
+        ...unbudgeted,
         read: () => state,
         runRound: async () => {
           rounds++;
@@ -138,6 +180,88 @@ describe('runAutoWiden', () => {
       })
     ).toEqual({ rounds: 1, why: 'stopped' });
     expect(rounds).toBe(1);
+  });
+});
+
+describe("the fallback's time limits", () => {
+  it('scans 100 sets and holds the whole fallback to about 15 min', () => {
+    expect(QUICK_SCAN_SHAPES).toBe(100);
+    expect(FALLBACK_BUDGET_SECONDS).toBe(15 * 60);
+    expect(WIDEN_MAX_SETS).toBe(36);
+  });
+
+  it("gives Nearby routes what is left after the scan, never under a minute", () => {
+    expect(nearbyBudgetSeconds(0)).toBe(900);
+    expect(nearbyBudgetSeconds(9 * 60)).toBe(6 * 60);
+    expect(nearbyBudgetSeconds(14.5 * 60)).toBe(NEARBY_MIN_SECONDS);
+    expect(nearbyBudgetSeconds(40 * 60)).toBe(NEARBY_MIN_SECONDS);
+    expect(nearbyBudgetSeconds(NaN)).toBe(900);
+  });
+
+  it('starts a widening round only when it fits what is left', () => {
+    expect(roundFits({ elapsedSeconds: 600, roundSeconds: 200 })).toBe(true);
+    expect(roundFits({ elapsedSeconds: 800, roundSeconds: 200 })).toBe(false);
+    expect(roundFits({ elapsedSeconds: 0, roundSeconds: NaN })).toBe(false);
+    expect(roundFits({ elapsedSeconds: 100, roundSeconds: 100, budget: 150 })).toBe(false);
+  });
+
+  it('says how long Nearby routes was given, and that Stop keeps the best', () => {
+    expect(afterScanStatus(361)).toBe(
+      "Checking the routes near the quick scan's best, in boxes sized to take about 6 min so the whole search " +
+        'stays near 15 min. Stop keeps the best route so far…'
+    );
+    expect(afterScanStatus(10)).toContain('about 1 min');
+  });
+
+  it('budgetBands: as widened when it fits, else pins the stops not widened, then thins the widened ones', () => {
+    // TE 100's widened box measured 18 Oct (best 125 152 177): 5 x 15 x 15 = 1,125 sets.
+    const wide = [run(123, 127), run(148, 162), run(173, 187)];
+    const edges = [{ band: 2 }, { band: 3 }];
+    expect(budgetBands(wide, [125, 152, 177, 203], edges, 2000)).toEqual(wide);
+    const fit = budgetBands(wide, [125, 152, 177, 203], edges);
+    expect(fit[0]).toEqual([125]);
+    expect(fit[1].length * fit[2].length).toBeLessThanOrEqual(36);
+    expect(fit[1]).toContain(152);
+    expect(fit[2]).toContain(177);
+    // Every 3rd TE from the best route's stop: 149 152 ... 161 and 174 177 ... 186.
+    expect(fit[1]).toEqual([149, 152, 155, 158, 161]);
+    expect(fit[2]).toEqual([174, 177, 180, 183, 186]);
+    // Pinning alone is enough here.
+    expect(budgetBands([run(123, 127), run(150, 155)], [125, 155, 200], [{ band: 2 }], 6)).toEqual([
+      [125],
+      run(150, 155),
+    ]);
+  });
+
+  it('roundChains: the widened box, and every other count as its best route', () => {
+    const chains = [
+      { asc: 1, text: '' },
+      { asc: 2, text: '147-153:1' },
+      { asc: 3, text: '122-128:1; 172-178:1' },
+      { asc: 4, text: '123-127:1; 148-152:1; 173-177:1' },
+      { asc: 5, text: '104-106:1; 124-126:1; 149-151:1; 174-176:1' },
+    ];
+    const byStops = [[188], [151, 200], [125, 173, 202], [125, 152, 177, 203]];
+    expect(roundChains({ chains, row: 3, text: '125; 149-161:3; 173-185:3', byStops })).toEqual([
+      { asc: 1, text: '' },
+      { asc: 2, text: '151' },
+      { asc: 3, text: '125; 173' },
+      { asc: 4, text: '125; 149-161:3; 173-185:3' },
+      // No 5-ascension route in the answer: left out.
+    ]);
+  });
+
+  it('runAutoWiden starts no round that does not fit', async () => {
+    let ran = 0;
+    const out = await runAutoWiden({
+      read: () => te78,
+      fits: () => false,
+      runRound: async () => {
+        ran++;
+      },
+    });
+    expect(out).toEqual({ rounds: 0, why: 'budget' });
+    expect(ran).toBe(0);
   });
 });
 

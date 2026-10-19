@@ -85,9 +85,33 @@ describe('the no-instant-answer fallback on By a date', () => {
     expect(fallback).toContain('store.dropDeadlineSends(drop)');
   });
 
-  it('widens the box that holds the best route, keeping the other rows as the run had them', () => {
-    expect(fallback).toContain('k === box.row ? { asc: r.asc, text: d.text } : { ...r }');
+  it('widens the box that holds the best route; the other counts run again as just their best route', () => {
+    expect(fallback).toContain('simpleNext.value = { chains: nextRoundChains(d.text), lastBox: used.lastBox };');
+    expect(script).toContain('row: edgeBox.value?.row ?? -1,');
+    expect(script).toContain('byStops: store.deadlineResult?.byStops.map(r => r.chain) ?? [],');
     expect(script).toContain('simpleNext.value\n    ? simpleNext.value');
+  });
+
+  it('holds the whole fallback to its time: Nearby sized to what is left, a round only when it fits', () => {
+    expect(fallback).toContain('const t0 = Date.now();');
+    expect(fallback).toContain('fallbackSeconds.value = nearbyBudgetSeconds(elapsed());');
+    expect(fallback).toContain('if (scanned) autoStatus.value = afterScanStatus(fallbackSeconds.value);');
+    expect(fallback.indexOf('nearbyBudgetSeconds(')).toBeLessThan(
+      fallback.indexOf('await find({ scanned, widenRounds: 0 })')
+    );
+    expect(fallback).toContain('roundSeconds: boxesSeconds(nextRoundChains(d.text), simpleRunBoxes.value.lastBox),');
+    expect(fallback).toContain('fallbackSeconds.value = null;');
+    // Nearby's boxes on this machine's own speed and workers while the fallback goes.
+    const space = script.slice(script.indexOf('function spaceFor('), script.indexOf('/** The level the bar is on'));
+    expect(space).toContain('maxSeconds: own ? Math.min(cfg.maxSeconds, own) : cfg.maxSeconds,');
+    expect(space).toContain(
+      'simplePlanOf(sp, store.workerBudget, store.deadlineWorkerSeconds || weightedSecondsPerLeg(sp))'
+    );
+  });
+
+  it('after the fallback, Widen and run again is there whenever the best route is still on an edge', () => {
+    expect(template).toContain('v-if="edges.length && !store.deadlineRunning"');
+    expect(template).toContain('@widen="widenAndRun"');
   });
 
   it('the answer says what it did, in place of the rough-guess note', () => {

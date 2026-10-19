@@ -18,31 +18,70 @@
  *   2. Nearby routes, in those boxes.
  *   3. Widening. While the best route sits on an edge of its box that can move (bandCheck.ts
  *      `findBandEdges`), that box is widened toward the edge (`widenEdges`, as the command line's
- *      `--widen` and the panel's Widen and run again) and the run goes again: up to 3 rounds.
+ *      `--widen` and the panel's Widen and run again) and run again: up to `AUTO_WIDEN_ROUNDS` rounds.
+ *      Only that box is searched again (`roundChains`); every other count keeps its best route.
+ *
+ * HOW LONG. Measured 18 Oct 2026 on the alt's 10 Oct save lowered to TE 90, 100 and 115, for Egg Day
+ * 2027 at 5 workers (a vitest run of this fallback with real worker threads): a priced leg is about 5
+ * worker-seconds, so at 5 workers the minutes are about the legs / 60. Before these limits the scan
+ * (250 sets) took 570-780 legs (10-13 min at 5 workers), Nearby routes 1,350-1,520 (22-25 min), and one
+ * widening round re-ran every box with one grown to ~1,100 sets (several hours). So the whole fallback
+ * is held to about `FALLBACK_BUDGET_SECONDS` on the player's own machine:
+ *   - the scan at 100 sets (`QUICK_SCAN_SHAPES`): 470-570 legs, 8-10 min, and the same or a better
+ *     best route than at 250 at all three TEs;
+ *   - Nearby routes' boxes sized to what is left of the budget (`nearbyBudgetSeconds`);
+ *   - a widening round only when it fits what is left (`roundFits`), and at most `WIDEN_MAX_SETS` sets
+ *     of early stops (`budgetBands`). Widen and run again under the answer goes further by hand.
  *
  * Find on Nearby routes takes this path only once the instant answer has settled with none: while it is
  * still being worked out, Find waits for it (`awaitInstant`, at most 10 seconds, then goes on without).
  *
- * It ends with no edge, no room to widen, 3 rounds, a stop, a failed run, or another run going. Each
- * round keeps the best route found so far: a round stopped by hand that has not caught up with the
- * round before gives way to it (`betterRoute`).
+ * It ends with no edge, no room to widen, the last round, no time left, a stop, a failed run, or another
+ * run going. Each round keeps the best route found so far: a round stopped by hand that has not caught
+ * up with the round before gives way to it (`betterRoute`).
  *
  * Pure: the panel (DeadlinePanel.vue) runs the searches; this decides what comes next.
  */
 import { findBandEdges, widenEdges, type BandEdge } from './bandCheck';
-import { countShapes, stepForBudget, MAX_LAST_STOP } from './deadline';
+import { countShapes, parseChainText, stepForBudget, MAX_LAST_STOP } from './deadline';
+import { formatBand } from './exhaustive';
 import type { DeadlineFallback, DeadlineRunSpec } from './deadlineStore';
 
-/** Widening rounds after the first Nearby routes run, at most. */
-export const AUTO_WIDEN_ROUNDS = 3;
-/** The quick scan's budget in sets of early stops (its grid widens until it fits). */
-export const QUICK_SCAN_SHAPES = 250;
+/** Widening rounds after the first Nearby routes run, at most. 0 turns automatic widening off: the
+ *  answer's Widen and run again is still there. */
+export const AUTO_WIDEN_ROUNDS = 1;
+/** The quick scan's budget in sets of early stops (its grid widens until it fits). 250 until 18 Oct 2026: 100
+ *  cost 15-40% fewer legs and found the same or a better route at TE 90, 100 and 115. */
+export const QUICK_SCAN_SHAPES = 100;
+/** The whole fallback (scan, Nearby routes, widening) on the player's machine, about. */
+export const FALLBACK_BUDGET_SECONDS = 15 * 60;
+/** Nearby routes always gets at least this long, even when the scan used up the budget (a slow
+ *  machine): its boxes then shrink to about the scan's own routes. */
+export const NEARBY_MIN_SECONDS = 60;
+/**
+ * A widening round's budget in sets of early stops. The 18 Oct Nearby routes runs priced 4.2-4.3 routes a
+ * set and 1.3 legs a route, about 28 worker-seconds a set: 36 sets is about 150 routes, 3.4 min at 5
+ * workers.
+ */
+export const WIDEN_MAX_SETS = 36;
 /** Ascension counts the quick scan tries: Nearby routes' own, 1 to 5. */
 export const QUICK_SCAN_MAX_STOPS = 5;
 
 /** How far (in TE) the save's TE may have moved since an earlier By a date answer was priced for it to
  *  still centre the boxes: past that its routes start from somewhere else, and the quick scan goes. */
 export const CENTRE_TE_SLACK = 3;
+
+/** How long Nearby routes may take after a scan that took `elapsedSeconds`: what is left of the budget. */
+export function nearbyBudgetSeconds(elapsedSeconds: number, budget = FALLBACK_BUDGET_SECONDS): number {
+  const left = budget - Math.max(0, elapsedSeconds || 0);
+  return Math.max(NEARBY_MIN_SECONDS, Math.floor(left));
+}
+
+/** Whether a widening round estimated at `roundSeconds` fits in what is left of the budget. */
+export function roundFits(o: { elapsedSeconds: number; roundSeconds: number; budget?: number }): boolean {
+  if (!(o.roundSeconds >= 0)) return false;
+  return o.elapsedSeconds + o.roundSeconds <= (o.budget ?? FALLBACK_BUDGET_SECONDS);
+}
 
 /** An earlier By a date answer, as the fallback reads it (`SavedDeadlineResult`): the date it was for,
  *  the save TE it was priced from, and its best route for each count. */
@@ -200,14 +239,64 @@ export interface WidenState {
   busy: boolean;
 }
 
-export type WidenEnd = 'instant' | 'stopped' | 'busy' | 'rounds' | 'noEdge' | 'noRoom';
+export type WidenEnd = 'instant' | 'stopped' | 'busy' | 'rounds' | 'noEdge' | 'noRoom' | 'budget';
 
 export type WidenDecision =
   | { next: true; round: number; edges: BandEdge[]; text: string; status: string }
   | { next: false; why: WidenEnd };
 
+/**
+ * A widened box held to `maxSets` sets of early stops (a round's budget, `WIDEN_MAX_SETS`): as widened
+ * when it fits; else the stops that were not on an edge pinned to the best route's own; else the
+ * widened stops thinned to every 2nd TE, then every 3rd..., counted from the best route's stop so it
+ * stays in. `bands` is the box already widened (`widenEdges`), `chain` the best route it was widened
+ * for, `edges` the stops it was widened at (1-based).
+ */
+export function budgetBands(
+  bands: readonly (readonly number[])[],
+  chain: readonly number[],
+  edges: readonly Pick<BandEdge, 'band'>[],
+  maxSets = WIDEN_MAX_SETS
+): number[][] {
+  const size = (b: readonly (readonly number[])[]) => b.reduce((n, x) => n * Math.max(1, x.length), 1);
+  const out = bands.map(b => [...b]);
+  if (size(out) <= maxSets) return out;
+  const widened = new Set(edges.map(e => e.band - 1));
+  const pinned = out.map((b, i) => (widened.has(i) || !b.includes(chain[i]) ? b : [chain[i]]));
+  if (size(pinned) <= maxSets) return pinned;
+  let thinned = pinned;
+  for (let step = 2; step <= 50; step++) {
+    thinned = pinned.map((b, i) => (widened.has(i) ? b.filter(v => (v - chain[i]) % step === 0) : b));
+    if (size(thinned) <= maxSets) break;
+  }
+  return thinned;
+}
+
+/**
+ * The boxes a widening round runs: the widened one (`text`, in row `row`), and every other count as just
+ * its best route from the run before (`byStops`), so its answer stays on screen at about one set
+ * each. A count with no route there is left out.
+ */
+export function roundChains(o: {
+  chains: readonly { asc: number; text: string }[];
+  row: number;
+  text: string;
+  byStops: readonly (readonly number[])[];
+}): { asc: number; text: string }[] {
+  const out: { asc: number; text: string }[] = [];
+  o.chains.forEach((r, k) => {
+    if (k === o.row) return out.push({ asc: r.asc, text: o.text });
+    if (r.asc <= 1) return out.push({ asc: r.asc, text: '' });
+    const route = o.byStops.find(c => c.length === r.asc);
+    if (route) out.push({ asc: r.asc, text: route.slice(0, -1).map(v => formatBand([v])).join('; ') });
+  });
+  return out;
+}
+
 /** Whether to widen and run again after `roundsDone` rounds, and how. */
-export function nextWidenRound(s: WidenState & { roundsDone: number; maxRounds?: number }): WidenDecision {
+export function nextWidenRound(
+  s: WidenState & { roundsDone: number; maxRounds?: number; maxSets?: number }
+): WidenDecision {
   const max = s.maxRounds ?? AUTO_WIDEN_ROUNDS;
   if (s.hadInstant) return { next: false, why: 'instant' };
   if (s.stopped) return { next: false, why: 'stopped' };
@@ -218,8 +307,12 @@ export function nextWidenRound(s: WidenState & { roundsDone: number; maxRounds?:
   const edges = findBandEdges(s.bands, s.chain, { currentTE: s.currentTE, finalTE: final });
   if (!edges.length) return { next: false, why: 'noEdge' };
   // As the panel's Widen and run again: up to just under 490, since the last stop may go past its box.
-  const text = widenEdges(s.bands, edges, { currentTE: s.currentTE, finalTE: MAX_LAST_STOP });
-  if (!text) return { next: false, why: 'noRoom' };
+  const wide = widenEdges(s.bands, edges, { currentTE: s.currentTE, finalTE: MAX_LAST_STOP });
+  if (!wide) return { next: false, why: 'noRoom' };
+  // Held to the round's budget (`budgetBands`).
+  const text = budgetBands(parseChainText(wide), s.chain, edges, s.maxSets ?? WIDEN_MAX_SETS)
+    .map(b => formatBand(b))
+    .join('; ');
   const round = s.roundsDone + 1;
   return { next: true, round, edges, text, status: widenStatus(round, max, edges) };
 }
@@ -227,10 +320,12 @@ export function nextWidenRound(s: WidenState & { roundsDone: number; maxRounds?:
 const ORDINAL = ['1st', '2nd', '3rd'];
 const nth = (n: number) => ORDINAL[n - 1] ?? `${n}th`;
 
-/** "Round 2 of up to 3: widening the 2nd stop below 94 and the 3rd stop below 119…" */
+/** "Round 2 of up to 3: widening the 2nd stop below 94 and the 3rd stop below 119…" ("Widening ..., one
+ *  small round…" when there is only one). */
 export function widenStatus(round: number, max: number, edges: readonly BandEdge[]): string {
   const what = edges.map(e => `the ${nth(e.band)} stop ${e.side === 'low' ? 'below' : 'above'} ${e.value}`);
   const list = what.length < 2 ? what.join('') : `${what.slice(0, -1).join(', ')} and ${what[what.length - 1]}`;
+  if (max <= 1) return `Widening ${list}, one small round…`;
   return `Round ${round} of up to ${max}: widening ${list}…`;
 }
 
@@ -238,6 +333,15 @@ export function widenStatus(round: number, max: number, edges: readonly BandEdge
 export const QUICK_SCAN_STATUS =
   'Quick scan: no instant answer for your TE yet, so a rough first look at each number of ascensions places the boxes…';
 export const AFTER_SCAN_STATUS = "Checking the routes near the quick scan's best…";
+/** The same, with how long its boxes were sized to take (`nearbyBudgetSeconds`). */
+export function afterScanStatus(seconds: number): string {
+  const min = Math.max(1, Math.round(seconds / 60));
+  const all = Math.round(FALLBACK_BUDGET_SECONDS / 60);
+  return (
+    `Checking the routes near the quick scan's best, in boxes sized to take about ${min} min so the whole ` +
+    `search stays near ${all} min. Stop keeps the best route so far…`
+  );
+}
 
 /** The route a run found against the one before it: true when `a` is at least as good (a higher last
  *  stop, or the same one with as much time to spare or more). A missing route is never better. */
@@ -259,18 +363,23 @@ export function autoFallbackNote(f: DeadlineFallback): string {
 
 /**
  * The widening rounds, one after another: `read` says where things stand after a run, `runRound` runs
- * the next (the box widened to `d.text`). Never starts a round while another run goes or after a stop.
+ * the next (the box widened to `d.text`). Never starts a round while another run goes, after a stop,
+ * or when `fits` says it would run past the budget.
  */
 export async function runAutoWiden(o: {
   read: () => WidenState;
   runRound: (d: Extract<WidenDecision, { next: true }>) => Promise<void>;
   onStatus?: (text: string) => void;
   maxRounds?: number;
+  maxSets?: number;
+  /** Whether this round fits what is left of the time (`roundFits`); no round starts when it says no. */
+  fits?: (d: Extract<WidenDecision, { next: true }>) => boolean;
 }): Promise<{ rounds: number; why: WidenEnd }> {
   let rounds = 0;
   for (;;) {
-    const d = nextWidenRound({ ...o.read(), roundsDone: rounds, maxRounds: o.maxRounds });
+    const d = nextWidenRound({ ...o.read(), roundsDone: rounds, maxRounds: o.maxRounds, maxSets: o.maxSets });
     if (!d.next) return { rounds, why: d.why };
+    if (o.fits && !o.fits(d)) return { rounds, why: 'budget' };
     rounds = d.round;
     o.onStatus?.(d.status);
     await o.runRound(d);

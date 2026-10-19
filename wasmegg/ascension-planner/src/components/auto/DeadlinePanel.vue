@@ -882,16 +882,19 @@ import {
 import { defaultWorkerCount } from '@/search/batch';
 import { findBandEdges, noInstantAnswerText, widenEdges, type BandEdge } from '@/search/bandCheck';
 import {
-  AFTER_SCAN_STATUS,
   INSTANT_TIMEOUT_STATUS,
   INSTANT_WAIT_STATUS,
   QUICK_SCAN_STATUS,
+  afterScanStatus,
   autoFallbackNote,
   awaitInstant,
   betterRoute,
   canCentreOn,
+  nearbyBudgetSeconds,
   needsQuickScan,
   quickScanSpec,
+  roundChains,
+  roundFits,
   runAutoWiden,
   type InstantState,
 } from '@/search/autoWiden';
@@ -1213,18 +1216,24 @@ useSearchSnapshots('date');
 const lines = computed(() => ({
   instant: routeLine('date', stronger.instant.date, inPlannerZone, 'working out…'),
 }));
+/** The fallback's Nearby routes: how long its boxes may take on this machine; null otherwise. */
+const fallbackSeconds = ref<number | null>(null);
 /** The routes near the instant answer at a level (simpleByDate.ts BY_DATE_LEVELS), sized on a typical
- *  machine so every computer gets the same boxes. */
+ *  machine so every computer gets the same boxes. In the no-instant-answer fallback (`fallbackSeconds`)
+ *  sized instead to what is left of its time on this machine (search/autoWiden.ts). */
 function spaceFor(level: ByDateLevel): SimpleSpace | null {
   if (!(store.currentTE > 0)) return null;
   const cfg = BY_DATE_LEVELS[level];
+  const own = fallbackSeconds.value;
   return simpleByDateSpace({
     currentTE: store.currentTE,
     routes: simpleCentres.value.routes,
     widthFor: widthForLevel(level),
     maxSetsPerRow: cfg.maxSetsPerRow,
-    secondsOf: sp => simplePlanOf(sp, TYPICAL_WORKERS, weightedSecondsPerLeg(sp)).seconds,
-    maxSeconds: cfg.maxSeconds,
+    secondsOf: own
+      ? sp => simplePlanOf(sp, store.workerBudget, store.deadlineWorkerSeconds || weightedSecondsPerLeg(sp)).seconds
+      : sp => simplePlanOf(sp, TYPICAL_WORKERS, weightedSecondsPerLeg(sp)).seconds,
+    maxSeconds: own ? Math.min(cfg.maxSeconds, own) : cfg.maxSeconds,
   });
 }
 /** The level the bar is on (Light searches nothing: its boxes are Fast's, for the summary). */
@@ -2247,7 +2256,9 @@ async function find(fallback?: DeadlineFallback): Promise<void> {
 /**
  * Nearby routes with no instant answer for this TE (search/autoWiden.ts): a quick scan places the
  * boxes when there is no earlier answer to centre them on, Nearby routes runs in them, and a box whose
- * edge the best route sits on is widened and run again, up to 3 rounds. Each run is an ordinary By a
+ * edge the best route sits on is widened and run again (`AUTO_WIDEN_ROUNDS`, only that box). All of it
+ * is held to about 15 min on this machine (`FALLBACK_BUDGET_SECONDS`): Nearby routes' boxes are sized
+ * to what is left after the scan, and a round starts only when it fits. Each run is an ordinary By a
  * date run on the player's own settings; Stop ends it all, and the best route found so far stays.
  */
 const autoStatus = ref('');
@@ -2261,10 +2272,35 @@ const instantNow = computed<InstantState>(() =>
 const instantWait = ref('');
 let unmounted = false;
 onUnmounted(() => (unmounted = true));
+/** A widening round's boxes: the box holding the best route widened to `text`, the other counts as their
+ *  best route (search/autoWiden.ts `roundChains`). */
+function nextRoundChains(text: string): { asc: number; text: string }[] {
+  return roundChains({
+    chains: simpleRunBoxes.value.chains,
+    row: edgeBox.value?.row ?? -1,
+    text,
+    byStops: store.deadlineResult?.byStops.map(r => r.chain) ?? [],
+  });
+}
+/** About how long these boxes take on this machine (the same estimate as Nearby routes' own). */
+function boxesSeconds(rows: { asc: number; text: string }[], lastBox: string): number {
+  return byDatePlan({
+    rows: rows.map(row => ({ asc: row.asc, bands: bandsOf(row) })),
+    currentTE: store.currentTE,
+    lastHi: rangeOf(lastBox)?.[1] ?? 0,
+    instantSets: [],
+    workers: store.workerBudget,
+    rememberedPerSet: rememberedPerSetOf(rows),
+    workerSecondsPerLeg: aroundSecondsPerLeg.value,
+  }).seconds;
+}
 /** Stop pressed during the fallback: no further run starts (the store's own flag resets each run). */
 const autoStop = ref(false);
 async function findWithoutInstant(timedOut = false): Promise<void> {
   autoStop.value = false;
+  /** The whole fallback is held to about 15 min on this machine (search/autoWiden.ts). */
+  const t0 = Date.now();
+  const elapsed = () => (Date.now() - t0) / 1000;
   /** Every answer the fallback went past, for dropping its kept send at the end (store `dropDeadlineSends`). */
   const went: number[] = [];
   /** The last run was stopped (here, or by the run bar's Stop & keep best) or failed: read from the run
@@ -2310,8 +2346,10 @@ async function findWithoutInstant(timedOut = false): Promise<void> {
       );
       noteRun();
       if (ended()) return;
-      autoStatus.value = AFTER_SCAN_STATUS;
     }
+    // Nearby routes' boxes sized to what is left of the time.
+    fallbackSeconds.value = nearbyBudgetSeconds(elapsed());
+    if (scanned) autoStatus.value = afterScanStatus(fallbackSeconds.value);
     // Whatever Nearby routes' Find would have refused (the deadline moved, nothing to check).
     if (aroundIssue.value) return;
     // The boxes now centre on the scan's best route for each count (`simpleCentres`, "answer").
@@ -2329,13 +2367,16 @@ async function findWithoutInstant(timedOut = false): Promise<void> {
         busy: store.busy,
       }),
       onStatus: text => (autoStatus.value = text),
+      // A round starts only when its estimate on this machine fits what is left of the time.
+      fits: d =>
+        roundFits({
+          elapsedSeconds: elapsed(),
+          roundSeconds: boxesSeconds(nextRoundChains(d.text), simpleRunBoxes.value.lastBox),
+        }),
       runRound: async d => {
-        const box = edgeBox.value!;
         const used = simpleRunBoxes.value;
-        simpleNext.value = {
-          chains: used.chains.map((r, k) => (k === box.row ? { asc: r.asc, text: d.text } : { ...r })),
-          lastBox: used.lastBox,
-        };
+        // Only the widened box runs again; every other count as just its best route (`roundChains`).
+        simpleNext.value = { chains: nextRoundChains(d.text), lastBox: used.lastBox };
         prev = store.deadlineResult;
         await find({ scanned, widenRounds: d.round });
         await keepBest(prev);
@@ -2343,6 +2384,7 @@ async function findWithoutInstant(timedOut = false): Promise<void> {
     });
   } finally {
     simpleNext.value = null;
+    fallbackSeconds.value = null;
     autoStatus.value = '';
     // Only the answer on screen waits to be sent; the rounds it went past don't.
     const kept = store.deadlineResult?.at;
