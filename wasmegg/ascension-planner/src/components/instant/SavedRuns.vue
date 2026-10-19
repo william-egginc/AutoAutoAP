@@ -1,8 +1,9 @@
 <!--
   Saved runs, on top of the Auto Planner tab: the plans saved from Find a run with "Save this plan"
   (instant/plansOnDevice.ts), newest first, kept in this browser only. A row opens to Open in the
-  planner (Joo's Auto Planner on that route), Add shifts to calendar (coming), Delete, and its
-  ascensions' starts and ends, each marked estimate or exact.
+  planner (Joo's Auto Planner on that route), Delete, Add shifts to calendar (the current ascension's
+  shifts ahead from the entry's exact check; without one it runs the check first, ExactCheck.vue,
+  and keeps the exact times in the entry), and its ascensions' starts and ends, marked estimate or exact.
 -->
 <template>
   <section
@@ -50,7 +51,17 @@
         </button>
 
         <div v-if="open === planId(p)" class="pl-5 pb-3 space-y-3" data-testid="saved-open">
-          <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+          <ExactCheck
+            :check-key="keyOf(p)"
+            :route="{ chain: p.chain, a1: p.a1, start: againStart(p) }"
+            :timezone="timezone"
+            :save-when="p.saveTime ? atText(p.saveTime, timezone) : 'your save'"
+            :known="exactOfEntry(p)"
+            :deadline="p.dated ? p.deadline : undefined"
+            :show-check="false"
+            :on-done="(r: ExactResult) => checked(p, r)"
+            :now="props.now"
+          >
             <button
               type="button"
               class="w-full sm:w-auto min-h-[44px] px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest"
@@ -58,17 +69,6 @@
               @click="emit('open', { chain: [...p.chain], start: againStart(p), a1: p.a1 })"
             >
               Open in the planner
-            </button>
-            <!-- Part B placeholder: the calendar. -->
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              title="Coming next"
-              class="w-full sm:w-auto min-h-[44px] px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-              data-testid="saved-calendar"
-            >
-              Add shifts to calendar
             </button>
             <button
               type="button"
@@ -79,7 +79,7 @@
             >
               {{ armed === planId(p) ? 'Tap again to delete' : 'Delete' }}
             </button>
-          </div>
+          </ExactCheck>
           <table v-if="p.ascensions.length" class="w-full text-left text-[11px] sm:text-xs" data-testid="saved-times">
             <thead>
               <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -120,7 +120,9 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import type { SimulateRequest } from '@/instant/simulatePlan';
 import { saveSyncSeconds } from '@/instant/saveFarm';
-import { cellText } from '@/instant/findRun';
+import { atText, cellText } from '@/instant/findRun';
+import { checkKey, exactOfEntry, withExact, type ExactResult } from '@/instant/exactCheck';
+import ExactCheck from './ExactCheck.vue';
 import { accountHash } from '@/instant/accountHash';
 import {
   againStart,
@@ -131,6 +133,7 @@ import {
   readPlans,
   savedLine,
   savedTitle,
+  updatePlan,
   type PlanEntry,
 } from '@/instant/plansOnDevice';
 
@@ -157,6 +160,17 @@ const hash = ref<string | null>(null);
 const open = ref<string | null>(props.opened ?? null);
 const nowSeconds = ref(props.now ?? Math.floor(Date.now() / 1000));
 let clock: ReturnType<typeof setInterval> | undefined;
+
+/** The exact check's memory key for an entry (the save it came from, its goal, route and first build). */
+function keyOf(p: PlanEntry): string {
+  return checkKey({ saveTime: p.saveTime ?? 0, goal: p.goal, chain: p.chain, a1: p.a1 });
+}
+
+/** A check run from here finished: the entry keeps the exact times, the shifts and the next shift. */
+function checked(p: PlanEntry, r: ExactResult): void {
+  const updated = withExact(p, r, Math.floor(Date.now() / 1000), currentSave.value || undefined);
+  list.value = props.plans ? list.value.map(e => (planId(e) === planId(p) ? updated : e)) : updatePlan(browserStorage(), hash.value, updated);
+}
 
 function line(p: PlanEntry): string {
   return savedLine(p, currentSave.value, nowSeconds.value, timezone.value);

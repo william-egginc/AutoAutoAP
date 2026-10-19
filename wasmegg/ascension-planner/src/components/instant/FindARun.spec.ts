@@ -18,6 +18,8 @@ import FindARun from './FindARun.vue';
 import InstantRows from './InstantRows.vue';
 import SavedRuns from './SavedRuns.vue';
 import NoInstantAnswer, { noAnswerWords } from './NoInstantAnswer.vue';
+import { setCheckStateForSpecs } from '@/instant/exactClient';
+import type { ExactResult } from '@/instant/exactCheck';
 
 async function render(component: object, props: Record<string, unknown> = {}, setup?: () => void): Promise<string> {
   const pinia = createPinia();
@@ -152,7 +154,7 @@ describe('Find a run’s rows (server render)', () => {
     expect(t).toContain('· 3 TE behind');
   });
 
-  it('an opened row: Ascension, Starts, Ends (estimate) and the buttons, the placeholders disabled', async () => {
+  it('an opened row: Ascension, Starts, Ends (estimate) and the buttons: Check exactly and the calendar work', async () => {
     const html = await render(InstantRows, { rows, dated: false, timezone: 'America/Los_Angeles', opened: 2, now: T });
     const t = text(html);
     expect(html.match(/data-testid="find-open"/g)).toHaveLength(1);
@@ -163,8 +165,10 @@ describe('Find a run’s rows (server render)', () => {
     expect(t).toContain('estimate');
     expect(t).toContain('Import into the planner ›');
     expect(t).toContain('Save this plan');
-    expect(html).toMatch(/<button type="button" disabled aria-disabled="true" title="Coming next"[^>]*data-testid="find-check-exactly">\s*Check exactly/);
-    expect(html).toMatch(/<button type="button" disabled aria-disabled="true" title="Coming next"[^>]*data-testid="find-calendar">\s*Add shifts to calendar/);
+    expect(html).not.toContain('Coming next');
+    expect(html).toMatch(/<button type="button"(?![^>]*disabled)[^>]*data-testid="find-check-exactly">\s*Check exactly/);
+    expect(html).toMatch(/<button type="button"(?![^>]*disabled)[^>]*data-testid="find-calendar">\s*Add shifts to calendar/);
+    expect(t).toContain('Only this ascension’s shifts: later ones move as you play.');
     // Phone: the buttons stack full width, 44 px.
     expect(html).toContain('flex flex-col sm:flex-row');
     expect(html.match(/w-full sm:w-auto min-h-\[44px\]/g)).toHaveLength(4);
@@ -174,6 +178,104 @@ describe('Find a run’s rows (server render)', () => {
     const t = text(await render(InstantRows, { rows, dated: false, timezone: 'UTC', opened: 2, saved: ['300 490'] }));
     expect(t).toContain('Saved ✓');
     expect(t).not.toContain('Save this plan');
+  });
+});
+
+describe('Check exactly on an opened row (server render)', () => {
+  const KEY = '300 490|2-sale';
+  const props = { rows, dated: false, timezone: 'America/Los_Angeles', opened: 2, now: T };
+  const result: ExactResult = {
+    checkedAt: T,
+    ascensions: [
+      { to: 300, start: T, end: T + 5 * 86400 + 3600, variant: '2-sale', endTE: 300, shifts: [{ egg: 'Kindness', at: T - 60 }, { egg: 'Humility', at: T + 86400 }] },
+      { to: 490, start: T + 5 * 86400 + 3600, end: T + 15 * 86400 + 3 * 3600, variant: '1-sale', endTE: 490, shifts: [{ egg: 'Resilience', at: T + 6 * 86400 }] },
+    ],
+  };
+  const after = () => setCheckStateForSpecs(KEY, null);
+
+  it('running: the progress line (time, ascension N of M), a bar and Cancel; the calendar waits', async () => {
+    setCheckStateForSpecs(KEY, { kind: 'running', startedMs: Date.now() - 65_000, progress: { ascension: 2, of: 4, step: 'build 1 of 3' } });
+    try {
+      const html = await render(InstantRows, props);
+      const t = text(html);
+      expect(t).toContain('Checking exactly: about a minute on a computer, a few minutes on a phone');
+      expect(t).toMatch(/\d+:\d\d so far · ascension 2 of 4 \(build 1 of 3\)/);
+      expect(html).toContain('data-testid="exact-cancel"');
+      expect(html).not.toContain('data-testid="find-check-exactly"');
+      expect(html).toMatch(/<button type="button"[^>]*disabled[^>]*data-testid="find-calendar"/);
+      expect(t).toContain('estimate');
+    } finally {
+      after();
+    }
+  });
+
+  it('another route being checked: Check exactly is disabled, saying so', async () => {
+    setCheckStateForSpecs('other', { kind: 'running', startedMs: Date.now(), progress: null });
+    try {
+      const html = await render(InstantRows, props);
+      expect(html).toMatch(/disabled title="Another check is running"[^>]*data-testid="find-check-exactly"/);
+    } finally {
+      setCheckStateForSpecs('other', null);
+    }
+  });
+
+  it('done: the table is the exact one, labelled exact, with the exact finish and the instant estimate’s difference', async () => {
+    setCheckStateForSpecs(KEY, { kind: 'done', result, ms: 40_000 });
+    try {
+      const html = await render(InstantRows, props);
+      const t = text(html);
+      expect(t).toContain('1 · 300 TE Mon, Jan 4 at 9:00 am Sat, Jan 9 at 10:00 am');
+      expect(t).toContain('2 · 490 TE Sat, Jan 9 at 10:00 am Tue, Jan 19 at 12:00 pm');
+      expect(html).toContain('data-testid="find-exact"');
+      expect(html).not.toContain('data-testid="find-estimate"');
+      expect(t).toContain('exact finish Jan 19, 2027 at 12:00 pm · instant estimate: Jan 19, 2027 at 9:00 am (3 hours later)');
+      // Only the first ascension's shifts still ahead: one (Humility); the passed one and A2's are not offered.
+      expect(t).toContain('Add 1 shift to calendar');
+      expect(html).not.toContain('data-testid="find-check-exactly"');
+    } finally {
+      after();
+    }
+  });
+
+  it('done by a date, past the date picked: says the route misses it', async () => {
+    setCheckStateForSpecs(KEY, { kind: 'done', result, ms: 1 });
+    try {
+      const t = text(await render(InstantRows, { ...props, deadline: T + 15 * 86400 }));
+      expect(t).toContain('On the exact check this route ends after the date you picked (Jan 19, 2027 at 9:00 am).');
+    } finally {
+      after();
+    }
+  });
+
+  it('error: the plain message and Retry', async () => {
+    setCheckStateForSpecs(KEY, { kind: 'error', message: 'out of memory' });
+    try {
+      const html = await render(InstantRows, props);
+      expect(text(html)).toContain('The check couldn’t finish: out of memory Retry');
+      expect(html).toContain('data-testid="exact-retry"');
+    } finally {
+      after();
+    }
+  });
+
+  it('the calendar menu: the .ics for all, a Google link per shift, 12-hour times', async () => {
+    setCheckStateForSpecs(KEY, { kind: 'done', result: { ...result, ascensions: [{ ...result.ascensions[0], shifts: [{ egg: 'Humility', at: T + 86400 }, { egg: 'Kindness', at: T + 2 * 86400 }] }, result.ascensions[1]] }, ms: 1 });
+    try {
+      const { default: CalendarButton } = await import('./CalendarButton.vue');
+      const { shiftEvents } = await import('@/instant/calendarEvents');
+      const events = shiftEvents([{ egg: 'Humility', at: T + 86400 }, { egg: 'Kindness', at: T + 2 * 86400 }], { nowSeconds: T, startTE: 250, chain: [300, 490], saveWhen: 'Jan 4 at 8:00 am' });
+      const html = await render(CalendarButton, { events, label: 'Add 2 shifts to calendar', timezone: 'America/Los_Angeles', startOpen: true });
+      const t = text(html);
+      expect(t).toContain('Download .ics: all 2 shifts');
+      expect(t).toContain('Google Calendar: Shift to Humility · Jan 5 at 9:00 am');
+      expect(t).toContain('Google Calendar: Shift to Kindness · Jan 6 at 9:00 am');
+      expect(html.match(/href="https:\/\/calendar\.google\.com\/calendar\/render\?/g)).toHaveLength(2);
+      expect(t).toContain('nothing is sent');
+      const row = text(await render(InstantRows, props));
+      expect(row).toContain('Add 2 shifts to calendar');
+    } finally {
+      after();
+    }
   });
 });
 
@@ -245,7 +347,7 @@ describe('Saved runs on the Auto Planner tab (server render)', () => {
     expect(t).toContain('· next: shift to Kindness Oct 23 at 9:47 am (in 4 days)');
   });
 
-  it('an opened run: Open in the planner, the calendar placeholder, Delete, the ascensions marked estimate/exact', async () => {
+  it('an opened run: Open in the planner, Add shifts to calendar, Delete, the ascensions marked estimate/exact', async () => {
     const p = plan({ ascensions: [...plan().ascensions.slice(0, 1), { ...plan().ascensions[1], kind: 'exact' }] });
     const html = await render(
       SavedRuns,
@@ -255,12 +357,35 @@ describe('Saved runs on the Auto Planner tab (server render)', () => {
     const t = text(html);
     expect(t).toContain('▾ Egg Day 2027');
     expect(t).toContain('Open in the planner');
-    expect(html).toMatch(/disabled aria-disabled="true" title="Coming next"[^>]*data-testid="saved-calendar">\s*Add shifts to calendar/);
+    // No exact check on this entry: the calendar button runs one first.
+    expect(html).toMatch(/<button type="button"(?![^>]*disabled)[^>]*data-testid="saved-calendar">\s*Add shifts to calendar/);
+    expect(html).not.toContain('data-testid="find-check-exactly"');
     expect(t).toContain('Delete');
     expect(t).toContain('Ascension Starts Ends');
     expect(t).toMatch(/1 · 160 TE Sun, Oct 18 at 8:47 pm Tue, Oct 20 at 9:47 am estimate/);
     expect(t).toMatch(/2 · 188 TE Tue, Oct 20 at 9:47 am Fri, Oct 23 at 9:47 am exact/);
     expect(html.match(/w-full sm:w-auto min-h-\[44px\]/g)).toHaveLength(3);
+  });
+
+  it('an exact entry: next shift, Add N shifts to calendar from its own shifts, all marked exact', async () => {
+    const p = plan({
+      next: { egg: 'Kindness', at: NOW + 4 * 86400 },
+      ascensions: [
+        { to: 160, start: NOW - 3600, end: NOW + 9 * 86400, kind: 'exact', shifts: [{ egg: 'Integrity', at: NOW - 60 }, { egg: 'Kindness', at: NOW + 4 * 86400 }, { egg: 'Humility', at: NOW + 5 * 86400 }] },
+        { to: 188, start: NOW + 9 * 86400, end: NOW + 20 * 86400, kind: 'exact', shifts: [{ egg: 'Resilience', at: NOW + 10 * 86400 }] },
+      ],
+    });
+    const html = await render(
+      SavedRuns,
+      { plans: [p], now: NOW, opened: 'Egg Day 2027|160 188 195 197 218 247' },
+      withSave(NOW - 14 * 3600)
+    );
+    const t = text(html);
+    expect(t).toContain('· next: shift to Kindness Oct 23 at 9:47 am (in 4 days)');
+    expect(t).toContain('Add 2 shifts to calendar');
+    expect(html).not.toContain('data-testid="saved-calendar"');
+    expect(t).toContain('Only this ascension’s shifts: later ones move as you play.');
+    expect(html.match(/data-testid="saved-kind">exact/g)).toHaveLength(2);
   });
 
   it('an older entry (no times kept) still opens', async () => {

@@ -74,8 +74,13 @@
           :dated="shown.dated"
           :timezone="timezone"
           :saved="savedOfGoal"
+          :key-of="rowKey"
+          :save-when="saveTime ? atText(saveTime, timezone) : 'your loaded save'"
+          :start-te="startTE"
+          :deadline="shown.deadline"
           @simulate="simulate"
           @save="save"
+          @checked="checked"
         />
         <p
           v-if="gearCaveat"
@@ -128,8 +133,10 @@ import { getSimulationContext } from '@/engine/adapter';
 import type { BuildParams } from '@/instant/precomputedLeg';
 import type { SimulateRequest } from '@/instant/simulatePlan';
 import { SIM_VERSION } from '@/instant/simVersion';
-import { countsText, dayText, gearLabel, rowsByBest, whenAgo } from '@/instant/findRun';
+import { atText, countsText, dayText, gearLabel, rowsByBest, whenAgo } from '@/instant/findRun';
 import { entryFromRow, planId, RACE_GOAL, type PlanEntry } from '@/instant/plansOnDevice';
+import { checkKey, withExact, type ExactResult } from '@/instant/exactCheck';
+import { checkResult } from '@/instant/exactClient';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import InstantRows from './InstantRows.vue';
 import FindFilters from './FindFilters.vue';
@@ -359,12 +366,31 @@ function simulate(row: AnswerRow): void {
   emit('simulate', { chain: [...row.route.chain], start: first?.start ?? Date.now() / 1000, a1: first?.label ?? '' });
 }
 
-/** Save this plan: the row with its estimate times, into the Saved runs. */
+/** The exact check's memory key for a row: the save, the goal shown, the route and its first build. */
+function rowKey(row: AnswerRow): string {
+  const g = shown.value ?? chosen.value;
+  return checkKey({ saveTime: saveTime.value, goal: labelFor(g), chain: row.route.chain, a1: row.route.legs[0]?.label ?? '' });
+}
+
+/** Save this plan: the row with its times (exact when it was checked, else estimates), into the Saved runs. */
 function save(row: AnswerRow): void {
+  const entry = entryOf(row);
+  if (!entry) return;
+  const r = checkResult(rowKey(row));
+  emit('save', r ? withExact(entry, r, Math.floor(Date.now() / 1000), saveTime.value || undefined) : entry);
+}
+
+/** A check finished: a row already saved gets its exact times in the Saved runs too. */
+function checked(row: AnswerRow, r: ExactResult): void {
+  const entry = entryOf(row);
+  if (entry && props.savedIds?.includes(planId(entry))) emit('save', withExact(entry, r, Math.floor(Date.now() / 1000), saveTime.value || undefined));
+}
+
+/** The Saved runs entry for a row, with its estimate times. */
+function entryOf(row: AnswerRow): PlanEntry | null {
   const g = shown.value;
-  if (!g) return;
-  emit(
-    'save',
+  if (!g) return null;
+  return (
     entryFromRow(row, {
       goal: labelFor(g),
       dated: g.dated,

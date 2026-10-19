@@ -1,8 +1,8 @@
 <!--
   Find a run's rows: the best route for each number of ascensions (instant/instantAnswer.ts `rowsShown`,
   the best first), each saying how far it is from the best. A row opens to its ascensions' starts and
-  ends (estimates: the route finder's own leg times, instant/findRun.ts `ascensionTimes`) and the
-  buttons. One layout: a wrapped line per row on a phone, one line on a computer; the opened row's
+  ends (estimates: the route finder's own leg times, instant/findRun.ts `ascensionTimes`, replaced by
+  the exact ones once Check exactly ran, ExactCheck.vue) and the buttons. One layout: a wrapped line per row on a phone, one line on a computer; the opened row's
   buttons stack full width (44 px) under 640 px.
 -->
 <template>
@@ -39,18 +39,32 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="a in ascensionTimes(row.route)" :key="a.n" class="border-t border-slate-100 align-top">
+            <tr v-for="a in timesOf(row)" :key="a.n" class="border-t border-slate-100 align-top">
               <td class="py-1.5 pr-2 whitespace-nowrap">{{ a.n }} · {{ a.to }} TE</td>
               <td class="py-1.5 pr-2">{{ cellText(a.start, timezone, nowSeconds) }}</td>
               <td class="py-1.5">{{ cellText(a.end, timezone, nowSeconds) }}</td>
             </tr>
           </tbody>
         </table>
-        <p class="text-[11px] text-slate-500">
+        <p v-if="exactOf(row)" class="text-[11px] text-slate-500">
+          <span class="text-emerald-800 bg-emerald-50 rounded px-1.5 py-0.5 font-bold" data-testid="find-exact">exact</span>
+          from Joo’s simulator on this route (Check exactly).
+        </p>
+        <p v-else class="text-[11px] text-slate-500">
           <span class="text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 font-bold" data-testid="find-estimate">estimate</span>
           from the instant answer’s table, any hour.
         </p>
-        <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+        <ExactCheck
+          :check-key="keyOf(row)"
+          :route="{ chain: row.route.chain, a1: row.route.legs[0]?.label ?? '', start: row.route.legs[0]?.start ?? nowSeconds }"
+          :timezone="timezone"
+          :save-when="saveWhen ?? ''"
+          :start-te="startTe"
+          :estimate-finish="finishOf(row, dated)"
+          :deadline="deadline"
+          :on-done="(r: ExactResult) => emit('checked', row, r)"
+          :now="now"
+        >
           <button
             type="button"
             class="w-full sm:w-auto min-h-[44px] px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest"
@@ -73,28 +87,7 @@
           >
             {{ isSaved(row) ? 'Saved ✓' : 'Save this plan' }}
           </button>
-          <!-- Part B placeholders: the exact check and the calendar. -->
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title="Coming next"
-            class="w-full sm:w-auto min-h-[44px] px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-            data-testid="find-check-exactly"
-          >
-            Check exactly
-          </button>
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title="Coming next"
-            class="w-full sm:w-auto min-h-[44px] px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-            data-testid="find-calendar"
-          >
-            Add shifts to calendar
-          </button>
-        </div>
+        </ExactCheck>
       </div>
     </li>
   </ul>
@@ -103,7 +96,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import type { AnswerRow } from '@/instant/instantAnswer';
-import { ascensionTimes, atText, behindText, cellText, finishOf } from '@/instant/findRun';
+import { ascensionTimes, atText, behindText, cellText, finishOf, type AscensionTime } from '@/instant/findRun';
+import { exactTimes, type ExactResult } from '@/instant/exactCheck';
+import { checkResult } from '@/instant/exactClient';
+import ExactCheck from './ExactCheck.vue';
 
 const props = defineProps<{
   /** The best first. */
@@ -117,14 +113,34 @@ const props = defineProps<{
   now?: number;
   /** The row opened at first (specs). */
   opened?: number;
+  /** The exact check's memory key for a row (exactCheck.ts checkKey: save, goal, route, build). */
+  keyOf?: (row: AnswerRow) => string;
+  /** "Oct 19 at 7:03 am": the save, for the calendar's words. */
+  saveWhen?: string;
+  /** The save's TE, for the calendar titles. */
+  startTe?: number;
+  /** By a date: the deadline (unix seconds). */
+  deadline?: number;
 }>();
-const emit = defineEmits<{ simulate: [row: AnswerRow]; save: [row: AnswerRow] }>();
+const emit = defineEmits<{ simulate: [row: AnswerRow]; save: [row: AnswerRow]; checked: [row: AnswerRow, result: ExactResult] }>();
 
 const open = ref<number | null>(props.opened ?? null);
 const nowSeconds = props.now ?? Math.floor(Date.now() / 1000);
 
 function behind(row: AnswerRow): string {
   return behindText(row, props.rows, props.dated);
+}
+function keyOf(row: AnswerRow): string {
+  return props.keyOf ? props.keyOf(row) : `${row.route.chain.join(' ')}|${row.route.legs[0]?.label ?? ''}`;
+}
+/** The row's exact check, when one finished (kept in memory for the page's life). */
+function exactOf(row: AnswerRow): ExactResult | null {
+  return checkResult(keyOf(row));
+}
+/** The table's rows: the exact check's when there is one, else the instant estimate's. */
+function timesOf(row: AnswerRow): AscensionTime[] {
+  const r = exactOf(row);
+  return r ? exactTimes(r) : ascensionTimes(row.route);
 }
 function isSaved(row: AnswerRow): boolean {
   return !!props.saved?.includes(row.route.chain.join(' '));
