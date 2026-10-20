@@ -60,18 +60,32 @@ function ask(m: InstantWorkerRequest, onProgress?: (done: number, of: number) =>
   });
 }
 
-let header: { url: string; got: Promise<TableHeader | null> } | null = null;
+const headers = new Map<string, Promise<TableHeader | null>>();
+
+function askHeader(url: string, probe: boolean): Promise<TableHeader | null> {
+  const known = headers.get(url);
+  if (known) return known;
+  const got = ask({ kind: 'header', id: --headerId, url, ...(probe ? { probe } : {}) }).then(r =>
+    r.kind === 'header' ? r.header : null
+  );
+  headers.set(url, got);
+  // A failure is asked again next time (the table may be put up later); a probe's miss is kept
+  // per save by tableChoice.ts instead.
+  void got.then(h => {
+    if (!h && headers.get(url) === got) headers.delete(url);
+  });
+  return got;
+}
 
 /** The table's header, asked once per page (null: missing, unreadable or another simulator's). */
 export function tableHeader(url: string): Promise<TableHeader | null> {
-  if (header?.url === url) return header.got;
-  const got = ask({ kind: 'header', id: --headerId, url }).then(r => (r.kind === 'header' ? r.header : null));
-  header = { url, got };
-  // A failure is asked again next time (the table may be put up later).
-  void got.then(h => {
-    if (!h && header?.got === got) header = null;
-  });
-  return got;
+  return askHeader(url, false);
+}
+
+/** An account or gear table's header (tableChoice.ts), or null when it is not there: one request on
+ *  a miss (tableFetch.ts probe), no error shown or logged. */
+export function probeHeader(url: string): Promise<TableHeader | null> {
+  return askHeader(url, true);
 }
 
 /** How long a kept answer is shown again for the same request (its start moves with the clock). */
@@ -96,7 +110,7 @@ export function keepAnswer(key: string, start: number, found: FoundRoutes): void
 let inFlight: { key: string; id: number; reply: Promise<InstantWorkerResponse> } | null = null;
 
 /**
- * The answer for `req`, worked out on the worker, or kept from a moment ago for the same `key`, or
+ * The answer for `req` (`key` names the tables too: InstantAnswer.vue `answerKey`), worked out on the worker, or kept from a moment ago for the same `key`, or
  * the run already going for the same `key` when nothing newer was sent since (Egg Day -> Fastest
  * (kept) -> Egg Day costs one run). Resolves to the worker's reply; 'dropped' when a newer request
  * superseded it.
@@ -106,7 +120,9 @@ export async function answer(
   url: string,
   req: AnswerRequest,
   key: string,
-  onProgress?: (done: number, of: number) => void
+  onProgress?: (done: number, of: number) => void,
+  /** An account or gear table joined to the maxed one at `url` (instant.worker.ts). */
+  own?: string
 ): Promise<InstantWorkerResponse> {
   const k = keptAnswer(key, req.start);
   if (k) return { kind: 'answer', id, found: k };
@@ -116,7 +132,7 @@ export async function answer(
     if (w && onProgress) w.onProgress = onProgress;
     return joined.reply;
   }
-  const reply = ask({ kind: 'answer', id, url, req }, onProgress);
+  const reply = ask({ kind: 'answer', id, url, ...(own ? { own } : {}), req }, onProgress);
   const mine = { key, id, reply };
   inFlight = mine;
   const r = await reply;

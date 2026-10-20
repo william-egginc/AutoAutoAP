@@ -35,7 +35,8 @@ export interface TableHeader {
   /** Rows filled from the nearest real ones, for trying a page while the table is built. Never a
    *  real answer: the page refuses it. */
   fake?: boolean;
-  /** An account's own table (the fork's gear tables). Never read here: this page reads the maxed one. */
+  /** The gear an account or gear table was built on (tableGear.ts TableGear; absent on the maxed
+   *  table). Read by tableChoice.ts, which uses the table only when it is the save's. */
   gear?: unknown;
   /** The simulator the cells came from (simVersion.ts). Absent on a table packed before stamping:
    *  refused, as from another simulator. */
@@ -145,6 +146,33 @@ export function readTable(buffer: ArrayBuffer, maxCells = DECODED_CELLS): Table 
       }
       cache.set(key, builds);
       return builds;
+    },
+  };
+}
+
+/**
+ * An account or gear table joined to the maxed one per leg (tableChoice.ts): a cell from `own` when
+ * its TE is in `own`'s range, else from `maxed` (its own range), else none. The own table's builds
+ * already run at the player's delivery rate; the maxed table's are scaled to it here (`scale`,
+ * deliveryScale.ts), so the route search runs at a scale of 1. The header is `own`'s with the range
+ * of both (the maxed table's lowest TE for the "below the table" check).
+ */
+export function compositeTable(own: Table, maxed: Table, scale: number, maxCells = DECODED_CELLS): Table {
+  const scaled = new LruCache<number, BuildParams[]>(maxCells);
+  const o = own.header;
+  return {
+    header: { ...o, from: Math.min(o.from, maxed.header.from), to: Math.max(o.to, maxed.header.to) },
+    lookup(te, hour) {
+      if (te >= o.from && te <= o.to) return own.lookup(te, hour);
+      const raw = maxed.lookup(te, hour);
+      if (!raw || scale === 1) return raw;
+      const key = te * WEEK_HOURS + hour;
+      let hit = scaled.get(key);
+      if (!hit) {
+        hit = raw.map(b => ({ ...b, peakELR: b.peakELR * scale }));
+        scaled.set(key, hit);
+      }
+      return hit;
     },
   };
 }

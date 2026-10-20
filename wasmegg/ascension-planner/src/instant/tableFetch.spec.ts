@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { gzipSync } from 'node:zlib';
 import { packTable } from './precomputedTable';
-import { fetchTable, type FetchDeps } from './tableFetch';
+import { fetchTable, MissingTable, type FetchDeps } from './tableFetch';
 
 const table = packTable(
   { version: 1, referenceWeek: 1, cteBonus: 128.71, deliveryScore: 1, from: 200, to: 201, builtAt: 'x' },
@@ -62,5 +62,24 @@ describe('fetchTable', () => {
         DecompressionStream,
       })
     ).rejects.toThrow('incomplete');
+  });
+
+  it('a probe (an account or gear table) asks once on a miss, and quietly', async () => {
+    const log: string[] = [];
+    await expect(fetchTable('a.bin', { fetch: site({}, log), DecompressionStream }, true)).rejects.toBeInstanceOf(
+      MissingTable
+    );
+    expect(log).toEqual(['a.bin.gz']);
+    // A real 404, as a static host answers.
+    const log404: string[] = [];
+    const notFound: FetchDeps['fetch'] = async url => (log404.push(url), new Response('', { status: 404 }));
+    await expect(fetchTable('a.bin', { fetch: notFound, DecompressionStream }, true)).rejects.toBeInstanceOf(
+      MissingTable
+    );
+    expect(log404).toEqual(['a.bin.gz']);
+    // There: read as any table; a broken .gz still falls back to the plain file.
+    ok(await fetchTable('t.bin', { fetch: site({ 't.bin.gz': { body: gz } }), DecompressionStream }, true));
+    const cut = { 't.bin': { body: table }, 't.bin.gz': { body: gz.subarray(0, gz.length >> 1) } };
+    ok(await fetchTable('t.bin', { fetch: site(cut), DecompressionStream }, true));
   });
 });

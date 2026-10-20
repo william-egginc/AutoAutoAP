@@ -1,5 +1,6 @@
 /**
- * The instant answer's worker: it fetches the table once (a few MB) and keeps it for its life, and
+ * The instant answer's worker: it fetches each table once (a few MB) and keeps the last few for its
+ * life (the maxed one, and an account or gear table when one fits the save, tableChoice.ts), and
  * works out an answer per request (instantAnswer.ts `workOutAnswer`), off the page's thread. The
  * newest answer request wins (latestOnly.ts): an older one still waiting is skipped and one running
  * stops at its next pause, each answered 'dropped'.
@@ -7,12 +8,14 @@
 import { fetchTable } from './tableFetch';
 import { workOutAnswer, type AnswerRequest } from './instantAnswer';
 import { latestOnly, pauseFor, Superseded } from './latestOnly';
-import type { Table, TableHeader } from './precomputedTable';
+import { compositeTable, type Table, type TableHeader } from './precomputedTable';
 import type { FoundRoutes } from './routeFinder';
 
 export type InstantWorkerRequest =
-  | { kind: 'header'; id: number; url: string }
-  | { kind: 'answer'; id: number; url: string; req: AnswerRequest };
+  /** `probe`: a table that is usually not there (fetchTable's probe: one request on a miss). */
+  | { kind: 'header'; id: number; url: string; probe?: boolean }
+  /** `url`: the maxed table; `own`: an account or gear table joined to it per leg (compositeTable). */
+  | { kind: 'answer'; id: number; url: string; own?: string; req: AnswerRequest };
 
 export type InstantWorkerResponse =
   | { kind: 'header'; id: number; header: TableHeader }
@@ -22,18 +25,34 @@ export type InstantWorkerResponse =
   | { kind: 'error'; id: number; message: string };
 
 const ctx = self as unknown as Worker;
-let table: Promise<Table> | null = null;
-let tableUrl = '';
+/** The tables fetched, the most recently used last: the maxed one, a probed one or two, a joined one. */
+const tables = new Map<string, Promise<Table>>();
+const KEEP_TABLES = 4;
 const latest = latestOnly();
 
-function load(url: string): Promise<Table> {
-  if (!table || tableUrl !== url) {
-    tableUrl = url;
-    table = fetchTable(url);
-    // A failed load is retried on the next request rather than remembered.
-    table.catch(() => (table = null));
+function keep(key: string, make: () => Promise<Table>): Promise<Table> {
+  let t = tables.get(key);
+  if (t) tables.delete(key);
+  else {
+    t = make();
+    // A failed load is asked again on the next request rather than remembered.
+    const failed = t;
+    failed.catch(() => tables.get(key) === failed && tables.delete(key));
   }
-  return table;
+  tables.set(key, t);
+  if (tables.size > KEEP_TABLES) tables.delete(tables.keys().next().value as string);
+  return t;
+}
+
+function load(url: string, probe = false): Promise<Table> {
+  return keep(url, () => fetchTable(url, undefined, probe));
+}
+
+/** `own` joined to the maxed table at `url`, its cells scaled by `scale`. */
+function joined(own: string, url: string, scale: number): Promise<Table> {
+  return keep(JSON.stringify([own, url, scale]), async () =>
+    compositeTable(await load(own, true), await load(url), scale)
+  );
 }
 
 function reply(m: InstantWorkerResponse): void {
@@ -44,11 +63,13 @@ ctx.onmessage = async (event: MessageEvent<InstantWorkerRequest>) => {
   const m = event.data;
   if (m.kind === 'answer') latest.note(m.id);
   try {
-    const t = await load(m.url);
-    if (m.kind === 'header') return reply({ kind: 'header', id: m.id, header: t.header });
+    if (m.kind === 'header') return reply({ kind: 'header', id: m.id, header: (await load(m.url, m.probe)).header });
+    // With an own table the maxed cells are scaled in the join, and the search runs at a scale of 1.
+    const t = m.own ? await joined(m.own, m.url, m.req.deliveryScale) : await load(m.url);
+    const req = m.own ? { ...m.req, deliveryScale: 1 } : m.req;
     const pause = pauseFor(m.id, latest);
     await pause();
-    const found = await workOutAnswer(t, m.req, (done, of) => reply({ kind: 'progress', id: m.id, done, of }), pause);
+    const found = await workOutAnswer(t, req, (done, of) => reply({ kind: 'progress', id: m.id, done, of }), pause);
     reply({ kind: 'answer', id: m.id, found });
   } catch (err) {
     if (err instanceof Superseded) return reply({ kind: 'dropped', id: m.id });

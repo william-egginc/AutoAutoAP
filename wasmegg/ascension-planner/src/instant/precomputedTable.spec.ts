@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LruCache, packTable, readTable } from './precomputedTable';
+import { compositeTable, LruCache, packTable, readTable } from './precomputedTable';
 import type { BuildParams } from './precomputedLeg';
 
 const build = (sales: number, tier13: boolean, k: number): BuildParams => ({
@@ -79,5 +79,41 @@ describe('precomputed table file', () => {
     expect(c.get('a')).toBe(1);
     expect(c.get('c')).toBe(3);
     expect(c.size).toBe(2);
+  });
+});
+
+describe('compositeTable: an account or gear table joined to the maxed one, per leg', () => {
+  const header = { version: 1 as const, referenceWeek: 1, cteBonus: 1, deliveryScore: 1, builtAt: 'x' };
+  const maxed = readTable(
+    packTable({ ...header, from: 75, to: 339 }, [
+      { te: 100, h: 3, builds: [build(1, false, 0)] },
+      { te: 200, h: 3, builds: [build(2, false, 0)] },
+    ]).buffer as ArrayBuffer
+  );
+  const own = readTable(
+    packTable({ ...header, from: 120, to: 339, simVersion: 'own' }, [{ te: 200, h: 3, builds: [build(3, false, 0)] }])
+      .buffer as ArrayBuffer
+  );
+  const joined = compositeTable(own, maxed, 0.5);
+
+  it('in the own table’s range: its cells as they are (built at the player’s own rate)', () => {
+    expect(joined.lookup(200, 3)).toEqual(own.lookup(200, 3));
+    expect(joined.lookup(120, 3)).toEqual([]);
+  });
+
+  it('below it: the maxed table’s cells, scaled to the player’s delivery rate', () => {
+    const b = maxed.lookup(100, 3)![0];
+    expect(joined.lookup(100, 3)).toEqual([{ ...b, peakELR: b.peakELR * 0.5 }]);
+    expect(joined.lookup(119, 3)).toEqual([]);
+    expect(compositeTable(own, maxed, 1).lookup(100, 3)).toBe(maxed.lookup(100, 3));
+  });
+
+  it('above both (and below the maxed one): no cell', () => {
+    expect(joined.lookup(340, 3)).toBeNull();
+    expect(joined.lookup(74, 3)).toBeNull();
+  });
+
+  it('the header is the own table’s with the range of both', () => {
+    expect(joined.header).toMatchObject({ simVersion: 'own', from: 75, to: 339 });
   });
 });
