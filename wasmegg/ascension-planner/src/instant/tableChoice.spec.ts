@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SIM_VERSION } from './simVersion';
 import type { TableHeader } from './precomputedTable';
-import { answeredBy, choiceFor, choiceLine, chooseTable, forgetChoices, type ChoiceDeps } from './tableChoice';
+import { answeredBy, choiceFor, choiceLine, tableLineFor, chooseTable, forgetChoices, type ChoiceDeps } from './tableChoice';
 import { gearTableNameV3, type TableGear } from './tableGear';
 
 const slot = (artifact: string, ...stones: string[]) => ({ artifact, stones });
@@ -194,6 +194,18 @@ describe('the line and which table the first ascension starts on', () => {
     );
     expect(choiceLine('maxed')).toBe('Maxed gear');
     expect(choiceLine('maxed', [])).toBe('Maxed gear');
+  });
+
+  it('says so when only the later ascensions are on the account or gear table', () => {
+    const acct = { kind: 'account' as const, header: head({ from: 120, to: 339 }) };
+    const gear = { kind: 'gear' as const, header: head({ from: 120, to: 339 }) };
+    expect(tableLineFor(acct, 100)).toBe('Maxed gear for TE below 120, then built for your account');
+    expect(tableLineFor(gear, 100)).toBe('Maxed gear for TE below 120, then built for your exact gear');
+    expect(tableLineFor(acct, 200)).toBe('Built for your account');
+    expect(tableLineFor(acct, 345)).toBe('Maxed gear');
+    expect(tableLineFor({ kind: 'maxed', header: MAXED, changed: ['earnings set'] }, 100)).toBe(
+      'Maxed gear (yours differs: earnings set)'
+    );
   });
 
   it('the chosen table only when the start TE is in its range', () => {

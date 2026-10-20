@@ -130,6 +130,17 @@ export function choiceLine(kind: TableKind, changed?: string[]): string {
   return changed?.length ? `Maxed gear (yours differs: ${changed.join(', ')})` : 'Maxed gear';
 }
 
+/** The line for a run starting at `startTE`: as `choiceLine`, but when the start is below the chosen
+ *  account or gear table's range, the first ascension is on the maxed table and later ones on it. */
+export function tableLineFor(choice: Pick<TableChoice, 'kind' | 'header' | 'changed'>, startTE: number): string {
+  const by = answeredBy(choice, startTE);
+  const h = choice.header;
+  if (by === 'maxed' && choice.kind !== 'maxed' && h && Math.floor(startTE) < h.from) {
+    return `Maxed gear for TE below ${h.from}, then ${choiceLine(choice.kind).replace(/^B/, 'b')}`;
+  }
+  return choiceLine(by, choice.changed);
+}
+
 /** The table a run's first ascension starts on: the chosen one when the start TE is in its range,
  *  else the maxed table. */
 export function answeredBy(choice: Pick<TableChoice, 'kind' | 'header'>, startTE: number): TableKind {

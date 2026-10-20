@@ -133,7 +133,7 @@ import { earningsBonus, gearDiffers, gearDiffersText } from '@/instant/gearDiffe
 import { continueTail, hasVirtueFarm, siloSeconds, staleSaveNote } from '@/instant/continueTail';
 import { baseStateFromBackup, eggsDeliveredFromBackup, farmFromBackup, saveSyncSeconds } from '@/instant/saveFarm';
 import { answer, isNewest, newRequestId, probeHeader, tableHeader } from '@/instant/instantClient';
-import { answeredBy, chooseTable, choiceFor, choiceLine, type TableChoice } from '@/instant/tableChoice';
+import { answeredBy, chooseTable, choiceFor, tableLineFor, type TableChoice } from '@/instant/tableChoice';
 import { gearStamp, tableName } from '@/instant/tableGear';
 import { getSimulationContext } from '@/engine/adapter';
 import type { BuildParams } from '@/instant/precomputedLeg';
@@ -280,7 +280,7 @@ const gap = computed(() =>
 /** The table the first ascension starts on (tableChoice.ts answeredBy). */
 const by = computed(() => (choice.value ? answeredBy(choice.value, startTE.value) : 'maxed'));
 /** Which table answered, in one line. */
-const tableLine = computed(() => (choice.value?.header ? choiceLine(by.value, choice.value.changed) : ''));
+const tableLine = computed(() => (choice.value?.header ? tableLineFor(choice.value, startTE.value) : ''));
 /** Below TE 340 with gear other than the table's: the answer can be a few percent off (gearDiffers.ts).
  *  Not on a table built on the save's own gear. */
 const gearCaveat = computed(() =>
