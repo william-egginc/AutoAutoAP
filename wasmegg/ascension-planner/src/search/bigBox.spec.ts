@@ -271,6 +271,7 @@ describe('the command line asks before a real run (source)', () => {
   it('--yes is read from the flags, and in the help and the README', () => {
     expect(help).toContain("yes: has('yes'),\n    onStatus");
     expect(help).toMatch(/--yes {21}Start a box above 100,000 routes without asking\./);
-    expect(readme).toContain('A box above 100,000 routes asks `Continue? [y/N]` before it runs');
+    // Whitespace collapsed first: a rewrap of the README (8dd15bc4) must not fail this.
+    expect(readme.replace(/\s+/g, ' ')).toContain('A box above 100,000 routes asks `Continue? [y/N]` before it runs');
   });
 });
