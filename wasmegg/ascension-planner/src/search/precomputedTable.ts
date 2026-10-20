@@ -45,6 +45,15 @@ export interface TableHeader {
   /** The simulator the cells came from (search/simVersion.ts SIM_VERSION). Absent on a table packed
    *  before stamping; the page then treats it as older (tableSimMismatch). */
   simVersion?: string;
+  /** The simulation settings the cells were built with (the context's assumeDoubleEarnings and
+   *  deferForEarningsMode). Absent on tables packed before 19 Oct 2026: our generator has always
+   *  built with the doubler on and defer off (search/tableCheck.ts GENERATOR_SETTINGS). */
+  settings?: { assumeDoubleEarnings: boolean; deferForEarnings: boolean };
+  /** What the simulator reads of the account it was built on, for a table with no gear stamp (the
+   *  maxed one): the epic research it models (tableGear.ts simEpicResearch) and the colleggtible
+   *  effects (colleggtibleEffects). A gear table has both in `gear`. Absent before 19 Oct 2026. */
+  epicResearch?: Record<string, number>;
+  colleggtibleEffects?: Record<string, number>;
 }
 
 export interface Table {

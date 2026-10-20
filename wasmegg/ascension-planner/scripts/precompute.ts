@@ -69,6 +69,14 @@
  *                    DIR/meta.json describing the account and the reference week. Re-running skips
  *                    the start TEs already finished, so an interrupted run carries on.
  *
+ *   --check-bin FILE.bin [--samples 24] [--seed N|random] [--json] [--ignore-sim] [--base SAVE]
+ *               [--own-inventory] [--no-reference] [--truth-bin OURS.bin]
+ *               [--against-save SAVE.json | --current-max]
+ *                    Check a table file someone sent (search/tableCheck.ts): structure, stamps, and
+ *                    --samples random cells (the seed is printed; --seed repeats it) plus the edges,
+ *                    rebuilt here from the table's own inputs. PASS / CLOSE / FAIL / STALE, exit 0 /
+ *                    1 / 1 / 2. --against-save / --current-max: is its stamp still current (no rebuild).
+ *                    See `checkBin` for where a table's inputs come from.
  *   --stamp-sim --dir DIR [--sim-version V] [--write]
  *                    Set the simulator stamp (search/simVersion.ts) in every table's header in DIR;
  *                    dry run unless --write (then FILE.bin.gz is remade too). Then --manifest.
@@ -108,6 +116,7 @@ import { gzipSync } from 'node:zlib';
 import { fork } from 'node:child_process';
 import { getNextSaleEnd } from '@/lib/events';
 import { resolveColleggtibleContracts } from 'lib';
+import { modifiersFromColleggtibleTiers } from 'lib/collegtibles';
 import { initPlanFuture } from '@/lib/modes/planFuture';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { runAscensionFromC3Variant, runUntilShift } from '@/auto/ascension';
@@ -160,11 +169,28 @@ import {
   gearStamp,
   gearTableName,
   gearTableNameV3,
+  colleggtibleEffects,
   legacyGearTableName,
+  simEpicResearch,
   tableName,
   type TableGear,
 } from '@/search/tableGear';
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
+import {
+  checkStamps,
+  checkStructure,
+  CLOSE_TOLERANCE,
+  compareCell,
+  currentChanges,
+  currentMax,
+  effectsOfModifiers,
+  EXIT_CODE,
+  GENERATOR_SETTINGS,
+  inventoryOfStamp,
+  sampleCells,
+  verdictOf,
+  type CellRef,
+} from '@/search/tableCheck';
 import { deliveryScore, slotsFromLabels } from '@/search/virtueScore';
 import { describeLoadoutSlots } from '@/search/csv';
 import { gearLabel, maxedLabel } from '@/search/tableLabel';
@@ -288,11 +314,17 @@ function putCombo(backup: VirtueAfxBackup, combo: GearCombo): void {
   db.inventoryItems = items;
 }
 
-async function loadInputs(file: string): Promise<SearchInputs> {
+/** `reference`: --reference without the flag (the table checker decides it per table); `edit`: a
+ *  change to the save before it is loaded, after --reference and --combo. */
+async function loadInputs(
+  file: string,
+  opts: { reference?: boolean; edit?: (backup: VirtueAfxBackup) => void } = {}
+): Promise<SearchInputs> {
   const backup = JSON.parse(readFileSync(file, 'utf8'));
-  if (has('reference')) addReferenceGear(backup);
+  if (opts.reference ?? has('reference')) addReferenceGear(backup);
   const combo = comboFromArgs();
   if (combo) putCombo(backup, combo);
+  opts.edit?.(backup);
   resolveColleggtibleContracts(backup);
   // --write-save FILE: the save as loaded (with --reference or --combo applied), for loading in the page.
   if (arg('write-save')) writeFileSync(arg('write-save')!, JSON.stringify(backup));
@@ -510,6 +542,14 @@ async function generate(file: string): Promise<void> {
         earnings: describeLoadoutSlots(inv.earnings),
         eggOrder: EGG_ORDER,
         gear: has('reference') ? null : gearStamp(inputs, inv.earnings, k3.research),
+        // What the cells assume besides the gear (search/precomputedTable.ts TableHeader), for the
+        // table checker (search/tableCheck.ts): the settings, and what the simulator reads of the account.
+        settings: {
+          assumeDoubleEarnings: inputs.context.assumeDoubleEarnings,
+          deferForEarnings: !!inputs.context.deferForEarningsMode,
+        },
+        epicResearch: simEpicResearch(inputs.context.epicResearchLevels as Record<string, number>),
+        colleggtibleEffects: effectsOfModifiers(inputs.context.colleggtibleModifiers),
         from,
         to,
         builtAt: new Date().toISOString(),
@@ -1036,6 +1076,12 @@ function pack(): void {
       to: tes[tes.length - 1],
       builtAt: meta.builtAt,
       ...(meta.simVersion ? { simVersion: meta.simVersion } : {}),
+      // A meta.json from before 19 Oct 2026 has no settings; our generator has never had a flag for
+      // them, so it built with GENERATOR_SETTINGS. One from another generator (it names its `builder`)
+      // is not ours to vouch for and gets none.
+      ...(meta.settings || !meta.builder ? { settings: meta.settings ?? GENERATOR_SETTINGS } : {}),
+      ...(meta.epicResearch ? { epicResearch: meta.epicResearch } : {}),
+      ...(meta.colleggtibleEffects ? { colleggtibleEffects: meta.colleggtibleEffects } : {}),
       ...(fakeBelow !== null ? { fake: true } : {}),
       ...(meta.gear ? { gear: meta.gear } : {}),
       ...(existsSync(`${dir}/k3.json`)
@@ -1093,6 +1139,268 @@ function stampSim(): void {
     writeFileSync(path + '.gz.tmp', gzipSync(bytes, { level: 9 }));
     renameSync(path + '.gz.tmp', path + '.gz');
   }
+}
+
+/** The maxed reference table's base save (scripts/precompute.ts --reference on it made table.bin). */
+const CHECK_BASE = `${process.env.HOME}/code/aaap-tools/alt.json`;
+
+/** A gear stamp's artifacts and stones (search/tableCheck.ts inventoryOfStamp) in place of the save's
+ *  own virtue inventory, as --combo puts a board combination there. */
+function putStampInventory(backup: VirtueAfxBackup, gear: TableGear): void {
+  const db = backup?.artifactsDb?.virtueAfxDb;
+  if (!db) throw new Error('--check-bin: the base save has no virtue artifacts to replace');
+  const inv = inventoryOfStamp(gear);
+  let id = 930000000;
+  const items: unknown[] = [];
+  for (const [label, quantity] of [...Object.entries(inv.artifacts), ...Object.entries(inv.stones)])
+    for (let i = 0; i < (label in inv.artifacts ? quantity : 1); i++)
+      items.push({
+        itemId: id++,
+        artifact: { spec: { ...specOf(label), egg: 1000 } },
+        quantity: label in inv.artifacts ? 1 : quantity,
+        serverId: '',
+      });
+  db.inventoryItems = items;
+}
+
+/**
+ * --check-bin FILE.bin [--samples 24] [--seed N|random] [--json] [--ignore-sim] [--base SAVE]
+ *   [--own-inventory] [--no-reference] [--truth-bin OURS.bin] [--against-save SAVE.json | --current-max]
+ * Check a table file someone sent (search/tableCheck.ts): its structure, its stamps, and cells the
+ * checker picks (a printed seed) rebuilt here from the table's own inputs and compared field by field.
+ * Verdict PASS / CLOSE / FAIL / STALE, and exit code 0 / 1 / 1 / 2.
+ *
+ * THE INPUTS a cell is rebuilt from. A table with no gear stamp is a maxed reference table: --base
+ * (default aaap-tools/alt.json) with --reference, as table.bin was made (--no-reference: the base as
+ * it is). A gear table cannot be rebuilt from its stamp alone: the stamp is the sets the optimizer
+ * picked at two research levels, epic research and colleggtibles, not the inventory it picked them
+ * from at every level between, nor the account's soul eggs, prophecy eggs and the rest of its
+ * permanent progress, which come from the save. So the base save gives the account, and the stamp's
+ * own artifacts and stones replace its inventory (--own-inventory keeps the save's: a player's own
+ * table checked on their own save); the stamp's epic research and colleggtible effects replace the
+ * save's in the simulation context. The rebuilt account's gear stamp is then worked out again and
+ * any difference from the table's is printed: board gear tables (built on the maxed base with
+ * --combos) are rebuilt this way; an own table needs its owner's save.
+ *
+ * Always with the video doubler on (the page's setting); a cell that differs is rebuilt again with it
+ * off, to say whether that is why.
+ */
+async function checkBin(): Promise<void> {
+  const t0 = performance.now();
+  const file = arg('check-bin')!;
+  const buf = readFileSync(file);
+  const bytes = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  const structure = checkStructure(bytes);
+  const header = structure.header;
+  const errors = [...structure.errors];
+  const stale: string[] = [];
+  const notes = [...structure.notes];
+  let assumes: string[] = [];
+  let truth:
+    | {
+        seed: number;
+        inputs: string;
+        cells: { same: number; close: number; differ: number };
+        rows: (CellRef & { result: string; detail: string; doublerOff?: string })[];
+        diagnosis?: string;
+      }
+    | undefined;
+  const ignoreSim = has('ignore-sim');
+
+  if (header && structure.readable) {
+    const base = arg('base') ?? CHECK_BASE;
+    const gear = header.gear;
+    const reference = !gear && !has('no-reference');
+    const inputs = await loadInputs(base, {
+      reference,
+      edit: gear && !has('own-inventory') ? b => putStampInventory(b, gear) : undefined,
+    });
+    const baseName = base.replace(/^.*\//, '');
+    let inputsWords = `a rebuild from ${baseName}${reference ? ' with --reference' : ''}`;
+    if (gear) {
+      // The stamp's epic research and colleggtibles, not the base's (the context is all the simulator
+      // reads them from: engine/compute.ts, auto/).
+      const ctx = inputs.context;
+      const er = { ...(ctx.epicResearchLevels as Record<string, number>), ...gear.epicResearch };
+      const cm = modifiersFromColleggtibleTiers(gear.colleggtibles ?? {});
+      const overridden: string[] = [];
+      if (JSON.stringify(simEpicResearch(er)) !== JSON.stringify(simEpicResearch(ctx.epicResearchLevels as Record<string, number>)))
+        overridden.push('epic research');
+      if (JSON.stringify(effectsOfModifiers(cm)) !== JSON.stringify(effectsOfModifiers(ctx.colleggtibleModifiers)))
+        overridden.push('colleggtible effects');
+      inputs.context = { ...ctx, epicResearchLevels: er as typeof ctx.epicResearchLevels, colleggtibleModifiers: cm };
+      inputsWords += has('own-inventory') ? ', its own inventory' : ", inventory from the stamp's sets";
+      if (overridden.length) inputsWords += `, the stamp's ${overridden.join(' and ')} in place of the save's`;
+      const mine = gearStamp(inputs, useChainSearchStore().readInventory().earnings, gear.research);
+      const changes = mine
+        ? gearChanges(gear, { ...mine, epicResearch: gear.epicResearch, colleggtibles: gear.colleggtibles })
+        : ['gear'];
+      if (changes.length)
+        notes.push(
+          `the rebuilt account's gear differs from the stamp in ${changes.join(', ')}: a cell may differ for that ` +
+            'reason alone (pass the owner’s save as --base, with --own-inventory)'
+        );
+    }
+    const st = header.settings ?? GENERATOR_SETTINGS;
+    if (header.settings && !header.settings.assumeDoubleEarnings)
+      errors.push('stamped with the video doubler off: the page prices builds with it on');
+    if (st.deferForEarnings) inputs.context = { ...inputs.context, deferForEarningsMode: true };
+    inputsWords += `, doubler on, defer ${st.deferForEarnings ? 'on' : 'off'}`;
+
+    const baseInfo = {
+      name: baseName + (reference ? ' --reference' : ''),
+      epicResearch: simEpicResearch(inputs.context.epicResearchLevels as Record<string, number>),
+      colleggtibleEffects: effectsOfModifiers(inputs.context.colleggtibleModifiers),
+    };
+    const stamps = checkStamps(header, { simVersion: SIM_VERSION, referenceWeek: REFERENCE_WEEK }, baseInfo);
+    errors.push(...stamps.errors);
+    stale.push(...stamps.stale);
+    assumes = stamps.assumes;
+    // What the table's cells were built on, as the simulator reads it: the stamp's, else the header's
+    // (a maxed table packed from 19 Oct), else the base it is rebuilt from.
+    const tableReads = gear
+      ? { epicResearch: gear.epicResearch, colleggtibleEffects: colleggtibleEffects(gear.colleggtibles) }
+      : {
+          epicResearch: header.epicResearch ?? baseInfo.epicResearch,
+          colleggtibleEffects: header.colleggtibleEffects ?? baseInfo.colleggtibleEffects,
+        };
+
+    const currentMode = arg('against-save') ?? (has('current-max') ? 'max' : null);
+    if (currentMode) {
+      // Still current? Against a save: the page's own rule for a gear table (gearChanges at the table's
+      // research), and for any table the epic research and colleggtible effects the simulator reads.
+      let now: Parameters<typeof currentChanges>[1];
+      const changes: string[] = [];
+      if (currentMode === 'max') now = currentMax();
+      else {
+        const other = await loadInputs(currentMode, { reference: false });
+        now = {
+          epicResearch: simEpicResearch(other.context.epicResearchLevels as Record<string, number>),
+          colleggtibleEffects: effectsOfModifiers(other.context.colleggtibleModifiers),
+        };
+        if (gear) {
+          const mine = gearStamp(other, useChainSearchStore().readInventory().earnings, gear.research);
+          const sets = mine ? gearChanges(gear, mine).filter(c => c.endsWith(' set')) : ['gear'];
+          if (sets.length) changes.push(...sets);
+        }
+      }
+      changes.push(...currentChanges(tableReads, now));
+      const against = currentMode === 'max' ? "today's maxed account" : currentMode.replace(/^.*\//, '');
+      if (changes.length) stale.push(`not current for ${against}: ${changes.join('; ')}`);
+      else notes.push(`still current for ${against}: every input the simulator reads matches`);
+      notes.push('still-current mode: no cells rebuilt');
+    } else if (stale.length && !ignoreSim) {
+      notes.push('cells not rebuilt: they are from another simulator (--ignore-sim rebuilds them anyway)');
+    } else {
+      const seedArg = arg('seed', 'random')!;
+      const seed =
+        seedArg === 'random' ? crypto.getRandomValues(new Uint32Array(1))[0] : Number(seedArg) >>> 0;
+      const samples = Number(arg('samples', '24'));
+      const table = readTable(bytes);
+      const rebuild = (inp: SearchInputs, te: number, h: number) => {
+        const start = header.referenceWeek + h * 3600;
+        const build = buildAt(inp, startStateAt(inp, te), start, te);
+        return build.variants.map(v => paramsOf(build, v, start));
+      };
+      // --truth-bin OTHER.bin: the cells a table already checked holds (ours, say) in place of a rebuild
+      // here: seconds, not minutes, and two generators' tables compared cell for cell.
+      const truthBin = arg('truth-bin');
+      const other = truthBin
+        ? readTable(new Uint8Array(readFileSync(truthBin)).buffer, Infinity)
+        : null;
+      if (truthBin) inputsWords = `the cells of ${truthBin.replace(/^.*\//, '')} (--truth-bin), not a rebuild`;
+      const rows: NonNullable<typeof truth>['rows'] = [];
+      const counts = { same: 0, close: 0, differ: 0 };
+      for (const c of sampleCells(header, samples, seed)) {
+        const truthCell = other ? other.lookup(c.te, c.h) : rebuild(inputs, c.te, c.h);
+        const cmp = truthCell
+          ? compareCell(table.lookup(c.te, c.h)!, truthCell)
+          : { result: 'differ' as const, detail: `not in ${truthBin}` };
+        counts[cmp.result]++;
+        rows.push({ ...c, ...cmp });
+        if (!has('json')) process.stderr.write(cmp.result === 'same' ? '.' : cmp.result === 'close' ? 'c' : 'x');
+      }
+      if (!has('json')) process.stderr.write('\n');
+      // A cell that differs, rebuilt with the video doubler off: the setting Joo's generator had
+      // (19 Oct, aaap-tools/notes/joo-table-check.md), and the likeliest cause of a whole table off.
+      let diagnosis: string | undefined;
+      const failed = rows.filter(r => r.result === 'differ');
+      if (failed.length && !other) {
+        const off = { ...inputs, context: { ...inputs.context, assumeDoubleEarnings: false } };
+        let matched = 0;
+        for (const r of failed) {
+          const cmp = compareCell(table.lookup(r.te, r.h)!, rebuild(off, r.te, r.h));
+          r.doublerOff = cmp.result;
+          if (cmp.result !== 'differ') matched++;
+        }
+        diagnosis =
+          matched === failed.length
+            ? `matches with the video doubler OFF (assumeDoubleEarnings false): ${matched} of ${failed.length} different cells`
+            : matched
+              ? `${matched} of ${failed.length} different cells match with the video doubler OFF (assumeDoubleEarnings false)`
+              : 'the different cells do not match with the video doubler off either';
+      }
+      truth = { seed, inputs: inputsWords, cells: counts, rows, ...(diagnosis ? { diagnosis } : {}) };
+    }
+  }
+
+  const verdict = verdictOf({ errors, stale, ignoreSim, cells: truth?.cells });
+  const seconds = (performance.now() - t0) / 1000;
+  const reasons = [
+    ...errors,
+    ...stale.map(s => (ignoreSim && truth ? `${s} (ignored: --ignore-sim)` : s)),
+    ...(truth?.cells.differ ? [`${truth.cells.differ} of ${truth.rows.length} checked cells differ`] : []),
+    ...(truth && !truth.cells.differ && truth.cells.close
+      ? [
+          `${truth.cells.close} of ${truth.rows.length} checked cells are close, not identical ` +
+            `(within ${CLOSE_TOLERANCE.seconds} s and ${CLOSE_TOLERANCE.relative.toExponential()} relative): not shippable`,
+        ]
+      : []),
+  ];
+  process.exitCode = EXIT_CODE[verdict];
+  if (has('json')) {
+    console.log(
+      JSON.stringify({
+        verdict,
+        exitCode: EXIT_CODE[verdict],
+        file,
+        header: header
+          ? { from: header.from, to: header.to, slots: header.slots, simVersion: header.simVersion ?? null, builtAt: header.builtAt }
+          : null,
+        reasons,
+        notes,
+        assumes,
+        tolerance: CLOSE_TOLERANCE,
+        ...(truth ? { truth } : {}),
+        seconds: Number(seconds.toFixed(1)),
+      })
+    );
+    return;
+  }
+  const label = verdict === 'CLOSE' ? 'CLOSE (a FAIL for shipping)' : verdict;
+  console.log(`VERDICT: ${label}`);
+  if (header)
+    console.log(
+      `file: ${file.replace(/^.*\//, '')}: start TEs ${header.from}-${header.to}, ${header.slots} slots, ` +
+        `simulator ${header.simVersion ?? '(unstamped)'} (this checker: ${SIM_VERSION}), built ${header.builtAt}`
+    );
+  if (reasons.length) console.log('reasons:\n' + reasons.map(r => `  - ${r}`).join('\n'));
+  if (assumes.length) console.log('assumes:\n' + assumes.map(r => `  - ${r}`).join('\n'));
+  if (notes.length) console.log('notes:\n' + notes.map(r => `  - ${r}`).join('\n'));
+  if (truth) {
+    const edges = truth.rows.filter(r => r.edge).length;
+    console.log(
+      `truth: ${truth.rows.length} cells (${edges} edges + ${truth.rows.length - edges} random, seed ${truth.seed}): ` +
+        `${truth.cells.same} identical, ${truth.cells.close} close, ${truth.cells.differ} different`
+    );
+    console.log(`  compared with: ${truth.inputs}`);
+    for (const r of truth.rows.filter(r => r.result !== 'same'))
+      console.log(
+        `  TE ${r.te} hour ${r.h}: ${r.result}: ${r.detail}${r.doublerOff ? ` [doubler off: ${r.doublerOff}]` : ''}`
+      );
+    if (truth.diagnosis) console.log(`  diagnosis: ${truth.diagnosis}`);
+  }
+  console.log(`time: ${seconds.toFixed(1)} s`);
 }
 
 async function route(file: string): Promise<void> {
@@ -2533,6 +2841,7 @@ async function pruneBench(file: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  if (arg('check-bin')) return checkBin();
   if (has('pack')) return pack();
   if (has('stamp-sim')) return stampSim();
   if (has('restamp')) {
@@ -2827,7 +3136,8 @@ async function lowteProbe(file: string): Promise<void> {
 
 main().then(
   // A generator child keeps running, serving the parent, until it is told to quit.
-  () => (has('generate-worker') ? undefined : process.exit(0)),
+  // --check-bin's verdict is its exit code (process.exitCode, search/tableCheck.ts EXIT_CODE).
+  () => (has('generate-worker') ? undefined : process.exit(Number(process.exitCode ?? 0))),
   err => {
     console.error(err instanceof Error ? err.message : err);
     process.exit(1);

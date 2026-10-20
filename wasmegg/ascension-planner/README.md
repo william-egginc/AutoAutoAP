@@ -256,6 +256,59 @@ and `time_off`; leg 1 has a few more (which way it went, and what the other way 
 route restored after a refresh keeps its total but not its per-leg cells. Details:
 [Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard).
 
+### Checking a table someone sent (`--check-bin`)
+
+An instant-answer table file from someone else (Joo's generator, a player's own gear table) is checked
+by `scripts/precompute.ts` (logic in `src/search/tableCheck.ts`) before it goes anywhere near
+`public/precompute/`:
+
+```bash
+npx -y pnpm@11.11.0 search:build
+node dist-search/precompute.js --check-bin FILE.bin [--samples 24] [--seed N|random] [--json] [--ignore-sim]
+  [--base SAVE.json] [--own-inventory] [--no-reference] [--truth-bin OURS.bin]
+  [--against-save SAVE.json | --current-max]
+```
+
+- **Structure**: the header, the file length against its cells, no NaN or Infinity, and no build our
+  generator cannot make: flags 1-3 sales (+8 tier 13), sale counts rising across a cell, empty slots only
+  at the end and all zero, no empty cell, no tier 13 below start TE 190 (`TIER_13_MIN_STARTING_TE`, the
+  table build skips the attempt there), tier 13 only on the top sale counts, `saleEnd` exactly the end of
+  the N-th sale, no egg count below the start's own. Fake rows (`--fake-below`) are a FAIL.
+- **Stamps**: `simVersion` against the checker's `SIM_VERSION` (different: **STALE**), the reference
+  week, the gear stamp (its research must be the table's own `k3` research), and what it assumes: epic
+  research, colleggtible effects, and the settings (`assumeDoubleEarnings`, `deferForEarnings`). Tables
+  packed from now on carry `settings` and, without a gear stamp, `epicResearch` and
+  `colleggtibleEffects`; an older one says "not stamped (assumed: doubler on, defer off)".
+- **Truth**: the six edges (first and last start TE at hours 0, 83, 167) and `--samples` cells picked by
+  the checker from a seed it prints (`--seed` repeats a run), rebuilt here with the video doubler on and
+  compared field by field. **PASS** only if every cell is identical to the bit. **CLOSE** if all are within
+  1 s (`waitStart`, `saleEnd`) and 1e-6 relative (`peakELR`, delivered) with the same builds: reported apart,
+  still a fail for shipping. Otherwise **FAIL**; the different cells are rebuilt with the doubler off too,
+  and it says so when that is the difference. A STALE table is not rebuilt unless `--ignore-sim`.
+- **Inputs**: a table with no gear stamp is rebuilt as the maxed table was made, from `--base` (default
+  `~/code/aaap-tools/alt.json`) with `--reference`. A gear table's stamp is not enough on its own (it holds
+  the sets the optimizer picked at two research levels, not the inventory, and not the account's soul eggs
+  and other permanent progress), so the base save gives the account, the stamp's artifacts and stones replace
+  its inventory (`--own-inventory` keeps the save's, for a player's own table on their own save), and the
+  stamp's epic research and colleggtibles replace the save's. It prints any difference between the rebuilt
+  account's gear and the stamp.
+- **Still current?** `--against-save SAVE.json` or `--current-max` (every colleggtible at its top tier, every
+  modelled epic research at max): STALE when a set (gear tables), an epic research level the planner models
+  or a colleggtible effect the simulator reads has changed. No cells are rebuilt in this mode.
+- `--truth-bin OURS.bin` compares the same cells with a table already checked instead of rebuilding them
+  (two generators' tables side by side, in a second).
+- Exit code 0 PASS, 1 FAIL or CLOSE, 2 STALE; `--json` prints one object. A rebuild is about 15 s a cell
+  on the Mac (19 Oct: 24 samples on a 75-339 table, 30 cells and 14 doubler-off rebuilds, 10.6 minutes).
+
+The colleggtible effects the simulator reads (`lib/collegtibles.ts` `modifiersFromColleggtibleTiers`, then
+`context.colleggtibleModifiers.*`): all nine today. `earnings` and `awayEarnings` (`engine/compute.ts`,
+`auto/ascension.ts`), `ihr` (`engine/compute.ts`), `elr` (`engine/compute.ts`, `calculations/realisticELR.ts`),
+`shippingCap` (those two and `auto/shifts/helpers/vehicles.ts`), `habCap` (those two and
+`auto/shifts/helpers/habs.ts`), `vehicleCost` (`engine/apply/duration.ts`, `vehicles.ts`), `habCost`
+(`duration.ts`, `habs.ts`) and `researchCost` (`duration.ts`, `auto/shifts/c3.ts`,
+`auto/shifts/helpers/milestones.ts`). A new colleggtible with one of these effects changes the farm; one
+whose effect is none of them changes no cell. The list is `SIM_READ_EFFECTS` in `src/search/tableCheck.ts`.
+
 ---
 
 ## Repo map and branches
