@@ -11,6 +11,7 @@ with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 24
   Fast and up also run **Nearby routes**, a search near the instant answer's route.
 - **Exhaustive**: every route in boxes you set, so the answer is proven inside those boxes.
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
+- **Prefer fewer ascensions** and **Try waiting before each prestige**: two options on the instant answer.
 - **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
 
 Everything runs in your browser. The live site is <https://egg.williamstest.fyi/>. The
@@ -26,56 +27,60 @@ and for developers. The maintainer is Williamthe5thc (Discord).
 
 ## Screens at a glance
 
-The names are the ones players read, kept in `NAMES` in `src/lib/siteNav.ts`.
-
 - **Manual Planner**: plan an ascension by hand, action by action (upstream's planner).
 - **Auto Planner**
   - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
   - **Fastest to 490 TE** (the name follows your final target): the instant answer and Check exactly
     on top, then two tabs, **Nearby routes** (with the Stronger check levels) and **Exhaustive**.
-  - **Highest TE by a date**: the same layout, for the most TE by a date.
+    **Prefer fewer ascensions** (off by default; within 12 h, 1 day, 2 days or custom) leads the green box
+    with the fewest-ascensions route that close to the best. After Check exactly, **Try waiting before each
+    prestige** prices the route with waits of 1 to 24 hours, on Your setup's hours, and suggests a wait only
+    when it gains over half an hour and being 2 hours off costs under three times that.
+  - **Highest TE by a date**: the same layout (Prefer fewer: same TE, within 1 or 2 TE). With no instant
+    answer for your TE, **Get a quick estimate** runs a quick scan and Nearby routes around it, about 15
+    minutes in all. A suggested Exhaustive box stays under 20,000 sets of early stops; a typed one is not capped.
+  - Exhaustive above 300,000 routes shows a note (about how many hours; the command line); Start asks first
+    above 100,000 routes, and again above 500,000 (Science sweeps too).
 - **Leaderboard** (was Compare): Egg Day, Race, All runs, By a date, and **Insights** (charts across everybody's
   runs; also the standalone `explorer.html`). Its Your latest run tab is one line pointing to My runs now.
 - **My runs** (a top tab, and the Auto Planner's fourth tab: the same page): the "where am I now" page. A save-age strip;
-  **Right now** (your plan's next shifts with dates, relative times and calendar reminders built in the browser:
-  an .ics file or a Google link, with a 10-minute alert); **Your eggs and gear** (earnings and production sets, the
-  planned-shift total); your saved answers as tiles with **How sure** (High, Medium or Low); **Try next**; then **Your
-  runs** (Latest or All, with filters): runs on the board that are proved yours or look like yours (names are matched
-  across browsers), the ones hidden from the public too, with Hide from the public, runs and answers saved on this
-  computer or phone, and results not sent yet. "Dig deeper into your plan ›" under each result opens it.
-  `#/compare/mine` lands here.
+  **Right now** (your plan's next shifts with dates and calendar reminders built in the browser: an .ics file or a
+  Google link, with a 10-minute alert; its gear rows fold out **Missing for a perfect set**, slot by slot against
+  T4 Legendary with tier-4 stones); **Your eggs**; your saved answers as tiles with **How sure** (High, Medium or
+  Low); **Try next**; **Your routes at a glance** (your routes as points, one goal at a time, folded); then **Your
+  runs** (Latest or All, with filters): runs on the board that are yours or look like yours, the hidden ones too,
+  runs saved on this computer or phone, and results not sent yet. Each run's details say **What was searched**.
+  "Dig deeper into your plan ›" opens it. `#/compare/mine` lands here.
 - **Science**: **How it works** (the default), **What we need to check**, **Submit a sweep** and
   **When should I start?** (only before you are on virtue: hidden once your save has a virtue farm)
 
 The addresses are hash routes (`#/auto/fastest`, `#/auto/fastest/full`, `#/compare/race`, ...), and old
 links (`?insane=1`, `#deadline`) still land in the right place (`routeFromLocation` in `siteNav.ts`).
-Player guides: [Getting started](https://github.com/william-egginc/AutoAutoAP/wiki/Getting-started),
-[Instant answer](https://github.com/william-egginc/AutoAutoAP/wiki/Instant-answer),
-[Search nearby](https://github.com/william-egginc/AutoAutoAP/wiki/Search-nearby),
-[Exhaustive](https://github.com/william-egginc/AutoAutoAP/wiki/Exhaustive),
-[Highest TE by a date](https://github.com/william-egginc/AutoAutoAP/wiki/Highest-TE-by-a-date),
-[Build-up and low-TE accounts](https://github.com/william-egginc/AutoAutoAP/wiki/Build-up-and-low-TE-accounts),
-[Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard),
-[Long runs](https://github.com/william-egginc/AutoAutoAP/wiki/Long-runs),
-[FAQ](https://github.com/william-egginc/AutoAutoAP/wiki/FAQ).
+
+---
+
+## Wiki and what's new
+
+The [wiki Home](https://github.com/william-egginc/AutoAutoAP/wiki) has a guide to every screen (start
+with [Getting started](https://github.com/william-egginc/AutoAutoAP/wiki/Getting-started) and the
+[FAQ](https://github.com/william-egginc/AutoAutoAP/wiki/FAQ));
+[Releases](https://github.com/william-egginc/AutoAutoAP/wiki/Releases) lists what each release changed.
+Release 4, in short: Prefer fewer ascensions; Try waiting before each prestige; Get a quick estimate with
+no instant answer; big boxes ask first; faster searches, By a date's Nearby routes and Exhaustive most (a
+leg's build up to C3 is now shared by every last stop tried from one start: 171 s to 49 s on one measured
+Egg Day run); no edge warning for an edge Widen and run again can't move; a stopping search says it is
+finishing the routes already started (up to about a minute); and the My runs chart.
 
 ---
 
 ## What our Single run adds to Joo's Auto AP
 
-Single run (formerly Your plan, formerly Classic) is Joo's Auto Ascension Planner screen. The simulator
-(`src/auto`, `src/engine`), the shifts, the generator, the ascension cards, the plan library, export and
-import are his. What our branch adds around it:
-
-- One shared **Your setup** dock (plan start, time zone, first ascension), remembered per account.
-- The plan starts now, never before the save; the farm's catch-up to the start is Joo's, capped at what the silos hold.
-- First-ascension choices: **Finish without buying** (Joo's "Continue Asc.") and **Prestige now**, kept in step with the per-ascension dropdown.
-- **Time off** windows, applied to plans sent from a search and carried in the JSON export and the plan library.
-- **Simulate this plan** from the instant answer, Nearby routes and Exhaustive: it hands over the route, the start and the legs.
-- The low-TE gate: below TE 120, a fresh build whose habs would stall past 4 hours runs Joo's C1/K1/I1 rounds (a port of his PR 717, temporary until it merges).
-
-Single run does **not** plan around awake hours or Continue my build-up (those are in the Fastest and By a date searches), and it
-does not find stops for you. Full list with code locations and commits:
+Single run (formerly Your plan, formerly Classic) is Joo's Auto Ascension Planner screen: the simulator
+(`src/auto`, `src/engine`), the shifts, the generator, the cards, the plan library, export and import are
+his. Our branch adds the shared **Your setup** dock; a plan start never before the save; **Finish without
+buying** and **Prestige now** for the first ascension; **Time off** windows; **Simulate this plan** from
+the searches; and the low-TE gate (below TE 120, Joo's C1/K1/I1 rounds from his PR 717, until it merges).
+It does **not** plan around awake hours or Continue my build-up, and does not find stops for you. Full list:
 [Single run vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
 
 ---
@@ -84,13 +89,11 @@ does not find stops for you. Full list with code locations and commits:
 
 ### Requirements
 
-- **Node 24** (what `netlify.toml` pins; a built `dist-search/` runs on Node 22 or newer).
+- **Node 24** (what `netlify.toml` pins; a built `dist-search/` runs on Node 22 or newer) and **make**.
 - **pnpm 11.11.0**, pinned by `packageManager` in the repo root's `package.json`. Use exactly this
   (`corepack` or `npx -y pnpm@11.11.0 ...`): **pnpm 8 resolves two copies of Vue and the built app
   silently drops the `ui/` components.**
-- **make**, for the generated files below.
-- **Python 3.9+** only for the older `scripts/autoplan.py` driver (`zoneinfo`; on Windows also
-  `pip install tzdata`). Nothing else needs Python.
+- **Python 3.9+** only for the older `scripts/autoplan.py` (on Windows also `pip install tzdata`).
 
 ### Install and generated files
 
@@ -99,10 +102,9 @@ pnpm install          # at the REPO ROOT: it is a workspace install
 make -C lib           # at the repo root: generates the files below
 ```
 
-`lib/proto/index.js` / `index.d.ts` and `lib/sandbox/schema.js` / `schema.d.ts` are generated from
-the `.proto` files by `pbjs`/`pbts` (`lib/Makefile`) and are gitignored. Without them `vue-tsc`
-fails with dozens of "Cannot find module '../proto'" errors, which looks like broken code but is
-only a missing file. That is why the Netlify command is `make -C ../../lib && pnpm build`.
+`lib/proto/` and `lib/sandbox/schema.*` are generated from the `.proto` files (`lib/Makefile`) and
+gitignored. Without them `vue-tsc` fails with "Cannot find module '../proto'": a missing file, not broken
+code. That is why the Netlify command is `make -C ../../lib && pnpm build`.
 
 ### Commands (in this folder, from `package.json`)
 
@@ -119,19 +121,15 @@ only a missing file. That is why the Netlify command is `make -C ../../lib && pn
 | `pnpm fastsearch` | `node dist-search/fastsearch.js` |
 | `pnpm generate:pacific-time-table` | regenerates the Pacific time table (`scripts/generatePacificTimeTable.ts`) |
 
-One spec file: `npx vitest run path/to/file.spec.ts`. Tests force `VITE_SUBMIT_URL` to empty, so no
-spec reaches a real collector. Some specs (for example `src/search/chain.spec.ts`,
-`src/auto/lowTeOpening.save.spec.ts`) need a private save and are skipped when it is absent.
-`pnpm build` also warns when `src/` has commits newer than `release.ts`.
-
-Serve the app on `localhost` or over HTTPS. Over plain HTTP on a LAN, `crypto.subtle` does not exist
-and every IndexedDB write fails.
+One spec file: `npx vitest run path/to/file.spec.ts`. No spec reaches a real collector. Specs that need a
+private save are skipped without it, and the slowest run only with `AAP_SLOW_SPECS=1`. `pnpm build` warns
+when `src/` has commits newer than `release.ts`. Serve the app on `localhost` or over HTTPS: over plain
+HTTP on a LAN, `crypto.subtle` does not exist and every IndexedDB write fails.
 
 ### The command line (`fastsearch`)
 
 The same searches the site runs, headless in Node, through the site's own store and worker module
-(`scripts/fastsearch.ts`, `scripts/siteRun.ts`, with browser shims in `scripts/node-*.ts`). A result
-from the command line and one from the browser, from the same save and settings, are the same result.
+(`scripts/fastsearch.ts`, `scripts/siteRun.ts`): from the same save and settings, the same result.
 `dist-search/` is not committed, so build it first:
 
 ```bash
@@ -159,14 +157,19 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
 - `--backup FILE` runs fully offline. `--player-id EI... --save-backup me.json` fetches a save once.
 - `--out DIR` writes `run.csv.gz` and `submission.json` and keeps a resume point; run the same command
   again after a kill and it carries on. `--dry-run` says what would run and stops.
-- A box above 100,000 routes asks `Continue? [y/N]` before it runs (again above 500,000); `--yes` skips that, and without a terminal to answer it stops and says to add `--yes`.
+- A box above 300,000 routes prints the site's note (routes, about how many hours). A box above 100,000
+  routes asks `Continue? [y/N]` before it runs (again above 500,000); `--yes` skips that, and without a
+  terminal to answer it stops and says to add `--yes`. `--dry-run` never asks.
+- `--try-delays` is Try waiting before each prestige for one route: `--stages "197;222;247;285" --final 313`
+  (one value per stop), with your hours (`--sleep-from 23 --sleep-until 7`, else it warns). `--delay-max`,
+  `--delay-near`, `--delay-passes`, `--singles-only`; `--handoff hour` prestiges on the hour as the site does.
 - Sending (`--submit`, or `submit --from`) is the same send the site makes, anonymous unless
   `--nickname`. To any collector not on your own machine it needs `--yes`, or nothing leaves.
   What-ifs (`--add-artifact`, `--mod`) are never sent.
 - Hours, time off and the first ascension match Your setup: `--available-from/--available-to`,
   `--time-off`, `--first-ascension auto|buildup|continue|fresh`.
-- Its own tools, not on the site: `--exhaustive --range`, `--stages`, `--grid`, `--direct`.
-- `scripts/autoplan.py` is an older Python driver of `--stages`. Prefer `--effort` for anything new.
+- Its own tools, not on the site: `--exhaustive --range`, `--stages`, `--grid`, `--direct`
+  (`scripts/autoplan.py` is an older Python driver of `--stages`).
 
 #### Helping with a long run (an Exhaustive box for someone else's check)
 
@@ -211,99 +214,72 @@ node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Den
   --out run1 --submit --nickname YourName --yes
 ```
 
-- Killed or restarted? Run the same command again: it carries on from `run1/`. A run that stopped
-  before pricing anything leaves an empty checkpoint, and the next run just starts afresh there.
+- Killed or restarted? Run the same command again: it carries on from `run1/` (an empty checkpoint
+  just starts afresh).
 - `--submit` sends to the public board, the same one the site uses, even from a fresh clone with no
   `.env.local` (the run prints the address; `--collector URL` changes it). It needs `--yes`: without
   it the run stops with an error and exit code 1 before it searches or makes `run1/`. Rather send it
   yourself later? Leave out `--submit` (keep `--out run1`) and when it has finished run
   `node dist-search/fastsearch.js submit --from run1 --nickname YourName --yes`.
-- Workers default to the threads Node detects minus one, at most 12 (more were no faster on a
-  20-thread PC and used more memory); each holds about 0.1-0.25 GB. `--jobs N` sets it. The start of
-  the run prints how many threads Node detects and how many logical processors `os.cpus()` lists; on
-  Windows Node can detect fewer than the machine has (one processor group), and a `--jobs` above
-  that now runs as asked, with a warning (it used to be held to the detected count).
-- When the search has finished and sent, the command exits by itself (it used to sit idle without
-  `--out`, and after every `--dry-run`, until killed). Newer Node versions no longer print a
-  localStorage `ExperimentalWarning` from every worker.
-- Your playing hours: `--available-from 7 --available-to 23` (with `--timezone`). Leave them out
-  for "any hour".
-- The row says which level found it (`exhaustive`), and the CSV goes with it.
-- If a long run stops on memory (it says "this process's memory is near Node's limit", or Node crashes with
-  a heap or "fatal error" message), set `NODE_OPTIONS=--max-old-space-size=16384` and run the same command
-  again (no `--fresh`): it carries on from its checkpoint. In Git Bash or a Mac/Linux shell put it in front of
-  the command (`NODE_OPTIONS=--max-old-space-size=16384 node dist-search/fastsearch.js ...`); in PowerShell
-  run `$env:NODE_OPTIONS="--max-old-space-size=16384"` first. Each progress line shows `heap X of Y MB`.
-- Don't run `pnpm self-update` or follow pnpm's "update available" banner, and don't install a newer pnpm
-  globally: it rewrites `package.json` and `pnpm-lock.yaml` for that version, and plain `pnpm` then breaks.
-  Use `npx -y pnpm@11.11.0 ...` whenever you are unsure. Already updated? `git checkout package.json
-  pnpm-lock.yaml` at the repo root puts them back, then `npx -y pnpm@11.11.0 install`.
+- Workers default to the threads Node detects minus one, at most 12; each holds about 0.1-0.25 GB, with
+  its own 2 GB ceiling. `--jobs N` sets it (on Windows Node can detect fewer threads than the machine has;
+  a higher `--jobs` runs as asked, with a warning). A finished run exits by itself.
+- Each progress line shows `rss`, `heap X of Y MB` (the main thread against Node's limit) and the
+  machine's free memory; with `--out`, `run1/last-progress.txt` keeps the last one and its time. A worker
+  that ends mid-run is reported as a fault, and a run left with nothing running says so and exits 1.
+- Your playing hours: `--available-from 7 --available-to 23` (with `--timezone`); without them, any hour.
+- At 80% of Node's heap limit the run stops as Ctrl+C does (best so far and checkpoint kept) and says
+  "this process's memory is near Node's limit". Then, or after a heap or "fatal error" crash, run the same
+  command again (no `--fresh`) with `NODE_OPTIONS=--max-old-space-size=16384` in front of it (Git Bash,
+  Mac, Linux), or after `$env:NODE_OPTIONS="--max-old-space-size=16384"` in PowerShell.
+- Don't run `pnpm self-update`, follow pnpm's "update available" banner or install a newer pnpm: it
+  rewrites `package.json` and `pnpm-lock.yaml`, and plain `pnpm` then breaks. Already did? `git checkout
+  package.json pnpm-lock.yaml` at the repo root, then `npx -y pnpm@11.11.0 install`.
 
 Long offline runs, worker counts and memory: [Long runs](https://github.com/william-egginc/AutoAutoAP/wiki/Long-runs)
 and [Searches in detail](https://github.com/william-egginc/AutoAutoAP/wiki/Searches-in-detail).
 
 ### The CSV
 
-**Download CSV**, the `run.csv.gz` that `--out` writes and the table a send uploads all have one row
-per leg of every route a run priced. It starts with `#` comment lines (plan start, TE and target,
-effort, first ascension, hours, time off, your note, the artifacts and stones the run used). Columns:
+**Download CSV**, the `run.csv.gz` that `--out` writes and the table a send uploads have one row per leg
+of every route a run priced. It starts with `#` comment lines: plan start, TE and target, effort, first
+ascension, hours, time off, your note, the artifacts and stones; `# searched:` (the boxes, in the command
+line's notation) and `# ascensions:` (the count range and the minimum gap); and, By a date, `# workers:`
+(the run's workers over its life). The header's own words have no commas, since Numbers and Excel split
+comment lines at commas too; only lines with your data (a note, a weekday list, uneven boxes) can.
 
-| column | what it is |
-|---|---|
-| `rank`, `chain`, `prestiges` | the route's place by length, its stops, and how many ascensions it has |
-| `total_days`, `gap_days` | the route's length, and how far behind the best it is |
-| `leg`, `target_te` | which ascension this row is, and the TE it ends at |
-| `strategy`, `sales`, `tier13` | continue, or a 1/2/3-sale fresh start; the sale count; whether tier 13 was unlocked |
-| `leg_start_local`, `build_phase_end_local`, `leg_end_local`, `leg_days` | the leg's timing |
-| `peak_delivery_q_per_hr` | the leg's peak delivery rate |
-| `night_shifts` | egg shifts that still land in your away hours |
-| `prestige_delay_hours`, `shift_hold_hours` | time waiting for your hours, for the prestige and the egg shifts |
-| `starts_on_egg`, `shift_times_local` | the egg the leg starts on, and every shift's time and egg |
-| `time_off` | `stopped` / `restarted` on the two legs around time off |
-
-Leg 1 has a few more columns after these (which way it went, and what the other way would have
-given). A route restored after a refresh, or past the memory setting, keeps its total but not its
-per-leg cells. Details: [Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard).
+The columns: `rank`, `chain`, `prestiges`, `total_days`, `gap_days` (the route), then per leg `leg`,
+`target_te`, `strategy`, `sales`, `tier13`, `leg_start_local`, `build_phase_end_local`, `leg_end_local`,
+`leg_days`, `peak_delivery_q_per_hr`, `night_shifts` (shifts still in your away hours),
+`prestige_delay_hours`, `shift_hold_hours` (waits for your hours), `starts_on_egg`, `shift_times_local`
+and `time_off`; leg 1 has a few more (which way it went, and what the other way would have given). A
+route restored after a refresh keeps its total but not its per-leg cells. Details:
+[Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard).
 
 ---
 
-## Repo map
+## Repo map and branches
 
 Paths are relative to this folder. The full module map is on
 [Architecture](https://github.com/william-egginc/AutoAutoAP/wiki/Architecture).
 
-- `src/auto/`, `src/engine/`: Joo's simulator (and upstream's engine). Keep edits minimal and marked;
-  any change can move results. `src/auto/shifts/` holds the per-shift build logic (C1, K1, I1, C3, ...).
-  Our hooks there: `hold.ts` (your hours), `buildUp.ts` (Continue my build-up), `lowTeOpening.ts`
-  (the low-TE gate, temporary until Joo's PR 717 merges).
-- `src/search/`: our layer: the route finder, Check exactly and the Stronger check, the searches
-  (`driver.ts`, `effort.ts`, `exhaustive.ts`, `deadline.ts`), the CSV, sending, the tables'
-  leg pricing, and the sim-version guard.
-- `src/stores/chainSearch.ts`: the Pinia store behind every Auto Planner search (`stronger.ts` beside it).
-- `src/workers/`: the search, route-finder and research web workers.
-- `src/components/`: Vue 3 components (`auto/` for the Auto Planner, `science/` for Science).
-- `src/lib/siteNav.ts`: the tabs, their addresses and every name players read.
-- `src/explorer/`: Insights and the standalone Route Explorer page (`explorer.html`).
-- `src/watch/`: the phone watch page (`watch.html`).
-- `collector/`: the Cloudflare Worker that takes sends and serves the boards, with its own specs.
-- `scripts/precompute.ts`: builds and checks the instant answer's tables (see `PRECOMPUTE.md`).
-- `scripts/fastsearch.ts`, `scripts/siteRun.ts`: the command line.
-- `public/`: static files, including `about.html` (the About and privacy page).
-- `release.ts`: the update notes an open tab shows (small, big, or reload).
-
----
-
-## Branches
-
-- **`ascension-chain-search`** is the main line; the site is built from it.
-- Upstream is **`wasmegg-carpet/egg`**, Carpet's fork of the wasmegg tools, whose `ascension-planner`
-  branch carries Joo's planner. Upstream changes come in as merge commits.
-- Work happens on short topic branches (often in git worktrees), merged back as
-  `Merge branch '<topic>' into ascension-chain-search`.
-- **The sim-version guard.** `src/search/simVersion.spec.ts` hashes `src/engine`, `src/auto`,
-  `src/search/tableBuild.ts` and `src/search/precomputedLeg.ts`, so any edit there fails the test
-  until someone decides whether results changed. If they did, bump `SIM_VERSION` in
-  `src/search/simVersion.ts` (the tables then need rebuilding or restamping); if not, update the hash only.
+- `src/auto/`, `src/engine/`: Joo's simulator. Keep edits minimal and marked; any change can move
+  results. Our hooks: `hold.ts` (your hours), `buildUp.ts`, `lowTeOpening.ts` (the low-TE gate).
+- `src/search/`: our layer: the route finder, Check exactly, the searches (`driver.ts`, `effort.ts`,
+  `exhaustive.ts`, `deadline.ts`), `preferFewer.ts`, `delays.ts` (waits), `bigBox.ts`, `autoWiden.ts`
+  (the quick estimate), `searched.ts`, the CSV, sending and the sim-version guard.
+- `src/stores/chainSearch.ts`: the store behind every Auto Planner search. `src/workers/`: web workers.
+- `src/components/` (`auto/`, `myruns/`, `science/`), `src/lib/siteNav.ts` (every name players read),
+  `src/explorer/` (Insights, `explorer.html`), `src/watch/` (`watch.html`).
+- `collector/`: the Cloudflare Worker. `scripts/precompute.ts`: the instant answer's tables.
+  `scripts/fastsearch.ts`, `scripts/siteRun.ts`: the command line. `public/about.html`: About and privacy.
+  `release.ts`: the update notes an open tab shows.
+- **`ascension-chain-search`** is the main line; the site is built from it. Upstream is
+  **`wasmegg-carpet/egg`** (Carpet's fork; its `ascension-planner` branch carries Joo's planner), merged in.
+  Work happens on short topic branches merged back into `ascension-chain-search`.
+- **The sim-version guard.** `src/search/simVersion.spec.ts` hashes `src/engine`, `src/auto`, `tableBuild.ts`
+  and `precomputedLeg.ts`: any edit there fails it. If results changed, bump `SIM_VERSION`
+  (`src/search/simVersion.ts`; the tables then need restamping); if not, update the hash only.
 
 How to merge upstream safely: [Contributing and upstream sync](https://github.com/william-egginc/AutoAutoAP/wiki/Contributing-and-upstream-sync).
 
@@ -312,28 +288,19 @@ How to merge upstream safely: [Contributing and upstream sync](https://github.co
 ## Privacy and security
 
 - Your save and player ID stay in your browser. The save is fetched through a small relay that stores nothing.
-- Nothing goes to the leaderboard until you tick the agreement and press a send button. The agreement is remembered per account, folds to one line, and unticking it stops sends at once. Each row records which level made it (light, quick, normal, thorough or exhaustive), and a Light row never replaces a searched one.
-- A send never holds your player ID; it is not a field, and ID-shaped text is stripped from names, notes and the CSV.
-- The short version is on the site's About and privacy page (`public/about.html`); problems go to `/.well-known/security.txt`.
-- What the collector keeps and for how long: `collector/README.md`.
-
-Full details: [Privacy and security](https://github.com/william-egginc/AutoAutoAP/wiki/Privacy-and-security).
+- Nothing goes to the leaderboard until you tick the agreement and press a send button; unticking it stops sends at once.
+- A send never holds your player ID, and ID-shaped text is stripped from names, notes, `searched` and the CSV.
+- The short version: `public/about.html`; problems go to `/.well-known/security.txt`; what the collector keeps: `collector/README.md`.
+  Full details: [Privacy and security](https://github.com/william-egginc/AutoAutoAP/wiki/Privacy-and-security).
 
 ---
 
 ## Other docs
 
-- [FOR_MATH_NERDS.md](FOR_MATH_NERDS.md): the size of the route space, how the searches cover it,
-  and what is measured versus guessed.
-- [PRECOMPUTE.md](PRECOMPUTE.md): how the instant answer's tables are built and checked.
-- [DESIGN.md](DESIGN.md): component architecture.
-- [collector/README.md](collector/README.md): the collector, its endpoints, storage and retention.
-- [CLAUDE.md](CLAUDE.md): rules and a code map for Claude working in this repo.
-
-### The measurement record
-
-Accuracy figures in these docs come from players' runs and from a findings log and run files kept
-outside the repo (they carry one player's save data by reference). What anyone can re-run is here:
-the specs and the command line, so a claim can be checked against your own save. Findings so far:
-[Analytics and open questions](https://github.com/william-egginc/AutoAutoAP/wiki/Analytics-and-open-questions);
-the dated checks are on the site's Science › How it works.
+- [FOR_MATH_NERDS.md](FOR_MATH_NERDS.md) (the route space and what is measured versus guessed),
+  [PRECOMPUTE.md](PRECOMPUTE.md) (the instant answer's tables), [DESIGN.md](DESIGN.md) (components),
+  [collector/README.md](collector/README.md) (endpoints, storage, retention), [CLAUDE.md](CLAUDE.md).
+- Accuracy figures come from players' runs and from findings kept outside the repo (they carry save data).
+  The specs and the command line let anyone check a claim against their own save. Findings:
+  [Analytics and open questions](https://github.com/william-egginc/AutoAutoAP/wiki/Analytics-and-open-questions);
+  the dated checks are on Science › How it works.
