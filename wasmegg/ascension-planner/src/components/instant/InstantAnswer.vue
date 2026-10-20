@@ -49,6 +49,7 @@
           Edit setup
         </button>
       </p>
+      <p v-if="tableLine" class="text-[11px] text-slate-500" data-testid="find-table">{{ tableLine }}</p>
     </section>
 
     <FindFilters />
@@ -96,7 +97,10 @@
             fresh start (prestige now).
           </template>
           <template v-else>The first is a fresh start (prestige now) on your save’s eggs.</template>
-          Fresh ascensions run at your delivery rate ({{ (scale * 100).toFixed(1) }}% of the table’s). The Auto Planner
+          <template v-if="by === 'maxed'"
+            >Fresh ascensions run at your delivery rate ({{ (scale * 100).toFixed(1) }}% of the table’s).</template
+          >
+          The Auto Planner
           is the exact check (“Import into the planner”)<template v-if="gearCaveat">.</template
           ><template v-else>: its dates can differ from these by a fraction of a percent, earlier or later.</template>
         </p>
@@ -128,7 +132,9 @@ import { deliveryScale } from '@/instant/deliveryScale';
 import { earningsBonus, gearDiffers, gearDiffersText } from '@/instant/gearDiffers';
 import { continueTail, hasVirtueFarm, siloSeconds, staleSaveNote } from '@/instant/continueTail';
 import { baseStateFromBackup, eggsDeliveredFromBackup, farmFromBackup, saveSyncSeconds } from '@/instant/saveFarm';
-import { answer, isNewest, newRequestId, tableHeader } from '@/instant/instantClient';
+import { answer, isNewest, newRequestId, probeHeader, tableHeader } from '@/instant/instantClient';
+import { answeredBy, chooseTable, choiceFor, choiceLine, type TableChoice } from '@/instant/tableChoice';
+import { gearStamp, tableName } from '@/instant/tableGear';
 import { getSimulationContext } from '@/engine/adapter';
 import type { BuildParams } from '@/instant/precomputedLeg';
 import type { SimulateRequest } from '@/instant/simulatePlan';
@@ -154,7 +160,9 @@ const emit = defineEmits<{
 const initialState = useInitialStateStore();
 const planner = useAutoPlannerStore();
 
-const TABLE_URL = `${import.meta.env.BASE_URL}precompute/table.bin`;
+const TABLE_BASE = `${import.meta.env.BASE_URL}precompute/`;
+const MAXED_TABLE = 'table.bin';
+const TABLE_URL = TABLE_BASE + MAXED_TABLE;
 
 type Goal = 'race' | 'date';
 const eggDayYear = nextEggDayYear();
@@ -229,7 +237,10 @@ const saveWords = computed(() =>
 const status = ref<'idle' | 'loading' | 'done' | 'error'>('idle');
 const loadingText = ref('');
 const errorText = ref('');
+/** The maxed table's header (its k3 and cteBonus price the save's gear against it). */
 const header = ref<TableHeader | null>(null);
+/** Which table answers this save (tableChoice.ts): the account's own, its exact gear's, or the maxed one. */
+const choice = ref<TableChoice | null>(null);
 /** Set once the header was asked for and the table is missing, unreadable or from another simulator. */
 const noTable = ref(false);
 const found = ref<FoundRoutes | null>(null);
@@ -240,8 +251,16 @@ const shown = computed<AnsweredGoal | null>(() =>
   found.value && answerFits(foundGoal.value, chosen.value) ? foundGoal.value : null
 );
 
+/** The header the save is checked against: the maxed table's, with the chosen table's range joined
+ *  in (the worker answers from both, per leg). */
+const checkHeader = computed<TableHeader | null>(() => {
+  const h = header.value;
+  const own = choice.value?.kind !== 'maxed' ? choice.value?.header : null;
+  return h && own ? { ...h, from: Math.min(h.from, own.from), to: Math.max(h.to, own.to) } : h;
+});
+
 const noAnswer = computed<NoAnswer | null>(() => {
-  const r = noAnswerFor(header.value, startTE.value, deadline.value, { dated: chosen.value.dated, now: nowSeconds.value });
+  const r = noAnswerFor(checkHeader.value, startTE.value, deadline.value, { dated: chosen.value.dated, now: nowSeconds.value });
   if (r && (r.kind === 'pick-date' || r.kind === 'date-passed')) return r;
   if (noTable.value) return { kind: 'no-table' };
   if (!header.value) return null;
@@ -258,8 +277,15 @@ const scale = computed(() =>
 const gap = computed(() =>
   header.value ? { bonusShort: header.value.cteBonus - earningsBonus(backup.value), scale: scale.value } : null
 );
-/** Below TE 340 with gear other than the table's: the answer can be a few percent off (gearDiffers.ts). */
-const gearCaveat = computed(() => (gap.value && gearDiffers(startTE.value, gap.value) ? gearDiffersText(gap.value) : null));
+/** The table the first ascension starts on (tableChoice.ts answeredBy). */
+const by = computed(() => (choice.value ? answeredBy(choice.value, startTE.value) : 'maxed'));
+/** Which table answered, in one line. */
+const tableLine = computed(() => (choice.value?.header ? choiceLine(by.value, choice.value.changed) : ''));
+/** Below TE 340 with gear other than the table's: the answer can be a few percent off (gearDiffers.ts).
+ *  Not on a table built on the save's own gear. */
+const gearCaveat = computed(() =>
+  by.value === 'maxed' && gap.value && gearDiffers(startTE.value, gap.value) ? gearDiffersText(gap.value) : null
+);
 
 /** On a virtue farm: leg 1 can be continue (continueTail.ts). */
 const midAscension = computed(() => hasVirtueFarm(farm.value));
@@ -301,9 +327,44 @@ const savedOfGoal = computed<string[]>(() => {
   return rows.value.filter(r => props.savedIds?.includes(planId({ goal: goalLabel, chain: r.route.chain }))).map(r => r.route.chain.join(' '));
 });
 
-/** What an answer is kept under for a moment (instantClient.ts): the save and the goal. */
+/** The account table's name (tableGear.ts tableName: a slow hash of the player id, worked out once
+ *  per id; the id never leaves the page). Null without an id. */
+let accountName: { id: string; name: Promise<string | null> } | null = null;
+function accountTable(): Promise<string | null> {
+  const id = (backup.value as { eiUserId?: string } | null)?.eiUserId;
+  if (!id) return Promise.resolve(null);
+  if (accountName?.id !== id) accountName = { id, name: tableName(id).catch(() => null) };
+  return accountName.name;
+}
+
+/** The table for the loaded save, probed once per save (the account's hashed name and its time). */
+async function tableFor(): Promise<TableChoice> {
+  const name = await accountTable();
+  return choiceFor(JSON.stringify([name, saveTime.value]), () =>
+    chooseTable(
+      { base: TABLE_BASE, maxed: MAXED_TABLE, accountName: name },
+      {
+        header: url => (url === TABLE_URL ? tableHeader(url) : probeHeader(url)),
+        stampAt: research =>
+          gearStamp(
+            {
+              rawBackup: backup.value,
+              epicResearchLevels: initialState.epicResearchLevels,
+              colleggtibleModifiers: initialState.colleggtibleModifiers,
+            },
+            research
+          ),
+      }
+    )
+  );
+}
+
+/** The account or gear table joined to the maxed one, when one was chosen. */
+const ownUrl = computed(() => (choice.value && choice.value.kind !== 'maxed' ? choice.value.url : undefined));
+
+/** What an answer is kept under for a moment (instantClient.ts): the tables, the save and the goal. */
 function answerKey(dl: number | undefined): string {
-  return JSON.stringify([saveSyncSeconds(backup.value), start.value.delivered, dl ?? null, scale.value]);
+  return JSON.stringify([TABLE_URL, ownUrl.value ?? null, saveSyncSeconds(backup.value), start.value.delivered, dl ?? null, scale.value]);
 }
 
 /** Work the answer out for the save and the goal now chosen (the newest call wins). */
@@ -318,16 +379,17 @@ async function run(): Promise<void> {
   }
   status.value = 'loading';
   loadingText.value = header.value ? 'Working out every route…' : 'Loading the instant answer (a few MB, once)…';
-  if (!header.value) {
-    const h = await tableHeader(TABLE_URL);
-    if (!isNewest(id)) return;
-    if (!h) {
-      noTable.value = true;
-      status.value = 'idle';
-      return;
-    }
-    header.value = h;
+  // Probed once per save (tableChoice.ts choiceFor); later runs get the kept choice at once.
+  const c = await tableFor();
+  if (!isNewest(id)) return;
+  if (!c.maxed) {
+    noTable.value = true;
+    status.value = 'idle';
+    return;
   }
+  noTable.value = false;
+  header.value = c.maxed;
+  choice.value = c;
   if (noAnswer.value) {
     status.value = 'idle';
     return;
@@ -344,9 +406,16 @@ async function run(): Promise<void> {
     ...(cont ? { cont: JSON.parse(JSON.stringify(cont)) as BuildParams } : {}),
     ...(g.deadline !== undefined ? { deadline: g.deadline } : {}),
   };
-  const a = await answer(id, TABLE_URL, req, answerKey(g.deadline), (done, of) => {
-    if (isNewest(id)) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
-  });
+  const a = await answer(
+    id,
+    TABLE_URL,
+    req,
+    answerKey(g.deadline),
+    (done, of) => {
+      if (isNewest(id)) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
+    },
+    ownUrl.value
+  );
   if (!isNewest(id)) return;
   if (a.kind === 'answer') {
     found.value = a.found;
@@ -397,7 +466,7 @@ function entryOf(row: AnswerRow): PlanEntry | null {
       ...(g.deadline !== undefined ? { deadline: g.deadline } : {}),
       a1: row.route.legs[0]?.label ?? '',
       simVersion: SIM_VERSION,
-      gear: gearLabel(gap.value),
+      gear: by.value === 'account' ? 'built for your account' : by.value === 'gear' ? 'built for your exact gear' : gearLabel(gap.value),
       ...(saveTime.value ? { saveTime: saveTime.value } : {}),
     })
   );

@@ -62,7 +62,8 @@ export interface PlanEntry {
   ascensions: SavedAscension[];
   /** The simulator stamp the times were priced on (simVersion.ts; '' on older entries). */
   simVersion: string;
-  /** The gear the times were priced on ("maxed gear" or "your gear (...)"; '' on older entries). */
+  /** The gear the times were priced on ("maxed gear", "your gear (...)", "built for your account" or
+   *  "built for your exact gear"; '' on older entries). */
   gear: string;
   /** Unix seconds of the save the plan was found from (absent on older entries). */
   saveTime?: number;
