@@ -175,6 +175,20 @@ export function eggsNeededForTE(currentDelivered: number, targetTE: number): num
 }
 
 /**
+ * Longest Wait for TE the planner accepts (1 year). A fresh farm on an egg already at high TE
+ * can need 1e17+ eggs at a few hundred eggs/s: a finite but absurd wait (billions of days)
+ * that also runs the plan's end date past what a JS Date can hold.
+ */
+export const MAX_TE_WAIT_SECONDS = 365 * 86400;
+
+/**
+ * Whether a Wait for TE of this many seconds can be reached at all (finite, within the cap).
+ */
+export function isTEWaitReachable(seconds: number): boolean {
+  return isFinite(seconds) && seconds >= 0 && seconds <= MAX_TE_WAIT_SECONDS;
+}
+
+/**
  * Maximum TE per egg (98).
  */
 export const MAX_TE = MAX_TE_PER_EGG;

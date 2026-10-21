@@ -171,6 +171,17 @@
       </button>
     </div>
 
+    <!-- Not reachable notice -->
+    <div
+      v-if="teToGain > 0 && eggsToLay > 0 && !isTEWaitReachable(timeToLaySeconds)"
+      class="bg-amber-50 border border-amber-100 rounded-2xl p-4"
+    >
+      <p class="text-[11px] font-bold text-amber-700 uppercase tracking-tight">
+        TE #{{ targetTENumber }} is not reachable: it would take over a year at this farm's current delivery
+        rate. Build up the farm first.
+      </p>
+    </div>
+
     <!-- Max TE notice -->
     <div v-if="currentTE >= 98" class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-3">
       <div class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-white">
@@ -197,7 +208,7 @@ import { useActionsStore } from '@/stores/actions';
 import { computeDependencies } from '@/lib/actions/executor';
 import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
 import { generateActionId, VIRTUE_EGG_NAMES } from '@/types';
-import { eggsNeededForTE, countTEThresholdsPassed } from '@/lib/truthEggs';
+import { eggsNeededForTE, countTEThresholdsPassed, isTEWaitReachable } from '@/lib/truthEggs';
 import { useActionExecutor } from '@/composables/useActionExecutor';
 import { solveForTime } from '@/engine/apply/math';
 
@@ -276,7 +287,7 @@ const elrPerHour = computed(() => snapshot.value.elr * 3600);
 const elrPerDay = computed(() => snapshot.value.elr * 86400);
 
 function getAbsoluteEarnedTime(timeSecs: number): string {
-  if (!isFinite(timeSecs)) return 'Never';
+  if (!isTEWaitReachable(timeSecs)) return 'Not reachable';
   const planStartSeconds = virtueStore.planStartTime.getTime() / 1000;
   const currentStepTime = snapshot.value.lastStepTime || planStartSeconds;
   const totalSeconds = currentStepTime + timeSecs;
@@ -308,7 +319,7 @@ const plusButtonTooltip = computed(() => {
 
 // Validation
 const canWait = computed(
-  () => teToGain.value > 0 && eggsToLay.value > 0 && isFinite(timeToLaySeconds.value) && targetTENumber.value <= 98
+  () => teToGain.value > 0 && eggsToLay.value > 0 && isTEWaitReachable(timeToLaySeconds.value) && targetTENumber.value <= 98
 );
 
 function handleWaitForTE() {
