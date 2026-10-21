@@ -53,10 +53,6 @@
         </div>
       </div>
 
-      <!-- Help improve the planner (Q13, 21 Oct 2026): above the tabs, so on every tab, once an account is in and
-           only with a collector. Inline, never over NewVersionBanner's fixed bar. Gone once answered. -->
-      <StudyBox v-if="playerId && chainSearchStore.submitUrl" class="mt-4" />
-
       <SiteTabs
         v-if="playerId"
         class="mt-4"
@@ -85,6 +81,11 @@
           </svg>
         </button>
       </div>
+
+      <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
+           first), above every tab's own content, at the page level so it is the same place on every tab. Once an
+           account is in and only with a collector. Inline, never over NewVersionBanner's fixed bar. Gone once answered. -->
+      <StudyBox v-if="playerId && chainSearchStore.submitUrl" class="mt-3" />
 
       <!-- What folds on Manual: the plan library and the action cards (nothing folds on the other screens). -->
       <div

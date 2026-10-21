@@ -214,12 +214,20 @@ describe('Setup › Help improve the planner', () => {
 describe('wiring', () => {
   const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
-  it('App.vue puts the box above the site tabs, with an account and a collector', () => {
+  it('App.vue puts the box just under the tab row and its chevron, above every tab’s content, with an account and a collector', () => {
     const app = read('../App.vue');
     const at = app.indexOf('<StudyBox v-if="playerId && chainSearchStore.submitUrl"');
     expect(at).toBeGreaterThan(0);
-    expect(at).toBeLessThan(app.indexOf('<SiteTabs'));
-    expect(at).toBeGreaterThan(app.indexOf('<the-player-id-form'));
+    expect(app.match(/<StudyBox\b/g)).toHaveLength(1);
+    // Page level (6-space indent, like SiteTabs), not inside a tab's own block.
+    expect(app.slice(app.lastIndexOf('\n', at) + 1, at)).toBe('      ');
+    expect(at).toBeGreaterThan(app.indexOf('<SiteTabs'));
+    expect(at).toBeGreaterThan(app.indexOf('data-testid="header-toggle"'));
+    // Before every tab's content: Manual's folding part, the Auto Planner's nav, and the other tabs.
+    expect(at).toBeLessThan(app.indexOf('v-if="plannerTab === \'manual\'"\n        class="mt-2 rounded-2xl border'));
+    expect(at).toBeLessThan(app.indexOf('<nav v-if="playerId"'));
+    expect(at).toBeLessThan(app.indexOf('<LeaderboardPanel'));
+    expect(at).toBeLessThan(app.indexOf('<SetupDock'));
   });
 
   it('About › What is sent says what the box does', () => {
