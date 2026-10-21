@@ -232,7 +232,7 @@ describe('the line and which table the first ascension starts on', () => {
 describe('chooseTable: a delivery table like the save’s, read with the earnings shift', () => {
   const T = 'tachyon-stone-4';
   const Q = 'quantum-stone-4';
-  const s = (artifactId: string, ...stones: string[]) => ({ artifactId, stones });
+  const s = (artifactId: string, ...stones: (string | null)[]) => ({ artifactId, stones });
   const MET_E = s('quantum-metronome-4-2', T, T);
   const COM = s('interstellar-compass-4-3', T, T);
   const GUS = s('gusset-4-3', Q, T, T);
@@ -294,6 +294,7 @@ describe('chooseTable: a delivery table like the save’s, read with the earning
       kind: 'delivery',
       shift: 24.93,
       delivery: ['quantum-metronome-4-2', 'interstellar-compass-4-3', 'gusset-4-3', 'lunar-totem-4-3'],
+      stonesBelowT4: false,
     });
     expect(log.filter(u => u.includes('delivery-'))).toEqual([DEL_URL]);
     expect(log[0]).toBe('/p/table.bin');
@@ -307,6 +308,19 @@ describe('chooseTable: a delivery table like the save’s, read with the earning
     expect(c.url).toBe(DEL_URL);
     const two = await chooseTable(input, site({ set: [MET_E, COM, GUS, s('puzzle-cube-4-2', T, T)] }));
     expect(two.kind).toBe('maxed');
+  });
+
+  it('lower-tier tachyon or quantum stones still match, and the choice says so; empty slots do not', async () => {
+    const T3 = 'tachyon-stone-3';
+    const c = await chooseTable(
+      input,
+      site({ set: [s('quantum-metronome-4-2', T3, T3), COM, GUS, s('puzzle-cube-4-3', T3, T3, 'quantum-stone-2')] })
+    );
+    expect(c).toMatchObject({ url: DEL_URL, kind: 'delivery', stonesBelowT4: true });
+    const empty = await chooseTable(input, site({ set: [s('quantum-metronome-4-2', T, null), COM, GUS, s('lunar-totem-4-3', T, T, T)] }));
+    expect(empty.kind).toBe('maxed');
+    const m = await chooseTable(input, site({ set: [MET_L, COM, GUS, s('lunar-totem-4-3', T3, T3, T3)] }));
+    expect(m).toMatchObject({ kind: 'maxed-shift', stonesBelowT4: true });
   });
 
   it('no table for the save’s set in the index: the maxed table, nothing more asked', async () => {

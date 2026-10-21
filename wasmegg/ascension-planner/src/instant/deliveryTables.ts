@@ -6,10 +6,18 @@
  *
  * A save matches a table when the delivery set it would wear (its picked set, as the gear stamp picks
  * it: tableGear.ts `deliverySetAt`) has the table's metronome, compass and gusset, tier and rarity
- * alike, and a 4th artifact that is any 3-slot T4L, every stone slot holding a T4 tachyon or quantum
- * stone. The 4th need not be the lunar totem: a 4th delivery artifact is there as a stone holder (its
- * own effect is on earnings, not delivery), so any 3-slot T4L holds the same three T4 stones and gives
- * the same delivery effect. Such a save is keyed as if it wore the lunar totem.
+ * alike, and a 4th artifact that is any 3-slot T4L, every stone slot holding a tachyon or quantum
+ * stone of any tier (T2-T4). The 4th need not be the lunar totem: a 4th delivery artifact is there as
+ * a stone holder (its own effect is on earnings, not delivery), so any 3-slot T4L gives the same
+ * delivery effect for the same stones. Such a save is keyed as if it wore the lunar totem.
+ *
+ * The tables are built with T4 tachyon stones in every slot; a save with lower-tier stones delivers
+ * less than the table assumes. That is covered by the delivery scale (deliveryScale.ts, against the
+ * delivery table's own `k3`): its cells' peak rate is scaled to the save's, as the maxed table's are
+ * (precomputedTable.ts `compositeTable`), and the answer says the stones are lower tier than the
+ * tables assume (gearDiffers.ts `tableCaveat`). An empty slot, or a stone of another kind (lunar,
+ * shell...), still matches no table: the slot then holds no delivery stone at all, a set further from
+ * the table's than lower tiers are.
  */
 import { getArtifact } from '@/lib/artifacts/data';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
@@ -22,7 +30,10 @@ const WORDS: Record<(typeof FAMILIES)[number], string> = {
   'interstellar-compass': 'compass',
   gusset: 'gusset',
 };
-const T4_DELIVERY_STONES = new Set(['tachyon-stone-4', 'quantum-stone-4']);
+/** The stones a delivery set may hold for a table to stand for it: tachyon or quantum, T2-T4. */
+const DELIVERY_STONES = new Set(
+  ['tachyon', 'quantum'].flatMap(f => [2, 3, 4].map(t => `${f}-stone-${t}`))
+);
 
 /**
  * Joo's buildTable/header.ts `deliveryKey` (upstream 0214e968), as is: 8 hex digits (FNV-1a) of the
@@ -38,7 +49,7 @@ export function deliveryKey(ids: string[]): string {
 /**
  * The delivery set as a table would be keyed for it: [metronome, compass, gusset, TABLE_FOURTH], or
  * null when it is not one a delivery table can stand for (a family missing, the 4th not a 3-slot
- * T4L, or a stone slot without a T4 tachyon or quantum stone).
+ * T4L, or a stone slot empty or holding a stone other than a T2-T4 tachyon or quantum stone).
  */
 export function tableDeliveryIds(set: readonly EquippedArtifact[] | null | undefined): string[] | null {
   if (!set || set.length !== 4) return null;
@@ -47,10 +58,9 @@ export function tableDeliveryIds(set: readonly EquippedArtifact[] | null | undef
   for (const slot of set) {
     const a = slot.artifactId ? getArtifact(slot.artifactId) : undefined;
     if (!a) return null;
-    // Every stone slot must hold a T4 tachyon or quantum stone: Joo's delivery tables are built with 12
-    // T4 stones (three in each of the four artifacts). A save with any other stone, or an empty slot,
-    // doesn't have that delivery effect, so no delivery table stands for it.
-    if (slot.stones.length !== a.slots || slot.stones.some(s => !s || !T4_DELIVERY_STONES.has(s))) return null;
+    // Every stone slot must hold a tachyon or quantum stone, of any tier: lower tiers than the tables'
+    // T4 are scaled and said (see the top of this file); an empty slot or another kind of stone is not.
+    if (slot.stones.length !== a.slots || slot.stones.some(s => !s || !DELIVERY_STONES.has(s))) return null;
     if ((FAMILIES as readonly string[]).includes(a.familyId) && !byFamily.has(a.familyId))
       byFamily.set(a.familyId, a.id);
     else others.push(a.id);
@@ -59,6 +69,11 @@ export function tableDeliveryIds(set: readonly EquippedArtifact[] | null | undef
   const fourth = getArtifact(others[0])!;
   if (fourth.tier !== 4 || fourth.rarity !== 3 || fourth.slots !== 3) return null;
   return [...FAMILIES.map(f => byFamily.get(f)!), TABLE_FOURTH];
+}
+
+/** Any stone in the set below T4 (the delivery tables are built with T4 stones in every slot). */
+export function stonesBelowT4(set: readonly EquippedArtifact[] | null | undefined): boolean {
+  return !!set?.some(slot => slot.stones.some(s => !!s && !s.endsWith('-4')));
 }
 
 /** The metronome, compass and gusset in a player's words, e.g. `metronome T4E, compass T4L, gusset T4L`. */

@@ -7,7 +7,9 @@
  *      table's own research once found;
  *  (c) else a delivery table (deliveryTables.ts) whose delivery set is the save's picked one (worked
  *      out at the maxed table's k3 research, as the stamp's), read with Joo's earnings shift
- *      (earningsShift.ts, precomputedTable.ts `shiftedTable`): Δ from that table's cteBonus. Listed in
+ *      (earningsShift.ts, precomputedTable.ts `shiftedTable`): Δ from that table's cteBonus; its cells
+ *      scaled to the save's delivery rate by the card (deliveryScale.ts at that table's own k3), as the
+ *      save's stones may be below the table's T4. Listed in
  *      the storage's index.json, so a save with no such table asks for nothing more;
  *  (d) else, when the save's picked delivery set is the maxed table's own (its 4th any 3-slot T4L) and
  *      only the earnings set is below it, the maxed table read with the earnings shift ('maxed-shift');
@@ -31,6 +33,7 @@ import {
   deliveryKey,
   deliveryTableName,
   deliveryWords,
+  stonesBelowT4,
   tableDeliveryIds,
   type IndexEntry,
 } from './deliveryTables';
@@ -52,6 +55,9 @@ export interface TableChoice {
    *  earningsShift.ts), the table read that many TE lower; and the delivery set as keyed. */
   shift?: number;
   delivery?: string[];
+  /** 'delivery' and 'maxed-shift': the save's delivery set has a stone below T4 (deliveryTables.ts
+   *  `stonesBelowT4`); the tables assume T4 in every slot. */
+  stonesBelowT4?: boolean;
 }
 
 export interface ChoiceDeps {
@@ -121,7 +127,9 @@ export async function chooseTable(input: ChoiceInput, deps: ChoiceDeps): Promise
       if (mine && !gearChanges(h.gear, mine).length) return { url, header: h, maxed, kind: 'gear' };
     }
   }
-  const mineIds = research && deps.deliveryAt ? tableDeliveryIds(deps.deliveryAt(research)) : null;
+  const mineSet = research && deps.deliveryAt ? deps.deliveryAt(research) : null;
+  const mineIds = tableDeliveryIds(mineSet);
+  const weak = stonesBelowT4(mineSet);
   const cte = mineIds && deps.earningsCTE ? deps.earningsCTE() : null;
   if (mineIds && cte !== null) {
     const key = deliveryKey(mineIds);
@@ -139,7 +147,7 @@ export async function chooseTable(input: ChoiceInput, deps: ChoiceDeps): Promise
       const keyed = h && (h.deliveryKey ?? (h.delivery ? deliveryKey(h.delivery) : null));
       if (h && !tableSimMismatch(h) && keyed === key) {
         const shift = earningsShift(cte, h);
-        if (shiftedFrom(h, shift) <= h.to) return { url, header: h, maxed, kind: 'delivery', shift, delivery: mineIds };
+        if (shiftedFrom(h, shift) <= h.to) return { url, header: h, maxed, kind: 'delivery', shift, delivery: mineIds, stonesBelowT4: weak };
       }
     }
     // The maxed table's own delivery set (its 4th a puzzle cube: any 3-slot T4L holds the same stones),
@@ -148,7 +156,15 @@ export async function chooseTable(input: ChoiceInput, deps: ChoiceDeps): Promise
     if (maxedIds && deliveryKey(maxedIds) === key) {
       const shift = earningsShift(cte, maxed);
       if (shift > 0 && shiftedFrom(maxed, shift) <= maxed.to)
-        return { url: maxedUrl, header: maxed, maxed, kind: 'maxed-shift', shift, delivery: mineIds };
+        return {
+          url: maxedUrl,
+          header: maxed,
+          maxed,
+          kind: 'maxed-shift',
+          shift,
+          delivery: mineIds,
+          stonesBelowT4: weak,
+        };
     }
   }
   return asMaxed(changed);
