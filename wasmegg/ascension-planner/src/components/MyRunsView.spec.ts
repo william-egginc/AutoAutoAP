@@ -5,7 +5,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import MyRunsView from './MyRunsView.vue';
 import LeaderboardPanel from './auto/LeaderboardPanel.vue';
@@ -27,8 +27,14 @@ beforeEach(() => {
     key: () => null,
     length: 0,
   });
+  // A build with a collector, as the live site (the board parts show); 'with no collector' below has none.
+  vi.stubEnv('VITE_SUBMIT_URL', 'https://collector.test/submit');
   pinia = createPinia();
   setActivePinia(pinia);
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 /** The opening tag of the part with this test id. */
@@ -181,23 +187,27 @@ describe('Compare without My plans', () => {
 describe('the My runs tab', () => {
   const app = read('../App.vue');
 
-  it('sits after Compare and before Science, with a collector only, and opens MyRunsView', () => {
+  it('sits after Leaderboard and before Science, always (collector or not; 21 Oct 2026), and opens MyRunsView', () => {
     const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('/** "Fastest to 490 TE"'));
     const ids = [...tabs.matchAll(/id: '(\w+)' as const/g)].map(m => m[1]);
     expect(ids).toEqual(['manual', 'auto', 'compare', 'myruns', 'science']);
-    expect(tabs.indexOf("id: 'myruns'")).toBeGreaterThan(tabs.indexOf('chainSearchStore.submitUrl'));
+    // Leaderboard and Science each behind their own switch; My runs behind none.
+    expect(tabs).not.toContain('submitUrl');
+    const my = tabs.slice(tabs.indexOf("id: 'compare'"), tabs.indexOf("id: 'science'"));
+    expect(my.slice(my.indexOf(': []),'), my.indexOf("id: 'myruns'"))).not.toMatch(/\?\s*\[/);
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'"');
     expect(app).toMatch(
       /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+@recalc="recalcFromMyRuns"\s+\/>/
     );
-    // An address for it with no collector opens the Manual Planner, like Compare and Science.
-    expect(app).toMatch(/!chainSearchStore\.submitUrl &&[\s\S]{0,120}plannerTab\.value === 'myruns'/);
+    // No address for it is turned away any more: only a hidden Leaderboard or Science falls back.
+    expect(app).not.toMatch(/!chainSearchStore\.submitUrl &&[\s\S]{0,120}plannerTab\.value === 'myruns'/);
   });
 
-  it('five tabs wrap as two full rows below lg (planners, then Compare, My runs, Science)', () => {
+  it('the tabs wrap as two full rows below lg (planners, then My runs with Leaderboard and Science when shown)', () => {
     const tabs = read('SiteTabs.vue');
     expect(tabs).toContain('grid grid-cols-6 w-full lg:flex');
-    expect(tabs).toContain("i < 2 ? 'col-span-3' : 'col-span-2'");
+    expect(tabs).toContain("i < 2 ? 'col-span-3' : (SECOND_ROW[tabs.length - 2] ?? 'col-span-2')");
+    expect(tabs).toContain("{ 1: 'col-span-6', 2: 'col-span-3', 3: 'col-span-2' }");
   });
 
   it("is also the Auto Planner's fourth sub-tab, opening the same page (#/myruns)", () => {
@@ -205,9 +215,9 @@ describe('the My runs tab', () => {
     expect(nav).toContain('data-testid="auto-tab-myruns"');
     expect(nav).toContain("@click=\"selectSection('myruns')\"");
     expect(nav).toContain('{{ NAMES.myRuns }}');
-    // Only with a collector, like the top tab; four tabs make two rows of two on a phone.
-    expect(nav).toMatch(/v-if="chainSearchStore\.submitUrl"[\s\S]{0,40}type="button"/);
-    expect(app).toContain(":class=\"chainSearchStore.submitUrl ? 'grid-cols-2' : 'grid-cols-3'\"");
+    // Always, like the top tab; four tabs make two rows of two on a phone.
+    expect(nav).not.toContain('submitUrl');
+    expect(app).toContain('class="grid grid-cols-2 w-full sm:flex');
   });
 });
 
@@ -251,5 +261,43 @@ describe('My runs › Your runs: the latest run inside it (17 Oct 2026; was its 
     expect(textOf(html)).toContain('Your latest run is now in My runs ›');
     expect(html).toContain('href="#/myruns"');
     expect(html).not.toContain('data-testid="latest-run"');
+  });
+});
+
+describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
+  const NO_BOARD = 'This build of the site has no leaderboard, so your runs stay on this computer and nothing is sent anywhere.';
+
+  it('keeps the page and the saved runs, with one line where the board and Not sent yet were', async () => {
+    vi.stubEnv('VITE_SUBMIT_URL', '');
+    const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
+    const t = textOf(html);
+    expect(html).toContain('data-testid="my-runs"');
+    expect(html).toContain('data-testid="my-runs-part-saved"');
+    expect(html).toContain('data-testid="my-runs-part-latest"');
+    expect(t).toContain(NO_BOARD);
+    expect(html).not.toContain('data-testid="my-runs-part-board"');
+    expect(html).not.toContain('data-testid="my-runs-board"');
+    expect(html).not.toContain('data-testid="my-runs-part-unsent"');
+    expect(t).not.toContain('The filters change this list only');
+    expect(t).not.toContain('the ones on the board');
+    // Nothing waits for a board that will never load.
+    expect(t).not.toContain('· loading');
+    expect(t).not.toContain('Checking your runs on the board');
+    expect(t).not.toContain('Next steps · checking');
+    expect(t).toContain('Six cards (saved on this computer)');
+    expect(html).not.toContain('EI1234567890123456');
+  });
+
+  it('sends nothing and fetches nothing while it renders', async () => {
+    vi.stubEnv('VITE_SUBMIT_URL', '');
+    const fetchSpy = vi.fn(() => Promise.reject(new Error('no network in this spec')));
+    vi.stubGlobal('fetch', fetchSpy);
+    await renderHtml(MyRunsView, { playerId: 'P' }, {}, [pinia]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    const src = read('MyRunsView.vue');
+    expect(src).toContain('const hasBoard = !!store.submitUrl;');
+    expect(src).toMatch(/<details\s+v-if="hasBoard"\s+:open="open\.board"/);
+    expect(src).toMatch(/<details\s+v-if="hasBoard"\s+:open="open\.unsent"/);
+    expect(src).toContain('const boardRows = ref<BoardRow[] | null>(hasBoard ? null : []);');
   });
 });

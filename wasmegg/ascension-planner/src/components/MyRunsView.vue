@@ -24,9 +24,15 @@
     <div>
       <h2 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h2>
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
-        Where you are now, from your save and the answers already worked out, then your runs: the latest, the ones on
-        the board, the runs and answers saved on {{ thisDevice() }} and results not sent yet. Nothing is calculated on
-        this page.
+        <template v-if="hasBoard">
+          Where you are now, from your save and the answers already worked out, then your runs: the latest, the ones on
+          the board, the runs and answers saved on {{ thisDevice() }} and results not sent yet. Nothing is calculated on
+          this page.
+        </template>
+        <template v-else>
+          Where you are now, from your save and the answers already worked out, then your runs: the latest, and the
+          runs and answers saved on {{ thisDevice() }}. Nothing is calculated on this page.
+        </template>
       </p>
     </div>
 
@@ -149,8 +155,14 @@
 
       <!-- All my runs: the board (its filters at the top of its list), saved here, not sent yet. -->
       <div v-show="showing === 'all'" class="space-y-3" data-testid="my-runs-all">
-        <p class="text-[11px] text-slate-500">The filters change this list only, not Right now above.</p>
+        <!-- No collector (VITE_SUBMIT_URL unset): no board to read or send to, so its two parts give way to one
+             line and nothing here reaches for the network (21 Oct 2026). -->
+        <p v-if="!hasBoard" class="text-[12px] text-slate-600 leading-relaxed" data-testid="my-runs-no-board">
+          {{ noBoard() }}
+        </p>
+        <p v-if="hasBoard" class="text-[11px] text-slate-500">The filters change this list only, not Right now above.</p>
         <details
+          v-if="hasBoard"
           :open="open.board"
           class="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4"
           data-testid="my-runs-part-board"
@@ -201,6 +213,7 @@
         </details>
 
         <details
+          v-if="hasBoard"
           :open="open.unsent"
           class="rounded-xl border border-amber-200 bg-amber-50/40 p-4"
           data-testid="my-runs-part-unsent"
@@ -231,7 +244,7 @@
           <div class="mt-2"><DashboardGaps :state="steps" @act="act" /></div>
         </details>
         <details class="rounded-xl border border-slate-200 p-3">
-          <summary :class="SUMMARY">Six cards<span :class="COUNT"> (board, saved on {{ thisDevice() }}, not sent yet)</span></summary>
+          <summary :class="SUMMARY">Six cards<span :class="COUNT"> ({{ hasBoard ? 'board, ' : '' }}saved on {{ thisDevice() }}{{ hasBoard ? ', not sent yet' : '' }})</span></summary>
           <div class="mt-2"><DashboardCards :cards="cards" @act="act" /></div>
         </details>
       </div>
@@ -319,8 +332,16 @@ const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOp
 const SUMMARY = 'cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-700';
 const COUNT = 'ml-2 font-semibold normal-case tracking-normal text-slate-500';
 
+/** This build has a collector, so a board to read and send to. Without one the board's parts are one line and
+ *  their rows are empty from the start (never "loading"). */
+const hasBoard = !!store.submitUrl;
+/** That line, word for word (MyRunsView.spec.ts); "this phone" or "this computer" as everywhere (search/device.ts). */
+function noBoard(): string {
+  return `This build of the site has no leaderboard, so your runs stay on ${thisDevice()} and nothing is sent anywhere.`;
+}
+
 /** The board's count, null while its first load is out. */
-const boardCount = ref<number | null>(null);
+const boardCount = ref<number | null>(hasBoard ? null : 0);
 const savedCount = computed(() => store.savedRuns.length + store.savedAnswers.length);
 const unsentCount = computed(() => store.pendingSends.length);
 
@@ -330,8 +351,8 @@ function countText(n: number | null): string {
 }
 
 /** The viewer's board rows, null until the board's first load is in; every public row, for where you stand. */
-const boardRows = ref<BoardRow[] | null>(null);
-const allRows = ref<BoardRow[] | null>(null);
+const boardRows = ref<BoardRow[] | null>(hasBoard ? null : []);
+const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 
 // ------------------------------------------------------------------------------- the Right now page
 

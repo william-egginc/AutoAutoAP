@@ -269,8 +269,7 @@
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
                  cell, so the underline stays on one line; from sm up, a centred row. -->
             <div
-              class="grid w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
-              :class="chainSearchStore.submitUrl ? 'grid-cols-2' : 'grid-cols-3'"
+              class="grid grid-cols-2 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
             >
               <button
                 v-for="v in autoTabs"
@@ -298,9 +297,8 @@
                 ></span>
               </button>
               <!-- My runs here too (Jordan, 16 Oct 2026): the same page as the top tab (#/myruns), from
-                   where a player has just run something. Only with a collector, as the top tab. -->
+                   where a player has just run something. Always, as the top tab (21 Oct 2026: My runs is this device's). -->
               <button
-                v-if="chainSearchStore.submitUrl"
                 type="button"
                 class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-400 hover:text-slate-700"
                 data-testid="auto-tab-myruns"
@@ -745,6 +743,7 @@ import LoadingOverlay from '@/components/LoadingOverlay.vue';
 import PlanLibrary from '@/components/PlanLibrary.vue';
 import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { allowForVisit, useTabPrefs } from '@/composables/useTabPrefs';
 import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { scrollToRun } from '@/lib/runAnchor';
@@ -1064,6 +1063,8 @@ function goTo(r: SiteRoute): void {
   // Every screen opens, running search or not: the ones it isn't on show greyed out under a line
   // saying so (RunningElsewhere.vue), rather than refusing the click (the user, 30 Sept).
   pinnedRoute = null;
+  // A link or a button that goes to the Leaderboard or Science opens it even when its tab is off (useTabPrefs).
+  allowForVisit(r.section);
   const enteringAuto = r.section === 'auto' && plannerTab.value !== 'automatic';
   applyRoute(r);
   // Entering the Auto Planner fetches a fresh save and resets the planner around it -- never under a
@@ -1134,13 +1135,25 @@ watch(playerId, id => void chainSearchStore.loadSetupFor(id), { immediate: true 
 // Every consent box, remembered per account (composables/useConsent.ts): this account's agreements, or
 // nothing agreed. A switch never carries the last account's yes over.
 watch(playerId, id => void setConsentAccount(id), { immediate: true });
-// A copy with no collector has no Compare, My runs or Science tab: an address for one opens the Manual Planner.
-if (
-  !chainSearchStore.submitUrl &&
-  (plannerTab.value === 'leaderboard' || plannerTab.value === 'myruns' || plannerTab.value === 'science')
-) {
-  plannerTab.value = 'manual';
+// Which of the Leaderboard and Science tabs show (composables/useTabPrefs.ts): off until turned on in Setup, never
+// with no collector. An address that asks for one opens it for this visit (allowForVisit, here and in goTo).
+const { shown: optionalShown } = useTabPrefs(() => !!chainSearchStore.submitUrl);
+if (initialRoute) allowForVisit(initialRoute.section);
+/** The last tab shown that is always there or still allowed: where a tab that has just gone falls back to. */
+let lastShownTab: typeof plannerTab.value = 'myruns';
+function tabHidden(tab: typeof plannerTab.value): boolean {
+  return (tab === 'leaderboard' && !optionalShown.value.leaderboard) || (tab === 'science' && !optionalShown.value.science);
 }
+// On a tab that isn't shown (its box just turned off in Setup, or an address for it in a copy with no collector):
+// the tab it came from, or My runs, never a blank page.
+watch(
+  [plannerTab, optionalShown],
+  () => {
+    if (!tabHidden(plannerTab.value)) lastShownTab = plannerTab.value;
+    else plannerTab.value = tabHidden(lastShownTab) ? 'myruns' : lastShownTab;
+  },
+  { immediate: true, flush: 'sync' }
+);
 
 /**
  * On a link into the Auto Planner, set the account up the way clicking its tab does.
@@ -1165,8 +1178,8 @@ const topTabs = computed(() => [
     label: NAMES.auto,
     on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
   },
-  // Only with a collector: a fork with no VITE_SUBMIT_URL has no board and no Explorer.
-  ...(chainSearchStore.submitUrl
+  // Leaderboard and Science only when shown (useTabPrefs: ticked in Setup, or a link this visit, and a collector).
+  ...(optionalShown.value.leaderboard
     ? [
         {
           id: 'compare' as const,
@@ -1174,12 +1187,17 @@ const topTabs = computed(() => [
           label: NAMES.compare,
           on: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100',
         },
-        {
-          id: 'myruns' as const,
-          tab: 'myruns',
-          label: NAMES.myRuns,
-          on: 'bg-sky-600 text-white shadow-lg shadow-sky-100',
-        },
+      ]
+    : []),
+  // My runs always: it is this device's (saved plans, Right now); its board parts hide with no collector.
+  {
+    id: 'myruns' as const,
+    tab: 'myruns',
+    label: NAMES.myRuns,
+    on: 'bg-sky-600 text-white shadow-lg shadow-sky-100',
+  },
+  ...(optionalShown.value.science
+    ? [
         {
           id: 'science' as const,
           tab: 'science',
