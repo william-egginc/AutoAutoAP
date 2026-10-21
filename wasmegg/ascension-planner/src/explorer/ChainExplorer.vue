@@ -171,6 +171,10 @@
         Reading the collector…
       </section>
 
+      <p v-if="part === 'insights' && simHidden" class="text-[11px] text-slate-500" data-testid="sim-hidden">
+        {{ simHidden }}
+      </p>
+
       <template v-if="part === 'insights' && rows.length">
         <!-- The caveats, folded and first: "accounts are a guess" matters before reading any account row. -->
         <details class="rounded-xl border border-slate-200 bg-white p-4 text-[11px] text-slate-500">
@@ -591,6 +595,7 @@
                               :title="finishTitle(block.best.finish, block.best.row.timezone)"
                               >{{ finishDateText(block.best.finish, viewZone) }}</b
                             >
+                            <SimChip :stamp="block.best.row.simVersion" />
                             ({{ plural(block.best.row.ascensions, 'ascension') }},
                             <span class="font-mono-premium">{{ block.best.row.chain.join(' ') }}</span
                             >)
@@ -679,6 +684,7 @@
                         :title="finishTitle(judged.byId.get(row.id)?.finish ?? null, row.timezone)"
                       >
                         {{ finishDateText(judged.byId.get(row.id)?.finish ?? null, viewZone) }}
+                        <SimChip :stamp="row.simVersion" />
                       </td>
                       <td class="py-1.5 pr-3 text-right whitespace-nowrap" :title="vsBestTitle(row)">
                         <span v-if="judged.byId.get(row.id)?.best" class="font-black text-emerald-700">best</span>
@@ -1307,6 +1313,8 @@ import {
   whoText,
 } from '@/lib/leaderboardRank';
 import AccountDot from './AccountDot.vue';
+import SimChip from '@/components/auto/SimChip.vue';
+import { bySimToggle, hiddenSimText, useShowOlderSims } from '@/composables/useShowOlderSims';
 import { leftOf, leftShareText, leftTitle, longEstimate, plansText, type Left } from './left';
 import { measuredWorkerSeconds } from '@/search/speed';
 
@@ -1345,7 +1353,14 @@ const BASE_STORAGE_KEY = 'chainExplorerCollector';
 
 const base = ref<string | null>(null);
 const typedBase = ref('');
-const rows = ref<CollectorRow[]>([]);
+/** Every run /all sent. */
+const loadedRows = ref<CollectorRow[]>([]);
+/** The runs this page reads: on the Leaderboard tab, only this site's simulator's when "Show runs from older
+ *  simulators" is off (LeaderboardPanel.vue holds the toggle; lib/simLabel.ts). */
+const showOlder = useShowOlderSims();
+const simFiltered = computed(() => props.embedded && props.part === 'insights' && !showOlder.value);
+const rows = computed(() => (simFiltered.value ? bySimToggle(loadedRows.value, false) : loadedRows.value));
+const simHidden = computed(() => hiddenSimText(loadedRows.value.length - rows.value.length));
 /** By a date answers, kept apart: no chart reads them, the What we know card does. */
 const byDateRows = ref<CollectorRow[]>([]);
 const loading = ref(false);
@@ -1424,14 +1439,14 @@ async function load(): Promise<void> {
     const fetched = await fetchAllRows(base.value, controller.signal);
     if (allController !== controller) return;
     now.value = Date.now();
-    rows.value = fetched.rows;
+    loadedRows.value = fetched.rows;
     byDateRows.value = fetched.byDate;
     if (!rows.value.length) error.value = 'The collector answered, but it is holding no runs yet.';
   } catch (e) {
     if (isAbort(e) || allController !== controller) return;
     // A failed fetch here is almost always CORS or a typo'd host, and the browser's own message
     // for both is "Failed to fetch". Say which two things to check rather than repeating it.
-    rows.value = [];
+    loadedRows.value = [];
     byDateRows.value = [];
     error.value =
       errorKind(e) === 'network'
@@ -1470,7 +1485,7 @@ function forgetBase(): void {
   }
   typedBase.value = base.value ?? '';
   base.value = null;
-  rows.value = [];
+  loadedRows.value = [];
   byDateRows.value = [];
   closeTable();
 }
