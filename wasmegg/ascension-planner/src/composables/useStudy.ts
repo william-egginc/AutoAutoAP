@@ -36,7 +36,8 @@ import {
   type StudyTicks,
 } from '@/lib/study';
 
-const TICK_CONSENT: Record<keyof StudyTicks, ConsentId> = {
+/** The consent behind each tick. */
+export const TICK_CONSENT: Record<keyof StudyTicks, ConsentId> = {
   share: 'leaderboard',
   csv: 'sendCsv',
   diag: 'diagnosticsDefault',
@@ -109,26 +110,12 @@ function applyCredit(playerId: string, credit: StudyCredit, nickname: string): S
 }
 
 /**
- * Yes writes the TICKED choices only (Jordan, 21 Oct 2026): an unticked one stays as it was, undecided if it
- * never was answered, and an earlier yes or no is not overwritten. It can be ticked later in Setup.
+ * Yes writes every choice (Jordan, 21 Oct 2026, final): a ticked one as a yes, an unticked one as a no, all
+ * remembered. Turned on later in Setup if wanted.
  */
 function applyTicks(ticks: StudyTicks): void {
-  for (const [id, v] of consentsFor(ticks)) if (v) setConsent(id, true, true);
-  if (ticks.diag) useShareExtras().sendDiagnostics.value = true;
-}
-
-/** A choice the player made for this account (a yes, or a no someone chose), not just the default. A yes the
- *  old per-browser keys handed over counts (its `at` is 0, but it was chosen then). */
-export function consentDecided(id: ConsentId): boolean {
-  const r = consentState.records[id];
-  return !!r && (r.agreed || r.at > 0);
-}
-
-/** One tick as it stands for the account on screen: on, off, or not decided yet. */
-export function tickStatus(k: keyof StudyTicks): 'on' | 'off' | 'undecided' {
-  const id = TICK_CONSENT[k];
-  if (!consentDecided(id)) return 'undecided';
-  return consentAgreed(id) ? 'on' : 'off';
+  for (const [id, v] of consentsFor(ticks)) setConsent(id, v, true);
+  useShareExtras().sendDiagnostics.value = ticks.diag;
 }
 
 function turnOff(): void {

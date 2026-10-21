@@ -9,6 +9,7 @@ import { hashID } from '@/lib/storage/db';
 import { STUDY_KEY, DEFAULT_TICKS, parseStudy } from '@/lib/study';
 import {
   consentAgreed,
+  consentDeclined,
   consentGivenThisVisit,
   consentKey,
   consentRemembered,
@@ -30,7 +31,6 @@ import {
   setStudyTick,
   studyState,
   studyStep,
-  tickStatus,
   useForThisAccount,
   withdrawStudy,
 } from './useStudy';
@@ -83,38 +83,39 @@ describe('the box', () => {
     expect(studyState.thanked).toBe(true);
   });
 
-  it('an unticked box stays undecided: nothing written for it, and an earlier yes or no is kept', async () => {
+  it('an unticked box is recorded off (a remembered no), even over an earlier yes; ticked later in Setup it is on', async () => {
     await setConsentAccount(A);
-    setConsent('keepSharingChecks', false); // an earlier explicit no
-    setConsent('diagnosticsDefault', true); // an earlier explicit yes
-    const before = await storedFor(A);
+    setConsent('diagnosticsDefault', true); // an earlier yes, unticked in the box now
     answerYes({ share: true, csv: false, diag: false, checks: false }, 'anon', '');
-    const after = await storedFor(A);
-    expect(after.leaderboard?.agreed).toBe(true);
-    // Never chosen: still no record (the site's own default applies), so Setup says not decided.
-    expect(after.sendCsv).toBeUndefined();
-    expect(tickStatus('csv')).toBe('undecided');
-    // Chosen before: exactly as it was.
-    expect(after.keepSharingChecks).toEqual(before.keepSharingChecks);
-    expect(after.diagnosticsDefault).toEqual(before.diagnosticsDefault);
-    expect(tickStatus('checks')).toBe('off');
-    expect(tickStatus('diag')).toBe('on');
-    expect(tickStatus('share')).toBe('on');
-    // Ticked later in Setup: a yes then.
+    const kept = await storedFor(A);
+    expect(Object.keys(kept).sort()).toEqual([...SHARING].sort());
+    expect(kept.leaderboard?.agreed).toBe(true);
+    for (const id of ['sendCsv', 'diagnosticsDefault', 'keepSharingChecks'] as const) {
+      expect(kept[id]?.agreed).toBe(false);
+      expect(kept[id]?.remember).toBe(true);
+      expect(consentDeclined(id)).toBe(true);
+    }
+    expect(useShareExtras().sendDiagnostics.value).toBe(false);
     setStudyTick('csv', true);
-    expect(tickStatus('csv')).toBe('on');
+    expect(consentAgreed('sendCsv')).toBe(true);
   });
 
-  it('the strip offers the first account’s ticks; the rest stay undecided for the new account', async () => {
+  it('the strip offers the first account’s choices as they were, and writes all four (on and off) for the new one', async () => {
     await setConsentAccount(A);
     answerYes({ share: true, csv: true, diag: false, checks: false }, 'anon', '');
     await setConsentAccount(B);
+    expect(await storedFor(B)).toEqual({});
     useForThisAccount();
-    expect(tickStatus('share')).toBe('on');
-    expect(tickStatus('csv')).toBe('on');
-    expect(tickStatus('diag')).toBe('undecided');
-    expect(tickStatus('checks')).toBe('undecided');
+    const kept = await storedFor(B);
+    expect(Object.keys(kept).sort()).toEqual([...SHARING].sort());
+    expect([
+      kept.leaderboard?.agreed,
+      kept.sendCsv?.agreed,
+      kept.diagnosticsDefault?.agreed,
+      kept.keepSharingChecks?.agreed,
+    ]).toEqual([true, true, false, false]);
     expect(useShareExtras().sendDiagnostics.value).toBe(false);
+    expect(studyStep.value).toBe('none');
   });
 
   it('a second account gets nothing until "Yes, for this account"', async () => {
