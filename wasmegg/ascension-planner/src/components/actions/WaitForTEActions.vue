@@ -97,10 +97,13 @@
           </button>
           <input
             ref="inputEl"
-            v-model.number="teToGain"
+            v-model.lazy.number="teToGain"
             type="number"
+            inputmode="numeric"
+            step="1"
             :min="1"
             :max="98 - currentTE"
+            @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
             class="flex-1 h-10 text-center text-sm font-mono-premium font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
             :disabled="currentTE >= 98"
           />
@@ -208,7 +211,7 @@ import { useActionsStore } from '@/stores/actions';
 import { computeDependencies } from '@/lib/actions/executor';
 import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
 import { generateActionId, VIRTUE_EGG_NAMES } from '@/types';
-import { eggsNeededForTE, countTEThresholdsPassed, isTEWaitReachable } from '@/lib/truthEggs';
+import { eggsNeededForTE, countTEThresholdsPassed, isTEWaitReachable, clampTECount, maxTEToGain } from '@/lib/truthEggs';
 import { useActionExecutor } from '@/composables/useActionExecutor';
 import { solveForTime } from '@/engine/apply/math';
 
@@ -248,12 +251,16 @@ watch(
   }
 );
 
-// Ensure selection is valid if currentTE changes (e.g. from previous actions)
-watch(currentTE, newCurrentTE => {
-  if (teToGain.value > 98 - newCurrentTE) {
-    teToGain.value = Math.max(1, 98 - newCurrentTE);
-  }
-});
+// Keep the selection a whole number from 1 to 98 minus the egg's current TE (pending included),
+// whatever was typed (1.5, 1e5, '3.48e45', empty) or when currentTE changes (e.g. from previous actions).
+watch(
+  [teToGain, currentTE],
+  () => {
+    const valid = clampTECount(teToGain.value, maxTEToGain(currentTE.value));
+    if (teToGain.value !== valid) teToGain.value = valid;
+  },
+  { immediate: true }
+);
 
 const eggsToLay = computed(() => {
   if (teToGain.value <= 0) return 0;

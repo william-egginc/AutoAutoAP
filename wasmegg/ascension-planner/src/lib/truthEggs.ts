@@ -189,6 +189,34 @@ export function isTEWaitReachable(seconds: number): boolean {
 }
 
 /**
+ * A TE count typed by the player (Wait for TE's "Add how many TE?", Bulk's total), as a whole number
+ * in [min, max]: decimals round down, an empty box or NaN gives `min`, a huge number or an
+ * exponent ('3.48e45') gives `max`. Returns `max` when it is below `min` (0: nothing left to gain).
+ */
+export function clampTECount(raw: unknown, max: number, min = 1): number {
+  const hi = Math.max(0, Math.floor(isFinite(max) ? max : 0));
+  if (hi < min) return hi;
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
+  if (isNaN(n)) return min;
+  return Math.min(hi, Math.max(min, Math.floor(n)));
+}
+
+/**
+ * How many more TE an egg can still gain: 98 minus its current TE (claimed or pending).
+ */
+export function maxTEToGain(currentTE: number): number {
+  return Math.max(0, MAX_TE_PER_EGG - currentTE);
+}
+
+/**
+ * A Wait for TE action's gain, bounded by its target (capped at 98) minus its start TE: an action
+ * saved before the input was validated can carry a gain like 3.48e45.
+ */
+export function teGainedOf(payload: { targetTE: number; startTE: number; teGained: number }): number {
+  return clampTECount(payload.teGained, Math.min(payload.targetTE, MAX_TE_PER_EGG) - (payload.startTE || 0), 0);
+}
+
+/**
  * Maximum TE per egg (98).
  */
 export const MAX_TE = MAX_TE_PER_EGG;
