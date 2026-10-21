@@ -1006,5 +1006,11 @@ limit, the duration ordering and the ID redaction were checked before this was c
   there and stop before the seal). Cost: one more read per later part. `/csvd` was already write-once per seq.
 - **Not done, on purpose:** `floodGate` on `/csv` and `/csvd`. Its commit is a KV write per request (an 8-part CSV
   would cost 8 more, a delta run far more) and 10 a minute would break multi-part uploads; a replayed token now
-  costs one read and no write. A Workers rate-limit binding would add a per-minute limit with no KV cost
-  (`[[ratelimits]]` in wrangler.toml), but it needs a config change at deploy.
+  costs one read and no write.
+- **Edge rate limit (Workers rate-limit binding, no KV cost):** `UPLOAD_LIMITER` (120 a minute per address, a key
+  each for `/csv` and `/csvd`) and `INSTANT_LIMITER` (20 a minute per address on `/instant`), in `wrangler.toml`
+  (`[[ratelimits]]`, wrangler 4.36 or later, period 10 or 60 s only). `429` with `retryAfter: 60`, before any KV
+  read. Counts are per Cloudflare location and approximate, so it is a brake on a flood; the daily KV caps and
+  write-once checks are what protect the 1,000 writes. A missing or failing binding means no limit (the code
+  never takes uploads down for it). Not in the dashboard: watch for 429s in the Worker logs. The docs do not say
+  whether the Free plan offers it; if a deploy is refused for it, remove the two blocks and deploy without.

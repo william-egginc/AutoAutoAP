@@ -1149,6 +1149,27 @@ async function floodGate(env, request) {
   };
 }
 
+/**
+ * The edge rate limit (21 Oct 2026, QA): Cloudflare's Workers rate-limit binding, counted per address and
+ * per endpoint, at no KV cost (it is not KV). `env[name]` is optional: a collector deployed without the
+ * binding (the plan may not offer it, or a fork) simply has no per-minute limit, as before. The limits
+ * are in wrangler.toml and are per Cloudflare location and approximate, so they are a brake on a flood,
+ * not a quota; the daily KV caps and the write-once checks are what protect the 1,000 writes.
+ * A refused request costs no KV read.
+ */
+async function edgeLimited(env, request, name, endpoint) {
+  const limiter = env[name];
+  if (!limiter || typeof limiter.limit !== 'function') return null;
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  try {
+    const { success } = await limiter.limit({ key: `${endpoint}|${ip}` });
+    if (success) return null;
+  } catch {
+    return null; // a limiter that errors must never take uploads down
+  }
+  return json({ error: 'slow down - too many requests a minute from this address', retryAfter: 60 }, 429);
+}
+
 // ------------------------------------------------------------------ snapshots
 //
 // WHY. Every board read used to list the namespace twice (the rows and the CSV ids) and read every
@@ -3426,6 +3447,8 @@ export default {
     // posted directly is NOT swept. It is still capped and still has to be valid gzip.
     // One delta of a run's CSV so far (see "the CSV so far in deltas").
     if (url.pathname === '/csvd' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'UPLOAD_LIMITER', 'csvd');
+      if (slow) return slow;
       const run = url.searchParams.get('run') ?? '';
       if (!CSV_RUN.test(run)) return json({ error: 'bad run' }, 400);
       const seq = wholeParam(url, 'seq', 0, MAX.CSV_DELTAS - 1);
@@ -3456,6 +3479,8 @@ export default {
     }
 
     if (url.pathname === '/csv' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'UPLOAD_LIMITER', 'csv');
+      if (slow) return slow;
       const id = url.searchParams.get('id');
       if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
 
@@ -3773,6 +3798,8 @@ export default {
     // ----------------------------------------------------------------- instant
     // One opt-in instant-answer record (see "instant answer records"): private, never served.
     if (url.pathname === '/instant' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'INSTANT_LIMITER', 'instant');
+      if (slow) return slow;
       const owner = await ownerHash(request.headers.get('x-owner-token'));
       if (!owner) return json({ error: 'rejected', problems: ['an instant answer record needs the owner code'] }, 400);
       const raw = await cappedText(request, INSTANT_MAX_BYTES);

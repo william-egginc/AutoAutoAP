@@ -3648,3 +3648,41 @@ describe('/submit byte cap (QA, 21 Oct 2026)', () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe('the edge rate limit binding (QA, 21 Oct 2026)', () => {
+  /** A limiter that allows `n` calls per key, as the binding does in one location. */
+  const limiter = n => {
+    const seen = new Map();
+    return { calls: [], async limit({ key }) { this.calls.push(key); const c = (seen.get(key) || 0) + 1; seen.set(key, c); return { success: c <= n }; } };
+  };
+  const csvPost = (ip = '1.1.1.1') =>
+    worker.fetch(new Request('https://collector.test/csv?id=abcd', { method: 'POST', headers: { 'cf-connecting-ip': ip, 'x-upload-token': 'x' }, body: 'x' }), env);
+  const deltaPost = (ip = '1.1.1.1') =>
+    worker.fetch(new Request('https://collector.test/csvd?run=abcd&seq=0&len=1&crc=0&count=0', { method: 'POST', headers: { 'cf-connecting-ip': ip, 'x-upload-token': 'x' }, body: 'x' }), env);
+
+  it('answers 429 over the limit on /csv, /csvd and /instant, each endpoint counted on its own, and no KV is touched', async () => {
+    env.UPLOAD_LIMITER = limiter(2);
+    env.INSTANT_LIMITER = limiter(1);
+    const gets = [];
+    const kv = env.SUBMISSIONS;
+    env.SUBMISSIONS = { ...kv, get: (...a) => (gets.push(a[0]), kv.get(...a)), getWithMetadata: (...a) => (gets.push(a[0]), kv.getWithMetadata(...a)) };
+    expect([(await csvPost()).status, (await csvPost()).status]).not.toContain(429);
+    const over = await csvPost();
+    expect(over.status).toBe(429);
+    expect((await over.json()).retryAfter).toBe(60);
+    // /csvd has its own key, another address its own count.
+    expect((await deltaPost()).status).not.toBe(429);
+    expect((await csvPost('2.2.2.2')).status).not.toBe(429);
+    expect((await postOwned('/instant', {}, TOKEN_A)).status).not.toBe(429);
+    const before = gets.length;
+    expect((await postOwned('/instant', {}, TOKEN_A)).status).toBe(429);
+    expect(gets.length).toBe(before);
+    expect(env.UPLOAD_LIMITER.calls.some(k => k.startsWith('csvd|'))).toBe(true);
+  });
+
+  it('is optional: without the binding, or with one that throws, nothing is limited', async () => {
+    for (let i = 0; i < 5; i++) expect((await csvPost()).status).not.toBe(429);
+    env.UPLOAD_LIMITER = { limit: async () => { throw new Error('down'); } };
+    expect((await csvPost()).status).not.toBe(429);
+  });
+});
