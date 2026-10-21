@@ -384,7 +384,7 @@ export function paceWords(s: PaceState, nowSeconds: number, zone: string, o: { f
         s.rough ? 'Rough: compared leg by leg.' : '',
         s.estimate ? 'The plan is an instant answer, not checked exactly.' : '',
         s.onVirtue ? '' : 'Not on your virtue farm in this save.',
-        s.startNote ? `Your plan was set to start at ${clockWords(s.startNote, nowSeconds, zone)}.` : '',
+        s.startNote ? `This plan was set to start at ${clockWords(s.startNote, nowSeconds, zone)}.` : '',
         FORECAST_WORDS,
       ];
       return out(badge, s.kind === 'behind' ? 'bad' : 'ok', parts.filter(Boolean).join(' '), s.saveTime, s.estimate);

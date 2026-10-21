@@ -221,7 +221,7 @@ describe('ahead, behind, on schedule', () => {
   it('a plan set to start more than an hour after its save says so', () => {
     const line = paceLine({ legs, planStart: T0, startTEByEgg: teStart, planSave: T0 - 3 * H }) as PaceLine;
     const w = paceWords(planPace(line, at(T0 + 2 * H, 188.5)), T0 + 3 * H, ZONE);
-    expect(w.detail).toContain('Your plan was set to start at 12:46 pm.');
+    expect(w.detail).toContain('This plan was set to start at 12:46 pm.');
     expect(paceWords(planPace(shiftLine, at(T0 + 2 * H, 188.5)), T0 + 3 * H, ZONE).detail).not.toContain(
       'set to start'
     );
