@@ -14,7 +14,10 @@
           <input
             ref="inputEl"
             type="number"
-            v-model.number="totalTEToGain"
+            inputmode="numeric"
+            step="1"
+            v-model.lazy.number="totalTEToGain"
+            @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
             class="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-mono-premium font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
             @change="handleTotalChange"
           />
@@ -135,7 +138,7 @@
     <div class="pt-2">
       <button 
         class="btn-premium btn-primary w-full py-4 text-xs font-black uppercase tracking-[0.3em] shadow-xl"
-        :disabled="totalTEToGain <= 0"
+        :disabled="totalTEToGain <= 0 || !allReachable"
         @click="handleApply"
       >
         Apply Bulk TE Plan
@@ -156,7 +159,7 @@ import { useActionExecutor } from '@/composables/useActionExecutor';
 import { computeDependencies } from '@/lib/actions/executor';
 import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
 import { generateActionId, VIRTUE_EGG_NAMES, VIRTUE_EGGS, type VirtueEgg } from '@/types';
-import { TE_BREAKPOINTS, countTEThresholdsPassed, MAX_TE, eggsNeededForTE } from '@/lib/truthEggs';
+import { TE_BREAKPOINTS, countTEThresholdsPassed, MAX_TE, eggsNeededForTE, isTEWaitReachable, clampTECount } from '@/lib/truthEggs';
 import { integrateRate } from '@/engine/apply/math';
 
 const truthEggsStore = useTruthEggsStore();
@@ -292,9 +295,9 @@ const eggPlans = computed(() => {
         const remainingToLay = Math.max(0, eggsToLay - eggsDuringFill);
         
         // 2. Shipping phase at full capacity
-        durationSeconds += fullHabRate > 0 ? remainingToLay / fullHabRate : 0;
+        durationSeconds += fullHabRate > 0 ? remainingToLay / fullHabRate : remainingToLay > 0 ? Infinity : 0;
       } else {
-        durationSeconds += fullHabRate > 0 ? eggsToLay / fullHabRate : 0;
+        durationSeconds += fullHabRate > 0 ? eggsToLay / fullHabRate : Infinity;
       }
     }
 
@@ -315,6 +318,9 @@ const eggPlans = computed(() => {
     return plan;
   });
 });
+
+// Every egg's wait must be reachable (finite, within a year at the current rate).
+const allReachable = computed(() => eggPlans.value.every(p => isTEWaitReachable(p.durationSeconds)));
 
 const totalDurationSeconds = computed(() => {
   return eggPlans.value.reduce((sum, p) => sum + p.durationSeconds, 0);
@@ -354,6 +360,8 @@ onMounted(() => {
     currentEgg,
     ...VIRTUE_EGGS.filter(e => e !== currentEgg)
   ];
+  // The default 15 may be more than the eggs can still gain.
+  handleTotalChange();
 });
 
 // Methods
@@ -366,7 +374,8 @@ function adjustTotal(delta: number) {
 
 function handleTotalChange() {
   const maxPossibleGain = Object.values(eggStartStates.value).reduce((sum, s) => sum + (MAX_TE - s.te), 0);
-  totalTEToGain.value = Math.min(Math.max(0, totalTEToGain.value), maxPossibleGain);
+  // A whole number from 0 to what the five eggs can still gain (1.5, '3.48e45', empty all land in range).
+  totalTEToGain.value = clampTECount(totalTEToGain.value, maxPossibleGain, 0);
   rebalance();
 }
 

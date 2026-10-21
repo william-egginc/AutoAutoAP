@@ -59,6 +59,7 @@ import { useSilosStore } from '@/stores/silos';
 import { useFuelTankStore } from '@/stores/fuelTank';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useSalesStore } from '@/stores/sales';
+import { teGainedOf } from '@/lib/truthEggs';
 
 /**
  * Replay an action on top of a given snapshot state.
@@ -165,8 +166,8 @@ function applyActionEffect(action: Action): void {
       const virtueStore = useVirtueStore();
       // Add eggs delivered
       truthEggsStore.addEggsDelivered(payload.egg, payload.eggsToLay);
-      // Update TE
-      virtueStore.setTE(virtueStore.te + payload.teGained);
+      // Update TE (bounded: an action saved before the input was validated can carry +3.48e45)
+      virtueStore.setTE(virtueStore.te + teGainedOf(payload));
       break;
     }
 

@@ -64,6 +64,7 @@ import { computed } from 'vue';
 import { iconURL } from 'lib';
 import type { Action, LaunchMissionsPayload, WaitForTEPayload } from '@/types';
 import { formatDuration, formatNumber } from '@/lib/format';
+import { teGainedOf } from '@/lib/truthEggs';
 
 const props = defineProps<{
   headerAction: Action;
@@ -115,6 +116,6 @@ const formattedMissionTime = computed(() => {
 const teGained = computed(() => {
   return props.actions
     .filter(a => a.type === 'wait_for_te')
-    .reduce((sum, a) => sum + (a.payload as WaitForTEPayload).teGained, 0);
+    .reduce((sum, a) => sum + teGainedOf(a.payload as WaitForTEPayload), 0);
 });
 </script>
