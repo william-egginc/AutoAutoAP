@@ -8,14 +8,16 @@
 import { fetchTable } from './tableFetch';
 import { workOutAnswer, type AnswerRequest } from './instantAnswer';
 import { latestOnly, pauseFor, Superseded } from './latestOnly';
-import { compositeTable, type Table, type TableHeader } from './precomputedTable';
+import { compositeTable, shiftedTable, type Table, type TableHeader } from './precomputedTable';
 import type { FoundRoutes } from './routeFinder';
 
 export type InstantWorkerRequest =
   /** `probe`: a table that is usually not there (fetchTable's probe: one request on a miss). */
   | { kind: 'header'; id: number; url: string; probe?: boolean }
-  /** `url`: the maxed table; `own`: an account or gear table joined to it per leg (compositeTable). */
-  | { kind: 'answer'; id: number; url: string; own?: string; req: AnswerRequest };
+  /** `url`: the maxed table; `own`: an account, gear or delivery table joined to it per leg
+   *  (compositeTable); `shift`: `own` read with that earnings shift (precomputedTable.ts shiftedTable;
+   *  `own` may be the maxed table itself). */
+  | { kind: 'answer'; id: number; url: string; own?: string; shift?: number; req: AnswerRequest };
 
 export type InstantWorkerResponse =
   | { kind: 'header'; id: number; header: TableHeader }
@@ -48,10 +50,10 @@ function load(url: string, probe = false): Promise<Table> {
   return keep(url, () => fetchTable(url, undefined, probe));
 }
 
-/** `own` joined to the maxed table at `url`, its cells scaled by `scale`. */
-function joined(own: string, url: string, scale: number): Promise<Table> {
-  return keep(JSON.stringify([own, url, scale]), async () =>
-    compositeTable(await load(own, true), await load(url), scale)
+/** `own` (read with the earnings `shift`) joined to the maxed table at `url`, its cells scaled by `scale`. */
+function joined(own: string, url: string, scale: number, shift = 0): Promise<Table> {
+  return keep(JSON.stringify([own, url, scale, shift]), async () =>
+    compositeTable(shiftedTable(await load(own, own !== url), shift), await load(url), scale)
   );
 }
 
@@ -65,7 +67,7 @@ ctx.onmessage = async (event: MessageEvent<InstantWorkerRequest>) => {
   try {
     if (m.kind === 'header') return reply({ kind: 'header', id: m.id, header: (await load(m.url, m.probe)).header });
     // With an own table the maxed cells are scaled in the join, and the search runs at a scale of 1.
-    const t = m.own ? await joined(m.own, m.url, m.req.deliveryScale) : await load(m.url);
+    const t = m.own ? await joined(m.own, m.url, m.req.deliveryScale, m.shift) : await load(m.url);
     const req = m.own ? { ...m.req, deliveryScale: 1 } : m.req;
     const pause = pauseFor(m.id, latest);
     await pause();

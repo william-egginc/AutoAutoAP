@@ -1,7 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SIM_VERSION } from './simVersion';
 import type { TableHeader } from './precomputedTable';
-import { answeredBy, choiceFor, choiceLine, tableLineFor, chooseTable, forgetChoices, type ChoiceDeps } from './tableChoice';
+import {
+  answeredBy,
+  choiceFor,
+  choiceLine,
+  tableLineFor,
+  chooseTable,
+  forgetChoices,
+  ownRange,
+  shiftWords,
+  type ChoiceDeps,
+} from './tableChoice';
+import { deliveryKey } from './deliveryTables';
 import { gearTableNameV3, type TableGear } from './tableGear';
 
 const slot = (artifact: string, ...stones: string[]) => ({ artifact, stones });
@@ -215,5 +226,168 @@ describe('the line and which table the first ascension starts on', () => {
     expect(answeredBy(c, 119)).toBe('maxed');
     expect(answeredBy(c, 340)).toBe('maxed');
     expect(answeredBy({ kind: 'maxed', header: MAXED }, 200)).toBe('maxed');
+  });
+});
+
+describe('chooseTable: a delivery table like the save’s, read with the earnings shift', () => {
+  const T = 'tachyon-stone-4';
+  const Q = 'quantum-stone-4';
+  const s = (artifactId: string, ...stones: string[]) => ({ artifactId, stones });
+  const MET_E = s('quantum-metronome-4-2', T, T);
+  const COM = s('interstellar-compass-4-3', T, T);
+  const GUS = s('gusset-4-3', Q, T, T);
+  const MET_L = s('quantum-metronome-4-3', T, T, T);
+  const LIKE = [MET_E, COM, GUS, s('lunar-totem-4-3', T, T, T)];
+  const KEY = deliveryKey(['quantum-metronome-4-2', 'interstellar-compass-4-3', 'gusset-4-3', 'lunar-totem-4-3']);
+  const DEL_URL = `${BASE}delivery-${KEY}.bin`;
+  /** The maxed table's own set at its k3 (a puzzle cube 4th, as joo717's). */
+  const MAXED_SET = [GUS, COM, MET_L, s('puzzle-cube-4-3', T, T, T)];
+  const MAX = head({ from: 75, to: 339, cteBonus: 128.71, k3: { research: K3, delivery: MAXED_SET } });
+  const DEL = head({ from: 120, to: 489, cteBonus: 128.71, deliveryKey: KEY });
+  const INDEX = [{ name: `delivery-${KEY}.bin.gz`, kind: 'delivery', deliveryKey: KEY, simVersion: SIM_VERSION }];
+
+  /** A site with these files, an index, and a save wearing `set` (picked at the maxed k3) with `cte`. */
+  function site(
+    o: {
+      files?: Record<string, TableHeader>;
+      set?: typeof LIKE | null;
+      cte?: number | null;
+      index?: (() => Promise<unknown>) | null;
+      mine?: (r: Record<string, number>) => TableGear | null;
+    },
+    log: string[] = []
+  ): ChoiceDeps {
+    const files = o.files ?? { '/p/table.bin': MAX, [DEL_URL]: DEL };
+    return {
+      ...deps(files, o.mine ?? (() => null), log),
+      deliveryAt: r => {
+        expect(r).toEqual(K3);
+        return o.set === undefined ? LIKE : o.set;
+      },
+      earningsCTE: () => (o.cte === undefined ? 103.78 : o.cte),
+      index: (o.index === undefined ? async () => INDEX : (o.index ?? undefined)) as ChoiceDeps['index'],
+    };
+  }
+
+  it('the exact own-account table still comes first, and the index is not asked', async () => {
+    let asked = 0;
+    const own = head({ gear: gear(OWN_RESEARCH) });
+    const c = await chooseTable(
+      input,
+      site({
+        files: { '/p/table.bin': MAX, [BASE + ACCT]: own, [DEL_URL]: DEL },
+        mine: r => gear(r),
+        index: async () => (asked++, INDEX),
+      })
+    );
+    expect(c.kind).toBe('account');
+    expect(asked).toBe(0);
+  });
+
+  it('a delivery match: the delivery table, its shift from its own cteBonus, one probe for it', async () => {
+    const log: string[] = [];
+    const c = await chooseTable(input, site({}, log));
+    expect(c).toEqual({
+      url: DEL_URL,
+      header: DEL,
+      maxed: MAX,
+      kind: 'delivery',
+      shift: 24.93,
+      delivery: ['quantum-metronome-4-2', 'interstellar-compass-4-3', 'gusset-4-3', 'lunar-totem-4-3'],
+    });
+    expect(log.filter(u => u.includes('delivery-'))).toEqual([DEL_URL]);
+    expect(log[0]).toBe('/p/table.bin');
+    // Earnings as the table's: no shift.
+    expect((await chooseTable(input, site({ cte: 128.71 }))).shift).toBe(0);
+  });
+
+  it('a 4th that is any 3-slot T4L is the same delivery (it holds the same stones)', async () => {
+    const c = await chooseTable(input, site({ set: [MET_E, COM, GUS, s('puzzle-cube-4-3', T, T, T)] }));
+    expect(c.kind).toBe('delivery');
+    expect(c.url).toBe(DEL_URL);
+    const two = await chooseTable(input, site({ set: [MET_E, COM, GUS, s('puzzle-cube-4-2', T, T)] }));
+    expect(two.kind).toBe('maxed');
+  });
+
+  it('no table for the save’s set in the index: the maxed table, nothing more asked', async () => {
+    const log: string[] = [];
+    const other = [s('quantum-metronome-4-1', T, T), COM, GUS, s('lunar-totem-4-3', T, T, T)];
+    const c = await chooseTable(input, site({ set: other }, log));
+    expect(c).toEqual({ url: '/p/table.bin', header: MAX, maxed: MAX, kind: 'maxed' });
+    expect(log.some(u => u.includes('delivery-'))).toBe(false);
+    // No set a delivery table stands for (no gusset): the index is not even needed.
+    expect(
+      (
+        await chooseTable(
+          input,
+          site({ set: [MET_E, COM, s('puzzle-cube-4-3', T, T, T), s('lunar-totem-4-3', T, T, T)] })
+        )
+      ).kind
+    ).toBe('maxed');
+  });
+
+  it('index.json missing or failing: as before (the maxed table), no delivery table asked for', async () => {
+    for (const index of [async () => null, async () => Promise.reject(new Error('down')), null]) {
+      const log: string[] = [];
+      const c = await chooseTable(input, site({ index }, log));
+      expect(c.kind).toBe('maxed');
+      expect(log.some(u => u.includes('delivery-'))).toBe(false);
+    }
+  });
+
+  it('refused: a header keyed for another set, another simulator, or a shift past the table', async () => {
+    const wrong = await chooseTable(
+      input,
+      site({ files: { '/p/table.bin': MAX, [DEL_URL]: { ...DEL, deliveryKey: '00000000' } } })
+    );
+    expect(wrong.kind).toBe('maxed');
+    const other = await chooseTable(
+      input,
+      site({ files: { '/p/table.bin': MAX, [DEL_URL]: { ...DEL, simVersion: 'x' } } })
+    );
+    expect(other.kind).toBe('maxed');
+    // The index says another simulator: not fetched at all.
+    const log: string[] = [];
+    await chooseTable(input, site({ index: async () => [{ ...INDEX[0], simVersion: 'x' }] }, log));
+    expect(log.some(u => u.includes('delivery-'))).toBe(false);
+    const far = await chooseTable(input, site({ files: { '/p/table.bin': MAX, [DEL_URL]: { ...DEL, to: 140 } } }));
+    expect(far.kind).toBe('maxed');
+  });
+
+  it('no save or no earnings: nothing to shift by, the maxed table', async () => {
+    expect((await chooseTable(input, site({ cte: null }))).kind).toBe('maxed');
+    expect((await chooseTable(input, site({ set: null }))).kind).toBe('maxed');
+  });
+
+  it('the maxed table’s own delivery set, only earnings below: the maxed table read with the shift', async () => {
+    const mine = [MET_L, COM, GUS, s('lunar-totem-4-3', T, T, T)];
+    const c = await chooseTable(input, site({ set: mine }));
+    expect(c).toMatchObject({ url: '/p/table.bin', header: MAX, kind: 'maxed-shift', shift: 24.93 });
+    expect(ownRange(c)).toEqual({ from: 100, to: 339 });
+    // Earnings as the table's: the plain maxed table.
+    expect((await chooseTable(input, site({ set: mine, cte: 128.71 }))).kind).toBe('maxed');
+  });
+
+  it('per leg: below from + Δ the maxed table answers, and the line says so', async () => {
+    const c = await chooseTable(input, site({}));
+    expect(ownRange(c)).toEqual({ from: 145, to: 489 });
+    expect(answeredBy(c, 144.9)).toBe('maxed');
+    expect(answeredBy(c, 145)).toBe('delivery');
+    expect(answeredBy(c, 400)).toBe('delivery');
+    expect(tableLineFor(c, 200)).toBe(
+      'Built for gear like yours: delivery metronome T4E, compass T4L, gusset T4L, earnings read 24.9 TE lower'
+    );
+    expect(tableLineFor(c, 130)).toBe(
+      'Maxed gear for TE below 145, then built for gear like yours: delivery metronome T4E, compass T4L, gusset T4L, earnings read 24.9 TE lower'
+    );
+    expect(tableLineFor({ ...c, shift: 0 }, 200)).toBe(
+      'Built for gear like yours: delivery metronome T4E, compass T4L, gusset T4L, earnings match'
+    );
+    expect(shiftWords(0.04)).toBe('earnings read 0.1 TE lower');
+    const m = await chooseTable(input, site({ set: [MET_L, COM, GUS, s('lunar-totem-4-3', T, T, T)] }));
+    expect(tableLineFor(m, 200)).toBe('Maxed gear, earnings read 24.9 TE lower (your delivery matches)');
+    expect(tableLineFor(m, 90)).toBe(
+      'Maxed gear for TE below 100, then maxed gear, earnings read 24.9 TE lower (your delivery matches)'
+    );
   });
 });

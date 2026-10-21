@@ -5,20 +5,37 @@
  *  (b) else a gear table built on exactly the save's gear, `gear-<gearTableNameV3>.bin`, the stamp
  *      worked out at the maxed table's waiting research (its k3), and checked again at the gear
  *      table's own research once found;
- *  (c) else the maxed table, `table.bin`, as before.
+ *  (c) else a delivery table (deliveryTables.ts) whose delivery set is the save's picked one (worked
+ *      out at the maxed table's k3 research, as the stamp's), read with Joo's earnings shift
+ *      (earningsShift.ts, precomputedTable.ts `shiftedTable`): Δ from that table's cteBonus. Listed in
+ *      the storage's index.json, so a save with no such table asks for nothing more;
+ *  (d) else, when the save's picked delivery set is the maxed table's own (its 4th any 3-slot T4L) and
+ *      only the earnings set is below it, the maxed table read with the earnings shift ('maxed-shift');
+ *  (e) else the maxed table, `table.bin`, as before.
  * A table from another simulator (simVersion.ts tableSimMismatch) is refused like a missing one and
  * the next is tried. Each new table covers only part of the TE range: the worker joins it to the
- * maxed table per leg (precomputedTable.ts `compositeTable`).
+ * maxed table per leg (precomputedTable.ts `compositeTable`); a shifted one has rows only from
+ * `from + Δ` up (`shiftedFrom`), and the maxed table, unshifted and scaled, answers below that.
  *
  * Pure: the headers come from `deps.header` (instantClient.ts `probeHeader`), which resolves null for
  * a file that is not there; the stamp from `deps.stampAt`. No player id is passed in, only the
  * account table's hashed name.
  */
-import type { TableHeader } from './precomputedTable';
+import type { EquippedArtifact } from '@/lib/artifacts/types';
+import { shiftedFrom, type TableHeader } from './precomputedTable';
 import { tableSimMismatch } from './simVersion';
 import { gearChanges, gearTableNameV3, type TableGear } from './tableGear';
+import { earningsShift } from './earningsShift';
+import {
+  deliveryEntry,
+  deliveryKey,
+  deliveryTableName,
+  deliveryWords,
+  tableDeliveryIds,
+  type IndexEntry,
+} from './deliveryTables';
 
-export type TableKind = 'account' | 'gear' | 'maxed';
+export type TableKind = 'account' | 'gear' | 'delivery' | 'maxed-shift' | 'maxed';
 
 export interface TableChoice {
   /** The table that answers (the maxed table's url for 'maxed'). */
@@ -31,6 +48,10 @@ export interface TableChoice {
   kind: TableKind;
   /** The player's own table was there but built on other gear: what changed (kind 'maxed' only). */
   changed?: string[];
+  /** 'delivery' and 'maxed-shift': the Clothed TE the save's earnings set is below the table's (Δ,
+   *  earningsShift.ts), the table read that many TE lower; and the delivery set as keyed. */
+  shift?: number;
+  delivery?: string[];
 }
 
 export interface ChoiceDeps {
@@ -38,6 +59,12 @@ export interface ChoiceDeps {
   header: (url: string) => Promise<TableHeader | null>;
   /** The save's gear stamp with its delivery set picked at `research`, or null without a save. */
   stampAt: (research: Record<string, number>) => TableGear | null;
+  /** The save's picked delivery set at `research` (tableGear.ts deliverySetAt), or null. */
+  deliveryAt?: (research: Record<string, number>) => EquippedArtifact[] | null;
+  /** The save's earnings set's Clothed TE (earningsShift.ts earningsCTE), or null without a save. */
+  earningsCTE?: () => number | null;
+  /** The storage's index.json (deliveryTables.ts tableIndex), or null when it is not there. */
+  index?: () => Promise<IndexEntry[] | null>;
 }
 
 export interface ChoiceInput {
@@ -94,6 +121,36 @@ export async function chooseTable(input: ChoiceInput, deps: ChoiceDeps): Promise
       if (mine && !gearChanges(h.gear, mine).length) return { url, header: h, maxed, kind: 'gear' };
     }
   }
+  const mineIds = research && deps.deliveryAt ? tableDeliveryIds(deps.deliveryAt(research)) : null;
+  const cte = mineIds && deps.earningsCTE ? deps.earningsCTE() : null;
+  if (mineIds && cte !== null) {
+    const key = deliveryKey(mineIds);
+    let index: IndexEntry[] | null = null;
+    try {
+      index = deps.index ? await deps.index() : null;
+    } catch {
+      index = null;
+    }
+    const entry = deliveryEntry(index, key);
+    // An entry the index already says is another simulator's is not fetched (a few MB for nothing).
+    if (entry && !tableSimMismatch({ simVersion: entry.simVersion })) {
+      const url = input.base + deliveryTableName(key);
+      const h = await header(url);
+      const keyed = h && (h.deliveryKey ?? (h.delivery ? deliveryKey(h.delivery) : null));
+      if (h && !tableSimMismatch(h) && keyed === key) {
+        const shift = earningsShift(cte, h);
+        if (shiftedFrom(h, shift) <= h.to) return { url, header: h, maxed, kind: 'delivery', shift, delivery: mineIds };
+      }
+    }
+    // The maxed table's own delivery set (its 4th a puzzle cube: any 3-slot T4L holds the same stones),
+    // only the earnings below it: the maxed table read with the shift.
+    const maxedIds = tableDeliveryIds(maxed.k3?.delivery);
+    if (maxedIds && deliveryKey(maxedIds) === key) {
+      const shift = earningsShift(cte, maxed);
+      if (shift > 0 && shiftedFrom(maxed, shift) <= maxed.to)
+        return { url: maxedUrl, header: maxed, maxed, kind: 'maxed-shift', shift, delivery: mineIds };
+    }
+  }
   return asMaxed(changed);
 }
 
@@ -130,22 +187,50 @@ export function choiceLine(kind: TableKind, changed?: string[]): string {
   return changed?.length ? `Maxed gear (yours differs: ${changed.join(', ')})` : 'Maxed gear';
 }
 
+/** The earnings shift in words: one decimal, at least 0.1 when there is one (any shift reads a whole
+ *  row lower: the row is rounded down). */
+export function shiftWords(shift: number | undefined): string {
+  if (!shift || !(shift > 0)) return 'earnings match';
+  return `earnings read ${Math.max(0.1, Math.round(shift * 10) / 10).toFixed(1)} TE lower`;
+}
+
+/** The line for a table read with the earnings shift ('delivery' or 'maxed-shift'). */
+function shiftedLine(choice: Pick<TableChoice, 'kind' | 'shift' | 'delivery'>): string {
+  if (choice.kind === 'maxed-shift') return `Maxed gear, ${shiftWords(choice.shift)} (your delivery matches)`;
+  return `Built for gear like yours: delivery ${deliveryWords(choice.delivery ?? [])}, ${shiftWords(choice.shift)}`;
+}
+
+const lower = (line: string) => line.replace(/^(B|M)/, c => c.toLowerCase());
+
 /** The line for a run starting at `startTE`: as `choiceLine`, but when the start is below the chosen
- *  account or gear table's range, the first ascension is on the maxed table and later ones on it. */
-export function tableLineFor(choice: Pick<TableChoice, 'kind' | 'header' | 'changed'>, startTE: number): string {
+ *  table's range (for a shifted table, the TEs it has a row for), the first ascension is on the maxed
+ *  table and later ones on it. */
+export function tableLineFor(
+  choice: Pick<TableChoice, 'kind' | 'header' | 'changed' | 'shift' | 'delivery'>,
+  startTE: number
+): string {
   const by = answeredBy(choice, startTE);
+  const range = ownRange(choice);
+  const shifted = choice.kind === 'delivery' || choice.kind === 'maxed-shift';
+  const line = shifted ? shiftedLine(choice) : choiceLine(choice.kind, choice.changed);
+  if (by === 'maxed' && choice.kind !== 'maxed' && range && Math.floor(startTE) < range.from)
+    return `Maxed gear for TE below ${range.from}, then ${lower(line)}`;
+  return by === choice.kind ? line : choiceLine('maxed', choice.changed);
+}
+
+/** The TEs the chosen table answers itself (null for the plain maxed table): its range, from the
+ *  first TE it has a row for when read with the earnings shift. */
+export function ownRange(choice: Pick<TableChoice, 'kind' | 'header' | 'shift'>): { from: number; to: number } | null {
   const h = choice.header;
-  if (by === 'maxed' && choice.kind !== 'maxed' && h && Math.floor(startTE) < h.from) {
-    return `Maxed gear for TE below ${h.from}, then ${choiceLine(choice.kind).replace(/^B/, 'b')}`;
-  }
-  return choiceLine(by, choice.changed);
+  if (choice.kind === 'maxed' || !h) return null;
+  return { from: shiftedFrom(h, choice.shift ?? 0), to: h.to };
 }
 
 /** The table a run's first ascension starts on: the chosen one when the start TE is in its range,
  *  else the maxed table. */
-export function answeredBy(choice: Pick<TableChoice, 'kind' | 'header'>, startTE: number): TableKind {
-  const h = choice.header;
-  if (choice.kind === 'maxed' || !h) return 'maxed';
+export function answeredBy(choice: Pick<TableChoice, 'kind' | 'header' | 'shift'>, startTE: number): TableKind {
+  const r = ownRange(choice);
+  if (!r) return 'maxed';
   const te = Math.floor(startTE);
-  return te >= h.from && te <= h.to ? choice.kind : 'maxed';
+  return te >= r.from && te <= r.to ? choice.kind : 'maxed';
 }

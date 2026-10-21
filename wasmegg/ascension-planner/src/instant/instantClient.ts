@@ -121,8 +121,10 @@ export async function answer(
   req: AnswerRequest,
   key: string,
   onProgress?: (done: number, of: number) => void,
-  /** An account or gear table joined to the maxed one at `url` (instant.worker.ts). */
-  own?: string
+  /** An account, gear or delivery table joined to the maxed one at `url` (instant.worker.ts). */
+  own?: string,
+  /** `own` read with this earnings shift (precomputedTable.ts shiftedTable). */
+  shift?: number
 ): Promise<InstantWorkerResponse> {
   const k = keptAnswer(key, req.start);
   if (k) return { kind: 'answer', id, found: k };
@@ -132,7 +134,7 @@ export async function answer(
     if (w && onProgress) w.onProgress = onProgress;
     return joined.reply;
   }
-  const reply = ask({ kind: 'answer', id, url, ...(own ? { own } : {}), req }, onProgress);
+  const reply = ask({ kind: 'answer', id, url, ...(own ? { own } : {}), ...(own && shift ? { shift } : {}), req }, onProgress);
   const mine = { key, id, reply };
   inFlight = mine;
   const r = await reply;
