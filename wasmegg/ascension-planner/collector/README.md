@@ -1014,3 +1014,5 @@ limit, the duration ordering and the ID redaction were checked before this was c
   write-once checks are what protect the 1,000 writes. A missing or failing binding means no limit (the code
   never takes uploads down for it). Not in the dashboard: watch for 429s in the Worker logs. The docs do not say
   whether the Free plan offers it; if a deploy is refused for it, remove the two blocks and deploy without.
+
+Deployed 21 Oct 2026: a2bdb8ef as Worker version bccd1a70 (both rate-limit bindings accepted on this plan; `GET /all` 200). Rollback target: f01abb11.
