@@ -488,13 +488,31 @@ export function getOptimalELRSetFromSource(
   }
 ): EquippedArtifact[] {
   if (isDeliverySearch(source)) {
-    return getOptimalELRSetFromPool(source.pool, {
-      ...options,
-      forcedArtifacts: options.forcedArtifacts ?? source.forcedArtifacts,
-    });
+    const forcedArtifacts = options.forcedArtifacts ?? source.forcedArtifacts;
+    // The structure cache (see `structureCache`) for the auto planner's loadout inputs, whose pool is
+    // a fresh object on every call (loadout/resolve.ts `deliverySearchFromInputs`): keyed by the
+    // pool's contents instead of by object. Only an unforced (`auto` mode) search is cached.
+    if (STRUCTURE_CACHE_ENABLED && !forcedArtifacts && !options.bypassStructureCache) {
+      const key = `${structureCacheKey(options.assumeMaxHabsVehicles ?? false, options.excludeGusset ?? false)}|${JSON.stringify(source.pool)}`;
+      const cached = poolStructureCache.get(key);
+      if (cached) return getOptimalELRSetFromPool(source.pool, { ...options, forcedArtifacts: cached });
+      const result = getOptimalELRSetFromPool(source.pool, options);
+      if (poolStructureCache.size >= POOL_STRUCTURE_CACHE_MAX) poolStructureCache.clear();
+      poolStructureCache.set(
+        key,
+        result.map(slot => slot.artifactId)
+      );
+      return result;
+    }
+    return getOptimalELRSetFromPool(source.pool, { ...options, forcedArtifacts });
   }
   return getOptimalELRSet(source, options);
 }
+
+/** `getOptimalELRSetFromSource`'s structure cache for loadout-input pools, by pool contents. A
+ *  session only ever sees a handful of pools; the bound is a backstop. */
+const poolStructureCache = new Map<string, (string | null)[]>();
+const POOL_STRUCTURE_CACHE_MAX = 64;
 
 /**
  * The ELR search itself, over an explicit candidate/stone pool. Under `assumeMaxHabsVehicles`,
