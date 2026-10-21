@@ -258,12 +258,14 @@ the same process could otherwise differ.
   table's source dir, with the same `--backup` and `--reference` or `--combos/--combo` it was built
   with. The last full bit-check, on 13 Oct 2026 at 6:44 pm on the merged low-TE build: 13 tables × 15
   cells, 195 of 195 identical.
-- **The low-TE gate** (`src/auto/lowTeOpening.ts`, temporary until Joo's PR 717 merges): a fresh build
-  that starts below TE 120 (`LOW_TE_TABLE_FLOOR`, the lowest start any deployed table covers) and
-  stalls on its first I1 runs Joo's low-TE rounds instead. Every build at or above TE 120 runs exactly
-  as before, so no table cell changed; the tables hold the standard opening only, and the page tells an
-  account whose fresh build takes the low-TE opening that its low-TE dates are rough
-  (`src/search/instantIntegrity.ts` `lowTeOpeningNote`).
+- **The opening switch** (`src/auto/lowTeOpening.ts`, since egg-beta2, 21 Oct 2026, which merged Joo's
+  planner up to 39261255): every fresh build's first C1/K1/I1 pass caps I1 at 4 hours; when that can't
+  max the habs, the build takes PR 717's rounds (our default) or Joo's v2 openings
+  (`DEFAULT_OPENING_FALLBACK`). This replaced the low-TE gate (rounds only below TE 120). The merge
+  changed the simulator for builds at every TE (`SIM_VERSION` 2026-10-21-egg-beta2), so every table
+  built with `2026-10-13-lowte-gate` is from an older simulator until it is rebuilt; the page says so
+  on the instant answer. The page still tells an account whose fresh build needs more than one round
+  that its low-TE dates are rough (`src/search/instantIntegrity.ts` `lowTeOpeningNote`).
 
 The full procedure is on the wiki:
 [Tables and the route finder](https://github.com/william-egginc/AutoAutoAP/wiki/Tables-and-the-route-finder)

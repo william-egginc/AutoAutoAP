@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { AscensionSummary } from '@/auto/types';
 import type { Action } from '@/types/actions/meta';
+import type { AutoLoadoutInputs } from '@/auto/loadout/types';
 
 export type SaleCount = 1 | 2 | 3;
 export type BuildVariantKey = `${SaleCount}-sale` | `${SaleCount}-sale-tier13`;
@@ -48,6 +49,9 @@ export interface ChainedAscension {
   };
   /** True when this ascension was silently injected to reach 490 TE, not entered by the user. */
   forcedTarget490?: boolean;
+  /** `hashLoadoutInputs` of the artifact/stone inputs this ascension was simulated with. Absent on
+   * chains generated before loadout inputs existed (treated as "doesn't match"). */
+  loadoutHash?: string;
 }
 
 /**
@@ -112,6 +116,14 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
    */
   const timeOffCuts = ref<TimeOffCuts | null>(null);
   const deferForEarningsMode = ref(false);
+  /** Setup-form artifact/stone inputs (Virtue Progress), used by every ascension without an override.
+   * Null until seeded from the backup (or from the manual planner's saved sets when there's none). */
+  const loadoutInputs = ref<AutoLoadoutInputs | null>(null);
+  /** What the setup form's Reset returns to: the inventory-derived default. Never persisted. */
+  const defaultLoadoutInputs = ref<AutoLoadoutInputs | null>(null);
+  /** Per-ascension artifact/stone overrides from Show Details: index -> inputs. Setting or removing
+   * one forces that ascension and every one after it to be recomputed, like `endTimeOverrides`. */
+  const loadoutOverrides = ref<Record<number, AutoLoadoutInputs>>({});
 
   function setPlan(data: {
     ascensionChain: ChainedAscension[];
@@ -124,6 +136,8 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     nextGoals: Record<number, { te: number | null; date: string; time: string }>;
     planVariantOverrides?: Record<number, VariantKey>;
     endTimeOverrides?: Record<number, number>;
+    loadoutInputs?: AutoLoadoutInputs | null;
+    loadoutOverrides?: Record<number, AutoLoadoutInputs>;
     /** @deprecated use planVariantOverrides */
     a1ForceMode?: 'continue' | 'prestige' | null;
   }) {
@@ -138,6 +152,9 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     endTimeOverrides.value = data.endTimeOverrides || {};
     // A saved plan carries its time-off cuts inside its end times and its simulated start times.
     timeOffCuts.value = null;
+    loadoutOverrides.value = data.loadoutOverrides || {};
+    // An imported plan without loadout inputs keeps whatever the setup form already holds.
+    if (data.loadoutInputs) loadoutInputs.value = data.loadoutInputs;
     if (data.planVariantOverrides) {
       planVariantOverrides.value = data.planVariantOverrides;
     } else if (data.a1ForceMode === 'continue') {
@@ -156,6 +173,7 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     planVariantOverrides.value = {};
     endTimeOverrides.value = {};
     timeOffCuts.value = null;
+    loadoutOverrides.value = {};
   }
 
   return {
@@ -171,6 +189,9 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     endTimeOverrides,
     timeOffCuts,
     deferForEarningsMode,
+    loadoutInputs,
+    defaultLoadoutInputs,
+    loadoutOverrides,
     setPlan,
     clear,
   };

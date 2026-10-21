@@ -84,7 +84,7 @@
       {{ errorText }}
     </p>
     <InstantIntegrity v-if="status !== 'loading' && !atTarget" :state="integrity" />
-    <!-- LOW-TE GATE (temporary until Joo's PR 717 merges): search/instantIntegrity.ts lowTeOpeningNote. -->
+    <!-- LOW-TE OPENING (auto/lowTeOpening.ts): search/instantIntegrity.ts lowTeOpeningNote. -->
     <p
       v-if="status !== 'loading' && !atTarget && lowTeNote && !below"
       class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900"
@@ -2139,7 +2139,7 @@ const integrity = computed(() =>
   )
 );
 const integrityHold = computed(() => holdsRoutes(integrity.value));
-// LOW-TE GATE (temporary until Joo's PR 717 merges)
+// LOW-TE OPENING (auto/lowTeOpening.ts)
 const lowTeNote = computed(() => lowTeOpeningNote(store.integrityLowTe));
 /** Why the table's cells may not be this simulator's (search/simVersion.ts), or null. */
 const simNote = computed(() => tableSimMismatch(header.value));

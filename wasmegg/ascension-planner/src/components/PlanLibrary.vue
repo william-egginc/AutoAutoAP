@@ -336,6 +336,7 @@ async function handleImport(event: Event) {
                 goal: a.goal,
               };
               if (a.result3SkippedReason) item.result3SkippedReason = a.result3SkippedReason;
+              if (a.loadoutHash) item.loadoutHash = a.loadoutHash;
               return item;
             });
 
@@ -383,6 +384,8 @@ async function handleImport(event: Event) {
               endTimeOverrides: Object.fromEntries(
                 Object.entries(plan.endTimeOverrides ?? {}).filter(([k, v]) => plan.timeOffCuts?.ends[Number(k)] !== v)
               ),
+              loadoutInputs: plan.loadoutInputs ?? null,
+              loadoutOverrides: plan.loadoutOverrides ?? {},
             });
             if (plan.timeOffCuts) {
               autoPlannerStore.timeOffCuts = {

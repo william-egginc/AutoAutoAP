@@ -13,7 +13,7 @@ Work only in `wasmegg/ascension-planner` (plus `lib/` and `ui/` when this folder
 - Format: `pnpm format`, but run prettier only on files that were already prettier-clean, or the diff becomes noise
 
 ## Code map
-- `src/auto/`, `src/engine/`: Joo's simulator. Keep edits minimal and tagged; every change here can move results. Our hooks: `src/auto/hold.ts` ("Let me pick my hours"), `buildUp.ts` (Continue my build-up), `lowTeOpening.ts` (low-TE gate, temporary until Joo's PR 717 merges).
+- `src/auto/`, `src/engine/`: Joo's simulator. Keep edits minimal and tagged; every change here can move results. Our hooks: `src/auto/hold.ts` ("Let me pick my hours"), `buildUp.ts` (Continue my build-up), `lowTeOpening.ts` (the opening switch: PR 717's rounds, our default, or Joo's v2 openings, when one C1/K1/I1 pass can't max the habs).
 - `src/search/`: our layer: route finder (`routeFinder.ts`), searches (`driver.ts`, `effort.ts`, `exhaustive.ts`, `deadline.ts`), Stronger check (`strongerCheck.ts`, `lightAtOnce.ts`), submission, workers pool, tables (`tableBuild.ts`, `precomputedLeg.ts`).
 - `src/stores/chainSearch.ts`: the big Pinia store behind the Auto Planner searches. Other stores in `src/stores/`.
 - `src/components/` (Vue 3, `<script setup lang="ts">`), `src/explorer/` (Insights and the Route Explorer page), `src/watch/` (phone watch), `src/lib/` (helpers, `siteNav.ts` holds every name players read).

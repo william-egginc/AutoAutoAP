@@ -1697,7 +1697,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Seconds a fresh ascension sat on its first Integrity shift, measured as the last run started
    *  (search/rules.ts). Null until measured, and after a saved run is opened. */
   const integrityWait = ref<number | null>(null);
-  /** LOW-TE GATE (temporary until Joo's PR 717 merges): the fresh build's low-TE opening, from the
+  /** LOW-TE OPENING (auto/lowTeOpening.ts): the fresh build's low-TE opening, from the
    *  same check (search/leg.ts `integrityCheck`); null when it takes the standard opening. */
   const integrityLowTe = ref<import('@/search/leg').LowTeOpeningInfo | null>(null);
 
@@ -1725,7 +1725,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function gateIntegrity(p: ChainSearchPool): Promise<'ok' | 'warn' | 'block'> {
     const wait = await p.integrityWait();
     integrityWait.value = wait;
-    // LOW-TE GATE (temporary until Joo's PR 717 merges)
+    // LOW-TE OPENING (auto/lowTeOpening.ts)
     integrityLowTe.value = p.integrityLowTe?.() ?? null;
     if (wait === null || wait <= INTEGRITY_WARN_SECONDS) return 'ok';
     if (wait > INTEGRITY_BLOCK_SECONDS) {
@@ -1758,7 +1758,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       const wait = await probe.integrityWait();
       if (integrityKey === key) {
         integrityWait.value = wait;
-        // LOW-TE GATE (temporary until Joo's PR 717 merges)
+        // LOW-TE OPENING (auto/lowTeOpening.ts)
         integrityLowTe.value = probe.integrityLowTe?.() ?? null;
       }
     } catch {

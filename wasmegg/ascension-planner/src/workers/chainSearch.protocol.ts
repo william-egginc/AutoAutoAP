@@ -149,7 +149,7 @@ export interface IntegrityResultMessage {
   requestId: number;
   /** Seconds, or null when a fresh ascension could not be simulated. */
   seconds: number | null;
-  /** LOW-TE GATE (temporary until Joo's PR 717 merges): the fresh build's low-TE opening, when it
+  /** LOW-TE OPENING (auto/lowTeOpening.ts): the fresh build's low-TE opening, when it
    *  took one (search/leg.ts `integrityCheck`). */
   lowTe?: import('@/search/leg').LowTeOpeningInfo | null;
 }

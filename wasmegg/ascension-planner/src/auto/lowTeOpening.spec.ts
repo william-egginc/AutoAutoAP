@@ -1,45 +1,24 @@
 /**
- * LOW-TE GATE (temporary until Joo's PR 717 merges): the gate's rule and the instant answer's label,
- * without the simulator. The real-save checks are in lowTeOpening.save.spec.ts.
+ * The opening switch (auto/lowTeOpening.ts) and the instant answer's label, without the simulator.
+ * The real-save checks are in lowTeOpening.save.spec.ts.
  */
 import { describe, expect, it } from 'vitest';
 import type { EngineState, SimulationContext } from './types';
-import {
-  habsMaxed,
-  LOW_TE_STALL_SECONDS,
-  LOW_TE_TABLE_FLOOR,
-  lowTeCandidate,
-  onLowTePath,
-  tagShiftName,
-  wantsLowTeOpening,
-} from './lowTeOpening';
+import { DEFAULT_OPENING_FALLBACK, MAX_OPENING_ROUNDS, onLowTePath, openingFallback } from './lowTeOpening';
+import { habsMaxed } from './shifts/i1';
+import { tagShiftName } from './ascension';
 import { lowTeOpeningNote } from '@/search/instantIntegrity';
 import type { Action } from '@/types/actions/meta';
 
 const ctx = (o: Partial<SimulationContext> = {}) => o as SimulationContext;
-const at = (te: number) => ({ te }) as EngineState;
 
-describe('the low-TE gate', () => {
-  it('only considers builds that start below the lowest TE any table covers', () => {
-    expect(LOW_TE_TABLE_FLOOR).toBe(120);
-    expect(lowTeCandidate(ctx(), at(93))).toBe(true);
-    expect(lowTeCandidate(ctx(), at(119))).toBe(true);
-    expect(lowTeCandidate(ctx(), at(120))).toBe(false);
-    expect(lowTeCandidate(ctx(), at(400))).toBe(false);
-  });
-
-  it("switches only when the current opening stalls on I1 past Joo's 4-hour cap", () => {
-    expect(LOW_TE_STALL_SECONDS).toBe(4 * 3600);
-    expect(wantsLowTeOpening(ctx(), 54 * 60)).toBe(false);
-    expect(wantsLowTeOpening(ctx(), 4 * 3600)).toBe(false);
-    expect(wantsLowTeOpening(ctx(), 4 * 3600 + 1)).toBe(true);
-  });
-
-  it('can be forced either way for tests and probes', () => {
-    expect(lowTeCandidate(ctx({ lowTeOpening: 'never' }), at(75))).toBe(false);
-    expect(lowTeCandidate(ctx({ lowTeOpening: 'force' }), at(400))).toBe(true);
-    expect(wantsLowTeOpening(ctx({ lowTeOpening: 'force' }), 0)).toBe(true);
-    expect(wantsLowTeOpening(ctx({ lowTeOpening: 'never' }), 1e9)).toBe(false);
+describe('the opening switch', () => {
+  it("defaults to PR 717's rounds, and a run can ask for Joo's v2 openings", () => {
+    expect(DEFAULT_OPENING_FALLBACK).toBe('rounds');
+    expect(openingFallback(ctx())).toBe('rounds');
+    expect(openingFallback(ctx({ openingFallback: 'v2' }))).toBe('v2');
+    expect(openingFallback(ctx({ openingFallback: 'rounds' }))).toBe('rounds');
+    expect(MAX_OPENING_ROUNDS).toBe(10);
   });
 
   it('marks the path on the state and names shifts', () => {

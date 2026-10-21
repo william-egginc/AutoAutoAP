@@ -11,23 +11,19 @@ import { getLocalTimestampInTimezone } from '@/lib/events';
 import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
 import { runC3Variants } from '@/auto/shifts/c3';
 import { rollUpPendingTE } from '@/lib/modes';
-import { getArtifactLoadoutFromBackup, getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
+import { getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
+import { getOptimalELRSetFromPool } from '@/lib/artifacts/virtue';
+import { makeContinueState, VIRTUE_EGGS_MAP } from '@/auto/continueState';
+import { deliverySearchFromInputs } from '@/auto/loadout/resolve';
 import { triggerPlanExport, type ExportedPlan } from '@/auto/export';
 import { buildLibraryPlansFromExport } from '@/auto/buildLibraryPlans';
 import { savePlanToLibrary, type PlanData } from '@/lib/storage/db';
 import { usePersistence } from '@/composables/usePersistence';
 import type { AscensionSummary } from '@/auto/types';
-import type { VirtueEgg } from '@/types';
 import type { ChainedAscension, VariantKey, VariantResult } from '@/stores/autoPlanner';
 import { pickVariant } from '@/stores/autoPlanner';
+import { hashLoadoutInputs, socketEarningsStones, type AutoLoadoutInputs } from '@/auto/loadout';
 
-const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
-  50: 'curiosity',
-  51: 'integrity',
-  52: 'humility',
-  53: 'resilience',
-  54: 'kindness',
-};
 
 // Below this starting TE, an ascension's build phase can't realistically reach a Tier 13 unlock —
 // so `runC3Variants` is told to skip every tier13 combo outright for that ascension (see its own
@@ -65,7 +61,11 @@ export function computeFirstDiffIdx(
   effectiveTargets: number[],
   existingChain: ChainedAscension[],
   planVariantOverrides: Record<number, VariantKey>,
-  endTimeOverrides: Record<number, number>
+  endTimeOverrides: Record<number, number>,
+  /** Index-aligned `hashLoadoutInputs` of what each ascension would be simulated with now (setup
+   * inputs or its override). An ascension whose stored `loadoutHash` differs is itself stale, like
+   * an end-time override: regeneration starts AT it. Omitted = don't check. */
+  expectedLoadoutHashes?: string[],
 ): number {
   let matchCount = 0;
   for (let i = 0; i < effectiveTargets.length; i++) {
@@ -86,6 +86,15 @@ export function computeFirstDiffIdx(
   for (const k of Object.keys(endTimeOverrides).map(Number)) {
     if (firstDiffIdx > k && existingChain.length > k) {
       firstDiffIdx = k;
+    }
+  }
+
+  if (expectedLoadoutHashes) {
+    for (let k = 0; k < Math.min(firstDiffIdx, existingChain.length); k++) {
+      if ((existingChain[k].loadoutHash ?? null) !== expectedLoadoutHashes[k]) {
+        firstDiffIdx = k;
+        break;
+      }
     }
   }
 
@@ -132,6 +141,9 @@ export function useAscensionGenerator() {
     ...(timeOffCuts()?.ends ?? {}),
     ...autoPlannerStore.endTimeOverrides,
   });
+  // The artifact/stone inputs ascension `idx` runs with: its own override, else the setup form's.
+  const resolveLoadoutInputs = (idx: number): AutoLoadoutInputs | null =>
+    autoPlannerStore.loadoutOverrides[idx] ?? autoPlannerStore.loadoutInputs ?? null;
 
   const currentTE = computed(() => {
     const snapshot = actionsStore.effectiveSnapshot;
@@ -304,10 +316,13 @@ export function useAscensionGenerator() {
       const firstDiffIdx = initialParamsDirty
         ? 0
         : Math.min(
-            computeFirstDiffIdx(effectiveTargets, ascensionChain.value, autoPlannerStore.planVariantOverrides, {
-              ...endTimes(),
-              ...(timeOffCuts()?.starts ?? {}),
-            }),
+            computeFirstDiffIdx(
+              effectiveTargets,
+              ascensionChain.value,
+              autoPlannerStore.planVariantOverrides,
+              { ...endTimes(), ...(timeOffCuts()?.starts ?? {}) },
+              effectiveTargets.map((_, k) => hashLoadoutInputs(resolveLoadoutInputs(k)))
+            ),
             opts.dirtyFrom ?? Infinity
           );
 
@@ -356,9 +371,11 @@ export function useAscensionGenerator() {
         if (notBefore !== undefined && notBefore > currentStartTime) currentStartTime = notBefore;
         const t_asc = performance.now();
 
+        const stepLoadoutInputs = resolveLoadoutInputs(i);
         const currentContext = getSimulationContext();
         currentContext.ascensionStartTime = currentStartTime;
         currentContext.planStartOffset = 0;
+        if (stepLoadoutInputs) currentContext.loadoutInputs = stepLoadoutInputs;
 
         generateProgress.value = `Simulating A${i + 1} of ${loops} (build phase precompute)...`;
         await new Promise(resolve => setTimeout(resolve, 15));
@@ -446,67 +463,60 @@ export function useAscensionGenerator() {
             generateProgress.value = `Simulating A${i + 1} of ${loops} (Continue Current)...`;
             await new Promise(resolve => setTimeout(resolve, 15));
 
-            const farmState = initialStateStore.currentFarmState;
-            const rawLoadout = initialStateStore.rawBackup
-              ? getArtifactLoadoutFromBackup(initialStateStore.rawBackup)
-              : currentBaseState.artifactLoadout;
+            const optimalEarnings = stepLoadoutInputs
+              ? socketEarningsStones(stepLoadoutInputs.earnings, stepLoadoutInputs.stones)
+              : initialStateStore.rawBackup
+                ? getOptimalEarningsSet(initialStateStore.rawBackup)
+                : currentBaseState.artifactSets.earnings || null;
 
-            const optimalEarnings = initialStateStore.rawBackup
-              ? getOptimalEarningsSet(initialStateStore.rawBackup)
-              : currentBaseState.artifactSets.earnings || null;
+            const farmState = initialStateStore.currentFarmState;
+            const continueState = makeContinueState(
+              currentBaseState,
+              farmState,
+              initialStateStore.rawBackup,
+              optimalEarnings
+            );
 
             // The delivery-rate loadout the player would field on continuing - NOT whatever
-            // happens to be equipped this instant. `activeArtifactSet: 'elr'` below already
-            // declares that continue runs on the ELR set, but filing the raw equipped loadout
-            // under `elr` meant a player parked in an earnings set (no shipping/lay-rate
-            // artifacts) had continue scored at their earnings-set ELR - roughly half the real
-            // rate here - which made continuing look far worse than prestiging and effectively
-            // hid it as an option. Artifact swaps are free and instant in game, so the honest
-            // comparison is against the best set they can actually equip. Habs/vehicles are NOT
-            // assumed maxed: unlike H1 (see shifts/h1.ts) this runs mid-ascension, from whatever
-            // the farm is at right now.
-            const continueElrLoadout = initialStateStore.rawBackup
-              ? getOptimalELRSet(initialStateStore.rawBackup, {
-                  commonResearch: farmState.commonResearches,
-                  epicResearchLevels: initialStateStore.epicResearchLevels,
-                  colleggtibleModifiers: initialStateStore.colleggtibleModifiers,
-                  currentSet: rawLoadout,
-                  assumeMaxHabsVehicles: false,
+            // happens to be equipped this instant (which is what makeContinueState files under
+            // `elr`). `activeArtifactSet: 'elr'` declares that continue runs on the ELR set, but
+            // filing the raw equipped loadout there meant a player parked in an earnings set (no
+            // shipping/lay-rate artifacts) had continue scored at their earnings-set ELR - roughly
+            // half the real rate - which made continuing look far worse than prestiging and
+            // effectively hid it as an option. Artifact swaps are free and instant in game, so the
+            // honest comparison is against the best set they can actually equip (from the loadout
+            // inputs when set, else the backup). Habs/vehicles are NOT assumed maxed: unlike H1
+            // (see shifts/h1.ts) this runs mid-ascension, from whatever the farm is at right now.
+            const continueElrOptions = {
+              commonResearch: farmState.commonResearches,
+              epicResearchLevels: initialStateStore.epicResearchLevels,
+              colleggtibleModifiers: initialStateStore.colleggtibleModifiers,
+              currentSet: continueState.artifactLoadout,
+              assumeMaxHabsVehicles: false,
+            };
+            const deliverySearch = stepLoadoutInputs ? deliverySearchFromInputs(stepLoadoutInputs) : null;
+            const continueElrLoadout = deliverySearch
+              ? getOptimalELRSetFromPool(deliverySearch.pool, {
+                  ...continueElrOptions,
+                  forcedArtifacts: deliverySearch.forcedArtifacts,
+                  habIds: continueState.habIds,
+                  vehicles: continueState.vehicles,
                 })
-              : rawLoadout;
-
-            const continueState: import('@/engine/types').EngineState = {
-              currentEgg: (VIRTUE_EGGS_MAP[farmState.eggType] || 'curiosity') as VirtueEgg,
-              shiftCount: currentBaseState.shiftCount,
-              te: currentBaseState.te,
-              soulEggs: currentBaseState.soulEggs,
-              vehicles: farmState.vehicles || [{ vehicleId: 0, trainLength: 1 }],
-              habIds: farmState.habs || [0, null, null, null],
-              researchLevels: { ...farmState.commonResearches },
-              siloCount: farmState.numSilos || 1,
-              tankLevel: currentBaseState.tankLevel,
-              artifactLoadout: continueElrLoadout.map((slot: any) => ({
+              : initialStateStore.rawBackup
+                ? getOptimalELRSet(initialStateStore.rawBackup, continueElrOptions)
+                : null;
+            if (continueElrLoadout) {
+              continueState.artifactLoadout = continueElrLoadout.map(slot => ({
                 artifactId: slot.artifactId,
                 stones: [...slot.stones],
-              })),
-              activeArtifactSet: 'elr',
-              artifactSets: {
-                earnings: optimalEarnings ? JSON.parse(JSON.stringify(optimalEarnings)) : null,
-                elr: JSON.parse(JSON.stringify(continueElrLoadout)),
-              },
-              fuelTankAmounts: { ...currentBaseState.fuelTankAmounts },
-              eggsDelivered: { ...currentBaseState.eggsDelivered },
-              teEarned: { ...currentBaseState.teEarned },
-              population: farmState.population || 0,
-              lastStepTime: farmState.lastStepTime || 0,
-              bankValue: farmState.cash || 0,
-              activeSales: { research: false, hab: false, vehicle: false },
-              earningsBoost: { active: false, multiplier: 1 },
-            };
+              }));
+              continueState.artifactSets.elr = JSON.parse(JSON.stringify(continueElrLoadout));
+            }
 
             const continueContext = getSimulationContext();
             continueContext.ascensionStartTime = currentStartTime;
             continueContext.planStartOffset = 0;
+            if (stepLoadoutInputs) continueContext.loadoutInputs = stepLoadoutInputs;
             const continueSnapshot = computeSnapshot(continueState, continueContext, { skipGrowth: true });
             const realELR = continueSnapshot.elr;
 
@@ -538,7 +548,9 @@ export function useAscensionGenerator() {
         const goalToSave = hasEndTimeOverride
           ? { type: 'date' as const, te: currentSummary.endTE, date: '', time: '' }
           : { type: 'te' as const, te: stepTargetTE || null, date: '', time: '' };
-        const chainItem: ChainedAscension = { index: i, variants, goal: goalToSave };
+        const chainItem: ChainedAscension = {
+          index: i, variants, goal: goalToSave, loadoutHash: hashLoadoutInputs(stepLoadoutInputs),
+        };
         if (result3SkippedReason) chainItem.result3SkippedReason = result3SkippedReason;
         if (i === 0) chainItem.initialParams = initialParamsToSave;
         // Tag the last item when it was silently added to cover the 490-TE milestone.
@@ -593,6 +605,8 @@ export function useAscensionGenerator() {
     ...(timeOffCuts()
       ? { timeOffCuts: { ends: { ...timeOffCuts()!.ends }, starts: { ...timeOffCuts()!.starts } } }
       : {}),
+    loadoutInputs: autoPlannerStore.loadoutInputs ? JSON.parse(JSON.stringify(autoPlannerStore.loadoutInputs)) : null,
+    loadoutOverrides: JSON.parse(JSON.stringify(autoPlannerStore.loadoutOverrides)),
     initialState: {
       epicResearchLevels: { ...initialStateStore.epicResearchLevels },
       colleggtibleTiers: { ...initialStateStore.colleggtibleTiers },
@@ -604,18 +618,17 @@ export function useAscensionGenerator() {
       initialEggsDelivered: { ...initialStateStore.initialEggsDelivered },
       initialTeEarned: { ...initialStateStore.initialTeEarned },
     },
-    ascensions: ascensionChain.value
-      .filter(item => !item.forcedTarget490)
-      .map((item, idx) => {
-        const asc: ExportedPlan['ascensions'][number] = {
-          index: idx,
-          targetTE: item.goal.te || pickVariant(item.variants).summary.endTE,
-          variants: item.variants,
-          goal: item.goal,
-        };
-        if (item.result3SkippedReason) asc.result3SkippedReason = item.result3SkippedReason;
-        return asc;
-      }),
+    ascensions: ascensionChain.value.filter(item => !item.forcedTarget490).map((item, idx) => {
+      const asc: ExportedPlan['ascensions'][number] = {
+        index: idx,
+        targetTE: item.goal.te || pickVariant(item.variants).summary.endTE,
+        variants: item.variants,
+        goal: item.goal,
+      };
+      if (item.result3SkippedReason) asc.result3SkippedReason = item.result3SkippedReason;
+      if (item.loadoutHash !== undefined) asc.loadoutHash = item.loadoutHash;
+      return asc;
+    }),
   });
 
   const isExporting = ref(false);
@@ -767,10 +780,30 @@ export function useAscensionGenerator() {
   // is read straight from the Target TE field with nothing left over to reinterpret it.
   // `keep`: picks to start from instead of none -- the chain search's First ascension setting, so
   // Generate does not quietly drop Continue current ascension (or the build an applied answer took).
-  const regeneratePlan = (onComplete?: () => void, keep: Record<number, VariantKey> = {}) => {
-    autoPlannerStore.planVariantOverrides = { ...keep };
+  //
+  // Loadout overrides are the exception: the caller asks the user first (see AutomaticPlanner.vue)
+  // and passes `clearLoadoutOverrides: false` to keep them — they take more effort to re-enter, and
+  // a small tweak elsewhere usually wants them kept.
+  const regeneratePlan = (
+    onComplete?: () => void,
+    opts: { keep?: Record<number, VariantKey>; clearLoadoutOverrides?: boolean } = {}
+  ) => {
+    autoPlannerStore.planVariantOverrides = { ...(opts.keep ?? {}) };
     autoPlannerStore.endTimeOverrides = {};
+    if (opts.clearLoadoutOverrides ?? true) autoPlannerStore.loadoutOverrides = {};
     generate(onComplete);
+  };
+
+  // Sets (`inputs`) or removes (`null`) the artifact/stone override on every ascension in `indices`,
+  // then regenerates — `computeFirstDiffIdx`'s loadout-hash check restarts at the earliest one.
+  const handleSetLoadoutOverride = (indices: number[], inputs: AutoLoadoutInputs | null) => {
+    const next = { ...autoPlannerStore.loadoutOverrides };
+    for (const idx of indices) {
+      if (inputs) next[idx] = JSON.parse(JSON.stringify(inputs));
+      else delete next[idx];
+    }
+    autoPlannerStore.loadoutOverrides = next;
+    generate();
   };
 
   return {
@@ -794,5 +827,7 @@ export function useAscensionGenerator() {
     saveSingleAscensionToLibrary,
     handleSetPlanVariant,
     handleSetEndTimeOverride,
+    handleSetLoadoutOverride,
+    resolveLoadoutInputs,
   };
 }

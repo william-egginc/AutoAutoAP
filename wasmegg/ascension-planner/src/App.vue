@@ -1572,10 +1572,18 @@ watch(
   () => void handleAutoPlannerTabClick()
 );
 
+/** Opening the Auto Planner collapses the header, unless there's no player ID or no save loaded yet:
+ *  the header is where the player enters one (Joo's d574c3b7). */
+function collapseHeaderIfPlayerLoaded() {
+  if (playerId.value && initialStateStore.rawBackup) isHeaderCollapsed.value = true;
+}
+
 async function handleAutoPlannerTabClick() {
   plannerTab.value = 'automatic';
-  isHeaderCollapsed.value = true;
+  collapseHeaderIfPlayerLoaded();
   await prepareAutoPlanner();
+  // Collapse the header now if it stayed open for want of a save.
+  if (plannerTab.value === 'automatic') collapseHeaderIfPlayerLoaded();
 }
 
 /**

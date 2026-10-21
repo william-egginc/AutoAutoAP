@@ -5,28 +5,21 @@ import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
 import { timeToEarnTE } from './te-thresholds';
 import { computeShiftCosts } from './se-tracker';
 import { eggOfShift, holdForPlayer } from './hold';
+import { MAX_OPENING_ROUNDS, openingFallback } from './lowTeOpening';
 import { calculateEggsLaidDuringActions } from './engine/eggs';
 import type { EngineState, SimulationContext, AscensionSummary, ShiftResult } from './types';
 import { runC1 } from './shifts/c1';
 import { runK1 } from './shifts/k1';
-import { runI1 } from './shifts/i1';
+import { runI1, habsMaxed, I1_TIME_LIMIT_SECONDS } from './shifts/i1';
+import { applyShiftAction } from './shifts/helpers/actionHelpers';
 import { runC2 } from './shifts/c2';
 import { runK2 } from './shifts/k2';
 import { runR1 } from './shifts/r1';
 import { runC3, type C3Params, type C3Variant } from './shifts/c3';
 import { runH1 } from './shifts/h1';
 import { runK3 } from './shifts/k3';
-// LOW-TE GATE (temporary until Joo's PR 717 merges)
-import {
-  isPurchase,
-  onLowTePath,
-  runLowTeRounds,
-  SKIP_WHEN_NO_PURCHASES,
-  tagShiftName,
-  lowTeCandidate,
-  wantsLowTeOpening,
-} from './lowTeOpening';
 import { runC4, runI2, runR2, runH2, runTEWaitShift, distributeTargetTE, solveTEDistributionForDeadline } from './shifts/te-wait';
+import { runMaxVehiclesPlan } from './shifts/helpers/vehicles';
 import { countSalesThrough, isResearchSaleActive, isEarningsBoostActive } from '@/lib/events';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
@@ -34,6 +27,8 @@ import { calculateEggValue } from '@/calculations/eggValue';
 import { calculateEarnings } from '@/calculations/earnings';
 import { getTiers, isTierUnlocked } from '@/calculations/commonResearch';
 import type { VirtueEgg } from '@/types';
+import { getHabById, type HabId } from '@/lib/habs';
+import { getVehicleType } from '@/lib/vehicles';
 import { DEBUG_SHIFT_TIMING } from '@/lib/debugFlags';
 
 function logShiftTimings(label: string, timings: { name: string; ms: number }[]): void {
@@ -104,7 +99,7 @@ export function deriveNextStartState(
 // declares are required of it.
 type ShiftRunner = (state: EngineState, context: SimulationContext) => ShiftResult;
 
-// C1 -> {K1, I1} is not in this list: their order is chosen dynamically by runC1K1I1Segment,
+// C1/K1/I1 are not in this list: they run as one or two rounds, in a chosen order, by runC1K1I1Segment,
 // which both loops below run as an explicit first step.
 const allShifts: { name: string; run: ShiftRunner }[] = [
   { name: 'C2', run: runC2 },
@@ -119,99 +114,253 @@ const allShifts: { name: string; run: ShiftRunner }[] = [
   { name: 'H2', run: runH2 },
 ];
 
+// The egg each TE-earning shift waits on.
+const TE_SHIFT_EGGS: Record<string, VirtueEgg> = {
+  K3: 'kindness',
+  C4: 'curiosity',
+  I2: 'integrity',
+  R2: 'resilience',
+  H2: 'humility',
+};
+
+// Two-round openings tried (each from the ascension's empty starting farm) when a single C1 -> K1
+// -> I1 pass can't max habs. See `runC1K1I1Segment`.
+const FALLBACK_OPENINGS = ['CKICKI', 'CKICIK', 'CIKCIK', 'CIKCKI'];
+
+// I1's cap on a fallback opening's final I visit, in place of the usual 4 hours — I1 is the only
+// shift that buys habs, so this is the last chance to max them.
+const FINAL_I1_TIME_LIMIT_SECONDS = 2 * 24 * 3600;
+
+// Budgets tried for a fallback opening's second-round C1: the usual 30 minutes, or 4 hours of extra
+// (mostly earnings) research before the second round's hab and vehicle buying.
+const SECOND_C1_TIME_LIMITS_SECONDS = [1800, 4 * 3600];
+
+export function isPurchase(action: Action): boolean {
+  return (
+    action.type === 'buy_research' ||
+    action.type === 'buy_vehicle' ||
+    action.type === 'buy_train_car' ||
+    action.type === 'buy_hab' ||
+    action.type === 'buy_silo'
+  );
+}
+
+// Shifts dropped from the plan (state, time, and shift cost all discarded) when they'd buy nothing
+// — e.g. a multi-round opening can leave C2/K2 with nothing left to buy, and a low earner may not
+// afford a silo within R1's hour. Every pre-C3 shift is a purchasing shift, so all of them are here;
+// the opening's own visits get the same treatment in `continueOpening`. Dropping one can leave two
+// visits to the same egg back to back; the shifts themselves then skip the redundant shift (see
+// `applyShiftIfNeeded`).
+export const SKIP_WHEN_NO_PURCHASES = new Set(['C2', 'K2', 'R1']);
+
+/** Labels the shift action that starts this shift (if any — the ascension's first C1 has none)
+ * with its planner name, which the UI reads for shift headers and phase lookups. */
+export function tagShiftName(actions: Action[], name: string): void {
+  const shiftAction = actions.find(a => a.type === 'shift');
+  if (shiftAction?.type === 'shift') shiftAction.payload.autoShiftName = name;
+}
+
 /**
- * Runs the C1 -> {K1, I1} opening of an ascension, choosing between shift orders based on how
- * long I1 takes when run immediately after C1:
- *  - If I1 (run right after C1) would take under an hour of simulated time, that's the better
- *    order: C1, I1, K1.
- *  - Otherwise, fall back to the default order: C1, K1, I1.
- *
- * I1 has no time cap (see `runI1`) — it always runs to completion (all 4 hab slots maxed) — so
- * its duration from a given input state is deterministic. That means the speculative "run I1
- * right after C1" call below doubles as the real result whenever that order is chosen: no need
- * to simulate I1 twice. It's only discarded (and I1 re-simulated from the post-K1 state) when
- * the default order wins instead, since I1's output depends on its input state and K1 changes
- * that state first.
+ * Records a shift's eggs laid on its first action, where the shift summary UI reads it — any first
+ * action works, not just a shift (C1 leads with equipping the earnings set). A shift that didn't
+ * actually shift (already on its egg — see `applyShiftIfNeeded`) renders as part of the previous
+ * visit, so its eggs are added to that visit's figure instead of hiding behind it.
  */
-function runC1K1I1Segment(
-  startState: EngineState,
-  context: SimulationContext
-): ShiftResult & { shiftTimings: { name: string; ms: number }[] } {
-  const actions: Action[] = [];
-  let elapsedSeconds = 0;
-  let currentState = startState;
+function attachEggsLaid(planActions: Action[], resultActions: Action[], eggsLaid: number): void {
+  if (resultActions.length === 0) return;
+  const holder =
+    resultActions[0].type === 'shift' ? undefined : [...planActions].reverse().find(a => 'eggsLaid' in a.payload);
+  if (holder && 'eggsLaid' in holder.payload) {
+    holder.payload.eggsLaid = (holder.payload.eggsLaid || 0) + eggsLaid;
+  } else {
+    Object.assign(resultActions[0].payload, { eggsLaid });
+  }
+}
+
+export type OpeningRun = ShiftResult & { shiftTimings: { name: string; ms: number }[] };
+
+/**
+ * Continues an opening run (`base`) with the given C/K/I visits, using the C1/K1/I1 scripts:
+ *  - C: research for `c1TimeLimit` (default C1's 30 minutes). Visits after the first shift back to
+ *    Curiosity first.
+ *  - K: vehicles.
+ *  - I: the best habs reachable within I1's 4-hour cap (see `runI1`), or `finalI1TimeLimit` for
+ *    the last I in `visits`.
+ * Any visit but the ascension's first C1 is skipped if it wouldn't buy anything.
+ * `base` is left untouched (its end state is deep-copied), so one run can be the shared prefix of
+ * several longer ones. The returned `shiftTimings` cover only the new visits; `label` prefixes them.
+ */
+function continueOpening(
+  base: OpeningRun,
+  visits: string,
+  context: SimulationContext,
+  label: string,
+  { c1TimeLimit = 1800, finalI1TimeLimit = I1_TIME_LIMIT_SECONDS } = {}
+): OpeningRun {
+  const actions: Action[] = [...base.actions];
+  let elapsedSeconds = base.elapsedSeconds;
+  let currentState: EngineState = JSON.parse(JSON.stringify(base.endState));
   const shiftTimings: { name: string; ms: number }[] = [];
-  // LOW-TE GATE (temporary until Joo's PR 717 merges): the untouched start, for the low-TE opening
-  // when the current one stalls on I1 (auto/lowTeOpening.ts). Only below the tables' lowest TE.
-  const lowTeStart: EngineState | null = lowTeCandidate(context, startState)
-    ? JSON.parse(JSON.stringify(startState))
-    : null;
 
   const pushShiftResult = (name: string, result: ShiftResult, ms: number) => {
-    const eggsLaid = calculateEggsLaidDuringActions(result.actions, currentState, context);
-    // Not gated on `actions[0].type === 'shift'`: some shifts (e.g. C1) lead with a non-shift
-    // action (equipping the earnings set), so requiring 'shift' silently dropped eggsLaid for
-    // them — the UI only looks for the field, not a specific action type, so any first action
-    // works as the attachment point.
-    if (result.actions.length > 0) {
-      (result.actions[0].payload as any).eggsLaid = eggsLaid;
-    }
+    tagShiftName(result.actions, name);
+    attachEggsLaid(actions, result.actions, calculateEggsLaidDuringActions(result.actions, currentState, context));
     actions.push(...result.actions);
     currentState = result.endState;
     elapsedSeconds += result.elapsedSeconds;
-    shiftTimings.push({ name, ms });
+    shiftTimings.push({ name: `${label}: ${name}`, ms });
   };
 
-  const timed = (name: string, fn: () => ShiftResult) => {
+  // C1 itself never shifts (it assumes the ascension's starting egg), so later C visits prepend
+  // the shift back to Curiosity, plus any research-sale toggle. Only the ascension's first C1
+  // equips the earnings set; later visits are already wearing it.
+  const runC1Visit = (state: EngineState, isFirstVisit: boolean): ShiftResult => {
+    if (state.currentEgg === 'curiosity') return runC1(state, context, c1TimeLimit, undefined, isFirstVisit);
+    const shifted = applyShiftAction(state, context, 'curiosity');
+    const c1 = runC1(shifted.state, context, c1TimeLimit, undefined, isFirstVisit);
+    const leading = shifted.saleToggleAction ? [shifted.action, shifted.saleToggleAction] : [shifted.action];
+    return { ...c1, actions: [...leading, ...c1.actions] };
+  };
+
+  const lastIIndex = visits.lastIndexOf('I');
+  [...visits].forEach((visit, i) => {
+    // Only the ascension's first C1 is always kept: it equips the earnings set and has no shift.
+    const isFirstVisit = actions.length === 0;
+    const name = visit === 'C' ? 'C1' : visit === 'K' ? 'K1' : 'I1';
+    // The player's hours (auto/hold.ts): a visit that shifts waits for them, the farm laying the egg
+    // it is on. Pending until the visit is kept, so a dropped visit drops its wait too.
+    const hold = holdForPlayer(currentState, context, context.ascensionStartTime, elapsedSeconds, eggOfShift(name));
+    const from: EngineState = hold.heldSeconds ? hold.state : currentState;
+    from.lastStepTime = hold.heldSeconds ? hold.elapsedSeconds : elapsedSeconds;
     const t0 = performance.now();
-    pushShiftResult(name, fn(), performance.now() - t0);
-  };
-  // The player's hours (auto/hold.ts): a shift waits for them, the farm laying the egg it is on.
-  const hold = (name: string) => {
-    const h = holdForPlayer(currentState, context, context.ascensionStartTime, elapsedSeconds, eggOfShift(name));
-    if (!h.heldSeconds) return;
-    actions.push(...h.actions);
-    currentState = h.state;
-    elapsedSeconds = h.elapsedSeconds;
-  };
-
-  hold('C1');
-  currentState.lastStepTime = elapsedSeconds;
-  timed('C1', () => runC1(currentState, context));
-
-  // K1 and I1 both start here, from the same egg at the same instant, so one wait covers either.
-  hold('I1');
-  currentState.lastStepTime = elapsedSeconds;
-  const t0I1 = performance.now();
-  const speculativeI1 = runI1(currentState, context);
-  const speculativeI1Ms = performance.now() - t0I1;
-
-  const I1_ORDER_SWAP_THRESHOLD_SECONDS = 3600;
-  // LOW-TE GATE (temporary until Joo's PR 717 merges): how long this opening's I1 took.
-  let i1Seconds = speculativeI1.elapsedSeconds;
-  if (speculativeI1.elapsedSeconds < I1_ORDER_SWAP_THRESHOLD_SECONDS) {
-    pushShiftResult('I1', speculativeI1, speculativeI1Ms);
-    hold('K1');
-    currentState.lastStepTime = elapsedSeconds;
-    timed('K1', () => runK1(currentState, context));
-  } else {
-    timed('K1', () => runK1(currentState, context));
-    hold('I1');
-    currentState.lastStepTime = elapsedSeconds;
-    const t0 = performance.now();
-    const i1 = runI1(currentState, context);
-    i1Seconds = i1.elapsedSeconds;
-    pushShiftResult('I1', i1, performance.now() - t0);
-  }
-
-  // LOW-TE GATE (temporary until Joo's PR 717 merges): a build whose I1 stalls takes Joo's rounds
-  // from the same start instead (auto/lowTeOpening.ts). Every other build returns exactly as before.
-  if (lowTeStart && wantsLowTeOpening(context, i1Seconds)) {
-    const low = runLowTeRounds(lowTeStart, 0, context);
-    return { actions: low.actions, elapsedSeconds: low.elapsedSeconds, endState: low.state, shiftTimings: low.shiftTimings };
-  }
+    let result: ShiftResult;
+    if (visit === 'C') {
+      result = runC1Visit(from, isFirstVisit);
+    } else if (visit === 'K') {
+      result = runK1(from, context);
+    } else {
+      const timeLimit = i === lastIIndex ? finalI1TimeLimit : I1_TIME_LIMIT_SECONDS;
+      result = runI1(from, context, timeLimit);
+    }
+    // Same as `SKIP_WHEN_NO_PURCHASES`: a visit that buys nothing (e.g. a second-round I1 after the
+    // first already bought every affordable hab) is dropped rather than left as an empty shift.
+    if (isFirstVisit || result.actions.some(isPurchase)) {
+      if (hold.heldSeconds) {
+        actions.push(...hold.actions);
+        currentState = hold.state;
+        elapsedSeconds = hold.elapsedSeconds;
+      }
+      pushShiftResult(name, result, performance.now() - t0);
+    }
+  });
 
   return { actions, elapsedSeconds, endState: currentState, shiftTimings };
+}
+
+function totalHabCapacity(state: EngineState): number {
+  return state.habIds.reduce<number>((sum, id) => sum + (id === null ? 0 : getHabById(id as HabId).baseCapacity), 0);
+}
+
+function totalShippingCapacity(state: EngineState): number {
+  return state.vehicles.reduce((sum, slot) => {
+    const vehicle = slot.vehicleId === null ? undefined : getVehicleType(slot.vehicleId);
+    if (!vehicle) return sum;
+    return sum + vehicle.baseCapacityPerSecond * (vehicle.isHyperloop ? slot.trainLength : 1);
+  }, 0);
+}
+
+/**
+ * How long C2 would take after `run`, or 0 if it would be skipped (see `SKIP_WHEN_NO_PURCHASES`).
+ * Simulated on a copy of the opening's end state; the main loop re-runs C2 for the winner.
+ */
+function c2SecondsAfter(run: OpeningRun, context: SimulationContext): number {
+  const state: EngineState = JSON.parse(JSON.stringify(run.endState));
+  state.lastStepTime = run.elapsedSeconds;
+  const c2 = runC2(state, context);
+  return c2.actions.some(isPurchase) ? c2.elapsedSeconds : 0;
+}
+
+type ScoredOpening = { run: OpeningRun; secondsThroughC2: number };
+
+/** Negative if `a` is the better opening: more hab capacity, then more shipping capacity (K2
+ * finishes vehicles later, so habs matter more), then the earlier end of C2. Timing through C2
+ * rather than just the opening credits research an opening buys early (e.g. a 4-hour second C1)
+ * with the C2 time it saves. */
+function compareOpenings(a: ScoredOpening, b: ScoredOpening): number {
+  return (
+    totalHabCapacity(b.run.endState) - totalHabCapacity(a.run.endState) ||
+    totalShippingCapacity(b.run.endState) - totalShippingCapacity(a.run.endState) ||
+    a.secondsThroughC2 - b.secondsThroughC2
+  );
+}
+
+/**
+ * Runs the opening of an ascension:
+ *  - A single C1 -> K1 -> I1 pass. If it maxes habs, that's the opening.
+ *  - Otherwise that pass is discarded and each of `FALLBACK_OPENINGS` is simulated from the same
+ *    empty starting farm, once per `SECOND_C1_TIME_LIMITS_SECONDS` budget for its second C visit,
+ *    with a 2-day cap on its final I visit; the best by `compareOpenings` wins.
+ * Openings sharing a first round reuse it rather than re-simulating — the CKI... paths continue
+ * from the first pass itself, the CIK... paths from one shared CIK run — since every shift is
+ * deterministic given its input state.
+ */
+function runC1K1I1Segment(startState: EngineState, context: SimulationContext): OpeningRun {
+  const empty: OpeningRun = { actions: [], elapsedSeconds: 0, endState: startState, shiftTimings: [] };
+  const firstPass = continueOpening(empty, 'CKI', context, 'CKI');
+  if (habsMaxed(firstPass.endState)) return firstPass;
+
+  // OPENING SWITCH (auto/lowTeOpening.ts `openingFallback`): which opening a build takes when one
+  // pass can't max habs. 'rounds' (our default): more C1 -> K1 -> I1 rounds from the first pass until
+  // the habs max (PR 717). 'v2': Joo's fallback openings below, picked by `compareOpenings`.
+  if (openingFallback(context) === 'rounds') return continueOpeningRounds(firstPass, context, 2);
+
+  const firstRounds: Record<string, OpeningRun> = {
+    CKI: firstPass,
+    CIK: continueOpening(empty, 'CIK', context, 'CIK'),
+  };
+  const candidates = FALLBACK_OPENINGS.flatMap(order =>
+    SECOND_C1_TIME_LIMITS_SECONDS.map(c1TimeLimit => {
+      const run = continueOpening(
+        firstRounds[order.slice(0, 3)],
+        order.slice(3),
+        context,
+        `${order} (second C1 ${c1TimeLimit / 60}m)`,
+        { c1TimeLimit, finalI1TimeLimit: FINAL_I1_TIME_LIMIT_SECONDS }
+      );
+      return { run, secondsThroughC2: run.elapsedSeconds + c2SecondsAfter(run, context) };
+    })
+  );
+  const best = [...candidates].sort(compareOpenings)[0].run;
+  // Marks the build as one whose opening needed more than one round (EngineState.lowTeOpening).
+  best.endState.lowTeOpening = 2;
+  // Keep every simulated visit's timing (not just the winner's) so the debug log shows the full cost.
+  const allRuns = [firstPass, firstRounds.CIK, ...candidates.map(c => c.run)];
+  return { ...best, shiftTimings: allRuns.flatMap(r => r.shiftTimings) };
+}
+
+/**
+ * PR 717's opening rounds (wasmegg-carpet/egg c6a8e406, "cki cki start"), continuing `base` (an
+ * opening that has not maxed the habs) with round `firstRound` on: C1 (research, 30 min) -> K1
+ * (vehicles) -> I1 (habs, capped at 4 hours), each visit dropped when it buys nothing
+ * (`continueOpening`), until an I1 ends with every slot a Chicken Universe. Round
+ * `MAX_OPENING_ROUNDS` runs its I1 uncapped, so the opening always ends with max habs. Marks the end
+ * state's `lowTeOpening` with the round count. Also used by "continue my build-up"
+ * (auto/buildUp.ts), with `base` holding the build-up so far.
+ */
+export function continueOpeningRounds(base: OpeningRun, context: SimulationContext, firstRound: number): OpeningRun {
+  let run = base;
+  const shiftTimings = [...base.shiftTimings];
+  let round = firstRound;
+  for (; ; round++) {
+    const isFinalRound = round >= MAX_OPENING_ROUNDS;
+    run = continueOpening(run, 'CKI', context, `round ${round}`, {
+      finalI1TimeLimit: isFinalRound ? Infinity : I1_TIME_LIMIT_SECONDS,
+    });
+    shiftTimings.push(...run.shiftTimings);
+    if (habsMaxed(run.endState) || isFinalRound) break;
+  }
+  run.endState.lowTeOpening = round;
+  return { ...run, shiftTimings };
 }
 
 /**
@@ -233,10 +382,10 @@ export function runUntilShift(
     return { state: currentState, actions: currentActions, elapsedSeconds: totalElapsedSeconds };
   }
   if (stopBeforeShift === 'K1' || stopBeforeShift === 'I1') {
-    // K1/I1 no longer have a fixed slot — see runC1K1I1Segment — so stopping "before" either one
+    // K1/I1 no longer have a fixed slot — see runC1K1I1Segment (one or two rounds, CKI/CIK order, K1 skippable) — so stopping "before" either one
     // specifically isn't well-defined. Every current caller passes 'C3', well past this segment.
     throw new Error(
-      `runUntilShift: cannot stop before '${stopBeforeShift}' — its position in the shift order is chosen dynamically at runtime`
+      `runUntilShift: cannot stop before '${stopBeforeShift}' — the opening's shift count is chosen dynamically at runtime`
     );
   }
 
@@ -251,9 +400,8 @@ export function runUntilShift(
 
   for (const shift of allShifts) {
     if (shift.name === stopBeforeShift) break;
-    // LOW-TE GATE (temporary until Joo's PR 717 merges): on the low-TE path only, C2/K2 are dropped
-    // (with any wait for the player before them) when they buy nothing; see auto/lowTeOpening.ts.
-    const lowTe = onLowTePath(currentState);
+    // The player's hours (auto/hold.ts): the shift waits for them, the farm laying the egg it is on.
+    // Dropped together with a shift that is dropped for buying nothing.
     const beforeShift = { state: currentState, elapsedSeconds: totalElapsedSeconds, actions: currentActions.length };
     {
       const h = holdForPlayer(currentState, context, context.ascensionStartTime, totalElapsedSeconds, eggOfShift(shift.name));
@@ -268,26 +416,17 @@ export function runUntilShift(
     const result = shift.run(currentState, context);
     shiftTimings.push({ name: shift.name, ms: performance.now() - t0 });
 
-    // LOW-TE GATE (temporary until Joo's PR 717 merges)
-    if (lowTe) {
-      if (SKIP_WHEN_NO_PURCHASES.has(shift.name) && !result.actions.some(isPurchase)) {
-        currentState = beforeShift.state;
-        totalElapsedSeconds = beforeShift.elapsedSeconds;
-        currentActions.length = beforeShift.actions;
-        continue;
-      }
-      tagShiftName(result.actions, shift.name);
+    if (SKIP_WHEN_NO_PURCHASES.has(shift.name) && !result.actions.some(isPurchase)) {
+      currentState = beforeShift.state;
+      totalElapsedSeconds = beforeShift.elapsedSeconds;
+      currentActions.length = beforeShift.actions;
+      continue;
     }
 
+    tagShiftName(result.actions, shift.name);
+
     // Calculate eggs laid during this shift (assuming full habs)
-    const eggsLaid = calculateEggsLaidDuringActions(result.actions, currentState, context);
-    // Not gated on `actions[0].type === 'shift'`: some shifts (e.g. C1) lead with a non-shift
-    // action (equipping the earnings set), so requiring 'shift' silently dropped eggsLaid for
-    // them — the UI only looks for the field, not a specific action type, so any first action
-    // works as the attachment point.
-    if (result.actions.length > 0) {
-      (result.actions[0].payload as any).eggsLaid = eggsLaid;
-    }
+    attachEggsLaid(currentActions, result.actions, calculateEggsLaidDuringActions(result.actions, currentState, context));
 
     currentActions.push(...result.actions);
     currentState = result.endState;
@@ -408,8 +547,8 @@ export function runAscension(
 
   let skip = resumeData ? true : false;
   const ascShiftTimings: { name: string; ms: number }[] = [];
-  // Set once H1 finishes below — H1 and K3 are adjacent in `allShifts`, so "end of H1" and
-  // "start of K3" are the same instant.
+  // Set by H1 below, before any build-phase wait H1 takes over from K3 — H1 and K3 are adjacent in
+  // `allShifts`, so otherwise "end of H1" and "start of K3" are the same instant.
   let buildDurationSeconds = 0;
   // Eggs whose TE-earning shift (K3/C4/I2/R2/H2) has already run this ascension. Passed to
   // distributeTargetTE/solveTEDistributionForDeadline so they stop being candidates for the *next* shift's
@@ -429,13 +568,70 @@ export function runAscension(
     resumeData.resumeShiftName === 'K1' ||
     resumeData.resumeShiftName === 'I1'
   ) {
-    // K1/I1 no longer have a fixed slot — see runC1K1I1Segment — so resuming "at" either one
+    // K1/I1 no longer have a fixed slot — see runC1K1I1Segment (one or two rounds, CKI/CIK order, K1 skippable) — so resuming "at" either one
     // specifically isn't well-defined. The only current caller (runAscensionFromC3Variant)
     // always resumes at 'H1', well past this segment.
     throw new Error(
-      `runAscension: cannot resume at '${resumeData.resumeShiftName}' — its position in the shift order is chosen dynamically at runtime`
+      `runAscension: cannot resume at '${resumeData.resumeShiftName}' — the opening's shift count is chosen dynamically at runtime`
     );
   }
+
+  // The egg whose TE-earning shift also waits out the build phase (K3's job, unless H1 takes it over).
+  let buildWaitEgg: VirtueEgg = 'kindness';
+
+  /** Runs one TE-earning shift on `egg` from `state`, `elapsedSeconds` into the ascension. */
+  const runTEEarningShift = (state: EngineState, egg: VirtueEgg, elapsedSeconds: number): ShiftResult => {
+    const currentTEs: Record<VirtueEgg, number> = {
+      curiosity: countTEThresholdsPassed(state.eggsDelivered['curiosity'] || 0),
+      integrity: countTEThresholdsPassed(state.eggsDelivered['integrity'] || 0),
+      resilience: countTEThresholdsPassed(state.eggsDelivered['resilience'] || 0),
+      humility: countTEThresholdsPassed(state.eggsDelivered['humility'] || 0),
+      kindness: countTEThresholdsPassed(state.eggsDelivered['kindness'] || 0),
+    };
+    const isBuildWait = egg === buildWaitEgg;
+
+    let peakELR = state.maxELR || 0;
+    if (isBuildWait && peakELR === 0) {
+      peakELR = calculatePeakELR(state, context);
+    }
+
+    // Two mutually exclusive goal modes: an explicit whole-ascension TE target (`targetTE`), or a
+    // hard end-time deadline (`targetEndTime`) — an end-date override recomputed fresh at every
+    // one of these 5 shifts, exactly like `targetTE`'s own `distributeTargetTE` call always was,
+    // so a shift's actual drift from its predicted share (e.g. K3 overshooting kindness while
+    // riding out the build phase's own mandatory wait) is absorbed by the next shift's recompute
+    // rather than compounding. `maxWaitSeconds` stays Infinity (a no-op clamp) in `targetTE` mode.
+    let targets: Record<VirtueEgg, number>;
+    let maxWaitSeconds = Infinity;
+
+    if (targetTE) {
+      // lockedEggs excludes eggs already processed by an earlier shift this ascension — see the
+      // comment on `lockedEggs` above for why that's required (bug: 2026-08-05, off-by-one-TE).
+      targets = distributeTargetTE(state.eggsDelivered, targetTE, lockedEggs);
+    } else if (targetEndTime) {
+      const remaining = Math.max(0, targetEndTime - (startTime + elapsedSeconds));
+      const dist = solveTEDistributionForDeadline(currentTEs, state.eggsDelivered, peakELR, remaining, lockedEggs);
+      targets = dist.targets;
+      maxWaitSeconds = remaining;
+      // This shift's own egg is the one with fractional leftover progress at the deadline: ask
+      // for one TE more than its last confirmed-affordable whole target. `solveTEDistributionForDeadline`
+      // already guarantees that request can't fully complete within `remaining`, so
+      // `runTEWaitShift`/`runK3`'s own `maxWaitSeconds` clamp is guaranteed to bind, landing
+      // exactly on the fractional `computeTEEarned` result rather than a whole extra threshold.
+      if (dist.partial && dist.partial.egg === egg) {
+        targets = { ...targets, [egg]: targets[egg] + 1 };
+      }
+    } else {
+      // No goal at all (shouldn't normally happen — every caller supplies one or the other):
+      // don't force any additional progress.
+      targets = currentTEs;
+    }
+
+    lockedEggs.push(egg);
+    return isBuildWait
+      ? runK3(state, context, buildPhaseEnd, targets[egg], maxWaitSeconds, egg)
+      : runTEWaitShift(state, context, egg, targets[egg], peakELR, maxWaitSeconds);
+  };
 
   for (const shift of allShifts) {
     if (skip) {
@@ -443,12 +639,14 @@ export function runAscension(
       else continue;
     }
 
-    // LOW-TE GATE (temporary until Joo's PR 717 merges): as in runUntilShift.
-    const lowTe = onLowTePath(currentState);
-    const beforeShift = { state: currentState, elapsedSeconds: totalElapsedSeconds, actions: currentActions.length };
+    // A TE-earning shift whose egg H1 already finished (H2 after H1 took over the build-phase wait)
+    // is dropped outright, before any wait for the player.
+    if (shift.name in TE_SHIFT_EGGS && lockedEggs.includes(TE_SHIFT_EGGS[shift.name])) continue;
 
     // The player's hours (auto/hold.ts): before the shift, before any TE target is worked out, so
-    // what the farm lays while waiting is in the egg counts the targets are recomputed from.
+    // what the farm lays while waiting is in the egg counts the targets are recomputed from. Dropped
+    // together with a shift that is dropped for buying nothing.
+    const beforeShift = { state: currentState, elapsedSeconds: totalElapsedSeconds, actions: currentActions.length };
     {
       const h = holdForPlayer(currentState, context, startTime, totalElapsedSeconds, eggOfShift(shift.name));
       if (h.heldSeconds) {
@@ -463,96 +661,43 @@ export function runAscension(
     let result: ShiftResult;
     if (shift.name === 'C3') {
       result = runC3(currentState, context, buildPhaseEnd, undefined, c3Params);
-    } else if (shift.name === 'K3' || shift.name === 'C4' || shift.name === 'I2' || shift.name === 'R2' || shift.name === 'H2') {
-      // For these shifts, we need the target TE split
-      const currentTEs: Record<VirtueEgg, number> = {
-        curiosity: countTEThresholdsPassed(currentState.eggsDelivered['curiosity'] || 0),
-        integrity: countTEThresholdsPassed(currentState.eggsDelivered['integrity'] || 0),
-        resilience: countTEThresholdsPassed(currentState.eggsDelivered['resilience'] || 0),
-        humility: countTEThresholdsPassed(currentState.eggsDelivered['humility'] || 0),
-        kindness: countTEThresholdsPassed(currentState.eggsDelivered['kindness'] || 0),
-      };
-
-      const activeEgg: VirtueEgg =
-        shift.name === 'K3' ? 'kindness' :
-        shift.name === 'C4' ? 'curiosity' :
-        shift.name === 'I2' ? 'integrity' :
-        shift.name === 'R2' ? 'resilience' : 'humility';
-
-      let peakELR = currentState.maxELR || 0;
-      if (shift.name === 'K3' && peakELR === 0) {
-        peakELR = calculatePeakELR(currentState, context);
-      }
-
-      // Two mutually exclusive goal modes: an explicit whole-ascension TE target (`targetTE`), or a
-      // hard end-time deadline (`targetEndTime`) — an end-date override recomputed fresh at every
-      // one of these 5 shifts, exactly like `targetTE`'s own `distributeTargetTE` call always was,
-      // so a shift's actual drift from its predicted share (e.g. K3 overshooting kindness while
-      // riding out the build phase's own mandatory wait) is absorbed by the next shift's recompute
-      // rather than compounding. `maxWaitSeconds` stays Infinity (a no-op clamp) in `targetTE` mode.
-      let targets: Record<VirtueEgg, number>;
-      let maxWaitSeconds = Infinity;
-
-      if (targetTE) {
-        // lockedEggs excludes eggs already processed by an earlier shift this ascension — see the
-        // comment on `lockedEggs` above for why that's required (bug: 2026-08-05, off-by-one-TE).
-        targets = distributeTargetTE(currentState.eggsDelivered, targetTE, lockedEggs);
-      } else if (targetEndTime) {
-        const remaining = Math.max(0, targetEndTime - (startTime + totalElapsedSeconds));
-        const dist = solveTEDistributionForDeadline(currentTEs, currentState.eggsDelivered, peakELR, remaining, lockedEggs);
-        targets = dist.targets;
-        maxWaitSeconds = remaining;
-        // This shift's own egg is the one with fractional leftover progress at the deadline: ask
-        // for one TE more than its last confirmed-affordable whole target. `solveTEDistributionForDeadline`
-        // already guarantees that request can't fully complete within `remaining`, so
-        // `runTEWaitShift`/`runK3`'s own `maxWaitSeconds` clamp is guaranteed to bind, landing
-        // exactly on the fractional `computeTEEarned` result rather than a whole extra threshold.
-        if (dist.partial && dist.partial.egg === activeEgg) {
-          targets = { ...targets, [activeEgg]: targets[activeEgg] + 1 };
-        }
+    } else if (shift.name === 'H1') {
+      const h1 = runH1(currentState, context);
+      buildDurationSeconds = totalElapsedSeconds + h1.elapsedSeconds;
+      // When C3 left no vehicles or train cars to buy, equipping the delivery set already reaches the
+      // peak delivery rate, so H1 does K3's build-phase wait on Humility rather than shifting to
+      // Kindness first. K3 then becomes a plain TE wait like C4, and H2 drops out (Humility is done).
+      const h1Shift = h1.actions.find(a => a.type === 'shift');
+      if (h1Shift?.type === 'shift' && !runMaxVehiclesPlan(h1.endState, context, Infinity).actions.some(isPurchase)) {
+        buildWaitEgg = 'humility';
+        h1.endState.lastStepTime = totalElapsedSeconds + h1.elapsedSeconds;
+        const wait = runTEEarningShift(h1.endState, 'humility', totalElapsedSeconds + h1.elapsedSeconds);
+        h1Shift.payload.peakELR = wait.endState.maxELR;
+        result = {
+          actions: [...h1.actions, ...wait.actions],
+          elapsedSeconds: h1.elapsedSeconds + wait.elapsedSeconds,
+          endState: wait.endState,
+        };
       } else {
-        // No goal at all (shouldn't normally happen — every caller supplies one or the other):
-        // don't force any additional progress.
-        targets = currentTEs;
+        result = h1;
       }
-
-      if (shift.name === 'K3') {
-        result = runK3(currentState, context, buildPhaseEnd, targets[activeEgg], maxWaitSeconds);
-      } else if (shift.name === 'C4') {
-        result = runC4(currentState, context, targets[activeEgg], peakELR, maxWaitSeconds);
-      } else if (shift.name === 'I2') {
-        result = runI2(currentState, context, targets[activeEgg], peakELR, maxWaitSeconds);
-      } else if (shift.name === 'R2') {
-        result = runR2(currentState, context, targets[activeEgg], peakELR, maxWaitSeconds);
-      } else {
-        result = runH2(currentState, context, targets[activeEgg], peakELR, maxWaitSeconds);
-      }
-
-      lockedEggs.push(activeEgg);
+    } else if (shift.name in TE_SHIFT_EGGS) {
+      result = runTEEarningShift(currentState, TE_SHIFT_EGGS[shift.name], totalElapsedSeconds);
     } else {
       result = shift.run(currentState, context);
     }
 
-    // LOW-TE GATE (temporary until Joo's PR 717 merges)
-    if (lowTe) {
-      if (SKIP_WHEN_NO_PURCHASES.has(shift.name) && !result.actions.some(isPurchase)) {
-        currentState = beforeShift.state;
-        totalElapsedSeconds = beforeShift.elapsedSeconds;
-        currentActions.length = beforeShift.actions;
-        continue;
-      }
-      tagShiftName(result.actions, shift.name);
+    if (SKIP_WHEN_NO_PURCHASES.has(shift.name) && !result.actions.some(isPurchase)) {
+      currentState = beforeShift.state;
+      totalElapsedSeconds = beforeShift.elapsedSeconds;
+      currentActions.length = beforeShift.actions;
+      continue;
     }
 
+    tagShiftName(result.actions, shift.name);
+
     // Calculate eggs laid during this shift (assuming full habs)
-    const eggsLaid = calculateEggsLaidDuringActions(result.actions, currentState, context);
-    // Not gated on `actions[0].type === 'shift'`: some shifts (e.g. C1) lead with a non-shift
-    // action (equipping the earnings set), so requiring 'shift' silently dropped eggsLaid for
-    // them — the UI only looks for the field, not a specific action type, so any first action
-    // works as the attachment point.
-    if (result.actions.length > 0) {
-      (result.actions[0].payload as any).eggsLaid = eggsLaid;
-    }
+    attachEggsLaid(currentActions, result.actions, calculateEggsLaidDuringActions(result.actions, currentState, context));
 
     ascShiftTimings.push({ name: shift.name, ms: performance.now() - t0 });
 
@@ -560,7 +705,6 @@ export function runAscension(
     currentState = result.endState;
     totalElapsedSeconds += result.elapsedSeconds;
 
-    if (shift.name === 'H1') buildDurationSeconds = totalElapsedSeconds;
   }
 
   logShiftTimings(`Ascension ${id} (${resumeData ? `resume from ${resumeData.resumeShiftName}` : 'C1 to H2'})`, ascShiftTimings);
@@ -666,8 +810,9 @@ export function runAscension(
  * `startState` for a from-scratch call) — `runAscension`'s post-loop bookkeeping (`startTE`,
  * `startSoulEggs`, `startShiftCount`, `teEarned` deltas) reads directly off that param even when
  * `resumeData` is set, so passing `preC3.state` (the post-C1-R1, pre-C3 state) there instead would
- * silently corrupt those fields — `preC3.state`'s `shiftCount` already includes the 5 shifts C1-R1
- * spent (K1/I1/C2/K2/R1; C1 itself doesn't count as a shift), and its `te`/`soulEggs` have already
+ * silently corrupt those fields — `preC3.state`'s `shiftCount` already includes every shift C1-R1
+ * spent (each opening visit to K/I plus a second round's shift back to Curiosity, then C2/K2/R1;
+ * the first C1 itself doesn't count as a shift), and its `te`/`soulEggs` have already
  * moved. Caller passes `preC3`/`originalStartState` once per ascension step and reuses both for every
  * variant, per this plan's C1-R1 reuse requirement.
  */

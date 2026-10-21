@@ -116,7 +116,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
 
       case 'integrity': {
         if (!loaded) throw new Error('chainSearch worker received integrity before init');
-        // LOW-TE GATE (temporary until Joo's PR 717 merges): the low-TE opening rides along.
+        // LOW-TE OPENING (auto/lowTeOpening.ts): the low-TE opening rides along.
         const check = integrityCheck(loaded);
         post({ type: 'integrity', requestId: msg.requestId, seconds: check.seconds, lowTe: check.lowTe });
         break;

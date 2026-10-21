@@ -23,30 +23,39 @@ import { eggTE } from './leg';
 import { VIRTUE_EGGS } from '@/types';
 import type { ChainResult } from './types';
 
-/** Recorded on this fixture before ShiftMoment.te existed: [at, egg switched to, egg left]. */
+/**
+ * Recorded on this fixture: [at, egg switched to, egg left]. First recorded on 15 Oct 2026, before
+ * ShiftMoment.te existed (241.3 days: that build's uncapped I1 sat 165 days waiting for its habs).
+ * Re-pinned on 21 Oct 2026 for the egg-beta2 merge of Joo's planner, whose opening caps I1 at 4 hours
+ * and goes round C1/K1/I1 again (auto/ascension.ts runC1K1I1Segment): the habs max in the second round
+ * and the leg takes 16.3 days. The 15 Oct numbers: seconds 20844400.35885477, end 1811704000.3588548,
+ * nine shifts, the I1 ending at 1805159981.4405875.
+ */
 const BEFORE = {
-  seconds: 20844400.35885477,
+  seconds: 1410518.5035481453,
   startTime: 1790859600,
-  endTime: 1811704000.3588548,
-  durationSeconds: 20844400.358854692,
+  endTime: 1792270118.5035481,
+  durationSeconds: 1410518.503548117,
   key: '1-sale',
   endTE: 192,
   shifts: [
     [1790861349.4107058, 'kindness', 'curiosity'],
     [1790862865.0780554, 'integrity', 'kindness'],
-    [1805159981.4405875, 'curiosity', 'integrity'],
-    [1805159981.5070517, 'kindness', 'curiosity'],
-    [1805160134.719131, 'resilience', 'kindness'],
-    [1805160134.9371696, 'curiosity', 'resilience'],
-    [1805160134.9371696, 'humility', 'curiosity'],
-    [1805160134.9371696, 'kindness', 'humility'],
-    [1808713719.6810021, 'integrity', 'kindness'],
+    [1790863616.0352676, 'curiosity', 'integrity'],
+    [1790864711.3002753, 'kindness', 'curiosity'],
+    [1790864717.103002, 'integrity', 'kindness'],
+    [1790864733.414759, 'resilience', 'integrity'],
+    [1790864754.5340643, 'curiosity', 'resilience'],
+    [1791018171.5381534, 'humility', 'curiosity'],
+    [1791018171.5381534, 'kindness', 'humility'],
+    [1791043200, 'curiosity', 'kindness'],
+    [1791608561.2172203, 'integrity', 'curiosity'],
   ] as [number, string, string][],
   endEggs: {
     delivered: [
-      3282500000307806700, 3510000000064018400, 3282500000000000000, 3282500010416016000, 3510000000064018400,
+      3510000000343879000, 3510000000343879000, 3282500000000000000, 3282503261526989300, 3291106990925773000,
     ],
-    te: [38, 39, 38, 38, 39],
+    te: [39, 39, 38, 38, 38],
     egg: 'integrity',
   },
 };

@@ -18,7 +18,7 @@ import { computeSnapshot } from '@/engine/compute';
 import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
 import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
 import { runBuildUpUntilC3 } from '@/auto/buildUp';
-// LOW-TE GATE (temporary until Joo's PR 717 merges)
+// LOW-TE OPENING (auto/lowTeOpening.ts)
 import { MAX_OPENING_ROUNDS } from '@/auto/lowTeOpening';
 import { isResearchSaleActive } from '@/lib/events';
 import { paramsOf } from './tableBuild';
@@ -761,7 +761,7 @@ export function integrityWaitSeconds(inputs: SearchInputs): number | null {
   return integrityCheck(inputs).seconds;
 }
 
-/** LOW-TE GATE (temporary until Joo's PR 717 merges): a fresh build that took the low-TE opening
+/** LOW-TE OPENING (auto/lowTeOpening.ts): a fresh build that took the low-TE opening
  *  (auto/lowTeOpening.ts): its rounds of C1/K1/I1 and how long they took, plan start to max habs. */
 export interface LowTeOpeningInfo {
   rounds: number;
@@ -771,7 +771,7 @@ export interface LowTeOpeningInfo {
 /**
  * `integrityWaitSeconds`, with the low-TE opening when the fresh build took it.
  *
- * LOW-TE GATE (temporary until Joo's PR 717 merges): on the low-TE path every I1 but the last round's
+ * LOW-TE OPENING (auto/lowTeOpening.ts): on the low-TE path every I1 but the last round's
  * is capped at 4 hours and the rounds are the plan, not a stall, so the first Integrity shift no
  * longer says anything. There the wait is the last round's I1 only when the opening ran into its
  * backstop (round `MAX_OPENING_ROUNDS`, whose I1 is uncapped): that is the stall the rounds could not

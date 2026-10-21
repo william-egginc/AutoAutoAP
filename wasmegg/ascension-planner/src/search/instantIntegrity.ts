@@ -60,7 +60,7 @@ export function instantIntegrity(
   return {
     kind: 'warn',
     wait,
-    // LOW-TE GATE (temporary until Joo's PR 717 merges): "an", not "its first": on the low-TE path the
+    // LOW-TE OPENING (auto/lowTeOpening.ts): "an", not "its first": on the low-TE path the
     // wait measured is the last round's (search/leg.ts `integrityCheck`).
     text:
       `Times on your account include an Integrity wait of ${long}: a fresh ascension here sits on an ` +
@@ -75,7 +75,7 @@ export function holdsRoutes(s: InstantIntegrity): boolean {
 }
 
 /**
- * LOW-TE GATE (temporary until Joo's PR 717 merges): the instant answer's label for an account whose
+ * LOW-TE OPENING (auto/lowTeOpening.ts): the instant answer's label for an account whose
  * fresh ascension takes the low-TE opening (auto/lowTeOpening.ts). The tables were built with the
  * standard opening only (no table cell takes the low-TE one), so their dates for the player's own
  * low-TE ascensions are not the simulator's: said here, and Check exactly prices the real opening.

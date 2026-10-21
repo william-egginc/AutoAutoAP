@@ -3037,16 +3037,16 @@ async function main(): Promise<void> {
 }
 
 /**
- * LOW-TE GATE (temporary until Joo's PR 717 merges): --lowte-route --te TE --chains "a,b,..;c,d,.."
- * [--start ISO] [--mode never|force]: whole routes from a fresh start at TE (the table's canonical
+ * The opening switch (auto/lowTeOpening.ts): --lowte-route --te TE --chains "a,b,..;c,d,.."
+ * [--start ISO] [--mode rounds|v2]: whole routes from a fresh start at TE (the table's canonical
  * start state for the save's account), every leg a fresh ascension priced by the search's own chain
  * evaluator: each chain's days and its legs.
  */
 async function lowteRoute(file: string): Promise<void> {
   const inputs = await loadInputs(file);
   const te = Number(arg('te', '93'));
-  const mode = arg('mode') as 'never' | 'force' | undefined;
-  if (mode) inputs.context.lowTeOpening = mode;
+  const mode = arg('mode') as 'rounds' | 'v2' | undefined;
+  if (mode) inputs.context.openingFallback = mode;
   inputs.baseState = startStateAt(inputs, te);
   inputs.currentTE = te;
   inputs.firstAscension = 'fresh';
@@ -3066,11 +3066,11 @@ async function lowteRoute(file: string): Promise<void> {
 }
 
 /**
- * LOW-TE GATE (temporary until Joo's PR 717 merges): --lowte-probe --tes TE,.. [--hours H,..]
- * [--gain N]: for fresh builds from each start TE (the table's canonical start state) at each hour of
- * the reference week, the opening today (the current one, forced) against the gated build and Joo's
- * rounds forced: how long today's I1 sits, whether the gate switches, rounds, the opening's length,
- * and the whole ascension's time to start TE + N (default 43). One JSON line per cell.
+ * The opening switch (auto/lowTeOpening.ts): --lowte-probe --tes TE,.. [--hours H,..] [--gain N]: for
+ * fresh builds from each start TE (the table's canonical start state) at each hour of the reference
+ * week, PR 717's rounds (`rounds`, the default) against Joo's v2 openings (`v2`): how long the first
+ * I1 sits, the rounds, the opening's length, and the whole ascension's time to start TE + N (default
+ * 43). One JSON line per cell. --gate-only: only how many builds need more than one round.
  */
 async function lowteProbe(file: string): Promise<void> {
   const inputs = await loadInputs(file);
@@ -3083,8 +3083,8 @@ async function lowteProbe(file: string): Promise<void> {
     actions
       .filter(a => a.type === 'shift')
       .map(a => ({ at: a.endState?.lastStepTime ?? NaN, egg: (a.payload as { toEgg: string }).toEgg }));
-  const one = (te: number, start: number, mode: 'never' | 'force' | undefined) => {
-    inputs.context.lowTeOpening = mode;
+  const one = (te: number, start: number, mode: 'rounds' | 'v2' | undefined) => {
+    inputs.context.openingFallback = mode;
     const t0 = Date.now();
     const build = buildAt(inputs, startStateAt(inputs, te), start, te);
     const s = shiftsOf(build.preC3.actions);
@@ -3093,7 +3093,7 @@ async function lowteProbe(file: string): Promise<void> {
     const last = integ[integ.length - 1];
     const openingEnd = last === undefined ? null : (s[last + 1]?.at ?? build.preC3.elapsedSeconds);
     const leg = legTo(startStateAt(inputs, te), build, start, te + gain);
-    inputs.context.lowTeOpening = undefined;
+    inputs.context.openingFallback = undefined;
     return {
       rounds: build.preC3.state.lowTeOpening ?? 0,
       i1h: firstI1 === null ? null : +(firstI1 / 3600).toFixed(2),
@@ -3127,10 +3127,9 @@ async function lowteProbe(file: string): Promise<void> {
   for (const te of tes)
     for (const h of hours) {
       const start = REFERENCE_WEEK + h * 3600;
-      const today = one(te, start, 'never');
-      const gated = one(te, start, undefined);
-      const joo = has('no-force') ? null : one(te, start, 'force');
-      console.log(JSON.stringify({ te, h, today, gated: { rounds: gated.rounds, legD: gated.legD }, joo }));
+      const rounds = one(te, start, 'rounds');
+      const v2 = one(te, start, 'v2');
+      console.log(JSON.stringify({ te, h, rounds, v2 }));
     }
 }
 

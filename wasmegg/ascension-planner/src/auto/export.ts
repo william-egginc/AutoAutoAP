@@ -2,6 +2,7 @@ import { downloadFile } from '@/utils/export';
 import type { Action } from '@/types/actions/meta';
 import type { AscensionSummary } from './types';
 import type { VariantKey, VariantResult } from '@/stores/autoPlanner';
+import type { AutoLoadoutInputs } from './loadout/types';
 
 interface ExportedPlanGoal {
   type: 'te' | 'date';
@@ -36,12 +37,17 @@ export interface ExportedPlan {
   /** The chain search's time-off cuts in this plan (their ends are in `endTimeOverrides` too, for
    *  older importers). Absent when the plan has none. */
   timeOffCuts?: { ends: Record<number, number>; starts: Record<number, number> };
+  /** Setup-form artifact/stone inputs and per-ascension overrides (see `stores/autoPlanner.ts`).
+   * Absent on exports made before these existed; the setup form then falls back to the backup. */
+  loadoutInputs?: AutoLoadoutInputs | null;
+  loadoutOverrides?: Record<number, AutoLoadoutInputs>;
   /** @deprecated use planVariantOverrides */
   a1ForceMode?: 'continue' | 'prestige' | null;
   ascensions: {
     index: number;
     targetTE: number;
     variants: Partial<Record<VariantKey, VariantResult>>;
+    loadoutHash?: string;
     result3SkippedReason?: string;
     goal: ExportedPlanGoal;
   }[];

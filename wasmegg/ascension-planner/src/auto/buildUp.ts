@@ -16,8 +16,12 @@
  * full price just before C3's sale-aware buying. C3 then starts as usual, but a farm already on
  * Curiosity stays on it (C3Params.stayOnCuriosity).
  *
- * The K1/I1 order is fixed (K1 then I1) rather than chosen the way a fresh build chooses it
- * (ascension.ts runC1K1I1Segment): mid-build, one of the two is usually done already.
+ * The K1/I1 order is fixed (K1 then I1), as a fresh build's first pass runs them (ascension.ts
+ * runC1K1I1Segment). As there, I1 is capped at 4 hours (shifts/i1.ts); when it can't max the habs,
+ * the build carries on with PR 717's C1/K1/I1 rounds until they max (`continueOpeningRounds`)
+ * whichever opening fresh builds take (auto/lowTeOpening.ts): Joo's v2 openings restart from an
+ * empty farm, which a build-up does not have. C2, K2 and R1 are dropped when they would buy nothing,
+ * as in a fresh build (`SKIP_WHEN_NO_PURCHASES`).
  */
 import type { Action } from '@/types/actions/meta';
 import type { EngineState, SimulationContext, ShiftResult } from './types';
@@ -33,19 +37,8 @@ import { runSiloBudgetPlan } from './shifts/helpers/silos';
 import { runBuyResearchLevelByLevel, runTierUnlockMilestone } from './shifts/helpers/milestones';
 import { getResearchById, isTierUnlocked } from '@/calculations/commonResearch';
 import { eggOfShift, holdForPlayer } from './hold';
-// LOW-TE GATE (temporary until Joo's PR 717 merges)
-import {
-  habsMaxed,
-  I1_TIME_LIMIT_SECONDS,
-  isPurchase,
-  onLowTePath,
-  runI1Capped,
-  runLowTeRounds,
-  SKIP_WHEN_NO_PURCHASES,
-  tagShiftName,
-  lowTeCandidate,
-  wantsLowTeOpening,
-} from './lowTeOpening';
+import { habsMaxed } from './shifts/i1';
+import { continueOpeningRounds, isPurchase, SKIP_WHEN_NO_PURCHASES, tagShiftName } from './ascension';
 
 /** A step whose purchases, made in place, take no longer than this keeps them and drops its shift. */
 export const IN_PLACE_SECONDS = 1800;
@@ -148,7 +141,7 @@ export function runBuildUpUntilC3(start: EngineState, context: SimulationContext
       take(trial);
       continue;
     }
-    // LOW-TE GATE (temporary until Joo's PR 717 merges): where to go back to if the shift is dropped.
+    // Where to go back to if the shift is dropped.
     const before = { state, elapsedSeconds, actions: actions.length };
     // The player's hours (auto/hold.ts): a real shift waits for them, as in a fresh build.
     const h = holdForPlayer(state, context, context.ascensionStartTime, elapsedSeconds, eggOfShift(step.name));
@@ -158,40 +151,38 @@ export function runBuildUpUntilC3(start: EngineState, context: SimulationContext
       elapsedSeconds = h.elapsedSeconds;
     }
     state.lastStepTime = elapsedSeconds;
-    // LOW-TE GATE (temporary until Joo's PR 717 merges): the same rule as a fresh build
-    // (auto/lowTeOpening.ts). An I1 that would stall past Joo's 4-hour cap is capped there and the
-    // build carries on with Joo's rounds (C1, K1, I1) until the habs are maxed; from then on C2 and
-    // K2 are dropped when they buy nothing, and C3 unlocks Tier 12 if needed. Every other build-up
-    // runs exactly as before.
-    if (step.name === 'I1' && lowTeCandidate(context, state)) {
-      const full = step.shift(state, context);
-      if (wantsLowTeOpening(context, full.elapsedSeconds)) {
-        const i1 = runI1Capped(state, context, I1_TIME_LIMIT_SECONDS);
-        tagShiftName(i1.actions, 'I1');
-        take(i1);
-        shifted.push(step.name);
-        state.lowTeOpening = 1;
-        if (!habsMaxed(state)) {
-          const low = runLowTeRounds(state, elapsedSeconds, context, 2);
-          actions.push(...low.actions);
-          state = low.state;
-          elapsedSeconds = low.elapsedSeconds;
-        }
-        continue;
-      }
-      take(full);
-      shifted.push(step.name);
+    const result = step.shift(state, context);
+    // The same rules as a fresh build: a C2, K2 or R1 that buys nothing is dropped with its wait.
+    if (SKIP_WHEN_NO_PURCHASES.has(step.name) && !result.actions.some(isPurchase)) {
+      state = before.state;
+      elapsedSeconds = before.elapsedSeconds;
+      actions.length = before.actions;
       continue;
     }
-    const result = step.shift(state, context);
-    if (onLowTePath(state)) {
-      if (SKIP_WHEN_NO_PURCHASES.has(step.name) && !result.actions.some(isPurchase)) {
+    tagShiftName(result.actions, step.name);
+    // An I1 that can't max the habs within its 4-hour cap: PR 717's rounds from here (see the note
+    // at the top). An I1 that bought nothing is left to the rounds as well, as `continueOpening`
+    // drops an empty visit.
+    if (step.name === 'I1' && !habsMaxed(result.endState)) {
+      if (result.actions.some(isPurchase)) {
+        take(result);
+        shifted.push(step.name);
+      } else {
         state = before.state;
         elapsedSeconds = before.elapsedSeconds;
         actions.length = before.actions;
-        continue;
       }
-      tagShiftName(result.actions, step.name);
+      state.lastStepTime = elapsedSeconds;
+      const rounds = continueOpeningRounds(
+        { actions: [...actions], elapsedSeconds, endState: state, shiftTimings: [] },
+        context,
+        2
+      );
+      actions.length = 0;
+      actions.push(...rounds.actions);
+      state = rounds.endState;
+      elapsedSeconds = rounds.elapsedSeconds;
+      continue;
     }
     take(result);
     shifted.push(step.name);

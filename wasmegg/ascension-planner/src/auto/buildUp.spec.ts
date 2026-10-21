@@ -22,7 +22,19 @@ const result = (name: string, s: EngineState, seconds: number, egg?: string): Sh
 
 vi.mock('./shifts/c1', () => ({ runC1: (s: EngineState) => result('C1', s, 1800) }));
 vi.mock('./shifts/k1', () => ({ runK1: (s: EngineState) => result('K1 shift', s, 1800, 'kindness') }));
-vi.mock('./shifts/i1', () => ({ runI1: (s: EngineState) => result('I1 shift', s, 99999, 'integrity') }));
+vi.mock('./shifts/i1', () => ({
+  // Maxes the habs, buying them (a capped I1 that can't goes on to the rounds: buildUp.lowTe.spec.ts).
+  runI1: (s: EngineState) => {
+    const r = result('I1 shift', s, 99999, 'integrity');
+    return {
+      ...r,
+      actions: [...r.actions, { type: 'buy_hab', payload: {} } as never],
+      endState: { ...r.endState, habIds: [18, 18, 18, 18] },
+    };
+  },
+  habsMaxed: (s: EngineState) => s.habIds.every(id => id === 18),
+  I1_TIME_LIMIT_SECONDS: 4 * 3600,
+}));
 vi.mock('./shifts/c2', () => ({ runC2: (s: EngineState) => result('C2 shift', s, 14400, 'curiosity') }));
 vi.mock('./shifts/k2', () => ({ runK2: (s: EngineState) => result('K2 shift', s, 99999, 'kindness') }));
 vi.mock('./shifts/r1', () => ({ runR1: (s: EngineState) => result('R1 shift', s, 3600, 'resilience') }));
