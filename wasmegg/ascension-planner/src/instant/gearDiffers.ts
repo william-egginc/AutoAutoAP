@@ -10,6 +10,7 @@ import type { ei } from 'lib';
 import { cteFromArtifacts } from 'lib/virtue';
 import { getOptimalEarningsSet } from '@/lib/artifacts';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
+import type { TableKind } from './tableChoice';
 
 /**
  * The start TE from which the table's builds hold for any gear: the build reaches full research, so
@@ -49,4 +50,21 @@ export function gearDiffersText(gap: GearGap): string {
     `your delivery gear does before research is complete, aren’t fully taken off. From there up they match. ` +
     `“Import into the planner” gives your own times.`
   );
+}
+
+/** The caveat on a table read with the earnings shift (a delivery table, or the maxed one shifted)
+ *  when the save's epic research or colleggtibles aren't maxed. */
+export const RESEARCH_BELOW_MAX_TEXT =
+  'Your epic research or colleggtibles aren’t maxed, which these tables assume, so times can be a little off.';
+
+/**
+ * The caveat under the answer, by the table the first ascension starts on (tableChoice.ts answeredBy):
+ * the maxed table keeps its gear caveat (`maxedCaveat`, gearDiffersText or null); a delivery or
+ * earnings-shifted table says only that research is below max, when it is; a table built on the
+ * save's own account or exact gear says nothing.
+ */
+export function tableCaveat(by: TableKind, maxedCaveat: string | null, belowMax: boolean): string | null {
+  if (by === 'maxed') return maxedCaveat;
+  if (by === 'delivery' || by === 'maxed-shift') return belowMax ? RESEARCH_BELOW_MAX_TEXT : null;
+  return null;
 }

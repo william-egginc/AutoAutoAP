@@ -1,7 +1,16 @@
 import { createHash, pbkdf2Sync } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { allModifiersFromColleggtibles } from 'lib/collegtibles';
-import { canonicalGearV3, gearChanges, gearStamp, gearTableNameV3, tableName, type TableGear } from './tableGear';
+import { allModifiersFromColleggtibles, colleggtibleDefs } from 'lib/collegtibles';
+import { epicResearchDefs } from '@/lib/epicResearch';
+import {
+  canonicalGearV3,
+  gearChanges,
+  gearStamp,
+  gearTableNameV3,
+  researchBelowMax,
+  tableName,
+  type TableGear,
+} from './tableGear';
 import { epic, fixtureBackup, research } from './tableGear.fixture';
 
 const slot = (artifact: string, ...stones: string[]) => ({ artifact, stones });
@@ -85,5 +94,34 @@ describe('gearChanges (rule 4)', () => {
     other.deliveryBare[0].stones.pop();
     other.epicResearch = { epic_multiplier: 99 };
     expect(gearChanges(stamp(), other)).toEqual(['earnings set', 'delivery set', 'epic research']);
+  });
+});
+
+describe('epic research or colleggtibles below max (researchBelowMax)', () => {
+  const maxEpic = () => Object.fromEntries(epicResearchDefs.map(d => [d.id, d.maxLevel]));
+  const maxTiers = () => Object.fromEntries(colleggtibleDefs.map(d => [d.id, 3]));
+
+  it('is false when every modelled epic research is at its max level and every colleggtible at tier 4', () => {
+    expect(researchBelowMax(maxEpic(), maxTiers())).toBe(false);
+    // Research the planner doesn't model changes nothing.
+    expect(researchBelowMax({ ...maxEpic(), not_modelled: 0 }, maxTiers())).toBe(false);
+  });
+
+  it('is true when one epic research is a level short, or missing', () => {
+    const d = epicResearchDefs[0];
+    expect(researchBelowMax({ ...maxEpic(), [d.id]: d.maxLevel - 1 }, maxTiers())).toBe(true);
+    const { [d.id]: _gone, ...rest } = maxEpic();
+    expect(researchBelowMax(rest, maxTiers())).toBe(true);
+  });
+
+  it('is true when one colleggtible is below its top tier, or not had', () => {
+    const c = colleggtibleDefs.find(x => x.tierValues[2] !== x.tierValues[3])!;
+    expect(researchBelowMax(maxEpic(), { ...maxTiers(), [c.id]: 2 })).toBe(true);
+    expect(researchBelowMax(maxEpic(), { ...maxTiers(), [c.id]: -1 })).toBe(true);
+  });
+
+  it('is true for an empty account, and without inputs', () => {
+    expect(researchBelowMax({}, {})).toBe(true);
+    expect(researchBelowMax(undefined, undefined)).toBe(true);
   });
 });

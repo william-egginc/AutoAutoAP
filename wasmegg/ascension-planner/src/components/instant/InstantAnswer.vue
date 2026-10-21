@@ -140,12 +140,12 @@ import {
   type NoAnswer,
 } from '@/instant/instantAnswer';
 import { deliveryScale } from '@/instant/deliveryScale';
-import { earningsBonus, gearDiffers, gearDiffersText } from '@/instant/gearDiffers';
+import { earningsBonus, gearDiffers, gearDiffersText, tableCaveat } from '@/instant/gearDiffers';
 import { continueTail, hasVirtueFarm, siloSeconds, staleSaveNote } from '@/instant/continueTail';
 import { baseStateFromBackup, eggsDeliveredFromBackup, farmFromBackup, saveSyncSeconds } from '@/instant/saveFarm';
 import { answer, isNewest, newRequestId, probeHeader, tableHeader } from '@/instant/instantClient';
 import { answeredBy, chooseTable, choiceFor, ownRange, shiftWords, tableLineFor, type TableChoice } from '@/instant/tableChoice';
-import { deliverySetAt, gearStamp, tableName } from '@/instant/tableGear';
+import { deliverySetAt, gearStamp, researchBelowMax, tableName } from '@/instant/tableGear';
 import { earningsCTE } from '@/instant/earningsShift';
 import { tableIndex } from '@/instant/deliveryTables';
 import { getSimulationContext } from '@/engine/adapter';
@@ -304,10 +304,18 @@ const gap = computed(() =>
 const by = computed(() => (choice.value ? answeredBy(choice.value, startTE.value) : 'maxed'));
 /** Which table answered, in one line. */
 const tableLine = computed(() => (choice.value?.header ? tableLineFor(choice.value, startTE.value) : ''));
-/** Below TE 340 with gear other than the table's: the answer can be a few percent off (gearDiffers.ts).
- *  Not on a table built on the save's own gear, nor on one read with the earnings shift for it. */
+/** The save's epic research or colleggtibles below max (tableGear.ts researchBelowMax). */
+const belowMax = computed(() => researchBelowMax(initialState.epicResearchLevels, initialState.colleggtibleTiers));
+/** The caveat under the answer (gearDiffers.ts tableCaveat). On the maxed table: below TE 340 with gear
+ *  other than the table's, the answer can be a few percent off. On a delivery or earnings-shifted
+ *  table: epic research or colleggtibles below max, which those tables assume. None on a table built
+ *  on the save's own account or exact gear. */
 const gearCaveat = computed(() =>
-  by.value === 'maxed' && gap.value && gearDiffers(startTE.value, gap.value) ? gearDiffersText(gap.value) : null
+  tableCaveat(
+    by.value,
+    gap.value && gearDiffers(startTE.value, gap.value) ? gearDiffersText(gap.value) : null,
+    belowMax.value
+  )
 );
 
 /** On a virtue farm: leg 1 can be continue (continueTail.ts). */

@@ -80,8 +80,12 @@ describe('the delivery tables and the earnings shift', () => {
       expect(l).not.toMatch(/eiUserId|\bid\b/);
   });
 
-  it('the gear caveat only when the maxed table answers unshifted', () => {
-    expect(card).toMatch(/const gearCaveat = computed\(\(\) =>\s*by\.value === 'maxed' &&/);
+  it('the caveat goes by the table that answered (tableCaveat), with the save’s research below max', () => {
+    expect(card).toMatch(/const gearCaveat = computed\(\(\) =>\s*tableCaveat\(\s*by\.value,/);
+    expect(card).toMatch(
+      /const belowMax = computed\(\(\) => researchBelowMax\(initialState\.epicResearchLevels, initialState\.colleggtibleTiers\)\)/
+    );
+    expect(card).toMatch(/gearDiffers\(startTE\.value, gap\.value\) \? gearDiffersText\(gap\.value\) : null,\s*belowMax\.value/);
   });
 });
 

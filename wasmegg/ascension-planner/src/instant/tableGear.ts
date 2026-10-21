@@ -18,7 +18,12 @@
  * so a plain hash will do. Only the v3 name is looked up here.
  */
 import type { ei } from 'lib';
-import { getColleggtibleTiers, modifiersFromColleggtibleTiers, type Modifiers } from 'lib/collegtibles';
+import {
+  colleggtibleDefs,
+  getColleggtibleTiers,
+  modifiersFromColleggtibleTiers,
+  type Modifiers,
+} from 'lib/collegtibles';
 import { getOptimalELRSet, getOptimalEarningsSet, type EquippedArtifact } from '@/lib/artifacts';
 import { getArtifact, getStone } from '@/lib/artifacts/data';
 import { sanitizeLongs } from '@/lib/artifacts/utils';
@@ -161,6 +166,28 @@ export function colleggtibleEffects(tiers: Record<string, number> | undefined): 
       .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
       .map(k => [k, Number(mods[k].toPrecision(12))])
   );
+}
+
+/** Every colleggtible the planner models at its top tier (index 3). */
+function maxColleggtibleTiers(): Record<string, number> {
+  return Object.fromEntries(colleggtibleDefs.map(d => [d.id, 3]));
+}
+
+/**
+ * The save's epic research or colleggtibles are below max: an epic research the planner models
+ * (epicResearchDefs) under its maxLevel, or a colleggtible effect short of every colleggtible at its
+ * top tier. The maxed, delivery and earnings-shifted tables are all built on maxed epic research and
+ * colleggtibles, so their times can be a little off for such a save.
+ */
+export function researchBelowMax(
+  epicResearchLevels: Record<string, number> | undefined,
+  colleggtibleTiers: Record<string, number> | undefined
+): boolean {
+  const levels = simEpicResearch(epicResearchLevels);
+  if (epicResearchDefs.some(d => (levels[d.id] ?? 0) < d.maxLevel)) return true;
+  const mine = colleggtibleEffects(colleggtibleTiers);
+  const max = colleggtibleEffects(maxColleggtibleTiers());
+  return Object.keys(max).some(k => mine[k] !== max[k]);
 }
 
 /** The stamp as the v3 name hashes it. */
