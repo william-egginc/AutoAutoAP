@@ -7,6 +7,10 @@ describe('tableSimMismatch: the instant answer refuses a table from another simu
     expect(tableSimMismatch({ simVersion: SIM_VERSION })).toBeNull();
   });
 
+  it('accepts the delivery tables’ stamp (Joo’s 0214e968)', () => {
+    expect(tableSimMismatch({ simVersion: '0214e968' })).toBeNull();
+  });
+
   it('refuses another stamp, no stamp, and a table filled in for testing', () => {
     expect(tableSimMismatch({ simVersion: '2026-10-13-lowte-gate' })).toMatch('another simulator');
     expect(tableSimMismatch({})).toMatch('not stamped');
