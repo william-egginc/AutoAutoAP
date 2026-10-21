@@ -556,6 +556,7 @@
         <div class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0 md:col-span-2">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How the site shows things</h3>
           <DateStyleToggle />
+          <TabsToggle />
         </div>
       </div>
     </div>
@@ -565,6 +566,7 @@
 <script setup lang="ts">
 import { ThisDevice } from '@/search/device';
 import SaveFileBar from './SaveFileBar.vue';
+import TabsToggle from './TabsToggle.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
