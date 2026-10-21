@@ -47,6 +47,9 @@ export function tableDeliveryIds(set: readonly EquippedArtifact[] | null | undef
   for (const slot of set) {
     const a = slot.artifactId ? getArtifact(slot.artifactId) : undefined;
     if (!a) return null;
+    // Every stone slot must hold a T4 tachyon or quantum stone: Joo's delivery tables are built with 12
+    // T4 stones (three in each of the four artifacts). A save with any other stone, or an empty slot,
+    // doesn't have that delivery effect, so no delivery table stands for it.
     if (slot.stones.length !== a.slots || slot.stones.some(s => !s || !T4_DELIVERY_STONES.has(s))) return null;
     if ((FAMILIES as readonly string[]).includes(a.familyId) && !byFamily.has(a.familyId))
       byFamily.set(a.familyId, a.id);
