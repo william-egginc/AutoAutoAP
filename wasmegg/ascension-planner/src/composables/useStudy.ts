@@ -108,9 +108,27 @@ function applyCredit(playerId: string, credit: StudyCredit, nickname: string): S
   return 'anon';
 }
 
+/**
+ * Yes writes the TICKED choices only (Jordan, 21 Oct 2026): an unticked one stays as it was, undecided if it
+ * never was answered, and an earlier yes or no is not overwritten. It can be ticked later in Setup.
+ */
 function applyTicks(ticks: StudyTicks): void {
-  for (const [id, v] of consentsFor(ticks)) setConsent(id, v, true);
-  useShareExtras().sendDiagnostics.value = ticks.diag;
+  for (const [id, v] of consentsFor(ticks)) if (v) setConsent(id, true, true);
+  if (ticks.diag) useShareExtras().sendDiagnostics.value = true;
+}
+
+/** A choice the player made for this account (a yes, or a no someone chose), not just the default. A yes the
+ *  old per-browser keys handed over counts (its `at` is 0, but it was chosen then). */
+export function consentDecided(id: ConsentId): boolean {
+  const r = consentState.records[id];
+  return !!r && (r.agreed || r.at > 0);
+}
+
+/** One tick as it stands for the account on screen: on, off, or not decided yet. */
+export function tickStatus(k: keyof StudyTicks): 'on' | 'off' | 'undecided' {
+  const id = TICK_CONSENT[k];
+  if (!consentDecided(id)) return 'undecided';
+  return consentAgreed(id) ? 'on' : 'off';
 }
 
 function turnOff(): void {
@@ -155,7 +173,8 @@ export function withdrawStudy(): void {
   save(afterWithdraw(state.rec, consentState.hash, Date.now()));
 }
 
-/** One tick changed in Setup: applied to the account on screen at once, and kept for the strip. */
+/** One tick changed in Setup: applied to the account on screen at once (a decision either way), and kept for
+ *  the strip. */
 export function setStudyTick(k: keyof StudyTicks, v: boolean): void {
   const ticks = { ...state.rec.ticks, [k]: v };
   setConsent(TICK_CONSENT[k], v, true);

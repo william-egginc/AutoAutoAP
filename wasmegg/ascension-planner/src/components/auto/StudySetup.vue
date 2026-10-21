@@ -132,14 +132,14 @@ import { computed, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { showDay } from '@/lib/displayTime';
 import { TICK_WORDS, type StudyTicks } from '@/lib/study';
-import { consentAgreed, consentState } from '@/composables/useConsent';
-import { useShareExtras } from '@/composables/useShareExtras';
+import { consentState } from '@/composables/useConsent';
 import {
   STUDY_NAME_MAX,
   knownName,
   setStudyCredit,
   setStudyTick,
   studyState,
+  tickStatus,
   useForThisAccount,
   withdrawStudy,
 } from '@/composables/useStudy';
@@ -171,14 +171,17 @@ const answeredOn = computed(() => {
   return showDay(ymd);
 });
 
-const extras = useShareExtras();
-/** Each tick as it stands for this account now (a share button's Withdraw shows here at once). */
-function liveTick(k: keyof StudyTicks): boolean {
-  if (k === 'share') return consentAgreed('leaderboard');
-  if (k === 'csv') return consentAgreed('sendCsv');
-  if (k === 'diag') return consentAgreed('diagnosticsDefault');
-  return consentAgreed('keepSharingChecks');
-}
+/** Each tick as it stands for this account now (a share button's Withdraw shows here at once): on only when
+ *  the player said yes; an item left unticked at Yes stays not decided, to tick here later. */
+const liveTick = (k: keyof StudyTicks): boolean => tickStatus(k) === 'on';
+/** "runs shared", "CSV off", "checks not decided": what the status line says for each. */
+const WORDS: Record<keyof StudyTicks, [string, string, string]> = {
+  share: ['runs shared', 'runs not shared', 'runs not decided'],
+  csv: ['CSV on', 'CSV off', 'CSV not decided'],
+  diag: ['diagnostics on', 'diagnostics off', 'diagnostics not decided'],
+  checks: ['checks shared', 'checks not shared', 'checks not decided'],
+};
+const said = (k: keyof StudyTicks): string => WORDS[k][['on', 'off', 'undecided'].indexOf(tickStatus(k))];
 const anonymous = computed(() => names.anonymousFor(account.value) ?? true);
 const nickname = ref('');
 watch(
@@ -206,10 +209,10 @@ watch(account, () => {
 
 const summary = computed(() =>
   [
-    liveTick('share') ? 'runs shared' : 'runs not shared',
-    `CSV ${liveTick('csv') ? 'on' : 'off'}`,
-    `diagnostics ${extras.sendDiagnostics.value || liveTick('diag') ? 'on' : 'off'}`,
-    liveTick('checks') ? 'checks shared' : 'checks not shared',
+    said('share'),
+    said('csv'),
+    said('diag'),
+    said('checks'),
     !anonymous.value && knownName(account.value) ? `credited as ${knownName(account.value)}` : 'anonymous',
   ].join(' · ')
 );

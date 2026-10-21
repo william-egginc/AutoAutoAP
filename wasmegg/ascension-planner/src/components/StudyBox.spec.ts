@@ -77,6 +77,7 @@ describe('the box', () => {
     expect(t).toContain('Stay anonymous');
     expect(t).toContain('Yes, help improve it');
     expect(t).toContain('No thanks');
+    expect(t).toContain('Anything you untick stays undecided; you can tick it later in Setup.');
     expect(html).not.toMatch(/EI\d{16}/);
   });
 
@@ -178,7 +179,7 @@ describe('Setup › Help improve the planner', () => {
     answerYes({ ...DEFAULT_TICKS, checks: false }, 'name', 'Williamthe5thc');
     let t = textOf(await setup());
     expect(t).toMatch(
-      /You said yes on .+ for this account: runs shared · CSV on · diagnostics on · checks not shared · credited as Williamthe5thc\./
+      /You said yes on .+ for this account: runs shared · CSV on · diagnostics on · checks not decided · credited as Williamthe5thc\./
     );
     expect(t).toContain('Change');
     expect(t).toContain('Withdraw');
@@ -186,6 +187,9 @@ describe('Setup › Help improve the planner', () => {
     setConsent('leaderboard', false);
     t = textOf(await setup());
     expect(t).toContain('runs not shared');
+    // Ticked later in Setup's Change: decided then.
+    setConsent('keepSharingChecks', false);
+    expect(textOf(await setup())).toContain('checks not shared');
   });
 
   it('yes in this browser, another account: Use for this account', async () => {
@@ -232,8 +236,8 @@ describe('wiring', () => {
 
   it('About › What is sent says what the box does', () => {
     const about = read('../../public/about.html').replace(/\s+/g, ' ');
-    expect(about).toContain('<b>Help improve the planner</b>, the box above the tabs, asks once in each browser.');
-    expect(about).toContain('for the account on screen only');
+    expect(about).toContain('<b>Help improve the planner</b>, the box under the tabs, asks once in each browser.');
+    expect(about).toContain('for the account on screen only; anything you untick stays undecided');
   });
 
   it('Setup has its section before Sharing, with a collector', () => {

@@ -30,6 +30,7 @@ import {
   setStudyTick,
   studyState,
   studyStep,
+  tickStatus,
   useForThisAccount,
   withdrawStudy,
 } from './useStudy';
@@ -82,13 +83,38 @@ describe('the box', () => {
     expect(studyState.thanked).toBe(true);
   });
 
-  it('an unticked box is a no for that one', async () => {
+  it('an unticked box stays undecided: nothing written for it, and an earlier yes or no is kept', async () => {
     await setConsentAccount(A);
-    answerYes({ share: true, csv: false, diag: false, checks: true }, 'anon', '');
-    expect(consentAgreed('sendCsv')).toBe(false);
-    expect(consentAgreed('diagnosticsDefault')).toBe(false);
+    setConsent('keepSharingChecks', false); // an earlier explicit no
+    setConsent('diagnosticsDefault', true); // an earlier explicit yes
+    const before = await storedFor(A);
+    answerYes({ share: true, csv: false, diag: false, checks: false }, 'anon', '');
+    const after = await storedFor(A);
+    expect(after.leaderboard?.agreed).toBe(true);
+    // Never chosen: still no record (the site's own default applies), so Setup says not decided.
+    expect(after.sendCsv).toBeUndefined();
+    expect(tickStatus('csv')).toBe('undecided');
+    // Chosen before: exactly as it was.
+    expect(after.keepSharingChecks).toEqual(before.keepSharingChecks);
+    expect(after.diagnosticsDefault).toEqual(before.diagnosticsDefault);
+    expect(tickStatus('checks')).toBe('off');
+    expect(tickStatus('diag')).toBe('on');
+    expect(tickStatus('share')).toBe('on');
+    // Ticked later in Setup: a yes then.
+    setStudyTick('csv', true);
+    expect(tickStatus('csv')).toBe('on');
+  });
+
+  it('the strip offers the first account’s ticks; the rest stay undecided for the new account', async () => {
+    await setConsentAccount(A);
+    answerYes({ share: true, csv: true, diag: false, checks: false }, 'anon', '');
+    await setConsentAccount(B);
+    useForThisAccount();
+    expect(tickStatus('share')).toBe('on');
+    expect(tickStatus('csv')).toBe('on');
+    expect(tickStatus('diag')).toBe('undecided');
+    expect(tickStatus('checks')).toBe('undecided');
     expect(useShareExtras().sendDiagnostics.value).toBe(false);
-    expect(consentAgreed('keepSharingChecks')).toBe(true);
   });
 
   it('a second account gets nothing until "Yes, for this account"', async () => {
