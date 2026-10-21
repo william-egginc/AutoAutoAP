@@ -46,11 +46,11 @@
             class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[11px] font-semibold text-slate-700"
           >
             <input
-              :checked="!anonymous"
+              v-model="creditShown"
               type="radio"
-              name="study-setup-credit"
+              value="name"
               class="w-5 h-5 sm:w-4 sm:h-4 shrink-0 text-indigo-600"
-              @change="setStudyCredit('name', nickname)"
+              data-testid="study-setup-credit-name"
             />
             Credit me as
           </label>
@@ -61,22 +61,30 @@
             placeholder="nickname"
             aria-label="Nickname"
             class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-sm font-bold text-slate-800"
+            :class="creditShown === 'anon' ? 'opacity-50' : ''"
             data-testid="study-setup-nickname"
-            @change="setStudyCredit('name', nickname)"
+            @focus="creditShown = 'name'"
+            @change="creditShown = 'name'"
           />
           <label
             class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[11px] font-semibold text-slate-700"
           >
             <input
-              :checked="anonymous"
+              v-model="creditShown"
               type="radio"
-              name="study-setup-credit"
+              value="anon"
               class="w-5 h-5 sm:w-4 sm:h-4 shrink-0 text-indigo-600"
-              @change="setStudyCredit('anon', '')"
+              data-testid="study-setup-credit-anon"
             />
             Stay anonymous
           </label>
         </div>
+        <p v-if="creditShown === 'name' && !nickname.trim()" class="text-[11px] text-amber-700">
+          Type a name to be credited; until then you stay anonymous.
+        </p>
+        <p v-else-if="creditShown === 'anon' && nickname.trim()" class="text-[11px] text-slate-500">
+          Anonymous; the name is kept for when you pick Credit me as.
+        </p>
       </div>
       <div class="flex flex-col sm:flex-row gap-2">
         <button type="button" :class="BTN" data-testid="study-setup-changebtn" @click="changing = !changing">
@@ -178,6 +186,23 @@ watch(
   () => (nickname.value = knownName(account.value)),
   { immediate: true }
 );
+/** "Credit me as" picked here with no name typed yet: shown picked, and applied once a name is typed (until
+ *  then the account stays anonymous, so the radios never show a choice that isn't the account's). */
+const wantName = ref(false);
+const creditShown = computed<'name' | 'anon'>({
+  get: () => (wantName.value || !anonymous.value ? 'name' : 'anon'),
+  set: v => {
+    wantName.value = v === 'name';
+    if (v === 'anon') setStudyCredit('anon', '');
+    else if (nickname.value.trim()) setStudyCredit('name', nickname.value);
+  },
+});
+// Another account: its own state, with nothing left open from the last one.
+watch(account, () => {
+  formOpen.value = false;
+  changing.value = false;
+  wantName.value = false;
+});
 
 const summary = computed(() =>
   [
