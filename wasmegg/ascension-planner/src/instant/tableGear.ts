@@ -83,21 +83,39 @@ export interface StampInputs {
   colleggtibleModifiers: Modifiers;
 }
 
+/** The last few delivery sets picked (the stamp and the delivery tables ask for the same one). */
+const picked: { key: unknown[]; set: EquippedArtifact[] | null }[] = [];
+
+/**
+ * The delivery set the optimizer picks for the save at `research` (max habs and vehicles), as the
+ * stamp's `deliveryFull`; null without a save. Kept for the same save, inputs and research, so the
+ * delivery tables (deliveryTables.ts) reuse the stamp's pick instead of working it out again.
+ */
+export function deliverySetAt(ctx: StampInputs, research: Record<string, number>): EquippedArtifact[] | null {
+  const raw = ctx.rawBackup;
+  if (!raw) return null;
+  const key = [raw, ctx.epicResearchLevels, ctx.colleggtibleModifiers, JSON.stringify(research)];
+  const hit = picked.find(p => p.key.every((k, i) => k === key[i]));
+  if (hit) return hit.set;
+  // On a fresh copy of the save, as the fork does (its getOptimalELRSet caches a structure per
+  // backup object; Joo's has no such cache, so the copy changes nothing but is kept to stay the same).
+  const set =
+    (getOptimalELRSet(sanitizeLongs(raw) as typeof raw, {
+      commonResearch: research,
+      epicResearchLevels: ctx.epicResearchLevels,
+      colleggtibleModifiers: ctx.colleggtibleModifiers,
+      assumeMaxHabsVehicles: true,
+    }) as EquippedArtifact[] | null) ?? null;
+  picked.push({ key, set });
+  if (picked.length > 4) picked.shift();
+  return set;
+}
+
 /** The gear stamp of the loaded save, with `deliveryFull` picked at `research`; null without a save. */
 export function gearStamp(ctx: StampInputs, research: Record<string, number>): TableGear | null {
   const raw = ctx.rawBackup;
   if (!raw) return null;
-  // Each on a fresh copy of the save, as the fork does (its getOptimalELRSet caches a structure per
-  // backup object; Joo's has no such cache, so the copy changes nothing but is kept to stay the same).
-  const delivery = (commonResearch: Record<string, number>) =>
-    describeLoadoutSlots(
-      getOptimalELRSet(sanitizeLongs(raw) as typeof raw, {
-        commonResearch,
-        epicResearchLevels: ctx.epicResearchLevels,
-        colleggtibleModifiers: ctx.colleggtibleModifiers,
-        assumeMaxHabsVehicles: true,
-      }) as EquippedArtifact[] | null
-    );
+  const delivery = (commonResearch: Record<string, number>) => describeLoadoutSlots(deliverySetAt(ctx, commonResearch));
   const sorted = (r: Record<string, number> | undefined) =>
     Object.fromEntries(Object.entries(r ?? {}).sort(([a], [b]) => a.localeCompare(b)));
   return {
