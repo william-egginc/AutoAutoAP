@@ -1,11 +1,15 @@
 <template>
   <the-nav-bar active-entry-id="ascension-planner" />
 
+  <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, at most about 45 px tall with
+       My runs' summary line) the page ends 6rem plus the phone's safe area lower, so its last lines scroll clear of
+       the pill instead of under it (Jordan, 21 Oct 2026). -->
   <div
     :class="[
       'min-h-screen bg-gray-100 transition-all duration-300',
-      plannerTab === 'automatic' || isFooterCollapsed ? 'pb-8' : 'pb-24',
+      setupDockShown ? '' : plannerTab === 'automatic' || isFooterCollapsed ? 'pb-8' : 'pb-24',
     ]"
+    :style="setupDockShown ? { paddingBottom: SETUP_DOCK_CLEARANCE } : undefined"
   >
     <div class="max-w-6xl mx-auto p-4">
       <CustomEggWatcher v-if="isDev" />
@@ -882,6 +886,12 @@ useTablePrefetch();
 const actionsStore = useActionsStore();
 const uiStore = useUIStore();
 const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = storeToRefs(uiStore);
+/** The floating Setup pill shows (the two SetupDock mounts below): the page keeps room under its content for it. */
+const setupDockShown = computed(
+  () => (plannerTab.value === 'automatic' || plannerTab.value === 'myruns') && !!playerId.value && !loading.value
+);
+/** The pill's 1rem from the bottom, its height (45 px at most, with My runs' summary) and a margin, plus the safe area. */
+const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';
 
 /**
  * Which tab is open, and its address (lib/siteNav.ts). The address follows every change, so a

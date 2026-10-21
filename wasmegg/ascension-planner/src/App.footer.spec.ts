@@ -19,4 +19,15 @@ describe('App.vue footer link', () => {
     expect(app.indexOf('<footer')).toBeGreaterThan(app.indexOf('<FloatingNotes'));
     expect(app.indexOf('</footer>')).toBeLessThan(app.indexOf('<script setup'));
   });
+
+  it('leaves room at the bottom for the floating Setup pill wherever it shows, so the footer scrolls clear of it', () => {
+    // The pill shows exactly where SetupDock is mounted: the Auto Planner and My runs.
+    expect(app).toContain(`<SetupDock v-if="plannerTab === 'automatic' && playerId && !loading"`);
+    expect(app).toContain(`v-else-if="plannerTab === 'myruns' && playerId && !loading"`);
+    expect(app).toMatch(
+      /setupDockShown = computed\(\s*\(\) => \(plannerTab\.value === 'automatic' \|\| plannerTab\.value === 'myruns'\) && !!playerId\.value && !loading\.value/
+    );
+    expect(app).toContain(`:style="setupDockShown ? { paddingBottom: SETUP_DOCK_CLEARANCE } : undefined"`);
+    expect(app).toContain(`const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';`);
+  });
 });
