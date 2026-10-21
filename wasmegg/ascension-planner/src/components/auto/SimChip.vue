@@ -18,7 +18,7 @@
     <span
       v-if="open"
       role="note"
-      class="absolute left-0 top-full z-20 mt-1 w-max max-w-[16rem] whitespace-normal rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left text-[10px] font-normal leading-snug text-slate-600 shadow"
+      class="mt-1 block w-max max-w-[16rem] whitespace-normal rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left text-[10px] font-normal leading-snug text-slate-600 shadow"
       @click.stop
     >
       <span class="block font-mono text-slate-800">{{ label.stamp ?? 'no stamp' }}</span>
