@@ -63,3 +63,29 @@ describe('App.vue header layout', () => {
     expect(app).not.toMatch(/class="[^"]*bg-white\/95 backdrop-blur-xl rounded-2xl border shadow-sm/);
   });
 });
+
+/** Leaderboard and Science behind Setup's boxes (composables/useTabPrefs.ts, 21 Oct 2026); My runs always. */
+describe('App.vue optional tabs', () => {
+  it('builds the top tabs from what is shown, not from a count', () => {
+    const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('/** "Fastest to 490 TE"'));
+    expect(tabs).toContain('...(optionalShown.value.leaderboard');
+    expect(tabs).toContain('...(optionalShown.value.science');
+    expect(app).toContain("const { shown: optionalShown } = useTabPrefs(() => !!chainSearchStore.submitUrl);");
+  });
+
+  it('an address or a link that asks for a hidden tab opens it for the visit', () => {
+    expect(app).toContain('if (initialRoute) allowForVisit(initialRoute.section);');
+    const goTo = app.slice(app.indexOf('function goTo(r: SiteRoute)'), app.indexOf('/** A top tab: that section'));
+    expect(goTo).toContain('allowForVisit(r.section);');
+    expect(goTo.indexOf('allowForVisit(r.section)')).toBeLessThan(goTo.indexOf('applyRoute(r)'));
+  });
+
+  it("on a tab that isn't shown, falls back to the last tab shown or My runs, at once", () => {
+    const block = app.slice(app.indexOf('let lastShownTab'), app.indexOf('/**\n * On a link into the Auto Planner'));
+    expect(block).toContain("let lastShownTab: typeof plannerTab.value = 'myruns';");
+    expect(block).toContain("plannerTab.value = tabHidden(lastShownTab) ? 'myruns' : lastShownTab;");
+    expect(block).toContain("{ immediate: true, flush: 'sync' }");
+    // The old rule (no collector: My runs and Science sent to the Manual Planner) is gone.
+    expect(app).not.toContain("plannerTab.value === 'myruns' || plannerTab.value === 'science'");
+  });
+});
