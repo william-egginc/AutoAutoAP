@@ -493,6 +493,10 @@
           <SimulationSetup />
         </div>
 
+        <!-- Help improve the planner (Q13): the study box's answer, changed or withdrawn here once the box above the
+             tabs is gone (StudySetup.vue). Only with a collector, as the box. -->
+        <StudySetup v-if="store.submitUrl" />
+
         <!-- Sharing: a mirror of "Keep sharing my checks" under the instant answer (the same setting,
              composables/useInstantShare.ts; search/instantRecord.ts). Off by default. Only with a collector. -->
         <div
@@ -584,6 +588,7 @@ import WorkerSlider from './WorkerSlider.vue';
 import BackgroundSpeed from './BackgroundSpeed.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
 import SimulationSetup from './SimulationSetup.vue';
+import StudySetup from './StudySetup.vue';
 
 defineProps<{
   screen: AutoView;

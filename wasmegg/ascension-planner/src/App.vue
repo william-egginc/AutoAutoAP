@@ -53,6 +53,10 @@
         </div>
       </div>
 
+      <!-- Help improve the planner (Q13, 21 Oct 2026): above the tabs, so on every tab, once an account is in and
+           only with a collector. Inline, never over NewVersionBanner's fixed bar. Gone once answered. -->
+      <StudyBox v-if="playerId && chainSearchStore.submitUrl" class="mt-4" />
+
       <SiteTabs
         v-if="playerId"
         class="mt-4"
@@ -753,6 +757,7 @@ import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
+import StudyBox from '@/components/StudyBox.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
 import { setupSummary } from '@/lib/nowWords';

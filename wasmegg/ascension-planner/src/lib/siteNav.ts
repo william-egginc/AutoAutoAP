@@ -90,6 +90,10 @@ export const NAMES = {
   fullWas: 'Advanced',
   smartFirst: 'Nearby routes (was Simple)',
   fullFirst: 'Exhaustive (was Advanced)',
+  /** The study box above the tabs (StudyBox.vue) and its section in Setup (StudySetup.vue), 21 Oct 2026. */
+  study: 'Help improve the planner',
+  /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner and My runs. */
+  setup: 'Setup',
 } as const;
 
 /**

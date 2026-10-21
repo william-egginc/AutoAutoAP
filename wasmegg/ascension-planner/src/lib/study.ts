@@ -46,6 +46,14 @@ export interface StudyRecord {
   accounts: Record<string, StudyAccount>;
 }
 
+/** Each tick's words, in the order shown (the box and Setup). */
+export const TICK_WORDS: [keyof StudyTicks, string][] = [
+  ['share', 'Share my runs on the leaderboard when I press a share button'],
+  ['csv', 'Send my CSV with them (public)'],
+  ['diag', 'Send private diagnostics with them'],
+  ['checks', 'Keep sharing my checks (private, anonymous)'],
+];
+
 /** What the box opens with: every tick on (the player can untick any before Yes). */
 export const DEFAULT_TICKS: StudyTicks = { share: true, csv: true, diag: true, checks: true };
 
