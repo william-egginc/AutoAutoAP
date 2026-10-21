@@ -188,6 +188,7 @@
             <SavedRuns
               :player-id="playerId"
               list-only
+              :pace-active="open.saved"
               @opened="r => emit('open', { auto: 'fastest', depth: r.full ? 'full' : 'smart' })"
             />
             <SavedAnswers
@@ -195,6 +196,7 @@
               default-label=""
               :zone="zone"
               list-only
+              :pace-active="open.saved"
               @opened="emit('open', { auto: 'by-date' })"
             />
           </div>

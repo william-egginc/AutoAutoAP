@@ -9,7 +9,9 @@
   saved space, so it is offered only there, and only for a sweep. Open works for either kind.
 
   `list-only` (My runs, 15 Oct 2026): the list alone, without the explanation, Save this run or the
-  save-file bar, and Open says so (`opened`) for My runs to show the screen it opened on.
+  save-file bar, and Open says so (`opened`) for My runs to show the screen it opened on. There, each run
+  says how the latest save is doing against it (R6, PaceBadge.vue); its legs are in the run's body, read
+  only while `pace-active` (My runs' "Saved on this device" is open), one run at a time.
 -->
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
@@ -62,6 +64,11 @@
               ></template
             >
           </div>
+          <PaceBadge
+            v-if="listOnly"
+            class="mt-1"
+            :words="pace.paceOf({ kind: 'run', run, goalKey: `fastest-${run.finalTE}` })"
+          />
         </div>
         <!-- Resume, not just Open: an unfinished sweep holds every chain it priced, and without this
              the only way to use them was to retype the space and let the search rediscover them. -->
@@ -119,6 +126,8 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import EntrySaveActions from './EntrySaveActions.vue';
 import FollowButton from '../FollowButton.vue';
 import SaveFileBar from './SaveFileBar.vue';
+import PaceBadge from '../myruns/PaceBadge.vue';
+import { usePlanPace } from '@/composables/usePlanPace';
 
 const props = defineProps<{
   playerId: string;
@@ -126,6 +135,8 @@ const props = defineProps<{
   canResume?: boolean;
   /** My runs: the list alone (no explanation, no Save this run, no save-file bar). */
   listOnly?: boolean;
+  /** My runs' "Saved on this device" is open: the badges may read the runs' bodies (one at a time). */
+  paceActive?: boolean;
 }>();
 /** A run was opened: `full` when it is an Exhaustive run (it has a space), for My runs to show its screen. */
 const emit = defineEmits<{ opened: [run: { full: boolean }] }>();
@@ -135,6 +146,13 @@ const planner = useAutoPlannerStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
 onMounted(() => void store.refreshSavedRuns(props.playerId));
+
+/** "N hours ahead / behind" on each run (My runs only). */
+const pace = usePlanPace({
+  playerId: () => props.playerId,
+  active: () => !!props.listOnly && !!props.paceActive,
+  entries: () => store.savedRuns.map(run => ({ kind: 'run' as const, run, goalKey: `fastest-${run.finalTE}` })),
+});
 
 const label = ref('');
 const saving = ref(false);
