@@ -140,10 +140,13 @@ describe('shiftedTable: a shifted table has rows only from from + Δ (this page�
 
   it('joined to the maxed table per leg: the maxed one (scaled) below from + Δ, the shifted one from there', () => {
     const maxed = readTable(
-      packTable({ version: 1, referenceWeek: 1, cteBonus: 128.71, deliveryScore: 1, from: 180, to: 205, builtAt: 'x' }, [
-        { te: 192, h: 10, builds: [{ ...build(192, 10, 0), peakELR: 100 }] },
-        { te: 200, h: 10, builds: [{ ...build(200, 10, 0), peakELR: 100 }] },
-      ]).buffer as ArrayBuffer
+      packTable(
+        { version: 1, referenceWeek: 1, cteBonus: 128.71, deliveryScore: 1, from: 180, to: 205, builtAt: 'x' },
+        [
+          { te: 192, h: 10, builds: [{ ...build(192, 10, 0), peakELR: 100 }] },
+          { te: 200, h: 10, builds: [{ ...build(200, 10, 0), peakELR: 100 }] },
+        ]
+      ).buffer as ArrayBuffer
     );
     const joined = compositeTable(shiftedTable(table, 2.34), maxed, 0.5);
     expect(joined.lookup(192, 10)!.map(b => b.peakELR)).toEqual([50]);

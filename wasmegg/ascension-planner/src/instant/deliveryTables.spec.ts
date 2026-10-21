@@ -52,7 +52,9 @@ describe('tableDeliveryIds: the set as a delivery table is keyed for it', () => 
     expect(tableDeliveryIds([met, com, gus, slot('puzzle-cube-4-2', T, T)])).toBeNull();
     expect(tableDeliveryIds([met, com, gus, slot('book-of-basan-4-3', T, T)])).toBeNull();
     expect(tableDeliveryIds([met, com, slot('puzzle-cube-4-3', T, T, T), slot('lunar-totem-4-3', T, T, T)])).toBeNull();
-    expect(tableDeliveryIds([met, com, slot('gusset-4-3', Q, T, 'tachyon-stone-3'), slot('lunar-totem-4-3', T, T, T)])).toBeNull();
+    expect(
+      tableDeliveryIds([met, com, slot('gusset-4-3', Q, T, 'tachyon-stone-3'), slot('lunar-totem-4-3', T, T, T)])
+    ).toBeNull();
     expect(tableDeliveryIds([met, com, slot('gusset-4-3', Q, T, null), slot('lunar-totem-4-3', T, T, T)])).toBeNull();
     expect(tableDeliveryIds([met, com, gus])).toBeNull();
     expect(tableDeliveryIds(null)).toBeNull();

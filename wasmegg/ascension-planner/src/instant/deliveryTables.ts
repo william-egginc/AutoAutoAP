@@ -48,7 +48,8 @@ export function tableDeliveryIds(set: readonly EquippedArtifact[] | null | undef
     const a = slot.artifactId ? getArtifact(slot.artifactId) : undefined;
     if (!a) return null;
     if (slot.stones.length !== a.slots || slot.stones.some(s => !s || !T4_DELIVERY_STONES.has(s))) return null;
-    if ((FAMILIES as readonly string[]).includes(a.familyId) && !byFamily.has(a.familyId)) byFamily.set(a.familyId, a.id);
+    if ((FAMILIES as readonly string[]).includes(a.familyId) && !byFamily.has(a.familyId))
+      byFamily.set(a.familyId, a.id);
     else others.push(a.id);
   }
   if (byFamily.size !== 3 || others.length !== 1) return null;
@@ -81,7 +82,10 @@ export interface IndexEntry {
 /** The index's entry for the delivery table keyed `key` (`delivery-<key>.bin.gz`), or null. */
 export function deliveryEntry(index: readonly IndexEntry[] | null, key: string): IndexEntry | null {
   const name = deliveryTableName(key);
-  return index?.find(t => t.kind === 'delivery' && t.deliveryKey === key && (t.name === name || t.name === `${name}.gz`)) ?? null;
+  return (
+    index?.find(t => t.kind === 'delivery' && t.deliveryKey === key && (t.name === name || t.name === `${name}.gz`)) ??
+    null
+  );
 }
 
 /** The delivery table's file for `key`, without `.gz` (tableFetch.ts asks for the .gz first). */
