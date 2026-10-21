@@ -108,6 +108,15 @@ describe('compositeTable: an account or gear table joined to the maxed one, per 
     expect(compositeTable(own, maxed, 1).lookup(100, 3)).toBe(maxed.lookup(100, 3));
   });
 
+  it('a delivery table’s cells scaled by their own scale (ownScale), the maxed ones by theirs; 1 leaves them be', () => {
+    const both = compositeTable(own, maxed, 0.5, 0.8);
+    const o = own.lookup(200, 3)![0];
+    const m = maxed.lookup(100, 3)![0];
+    expect(both.lookup(200, 3)).toEqual([{ ...o, peakELR: o.peakELR * 0.8 }]);
+    expect(both.lookup(100, 3)).toEqual([{ ...m, peakELR: m.peakELR * 0.5 }]);
+    expect(compositeTable(own, maxed, 0.5, 1).lookup(200, 3)).toBe(own.lookup(200, 3));
+  });
+
   it('above both (and below the maxed one): no cell', () => {
     expect(joined.lookup(340, 3)).toBeNull();
     expect(joined.lookup(74, 3)).toBeNull();

@@ -140,7 +140,13 @@ import {
   type NoAnswer,
 } from '@/instant/instantAnswer';
 import { deliveryScale } from '@/instant/deliveryScale';
-import { earningsBonus, gearDiffers, gearDiffersText, tableCaveat } from '@/instant/gearDiffers';
+import {
+  earningsBonus,
+  gearDiffers,
+  gearDiffersText,
+  tableCaveat,
+  weakDeliveryStones,
+} from '@/instant/gearDiffers';
 import { continueTail, hasVirtueFarm, siloSeconds, staleSaveNote } from '@/instant/continueTail';
 import { baseStateFromBackup, eggsDeliveredFromBackup, farmFromBackup, saveSyncSeconds } from '@/instant/saveFarm';
 import { answer, isNewest, newRequestId, probeHeader, tableHeader } from '@/instant/instantClient';
@@ -296,6 +302,30 @@ const scale = computed(() =>
     : 1
 );
 
+/**
+ * The chosen table's own cells scaled to the save's delivery rate (precomputedTable.ts compositeTable,
+ * in the worker): for a delivery table, the save's peak delivery rate against that table's at its own
+ * k3 research (its header's k3: its delivery set with T4 stones in every slot), as `scale` is for the
+ * maxed table; for the maxed table read with the earnings shift, `scale` itself. The save's stones may
+ * be lower tier than the table's (deliveryTables.ts). A delivery table without a k3 would be left
+ * unscaled (deliveryScale gives 1); the ones in the storage all have one. 1 for an account or gear
+ * table (built on the save's own gear).
+ */
+const ownScale = computed(() => {
+  const c = choice.value;
+  if (c?.kind !== 'delivery' && c?.kind !== 'maxed-shift') return 1;
+  const s =
+    c.kind === 'maxed-shift'
+      ? scale.value
+      : deliveryScale(backup.value, c.header?.k3, initialState.epicResearchLevels, initialState.colleggtibleModifiers);
+  // The table's own set and stones give 1 up to float noise (0.9999999999999997 on a save with 12 T4
+  // stones): read as 1, so its cells are used as they are.
+  return Math.abs(s - 1) < 1e-9 ? 1 : s;
+});
+/** The save's delivery stones are weaker than the delivery table's (a stone below T4, or its rate
+ *  under the table's): said on those tables' lines (gearDiffers.ts tableCaveat). */
+const weakStones = computed(() => weakDeliveryStones(choice.value?.stonesBelowT4, ownScale.value));
+
 /** How far the save's gear is from the table's (null before the table's header is read). */
 const gap = computed(() =>
   header.value ? { bonusShort: header.value.cteBonus - earningsBonus(backup.value), scale: scale.value } : null
@@ -308,13 +338,14 @@ const tableLine = computed(() => (choice.value?.header ? tableLineFor(choice.val
 const belowMax = computed(() => researchBelowMax(initialState.epicResearchLevels, initialState.colleggtibleTiers));
 /** The caveat under the answer (gearDiffers.ts tableCaveat). On the maxed table: below TE 340 with gear
  *  other than the table's, the answer can be a few percent off. On a delivery or earnings-shifted
- *  table: epic research or colleggtibles below max, which those tables assume. None on a table built
- *  on the save's own account or exact gear. */
+ *  table: epic research or colleggtibles below max, and delivery stones below the table's T4, which
+ *  those tables assume. None on a table built on the save's own account or exact gear. */
 const gearCaveat = computed(() =>
   tableCaveat(
     by.value,
     gap.value && gearDiffers(startTE.value, gap.value) ? gearDiffersText(gap.value) : null,
-    belowMax.value
+    belowMax.value,
+    weakStones.value
   )
 );
 
@@ -409,12 +440,14 @@ const ownUrl = computed(() => (choice.value && choice.value.kind !== 'maxed' ? c
 /** The earnings shift `ownUrl` is read with (0: none). */
 const ownShift = computed(() => (ownUrl.value ? (choice.value?.shift ?? 0) : 0));
 
-/** What an answer is kept under for a moment (instantClient.ts): the tables, the save and the goal. */
+/** What an answer is kept under for a moment (instantClient.ts): the tables (with the shift and the
+ *  scale they are read with), the save and the goal. */
 function answerKey(dl: number | undefined): string {
   return JSON.stringify([
     TABLE_URL,
     ownUrl.value ?? null,
     ownShift.value,
+    ownScale.value,
     saveSyncSeconds(backup.value),
     start.value.delivered,
     dl ?? null,
@@ -470,7 +503,8 @@ async function run(): Promise<void> {
       if (isNewest(id)) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
     },
     ownUrl.value,
-    ownShift.value
+    ownShift.value,
+    ownScale.value
   );
   if (!isNewest(id)) return;
   if (a.kind === 'answer') {

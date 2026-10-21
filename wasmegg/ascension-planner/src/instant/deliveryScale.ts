@@ -4,6 +4,8 @@
  * waits run at theirs, so every build's rate is scaled by this. Both are worked out here with Joo's
  * own code at the research the table's builds wait with (the header's `k3`): the table's delivery set
  * there, and the save's best delivery set there (getOptimalELRSet, max habs and vehicles).
+ * The same is used for a delivery table at its own header's `k3` (its delivery set, T4 stones in
+ * every slot), so a save with lower-tier stones reads its cells at its own rate (InstantAnswer.vue).
  */
 import type { ei } from 'lib';
 import type { Modifiers as ColleggtibleModifiers } from 'lib/collegtibles';

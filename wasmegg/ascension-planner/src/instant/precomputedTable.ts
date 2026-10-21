@@ -203,28 +203,40 @@ export function shiftedTable(table: Table, shift: number): Table {
 }
 
 /**
- * An account or gear table joined to the maxed one per leg (tableChoice.ts): a cell from `own` when
- * its TE is in `own`'s range, else from `maxed` (its own range), else none. The own table's builds
- * already run at the player's delivery rate; the maxed table's are scaled to it here (`scale`,
- * deliveryScale.ts), so the route search runs at a scale of 1. The header is `own`'s with the range
- * of both (the maxed table's lowest TE for the "below the table" check).
+ * An account, gear or delivery table joined to the maxed one per leg (tableChoice.ts): a cell from
+ * `own` when its TE is in `own`'s range, else from `maxed` (its own range), else none. The maxed
+ * table's builds are scaled to the player's delivery rate here (`scale`, deliveryScale.ts), and so are
+ * `own`'s by `ownScale`: 1 for an account or gear table (built on the player's own gear); for a
+ * delivery table, or the maxed table read with the earnings shift, the player's rate against that
+ * table's (its stones may be lower tier than the table's T4). The route search then runs at a scale of
+ * 1. The header is `own`'s with the range of both (the maxed table's lowest TE for the "below the
+ * table" check).
  */
-export function compositeTable(own: Table, maxed: Table, scale: number, maxCells = DECODED_CELLS): Table {
-  const scaled = new LruCache<number, BuildParams[]>(maxCells);
+export function compositeTable(
+  own: Table,
+  maxed: Table,
+  scale: number,
+  ownScale = 1,
+  maxCells = DECODED_CELLS
+): Table {
+  const scaledOwn = new LruCache<number, BuildParams[]>(maxCells);
+  const scaledMaxed = new LruCache<number, BuildParams[]>(maxCells);
   const o = own.header;
+  const scaled = (raw: BuildParams[] | null, by: number, cache: LruCache<number, BuildParams[]>, key: number) => {
+    if (!raw || by === 1) return raw;
+    let hit = cache.get(key);
+    if (!hit) {
+      hit = raw.map(b => ({ ...b, peakELR: b.peakELR * by }));
+      cache.set(key, hit);
+    }
+    return hit;
+  };
   return {
     header: { ...o, from: Math.min(o.from, maxed.header.from), to: Math.max(o.to, maxed.header.to) },
     lookup(te, hour) {
-      if (te >= o.from && te <= o.to) return own.lookup(te, hour);
-      const raw = maxed.lookup(te, hour);
-      if (!raw || scale === 1) return raw;
       const key = te * WEEK_HOURS + hour;
-      let hit = scaled.get(key);
-      if (!hit) {
-        hit = raw.map(b => ({ ...b, peakELR: b.peakELR * scale }));
-        scaled.set(key, hit);
-      }
-      return hit;
+      if (te >= o.from && te <= o.to) return scaled(own.lookup(te, hour), ownScale, scaledOwn, key);
+      return scaled(maxed.lookup(te, hour), scale, scaledMaxed, key);
     },
   };
 }

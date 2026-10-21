@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   FULL_RESEARCH_TE,
   RESEARCH_BELOW_MAX_TEXT,
+  STONES_BELOW_T4_TEXT,
   earningsBonus,
   gearDiffers,
   gearDiffersText,
   tableCaveat,
+  weakDeliveryStones,
 } from './gearDiffers';
 
 describe('your gear isn’t the table’s (gearDiffers)', () => {
@@ -50,6 +52,30 @@ describe('the caveat by the table that answered (tableCaveat)', () => {
       'Your epic research or colleggtibles aren’t maxed, which these tables assume, so times can be a little off.'
     );
     expect(RESEARCH_BELOW_MAX_TEXT).not.toMatch(/earnings set|delivery/);
+  });
+
+  it('delivery stones weaker than the table’s: one sentence, after the research one when both apply', () => {
+    expect(STONES_BELOW_T4_TEXT).toBe(
+      'Your delivery stones are lower tier than these tables assume, so times can be a little off.'
+    );
+    for (const kind of ['delivery', 'maxed-shift'] as const) {
+      expect(tableCaveat(kind, maxedText, false, true)).toBe(STONES_BELOW_T4_TEXT);
+      expect(tableCaveat(kind, null, true, true)).toBe(`${RESEARCH_BELOW_MAX_TEXT} ${STONES_BELOW_T4_TEXT}`);
+      expect(tableCaveat(kind, null, false, false)).toBeNull();
+    }
+    // Only on those lines: the maxed table keeps its own caveat, own tables say nothing.
+    expect(tableCaveat('maxed', maxedText, true, true)).toBe(maxedText);
+    expect(tableCaveat('maxed', null, false, true)).toBeNull();
+    expect(tableCaveat('account', null, true, true)).toBeNull();
+    expect(tableCaveat('gear', null, false, true)).toBeNull();
+  });
+
+  it('weak stones: any below T4, or the delivery scale under 0.995', () => {
+    expect(weakDeliveryStones(true, 1)).toBe(true);
+    expect(weakDeliveryStones(false, 0.994)).toBe(true);
+    expect(weakDeliveryStones(false, 0.995)).toBe(false);
+    expect(weakDeliveryStones(undefined, 1)).toBe(false);
+    expect(weakDeliveryStones(false, 1.0000000001)).toBe(false);
   });
 
   it('account and exact-gear tables say nothing', () => {

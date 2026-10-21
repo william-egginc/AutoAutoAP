@@ -16,8 +16,9 @@ export type InstantWorkerRequest =
   | { kind: 'header'; id: number; url: string; probe?: boolean }
   /** `url`: the maxed table; `own`: an account, gear or delivery table joined to it per leg
    *  (compositeTable); `shift`: `own` read with that earnings shift (precomputedTable.ts shiftedTable;
-   *  `own` may be the maxed table itself). */
-  | { kind: 'answer'; id: number; url: string; own?: string; shift?: number; req: AnswerRequest };
+   *  `own` may be the maxed table itself); `ownScale`: `own`'s cells scaled to the player's delivery
+   *  rate (a delivery table, or the maxed one shifted: compositeTable; absent is 1). */
+  | { kind: 'answer'; id: number; url: string; own?: string; shift?: number; ownScale?: number; req: AnswerRequest };
 
 export type InstantWorkerResponse =
   | { kind: 'header'; id: number; header: TableHeader }
@@ -50,10 +51,11 @@ function load(url: string, probe = false): Promise<Table> {
   return keep(url, () => fetchTable(url, undefined, probe));
 }
 
-/** `own` (read with the earnings `shift`) joined to the maxed table at `url`, its cells scaled by `scale`. */
-function joined(own: string, url: string, scale: number, shift = 0): Promise<Table> {
-  return keep(JSON.stringify([own, url, scale, shift]), async () =>
-    compositeTable(shiftedTable(await load(own, own !== url), shift), await load(url), scale)
+/** `own` (read with the earnings `shift`, its cells scaled by `ownScale`) joined to the maxed table at
+ *  `url`, its cells scaled by `scale`. */
+function joined(own: string, url: string, scale: number, shift = 0, ownScale = 1): Promise<Table> {
+  return keep(JSON.stringify([own, url, scale, shift, ownScale]), async () =>
+    compositeTable(shiftedTable(await load(own, own !== url), shift), await load(url), scale, ownScale)
   );
 }
 
@@ -66,8 +68,9 @@ ctx.onmessage = async (event: MessageEvent<InstantWorkerRequest>) => {
   if (m.kind === 'answer') latest.note(m.id);
   try {
     if (m.kind === 'header') return reply({ kind: 'header', id: m.id, header: (await load(m.url, m.probe)).header });
-    // With an own table the maxed cells are scaled in the join, and the search runs at a scale of 1.
-    const t = m.own ? await joined(m.own, m.url, m.req.deliveryScale, m.shift) : await load(m.url);
+    // With an own table the maxed cells (and a delivery table's, by ownScale) are scaled in the join,
+    // and the search runs at a scale of 1.
+    const t = m.own ? await joined(m.own, m.url, m.req.deliveryScale, m.shift, m.ownScale) : await load(m.url);
     const req = m.own ? { ...m.req, deliveryScale: 1 } : m.req;
     const pause = pauseFor(m.id, latest);
     await pause();

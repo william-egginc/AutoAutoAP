@@ -52,9 +52,11 @@ describe('the chosen table is used wherever the maxed one was', () => {
   });
 
   it('the answer gets the chosen table, and kept answers are kept per table', () => {
-    expect(card).toMatch(/answer\(\s*id,\s*TABLE_URL,[\s\S]*?ownUrl\.value,\s*ownShift\.value\s*\)/);
-    // The table read and its earnings shift are part of the kept answer's key.
-    expect(card).toMatch(/function answerKey[\s\S]*?JSON\.stringify\(\[\s*TABLE_URL,\s*ownUrl\.value \?\? null,\s*ownShift\.value,/);
+    expect(card).toMatch(/answer\(\s*id,\s*TABLE_URL,[\s\S]*?ownUrl\.value,\s*ownShift\.value,\s*ownScale\.value\s*\)/);
+    // The table read, its earnings shift and its delivery scale are part of the kept answer's key.
+    expect(card).toMatch(
+      /function answerKey[\s\S]*?JSON\.stringify\(\[\s*TABLE_URL,\s*ownUrl\.value \?\? null,\s*ownShift\.value,\s*ownScale\.value,/
+    );
     // The header comes from the choice, probed once per save.
     expect(card).toMatch(/const c = await tableFor\(\)/);
     expect(card).not.toMatch(/tableHeader\(TABLE_URL\)/);
@@ -85,7 +87,22 @@ describe('the delivery tables and the earnings shift', () => {
     expect(card).toMatch(
       /const belowMax = computed\(\(\) => researchBelowMax\(initialState\.epicResearchLevels, initialState\.colleggtibleTiers\)\)/
     );
-    expect(card).toMatch(/gearDiffers\(startTE\.value, gap\.value\) \? gearDiffersText\(gap\.value\) : null,\s*belowMax\.value/);
+    expect(card).toMatch(
+      /gearDiffers\(startTE\.value, gap\.value\) \? gearDiffersText\(gap\.value\) : null,\s*belowMax\.value,\s*weakStones\.value\s*\)/
+    );
+  });
+
+  it('a delivery table is scaled at its own k3, the shifted maxed table by the maxed scale, once each', () => {
+    expect(card).toMatch(/if \(c\?\.kind !== 'delivery' && c\?\.kind !== 'maxed-shift'\) return 1;/);
+    expect(card).toMatch(/c\.kind === 'maxed-shift'\s*\?\s*scale\.value\s*:\s*deliveryScale\(backup\.value, c\.header\?\.k3,/);
+    // 1 within float noise is 1 (a save with the table's own stones reads its cells as they are).
+    expect(card).toMatch(/return Math\.abs\(s - 1\) < 1e-9 \? 1 : s;/);
+    expect(card).toMatch(/weakDeliveryStones\(choice\.value\?\.stonesBelowT4, ownScale\.value\)/);
+    // The worker scales own and maxed cells in the join and searches at a scale of 1 (no double scaling).
+    const worker = readFileSync(join(SRC, 'instant', 'instant.worker.ts'), 'utf8');
+    expect(worker).toMatch(/joined\(m\.own, m\.url, m\.req\.deliveryScale, m\.shift, m\.ownScale\)/);
+    expect(worker).toMatch(/m\.own \? \{ \.\.\.m\.req, deliveryScale: 1 \} : m\.req/);
+    expect(worker).toMatch(/compositeTable\(shiftedTable\([^)]*\), shift\), await load\(url\), scale, ownScale\)/);
   });
 });
 

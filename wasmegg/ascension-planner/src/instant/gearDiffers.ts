@@ -57,14 +57,38 @@ export function gearDiffersText(gap: GearGap): string {
 export const RESEARCH_BELOW_MAX_TEXT =
   'Your epic research or colleggtibles aren’t maxed, which these tables assume, so times can be a little off.';
 
+/** The caveat on a delivery table, or the maxed one read with the earnings shift, when the save's
+ *  delivery stones are weaker than the table's T4 (deliveryTables.ts: its cells are scaled to the
+ *  save's rate, but a build's research and sales were worked out at the table's). */
+export const STONES_BELOW_T4_TEXT =
+  'Your delivery stones are lower tier than these tables assume, so times can be a little off.';
+
+/** The delivery scale below which the stones are said to be weaker than the table's. */
+export const WEAK_STONES_SCALE = 0.995;
+
 /**
  * The caveat under the answer, by the table the first ascension starts on (tableChoice.ts answeredBy):
  * the maxed table keeps its gear caveat (`maxedCaveat`, gearDiffersText or null); a delivery or
- * earnings-shifted table says only that research is below max, when it is; a table built on the
- * save's own account or exact gear says nothing.
+ * earnings-shifted table says that research is below max, when it is, and that the delivery stones
+ * are below the table's (`weakStones`), when they are, as two sentences; a table built on the save's
+ * own account or exact gear says nothing.
  */
-export function tableCaveat(by: TableKind, maxedCaveat: string | null, belowMax: boolean): string | null {
+export function tableCaveat(
+  by: TableKind,
+  maxedCaveat: string | null,
+  belowMax: boolean,
+  weakStones = false
+): string | null {
   if (by === 'maxed') return maxedCaveat;
-  if (by === 'delivery' || by === 'maxed-shift') return belowMax ? RESEARCH_BELOW_MAX_TEXT : null;
+  if (by === 'delivery' || by === 'maxed-shift') {
+    const said = [belowMax ? RESEARCH_BELOW_MAX_TEXT : null, weakStones ? STONES_BELOW_T4_TEXT : null].filter(Boolean);
+    return said.length ? said.join(' ') : null;
+  }
   return null;
+}
+
+/** The save's delivery stones are weaker than a delivery table's: a stone below T4 in its set, or its
+ *  delivery rate below the table's (`ownScale` under WEAK_STONES_SCALE). */
+export function weakDeliveryStones(stonesBelowT4: boolean | undefined, ownScale: number): boolean {
+  return !!stonesBelowT4 || ownScale < WEAK_STONES_SCALE;
 }
