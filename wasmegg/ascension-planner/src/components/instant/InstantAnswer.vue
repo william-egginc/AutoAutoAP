@@ -9,7 +9,10 @@
 <template>
   <div class="space-y-4" data-testid="instant-answer">
     <!-- I want to… -->
-    <section class="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 sm:p-6 space-y-3" data-testid="find-goal">
+    <section
+      class="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 sm:p-6 space-y-3"
+      data-testid="find-goal"
+    >
       <h2 class="text-sm font-black text-slate-900 uppercase tracking-tight">I want to…</h2>
       <div class="flex flex-wrap items-center gap-2">
         <!-- Which goal, like Joo's Manual / Auto switch. -->
@@ -55,9 +58,14 @@
     <FindFilters />
 
     <!-- The rows -->
-    <section class="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 sm:p-6 space-y-3" data-testid="find-results">
+    <section
+      class="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 sm:p-6 space-y-3"
+      data-testid="find-results"
+    >
       <div>
-        <h2 class="text-sm font-black text-slate-900 uppercase tracking-tight" data-testid="find-heading">{{ heading }}</h2>
+        <h2 class="text-sm font-black text-slate-900 uppercase tracking-tight" data-testid="find-heading">
+          {{ heading }}
+        </h2>
         <p v-if="rows.length" class="text-[11px] text-slate-500" data-testid="find-sub">
           {{ countsText(rows) }} ascensions · times are estimates until you check a route exactly
         </p>
@@ -65,8 +73,12 @@
 
       <p v-if="staleNote" class="text-[11px] text-amber-700" data-testid="instant-stale">{{ staleNote }}</p>
       <NoInstantAnswer v-if="noAnswer" :reason="noAnswer" />
-      <p v-else-if="status === 'loading'" class="text-xs text-slate-500" data-testid="instant-loading">{{ loadingText }}</p>
-      <p v-else-if="status === 'error'" class="text-xs text-red-600">The instant answer couldn’t run: {{ errorText }}</p>
+      <p v-else-if="status === 'loading'" class="text-xs text-slate-500" data-testid="instant-loading">
+        {{ loadingText }}
+      </p>
+      <p v-else-if="status === 'error'" class="text-xs text-red-600">
+        The instant answer couldn’t run: {{ errorText }}
+      </p>
       <template v-else-if="status === 'done' && shown">
         <p v-if="!rows.length" class="text-xs text-slate-500">No route reaches {{ goalWords }} on the table.</p>
         <InstantRows
@@ -100,8 +112,7 @@
           <template v-if="by === 'maxed'"
             >Fresh ascensions run at your delivery rate ({{ (scale * 100).toFixed(1) }}% of the table’s).</template
           >
-          The Auto Planner
-          is the exact check (“Import into the planner”)<template v-if="gearCaveat">.</template
+          The Auto Planner is the exact check (“Import into the planner”)<template v-if="gearCaveat">.</template
           ><template v-else>: its dates can differ from these by a fraction of a percent, earlier or later.</template>
         </p>
       </template>
@@ -160,9 +171,13 @@ const emit = defineEmits<{
 const initialState = useInitialStateStore();
 const planner = useAutoPlannerStore();
 
-const TABLE_BASE = `${import.meta.env.BASE_URL}precompute/`;
 const MAXED_TABLE = 'table.bin';
-const TABLE_URL = TABLE_BASE + MAXED_TABLE;
+/** The site's own copies, and the shared table storage (Cloudflare) when the build names one. The
+ *  storage is tried first; if its maxed table can't be read, the page falls back to its own copies. */
+const LOCAL_TABLE_BASE = `${import.meta.env.BASE_URL}precompute/`;
+const REMOTE_TABLE_BASE = (import.meta.env.VITE_TABLES_BASE as string | undefined) || '';
+let TABLE_BASE = REMOTE_TABLE_BASE || LOCAL_TABLE_BASE;
+let TABLE_URL = TABLE_BASE + MAXED_TABLE;
 
 type Goal = 'race' | 'date';
 const eggDayYear = nextEggDayYear();
@@ -188,7 +203,8 @@ const eggDayPicked = computed(() => {
 const deadline = computed<number | undefined>(() => {
   if (goal.value !== 'date') return undefined;
   if (eggDayPicked.value !== null) return eggDaySeconds(eggDayPicked.value);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateText.value)) return getLocalTimestampInTimezone(dateText.value, '09:00', timezone.value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateText.value))
+    return getLocalTimestampInTimezone(dateText.value, '09:00', timezone.value);
   return undefined;
 });
 const deadlineHint = computed(() =>
@@ -260,7 +276,10 @@ const checkHeader = computed<TableHeader | null>(() => {
 });
 
 const noAnswer = computed<NoAnswer | null>(() => {
-  const r = noAnswerFor(checkHeader.value, startTE.value, deadline.value, { dated: chosen.value.dated, now: nowSeconds.value });
+  const r = noAnswerFor(checkHeader.value, startTE.value, deadline.value, {
+    dated: chosen.value.dated,
+    now: nowSeconds.value,
+  });
   if (r && (r.kind === 'pick-date' || r.kind === 'date-passed')) return r;
   if (noTable.value) return { kind: 'no-table' };
   if (!header.value) return null;
@@ -324,7 +343,9 @@ const savedOfGoal = computed<string[]>(() => {
   const g = shown.value;
   if (!g) return [];
   const goalLabel = labelFor(g);
-  return rows.value.filter(r => props.savedIds?.includes(planId({ goal: goalLabel, chain: r.route.chain }))).map(r => r.route.chain.join(' '));
+  return rows.value
+    .filter(r => props.savedIds?.includes(planId({ goal: goalLabel, chain: r.route.chain })))
+    .map(r => r.route.chain.join(' '));
 });
 
 /** The account table's name (tableGear.ts tableName: a slow hash of the player id, worked out once
@@ -340,22 +361,31 @@ function accountTable(): Promise<string | null> {
 /** The table for the loaded save, probed once per save (the account's hashed name and its time). */
 async function tableFor(): Promise<TableChoice> {
   const name = await accountTable();
-  return choiceFor(JSON.stringify([name, saveTime.value]), () =>
-    chooseTable(
-      { base: TABLE_BASE, maxed: MAXED_TABLE, accountName: name },
-      {
-        header: url => (url === TABLE_URL ? tableHeader(url) : probeHeader(url)),
-        stampAt: research =>
-          gearStamp(
-            {
-              rawBackup: backup.value,
-              epicResearchLevels: initialState.epicResearchLevels,
-              colleggtibleModifiers: initialState.colleggtibleModifiers,
-            },
-            research
-          ),
-      }
-    )
+  return choiceFor(JSON.stringify([name, saveTime.value]), async () => {
+    const c = await chooseFrom(name);
+    if (c.maxed || TABLE_BASE === LOCAL_TABLE_BASE) return c;
+    TABLE_BASE = LOCAL_TABLE_BASE;
+    TABLE_URL = TABLE_BASE + MAXED_TABLE;
+    return chooseFrom(name);
+  });
+}
+
+/** The table choice from the current base (TABLE_BASE). */
+function chooseFrom(name: string | null): Promise<TableChoice> {
+  return chooseTable(
+    { base: TABLE_BASE, maxed: MAXED_TABLE, accountName: name },
+    {
+      header: url => (url === TABLE_URL ? tableHeader(url) : probeHeader(url)),
+      stampAt: research =>
+        gearStamp(
+          {
+            rawBackup: backup.value,
+            epicResearchLevels: initialState.epicResearchLevels,
+            colleggtibleModifiers: initialState.colleggtibleModifiers,
+          },
+          research
+        ),
+    }
   );
 }
 
@@ -364,7 +394,14 @@ const ownUrl = computed(() => (choice.value && choice.value.kind !== 'maxed' ? c
 
 /** What an answer is kept under for a moment (instantClient.ts): the tables, the save and the goal. */
 function answerKey(dl: number | undefined): string {
-  return JSON.stringify([TABLE_URL, ownUrl.value ?? null, saveSyncSeconds(backup.value), start.value.delivered, dl ?? null, scale.value]);
+  return JSON.stringify([
+    TABLE_URL,
+    ownUrl.value ?? null,
+    saveSyncSeconds(backup.value),
+    start.value.delivered,
+    dl ?? null,
+    scale.value,
+  ]);
 }
 
 /** Work the answer out for the save and the goal now chosen (the newest call wins). */
@@ -438,7 +475,12 @@ function simulate(row: AnswerRow): void {
 /** The exact check's memory key for a row: the save, the goal shown, the route and its first build. */
 function rowKey(row: AnswerRow): string {
   const g = shown.value ?? chosen.value;
-  return checkKey({ saveTime: saveTime.value, goal: labelFor(g), chain: row.route.chain, a1: row.route.legs[0]?.label ?? '' });
+  return checkKey({
+    saveTime: saveTime.value,
+    goal: labelFor(g),
+    chain: row.route.chain,
+    a1: row.route.legs[0]?.label ?? '',
+  });
 }
 
 /** Save this plan: the row with its times (exact when it was checked, else estimates), into the Saved runs. */
@@ -452,24 +494,28 @@ function save(row: AnswerRow): void {
 /** A check finished: a row already saved gets its exact times in the Saved runs too. */
 function checked(row: AnswerRow, r: ExactResult): void {
   const entry = entryOf(row);
-  if (entry && props.savedIds?.includes(planId(entry))) emit('save', withExact(entry, r, Math.floor(Date.now() / 1000), saveTime.value || undefined));
+  if (entry && props.savedIds?.includes(planId(entry)))
+    emit('save', withExact(entry, r, Math.floor(Date.now() / 1000), saveTime.value || undefined));
 }
 
 /** The Saved runs entry for a row, with its estimate times. */
 function entryOf(row: AnswerRow): PlanEntry | null {
   const g = shown.value;
   if (!g) return null;
-  return (
-    entryFromRow(row, {
-      goal: labelFor(g),
-      dated: g.dated,
-      ...(g.deadline !== undefined ? { deadline: g.deadline } : {}),
-      a1: row.route.legs[0]?.label ?? '',
-      simVersion: SIM_VERSION,
-      gear: by.value === 'account' ? 'built for your account' : by.value === 'gear' ? 'built for your exact gear' : gearLabel(gap.value),
-      ...(saveTime.value ? { saveTime: saveTime.value } : {}),
-    })
-  );
+  return entryFromRow(row, {
+    goal: labelFor(g),
+    dated: g.dated,
+    ...(g.deadline !== undefined ? { deadline: g.deadline } : {}),
+    a1: row.route.legs[0]?.label ?? '',
+    simVersion: SIM_VERSION,
+    gear:
+      by.value === 'account'
+        ? 'built for your account'
+        : by.value === 'gear'
+          ? 'built for your exact gear'
+          : gearLabel(gap.value),
+    ...(saveTime.value ? { saveTime: saveTime.value } : {}),
+  });
 }
 
 onMounted(() => {

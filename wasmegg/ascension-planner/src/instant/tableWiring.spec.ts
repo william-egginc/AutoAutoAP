@@ -45,7 +45,7 @@ describe('the chosen table is used wherever the maxed one was', () => {
 
   it('the answer gets the chosen table, and kept answers are kept per table', () => {
     expect(card).toMatch(/answer\(\s*id,\s*TABLE_URL,[\s\S]*?ownUrl\.value\s*\)/);
-    expect(card).toMatch(/function answerKey[\s\S]*?JSON\.stringify\(\[TABLE_URL, ownUrl\.value/);
+    expect(card).toMatch(/function answerKey[\s\S]*?JSON\.stringify\(\[\s*TABLE_URL,\s*ownUrl\.value/);
     // The header comes from the choice, probed once per save.
     expect(card).toMatch(/const c = await tableFor\(\)/);
     expect(card).not.toMatch(/tableHeader\(TABLE_URL\)/);
