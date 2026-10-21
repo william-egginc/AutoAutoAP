@@ -211,7 +211,7 @@
         </p>
         <p v-else class="text-[13px] text-slate-700">Nothing left in this plan: work out a new one.</p>
         <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
-          Behind by {{ chip?.text.replace('Behind by ', '') }}.
+          {{ paceBadge }}.
           <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Check again ›</button>
         </p>
       </template>
@@ -302,7 +302,8 @@ import RouteTimeline from '../auto/RouteTimeline.vue';
 import { dateAt, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
 import { emptyGoalWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
-import { trackWords, type PlanEvent, type TrackState } from '@/lib/nowPlan';
+import { type PlanEvent, type TrackState } from '@/lib/nowPlan';
+import { paceWords } from '@/lib/planPace';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { secondaryLine } from '@/lib/currentAnswer';
 import { formatDate } from '@/lib/leaderboardRank';
@@ -470,7 +471,10 @@ const secondaryText = computed(() => {
   if (!sec) return '';
   return secondaryLine(sec.label, sec.plan, t => formatDate(t * 1000, props.zone, { month: 'short', day: 'numeric', year: 'numeric' }));
 });
-const chip = computed(() => (props.track ? trackWords(props.track) : null));
+/** The chip: lib/planPace.ts's words, the same as My runs' saved plans ("3 hours behind, as of 3:42 pm"). */
+const pace = computed(() => (props.track ? paceWords(props.track, props.now, props.zone) : null));
+const chip = computed(() => (pace.value?.text ? { tone: pace.value.tone, text: pace.value.text } : null));
+const paceBadge = computed(() => pace.value?.badge ?? '');
 const nextText = computed(() => (props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone) : ''));
 const nextEvent = computed(() => props.events.find(e => !e.past && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>

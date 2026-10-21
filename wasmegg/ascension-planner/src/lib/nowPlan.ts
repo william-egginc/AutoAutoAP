@@ -7,13 +7,14 @@
  *   planFromSnapshot  the lead route of a snapshot (Fastest: Check exactly's soonest; By a date: its highest TE),
  *                     its legs when they were kept, when it was worked out, its runner-up gap.
  *   planEvents        the shifts, prestiges and the goal, each with past / next flags.
- *   onTrack           a newer save against where the plan (made from an older one) expected it.
+ *   onTrack           a newer save against where the plan (made from an older one) expected it (lib/planPace.ts).
  *   shiftsAfter       how many shifts the plan has after a moment (the "all planned shifts" tile).
  *
  * Pure: no Vue, no stores; `now` is always a parameter.
  */
 import type { LegSummary } from '@/search/types';
 import type { SnapMeta, SnapWhatIf } from '@/search/instantSnapshot';
+import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './planPace';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
 export interface SnapRoute {
@@ -383,114 +384,46 @@ export function shiftsAfter(plan: NowPlan, afterSeconds: number): number | null 
 
 // ----------------------------------------------------------------------------------- on track
 
-/** The save's egg order, as SnapMeta `teByEgg` lists it. */
-export const SAVE_EGG_ORDER = ['curiosity', 'integrity', 'humility', 'resilience', 'kindness'] as const;
+// The plan's TE line and the pace live in lib/planPace.ts (R6, 21 Oct 2026), shared with My runs' saved runs and
+// answers so Right now's chip and their badges can never disagree; re-exported here for this module's callers.
+export { SAVE_EGG_ORDER, planTEAt } from './planPace';
 
-/** Within this many hours either way the save is "on plan". */
-export const ON_PLAN_HOURS = 0.5;
-
-export type TrackState =
-  | { kind: 'ahead' | 'behind'; hours: number }
-  | { kind: 'on-plan' }
-  | { kind: 'same-save' }
-  | { kind: 'cant'; why: 'no-timeline' | 'no-te' | 'not-started' | 'outside' };
+/** Right now's chip state: planPace's (one wording everywhere). */
+export type TrackState = PaceState;
 
 /**
- * The plan's total TE at `t`: each egg's TE where the plan last left it, and the egg being laid moving in a
- * straight line from where it started to the TE it has when the farm next leaves it (a shift's `te`, or the leg's
- * `endEgg`). Null when the legs don't carry those TEs (priced before 15 Oct 2026).
+ * Is the loaded save ahead of or behind the plan? A thin wrapper over lib/planPace.ts: the plan's line from its
+ * exact legs (shift by shift with `meta.teByEgg`, else leg by leg), or from the instant answer's table legs (leg by
+ * leg, "(estimate)"); the plan's own save is `meta.backupTime`. `progress`: the save's progress (planPace
+ * `progressOf`); without it the TE per egg summed.
  */
-export function planTEAt(legs: readonly LegSummary[], startTE: readonly number[], t: number): number | null {
-  const te = new Map<string, number>(SAVE_EGG_ORDER.map((e, i) => [e, startTE[i] ?? 0]));
-  for (const leg of legs) {
-    const shifts = leg.shifts ?? [];
-    let onEgg = shifts[0]?.fromEgg ?? leg.endEgg?.egg ?? '';
-    let since = leg.startTime ?? leg.endTime - leg.durationSeconds;
-    if (!onEgg) return null;
-    const stops = [
-      ...shifts.map(s => ({ at: s.at, left: s.fromEgg || '', te: s.te, to: s.egg })),
-      { at: leg.endTime, left: leg.endEgg?.egg ?? '', te: leg.endEgg?.te, to: '' },
-    ];
-    for (const s of stops) {
-      const left = s.left || onEgg;
-      if (typeof s.te !== 'number' || !Number.isFinite(s.te)) return null;
-      const from = te.get(left) ?? 0;
-      if (t < s.at) {
-        if (t <= since) return sum(te);
-        const f = (t - since) / Math.max(1, s.at - since);
-        te.set(left, from + (s.te - from) * f);
-        return sum(te);
-      }
-      te.set(left, Math.max(from, s.te));
-      onEgg = s.to;
-      since = s.at;
-    }
-  }
-  return sum(te);
-}
-const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
-
-/**
- * Is the loaded save ahead of or behind the plan? The plan was made from an older save (`meta.backupTime`,
- * `meta.teByEgg`); the loaded save has `teByEgg` (lifetime, as the game counts it) at `saveSeconds`. Ahead means
- * the plan only expected this much TE later than the save's time. Hours, rounded to the half hour by the caller.
- */
-export function onTrack(plan: NowPlan, save: { seconds: number; teByEgg: readonly number[] }): TrackState {
-  const meta = plan.meta;
-  if (meta && Math.abs(meta.backupTime - save.seconds) < 60) return { kind: 'same-save' };
-  if (!plan.legs) return { kind: 'cant', why: 'no-timeline' };
-  if (!meta?.teByEgg || meta.teByEgg.length !== 5) return { kind: 'cant', why: 'no-te' };
-  const legs = plan.legs.slice(0, plan.chain.length);
-  const start = plan.planStart ?? legs[0]?.startTime ?? null;
-  if (start === null || save.seconds < start) return { kind: 'cant', why: 'not-started' };
-  const last = legs[legs.length - 1]?.endTime ?? start;
-  if (save.seconds > last) return { kind: 'cant', why: 'outside' };
-  const actual = save.teByEgg.reduce((a, b) => a + b, 0);
-  const expected = planTEAt(legs, meta.teByEgg, save.seconds);
-  if (expected === null) return { kind: 'cant', why: 'no-te' };
-  // When did (or will) the plan reach the save's TE? Bisection on the plan's (non-decreasing) TE line.
-  let lo = start;
-  let hi = last;
-  const atStart = planTEAt(legs, meta.teByEgg, start) ?? 0;
-  const atEnd = planTEAt(legs, meta.teByEgg, last) ?? 0;
-  if (actual <= atStart) return { kind: 'cant', why: 'outside' };
-  if (actual > atEnd) return { kind: 'cant', why: 'outside' };
-  for (let k = 0; k < 50; k++) {
-    const mid = (lo + hi) / 2;
-    if ((planTEAt(legs, meta.teByEgg, mid) ?? 0) >= actual) hi = mid;
-    else lo = mid;
-  }
-  const hours = (hi - save.seconds) / 3600;
-  if (Math.abs(hours) < ON_PLAN_HOURS) return { kind: 'on-plan' };
-  return hours > 0 ? { kind: 'ahead', hours } : { kind: 'behind', hours: -hours };
+export function onTrack(
+  plan: NowPlan,
+  save: { seconds: number; teByEgg: readonly number[]; progress?: number; onVirtue?: boolean }
+): TrackState {
+  const legs = plan.legs ? plan.legs.slice(0, plan.chain.length) : null;
+  const tableLegs =
+    !legs && plan.tableLegs
+      ? plan.tableLegs.slice(0, plan.chain.length).map(l => ({ start: l.start, end: l.end, endTE: l.endTE ?? l.to }))
+      : null;
+  const byEgg = plan.meta?.teByEgg && plan.meta.teByEgg.length === 5 ? plan.meta.teByEgg : null;
+  const line = paceLine({
+    legs,
+    tableLegs,
+    planStart: plan.planStart,
+    startTEByEgg: byEgg,
+    planSave: plan.meta?.backupTime ?? null,
+    estimate: !plan.exact,
+  });
+  return planPace(line, {
+    seconds: save.seconds,
+    progress: save.progress ?? save.teByEgg.reduce((a, b) => a + b, 0),
+    onVirtue: save.onVirtue ?? true,
+  });
 }
 
-/** The chip's words. */
-export function trackWords(s: TrackState): { tone: 'ok' | 'bad' | 'warn' | 'plain'; text: string } {
-  const h = (x: number) => {
-    const r = Math.round(x * 2) / 2;
-    return r >= 48 ? `${Math.round(r / 24)} days` : `${r} h`;
-  };
-  switch (s.kind) {
-    case 'ahead':
-      return { tone: 'ok', text: `${h(s.hours)} ahead of plan` };
-    case 'behind':
-      return { tone: 'bad', text: `Behind by ${h(s.hours)}` };
-    case 'on-plan':
-      return { tone: 'ok', text: 'On plan' };
-    case 'same-save':
-      return { tone: 'plain', text: 'Made from this save' };
-    case 'cant':
-      return {
-        tone: 'warn',
-        text:
-          s.why === 'no-timeline'
-            ? "Can't tell: this plan was saved without its timeline"
-            : s.why === 'no-te'
-              ? "Can't tell: this plan was saved without each egg's TE"
-              : s.why === 'not-started'
-                ? "Can't tell yet: the plan hasn't started"
-                : "Can't tell: your save is past this plan",
-      };
-  }
+/** The chip's words (planPace `paceWords`): "3 hours behind, as of 3:42 pm". */
+export function trackWords(s: TrackState, nowSeconds: number, zone: string): { tone: PaceTone; text: string } {
+  const w = paceWords(s, nowSeconds, zone);
+  return { tone: w.tone, text: w.text };
 }

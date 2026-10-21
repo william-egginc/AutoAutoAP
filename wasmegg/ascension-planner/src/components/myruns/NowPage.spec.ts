@@ -107,7 +107,7 @@ describe('the Right now card', () => {
     expect(t).toContain('Plan for Race to 490 calculated Oct 15 at 12:40 pm (2 h ago) (Check exactly)');
     expect(t).toContain('Integrity');
     expect(t).toContain('ascension 1 of 2 · 186 TE so far');
-    expect(t).toContain('Made from this save');
+    expect(t).toContain('Made from your latest save'); // R6: one wording with My runs' saved plans (lib/planPace.ts)
     expect(t).toContain('Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am');
     // The picture is named by the egg's name, as FloatingStats does (a numeric name did not load).
     expect(html).toContain('egginc/egg_integrity.png');
@@ -124,11 +124,27 @@ describe('the Right now card', () => {
   });
 
   it('behind plan: "Check again ›"; no timeline: "Can\'t tell"', async () => {
-    const behind = textOf(await renderHtml(RightNowCard, cardProps({ track: { kind: 'behind', hours: 6 } })));
-    expect(behind).toContain('Behind by 6 h');
+    // R6 (21 Oct 2026): lib/planPace.ts's words, the same as My runs' saved plans ("Behind by 6 h" before).
+    const track = {
+      kind: 'behind' as const,
+      hours: -6,
+      saveTime: NOW - H,
+      expected: 190,
+      actual: 188,
+      planAsc: 1,
+      stopsReached: 0,
+      stops: 2,
+      rough: false,
+      estimate: false,
+      onVirtue: true,
+      startNote: null,
+    };
+    const behind = textOf(await renderHtml(RightNowCard, cardProps({ track })));
+    expect(behind).toContain('6 hours behind, as of');
+    expect(behind).toContain('6 hours behind. Check again ›');
     expect(behind).toContain('Check again ›');
     const cant = textOf(await renderHtml(RightNowCard, cardProps({ track: { kind: 'cant', why: 'no-timeline' } })));
-    expect(cant).toContain("Can't tell: this plan was saved without its timeline");
+    expect(cant).toContain("Can't tell: saved without its timeline");
   });
 
   it('no plan saved: the egg and "Work out my plan ›", nothing worked out here', async () => {

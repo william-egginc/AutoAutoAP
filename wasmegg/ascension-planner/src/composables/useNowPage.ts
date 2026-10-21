@@ -48,6 +48,7 @@ import { useMinuteClock } from './useMinuteClock';
 import { backupSecondsOf, saveStrip, saveTEByEggOf, saveTEOf } from '@/lib/saveFreshness';
 import { hashID } from '@/lib/storage/db';
 import { virtueEggOf } from '@/lib/virtueEggs';
+import { progressOf } from '@/lib/planPace';
 import {
   SAVE_EGG_ORDER,
   ascensionAt,
@@ -535,7 +536,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const shownEvents = computed(() => tableEvents(events.value));
   const ascNow = computed(() => (cardPlan.value ? ascensionAt(cardPlan.value.plan, now.value) : 0));
   const track = computed(() =>
-    cardPlan.value ? onTrack(cardPlan.value.plan, { seconds: saveSeconds.value, teByEgg: teByEgg.value }) : null
+    cardPlan.value
+      ? onTrack(cardPlan.value.plan, {
+          seconds: saveSeconds.value,
+          teByEgg: teByEgg.value,
+          // Eggs delivered toward the next TE count too (lib/planPace.ts `progressOf`), as on My runs' saved plans.
+          progress: progressOf(raw.value, saveSeconds.value)?.progress,
+          onVirtue: onVirtue.value !== false,
+        })
+      : null
   );
 
   // -------------------------------------------------------------------------------------- the gear

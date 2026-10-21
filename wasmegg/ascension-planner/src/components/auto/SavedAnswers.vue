@@ -10,7 +10,8 @@
   and joining them would change both. Several roots, so it sits in the screen's own spacing.
 
   `list-only` (My runs, 15 Oct 2026): the list alone, without Save this answer or the slots, and Open says
-  so (`opened`) for My runs to show By a date.
+  so (`opened`) for My runs to show By a date. There, each answer says how the latest save is doing against
+  it (R6, PaceBadge.vue), worked out while `pace-active` (My runs' "Saved on this device" is open).
 -->
 <template>
   <div v-if="!listOnly" class="flex flex-wrap items-center gap-2">
@@ -73,6 +74,10 @@
         :zone="zone"
         @used="open(a.id)"
       />
+      <PaceBadge
+        v-if="listOnly"
+        :words="pace.paceOf({ kind: 'answer', answer: a, goalKey: screenGoalKey(a.result.deadline, a.result.te) })"
+      />
     </div>
     <SaveFileBar v-if="!listOnly" :player-id="playerId" />
   </div>
@@ -86,6 +91,8 @@ import EntrySaveActions from './EntrySaveActions.vue';
 import FollowButton from '../FollowButton.vue';
 import { screenGoalKey } from '@/lib/follow';
 import SaveFileBar from './SaveFileBar.vue';
+import PaceBadge from '../myruns/PaceBadge.vue';
+import { usePlanPace } from '@/composables/usePlanPace';
 
 const props = defineProps<{
   playerId: string;
@@ -95,6 +102,8 @@ const props = defineProps<{
   zone: string;
   /** My runs: the list alone (no Save this answer, no slots, no save-file bar). */
   listOnly?: boolean;
+  /** My runs' "Saved on this device" is open: the badges may load what they need (one answer at a time). */
+  paceActive?: boolean;
 }>();
 const emit = defineEmits<{ opened: [] }>();
 const store = useChainSearchStore();
@@ -120,6 +129,18 @@ async function save(): Promise<void> {
 }
 
 onMounted(() => void store.refreshSavedAnswers(props.playerId));
+
+/** "N hours ahead / behind" on each answer (My runs only). */
+const pace = usePlanPace({
+  playerId: () => props.playerId,
+  active: () => !!props.listOnly && !!props.paceActive,
+  entries: () =>
+    store.savedAnswers.map(answer => ({
+      kind: 'answer' as const,
+      answer,
+      goalKey: screenGoalKey(answer.result.deadline, answer.result.te),
+    })),
+});
 watch(
   () => props.playerId,
   id => void store.refreshSavedAnswers(id)
