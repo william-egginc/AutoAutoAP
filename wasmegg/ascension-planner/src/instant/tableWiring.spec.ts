@@ -30,7 +30,15 @@ describe('no player id in a request', () => {
   });
 
   it('the probes log nothing (a missing table is the usual case)', () => {
-    for (const f of ['tableChoice.ts', 'tableFetch.ts', 'tableGear.ts', 'instant.worker.ts', 'instantClient.ts'])
+    for (const f of [
+      'tableChoice.ts',
+      'tableFetch.ts',
+      'tableGear.ts',
+      'instant.worker.ts',
+      'instantClient.ts',
+      'deliveryTables.ts',
+      'earningsShift.ts',
+    ])
       expect(readFileSync(join(SRC, 'instant', f), 'utf8')).not.toMatch(/console\./);
   });
 });
@@ -44,8 +52,9 @@ describe('the chosen table is used wherever the maxed one was', () => {
   });
 
   it('the answer gets the chosen table, and kept answers are kept per table', () => {
-    expect(card).toMatch(/answer\(\s*id,\s*TABLE_URL,[\s\S]*?ownUrl\.value\s*\)/);
-    expect(card).toMatch(/function answerKey[\s\S]*?JSON\.stringify\(\[\s*TABLE_URL,\s*ownUrl\.value/);
+    expect(card).toMatch(/answer\(\s*id,\s*TABLE_URL,[\s\S]*?ownUrl\.value,\s*ownShift\.value\s*\)/);
+    // The table read and its earnings shift are part of the kept answer's key.
+    expect(card).toMatch(/function answerKey[\s\S]*?JSON\.stringify\(\[\s*TABLE_URL,\s*ownUrl\.value \?\? null,\s*ownShift\.value,/);
     // The header comes from the choice, probed once per save.
     expect(card).toMatch(/const c = await tableFor\(\)/);
     expect(card).not.toMatch(/tableHeader\(TABLE_URL\)/);
@@ -53,6 +62,26 @@ describe('the chosen table is used wherever the maxed one was', () => {
 
   it('the one line is on the card', () => {
     expect(card).toMatch(/data-testid="find-table"/);
+  });
+});
+
+describe('the delivery tables and the earnings shift', () => {
+  const choice = readFileSync(join(SRC, 'instant', 'tableChoice.ts'), 'utf8');
+  const delivery = readFileSync(join(SRC, 'instant', 'deliveryTables.ts'), 'utf8');
+
+  it('no player id: index.json is asked under the table base, a delivery table by its key only', () => {
+    expect(delivery).not.toMatch(/eiUserId|userId|playerId/);
+    expect(delivery).toMatch(/get\(base \+ 'index\.json'\)/);
+    expect(delivery).toMatch(/`delivery-\$\{key\}\.bin`/);
+    expect(choice).toMatch(/const url = input\.base \+ deliveryTableName\(key\)/);
+    expect(card).toMatch(/index: \(\) => tableIndex\(base\)/);
+    // Every url the card builds starts from the table base; the id goes only to tableName.
+    for (const l of card.split('\n').filter(l => /tableIndex|deliveryAt|earningsCTE/.test(l)))
+      expect(l).not.toMatch(/eiUserId|\bid\b/);
+  });
+
+  it('the gear caveat only when the maxed table answers unshifted', () => {
+    expect(card).toMatch(/const gearCaveat = computed\(\(\) =>\s*by\.value === 'maxed' &&/);
   });
 });
 

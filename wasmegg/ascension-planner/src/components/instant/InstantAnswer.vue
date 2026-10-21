@@ -144,8 +144,10 @@ import { earningsBonus, gearDiffers, gearDiffersText } from '@/instant/gearDiffe
 import { continueTail, hasVirtueFarm, siloSeconds, staleSaveNote } from '@/instant/continueTail';
 import { baseStateFromBackup, eggsDeliveredFromBackup, farmFromBackup, saveSyncSeconds } from '@/instant/saveFarm';
 import { answer, isNewest, newRequestId, probeHeader, tableHeader } from '@/instant/instantClient';
-import { answeredBy, chooseTable, choiceFor, tableLineFor, type TableChoice } from '@/instant/tableChoice';
-import { gearStamp, tableName } from '@/instant/tableGear';
+import { answeredBy, chooseTable, choiceFor, ownRange, shiftWords, tableLineFor, type TableChoice } from '@/instant/tableChoice';
+import { deliverySetAt, gearStamp, tableName } from '@/instant/tableGear';
+import { earningsCTE } from '@/instant/earningsShift';
+import { tableIndex } from '@/instant/deliveryTables';
 import { getSimulationContext } from '@/engine/adapter';
 import type { BuildParams } from '@/instant/precomputedLeg';
 import type { SimulateRequest } from '@/instant/simulatePlan';
@@ -255,7 +257,9 @@ const loadingText = ref('');
 const errorText = ref('');
 /** The maxed table's header (its k3 and cteBonus price the save's gear against it). */
 const header = ref<TableHeader | null>(null);
-/** Which table answers this save (tableChoice.ts): the account's own, its exact gear's, or the maxed one. */
+/** Which table answers this save (tableChoice.ts): the account's own, its exact gear's, a delivery
+ *  table like the save's read with the earnings shift, or the maxed one (read with the shift when only
+ *  the earnings differ). */
 const choice = ref<TableChoice | null>(null);
 /** Set once the header was asked for and the table is missing, unreadable or from another simulator. */
 const noTable = ref(false);
@@ -271,7 +275,7 @@ const shown = computed<AnsweredGoal | null>(() =>
  *  in (the worker answers from both, per leg). */
 const checkHeader = computed<TableHeader | null>(() => {
   const h = header.value;
-  const own = choice.value?.kind !== 'maxed' ? choice.value?.header : null;
+  const own = choice.value ? ownRange(choice.value) : null;
   return h && own ? { ...h, from: Math.min(h.from, own.from), to: Math.max(h.to, own.to) } : h;
 });
 
@@ -301,7 +305,7 @@ const by = computed(() => (choice.value ? answeredBy(choice.value, startTE.value
 /** Which table answered, in one line. */
 const tableLine = computed(() => (choice.value?.header ? tableLineFor(choice.value, startTE.value) : ''));
 /** Below TE 340 with gear other than the table's: the answer can be a few percent off (gearDiffers.ts).
- *  Not on a table built on the save's own gear. */
+ *  Not on a table built on the save's own gear, nor on one read with the earnings shift for it. */
 const gearCaveat = computed(() =>
   by.value === 'maxed' && gap.value && gearDiffers(startTE.value, gap.value) ? gearDiffersText(gap.value) : null
 );
@@ -372,31 +376,37 @@ async function tableFor(): Promise<TableChoice> {
 
 /** The table choice from the current base (TABLE_BASE). */
 function chooseFrom(name: string | null): Promise<TableChoice> {
+  const base = TABLE_BASE;
+  const stampInputs = () => ({
+    rawBackup: backup.value,
+    epicResearchLevels: initialState.epicResearchLevels,
+    colleggtibleModifiers: initialState.colleggtibleModifiers,
+  });
   return chooseTable(
-    { base: TABLE_BASE, maxed: MAXED_TABLE, accountName: name },
+    { base, maxed: MAXED_TABLE, accountName: name },
     {
       header: url => (url === TABLE_URL ? tableHeader(url) : probeHeader(url)),
-      stampAt: research =>
-        gearStamp(
-          {
-            rawBackup: backup.value,
-            epicResearchLevels: initialState.epicResearchLevels,
-            colleggtibleModifiers: initialState.colleggtibleModifiers,
-          },
-          research
-        ),
+      stampAt: research => gearStamp(stampInputs(), research),
+      deliveryAt: research => deliverySetAt(stampInputs(), research),
+      earningsCTE: () => earningsCTE(backup.value),
+      // The storage's list of tables, once per page (deliveryTables.ts).
+      index: () => tableIndex(base),
     }
   );
 }
 
-/** The account or gear table joined to the maxed one, when one was chosen. */
+/** The account, gear or delivery table joined to the maxed one, when one was chosen (for
+ *  'maxed-shift', the maxed table itself, read with the shift). */
 const ownUrl = computed(() => (choice.value && choice.value.kind !== 'maxed' ? choice.value.url : undefined));
+/** The earnings shift `ownUrl` is read with (0: none). */
+const ownShift = computed(() => (ownUrl.value ? (choice.value?.shift ?? 0) : 0));
 
 /** What an answer is kept under for a moment (instantClient.ts): the tables, the save and the goal. */
 function answerKey(dl: number | undefined): string {
   return JSON.stringify([
     TABLE_URL,
     ownUrl.value ?? null,
+    ownShift.value,
     saveSyncSeconds(backup.value),
     start.value.delivered,
     dl ?? null,
@@ -451,7 +461,8 @@ async function run(): Promise<void> {
     (done, of) => {
       if (isNewest(id)) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
     },
-    ownUrl.value
+    ownUrl.value,
+    ownShift.value
   );
   if (!isNewest(id)) return;
   if (a.kind === 'answer') {
@@ -513,7 +524,11 @@ function entryOf(row: AnswerRow): PlanEntry | null {
         ? 'built for your account'
         : by.value === 'gear'
           ? 'built for your exact gear'
-          : gearLabel(gap.value),
+          : by.value === 'delivery'
+            ? `built for gear like yours, ${shiftWords(choice.value?.shift)}`
+            : by.value === 'maxed-shift'
+              ? `maxed gear, ${shiftWords(choice.value?.shift)}`
+              : gearLabel(gap.value),
     ...(saveTime.value ? { saveTime: saveTime.value } : {}),
   });
 }
