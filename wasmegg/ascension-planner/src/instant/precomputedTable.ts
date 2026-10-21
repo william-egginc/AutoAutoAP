@@ -10,7 +10,7 @@
  * Float64 throughout, the egg counts above all: the tail compares them with TE thresholds exactly, and
  * a count rounded to just under its threshold would lose a whole TE.
  */
-import { EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
+import { canonicalDelivered, EGG_ORDER, rebase, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 
 const FIELDS = 9;
 
@@ -41,6 +41,10 @@ export interface TableHeader {
   /** The simulator the cells came from (simVersion.ts). Absent on a table packed before stamping:
    *  refused, as from another simulator. */
   simVersion?: string;
+  /** Joo's header fields (his buildTable/header.ts, upstream 0214e968): the fixed delivery set's
+   *  artifact ids and its key (deliveryTables.ts `deliveryKey`). On the delivery tables. */
+  delivery?: string[];
+  deliveryKey?: string;
 }
 
 export interface Table {
@@ -147,6 +151,54 @@ export function readTable(buffer: ArrayBuffer, maxCells = DECODED_CELLS): Table 
       cache.set(key, builds);
       return builds;
     },
+  };
+}
+
+/** A table's lookup as read with an earnings shift (`shiftedLookup`): the shift is on it. */
+export type ShiftedLookup = Table['lookup'] & { shift?: number };
+
+/**
+ * The table as read for a player whose earnings artifacts are `shift` Clothed TE below the table's
+ * (ported as is from Joo's upstream table.ts `shiftedLookup`, commit 5519caf2): TE `te` reads the row
+ * at `te - shift`, rounded down so a route never promises more than the artifacts earn. Each build is
+ * restated from `te`'s canonical counts, the eggs it delivers itself carried over (they come from
+ * earnings, not from the TE it started at), so `rebase`, the stops and every TE shown stay the
+ * player's real TE. `shift` 0 is the table itself.
+ */
+export function shiftedLookup(table: Table, shift: number): ShiftedLookup {
+  if (!(shift > 0)) return table.lookup;
+  const cache = new LruCache<number, BuildParams[] | null>(DECODED_CELLS);
+  const lookup: ShiftedLookup = (te, hour) => {
+    const key = te * WEEK_HOURS + hour;
+    const hit = cache.get(key);
+    if (hit !== undefined) return hit;
+    const row = Math.floor(te - shift);
+    const raw = table.lookup(row, hour);
+    const builds = raw && raw.map(b => rebase(b, row, canonicalDelivered(te)));
+    cache.set(key, builds);
+    return builds;
+  };
+  lookup.shift = shift;
+  return lookup;
+}
+
+/** The first TE a table read with `shift` has a row for: `te - shift` must reach the table's `from`. */
+export function shiftedFrom(header: Pick<TableHeader, 'from'>, shift: number): number {
+  return shift > 0 ? Math.ceil(header.from + shift) : header.from;
+}
+
+/**
+ * The table read with an earnings shift, as a table of its own (this page's wrapper on `shiftedLookup`):
+ * its header's range is only the TEs it has a row for, `shiftedFrom` to the table's own `to`, so
+ * `compositeTable` takes the TEs below from the maxed table.
+ */
+export function shiftedTable(table: Table, shift: number): Table {
+  if (!(shift > 0)) return table;
+  const read = shiftedLookup(table, shift);
+  const header = { ...table.header, from: shiftedFrom(table.header, shift) };
+  return {
+    header,
+    lookup: (te, hour) => (te < header.from || te > header.to ? null : read(te, hour)),
   };
 }
 
