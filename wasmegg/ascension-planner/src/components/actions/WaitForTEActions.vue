@@ -86,7 +86,7 @@
         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add how many TE?</span>
         <div class="flex items-center gap-1">
           <button
-            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
+            class="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
             :disabled="teToGain <= 1"
             @click="teToGain = Math.max(1, teToGain - 1)"
             v-tippy="minusButtonTooltip"
@@ -104,11 +104,11 @@
             :min="1"
             :max="98 - currentTE"
             @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
-            class="flex-1 h-10 text-center text-sm font-mono-premium font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
+            class="flex-1 h-11 text-center text-sm font-mono-premium font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
             :disabled="currentTE >= 98"
           />
           <button
-            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
+            class="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
             :disabled="teToGain >= 98 - currentTE"
             @click="teToGain = Math.min(98 - currentTE, teToGain + 1)"
             v-tippy="plusButtonTooltip"

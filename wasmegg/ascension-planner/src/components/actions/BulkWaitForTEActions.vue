@@ -143,12 +143,21 @@
       >
         Apply Bulk TE Plan
       </button>
+      <div
+        v-if="totalTEToGain > 0 && !allReachable"
+        class="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-4"
+      >
+        <p class="text-[11px] font-bold text-amber-700 uppercase tracking-tight">
+          Can't apply: at least one egg's wait would take over a year at this farm's current delivery rate
+          ({{ unreachableEggNames }}). Lower the number or build up the farm first.
+        </p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL, shiftCost } from 'lib';
@@ -321,6 +330,12 @@ const eggPlans = computed(() => {
 
 // Every egg's wait must be reachable (finite, within a year at the current rate).
 const allReachable = computed(() => eggPlans.value.every(p => isTEWaitReachable(p.durationSeconds)));
+const unreachableEggNames = computed(() =>
+  eggPlans.value
+    .filter(p => !isTEWaitReachable(p.durationSeconds))
+    .map(p => VIRTUE_EGG_NAMES[p.egg])
+    .join(', ')
+);
 
 const totalDurationSeconds = computed(() => {
   return eggPlans.value.reduce((sum, p) => sum + p.durationSeconds, 0);
@@ -352,17 +367,15 @@ function formatSimTime(seconds: number) {
   return `Day ${day}, ${displayHour}:${displayMinute} ${period}`;
 }
 
-// Initialization
-onMounted(() => {
-  const currentEgg = actionsStore.effectiveSnapshot.currentEgg as VirtueEgg;
-  // Current egg first, then others in standard order
-  visitOrder.value = [
-    currentEgg,
-    ...VIRTUE_EGGS.filter(e => e !== currentEgg)
-  ];
-  // The default 15 may be more than the eggs can still gain.
-  handleTotalChange();
-});
+// Initialization (in setup, not onMounted: it needs no DOM, and a server render sees the plan too)
+const openingEgg = actionsStore.effectiveSnapshot.currentEgg as VirtueEgg;
+// Current egg first, then others in standard order
+visitOrder.value = [
+  openingEgg,
+  ...VIRTUE_EGGS.filter(e => e !== openingEgg)
+];
+// The default 15 may be more than the eggs can still gain.
+handleTotalChange();
 
 // Methods
 function adjustTotal(delta: number) {
