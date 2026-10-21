@@ -23,6 +23,7 @@ import { useTruthEggsStore } from '@/stores/truthEggs';
 import { waitForTEExecutor } from './waitForTE';
 import { formatAbsoluteTime } from '@/lib/format';
 import WaitForTEActions from '@/components/actions/WaitForTEActions.vue';
+import BulkWaitForTEActions from '@/components/actions/BulkWaitForTEActions.vue';
 
 // `\sdisabled[\s>=]`: the attribute, not Tailwind's `disabled:opacity-20` class.
 const DISABLED_WAIT_BUTTON = /<button[^>]*\sdisabled[\s>=][^>]*>(?:(?!<\/button>)[\s\S])*Wait for TE/;
@@ -113,5 +114,19 @@ describe('Wait for TE on a fresh farm past TE #38 (Plan Future)', () => {
 
   it('formatAbsoluteTime never prints Invalid Date for a finite but out-of-range time', () => {
     expect(formatAbsoluteTime(1.5e15, Date.UTC(2026, 9, 21))).toBe('∞');
+  });
+});
+
+describe('Bulk Wait for TE on the same fresh farm', () => {
+  it('disables Apply at its default 15 and says why, naming the eggs', async () => {
+    await syntheticInputs();
+    const html = await renderHtml(BulkWaitForTEActions, {}, {}, [getActivePinia()!, tippyStub]);
+    const text = textOf(html);
+    expect(text).toContain(
+      "Can't apply: at least one egg's wait would take over a year at this farm's current delivery rate (Curiosity"
+    );
+    expect(text).toContain('Lower the number or build up the farm first.');
+    expect(text).not.toContain('Invalid Date');
+    expect(html).toMatch(/<button[^>]*\sdisabled[\s>=][^>]*>\s*Apply Bulk TE Plan/);
   });
 });
