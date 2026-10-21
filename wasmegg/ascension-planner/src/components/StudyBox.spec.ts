@@ -175,6 +175,12 @@ describe('wiring', () => {
     expect(at).toBeGreaterThan(app.indexOf('<the-player-id-form'));
   });
 
+  it('About › What is sent says what the box does', () => {
+    const about = read('../../public/about.html').replace(/\s+/g, ' ');
+    expect(about).toContain('<b>Help improve the planner</b>, the box above the tabs, asks once in each browser.');
+    expect(about).toContain('for the account on screen only');
+  });
+
   it('Setup has its section before Sharing, with a collector', () => {
     const s = read('./auto/YourSetup.vue');
     const at = s.indexOf('<StudySetup v-if="store.submitUrl" />');
