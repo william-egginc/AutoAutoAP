@@ -132,14 +132,14 @@ import { computed, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { showDay } from '@/lib/displayTime';
 import { TICK_WORDS, type StudyTicks } from '@/lib/study';
-import { consentState } from '@/composables/useConsent';
+import { consentAgreed, consentState } from '@/composables/useConsent';
 import {
   STUDY_NAME_MAX,
   knownName,
   setStudyCredit,
   setStudyTick,
   studyState,
-  tickStatus,
+  TICK_CONSENT,
   useForThisAccount,
   withdrawStudy,
 } from '@/composables/useStudy';
@@ -171,17 +171,17 @@ const answeredOn = computed(() => {
   return showDay(ymd);
 });
 
-/** Each tick as it stands for this account now (a share button's Withdraw shows here at once): on only when
- *  the player said yes; an item left unticked at Yes stays not decided, to tick here later. */
-const liveTick = (k: keyof StudyTicks): boolean => tickStatus(k) === 'on';
-/** "runs shared", "CSV off", "checks not decided": what the status line says for each. */
-const WORDS: Record<keyof StudyTicks, [string, string, string]> = {
-  share: ['runs shared', 'runs not shared', 'runs not decided'],
-  csv: ['CSV on', 'CSV off', 'CSV not decided'],
-  diag: ['diagnostics on', 'diagnostics off', 'diagnostics not decided'],
-  checks: ['checks shared', 'checks not shared', 'checks not decided'],
+/** Each tick as it stands for this account now (a share button's Withdraw shows here at once). Yes and the
+ *  strip write all four, so each is a yes or a no once this account said yes. */
+const liveTick = (k: keyof StudyTicks): boolean => consentAgreed(TICK_CONSENT[k]);
+/** "runs shared" / "runs not shared", and so on: what the status line says for each. */
+const WORDS: Record<keyof StudyTicks, [string, string]> = {
+  share: ['runs shared', 'runs not shared'],
+  csv: ['CSV on', 'CSV off'],
+  diag: ['diagnostics on', 'diagnostics off'],
+  checks: ['checks shared', 'checks not shared'],
 };
-const said = (k: keyof StudyTicks): string => WORDS[k][['on', 'off', 'undecided'].indexOf(tickStatus(k))];
+const said = (k: keyof StudyTicks): string => WORDS[k][liveTick(k) ? 0 : 1];
 const anonymous = computed(() => names.anonymousFor(account.value) ?? true);
 const nickname = ref('');
 watch(

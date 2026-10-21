@@ -40,7 +40,7 @@
       </label>
     </fieldset>
     <p class="text-[11px] text-slate-500" data-testid="study-untick-note">
-      Anything you untick stays undecided; you can tick it later in {{ NAMES.setup }}.
+      Anything you untick stays off; you can turn it on later in {{ NAMES.setup }}.
     </p>
 
     <fieldset class="space-y-1 sm:space-y-1.5">
