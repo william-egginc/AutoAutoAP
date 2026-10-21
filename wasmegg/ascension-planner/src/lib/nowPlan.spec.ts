@@ -139,6 +139,10 @@ describe('on track', () => {
     expect(planTEAt(legs, teStart, T0 + 10 * H)).toBe(191); // Humility ends on 38: one past the stop
   });
 
+  // R6 (21 Oct 2026): onTrack is now a thin wrapper over lib/planPace.ts, shared with My runs' saved plans. Wording
+  // changed with it (Jordan's OK): "On plan" within 30 minutes is "On schedule (within an hour)", hours are whole
+  // ("3 hours behind", days from 48 h), behind is negative hours, and a plan without its shift TEs or without the
+  // exact legs is compared leg by leg ("rough") instead of "Can't tell". planPace.spec.ts has every case.
   it('a newer save: hours ahead or behind of where the plan expected it', () => {
     // At T0 + 2 h the plan expected 187; a save with 188 is where the plan is at T0 + 4 h: 2 h ahead.
     const ahead = onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 38, 36, 37, 36] });
@@ -146,25 +150,36 @@ describe('on track', () => {
     expect((ahead as { hours: number }).hours).toBeCloseTo(2, 1);
     const behind = onTrack(p, { seconds: T0 + 10 * H, teByEgg: [41, 38, 36, 37, 36] });
     expect(behind.kind).toBe('behind');
-    expect((behind as { hours: number }).hours).toBeCloseTo(6, 1);
-    expect(onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 37, 36, 37, 36] }).kind).toBe('on-plan');
+    expect((behind as { hours: number }).hours).toBeCloseTo(-6, 1);
+    expect(onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 37, 36, 37, 36] }).kind).toBe('on-schedule');
+    // The save's progress (planPace `progressOf`) when given: 187.6 at T0 + 2 h is 1.2 h ahead.
+    expect(onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 37, 36, 37, 36], progress: 187.6 }).kind).toBe('ahead');
   });
 
-  it('says plainly when it can’t tell', () => {
+  it('says plainly when it can’t tell, and compares leg by leg when it can only do that', () => {
     expect(onTrack(p, { seconds: snap.meta!.backupTime, teByEgg: teStart }).kind).toBe('same-save');
-    expect(onTrack({ ...p, legs: null }, { seconds: T0 + H, teByEgg: teStart })).toEqual({ kind: 'cant', why: 'no-timeline' });
+    expect(onTrack({ ...p, legs: null, tableLegs: null }, { seconds: T0 + H, teByEgg: teStart })).toEqual({
+      kind: 'cant',
+      why: 'no-timeline',
+    });
+    // Without the exact legs: the table's legs, leg by leg, an estimate when the plan isn't Check exactly's.
+    const table = onTrack({ ...p, legs: null, exact: false }, { seconds: T0 + 5 * H, teByEgg: [41, 38, 36, 37, 36] });
+    expect(table).toMatchObject({ kind: 'on-schedule', rough: true, estimate: true });
     expect(onTrack({ ...p, meta: { ...p.meta!, teByEgg: undefined } }, { seconds: T0 + H, teByEgg: teStart })).toEqual({
       kind: 'cant',
       why: 'no-te',
     });
-    expect(onTrack(p, { seconds: T0 - 600, teByEgg: teStart })).toEqual({ kind: 'cant', why: 'not-started' });
+    expect(onTrack(p, { seconds: T0 - 600, teByEgg: teStart })).toEqual({ kind: 'cant', why: 'not-started', start: T0 });
     const noTE = { ...p, legs: legs.map(l => ({ ...l, shifts: l.shifts!.map(s => ({ ...s, te: undefined })) })) };
-    expect(onTrack(noTE, { seconds: T0 + H, teByEgg: [41, 37, 36, 37, 36] })).toEqual({ kind: 'cant', why: 'no-te' });
+    expect(onTrack(noTE, { seconds: T0 + H, teByEgg: [41, 37, 36, 37, 36] })).toMatchObject({ rough: true });
   });
 
-  it('words the chip', () => {
-    expect(trackWords({ kind: 'ahead', hours: 1.4 }).text).toBe('1.5 h ahead of plan');
-    expect(trackWords({ kind: 'behind', hours: 6.1 })).toEqual({ tone: 'bad', text: 'Behind by 6 h' });
-    expect(trackWords({ kind: 'cant', why: 'no-timeline' }).text).toBe("Can't tell: this plan was saved without its timeline");
+  it('words the chip (planPace’s words, with the save’s time)', () => {
+    const ahead = onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 38, 36, 37, 36] });
+    expect(trackWords(ahead, T0 + 3 * H, 'UTC')).toEqual({ tone: 'ok', text: '2 hours ahead, as of 7:46 pm' });
+    const behind = onTrack(p, { seconds: T0 + 10 * H, teByEgg: [41, 38, 36, 37, 36] });
+    expect(trackWords(behind, T0 + 10 * H, 'UTC')).toEqual({ tone: 'bad', text: '6 hours behind, as of 3:46 am' });
+    expect(trackWords({ kind: 'cant', why: 'no-timeline' }, T0, 'UTC').text).toBe("Can't tell: saved without its timeline");
+    expect(trackWords({ kind: 'same-save' }, T0, 'UTC').text).toBe('Made from your latest save');
   });
 });
