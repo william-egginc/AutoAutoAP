@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
-import { resetConsents, setConsent, setConsentAccount } from '@/composables/useConsent';
+import { consentAgreed, resetConsents, setConsent, setConsentAccount } from '@/composables/useConsent';
 import { answerNo, answerYes, closeThanks, resetStudy, useForThisAccount, withdrawStudy } from '@/composables/useStudy';
 import { DEFAULT_TICKS } from '@/lib/study';
 import { useShareNameStore } from '@/stores/shareName';
@@ -37,7 +37,21 @@ beforeEach(() => {
 const box = () => renderHtml(StudyBox, {}, {}, [pinia]);
 const setup = () => renderHtml(StudySetup, {}, {}, [pinia]);
 
+/** The box's paragraph (21 Oct 2026, cut to about 5 lines at 390 px; the full list is at about.html#sent). */
+const INTRO =
+  'Help make the planner’s answers better. Your route and times go to the public leaderboard only when you press a ' +
+  'share button. Each Check exactly sends a private, anonymous record. Your player ID and save are never sent. ' +
+  'This account only; change or withdraw it in Setup.';
+
 describe('the box', () => {
+  it('keeps its paragraph short: under 280 characters, 5 lines at 390 px', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const intro = textOf(html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '');
+    expect(intro).toBe(INTRO);
+    expect(intro.length).toBeLessThan(280);
+  });
+
   it('shows nothing before an account is in', async () => {
     expect(textOf(await box())).toBe('');
   });
@@ -47,9 +61,7 @@ describe('the box', () => {
     const html = await box();
     const t = textOf(html);
     expect(t).toContain('Help improve the planner');
-    expect(t).toContain('Your player ID and your save are never sent');
-    expect(t).toContain('nothing goes to the leaderboard until you press a button');
-    expect(t).toContain('Setup › Help improve the planner');
+    expect(t).toContain(INTRO);
     expect(t).toContain('What exactly is sent');
     expect(html).toContain('href="./about.html#sent"');
     for (const words of [
@@ -91,7 +103,9 @@ describe('the box', () => {
     answerYes({ ...DEFAULT_TICKS }, 'anon', '');
     let t = textOf(await box());
     expect(t).not.toContain('Yes, help improve it');
-    expect(t).toContain('Thank you. Your choices are on for this account.');
+    expect(t).toContain(
+      'Thank you. Your choices are on for this account. Change them any time in Setup › Help improve the planner (the Setup button on the Auto Planner and My runs).'
+    );
     closeThanks();
     expect(textOf(await box())).toBe('');
     resetStudy(mem());
@@ -114,6 +128,39 @@ describe('the box', () => {
     expect(t).not.toContain('Yes, help improve it');
     useForThisAccount();
     expect(textOf(await box())).toBe('');
+  });
+});
+
+describe('another account in the same visit (no reload)', () => {
+  it('A says yes, then B is loaded: the strip, B’s choices untouched, and Setup says not for this account yet', async () => {
+    await setConsentAccount(A);
+    expect(textOf(await box())).toContain('Yes, help improve it');
+    answerYes({ ...DEFAULT_TICKS }, 'name', 'Williamthe5thc');
+    expect(textOf(await setup())).toContain('You said yes on');
+    // The header's Load with another ID: the same visit, the same modules.
+    await setConsentAccount(B);
+    const strip = textOf(await box());
+    expect(strip).toContain('Use the same choices for this account?');
+    expect(strip).not.toContain('Yes, help improve it');
+    expect(strip).not.toContain('Thank you');
+    for (const id of ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks'] as const)
+      expect(consentAgreed(id)).toBe(false);
+    expect(useShareNameStore().anonymousFor(B)).toBeUndefined();
+    let t = textOf(await setup());
+    expect(t).toContain('You said yes in this browser, but not for this account yet.');
+    expect(t).not.toContain('You said yes on');
+    expect(t).not.toContain('credited as');
+    // Back to A: its own yes, nothing asked.
+    await setConsentAccount(A);
+    expect(textOf(await box())).not.toContain('Use the same choices');
+    expect(textOf(await setup())).toContain('credited as Williamthe5thc');
+    // B again: still asked, until it answers.
+    await setConsentAccount(B);
+    expect(textOf(await box())).toContain('Use the same choices for this account?');
+    useForThisAccount();
+    t = textOf(await setup());
+    expect(t).toContain('You said yes on');
+    expect(t).toContain('anonymous');
   });
 });
 

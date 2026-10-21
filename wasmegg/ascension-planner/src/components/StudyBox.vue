@@ -58,7 +58,8 @@
     data-testid="study-thanks"
   >
     <p class="text-[12px] font-semibold text-emerald-900 sm:flex-1 break-words">
-      Thank you. Your choices are on for this account. Change them any time in {{ NAMES.setup }} › {{ NAMES.study }}.
+      Thank you. Your choices are on for this account. Change them any time in {{ NAMES.setup }} ›
+      {{ NAMES.study }} (the {{ NAMES.setup }} button on the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
     </p>
     <button
       type="button"

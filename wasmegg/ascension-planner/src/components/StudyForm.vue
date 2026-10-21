@@ -7,15 +7,12 @@
 -->
 <template>
   <div class="space-y-3 text-left" data-testid="study-form">
-    <p class="text-[12px] text-slate-600 leading-relaxed break-words">
-      You can help make the instant answers and route searches better by sharing what your runs find. If you say yes,
-      then when you press <b>Find and submit</b>, <b>Share this result</b> or Light’s <b>Send</b>, your route, its times
-      and target, your artifacts and research, timezone and plan start go to the public leaderboard, with your CSV
-      (public) and private diagnostics (browser, cores, memory, crashes; never shown). After each <b>Check exactly</b>,
-      the instant answer and the exact times are also sent privately (anonymous, at most once an hour per save, kept 6
-      months). Your player ID and your save are never sent, and nothing goes to the leaderboard until you press a
-      button. This applies to this account; you can turn any of it off, or withdraw it all, in {{ NAMES.setup }} ›
-      {{ NAMES.study }} (the {{ NAMES.setup }} button on the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
+    <!-- Short on purpose (about 5 lines at 390 px, 21 Oct 2026): the full list is behind "What exactly is sent"
+         (about.html#sent), and each tick says public or private itself. -->
+    <p class="text-[12px] text-slate-600 leading-relaxed break-words" data-testid="study-intro">
+      Help make the planner’s answers better. Your route and times go to the public leaderboard only when you press a
+      share button. Each <b>Check exactly</b> sends a private, anonymous record. Your player ID and save are never sent.
+      This account only; change or withdraw it in {{ NAMES.setup }}.
     </p>
     <a
       href="./about.html#sent"
@@ -65,6 +62,7 @@
           placeholder="nickname"
           aria-label="Nickname"
           class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-sm font-bold text-slate-800"
+          :class="credit === 'anon' ? 'opacity-50' : ''"
           data-testid="study-nickname"
           @focus="credit = 'name'"
         />
@@ -119,9 +117,6 @@ const emit = defineEmits<{ answered: ['yes' | 'no'] }>();
 
 const names = useShareNameStore();
 const account = computed(() => consentState.account);
-// The account's kept name and anonymous-or-named, read once (stores/shareName.ts).
-watch(account, id => void names.load(id), { immediate: true });
-
 const ticks = reactive({ ...DEFAULT_TICKS });
 /** Picked here, or null to follow the account (anonymous unless it has a name and didn't pick anonymous). */
 const picked = ref<StudyCredit | null>(null);
@@ -135,6 +130,20 @@ const nickname = computed<string>({
   get: () => typed.value ?? knownName(account.value),
   set: v => (typed.value = v),
 });
+
+// The account's kept name and anonymous-or-named, read once (stores/shareName.ts). Another account loaded
+// while the form is open starts it again: a name or tick picked for the last account is never carried over.
+watch(
+  account,
+  (id, was) => {
+    void names.load(id);
+    if (was === undefined) return;
+    Object.assign(ticks, DEFAULT_TICKS);
+    picked.value = null;
+    typed.value = null;
+  },
+  { immediate: true }
+);
 
 function yes(): void {
   answerYes({ ...ticks }, credit.value, nickname.value);
