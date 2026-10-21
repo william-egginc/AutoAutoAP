@@ -59,7 +59,7 @@ const emit = defineEmits<{
             </div>
             <div>
               <div class="text-sm font-black text-slate-900 uppercase tracking-wider">Import into Library</div>
-              <div class="text-[10px] font-medium text-slate-500">Adds {{ ascensionCount }} separate plans to your library.</div>
+              <div class="text-[10px] font-medium text-slate-500">Adds {{ plural(ascensionCount, 'separate plan') }} to your library.</div>
             </div>
           </button>
         </div>

@@ -1,0 +1,249 @@
+/**
+ * "Help improve the planner" (StudyBox.vue, StudyForm.vue, auto/StudySetup.vue): what each shows, rendered on
+ * the server, and where App.vue and YourSetup.vue mount them.
+ */
+import { readFileSync } from 'node:fs';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import { renderHtml, textOf } from '@/test/renderComponent';
+import { consentAgreed, resetConsents, setConsent, setConsentAccount } from '@/composables/useConsent';
+import { answerNo, answerYes, closeThanks, resetStudy, useForThisAccount, withdrawStudy } from '@/composables/useStudy';
+import { DEFAULT_TICKS } from '@/lib/study';
+import { useShareNameStore } from '@/stores/shareName';
+import StudyBox from './StudyBox.vue';
+import StudySetup from './auto/StudySetup.vue';
+
+const A = 'EI1234567890123456';
+const B = 'EI0000000000000000';
+
+function mem() {
+  const map = new Map<string, string>();
+  return {
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, v),
+    removeItem: (k: string) => void map.delete(k),
+  };
+}
+
+let pinia: Pinia;
+beforeEach(() => {
+  pinia = createPinia();
+  setActivePinia(pinia);
+  const st = mem();
+  resetConsents(st);
+  resetStudy(st);
+});
+
+const box = () => renderHtml(StudyBox, {}, {}, [pinia]);
+const setup = () => renderHtml(StudySetup, {}, {}, [pinia]);
+
+/** The box's paragraph (21 Oct 2026, cut to about 5 lines at 390 px; the full list is at about.html#sent). */
+const INTRO =
+  'Help make the planner’s answers better. Your route and times go to the public leaderboard only when you press a ' +
+  'share button. Each Check exactly sends a private, anonymous record. Your player ID and save are never sent. ' +
+  'This account only; change or withdraw it in Setup.';
+
+describe('the box', () => {
+  it('keeps its paragraph short: under 280 characters, 5 lines at 390 px', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const intro = textOf(html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '');
+    expect(intro).toBe(INTRO);
+    expect(intro.length).toBeLessThan(280);
+  });
+
+  it('shows nothing before an account is in', async () => {
+    expect(textOf(await box())).toBe('');
+  });
+
+  it('says what is sent, with every tick on and the credit choice', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const t = textOf(html);
+    expect(t).toContain('Help improve the planner');
+    expect(t).toContain(INTRO);
+    expect(t).toContain('What exactly is sent');
+    expect(html).toContain('href="./about.html#sent"');
+    for (const words of [
+      'Share my runs on the leaderboard when I press a share button',
+      'Send my CSV with them (public)',
+      'Send private diagnostics with them',
+      'Keep sharing my checks (private, anonymous)',
+    ])
+      expect(t).toContain(words);
+    for (const k of ['share', 'csv', 'diag', 'checks'])
+      expect(html).toMatch(new RegExp(`<input[^>]*checked[^>]*data-testid="study-tick-${k}"`));
+    expect(t).toContain('Credit me as');
+    expect(t).toContain('Stay anonymous');
+    expect(t).toContain('Yes, help improve it');
+    expect(t).toContain('No thanks');
+    expect(t).toContain('Anything you untick stays undecided; you can tick it later in Setup.');
+    expect(html).not.toMatch(/EI\d{16}/);
+  });
+
+  it('starts anonymous when the account has no name, and credited when it has one', async () => {
+    await setConsentAccount(A);
+    let html = await box();
+    expect(html).toMatch(/<input[^>]*checked[^>]*data-testid="study-credit-anon"/);
+    expect(html).not.toMatch(/<input[^>]*checked[^>]*data-testid="study-credit-name"/);
+    useShareNameStore().setName(A, 'Williamthe5thc');
+    html = await box();
+    expect(html).toMatch(/<input[^>]*checked[^>]*data-testid="study-credit-name"/);
+    expect(html).toContain('value="Williamthe5thc"');
+  });
+
+  it('player words only: no table, chain or checkpoint, and every tap target 44 px on a phone', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    expect(textOf(html)).not.toMatch(/\b(table|chain|checkpoint)s?\b/i);
+    for (const b of html.match(/<(button|label)\b[^>]*>/g) ?? []) expect(b).toContain('min-h-[44px]');
+  });
+
+  it('is gone once answered: Yes leaves a thank-you for this visit, No thanks nothing', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    let t = textOf(await box());
+    expect(t).not.toContain('Yes, help improve it');
+    expect(t).toContain(
+      'Thank you. Your choices are on for this account. Change them any time in Setup › Help improve the planner (the Setup button on the Auto Planner and My runs).'
+    );
+    closeThanks();
+    expect(textOf(await box())).toBe('');
+    resetStudy(mem());
+    answerNo();
+    t = textOf(await box());
+    expect(t).toBe('');
+  });
+
+  it('another account after a yes: the strip, not the box, until it is answered', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    closeThanks();
+    await setConsentAccount(B);
+    const t = textOf(await box());
+    expect(t).toContain(
+      'You agreed to help improve the planner in this browser. Use the same choices for this account?'
+    );
+    expect(t).toContain('Yes, for this account');
+    expect(t).toContain('Not this account');
+    expect(t).not.toContain('Yes, help improve it');
+    useForThisAccount();
+    expect(textOf(await box())).toBe('');
+  });
+});
+
+describe('another account in the same visit (no reload)', () => {
+  it('A says yes, then B is loaded: the strip, B’s choices untouched, and Setup says not for this account yet', async () => {
+    await setConsentAccount(A);
+    expect(textOf(await box())).toContain('Yes, help improve it');
+    answerYes({ ...DEFAULT_TICKS }, 'name', 'Williamthe5thc');
+    expect(textOf(await setup())).toContain('You said yes on');
+    // The header's Load with another ID: the same visit, the same modules.
+    await setConsentAccount(B);
+    const strip = textOf(await box());
+    expect(strip).toContain('Use the same choices for this account?');
+    expect(strip).not.toContain('Yes, help improve it');
+    expect(strip).not.toContain('Thank you');
+    for (const id of ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks'] as const)
+      expect(consentAgreed(id)).toBe(false);
+    expect(useShareNameStore().anonymousFor(B)).toBeUndefined();
+    let t = textOf(await setup());
+    expect(t).toContain('You said yes in this browser, but not for this account yet.');
+    expect(t).not.toContain('You said yes on');
+    expect(t).not.toContain('credited as');
+    // Back to A: its own yes, nothing asked.
+    await setConsentAccount(A);
+    expect(textOf(await box())).not.toContain('Use the same choices');
+    expect(textOf(await setup())).toContain('credited as Williamthe5thc');
+    // B again: still asked, until it answers.
+    await setConsentAccount(B);
+    expect(textOf(await box())).toContain('Use the same choices for this account?');
+    useForThisAccount();
+    t = textOf(await setup());
+    expect(t).toContain('You said yes on');
+    expect(t).toContain('anonymous');
+  });
+});
+
+describe('Setup › Help improve the planner', () => {
+  it('unanswered: Answer now', async () => {
+    await setConsentAccount(A);
+    const t = textOf(await setup());
+    expect(t).toContain('Help improve the planner');
+    expect(t).toContain('Not answered yet.');
+    expect(t).toContain('Answer now');
+  });
+
+  it('yes: what is on, read live, with Change and Withdraw', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...DEFAULT_TICKS, checks: false }, 'name', 'Williamthe5thc');
+    let t = textOf(await setup());
+    expect(t).toMatch(
+      /You said yes on .+ for this account: runs shared · CSV on · diagnostics on · checks not decided · credited as Williamthe5thc\./
+    );
+    expect(t).toContain('Change');
+    expect(t).toContain('Withdraw');
+    // A share button's Withdraw shows here at once.
+    setConsent('leaderboard', false);
+    t = textOf(await setup());
+    expect(t).toContain('runs not shared');
+    // Ticked later in Setup's Change: decided then.
+    setConsent('keepSharingChecks', false);
+    expect(textOf(await setup())).toContain('checks not shared');
+  });
+
+  it('yes in this browser, another account: Use for this account', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    await setConsentAccount(B);
+    const t = textOf(await setup());
+    expect(t).toContain('You said yes in this browser, but not for this account yet.');
+    expect(t).toContain('Use for this account');
+  });
+
+  it('no thanks and withdrawn: what that means, and Change', async () => {
+    await setConsentAccount(A);
+    answerNo();
+    let t = textOf(await setup());
+    expect(t).toContain('You said no thanks. Nothing is shared unless you agree under a share button.');
+    expect(t).toContain('Change');
+    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    withdrawStudy();
+    t = textOf(await setup());
+    expect(t).toMatch(/Withdrawn on .+: nothing is shared from this browser’s accounts until you agree again\./);
+    expect(t).toContain('Change');
+  });
+});
+
+describe('wiring', () => {
+  const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
+
+  it('App.vue puts the box just under the tab row and its chevron, above every tab’s content, with an account and a collector', () => {
+    const app = read('../App.vue');
+    const at = app.indexOf('<StudyBox v-if="playerId && chainSearchStore.submitUrl"');
+    expect(at).toBeGreaterThan(0);
+    expect(app.match(/<StudyBox\b/g)).toHaveLength(1);
+    // Page level (6-space indent, like SiteTabs), not inside a tab's own block.
+    expect(app.slice(app.lastIndexOf('\n', at) + 1, at)).toBe('      ');
+    expect(at).toBeGreaterThan(app.indexOf('<SiteTabs'));
+    expect(at).toBeGreaterThan(app.indexOf('data-testid="header-toggle"'));
+    // Before every tab's content: Manual's folding part, the Auto Planner's nav, and the other tabs.
+    expect(at).toBeLessThan(app.indexOf('v-if="plannerTab === \'manual\'"\n        class="mt-2 rounded-2xl border'));
+    expect(at).toBeLessThan(app.indexOf('<nav v-if="playerId"'));
+    expect(at).toBeLessThan(app.indexOf('<LeaderboardPanel'));
+    expect(at).toBeLessThan(app.indexOf('<SetupDock'));
+  });
+
+  it('About › What is sent says what the box does', () => {
+    const about = read('../../public/about.html').replace(/\s+/g, ' ');
+    expect(about).toContain('<b>Help improve the planner</b>, the box under the tabs, asks once in each browser.');
+    expect(about).toContain('for the account on screen only; anything you untick stays undecided');
+  });
+
+  it('Setup has its section before Sharing, with a collector', () => {
+    const s = read('./auto/YourSetup.vue');
+    const at = s.indexOf('<StudySetup v-if="store.submitUrl" />');
+    expect(at).toBeGreaterThan(0);
+    expect(at).toBeLessThan(s.indexOf('data-testid="share-instant"'));
+  });
+});
