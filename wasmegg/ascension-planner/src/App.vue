@@ -57,6 +57,27 @@
         </div>
       </div>
 
+      <!-- Errors at the top, under the player ID box, where the player is looking (it used to sit below the three
+           big cards, about 1,250 px down on a phone); scrolled into view when it appears (`pageErrorEl`). -->
+      <div
+        v-if="error"
+        ref="pageErrorEl"
+        class="mx-4 text-center py-4 text-red-600"
+        role="alert"
+        data-testid="page-error"
+      >
+        {{ error }}
+        <button
+          v-if="loadRetry && loadRetry.message === error && !loading"
+          type="button"
+          class="ml-2 min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[11px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50"
+          data-testid="page-error-retry"
+          @click="submitPlayerId(loadRetry.id)"
+        >
+          Try again
+        </button>
+      </div>
+
       <SiteTabs
         v-if="playerId"
         class="mt-4"
@@ -454,18 +475,6 @@
 
       <div v-if="loading" class="text-center py-4 text-gray-600">Loading player data...</div>
 
-      <div v-if="error" class="text-center py-4 text-red-600" data-testid="page-error">
-        {{ error }}
-        <button
-          v-if="loadRetry && loadRetry.message === error && !loading"
-          type="button"
-          class="ml-2 min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[11px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50"
-          data-testid="page-error-retry"
-          @click="submitPlayerId(loadRetry.id)"
-        >
-          Try again
-        </button>
-      </div>
 
       <div v-if="plannerTab === 'manual'">
         <!-- Action History and Available Actions side-by-side -->
@@ -719,7 +728,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, h, type FunctionalComponent } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, type FunctionalComponent } from 'vue';
 import {
   NAMES,
   canonicalUrl,
@@ -1422,6 +1431,15 @@ watch(playerId, newId => {
   if (newId) {
     persistenceInit = initPersistence(newId).catch(e => console.error('Could not restore the draft:', e));
   }
+});
+/** The page's error line (under the player ID box): brought into view when an error appears, smoothly unless the
+ *  player asked for reduced motion. */
+const pageErrorEl = ref<HTMLElement | null>(null);
+watch(error, async e => {
+  if (!e) return;
+  await nextTick();
+  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  pageErrorEl.value?.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
 });
 /** The save load that failed and what it said, for the error's Try again (shown while that message is). */
 const loadRetry = ref<{ id: string; message: string } | null>(null);

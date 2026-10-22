@@ -29,6 +29,26 @@ export const TABLE_STALLED = 'the instant answer download stalled (timeout)';
 
 class Stalled extends Error {}
 
+/** The error (here, or as text from a worker) is the stall. */
+export function isTableStall(e: unknown): boolean {
+  return (e instanceof Error ? e.message : String(e)).includes(TABLE_STALLED);
+}
+
+/**
+ * An optional file's header (the player's own instant answer, one for their gear): null when there is none,
+ * so the caller falls back to the maxed one. A stall is not "none": it is the connection, and waiting another
+ * 30 s on the next file only doubled the wait before the "couldn't be loaded" card (the shots, 22 Oct 2026:
+ * 60 s). So it is thrown on, and the card shows at the one 30 s limit.
+ */
+export async function probeHeader<T>(load: () => Promise<T>): Promise<T | null> {
+  try {
+    return await load();
+  } catch (e) {
+    if (isTableStall(e)) throw e;
+    return null;
+  }
+}
+
 /** One file's bytes, or an error when the server has none (the preview server answers a missing file
  *  with the app's own page, status 200), or when no byte arrives for `stallMs`. Revalidated, not taken
  *  from cache: a table can be replaced while the site is up. */
