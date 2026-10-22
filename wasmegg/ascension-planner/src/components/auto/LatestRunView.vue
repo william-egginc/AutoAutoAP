@@ -212,8 +212,8 @@
         >
           Nothing else here is a genuinely different plan: every other route this run priced is the same shape moved
           by a few TE, or more than five days behind. That is normal for a run that only swept one stop, and for one
-          stopped early. Switch to <span class="font-semibold">Fastest</span> to see all {{ store.pricedCount }} of
-          them in raw order.
+          stopped early. Switch to <span class="font-semibold">Fastest</span> to see the quickest of the
+          {{ store.pricedCount }}, fastest first.
         </p>
         <div v-else class="overflow-x-auto" data-testid="shortlist">
           <table class="w-full text-xs">

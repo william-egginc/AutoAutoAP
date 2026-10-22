@@ -36,7 +36,7 @@
               which is <span class="text-rose-600 font-bold">{{ formatDuration(completionTime - endTime) }}</span> after the event expiry.
             </p>
             <p class="text-xs text-slate-500 italic">
-              Continuing will add the action(s) using the current event rates, even though the simulation time will pass the expiry threshold.
+              Deactivate and Continue turns the event off first, then adds the action(s) at normal rates. Deactivate and Cancel turns it off and adds nothing. Cancel leaves the event on and adds nothing.
             </p>
           </div>
 

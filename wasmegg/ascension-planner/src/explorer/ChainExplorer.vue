@@ -1194,7 +1194,8 @@
         />
         <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
           The asks are worked out from the runs on the board, so they need the board, and it
-          {{ error ? 'could not be read (see above)' : 'holds no runs yet' }}. Any run you submit below still helps.
+          {{ error ? 'gave nothing to work from (see above)' : 'holds no runs yet' }}. Any run you send, from a
+          search or from {{ NAMES.submit }}, still helps.
         </p>
       </section>
 

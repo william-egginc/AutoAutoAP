@@ -543,7 +543,7 @@ export function watchView(h: WatchHeartbeat, updatedAt: number, now: number): Wa
     stale: stale
       ? "This run hasn't reported for over 15 minutes. The tab may have crashed, or the computer may be asleep."
       : h.status === 'failed'
-        ? 'If carrying on by itself is ticked, it should start again on its own.'
+        ? 'If "Watch this run from a second tab" is on, it should start again on its own. Otherwise, carry it on in the planner.'
         : '',
     meta: [
       MODE_LABEL[h.mode],

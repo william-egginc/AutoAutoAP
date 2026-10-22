@@ -87,10 +87,10 @@
           <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center">
             <div class="flex flex-col">
               <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1"
-                >Without This Research</span
+                >Simple Path</span
               >
               <span
-                v-tippy="'Time to reach this milestone buying cheapest-first, with no ROI prioritization.'"
+                v-tippy="'For a research level: time to save for it with no other purchases. For a tier: time to unlock it buying the cheapest research first.'"
                 class="text-sm font-mono font-bold text-gray-900 leading-none py-1"
               >
                 {{ formatDuration(milestoneSummary.baselineSeconds) }}
@@ -98,7 +98,7 @@
             </div>
             <div class="flex flex-col">
               <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1"
-                >With This Research</span
+                >Payback First</span
               >
               <span
                 v-tippy="'Time to reach this milestone by always buying whatever currently pays for itself fastest.'"

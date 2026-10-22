@@ -39,7 +39,7 @@ export const SIM_SOURCE_HASH = 'cc63078ba1d2264bb39fa07b92b5e6a90a71f67289f68ea3
 export function tableSimMismatch(header: { simVersion?: string } | null | undefined): string | null {
   if (!header) return null;
   if (header.simVersion === SIM_VERSION) return null;
-  return header.simVersion ? `built with simulator ${header.simVersion}` : 'built before tables were stamped';
+  return header.simVersion ? `simulator ${header.simVersion}` : 'an older simulator';
 }
 
 /** The stamp a joined table carries (compositeTable): the two parts' when they agree, else none,

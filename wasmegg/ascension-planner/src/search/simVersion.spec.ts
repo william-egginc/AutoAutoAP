@@ -38,8 +38,8 @@ describe('simulator version', () => {
   });
 
   it('an older or unstamped table does not', () => {
-    expect(tableSimMismatch({ simVersion: '2026-01-01-old' })).toBe('built with simulator 2026-01-01-old');
-    expect(tableSimMismatch({})).toBe('built before tables were stamped');
+    expect(tableSimMismatch({ simVersion: '2026-01-01-old' })).toBe('simulator 2026-01-01-old');
+    expect(tableSimMismatch({})).toBe('an older simulator');
   });
 
   it('a joined table keeps the stamp only when both parts agree', () => {
