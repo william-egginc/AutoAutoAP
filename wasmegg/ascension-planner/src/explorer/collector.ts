@@ -26,6 +26,7 @@
  */
 import type { Submission } from '@/search/submission';
 import type { PricedChain } from '@/search/types';
+import { normalizeBoardRows } from '@/lib/boardRowGuard';
 
 /** A row from `GET /all`: a stored submission, plus the two fields the Worker derives per request. */
 export interface CollectorRow extends Submission {
@@ -191,7 +192,8 @@ export async function fetchAllRows(base: string, signal?: AbortSignal): Promise<
   // Deadline answers (schema 8) too: they are ranked on the leaderboard's By a date tab, and a
   // route cut short at whatever TE a date allowed says nothing about chain shapes to a target.
   const isByDate = (r: CollectorRow) => typeof (r as { deadline?: unknown }).deadline === 'number';
-  const rows = body.rows.map(r => (r && typeof r === 'object' ? onlyFinalCsv(r) : r));
+  // Every row made to match its type first (lib/boardRowGuard.ts): a bare or odd row never breaks the page.
+  const rows = normalizeBoardRows<CollectorRow>(body.rows).map(onlyFinalCsv);
   return {
     rows: rows.filter(
       r => Array.isArray(r.chain) && r.chain.length >= 2 && Number.isFinite(r.durationDays) && !isByDate(r)
@@ -218,7 +220,7 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
     }
     if (!res.ok) throw new Error(`The collector answered ${res.status} for /flagged.`);
     const body = (await res.json()) as AllResponse;
-    return Array.isArray(body?.rows) ? body.rows : [];
+    return normalizeBoardRows<CollectorRow>(body?.rows);
   };
   const byId = new Map<string, CollectorRow>();
   for (const row of await ask()) byId.set(row.id, row);

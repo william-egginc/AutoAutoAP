@@ -314,6 +314,7 @@ import { useAutoPlannerStore, type VariantKey } from './autoPlanner';
 import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
 import { thisDevice } from '@/search/device';
+import { normalizeBoardRows } from '@/lib/boardRowGuard';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -4096,8 +4097,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** Rows from a collector answer, loosely: a row without a route is not a row. */
   function boardRows(body: unknown): BoardRow[] {
-    const rows = (body as { rows?: unknown } | null)?.rows;
-    return Array.isArray(rows) ? (rows as BoardRow[]).filter(r => r && Array.isArray(r.chain)) : [];
+    // Made to match its type first (lib/boardRowGuard.ts): a bare row never breaks the recheck.
+    return normalizeBoardRows<BoardRow>((body as { rows?: unknown } | null)?.rows);
   }
 
   async function fetchRecheckPlans(partition: string, target: number): Promise<Plan[]> {
