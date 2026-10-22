@@ -12,6 +12,7 @@ import { useNotesStore } from '@/stores/notes';
 import { useSilosStore } from '@/stores/silos';
 import { createEmptySnapshot, generateActionId, type VirtueEgg, type Action, type CalculationsSnapshot } from '@/types';
 import { isKnownActionType } from '@/lib/actions/executor';
+import { parseJsonStrict } from '@/lib/uploadGuard';
 import { MAX_TE, clampTECount, countTEThresholdsPassed, teGainedOf } from '@/lib/truthEggs';
 import { redactBackupForStorage } from '@/lib/artifacts';
 
@@ -100,6 +101,8 @@ export function exportPlanLogic(actions: Action[], initialSnapshot?: Calculation
   downloadFile(filename, jsonString, 'application/json');
 }
 
+const LOOSE = { maxDepth: 64, maxString: Infinity, maxArray: Infinity, maxKeys: Infinity };
+
 /** A plan file that cannot be read in. Thrown before any store is touched, so the current plan stays. */
 export class PlanImportError extends Error {
   constructor(message: string) {
@@ -112,12 +115,14 @@ export class PlanImportError extends Error {
  * The checks a file passes before anything is changed: JSON, the plan shape, and only action types this
  * planner knows (an unknown one threw "reading 'getDisplayName'" while the list drew).
  */
-export function parsePlanFile(jsonString: string): any {
+export function parsePlanFile(jsonString: string, upload = false): any {
   let data: any;
   try {
-    data = JSON.parse(jsonString);
-  } catch {
-    throw new PlanImportError('This file is not a plan file (it is not JSON).');
+    // No __proto__-style keys and finite numbers always (lib/uploadGuard.ts); the size limits only for an
+    // upload, so a draft or library plan saved here with a long note still opens.
+    data = parseJsonStrict(jsonString, 'This plan file', upload ? {} : LOOSE);
+  } catch (e) {
+    throw new PlanImportError(e instanceof Error ? e.message : 'This file is not a plan file (it is not JSON).');
   }
   const isObj = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
   if (!isObj(data) || !data.version || !Array.isArray(data.actions) || !isObj(data.initialState)) {

@@ -23,6 +23,8 @@
 import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
+import { readUploadText } from '@/lib/uploadGuard';
+import { plainError } from '@/lib/plainError';
 
 const props = defineProps<{ playerId: string }>();
 const store = useChainSearchStore();
@@ -38,7 +40,16 @@ async function onFile(ev: Event): Promise<void> {
   if (!file) return;
   loading.value = true;
   try {
-    await store.loadSaveFile(props.playerId, await file.text());
+    // Size cap, a capped gzip unpack and strict text first (lib/uploadGuard.ts); the save itself is checked
+    // by the store's parseSaveFile.
+    let text: string;
+    try {
+      text = await readUploadText(file, 'save');
+    } catch (e) {
+      store.olderSaveError = plainError(e, 'That file could not be read as a save.');
+      return;
+    }
+    await store.loadSaveFile(props.playerId, text);
   } finally {
     loading.value = false;
   }

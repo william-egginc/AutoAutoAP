@@ -25,7 +25,8 @@
 import type { ei } from 'lib';
 import { loadMetadata, putMetadataRecords } from '@/lib/storage/db';
 import { sanitizeLongs } from '@/lib/artifacts/utils';
-import { accountOf, decode, encode, hash53 } from './runSaves';
+import { accountOf, decode, encode, hash53, reviveNumbers } from './runSaves';
+import { checkSave, parseJsonStrict } from '@/lib/uploadGuard';
 
 const INDEX_KEY = 'keptSaveIndex';
 const BODY_PREFIX = 'keptSave:';
@@ -221,15 +222,8 @@ export function saveFileName(save: Pick<EntrySave, 'te' | 'backupAt'>, zone?: st
  * command-line search's `--backup` reads). Throws, in player words, for anything that is not one.
  */
 export function parseSaveFile(text: string): ei.IBackup {
-  let value: unknown;
-  try {
-    value = decode<unknown>(text);
-  } catch {
-    throw new Error("This file isn't a save: it isn't JSON.");
-  }
-  const b = value as { game?: unknown; farms?: unknown; approxTime?: unknown } | null;
-  if (!b || typeof b !== 'object' || Array.isArray(b) || typeof b.game !== 'object' || !Array.isArray(b.farms)) {
-    throw new Error("This file isn't an Egg, Inc. save (it has no game or farms).");
-  }
+  // Strict JSON (lib/uploadGuard.ts): no __proto__-style keys, bounded sizes; `encode`'s Infinity kept.
+  const value = parseJsonStrict(text, 'This save file', { maxString: 200_000 }, reviveNumbers);
+  checkSave(value);
   return value as ei.IBackup;
 }

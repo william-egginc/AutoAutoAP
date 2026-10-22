@@ -322,7 +322,7 @@ const NUMERIC_TEXT = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
 /**
  * A text cell a spreadsheet would run as a formula (= + - @, or a tab or carriage return first) gets a
  * leading ' so it is shown as text (red team 21 Oct 2026, server.md: CSV formula injection). Numbers,
- * negative ones included, are left alone.
+ * negative ones included, are left alone. The upload reader takes the ' off again (lib/csvParse.ts `unguardCell`).
  */
 export function guardCell(s: string): string {
   return /^[=+\-@\t\r]/.test(s) && !NUMERIC_TEXT.test(s) ? `'${s}` : s;
