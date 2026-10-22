@@ -375,6 +375,14 @@ describe('two tabs', () => {
     expect(consentAgreed('keepSharingChecks')).toBe(false);
   });
 
+  it('the credit choice changed in another tab is this tab’s at once', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...ALL_ON }, 'anon', '');
+    const theirs = storedStudy({ ...parseStudy(st.map.get(STUDY_KEY) ?? null), credit: 'name' });
+    studyStorageEvent(STUDY_KEY, theirs);
+    expect(studyState.rec.credit).toBe('name');
+  });
+
   it('listens for storage events from other tabs', async () => {
     const { readFileSync } = await import('node:fs');
     for (const f of ['./useStudy.ts', './useConsent.ts'])

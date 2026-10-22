@@ -9,6 +9,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { consentAgreed, resetConsents, setConsent, setConsentAccount } from '@/composables/useConsent';
 import { answerNo, answerYes, closeThanks, resetStudy, useForThisAccount, withdrawStudy } from '@/composables/useStudy';
 import { useShareNameStore } from '@/stores/shareName';
+import { hashID } from '@/lib/storage/db';
 import StudyBox from './StudyBox.vue';
 import StudySetup from './auto/StudySetup.vue';
 
@@ -243,6 +244,19 @@ describe('Setup › Help improve the planner', () => {
     );
     expect(t).not.toContain('nothing is shared from this browser');
     expect(t).toContain('Change');
+  });
+
+  it('a name or anonymous choice changed in another tab shows here at once', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...ALL_ON }, 'name', 'Williamthe5thc');
+    const names = useShareNameStore();
+    const h = await hashID(A);
+    names.storageEvent(`aap-share-name:${h}`, 'Fliris');
+    expect(textOf(await setup())).toContain('credited as Fliris');
+    names.storageEvent(`aap-share-anon:${h}`, '1');
+    const t = textOf(await setup());
+    expect(t).not.toContain('credited as');
+    expect(t).toMatch(/· anonymous\./);
   });
 
   it('the Withdraw line says what Withdraw does, no more and no less', async () => {

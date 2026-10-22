@@ -64,6 +64,13 @@ export const useShareNameStore = defineStore('shareName', () => {
   /** By player ID (trimmed), in memory: anonymous (true) or "Credit me as" (false), once chosen. */
   const anon = ref<Record<string, boolean>>({});
   const anonWrites = new Map<string, number>();
+  /** Partition hash -> player ID, for the accounts this tab has hashed: what a storage event names. */
+  const idOfHash = new Map<string, string>();
+  const hashOf = async (id: string): Promise<string> => {
+    const key = await hashID(id);
+    idOfHash.set(key, id);
+    return key;
+  };
 
   /** The name typed for this account, or undefined when none has been. */
   function nameFor(playerId: string): string | undefined {
@@ -75,7 +82,7 @@ export const useShareNameStore = defineStore('shareName', () => {
     const id = playerId.trim();
     if (!id || loaded.has(id)) return;
     loaded.add(id);
-    const key = await hashID(id);
+    const key = await hashOf(id);
     const kept = read(key);
     if (kept !== null && names.value[id] === undefined) names.value = { ...names.value, [id]: capName(kept, MAX) };
     const keptAnon = readAnon(key);
@@ -93,7 +100,7 @@ export const useShareNameStore = defineStore('shareName', () => {
     if (!id) return;
     const n = (anonWrites.get(id) ?? 0) + 1;
     anonWrites.set(id, n);
-    void hashID(id).then(key => {
+    void hashOf(id).then(key => {
       if (anonWrites.get(id) === n) writeAnon(key, v);
     });
   }
@@ -105,10 +112,39 @@ export const useShareNameStore = defineStore('shareName', () => {
     if (!id) return;
     const n = (writes.get(id) ?? 0) + 1;
     writes.set(id, n);
-    void hashID(id).then(key => {
+    void hashOf(id).then(key => {
       if (writes.get(id) === n) write(key, name);
     });
   }
 
-  return { names, nameFor, load, setName, anon, anonymousFor, setAnonymous };
+  /**
+   * Two tabs (prelive, 22 Oct 2026): another tab changed an account's name or its anonymous choice. This tab
+   * takes it at once (held to the cap), for an account it has already read; one it has not reads the new value
+   * when it loads. Nothing is written back, so no tab ever answers another's write (no echo). Exported for the
+   * specs.
+   */
+  function storageEvent(key: string | null, newValue: string | null): void {
+    if (!key) return;
+    const isName = key.startsWith(PREFIX);
+    if (!isName && !key.startsWith(ANON_PREFIX)) return;
+    const id = idOfHash.get(key.slice(isName ? PREFIX.length : ANON_PREFIX.length));
+    if (!id) return;
+    if (isName) {
+      const v = newValue === null ? '' : capName(newValue, MAX);
+      if (names.value[id] !== v) names.value = { ...names.value, [id]: v };
+      return;
+    }
+    const v = newValue === '1' ? true : newValue === '0' ? false : undefined;
+    if (v !== undefined && anon.value[id] !== v) anon.value = { ...anon.value, [id]: v };
+  }
+  try {
+    if (typeof window !== 'undefined')
+      window.addEventListener('storage', e => {
+        if (e.storageArea === null || e.storageArea === localStorage) storageEvent(e.key, e.newValue);
+      });
+  } catch {
+    // no window events: one tab only
+  }
+
+  return { names, nameFor, load, setName, anon, anonymousFor, setAnonymous, storageEvent };
 });

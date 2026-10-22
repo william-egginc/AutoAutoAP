@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useShareNameStore } from './shareName';
 import { hashID } from '@/lib/storage/db';
+import { readFileSync } from 'node:fs';
 
 // A stand-in for a player ID.
 const ID = 'test-player-id';
@@ -52,6 +53,49 @@ describe('useShareNameStore', () => {
     const t = useShareNameStore();
     await t.load(ID);
     expect(t.nameFor(ID)).toBe('y'.repeat(40));
+  });
+
+  describe('another tab (storage events, prelive 22 Oct 2026)', () => {
+    it('takes a name or an anonymous choice changed there, capped at 40, writing nothing back', async () => {
+      const s = useShareNameStore();
+      await s.load(ID);
+      const h = await hashID(ID);
+      const before = Object.keys(localStorage).length;
+      s.storageEvent(`aap-share-name:${h}`, 'Fliris');
+      expect(s.nameFor(ID)).toBe('Fliris');
+      s.storageEvent(`aap-share-name:${h}`, 'x'.repeat(500));
+      expect(s.nameFor(ID)).toBe('x'.repeat(40));
+      s.storageEvent(`aap-share-name:${h}`, null); // cleared there
+      expect(s.nameFor(ID)).toBe('');
+      s.storageEvent(`aap-share-anon:${h}`, '0');
+      expect(s.anonymousFor(ID)).toBe(false);
+      s.storageEvent(`aap-share-anon:${h}`, '1');
+      expect(s.anonymousFor(ID)).toBe(true);
+      s.storageEvent(`aap-share-anon:${h}`, 'junk');
+      expect(s.anonymousFor(ID)).toBe(true);
+      await flush();
+      expect(Object.keys(localStorage).length).toBe(before); // no echo
+    });
+
+    it('an unchanged value changes nothing; other keys and accounts not read here are ignored', async () => {
+      const s = useShareNameStore();
+      s.setName(ID, 'Same');
+      await flush();
+      const was = s.names;
+      s.storageEvent(`aap-share-name:${await hashID(ID)}`, 'Same');
+      expect(s.names).toBe(was);
+      s.storageEvent(`aap-share-name:${await hashID('someone-else')}`, 'Other');
+      s.storageEvent('aap.study', 'x');
+      s.storageEvent(null, null);
+      expect(s.nameFor(ID)).toBe('Same');
+      expect(s.nameFor('someone-else')).toBeUndefined();
+    });
+
+    it('listens for storage events', () => {
+      expect(readFileSync(new URL('./shareName.ts', import.meta.url), 'utf8')).toMatch(
+        /window\.addEventListener\('storage'/
+      );
+    });
   });
 
   it('a name typed before the kept one loads wins', async () => {
