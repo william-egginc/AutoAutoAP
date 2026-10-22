@@ -16,6 +16,6 @@ export const waitForEarningsBoostExecutor: ActionExecutor<'wait_for_earnings_boo
     },
 
     getEffectDescription(payload: WaitForEarningsBoostPayload) {
-        return `Wait for <b>${formatDuration(payload.totalTimeSeconds)}</b> until next Monday 9:00 am PT`;
+        return `Wait for ${formatDuration(payload.totalTimeSeconds)} until next Monday 9:00 am PT`;
     },
 };

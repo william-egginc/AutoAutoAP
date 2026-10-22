@@ -45,6 +45,7 @@ import type { VariantKey, VariantResult } from '@/stores/autoPlanner';
 import { VIRTUE_EGG_NAMES } from '@/types/actions/virtue';
 import { useVirtueStore } from '@/stores/virtue';
 import { formatAbsoluteTime, formatNumber } from '@/lib/format';
+import { esc } from '@/lib/charts/tooltip';
 import {
   VARIANT_KEY_ORDER,
   variantColor,
@@ -226,20 +227,20 @@ const option = computed<ChartOption>(() => {
         const params = rawParams as ChartTooltipParams;
         if (params.componentType === 'markLine') {
           const dateStr = formatAbsoluteTime(0, params.data!.xAxis!, 'UTC');
-          return `<b>${params.data!.markerLabel}</b><br/>${dateStr}`;
+          return `<b>${esc(params.data!.markerLabel)}</b><br/>${esc(dateStr)}`;
         }
         if (params.componentType === 'markPoint') {
           const timeMs = params.data!.coord![0];
           const dateStr = formatAbsoluteTime(0, timeMs, 'UTC');
           if (params.data!.kind === 'te') {
-            return `<b>${params.data!.egg} #${params.data!.perEggTE}, ${params.data!.grandTotalTE} Total</b><br/>${dateStr}`;
+            return `<b>${esc(params.data!.egg)} #${esc(params.data!.perEggTE)}, ${esc(params.data!.grandTotalTE)} Total</b><br/>${esc(dateStr)}`;
           }
-          return `<b>${params.data!.markerLabel}</b><br/>${dateStr}`;
+          return `<b>${esc(params.data!.markerLabel)}</b><br/>${esc(dateStr)}`;
         }
         const timeMs = params.value?.[0];
         if (timeMs === undefined) return '';
         const dateStr = formatAbsoluteTime(0, timeMs, 'UTC');
-        return `<b>${params.seriesName}</b><br/>${formatNumber(params.value![1], 3)} eggs<br/>${dateStr}`;
+        return `<b>${esc(params.seriesName)}</b><br/>${esc(formatNumber(params.value![1], 3))} eggs<br/>${esc(dateStr)}`;
       },
     },
     legend: {
