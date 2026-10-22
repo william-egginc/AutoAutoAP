@@ -23,6 +23,8 @@ import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { computeSnapshot } from '@/engine/compute';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
+import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
+import { applyAutoStartingTE } from '@/auto/startingTE';
 
 /**
  * @param stored A save kept in this browser (search/runSaves.ts) to load INSTEAD of fetching one:
@@ -41,6 +43,10 @@ export async function initPlanFuture(playerId: string, stored?: ei.IBackup): Pro
 
   // 4. Roll pending TE into earned (they'll be claimed at ascension)
   rollUpPendingTE();
+
+  // 4b. This account's starting-TE override, if it set one (Joo's fcc9e764; lib/teOverrideAccount.ts), so
+  //     every Auto Planner screen and search starts from it, not only Single run once its card mounts.
+  if (syncTEOverrideToAccount()) await applyAutoStartingTE({ refreshSnapshot: false });
 
   // 5. Plan-specific setup
   const virtueStore = useVirtueStore();

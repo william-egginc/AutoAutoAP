@@ -2173,6 +2173,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pinnedBoxes = { date: d, time: t };
     planner.startDate = d;
     planner.startTime = t;
+    // Not "now" any more: shown in the start boxes (Joo's override, fcc9e764), and Single run's Generate
+    // keeps it instead of restarting from the current time.
+    planner.startTimeOverride = true;
     planStartPin.value = ts;
   }
 

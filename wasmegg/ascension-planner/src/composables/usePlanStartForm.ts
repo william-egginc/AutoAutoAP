@@ -16,6 +16,13 @@
  * (review, 30 Sept). The restore runs once per page load: after that the store is the truth.
  * Changes are saved into the same cache from here too, because the planner that used to save them
  * is only mounted on Classic.
+ *
+ * START-TIME OVERRIDE (Joo's fcc9e764, ported 22 Oct 2026). A saved start only comes back when the player
+ * set it themselves (`startTimeOverride`); otherwise the plan starts now, defaulted from the save as
+ * before (useBackupPlanStart). Before this a reload brought back whatever start the last visit held,
+ * so the same save could open on today's time or on a start hours or days old, depending on whether the
+ * page had been opened before. Caches written before the flag existed count as "now". The timezone is
+ * still restored: it moves no instant on its own, and the hours and time off are shown in it.
  */
 import { watch } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -33,21 +40,24 @@ export function resetPlanStartForm(): void {
 
 export function usePlanStartForm(): void {
   const planner = useAutoPlannerStore();
-  const { timezone, startDate, startTime } = storeToRefs(planner);
+  const { timezone, startDate, startTime, startTimeOverride } = storeToRefs(planner);
 
   if (!restored) {
     restored = true;
     const cached = loadAutoPlannerSchedule();
     if (cached?.timezone) timezone.value = cached.timezone;
-    if (cached?.startDate) startDate.value = cached.startDate;
-    if (cached?.startTime) startTime.value = cached.startTime;
+    if (cached?.startTimeOverride === true && cached.startDate && cached.startTime) {
+      startTimeOverride.value = true;
+      startDate.value = cached.startDate;
+      startTime.value = cached.startTime;
+    }
   }
   if (!timezone.value) {
     timezone.value = useVirtueStore().ascensionTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
   useBackupPlanStart();
 
-  watch([timezone, startDate, startTime], ([tz, date, time]) =>
-    patchAutoPlannerSchedule({ timezone: tz, startDate: date, startTime: time })
+  watch([timezone, startDate, startTime, startTimeOverride], ([tz, date, time, override]) =>
+    patchAutoPlannerSchedule({ timezone: tz, startDate: date, startTime: time, startTimeOverride: override })
   );
 }

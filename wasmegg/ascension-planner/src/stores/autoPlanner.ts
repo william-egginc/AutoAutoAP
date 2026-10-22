@@ -3,7 +3,8 @@ import { ref } from 'vue';
 import type { AscensionSummary } from '@/auto/types';
 import type { Action } from '@/types/actions/meta';
 import type { AutoLoadoutInputs } from '@/auto/loadout/types';
-import { sanitizeLoadoutInputs, sanitizeLoadoutOverrides } from '@/lib/loadoutInputsGuard';
+import { sanitizeLoadoutInputs, sanitizeLoadoutOverrides, sanitizeTEOverride } from '@/lib/loadoutInputsGuard';
+import type { VirtueEgg } from '@/types';
 
 export type SaleCount = 1 | 2 | 3;
 export type BuildVariantKey = `${SaleCount}-sale` | `${SaleCount}-sale-tier13`;
@@ -85,6 +86,16 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
   const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const startDate = ref('');
   const startTime = ref('');
+  /** False = the plan starts "now": `startDate`/`startTime` are resampled to the current time on each
+   * fresh Generate. True = the user picked `startDate`/`startTime`/`timezone` themselves. */
+  const startTimeOverride = ref(false);
+  /** Null = start from the backup's virtue progress (claimed + pending TE, partial progress toward
+   * the next TE, and — for Continue — eggs laid since the last sync). Otherwise the user's own claimed
+   * TE per egg, with none of those extras. Applied to the stores by `applyAutoStartingTE`. */
+  const teOverride = ref<Record<VirtueEgg, number> | null>(null);
+  /** The account (search/runSaves.ts `accountOf`) `teOverride` was set up for, so another account's
+   *  save never starts from it (lib/teOverrideAccount.ts). '' until an account is set up. */
+  const teOverrideAccount = ref('');
   const targetTE = ref<string>('');
   const targetEndDate = ref('');
   const targetEndTime = ref('');
@@ -146,6 +157,11 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     timezone.value = data.timezone;
     startDate.value = data.startDate;
     startTime.value = data.startTime;
+    // A restored plan starts when and with what it was simulated with, not "now" / today's backup.
+    startTimeOverride.value = true;
+    // Checked like the loadout inputs below (lib/loadoutInputsGuard.ts): a file's TE is outside data.
+    const restoredTE = sanitizeTEOverride(data.ascensionChain[0]?.initialParams?.teEarned);
+    if (restoredTE) teOverride.value = restoredTE;
     targetTE.value = data.targetTE || '';
     targetEndDate.value = data.targetEndDate || '';
     targetEndTime.value = data.targetEndTime || '';
@@ -187,6 +203,9 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     timezone,
     startDate,
     startTime,
+    startTimeOverride,
+    teOverride,
+    teOverrideAccount,
     targetTE,
     targetEndDate,
     targetEndTime,

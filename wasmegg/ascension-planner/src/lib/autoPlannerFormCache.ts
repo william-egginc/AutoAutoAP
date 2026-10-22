@@ -9,14 +9,19 @@
 import type { VirtueEgg } from '@/types';
 import type { TimeOffCuts } from '@/stores/autoPlanner';
 import type { AutoLoadoutInputs } from '@/auto/loadout/types';
+import { sanitizeTEOverride } from '@/lib/loadoutInputsGuard';
 
 const SCHEDULE_STORAGE_KEY = 'auto_planner_schedule_v1';
-const TE_INPUTS_STORAGE_KEY_PREFIX = 'auto_planner_te_inputs_v1';
+// v2: only written while the TE override is on (v1 cached every edit, including ones matching the
+// backup), so a v1 entry can't tell us whether the user meant to override.
+const TE_INPUTS_STORAGE_KEY_PREFIX = 'auto_planner_te_inputs_v2';
 
 export interface AutoPlannerScheduleCache {
   timezone: string;
   startDate: string;
   startTime: string;
+  /** Absent in caches written before the start-time override existed — treated as "now". */
+  startTimeOverride?: boolean;
   targetTE: string;
   deferForEarningsMode?: boolean;
   /** The time-off cuts for `targetTE`, so a reload doesn't turn a cut into a real prestige. */
@@ -59,44 +64,44 @@ export function patchAutoPlannerSchedule(patch: Partial<AutoPlannerScheduleCache
 }
 
 export interface AutoPlannerTEInputsCache {
-  teEarned: Partial<Record<VirtueEgg, number>>;
+  /** The TE override's claimed TE per egg. */
+  teEarned: Record<VirtueEgg, number>;
 }
 
 function teInputsStorageKey(playerId: string): string {
   return `${TE_INPUTS_STORAGE_KEY_PREFIX}:${playerId}`;
 }
 
-// Tracks which players' cached TE inputs have already been consumed this page load. A cached
-// value should only ever be pulled in once per load (to survive an actual page reload) — not
-// every time the Auto tab remounts (e.g. toggling Auto/Manual), or it clobbers whatever fresher
-// state (backup refresh, plan import, Manual-mode edits) is currently in the store.
-const consumedPlayerIds = new Set<string>();
-
 /**
- * Returns the cached TE inputs for this player the first time it's called for them in this page
- * load, and `null` on every call after that (even if the underlying localStorage value changes).
+ * The TE override saved for this player, checked (lib/loadoutInputsGuard.ts), or null. Read every time
+ * an account is set up rather than once per page load (spec-joo-fcc9, 22 Oct 2026): since v2 the cache
+ * only ever holds the override the player set and is cleared when they remove it, so it can't be staler
+ * than the store, and reading it once per page meant switching to another account and back lost it
+ * until the next reload (the same save opened with two different starting TEs).
  */
-export function consumeAutoPlannerTEInputs(playerId: string): AutoPlannerTEInputsCache | null {
-  if (!playerId || consumedPlayerIds.has(playerId)) return null;
-  consumedPlayerIds.add(playerId);
+export function loadAutoPlannerTEOverride(playerId: string): Record<VirtueEgg, number> | null {
+  if (!playerId) return null;
   try {
     const raw = localStorage.getItem(teInputsStorageKey(playerId));
-    return raw ? JSON.parse(raw) : null;
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    const teEarned = parsed && typeof parsed === 'object' ? (parsed as { teEarned?: unknown }).teEarned : null;
+    return sanitizeTEOverride(teEarned);
   } catch {
     return null;
   }
 }
 
 /**
- * Persists TE inputs for this player. Call this only from actual user actions (editing a TE
- * field, resetting to defaults) — never from a generic watcher — so values that changed for
- * other reasons (backup refresh, plan import, Manual-mode sync) don't get cached as if they were
- * user input.
+ * Persists the TE override for this player, or clears it (`null`) when the override is removed.
+ * Call this only from actual user actions (editing a TE field, adding/removing the override) —
+ * never from a generic watcher — so values that changed for other reasons (plan import, Chain
+ * Finder handoff) don't get cached as if they were user input.
  */
-export function saveAutoPlannerTEInputs(playerId: string, data: AutoPlannerTEInputsCache): void {
+export function saveAutoPlannerTEInputs(playerId: string, data: AutoPlannerTEInputsCache | null): void {
   if (!playerId) return;
   try {
-    localStorage.setItem(teInputsStorageKey(playerId), JSON.stringify(data));
+    if (data) localStorage.setItem(teInputsStorageKey(playerId), JSON.stringify(data));
+    else localStorage.removeItem(teInputsStorageKey(playerId));
   } catch {
     // Ignore quota/privacy-mode errors — persistence is a nicety, not a requirement.
   }
@@ -110,8 +115,8 @@ function loadoutInputsStorageKey(playerId: string): string {
 }
 
 /**
- * Cached artifact/stone setup inputs for this player — same consume-once-per-page-load contract as
- * `consumeAutoPlannerTEInputs`.
+ * Cached artifact/stone setup inputs for this player, consumed once per page load (the contract the TE
+ * inputs had before Joo's override, fcc9e764).
  */
 export function consumeAutoPlannerLoadoutInputs(playerId: string): AutoLoadoutInputs | null {
   if (!playerId || consumedLoadoutPlayerIds.has(playerId)) return null;

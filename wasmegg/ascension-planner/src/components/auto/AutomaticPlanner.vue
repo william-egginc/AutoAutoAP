@@ -404,7 +404,7 @@ import type { AutoLoadoutInputs } from '@/auto/loadout';
 const autoPlannerStore = useAutoPlannerStore();
 const truthEggsStore = useTruthEggsStore();
 
-const { ascensionChain, timezone, startDate, startTime, targetTE, deferForEarningsMode } =
+const { ascensionChain, timezone, startDate, startTime, startTimeOverride, targetTE, deferForEarningsMode } =
   storeToRefs(autoPlannerStore);
 
 // The forced-490 ascension is a silent bonus card — don't count it in the "A1 of N" denominator.
@@ -445,12 +445,14 @@ watch(
   { immediate: true }
 );
 
-// Persist the form (start date/time/timezone, target TE, defer for earnings mode) so it survives a page reload.
-watch([timezone, startDate, startTime, targetTE, deferForEarningsMode, () => autoPlannerStore.timeOffCuts], () => {
+// Persist the form (start date/time/timezone and whether the start is overridden, target TE, defer for
+// earnings mode) so it survives a page reload.
+watch([timezone, startDate, startTime, startTimeOverride, targetTE, deferForEarningsMode, () => autoPlannerStore.timeOffCuts], () => {
   saveAutoPlannerSchedule({
     timezone: timezone.value,
     startDate: startDate.value,
     startTime: startTime.value,
+    startTimeOverride: startTimeOverride.value,
     targetTE: targetTE.value,
     deferForEarningsMode: deferForEarningsMode.value,
     timeOffCuts: autoPlannerStore.timeOffCuts ? JSON.parse(JSON.stringify(autoPlannerStore.timeOffCuts)) : null,
@@ -503,6 +505,8 @@ const finishGenerate = (clearLoadoutOverrides: boolean) => {
   regeneratePlan(() => nextTick(() => targetInput.value?.focus()), {
     keep: chainSearchStore.classicFirstPick(),
     clearLoadoutOverrides,
+    // Joo's "starts now": the button restarts the plan from the current time unless a start is overridden.
+    startNow: true,
   });
 };
 
