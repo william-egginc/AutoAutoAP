@@ -1016,3 +1016,27 @@ limit, the duration ordering and the ID redaction were checked before this was c
   whether the Free plan offers it; if a deploy is refused for it, remove the two blocks and deploy without.
 
 Deployed 21 Oct 2026: a2bdb8ef as Worker version bccd1a70 (both rate-limit bindings accepted on this plan; `GET /all` 200). Rollback target: f01abb11.
+
+## Hardening, round 2 (red team and review, 21 Oct 2026)
+
+Branch spec-collector2 (from egg-beta2-int 8fd474e0). Specs: `hardening2.spec.js`.
+
+- **More edge limits** (no KV cost, before any read): `SUBMIT_LIMITER` (1103, 20 a minute per address, a key
+  each for `/submit`, `/claim`, `/hide`; in front of `floodGate`, which spends a read even to refuse),
+  `READ_LIMITER` (1104, 120 a minute: a `GET /all` or `/leaderboard` that misses the edge cache, and `GET /csv`,
+  which counts one more per two extra reads a file in parts or deltas needs, at most 100), and `WATCH_LIMIT`
+  (1001, now on: 20 a minute, POST and GET counted apart).
+- **Ranked only with its evidence:** with `RANK_NEEDS_EVIDENCE = "1"` (wrangler.toml `[vars]`), a row without
+  `currentTE`, `legs` (each with TE and days) and `startUtc`/`endUtc` goes to the flagged board as `unverified`
+  instead of the main board. Not quarantined: a By a date carry-on whose legs stay replayed sends `legs: []`.
+  Present but disagreeing is quarantined, as before. Delete the var to turn it off.
+- **Simulator stamps:** `simVersion` must be a date and up to six lower-case words, 40 characters at most; other
+  values are dropped. A stamp not in `SIM_KNOWN` dated on or after the newest known one is kept and marked
+  `simNewer: true`. **Add each new SIM_VERSION to `SIM_KNOWN` when the app ships it.**
+- **Row cap in the snapshot:** a row over 16 KB goes into `snap:<board>` with its largest optional blocks left
+  out (`space` first) and `"trimmed": true`; the stored row keeps everything.
+- **Cache keys:** `/all` and `/leaderboard` are cached under `final` (a whole TE, else `400`) and `limit` only.
+  A public whole CSV is cached at the edge for 60 s under `/csv?id=` alone; a hidden row's, or one in deltas
+  or parts, never. `/hide` drops this data centre's copy.
+- **Not done:** rewriting formula cells (`= + - @`) in served CSVs. The Worker serves the stored gzip as is
+  (no CPU to inflate and re-pack megabytes on the Free plan); the guard belongs in the app's CSV exporter.

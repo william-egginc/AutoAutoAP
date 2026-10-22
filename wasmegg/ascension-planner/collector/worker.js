@@ -344,8 +344,33 @@ const LIGHT_FROMS = ['instant', 'earlier', 'lower-te'];
 /** A Light row: it says so by level, or by effort on a Fastest row (By a date Light rows carry level only). */
 const isLightRow = s => s.level === 'light' || s.effort === 'light';
 
-/** A version stamp such as `2026-10-13-lowte-gate`: letters, digits, dots, dashes, at most MAX.BUILD. */
-const stamp = v => (typeof v === 'string' && /^[0-9A-Za-z._-]{1,40}$/.test(v) ? v : undefined);
+/**
+ * SIMULATOR STAMPS (21 Oct 2026, red team). `simVersion` is the app's SIM_VERSION (src/search/simVersion.ts):
+ * a UTC date and a few lower-case words, `2026-10-13-lowte-gate`. Only that shape is kept, at most
+ * SIM_STAMP_MAX characters and with a real date; anything else is dropped (not refused, like every
+ * optional field). A stamp is the sender's word: it cannot be checked, only bounded.
+ *
+ * SIM_KNOWN lists the stamps this Worker was deployed knowing. A row whose stamp is not one of them and
+ * is dated on or after the newest of them is marked `simNewer: true`: either a simulator released after
+ * this Worker (add it here with the next deploy), or a hand-made stamp claiming to be current. An older
+ * unknown stamp is kept unmarked: old rows are history, not suspects.
+ */
+const SIM_STAMP = /^(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+){0,6}$/;
+const SIM_STAMP_MAX = 40;
+const SIM_KNOWN = new Set(['2026-10-13-lowte-gate', '2026-10-21-egg-beta2']);
+const SIM_NEWEST_DAY = [...SIM_KNOWN]
+  .map(v => v.slice(0, 10))
+  .sort()
+  .pop();
+function simStamp(v) {
+  if (typeof v !== 'string' || v.length > SIM_STAMP_MAX) return undefined;
+  const m = SIM_STAMP.exec(v);
+  if (!m) return undefined;
+  const day = Date.parse(`${m[1]}T00:00:00Z`);
+  return Number.isFinite(day) && new Date(day).toISOString().slice(0, 10) === m[1] ? v : undefined;
+}
+/** True when `v` (a stamp simStamp kept) is newer than this Worker knows about (see above). */
+const simNewer = v => !!v && !SIM_KNOWN.has(v) && v.slice(0, 10) >= SIM_NEWEST_DAY;
 const text = (v, max) => (typeof v === 'string' ? scrubText(v).slice(0, max) : undefined);
 const num = v => (Number.isFinite(v) ? v : undefined);
 const flag = v => (typeof v === 'boolean' ? v : undefined);
@@ -781,7 +806,7 @@ function pickSubmission(s) {
     build: text(s.build, MAX.BUILD),
     // The simulator that priced it (13 Oct 2026, the app's SIM_VERSION): moves only when results do, for
     // 'priced by an older simulator' labels. Optional, no schema bump; a plain stamp, nothing else kept.
-    simVersion: stamp(s.simVersion),
+    simVersion: simStamp(s.simVersion),
     startUtc: isoStamp(s.startUtc),
     endUtc: isoStamp(s.endUtc),
     rechecks: recheckList(s.rechecks, s.finalTE),
@@ -1346,6 +1371,23 @@ const spanFinal = span => {
 
 /** Fields a stored record never passes into the snapshot as they are: derived here, or private. */
 const NOT_FROM_RECORD = new Set(['id', 'hasCsv', 'hidden', 'acct', 'owner', 'yours', 'provSeq', 'csvRun']);
+/**
+ * A ROW'S SIZE IN THE SNAPSHOT IS CAPPED (21 Oct 2026, review). The body cap (512 KB) bounds one send, not
+ * the board: `space.bands` alone may be 32 x 1,024 numbers, so ~50 such rows would push `snap:<board>`
+ * past KV's 25 MB value limit and every board read far past the Free plan's CPU. Live, the largest row is
+ * 4.6 KB (median 2.8 KB), so SNAP_ROW_MAX_BYTES is 3.5 times that. A row over it goes into the snapshot
+ * with its biggest optional blocks left out, in SNAP_TRIM_ORDER, until it fits, and says `"trimmed":true`.
+ * Only the snapshot's copy: the stored `sub:`/`flag:` record keeps everything. The fields the snapshot's
+ * text is read by (`id`, `hasCsv`, `hidden`, `finalTE`, `durationDays`, `nickname`, `receivedAt`, `dupOf`)
+ * and the ranking ones are never trimmed, and all of those are small and bounded.
+ */
+const SNAP_ROW_MAX_BYTES = 16 * 1024;
+// prettier-ignore
+const SNAP_TRIM_ORDER = [
+  'space', 'proof', 'rechecks', 'searched', 'sweep', 'machine', 'run', 'epicResearch', 'colleggtibles',
+  'stones', 'artifacts', 'delivery', 'earnings', 'teByEgg', 'timeOff', 'note', 'progress', 'seed', 'legs',
+];
+
 /** A row as the snapshot writes it: `id` then `hasCsv` first (see "the text"), never the owner. A
  *  hidden row (see "hidden rows") says so third, `"hidden":true`, so one test on the text tells. */
 function rowText(record, id, hasCsv, acct) {
@@ -1353,6 +1395,17 @@ function rowText(record, id, hasCsv, acct) {
   if (record.hidden === true) row.hidden = true;
   for (const [k, v] of Object.entries(record)) if (!NOT_FROM_RECORD.has(k)) row[k] = v;
   if (acct) row.acct = acct;
+  let text = JSON.stringify(row);
+  if (text.length <= SNAP_ROW_MAX_BYTES) return text;
+  // Too big for the board: drop the biggest optional blocks, in order, until it fits.
+  delete row.trimmed;
+  for (const k of SNAP_TRIM_ORDER) {
+    if (!(k in row)) continue;
+    delete row[k];
+    row.trimmed = true;
+    text = JSON.stringify(row);
+    if (text.length <= SNAP_ROW_MAX_BYTES) return text;
+  }
   return JSON.stringify(row);
 }
 /** Does this row's text say it has a CSV? */
@@ -1814,13 +1867,16 @@ function foldCopies(rows, own) {
  */
 async function edgeCached(request, ctx, build) {
   const cache = typeof caches !== 'undefined' ? caches.default : null;
+  // The cache key is `request`: the caller passes the read's URL with only the parameters it reads, in a
+  // fixed order (boardKey; 21 Oct 2026, review), so `/all?x=<random>` is `/all`, not a fresh KV read.
+  const key = new Request(request.url, { method: 'GET' });
   const forBrowser = res => {
     const out = new Response(res.body, res);
     out.headers.set('cache-control', 'no-cache');
     return out;
   };
   if (cache) {
-    const hit = await cache.match(request);
+    const hit = await cache.match(key);
     if (hit) return forBrowser(hit);
   }
   const res = await build();
@@ -1829,8 +1885,40 @@ async function edgeCached(request, ctx, build) {
   const body = await res.text();
   const edge = new Response(body, res);
   edge.headers.set('cache-control', `public, max-age=${EDGE_CACHE_S}`);
-  await later(ctx, cache.put(request, edge));
+  await later(ctx, cache.put(key, edge));
   return forBrowser(new Response(body, res));
+}
+
+/**
+ * A board read's cache key (see edgeCached): `final` (a whole TE) and, for /leaderboard, `limit` (clamped
+ * as the read clamps it), in the order dropEdgeCache names them; every other parameter is ignored. Null
+ * when `final` is not a whole TE in range (the read answers 400: no real caller sends one).
+ */
+function boardKey(url) {
+  const finalRaw = url.searchParams.get('final');
+  let final = null;
+  if (finalRaw !== null) {
+    if (!/^\d{1,7}$/.test(finalRaw) || Number(finalRaw) <= 0 || Number(finalRaw) > MAX.TE) return null;
+    final = String(Number(finalRaw));
+  }
+  const q = [];
+  if (final !== null) q.push(`final=${final}`);
+  const limitRaw = url.searchParams.get('limit');
+  if (url.pathname === '/leaderboard' && limitRaw !== null) q.push(`limit=${Math.min(Number(limitRaw) || 50, 200)}`);
+  return { final, href: `${url.origin}${url.pathname}${q.length ? `?${q.join('&')}` : ''}` };
+}
+
+/** GET /csv's cost unit for READ_LIMITER: one unit a request, plus one per this many extra reads (parts
+ *  or deltas), so an address gets about as many KV reads a minute from a heavy file as from light ones. */
+const CSV_READS_PER_UNIT = 2;
+/** The most units one CSV read is charged (a 256-delta file: 1 + 100, so about one read a minute per
+ *  address): below READ_LIMITER's 120, so a heavy file is slow to re-read, never unreadable. */
+const CSV_UNITS_MAX = 100;
+
+/** Drop this data centre's cached copies of these rows' CSVs (a hide). */
+async function dropCsvCache(origin, ids) {
+  if (typeof caches === 'undefined') return;
+  await Promise.all(ids.map(id => caches.default.delete(new Request(`${origin}/csv?id=${id}`)).catch(() => false)));
 }
 
 /** Drop this data centre's cached board reads after a write, so the writer sees it at once. Run it
@@ -2766,6 +2854,33 @@ function quarantineReasons(body, record, now) {
   return out;
 }
 
+/**
+ * RANKED ONLY WITH ITS EVIDENCE (21 Oct 2026, red team). Every check above runs only on the fields a row
+ * carries, so a body that leaves them out had nothing to fail: `{chain:[999000,1000000], durationDays:
+ * 0.0001, ...}` went to the top of the main board unflagged. A row now ranks on the main board only when
+ * it carries everything the checks need -- `currentTE`, its `legs` (each with a TE and days), and
+ * `startUtc`/`endUtc` -- and they agree (quarantineReasons). A row missing any of them is not refused:
+ * it goes to the flagged board with the flag `unverified` (public, unranked, its sender still sees it as
+ * theirs). Not quarantined, because real sends can lack legs: a By a date carry-on whose legs stay
+ * replayed from a checkpoint sends `legs: []` (src/search/submission.ts buildSubmission), as do older
+ * apps (schemas 2-6 have no start/end). Live board, 21 Oct 2026: 186 of 187 rows at schema 7-8 carry
+ * all four; the one without legs is from 28 Sep. The rule is on when `RANK_NEEDS_EVIDENCE = "1"`
+ * (wrangler.toml [vars], set there): deleting that line turns it off without a code change, should a
+ * real kind of send turn out to lack them. (Off without the var, so a fork, and the older specs that
+ * post a bare minimal body to test something else, behave as before.)
+ */
+const UNVERIFIED = 'unverified';
+function verifiable(r) {
+  const legs = Array.isArray(r.legs) ? r.legs : [];
+  return (
+    Number.isFinite(r.currentTE) &&
+    legs.length > 0 &&
+    legs.every(l => Number.isFinite(l?.te) && Number.isFinite(l?.days)) &&
+    !!r.startUtc &&
+    !!r.endUtc
+  );
+}
+
 /** How many rows `owner` put on the board in `raw` (a snapshot's text) in the 24 h before `now`. */
 function rowsToday(raw, owner, now) {
   const snap = viewSnapshot(raw);
@@ -2988,6 +3103,9 @@ export default {
     // ------------------------------------------------------------------ submit
     if (url.pathname === '/submit' && request.method === 'POST') {
       // Flood guard first (see floodGate): a refused request costs one read and nothing else.
+      // The edge limit first (see edgeLimited): a flood past it costs no KV read at all.
+      const slow = await edgeLimited(env, request, 'SUBMIT_LIMITER', 'submit');
+      if (slow) return slow;
       const gate = await floodGate(env, request);
       if (gate.refused) return gate.refused;
 
@@ -3019,6 +3137,10 @@ export default {
       const knowsQuarantine = url.searchParams.get('quarantine') === '1';
       const reasons = quarantineReasons(body, record, Date.parse(record.receivedAt));
       if (reasons.length) return quarantine(env, body, record, reasons, gate, knowsQuarantine);
+      // Missing the fields the checks need: unranked, on the flagged board (see "ranked only with its evidence").
+      if (env.RANK_NEEDS_EVIDENCE === '1' && !verifiable(record)) record.flags = [...(record.flags || []), UNVERIFIED];
+      // A simulator stamp newer than this Worker knows (see "simulator stamps"): kept, and marked.
+      if (simNewer(record.simVersion)) record.simNewer = true;
       // A flagged run goes under its own prefix, so the main board -- /leaderboard, /all and every
       // analysis built on them -- never sees it, and no reader has to remember to filter.
       const board = record.flags?.length ? 'flag' : 'sub';
@@ -3237,6 +3359,9 @@ export default {
     // the row was sent with -- never the name, which anyone can type -- so a row sent with no code
     // can never be claimed by anybody, and that is the intended price of sending without one.
     if (url.pathname === '/claim' && request.method === 'POST') {
+      // The edge limit first (see edgeLimited): a flood past it costs no KV read at all.
+      const slow = await edgeLimited(env, request, 'SUBMIT_LIMITER', 'claim');
+      if (slow) return slow;
       const gate = await floodGate(env, request);
       if (gate.refused) return gate.refused;
       let body;
@@ -3288,6 +3413,9 @@ export default {
     // with `hidden: true` to hide and `false` to show; one owner code in x-owner-token. Idempotent: a
     // row already in that state is answered as done and written again only if its snapshot disagrees.
     if (url.pathname === '/hide' && request.method === 'POST') {
+      // The edge limit first (see edgeLimited): a flood past it costs no KV read at all.
+      const slow = await edgeLimited(env, request, 'SUBMIT_LIMITER', 'hide');
+      if (slow) return slow;
       const gate = await floodGate(env, request);
       if (gate.refused) return gate.refused;
       let body;
@@ -3403,6 +3531,10 @@ export default {
       for (const b of ['sub', 'flag']) {
         if (patches[b].length) await commitSnapshot(env, ctx, b, { rows: patches[b] }, url.origin, boards[b]);
       }
+      // A newly hidden row's CSV leaves this data centre's cache now (see "GET /csv is cached"); elsewhere
+      // within EDGE_CACHE_S, as the board reads do.
+      const hiddenNow = writes.map(w => w.r.id);
+      if (want) await later(ctx, dropCsvCache(url.origin, hiddenNow));
       if (writes.length) {
         try {
           await env.SUBMISSIONS.put(countKey, String(used + writes.length), { expirationTtl: 2 * 86400 });
@@ -3604,6 +3736,20 @@ export default {
     if (url.pathname === '/csv' && request.method === 'GET') {
       const id = url.searchParams.get('id');
       if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
+      // GET /csv IS CACHED AND LIMITED (21 Oct 2026, review: a CSV in 256 deltas cost ~258 KV reads a
+      // request, unthrottled). A public whole file is kept at the edge for EDGE_CACHE_S under
+      // `/csv?id=<id>` alone (other parameters ignored), so a repeat costs no KV read. A miss is counted
+      // against READ_LIMITER per address, and a file joined from parts or deltas counts again once per
+      // CSV_READS_PER_UNIT reads it makes (at most CSV_UNITS_MAX), so a heavy file cannot be read as often
+      // as a light one. A hidden row's file (owner only) and a CSV so far in deltas are never cached.
+      const csvCache = typeof caches !== 'undefined' ? caches.default : null;
+      const csvKey = new Request(`${url.origin}/csv?id=${id}`, { method: 'GET' });
+      if (csvCache) {
+        const hit = await csvCache.match(csvKey);
+        if (hit) return hit;
+      }
+      const slowCsv = await edgeLimited(env, request, 'READ_LIMITER', 'csv');
+      if (slowCsv) return slowCsv;
       // A hidden row's CSV is its owner's alone (see "hidden rows"): the snapshot says which rows are
       // hidden (a read, two for a flagged row), and the record's full owner hash decides (one more).
       const place = await rowPlace(env, ctx, id);
@@ -3631,7 +3777,13 @@ export default {
       if (!got?.value) return json({ error: 'not found' }, 404);
       let buf = got.value;
       const parts = got.metadata?.parts;
-      if (typeof got.metadata?.run === 'string' && CSV_RUN.test(got.metadata.run)) {
+      const isDeltas = typeof got.metadata?.run === 'string' && CSV_RUN.test(got.metadata.run);
+      const extraReads = isDeltas ? deltaCount(got.metadata) : Number.isInteger(parts) && parts > 1 ? parts - 1 : 0;
+      for (let u = Math.min(Math.ceil(extraReads / CSV_READS_PER_UNIT), CSV_UNITS_MAX); u > 0; u--) {
+        const slower = await edgeLimited(env, request, 'READ_LIMITER', 'csv');
+        if (slower) return slower;
+      }
+      if (isDeltas) {
         // A CSV so far in deltas: head + deltas as one gzip member (see "the CSV so far in deltas").
         const k = deltaCount(got.metadata);
         const rest = [];
@@ -3709,20 +3861,35 @@ export default {
       // `application/gzip` is not on the edge's compressible list, so the bytes pass through
       // untouched, and a .csv.gz is a thing every operating system already opens. No decompression
       // here either way, for the CPU reason above.
-      return new Response(buf, {
-        headers: {
-          'content-type': 'application/gzip',
-          'content-disposition': `attachment; filename="chains-${id}.csv.gz"`,
-          ...CORS,
-          ...csvHeaders,
-        },
-      });
+      const csvResponse = body =>
+        new Response(body, {
+          headers: {
+            'content-type': 'application/gzip',
+            'content-disposition': `attachment; filename="chains-${id}.csv.gz"`,
+            ...CORS,
+            ...csvHeaders,
+          },
+        });
+      // Only a public whole file is kept at the edge: one value, fixed once written. Parts (over 8 MB, rare)
+      // would need the stream split, and so buffered, which a 64 MB file must never be.
+      if (!csvCache || place?.hidden || isDeltas || buf instanceof ReadableStream) return csvResponse(buf);
+      const edge = csvResponse(buf.slice(0));
+      edge.headers.set('cache-control', `public, max-age=${EDGE_CACHE_S}`);
+      const kept = csvCache.put(csvKey, edge).catch(() => {});
+      await later(ctx, kept);
+      return csvResponse(buf);
     }
 
     // ------------------------------------------------------------- leaderboard
     if ((url.pathname === '/leaderboard' || url.pathname === '/all') && request.method === 'GET') {
-      return edgeCached(request, ctx, async () => {
-        const final = url.searchParams.get('final');
+      const bk = boardKey(url);
+      if (!bk) return json({ error: 'final must be a whole TE' }, 400);
+      // Cached under the normalised URL (boardKey), not the request's own.
+      return edgeCached(new Request(bk.href), ctx, async () => {
+        // A miss reads KV, so misses are what the edge limit counts (hits cost nothing; see READ_LIMITER).
+        const slow = await edgeLimited(env, request, 'READ_LIMITER', 'board');
+        if (slow) return slow;
+        const final = bk.final;
         // From the snapshot: one KV read, no list (see "snapshots" above). Rows are in key order --
         // target, then duration -- which IS the ranking.
         const raw = await readSnapshotText(env, ctx, 'sub');

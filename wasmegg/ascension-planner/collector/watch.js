@@ -24,8 +24,9 @@
  * LIMITS. A body over 2 KB is refused. One write a minute per id: the write itself refuses an
  * earlier one (no separate read), except that a change of status gets through after 2 s, so a run
  * that is stopped straight after starting still says so. At most MAX_ROWS rows: a new id past that
- * is refused. With the optional WATCH_LIMIT rate-limit binding (wrangler.toml), also a few requests a
- * minute per IP address.
+ * is refused. With the WATCH_LIMIT rate-limit binding (wrangler.toml; on since 21 Oct 2026), also a
+ * few requests a minute per IP address, counted apart for POST (heartbeats, one per 5 min per run) and
+ * GET (the phone page reads once a minute). A missing binding means no per-address limit.
  */
 
 export const WATCH_MAX_BYTES = 2048;
@@ -78,6 +79,23 @@ export function isWatchRequest(url) {
 /** The write may go: a minute since the last, or a new status two seconds after it. (SQL, shared.) */
 const MAY_WRITE = `(watch.updated <= ? OR (watch.updated <= ? AND json_extract(watch.data, '$.status') <> ?))`;
 
+/** The 429 for an address over WATCH_LIMIT, or null. A limiter that fails never blocks: the per-id
+ *  limit still holds. `kind` keeps POST and GET counts apart. */
+async function overLimit(env, request, kind) {
+  if (!env.WATCH_LIMIT || typeof env.WATCH_LIMIT.limit !== 'function') return null;
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  try {
+    const { success } = await env.WATCH_LIMIT.limit({ key: `${kind}|${ip}` });
+    if (success) return null;
+  } catch {
+    return null;
+  }
+  return reply({ error: 'too many requests', retryAfter: 60 }, 429, {
+    'retry-after': '60',
+    'access-control-expose-headers': 'retry-after',
+  });
+}
+
 /** `POST /watch` and `GET /watch?id=`. */
 export async function handleWatch(request, env, now = Date.now()) {
   if (!env.WATCH) return reply({ error: 'watching is not set up on this collector' }, 503);
@@ -86,6 +104,8 @@ export async function handleWatch(request, env, now = Date.now()) {
   if (request.method === 'GET') {
     const id = url.searchParams.get('id');
     if (!isId(id)) return reply({ error: 'not a watch id' }, 400);
+    const slow = await overLimit(env, request, 'get');
+    if (slow) return slow;
     const row = await env.WATCH.prepare('SELECT data, updated FROM watch WHERE key = ?').bind(id).first();
     if (!row) return reply({ error: 'not found' }, 404);
     let data;
@@ -99,19 +119,8 @@ export async function handleWatch(request, env, now = Date.now()) {
 
   if (request.method !== 'POST') return reply({ error: 'method not allowed' }, 405);
 
-  if (env.WATCH_LIMIT) {
-    const ip = request.headers.get('cf-connecting-ip') || 'unknown';
-    try {
-      const { success } = await env.WATCH_LIMIT.limit({ key: ip });
-      if (!success)
-        return reply({ error: 'too many requests', retryAfter: 60 }, 429, {
-          'retry-after': '60',
-          'access-control-expose-headers': 'retry-after',
-        });
-    } catch {
-      // the limiter itself failed: carry on with the per-id limit alone
-    }
-  }
+  const slow = await overLimit(env, request, 'post');
+  if (slow) return slow;
 
   const declared = Number(request.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > WATCH_MAX_BYTES) return reply({ error: 'too big' }, 413);
