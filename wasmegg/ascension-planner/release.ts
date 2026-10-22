@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-22T23:13:34Z', note: 'The big update moved to about 5 pm Pacific (T+8) to fix a bug first. Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
   { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4 pm Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
   { at: '2026-10-20T00:37:44Z', note: 'New: prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster By a date searches, a My runs route chart', level: 'big' },
   { at: '2026-10-16T21:26:50Z', note: 'My runs: switch between Race to 490 and Egg Day, follow any route you like, a Producing or Building badge with your rate, and Recalculate; with your hours on, checks now try the next-best route too' },
@@ -40,7 +41,6 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-16T02:31:45Z', note: 'New: My runs tab; Compare is now Leaderboard; arrows show when each stop and egg shift happens; maxed-gear what-if; Light results can be shared; your setup and choices are remembered', level: 'big' },
   { at: '2026-10-15T04:52:00Z', note: 'Your name choice is remembered; the running notice sits in the run bar; other options and charts moved to Compare, Your latest run; tags on the level buttons' },
   { at: '2026-10-15T00:42:15Z', note: 'New: Hide from the public on your own runs; About and privacy page; Light prices the instant routes at once on your hours; your hours no longer make the instant answer worse; limits follow the answer', level: 'big' },
-  { at: '2026-10-14T21:05:05Z', note: 'Light now says it is waiting for Check exactly, then pricing your routes, with a button to search with Fast; near-tie ascension counts are marked about the same' },
 ];
 
 export default {
