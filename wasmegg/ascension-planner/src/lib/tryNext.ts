@@ -17,6 +17,7 @@ import { dateAt } from './eventWhen';
 import { virtueEggName } from './virtueEggs';
 import type { MyRunsOpen } from './myRunsDashboard';
 import type { Tile } from './savedTiles';
+import { deadlineKind, finishesBefore, lateMarker } from './eggDayRule';
 
 export const MAX_PILLS = 4;
 
@@ -58,7 +59,8 @@ export function tryNextPills(fastest: { tile: Tile; target: number }, eggDay: Ti
 }
 
 /**
- * "One more TE by Egg Day 2027 (249) would come Jul 15, 2027 at 3:10 am, after the deadline, so it isn't counted."
+ * "One more TE by Egg Day 2027 (249, on Humility) would come Jul 14, 2027 at 4:35 pm, after Egg Day starts, so it
+ * isn't counted." ("after your date" for another date; lib/eggDayRule.ts: TE counts only before the start).
  * Read ONLY from endEggsOf's `next` (search/endEggs.ts: the egg being laid at the route's end, shift-aware; the
  * other eggs come only after a shift and are never timed here). Never a per-egg time "at the final rate" for
  * another egg (main e6a4ed50, Reliability's next-TE fix). '' without the route's legs or a next TE.
@@ -78,7 +80,7 @@ export function oneMoreLine(o: {
   if (!next || !Number.isFinite(next.at)) return '';
   const when = dateAt(next.at, o.nowSeconds, o.zone);
   const egg = virtueEggName(next.egg);
-  if (o.deadline != null && next.at > o.deadline)
-    return `One more TE by ${o.what} (${last + 1}, on ${egg}) would come ${when}, after the deadline, so it isn't counted.`;
+  if (o.deadline != null && !finishesBefore(next.at, o.deadline))
+    return `One more TE by ${o.what} (${last + 1}, on ${egg}) would come ${when}, ${lateMarker(deadlineKind(o.deadline))}, so it isn't counted.`;
   return `One more TE (${last + 1}, on ${egg}) would come ${when}.`;
 }

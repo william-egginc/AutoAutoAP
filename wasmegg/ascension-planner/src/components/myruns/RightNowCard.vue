@@ -82,7 +82,7 @@
     <!-- The player's own pick (lib/follow.ts): where its price came from, Price it / Simulate it, and the way back. -->
     <p v-if="follow" class="text-[12px] text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
       <span class="font-bold text-indigo-800">Following your pick</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
-      ><template v-if="follow.missesDate">{{ ' ' }}· lands after the date</template
+      ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template
       ><template v-if="offerPrice"
         >{{ ' ' }}·
         <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-price" @click="priceIt">
@@ -218,6 +218,16 @@
       <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next">
         No timeline for your route on this save yet: Price it › runs Check exactly on it (about a minute more on a phone).
       </p>
+      <!-- By a date (Egg Day too): plans kept, none in time (lib/eggDayRule.ts): said plainly, the nearest shown, marked. -->
+      <p v-else-if="selectedOption?.state === 'late'" class="text-[13px] text-slate-700" data-testid="now-no-route-in-time">
+        {{ lateWords }}<template v-if="selectedOption.late?.chain"
+          >{{ ' ' }}<span class="font-mono" data-testid="now-late-route">{{ selectedOption.late.chain.join(' ') }}</span> · {{ lateMark }}</template
+        >
+        ·
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
+          Work it out ›
+        </button>
+      </p>
       <p v-else-if="selectedOption" class="text-[13px] text-slate-700" data-testid="now-no-plan">
         {{ selectedOption.label }}: {{ emptyGoalWords(selectedOption.state) }} ·
         <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
@@ -318,6 +328,7 @@ import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
 import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
 import { askGoal, recalcWords, type RecalcRequest } from '@/lib/recalc';
 import { parseTypedRoute } from '@/lib/follow';
+import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { FollowCard } from '@/composables/useNowPage';
 
 const props = defineProps<{
@@ -445,8 +456,14 @@ function followTyped(): void {
 
 // ------------------------------------------------------------------------------------- the switch
 const selectedOption = computed(() => props.goals?.find(g => g.key === props.selectedGoal) ?? null);
+/** "No route finishes before Egg Day starts. The nearest is 7 hours after." (lib/eggDayRule.ts); `lateMark` also marks
+ *  a followed route that lands late (the player's own pick: kept and marked, never the planner's). */
+const lateKind = computed(() => (selectedOption.value?.kind === 'eggday' ? 'eggday' : 'date'));
+const lateWords = computed(() => noRouteInTimeWords(lateKind.value, selectedOption.value?.late?.seconds ?? null));
+const lateMark = computed(() => lateMarker(lateKind.value));
 const radios = ref<(HTMLButtonElement | null)[]>([]);
 function optionSub(g: GoalOption): string {
+  if (g.state === 'late') return 'no route in time';
   if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved plan with its times yet' : 'no saved plan yet';
   const day = g.kind === 'date' && g.deadline ? `${dateAt(g.deadline, props.now, props.zone).replace(/ at .*$/, '')} · ` : '';
   return g.calculatedAt ? `${day}calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : `${day}saved plan`;

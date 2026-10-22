@@ -58,11 +58,17 @@ describe('try next', () => {
     expect(line(DEADLINE)).toBe('');
   });
 
-  it('after the deadline it says so: it isn’t counted', () => {
+  it('after Egg Day starts it says so: it isn’t counted (lib/eggDayRule.ts)', () => {
     next.value = { egg: 'integrity', at: DEADLINE + 86400 };
     expect(line(DEADLINE)).toBe(
-      "One more TE by Egg Day 2027 (249, on Integrity) would come Jul 15, 2027 at 10:00 am, after the deadline, so it isn't counted."
+      "One more TE by Egg Day 2027 (249, on Integrity) would come Jul 15, 2027 at 10:00 am, after Egg Day starts, so it isn't counted."
     );
+    // Another date: "after your date".
+    next.value = { egg: 'integrity', at: DEADLINE + 86400 + 3600 };
+    expect(line(DEADLINE + 3600)).toContain(', after your date, so it isn\'t counted.');
+    // Exactly at the start it still counts.
+    next.value = { egg: 'integrity', at: DEADLINE };
+    expect(line(DEADLINE)).toBe('One more TE (249, on Integrity) would come Jul 14, 2027 at 10:00 am.');
     next.value = { egg: 'integrity', at: DEADLINE - 600 };
     expect(line(DEADLINE)).toBe('One more TE (249, on Integrity) would come Jul 14, 2027 at 9:50 am.');
   });

@@ -44,7 +44,16 @@
       </button>
     </template>
     <template v-else>
-      <p class="text-[13px] text-slate-600" data-testid="now-tile-empty">Not worked out for this save yet.</p>
+      <!-- Answers kept, none in time (lib/eggDayRule.ts): said plainly; the nearest is shown, marked, never the answer. -->
+      <template v-if="tile.late">
+        <p class="text-[13px] text-slate-700" data-testid="now-tile-no-route-in-time">{{ lateWords }}</p>
+        <p v-if="tile.late.answer" class="text-[12px] text-slate-500" data-testid="now-tile-late">
+          {{ tile.late.answer.endTE }} TE ·
+          <span class="font-mono" :title="tile.late.answer.chain.join(' ')">{{ tile.late.answer.chain.join(' ') }}</span> ·
+          {{ lateMark }}
+        </p>
+      </template>
+      <p v-else class="text-[13px] text-slate-600" data-testid="now-tile-empty">Not worked out for this save yet.</p>
       <button
         type="button"
         class="self-start mt-1 rounded-lg border border-indigo-300 px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
@@ -64,6 +73,7 @@ import { howWords, saveGapWords, secondaryLabel, sourceWords, type Tile } from '
 import { secondaryLine } from '@/lib/currentAnswer';
 import { formatDate } from '@/lib/leaderboardRank';
 import { fastestName } from '@/lib/siteNav';
+import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 
 const props = defineProps<{
@@ -89,6 +99,9 @@ const SURE = {
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const a = computed(() => props.tile.answer);
+/** This tile is Egg Day's (the By a date tile is only ever Egg Day on My runs). */
+const lateWords = computed(() => noRouteInTimeWords('eggday', props.tile.late?.seconds ?? null));
+const lateMark = lateMarker('eggday');
 const headline = computed(() => {
   if (!a.value) return '';
   if (props.goal === 'date') return `${a.value.endTE} TE`;
