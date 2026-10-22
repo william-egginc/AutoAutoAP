@@ -59,7 +59,8 @@ describe('PrestigeByLine', () => {
     expect(uses).toHaveLength(2);
     for (const u of uses) {
       // Not over a route Prefer fewer ascensions picked instead of the best (Q6): it is worked out on the best.
-      expect(u).toContain('v-if="prestigeFlag.enabled.value && !preferPicked"');
+      // Nor over Check exactly's pick when that is another route (lib/boxPick.ts `prestigeOnBox`).
+      expect(u).toContain('v-if="prestigeFlag.enabled.value && !preferPicked && prestigeOnBox"');
       expect(u).toContain(':beta="prestigeFlag.beta"');
     }
     // The work itself checks the flag before it starts.

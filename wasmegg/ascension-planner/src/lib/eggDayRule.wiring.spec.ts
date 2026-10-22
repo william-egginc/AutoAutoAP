@@ -127,7 +127,8 @@ describe('the words and the follow suggestions', () => {
     expect(fn(follow, 'followableRow')).toContain('madeDeadline(row)');
     expect(fn(follow, 'followableAnswer')).toContain('finishesBefore(at, deadline)');
     const route = src('components/auto/InstantRoute.vue');
-    expect(route).toContain('if (dateExact.value) return finishesBefore(dateExact.value.end, deadline);');
+    // The box's route as it shows it (lib/boxPick.ts: the instant answer's while Check exactly runs).
+    expect(route).toContain('if (dateExactShown.value) return finishesBefore(dateExactShown.value.end, deadline);');
     expect(route).toContain('return !d || !props.deadline || finishesBefore(d.end, props.deadline);');
   });
 

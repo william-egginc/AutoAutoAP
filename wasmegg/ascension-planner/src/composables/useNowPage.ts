@@ -32,7 +32,8 @@ import {
   readSnapshot,
   snapshotUsable,
 } from '@/search/instantSnapshot';
-import { readFilters } from '@/search/instantFilters';
+import { insideHoursFor, readFilters, readInsideHoursChoice } from '@/search/instantFilters';
+import { isConstrained } from '@/search/availability';
 import { virtueInventory } from '@/search/csv';
 import { accountOf } from '@/search/runSaves';
 import { loadHistory, type CheckEntry } from '@/search/checkHistory';
@@ -172,7 +173,11 @@ export function instantKeyFromStores(deadline: number | null, finalTE: number): 
       timeOff: store.timeOff,
       milestones: store.milestones,
       firstAscension: inputs.firstAscension,
-      useHours: store.scheduleEnabled && !!store.availability && filters.inHours,
+      // "Works inside my hours" as the instant answer's tick box has it (ticked by default with hours set).
+      useHours:
+        store.scheduleEnabled &&
+        !!store.availability &&
+        insideHoursFor(true, isConstrained(store.availability), readInsideHoursChoice(), filters.inHours),
       maxAscensions: filters.maxAscensions,
     });
   } catch {

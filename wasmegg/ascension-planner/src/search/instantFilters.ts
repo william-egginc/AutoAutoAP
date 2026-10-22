@@ -62,6 +62,46 @@ export function writeFilters(f: InstantFilters): void {
   }
 }
 
+/**
+ * "Works inside my hours" ticked by default (Jordan, 22 Oct 2026): on whenever the player has set playing hours (Let me
+ * pick my hours on, with a window that isn't any hour). The player's own tick or untick is remembered apart from the
+ * filters and wins: once unticked it is never ticked again by itself, until they tick it. No choice and no hours (or
+ * any hour): off, as before.
+ */
+export type InsideHoursChoice = 'on' | 'off' | null;
+const INSIDE_HOURS_KEY = 'aap-instant-inside-hours';
+export function defaultInsideHours(hoursSet: boolean, windowIsAnyHour: boolean, stored: InsideHoursChoice): boolean {
+  if (stored === 'off') return false;
+  if (stored === 'on') return true;
+  return hoursSet && !windowIsAnyHour;
+}
+/** The tick box's state on a screen: `hoursOn` Let me pick my hours on with hours given, `constrained` a window that
+ *  isn't any hour, `remembered` the filters' own value (kept as before with no hours, or any hour and no choice). */
+export function insideHoursFor(
+  hoursOn: boolean,
+  constrained: boolean,
+  stored: InsideHoursChoice,
+  remembered: boolean
+): boolean {
+  if (!hoursOn || (stored === null && !constrained)) return remembered;
+  return defaultInsideHours(constrained, !constrained, stored);
+}
+export function readInsideHoursChoice(): InsideHoursChoice {
+  try {
+    const v = localStorage.getItem(INSIDE_HOURS_KEY);
+    return v === 'on' || v === 'off' ? v : null;
+  } catch {
+    return null;
+  }
+}
+export function writeInsideHoursChoice(c: 'on' | 'off'): void {
+  try {
+    localStorage.setItem(INSIDE_HOURS_KEY, c);
+  } catch {
+    // Storage blocked: the default applies again next time.
+  }
+}
+
 /** One count's route improved by the background polish: hours sooner (Fastest) or, By a date, the TE
  *  gained and the hours more to spare. */
 export interface PolishGain {
