@@ -316,10 +316,22 @@ export function describeVirtueInventory(rawBackup: unknown): string {
   return parts.length ? parts.join('; ') : 'empty';
 }
 
+/** A number written as text (`toFixed`, a count): left as it is, so "-3.25" stays a number in a sheet. */
+const NUMERIC_TEXT = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
+
+/**
+ * A text cell a spreadsheet would run as a formula (= + - @, or a tab or carriage return first) gets a
+ * leading ' so it is shown as text (red team 21 Oct 2026, server.md: CSV formula injection). Numbers,
+ * negative ones included, are left alone.
+ */
+export function guardCell(s: string): string {
+  return /^[=+\-@\t\r]/.test(s) && !NUMERIC_TEXT.test(s) ? `'${s}` : s;
+}
+
 /** Quote only when a cell needs it, so the common case stays readable in a text editor. */
 function cell(value: string | number | undefined): string {
   if (value === undefined || value === null) return '';
-  const s = String(value);
+  const s = typeof value === 'number' ? String(value) : guardCell(String(value));
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
