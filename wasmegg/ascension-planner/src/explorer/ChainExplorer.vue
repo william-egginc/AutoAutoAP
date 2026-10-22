@@ -1261,6 +1261,7 @@ import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import WhatWeKnow from './WhatWeKnow.vue';
 import { knowStats } from './knowStats';
 import { describeFetchError, errorKind } from '@/utils/errors';
+import { plainError } from '@/lib/plainError';
 import SweepCurvesChart from './SweepCurvesChart.vue';
 import GearScoreChart from './GearScoreChart.vue';
 import BestCountMatrix from './BestCountMatrix.vue';
@@ -1480,7 +1481,7 @@ async function load(): Promise<void> {
     fetchError.value =
       errorKind(e) === 'network'
         ? describeFetchError(e, 'the collector')
-        : `Check the URL, and that the collector allows this origin. (${e instanceof Error ? e.message : String(e)})`;
+        : `Check the URL, and that the collector allows this origin. (${plainError(e)})`;
   } finally {
     if (allController === controller) {
       loading.value = false;

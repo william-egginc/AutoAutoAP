@@ -1010,6 +1010,7 @@ import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds }
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
 import { TABLE_LOAD_FAILED, tableLoadFailed } from '@/search/tableFetch';
+import { plainError } from '@/lib/plainError';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type FirstLeg, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
@@ -1847,7 +1848,9 @@ watch(runBusy, busy => {
 
 /** A thrown message as a player may see it: the loader's own wording says "table", which players never see. */
 function playerFacing(message: string): string {
-  return /table/i.test(message) ? 'the instant answer could not be read' : message;
+  if (/table/i.test(message)) return 'the instant answer could not be read';
+  // Never raw exception text (lib/plainError.ts).
+  return plainError(new Error(message), 'something went wrong');
 }
 
 /** Each run's number: a run that has been superseded (the save or the date changed) is dropped. */

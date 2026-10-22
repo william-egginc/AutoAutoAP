@@ -736,6 +736,7 @@ import { storeToRefs } from 'pinia';
 import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, resolveColleggtibleContracts } from 'lib';
 import { requestSave, SaveLoadError, SAVE_UNREACHABLE } from '@/lib/saveLoad';
+import { isRawError, plainError } from '@/lib/plainError';
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { offerStartTimes } from '@/lib/onVirtue';
@@ -1549,7 +1550,7 @@ async function startFromScratch() {
     await initStartFromScratch();
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Reset failed';
+    error.value = plainError(e, "Couldn't reset. Try again.");
     console.error('Start from Scratch error:', e);
   }
 }
@@ -1622,7 +1623,8 @@ function backupFailureReason(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   if (/timeout|timed out/i.test(msg)) return "the game's server didn't answer in time";
   if (/failed to fetch|network|load failed/i.test(msg)) return "the game's server couldn't be reached";
-  return msg.length > 140 ? msg.slice(0, 140) + '…' : msg;
+  // Never the error itself: it names the forwarder's URL (the Words audit's S76).
+  return isRawError(e) ? 'something went wrong on the way' : msg.length > 140 ? msg.slice(0, 140) + '…' : msg;
 }
 
 // IntegrityNotice's "Try again". Only initPlanFuture clears the warning: it is the one path that also
@@ -1668,7 +1670,7 @@ async function prepareAutoPlanner(): Promise<string> {
     return '';
   } catch (e) {
     console.error('Failed to auto-init Auto Planner:', e);
-    error.value = 'Failed to load fresh backup for Auto Planner.';
+    error.value = "Couldn't load your latest save.";
     uiStore.staleBackup = backupFailureReason(e);
     await planFromLastGoodSave();
     return initialStateStore.rawBackup ? '' : `Your save could not be loaded: ${uiStore.staleBackup}.`;
@@ -1905,7 +1907,7 @@ async function triggerQuickContinue() {
     }
   } catch (e) {
     loading.value = false;
-    error.value = e instanceof Error ? e.message : 'Continue Current Ascension failed';
+    error.value = plainError(e, "Couldn't continue your current ascension. Try again.");
     console.error('Quick Continue error:', e);
   }
 }
@@ -1928,7 +1930,7 @@ async function quickContinueAscension(selection: 'earnings' | 'elr') {
     await initContinueCurrent(playerId.value, selection);
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Continue Current Ascension failed';
+    error.value = plainError(e, "Couldn't continue your current ascension. Try again.");
     console.error('Quick Continue error:', e);
   } finally {
     loading.value = false;
@@ -1955,7 +1957,7 @@ async function planNextAscension() {
     uiStore.runSaveLoaded = null;
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Plan Future Ascension failed';
+    error.value = plainError(e, "Couldn't plan your next ascension. Try again.");
     uiStore.staleBackup = backupFailureReason(e);
     await planFromLastGoodSave();
     console.error('Plan Next Ascension error:', e);

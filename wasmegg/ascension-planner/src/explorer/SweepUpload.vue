@@ -184,6 +184,7 @@
 </template>
 
 <script setup lang="ts">
+import { plainError } from '@/lib/plainError';
 import { NAMES } from '@/lib/siteNav';
 import { computed, ref, shallowRef, watch } from 'vue';
 import {
@@ -255,7 +256,7 @@ async function onFiles(e: Event): Promise<void> {
       }
     }
   } catch (err) {
-    readError.value = err instanceof Error ? err.message : 'That file could not be read.';
+    readError.value = plainError(err, 'That file could not be read.');
   }
 }
 
@@ -375,7 +376,7 @@ async function send(): Promise<void> {
     await postTable();
   } catch (err) {
     sendOk.value = false;
-    sendMessage.value = err instanceof Error ? err.message : 'Something went wrong preparing the upload.';
+    sendMessage.value = plainError(err, 'Something went wrong preparing the upload.');
   } finally {
     sending.value = false;
   }

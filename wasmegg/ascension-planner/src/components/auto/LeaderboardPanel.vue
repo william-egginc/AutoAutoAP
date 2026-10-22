@@ -992,6 +992,7 @@ import { onRowClick } from '@/lib/rowClick';
 import { COMPARE_VIEWS, DEFAULT_ROUTE, NAMES, hashFor, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';
+import { plainError } from '@/lib/plainError';
 import { computed, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1433,7 +1434,7 @@ async function downloadOwnCsv(id: string): Promise<void> {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (e) {
-    hideMsg.value = { text: e instanceof Error ? e.message : String(e), tone: 'error' };
+    hideMsg.value = { text: plainError(e, "Couldn't download that run's CSV. Try again."), tone: 'error' };
   }
 }
 
