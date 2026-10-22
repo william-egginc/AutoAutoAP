@@ -251,7 +251,7 @@ describe('bounds', () => {
   });
 
   it('refuses oversized inventories', async () => {
-    const artifacts = Array.from({ length: 20000 }, () => 'Y'.repeat(200));
+    const artifacts = Array.from({ length: 2000 }, () => 'Y'.repeat(200)); // 400 KB: under the 512 KB body cap, over the list's
     expect((await post('/submit', { ...MINIMAL, artifacts })).status).toBe(400);
   });
 
@@ -727,6 +727,20 @@ describe('the CSV half', () => {
 
   // A big run's gzip can pass the 8 MB a request: the app cuts the gzip BYTES into parts, sends parts
   // 1..m-1, then part 0, which seals the file at `csv:<id>`. GET /csv joins them into one .csv.gz.
+  it('answers a replay of a whole CSV 409 without pulling the stored bytes across (QA, 21 Oct)', async () => {
+    const { id, uploadToken } = await submitted();
+    expect((await postCsv(id, await gz('rank,chain\n1,195 490\n'), uploadToken)).status).toBe(200);
+    const kv = env.SUBMISSIONS;
+    const types = [];
+    env.SUBMISSIONS = { ...kv, get: (k, t) => (types.push(`${k.slice(0, 4)}:${t}`), kv.get(k, t)), getWithMetadata: (k, t) => kv.getWithMetadata(k, t) };
+    const puts = [];
+    const origPut = kv.put.bind(kv);
+    env.SUBMISSIONS.put = (...a) => (puts.push(a[0]), origPut(...a));
+    expect((await postCsv(id, await gz('rank,chain\n1,200 490\n'), uploadToken)).status).toBe(409);
+    expect(types.some(t => t.startsWith('csv:') && t.endsWith(':arrayBuffer'))).toBe(false);
+    expect(puts).toEqual([]);
+  });
+
   describe('a CSV in parts', () => {
     const postPart = (id, body, token, part, parts) =>
       worker.fetch(
@@ -745,6 +759,17 @@ describe('the CSV half', () => {
       const size = Math.ceil(u.byteLength / m);
       return Array.from({ length: m }, (_, n) => u.slice(n * size, (n + 1) * size));
     };
+
+    it('takes a later part once: a replay is answered 200 and writes nothing (QA, 21 Oct)', async () => {
+      const { id, uploadToken } = await submitted();
+      const parts = slices(await gz(bigCsv()), 3);
+      expect((await postPart(id, parts[1], uploadToken, 1, 3)).status).toBe(200);
+      const before = env.SUBMISSIONS._m.get(`csv:${id}:p1`);
+      const again = await postPart(id, new Uint8Array(parts[1].byteLength).fill(7), uploadToken, 1, 3);
+      expect(again.status).toBe(200);
+      expect((await again.json()).already).toBe(true);
+      expect(env.SUBMISSIONS._m.get(`csv:${id}:p1`)).toBe(before);
+    });
 
     it('stores parts 1..m-1 under csv:<id>:p<n>, seals with part 0, and serves the file joined', async () => {
       const csv = bigCsv();
@@ -848,11 +873,11 @@ describe('the CSV half', () => {
       const { id, uploadToken } = await submitted();
       const counts = countKV(env.SUBMISSIONS);
       for (const n of [1, 2]) await postPart(id, parts[n], uploadToken, n, 3);
-      // a write-once check each | a part each
-      expect(counts).toMatchObject({ get: 2, put: 2, list: 0, delete: 0 });
+      // the head's write-once check and the part's own (a replay is answered without a write), each | a part each
+      expect(counts).toMatchObject({ get: 4, put: 2, list: 0, delete: 0 });
       await postPart(id, parts[0], uploadToken, 0, 3);
       // write-once check, parts 1 and 2, markCsv's patch read | the seal, the snapshot
-      expect(counts).toMatchObject({ get: 6, put: 4, list: 0, delete: 0 });
+      expect(counts).toMatchObject({ get: 8, put: 4, list: 0, delete: 0 });
     });
   });
 });
@@ -2979,7 +3004,7 @@ describe('POST /instant (opt-in instant answer records)', () => {
     expect(JSON.stringify(stored)).not.toContain(TOKEN_A);
   });
 
-  it('costs 1 read and 2 writes, no list and no delete', async () => {
+  it('costs 2 reads and 3 writes, no list and no delete; a refused body costs nothing', async () => {
     const ops = { get: 0, put: 0, list: 0, delete: 0 };
     const kv = env.SUBMISSIONS;
     env.SUBMISSIONS = {
@@ -2989,8 +3014,10 @@ describe('POST /instant (opt-in instant answer records)', () => {
       list: (...a) => (ops.list++, kv.list(...a)),
       delete: (...a) => (ops.delete++, kv.delete(...a)),
     };
+    expect((await postOwned('/instant', { ...RECORD, v: 99 }, TOKEN_A)).status).toBe(400);
+    expect(ops).toEqual({ get: 0, put: 0, list: 0, delete: 0 });
     expect((await postOwned('/instant', RECORD, TOKEN_A)).status).toBe(200);
-    expect(ops).toEqual({ get: 1, put: 2, list: 0, delete: 0 });
+    expect(ops).toEqual({ get: 2, put: 3, list: 0, delete: 0 });
   });
 
   it('is never served: not on the board, /all, /mine or the snapshots', async () => {
@@ -3113,13 +3140,28 @@ describe('POST /instant (opt-in instant answer records)', () => {
     expect(instKeys()).toEqual([]);
   });
 
-  it('takes at most 30 a day from one owner code, each code counted on its own', async () => {
-    for (let i = 0; i < 30; i++) expect((await postOwned('/instant', RECORD, TOKEN_A)).status).toBe(200);
-    const res = await postOwned('/instant', RECORD, TOKEN_A);
+  it('takes at most 30 a day from one address, whatever owner codes it invents', async () => {
+    // Fresh codes every time do not help: the cap is on the address (21 Oct 2026, QA).
+    for (let i = 0; i < 30; i++) {
+      const token = i.toString(16).padStart(32, '0');
+      expect((await postOwned('/instant', RECORD, token)).status).toBe(200);
+    }
+    const res = await postOwned('/instant', RECORD, TOKEN_B);
     expect(res.status).toBe(429);
     expect((await res.json()).retryAfter).toBeGreaterThan(0);
-    expect((await postOwned('/instant', RECORD, TOKEN_B)).status).toBe(200);
+    // Another address still gets in.
+    expect((await postOwned('/instant', RECORD, TOKEN_B, '2.2.2.2')).status).toBe(200);
     expect(instKeys()).toHaveLength(31);
+  });
+
+  it('takes at most 60 a day in all, from any number of addresses', async () => {
+    for (let i = 0; i < 60; i++) {
+      expect((await postOwned('/instant', RECORD, TOKEN_A, `10.0.${i >> 8}.${i & 255}`)).status).toBe(200);
+    }
+    const res = await postOwned('/instant', RECORD, TOKEN_B, '9.9.9.9');
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toMatch(/collector takes at most 60/);
+    expect(instKeys()).toHaveLength(60);
   });
 
   it("takes a By a date record, and what the app's own sender builds", async () => {
@@ -3583,5 +3625,64 @@ describe('POST /hide: hide from the public, and show again', () => {
     const res = await worker.fetch(new Request('https://collector.test/hide', { method: 'OPTIONS' }), env);
     expect(res.headers.get('access-control-allow-headers')).toContain('x-owner-token');
     expect(res.headers.get('access-control-allow-methods')).toContain('POST');
+  });
+});
+
+describe('/submit byte cap (QA, 21 Oct 2026)', () => {
+  it('refuses a body over 512 KB, by its declared length and by its text, before parsing it', async () => {
+    const big = JSON.stringify({ ...MINIMAL, pad: 'x'.repeat(600 * 1024) });
+    const declared = await worker.fetch(
+      new Request('https://collector.test/submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': String(big.length), 'cf-connecting-ip': '3.3.3.3' },
+        body: big,
+      }),
+      env
+    );
+    expect(declared.status).toBe(413);
+    expect(stored()).toEqual([]);
+  });
+
+  it('still takes a large real submission and a body without a declared length', async () => {
+    const res = await post('/submit', { ...MINIMAL, note: 'a'.repeat(400) }, '4.4.4.4');
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('the edge rate limit binding (QA, 21 Oct 2026)', () => {
+  /** A limiter that allows `n` calls per key, as the binding does in one location. */
+  const limiter = n => {
+    const seen = new Map();
+    return { calls: [], async limit({ key }) { this.calls.push(key); const c = (seen.get(key) || 0) + 1; seen.set(key, c); return { success: c <= n }; } };
+  };
+  const csvPost = (ip = '1.1.1.1') =>
+    worker.fetch(new Request('https://collector.test/csv?id=abcd', { method: 'POST', headers: { 'cf-connecting-ip': ip, 'x-upload-token': 'x' }, body: 'x' }), env);
+  const deltaPost = (ip = '1.1.1.1') =>
+    worker.fetch(new Request('https://collector.test/csvd?run=abcd&seq=0&len=1&crc=0&count=0', { method: 'POST', headers: { 'cf-connecting-ip': ip, 'x-upload-token': 'x' }, body: 'x' }), env);
+
+  it('answers 429 over the limit on /csv, /csvd and /instant, each endpoint counted on its own, and no KV is touched', async () => {
+    env.UPLOAD_LIMITER = limiter(2);
+    env.INSTANT_LIMITER = limiter(1);
+    const gets = [];
+    const kv = env.SUBMISSIONS;
+    env.SUBMISSIONS = { ...kv, get: (...a) => (gets.push(a[0]), kv.get(...a)), getWithMetadata: (...a) => (gets.push(a[0]), kv.getWithMetadata(...a)) };
+    expect([(await csvPost()).status, (await csvPost()).status]).not.toContain(429);
+    const over = await csvPost();
+    expect(over.status).toBe(429);
+    expect((await over.json()).retryAfter).toBe(60);
+    // /csvd has its own key, another address its own count.
+    expect((await deltaPost()).status).not.toBe(429);
+    expect((await csvPost('2.2.2.2')).status).not.toBe(429);
+    expect((await postOwned('/instant', {}, TOKEN_A)).status).not.toBe(429);
+    const before = gets.length;
+    expect((await postOwned('/instant', {}, TOKEN_A)).status).toBe(429);
+    expect(gets.length).toBe(before);
+    expect(env.UPLOAD_LIMITER.calls.some(k => k.startsWith('csvd|'))).toBe(true);
+  });
+
+  it('is optional: without the binding, or with one that throws, nothing is limited', async () => {
+    for (let i = 0; i < 5; i++) expect((await csvPost()).status).not.toBe(429);
+    env.UPLOAD_LIMITER = { limit: async () => { throw new Error('down'); } };
+    expect((await csvPost()).status).not.toBe(429);
   });
 });

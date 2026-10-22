@@ -48,3 +48,22 @@ crons = ["*/5 * * * *"]
 #   [ratelimits.simple]
 #   limit = 10
 #   period = 60
+
+# The edge rate limit (21 Oct 2026, QA): per address, per endpoint, counted at the edge, NOT in KV (no read or
+# write is spent). `period` can only be 10 or 60 seconds; the limits are per Cloudflare location and approximate.
+# UPLOAD_LIMITER covers POST /csv and POST /csvd (a key for each): 120 a minute leaves room for an 8-part CSV
+# with retries and for a long run's deltas. INSTANT_LIMITER covers POST /instant: 20 a minute (the app sends
+# one an hour per save). worker.js treats a missing binding as no limit. Needs wrangler 4.36 or later.
+[[ratelimits]]
+name = "UPLOAD_LIMITER"
+namespace_id = "1101"
+  [ratelimits.simple]
+  limit = 120
+  period = 60
+
+[[ratelimits]]
+name = "INSTANT_LIMITER"
+namespace_id = "1102"
+  [ratelimits.simple]
+  limit = 20
+  period = 60

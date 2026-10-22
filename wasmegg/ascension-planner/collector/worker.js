@@ -291,6 +291,9 @@ function scrubText(s) {
 //   wrangler kv key get --binding SUBMISSIONS "extra:<id>"
 const EXTRA_MAX_BYTES = 16 * 1024;
 const DIAGNOSTICS_MAX_BYTES = 4 * 1024;
+/** The raw body of a /submit, capped before it is parsed (21 Oct 2026, QA). The largest real row is 4.6 KB public
+ *  plus at most 16 KB of private extras; this leaves a proof block with all its bands room to grow. */
+const SUBMIT_MAX_BYTES = 512 * 1024;
 const EXTRA_TTL_SECONDS = 180 * 24 * 60 * 60;
 const EXTRA_MAX_DEPTH = 6;
 
@@ -1144,6 +1147,27 @@ async function floodGate(env, request) {
     // `until` inside decides, and the TTL only keeps the address from being retained.
     commit: () => env.SUBMISSIONS.put(gateKey, JSON.stringify(gate), { expirationTtl: 120 }),
   };
+}
+
+/**
+ * The edge rate limit (21 Oct 2026, QA): Cloudflare's Workers rate-limit binding, counted per address and
+ * per endpoint, at no KV cost (it is not KV). `env[name]` is optional: a collector deployed without the
+ * binding (the plan may not offer it, or a fork) simply has no per-minute limit, as before. The limits
+ * are in wrangler.toml and are per Cloudflare location and approximate, so they are a brake on a flood,
+ * not a quota; the daily KV caps and the write-once checks are what protect the 1,000 writes.
+ * A refused request costs no KV read.
+ */
+async function edgeLimited(env, request, name, endpoint) {
+  const limiter = env[name];
+  if (!limiter || typeof limiter.limit !== 'function') return null;
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  try {
+    const { success } = await limiter.limit({ key: `${endpoint}|${ip}` });
+    if (success) return null;
+  } catch {
+    return null; // a limiter that errors must never take uploads down
+  }
+  return json({ error: 'slow down - too many requests a minute from this address', retryAfter: 60 }, 429);
 }
 
 // ------------------------------------------------------------------ snapshots
@@ -2268,16 +2292,23 @@ const runOfProv = v => (typeof v === 'string' && CSV_RUN.test(v.split('|')[3] ??
 // public board shows on named rows, so a record lines up with the sender's board rows. Never the
 // player id: text is swept for one, and an id-like key is not on the whitelist.
 //
-// COST, PER RECORD: 1 read + 2 writes, no list, no delete. The read and one write are the per-owner
-// daily counter `instn:<owner 12 hex>:<UTC day>` (TTL 2 days); the other write is the record. A
-// refused record (bad body, over the cap) costs at most that one read.
+// COST, PER RECORD: 2 reads + 3 writes, no list, no delete. The reads and two writes are the two daily
+// counters (TTL 2 days): `instn:<IP hash 12 hex>:<UTC day>` (INSTANT_PER_IP_DAY) and `instn:all:<UTC
+// day>` (INSTANT_PER_DAY_ALL, the whole collector); the third write is the record. A refused record
+// (bad body, over a cap) costs at most those two reads. The cap was per owner code until 21 Oct 2026,
+// but an owner code is any 32 to 64 hex characters a script can invent, so a flood of fresh codes
+// could spend the day's 1,000 KV writes and break /submit, /claim and /hide for everyone. Now an
+// address, and the whole day, are what is capped; the address is hashed, never kept (QA, 21 Oct).
 //
 // STRICT. The raw body is capped at INSTANT_MAX_BYTES before it is parsed. Every field is on the
 // whitelist below with a type and a bound; a known field that is out of bounds refuses the record
 // (with the path, so a drifting app says what drifted), an unknown field is dropped.
 const INSTANT_MAX_BYTES = 8 * 1024;
 const INSTANT_TTL_SECONDS = 180 * 24 * 60 * 60;
-const INSTANT_PER_DAY = 30;
+/** Records one address may send in a UTC day, and the whole collector may take in one. Real use is 2 to 19
+ *  a day across all accounts (15 Oct, the busiest), so the day's cap spends at most 180 writes. */
+const INSTANT_PER_IP_DAY = 30;
+const INSTANT_PER_DAY_ALL = 60;
 const INSTANT_VERSIONS = new Set([1]);
 /** Unix seconds between 2020 and 2100, the same window as a deadline. */
 const UNIX_LO = 1577836800;
@@ -2960,9 +2991,14 @@ export default {
       const gate = await floodGate(env, request);
       if (gate.refused) return gate.refused;
 
+      // Capped before it is parsed (21 Oct 2026, QA): the content-length first, then the text itself.
+      const rawSubmit = await cappedText(request, SUBMIT_MAX_BYTES);
+      if (rawSubmit === null) {
+        return json({ error: 'rejected', problems: [`a submission must be at most ${SUBMIT_MAX_BYTES} bytes`] }, 413);
+      }
       let body;
       try {
-        body = await request.json();
+        body = JSON.parse(rawSubmit);
       } catch {
         return json({ error: 'body must be JSON' }, 400);
       }
@@ -3411,6 +3447,8 @@ export default {
     // posted directly is NOT swept. It is still capped and still has to be valid gzip.
     // One delta of a run's CSV so far (see "the CSV so far in deltas").
     if (url.pathname === '/csvd' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'UPLOAD_LIMITER', 'csvd');
+      if (slow) return slow;
       const run = url.searchParams.get('run') ?? '';
       if (!CSV_RUN.test(run)) return json({ error: 'bad run' }, 400);
       const seq = wholeParam(url, 'seq', 0, MAX.CSV_DELTAS - 1);
@@ -3441,6 +3479,8 @@ export default {
     }
 
     if (url.pathname === '/csv' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'UPLOAD_LIMITER', 'csv');
+      if (slow) return slow;
       const id = url.searchParams.get('id');
       if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
 
@@ -3503,8 +3543,17 @@ export default {
       }
       // Write-once. The token never expires, so without this it would let the submitter (or anyone
       // who saw the token) replace the table later. A part checks without pulling the bytes across.
-      if (split ? await hasCsv(env, id, base) : (await env.SUBMISSIONS.get(`${base}${id}`, 'arrayBuffer')) !== null) {
+      // A whole file is checked by stream too (21 Oct 2026, QA): `get(..., 'arrayBuffer')` pulled up to 8 MB
+      // across just to answer 409 to a replay.
+      if (await hasCsv(env, id, base)) {
         return json({ error: 'this submission already has a CSV' }, 409);
+      }
+      // A later part is write-once too: the head check above says nothing about it, and a token that
+      // never expires could otherwise rewrite one part (a write each time) until part 0 sealed the file.
+      // Answered 200, not 409: the app's retry (a lost answer, or "send every part again") treats a 409
+      // as the whole file being there and stops before the seal. A read, no write, no bytes taken.
+      if (split && split.part > 0 && (await kvHead(env, csvPartKey(id, split.part, base))).exists) {
+        return json({ ok: true, bytes: 0, part: split.part, parts: split.parts, already: true });
       }
 
       const body = await request.arrayBuffer();
@@ -3749,6 +3798,8 @@ export default {
     // ----------------------------------------------------------------- instant
     // One opt-in instant-answer record (see "instant answer records"): private, never served.
     if (url.pathname === '/instant' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'INSTANT_LIMITER', 'instant');
+      if (slow) return slow;
       const owner = await ownerHash(request.headers.get('x-owner-token'));
       if (!owner) return json({ error: 'rejected', problems: ['an instant answer record needs the owner code'] }, 400);
       const raw = await cappedText(request, INSTANT_MAX_BYTES);
@@ -3764,14 +3815,21 @@ export default {
       const now = Date.now();
       const day = utcDay(now);
       const mine = owner.slice(0, OWNER_HEX);
-      // The per-owner daily cap: one read, and one write below once the record is stored.
-      const countKey = `instn:${mine}:${day}`;
-      const sent = Number(await env.SUBMISSIONS.get(countKey)) || 0;
-      if (sent >= INSTANT_PER_DAY) {
+      // The daily caps (see "instant answer records"): one address, and the whole collector. Both read
+      // only after the body passed, so a refused body costs no read.
+      const ipHash = (await sha256hex(`instant-ip|${request.headers.get('cf-connecting-ip') || 'unknown'}`)).slice(0, OWNER_HEX);
+      const ipKey = `instn:${ipHash}:${day}`;
+      const allKey = `instn:all:${day}`;
+      const sentIp = Number(await env.SUBMISSIONS.get(ipKey)) || 0;
+      const sentAll = Number(await env.SUBMISSIONS.get(allKey)) || 0;
+      if (sentIp >= INSTANT_PER_IP_DAY || sentAll >= INSTANT_PER_DAY_ALL) {
         const midnight = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1);
         return json(
           {
-            error: `at most ${INSTANT_PER_DAY} instant answer records a day from one account; more after midnight UTC`,
+            error:
+              sentIp >= INSTANT_PER_IP_DAY
+                ? `at most ${INSTANT_PER_IP_DAY} instant answer records a day from one address; more after midnight UTC`
+                : `the collector takes at most ${INSTANT_PER_DAY_ALL} instant answer records a day; more after midnight UTC`,
             retryAfter: Math.max(1, Math.ceil((midnight - now) / 1000)),
           },
           429
@@ -3786,10 +3844,12 @@ export default {
         receivedAt: new Date(now).toISOString(),
       };
       await env.SUBMISSIONS.put(`inst:${day}:${id}`, JSON.stringify(stored), { expirationTtl: INSTANT_TTL_SECONDS });
-      try {
-        await env.SUBMISSIONS.put(countKey, String(sent + 1), { expirationTtl: 2 * 86400 });
-      } catch {
-        /* KV refuses a second write to one key inside a second: the record is in, the count can lag */
+      for (const [k, n] of [[ipKey, sentIp], [allKey, sentAll]]) {
+        try {
+          await env.SUBMISSIONS.put(k, String(n + 1), { expirationTtl: 2 * 86400 });
+        } catch {
+          /* KV refuses a second write to one key inside a second: the record is in, the count can lag */
+        }
       }
       return json({ ok: true, id }, 200, PRIVATE);
     }

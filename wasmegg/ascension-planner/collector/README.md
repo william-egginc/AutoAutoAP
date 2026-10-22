@@ -210,7 +210,7 @@ no button.
 | `POST /csv?id=<id>` | that run's gzipped CSV, once. Needs the `x-upload-token` header `/submit` returned. Must be gzip, capped at 8 MB compressed. For a provisional row it is the CSV so far, answered `{ ok, bytes, partial: true }` |
 | `POST /csv?id=<id>&part=<n>&parts=<m>` | one part of a CSV whose gzip is over 8 MB (see *A CSV in parts*). Same token, same 8 MB cap per part; `2 <= m <= 8`. Parts `1..m-1` first, then part 0, which seals the file; `422` with `missing: [n...]` when part 0 comes before the rest |
 | `POST /hide` | `{ ids: [<row id>...], hidden }` or `{ all: true, hidden }` with `x-owner-token` (one code): `hidden: true` takes those rows of yours off every public read, `false` shows them again (see *Hidden rows*). Nothing is deleted. `200 { ok, hidden, ids, changed, missing?, more? }`: `ids` every row now in that state, `changed` the ones this call moved, `missing` asked-for ids that are not found **or not yours** (one answer for both), `more: true` when `all` left rows for another call (50 a call). `400` for no or bad code, both or neither of `ids`/`all`, a non-boolean `hidden`, or more than 50 ids; `429` from `/submit`'s rate limit, or with `dailyCap: true` past 200 row changes a UTC day from one code. Idempotent; never cached |
-| `POST /instant` | one opt-in instant answer record with `x-owner-token` (required). Stored privately under `inst:<UTC day>:<id>` for 180 days and never served (see *Instant answer records*). `{ ok, id }`; `400` with `problems` (each naming the field), `413` past 8 KB, `429` past 30 a day from one owner code |
+| `POST /instant` | one opt-in instant answer record with `x-owner-token` (required). Stored privately under `inst:<UTC day>:<id>` for 180 days and never served (see *Instant answer records*). `{ ok, id }`; `400` with `problems` (each naming the field), `413` past 8 KB, `429` past 30 a day from one address or 60 a day in all (21 Oct 2026; it was per owner code, which a script can invent) |
 | `GET /csv?id=<id>` | it back, as a `.csv.gz` file (`application/gzip`); a CSV in parts comes back joined, one file. A hidden row's CSV answers `403` unless `x-owner-token` is that row's owner code (then `200`, `private, no-store`) |
 | `GET /leaderboard?final=490&limit=50` | one line per distinct result, already in duration order, copies folded (`copies: n` when more than one). `limit` is at most 200. By a date answers (rows with a `deadline`) are left out: plan lengths do not rank them |
 | `GET /all` | every public row, By a date answers included, for your own analysis. `?final=490` narrows it. A hidden row is on no public read (`/all`, `/leaderboard`, `/flagged`), nor in `count` or `finals` |
@@ -675,14 +675,15 @@ is swept for `EI` + 16 digits.
 
 | per record | reads | writes | deletes | lists |
 |---|---|---|---|---|
-| stored | 1 (the owner's daily count) | 2 (the record, the count `instn:<owner>:<day>`) | 0 | 0 |
+| stored | 2 (the address's daily count, the whole day's count) | 3 (the record, `instn:<address hash>:<day>`, `instn:all:<day>`) | 0 | 0 |
 | refused (no code, bad body, too big) | 0 | 0 | 0 | 0 |
-| refused for the daily cap (30) | 1 | 0 | 0 | 0 |
+| refused for a daily cap (30 an address, 60 in all) | 2 | 0 | 0 | 0 |
 
-No IP gate (that would be a third write): the cap is per owner code. The analyst's estimate is 50 to
-100 records from 15 to 20 accounts, about 200 writes in all; one account at the cap is 60 writes a
-day, 6% of the free plan's 1,000. A script minting owner codes could still spend writes, as it can on
-`/submit` today.
+Capped on the address (hashed, never kept) and on the whole day, not on the owner code: a code is any 32
+to 64 hex characters, so a flood of invented codes could have spent the day's 1,000 writes and broken
+`/submit`, `/claim` and `/hide` (QA, 21 Oct 2026). Real use is 2 to 19 records a day in all (the busiest day
+so far), so the day's cap of 60 is at most 180 writes, 18% of the free plan's 1,000; before it, a flood was
+bounded by nothing but the request limit. A household behind one address shares its 30.
 
 ### Private extras
 
@@ -993,3 +994,25 @@ npx wrangler dev            # from collector/
 `worker.js` is a single file with no build step and no dependencies, so a plain Node harness
 with a `Map` standing in for KV exercises it end to end — that is how the validation, the rate
 limit, the duration ordering and the ID redaction were checked before this was committed.
+
+
+## Hardening (QA, 21 Oct 2026)
+
+- **`/submit` body cap:** the raw body is capped at 512 KB (declared length first, then the text) before it is
+  parsed, `413` past it. The largest real public row is 4.6 KB and private extras are capped at 16 KB.
+- **`/csv` replays:** a whole CSV that already exists is found by stream (`hasCsv`), not by pulling up to 8 MB
+  across to answer `409`. A later part (`part` > 0) is write-once as the file already was: a replay is
+  answered `200 { already: true }` with nothing written (a `409` would make the app think the whole file was
+  there and stop before the seal). Cost: one more read per later part. `/csvd` was already write-once per seq.
+- **Not done, on purpose:** `floodGate` on `/csv` and `/csvd`. Its commit is a KV write per request (an 8-part CSV
+  would cost 8 more, a delta run far more) and 10 a minute would break multi-part uploads; a replayed token now
+  costs one read and no write.
+- **Edge rate limit (Workers rate-limit binding, no KV cost):** `UPLOAD_LIMITER` (120 a minute per address, a key
+  each for `/csv` and `/csvd`) and `INSTANT_LIMITER` (20 a minute per address on `/instant`), in `wrangler.toml`
+  (`[[ratelimits]]`, wrangler 4.36 or later, period 10 or 60 s only). `429` with `retryAfter: 60`, before any KV
+  read. Counts are per Cloudflare location and approximate, so it is a brake on a flood; the daily KV caps and
+  write-once checks are what protect the 1,000 writes. A missing or failing binding means no limit (the code
+  never takes uploads down for it). Not in the dashboard: watch for 429s in the Worker logs. The docs do not say
+  whether the Free plan offers it; if a deploy is refused for it, remove the two blocks and deploy without.
+
+Deployed 21 Oct 2026: a2bdb8ef as Worker version bccd1a70 (both rate-limit bindings accepted on this plan; `GET /all` 200). Rollback target: f01abb11.
