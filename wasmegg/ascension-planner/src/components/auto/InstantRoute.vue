@@ -373,7 +373,7 @@
                           >
                             Simulate this plan
                           </button>
-                          <FollowButton :chain="(dateExactByK[r.legs.length] ?? tableDate(r)).chain" :goal-key="followGoal" from="count" />
+                          <FollowButton v-if="rowFollowable(r)" :chain="(dateExactByK[r.legs.length] ?? tableDate(r)).chain" :goal-key="followGoal" from="count" />
                           <span
                             v-if="simulateCaveat((dateExactByK[r.legs.length] ?? tableDate(r)).chain, r.legs.length)"
                             class="basis-full text-[10px] leading-snug text-amber-700"
@@ -480,7 +480,7 @@
             >
               Simulate this plan
             </button>
-            <FollowButton class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />
+            <FollowButton v-if="boxFollowable" class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />
             <span
               v-if="simulateCaveat(dateBoxOf(result.byDate).chain, dateBoxCount(result.byDate))"
               class="block mt-1 text-[10px] leading-snug text-amber-700"
@@ -1065,6 +1065,7 @@ import { cutRoute, type FindContext } from '@/search/strongerCheck';
 import FollowButton from '../FollowButton.vue';
 import WaitBeforePrestige from './WaitBeforePrestige.vue';
 import { screenGoalKey } from '@/lib/follow';
+import { finishesBefore } from '@/lib/eggDayRule';
 import { rowAtOnce, rowLine, type AtOnceItem } from '@/search/lightAtOnce';
 import { isConstrained } from '@/search/availability';
 import {
@@ -2644,6 +2645,20 @@ const missedBy = computed<number | null>(() => {
   const e = r ? exact.value[key(r.chain)] : undefined;
   return props.deadline && e && e.end > props.deadline ? e.end - props.deadline : null;
 });
+/** "Follow this route" only on a route in time (lib/eggDayRule.ts, 22 Oct 2026): never the table's route once Check
+ *  exactly found it late on the account, never a count row that misses. */
+const boxFollowable = computed(() => {
+  const deadline = props.deadline;
+  if (!deadline) return true;
+  if (preferPicked.value && dateChoice.value) return true;
+  if (dateExact.value) return finishesBefore(dateExact.value.end, deadline);
+  return exactStatus.value !== 'done' && missedBy.value === null;
+});
+function rowFollowable(r: Route): boolean {
+  const d = dateExactByK.value[r.legs.length];
+  if (d === null) return false;
+  return !d || !props.deadline || finishesBefore(d.end, props.deadline);
+}
 // Light's status sign (StrongerBox.vue) says what it is waiting for: Check exactly going, and how far it is.
 watch(exactStatus, st => {
   strongerStore.exact = st === 'running' ? { ...strongerStore.exact, running: true } : { running: false, done: 0, total: 0 };

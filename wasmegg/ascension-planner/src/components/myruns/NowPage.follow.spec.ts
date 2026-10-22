@@ -246,11 +246,11 @@ describe('Follow this route buttons', () => {
     const route = read('../auto/InstantRoute.vue');
     expect(route).toContain('<FollowButton class="mt-1 ml-2" primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />');
     expect(route).toContain(
-      '<FollowButton class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />'
+      '<FollowButton v-if="boxFollowable" class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />'
     );
     expect(route).toContain('<FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count" />');
     expect(route).toContain(
-      '<FollowButton :chain="(dateExactByK[r.legs.length] ?? tableDate(r)).chain" :goal-key="followGoal" from="count" />'
+      '<FollowButton v-if="rowFollowable(r)" :chain="(dateExactByK[r.legs.length] ?? tableDate(r)).chain" :goal-key="followGoal" from="count" />'
     );
     expect(route).toContain('const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));');
     expect(read('../auto/SavedAnswers.vue')).toContain(':goal-key="screenGoalKey(a.result.deadline, a.result.te)"');

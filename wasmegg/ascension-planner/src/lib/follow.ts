@@ -10,7 +10,8 @@
  */
 import { eggDaySeconds, nextEggDayYear } from './eggDay';
 import { goalKeyOf, type GoalKey } from './planGoals';
-import { remainingChain } from './leaderboardRank';
+import { isDeadlineRow, madeDeadline, remainingChain, type BoardRow } from './leaderboardRank';
+import { finishesBefore } from './eggDayRule';
 import { SAME_DEADLINE_SECONDS, TOP_TE } from '@/search/strongerCheck';
 
 export const FOLLOW_PREFIX = 'aap-follow:';
@@ -99,6 +100,22 @@ export function boardGoalKey(row: { deadline?: number | null; finalTE: number })
     return e ? `eggday-${e.year}` : `date-${row.deadline}`;
   }
   return `fastest-${row.finalTE}`;
+}
+
+/**
+ * "Follow this route" is offered only on a route that counts for its goal (lib/eggDayRule.ts, Jordan 22 Oct 2026):
+ * never on an Egg Day or By a date board row whose last ascension lands after its date.
+ */
+export function followableRow(row: BoardRow): boolean {
+  return !isDeadlineRow(row) || madeDeadline(row);
+}
+
+/** The same for a saved By a date answer's route: its last ascension (`ascendAt`) against the date. */
+export function followableAnswer(route: { ascendAt?: number; spare?: number } | null | undefined, deadline: number): boolean {
+  if (!route) return false;
+  const at = typeof route.ascendAt === 'number' ? route.ascendAt : typeof route.spare === 'number' ? deadline - route.spare : NaN;
+  // Untimed (an old answer without either): offered, as before.
+  return Number.isNaN(at) || finishesBefore(at, deadline);
 }
 
 /** Same stops in the same order. */

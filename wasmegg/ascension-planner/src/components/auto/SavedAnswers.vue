@@ -55,7 +55,7 @@
         Open
       </button>
       <FollowButton
-        v-if="a.result.routes[0]?.chain.length"
+        v-if="a.result.routes[0]?.chain.length && followableAnswer(a.result.routes[0], a.result.deadline)"
         :chain="a.result.routes[0].chain"
         :goal-key="screenGoalKey(a.result.deadline, a.result.te)"
         from="saved"
@@ -89,7 +89,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { showDateTime } from '@/lib/displayTime';
 import EntrySaveActions from './EntrySaveActions.vue';
 import FollowButton from '../FollowButton.vue';
-import { screenGoalKey } from '@/lib/follow';
+import { followableAnswer, screenGoalKey } from '@/lib/follow';
 import SaveFileBar from './SaveFileBar.vue';
 import PaceBadge from '../myruns/PaceBadge.vue';
 import { usePlanPace } from '@/composables/usePlanPace';
