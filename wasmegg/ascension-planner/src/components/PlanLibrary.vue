@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, nextTick } from 'vue';
 import { useActionsStore } from '@/stores/actions';
 import { dropFileResults } from '@/stores/actions/io';
+import { unpackExportedPlan } from '@/lib/planExportPack';
 import { usePersistence } from '@/composables/usePersistence';
 import { loadLibraryPlans, deletePlanFromLibrary, savePlanToLibrary, type PlanData } from '@/lib/storage/db';
 import { downloadFile } from '@/utils/export';
@@ -279,7 +280,8 @@ async function handleImport(event: Event) {
   reader.onload = async e => {
     try {
       const content = e.target?.result as string;
-      const imported = JSON.parse(content);
+      // A packed Auto-Plan export (lib/planExportPack.ts) has its snapshots rebuilt; older files are read as they are.
+      const imported = unpackExportedPlan(JSON.parse(content));
 
       // Normalize imported data into a uniform array
       let plansToImport: { name: string; data: Record<string, unknown> }[] = [];
