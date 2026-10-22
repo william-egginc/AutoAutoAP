@@ -33,6 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4 pm Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
   { at: '2026-10-20T00:37:44Z', note: 'New: prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster By a date searches, a My runs route chart', level: 'big' },
   { at: '2026-10-16T21:26:50Z', note: 'My runs: switch between Race to 490 and Egg Day, follow any route you like, a Producing or Building badge with your rate, and Recalculate; with your hours on, checks now try the next-best route too' },
   { at: '2026-10-16T15:15:49Z', note: 'New on My runs: where you are now, your next shifts with dates and calendar reminders, your saved answers with how sure they are, and each ascension step by step like Single run', level: 'big' },
@@ -40,11 +41,10 @@ const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-15T04:52:00Z', note: 'Your name choice is remembered; the running notice sits in the run bar; other options and charts moved to Compare, Your latest run; tags on the level buttons' },
   { at: '2026-10-15T00:42:15Z', note: 'New: Hide from the public on your own runs; About and privacy page; Light prices the instant routes at once on your hours; your hours no longer make the instant answer worse; limits follow the answer', level: 'big' },
   { at: '2026-10-14T21:05:05Z', note: 'Light now says it is waiting for Check exactly, then pricing your routes, with a button to search with Fast; near-tie ascension counts are marked about the same' },
-  { at: '2026-10-14T20:04:27Z', note: 'Instant answer on top with two tabs (Search nearby, Exhaustive); each level says what it is for; no more pointless 489 to 490 plans; tabs stay put; maybe you on the board', level: 'big' },
 ];
 
 export default {
-  reloadIfBuiltBefore: '2026-10-05T06:22:00Z',
+  reloadIfBuiltBefore: '2026-10-20T00:30:00Z',
   note: history[0].note,
   history,
 };

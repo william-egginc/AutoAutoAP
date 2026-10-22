@@ -17,6 +17,8 @@
         note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running picks up where it left off after the reload"
         class="mb-4"
       />
+      <!-- One-off heads-up before the 22 Oct 2026 update (remove with it). -->
+      <AnnouncementBanner />
       <!-- A blocked account says so the moment its save loads, not after the form is filled in. -->
       <IntegrityAlert />
       <!-- Starting a box above 100,000 routes asks first (search/bigBox.ts): one dialog for every start. -->
@@ -778,6 +780,7 @@ import { computeDependencies } from '@/lib/actions/executor';
 import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
+import AnnouncementBanner from '@/components/AnnouncementBanner.vue';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
