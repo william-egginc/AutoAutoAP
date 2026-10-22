@@ -1,3 +1,5 @@
+// First: swap a storage the browser blocks for one in memory, before any module reads it (storageGuard.ts).
+import './lib/storageGuard.install';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueTippy from 'vue-tippy';

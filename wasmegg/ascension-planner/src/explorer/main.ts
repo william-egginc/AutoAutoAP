@@ -9,6 +9,8 @@
  * would break the page with an "activePinia" throw, which Vue swallows into a blank subtree, so
  * keep this entry as thin as it is.
  */
+// First: a storage the browser blocks is swapped for one in memory (lib/storageGuard.ts).
+import '@/lib/storageGuard.install';
 import { createApp } from 'vue';
 
 import ChainExplorer from './ChainExplorer.vue';

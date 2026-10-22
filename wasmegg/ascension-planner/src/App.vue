@@ -21,6 +21,15 @@
         note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running picks up where it left off after the reload"
         class="mb-4"
       />
+      <!-- Site storage blocked (lib/storageGuard.ts): the page runs on memory, so say nothing will be kept. -->
+      <p
+        v-if="storageIsBlocked"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        role="status"
+        data-testid="storage-blocked"
+      >
+        This browser is blocking site storage, so your settings and plans won’t be remembered after you leave.
+      </p>
       <!-- A blocked account says so the moment its save loads, not after the form is filled in. -->
       <IntegrityAlert />
       <!-- Starting a box above 100,000 routes asks first (search/bigBox.ts): one dialog for every start. -->
@@ -809,6 +818,7 @@ import { computeDependencies } from '@/lib/actions/executor';
 import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
+import { storageBlocked } from '@/lib/storageGuard';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
@@ -825,6 +835,9 @@ import {
   captureReconciliationTargets,
   catchUpFarmState,
 } from '@/lib/modes';
+
+/** The browser refused site storage, so this visit runs on memory (lib/storageGuard.ts). Fixed for the visit. */
+const storageIsBlocked = storageBlocked();
 
 // The four big tab panels load on first use: each sits behind a v-if (a tab, a loaded backup, or
 // `?insane=1`), and together they were a large share of the planner's first download that nobody
