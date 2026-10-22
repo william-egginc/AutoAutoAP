@@ -6,7 +6,7 @@
         <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total TE to Gain</label>
         <div class="flex items-center gap-3">
           <button 
-            class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             @click="adjustTotal(-1)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
@@ -18,11 +18,11 @@
             step="1"
             v-model.lazy.number="totalTEToGain"
             @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
-            class="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-mono-premium font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
+            class="w-16 min-h-[44px] sm:min-h-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-mono-premium font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
             @change="handleTotalChange"
           />
           <button 
-            class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             @click="adjustTotal(1)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -40,7 +40,7 @@
 
       <div class="w-full sm:w-auto">
         <button 
-          class="w-full sm:w-auto px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-sm border"
+          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-sm border"
           :class="canRebalance ? 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800' : 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'"
           :disabled="!canRebalance"
           @click="rebalance"
@@ -58,7 +58,7 @@
         class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
         :class="{ 'ring-1 ring-slate-900/5': eggPlan.isCurrentEgg }"
       >
-        <div class="px-5 py-4 flex items-center justify-between gap-4">
+        <div class="px-5 py-4 flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center p-1.5 shadow-inner">
               <img :src="iconURL(`egginc/egg_${eggPlan.egg}.png`, 64)" class="w-full h-full object-contain" />
@@ -81,7 +81,7 @@
             <!-- Individual Adjustments -->
             <div class="flex items-center bg-slate-50 rounded-lg border border-slate-100 p-0.5 shadow-inner">
               <button 
-                class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
+                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
                 @click="adjustEgg(eggPlan.egg, -1)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
@@ -91,7 +91,7 @@
                 <span class="text-indigo-600 font-bold ml-1">(+{{ eggPlan.teToGain }})</span>
               </span>
               <button 
-                class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
+                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
                 @click="adjustEgg(eggPlan.egg, 1)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -101,14 +101,14 @@
             <!-- Reorder Controls -->
             <div v-if="!eggPlan.isCurrentEgg" class="flex flex-col gap-0.5">
               <button 
-                class="w-6 h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
+                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
                 :class="{ 'opacity-0 pointer-events-none': index === 1 }"
                 @click="moveEgg(index, -1)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
               </button>
               <button 
-                class="w-6 h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
+                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
                 :class="{ 'opacity-0 pointer-events-none': index === eggPlans.length - 1 }"
                 @click="moveEgg(index, 1)"
               >
@@ -158,6 +158,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { showClamped } from '@/lib/showClamped';
 const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL, shiftCost } from 'lib';
@@ -389,6 +390,7 @@ function handleTotalChange() {
   const maxPossibleGain = Object.values(eggStartStates.value).reduce((sum, s) => sum + (MAX_TE - s.te), 0);
   // A whole number from 0 to what the five eggs can still gain (1.5, '3.48e45', empty all land in range).
   totalTEToGain.value = clampTECount(totalTEToGain.value, maxPossibleGain, 0);
+  showClamped(inputEl.value, totalTEToGain.value);
   rebalance();
 }
 
