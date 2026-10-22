@@ -26,6 +26,7 @@ import {
 import { LEVEL_WORDS, type SearchLevel } from './howSure';
 import { rowLevel } from './savedTiles';
 import { thisDevice } from '@/search/device';
+import { finishesBefore } from './eggDayRule';
 
 export type ScatterX = 'asc' | 'finish';
 /** A date goal's y; a race's y is always its days. */
@@ -237,6 +238,12 @@ export function buildScatter(i: ScatterInput): { goals: ScatterGoal[]; points: S
     const best = a.result?.routes?.[0];
     const d = a.result?.deadline;
     if (!best || !Array.isArray(best.chain) || !best.chain.length || typeof d !== 'number') continue;
+    // Late answers are left out like the board's (lib/eggDayRule.ts); untimed ones stay, as before.
+    const at = Number.isFinite(best.ascendAt) ? best.ascendAt : Number.isFinite(best.spare) ? d - best.spare : NaN;
+    if (!Number.isNaN(at) && !finishesBefore(at, d)) {
+      missed++;
+      continue;
+    }
     const g = goal(goalOfDate(d, i.eggDayAt, i.eggDayYear, i.zone), [d === i.eggDayAt ? 0 : 1, d]);
     if (seen.has(seenKey(g.key, best.chain))) continue;
     seen.add(seenKey(g.key, best.chain));
