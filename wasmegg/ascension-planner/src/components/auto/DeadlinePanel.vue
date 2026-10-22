@@ -280,7 +280,7 @@
           <p v-if="simpleSpace">
             <button
               type="button"
-              class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40"
+              class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 sm:inline sm:min-h-0"
               :disabled="store.busy"
               data-test="open-in-advanced"
               @click="openInAdvanced"

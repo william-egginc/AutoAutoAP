@@ -9,7 +9,11 @@
         {{ NAMES.smart }} starts from the instant answer's route and moves its stops a few TE at a time, keeping any
         change that finishes sooner, with the full simulator on your save. It runs on {{ thisDevice() }}'s workers; you can
         stop it any time and keep the best so far.
-        <a href="#/science/how" class="font-bold text-indigo-700 underline whitespace-nowrap">How it works ›</a>
+        <a
+          href="#/science/how"
+          class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline whitespace-nowrap sm:inline sm:min-h-0"
+          >How it works ›</a
+        >
       </p>
 
       <!-- Collapsible so a repeat visitor can skip straight to the button. Open by default; a

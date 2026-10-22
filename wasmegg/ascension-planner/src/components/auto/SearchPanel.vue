@@ -25,7 +25,10 @@
         data-testid="search-panel-running"
         >Running</span
       >
-      <a href="#/science/how" class="ml-auto text-[12px] font-bold text-indigo-700 underline whitespace-nowrap"
+      <a
+        href="#/science/how"
+        class="ml-auto inline-flex min-h-[44px] items-center text-[12px] font-bold text-indigo-700 underline whitespace-nowrap sm:inline sm:min-h-0"
+        data-testid="search-panel-how"
         >How it works ›</a
       >
     </div>

@@ -57,7 +57,8 @@
       data-testid="stronger-promise"
       @toggle="onPromiseToggle"
     >
-      <summary class="cursor-pointer font-black uppercase tracking-wide text-amber-800">
+      <!-- 44 px to tap on a phone (list-item kept for the marker); unchanged from sm up. -->
+      <summary class="cursor-pointer font-black uppercase tracking-wide text-amber-800 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0" data-testid="stronger-promise-summary">
         What this does and does not promise
       </summary>
       <!-- What the option picked promises, and only that (the user, 12 Oct: no lines that don't apply). -->
