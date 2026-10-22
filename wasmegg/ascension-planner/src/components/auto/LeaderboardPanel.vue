@@ -224,6 +224,18 @@
         </button>
       </div>
 
+      <!-- Which simulator priced each run (lib/simLabel.ts): every finish carries a "sim" chip (SimChip.vue), and
+           this hides the runs this site's own simulator did not price, on every view here, Insights too. -->
+      <div v-if="tab !== 'latest'" class="flex flex-wrap items-center gap-x-3 text-[11px] text-indigo-900/80">
+        <label class="inline-flex min-h-[44px] items-center gap-2">
+          <input v-model="showOlder" type="checkbox" class="rounded border-indigo-300 text-indigo-600" />
+          Show runs from older simulators
+        </label>
+        <span v-if="simHidden && tab !== 'insights'" class="text-slate-500" data-testid="sim-hidden">{{
+          simHidden
+        }}</span>
+      </div>
+
       <!-- What the last "Hide from the public" or "Show again" came to, on every tab: the run it was
            about may have just left the list it was clicked in. -->
       <div aria-live="polite">
@@ -414,6 +426,7 @@
                         :title="finishTitle(e.best.finish, e.best.row.timezone)"
                       >
                         {{ finishDateText(e.best.finish, viewZone) }}
+                        <SimChip :stamp="e.best.row.simVersion" />
                         <div v-if="narrow" class="font-normal text-slate-500">
                           {{ daysLeftPhrase(e.best.finish, now, viewZone) }}
                         </div>
@@ -665,7 +678,10 @@
                         · {{ e.others.length }} more</span
                       >
                     </td>
-                    <td class="pr-3 py-1 font-black text-indigo-900">{{ e.te }}</td>
+                    <td class="pr-3 py-1 font-black text-indigo-900 whitespace-nowrap">
+                      {{ e.te }}
+                      <SimChip :stamp="e.best.simVersion" />
+                    </td>
                     <td class="pr-3 py-1">
                       {{ e.best.chain.join(' ')
                       }}<span
@@ -711,8 +727,9 @@
                           Their other answers for this date
                         </p>
                         <p v-for="o in e.others" :key="o.id ?? o.chain.join(',')" class="text-[11px] text-slate-600">
-                          <span class="font-bold text-indigo-900">{{ o.finalTE }} TE</span> via {{ o.chain.join(' ') }},
-                          from {{ o.currentTE ?? '—' }} TE, sent {{ sentText(o.receivedAt ?? o.submittedAt) }}
+                          <span class="font-bold text-indigo-900">{{ o.finalTE }} TE</span>
+                          <SimChip :stamp="o.simVersion" /> via {{ o.chain.join(' ') }}, from
+                          {{ o.currentTE ?? '—' }} TE, sent {{ sentText(o.receivedAt ?? o.submittedAt) }}
                           <a
                             v-if="o.hasCsv && o.id"
                             :href="`${csvRoot}?id=${encodeURIComponent(o.id)}`"
@@ -866,6 +883,7 @@
                         :title="finishTitle(line.finish, line.row.timezone)"
                       >
                         {{ finishDateText(line.finish, viewZone) }}
+                        <SimChip :stamp="line.row.simVersion" />
                       </td>
                       <td v-else-if="c.key === 'waitingHours'" class="py-2 pr-3 text-right whitespace-nowrap">
                         <!-- null is "not recorded", not "free": a chain replayed from a saved search
@@ -1022,6 +1040,8 @@ import LeaderboardPlanList from './LeaderboardPlanList.vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 import MyRunsList from './MyRunsList.vue';
 import MyRunsMissing from './MyRunsMissing.vue';
+import SimChip from './SimChip.vue';
+import { bySimToggle, hiddenSimText, useShowOlderSims } from '@/composables/useShowOlderSims';
 
 /** Insights: the Explorer's charts and their chart library load only when that tab opens. */
 const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.vue'));
@@ -1269,8 +1289,15 @@ const hideMsg = ref<HideStatus | null>(null);
 const hiddenIds = computed(() => hiddenIdSet(mineRows.value, hideOverrides.value));
 /** /mine's rows with `hidden` as the board knows it now. */
 const mineNow = computed<Row[]>(() => withHidden(mineRows.value ?? [], hiddenIds.value));
-/** Every public view's rows: /all without the viewer's hidden runs. */
-const shownRows = computed<Row[]>(() => publicRows(allRows.value, hiddenIds.value));
+/** Every public view's rows: /all without the viewer's hidden runs, and on the Leaderboard tab without other
+ *  simulators' runs when "Show runs from older simulators" is off (My runs always shows them). */
+const publicShown = computed<Row[]>(() => publicRows(allRows.value, hiddenIds.value));
+const showOlder = useShowOlderSims();
+const shownRows = computed<Row[]>(() =>
+  myRunsMode.value ? publicShown.value : bySimToggle(publicShown.value, showOlder.value)
+);
+/** "12 runs from older simulators are hidden", or ''. */
+const simHidden = computed(() => hiddenSimText(publicShown.value.length - shownRows.value.length));
 
 /** Every row, with the viewer's marked `yours`, plus any of theirs /all does not show yet (it is
  *  cached for a minute at the edge; /mine is not), hidden ones included and marked `hidden`: only My

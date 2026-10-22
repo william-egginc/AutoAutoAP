@@ -165,7 +165,10 @@
                 >
               </td>
               <td class="py-1.5 pr-3 text-right tabular-nums text-slate-600">{{ p.ascensions }}</td>
-              <td class="py-1.5 pr-3 whitespace-nowrap text-slate-700" :title="p.finishTitle">{{ p.finishText }}</td>
+              <td class="py-1.5 pr-3 whitespace-nowrap text-slate-700" :title="p.finishTitle">
+                {{ p.finishText }}
+                <SimChip :stamp="p.sim" />
+              </td>
               <td
                 class="py-1.5 pr-3 text-right whitespace-nowrap tabular-nums"
                 :class="p.earliest ? 'font-black text-emerald-700' : 'text-slate-600'"
@@ -206,6 +209,7 @@ import { fetchRunCsv } from './collector';
 import { accountKey, SAME_FINISH_DAYS, searchedOf, timeOffKey, type FinishJudgement } from './analysis';
 import { accountTables, bestPerAscensions, createPlanMerger, leftOutText, type AccountTop } from './accountTop';
 import AccountDot from './AccountDot.vue';
+import SimChip from '@/components/auto/SimChip.vue';
 import { parseAll } from './sweepStats';
 
 const props = defineProps<{
@@ -465,6 +469,8 @@ const view = computed(() => {
       }${passedText}${p.tags.length ? ` Planned ${p.tags.join(', ')}.` : ''}`,
       finishText: finishDateText(p.finish, viewZone),
       finishTitle: finishTitle(p.finish, tz),
+      /** The run's simulator stamp, for the "sim" chip (lib/simLabel.ts). */
+      sim: row?.simVersion,
       after: afterText(after, i === 0 && !fromJudged),
       earliest: i === 0 && !fromJudged,
       planned: plannedText(p.start),
