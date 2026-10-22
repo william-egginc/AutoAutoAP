@@ -828,6 +828,7 @@ import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import { storageBlocked } from '@/lib/storageGuard';
+import { forgetLinkPlayerId, linkPlayerId } from '@/lib/urlPlayerId';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
@@ -861,7 +862,8 @@ const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.
 // Dev server only (localhost or a LAN IP hitting the Vite dev server) - never in a production build.
 const isDev = import.meta.env.DEV;
 
-const playerId = ref(new URLSearchParams(window.location.search).get('playerId') || getSavedPlayerID() || '');
+// A link's `?playerId=` was read and taken out of the address before the app started (lib/urlPlayerId.ts).
+const playerId = ref(linkPlayerId() || getSavedPlayerID() || '');
 
 // The Update button's cache-buster (PlanFinalSummary.vue) has done its job once the page is here;
 // left in, it rode along in every link copied afterwards.
@@ -1837,13 +1839,9 @@ async function submitPlayerId(id: string) {
 
   playerId.value = id;
   savePlayerID(id);
-  // A `?playerId=` in the address wins over the saved ID on load, so it has to follow a change here:
-  // otherwise a reload went back to the link's account after the player had entered their own.
-  const url = new URL(window.location.href);
-  if (url.searchParams.has('playerId') && url.searchParams.get('playerId') !== id) {
-    url.searchParams.set('playerId', id);
-    window.history.replaceState(window.history.state, '', url.toString());
-  }
+  // The saved ID is this account now: a link's ID kept for this tab (lib/urlPlayerId.ts) would otherwise
+  // take a reload back to the link's account after the player had entered their own.
+  forgetLinkPlayerId();
   notesStore.$reset();
 
   try {

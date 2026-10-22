@@ -295,9 +295,10 @@
           <li>
             Two page-view counters run on the main planner page. <b>GoatCounter</b> (the counter of the upstream wasmegg
             tools, run by Carpet) is a simple visit counter that says it does not use cookies. <b>Cloudflare Web
-            Analytics</b> is cookie-free too: it gives this site's owner aggregated page views. Both see the page address
-            you open and the usual details a browser sends, such as your IP address and browser. If you open a link that
-            has your player ID in its address, they would see that address, so don't share links like that.
+            Analytics</b> is cookie-free too: it gives this site's owner aggregated page views. Both see the usual details a
+            browser sends, such as your IP address and browser. GoatCounter is sent the page's path only, without the
+            part after the <code>?</code>. If you open a link with your player ID in its address, the page takes the ID
+            out of the address as soon as it has read it, but don't share links like that.
           </li>
           <li>
             Pages also load pictures and event data from other sites (artifact and egg images, and the event list from
