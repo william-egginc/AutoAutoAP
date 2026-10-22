@@ -1176,6 +1176,9 @@ watch(playerId, () => {
 // first ascension, or the defaults. Until it is in, `setupLoaded` holds back the instant answer and its Check
 // exactly, so a reload doesn't start it on the defaults and restart it when the hours arrive.
 watch(playerId, id => void chainSearchStore.loadSetupFor(id), { immediate: true });
+// The account on screen, for the instant answer: it runs only once this account's save is set up the Auto
+// Planner's way, never on a restored draft or an account switch's quick load (search/startProvenance.ts).
+watch(playerId, id => (uiStore.screenPlayerId = id), { immediate: true });
 // Every consent box, remembered per account (composables/useConsent.ts): this account's agreements, or
 // nothing agreed. A switch never carries the last account's yes over.
 watch(playerId, id => void setConsentAccount(id), { immediate: true });
@@ -1416,6 +1419,8 @@ onMounted(async () => {
   // On My runs: load the save into the stores now that the draft is restored (loadSaveForMyRuns).
   myRunsReady = true;
   loadSaveForMyRuns();
+  // On the Auto Planner with the stores still not set up from the save (setUpForInstantAnswer).
+  setUpForInstantAnswer();
 });
 
 // Auto-save logic
@@ -1752,7 +1757,8 @@ async function setUpFromSaveInHand(): Promise<void> {
   if (!playerId.value || !raw || loading.value) return;
   loading.value = true;
   try {
-    await initPlanFuture(playerId.value, raw);
+    // The save the account switch fetched a moment ago: a fresh one.
+    await initPlanFuture(playerId.value, raw, 'fresh');
   } catch (e) {
     console.error('Could not set the planner up from the loaded save:', e);
   } finally {
@@ -1762,6 +1768,31 @@ async function setUpFromSaveInHand(): Promise<void> {
 // Once per account per visit: a switch back to an account counts again (its stores were loaded the switch's way).
 watch(playerId, () => (myRunsLoadFor = ''));
 watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);
+
+/**
+ * The same for the Auto Planner, whose instant answer waits for the save set up the Auto Planner's way
+ * (chainSearch `startWait`, search/startProvenance.ts). The tab click and links set it up (goTo, initAutoOnce),
+ * but a way in that skips them (the Leaderboard's "use this route", an account switched while on the tab) can
+ * leave the stores as a restored draft or a switch's quick load, and the answer would wait for good; so can a
+ * newer save loaded underneath without a set-up (the header's refresh, a stale tab). So set them up then: from the
+ * save in hand after a switch, else as entering the Auto Planner does. Once per account and save, after the page's
+ * own restore, never under a search or over a save the player picked.
+ */
+let autoSetUpFor = '';
+function setUpForInstantAnswer(): void {
+  if (!myRunsReady || plannerTab.value !== 'automatic' || !playerId.value || loading.value) return;
+  const wait = chainSearchStore.startWait;
+  if (wait !== 'draft' && wait !== 'switch' && wait !== 'not-set-up' && wait !== 'other-account') return;
+  // Once per account and save: a newer save loaded underneath (a stale tab) is set up again, a failed set-up isn't retried.
+  const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}`;
+  if (autoSetUpFor === forSave || searchActive.value || uiStore.runSaveLoaded) return;
+  autoSetUpFor = forSave;
+  const raw = initialStateStore.rawBackup;
+  const inHand = wait === 'switch' && !!raw && raw.eiUserId === playerId.value;
+  void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());
+}
+watch(playerId, () => (autoSetUpFor = ''));
+watch([plannerTab, playerId, loading, () => chainSearchStore.startWait], setUpForInstantAnswer);
 
 /** What we need to check's Run this sweep, on the Science tab: open its window. */
 function openSweep(request: SweepRequest): void {

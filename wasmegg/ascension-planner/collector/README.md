@@ -268,12 +268,20 @@ write is tried once more a second later). So every patch stamps `settleAt` = now
 first read after that settles the board once: it lists the rows and the CSV ids, reads only rows the
 snapshot lacks or whose name the key metadata says changed, flips `hasCsv` where a table arrived,
 and clears `settleAt`. With no writes there are no rebuilds (a snapshot untouched for a day is
-settled once as a backstop). Building from nothing — the first read after deploying this version —
-reads at most 300 rows per request and carries on at the next read. A settle also drops a row that
+settled once as a backstop). Building from nothing — the first read after deploying a version that
+changes the snapshot, or after `snap:<board>` is deleted by hand — reads at most 700 rows of the main
+board (200 of the flagged one) per request and carries on at the next read, so a request that rebuilds
+both stays under the Free plan's 1,000 KV operations. Up to about 700 rows a rebuild finishes in one read
+(it was 300 until 22 Oct 2026). The cost is CPU: about 45-60 ms for 700 rows measured in Node, against
+18-28 ms for 300, both past the Free plan's nominal 10 ms; if a rebuild is ever cut off for CPU, that
+board's reads fail until `SETTLE_MAX_GETS` is lowered again. A settle also drops a row that
 KV no longer lists, once it is more than 10 minutes old (a newer row may just not be listed yet): a
 replaced provisional row that a racing patch put back, or a row deleted by hand. So after deleting
 rows by hand there is nothing else to do; after *changing* one, still delete `snap:sub` /
-`snap:flag` and the next read rebuilds it.
+`snap:flag` and the next read rebuilds it. **After deleting a snapshot (as `fix-hide-bad-rows.sh`
+does), `/all` may need two reads**: a board past 700 rows (a flagged board past 200) is rebuilt over
+more than one read, and the first answers with the rows it has read so far. Read `/all` again before
+checking the board, and before deleting a snapshot again: a delete in between starts the rebuild over.
 
 **Caching.** `/all` and `/leaderboard` go through the Cache API for 60 s and are dropped after each
 write's snapshot lands; the browser is told `no-cache`, so Refresh always shows the board as it is.
@@ -580,6 +588,23 @@ seconds, between 2020 and 2100, required and checked) and `deadlineAscendAt` (wh
 ascension can be made with the player's hours counted; it cannot be after the deadline). Only a
 By a date run sends 8, and its `chain` may be a single checkpoint; every other run still sends 7.
 
+**Where a run started** (`start`, 22 Oct 2026; optional on any schema, no schema bump, so an app that sends
+it works with an older collector, which drops it): so a row like Allan's "36 h faster" (an instant answer
+worked out on a restored Manual draft, or a plan sent from a tab left open for days) can be told from the
+board. About 260 bytes, on every row priced in a tab (searches, Light, By a date, best-so-far sends) and on
+instant answer records; never on an upload. Kept field by field (`startBlock` in worker.js): a field that
+does not check out is dropped, never the row, and a block over 400 bytes is dropped whole. No id in it.
+
+| field | what | kept as |
+|---|---|---|
+| `src` | how the planner's start state was set up: `fresh` (a save fetched just now), `stored` (the save kept in the browser), `file` (a save file), `draft` (the Manual planner's restored draft), `switch` (an account switch's quick load, claimed TE only) | one of the five words |
+| `claimed`, `pending` | the save's claimed TE per virtue egg, and the pending TE beside it (thresholds passed, not claimed yet), kept apart | five whole numbers 0-98 each; kept only as a pair, each egg's two adding up to 98 or less |
+| `saveAt` | the save's own time | unix seconds, 2020-2100 |
+| `saveHash` | a short hash of the save's time, eggs delivered and claimed TE: two rows with the same one used the same save | 8 hex |
+| `eggs` | eggs delivered per virtue egg in the start state the run priced from | five numbers 0-1e30 (the app sends 6 significant figures) |
+| `plan` | where the plan start came from: `now`, `override` (the player's own start), `handoff` (a search's own start handed back: a carry-on, an older save, a route applied) | one of the three words |
+| `tabH`, `buildH` | the tab's age at the send: hours since the page was opened, and since the build it runs | hours, -24 to 87,600 |
+
 Two free-text fields are plain text, shown as text: `nickname` (at most 40 characters) and `note`
 (at most 500; what the sender says the run was for; control characters other than line breaks are
 dropped). Both have `EI` followed by sixteen digits swept out.
@@ -651,6 +676,9 @@ answer and its exact check, for the analyst:
 - `buildGap`: the farm the plan would continue (its peak delivery now) against the first fresh
   build's peak in the exact route, and the ratio (under ~0.85: a half-built farm);
 - the app build and how long the check took;
+- `start` (22 Oct 2026): where the check started, the same block as a board row's (above). Checked on its
+  own like `prestigeBy`: a block that does not check out is dropped and `startDropped: true` says so; the
+  record is never refused for it;
 - `prestigeBy` (experimental, only when the player turned the "Prestige by" line on and ticked
   "Include it in checks I share"): the prediction itself, worked out beside the check (mode, how the
   waiting eggs were counted, prestige time, the TE kept and when, the cutoff kind, the last hour that

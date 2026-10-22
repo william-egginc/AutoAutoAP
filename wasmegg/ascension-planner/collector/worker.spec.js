@@ -403,6 +403,70 @@ describe('simVersion on board rows', () => {
   });
 });
 
+/** A full `start` block as the app sends it (src/search/startProvenance.ts). */
+const START = {
+  src: 'fresh',
+  claimed: [43, 38, 44, 40, 39],
+  pending: [0, 0, 0, 0, 1],
+  saveAt: 1792432260.512,
+  saveHash: '0a1b2c3d',
+  eggs: [1.23457e17, 9.87654e16, 2.5e17, 1.1e17, 7.77e16],
+  plan: 'now',
+  tabH: 26.4,
+  buildH: 51.2,
+};
+
+describe('start provenance on board rows (22 Oct 2026)', () => {
+  it('stores where a run started and serves it on the row', async () => {
+    const { id } = await (await post('/submit', { ...MINIMAL, start: START }, '7.7.8.1')).json();
+    const row = (await (await get('/all')).json()).rows.find(r => r.id === id);
+    expect(row.start).toEqual(START);
+  });
+
+  it('drops a field that does not check out, never the row; drops an unknown field; keeps a 7 a 7', async () => {
+    const res = await post(
+      '/submit',
+      {
+        ...MINIMAL,
+        schema: 7,
+        start: {
+          ...START,
+          src: 'guess',
+          saveHash: 'EI1234567890123456',
+          eggs: [1, 2, 3],
+          plan: 'later',
+          tabH: 1e9,
+          playerId: 'EI1234567890123456',
+        },
+      },
+      '7.7.8.2'
+    );
+    expect(res.status).toBe(200);
+    const { id } = await res.json();
+    const stored = (await (await get('/all')).json()).rows.find(r => r.id === id);
+    expect(stored.schema).toBe(7);
+    expect(stored.start).toEqual({
+      claimed: START.claimed,
+      pending: START.pending,
+      saveAt: START.saveAt,
+      buildH: START.buildH,
+    });
+    expect(JSON.stringify(stored)).not.toMatch(/EI\d{16}/);
+  });
+
+  it('keeps claimed and pending only as a pair that adds up to 98 or less per egg', async () => {
+    await post('/submit', { ...MINIMAL, start: { src: 'switch', claimed: [98, 0, 0, 0, 0], pending: [1, 0, 0, 0, 0] } }, '7.7.8.3');
+    const stored = (await (await get('/all')).json()).rows[0];
+    expect(stored.start).toEqual({ src: 'switch' });
+  });
+
+  it('a block with nothing usable left, or not an object, is left off', async () => {
+    await post('/submit', { ...MINIMAL, start: { src: 'nope' } }, '7.7.8.4');
+    await post('/submit', { ...MINIMAL, chain: [195, 489], finalTE: 489, durationDays: 701, start: 'fresh' }, '7.7.8.5');
+    for (const r of (await (await get('/all')).json()).rows) expect(r).not.toHaveProperty('start');
+  });
+});
+
 describe('the board keeps different experiments, and folds copies of one result', () => {
   const run = (over, ip) =>
     post(
@@ -2153,26 +2217,57 @@ describe('a write patches the snapshot, so a list that lags cannot take a row of
     expect((await res.json()).rows.map(r => r.nickname)).toEqual(['Built']);
   });
 
-  it('reads at most a few hundred rows per request when building from nothing, and finishes on later reads', async () => {
-    for (let i = 0; i < 350; i++) {
-      const id = i.toString(16).padStart(8, '0');
-      env.SUBMISSIONS._m.set(
-        `sub:490:${String(7000000 + i).padStart(10, '0')}:${id}`,
-        JSON.stringify({ ...MINIMAL, durationDays: 700 + i / 1e4 })
-      );
-    }
+  it('rebuilds a board of up to 700 rows in one read, and a bigger one over later reads', async () => {
+    const fill = (board, n) => {
+      for (let i = 0; i < n; i++) {
+        const id = (board === 'flag' ? 0x80000000 + i : i).toString(16).padStart(8, '0');
+        env.SUBMISSIONS._m.set(
+          `${board}:490:${String(7000000 + i).padStart(10, '0')}:${id}`,
+          JSON.stringify({ ...MINIMAL, durationDays: 700 + i / 1e4, ...(board === 'flag' ? { flags: ['decades-long'] } : {}) })
+        );
+      }
+    };
+    fill('sub', 700);
+    let counts = countKV(env.SUBMISSIONS);
+    expect((await (await get('/all')).json()).count).toBe(700);
+    expect(counts.get).toBeLessThanOrEqual(705);
+
+    // Past 700: the first read answers with what it could read, a later one carries on and finishes.
+    env.SUBMISSIONS._m.delete('snap:sub');
+    fill('sub', 750);
     let most = 0;
     const seen = [];
-    for (let n = 0; n < 4 && seen[seen.length - 1] !== 350; n++) {
-      const counts = countKV(env.SUBMISSIONS);
+    for (let n = 0; n < 4 && seen[seen.length - 1] !== 750; n++) {
+      counts = countKV(env.SUBMISSIONS);
       seen.push((await (await get('/all')).json()).count);
       most = Math.max(most, counts.get);
     }
-    // The first read answers with what it could read; a later one carries on and finishes.
-    expect(seen[0]).toBe(300);
-    expect(seen[seen.length - 1]).toBe(350);
-    // Workers Free allows 1,000 KV operations per invocation.
-    expect(most).toBeLessThanOrEqual(310);
+    expect(seen[0]).toBe(700);
+    expect(seen[seen.length - 1]).toBe(750);
+    expect(most).toBeLessThanOrEqual(710);
+  });
+
+  it('keeps a request that rebuilds both boards under the 1,000 KV operations Workers Free allows', async () => {
+    for (let i = 0; i < 900; i++) {
+      const id = i.toString(16).padStart(8, '0');
+      env.SUBMISSIONS._m.set(`sub:490:${String(7000000 + i).padStart(10, '0')}:${id}`, JSON.stringify(MINIMAL));
+    }
+    for (let i = 0; i < 400; i++) {
+      const id = (0x80000000 + i).toString(16);
+      env.SUBMISSIONS._m.set(
+        `flag:490:${String(7000000 + i).padStart(10, '0')}:${id}`,
+        JSON.stringify({ ...MINIMAL, flags: ['decades-long'] })
+      );
+    }
+    const counts = countKV(env.SUBMISSIONS);
+    const res = await worker.fetch(
+      new Request('https://collector.test/mine', { headers: { 'x-owner-token': 'a'.repeat(32) } }),
+      env
+    );
+    expect(res.status).toBe(200);
+    // 700 rows of the main board, 200 of the flagged one, and the lists and snapshot writes around them.
+    expect(counts.get).toBeLessThanOrEqual(910);
+    expect(counts.get + counts.list + counts.put + counts.delete).toBeLessThan(1000);
   });
 });
 
@@ -3063,6 +3158,21 @@ describe('POST /instant (opt-in instant answer records)', () => {
     expect(none.status).toBe(200);
     // A stamp that is not a string rejects the record, as any other bad field does.
     expect((await postOwned('/instant', { ...withSim, simVersion: 7 }, TOKEN_A)).status).toBe(400);
+  });
+
+  it('keeps where the check started (start), and drops a bad block, never the record (22 Oct 2026)', async () => {
+    const start = { src: 'stored', claimed: [40, 40, 40, 40, 40], pending: [0, 1, 0, 0, 0], saveAt: T - 7200, saveHash: 'ffeeddcc', eggs: [1, 2, 3, 4, 5], plan: 'override', tabH: 0.4, buildH: 12 };
+    const day = new Date().toISOString().slice(0, 10);
+    const ok = await postOwned('/instant', { ...RECORD, start }, TOKEN_A);
+    expect(ok.status).toBe(200);
+    const kept = JSON.parse(env.SUBMISSIONS._m.get(`inst:${day}:${(await ok.json()).id}`));
+    expect(kept.start).toEqual(start);
+    expect(kept.startDropped).toBeUndefined();
+    const bad = await postOwned('/instant', { ...RECORD, target: 491, start: 'draft' }, TOKEN_A);
+    expect(bad.status).toBe(200);
+    const dropped = JSON.parse(env.SUBMISSIONS._m.get(`inst:${day}:${(await bad.json()).id}`));
+    expect(dropped.start).toBeUndefined();
+    expect(dropped.startDropped).toBe(true);
   });
 
   it('drops a prestigeBy that is out of bounds, keeping the record and noting why', async () => {

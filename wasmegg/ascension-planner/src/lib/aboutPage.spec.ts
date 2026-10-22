@@ -88,4 +88,18 @@ describe('About and privacy page', () => {
     const pick = worker.slice(worker.indexOf('function pickSubmission('));
     for (const f of ['window:', 'startWeekday:', 'timeOff: timeOffList(s.timeOff)']) expect(pick).toContain(f);
   });
+  it('says a row and a shared check say where the plan started from, as the planner and the collector keep it (22 Oct 2026)', () => {
+    expect(text).toContain(
+      "A row also says where the plan started from: whether the planner used a save it had just fetched, the save kept in this browser, a save file, a saved Manual plan or an account switch; the Truth Eggs your save has claimed and the ones still pending for each egg, kept apart; your save's time and a short code made from that time and your eggs, never from your player ID; the eggs delivered for each egg at the start; whether the plan starts now, at a time you set, or at a time handed over from a search; and how long the page had been open and how old the planner's version was."
+    );
+    expect(text).toContain('with the same note as a row on where it started from');
+    // The fields behind those words.
+    const prov = read('src/search/startProvenance.ts');
+    expect(prov).toContain("export const START_SOURCES = ['fresh', 'stored', 'file', 'draft', 'switch'] as const;");
+    expect(prov).toContain("export const PLAN_START_SOURCES = ['now', 'override', 'handoff'] as const;");
+    expect(read('src/search/submission.ts')).toContain('...(start ? { start } : {}),');
+    const worker = read('collector/worker.js');
+    expect(worker.slice(worker.indexOf('function pickSubmission('))).toContain('start: startBlock(s.start),');
+    expect(worker).toContain("const START_SOURCES = ['fresh', 'stored', 'file', 'draft', 'switch'];");
+  });
 });

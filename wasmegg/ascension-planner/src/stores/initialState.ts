@@ -27,6 +27,7 @@ import {
 import { parseVirtueFarm, parseVirtueProgress } from '@/lib/backupVirtue';
 import { useTruthEggsStore, VIRTUE_TE_ORDER } from './truthEggs';
 import { useFuelTankStore } from './fuelTank';
+import type { StartSource } from '@/search/startProvenance';
 
 export interface InitialStateStoreState {
   // Whether data has been loaded from a backup
@@ -73,6 +74,15 @@ export interface InitialStateStoreState {
 
   // Original backup data for re-calculating optimal sets
   rawBackup: ei.IBackup | null;
+
+  /**
+   * How these stores were last set up (search/startProvenance.ts `START_SOURCES`): 'fresh' / 'stored' /
+   * 'file' by initPlanFuture (the Auto Planner's way), 'draft' by a restored Manual plan (`hydrate`),
+   * 'switch' by an account switch's quick load (`loadFromBackup` 'default'), '' after a reset or another
+   * mode's load. The instant answer waits until it is one of the first three (stores/chainSearch.ts
+   * `startWait`), and every send says which it was (`Submission.start`).
+   */
+  setupSource: StartSource | '';
 }
 
 function createEmptyVirtueMap(): Record<VirtueEgg, number> {
@@ -119,6 +129,7 @@ export const useInitialStateStore = defineStore('initialState', {
     initialTePending: createEmptyVirtueMap(),
     activeMissions: [],
     rawBackup: null,
+    setupSource: '',
   }),
 
   getters: {
@@ -195,6 +206,9 @@ export const useInitialStateStore = defineStore('initialState', {
     } {
       this.hasData = true;
       this.isContinuing = mode === 'continue_earnings' || mode === 'continue_elr';
+      // An account switch's quick load (claimed TE only, App.vue submitPlayerId); any other mode is not set
+      // up the Auto Planner's way until its caller says so (`markSetUp`, initPlanFuture).
+      this.setupSource = mode === 'default' ? 'switch' : '';
       this.rawBackup = backup;
       this.playerId = playerId;
       this.nickname = backup.userName || playerId;
@@ -377,6 +391,8 @@ export const useInitialStateStore = defineStore('initialState', {
      */
     hydrate(data: Partial<InitialStateStoreState>) {
       this.hasData = true;
+      // A restored or opened Manual plan: its TE and eggs are whenever it was made (search/startProvenance.ts).
+      this.setupSource = 'draft';
       this.isContinuing = data.isContinuing || false;
       this.playerId = data.playerId || '';
       this.nickname = data.nickname || 'Redacted';
@@ -479,11 +495,17 @@ export const useInitialStateStore = defineStore('initialState', {
     },
 
 
+    /** The stores were just set up from the save the Auto Planner's way (lib/modes/planFuture.ts). */
+    markSetUp(source: StartSource) {
+      this.setupSource = source;
+    },
+
     /**
      * Clear all initial state data
      */
     clear() {
       this.hasData = false;
+      this.setupSource = '';
       this.isContinuing = false;
       this.playerId = '';
       this.nickname = '';

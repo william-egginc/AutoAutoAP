@@ -23,6 +23,9 @@ export const useUIStore = defineStore('ui', () => {
   const isFooterCollapsed = ref(false);
   const loading = ref(false);
   const error = ref('');
+  /** The player ID in the box at the top of the page (App.vue `playerId`): the account on screen, which the
+   *  instant answer waits to have set up (search/startProvenance.ts `startWaitOf`). '' for none. */
+  const screenPlayerId = ref('');
   /**
    * Why the last fresh-backup fetch failed, while the planner is running on an older copy; null
    * once a fetch succeeds.
@@ -109,6 +112,7 @@ export const useUIStore = defineStore('ui', () => {
     isFooterCollapsed,
     loading,
     error,
+    screenPlayerId,
     staleBackup,
     runSaveLoaded,
     openPlannerRequested,

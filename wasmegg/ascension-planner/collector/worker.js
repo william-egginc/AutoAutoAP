@@ -538,6 +538,51 @@ function teByEgg(v) {
   return out.some(x => x === undefined) ? undefined : out.map(Math.round);
 }
 
+/**
+ * Where a run started from (22 Oct 2026, src/search/startProvenance.ts; optional, no schema bump): on board
+ * rows (`start`) and instant records alike. Kept field by field: one that does not check out is dropped,
+ * never the row, and the whole block past START_MAX_BYTES is dropped. Never an id: `saveHash` is 8 hex of
+ * the save's time and eggs, and the arrays are numbers.
+ *   src      fresh | stored | file | draft | switch (how the planner's start state was set up)
+ *   claimed  the save's claimed TE per virtue egg, five whole numbers 0-98
+ *   pending  its pending TE per egg beside them (thresholds passed, not claimed), five whole numbers 0-98;
+ *            kept only with `claimed`, and only when each pair adds up to 98 or less
+ *   saveAt   the save's own time, unix seconds
+ *   saveHash 8 hex
+ *   eggs     eggs delivered per virtue egg in the start state, five numbers 0-1e30
+ *   plan     now | override | handoff (where the plan start came from)
+ *   tabH     hours from the page being opened to the send; buildH from its build to the send (-24 to 87,600)
+ */
+const START_SOURCES = ['fresh', 'stored', 'file', 'draft', 'switch'];
+const PLAN_START_SOURCES = ['now', 'override', 'handoff'];
+const START_MAX_BYTES = 400;
+const START_AGE_H = [-24, 24 * 3650];
+function startBlock(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const five = (xs, max, whole) =>
+    Array.isArray(xs) &&
+    xs.length === 5 &&
+    xs.every(x => Number.isFinite(x) && x >= 0 && x <= max && (!whole || Number.isInteger(x)))
+      ? xs.slice()
+      : undefined;
+  const claimed = five(v.claimed, 98, true);
+  const pending = five(v.pending, 98, true);
+  const paired = claimed && pending && claimed.every((c, i) => c + pending[i] <= 98);
+  const out = defined({
+    src: START_SOURCES.includes(v.src) ? v.src : undefined,
+    claimed: paired ? claimed : undefined,
+    pending: paired ? pending : undefined,
+    saveAt: within(v.saveAt, MAX.DEADLINE_FROM, MAX.DEADLINE_TO),
+    saveHash: typeof v.saveHash === 'string' && /^[a-f0-9]{8}$/.test(v.saveHash) ? v.saveHash : undefined,
+    eggs: five(v.eggs, 1e30, false),
+    plan: PLAN_START_SOURCES.includes(v.plan) ? v.plan : undefined,
+    tabH: within(v.tabH, ...START_AGE_H),
+    buildH: within(v.buildH, ...START_AGE_H),
+  });
+  if (!Object.keys(out).length || JSON.stringify(out).length > START_MAX_BYTES) return undefined;
+  return out;
+}
+
 /** Which sweep preset a run came from. Short labels only; the bands are the ones typed into the panel. */
 function sweepTag(t) {
   if (!t || typeof t !== 'object') return undefined;
@@ -807,6 +852,8 @@ function pickSubmission(s) {
     // The simulator that priced it (13 Oct 2026, the app's SIM_VERSION): moves only when results do, for
     // 'priced by an older simulator' labels. Optional, no schema bump; a plain stamp, nothing else kept.
     simVersion: simStamp(s.simVersion),
+    // Where the run started from (22 Oct 2026, `startBlock`): optional, no schema bump; a bad field is dropped.
+    start: startBlock(s.start),
     startUtc: isoStamp(s.startUtc),
     endUtc: isoStamp(s.endUtc),
     rechecks: recheckList(s.rechecks, s.finalTE),
@@ -1266,11 +1313,22 @@ const SNAP_MAX_FINALS = 16;
 const LIST_MAX_PAGES = 20;
 /**
  * Row reads one settle may make. Workers Free caps an invocation at 1,000 KV operations, and /mine
- * can settle both boards in one request. A normal settle reads a handful; only the first build (no
- * snapshot, or one from an older Worker) reads every row, and past this it stores what it has with
- * `settleAt` due at once, so the next read carries on where it stopped.
+ * (or a /submit) can settle both boards in one request. A normal settle reads a handful; only the first
+ * build (no snapshot: a deploy that bumps SNAP_VERSION, or `snap:<board>` deleted by hand) reads every
+ * row, and past this it stores what it has with `settleAt` due at once, so the next read carries on where
+ * it stopped. 700 (was 300, 22 Oct 2026) so a board of up to about 700 rows rebuilds in ONE read; the
+ * flagged board's own settle is held to FLAG_SETTLE_MAX_GETS, so both boards rebuilding in one request
+ * stay at 900 reads plus a few lists and writes, under the 1,000. CPU is the risk: measured in Node (M-series
+ * Mac, warm) on the live board's rows (3 KB median) copied, a rebuild from nothing takes about 45-60 ms for
+ * 700 rows against 18-28 ms for 300 (the old cap), both past the Free plan's nominal 10 ms a request.
+ * Rebuilds of ~300 have gone through live, so the limit is not applied strictly to one request, but a
+ * rebuild twice as long is likelier to be cut off ("exceeded CPU"). A cut-off rebuild stores nothing, and
+ * a board with no snapshot is rebuilt inside the read itself, so every read of that board would then fail
+ * the same way: if a rebuild is ever cut off, lower this again (300 rebuilds in steps, as before).
  */
-const SETTLE_MAX_GETS = 300;
+const SETTLE_MAX_GETS = 700;
+/** The flagged board's share of a request's reads when both boards settle at once (see SETTLE_MAX_GETS). */
+const FLAG_SETTLE_MAX_GETS = 200;
 /** A snapshot write refused (KV takes one write a second per key) is tried once more after this. */
 const PUT_RETRY_MS = 1100;
 /** Edge cache for the public board reads, in seconds. KV itself takes up to 60 s to show a write. */
@@ -1385,7 +1443,7 @@ const SNAP_ROW_MAX_BYTES = 16 * 1024;
 // prettier-ignore
 const SNAP_TRIM_ORDER = [
   'space', 'proof', 'rechecks', 'searched', 'sweep', 'machine', 'run', 'epicResearch', 'colleggtibles',
-  'stones', 'artifacts', 'delivery', 'earnings', 'teByEgg', 'timeOff', 'note', 'progress', 'seed', 'legs',
+  'stones', 'artifacts', 'delivery', 'earnings', 'start', 'teByEgg', 'timeOff', 'note', 'progress', 'seed', 'legs',
 ];
 
 /** A row as the snapshot writes it: `id` then `hasCsv` first (see "the text"), never the owner. A
@@ -1684,7 +1742,7 @@ async function settleSnapshot(env, board, raw, change = null) {
       need.push(k.name);
     }
   }
-  const take = need.slice(0, SETTLE_MAX_GETS);
+  const take = need.slice(0, board === 'flag' ? FLAG_SETTLE_MAX_GETS : SETTLE_MAX_GETS);
   const raws = await Promise.all(take.map(k => env.SUBMISSIONS.get(k)));
   // The flagged board is anonymous to everyone but the owner, and an `acct` there would link its
   // rows to the same player's named rows on the main board. So only the main board gets one.
@@ -2628,6 +2686,13 @@ function pickInstant(body) {
   if (!record) return { problems: problems.length ? problems.slice(0, 12) : ['rejected'] };
   if (record.mode === 'fastest' && record.target === undefined) return { problems: ['record.target is required'] };
   if (record.mode === 'date' && record.deadline === undefined) return { problems: ['record.deadline is required'] };
+  // Where the check started from (22 Oct 2026, `startBlock`): checked on its own, like prestigeBy below, so
+  // a field that drifts is dropped (`startDropped`), never the record.
+  if (body.start !== undefined) {
+    const start = startBlock(body.start);
+    if (start) record.start = start;
+    else record.startDropped = true;
+  }
   if (body.prestigeBy !== undefined) {
     const pbProblems = [];
     const pb = PRESTIGE_BY(body.prestigeBy, 'record.prestigeBy', pbProblems);
