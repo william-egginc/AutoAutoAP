@@ -1009,7 +1009,7 @@ import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
-import { TABLE_LOAD_FAILED, tableLoadFailed } from '@/search/tableFetch';
+import { TABLE_LOAD_FAILED, isTableStall, probeHeader, tableLoadFailed } from '@/search/tableFetch';
 import { plainError } from '@/lib/plainError';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
@@ -1942,20 +1942,15 @@ async function run(force = false, goAhead = false): Promise<void> {
     let mismatch = '';
     stampHash.value = '';
     const mine = await ownTableUrl().catch(() => null);
-    if (mine) {
-      try {
-        const oh = await p.header(mine);
-        if (oh.gear) {
-          const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, oh.gear.research);
-          const changes = stamp ? gearChanges(oh.gear, stamp) : ['gear'];
-          if (!changes.length) {
-            url = mine;
-            h = oh;
-          } else mismatch = changes.join(', ');
-        }
-      } catch {
-        // No table of their own (the usual case): the maxed one.
-      }
+    // No table of their own (the usual case): the maxed one. A stall stops here (`probeHeader`).
+    const oh = mine ? await probeHeader(() => p.header(mine)) : null;
+    if (oh?.gear && mine) {
+      const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, oh.gear.research);
+      const changes = stamp ? gearChanges(oh.gear, stamp) : ['gear'];
+      if (!changes.length) {
+        url = mine;
+        h = oh;
+      } else mismatch = changes.join(', ');
     }
     h ??= await p.header(TABLE_URL);
     // No table of their own: one built on a board gear combination exactly like theirs, if there is
@@ -1977,8 +1972,9 @@ async function run(force = false, goAhead = false): Promise<void> {
             url = both;
             found = true;
             break;
-          } catch {
-            // Not under this name.
+          } catch (e) {
+            // Not under this name. Stalled: no other name either (the maxed one is already in).
+            if (isTableStall(e)) break;
           }
         }
         // No table for this gear (the usual case): the maxed one.
