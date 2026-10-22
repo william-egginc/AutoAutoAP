@@ -99,8 +99,9 @@
       class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
       data-testid="instant-sim-version"
     >
-      This instant answer comes from a table {{ simNote }}, not the simulator this page runs, so its routes and
-      dates may be a little off. <b>Check exactly</b> to confirm.
+      This instant answer was made with {{ simNote }}, not the simulator this page runs. Where one round of
+      research, vehicles and habs (C1, K1, I1) maxes the habs, its times are expected to move only a little. Where it
+      does not, often at low TE on weaker gear, its routes and dates can move a lot. <b>Check exactly</b> to confirm.
     </p>
 
     <p

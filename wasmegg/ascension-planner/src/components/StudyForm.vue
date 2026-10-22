@@ -10,8 +10,8 @@
     <!-- Short on purpose (about 5 lines at 390 px, 21 Oct 2026): the full list is behind "What exactly is sent"
          (about.html#sent), and each tick says public or private itself. -->
     <p class="text-[12px] text-slate-600 leading-relaxed break-words" data-testid="study-intro">
-      Help make the planner’s answers better. Your route and times go to the public leaderboard only when you press a
-      share button. Each <b>Check exactly</b> sends a private, anonymous record. Your player ID and save are never sent.
+      Help make the planner’s answers better. Your route and times go to the public leaderboard only when you press
+      share. With the last tick, <b>Check exactly</b> sends a private, anonymous record. Your player ID and save are never sent.
       This account only; change or withdraw it in {{ NAMES.setup }}.
     </p>
     <a

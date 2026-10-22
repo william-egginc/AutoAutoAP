@@ -40,8 +40,8 @@ const setup = () => renderHtml(StudySetup, {}, {}, [pinia]);
 
 /** The box's paragraph (21 Oct 2026, cut to about 5 lines at 390 px; the full list is at about.html#sent). */
 const INTRO =
-  'Help make the planner’s answers better. Your route and times go to the public leaderboard only when you press a ' +
-  'share button. Each Check exactly sends a private, anonymous record. Your player ID and save are never sent. ' +
+  'Help make the planner’s answers better. Your route and times go to the public leaderboard only when you press ' +
+  'share. With the last tick, Check exactly sends a private, anonymous record. Your player ID and save are never sent. ' +
   'This account only; change or withdraw it in Setup.';
 
 /** Setup's Withdraw line (21 Oct 2026): the words follow what Withdraw does (lib/study.ts afterWithdraw). */

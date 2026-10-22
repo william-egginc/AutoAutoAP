@@ -531,7 +531,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'te-low',
       title: `Accounts under ${LOW_TE} TE whose plans still work (CTE 225 or more)`,
-      why: "Below about 218 to 225 CTE (the planner's estimate) a first ascension gets stuck on Integrity saving up for habs, so under 125 TE only a strong earnings set makes a plan work at all. Runs from accounts like this show whether they want the same ascension targets as higher accounts.",
+      why: "Below about 218 to 225 CTE (the planner's estimate) a first ascension can sit on Integrity saving up for habs. That estimate is from September 2026, before the 13 Oct and 21 Oct changes to how a low-TE build opens, and it has not been measured again. Runs from accounts like this show whether they want the same ascension targets as higher accounts.",
       who: `players under ${LOW_TE} TE with CTE 225 or more`,
       have: lowAccounts,
       want: 2,

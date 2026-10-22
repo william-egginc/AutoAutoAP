@@ -251,8 +251,8 @@
             of hand fastest: the bands multiply, so halving the step in each does far more than double the work.
           </p>
           <p>
-            Nothing here is capped, and nothing asks you to confirm. The count and estimate below update as you type, so
-            check them before you press Find.
+            Nothing here is capped. Above 100,000 routes, Find asks you to confirm first; above 500,000 it asks twice.
+            The count and estimate below update as you type, so check them before you press Find.
           </p>
           <!-- How the work is split: explanation, so it sits here with the rest (it was between the
                estimate and Find). -->

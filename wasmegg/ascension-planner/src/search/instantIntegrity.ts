@@ -85,9 +85,9 @@ export function lowTeOpeningNote(info: { rounds: number; openingSeconds: number 
   if (!info || !(info.rounds > 0)) return '';
   const rounds = info.rounds === 1 ? 'once' : `${info.rounds} times`;
   return (
-    `Low-TE opening: a fresh ascension on this account can't afford its habs in one Integrity shift, so it ` +
-    `goes round research, vehicles and habs (C1, K1, I1) ${rounds} first, about ` +
-    `${describeDuration(info.openingSeconds)} before its habs are maxed. The instant answer's tables use the ` +
-    `standard opening, so its dates for your low-TE ascensions are rough; Check exactly prices the low-TE opening.`
+    `Low-TE opening: a fresh ascension on this account can't max its habs in one round of research, vehicles ` +
+    `and habs (C1, K1, I1), so it goes round ${rounds}, about ${describeDuration(info.openingSeconds)} before ` +
+    `its habs are maxed. The instant answer may not have been made with this opening for your ascensions, so ` +
+    `its dates for them are rough; Check exactly prices the low-TE opening.`
   );
 }

@@ -25,10 +25,11 @@
 
     <div v-if="open && inventory" class="space-y-4">
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        The simulator doesn't wear a fixed set, or what you have equipped. It re-solves the best loadout inside
-        <span class="font-semibold">every ascension</span> from your virtue inventory, and swaps between two: the
-        <span class="font-semibold">delivery</span> set while it builds the farm, and the
-        <span class="font-semibold">earnings</span> set when it cashes out.
+        The searches don't wear a fixed set, or what you have equipped. They re-solve the best loadout inside
+        <span class="font-semibold">every ascension</span> from your virtue inventory, and swap between two: the
+        <span class="font-semibold">delivery</span> set while they build the farm, and the
+        <span class="font-semibold">earnings</span> set when they cash out. In Single run you can change the sets for
+        each ascension in its artifact editor; this card shows what the searches use.
       </p>
 
       <div class="flex gap-1 bg-slate-200/50 p-1 rounded-xl w-fit">
@@ -102,7 +103,7 @@
       </p>
       <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
         <span class="font-black uppercase tracking-wide">Held fixed for the whole plan.</span>
-        This is what you own <span class="font-semibold">today</span>, and the plan assumes it never changes. You'll
+        This is what you own <span class="font-semibold">today</span>, and the searches assume it never changes. You'll
         craft and upgrade along the way, so the real run should come in <span class="font-semibold">faster</span> than
         the dates here. Comparisons between routes stay fair, because every one is simulated with the same inventory.
         After any big crafting, load your latest save and search again.

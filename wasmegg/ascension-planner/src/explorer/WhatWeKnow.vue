@@ -36,7 +36,10 @@
         <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline">Science › How it works</a
         ><template v-else>Science › How it works</template>.
       </p>
-      <p class="text-[10px] text-slate-500">Findings checked {{ FINDINGS_CHECKED }}</p>
+      <p class="text-[10px] text-slate-500">
+        Findings checked {{ FINDINGS_CHECKED }}, on the simulator the site ran before 21 Oct 2026. They have not been
+        checked again on the newer one yet.
+      </p>
     </div>
 
     <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-[12px] text-slate-800 leading-relaxed">
@@ -84,7 +87,9 @@
             Check exactly, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
             within an hour) and every new run that week. For the accounts it has precomputed on their own gear (10 so
-            far) it reproduces their submitted runs to a median of 0.15% or better.
+            far) it reproduces their submitted runs to a median of 0.15% or better. On maxed gear, for an account with
+            weaker gear, it can be far off: a 21 Oct comparison of 84 board runs found it far too hopeful on 18 of them
+            (Science › How it works, section 6).
           </p>
           <p v-else-if="f.id === 'wider'">
             Halceyx's 120,000-plan sweep allowed only 5 ascensions, and its second stop couldn't go below 201. From the

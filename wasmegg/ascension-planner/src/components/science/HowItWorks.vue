@@ -44,7 +44,9 @@
         second or two. <b>Check exactly</b> then runs its routes through the full simulator on your save, ascending on
         the hour like the instant answer. Press Check exactly for the most accurate answer: it's the simulator's own
         number for your save. In our checks the instant answer was usually within about 1% of the simulator (within 1.5
-        hours a route on gear like yours), but on maxed gear below about TE 340 one ascension can be further out.
+        hours a route on gear like yours). On maxed gear, for an account with weaker gear, it can be several days too
+        hopeful, and on the weakest gear seen far more (section 6). These checks were made on the simulator the site
+        ran before 21 Oct 2026, and have not been repeated on the newer one yet.
       </p>
       <p>
         <b>When you prestige matters near the weekly research sale.</b> Every build is timed to end with the sale, so a
@@ -131,8 +133,9 @@
           in the background runs several times slower, so keep it in front. On {{ NAMES.fastest }}, a short Fast search
           often found a route sooner than the instant answer's: at least a day in 9 of 12 runs, though some of that gap
           may come from how the instant route is priced. Going bigger (Exact, Very high, {{ NAMES.full }}) rarely added
-          more. On {{ NAMES.byDate }}, no search so far has beaten the instant answer's TE (22 paired runs from 4 real
-          players, none above TE 250), and a long search mostly confirmed it. We will update these figures as more runs
+          more. On {{ NAMES.byDate }}, no search up to 13 Oct beat the instant answer's TE, but that rests on 2
+          like-for-like runs, both on one developer's save starting below TE 150 (5 counting runs held to fewer
+          ascensions). Both reached the same TE; one was a 43.7-hour search, and a 7-minute one found the same route. We will update these figures as more runs
           come in.
         </p>
         <p>
@@ -250,7 +253,9 @@
       <div class="hw-body">
         <p>
           Each line says what was compared, the result, and how it was measured. A percentage is of the ascension's own
-          length (a 0.1% error on a 30-day ascension is about 43 minutes).
+          length (a 0.1% error on a 30-day ascension is about 43 minutes). Every check here was made between 1 and 13
+          Oct 2026, on the simulator the site ran before 21 Oct. The site has run Joo's newer simulator since 21 Oct
+          (section 6), and none of these checks has been repeated on it yet.
         </p>
         <div class="space-y-2">
           <div v-for="c in CHECKS" :key="c.what" class="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
@@ -398,8 +403,12 @@
       <div class="hw-body">
         <ul class="hw-list">
           <li>
-            <b>Below about TE 340 on maxed gear,</b> the instant answer can be a day or more out over a long route, and
-            off by a TE by a date. Use Check exactly, or the bracket it shows.
+            <b>On maxed gear, for an account with weaker gear</b> (used when no instant answer was built for gear like
+            yours), the instant answer can be far too hopeful. On 18 of 84 board runs sent 14-21 Oct, a run's own route
+            priced on the maxed instant answer came out 91 to 4,448 hours sooner than the simulator, and by a date the
+            instant answer claimed 3 to 19 TE more than the run's search reached. The lower the account's delivery
+            rate against maxed gear, the bigger the gap. That comparison (21 Oct) used the simulator from before 21 Oct. Use Check exactly, or the bracket it
+            shows.
           </li>
           <li>
             <b>Near-ties.</b> The best TE matched every time we checked, but which route gets there can differ: on one

@@ -522,7 +522,7 @@ export function buildSteps(input: DashInput): DashSteps {
       why.push(
         sim === 'older'
           ? 'The simulator has changed since; its numbers may move.'
-          : 'Sent before 13 Oct, when the simulator last changed.'
+          : 'Sent before 13 Oct, before runs recorded which simulator priced them. The simulator has changed since.'
       );
     }
 
