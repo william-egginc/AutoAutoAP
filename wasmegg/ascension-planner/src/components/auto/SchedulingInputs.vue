@@ -1,6 +1,38 @@
 <template>
   <!-- Stacked: it sits in a half-width card in Your setup (YourSetup.vue), its only user. -->
-  <div class="grid grid-cols-1 gap-4">
+  <!-- Joo's start-time override (fcc9e764): by default the plan starts now; Override opens the date
+       boxes. In this fork the start is shared with the searches, so "now" is the time held in the
+       store (set when the save loads, and again by Single run's Generate and this card's Now button),
+       shown as it is rather than as a ticking clock the searches would not follow. -->
+  <div v-if="!startTimeOverride" class="space-y-2">
+    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-baseline gap-2 flex-wrap px-1">
+        <span class="text-sm font-black text-slate-800 tabular-nums">{{ startLabel }}</span>
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Now</span>
+      </div>
+      <div class="flex gap-2">
+        <button
+          @click="setStartTimeToNow"
+          title="Start from the current time"
+          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-indigo-100 active:scale-95 whitespace-nowrap"
+        >
+          Now
+        </button>
+        <button
+          @click="addOverride"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 active:scale-95 whitespace-nowrap"
+        >
+          Override
+        </button>
+      </div>
+    </div>
+    <p v-if="backupHint" class="text-[10px] font-bold leading-relaxed px-1" :class="backupHint.class">
+      {{ backupHint.text }}
+    </p>
+  </div>
+
+  <div v-else class="grid grid-cols-1 gap-4">
     <div class="space-y-2">
       <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
       <div class="flex gap-3">
@@ -41,10 +73,10 @@
           </select>
         </div>
         <button
-          @click="setStartTimeToNow"
-          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center justify-center active:scale-95 whitespace-nowrap"
+          @click="removeOverride"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 flex items-center justify-center active:scale-95 whitespace-nowrap"
         >
-          Now
+          Remove Override
         </button>
       </div>
     </div>
@@ -56,12 +88,30 @@ import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
+import { useVirtueStore } from '@/stores/virtue';
 import { formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 
-const { startDate, startTime, timezone } = storeToRefs(useAutoPlannerStore());
+const { startDate, startTime, timezone, startTimeOverride } = storeToRefs(useAutoPlannerStore());
 const initialStateStore = useInitialStateStore();
+const virtueStore = useVirtueStore();
+
+// The start held in the store, as a date and time in the plan's timezone (12-hour, from the locale).
+const startLabel = computed(() => {
+  if (!startDate.value || !startTime.value) return 'Not set';
+  const at = getLocalTimestampInTimezone(startDate.value, startTime.value, timezone.value);
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: timezone.value,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(at * 1000);
+});
 
 const startTimeInput = ref<HTMLInputElement | null>(null);
 const timezoneSelect = ref<HTMLSelectElement | null>(null);
@@ -133,6 +183,19 @@ function saveSiloSeconds(): number {
   const farm = initialStateStore.currentFarmState as { numSilos?: number } | null;
   return siloSeconds(farm?.numSilos, initialStateStore.epicResearchLevels?.['silo_capacity']);
 }
+
+// The override form opens on the current time, ready to adjust.
+const addOverride = () => {
+  setStartTimeToNow();
+  startTimeOverride.value = true;
+};
+
+// Back to the default: starts now, in the default timezone.
+const removeOverride = () => {
+  startTimeOverride.value = false;
+  timezone.value = virtueStore.ascensionTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  setStartTimeToNow();
+};
 
 const allTimezones = computed(() => {
   try {

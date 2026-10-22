@@ -35,11 +35,34 @@ describe('usePlanStartForm', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it('restores the start and timezone saved on the last visit, without Classic open', () => {
+  it('restores a start the player set on the last visit (an override), without Classic open', () => {
+    saveAutoPlannerSchedule({
+      timezone: 'Asia/Tokyo',
+      startDate: '2026-10-02',
+      startTime: '09:00',
+      startTimeOverride: true,
+      targetTE: '',
+    });
+    usePlanStartForm();
+    const auto = useAutoPlannerStore();
+    expect([auto.timezone, auto.startDate, auto.startTime, auto.startTimeOverride]).toEqual([
+      'Asia/Tokyo',
+      '2026-10-02',
+      '09:00',
+      true,
+    ]);
+  });
+
+  // Joo's fcc9e764: without an override the plan starts now, so a reload never brings back an old start
+  // (a cache from before the flag existed counts as "now" too). The timezone still comes back.
+  it('starts now, not at the saved start, when the start was not overridden', () => {
     saveAutoPlannerSchedule({ timezone: 'Asia/Tokyo', startDate: '2026-10-02', startTime: '09:00', targetTE: '' });
     usePlanStartForm();
     const auto = useAutoPlannerStore();
-    expect([auto.timezone, auto.startDate, auto.startTime]).toEqual(['Asia/Tokyo', '2026-10-02', '09:00']);
+    expect(auto.startTimeOverride).toBe(false);
+    expect(auto.timezone).toBe('Asia/Tokyo');
+    // 30 Sept 2026 12:00 UTC (the faked clock) is 21:00 in Tokyo.
+    expect([auto.startDate, auto.startTime]).toEqual(['2026-09-30', '21:00']);
   });
 
   it('saves a start changed on any screen, keeping the rest of the saved form', async () => {
@@ -52,7 +75,13 @@ describe('usePlanStartForm', () => {
   });
 
   it('restores once per page, so remounting keeps what was changed since', () => {
-    saveAutoPlannerSchedule({ timezone: 'UTC', startDate: '2026-10-02', startTime: '09:00', targetTE: '' });
+    saveAutoPlannerSchedule({
+      timezone: 'UTC',
+      startDate: '2026-10-02',
+      startTime: '09:00',
+      startTimeOverride: true,
+      targetTE: '',
+    });
     usePlanStartForm();
     const auto = useAutoPlannerStore();
     auto.startDate = '2026-10-05';

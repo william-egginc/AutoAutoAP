@@ -112,3 +112,22 @@ export function sanitizeLoadoutOverrides(
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+const TE_OVERRIDE_EGGS = ['curiosity', 'integrity', 'humility', 'resilience', 'kindness'] as const;
+
+/**
+ * Joo's starting-TE override (fcc9e764, `stores/autoPlanner.ts` `teOverride`) read from outside this page:
+ * the `auto_planner_te_inputs_v2:<id>` cache and a restored Auto-Plan file's first `initialParams.teEarned`.
+ * Every virtue egg must be a finite number; it is rounded and held to 0-98, the range the boxes allow. Anything
+ * else is no override at all (null), so the plan starts from the save rather than from a guess.
+ */
+export function sanitizeTEOverride(raw: unknown): Record<(typeof TE_OVERRIDE_EGGS)[number], number> | null {
+  if (!isObj(raw)) return null;
+  const out = {} as Record<(typeof TE_OVERRIDE_EGGS)[number], number>;
+  for (const egg of TE_OVERRIDE_EGGS) {
+    const v = raw[egg];
+    if (typeof v !== 'number' || !Number.isFinite(v)) return null;
+    out[egg] = Math.max(0, Math.min(98, Math.round(v)));
+  }
+  return out;
+}
