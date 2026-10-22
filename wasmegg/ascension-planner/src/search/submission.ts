@@ -635,7 +635,7 @@ export interface RunCost {
  * An id is a bearer token: the API will return the whole save to anyone holding it.
  */
 export function scrubIdentifiers(text: string): string {
-  return text.replace(/EI\d{16}/g, 'EI[redacted]');
+  return text.replace(/EI\d{16}/gi, 'EI[redacted]');
 }
 
 /** Longest run note the collector stores. */

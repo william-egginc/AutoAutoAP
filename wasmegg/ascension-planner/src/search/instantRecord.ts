@@ -289,7 +289,7 @@ export function noteSent(st: StorageLike | null, slot: string, sig: string, now:
 
 /** A player id must never leave the page: refuse a record whose text holds one. */
 export function holdsPlayerId(rec: InstantRecord): boolean {
-  return /EI\d{16}/.test(JSON.stringify(rec));
+  return /EI\d{16}/i.test(JSON.stringify(rec));
 }
 
 export type InstantSendResult = 'sent' | 'skipped' | 'failed';
