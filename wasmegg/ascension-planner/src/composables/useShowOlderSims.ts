@@ -42,6 +42,15 @@ export function hiddenSimText(n: number): string {
   return n === 1 ? '1 run from an older simulator is hidden' : `${n} runs from older simulators are hidden`;
 }
 
+/** Every one of `total` runs is hidden by the toggle (`shown` of them left): what Insights says instead of an
+ *  empty board (prelive, 21 Oct 2026). '' when some are shown, or there are none at all. */
+export function allHiddenSimText(total: number, shown: number): string {
+  if (total <= 0 || shown > 0) return '';
+  return total === 1
+    ? 'The 1 run is from an older simulator and is hidden. Tick “Show runs from older simulators” to see it.'
+    : `All ${total} runs are from older simulators and are hidden. Tick “Show runs from older simulators” to see them.`;
+}
+
 export function useShowOlderSims() {
   return showOlder;
 }
