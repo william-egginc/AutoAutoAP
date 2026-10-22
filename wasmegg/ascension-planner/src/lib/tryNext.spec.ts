@@ -23,7 +23,7 @@ const tile = (goal: 'fastest' | 'date', answer: TileAnswer | null): Tile => ({ g
 describe('try next', () => {
   it('nothing run yet: Egg Day Fast, Exact on the race, Exhaustive', () => {
     const p = tryNextPills({ tile: tile('fastest', null), target: 490 }, tile('date', null));
-    expect(p.map(x => x.label)).toEqual(['Egg Day, Fast', 'Exact on my 490 route', 'Exhaustive']);
+    expect(p.map(x => x.label)).toEqual(['Egg Day, Fast', 'Exact on my 490 route', 'Custom']);
     expect(p[0].open).toEqual({ auto: 'by-date', tab: 'nearby', byDate: { eggDay: true }, level: 'quick' });
     expect(p[1].open).toEqual({ auto: 'fastest', depth: 'smart', tab: 'nearby', target: 490, level: 'normal' });
     expect(p[2].open).toMatchObject({ depth: 'full', tab: 'exhaustive' });
@@ -33,7 +33,7 @@ describe('try next', () => {
     const p = tryNextPills({ tile: tile('fastest', ans({ how: 'instant' })), target: 490 }, tile('date', ans({ how: 'instant', endTE: 248 })));
     expect(p).toHaveLength(MAX_PILLS);
     expect(p.map(x => x.id)).toContain('check-eggday');
-    expect(p[2].label).toBe('Exhaustive (around 4 ascensions)');
+    expect(p[2].label).toBe('Custom (around 4 ascensions)');
   });
 
   it('drops what is done', () => {

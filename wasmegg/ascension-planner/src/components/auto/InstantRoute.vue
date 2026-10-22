@@ -929,7 +929,7 @@
           class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
         >
           Not in the instant answer's routes: your {{ leftOut.join(', ') }}.
-          {{ deadline ? '' : 'They are the fastest without them; ' }}the exact times on your account include them.
+          {{ deadline ? 'The exact' : 'They are the fastest without them; the exact' }} times on your account include them.
         </p>
       </template>
 
