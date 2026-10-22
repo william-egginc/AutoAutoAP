@@ -72,7 +72,18 @@
       </p>
     </div>
     <!-- Not exclusive: with /all down, the runs /mine returned (hidden ones too) still list. -->
-    <p v-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
+    <p v-if="error" class="flex flex-wrap items-center gap-2 text-[11px] text-red-700 font-semibold" data-testid="board-error">
+      <span>{{ error }}</span>
+      <button
+        type="button"
+        class="min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[10px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50 disabled:opacity-40"
+        :disabled="loading"
+        data-testid="board-retry"
+        @click="load"
+      >
+        Retry
+      </button>
+    </p>
     <p v-if="loading && !allRows.length && !mineRows" class="text-[11px] text-indigo-900/60 py-6 text-center">
       Loading…
     </p>
@@ -266,7 +277,18 @@
         >
       </p>
 
-      <p v-else-if="error" class="text-[11px] text-red-700 font-semibold">Could not reach the collector: {{ error }}</p>
+      <p v-else-if="error" class="flex flex-wrap items-center gap-2 text-[11px] text-red-700 font-semibold" data-testid="board-error">
+        <span>{{ error }}</span>
+        <button
+          type="button"
+          class="min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[10px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50 disabled:opacity-40"
+          :disabled="loading"
+          data-testid="board-retry"
+          @click="load"
+        >
+          Retry
+        </button>
+      </p>
 
       <p v-else-if="loading && !allRows.length" class="text-[11px] text-indigo-900/60 py-6 text-center">Loading…</p>
 
@@ -970,7 +992,6 @@ import { onRowClick } from '@/lib/rowClick';
 import { COMPARE_VIEWS, DEFAULT_ROUTE, NAMES, hashFor, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';
-import { describeFetchError } from '@/utils/errors';
 import { computed, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1019,7 +1040,16 @@ import { saveTEOf } from '@/lib/saveFreshness';
 import { virtueInventory } from '@/search/csv';
 import { bestPerFamily, keepVirtueArtifacts } from '@/search/submission';
 import { existingOwnerToken } from '@/search/owner';
-import { fetchAllRows, fetchMineRows, lookAlikeFor, mergeMine, rememberAll } from '@/search/myBoardRows';
+import {
+  BoardReadError,
+  boardErrorText,
+  fetchAllRows,
+  fetchMineRows,
+  lookAlikeFor,
+  mergeMine,
+  rememberAll,
+  type BoardReadKind,
+} from '@/search/myBoardRows';
 import { csvFileName, fetchOwnCsv, setRunsHidden, type HideResult, type HideTarget } from '@/search/hideRuns';
 import {
   HIDE_CONTROL,
@@ -1059,6 +1089,9 @@ const emit = defineEmits<{
   /** My runs mode: every public row already loaded (your hidden ones left out), for "where you stand" on the
    *  Right now page (lib/standing.ts). Null until the first load is in. */
   board: [rows: BoardRow[] | null];
+  /** My runs mode: why the last /all read failed, or null when it answered (so "none yet" is never said for a
+   *  board that could not be read). */
+  failed: [kind: BoardReadKind | null];
 }>();
 const myRunsMode = computed(() => props.mode === 'myruns');
 
@@ -1072,6 +1105,9 @@ const TABS: Tab[] = COMPARE_VIEWS;
 /** How many rows an OLD collector's `GET /all` listed at most. The current one serves its whole
  *  snapshot, uncapped, and says so by carrying `builtAt`; only an answer without it is checked. */
 const ALL_CAP = 1000;
+/** How long one /all read waits (search/myBoardRows.ts `withBoardTimeout`): the whole board, a few MB on a slow
+ *  phone, so twice Light's 10 s. A collector that never answers used to leave the board on "loading" for good. */
+const ALL_TIMEOUT_MS = 20_000;
 /** "Near me" means a best plan that starts within this many TE of the loaded save. */
 const NEAR_TE = 20;
 
@@ -1102,6 +1138,9 @@ const loading = ref(false);
 /** The first load has answered (or failed): My runs folds an empty part only then. */
 const loadedOnce = ref(false);
 const error = ref('');
+/** Why the last load failed (null when it answered). */
+const failedKind = ref<BoardReadKind | null>(null);
+watch(failedKind, k => myRunsMode.value && emit('failed', k));
 /** True when the collector's list hit its cap, so some runs may be missing. */
 const capped = ref(false);
 /** The clock every "days left" is counted on. Set at each load, so the numbers agree with each other. */
@@ -1765,7 +1804,7 @@ async function fetchMine(): Promise<Row[] | null> {
  * board as it is now (the collector says `no-cache` too; this covers one that does not).
  */
 async function fetchAll(query: string): Promise<{ rows: Row[]; cut: boolean }> {
-  return fetchAllRows(root.value, query, { cap: ALL_CAP });
+  return fetchAllRows(root.value, query, { cap: ALL_CAP, timeoutMs: ALL_TIMEOUT_MS });
 }
 
 /**
@@ -1794,8 +1833,12 @@ async function load(): Promise<void> {
     // Light (StrongerCheck.vue) reads the viewer's runs from this for a minute (search/myBoardRows.ts).
     if (!cut) rememberAll(root.value, rows);
     now.value = Date.now();
+    failedKind.value = null;
   } catch (e) {
-    error.value = describeFetchError(e, 'the leaderboard');
+    // Plain words and a Retry, never the error itself (QA break-it #3, #4; the Words audit's R1).
+    console.error('The leaderboard did not load:', e);
+    failedKind.value = e instanceof BoardReadError ? e.kind : 'read';
+    error.value = boardErrorText(failedKind.value, myRunsMode.value ? 'myruns' : 'compare');
     allRows.value = [];
   } finally {
     mineRows.value = await mine;
