@@ -148,12 +148,13 @@ describe('on track', () => {
     const ahead = onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 38, 36, 37, 36] });
     expect(ahead.kind).toBe('ahead');
     expect((ahead as { hours: number }).hours).toBeCloseTo(2, 1);
+    // At T0 + 10 h the plan expected 191; 188 is behind by the time since the plan had its 189th TE (T0 + 6 h).
     const behind = onTrack(p, { seconds: T0 + 10 * H, teByEgg: [41, 38, 36, 37, 36] });
     expect(behind.kind).toBe('behind');
-    expect((behind as { hours: number }).hours).toBeCloseTo(-6, 1);
+    expect((behind as { hours: number }).hours).toBeCloseTo(-4, 1);
     expect(onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 37, 36, 37, 36] }).kind).toBe('on-schedule');
-    // The save's progress (planPace `progressOf`) when given: 187.6 at T0 + 2 h is 1.2 h ahead.
-    expect(onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 37, 36, 37, 36], progress: 187.6 }).kind).toBe('ahead');
+    // Whole TE only (22 Oct 2026): a fraction toward the next TE counts for nothing, so 187.6 is 187, on schedule.
+    expect(onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 37, 36, 37, 36], progress: 187.6 }).kind).toBe('on-schedule');
   });
 
   it('says plainly when it can’t tell, and compares leg by leg when it can only do that', () => {
@@ -178,7 +179,7 @@ describe('on track', () => {
     const ahead = onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 38, 36, 37, 36] });
     expect(trackWords(ahead, T0 + 3 * H, 'UTC')).toEqual({ tone: 'ok', text: '2 hours ahead, as of 7:46 pm' });
     const behind = onTrack(p, { seconds: T0 + 10 * H, teByEgg: [41, 38, 36, 37, 36] });
-    expect(trackWords(behind, T0 + 10 * H, 'UTC')).toEqual({ tone: 'bad', text: '6 hours behind, as of 3:46 am' });
+    expect(trackWords(behind, T0 + 10 * H, 'UTC')).toEqual({ tone: 'bad', text: '4 hours behind, as of 3:46 am' });
     expect(trackWords({ kind: 'cant', why: 'no-timeline' }, T0, 'UTC').text).toBe("Can't tell: saved without its timeline");
     expect(trackWords({ kind: 'same-save' }, T0, 'UTC').text).toBe('Made from your latest save');
   });

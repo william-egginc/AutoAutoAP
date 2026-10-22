@@ -535,17 +535,18 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   );
   const shownEvents = computed(() => tableEvents(events.value));
   const ascNow = computed(() => (cardPlan.value ? ascensionAt(cardPlan.value.plan, now.value) : 0));
-  const track = computed(() =>
-    cardPlan.value
-      ? onTrack(cardPlan.value.plan, {
-          seconds: saveSeconds.value,
-          teByEgg: teByEgg.value,
-          // Eggs delivered toward the next TE count too (lib/planPace.ts `progressOf`), as on My runs' saved plans.
-          progress: progressOf(raw.value, saveSeconds.value)?.progress,
-          onVirtue: onVirtue.value !== false,
-        })
-      : null
-  );
+  const track = computed(() => {
+    if (!cardPlan.value) return null;
+    // Whole TE only, and the egg the farm is on (lib/planPace.ts `progressOf`), as on My runs' saved plans.
+    const p = progressOf(raw.value, saveSeconds.value);
+    return onTrack(cardPlan.value.plan, {
+      seconds: saveSeconds.value,
+      teByEgg: teByEgg.value,
+      progress: p?.progress,
+      onVirtue: onVirtue.value !== false,
+      egg: p?.egg ?? null,
+    });
+  });
 
   // -------------------------------------------------------------------------------------- the gear
 

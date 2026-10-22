@@ -3,11 +3,12 @@ import type { LegSummary } from '@/search/types';
 import {
   FORECAST_WORDS,
   NO_SAVE_WORDS,
+  OTHER_EGG_WORDS,
   clockWords,
-  eggFraction,
   gapWords,
   paceLine,
   paceWords,
+  planEggAt,
   planPace,
   progressOf,
   type PaceLine,
@@ -68,7 +69,12 @@ const shiftLine = paceLine({
   planSave: PLAN_SAVE,
 }) as PaceLine;
 const roughLine = paceLine({ legs, planStart: T0, startTE: 186, planSave: PLAN_SAVE }) as PaceLine;
-const at = (seconds: number, progress: number, onVirtue = true) => ({ seconds, progress, onVirtue });
+const at = (seconds: number, progress: number, onVirtue = true, egg: string | null = null) => ({
+  seconds,
+  progress,
+  onVirtue,
+  egg,
+});
 const hoursOf = (s: PaceState) => (s as { hours: number }).hours;
 
 describe('the plan’s line', () => {
@@ -131,7 +137,7 @@ describe('the plan’s line', () => {
   });
 });
 
-describe('the save’s progress', () => {
+describe('the save’s progress: whole TE only', () => {
   const raw = (integrityDelivered: number, eggType = 51) => ({
     settings: { lastBackupTime: T0 + 2 * H },
     virtue: { eovEarned: [40, 37, 36, 37, 36], eggsDelivered: [0, integrityDelivered, 0, 0, 0] },
@@ -139,31 +145,48 @@ describe('the save’s progress', () => {
   });
   const thr = getThresholdForTE;
 
-  it('TE per egg plus the way to the next TE on the egg the farm is on', () => {
+  it('TE per egg (pending counted) and the egg the farm is on; no credit for the way to the next TE', () => {
     const half = thr(37) + (thr(38) - thr(37)) / 2;
-    expect(progressOf(raw(half), T0 + 2 * H)).toEqual({ seconds: T0 + 2 * H, progress: 186.5, onVirtue: true });
-    expect(eggFraction(half, 37)).toBeCloseTo(0.5, 6);
-    expect(eggFraction(half, 38)).toBe(0); // a claimed TE above its thresholds: nothing added
+    expect(progressOf(raw(half), T0 + 2 * H)).toEqual({
+      seconds: T0 + 2 * H,
+      progress: 186,
+      onVirtue: true,
+      egg: 'integrity',
+    });
     expect(progressOf(null, T0)).toBeNull();
   });
 
-  it('just short of a threshold and just past it are under a TE’s worth of time apart', () => {
-    // One egg is below a double's precision at these counts: a millionth of the way short.
-    const short = progressOf(raw(thr(38) - (thr(38) - thr(37)) * 1e-6), T0 + 2 * H)!;
-    const past = progressOf(raw(thr(38)), T0 + 2 * H)!;
-    expect(short.progress).toBeLessThan(187);
-    expect(short.progress).toBeGreaterThan(186.99);
-    expect(past.progress).toBe(187);
-    const a = hoursOf(planPace(shiftLine, short));
-    const b = hoursOf(planPace(shiftLine, past));
-    expect(Math.abs(a - b)).toBeLessThan(0.05); // a TE is 2 h of the plan here
+  it('just short of a threshold counts the TE below it; the threshold itself counts (pending)', () => {
+    expect(progressOf(raw(thr(38) - (thr(38) - thr(37)) * 0.01), T0 + 2 * H)!.progress).toBe(186); // 99% of the way
+    expect(progressOf(raw(thr(38)), T0 + 2 * H)!.progress).toBe(187);
   });
 
-  it('no virtue farm: no fraction, the same maths, and the detail says so', () => {
+  it('no virtue farm: no egg to check, the same maths, and the detail says so', () => {
     const p = progressOf(raw(thr(37) + 10, 1), T0 + 2 * H)!;
-    expect(p).toEqual({ seconds: T0 + 2 * H, progress: 186, onVirtue: false });
+    expect(p).toEqual({ seconds: T0 + 2 * H, progress: 186, onVirtue: false, egg: null });
     const w = paceWords(planPace(shiftLine, at(T0 + 4 * H, 188, false)), T0 + 5 * H, ZONE);
     expect(w.detail).toContain('Not on your virtue farm in this save.');
+  });
+});
+
+describe('the plan’s egg at a moment', () => {
+  it('the first shift’s egg it leaves, each shift’s egg, the end egg through the wait, the next leg’s start egg', () => {
+    expect(planEggAt(legs, T0 - H)).toBe('curiosity');
+    expect(planEggAt(legs, T0 + H)).toBe('curiosity');
+    expect(planEggAt(legs, T0 + 2 * H)).toBe('integrity');
+    expect(planEggAt(legs, T0 + 7 * H)).toBe('humility');
+    expect(planEggAt(legs, T0 + 10.5 * H)).toBe('humility'); // the wait before the prestige
+    expect(planEggAt(legs, T0 + 12 * H)).toBe('resilience');
+    expect(planEggAt(legs, T0 + 20 * H)).toBe('kindness');
+    expect(planEggAt(legs, T0 + 99 * H)).toBe('kindness');
+    expect(shiftLine.eggAt?.(T0 + 3 * H)).toBe('integrity');
+  });
+
+  it('the line counts whole TE: the egg being laid only gains a TE when it gets there', () => {
+    expect(shiftLine.teAt(T0 + 2.5 * H)).toBe(187); // Integrity 37.25 → 37
+    expect(shiftLine.teAt(T0 + 3.99 * H)).toBe(187);
+    expect(shiftLine.teAt(T0 + 4 * H)).toBe(188);
+    expect(roughLine.teAt(T0 + 4 * H)).toBe(187); // 186 → 190 over 10 h: 187.6 → 187
   });
 });
 
@@ -181,31 +204,37 @@ describe('ahead, behind, on schedule', () => {
     expect(planPace(shiftLine, at(T0 + 4 * H, 188.4)).kind).toBe('on-schedule'); // 0.8 h ahead
   });
 
-  it('3 hours ahead', () => {
-    const s = planPace(shiftLine, at(T0 + 2 * H, 188.5)); // the plan reaches 188.5 at +5 h
+  it('the same whole TE as the plan expects is on schedule, wherever the plan is inside that TE', () => {
+    // The plan has 187 from +2 h to +4 h.
+    expect(planPace(shiftLine, at(T0 + 2 * H, 187))).toMatchObject({ kind: 'on-schedule', hours: 0 });
+    expect(planPace(shiftLine, at(T0 + 3.9 * H, 187))).toMatchObject({ kind: 'on-schedule', hours: 0 });
+  });
+
+  it('3 hours ahead: the plan only gets the save’s TE 3 hours after the save', () => {
+    const s = planPace(shiftLine, at(T0 + 3 * H, 189)); // the plan has 187 at +3 h and gets 189 at +6 h
     expect(s.kind).toBe('ahead');
     expect(hoursOf(s)).toBeCloseTo(3, 2);
-    const w = paceWords(s, T0 + 3 * H, ZONE);
-    expect(w.text).toBe('3 hours ahead, as of 2:46 pm');
+    const w = paceWords(s, T0 + 3.5 * H, ZONE);
+    expect(w.text).toBe('3 hours ahead, as of 3:46 pm');
     expect(w.detail).toBe(
-      `Plan expected 187.0 TE by 2:46 pm; you had 188.5. Plan: ascension 1 of 2 by then · you: stop 0 of 2 reached. ${FORECAST_WORDS}`
+      `Plan expected 187 TE by 3:46 pm; you had 189. Plan: ascension 1 of 2 by then · you: stop 0 of 2 reached. ${FORECAST_WORDS}`
     );
   });
 
-  it('5 hours behind, with both ascension counts', () => {
-    const s = planPace(shiftLine, at(T0 + 11 * H, 189)); // the plan had 189 at +6 h
+  it('5 hours behind: the plan had the save’s next TE 5 hours before the save, with both ascension counts', () => {
+    const s = planPace(shiftLine, at(T0 + 11 * H, 188)); // the plan had 189 at +6 h
     expect(s.kind).toBe('behind');
     expect(hoursOf(s)).toBeCloseTo(-5, 2);
     const w = paceWords(s, T0 + 11.1 * H, ZONE);
     expect(w).toMatchObject({ badge: '5 hours behind', asOf: 'as of 11:46 pm', tone: 'bad' });
-    expect(w.detail).toContain('Plan expected 191.0 TE by 11:46 pm; you had 189.0.');
+    expect(w.detail).toContain('Plan expected 191 TE by 11:46 pm; you had 188.');
     expect(w.detail).toContain('Plan: ascension 2 of 2 by then · you: stop 0 of 2 reached.');
   });
 
   it('past the plan’s end and short of its goal: still behind, in days from 48 hours', () => {
-    const s = planPace(shiftLine, at(T0 + 78 * H, 189));
+    const s = planPace(shiftLine, at(T0 + 78 * H, 189)); // the plan had 190 at +8 h
     expect(s.kind).toBe('behind');
-    expect(hoursOf(s)).toBeCloseTo(-72, 2);
+    expect(hoursOf(s)).toBeCloseTo(-70, 2);
     const w = paceWords(s, T0 + 79 * H, ZONE);
     expect(w.text).toBe('3 days behind, as of 6:46 pm');
   });
@@ -283,7 +312,7 @@ describe('the words for every other case', () => {
   });
 
   it('not the route followed for its goal: greyed, and the detail says so', () => {
-    const w = paceWords(planPace(shiftLine, at(T0 + 11 * H, 189)), T0 + 12 * H, ZONE, { followed: false });
+    const w = paceWords(planPace(shiftLine, at(T0 + 11 * H, 188)), T0 + 12 * H, ZONE, { followed: false });
     expect(w.greyed).toBe(true);
     expect(w.badge).toBe('5 hours behind');
     expect(w.detail.startsWith('This is not the route you follow for its goal.')).toBe(true);
@@ -295,5 +324,104 @@ describe('the words for every other case', () => {
     expect(gapWords(47.4)).toBe('47 hours');
     expect(gapWords(48)).toBe('2 days');
     expect(gapWords(-72.2)).toBe('3 days');
+  });
+});
+
+// My runs review, 22 Oct 2026 (bug 1): the alt save on Humility with 34 TE there, nearly at its 35th, and a plan
+// from that save whose first action is the shift to Curiosity at 8:03 pm. Curiosity then takes days per TE, so a
+// fraction counted on the save's side (and dropped by the plan when it leaves Humility) read "3 days ahead" for the
+// same save stamped 8 h later, and more with 20 h of laying added.
+describe('the review’s repro: a plan that leaves the save’s egg (whole TE, no fraction)', () => {
+  const DENVER = 'America/Denver';
+  const S = Date.UTC(2026, 9, 19, 0, 33) / 1000; // the save: Oct 18, 2026 at 6:33 pm in Denver
+  const D = 24 * H;
+  const start = [30, 28, 34, 26, 24]; // 142 TE: Curiosity, Integrity, Humility, Resilience, Kindness
+  const plan = [
+    leg(
+      S,
+      S + 50 * D,
+      165,
+      [
+        { at: S + 1.5 * H, egg: 'curiosity', fromEgg: 'humility', te: 34 }, // 8:03 pm
+        { at: S + 20 * D, egg: 'integrity', fromEgg: 'curiosity', te: 36 },
+        { at: S + 35 * D, egg: 'resilience', fromEgg: 'integrity', te: 35 },
+        { at: S + 45 * D, egg: 'kindness', fromEgg: 'resilience', te: 32 },
+      ],
+      { egg: 'kindness', te: 28 }
+    ),
+  ];
+  const line = paceLine({ legs: plan, planStart: S, startTEByEgg: start, planSave: S }) as PaceLine;
+  const thr = getThresholdForTE;
+  /** The alt save: Humility `fraction` of the way from its 34th TE to its 35th, stamped at `seconds`. */
+  const save = (fraction: number) => ({
+    virtue: {
+      eovEarned: start,
+      eggsDelivered: [0, 0, thr(34) + (thr(35) - thr(34)) * fraction, 0, 0],
+    },
+    farms: [{ eggType: 52 }],
+  });
+  const fresh = (seconds: number, fraction = 0.9) => progressOf(save(fraction), seconds)!;
+
+  it('the plan has left Humility for Curiosity at 8:03 pm', () => {
+    expect(line.rough).toBe(false);
+    expect(line.eggAt?.(S + H)).toBe('humility');
+    expect(line.eggAt?.(S + 1.5 * H)).toBe('curiosity');
+    expect(line.teAt(S + 8 * H)).toBe(142);
+  });
+
+  it('the same save stamped 8 h later, no progress: never ahead; can’t compare, the save is on another egg', () => {
+    const s = planPace(line, fresh(S + 8 * H));
+    expect(s.kind).not.toBe('ahead');
+    expect(s).toEqual({ kind: 'cant', why: 'other-egg', saveEgg: 'humility', planEgg: 'curiosity', saveTime: S + 8 * H });
+    const w = paceWords(s, S + 9 * H, DENVER);
+    expect(w.badge).toBe("Can't compare right now: your save is on a different egg than the plan expects.");
+    expect(w.text).toBe(OTHER_EGG_WORDS);
+    expect(w.tone).toBe('warn');
+    expect(w.detail).toBe('Your save is on Humility; at 2:33 am the plan has you on Curiosity.');
+    // Without the egg (not known), whole TE against whole TE: 142 and 142, not ahead.
+    const blind = planPace(line, { ...fresh(S + 8 * H), egg: null });
+    expect(blind.kind).toBe('on-schedule');
+    expect(paceWords(blind, S + 9 * H, DENVER).detail).toContain('Plan expected 142 TE by 2:33 am; you had 142.');
+  });
+
+  it('with 20 h of Humility laying added: not "5 days ahead" (nor any days ahead)', () => {
+    for (const fraction of [0.99, 1.2]) {
+      // 0.99: still 34 on Humility; 1.2: past its 35th (143 TE).
+      for (const later of [3, 8]) {
+        const s = planPace(line, fresh(S + later * H, fraction));
+        expect(s.kind).not.toBe('ahead');
+        expect(s).toMatchObject({ kind: 'cant', why: 'other-egg' });
+      }
+    }
+    // Still on Humility within the plan's first 1.5 h (the plan is on it too): the TE gained there is ahead.
+    const early = planPace(line, fresh(S + H, 1.2));
+    expect(early.kind).toBe('ahead');
+  });
+
+  it('on Curiosity as the plan expects, with the same TE: on schedule, not ahead', () => {
+    const p = { ...fresh(S + 8 * H), egg: 'curiosity' };
+    expect(planPace(line, p)).toMatchObject({ kind: 'on-schedule', expected: 142, actual: 142 });
+  });
+
+  it('property: for a fixed plan and a save with no progress, a later save time is never more ahead', () => {
+    // A score per result: hours (positive ahead) for a comparison; nothing for "can't compare" or the plan's own save.
+    const score = (st: PaceState): number | null =>
+      st.kind === 'ahead' || st.kind === 'behind' || st.kind === 'on-schedule' ? st.hours : null;
+    const lines = [line, shiftLine, roughLine];
+    for (const l of lines) {
+      for (const egg of [null, ...['curiosity', 'integrity', 'humility', 'resilience', 'kindness']]) {
+        for (let W = Math.floor(l.startTE); W < l.goalTE; W++) {
+          let last = Infinity;
+          const span = l.end - l.start;
+          for (let k = 0; k <= 400; k++) {
+            const t = l.start + (span * 1.3 * k) / 400 + 1;
+            const x = score(planPace(l, { seconds: t, progress: W, onVirtue: true, egg }));
+            if (x === null) continue;
+            expect(x).toBeLessThanOrEqual(last + 1e-6);
+            last = x;
+          }
+        }
+      }
+    }
   });
 });

@@ -110,7 +110,7 @@ describe('the lines from saved entries', () => {
 
 describe('PaceBadge', () => {
   it('the pill and its time; the detail opens on a tap (aria-expanded)', async () => {
-    const w = words(T0 + 11 * H, 189);
+    const w = words(T0 + 11 * H, 188); // the plan had its 189th TE at +6 h
     const shut = await renderHtml(PaceBadge, { words: w });
     expect(textOf(shut)).toBe('5 hours behind as of 11:46 pm');
     expect(shut).toContain('aria-expanded="false"');
@@ -118,11 +118,11 @@ describe('PaceBadge', () => {
     expect(shut).toContain('min-h-[44px]');
     const opened = await renderHtml(PaceBadge, { words: w, startOpen: true });
     expect(opened).toContain('aria-expanded="true"');
-    expect(textOf(opened)).toContain('Plan expected 191.0 TE by 11:46 pm; you had 189.0.');
+    expect(textOf(opened)).toContain('Plan expected 191 TE by 11:46 pm; you had 188.');
   });
 
   it('greyed when another route is followed for its goal', async () => {
-    const html = await renderHtml(PaceBadge, { words: words(T0 + 11 * H, 189, false) });
+    const html = await renderHtml(PaceBadge, { words: words(T0 + 11 * H, 188, false) });
     expect(html).toContain('data-greyed="true"');
     expect(html).toContain('opacity-60');
     expect(html).toContain('data-tone="plain"');

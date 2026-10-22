@@ -394,12 +394,13 @@ export type TrackState = PaceState;
 /**
  * Is the loaded save ahead of or behind the plan? A thin wrapper over lib/planPace.ts: the plan's line from its
  * exact legs (shift by shift with `meta.teByEgg`, else leg by leg), or from the instant answer's table legs (leg by
- * leg, "(estimate)"); the plan's own save is `meta.backupTime`. `progress`: the save's progress (planPace
- * `progressOf`); without it the TE per egg summed.
+ * leg, "(estimate)"); the plan's own save is `meta.backupTime`. `progress`: the save's whole TE (planPace
+ * `progressOf`); without it the TE per egg summed. `egg`: the egg the save's farm is on (another egg than the plan's
+ * then: "Can't compare right now").
  */
 export function onTrack(
   plan: NowPlan,
-  save: { seconds: number; teByEgg: readonly number[]; progress?: number; onVirtue?: boolean }
+  save: { seconds: number; teByEgg: readonly number[]; progress?: number; onVirtue?: boolean; egg?: string | null }
 ): TrackState {
   const legs = plan.legs ? plan.legs.slice(0, plan.chain.length) : null;
   const tableLegs =
@@ -419,6 +420,7 @@ export function onTrack(
     seconds: save.seconds,
     progress: save.progress ?? save.teByEgg.reduce((a, b) => a + b, 0),
     onVirtue: save.onVirtue ?? true,
+    egg: save.egg ?? null,
   });
 }
 
