@@ -25,16 +25,17 @@
  * that shows one.
  */
 import {
+  deadlineFinish,
   deadlineSpare,
   finishMs,
   foldCopies,
   formatDate,
   isDeadlineRow,
-  madeDeadline,
   sentMs,
   type BoardRow,
 } from './leaderboardRank';
 import { compareBest, lastSentMs, runKind, type RunKind } from './myRuns';
+import { lateMarker, nearestLate, noRouteInTimeWords, splitOnTime, type DeadlineKind } from './eggDayRule';
 import { parseWindow } from './planFilters';
 import { hoursWords, timeOffWords } from './pricedWith';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -282,6 +283,43 @@ function cardLine(lines: DashLine[], eggDayAt: number): DashLine | null {
   return sorted[0] ?? null;
 }
 
+/**
+ * The Egg Day rule (lib/eggDayRule.ts) on board lines: each line's last ascension against its OWN date (seconds
+ * after it; 0 or less counts), so lines of one goal split into the ones in time and the late ones.
+ */
+const lineLate = (l: DashLine): number => deadlineFinish(l.row) - (l.row.deadline as number);
+/** A saved answer's last ascension against its date (`spare` is counted back from the date). */
+const savedLate = (a: DashLocal['answers'][number]): number => -(a.spare ?? 0);
+
+/** A goal with nothing in time: the plain words and the nearest late route, marked (never the card's answer). */
+function lateCard(
+  id: CardId,
+  title: string,
+  kind: DeadlineKind,
+  late: { lines: DashLine[]; saved: DashLocal['answers'] },
+  action: DashAction
+): DashCard {
+  const near = nearestLate(
+    [
+      ...late.lines.map(l => ({ late: lineLate(l), te: l.row.finalTE, chain: l.row.chain })),
+      ...late.saved.map(a => ({ late: savedLate(a), te: last(a.chain), chain: a.chain ?? [] })),
+    ],
+    x => x.late,
+    0
+  );
+  return {
+    id,
+    title,
+    main: 'None in time',
+    lines: [
+      noRouteInTimeWords(kind, near?.seconds ?? null),
+      ...(near ? [`${near.item.te} TE · ${near.item.chain.join(' ')} · ${lateMarker(kind)}`] : []),
+    ],
+    empty: true,
+    action: { label: 'Find it', to: action },
+  };
+}
+
 export function buildCards(input: DashInput): DashCard[] {
   const { now, eggDayAt, eggDayYear, zone } = input;
   const lines = dashLines(input.rows ?? []);
@@ -289,29 +327,30 @@ export function buildCards(input: DashInput): DashCard[] {
   const loading = input.rows == null;
   const cards: DashCard[] = [];
 
-  // Egg Day: the best sent answer (one that makes the date first), else the best saved one.
-  const egg = cardLine(
+  // Egg Day: the best sent answer in time, else the best saved one in time (lib/eggDayRule.ts: a route that lands
+  // after Egg Day starts never heads the card); with only late ones, "No route finishes before Egg Day starts".
+  const eggSplit = splitOnTime(
     lines.filter(l => kindOf(l) === 'eggday'),
-    eggDayAt
+    lineLate,
+    0
+  );
+  const egg = cardLine(eggSplit.onTime, eggDayAt);
+  const savedSplit = splitOnTime(
+    input.local.answers.filter(a => a.deadline === eggDayAt && a.chain?.length),
+    savedLate,
+    0
   );
   const eggTitle = `Egg Day ${eggDayYear}`;
   if (egg) {
-    const made = madeDeadline(egg.row);
     cards.push({
       id: 'eggday',
       title: eggTitle,
-      main: made ? `${egg.row.finalTE} TE` : `${egg.row.finalTE} TE, misses the date`,
-      lines: [
-        ...(made ? [`${spareText(deadlineSpare(egg.row))} spare`] : []),
-        egg.row.chain.join(' '),
-        sentLine(egg, zone, now),
-      ],
+      main: `${egg.row.finalTE} TE`,
+      lines: [`${spareText(deadlineSpare(egg.row))} spare`, egg.row.chain.join(' '), sentLine(egg, zone, now)],
       ...(egg.maybe ? { maybe: true } : {}),
     });
   } else {
-    const saved = input.local.answers
-      .filter(a => a.deadline === eggDayAt && a.chain?.length)
-      .sort((a, b) => last(b.chain) - last(a.chain) || (b.spare ?? 0) - (a.spare ?? 0))[0];
+    const saved = savedSplit.onTime.sort((a, b) => last(b.chain) - last(a.chain) || (b.spare ?? 0) - (a.spare ?? 0))[0];
     if (saved?.chain)
       cards.push({
         id: 'eggday',
@@ -323,6 +362,8 @@ export function buildCards(input: DashInput): DashCard[] {
           'saved, not sent',
         ],
       });
+    else if (eggSplit.late.length || savedSplit.late.length)
+      cards.push(lateCard('eggday', eggTitle, 'eggday', { lines: eggSplit.late, saved: savedSplit.late }, eggDayAction(eggDayAt)));
     else
       cards.push({
         id: 'eggday',
@@ -364,25 +405,31 @@ export function buildCards(input: DashInput): DashCard[] {
   // The soonest other date still ahead: its best answer.
   const ahead = lines.filter(l => kindOf(l) === 'dates' && (l.row.deadline as number) * 1000 > now);
   const soonest = ahead.length ? Math.min(...ahead.map(l => l.row.deadline as number)) : null;
-  const date =
-    soonest != null
-      ? cardLine(
-          ahead.filter(l => l.row.deadline === soonest),
-          eggDayAt
-        )
-      : null;
+  // Its best in time only (lib/eggDayRule.ts); with only late ones, "No route finishes before your date".
+  const dateSplit = splitOnTime(
+    soonest != null ? ahead.filter(l => l.row.deadline === soonest) : [],
+    lineLate,
+    0
+  );
+  const date = cardLine(dateSplit.onTime, eggDayAt);
   if (date) {
     cards.push({
       id: 'date',
       title: goalName(date.row, eggDayAt, eggDayYear, zone, now),
-      main: madeDeadline(date.row) ? `${date.row.finalTE} TE` : `${date.row.finalTE} TE, misses the date`,
-      lines: [
-        ...(madeDeadline(date.row) ? [`${spareText(deadlineSpare(date.row))} spare`] : []),
-        date.row.chain.join(' '),
-        sentLine(date, zone, now),
-      ],
+      main: `${date.row.finalTE} TE`,
+      lines: [`${spareText(deadlineSpare(date.row))} spare`, date.row.chain.join(' '), sentLine(date, zone, now)],
       ...(date.maybe ? { maybe: true } : {}),
     });
+  } else if (dateSplit.late.length) {
+    const row = dateSplit.late[0].row;
+    cards.push(
+      lateCard('date', goalName(row, eggDayAt, eggDayYear, zone, now), 'date', { lines: dateSplit.late, saved: [] }, {
+        to: 'by-date',
+        deadline: row.deadline as number,
+        eggDay: false,
+        tab: 'nearby',
+      })
+    );
   } else {
     cards.push({
       id: 'date',
@@ -485,18 +532,32 @@ export function buildSteps(input: DashInput): DashSteps {
   const noRuns = !loading && !lines.length && !answers.length && !runs.length && !pending.length;
   const steps: DashStep[] = [];
 
-  // 1. No Egg Day run: none on the board (sure or not), saved or waiting to send.
+  // 1. No Egg Day run IN TIME: none on the board (sure or not), saved or waiting to send. A run that lands after Egg
+  //    Day starts doesn't count (lib/eggDayRule.ts): with only such runs, the step says so.
   if (!loading) {
-    const hasEgg =
-      lines.some(l => runKind(l.row, eggDayAt) === 'eggday') ||
-      answers.some(a => a.deadline === eggDayAt) ||
-      pending.some(p => p.deadline === eggDayAt);
+    const eggLines = splitOnTime(
+      lines.filter(l => runKind(l.row, eggDayAt) === 'eggday'),
+      lineLate,
+      0
+    );
+    const eggSaved = splitOnTime(
+      answers.filter(a => a.deadline === eggDayAt),
+      savedLate,
+      0
+    );
+    const hasEgg = eggLines.onTime.length > 0 || eggSaved.onTime.length > 0 || pending.some(p => p.deadline === eggDayAt);
+    const lateOnly = eggLines.late.length + eggSaved.late.length > 0;
     if (!hasEgg)
       steps.push({
         id: 'eggday',
         kinds: ['eggday'],
-        text: `No Egg Day ${eggDayYear} run yet`,
-        reason: 'Nothing sent, saved or waiting to send for 14 July, 9 am Pacific.',
+        text: lateOnly ? `No Egg Day ${eggDayYear} run finishes before Egg Day starts` : `No Egg Day ${eggDayYear} run yet`,
+        reason: lateOnly
+          ? noRouteInTimeWords(
+              'eggday',
+              nearestLate([...eggLines.late.map(lineLate), ...eggSaved.late.map(savedLate)], x => x, 0)?.seconds ?? null
+            )
+          : 'Nothing sent, saved or waiting to send for 14 July, 9 am Pacific.',
         button: 'Find my Egg Day answer',
         action: eggDayAction(eggDayAt),
       });

@@ -33,7 +33,8 @@ const plan = (goal: 'fastest' | 'date', at: number, chain: number[], o: Partial<
   goal,
   deadline: goal === 'date' ? EGG_DAY.at : null,
   chain,
-  end: Date.UTC(2028, 8, 22) / 1000,
+  // By a date: 10 h before Egg Day starts (a plan after it is never the pick, lib/eggDayRule.ts).
+  end: goal === 'date' ? EGG_DAY.at - 10 * 3600 : Date.UTC(2028, 8, 22) / 1000,
   endTE: chain[chain.length - 1],
   legs: null,
   tableLegs: null,

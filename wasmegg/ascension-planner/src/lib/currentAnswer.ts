@@ -5,6 +5,8 @@
  * Fastest tile the 11:51 pm one (any hour, 7 ascensions, sooner), and read it as "same save, two answers".
  *
  * The rule, in order:
+ *   0. By a date (Egg Day too): only an answer whose last TE counts by the date (lib/eggDayRule.ts, Jordan 22 Oct
+ *      2026); a late one is never the pick, whatever it reaches;
  *   1. an answer of the loaded save (or of one at most CURRENT_SAVE_SECONDS older, fix 21) before any other;
  *   2. an answer priced with the CURRENT setup (hours and time off as Your setup has them now) before one priced
  *      with other hours or with hours not recorded, EVEN IF that one finishes sooner;
@@ -27,6 +29,7 @@ import { describeAvailability, isConstrained, type Availability } from '@/search
 import { usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { hoursShort, pricedWithLine, timeOffWords } from './pricedWith';
 import { parseWindow } from './planFilters';
+import { finishesBefore } from './eggDayRule';
 import type { NowPlan } from './nowPlan';
 
 /** Two save times this close are the same save. */
@@ -251,8 +254,23 @@ export function newestPlanAt(list: readonly CardCandidate[], loadedSave: number)
   return Math.max(0, ...(current.length ? current : list).map(c => c.plan.calculatedAt));
 }
 
-/** One goal's plan: the same rule as the tiles (`compareAnswers`), its state and its secondary line. */
-export function pickGoalPlan(list: readonly CardCandidate[], loadedSave: number): CardPick | null {
+/** When a plan's last TE counts: its time on the account when Check exactly found it late (`accountEnd`), else its end. */
+export function planFinish(p: Pick<NowPlan, 'end' | 'accountEnd'>): number {
+  return p.accountEnd ?? p.end;
+}
+
+/** A By a date plan that counts for its date (lib/eggDayRule.ts); a Fastest plan always does. */
+export function planInTime(p: Pick<NowPlan, 'goal' | 'deadline' | 'end' | 'accountEnd'>): boolean {
+  return p.goal !== 'date' || p.deadline == null || finishesBefore(planFinish(p), p.deadline);
+}
+
+/**
+ * One goal's plan: the same rule as the tiles (`compareAnswers`), its state and its secondary line. By a date (Egg
+ * Day too) only a plan in time can be the pick (lib/eggDayRule.ts): null when every plan lands late. `anyTime`: the
+ * player's own followed route (lib/followPrice.ts), priced late or not and marked so on the card.
+ */
+export function pickGoalPlan(all: readonly CardCandidate[], loadedSave: number, opts: { anyTime?: boolean } = {}): CardPick | null {
+  const list = opts.anyTime ? all : all.filter(c => planInTime(c.plan));
   if (!list.length) return null;
   const r = new Map(list.map(c => [c, rankableOf(c, loadedSave)]));
   const sorted = [...list].sort((a, b) => compareAnswers(a.plan.goal)(r.get(a)!, r.get(b)!));
@@ -282,10 +300,11 @@ export function pickCardPlan(list: readonly CardCandidate[], loadedSave: number)
   if (!list.length) return null;
   const groups = new Map<number, CardCandidate[]>();
   for (const c of list) groups.set(c.goalIndex, [...(groups.get(c.goalIndex) ?? []), c]);
-  const goals = [...groups.entries()].map(([order, g]) => {
-    const pick = pickGoalPlan(g, loadedSave)!;
-    return { pick, o: { tier: cardTier(pick.candidate, loadedSave), lastAt: newestPlanAt(g, loadedSave), order } };
+  const goals = [...groups.entries()].flatMap(([order, g]) => {
+    const pick = pickGoalPlan(g, loadedSave);
+    return pick ? [{ pick, o: { tier: cardTier(pick.candidate, loadedSave), lastAt: newestPlanAt(g, loadedSave), order } }] : [];
   });
+  if (!goals.length) return null;
   goals.sort((a, b) => compareGoals(a.o, b.o));
   return goals[0].pick;
 }

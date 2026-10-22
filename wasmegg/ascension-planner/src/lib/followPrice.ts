@@ -107,7 +107,8 @@ export function followPrice(o: {
     if (!plan) continue;
     hits.push({ plan, goalIndex: o.goalIndex ?? 0, goalKey: o.goalKey, ownKey: s.ownKey, check: s.check });
   }
-  const pick = pickGoalPlan(hits, o.loadedSave);
+  // The player's own pick: priced even when it lands after the date (the card marks it, lib/eggDayRule.ts).
+  const pick = pickGoalPlan(hits, o.loadedSave, { anyTime: true });
   if (pick) return { priced: 'exact', source: pick.state, plan: pick.candidate.plan, candidate: pick.candidate };
 
   const sameGoal = (h: FollowHistory) =>

@@ -14,7 +14,8 @@
  * the one checked LAST: goals with a plan first, by their plan's tier (current save, current setup), then the
  * newest calculated time of the goal's plans and answers of the loaded save, then the list order. Pure.
  */
-import { compareGoals, cardTier, isCurrentSave, newestPlanAt, pickGoalPlan, type CardCandidate, type CardPick } from './currentAnswer';
+import { compareGoals, cardTier, isCurrentSave, newestPlanAt, pickGoalPlan, planFinish, type CardCandidate, type CardPick } from './currentAnswer';
+import { lateRoutes, nearestLate } from './eggDayRule';
 import type { MyRunsOpen } from './myRunsDashboard';
 
 export type GoalKey = string;
@@ -53,6 +54,26 @@ export interface GoalPlans {
   answerOnly: boolean;
   /** When the goal was last checked, ms: the newest of its plans and answers of the loaded save; 0 when never. */
   lastAt: number;
+  /** By a date (Egg Day too): no plan in time, but plans that land after the date are kept (lib/eggDayRule.ts):
+   *  how many, the nearest's route and how late it lands (seconds; null when not timed). Null otherwise. */
+  late?: GoalLate | null;
+}
+
+/** The late plans of a goal that has none in time. */
+export interface GoalLate {
+  count: number;
+  /** The nearest late plan's route, null when none is timed. */
+  chain: number[] | null;
+  seconds: number | null;
+}
+
+/** A goal's late plans when none is in time (`GoalPlans.late`), by lib/eggDayRule.ts; null with a pick or none late. */
+export function goalLate(g: Pick<PlanGoal, 'deadline'>, mine: readonly CardCandidate[], pick: CardPick | null): GoalLate | null {
+  if (pick || g.deadline == null) return null;
+  const late = lateRoutes(mine, c => planFinish(c.plan), g.deadline);
+  if (!late.length) return null;
+  const near = nearestLate(late, c => planFinish(c.plan), g.deadline);
+  return { count: late.length, chain: near ? [...near.item.plan.chain] : null, seconds: near ? near.seconds : null };
 }
 
 export function goalKeyOf(goal: 'fastest' | 'date', target: number, deadline: number | null, eggDay: { year: number; at: number }): GoalKey {
@@ -127,13 +148,21 @@ export function plansByGoal(
   const out: GoalPlans[] = [];
   for (const g of goals) {
     const mine = candidates.filter(c => c.goalKey === g.key && c.plan.goal === g.goal);
+    // By a date only a plan in time is the pick (lib/eggDayRule.ts); the late ones are said, never picked.
     const pick = pickGoalPlan(mine, loadedSave);
-    if (!pick && g.optional && !keep.has(g.key)) continue;
+    const late = goalLate(g, mine, pick);
+    if (!pick && !late && g.optional && !keep.has(g.key)) continue;
     const said = answers.filter(a => a.goalKey === g.key);
     const saidHere = said.filter(a => isCurrentSave(a.saveSeconds, loadedSave, a.ownKey)).map(a => a.calculatedAt);
     const planAt = mine.length ? newestPlanAt(mine, loadedSave) : 0;
     // A plan of an older save only counts when the goal has nothing of the loaded save (`newestPlanAt`).
-    out.push({ goal: g, pick, answerOnly: !pick && said.length > 0, lastAt: Math.max(planAt, 0, ...saidHere) });
+    out.push({
+      goal: g,
+      pick,
+      answerOnly: !pick && !late && said.length > 0,
+      lastAt: Math.max(planAt, 0, ...saidHere),
+      ...(late ? { late } : {}),
+    });
   }
   return out;
 }
@@ -176,8 +205,11 @@ export interface GoalOption {
   label: string;
   name: string;
   deadline: number | null;
-  /** 'plan': a saved plan with its times; 'answer-only': an answer kept without them; 'none': nothing yet. */
-  state: 'plan' | 'answer-only' | 'none';
+  /** 'plan': a saved plan with its times; 'late': plans kept, every one landing after the date (lib/eggDayRule.ts);
+   *  'answer-only': an answer kept without them; 'none': nothing yet. */
+  state: 'plan' | 'late' | 'answer-only' | 'none';
+  /** State 'late': the nearest late plan (`GoalPlans.late`). */
+  late?: GoalLate;
   /** The plan's calculated time, ms. */
   calculatedAt: number | null;
   /** "Work it out ›": the goal's screen. */
@@ -193,13 +225,16 @@ export function goalOptions(list: readonly GoalPlans[], zone: string): GoalOptio
     label: p.goal.label,
     name: p.goal.name,
     deadline: p.goal.deadline,
-    state: p.pick ? 'plan' : p.answerOnly ? 'answer-only' : 'none',
+    state: p.pick ? 'plan' : p.late ? 'late' : p.answerOnly ? 'answer-only' : 'none',
     calculatedAt: p.pick ? p.pick.candidate.plan.calculatedAt : null,
     open: goalOpen(p.goal, zone),
+    ...(!p.pick && p.late ? { late: p.late } : {}),
   }));
 }
 
-/** An empty option's words: "no saved plan for this goal yet", "no saved plan with its times for this goal yet". */
+/** An empty option's words: "no saved plan for this goal yet", "no saved plan with its times for this goal yet",
+ *  "no saved plan in time for this goal" (state 'late': RightNowCard says which, lib/eggDayRule.ts). */
 export function emptyGoalWords(state: GoalOption['state']): string {
+  if (state === 'late') return 'no saved plan in time for this goal';
   return state === 'answer-only' ? 'no saved plan with its times for this goal yet' : 'no saved plan for this goal yet';
 }

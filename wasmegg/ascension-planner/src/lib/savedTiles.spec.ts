@@ -99,7 +99,8 @@ describe('saved-answer tiles', () => {
             mode: 'date',
             deadline: DEADLINE,
             instant: { chain: [200, 248], end: DEADLINE - 7200, endTE: 248 },
-            exact: null,
+            // By a date a finished check always has its exact answer in time (exact null: none in time, eggDayRule).
+            exact: { chain: [200, 248], end: DEADLINE - 7200, endTE: 248 },
             shared: false,
             sig: 's',
           },

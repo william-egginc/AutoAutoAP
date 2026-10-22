@@ -374,7 +374,7 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
 const pills = computed(() => tryNextPills(page.fastestTile.value, page.eggDayTile.value));
-/** "One more TE by Egg Day … would come …, after the deadline, so it isn't counted.": saved legs only, the laid
+/** "One more TE by Egg Day … would come …, after Egg Day starts, so it isn’t counted.": saved legs only, the laid
  *  egg's next TE (lib/tryNext.ts `oneMoreLine`, from endEggsOf's `next`). */
 const oneMore = computed(() => {
   const card = page.cardPlan.value;

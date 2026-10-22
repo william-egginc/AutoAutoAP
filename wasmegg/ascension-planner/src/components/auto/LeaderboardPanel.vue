@@ -476,7 +476,7 @@
                         >
                           Use
                         </button>
-                        <FollowButton class="ml-1" :chain="e.best.row.chain" :goal-key="boardGoalKey(e.best.row)" from="board" />
+                        <FollowButton v-if="followableRow(e.best.row)" class="ml-1" :chain="e.best.row.chain" :goal-key="boardGoalKey(e.best.row)" from="board" />
                       </td>
                     </tr>
                     <tr v-if="openPlayers[e.key]" class="bg-white/70">
@@ -947,7 +947,7 @@
                       >
                         Use
                       </button>
-                      <FollowButton class="ml-1" :chain="line.row.chain" :goal-key="boardGoalKey(line.row)" from="board" />
+                      <FollowButton v-if="followableRow(line.row)" class="ml-1" :chain="line.row.chain" :goal-key="boardGoalKey(line.row)" from="board" />
                     </td>
                   </tr>
                   <tr v-if="open === line.key" class="bg-slate-50">
@@ -986,7 +986,7 @@
 
 <script setup lang="ts">
 import FollowButton from '../FollowButton.vue';
-import { boardGoalKey } from '@/lib/follow';
+import { boardGoalKey, followableRow } from '@/lib/follow';
 import { plural } from '@/lib/format';
 import { onRowClick } from '@/lib/rowClick';
 import { COMPARE_VIEWS, DEFAULT_ROUTE, NAMES, hashFor, type CompareView } from '@/lib/siteNav';

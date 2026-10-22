@@ -146,7 +146,7 @@
                 >
                   Use
                 </button>
-                <FollowButton class="ml-1" :chain="l.row.chain" :goal-key="boardGoalKey(l.row)" from="board" />
+                <FollowButton v-if="followableRow(l.row)" class="ml-1" :chain="l.row.chain" :goal-key="boardGoalKey(l.row)" from="board" />
               </td>
             </tr>
             <tr v-if="open === l.key" class="bg-slate-50">
@@ -164,7 +164,8 @@
 
 <script setup lang="ts">
 import FollowButton from '../FollowButton.vue';
-import { boardGoalKey } from '@/lib/follow';
+import { boardGoalKey, followableRow } from '@/lib/follow';
+import { lateMarker } from '@/lib/eggDayRule';
 import { computed, inject, ref } from 'vue';
 import {
   contentFingerprint,
@@ -289,7 +290,8 @@ function spareText(seconds: number): string {
 /** A date answer: the TE reached and the time to spare. A race run: when it finishes. */
 function resultText(l: Line): string {
   if (l.kind === 'race') return `finishes ${finishDateText(finishMs(l.row), props.viewZone)}`;
-  if (!madeDeadline(l.row)) return `${l.row.finalTE} TE, misses the date`;
+  // Shown, marked, never followed (lib/eggDayRule.ts): "after Egg Day starts", "after your date".
+  if (!madeDeadline(l.row)) return `${l.row.finalTE} TE, ${lateMarker(l.kind === 'eggday' ? 'eggday' : 'date')}`;
   return `${l.row.finalTE} TE, ${spareText(deadlineSpare(l.row))} spare`;
 }
 

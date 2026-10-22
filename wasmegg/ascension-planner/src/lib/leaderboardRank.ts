@@ -86,6 +86,7 @@
  */
 
 import { FIRST_ASCENSION_WORDS, readFirstAscensionOrNull, type FirstAscension } from '@/search/firstAscension';
+import { finishesBefore } from './eggDayRule';
 
 export const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -1471,10 +1472,16 @@ export function deadlineAscendMs(r: BoardRow): number | null {
   return finishMs(r);
 }
 
-/** Whether a deadline row's last ascension can be made by its deadline; one that misses it is not an answer. */
-export function madeDeadline(r: BoardRow): boolean {
+/** When a deadline row's last TE counts (its last ascension), unix seconds; NaN when not known (late, untimed). */
+export function deadlineFinish(r: BoardRow): number {
   const at = deadlineAscendMs(r);
-  return at !== null && at <= (r.deadline as number) * 1000;
+  return at === null ? NaN : at / 1000;
+}
+
+/** Whether a deadline row's last ascension can be made by its deadline; one that misses it is not an answer
+ *  (lib/eggDayRule.ts: Egg Day's and every other date's one rule). */
+export function madeDeadline(r: BoardRow): boolean {
+  return finishesBefore(deadlineFinish(r), r.deadline as number);
 }
 
 /** Seconds between a deadline row's last ascension and its deadline (`madeDeadline` rows only). */
