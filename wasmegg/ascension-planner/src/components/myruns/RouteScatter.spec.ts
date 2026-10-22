@@ -54,7 +54,7 @@ describe('Your routes at a glance', () => {
       'Exact',
       'Very high',
       'Sent from this browser',
-      'Looks like yours',
+      'Maybe you',
       'Saved on this computer',
       'Best',
     ])

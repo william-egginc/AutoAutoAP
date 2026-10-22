@@ -125,7 +125,7 @@
       <!-- Calculated values -->
       <div v-if="teToGain > 0" class="space-y-3 bg-slate-50/30 rounded-xl p-4 border border-slate-50">
         <div class="flex justify-between items-center text-[10px]">
-          <span class="font-black text-slate-400 uppercase tracking-widest">Total Result:</span>
+          <span class="font-black text-slate-400 uppercase tracking-widest">Reaches:</span>
           <span class="font-mono-premium font-black text-slate-900">TE #{{ targetTENumber }}</span>
         </div>
         <div class="flex justify-between items-center text-[10px]">

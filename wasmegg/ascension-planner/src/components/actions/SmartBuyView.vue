@@ -10,7 +10,7 @@
       @update:threshold-seconds="$emit('update:quickBuyThresholdSeconds', $event)"
     />
 
-    <SmartBuyCard title="Buy Earnings research" :loading="saleAwareLoading">
+    <SmartBuyCard title="Buy Earnings Research" :loading="saleAwareLoading">
       <template #icon>
         <img
           :src="iconURL('egginc-extras/icon_research_sale.png', 64)"
@@ -81,7 +81,7 @@
       />
       <ResearchPurchasePreview
         :items="saleEndsEarningsPreview"
-        label="100% ROI before end of sale. Maximizes buying speed of delivery research"
+        label="Earnings research that pays for itself before the sale ends, to buy delivery research faster"
         empty-text="None needed"
       />
       <RatePreviewDelta

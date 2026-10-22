@@ -26,7 +26,7 @@
     <div v-if="open && inventory" class="space-y-4">
       <p class="text-[11px] text-slate-500 leading-relaxed">
         The simulator doesn't wear a fixed set, or what you have equipped. It re-solves the best loadout inside
-        <span class="font-semibold">every leg</span> from your virtue inventory, and swaps between two: the
+        <span class="font-semibold">every ascension</span> from your virtue inventory, and swaps between two: the
         <span class="font-semibold">delivery</span> set while it builds the farm, and the
         <span class="font-semibold">earnings</span> set when it cashes out.
       </p>
@@ -40,16 +40,18 @@
           :class="setTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
           @click="setTab = tab"
         >
-          {{ tab === 'elr' ? 'Delivery (leg 1)' : 'Earnings' }}
+          {{ tab === 'elr' ? 'Delivery (ascension 1)' : 'Earnings' }}
         </button>
       </div>
       <LoadoutDisplay :loadout="setTab === 'elr' ? inventory.elr : inventory.earnings" />
       <p v-if="setTab === 'elr'" class="text-[11px] text-slate-500 leading-relaxed">
-        Solved against your research <span class="font-semibold">as it is today</span>, so this is the set the first leg
-        runs with. Every later leg re-solves against its own research and will pick something different.
+        Solved against your research <span class="font-semibold">as it is today</span>, so this is the set the first
+        ascension runs with. Every later ascension re-solves against its own research and will pick something
+        different.
       </p>
       <p v-else class="text-[11px] text-slate-500 leading-relaxed">
-        The best earnings set your inventory can build. It doesn't depend on research, so it's the same in every leg.
+        The best earnings set your inventory can build. It doesn't depend on research, so it's the
+        same in every ascension.
       </p>
 
       <!-- The pile itself, behind a second click: ten thousand chips of T1 commons buried the two sets. -->
@@ -86,7 +88,7 @@
           </div>
           <p class="text-[11px] text-slate-400 leading-relaxed">
             Most of these never get worn. The solver picks from the whole pile, so the pile is its input, but only the
-            two sets above are what any leg runs with.
+            two sets above are what any ascension runs with.
           </p>
         </div>
       </div>
@@ -95,7 +97,7 @@
         v-if="!inventory.artifacts.length && !inventory.stones.length"
         class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed"
       >
-        No virtue artifacts found in this save. Every leg is being simulated bare, which makes every plan look
+        No virtue artifacts found in this save. Every ascension is being simulated bare, which makes every plan look
         considerably slower than it will be.
       </p>
       <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">

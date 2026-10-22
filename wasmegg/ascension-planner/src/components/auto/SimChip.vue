@@ -10,7 +10,7 @@
       class="inline-flex items-center min-h-[44px] -my-[14px] px-0.5 whitespace-nowrap"
       :title="label.title"
       :aria-expanded="open ? 'true' : 'false'"
-      :aria-label="`Simulator: ${label.words}. Show its stamp`"
+      :aria-label="`Which simulator priced this run: ${label.words}. Show its stamp`"
       @click.stop="open = !open"
     >
       <span class="px-1 rounded text-[9px] font-black leading-4" :class="CHIP_CLASS[label.kind]">{{ chipText }}</span>

@@ -85,7 +85,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="now-tiles">
         <SavedTile
           goal="fastest"
-          :title="`Fastest to ${page.fastestTile.value.target}`"
+          :title="fastestName(page.fastestTile.value.target)"
           :tile="page.fastestTile.value.tile"
           :target="page.fastestTile.value.target"
           :now="page.now.value"

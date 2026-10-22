@@ -30,7 +30,7 @@
         ><template v-if="leftLabel"> · about {{ leftLabel }} left<template v-if="p.measuring"> (measuring…)</template></template
         ><template v-else-if="p.measuring"> · measuring time left…</template
         ><template v-if="p.best">
-          · best so far {{ p.kind === 'by-date' ? 'gets to' : 'reaches' }} {{ p.best.te }} on
+          · best so far {{ p.kind === 'by-date' ? 'gets to' : 'reaches' }} {{ p.best.te }} TE on
           {{ show(p.best.at) }}</template
         >
       </p>
@@ -165,7 +165,7 @@ const kindLabel = computed(() => {
     case 'by-date':
       return NAMES.byDate;
     default:
-      return 'When should I start?';
+      return NAMES.start;
   }
 });
 

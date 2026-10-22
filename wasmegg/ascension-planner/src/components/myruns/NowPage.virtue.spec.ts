@@ -261,7 +261,7 @@ describe('the corner badge and the gear', () => {
 describe('Recalculate', () => {
   it('a button on Right now with a line saying what it does', async () => {
     const t = textOf(await renderHtml(RightNowCard, cardProps()));
-    expect(t).toContain('Recalculate Opens Fastest with your save and runs Check exactly');
+    expect(t).toContain('Recalculate Opens Fastest to 490 TE with your save and runs Check exactly');
     const d = textOf(
       await renderHtml(
         RightNowCard,
@@ -271,7 +271,7 @@ describe('Recalculate', () => {
         })
       )
     );
-    expect(d).toContain('Opens By a date with your save and runs Check exactly');
+    expect(d).toContain('Opens Highest TE by a date with your save and runs Check exactly');
     // Without a plan there is nothing to recalculate: "Work it out ›" is there.
     const empty = await renderHtml(RightNowCard, cardProps({ card: null, events: [], shownEvents: [], track: null }));
     expect(empty).not.toContain('data-testid="now-recalc"');

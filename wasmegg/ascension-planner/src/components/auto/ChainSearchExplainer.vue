@@ -122,7 +122,7 @@
         </div>
 
         <div>
-          <p class="font-bold text-slate-800 mb-2">What 109 players' runs have shown (29 Sept)</p>
+          <p class="font-bold text-slate-800 mb-2">What 109 runs from players have shown (29 Sept)</p>
           <ul class="space-y-2 list-disc list-outside pl-4">
             <li>
               <span class="font-semibold text-slate-700">Trying only some TEs misses the best plan.</span> Every 5th TE
@@ -207,9 +207,9 @@
         <div>
           <p class="font-bold text-slate-800 mb-2">The shape comes from the sale calendar</p>
           <p class="mb-3">
-            Each leg's build phase ends when a Research Sale ends, Saturday at 9:00 am Pacific. Move a stop up one Truth
-            Egg and usually you still make the same Saturday, so the leg gets a little quicker. Go one too far and you
-            miss that sale and wait a week for the next one.
+            Each ascension's build phase ends when a Research Sale ends, Saturday at 9:00 am Pacific. Move a stop up one
+            Truth Egg and usually you still make the same Saturday, so the ascension gets a little quicker. Go one too far
+            and you miss that sale and wait a week for the next one.
           </p>
           <ChainMathFigure kind="sawtooth">
             Every tooth is one missed sale. The best value in a sweep always sat at a
@@ -234,10 +234,10 @@
           <p class="font-bold text-slate-800 mb-2">Zoomed out, it is not a bowl</p>
           <ChainMathFigure kind="wide">
             The same kind of sweep on a shorter route (195 231 X 490), across 86 values of the last stop. The left
-            side drops in <span class="font-semibold text-slate-700">ledges of 10 to 50 days</span> as whole legs
+            side drops in <span class="font-semibold text-slate-700">ledges of 10 to 50 days</span> as whole ascensions
             reshuffle. It falls, rises and falls again, so a search that stops at the first upturn stops too early. The
             floor is a broad plain around 283 to 290. Pushing the last stop up to 340 costs 37.4 days: the final
-            leg pays for a full rebuild and then has less time to earn. That's why, by default, the search keeps the
+            ascension pays for a full rebuild and then has less time to earn. That's why, by default, the search keeps the
             last stop at least 150 TE below the target.
           </ChainMathFigure>
         </div>

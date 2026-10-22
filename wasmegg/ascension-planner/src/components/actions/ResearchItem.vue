@@ -20,14 +20,14 @@
             {{ research.name }}
           </span>
           <span class="text-[11px] font-medium text-gray-500 whitespace-nowrap hidden sm:inline-block">
-            <span v-if="targetLevel" class="text-gray-900">Lvl {{ targetLevel }}</span>
-            <span v-else>Lvl {{ currentLevel }}</span>
+            <span v-if="targetLevel" class="text-gray-900">Lv {{ targetLevel }}</span>
+            <span v-else>Lv {{ currentLevel }}</span>
             / {{ research.levels }}
           </span>
         </div>
         <span class="text-[11px] font-medium text-gray-500 whitespace-nowrap sm:hidden">
-          <span v-if="targetLevel" class="text-gray-900">Lvl {{ targetLevel }}</span>
-          <span v-else>Lvl {{ currentLevel }}</span>
+          <span v-if="targetLevel" class="text-gray-900">Lv {{ targetLevel }}</span>
+          <span v-else>Lv {{ currentLevel }}</span>
           / {{ research.levels }}
         </span>
       </div>
@@ -118,7 +118,7 @@
                   ? undefined
                   : roiDisplayMode === 'time'
                     ? 'Time, laying at the boosted rate, for the extra production to pay back what it cost to buy this research.'
-                    : 'Estimated waiting time (hours) per 1% Egg Laying Rate impact based on current earnings. Lower is better.'
+                    : 'Hours of saving per 1% Delivery Rate gain, at current earnings. Lower is better.'
               "
             >
               {{ extraLabel }}
@@ -333,7 +333,7 @@ function deadlineWarningTooltip(seconds?: number, extraText?: string) {
   if (seconds === undefined) return extraText || '';
   const timeStr = formatAbsoluteTime(seconds, baseTimestamp.value, virtueStore.ascensionTimezone);
   const warning = props.showDeadlineWarning
-    ? `${timeStr} is after next Saturday at +0. Turn off the research sale to see realistic prices.`
+    ? `${timeStr} is after this research sale ends. Turn off the research sale to see real prices.`
     : timeStr;
   
   if (extraText) {

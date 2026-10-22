@@ -143,9 +143,9 @@
       A plan that won its search was the fastest of the many priced that day, so priced again it is expected to slip a
       little: a small rise is not by itself a plan going stale. A bigger move either way can come from the account
       getting ahead of or behind the plan in between, from the later start changing how the current ascension is played,
-      or from a newer planner; runs before schema 7 do not record which planner priced them. Only each run's own best
+      or from a newer planner; older runs do not record which simulator priced them. Only each run's own best
       plan, its runners-up and its best at each count are read here: a plan priced again only deep in a later run's full
-      table (its CSV) is not drawn.
+      table is not drawn.
     </p>
   </div>
 </template>
@@ -286,7 +286,7 @@ function tipOf(p: DriftPoint, line: DriftLine, prev: DriftPoint | null, anchorTe
     p.kind === 'run'
       ? `searched: ${p.grade?.text ?? '—'}`
       : p.kind === 'recheck'
-        ? "a re-check: priced again from this run's save (schema 7)"
+        ? "a re-check: priced again from this run's save"
         : 'priced again inside this run: one of its runners-up, or its best at a count';
   const lines = [
     `made ${dateText(p.start)} · from ${p.row.currentTE} TE`,

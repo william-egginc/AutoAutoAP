@@ -22,10 +22,10 @@ describe('Recalculate', () => {
 
   it('the line under the button says what it does', () => {
     expect(recalcWords({ auto: 'fastest', depth: 'smart', target: 490 })).toBe(
-      'Opens Fastest with your save and runs Check exactly'
+      'Opens Fastest to 490 TE with your save and runs Check exactly'
     );
     expect(recalcWords({ auto: 'by-date', byDate: { eggDay: true } })).toBe(
-      'Opens By a date with your save and runs Check exactly'
+      'Opens Highest TE by a date with your save and runs Check exactly'
     );
   });
 

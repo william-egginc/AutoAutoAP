@@ -430,7 +430,7 @@
               <div class="flex items-center gap-2">
                 <div class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></div>
                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none"
-                  >Monday 2x Earnings Event</span
+                  >Monday 2× Earnings Event</span
                 >
               </div>
               <span class="text-[11px] font-black text-orange-600 uppercase tracking-tighter">
@@ -526,10 +526,10 @@
         >
           <template v-if="autoView === 'classic'">
             <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-900">{{ NAMES.classicFirst }}</span> is Joo's Auto AP: type the TE you want
+              <span class="font-bold text-slate-900">{{ NAMES.classicFirst }}</span> is Joo's original planner: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
-              2× earnings boost in it. To have the stops found for you, use {{ fastestName(chainSearchStore.finalTE) }} or
-              {{ NAMES.byDate }}.
+              2× earnings boost in it. To have the stops found for you, use
+              {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }}.
             </p>
             <AutomaticPlanner />
           </template>
@@ -585,7 +585,7 @@
               These are the runs the board still needs: Egg Day runs that check the instant answer ascension by
               ascension, and gear nobody on the board has yet. Run one on your account and it fills a gap.
             </template>
-            <template v-else>A sweep sent in here fills a gap listed under {{ NAMES.check }}, the same as one run on this tab.</template>
+            <template v-else>A sweep sent in here fills a gap listed under {{ NAMES.check }}, the same as a run started there.</template>
             How the planner works is under {{ NAMES.how }}; what everybody's shared runs show is on
             <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
               >{{ NAMES.compare }} › {{ NAMES.insights }}</a
@@ -1859,7 +1859,7 @@ async function triggerQuickContinue() {
     }
   } catch (e) {
     loading.value = false;
-    error.value = e instanceof Error ? e.message : 'Quick Continue failed';
+    error.value = e instanceof Error ? e.message : 'Continue Current Ascension failed';
     console.error('Quick Continue error:', e);
   }
 }
@@ -1882,7 +1882,7 @@ async function quickContinueAscension(selection: 'earnings' | 'elr') {
     await initContinueCurrent(playerId.value, selection);
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Quick Continue failed';
+    error.value = e instanceof Error ? e.message : 'Continue Current Ascension failed';
     console.error('Quick Continue error:', e);
   } finally {
     loading.value = false;
@@ -1909,7 +1909,7 @@ async function planNextAscension() {
     uiStore.runSaveLoaded = null;
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Plan Next failed';
+    error.value = e instanceof Error ? e.message : 'Plan Future Ascension failed';
     uiStore.staleBackup = backupFailureReason(e);
     await planFromLastGoodSave();
     console.error('Plan Next Ascension error:', e);

@@ -87,7 +87,7 @@ const props = defineProps<{
 
 /** The tab names a player reads. "Exhaustive" is NAMES.full, as everywhere else. */
 const TABS: { id: SearchTabId; label: string; tag?: string }[] = [
-  { id: 'nearby', label: 'Search nearby' },
+  { id: 'nearby', label: NAMES.smart },
   { id: 'exhaustive', label: NAMES.full, tag: 'to prove it' },
 ];
 

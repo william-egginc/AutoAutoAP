@@ -15,7 +15,7 @@
             </div>
             <div>
               <h4 class="text-sm font-black text-slate-800 uppercase tracking-tight">Wait for Research Sale</h4>
-              <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Friday at +0</p>
+              <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Friday 9:00 am PT</p>
             </div>
           </div>
           <div class="text-right">
@@ -42,7 +42,7 @@
             </div>
             <div>
               <h4 class="text-sm font-black text-slate-800 uppercase tracking-tight">Wait for 2x Earnings</h4>
-              <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Monday at +0</p>
+              <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Monday 9:00 am PT</p>
             </div>
           </div>
           <div class="text-right">

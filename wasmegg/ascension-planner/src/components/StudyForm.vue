@@ -40,8 +40,7 @@
       </label>
     </fieldset>
     <p class="text-[11px] text-slate-500" data-testid="study-untick-note">
-      Tick what you are happy to share; anything you leave unticked stays off. You can change it any time in
-      {{ NAMES.setup }}.
+      Tick what you are happy to share; anything you leave unticked stays off.
     </p>
 
     <fieldset class="space-y-1 sm:space-y-1.5">
@@ -85,7 +84,7 @@
         </label>
       </div>
       <p v-if="credit === 'name' && !nickname.trim()" class="text-[11px] text-amber-700">
-        Type a name to be credited; with none you stay anonymous.
+        Type a name to be credited; until then you stay anonymous.
       </p>
     </fieldset>
 

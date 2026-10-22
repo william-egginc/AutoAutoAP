@@ -145,7 +145,7 @@
       <details class="text-[11px] text-slate-500">
         <summary class="cursor-pointer font-bold">Exactly what gets sent</summary>
         <p class="mt-1">
-          This record, plus the CSV (compressed, player ids swept out). No player id and no in-game name: those are in
+          This record, plus the CSV (compressed, player IDs removed). No player ID and no in-game name: those are in
           neither. The artifact set and time zone do narrow down who you are among people who know each other.
         </p>
         <pre class="mt-1 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] text-slate-100">{{
@@ -176,7 +176,7 @@
           class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
           @click="retryTable"
         >
-          {{ retrying ? 'Sending the table…' : 'Retry the table' }}
+          {{ retrying ? 'Sending the CSV…' : 'Retry the CSV' }}
         </button>
       </div>
     </template>
@@ -319,7 +319,7 @@ async function send(): Promise<void> {
     } catch {
       sendOk.value = false;
       sendMessage.value =
-        'Could not reach the collector (check your connection). Your files are still loaded here, so press Submit again once you are back online.';
+        'Could not reach the collector (check your connection). Your files are still loaded here, so press Submit this sweep again once you are back online.';
       return;
     }
     const body = (await res.json().catch(() => ({}))) as {
@@ -358,7 +358,7 @@ async function send(): Promise<void> {
       // The collector signs a one-time token for the CSV; without one it would refuse the table.
       sent.value = true;
       sendOk.value = false;
-      sendMessage.value = `Stored as ${body.id}, but this collector does not accept tables.`;
+      sendMessage.value = `Stored as ${body.id}, but this collector does not accept CSVs.`;
       emit('submitted', body.id);
       return;
     }
@@ -399,7 +399,7 @@ async function postTable(): Promise<void> {
     });
   } catch {
     sendOk.value = false;
-    sendMessage.value = `Stored as ${table.id}, but the table did not upload (the connection dropped). Press Retry the table.`;
+    sendMessage.value = `Stored as ${table.id}, but the CSV did not upload (the connection dropped). Press Retry the CSV.`;
     return;
   }
   if (res.ok || res.status === 409) {
@@ -407,19 +407,19 @@ async function postTable(): Promise<void> {
     sendOk.value = true;
     sendMessage.value = res.ok
       ? table.existing
-        ? `Already on the board as ${table.id}; its missing table was added.`
-        : `Stored as ${table.id}, with its table.`
-      : `Stored as ${table.id}; the table was already there.`;
+        ? `Already on the board as ${table.id}; its missing CSV was added.`
+        : `Stored as ${table.id}, with its CSV.`
+      : `Stored as ${table.id}; the CSV was already there.`;
     return;
   }
   sendOk.value = false;
   if (res.status === 403) {
     // Retrying from this tab cannot fix a token mismatch; a reload of the page can.
     pendingTable.value = null;
-    sendMessage.value = `Stored as ${table.id}, but the table was refused. Keep your two files, reload this page (it may be an old version) and upload again.`;
+    sendMessage.value = `Stored as ${table.id}, but the CSV was refused. Keep your two files, reload this page (it may be an old version) and upload again.`;
     return;
   }
-  sendMessage.value = `Stored as ${table.id}, but the table did not upload (${res.status}). Press Retry the table.`;
+  sendMessage.value = `Stored as ${table.id}, but the CSV did not upload (${res.status}). Press Retry the CSV.`;
 }
 
 async function retryTable(): Promise<void> {

@@ -25,6 +25,7 @@ import { SWEEP_PRESETS } from './upload';
 import type { InventoryCount } from '@/search/csv';
 import type { ByDateRequest } from '@/search/byDateRequest';
 import { ThisDevice } from '@/search/device';
+import { NAMES } from '@/lib/siteNav';
 
 export interface ComputeTier {
   id: string;
@@ -468,7 +469,7 @@ export function byDateWiderText(
   };
   const hours = byDateSeconds(wider, currentTE, workers, measured) / 3600;
   const days = hours / 24;
-  return `±${ask.altPm} would take about ${days < 1.5 ? `${Math.round(hours)} hours` : `${days.toFixed(days < 10 ? 1 : 0)} days`}.`;
+  return `Widening to ±${ask.altPm} TE would take about ${days < 1.5 ? `${Math.round(hours)} hours` : `${days.toFixed(days < 10 ? 1 : 0)} days`}.`;
 }
 
 /**
@@ -565,7 +566,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   needs.push({
     id: 'new-gear',
     title: "Any other gear the instant answer isn't built for yet",
-    why: "The instant answer is exact for gear that has its own precomputed simulations, and one run from a new gear is enough to build them: we take its artifacts and stones from the run, simulate every ascension once, and check the result against the run's own legs.",
+    why: "The instant answer is exact for gear that has its own precomputed simulations, and one run from a new gear is enough to build them: we take its artifacts and stones from the run, simulate every ascension once, and check the result against the run's own ascensions.",
     who: 'players at CTE 225 or more whose artifacts and stones are not one of the sets listed below',
     have: 0,
     want: 1,
@@ -661,8 +662,7 @@ export function fitBands(bandsText: string, currentTE: number, final = 490): str
 export const NO_FIT_TEXT = "This sweep doesn't fit an account at your TE.";
 
 /** What the Science tab says on every sweep card and in its runner. */
-export const SCIENCE_SWEEP_NOTE =
-  "This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use Nearby routes on Fastest to 490 TE, or the instant answer, for that.";
+export const SCIENCE_SWEEP_NOTE = `This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use ${NAMES.smart} on ${NAMES.fastest}, or the instant answer, for that.`;
 
 /** Whether a preset prices at least one chain from this TE with its bands fitted to it. */
 export function presetFits(presetId: string, currentTE: number, final = 490): boolean {

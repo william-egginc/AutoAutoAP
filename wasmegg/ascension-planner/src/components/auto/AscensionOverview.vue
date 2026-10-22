@@ -37,7 +37,7 @@
                 >Overridden</span>
                 <span
                   v-if="hasLoadoutOverride"
-                  v-tippy="'This ascension uses its own artifacts & stones — see Show Details'"
+                  v-tippy="'This ascension uses its own artifacts & stones — see View details'"
                   class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 text-[7px] font-black uppercase tracking-wider leading-none flex items-center gap-0.5"
                 >
                   <img :src="iconURL('egginc/afx_quantum_metronome_4.png', 32)" class="w-2.5 h-2.5" alt="" />

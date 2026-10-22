@@ -188,7 +188,7 @@ describe('ahead, behind, on schedule', () => {
     const w = paceWords(s, T0 + 3 * H, ZONE);
     expect(w.text).toBe('3 hours ahead, as of 2:46 pm');
     expect(w.detail).toBe(
-      `Plan expected 187.0 TE by 2:46 pm; you had 188.5. Plan: ascension 1 of 2 by now · you: stop 0 of 2 reached. ${FORECAST_WORDS}`
+      `Plan expected 187.0 TE by 2:46 pm; you had 188.5. Plan: ascension 1 of 2 by then · you: stop 0 of 2 reached. ${FORECAST_WORDS}`
     );
   });
 
@@ -199,7 +199,7 @@ describe('ahead, behind, on schedule', () => {
     const w = paceWords(s, T0 + 11.1 * H, ZONE);
     expect(w).toMatchObject({ badge: '5 hours behind', asOf: 'as of 11:46 pm', tone: 'bad' });
     expect(w.detail).toContain('Plan expected 191.0 TE by 11:46 pm; you had 189.0.');
-    expect(w.detail).toContain('Plan: ascension 2 of 2 by now · you: stop 0 of 2 reached.');
+    expect(w.detail).toContain('Plan: ascension 2 of 2 by then · you: stop 0 of 2 reached.');
   });
 
   it('past the plan’s end and short of its goal: still behind, in days from 48 hours', () => {
@@ -221,7 +221,7 @@ describe('ahead, behind, on schedule', () => {
   it('a plan set to start more than an hour after its save says so', () => {
     const line = paceLine({ legs, planStart: T0, startTEByEgg: teStart, planSave: T0 - 3 * H }) as PaceLine;
     const w = paceWords(planPace(line, at(T0 + 2 * H, 188.5)), T0 + 3 * H, ZONE);
-    expect(w.detail).toContain('This plan was set to start at 12:46 pm.');
+    expect(w.detail).toContain('This plan was set to start 12:46 pm.');
     expect(paceWords(planPace(shiftLine, at(T0 + 2 * H, 188.5)), T0 + 3 * H, ZONE).detail).not.toContain(
       'set to start'
     );
@@ -232,7 +232,7 @@ describe('ahead, behind, on schedule', () => {
     const w = paceWords(planPace(est, at(T0 + 2 * H, 189)), T0 + 3 * H, ZONE); // 186 → 190 over 10 h: 189 at +7.5 h
     expect(w.badge).toBe('6 hours ahead (estimate)');
     expect(w.text).toBe('6 hours ahead (estimate), as of 2:46 pm');
-    expect(w.detail).toContain('Rough: compared leg by leg.');
+    expect(w.detail).toContain('Rough: compared ascension by ascension.');
     expect(w.detail).toContain('The plan is an instant answer, not checked exactly.');
   });
 });
@@ -265,7 +265,7 @@ describe('the words for every other case', () => {
     expect(paceWords(s, T0, ZONE)).toMatchObject({
       badge: '',
       text: '',
-      detail: 'Your TE is below where this plan starts',
+      detail: 'Your TE is below where this plan starts.',
     });
   });
 

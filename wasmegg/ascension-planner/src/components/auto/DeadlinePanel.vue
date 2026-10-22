@@ -63,7 +63,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Egg Day {{ eggDayYear }}</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers go on the {{ NAMES.compare }}'s Egg Day
+          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers you send go on the {{ NAMES.compare }}'s Egg Day
           {{ eggDayYear }} tab.</span
         >
       </button>
@@ -78,7 +78,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Another date</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >Any date and time you like. Answers go on the {{ NAMES.compare }}'s By a date tab.</span
+          >Any date and time you like. Answers you send go on the {{ NAMES.compare }}'s By a date tab.</span
         >
       </button>
     </div>
@@ -111,7 +111,7 @@
     </div>
     <p class="text-[11px] text-slate-500 leading-relaxed">
       <template v-if="deadline"
-        >That is {{ inPlannerZone(deadline) }} in your planner's time, {{ daysAway.toFixed(0) }} days after the plan
+        >That is {{ inPlannerZone(deadline) }} in your planner's time, {{ plural(Math.round(daysAway), 'day') }} after the plan
         starts.</template
       >
       <template v-else>Pick a date and time.</template>
@@ -158,7 +158,7 @@
                 data-testid="quick-estimate-stop"
                 @click="stopDeadline"
               >
-                <SendingText v-if="stopAsked" text="Stopping" /><template v-else>Stop and keep the best</template>
+                <SendingText v-if="stopAsked" text="Stopping" /><template v-else>Stop &amp; keep best</template>
               </button>
               <p v-if="stopAsked" class="text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
             </template>
@@ -439,7 +439,7 @@
               fine work only there. It's the same idea as {{ fastestName(store.finalTE) }} › {{ NAMES.smartFirst }}.
             </p>
             <p>
-              <span class="font-bold text-slate-800">The other way, "I'll set the stops",</span> tries every route in
+              <span class="font-bold text-slate-800">The other way, Exhaustive,</span> tries every route in
               boxes you give, so its answer is proven for those boxes, but only as good as the boxes. This way covers far
               more ground for the time, but isn't proven: a narrow winner between first-look points could be missed if the
               zoom doesn't start near it.
@@ -529,7 +529,7 @@
             </div>
             <div>
               <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                {{ store.deadlineRunning ? 'Time left' : 'Est. wall clock' }}
+                {{ store.deadlineRunning ? 'Time left' : 'Est. time' }}
               </div>
               <div class="text-lg font-black text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
               <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-[9px] text-slate-400">measuring…</div>
@@ -555,9 +555,9 @@
               (what this machine's last run over a space this shape needed)</template
             >: the last stop is narrowed down, not tried at every TE. During a run the time left is the legs left at the
             rate of the last 12 minutes. The estimate uses
-            <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last deadline search</template
+            <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last By a date search</template
             ><template v-else
-              >the typical speed for routes this long in players' runs, until this machine has done a deadline search of its
+              >the typical speed for routes this long in players' runs, until this machine has done a By a date search of its
               own</template
             >, on {{ store.workerBudget }} workers.
           </p>
@@ -627,11 +627,11 @@
           <span>
             <span class="font-bold">Waiting for another run in this tab:</span>
             <template v-if="store.isRunning">
-              the fastest-to-a-target search ({{ store.stage || 'running' }}, {{ store.chainsDone.toLocaleString() }} of
+              the {{ fastestName(store.finalTE) }} search ({{ store.stage || 'running' }}, {{ store.chainsDone.toLocaleString() }} of
               {{ store.chainsEstimated.toLocaleString() }})</template
             >
             <template v-else-if="store.preparing">getting an unfinished run ready to carry on</template>
-            <template v-else>re-checking routes on your latest save</template>. The deadline search can start once it is
+            <template v-else>re-checking routes on your latest save</template>. This search can start once it is
             done.
           </span>
           <button
@@ -2000,7 +2000,7 @@ const bigBoxInput = computed<BigBoxInput>(() => ({
   seconds: plan.value.seconds,
   workers: store.workerBudget,
   basis: store.deadlineWorkerSeconds
-    ? `${thisDevice()}'s speed from its last deadline search`
+    ? `${thisDevice()}'s speed from its last By a date search`
     : "the typical speed for routes this long in players' runs",
   device: thisDevice(),
   where: 'site',

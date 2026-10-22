@@ -229,7 +229,9 @@ describe('dataNeeds', () => {
     expect(hours('bydate-5')).toBeLessThan(5.25);
     expect(hours('bydate-6')).toBeGreaterThan(5.8);
     expect(hours('bydate-6')).toBeLessThan(7.35);
-    expect(byDateWiderText(by['bydate-6'], 180, desktop.workers)).toMatch(/^±3 would take about \d+(\.\d)? (hours|days)\.$/);
+    expect(byDateWiderText(by['bydate-6'], 180, desktop.workers)).toMatch(
+      /^Widening to ±3 TE would take about \d+(\.\d)? (hours|days)\.$/
+    );
   });
 
   it('always asks for gear without a table, listing the gear that has one', () => {

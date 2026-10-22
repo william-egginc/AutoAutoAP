@@ -46,7 +46,7 @@
                 class="flex-1 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors"
                 @click="$emit('deactivateAndCancel')"
               >
-                Deactivate & Cancel
+                Deactivate and Cancel
               </button>
             </div>
             <div class="flex gap-2">
@@ -98,6 +98,7 @@ function formatTime(timestamp: number): string {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
   });
 }
 

@@ -18,11 +18,11 @@
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
         <span v-if="stats" class="text-[10px] font-bold text-slate-500" data-testid="know-header">
-          {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ stats.accounts }} accounts<template v-if="stats.te">
+          {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ plural(stats.accounts, 'account') }}<template v-if="stats.te">
             · TE {{ stats.te.min }}-{{ stats.te.max }}</template
           >
           · {{ stats.plans.toLocaleString('en-US') }} plans timed<template v-if="stats.byDate > 0">
-            · {{ stats.byDate }} by a date<template v-if="stats.byDateAccounts > 0">
+            · {{ stats.byDate }} Highest TE by a date<template v-if="stats.byDateAccounts > 0">
               from {{ stats.byDateAccounts }} {{ stats.byDateAccounts === 1 ? 'account' : 'accounts' }}</template
             ></template
           >
@@ -61,7 +61,7 @@
     </div>
 
     <p class="text-[11px] text-slate-500 leading-relaxed">
-      Tap a point for the detail. The header counts are worked out from the board each time the page loads; the points
+      Tap a finding to open it. The header counts are worked out from the board each time the page loads; the findings
       were checked on the date above. The charts and tables further down are live too and show dates in your timezone.
     </p>
 
@@ -83,7 +83,7 @@
             for the final word. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
             Check exactly, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
-            within an hour) and every new run this week. For the accounts it has precomputed on their own gear (10 so
+            within an hour) and every new run that week. For the accounts it has precomputed on their own gear (10 so
             far) it reproduces their submitted runs to a median of 0.15% or better.
           </p>
           <p v-else-if="f.id === 'wider'">
@@ -142,10 +142,10 @@
           </template>
           <p v-else-if="f.id === 'bydate'">
             Checked on Fliris (6 Egg Day routes: 32 of 34 ascensions within 30 minutes of his submitted runs), Allan (4
-            routes, each within an hour once started from his actual first stop) and this week's first By a date run
-            with per-ascension times (within 0.4 hours per ascension, median). Where it differs from a by-date search,
-            it's because the search's range left out better routes (Allan's 5-ascension route above), not because it
-            priced them wrongly.
+            routes, each within an hour once started from his actual first stop) and that week's first Highest TE by a
+            date run with per-ascension times (within 0.4 hours per ascension, median). Where it differs from a Highest
+            TE by a date search, it's because the search's range left out better routes (Allan's 5-ascension route above),
+            not because it priced them wrongly.
           </p>
           <p v-else-if="f.id === 'stall'">
             Under roughly 218-225 CTE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
@@ -166,9 +166,9 @@
             move it by days, which is why the best stops are so sharp.
           </p>
           <p v-else-if="f.id === 'buildup'">
-            Finishing the build without buying anything more (Joo's "Continue Asc.") keeps the farm's half-built
+            Finishing the build without buying anything more (Finish without buying, Joo's "Continue Asc.") keeps the farm's half-built
             delivery rate for the whole first ascension. On one account part-way through a build (10 Oct) the first
-            ascension took 70.1 days continuing the build-up, 72.4 prestiging now and 86.5 without buying, and by Egg
+            ascension took 70.1 days continuing the build-up, 72.4 with Prestige now and 86.5 with Finish without buying, and by Egg
             Day that was TE 248 against 247. "Continue my build-up" simulates the rest of the build from the farm in
             your save, and Fastest picks whichever way is sooner.
           </p>
@@ -194,8 +194,8 @@
           ><template v-else>Science tab</template>.
         </p>
         <p>
-          <b>Egg Day "By a date" runs:</b> 1-4 ascensions at every TE, 5 at ±3 TE around the instant answer's route, 6
-          at ±2. They check the instant answer leg by leg and measure how often it misses.
+          <b>Egg Day "Highest TE by a date" runs:</b> 1-4 ascensions at every TE, 5 at ±3 TE around the instant answer's
+          route, 6 at ±2. They check the instant answer leg by leg and measure how often it misses.
         </p>
         <p>
           <b>The six gear sets on the Science tab</b> (epic earnings set, rare earnings set, rare/common delivery set,
@@ -237,7 +237,7 @@ const findings = [
   { id: 'misses', headline: 'The instant answer rarely misses, but it can.' },
   { id: 'count', headline: 'More ascensions help, then level off.' },
   { id: 'eggday', headline: 'By Egg Day 2027, a well-geared account gains about 100-135 TE, with 3-5 ascensions.' },
-  { id: 'bydate', headline: 'The instant answer matches By a date runs ascension by ascension.' },
+  { id: 'bydate', headline: 'The instant answer matches Highest TE by a date runs ascension by ascension.' },
   { id: 'buildup', headline: 'Halfway through a build, finishing it first can beat prestiging now.' },
   { id: 'stall', headline: 'Below about 220 Clothed TE, the first ascension stalls.' },
   { id: 'gear', headline: 'Your delivery set sets the pace; your earnings set matters early.' },

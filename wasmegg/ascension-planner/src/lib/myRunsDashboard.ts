@@ -600,7 +600,7 @@ export function buildSteps(input: DashInput): DashSteps {
       id: 'unsent',
       kinds: ['unsent'],
       text: `${plural(pending.length, 'result')} not sent`,
-      reason: 'Kept in this browser; send it so it counts on the board.',
+      reason: 'Kept in this browser; send each one so it counts on the board.',
       button: 'Show me',
       action: { to: 'unsent' },
     });

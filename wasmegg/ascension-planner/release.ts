@@ -33,7 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-10-22T00:03:00Z', note: 'New: Joo\'s latest planner (artifacts and stones per ascension, fewer empty shifts); hours ahead or behind on My runs; simulator labels on the Leaderboard; turn on Leaderboard and Science in Setup', level: 'big' },
+  { at: '2026-10-22T00:03:00Z', note: 'Joo\'s latest planner (artifacts and stones per ascension, fewer empty shifts); hours ahead or behind on My runs; simulator labels on the Leaderboard; turn on Leaderboard and Science in Setup', level: 'big' },
   { at: '2026-10-20T00:37:44Z', note: 'New: prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster By a date searches, a My runs route chart', level: 'big' },
   { at: '2026-10-16T21:26:50Z', note: 'My runs: switch between Race to 490 and Egg Day, follow any route you like, a Producing or Building badge with your rate, and Recalculate; with your hours on, checks now try the next-best route too' },
   { at: '2026-10-16T15:15:49Z', note: 'New on My runs: where you are now, your next shifts with dates and calendar reminders, your saved answers with how sure they are, and each ascension step by step like Single run', level: 'big' },

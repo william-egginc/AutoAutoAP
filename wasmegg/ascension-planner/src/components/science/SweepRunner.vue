@@ -75,7 +75,7 @@
       <template v-else-if="phase === 'confirm'">
         <p class="text-[12px] text-slate-700 leading-relaxed">
           To work out the figures, this loads your latest save and sets the planner up from it, the same as opening the
-          Auto Planner does. That clears the plan in the planner now
+          {{ NAMES.auto }} does. That clears the plan in the planner now
           <b>({{ planSteps }} step{{ planSteps === 1 ? '' : 's' }})</b>.
         </p>
         <div class="flex flex-wrap gap-2">
@@ -97,7 +97,7 @@
       </template>
       <p v-else-if="phase === 'preparing'" class="text-[12px] text-slate-600 flex items-center gap-2">
         <span class="inline-block w-3 h-3 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
-        Loading your latest save...
+        Loading your latest save…
       </p>
       <div
         v-else-if="phase === 'not-ready'"
@@ -205,7 +205,7 @@
             </template>
           </ConsentBox>
           <p v-if="showWhat" class="pl-6 text-[11px] text-slate-500 leading-relaxed">
-            The route, its timings and the full CSV, with your artifact inventory, timezone and local plan start, plus a
+            The route, its timings and the full CSV, with your artifact inventory, time zone and local plan start, plus a
             random code this browser keeps for the account (never your player ID, and never shown). The code folds
             repeated sends together, lets you put your name on a run sent anonymously, and lets your own later runs
             replace your older plans. In its last few seconds the sweep also re-prices your best three plans already on
@@ -257,7 +257,7 @@
           <div class="flex flex-wrap items-baseline justify-between gap-2 text-[12px]">
             <span class="font-bold text-slate-800">
               <SendingText v-if="run.phase === 'sending'" text="Sending the result" />
-              <template v-else-if="run.phase === 'starting' || !store.chainsEstimated">Starting...</template>
+              <template v-else-if="run.phase === 'starting' || !store.chainsEstimated">Starting…</template>
               <template v-else>
                 {{ pricedSoFar.toLocaleString() }} of {{ plural(store.chainsEstimated, 'route') }}
               </template>
@@ -591,7 +591,7 @@ async function start(): Promise<void> {
   let report: { ok: boolean; text: string };
   // Withdrawn during the run (store `withdrawShareConsent`): nothing goes.
   if (ranHere && store.shareWithdrawn) {
-    report = { ok: false, text: 'Not sent: you withdrew your agreement during the run.' };
+    report = { ok: false, text: 'You withdrew your agreement during the run.' };
   } else if (ranHere) {
     if (current) current.phase = 'sending';
     report = await sendRunResult(store, nick, true);

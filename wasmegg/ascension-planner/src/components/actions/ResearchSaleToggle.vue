@@ -10,7 +10,7 @@
             >Research Sale</span
           >
         </div>
-        <span class="text-[11px] font-black text-indigo-600 uppercase tracking-tighter">70% OFF</span>
+        <span class="text-[11px] font-black text-indigo-600 uppercase tracking-tighter">70% off</span>
       </div>
     </div>
 

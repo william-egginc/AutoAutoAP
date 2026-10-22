@@ -143,7 +143,7 @@ describe("Fastest's results: one line in place of the moved blocks", () => {
     const src = read('DeadlinePanel.vue');
     // Moved to My runs › Your latest run (Jordan, 16 Oct): the priced summary and the top routes, and the live
     // "Top routes so far".
-    expect(src).not.toMatch(/>Every route in your space/);
+    expect(src).not.toMatch(/>Every route in your boxes/);
     expect(src).not.toMatch(/title="Top routes so far"/);
     expect(src).not.toContain('result.routes.slice(0, 15)');
     // Kept.
@@ -209,7 +209,7 @@ describe('Your latest run: By a date', () => {
   it('its summary says how much was priced: every route in the space, run complete', async () => {
     const store = storeOfA();
     store.deadlineResult = dateResult(Date.parse('2026-10-15T18:00:00Z')) as never;
-    expect(textOf(await view())).toContain('1,234 routes priced: every route in your space, run complete.');
+    expect(textOf(await view())).toContain('1,234 routes priced: every route in your boxes, run complete.');
   });
 
   it('a By a date run going now: its top routes so far (moved off By a date)', async () => {

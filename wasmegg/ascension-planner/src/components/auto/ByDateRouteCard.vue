@@ -139,7 +139,7 @@
       <table :class="LEG_TABLE">
         <thead>
           <tr :class="LEG_HEAD">
-            <th class="py-2 pr-3">Leg</th>
+            <th class="py-2 pr-3">Ascension</th>
             <th class="py-2 pr-3">→ TE</th>
             <th class="py-2 pr-3">Start</th>
             <th class="py-2 pr-3">Finish</th>

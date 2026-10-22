@@ -77,8 +77,7 @@
       Loading…
     </p>
     <p v-else-if="!myKey && !mineRows?.length" class="text-[11px] text-indigo-900/70 py-4">
-      Load your save to see your own runs here. They are the runs this browser sent for your account, plus older runs
-      with your timezone and artifacts.
+      Load your save to see your own runs here.
     </p>
     <MyRunsList
       v-else-if="!error || mineRows?.length"
@@ -184,7 +183,7 @@
     <div class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Route leaderboard</h3>
+          <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">{{ NAMES.compare }}</h3>
         </div>
         <div v-if="boardView" class="flex items-end gap-2">
           <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">
@@ -300,7 +299,7 @@
           </label>
 
           <p v-if="!race || !race.entries.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
-            No named player has a current plan to {{ target }} yet. To join, put a name in the box when you share a
+            No named player has a current plan to {{ target }} yet. To join, pick “Credit me as” when you share a
             result.
           </p>
           <p v-else-if="!raceShown.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
@@ -331,10 +330,7 @@
                     <th class="py-2 pr-3 text-right">#</th>
                     <th class="py-2 pr-3">{{ narrow ? 'Player · route' : 'Player' }}</th>
                     <th v-if="!narrow" class="py-2 pr-3">Route</th>
-                    <th
-                      class="py-2 pr-3"
-                      :title="`Dates are in your timezone (${viewZone}); hover one for the player's own`"
-                    >
+                    <th class="py-2 pr-3">
                       Finishes
                     </th>
                     <th v-if="!narrow" class="py-2 pr-3 text-right">Days left</th>
@@ -577,7 +573,7 @@
       <!-- ======================================================= EGG DAY, AND BY A DATE -->
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
         <p v-if="tab === 'eggday'" class="text-[11px] text-indigo-900/80 leading-relaxed">
-          The highest TE each player can reach by Egg Day {{ eggDayYear }} (14 July, 9:00 AM Pacific), from the Auto
+          The highest TE each player can reach by Egg Day {{ eggDayYear }} (14 July, 9 am Pacific), from the Auto
           Planner's <span class="font-bold">{{ NAMES.byDate }}</span> search with the Egg Day preset. Players are ranked
           by the TE they reach, then by time to spare, using each player's best answer. Game events aren't simulated,
           including Egg Day's own.
@@ -1595,7 +1591,7 @@ const COLUMNS: { key: SortKey; label: string; right?: boolean; title?: string }[
   // Dates matter here in a way they would not on a normal scoreboard: the simulator and the game
   // both change, so a result from two months ago was produced by different code than one from
   // yesterday, and a reader comparing them should be able to see that.
-  { key: 'submittedAt', label: 'Submitted', title: `When it was first sent, in your timezone (${viewZone})` },
+  { key: 'submittedAt', label: 'Sent', title: `When it was first sent, in your timezone (${viewZone})` },
 ];
 
 // ----------------------------------------------------------------------------- By a date

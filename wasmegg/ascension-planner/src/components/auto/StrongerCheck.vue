@@ -455,7 +455,7 @@ async function runAuto(): Promise<void> {
       earlier.value = got;
     }
     if (doStep && props.deadline && topTE.value !== null) {
-      lightStep.value = `Trying the top route ${topTE.value - 1} TE`;
+      lightStep.value = `Trying the top route one TE lower (${topTE.value - 1} TE)`;
       autoText.value = `The top route misses the date on your account: checking the instant answer's fastest route to ${topTE.value - 1} TE…`;
       const got = await stepDown({
         deadline: props.deadline,

@@ -33,8 +33,8 @@ describe('ByDateRouteCard', () => {
     expect(t).toMatch(/^Highest by .*2027/);
     expect(t).toMatch(/166 197 223 247 247 TE reached .*2027.*, 27\.3 h to spare/);
     expect(t).toContain('Stopped early.');
-    // Laid out as Fastest's leg table: Leg, to TE, Start, Finish, Days.
-    expect(t).toMatch(/Leg → TE Start Finish Days A1 166 .* 30\.00 A2 197 .* 80\.00 A3 223 .* 70\.00 A4 247 .* 48\.90/);
+    // Laid out as Fastest's leg table: Ascension, to TE, Start, Finish, Days.
+    expect(t).toMatch(/Ascension → TE Start Finish Days A1 166 .* 30\.00 A2 197 .* 80\.00 A3 223 .* 70\.00 A4 247 .* 48\.90/);
     expect(html).toContain('data-testid="by-date-legs"');
     expect(t).not.toContain('Best so far');
     expect(t).not.toContain('can still improve');
@@ -45,7 +45,7 @@ describe('ByDateRouteCard', () => {
     expect(t).toMatch(/^Best so far · highest by .*2027/);
     expect(t).toContain('166 197 223 247 247 TE');
     expect(t).toContain('The search is still going, so this can still improve.');
-    expect(t).toContain('Leg → TE Start Finish Days');
+    expect(t).toContain('Ascension → TE Start Finish Days');
   });
 
   it('a best so far without its legs yet (replayed) shows what is known, and no empty table', async () => {
@@ -144,7 +144,7 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
   it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
     expect(textOf(html)).toMatch(
-      /Simulate this plan Share CSV ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Leg/
+      /Simulate this plan Share CSV ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
     );
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],

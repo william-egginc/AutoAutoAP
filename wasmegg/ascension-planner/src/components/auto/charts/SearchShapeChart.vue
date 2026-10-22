@@ -86,7 +86,7 @@
         Clear
       </button>
       <span v-if="highlightText && !highlightValues.length" class="text-[10px] font-bold text-amber-700">
-        Nothing readable there — try `195, 196, 197` or `195-200`.
+        Nothing readable there. Try 195, 196, 197 or 195-200.
       </span>
       <span v-else-if="highlightValues.length && !matchedCount" class="text-[10px] font-bold text-amber-700">
         No route in this run puts {{ positionLabel.toLowerCase() }} on any of those.
@@ -233,7 +233,7 @@ const AXIS_MODES: { id: AxisMode; label: string; hint: string }[] = [
   {
     id: 'last',
     label: 'Last stop',
-    hint: 'Duration against the last stop before your target. This is where the sale-calendar sawtooth shows up: short descending runs, then a jump of about three days where a leg misses its Saturday sale.',
+    hint: 'Duration against the last stop before your target. This is where the Research Sale pattern shows up: short descending runs, then a jump of about three days where an ascension misses a Research Sale.',
   },
   {
     id: 'rank',

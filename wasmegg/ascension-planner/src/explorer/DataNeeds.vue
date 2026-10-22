@@ -24,7 +24,7 @@
         The ranges below are fitted to this: your 1st ascension's range starts just above your TE. Times are estimates
         from the speeds other players' runs recorded<template v-if="workers && threads"
           >, on the {{ workers }} workers Setup gives searches on {{ thisDevice() }}</template
-        >; the planner's Re-benchmark button measures your own machine.
+        >; the Benchmark button on Exhaustive measures your own machine.
       </p>
     </div>
 
@@ -386,7 +386,7 @@ const GROUPS: { id: 'gear' | 'bydate'; title: string; intro: string }[] = [
     id: 'bydate',
     title: "Checking the instant answer: Egg Day runs",
     intro:
-      "Highest TE by a date runs now save every leg, so each leg checks the instant answer, and the best plan for each ascension count checks its route finder. These open By a date on Egg Day with the stops filled in; nothing starts until you press Find. Each is sized to start in the morning and finish by night on a desktop.",
+      "Highest TE by a date runs now save every ascension, so each one checks the instant answer, and the best plan for each ascension count checks how it picks routes. These open Highest TE by a date on Egg Day with the stops filled in; nothing starts until you press Find. Each is sized to start in the morning and finish by night on a desktop.",
   },
   {
     id: 'gear',

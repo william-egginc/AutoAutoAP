@@ -23,6 +23,8 @@
  * use it without the planner's stores, and the rules can be tested.
  */
 
+import { NAMES } from '@/lib/siteNav';
+
 /** A heartbeat this often while the run goes (and at once on start, end, stop, failure). */
 export const WATCH_EVERY_MS = 5 * 60_000;
 /** A running run with no report for this long has probably stopped (crashed, or the computer slept). */
@@ -291,9 +293,9 @@ export function watchMode(kind: WatchRunKind): WatchMode {
 }
 
 export const MODE_LABEL: Record<WatchMode, string> = {
-  fastest: 'Fastest',
-  'full-sweep': 'Exhaustive',
-  'by-date': 'By a date',
+  fastest: `${NAMES.fastest} · ${NAMES.smart}`,
+  'full-sweep': `${NAMES.fastest} · ${NAMES.full}`,
+  'by-date': NAMES.byDate,
 };
 
 /** The run's progress as the store reads it (stores/chainSearch.ts `RunProgress`, the part used). */
@@ -539,7 +541,7 @@ export function watchView(h: WatchHeartbeat, updatedAt: number, now: number): Wa
     route: b && b.route.length ? b.route.join(' → ') : '',
     updated: `Last update ${agoWords(age)}`,
     stale: stale
-      ? "This run hasn't reported in 15+ min — the tab may have crashed or the computer may be asleep."
+      ? "This run hasn't reported for over 15 minutes. The tab may have crashed, or the computer may be asleep."
       : h.status === 'failed'
         ? 'If carrying on by itself is ticked, it should start again on its own.'
         : '',

@@ -16,12 +16,12 @@
       </svg>
     </template>
     <template #description>
-      Automatically buys any research that requires less than
+      Automatically buys any research that takes
       <span
         class="font-mono font-bold text-brand-primary bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm mx-0.5"
         >{{ displayDuration }}</span
       >
-      time to save, as soon as it becomes affordable.
+      or less to save, as soon as it becomes affordable.
     </template>
 
     <div class="space-y-2">

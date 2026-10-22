@@ -212,7 +212,7 @@
           Improved by the background polish: {{ gainsText }}.
         </p>
         <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-400">
-          Pricing your route on the instant answers for the closest stronger and weaker gear we have…
+          Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
         </p>
         <p v-else-if="bracketText" class="text-[11px] text-slate-700">{{ bracketText }}</p>
       </div>
@@ -421,8 +421,8 @@
               />
             </div>
             <p class="text-[11px] text-slate-600">
-              Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at
-              once when that ends sooner), and Check exactly prices it the same way. Light, under Search nearby, then
+              Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly Research Sale, at
+              once when that ends sooner), and Check exactly prices it the same way. Light, under Nearby routes, then
               prices these routes ascending at once, on your hours.
             </p>
             <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">
@@ -457,7 +457,7 @@
               "
               class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
               :disabled="exactStatus === 'running'"
-              title="Prices every route below with the full simulator on your account"
+              title="Prices every route in this answer with the full simulator on your account"
               @click="pressCheck('check-date')"
             >
               <span
@@ -710,8 +710,8 @@
             />
           </div>
           <p class="text-[11px] text-slate-600">
-            Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly research sale, at once
-            when that ends sooner), and Check exactly prices it the same way. Light, under Search nearby, then prices
+            Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly Research Sale, at once
+            when that ends sooner), and Check exactly prices it the same way. Light, under Nearby routes, then prices
             these routes ascending at once, on your hours.
           </p>
           <p v-if="atOnceNote(exactOf(boxLead))" class="text-[11px] font-bold text-emerald-800">
@@ -740,7 +740,7 @@
             "
             class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
             :disabled="exactStatus === 'running'"
-            title="Prices every route below with the full simulator on your account"
+            title="Prices every route in this answer with the full simulator on your account"
             @click="pressCheck('check-fastest')"
           >
             <span
@@ -824,7 +824,7 @@
       </Teleport>
       <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
       <p v-if="result && exactStatus === 'waiting'" class="text-[11px] text-slate-500">
-        The exact check on your account waits while a search is running.
+        Check exactly waits while a search is running.
       </p>
       <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
         Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.<template v-if="exactPricedWith">{{ ' ' }}{{ exactPricedWith }}.</template>
@@ -842,7 +842,7 @@
                 <th class="pr-3 py-1 font-black">Goal</th>
                 <th class="pr-3 py-1 font-black">Instant answer</th>
                 <th class="pr-3 py-1 font-black">Exact</th>
-                <th class="pr-3 py-1 font-black">First leg</th>
+                <th class="pr-3 py-1 font-black">First ascension</th>
                 <th class="pr-3 py-1 font-black">Change</th>
                 <th class="py-1 font-black">Shared</th>
               </tr>
@@ -913,7 +913,7 @@
         >
           Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"
             >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
-          >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its at full research). Ascensions that start below
+          >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its rate at full research). Ascensions that start below
           about TE {{ FULL_RESEARCH_TE }} can take a few percent more or less than these, and may need a longer build
           (one more research sale) than shown: your earnings set, and how your delivery gear does before research is
           complete, aren't fully taken off. From there up they match. Check exactly gives your own times.
@@ -946,15 +946,15 @@
               up to TE {{ header?.gearTo }}; above that it uses the instant answer for fully maxed gear at your own
               delivery rate</template
             >. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly
-            research sale, at once when that ends sooner).
+            Research Sale, at once when that ends sooner).
           </p>
           <p v-else-if="own" class="mt-1 leading-relaxed">
             This instant answer was built on your own account: your earnings and delivery sets, epic research and
             colleggtibles as your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is
             the simulator's own build, and the waiting after it is the simulator's own arithmetic, so a route here
             matches the full simulator on your account. Your first ascension is your own, simulated from your save the
-            way Your setup's first ascension says (continue your build-up, finish without buying, or prestige now). Each
-            fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly research sale,
+            way Your setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now). Each
+            fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly Research Sale,
             at once when that ends sooner). If your gear changes, the page goes back to the instant answer for fully
             maxed gear until yours is made again.
           </p>
@@ -963,11 +963,11 @@
             {{ header?.cteBonus }}, all epic research and colleggtibles. Each of its ascensions is the simulator's own
             build, and the waiting after it is the simulator's own arithmetic, so on that account a route here matches
             the full simulator to the second. For you: your first ascension is your own, simulated from your save the
-            way Your setup's first ascension says (continue your build-up, finish without buying, or prestige now); the
+            way Your setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now); the
             waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of the instant
             answer's: the best set your inventory can wear at full research), and each ascension is read from the row
             for its own TE. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the
-            weekly research sale, at once when that ends sooner); the weekly sale is at a fixed Pacific time, so the
+            weekly Research Sale, at once when that ends sooner); the weekly sale is at a fixed Pacific time, so the
             hour of the week is what matters.
           </p>
           <p class="mt-1 leading-relaxed">
@@ -1333,13 +1333,13 @@ const prestigeMismatch = computed(() => {
   if (props.deadline) {
     const d = dateExact.value;
     return d && d.endTE !== keep.te
-      ? `On your account the exact check gives ${d.endTE} TE, not the instant answer's ${keep.te}, so these times may be off.`
+      ? `On your account Check exactly gives ${d.endTE} TE, not the instant answer's ${keep.te}, so these times may be off.`
       : '';
   }
   const best = exactBest.value;
   const e = best ? exactOf(best) : null;
   return e && keep.end !== null && Math.abs(e.end - keep.end) > 6 * 3600
-    ? 'On your account the exact check gives a different date from the instant answer this was worked out on, so these times may be off.'
+    ? 'On your account Check exactly gives a different date from the instant answer this was worked out on, so these times may be off.'
     : '';
 });
 function runPrestigeBy(id: number, p: RoutePool, url: string): Promise<void> {
@@ -1992,7 +1992,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       ...(te > h.to
         ? {
             liveFresh: (t: number, at: number) => {
-              loadingText.value = 'Working out your one ascension to the target (you are above the table)…';
+              loadingText.value = 'Working out your one ascension to the target (your TE is past the top of the instant answer)…';
               return store.liveFreshBuilds(t, at);
             },
           }
@@ -2504,7 +2504,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
           // Lower last stops only when neither makes it (a lower one reaches less TE than the runner-up).
           for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !made && !altMade; hi -= 3) {
             const tries = [hi, hi - 1, hi - 2].filter(t => t > floor).map(t => [...prefix, t]);
-            exactText.value = `${k} ascensions misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
+            exactText.value = `The ${k}-ascension route misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
             if (!(await price(tries, sticky))) return false;
             for (const c of tries) {
               const e = exact.value[key(c)];
@@ -2598,7 +2598,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
   } catch (err) {
     if (id !== runs) return;
     exactStatus.value = 'error';
-    exactText.value = `The exact check couldn’t run: ${playerFacing(err instanceof Error ? err.message : String(err))}`;
+    exactText.value = `Check exactly couldn’t run: ${playerFacing(err instanceof Error ? err.message : String(err))}`;
   } finally {
     if (id === runs) stopExact();
   }

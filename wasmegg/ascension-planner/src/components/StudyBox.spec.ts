@@ -88,7 +88,7 @@ describe('the box', () => {
     expect(t).toContain('Yes, help improve it');
     expect(t).toContain('No thanks');
     expect(t).toContain(
-      'Tick what you are happy to share; anything you leave unticked stays off. You can change it any time in Setup.'
+      'Tick what you are happy to share; anything you leave unticked stays off.'
     );
     expect(t).not.toContain('Anything you untick');
     // Nothing ticked: Yes waits for a tick, and says so.

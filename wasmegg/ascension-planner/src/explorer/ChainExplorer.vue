@@ -27,7 +27,7 @@
           <h1 class="text-2xl font-black tracking-tight text-slate-900">Route Explorer</h1>
           <p class="text-sm text-slate-500 max-w-3xl leading-relaxed">
             Every run submitted to the collector, grouped by how many ascensions it takes. Pick a count to see where
-            each ascension lands, how long each leg runs, and whether the shape repeats across accounts.
+            each ascension lands, how long each one runs, and whether the shape repeats across accounts.
           </p>
         </header>
 
@@ -40,7 +40,7 @@
           class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-indigo-900 hover:bg-indigo-100"
         >
           <span class="text-[13px] font-bold">
-            Want to help make AAAP better? Run one of the sweeps we still need and submit it.
+            Want to help improve the planner? Run one of the sweeps we still need and submit it.
           </span>
           <span class="text-[10px] font-black uppercase tracking-widest">See what's needed &rarr;</span>
         </a>
@@ -83,7 +83,7 @@
                  screenshot, 30 Sept: the checkboxes ran into the next sentence, and the collector URL and
                  worker-time note read like developer notes). The page on its own keeps the detail. -->
             <p v-else class="text-sm font-bold text-slate-700">
-              {{ plural(usable.length, 'run') }} from {{ accounts.length }} accounts<template v-if="!embedded">
+              {{ plural(usable.length, 'run') }} from {{ plural(accounts.length, 'account') }}<template v-if="!embedded">
                 · {{ plural(totalChainsPriced, 'route') }} priced between them<template v-if="computeTotal.runs">
                   · {{ formatMinutes(computeTotal.minutes) }} of computing</template
                 ></template
@@ -271,7 +271,7 @@
               column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery
               score), so you can see whether the winning count moves with where an account is or with its gear. The
               border says how the run behind the cell searched: solid for a finished box at every TE, dashed for every
-              2nd-3rd TE, dotted for every 4th or coarser, striped for a search-around-the-answer run or a box it did
+              2nd-3rd TE, dotted for every 4th or coarser, striped for a Nearby routes search or a box it did
               not finish. A dark cell with a dotted or striped edge is a best count found by a search that could have
               missed a better plan, so it is weaker than it looks. Hover or tap a cell for the route, its finish date,
               how it searched and whether the step from the next count down is bigger than the search could explain.
@@ -358,7 +358,7 @@
         <section v-if="selected" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <h2 class="text-lg font-black text-slate-900">
-              {{ selectedCount === 'all' ? 'Every ascension count' : `${selectedCount} ascensions` }}
+              {{ selectedCount === 'all' ? 'Every ascension count' : plural(selectedCount, 'ascension') }}
               <span class="text-[11px] font-bold text-slate-400">
                 · {{ selected.rows.length }} run{{ selected.rows.length === 1 ? '' : 's' }} from
                 {{ selected.accounts }} account{{ selected.accounts === 1 ? '' : 's' }}
@@ -1067,7 +1067,7 @@
                   That is how plans from different saves of one account compare, since a table made a day later counts
                   every plan a day shorter. Only runs whose finish still stands are used; the line under the picker says
                   which were left out and why (tap one to see). A plan is a route under its run's settings, so a plan
-                  priced with a schedule, or with "prestige now", is its own row, tagged. A plan two tables priced shows
+                  priced with a schedule, or with Prestige now, is its own row, tagged. A plan two tables priced shows
                   its newest measurement. A plan with a stop the account has since passed (most likely because it
                   followed that plan) is matched on what is left of it: a newer table's measurement of the rest stands,
                   and with none the older one stays, the passed stop struck through. The tables are big, so they load
@@ -1205,7 +1205,7 @@
         class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
       >
         <div class="space-y-1">
-          <h2 class="text-lg font-black text-slate-900">Submit a sweep</h2>
+          <h2 class="text-lg font-black text-slate-900">{{ NAMES.submit }}</h2>
           <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
             Ran a sweep and closed the tab, or ran it on another machine? Upload its two files here. They are checked
             against each other, for truncation and for the old delivery-set bug, before anything is sent.
@@ -1245,7 +1245,7 @@ import { plural } from '@/lib/format';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import SearchShapeChart from '@/components/auto/charts/SearchShapeChart.vue';
 import type { PricedChain } from '@/search/types';
-import type { ScienceView } from '@/lib/siteNav';
+import { NAMES, type ScienceView } from '@/lib/siteNav';
 import { describeCompute, formatMinutes } from '@/utils/computeTime';
 import CountShapeChart from './CountShapeChart.vue';
 import LegProfileChart from './LegProfileChart.vue';
@@ -1909,7 +1909,7 @@ function vsBestTitle(row: CollectorRow): string {
   const best = judged.value.bestByAccount.get(key);
   let against = "this account's earliest finish";
   if (best) {
-    against += `, ${best.row.chain.join(' ')} (${best.row.ascensions} ascensions) on ${finishDateText(best.finish, viewZone)}`;
+    against += `, ${best.row.chain.join(' ')} (${plural(best.row.ascensions, 'ascension')}) on ${finishDateText(best.finish, viewZone)}`;
     if (!bestListed.value.has(key)) against += ', not listed here';
   }
   const days =

@@ -27,7 +27,7 @@
       class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 leading-relaxed"
       data-testid="start-times-on-virtue"
     >
-      You're already ascending: this is for coming back after a break, before your first ascension.
+      You're already ascending, so there's no start to pick.
     </p>
     <div v-else class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
       <p v-if="!(store.currentTE > 0)" class="text-[11px] font-semibold text-amber-700" data-testid="start-times-no-save">

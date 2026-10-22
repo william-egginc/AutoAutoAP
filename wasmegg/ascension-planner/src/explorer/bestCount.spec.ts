@@ -377,7 +377,7 @@ describe('bestCountTable', () => {
     expect(order('cte')).toEqual(['b', 'a', 'c']);
     expect(order('delivery')).toEqual(['a', 'c', 'b']);
     expect(gearText(bestCountTable(all, judge(all), { labels: names }).rows[1])).toBe(
-      'TE 150 · CTE 300.0 · delivery 80%'
+      'TE 150 · Clothed TE 300.0 · delivery 80%'
     );
   });
 

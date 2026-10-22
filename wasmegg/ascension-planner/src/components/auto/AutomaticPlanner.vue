@@ -141,7 +141,7 @@
               moment the previous one ends. A plan built from a {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }} result keeps
               that search's time off.
             </li>
-            <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't account for sleep hours.</li>
+            <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't plan around your awake hours.</li>
           </ul>
           <p class="text-amber-600 leading-relaxed">Treat this as a starting point. Your actual results may vary.</p>
 
@@ -307,8 +307,8 @@
         class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">Includes your time off.</span>
-        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Re-apply from the route
-        search to put it back.
+        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Build this plan or Simulate this plan
+        on the search again to put it back.
       </div>
       <div
         v-if="timeOffDroppedFor"

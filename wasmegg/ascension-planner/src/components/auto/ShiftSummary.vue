@@ -122,7 +122,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { formatNumber, formatDuration } from '@/lib/format';
+import { formatNumber, formatDuration, plural } from '@/lib/format';
 import { iconURL } from 'lib';
 import { rarityTint } from '@/lib/artifacts/display';
 import { getResearchById, getResearchByTier } from '@/calculations/commonResearch';
@@ -288,7 +288,7 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
       const { newLoadout } = action.payload;
       setEquippedArtifacts(newLoadout);
     } else if (action.type === 'equip_artifact_set') {
-      const setName = action.payload.setName === 'earnings' ? 'Earnings' : 'Delivery Rate';
+      const setName = action.payload.setName === 'earnings' ? 'Earnings' : 'Delivery';
       equippedSets.push(setName);
       // No accompanying update_artifact_set in this shift (the set's contents were already known,
       // e.g. C1 re-equipping a set computed by an earlier shift or loaded from the backup) — fall
@@ -350,7 +350,7 @@ if (!(researchId in startResearch)) startResearch[researchId] = fromLevel;
 
   // --- Silos ---
   if (finalSiloCount > 0) {
-    items.push({ category: 'silos', isPremium: true, text: `${finalSiloCount} Silos` });
+    items.push({ category: 'silos', isPremium: true, text: plural(finalSiloCount, 'Silo') });
   }
 
   // --- Habs ---

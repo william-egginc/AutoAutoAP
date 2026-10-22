@@ -60,6 +60,6 @@ describe('the Leaderboard name', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.vue'), 'utf8');
     expect(app).toMatch(/label: NAMES\.compare,/);
     const deadline = fs.readFileSync(path.join(SRC, 'components', 'auto', 'DeadlinePanel.vue'), 'utf8');
-    expect(deadline).toContain("Answers go on the {{ NAMES.compare }}'s Egg Day");
+    expect(deadline).toContain("Answers you send go on the {{ NAMES.compare }}'s Egg Day");
   });
 });

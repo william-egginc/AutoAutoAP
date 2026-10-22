@@ -24,8 +24,7 @@ export interface StartLine {
 }
 
 /** Said when no goal has a saved plan. */
-export const NOTHING_PRICED =
-  'No start time is priced yet for this save: When should I start? prices a route at every hour of the next week.';
+export const NOTHING_PRICED = 'No start time is priced yet for this save.';
 
 /**
  * One line per goal: "If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 3:00 am (Race to 490, Check exactly)",

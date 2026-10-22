@@ -33,7 +33,7 @@ describe('try next', () => {
     const p = tryNextPills({ tile: tile('fastest', ans({ how: 'instant' })), target: 490 }, tile('date', ans({ how: 'instant', endTE: 248 })));
     expect(p).toHaveLength(MAX_PILLS);
     expect(p.map(x => x.id)).toContain('check-eggday');
-    expect(p[2].label).toBe('Exhaustive (around 4 asc)');
+    expect(p[2].label).toBe('Exhaustive (around 4 ascensions)');
   });
 
   it('drops what is done', () => {

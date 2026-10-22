@@ -134,7 +134,7 @@ describe('PaceBadge', () => {
     expect(textOf(none)).toBe(NO_SAVE_WORDS);
     expect(none).not.toContain('aria-expanded');
     const below = await renderHtml(PaceBadge, { words: words(T0 + 2 * H, 185) });
-    expect(textOf(below)).toBe('Your TE is below where this plan starts');
+    expect(textOf(below)).toBe('Your TE is below where this plan starts.');
     expect(await renderHtml(PaceBadge, { words: null })).not.toContain('pace-badge');
   });
 });

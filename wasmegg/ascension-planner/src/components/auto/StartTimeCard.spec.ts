@@ -69,7 +69,7 @@ describe('StartTimeCard: only before the player is on virtue (16 Oct 2026)', () 
     const html = await renderHtml(StartTimeCard, {}, {}, [pinia]);
     expect(html).toContain('data-testid="start-times-on-virtue"');
     expect(textOf(html)).toContain(
-      "You're already ascending: this is for coming back after a break, before your first ascension."
+      "You're already ascending, so there's no start to pick."
     );
     expect(html).not.toContain('start-times-no-save');
     expect(html).not.toContain('start-times-route');

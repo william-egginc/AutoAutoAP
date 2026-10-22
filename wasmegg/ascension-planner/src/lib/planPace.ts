@@ -365,7 +365,7 @@ export function paceWords(s: PaceState, nowSeconds: number, zone: string, o: { f
         case 'not-started':
           return out(`Starts ${dateAt(s.start, nowSeconds, zone)}: nothing to compare yet`, 'plain', '');
         case 'below-start':
-          return out('', 'warn', 'Your TE is below where this plan starts');
+          return out('', 'warn', 'Your TE is below where this plan starts.');
         case 'no-te':
           return out("Can't tell: saved without each egg's TE", 'warn', '');
         default:
@@ -380,11 +380,11 @@ export function paceWords(s: PaceState, nowSeconds: number, zone: string, o: { f
           : `${gapWords(s.hours)} ${s.kind === 'ahead' ? 'ahead' : 'behind'}`;
       const parts = [
         `Plan expected ${te1(s.expected)} TE by ${clockWords(s.saveTime, nowSeconds, zone)}; you had ${te1(s.actual)}.`,
-        `Plan: ascension ${s.planAsc} of ${s.stops} by now · you: stop ${s.stopsReached} of ${s.stops} reached.`,
-        s.rough ? 'Rough: compared leg by leg.' : '',
+        `Plan: ascension ${s.planAsc} of ${s.stops} by then · you: stop ${s.stopsReached} of ${s.stops} reached.`,
+        s.rough ? 'Rough: compared ascension by ascension.' : '',
         s.estimate ? 'The plan is an instant answer, not checked exactly.' : '',
         s.onVirtue ? '' : 'Not on your virtue farm in this save.',
-        s.startNote ? `This plan was set to start at ${clockWords(s.startNote, nowSeconds, zone)}.` : '',
+        s.startNote ? `This plan was set to start ${clockWords(s.startNote, nowSeconds, zone)}.` : '',
         FORECAST_WORDS,
       ];
       return out(badge, s.kind === 'behind' ? 'bad' : 'ok', parts.filter(Boolean).join(' '), s.saveTime, s.estimate);

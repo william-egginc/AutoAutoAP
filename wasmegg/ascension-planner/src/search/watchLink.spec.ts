@@ -287,7 +287,7 @@ describe('the watch page', () => {
     expect(v.title).toBe('Not reporting');
     expect(v.tone).toBe('warn');
     expect(v.stale).toBe(
-      "This run hasn't reported in 15+ min — the tab may have crashed or the computer may be asleep."
+      "This run hasn't reported for over 15 minutes. The tab may have crashed, or the computer may be asleep."
     );
   });
 

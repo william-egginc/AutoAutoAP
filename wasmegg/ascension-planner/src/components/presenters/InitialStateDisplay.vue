@@ -31,7 +31,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
           <div>
             <div class="text-sm font-bold text-slate-700">Starting Egg</div>
-            <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">Initial Egg</div>
+            <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">Where the plan begins</div>
           </div>
           <div class="flex gap-2 justify-between w-full sm:w-auto mt-1 sm:mt-0">
             <button
@@ -87,7 +87,7 @@
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-4 h-4 mb-0.5" alt="SE" />
             </div>
             <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">
-              Earnings potential multiplier
+              Pays for shifts
             </div>
           </div>
           <div class="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
@@ -266,7 +266,7 @@
             ]"
             @click="activeSetTab = setName"
           >
-            {{ setName }}
+            {{ setName === 'elr' ? 'Delivery' : 'Earnings' }}
           </button>
         </div>
       </div>
@@ -429,7 +429,7 @@
                 <div class="flex items-center gap-2">
                   <svg
                     v-if="getRoundingShortfall(fuelAmounts[egg]) > 0"
-                    v-tippy="'Rounding is likely to cause a problem for you, since you are below the displayed number of eggs.'"
+                    v-tippy="'The amount shown is rounded up. You have fewer eggs than it shows.'"
                     class="w-4 h-4 text-warning"
                     fill="none"
                     stroke="currentColor"

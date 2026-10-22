@@ -79,7 +79,7 @@
           class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
           @click="resume(run.id)"
         >
-          {{ resuming === run.id ? 'Resuming…' : 'Resume' }}
+          {{ resuming === run.id ? 'Carrying on…' : 'Carry on' }}
         </button>
         <button
           type="button"
@@ -175,7 +175,7 @@ async function open(id: string): Promise<void> {
   if (opened) emit('opened', { full: !!store.savedRuns.find(r => r.id === id)?.space });
   note.value =
     props.canResume && store.openedRun?.space && !store.canResumeOpenedRun
-      ? `Cannot resume: ${store.resumeBlocker}.`
+      ? `Can't carry on: ${store.resumeBlocker}.`
       : '';
 }
 
@@ -193,7 +193,7 @@ async function resume(id: string): Promise<void> {
       return;
     }
     if (!store.canResumeOpenedRun) {
-      note.value = `Cannot resume: ${store.resumeBlocker}.`;
+      note.value = `Can't carry on: ${store.resumeBlocker}.`;
       return;
     }
     const restored = store.planStartRestoreNote(store.openedRun?.fingerprint);

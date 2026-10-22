@@ -168,7 +168,7 @@
          bug. -->
     <div v-if="row.delivery?.length || row.earnings?.length">
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-        {{ setTab === 'earnings' ? 'Earnings set' : 'Delivery set' }}
+        {{ setTab === 'earnings' ? 'Earnings set' : 'Production set' }}
       </h4>
       <div class="flex gap-1 mb-1.5">
         <button
@@ -179,7 +179,7 @@
           :class="setTab === t ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-600'"
           @click="setTab = t"
         >
-          {{ t }}
+          {{ t === 'delivery' ? 'production' : t }}
         </button>
       </div>
       <div v-for="(slot, k) in setTab === 'earnings' ? row.earnings : row.delivery" :key="k" class="mb-1">
@@ -243,7 +243,7 @@
           <span>Minimum gap</span><span class="font-bold">{{ row.space.minGap }} TE</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>Routes in space</span>
+          <span>Routes in the boxes</span>
           <span class="font-bold">{{ row.space.chains.toLocaleString() }}</span>
         </div>
         <div class="flex justify-between gap-3">
@@ -260,7 +260,7 @@
            it reached -- an ordinary search result. Letting that render as a proof is the one way
            this block could mislead. -->
       <p v-if="row.space.stoppedEarly" class="mt-1 font-semibold text-amber-700">
-        Stopped before the space was finished, so this is the best of what it reached, not a proof.
+        Stopped before every route in the boxes was priced, so this is the best of what it reached, not a proof.
       </p>
     </div>
     <!-- The distribution the proof sits in. The margin leads because it is what changes how the
@@ -435,7 +435,7 @@ const setTab = ref<'delivery' | 'earnings'>('delivery');
 function spaceWhere(sp: NonNullable<BoardRow['space']>): string {
   return sp.mode === 'range' && sp.range
     ? `every ${sp.range.step} TE from ${sp.range.lo} to ${sp.range.hi}`
-    : 'listed bands';
+    : 'the boxes listed below';
 }
 function spaceAsc(sp: NonNullable<BoardRow['space']>): string {
   return sp.minAscensions === sp.maxAscensions ? String(sp.minAscensions) : `${sp.minAscensions}-${sp.maxAscensions}`;

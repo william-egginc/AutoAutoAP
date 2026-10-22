@@ -50,7 +50,7 @@
         class="self-start mt-1 rounded-lg border border-indigo-300 px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
         @click="emit('open', screenOpen)"
       >
-        {{ goal === 'date' ? 'Open Egg Day' : 'Open Fastest' }}
+        {{ goal === 'date' ? 'Open Egg Day' : `Open ${fastestName(target)}` }}
       </button>
     </template>
   </section>
@@ -63,6 +63,7 @@ import { spareWords, whenAgo } from '@/lib/nowWords';
 import { howWords, saveGapWords, secondaryLabel, sourceWords, type Tile } from '@/lib/savedTiles';
 import { secondaryLine } from '@/lib/currentAnswer';
 import { formatDate } from '@/lib/leaderboardRank';
+import { fastestName } from '@/lib/siteNav';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 
 const props = defineProps<{

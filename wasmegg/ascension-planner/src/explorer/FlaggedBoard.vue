@@ -79,7 +79,7 @@ onMounted(async () => {
       typeof r.clothedTE === 'number' && Number.isFinite(r.clothedTE) ? r.clothedTE : Infinity;
     rows.value = all.sort((a, b) => Number(!!b.yours) - Number(!!a.yours) || cte(a) - cte(b) || 0);
   } catch (e) {
-    error.value = describeFetchError(e, 'the flagged board');
+    error.value = describeFetchError(e, 'these runs');
   } finally {
     loading.value = false;
   }

@@ -6,12 +6,12 @@
       </svg>
     </template>
     <template #description>
-      Buys any research that requires less than
+      Buys any research that takes
       <span
         class="font-mono font-bold text-brand-primary bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm mx-0.5"
         >{{ displayDuration }}</span
       >
-      time to save, right now.
+      or less to save, right now.
     </template>
 
     <div class="space-y-2">

@@ -79,7 +79,7 @@
               class="px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 disabled:opacity-40"
               @click="benchmark"
             >
-              {{ measuredCost ? 'Re-benchmark' : 'Benchmark this machine' }}
+              {{ measuredCost ? 'Re-benchmark' : 'Benchmark my PC' }}
             </button>
           </div>
         </div>
@@ -260,8 +260,8 @@
           <p>
             <span class="font-bold text-slate-800">Routes are sorted so related ones sit together.</span> Every route
             starting <code class="font-mono-premium">195 229</code> sits next to the others that start that way, because
-            the expensive unit is the <span class="font-semibold">leg</span>, not the route. Two routes that share their
-            first three stops share those three leg simulations exactly.
+            the expensive unit is the <span class="font-semibold">ascension</span>, not the route. Two routes that share their
+            first three stops share those three ascensions' simulations exactly.
           </p>
           <p>
             <span class="font-bold text-slate-800"
@@ -271,9 +271,9 @@
             prefix, so each worker gets a family of related routes instead of a random handful, and its memo pays off.
           </p>
           <p>
-            <span class="font-bold text-slate-800">Each worker simulates legs and remembers them.</span> A leg is a full
+            <span class="font-bold text-slate-800">Each worker simulates ascensions and remembers them.</span> An ascension is a full
             farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That is
-            where the ~15 s goes. A route whose prefix the worker has already priced only pays for its new legs, which
+            where the ~15 s goes. A route whose prefix the worker has already priced only pays for its new ascensions, which
             is why the real cost lands well under the estimate.
           </p>
           <p>
@@ -494,8 +494,8 @@
 
               <span class="block text-[10px] text-slate-400">
                 <template v-if="bands.length">
-                  {{ plural(bands.length, 'band') }} -> {{ plural(bands.length + 1, 'ascension') }} ·
-                  {{ bands.map(b => b.length).join(' x ') }} values
+                  {{ plural(bands.length, 'band') }} → {{ plural(bands.length + 1, 'ascension') }} ·
+                  {{ bands.map(b => b.length).join(' × ') }} values
                 </template>
                 <template v-else>Nothing readable yet.</template>
               </span>
@@ -655,7 +655,7 @@
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. wall clock</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. time</span>
                 <HelpTip
                   >Routes x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
                   route this long in players' runs until this machine has its own measured or benchmarked rate, and
@@ -733,7 +733,7 @@
               The estimate assumes {{ assumedCostLabel }} per route on {{ store.workerBudget }} workers,
               {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.
               <template v-if="!measuredCost"
-                >Benchmark this machine above for a number from your own computer.</template
+                >Press Benchmark my PC above for a number from your own computer.</template
               >
               Leave the tab open: a closed tab stops the workers.
             </template>
@@ -887,7 +887,7 @@
               </p>
               <p class="text-[11px] text-rose-900/90 leading-relaxed">
                 The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs
-                and vehicles the plan is waiting on, so the very first leg stalls and every leg after it inherits the
+                and vehicles the plan is waiting on, so the very first ascension stalls and every ascension after it inherits the
                 stall. A different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
                 necklace and their stones) will. If you think the planner has this wrong, download the diagnostics below
                 and send them in.
@@ -1031,7 +1031,7 @@
                   An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than
                   a search result. It is sent with the space it covered and what it found there (the runners-up, the
                   best route at each ascension count, and the spread), so a reader can tell a real find from a flat
-                  neighbourhood without downloading the CSV. A run opened from the library above is sent without a run
+                  neighbourhood without downloading the CSV. A run opened from Saved runs above is sent without a run
                   cost, because the time it took wasn't this machine's.
                 </p>
                 <p class="text-[11px] text-indigo-900/80 leading-relaxed">
@@ -1682,7 +1682,7 @@ function extraSummary(k: number): string {
   if (row.asc <= 1) return `Straight to ${store.finalTE}: one route.`;
   return `${extraCount(k).toLocaleString()} routes · ${extraBands(k)
     .map(b => b.length)
-    .join(' x ')} values`;
+    .join(' × ')} values`;
 }
 function suggestExtra(k: number): void {
   const row = extraChains.value[k];
@@ -1764,7 +1764,7 @@ function addChainOfCount(n: number): string {
   extraChains.value.push({ asc: n, text: '' });
   const k = extraChains.value.length - 1;
   suggestExtra(k);
-  return `Added Box ${k + 2} with ${n} ascensions under The routes to try. Press Find to run it.`;
+  return `Added Box ${k + 2} with ${n} ascensions under The space to search. Press Find to run it.`;
 }
 /** The instant answer's route, handed to the Full sweep as one-value bands (taken by the watch on `ui.fullSweepBands`). */
 function checkRouteExactly(chain: number[]): void {
@@ -2206,12 +2206,12 @@ function saveWhen(unixSeconds: number | undefined): string {
 
 function agoLabel(ms: number): string {
   const diffS = Math.max(0, Math.round((nowForAge.value - ms) / 1000));
-  if (diffS < 60) return `${diffS}s ago`;
+  if (diffS < 60) return `${diffS} s ago`;
   const diffM = Math.round(diffS / 60);
-  if (diffM < 60) return `${diffM}m ago`;
+  if (diffM < 60) return `${diffM} min ago`;
   const diffH = Math.round(diffM / 60);
-  if (diffH < 48) return `${diffH}h ago`;
-  return `${Math.round(diffH / 24)}d ago`;
+  if (diffH < 48) return `${diffH} h ago`;
+  return `${Math.round(diffH / 24)} days ago`;
 }
 
 /** The result card's Save run (named later, or not, in Saved runs). */

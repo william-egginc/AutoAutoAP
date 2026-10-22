@@ -182,7 +182,7 @@ describe('scatterView', () => {
     expect(pointLines(v.best!, v.goal!, ZONE, true)).toEqual([
       'Best · 300 → 490',
       '2 ascensions · 11.0 days · finishes Oct 12 at 12:00 am',
-      'Level not recorded · Looks like yours',
+      'Level not recorded · Maybe you',
     ]);
     const saved = v.shown.find(p => p.from === 'saved')!;
     expect(pointLines(saved, v.goal!, ZONE)).toEqual([

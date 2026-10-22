@@ -105,7 +105,7 @@
               </div>
               <div class="flex flex-col items-center relative z-10">
                 <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-violet-700"
-                  >1-Hr Max</span
+                  >Silos in 1 Hr</span
                 >
                 <span class="text-[9px] font-mono-premium font-black text-violet-500 mt-0.5">
                   {{ maxSilosIn1Hour.count }} new silo{{ maxSilosIn1Hour.count !== 1 ? 's' : '' }} ·
@@ -176,7 +176,7 @@
             >Current Rank</span
           >
           <span class="text-xs font-mono-premium font-black text-indigo-700">
-            Lvl {{ siloOutput.siloCapacityLevel }}/20
+            Lv {{ siloOutput.siloCapacityLevel }}/20
           </span>
         </div>
       </div>

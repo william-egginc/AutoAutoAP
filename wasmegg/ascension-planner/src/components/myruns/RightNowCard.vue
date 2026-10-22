@@ -197,7 +197,7 @@
         When should I start? ›
       </button>
       <span class="block mt-1 text-[11px] text-slate-500"
-        >Prices a route at every hour of the next week for this save (Science › When should I start?).</span
+        >Prices a route at every hour of the next week for this save ({{ NAMES.science }} › {{ NAMES.start }}).</span
       >
     </div>
 
@@ -307,6 +307,7 @@ import { paceWords } from '@/lib/planPace';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { secondaryLine } from '@/lib/currentAnswer';
 import { formatDate } from '@/lib/leaderboardRank';
+import { NAMES } from '@/lib/siteNav';
 import { eggIconPath, virtueEggName } from '@/lib/virtueEggs';
 import type { CardPlan } from '@/composables/useNowPage';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';

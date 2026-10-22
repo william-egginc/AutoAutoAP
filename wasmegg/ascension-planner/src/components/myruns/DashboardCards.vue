@@ -31,7 +31,7 @@
         v-if="c.maybe"
         class="self-start mt-0.5 px-1 rounded bg-slate-100 text-[9px] font-semibold text-slate-500"
         title="Same timezone and gear as the save you loaded, but this browser holds no code that proves it is yours."
-        >looks like yours</span
+        >maybe you</span
       >
       <button
         v-if="c.action"

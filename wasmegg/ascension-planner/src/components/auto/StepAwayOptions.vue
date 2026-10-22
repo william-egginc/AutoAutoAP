@@ -156,7 +156,7 @@
             name.
             <span class="block text-slate-500">Doesn't slow the run.</span>
             <span v-if="!phoneAvailable" class="block text-slate-500"
-              >Needs a collector, and this copy of the planner has none.</span
+              >Needs a server for watch links, and this copy of the planner has none.</span
             ></span
           >
         </template>
@@ -191,8 +191,8 @@
                 ></div>
                 <!-- eslint-enable vue/no-v-html -->
                 <p class="max-w-xs">
-                  Scan with your phone, then bookmark it or Add to Home Screen; you can close the page, it keeps
-                  updating.
+                  Scan with your phone, then bookmark it or Add to Home Screen. You can close it on your phone: the link keeps
+                  updating while the run goes.
                   <span class="block font-semibold text-slate-800"
                     >Only someone with this link or QR code can see it; keep it private.</span
                   >

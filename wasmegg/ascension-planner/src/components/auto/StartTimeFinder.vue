@@ -6,14 +6,14 @@
 -->
 <template>
   <div :class="bare ? 'space-y-3' : 'rounded-xl border border-slate-200 bg-white p-4 space-y-3'">
-    <h3 v-if="!bare" class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When should I start?</h3>
+    <h3 v-if="!bare" class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ NAMES.start }}</h3>
     <p class="text-[11px] text-slate-600 leading-relaxed">
       Prices <span class="font-bold">{{ chain.join(' ') }}</span> as a fresh start at every
       {{ stepMinutes === 60 ? 'hour' : `${stepMinutes / 60} hours` }} of the next week<template
         v-if="store.scheduleEnabled"
       >
         you're awake</template
-      >, and shows which start finishes first. Research sales come round weekly, so starting a few hours later can
+      >, and shows which start finishes first. Research Sales come round weekly, so starting a few hours later can
       finish days sooner. The answer is for this route only: a different route lines up with the sales differently.
     </p>
 
@@ -115,6 +115,7 @@ import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime, showHour } from '@/lib/displayTime';
+import { NAMES } from '@/lib/siteNav';
 import { sweepSeconds, workerSecondsPerChain } from '@/search/speed';
 import { formatHours } from '@/search/exhaustive';
 

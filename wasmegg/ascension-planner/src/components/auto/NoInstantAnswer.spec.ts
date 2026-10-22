@@ -131,7 +131,7 @@ describe('By a date: Get a quick estimate', () => {
     expect(status).toContain('autoStatus.value ||');
     expect(slot).toContain('{{ quickStatus }}');
     expect(slot).toContain('@click="stopDeadline"');
-    expect(slot).toContain('Stop and keep the best');
+    expect(slot).toContain('Stop &amp; keep best');
   });
 
   it('after it: the best route in the usual card, and that it was a quick estimate', () => {

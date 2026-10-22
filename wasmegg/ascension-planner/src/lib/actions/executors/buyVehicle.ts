@@ -47,6 +47,6 @@ export const buyVehicleExecutor: ActionExecutor<'buy_vehicle'> = {
     const multiplier = payload.vehicleId === 11 && payload.trainLength ? payload.trainLength : 1;
     const totalCapacity = capacity * multiplier;
 
-    return `+${formatNumber(totalCapacity * 3600, 2)}/hr shipping`;
+    return `+${formatNumber(totalCapacity * 3600, 2)}/hr base shipping`;
   },
 };

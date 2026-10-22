@@ -35,7 +35,7 @@ const collector = !!store.submitUrl;
 const { prefs } = useTabPrefs(() => collector);
 
 /** For players who used the Leaderboard before it went behind this box. */
-const TABS_HIDDEN_NOTE = `The ${NAMES.compare} and ${NAMES.science} tabs are hidden until you turn them on here.`;
+const TABS_HIDDEN_NOTE = `The ${NAMES.compare} and ${NAMES.science} tabs show only when you turn them on here.`;
 const NO_COLLECTOR = 'This build has no leaderboard, so there is nothing to show.';
 const ROWS: { id: OptionalTab; label: string; what: string }[] = [
   {

@@ -401,7 +401,7 @@ async function handleImport(event: Event) {
             truthEggsStore.hydrate(plan.initialState);
           } catch (e) {
             console.error('Failed to restore roadmap:', e);
-            alert('Failed to restore roadmap simulation state.');
+            alert('Failed to restore the Single run state.');
           } finally {
             uiStore.loading = false;
           }
@@ -663,7 +663,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
 
           <div class="flex items-center space-x-0 sm:space-x-2">
             <span class="hidden sm:inline text-[10px] text-gray-400 whitespace-nowrap mr-1">
-              Updated {{ new Date(plan.timestamp).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }}
+              Updated {{ new Date(plan.timestamp).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) }}
             </span>
             <button class="p-0.5 sm:p-1 text-gray-400 hover:text-indigo-600" v-tippy="'Export this plan (JSON)'" @click="exportPlan(plan)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

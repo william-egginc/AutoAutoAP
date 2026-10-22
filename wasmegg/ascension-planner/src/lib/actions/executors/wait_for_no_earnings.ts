@@ -20,6 +20,6 @@ export const waitForNoEarningsExecutor: ActionExecutor<'wait_for_no_earnings'> =
     },
 
     getEffectDescription(payload: WaitWithoutEarningsPayload): string {
-        return `Wait period WITHOUT growth, gems, or eggs — ${formatDuration(payload.totalTimeSeconds)}`;
+        return `No growth, gems or eggs shipped — ${formatDuration(payload.totalTimeSeconds)}`;
     },
 };

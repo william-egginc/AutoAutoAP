@@ -373,12 +373,14 @@
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-            {{ NAMES.classic }} only plans around time off in a plan built from a search (Build this plan on {{ fastestName(store.finalTE) }} or
-            {{ NAMES.byDate }}). A route typed in here goes straight through it for now.
+            {{ NAMES.classic }} only plans around time off in a plan sent from a search (Build this plan on
+            {{ fastestName(store.finalTE) }}, or Simulate this plan on {{ NAMES.byDate }}). A route typed in here goes
+            straight through it for now.
           </p>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
-            The searches price every route with the time off in it, so the winner is the best plan around it. The Chain
-            Explorer keeps runs with time off apart from the rest, since they answer a different question.
+            The searches price every route with the time off in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
+            {{ NAMES.insights }} keeps runs with time off apart from the rest, since they answer a different
+            question.
           </p>
         </fieldset>
 
@@ -462,7 +464,7 @@
               </p>
               <label class="block space-y-1">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest"
-                  >Keep per-leg detail for</span
+                  >Keep per-ascension detail for</span
                 >
                 <span class="flex items-center gap-2">
                   <input
@@ -480,7 +482,7 @@
                 <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> routes ({{
                   heldMb
                 }}). Every route keeps its total time whatever this says; past this number, the ones that didn't win
-                lose the per-leg timings the runners-up table opens.
+                lose the per-ascension timings the runners-up table opens.
                 <span class="font-bold text-slate-700">0 keeps everything</span>, which on a run of hundreds of
                 thousands of routes is how a tab gets killed overnight.
               </p>

@@ -50,14 +50,14 @@ const tabTag = (html: string, tab: string) =>
   html.match(new RegExp(`<button[^>]*data-testid="search-tab-${tab}"[^>]*>`))?.[0] ?? '';
 
 describe('SearchTabs', () => {
-  it('renders both panels (both stay mounted), Search nearby shown by default, Exhaustive hidden with display:none', async () => {
+  it('renders both panels (both stay mounted), Nearby routes shown by default, Exhaustive hidden with display:none', async () => {
     const html = await render();
     const t = textOf(html);
     expect(t).toContain('NEARBY BODY');
     expect(t).toContain('EXHAUSTIVE BODY');
     expect(panelTag(html, 'nearby')).not.toContain('display:none');
     expect(panelTag(html, 'exhaustive')).toContain('display:none');
-    expect(t).toMatch(/^Search nearby Exhaustive · to prove it/);
+    expect(t).toMatch(/^Nearby routes Exhaustive · to prove it/);
   });
 
   it('is an ARIA tablist: tabs say which is selected and which panel they control; panels name their tab', async () => {

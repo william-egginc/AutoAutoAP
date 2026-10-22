@@ -413,11 +413,11 @@ export function cellTitle(row: BestCountRow, cell: BestCountCell, zone: string):
   return lines.join('\n');
 }
 
-/** `TE 198 · CTE 214.3 · delivery 87%`, dropping what the run did not record. */
+/** `TE 198 · Clothed TE 214.3 · delivery 87%`, dropping what the run did not record. */
 export function gearText(row: Pick<BestCountRow, 'te' | 'clothedTE' | 'delivery'>): string {
   const parts: string[] = [];
   if (row.te != null) parts.push(`TE ${row.te}`);
-  if (row.clothedTE != null) parts.push(`CTE ${row.clothedTE.toFixed(1)}`);
+  if (row.clothedTE != null) parts.push(`Clothed TE ${row.clothedTE.toFixed(1)}`);
   if (row.delivery != null) parts.push(`delivery ${Math.round(row.delivery * 100)}%`);
   return parts.join(' · ');
 }

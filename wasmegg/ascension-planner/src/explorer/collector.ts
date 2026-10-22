@@ -301,9 +301,9 @@ export function byDateCsvLine(p: ParsedByDateCsv): string {
   const best = p.kept[0];
   const head = best ? `best ${best.lastStop} TE via ${best.chain.join(' ')}` : 'no route made the date';
   if (!p.priced.length)
-    return `That is a By a date run (${head}; ${p.kept.length.toLocaleString('en-US')} routes kept). The charts here are for Fastest route runs.`;
+    return `That is a Highest TE by a date run (${head}; ${p.kept.length.toLocaleString('en-US')} routes kept). The charts here are for Fastest to 490 TE runs.`;
   const makes = p.priced.filter(r => r.makes).length;
-  return `That is a By a date run (${head}): ${p.priced.length.toLocaleString('en-US')} routes priced, ${makes.toLocaleString('en-US')} make the date. The charts here are for Fastest route runs.`;
+  return `That is a Highest TE by a date run (${head}): ${p.priced.length.toLocaleString('en-US')} routes priced, ${makes.toLocaleString('en-US')} make the date. The charts here are for Fastest to 490 TE runs.`;
 }
 
 /**

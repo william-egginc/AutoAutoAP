@@ -12,7 +12,7 @@
             <div class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">Hab Sale</span>
           </div>
-          <span class="text-[10px] font-black text-blue-600 uppercase tracking-tighter">80% Discount Active</span>
+          <span class="text-[10px] font-black text-blue-600 uppercase tracking-tighter">80% off</span>
         </div>
         <button
           class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
@@ -85,7 +85,7 @@
         </div>
         <div class="flex flex-col items-center relative z-10">
           <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-emerald-700"
-            >5 Min Max Habs</span
+            >Habs in 5 Min</span
           >
         </div>
       </button>

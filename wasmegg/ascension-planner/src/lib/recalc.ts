@@ -10,6 +10,7 @@
  */
 import { SAVE_AMBER_HOURS } from './saveFreshness';
 import type { MyRunsOpen } from './myRunsDashboard';
+import { NAMES, fastestName } from './siteNav';
 
 /** What the screen is asked for: its goal in the instant answer's own words (`instantGoal`: "target 490",
  *  "date 1815753600"), numbered so the same ask twice is two asks. */
@@ -36,7 +37,7 @@ export interface RecalcRequest {
 
 /** The short line under the button. */
 export function recalcWords(open: MyRunsOpen): string {
-  const screen = open.auto === 'by-date' ? 'By a date' : 'Fastest';
+  const screen = open.auto === 'by-date' ? NAMES.byDate : fastestName(open.target);
   return `Opens ${screen} with your save and runs Check exactly`;
 }
 

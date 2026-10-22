@@ -174,7 +174,7 @@ function check(): void {
         WAITING,
         'done',
         m?.status === 'running'
-          ? `${WAITING_DETAIL} The last run here went quiet ${age} ago, before this tab opened, so this tab won't reopen it; carry it on in the planner and this tab will watch it.`
+          ? `${WAITING_DETAIL} The last run here went quiet ${age} ago, before this tab opened, so this tab won't reopen it. Carry it on in the planner, or press Find for a new run, and this tab will watch it.`
           : WAITING_DETAIL
       );
       return;
@@ -190,7 +190,7 @@ function check(): void {
         show(
           `The run stopped with an error; reopened it at ${clock12(now)}.`,
           'warn',
-          'It should carry on by itself, with one fewer worker.'
+          'It should carry on by itself, with fewer workers.'
         );
       else
         show(

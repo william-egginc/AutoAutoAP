@@ -154,7 +154,7 @@ function start(): void {
   }
   base = resolveCollectorBase(location.search);
   if (!base) {
-    show('No server to ask', 'bad', "This copy of the planner has no collector, so there's nothing to watch through.");
+    show('No server to ask', 'bad', "This copy of the planner has no server for watch links, so there's nothing to read.");
     return;
   }
   show('Loading...', 'done');

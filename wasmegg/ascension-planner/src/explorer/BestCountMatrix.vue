@@ -76,7 +76,7 @@
                   >
                 </div>
                 <div v-if="row.anchor && !row.anchorShown" class="text-[10px] text-slate-400">
-                  earliest finish: {{ row.anchor.row.ascensions }} asc., not in this table
+                  earliest finish: {{ plural(row.anchor.row.ascensions, 'ascension') }}, not in this table
                 </div>
                 <div v-else-if="!row.anchor" class="text-[10px] text-slate-400">no finish still stands</div>
               </th>
@@ -193,6 +193,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { localZone } from '@/lib/leaderboardRank';
+import { plural } from '@/lib/format';
 import type { CollectorRow } from './collector';
 import type { FinishJudgement } from './analysis';
 import {
@@ -260,7 +261,7 @@ const table = computed(() =>
 function gearParts(row: BestCountRow): { id: BestCountOrder; text: string }[] {
   const parts: { id: BestCountOrder; text: string }[] = [];
   parts.push({ id: 'te', text: row.te != null ? `TE ${row.te}` : 'TE ?' });
-  parts.push({ id: 'cte', text: row.clothedTE != null ? `CTE ${row.clothedTE.toFixed(1)}` : 'CTE ?' });
+  parts.push({ id: 'cte', text: row.clothedTE != null ? `Clothed TE ${row.clothedTE.toFixed(1)}` : 'Clothed TE ?' });
   parts.push({
     id: 'delivery',
     text: row.delivery != null ? `delivery ${Math.round(row.delivery * 100)}%` : 'delivery ?',

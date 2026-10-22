@@ -21,7 +21,7 @@
 -->
 <template>
   <p v-if="narrow && edges.right && !edges.left" class="mb-1 text-right text-[10px] text-slate-400">
-    Swipe for more columns →
+    Swipe the table for more columns →
   </p>
   <div class="relative">
     <div :ref="edges.bind" class="overflow-x-auto [container-type:inline-size]" @scroll.passive="edges.update">
@@ -122,7 +122,7 @@
                 <span
                   v-else
                   class="text-slate-400"
-                  title="Planned from a different save, so the gap would mostly be the time between the two saves. Press Use to price it again from today's save."
+                  title="Planned from a different save, so the gap would mostly be the time between the two saves. Press Use to price it again from the save you loaded."
                   >other save</span
                 >
               </td>

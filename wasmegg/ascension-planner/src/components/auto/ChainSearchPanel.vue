@@ -204,7 +204,7 @@
                   </label>
                   <HelpTip
                     >Hold this many leading stops exactly as typed. Useful once you have committed to them in game. It
-                    is also the cheapest speedup here, because moving the first stop forces every later leg to be
+                    is also the cheapest speedup here, because moving the first stop forces every later ascension to be
                     re-simulated.</HelpTip
                   >
                 </span>
@@ -220,15 +220,15 @@
               </div>
             </div>
             <p class="text-[11px] text-slate-500 leading-relaxed">
-              Ascension count is the route length including your final target. It bounds the coarse scan, Fast's check
-              of the other counts, and the one-more-or-fewer step on Exact and Very high.
+              Ascension count is the route length including your final target. It bounds Fast's check of the other
+              counts and the one-more-or-fewer step on Exact and Very high.
               <span v-if="store.pin > 0" class="font-semibold text-slate-700">
                 Locking {{ store.pin }} holds {{ store.seedChain.slice(0, store.pin).join(' ') }} fixed, so the search
                 will not move {{ store.pin === 1 ? 'it' : 'them' }}.
               </span>
               <span v-else>
                 Locking stops is worth it when you have already committed to them in game: moving the first stop
-                re-simulates every leg after it, so pinning it is usually the cheapest speedup available.
+                re-simulates every ascension after it, so pinning it is usually the cheapest speedup available.
               </span>
             </p>
           </div>
@@ -422,7 +422,7 @@
             >Fast also checks the other ascension counts inside your limits, so the answer may land inside
             them.</template
           ><template v-else
-            >This effort tries one more and one fewer ascension, so the answer may land inside your limits.</template
+            >This level tries one more and one fewer ascension, so the answer may land inside your limits.</template
           >
           It keeps whichever count is fastest, so this is not a guarantee.
         </p>
@@ -531,7 +531,7 @@
                 v-if="store.finishedCleanly && store.chainsDone < store.chainsEstimated * 0.9"
                 class="text-[10px] text-emerald-700 font-bold"
               >
-                Finished early. The estimate is an upper bound, and descent stops as soon as no stop moves, which is
+                Finished early. The estimate is an upper bound, and the search stops as soon as no stop moves, which is
                 what happens when you start from a route that is already good.
               </p>
               <p v-if="!store.isRunning && store.runCost" class="text-[10px] text-slate-400 font-bold">
@@ -614,7 +614,7 @@
               <table class="w-full text-xs">
                 <thead>
                   <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
-                    <th class="py-2 pr-3">Leg</th>
+                    <th class="py-2 pr-3">Ascension</th>
                     <th class="py-2 pr-3">
                       → TE
                       <HelpTip
@@ -647,7 +647,7 @@
                       Peak delivery
                       <HelpTip
                         >The highest egg delivery rate this ascension reaches, after the K3 research purchases. It caps
-                        how fast the last stretch of the leg earns.</HelpTip
+                        how fast the last stretch of the ascension earns.</HelpTip
                       >
                     </th>
                     <!-- "Night shifts" lived here and has moved into the expander, next to the
@@ -657,7 +657,7 @@
                       Waiting for you
                       <HelpTip
                         >Two costs, both charged to the plan and both already inside the days column. <b>P</b> is the
-                        prestige at the end of this leg waiting for you to be available. <b>S</b> is the twelve shifts
+                        prestige at the end of this ascension waiting for you to be available. <b>S</b> is the shifts
                         inside it being held for the same reason. Between them they are the whole difference your
                         schedule makes, which is why turning it on changes which route wins.</HelpTip
                       >
@@ -753,7 +753,7 @@
                           One row per egg, with when you start laying it and how long you stay. The
                           <span class="font-semibold text-emerald-700">first row is where the ascension begins</span>:
                           no action needed, you are already on it. Every row after it is one manual switch, which is why
-                          twelve eggs means eleven switches. This matches the Auto Planner's own C1 / I1 / K1 list.
+                          twelve eggs means eleven switches. This matches Single run's own C1 / K1 / I1 list.
                         </p>
                         <!-- Each egg's first and last shift and the TE it reaches (search/routeTimeline.ts). -->
                         <RouteTimeline
@@ -791,7 +791,7 @@
               resuming rather than restarting.
             </template>
             <template v-else>
-              Nothing was priced, so there is nothing to resume. If this repeats, lower the effort tier to see whether a
+              Nothing was priced, so there is nothing to resume. If this repeats, pick a lower level to see whether a
               shorter run gets through, and check the browser console for the worker's own error.
             </template>
           </RunErrorNotes>
@@ -825,7 +825,7 @@
             The built plan will show slightly earlier dates than this search
           </p>
           <p>
-            Only this search knows about your available hours; the Auto Planner does not. It will lay the plan out
+            Only this search knows about your available hours; {{ NAMES.classic }} does not. It will lay the plan out
             assuming you prestige the instant each target is hit, so its dates omit the
             <span class="font-semibold">{{ totalPrestigeWait }}</span> of waiting the search charged. The stops and
             strategies are the same; only the clock differs, and
@@ -849,7 +849,7 @@
         >
           <p class="font-bold uppercase tracking-wide text-amber-700">No plan start is set</p>
           <p>
-            The Auto Planner has no start date and time, so this plan is timed from
+            Your setup has no plan start date and time, so this plan is timed from
             <span class="font-semibold">right now</span>, and "now" moves every time you reload.
           </p>
           <p>
@@ -892,9 +892,9 @@
           <CsvCard v-if="ownRun && (store.csvRows || store.resumable)" class="p-4 rounded-xl border border-slate-200 bg-white">
             <template #csv>
               <p class="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-[16rem]">
-                {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per leg: strategy,
-                sale count, start and end times in your plan's timezone, peak delivery, and how many shifts fall in your
-                schedule. Artifacts and stones are in the header block: the search never varies them.
+                {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per ascension:
+                strategy, sale count, start and end times in your plan's timezone, peak delivery, and how many shifts
+                fall in your schedule. Artifacts and stones are in the header block: the search never varies them.
                 <span v-if="store.isRunning" class="font-semibold text-slate-600">Safe to download mid-run.</span>
               </p>
             </template>
@@ -939,7 +939,7 @@
             v-model:nickname="nickname"
             :note="store.runNoteUsed ?? ''"
             @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
-            :csv-detail="`(${(store.csvRows || 0).toLocaleString()} routes, one row per leg; the JSON above is the headline and this is the working)`"
+            :csv-detail="`(${(store.csvRows || 0).toLocaleString()} routes, one row per ascension; the JSON above is the headline and this is the working)`"
             @nickname-typed="nicknameTouched = true"
           >
             <template #intro>
@@ -996,8 +996,8 @@
               without, so a re-check never ties the two together.
               <span v-if="includeCsv"
                 >The <span class="font-semibold">CSV goes too</span> ("Send my CSV too", ticked by default above). It is
-                the whole run: every route it priced, one row per leg, with start and end times in your plan's timezone.
-                Untick it to send the headline alone.</span
+                the whole run: every route it priced, one row per ascension, with start and end times in your plan's
+                timezone. Untick it to send the headline alone.</span
               >
               <span v-if="diagnosticsGo"
                 >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): sent privately to
@@ -1015,9 +1015,9 @@
               <a href="#/compare/all" class="font-bold text-indigo-700 underline hover:text-indigo-900"
                 >{{ NAMES.compare }} › All runs</a
               >: one line per result (anonymous runs included), and every row opens to show the artifacts, stones and
-              per-leg timings it was simulated with. Read it as "what shapes are winning for people": a duration depends
-              on the account as much as on the route. The race to the target by finish date, one line per named player,
-              is <a href="#/compare/race" class="font-bold text-indigo-700 underline hover:text-indigo-900">Race</a>,
+              per-ascension timings it was simulated with. Read it as "what shapes are winning for people": a duration
+              depends on the account as much as on the route. The race to the target by finish date, one line per named
+              player, is <a href="#/compare/race" class="font-bold text-indigo-700 underline hover:text-indigo-900">Race</a>,
               next to it.
             </p>
           </ShareResult>
@@ -1246,8 +1246,8 @@ function startFromCount(n: number): string {
   store.seedOverride = plan.chain.slice(0, -1).join(' ');
   const set = `Starting route set to ${plan.chain.join(' ')}. Press Find to search from it`;
   return store.effort === 'quick'
-    ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a more exact search, raise Effort in Search settings.`
-    : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, in Search settings, is quicker.`;
+    ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a more exact search, pick a higher level above.`
+    : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, in the level bar above, is quicker.`;
 }
 /** "(from the instant answer)" beside the Limits inputs while they follow it. */
 const limitsFollowHint = computed(() => limitsHint(store.limitsFollowing));

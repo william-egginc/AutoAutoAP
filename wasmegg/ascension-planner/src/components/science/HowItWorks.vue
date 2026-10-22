@@ -117,9 +117,9 @@
         <p>
           Every search, {{ NAMES.smart }} or {{ NAMES.full }}, on {{ NAMES.fastest }} or {{ NAMES.byDate }}, has the
           same run controls in the same order: Find or Find and submit, Stop, the progress, Stepping away?, what was
-          sent, and any errors. It uses the number of workers Your setup shows (half your computer's cores until you
-          pick a number), and Science's time estimates use that number too. On the one 20-thread PC we measured, 12
-          workers were as fast as 19, so more is not always faster.
+          sent, and any errors. It uses the number of workers Your setup shows (half your computer's cores, at most 12,
+          until you pick a number), and Science's time estimates use that number too. On the one 20-thread PC we
+          measured, 12 workers were as fast as 19, so more is not always faster.
         </p>
         <p>
           <b>How long, and what it finds</b> (from players' runs up to 13 Oct 2026, a small sample). On
@@ -139,7 +139,7 @@
           <b>Under each answer</b> (and under the instant answer once Check exactly has run) are two short lines: when
           your first ascension switches eggs, from the simulation itself, and what one more TE above the last stop would
           take. On {{ NAMES.byDate }} that comes from the run's own numbers (what its last TE cost over the one below);
-          elsewhere it's when the next TE would come if you keep laying the same egg at the final rate (another egg needs a shift, which starts the farm again from one chicken).
+          elsewhere it's when the next TE would come if you keep laying the same egg at the final rate (another egg needs a shift, which sets your chickens back to zero).
         </p>
         <p>
           <b>The memo.</b> Routes that start the same way share those ascensions exactly, so each worker remembers the
@@ -311,7 +311,7 @@
         <ul class="hw-list">
           <li><b>Fastest</b> (the default): tries the others and takes whichever reaches the first stop sooner.</li>
           <li>
-            <b>Continue my build-up</b> (new on 10 Oct): finishes the build from where your farm is. Each build step
+            <b>Continue my build-up</b>: finishes the build from where your farm is. Each build step
             buys toward a goal (research maxed, every hab a Chicken Universe, every vehicle slot a full hyperloop,
             enough silos), so what your farm already owns isn't bought again. A step you can afford within half an hour
             is done where you are, without switching eggs; otherwise it runs as a fresh build would. Then the sale-timed
@@ -376,7 +376,7 @@
           <li>
             <b>Phone watch link</b> (optional): your tab posts the run's progress encrypted. The key is in the part of
             the link after the #, which browsers never send to a server, so the collector stores data it can't read.
-            Links expire after 7 days.
+            Its messages are deleted 7 days after the last update.
           </li>
         </ul>
         <p>
@@ -428,7 +428,7 @@
           <li>
             <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) are in this
             site since 21 Oct 2026. Every instant answer (one per gear set) was simulated with the older one, so each
-            says so until it is simulated again, about 55 to 70 hours on a 16-core PC.
+            says so until it is simulated again, about 55 to 70 hours on a 16-core PC for all of them.
           </li>
         </ul>
         <p>
@@ -470,7 +470,7 @@ const CHECKS: { what: string; result: string; how: string }[] = [
   {
     what: 'The same start gives the same answer on any machine',
     result:
-      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched. On 13 Oct, 195 of 195 cells (13 tables, 15 cells each) matched on the current code.",
+      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched. On 13 Oct, 195 of 195 cells (13 tables, 15 cells each) matched on that day's code.",
     how: 'rebuilding individual starts from scratch and comparing every number (1-13 Oct).',
   },
   {

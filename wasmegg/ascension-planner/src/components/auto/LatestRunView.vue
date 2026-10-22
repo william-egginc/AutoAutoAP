@@ -101,7 +101,7 @@
         ><template v-else-if="!store.dateRunLive && dateResult.at">, found {{ when(dateResult.at / 1000) }}</template>.
         {{ dateResult.priced.toLocaleString() }} route{{ dateResult.priced === 1 ? '' : 's' }} priced<template
           v-if="!dateResult.step && !dateResult.stoppedEarly"
-          >: every route in your space, run complete</template
+          >: every route in your boxes, run complete</template
         ><template v-else-if="dateResult.step"
           >, early stops every {{ dateResult.step }} TE, then refined</template
         ><template v-else-if="dateResult.stoppedEarly">, stopped early</template>.
@@ -605,7 +605,7 @@ const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'war
   }
   return {
     title: 'Finished',
-    detail: `Every stage in this tier ran to completion, ending on "${store.lastCompletedStage}". Descent stops when no stop moves, so finishing short of the estimate is normal.`,
+    detail: `Every stage at this level ran to completion, ending on "${store.lastCompletedStage}". Descent stops when no stop moves, so finishing short of the estimate is normal.`,
     tone: 'good',
   };
 });

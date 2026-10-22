@@ -108,9 +108,9 @@ export function levelName(l: PointLevel): string {
   return l === 'unknown' ? 'Level not recorded' : LEVEL_WORDS[l];
 }
 export const FROM_ORDER: readonly PointFrom[] = ['yours', 'maybe', 'saved'];
-/** "Sent from this browser", "Looks like yours", "Saved on this phone" (search/device.ts `thisDevice`). */
+/** "Sent from this browser", "Maybe you", "Saved on this phone" (search/device.ts `thisDevice`). */
 export function fromName(f: PointFrom): string {
-  return f === 'yours' ? 'Sent from this browser' : f === 'maybe' ? 'Looks like yours' : `Saved on ${thisDevice()}`;
+  return f === 'yours' ? 'Sent from this browser' : f === 'maybe' ? 'Maybe you' : `Saved on ${thisDevice()}`;
 }
 
 function shortDate(ms: number, zone: string): string {
@@ -365,11 +365,12 @@ export function scatterSummary(v: ScatterView, zone: string): string {
     v.shown.map(p => p.asc),
     x => String(x)
   );
+  const ascText = ascs === '1' ? '1 ascension' : `${ascs} ascensions`;
   if (v.goal.kind === 'race') {
     const when = b.finish != null ? `, finishing ${whenText(b.finish, zone)}` : '';
     return `${n} ${n === 1 ? 'route' : 'routes'} for ${v.goal.label}. The best takes ${days1(b.days ?? 0)} with ${asc(
       b.asc
-    )}${when}. Across them: ${ascs} ascensions, ${range(
+    )}${when}. Across them: ${ascText}, ${range(
       v.shown.map(p => p.days ?? 0),
       d => d.toFixed(1)
     )} days.`;
@@ -377,7 +378,7 @@ export function scatterSummary(v: ScatterView, zone: string): string {
   const spare = b.spareHours != null ? ` with ${hours1(b.spareHours)} to spare` : '';
   return `${n} ${n === 1 ? 'answer' : 'answers'} for ${v.goal.label}. The best reaches TE ${b.te}${spare}, in ${asc(
     b.asc
-  )}. Across them: ${ascs} ascensions, TE ${range(
+  )}. Across them: ${ascText}, TE ${range(
     v.shown.map(p => p.te),
     t => String(t)
   )}.`;

@@ -193,7 +193,7 @@ export function readUploadCsv(text: string): UploadCsv {
   // not a chain table, and its result goes to Compare's By a date tabs, not this board.
   if (text.startsWith('# highest TE by ')) {
     throw new Error(
-      'That is a By a date CSV. Upload takes a Fastest route run’s CSV; By a date results are sent from its own screen.'
+      'That is a Highest TE by a date CSV. Upload takes a Fastest to 490 TE run’s CSV; Highest TE by a date results are sent from its own screen.'
     );
   }
   if (!text.startsWith('# ascension-planner chain search')) {
@@ -372,7 +372,7 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
     );
   }
   if (csv.outOfOrder)
-    errors.push(`${csv.outOfOrder} routes are out of rank order, so the file has been edited or damaged.`);
+    errors.push(`${csv.outOfOrder} ${csv.outOfOrder === 1 ? 'route is' : 'routes are'} out of rank order, so the file has been edited or damaged.`);
   if (!csv.best) errors.push('The CSV has no routes in it.');
   if (!diag.result) errors.push('The diagnostics have no result. Save them after the run finishes, not before.');
   if (!diag.schedule?.planStart) errors.push('The diagnostics have no plan start.');

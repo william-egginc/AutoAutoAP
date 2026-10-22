@@ -8,7 +8,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { TABS_KEY, resetTabPrefsForTest } from '@/composables/useTabPrefs';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
-const NOTE = 'The Leaderboard and Science tabs are hidden until you turn them on here.';
+const NOTE = 'The Leaderboard and Science tabs show only when you turn them on here.';
 const NONE = 'This build has no leaderboard, so there is nothing to show.';
 
 let pinia: Pinia;

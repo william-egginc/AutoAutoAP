@@ -35,7 +35,7 @@
       <select :value="modelValue.hours" :class="SELECT" @change="set('hours', pickHours($event))">
         <option value="either">either</option>
         <option value="any">any time of day</option>
-        <option value="awake">my awake hours</option>
+        <option value="awake">planned around awake hours</option>
       </select>
     </label>
     <label class="block">

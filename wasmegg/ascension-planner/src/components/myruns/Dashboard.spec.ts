@@ -69,8 +69,8 @@ describe('DashboardCards', () => {
     expect(html).toMatch(/font-mono[^>]*>\s*200 240 251/);
     // Only the look-alike's card says so.
     const race = html.slice(html.indexOf('my-runs-card-race'));
-    expect(race).toContain('looks like yours');
-    expect(html.slice(0, html.indexOf('my-runs-card-race'))).not.toContain('looks like yours');
+    expect(race).toContain('maybe you');
+    expect(html.slice(0, html.indexOf('my-runs-card-race'))).not.toContain('maybe you');
   });
 
   it('an empty card’s one button sends its action', async () => {

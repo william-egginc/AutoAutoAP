@@ -1,7 +1,7 @@
 <template>
   <div class="bg-gray-50 rounded-lg p-4">
     <div class="flex justify-between items-center mb-3">
-      <span class="text-sm font-medium text-gray-700">Fuel Tank Lv.{{ tankLevel }}</span>
+      <span class="text-sm font-medium text-gray-700">Fuel Tank Lv {{ tankLevel }}</span>
       <span class="text-sm font-mono text-gray-600">
         {{ formatNumber(totalRemaining, 1) }} / {{ formatNumber(capacity, 1) }}
       </span>
