@@ -263,7 +263,9 @@
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
                 >tight</span
               >
-              <span v-if="dateExact" class="text-[11px] font-bold text-emerald-700">exact, your account</span>
+              <!-- While Check exactly runs the box keeps the instant answer's pick, and says so (lib/boxPick.ts). -->
+              <span v-if="boxMarker" class="text-[11px] font-bold text-slate-500" data-testid="box-marker">{{ boxMarker }}</span>
+              <span v-else-if="dateExactShown" class="text-[11px] font-bold text-emerald-700">exact, your account</span>
             </div>
             <div class="font-mono-premium text-sm font-bold text-slate-800">
               {{ dateBoxOf(result.byDate).chain.join(' → ') }}
@@ -273,16 +275,17 @@
               {{ dateBoxOf(result.byDate).chain.length }} ascensions
             </div>
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
-            <!-- "Prestige by" is worked out on the highest-TE route: not shown over another one. -->
+            <!-- "Prestige by" is worked out on the instant answer's highest-TE route: shown only while the box shows that
+                 route (not over another one, lib/boxPick.ts). -->
             <PrestigeByLine
-              v-if="prestigeFlag.enabled.value && !preferPicked"
+              v-if="prestigeFlag.enabled.value && !preferPicked && prestigeOnBox"
               :line="prestige?.line ?? null"
               :status="prestigeStatus"
               :mismatch="prestigeMismatch"
               :beta="prestigeFlag.beta"
             />
             <RouteExtras
-              v-if="dateExact && legsFor(dateBoxOf(result.byDate).chain)"
+              v-if="dateExactShown && legsFor(dateBoxOf(result.byDate).chain)"
               :chain="dateBoxOf(result.byDate).chain"
               :legs="legsFor(dateBoxOf(result.byDate).chain)"
               :reach-at="dateBoxOf(result.byDate).end"
@@ -439,10 +442,10 @@
               once when that ends sooner), and Check exactly prices it the same way, then prices these routes ascending at
               once, on your hours.
             </p>
-            <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">
-              {{ atOnceNote(dateExact) }}
+            <p v-if="atOnceNote(dateExactShown)" class="text-[11px] font-bold text-emerald-800">
+              {{ atOnceNote(dateExactShown) }}
             </p>
-            <div v-if="dateExact" class="text-[11px] text-slate-500">
+            <div v-if="dateExactShown" class="text-[11px] text-slate-500">
               The instant answer said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
               {{ result.byDate.chain.join(' ') }} with {{ days(deadline - result.byDate.end) }} to spare<template
                 v-if="missedBy !== null"
@@ -496,10 +499,10 @@
             </button>
             <FollowButton v-if="boxFollowable" class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />
             <span
-              v-if="simulateCaveat(dateBoxOf(result.byDate).chain, dateBoxCount(result.byDate))"
+              v-if="boxCaveat(result.byDate)"
               class="block mt-1 text-[10px] leading-snug text-amber-700"
               data-testid="simulate-note"
-              >{{ simulateCaveat(dateBoxOf(result.byDate).chain, dateBoxCount(result.byDate)) }}</span
+              >{{ boxCaveat(result.byDate) }}</span
             >
             <!-- Waiting before each prestige (search/delays.ts): on request, on the route Check exactly found. -->
             <WaitBeforePrestige
@@ -547,31 +550,34 @@
             >
           </div>
           <div class="font-mono-premium text-base font-black text-slate-900">{{ boxLead.chain.join(' → ') }}</div>
-          <div v-if="exactOf(boxLead)" class="text-[12px] text-slate-800">
-            Reaches {{ store.finalTE }} on <b>{{ show(exactOf(boxLead)!.end) }}</b> · {{ days(exactOf(boxLead)!.seconds) }} ·
+          <div v-if="boxExactOf(boxLead)" class="text-[12px] text-slate-800">
+            Reaches {{ store.finalTE }} on <b>{{ show(boxExactOf(boxLead)!.end) }}</b> · {{ days(boxExactOf(boxLead)!.seconds) }} ·
             {{ plural(boxLead.legs.length, 'ascension') }}
             <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
           </div>
-          <div :class="exactOf(boxLead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
-            {{ exactOf(boxLead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
-            }}<b v-if="!exactOf(boxLead)">{{ show(boxLead.end) }}</b
+          <div :class="boxExactOf(boxLead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
+            {{ boxExactOf(boxLead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
+            }}<b v-if="!boxExactOf(boxLead)">{{ show(boxLead.end) }}</b
             ><template v-else>{{ show(boxLead.end) }}</template> · {{ days(boxLead.seconds)
-            }}<template v-if="!exactOf(boxLead)"> · {{ plural(boxLead.legs.length, 'ascension') }}</template>
+            }}<template v-if="!boxExactOf(boxLead)"> · {{ plural(boxLead.legs.length, 'ascension') }}</template>
+            <!-- While Check exactly runs the box keeps the instant answer's pick, and says so (lib/boxPick.ts). -->
+            <span v-if="boxMarker" class="text-[11px] font-bold text-slate-500" data-testid="box-marker">{{ boxMarker }}</span>
           </div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
-          <!-- "Prestige by" is worked out on the fastest route: not shown over another one. -->
+          <!-- "Prestige by" is worked out on the instant answer's fastest route: shown only while the box shows that
+               route (not over another one, lib/boxPick.ts). -->
           <PrestigeByLine
-            v-if="prestigeFlag.enabled.value && !preferPicked"
+            v-if="prestigeFlag.enabled.value && !preferPicked && prestigeOnBox"
             :line="prestige?.line ?? null"
             :status="prestigeStatus"
             :mismatch="prestigeMismatch"
             :beta="prestigeFlag.beta"
           />
           <RouteExtras
-            v-if="exactOf(boxLead)"
+            v-if="boxExactOf(boxLead)"
             :chain="boxLead.chain"
-            :legs="exactOf(boxLead)!.legs"
-            :reach-at="exactOf(boxLead)!.end"
+            :legs="boxExactOf(boxLead)!.legs"
+            :reach-at="boxExactOf(boxLead)!.end"
             :zone="zone"
           />
           <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026).
@@ -728,8 +734,8 @@
             when that ends sooner), and Check exactly prices it the same way, then prices these routes ascending at once,
             on your hours.
           </p>
-          <p v-if="atOnceNote(exactOf(boxLead))" class="text-[11px] font-bold text-emerald-800">
-            {{ atOnceNote(exactOf(boxLead)) }}
+          <p v-if="atOnceNote(boxExactOf(boxLead))" class="text-[11px] font-bold text-emerald-800">
+            {{ atOnceNote(boxExactOf(boxLead)) }}
           </p>
           <p v-if="reranked && result.best && !preferPicked" class="text-[11px] text-amber-800">
             The instant answer ranked the {{ result.best.legs.length }}-ascension route first ({{
@@ -1090,6 +1096,7 @@ import {
   type RowWin,
   type SecondWin,
 } from '@/search/hoursRunnerUp';
+import { boxPick } from '@/lib/boxPick';
 import { NEARBY_DEAL, NEARBY_ROWS, pickNearbyRow, settleDateRow, worthNearby } from '@/search/dateRowCheck';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
 import {
@@ -2227,6 +2234,9 @@ const strongHandoff = computed<HandoffChoice>(() =>
 /** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
 const exact = ref<Record<string, Exact | null>>({});
 const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
+/** A Check exactly started on this answer and has not finished since: the green box keeps the instant answer's
+ *  pick until it does (lib/boxPick.ts). */
+const exactBegun = ref(false);
 const exactText = ref('');
 const exactMs = ref<number | null>(null);
 /** "Priced with your hours 9 am to 1 am, no time off": the exact check's own hours and time off, taken when it
@@ -2420,6 +2430,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
   exactPricedWith.value = '';
   exactSetup = null;
   exactStart = null;
+  exactBegun.value = false;
   // An account the integrity check blocks has no routes to check (the panel says why).
   if (store.integrityBlocked) {
     exactStatus.value = 'idle';
@@ -2465,6 +2476,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
   const again =
     cached.value && !routes.some(r => key(r.chain) === key(cached.value!.chain)) ? cached.value.chain : null;
   exactStatus.value = 'running';
+  exactBegun.value = true;
   const t0 = performance.now();
   try {
     const inputs = store.collectInputs();
@@ -2667,6 +2679,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
     followAsk = null;
     exactMs.value = performance.now() - t0;
     exactStatus.value = 'done';
+    exactBegun.value = false;
     exactDone.value++;
     // Remembered for the next visit: the answer the page now leads with, exact.
     const dateLead = readDateLead();
@@ -2716,7 +2729,7 @@ const boxFollowable = computed(() => {
   const deadline = props.deadline;
   if (!deadline) return true;
   if (preferPicked.value && dateChoice.value) return true;
-  if (dateExact.value) return finishesBefore(dateExact.value.end, deadline);
+  if (dateExactShown.value) return finishesBefore(dateExactShown.value.end, deadline);
   return exactStatus.value !== 'done' && missedBy.value === null;
 });
 function rowFollowable(r: Route): boolean {
@@ -2825,8 +2838,9 @@ const dateChoice = computed<PreferChoice<DateExact> | null>(() => {
   const deadline = props.deadline;
   const found = result.value;
   if (!deadline || !found?.byDate) return null;
-  const exactMode = !!dateExact.value;
-  const best = dateExact.value ?? tableDate(found.byDate);
+  // The box's own reading (lib/boxPick.ts): the instant answer's rows while Check exactly runs.
+  const exactMode = !!dateExactShown.value;
+  const best = dateExactShown.value ?? tableDate(found.byDate);
   const rowOf = (d: DateExact): PreferRow<DateExact> => ({
     item: d,
     ascensions: d.chain.length,
@@ -2837,7 +2851,7 @@ const dateChoice = computed<PreferChoice<DateExact> | null>(() => {
   });
   // Check exactly's answer for each count once it is in (a count that misses is left out), the table's until then.
   const others = dateRows.value
-    .map(r => (exactMode ? dateExactByK.value[r.legs.length] : tableDate(r)))
+    .map(r => (exactMode ? dateExactByKShown.value[r.legs.length] : tableDate(r)))
     .filter((d): d is DateExact => !!d && key(d.chain) !== key(best.chain));
   const top = rowOf(best);
   return choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top);
@@ -2867,7 +2881,42 @@ const boxLead = computed<Route | null>(() =>
 /** By a date: the answer the box shows (the best: Check exactly's once in, else the table's). */
 function dateBoxOf(fallback: Route): DateExact {
   if (preferPicked.value && dateChoice.value) return dateChoice.value.chosen.item;
-  return dateExact.value ?? tableDate(fallback);
+  return dateExactShown.value ?? tableDate(fallback);
+}
+/**
+ * WHICH PICK THE GREEN BOX SHOWS (lib/boxPick.ts; Jordan, 22 Oct 2026): while Check exactly runs, the instant answer's,
+ * marked "instant answer, checking on your account… (N of M counts done)"; Check exactly's once every count has its
+ * final result. The counts table fills in meanwhile. Stopped or failed: the exact picks so far, or the instant
+ * answer's (marked) when no count finished. The box's lines (Prestige by, First ascension, One more TE, at once,
+ * Simulate's note) follow the route the box shows.
+ */
+const boxCounts = computed(() => {
+  if (props.deadline) return { counts: dateRows.value.length, finished: Object.keys(dateExactByK.value).length };
+  const list = rows.value;
+  return { counts: list.length, finished: list.filter(r => exactOf(r) !== undefined).length };
+});
+const shownPick = computed(() => boxPick({ status: exactStatus.value, begun: exactBegun.value, ...boxCounts.value }));
+const boxShowsExact = computed(() => shownPick.value.shows === 'exact');
+const boxMarker = computed(() => shownPick.value.marker);
+/** By a date: Check exactly's answers as the box reads them (none while it keeps the instant answer's pick). */
+const dateExactShown = computed<DateExact | null>(() => (boxShowsExact.value ? dateExact.value : null));
+const dateExactByKShown = computed<Record<number, DateExact | null>>(() => (boxShowsExact.value ? dateExactByK.value : {}));
+/** Fastest: a route's exact price as the box reads it. */
+const boxExactOf = (r: Route) => (boxShowsExact.value ? exactOf(r) : undefined);
+/** "Prestige by" is worked out on the instant answer's route: the box shows that route. */
+const prestigeOnBox = computed(() => {
+  const found = result.value;
+  if (!found) return false;
+  if (props.deadline) return !!found.byDate && key(dateBoxOf(found.byDate).chain) === key(found.byDate.chain);
+  return !!boxLead.value && !!found.best && key(boxLead.value.chain) === key(found.best.chain);
+});
+/** Simulate's note under By a date's box: the shown route's, priced or not. */
+function boxCaveat(fallback: Route): string {
+  if (boxShowsExact.value) return simulateCaveat(dateBoxOf(fallback).chain, dateBoxCount(fallback));
+  const chain = dateBoxOf(fallback).chain;
+  const e = exact.value[key(chain)];
+  if (e === undefined) return SIMULATE_ESTIMATE_NOTE;
+  return e && props.deadline && e.end <= props.deadline ? '' : SIMULATE_MISSES_NOTE;
 }
 /** The count Simulate's note reads for the box: the chosen route's, else the table answer's as before. */
 function dateBoxCount(fallback: Route): number {
@@ -2876,7 +2925,7 @@ function dateBoxCount(fallback: Route): number {
 /** By a date's counts row lit as the box's: the chosen one, else Check exactly's best as before. */
 function dateRowLit(r: Route): boolean {
   if (preferPicked.value && dateChoice.value) return key(dateRowChain(r)) === key(dateChoice.value.chosen.item.chain);
-  return !!dateExact.value && dateExactByK.value[r.legs.length]?.chain === dateExact.value.chain;
+  return !!dateExactShown.value && dateExactByK.value[r.legs.length]?.chain === dateExactShown.value.chain;
 }
 function datePickedRow(r: Route): boolean {
   return preferPicked.value && dateRowLit(r);
@@ -3216,6 +3265,7 @@ function applySnapshot(s: InstantSnapshot): void {
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';
   exactStatus.value = 'done';
+  exactBegun.value = false;
   findCtx.value = null;
   exactText.value = '';
   status.value = 'done';

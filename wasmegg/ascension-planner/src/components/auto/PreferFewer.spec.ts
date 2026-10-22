@@ -95,7 +95,8 @@ describe('InstantRoute wiring', () => {
   it('only the box changes: lead and dateExact stay the best for everything else', () => {
     expect(route).toContain('const lead = computed(() => exactBest.value ?? result.value?.best ?? null);');
     expect(route).toContain('preferPicked.value && fastestChoice.value ? fastestChoice.value.chosen.item : lead.value');
-    expect(route).toContain('return dateExact.value ?? tableDate(fallback);');
+    // While Check exactly runs the box keeps the instant answer's pick (lib/boxPick.ts).
+    expect(route).toContain('return dateExactShown.value ?? tableDate(fallback);');
     // The summary for the result cards and the searches' suggestions still read the best.
     expect(route).toMatch(/const r = lead\.value;\s+if \(props\.deadline \|\| !r \|\| status\.value === 'loading'\) return null;/);
     // The box's own buttons act on the route it shows.
@@ -111,7 +112,8 @@ describe('InstantRoute wiring', () => {
     expect(route).toContain(
       '<PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />'
     );
-    expect((route.match(/v-if="prestigeFlag.enabled.value && !preferPicked"/g) ?? []).length).toBe(2);
+    // And only while the box shows the route it was worked out on (lib/boxPick.ts).
+    expect((route.match(/v-if="prestigeFlag.enabled.value && !preferPicked && prestigeOnBox"/g) ?? []).length).toBe(2);
     expect(route).toContain('v-if="preferPicked && r === boxLead"');
     expect(route).toContain('v-if="datePickedRow(r)"');
     expect(route).toContain(`:class="r === boxLead ? 'bg-emerald-50/60' : ''"`);
