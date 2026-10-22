@@ -8425,7 +8425,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         currentTE: startInputs.currentTE,
         effort: effort.value,
         pin: pin.value,
-        // Normally the driver's own default (`final - 150`). Exposed so the cap can be tested
+        // Normally the driver's own default (`defaultMaxLast`). Exposed so the cap can be tested
         // rather than assumed: it was measured against 490 targets, and this repo's own f1-f4
         // corpus contains a 320-target optimum whose last checkpoint sits at `final - 43`, which
         // the default would put out of reach. Null leaves the driver's behaviour untouched.

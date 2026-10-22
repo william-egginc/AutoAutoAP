@@ -7,8 +7,8 @@
  *  - `resolveLast` re-solves the LAST checkpoint. It must not re-centre on the window edge: an
  *    earlier version returned the edge winner and recursed on it, so the window WALKED upward until
  *    it was sweeping 450-473 against a final of 490. The centre stays put; the window only widens,
- *    symmetrically, capped, and bounded above by `maxLast` (default final-150, because a tiny final
- *    leg pays a full rebuild for almost no earning time).
+ *    symmetrically, capped, and bounded above by `maxLast` (default final-150 on a 490 target, because a tiny
+ *    final leg pays a full rebuild for almost no earning time; `defaultMaxLast` below 490).
  *
  *  - `descent` re-solves the last checkpoint after EVERY accepted move. Moving any earlier
  *    checkpoint shifts every later arrival time, which shifts which weekly sale boundary the final
@@ -39,6 +39,7 @@
  * what lets the same code be unit-tested against an inline evaluator.
  */
 import { EFFORT, estimateChains } from './effort';
+import { USEFUL_STOP_MAX } from './routeFinder';
 import type { ChainKey, ChainResult, EffortTier, LegSummary, SearchProgress } from './types';
 
 /** Duration comparisons are in seconds; this is autoplan.py's `1e-9` days in the same units,
@@ -64,7 +65,7 @@ export interface DriverOptions {
   final: number;
   currentTE: number;
   effort: EffortTier;
-  /** Upper bound for the last checkpoint. Defaults to `final - 150`. */
+  /** Upper bound for the last checkpoint. Defaults to `defaultMaxLast(final)`. */
   maxLast?: number;
   /** Hold the first N checkpoints fixed. Moving X1 re-simulates every downstream leg, and X1 is
    *  usually the best-validated value, so pinning it is often the right trade. */
@@ -269,10 +270,22 @@ class ChainCache {
   }
 }
 
+/**
+ * The last checkpoint's cap when the caller gives none. `final - 150` was measured on 490 targets (FOR_MATH_NERDS
+ * §6) and only means something there: for a custom target it falls below the player's TE (312 from 197: a cap of
+ * 162), so `resolveLast` returned at once, the last pair's and triple's slices were empty and the count probe's
+ * midpoints were capped below the floor. Nearby routes never moved the last stop (math review, 22 Oct 2026,
+ * finding 3). Below 490 the last stop may go anywhere below the target that a route still continues from
+ * (routeFinder.ts USEFUL_STOP_MAX).
+ */
+export function defaultMaxLast(final: number): number {
+  return final >= 490 ? final - 150 : Math.min(USEFUL_STOP_MAX, final - 2);
+}
+
 export async function runChainSearch(opts: DriverOptions): Promise<SearchOutcome> {
   const cfg = EFFORT[opts.effort];
   const final = opts.final;
-  const maxLast = opts.maxLast ?? final - 150;
+  const maxLast = opts.maxLast ?? defaultMaxLast(final);
   const pin = opts.pin ?? 0;
   const cache = new ChainCache(final, opts.currentTE, opts.evaluateBatch);
   if (opts.restoredCache?.length) cache.restore(opts.restoredCache);
