@@ -7,7 +7,8 @@
  * independently and handles its own store population.
  */
 
-import { requestFirstContact, resolveColleggtibleContracts } from 'lib';
+import { resolveColleggtibleContracts } from 'lib';
+import { requestSave } from '@/lib/saveLoad';
 import type { ei } from 'lib';
 import { hashID, saveMetadata } from '@/lib/storage/db';
 
@@ -28,20 +29,19 @@ export interface BackupResult {
  * @throws {Error} If the backup cannot be fetched (network error, invalid ID, etc.)
  */
 export async function fetchPlayerBackup(playerId: string): Promise<BackupResult> {
-  const data = await requestFirstContact(playerId);
-  if (!data.backup) {
-    throw new Error('Could not fetch player backup');
-  }
-  resolveColleggtibleContracts(data.backup);
+  // AutoAutoAP (22 Oct 2026, QA break-it #1): through lib/saveLoad.ts, so a load gives up after 20 s and an
+  // empty or unreadable answer is an error in plain words (SaveLoadError), not a save with nothing in it.
+  const { backup } = await requestSave(playerId);
+  resolveColleggtibleContracts(backup);
 
   // Persist to IndexedDB for offline access / cross-session reuse
   const pHash = await hashID(playerId);
   try {
-    await saveMetadata(pHash, 'rawBackup', data.backup);
+    await saveMetadata(pHash, 'rawBackup', backup);
   } catch (dbErr) {
     console.error('Failed to save raw backup to DB', dbErr);
     // Non-fatal — continue with the in-memory backup
   }
 
-  return { backup: data.backup, pHash };
+  return { backup, pHash };
 }

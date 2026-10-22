@@ -120,6 +120,8 @@ describe('wiring', () => {
   it('App.vue re-keys the consents on every account load (the header’s Load and the saved-account pills both set playerId)', () => {
     const app = readFileSync(new URL('../App.vue', import.meta.url), 'utf8');
     expect(app).toContain('watch(playerId, id => void setConsentAccount(id), { immediate: true });');
-    expect(app).toMatch(/async function submitPlayerId\(id: string\) \{\n {2}playerId\.value = id;/);
+    // Once the save is in (lib/saveLoad.ts): a failed load leaves the account, and its consents, as they were.
+    const body = app.slice(app.indexOf('async function submitPlayerId(id: string) {'));
+    expect(body.slice(0, body.indexOf('\n}\n'))).toMatch(/\n {2}playerId\.value = id;/);
   });
 });
