@@ -34,10 +34,13 @@ opens it, for that visit. Both need the collector: a build without one never sho
 
 Above the tabs, once a save is loaded (and only in a build with a collector), the **Help improve the
 planner** box asks once per browser whether to turn on the site's sharing choices (share runs on the
-leaderboard, the CSV, private diagnostics, keep sharing checks). Each choice can be changed before Yes. The
-answer is kept in this browser (`aap.study`, no player ID and no name); Yes or No thanks hides the box, and
-the choices change later in Setup › Help improve the planner. Yes applies to the account on screen only;
-another account loaded later gets a one-line offer to use the same choices.
+leaderboard, the CSV, private diagnostics, keep sharing checks). All four start unticked, and Yes stays off
+until one is ticked (No thanks is always available). The answer is kept in this browser (`aap.study`, no
+player ID and no name) across tabs, reloads and restarts; Yes or No thanks hides the box, and the choices
+change later in Setup › Help improve the planner. Yes applies to the account on screen only; another
+account loaded later gets a one-line offer to use the same choices. Withdrawing there turns sharing off for
+every account in this browser that said yes in the box; an account that agreed under a share button keeps
+that choice.
 
 - **Manual Planner**: plan an ascension by hand, action by action (upstream's planner). **Wait for TE** stops
   at 98 TE per egg.
@@ -107,7 +110,8 @@ up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with 
 when that pass can't max the habs, the build takes the C1/K1/I1 rounds from his PR 717 (our default,
 `DEFAULT_OPENING_FALLBACK = 'rounds'`) or his v2 openings (`'v2'`), at any TE. This replaced our earlier
 rule, which used the rounds only below TE 120. Joo's Chain Finder and Table Builder tabs were left out of
-this merge, so this site does not have them. It does **not** plan around awake hours or Continue my
+this merge, so this site does not have them. It does **not** plan around awake hours (the player's hours are used only by the searches, via
+`search/leg.ts`) or Continue my
 build-up, and does not find stops for you. Full list:
 [Single run vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
 
