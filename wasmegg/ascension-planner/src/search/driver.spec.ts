@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { splitByPrefix, workersForBatch } from './batch';
-import { plannedCountChecks, runChainSearch, type EvaluateBatch } from './driver';
+import { defaultMaxLast, plannedCountChecks, runChainSearch, type EvaluateBatch } from './driver';
 import { EFFORT, estimateChains, estimateOtherCountChains } from './effort';
 import type { ChainResult } from './types';
 
@@ -560,6 +560,39 @@ describe('the last checkpoint and the 3-D slices', () => {
     });
     const last = calls.flat().map(c => c[c.length - 2]);
     expect(Math.max(...last)).toBeLessThanOrEqual(FINAL - 150);
+  });
+});
+
+/**
+ * A custom target below 490 (math review, 22 Oct 2026, finding 3): the old default cap `final - 150` put the last
+ * stop of a 312 target at 162, below the player's TE, so `resolveLast` returned at once, the last pair's slices were
+ * empty and Nearby routes never moved the last stop. The landscape is the board's 312 route from TE 192
+ * (197 222 247 285 312) with the seed's last stop 30 below it, out of descent's reach in one pass.
+ */
+describe('a target below 490', () => {
+  it('keeps final - 150 for 490 and lets a lower target move its last stop up to final - 2', () => {
+    expect(defaultMaxLast(490)).toBe(340);
+    expect(defaultMaxLast(312)).toBe(310);
+    expect(defaultMaxLast(320)).toBe(318);
+    // Never above the highest stop a route continues from (routeFinder.ts USEFUL_STOP_MAX).
+    expect(defaultMaxLast(450)).toBe(360);
+  });
+
+  it('sweeps the last stop of a 312 target', async () => {
+    const optimum = [197, 222, 247, 285];
+    const { evaluate, calls } = makeEvaluator(optimum);
+    const out = await runChainSearch({
+      seedChain: [197, 222, 247, 255, 312],
+      final: 312,
+      currentTE: 192,
+      effort: 'quick',
+      evaluateBatch: evaluate,
+    });
+    expect(out.chain).toEqual([...optimum, 312]);
+    // The last stop's sweep went above the old cap (162) and never reached the target itself.
+    const last = calls.flat().map(c => c[c.length - 2]);
+    expect(Math.max(...last)).toBeGreaterThan(285);
+    expect(Math.max(...last)).toBeLessThanOrEqual(310);
   });
 });
 
