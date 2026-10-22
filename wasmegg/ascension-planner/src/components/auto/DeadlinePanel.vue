@@ -337,9 +337,11 @@
                   class="w-40 rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
                 />
               </label>
-              <span class="text-[10px] pb-2" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
+              <span class="text-[10px] pb-2" :class="lastRange && !lastTooHigh ? 'text-slate-500' : 'text-rose-600'">
                 {{
-                  lastRange
+                  lastTooHigh
+                    ? LAST_TOO_HIGH
+                    : lastRange
                     ? `starts at ${lastRange[0]}-${lastRange[1]} and looks higher or lower if the answer is outside it; found to the exact TE`
                     : 'give it a rough range, e.g. 300-340'
                 }}
@@ -1019,6 +1021,7 @@ import {
   countSpaceShapes,
   parseChainText,
   parseStopBox,
+  stopBoxTop,
   stepForBudget,
 } from '@/search/deadline';
 import { formatBand, formatHours } from '@/search/exhaustive';
@@ -1157,6 +1160,9 @@ function rangeOf(box: string): [number, number] | null {
 }
 /** Advanced's last-stop box, as read. */
 const lastRange = computed<[number, number] | null>(() => rangeOf(lastBox.value));
+/** The last stop asks past 490 TE (`1-999999999` was read as up to 490 and Find stayed on; QA break-it #7). */
+const LAST_TOO_HIGH = 'The last stop goes up to 490 TE at most.';
+const lastTooHigh = computed(() => stopBoxTop(lastBox.value) > 490);
 
 /**
  * NEARBY ROUTES (was Simple, batch 3): no chain editor; the boxes are picked here, one
@@ -2021,6 +2027,7 @@ const startIssue = computed(() => {
   if (deadline.value <= store.planStart) return 'The deadline is before the plan starts.';
   if (simple.value && !activeChains.value.length) return 'Nothing to check yet: the save has to load first.';
   if (mode.value === 'space') {
+    if (!simple.value && lastTooHigh.value) return LAST_TOO_HIGH;
     if (!runLastRange.value) return 'Give the last stop a range above your TE now.';
     const bad = activeChains.value.findIndex(row => !!problemOf(row, runLastRange.value));
     if (bad >= 0) return `Box ${bad + 1}: ${problemOf(activeChains.value[bad], runLastRange.value)}`;
