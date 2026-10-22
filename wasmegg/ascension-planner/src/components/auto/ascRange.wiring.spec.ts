@@ -75,3 +75,18 @@ describe('By a date: Nearby routes’ range', () => {
     );
   });
 });
+
+describe('tap targets: 44 px below sm, desktop sizes unchanged', () => {
+  it('both "Use the instant answer\'s range" links and the By a date range inputs', () => {
+    expect(panel).toMatch(
+      /class="inline-flex min-h-\[44px\] items-center [^"]*sm:min-h-0 sm:pb-2"\s*data-testid="limits-follow-reset"/
+    );
+    expect(byDate).toMatch(
+      /class="inline-flex min-h-\[44px\] items-center [^"]*sm:min-h-0"\s*:disabled="store\.busy"\s*data-test="nearby-range-reset"/
+    );
+    for (const v of ['nearbyMin', 'nearbyMax'])
+      expect(byDate, v).toMatch(
+        new RegExp(`v-model\\.number="${v}"[\\s\\S]{0,300}class="min-h-\\[44px\\] w-14 [^"]*sm:min-h-0"`)
+      );
+  });
+});
