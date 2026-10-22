@@ -10,7 +10,7 @@
     role="status"
   >
     <p class="text-[13px] leading-relaxed flex-1 min-w-[14rem]">
-      <span class="font-bold">Big update moved to about 5:00 pm Pacific (T+8)</span> to fix a bug first
+      <span class="font-bold">Big update moved to about 5:30 pm Pacific (T+8:30)</span> to fix a bug first
       <template v-if="localWhen">, which is <span class="font-bold">{{ localWhen }}</span> for you</template>.
       Please refresh this page before then. If a long run needs more time, message Williamthe5thc on
       Discord as soon as you can.
@@ -28,9 +28,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-/** 5:00 pm Pacific (PDT, UTC-7) on 22 Oct 2026: moved back an hour for a bug fix. */
-const UPDATE_AT = Date.UTC(2026, 9, 23, 0, 0, 0);
-const KEY = 'aap.announce.2026-10-22b';
+/** 5:30 pm Pacific (PDT, UTC-7) on 22 Oct 2026: moved back for a bug fix. */
+const UPDATE_AT = Date.UTC(2026, 9, 23, 0, 30, 0);
+const KEY = 'aap.announce.2026-10-22c';
 
 function wasHidden(): boolean {
   try {

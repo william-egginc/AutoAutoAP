@@ -33,7 +33,7 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-10-22T23:13:34Z', note: 'The big update moved to about 5 pm Pacific (T+8) to fix a bug first. Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
+  { at: '2026-10-22T23:13:34Z', note: 'The big update moved to about 5:30 pm Pacific (T+8:30) to fix a bug first. Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
   { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4 pm Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
   { at: '2026-10-20T00:37:44Z', note: 'New: prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster By a date searches, a My runs route chart', level: 'big' },
   { at: '2026-10-16T21:26:50Z', note: 'My runs: switch between Race to 490 and Egg Day, follow any route you like, a Producing or Building badge with your rate, and Recalculate; with your hours on, checks now try the next-best route too' },
