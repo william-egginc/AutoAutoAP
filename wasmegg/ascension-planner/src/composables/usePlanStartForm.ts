@@ -29,7 +29,7 @@ import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useVirtueStore } from '@/stores/virtue';
 import { loadAutoPlannerSchedule, patchAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
-import { useBackupPlanStart } from '@/composables/useBackupPlanStart';
+import { planStartOwner, setPlanStartOwner, useBackupPlanStart } from '@/composables/useBackupPlanStart';
 
 let restored = false;
 
@@ -50,6 +50,8 @@ export function usePlanStartForm(): void {
       startTimeOverride.value = true;
       startDate.value = cached.startDate;
       startTime.value = cached.startTime;
+      // Whose start it is: another account's save drops it (useBackupPlanStart).
+      setPlanStartOwner(cached.startAccount);
     }
   }
   if (!timezone.value) {
@@ -58,6 +60,12 @@ export function usePlanStartForm(): void {
   useBackupPlanStart();
 
   watch([timezone, startDate, startTime, startTimeOverride], ([tz, date, time, override]) =>
-    patchAutoPlannerSchedule({ timezone: tz, startDate: date, startTime: time, startTimeOverride: override })
+    patchAutoPlannerSchedule({
+      timezone: tz,
+      startDate: date,
+      startTime: time,
+      startTimeOverride: override,
+      startAccount: planStartOwner(),
+    })
   );
 }

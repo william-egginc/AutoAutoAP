@@ -22,6 +22,8 @@ export interface AutoPlannerScheduleCache {
   startTime: string;
   /** Absent in caches written before the start-time override existed — treated as "now". */
   startTimeOverride?: boolean;
+  /** The account (a hash, runSaves.ts `accountOf`) whose start this is; another account's save drops it. */
+  startAccount?: string;
   targetTE: string;
   deferForEarningsMode?: boolean;
   /** The time-off cuts for `targetTE`, so a reload doesn't turn a cut into a real prestige. */

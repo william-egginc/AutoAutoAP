@@ -388,6 +388,7 @@ import { routeText } from '@/search/simulateRoute';
 import { showDateTime } from '@/lib/displayTime';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
+import { planStartOwner } from '@/composables/useBackupPlanStart';
 import { isTestingEnvironment } from '@/lib/isTestingEnvironment';
 import { iconURL } from 'lib';
 import VirtueProgressSection from './VirtueProgressSection.vue';
@@ -453,6 +454,7 @@ watch([timezone, startDate, startTime, startTimeOverride, targetTE, deferForEarn
     startDate: startDate.value,
     startTime: startTime.value,
     startTimeOverride: startTimeOverride.value,
+    startAccount: planStartOwner(),
     targetTE: targetTE.value,
     deferForEarningsMode: deferForEarningsMode.value,
     timeOffCuts: autoPlannerStore.timeOffCuts ? JSON.parse(JSON.stringify(autoPlannerStore.timeOffCuts)) : null,
