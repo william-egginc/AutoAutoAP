@@ -204,7 +204,13 @@
       <div v-if="result" class="space-y-1">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
           <label v-if="hoursOn" class="flex items-center gap-2 cursor-pointer">
-            <input v-model="filters.inHours" type="checkbox" class="rounded border-slate-300" />
+            <input
+              :checked="filters.inHours"
+              type="checkbox"
+              class="rounded border-slate-300"
+              data-testid="inside-hours"
+              @change="setInsideHours(($event.target as HTMLInputElement).checked)"
+            />
             Works inside my hours
           </label>
           <label class="flex items-center gap-2">
@@ -1035,8 +1041,11 @@ import {
   atMostAscensions,
   describeGains,
   polishGains,
+  insideHoursFor,
   readFilters,
+  readInsideHoursChoice,
   writeFilters,
+  writeInsideHoursChoice,
   type PolishGain,
 } from '@/search/instantFilters';
 import { availabilityKey, type Availability } from '@/search/availabilitySchedule';
@@ -1646,6 +1655,25 @@ const filters = ref(readFilters());
 watch(filters, f => writeFilters(f), { deep: true });
 const hoursOn = computed(() => store.scheduleEnabled && !!store.availability);
 const useHours = computed(() => hoursOn.value && filters.value.inHours);
+/**
+ * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
+ * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked
+ * again by itself once unticked. No hours: as before.
+ */
+const insideHoursChoice = ref(readInsideHoursChoice());
+watch(
+  () => [hoursOn.value, isConstrained(store.availability)] as const,
+  ([on, constrained]) => {
+    const want = insideHoursFor(on, constrained, insideHoursChoice.value, filters.value.inHours);
+    if (want !== filters.value.inHours) filters.value = { ...filters.value, inHours: want };
+  },
+  { immediate: true }
+);
+function setInsideHours(on: boolean): void {
+  insideHoursChoice.value = on ? 'on' : 'off';
+  writeInsideHoursChoice(insideHoursChoice.value);
+  filters.value = { ...filters.value, inHours: on };
+}
 const filtering = computed(() => useHours.value || filters.value.maxAscensions !== null);
 function fastestRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
   const top = Math.max(10, (bestK ?? found.best?.legs.length ?? 0) + 2);
