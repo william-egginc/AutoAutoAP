@@ -27,6 +27,7 @@ import {
   afterWithdraw,
   afterWithdrawApplied,
   afterYes,
+  capName,
   consentsFor,
   emptyStudy,
   parseStudy,
@@ -44,8 +45,7 @@ export const TICK_CONSENT: Record<keyof StudyTicks, ConsentId> = {
   checks: 'keepSharingChecks',
 };
 
-/** The collector keeps 40 characters of a name. */
-export const STUDY_NAME_MAX = 40;
+export { STUDY_NAME_MAX } from '@/lib/study';
 
 function defaultStorage(): StorageLike | null {
   try {
@@ -126,7 +126,7 @@ export function defaultCredit(playerId: string): StudyCredit {
 
 function applyCredit(playerId: string, credit: StudyCredit, nickname: string): StudyCredit {
   const names = useShareNameStore();
-  const name = nickname.trim().slice(0, STUDY_NAME_MAX);
+  const name = capName(nickname.trim()).trim();
   if (credit === 'name' && name) {
     names.setAnonymous(playerId, false);
     if (name !== knownName(playerId)) names.setName(playerId, name);

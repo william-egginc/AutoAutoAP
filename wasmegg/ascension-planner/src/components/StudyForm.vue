@@ -68,6 +68,7 @@
           class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-sm font-bold text-slate-800"
           :class="credit === 'anon' ? 'opacity-50' : ''"
           data-testid="study-nickname"
+          @input="capField"
           @focus="credit = 'name'"
         />
         <label
@@ -118,7 +119,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
-import { DEFAULT_TICKS, TICK_WORDS, anyTick, type StudyCredit } from '@/lib/study';
+import { DEFAULT_TICKS, TICK_WORDS, anyTick, capName, type StudyCredit } from '@/lib/study';
 import { consentState } from '@/composables/useConsent';
 import { STUDY_NAME_MAX, answerNo, answerYes, defaultCredit, knownName } from '@/composables/useStudy';
 import { useShareNameStore } from '@/stores/shareName';
@@ -138,9 +139,18 @@ const credit = computed<StudyCredit>({
 /** Typed here, or null to follow the account's own name ('' when it has none: never made up). */
 const typed = ref<string | null>(null);
 const nickname = computed<string>({
-  get: () => typed.value ?? knownName(account.value),
-  set: v => (typed.value = v),
+  get: () => capName(typed.value ?? knownName(account.value)),
+  set: v => (typed.value = capName(v)),
 });
+/** A paste or a scripted set past the cap: the box shows the capped name at once (maxlength stops only keys). */
+function capField(e: Event): void {
+  const el = e.target as HTMLInputElement;
+  const c = capName(el.value);
+  if (c !== el.value) {
+    el.value = c;
+    nickname.value = c;
+  }
+}
 
 // The account's kept name and anonymous-or-named, read once (stores/shareName.ts). Another account loaded
 // while the form is open starts it again: a name or tick picked for the last account is never carried over.

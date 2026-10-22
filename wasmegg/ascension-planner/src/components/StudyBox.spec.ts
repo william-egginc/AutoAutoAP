@@ -295,6 +295,16 @@ describe('wiring', () => {
     expect(f).toContain('if (!canSayYes.value) return;');
   });
 
+  it('both name boxes cap a paste at once, not only typed keys (maxlength)', () => {
+    for (const f of ['./StudyForm.vue', './auto/StudySetup.vue']) {
+      const src = read(f);
+      expect(src, f).toContain('@input="capField"');
+      expect(src, f).toContain('const c = capName(el.value);');
+      expect(src, f).toContain(':maxlength="STUDY_NAME_MAX"');
+    }
+    expect(read('./StudyForm.vue')).toContain('set: v => (typed.value = capName(v)),');
+  });
+
   it('Setup has its section before Sharing, with a collector', () => {
     const s = read('./auto/YourSetup.vue');
     const at = s.indexOf('<StudySetup v-if="store.submitUrl" />');
