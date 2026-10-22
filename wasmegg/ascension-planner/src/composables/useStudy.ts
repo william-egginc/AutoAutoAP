@@ -69,6 +69,34 @@ const state = reactive<{ rec: StudyRecord; thanked: boolean }>({ rec: read(), th
 /** The record and whether Yes was pressed this visit, read only. */
 export const studyState = readonly(state);
 
+/**
+ * Two tabs (21 Oct 2026, prelive; Jordan: "one Yes is enough", across tabs, reloads and restarts). Every
+ * action starts from the record as stored NOW, not as this tab read it when it loaded, and a `storage`
+ * event from another tab replaces this tab's copy at once (so its box or strip goes without a reload).
+ * Blocked storage: this tab's own copy stands.
+ */
+function fresh(): StudyRecord {
+  try {
+    if (storage) state.rec = parseStudy(storage.getItem(STUDY_KEY));
+  } catch {
+    // blocked: this visit's own record
+  }
+  return state.rec;
+}
+
+/** Another tab wrote `key` (a `storage` event). Exported for the specs. */
+export function studyStorageEvent(key: string | null, newValue: string | null): void {
+  if (key === STUDY_KEY) state.rec = parseStudy(newValue);
+}
+try {
+  if (typeof window !== 'undefined')
+    window.addEventListener('storage', e => {
+      if (e.storageArea === null || e.storageArea === storage) studyStorageEvent(e.key, e.newValue);
+    });
+} catch {
+  // no window events: one tab only
+}
+
 function save(rec: StudyRecord): void {
   state.rec = rec;
   try {
@@ -129,20 +157,28 @@ export function answerYes(ticks: StudyTicks, credit: StudyCredit, nickname: stri
   if (!id || !consentState.hash) return;
   applyTicks(ticks);
   const given = applyCredit(id, credit, nickname);
-  save(afterYes(state.rec, consentState.hash, Date.now(), ticks, given));
+  save(afterYes(fresh(), consentState.hash, Date.now(), ticks, given));
   state.thanked = true;
 }
 
-/** No thanks: never asked again in this browser; no account's choices change. */
-export function answerNo(): void {
+/**
+ * No thanks: never asked again in this browser; no account's choices change.
+ * Two tabs: a Yes already recorded (in any tab) wins. A box left open in a stale tab must not turn this
+ * browser's yes into a no while the consents that yes set stay on (Setup would then say nothing is shared),
+ * so the stored record is read first and No thanks is only written when there is no yes at that moment.
+ * A stale tab's No thanks then just hides its box, and Setup shows the yes. Returns whether it was written.
+ */
+export function answerNo(): boolean {
+  if (fresh().answer === 'yes') return false;
   save(afterNo(state.rec, Date.now()));
+  return true;
 }
 
 /** The strip's "Yes, for this account": the browser's ticks, credited by this account's own name if any. */
 export function useForThisAccount(): void {
   const id = consentState.account;
   if (!id || !consentState.hash) return;
-  applyTicks(state.rec.ticks);
+  applyTicks(fresh().ticks);
   const credit = state.rec.credit === 'name' && useShareNameStore().anonymousFor(id) !== true ? 'name' : 'anon';
   applyCredit(id, credit, credit === 'name' ? knownName(id) : '');
   save(afterYes(state.rec, consentState.hash, state.rec.at || Date.now()));
@@ -150,20 +186,20 @@ export function useForThisAccount(): void {
 
 /** The strip's "Not this account". */
 export function notThisAccount(): void {
-  save(afterNotThisAccount(state.rec, consentState.hash));
+  save(afterNotThisAccount(fresh(), consentState.hash));
 }
 
 /** Withdraw (Setup): off for this account now, and for every other that said yes as it next loads. The
  *  CSV choice and the name are left as they are (neither sends anything by itself). */
 export function withdrawStudy(): void {
   turnOff();
-  save(afterWithdraw(state.rec, consentState.hash, Date.now()));
+  save(afterWithdraw(fresh(), consentState.hash, Date.now()));
 }
 
 /** One tick changed in Setup: applied to the account on screen at once (a decision either way), and kept for
  *  the strip. */
 export function setStudyTick(k: keyof StudyTicks, v: boolean): void {
-  const ticks = { ...state.rec.ticks, [k]: v };
+  const ticks = { ...fresh().ticks, [k]: v };
   setConsent(TICK_CONSENT[k], v, true);
   if (k === 'diag') useShareExtras().sendDiagnostics.value = v;
   save({ ...state.rec, ticks });
@@ -173,7 +209,8 @@ export function setStudyTick(k: keyof StudyTicks, v: boolean): void {
 export function setStudyCredit(credit: StudyCredit, nickname: string): void {
   const id = consentState.account;
   if (!id) return;
-  save({ ...state.rec, credit: applyCredit(id, credit, nickname) });
+  const given = applyCredit(id, credit, nickname);
+  save({ ...fresh(), credit: given });
 }
 
 /** The "Thank you" line closed. */
@@ -187,7 +224,7 @@ watch(
   step => {
     if (step !== 'withdraw') return;
     turnOff();
-    save(afterWithdrawApplied(state.rec, consentState.hash));
+    save(afterWithdrawApplied(fresh(), consentState.hash));
   },
   { flush: 'sync', immediate: true }
 );

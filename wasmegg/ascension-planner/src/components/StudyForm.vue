@@ -1,5 +1,5 @@
 <!--
-  "Help improve the planner": what is sent, the four ticks (all on when it opens), the credit, and
+  "Help improve the planner": what is sent, the four ticks (all off when it opens: tick to opt in; Yes needs at least one), the credit, and
   Yes / No thanks (composables/useStudy.ts). The box above the tabs (StudyBox.vue) and Setup's Answer now
   and Change (StudySetup.vue) show this same form. Nothing is set until Yes.
 
@@ -40,7 +40,8 @@
       </label>
     </fieldset>
     <p class="text-[11px] text-slate-500" data-testid="study-untick-note">
-      Anything you untick stays off; you can turn it on later in {{ NAMES.setup }}.
+      Tick what you are happy to share; anything you leave unticked stays off. You can change it any time in
+      {{ NAMES.setup }}.
     </p>
 
     <fieldset class="space-y-1 sm:space-y-1.5">
@@ -90,8 +91,10 @@
     <div class="flex flex-col sm:flex-row gap-2">
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
         data-testid="study-yes"
+        :disabled="!canSayYes"
+        :aria-describedby="canSayYes ? undefined : 'study-yes-why'"
         @click="yes"
       >
         Yes, help improve it
@@ -105,13 +108,17 @@
         No thanks
       </button>
     </div>
+    <!-- With nothing ticked Yes would record a yes that shares nothing, so it waits for a tick. -->
+    <p v-if="!canSayYes" id="study-yes-why" class="text-[11px] text-amber-700" data-testid="study-yes-why">
+      Tick at least one to say yes, or press No thanks.
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
-import { DEFAULT_TICKS, TICK_WORDS, type StudyCredit } from '@/lib/study';
+import { DEFAULT_TICKS, TICK_WORDS, anyTick, type StudyCredit } from '@/lib/study';
 import { consentState } from '@/composables/useConsent';
 import { STUDY_NAME_MAX, answerNo, answerYes, defaultCredit, knownName } from '@/composables/useStudy';
 import { useShareNameStore } from '@/stores/shareName';
@@ -121,6 +128,7 @@ const emit = defineEmits<{ answered: ['yes' | 'no'] }>();
 const names = useShareNameStore();
 const account = computed(() => consentState.account);
 const ticks = reactive({ ...DEFAULT_TICKS });
+const canSayYes = computed(() => anyTick(ticks));
 /** Picked here, or null to follow the account (anonymous unless it has a name and didn't pick anonymous). */
 const picked = ref<StudyCredit | null>(null);
 const credit = computed<StudyCredit>({
@@ -149,6 +157,7 @@ watch(
 );
 
 function yes(): void {
+  if (!canSayYes.value) return;
   answerYes({ ...ticks }, credit.value, nickname.value);
   emit('answered', 'yes');
 }

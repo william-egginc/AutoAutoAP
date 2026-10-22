@@ -7,6 +7,7 @@ import {
   afterWithdraw,
   afterWithdrawApplied,
   afterYes,
+  anyTick,
   consentsFor,
   emptyStudy,
   parseStudy,
@@ -52,8 +53,11 @@ describe('study record', () => {
     expect(Object.keys(JSON.parse(stored)).sort()).toEqual(['accounts', 'answer', 'at', 'credit', 'ticks', 'v']);
   });
 
-  it('starts with every tick on and maps each to its consent', () => {
-    expect(DEFAULT_TICKS).toEqual({ share: true, csv: true, diag: true, checks: true });
+  it('starts with every tick OFF (opt in, Jordan 21 Oct 2026) and maps each to its consent', () => {
+    expect(DEFAULT_TICKS).toEqual({ share: false, csv: false, diag: false, checks: false });
+    expect(emptyStudy().ticks).toEqual(DEFAULT_TICKS);
+    expect(anyTick(DEFAULT_TICKS)).toBe(false);
+    expect(anyTick({ ...DEFAULT_TICKS, checks: true })).toBe(true);
     expect(consentsFor({ share: true, csv: false, diag: true, checks: false })).toEqual([
       ['leaderboard', true],
       ['sendCsv', false],

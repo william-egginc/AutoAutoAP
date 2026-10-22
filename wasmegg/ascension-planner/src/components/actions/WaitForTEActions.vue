@@ -202,6 +202,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { showClamped } from '@/lib/showClamped';
 const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL } from 'lib';
@@ -258,6 +259,7 @@ watch(
   () => {
     const valid = clampTECount(teToGain.value, maxTEToGain(currentTE.value));
     if (teToGain.value !== valid) teToGain.value = valid;
+    showClamped(inputEl.value, valid);
   },
   { immediate: true }
 );

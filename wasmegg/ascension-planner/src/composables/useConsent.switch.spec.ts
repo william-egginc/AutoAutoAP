@@ -21,10 +21,10 @@ import { useShareConsent } from './useShareConsent';
 import { useShareExtras } from './useShareExtras';
 import { useInstantShare } from './useInstantShare';
 import { answerYes, resetStudy, studyStep } from './useStudy';
-import { DEFAULT_TICKS } from '@/lib/study';
 
 const A = 'EI1234567890123456';
 const B = 'EI0000000000000000';
+const ALL_ON = { share: true, csv: true, diag: true, checks: true }; // every tick (the box now opens with none)
 
 function mem() {
   const map = new Map<string, string>();
@@ -63,7 +63,7 @@ beforeEach(() => {
 describe('an account switch inside one visit', () => {
   it('A agreed to everything; B, loaded next, has nothing agreed in any gate', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     expect(gates()).toEqual({ ...NOTHING, leaderboard: true, givenThisVisit: true, diagnostics: true, checks: true });
     await setConsentAccount(B);
     expect(consentState.account).toBe(B);
@@ -73,7 +73,7 @@ describe('an account switch inside one visit', () => {
 
   it('nothing is agreed while B’s records are still loading (no window where A’s yes shows for B)', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     const loading = setConsentAccount(B);
     // The switch has begun; B's hash and stored records are not in yet.
     expect(consentState.account).toBe(B);
@@ -106,7 +106,7 @@ describe('an account switch inside one visit', () => {
     setConsent('leaderboard', true);
     setConsent('sendCsv', false);
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     expect(useShareExtras().sendCsv.value).toBe(true);
     await setConsentAccount(B);
     expect(useShareConsent().value).toBe(true);

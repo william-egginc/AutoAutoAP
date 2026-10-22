@@ -4,7 +4,9 @@
  * has (composables/useConsent.ts), and the credit is the account's "Credit me as" (stores/shareName.ts).
  *
  *  - The answer is kept per BROWSER (`aap.study`): Yes, No thanks, or withdrawn. No thanks never asks
- *    again in this browser; Yes hides the box for good, and changes live in Setup.
+ *    again in this browser; Yes hides the box for good, and changes live in Setup. Every tab follows the
+ *    stored answer live, and a Yes already stored is never replaced by a stale tab's No thanks
+ *    (composables/useStudy.ts `answerNo`).
  *  - The consents stay per ACCOUNT ("a yes is never carried from one account to another"): Yes applies
  *    the ticks to the account on screen only, and records its partition hash in `accounts`. Another account
  *    loaded later gets a one-line strip ("Use the same choices for this account?") and nothing until it is
@@ -54,8 +56,12 @@ export const TICK_WORDS: [keyof StudyTicks, string][] = [
   ['checks', 'Keep sharing my checks (private, anonymous)'],
 ];
 
-/** What the box opens with: every tick on (the player can untick any before Yes). */
-export const DEFAULT_TICKS: StudyTicks = { share: true, csv: true, diag: true, checks: true };
+/** What the box opens with: every tick OFF (Jordan, 21 Oct 2026: opt in, nothing pre-ticked). Yes needs at
+ *  least one tick (StudyForm.vue); an unanswered record keeps these too, so the strip never offers more. */
+export const DEFAULT_TICKS: StudyTicks = { share: false, csv: false, diag: false, checks: false };
+
+/** True when at least one tick is on (Yes with none would record "yes" with nothing shared). */
+export const anyTick = (t: StudyTicks): boolean => t.share || t.csv || t.diag || t.checks;
 
 export const emptyStudy = (): StudyRecord => ({
   v: 1,
