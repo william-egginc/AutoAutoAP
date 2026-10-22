@@ -139,6 +139,11 @@ const executorMap: { [K in ActionType]: ActionExecutor<K> } = {
   modify_bank: modifyBankExecutor,
 };
 
+/** Whether `type` is an action this planner knows (a file can carry anything). */
+export function isKnownActionType(type: unknown): type is ActionType {
+  return typeof type === 'string' && Object.prototype.hasOwnProperty.call(executorMap, type);
+}
+
 /**
  * Get the executor for an action type.
  */

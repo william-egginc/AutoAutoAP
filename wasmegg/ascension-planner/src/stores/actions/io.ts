@@ -10,7 +10,8 @@ import { useFuelTankStore } from '@/stores/fuelTank';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useNotesStore } from '@/stores/notes';
 import { useSilosStore } from '@/stores/silos';
-import { createEmptySnapshot, type VirtueEgg, type Action, type CalculationsSnapshot } from '@/types';
+import { createEmptySnapshot, generateActionId, type VirtueEgg, type Action, type CalculationsSnapshot } from '@/types';
+import { isKnownActionType } from '@/lib/actions/executor';
 import { MAX_TE, clampTECount, countTEThresholdsPassed, teGainedOf } from '@/lib/truthEggs';
 import { redactBackupForStorage } from '@/lib/artifacts';
 
@@ -99,11 +100,46 @@ export function exportPlanLogic(actions: Action[], initialSnapshot?: Calculation
   downloadFile(filename, jsonString, 'application/json');
 }
 
-export function importPlanLogic(jsonString: string) {
-  const data = JSON.parse(jsonString);
-  if (!data.version || !data.actions || !data.initialState) {
-    throw new Error('Invalid plan file format');
+/** A plan file that cannot be read in. Thrown before any store is touched, so the current plan stays. */
+export class PlanImportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PlanImportError';
   }
+}
+
+/**
+ * The checks a file passes before anything is changed: JSON, the plan shape, and only action types this
+ * planner knows (an unknown one threw "reading 'getDisplayName'" while the list drew).
+ */
+export function parsePlanFile(jsonString: string): any {
+  let data: any;
+  try {
+    data = JSON.parse(jsonString);
+  } catch {
+    throw new PlanImportError('This file is not a plan file (it is not JSON).');
+  }
+  const isObj = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
+  if (!isObj(data) || !data.version || !Array.isArray(data.actions) || !isObj(data.initialState)) {
+    throw new PlanImportError('This file is not a plan file (no version, actions or initial state).');
+  }
+  for (const a of data.actions) {
+    if (!isObj(a) || !isKnownActionType(a.type)) {
+      throw new PlanImportError(`This plan has a step this planner doesn't know (${String(a?.type).slice(0, 40)}).`);
+    }
+    if (a.payload !== undefined && !isObj(a.payload)) {
+      throw new PlanImportError(`This plan has a damaged ${a.type} step.`);
+    }
+    if (a.payload === undefined) a.payload = {};
+    if (!Array.isArray(a.dependsOn)) a.dependsOn = [];
+    if (!Array.isArray(a.dependents)) a.dependents = [];
+    if (typeof a.id !== 'string' || !a.id) a.id = generateActionId();
+  }
+  return data;
+}
+
+export function importPlanLogic(jsonString: string) {
+  const data = parsePlanFile(jsonString);
 
   const initialStateStore = useInitialStateStore();
   const virtueStore = useVirtueStore();

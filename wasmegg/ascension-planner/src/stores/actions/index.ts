@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { markRaw } from 'vue';
+import { markRaw, toRaw } from 'vue';
 import {
   Action,
   CalculationsSnapshot,
@@ -25,6 +25,9 @@ import { useCommonResearchStore } from '@/stores/commonResearch';
 import { useHabCapacityStore } from '@/stores/habCapacity';
 import { useShippingCapacityStore } from '@/stores/shippingCapacity';
 import { useEventsStore } from '@/stores/events';
+import { useFuelTankStore } from '@/stores/fuelTank';
+import { useTruthEggsStore } from '@/stores/truthEggs';
+import { useNotesStore } from '@/stores/notes';
 
 import { simulateAsync } from '@/engine/simulate';
 import { computeSnapshot } from '@/engine/compute';
@@ -52,6 +55,61 @@ export function readManualOverrides(): Record<string, Record<string, boolean>> {
     out[plan] = kept;
   }
   return out;
+}
+
+/**
+ * What an import may change, kept so a failed import can put it back: the plan itself and the stores
+ * `importPlanLogic` fills from the file. Store fields are copied one level deep (setters such as
+ * `setFuelAmount` change objects in place); a markRaw'd value (the redacted backup) is kept as is.
+ */
+function keepForImport(store: {
+  actions: Action[];
+  _initialSnapshot: CalculationsSnapshot | null;
+  activePlanId: string | null;
+  editingGroupId: string | null;
+  expandedGroupIds: Set<string>;
+  lastSavedActionsJson: string;
+  isPlanInitializing: boolean;
+  effectiveSnapshot: CalculationsSnapshot;
+}): () => void {
+  const copy = (v: unknown): unknown => {
+    if (Array.isArray(v)) return [...v];
+    if (v && typeof v === 'object' && !(v as { __v_skip?: boolean }).__v_skip && !(v instanceof Date))
+      return { ...(v as object) };
+    return v;
+  };
+  const keep = (st: { $state: object; $patch: (fn: (s: object) => void) => void }) => {
+    // Through `$state` (not toRaw): a setup store's raw state holds refs, `$state` their values.
+    const saved = Object.fromEntries(Object.entries(st.$state).map(([k, v]) => [k, copy(toRaw(v))]));
+    return () => st.$patch(s => void Object.assign(s, saved));
+  };
+  const others = [useInitialStateStore(), useVirtueStore(), useFuelTankStore(), useTruthEggsStore(), useNotesStore()].map(
+    st => keep(st as unknown as { $state: object; $patch: (fn: (s: object) => void) => void })
+  );
+  const plan = {
+    actions: store.actions,
+    initial: store._initialSnapshot,
+    activePlanId: store.activePlanId,
+    editingGroupId: store.editingGroupId,
+    expanded: new Set(store.expandedGroupIds),
+    lastSaved: store.lastSavedActionsJson,
+    initializing: store.isPlanInitializing,
+  };
+  return () => {
+    for (const put of others) put();
+    store.actions = plan.actions;
+    store._initialSnapshot = plan.initial;
+    store.activePlanId = plan.activePlanId;
+    store.editingGroupId = plan.editingGroupId;
+    store.expandedGroupIds = plan.expanded;
+    store.lastSavedActionsJson = plan.lastSaved;
+    store.isPlanInitializing = plan.initializing;
+    try {
+      syncStoresToSnapshot(store.effectiveSnapshot);
+    } catch {
+      // The plan is back; the panels catch up on the next change.
+    }
+  };
 }
 
 export const useActionsStore = defineStore('actions', {
@@ -718,11 +776,27 @@ export const useActionsStore = defineStore('actions', {
       exportPlanLogic(this.actions, this.initialSnapshot);
     },
 
+    /**
+     * Reads a plan in (a file, a Plan Library load, the saved draft). All or nothing: if anything fails, the
+     * plan and the stores the file sets are put back as they were and the error is rethrown (red team 21 Oct
+     * 2026, data-inputs #4: a failed import left a plan of 0/hr rates and no Available Actions that the draft
+     * then kept across reloads).
+     */
     async importPlan(jsonString: string, skipRecalculate = false, preserveId = false) {
       if (this.lastSavedActionsJson === jsonString && this._initialSnapshot) {
         this.isPlanInitializing = false;
         return true;
       }
+      const restore = keepForImport(this);
+      try {
+        return await this._importPlan(jsonString, skipRecalculate, preserveId);
+      } catch (e) {
+        restore();
+        throw e;
+      }
+    },
+
+    async _importPlan(jsonString: string, skipRecalculate: boolean, preserveId: boolean) {
       const data = importPlanLogic(jsonString);
       
       // NEW: Skip recalculation if the plan already contains calculated result data (endState).
@@ -731,6 +805,10 @@ export const useActionsStore = defineStore('actions', {
                              data.actions.length > 0 &&
                              data.actions.every((a: Action) => a.endState !== undefined);
 
+      // A file without results (the older raw format, or hand-edited) is recalculated in full. Until then
+      // every missing endState is a stand-in, swapped for the initial snapshot below, because the
+      // simulation context reads the start action's endState (`planStartOffset`).
+      const standIns = new Set<Action>();
       if (isPreCalculated) {
         skipRecalculate = true;
         // Optimization: Ensure all imported endStates are marked as raw for Vue performance.
@@ -739,6 +817,12 @@ export const useActionsStore = defineStore('actions', {
           endState: markRaw(a.endState),
         }));
       } else {
+        for (const a of data.actions as Action[]) {
+          if (!a.endState || typeof a.endState !== 'object') {
+            a.endState = markRaw(createEmptySnapshot());
+            standIns.add(a);
+          }
+        }
         this.actions = data.actions;
       }
 
@@ -762,6 +846,11 @@ export const useActionsStore = defineStore('actions', {
       const baseState = createBaseEngineState(null);
       const initialSnapshot = computeSnapshot(baseState, getSimulationContext());
       this._initialSnapshot = markRaw(initialSnapshot);
+      if (standIns.size) {
+        this.actions = this.actions.map(a => (standIns.has(a) ? { ...a, endState: markRaw(initialSnapshot) } : a));
+        // Stand-ins are never results: recalculate even when the caller asked to skip it (the saved draft).
+        skipRecalculate = false;
+      }
 
       if (!skipRecalculate) {
         await this.recalculateFrom(0);

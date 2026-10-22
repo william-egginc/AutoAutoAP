@@ -215,6 +215,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useActionsStore } from '@/stores/actions';
+import { PlanImportError } from '@/stores/actions/io';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useVirtueStore } from '@/stores/virtue';
 
@@ -425,7 +426,9 @@ function handleImport(event: Event) {
       await actionsStore.importPlan(jsonString);
     } catch (error) {
       console.error(error);
-      alert('Failed to import plan: Invalid file format.');
+      // importPlan is all or nothing: the plan on screen was kept.
+      const why = error instanceof PlanImportError ? ` ${error.message}` : ' The file could not be read as a plan.';
+      alert(`Couldn’t import this plan.${why} Your current plan is unchanged.`);
     } finally {
       input.value = ''; // Reset for next use
     }
