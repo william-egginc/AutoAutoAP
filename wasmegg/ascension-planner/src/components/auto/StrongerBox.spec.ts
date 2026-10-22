@@ -178,36 +178,21 @@ describe('the promise box follows the level (12 Oct)', () => {
   });
 });
 
-describe('Light has nothing to start, and says so (12 Oct; its status line at the top of the panel, 22 Oct)', () => {
-  const light = async () => textOf(await renderHtml(LightStatus, { goal: 'fastest' }));
-  it('a status sign: waiting, running, done with how many earlier routes and when (12-hour time)', async () => {
+describe('no "Light" for players (Jordan, 22 Oct: "I thought we got rid of Light")', () => {
+  it('no status line, whatever state the background pricing is in; Check exactly is the one check named', async () => {
     const st = useStrongerStore();
-    expect(await light()).toContain('Light runs by itself after Check exactly');
-    expect(await light()).toContain('Nothing to start.');
-    st.light = { state: 'running', priced: 0, total: 3, at: 0 };
-    expect(await light()).toContain('Pricing your 3 earlier routes on this save…');
-    st.light = { state: 'done', priced: 2, total: 3, at: new Date(2026, 9, 12, 12, 31).getTime() };
-    expect(await light()).toContain('Light ran by itself at 12:31 pm: priced 2 of your 3 earlier routes.');
-    // Whatever option is picked: Light is not a level any more.
-    st.level = 'quick';
-    expect(await renderHtml(LightStatus, { goal: 'fastest' })).toContain('light-status');
-  });
-  it('follows Check exactly (14 Oct): waiting with its progress, then pricing, then done; nothing of yours', async () => {
-    const st = useStrongerStore();
-    st.exact = { running: true, done: 4, total: 9 };
-    let t = await light();
-    expect(t).toContain(
-      "Waiting for Check exactly to finish (4 of 9 routes)… then Light prices the instant answer's routes at once, and your earlier routes, on your hours."
-    );
-    expect(t).not.toContain('Nothing to start');
-    st.light = { state: 'idle', priced: 0, total: 6, at: 0 };
-    t = await light();
-    expect(t).toContain("then Light prices the instant answer's routes at once, and 6 earlier routes of yours, on your hours.");
-    st.exact = { running: false, done: 0, total: 0 };
-    st.light = { state: 'running', priced: 0, total: 6, at: 0 };
-    expect(await light()).toContain('Pricing your 6 earlier routes on this save…');
-    st.light = { state: 'done', priced: 0, total: 0, at: Date.now() };
-    expect(await light()).toContain('Nothing of yours to price yet. Find searches for new routes.');
+    const states = [
+      { state: 'idle' as const, priced: 0, total: 0, at: 0 },
+      { state: 'running' as const, priced: 0, total: 3, at: 0, step: 'Looking at 7 ascensions (1 of 5)…' },
+      { state: 'done' as const, priced: 2, total: 3, at: new Date(2026, 9, 12, 12, 31).getTime() },
+      { state: 'error' as const, priced: 0, total: 0, at: 0 },
+    ];
+    for (const l of states) {
+      st.light = l;
+      const html = await renderHtml(LightStatus, { goal: 'fastest' });
+      expect(html).not.toContain('light-status');
+      expect(textOf(html)).not.toMatch(/\bLight\b/);
+    }
   });
   it('no "Search with Fast" button: Fast is the default option', async () => {
     const html = await renderHtml(LightStatus, { goal: 'fastest' });
@@ -252,52 +237,23 @@ describe('a finished saved run (12 Oct)', () => {
   });
 });
 
-describe('Light prices the instant answer at once first (14 Oct)', () => {
-  it('running: "Searching" with the CSS dots, then the route it is on; then the earlier routes', async () => {
+describe('the pricing after Check exactly shows what it found (14 Oct; unnamed, 22 Oct)', () => {
+  it('the summary line as soon as one route lands, whatever option is picked; no summary, no line', async () => {
     const st = useStrongerStore();
-    st.light = { state: 'running', priced: 0, total: 0, at: 0, instant: { priced: 0, total: 5 }, step: 'Looking at 7 ascensions (1 of 5)…' };
-    let html = await renderHtml(LightStatus, { goal: 'fastest' });
-    expect(html).toContain('data-testid="light-searching"');
-    expect(html).toContain('animated-dots');
-    expect(html).not.toContain('animate-spin');
-    expect(textOf(html)).toMatch(/Light: searching \. \. \. Looking at 7 ascensions \(1 of 5\)…/);
-    st.light = { ...st.light, total: 6, priced: 3, step: 'Your earlier routes: 3 of 6…' };
-    html = await renderHtml(LightStatus, { goal: 'fastest' });
-    expect(textOf(html)).toContain('Your earlier routes: 3 of 6…');
-  });
-  it('done: the instant answer at once, and the earlier routes; the summary line as soon as one lands', async () => {
-    const st = useStrongerStore();
-    const at = new Date(2026, 9, 14, 14, 16).getTime();
+    expect(await renderHtml(LightStatus, { goal: 'fastest' })).not.toContain('light-as-played');
+    st.level = 'quick';
     st.light = {
       state: 'done',
       priced: 2,
       total: 3,
-      at,
+      at: 1,
       instant: { priced: 5, total: 5 },
       summary: "Fastest as you'd play it: 250 → 350 → 490 reaches 490 on Feb 16 (0.40 days sooner than on the hour)",
     };
-    const t = textOf(await renderHtml(LightStatus, { goal: 'fastest' }));
-    expect(t).toContain("Light ran by itself at 2:16 pm: priced the instant answer's 5 routes at once, and 2 of your 3 earlier routes.");
-    expect(t).toContain("Fastest as you'd play it: 250 → 350 → 490 reaches 490 on Feb 16 (0.40 days sooner than on the hour)");
-    // Nothing of the player's, but the instant answer priced at once.
-    st.light = { state: 'done', priced: 0, total: 0, at, instant: { priced: 4, total: 5 } };
-    expect(textOf(await renderHtml(LightStatus, { goal: 'fastest' }))).toContain(
-      "Light ran by itself at 2:16 pm: priced 4 of the instant answer's 5 routes at once. Nothing of yours to price yet."
-    );
-  });
-  it('the summary shows at the search levels too (Light runs under them); no summary, no line', async () => {
-    const st = useStrongerStore();
-    expect(await renderHtml(LightStatus, { goal: 'fastest' })).not.toContain('light-as-played');
-    st.level = 'quick';
-    st.light = { state: 'done', priced: 0, total: 0, at: 1, summary: "As you'd play it: 300 → 310 reaches 310 TE" };
-    expect(await renderHtml(LightStatus, { goal: 'date' })).toContain('data-testid="light-as-played"');
-  });
-  it("both goals: Light's status names the instant answer's routes, ascending at once, on your hours", async () => {
-    for (const goal of ['fastest', 'date'] as const) {
-      setActivePinia(createPinia());
-      const t = textOf(await renderHtml(LightStatus, { goal }));
-      expect(t).toContain("it prices the instant answer's routes ascending at once, and your earlier routes, on your hours.");
-    }
+    const html = await renderHtml(LightStatus, { goal: 'date' });
+    expect(html).toContain('data-testid="light-as-played"');
+    expect(textOf(html)).toContain("Fastest as you'd play it: 250 → 350 → 490 reaches 490 on Feb 16");
+    expect(html).toContain('id="stronger-check-results"');
   });
 });
 

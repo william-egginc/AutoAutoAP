@@ -101,7 +101,7 @@ export function lightShareShown(o: {
 /** The Send button's words: "Send this route (Light)" / By a date "Send 310 TE by this date (Light)". */
 export function lightSendLabel(r: LightResult): string {
   const te = r.best.chain[r.best.chain.length - 1];
-  return r.goal.kind === 'date' ? `Send ${te} TE by this date (Light)` : `Send this route (Light)`;
+  return r.goal.kind === 'date' ? `Send ${te} TE by this date` : `Send this route`;
 }
 
 /** Where Light's route came from, in the Share box's words. */

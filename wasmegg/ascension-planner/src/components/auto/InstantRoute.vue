@@ -398,7 +398,7 @@
                             <RouteTimeline :chain="dateRowChain(r)" :legs="exactLegsOf(dateRowChain(r))" :zone="zone" />
                           </template>
                           <template v-if="atOnceLegsOf(dateRowChain(r))">
-                            <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Light: each ascension at once</p>
+                            <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Each ascension at once</p>
                             <RouteTimeline :chain="dateRowChain(r)" :legs="atOnceLegsOf(dateRowChain(r))" :zone="zone" />
                           </template>
                         </div>
@@ -422,8 +422,8 @@
             </div>
             <p class="text-[11px] text-slate-600">
               Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly Research Sale, at
-              once when that ends sooner), and Check exactly prices it the same way. Light, under Nearby routes, then
-              prices these routes ascending at once, on your hours.
+              once when that ends sooner), and Check exactly prices it the same way, then prices these routes ascending at
+              once, on your hours.
             </p>
             <p v-if="atOnceNote(dateExact)" class="text-[11px] font-bold text-emerald-800">
               {{ atOnceNote(dateExact) }}
@@ -674,7 +674,7 @@
                           <RouteTimeline :chain="r.chain" :legs="exactLegsOf(r.chain)" :zone="zone" />
                         </template>
                         <template v-if="atOnceLegsOf(r.chain)">
-                          <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Light: each ascension at once</p>
+                          <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Each ascension at once</p>
                           <RouteTimeline :chain="r.chain" :legs="atOnceLegsOf(r.chain)" :zone="zone" />
                         </template>
                       </div>
@@ -711,8 +711,8 @@
           </div>
           <p class="text-[11px] text-slate-600">
             Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly Research Sale, at once
-            when that ends sooner), and Check exactly prices it the same way. Light, under Nearby routes, then prices
-            these routes ascending at once, on your hours.
+            when that ends sooner), and Check exactly prices it the same way, then prices these routes ascending at once,
+            on your hours.
           </p>
           <p v-if="atOnceNote(exactOf(boxLead))" class="text-[11px] font-bold text-emerald-800">
             {{ atOnceNote(exactOf(boxLead)) }}
@@ -1639,7 +1639,7 @@ const leftOut = computed(() => {
   const out: string[] = [];
   // With "Works inside my hours" the prestiges wait for them; the shifts inside an ascension still don't.
   if (store.scheduleEnabled)
-    out.push(useHours.value ? 'playing hours for the shifts inside each ascension (Check exactly and Light hold those)' : 'playing hours');
+    out.push(useHours.value ? 'playing hours for the shifts inside each ascension (Check exactly holds those)' : 'playing hours');
   if (store.timeOff.length) out.push('time off');
   if (store.milestones.length) out.push('dates to hit');
   return out;

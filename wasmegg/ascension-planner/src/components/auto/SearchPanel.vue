@@ -1,8 +1,8 @@
 <!--
   The search panel under the instant answer, on Fastest and on By a date (22 Oct 2026; mockup
   wireframes/search-panel-fec-v1): one card, "Stronger check", in place of the Nearby routes / Exhaustive
-  tabs and the Light / Fast / Exact / Very high bar. Light's status line at the top (it runs by itself
-  after Check exactly, LightStatus.vue), then a 3-way choice, Fast | Exact | Custom, each with its time
+  tabs and the Light / Fast / Exact / Very high bar. At the top, what the page prices by itself after Check
+  exactly (LightStatus.vue: no status line and no "Light" for players, Jordan 22 Oct), then a 3-way choice, Fast | Exact | Custom, each with its time
   here and what it is for, then the picked option's content. Fast and Exact are Nearby routes (the
   `nearby` slot, StrongerBox.vue: Very high is a tick box inside Exact, lib/veryHigh.ts); Custom is
   Exhaustive, unchanged (the `custom` slot). The levels underneath are unchanged (lib/searchOption.ts).

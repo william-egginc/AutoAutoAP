@@ -1117,7 +1117,7 @@ const { step, ascendNeeded } = kept;
 /** The first look's budget in sets of early stops; the middle one is the long-standing default. */
 const THOROUGH = [
   { label: 'Quick', shapes: 500 },
-  { label: 'Light', shapes: 1500 },
+  { label: 'Brief', shapes: 1500 },
   { label: 'Standard', shapes: 3000 },
   { label: 'Thorough', shapes: 6000 },
   { label: 'Very thorough', shapes: 12000 },

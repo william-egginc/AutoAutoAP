@@ -144,13 +144,25 @@ describe('the card', () => {
   it('one card: Stronger check, its intro, Light status, then Fast | Exact | Custom with time here and purpose lines', async () => {
     const t = textOf(await render());
     expect(t).toMatch(
-      /^Stronger check How it works › Checks the instant answer harder, with the full simulator on your save\. Pick how hard to look; your choice is remembered\. Light runs by itself after Check exactly/
+      /^Stronger check How it works › Checks the instant answer harder, with the full simulator on your save\. Pick how hard to look; your choice is remembered\. Fast/
     );
     expect(t).toContain(
       "Fast ~18 min here most likely best Exact ~1.7 h here a second opinion Custom you set the boxes to prove it in your boxes"
     );
     expect(t).toContain('NEARBY BODY');
     expect(t).toContain('CUSTOM BODY');
+    expect(t).not.toMatch(/\bLight\b/);
+  });
+  it('"What this does and does not promise" once: one per option, in parts never shown together (source)', () => {
+    const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
+    expect(read('StrongerBox.vue').match(/What this does and does not promise\s*<\/summary>/g)).toHaveLength(1);
+    expect(read('SearchPanel.vue')).not.toMatch(/does not promise\s*</);
+    for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
+      const s = read(f);
+      expect(s.match(/<ExhaustivePromise/g)).toHaveLength(1);
+      expect(s.indexOf('<ExhaustivePromise')).toBeGreaterThan(s.indexOf('<template #custom>'));
+      expect(s).not.toMatch(/does not promise\s*</);
+    }
   });
   it('locks the choice while a search runs: a Running pill, the other options greyed out, a pick does nothing', async () => {
     const html = await render({ running: true }, s => (s.choose as (o: string) => void)('custom'));

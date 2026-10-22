@@ -34,7 +34,7 @@ export type SureLevel = 'high' | 'medium' | 'low';
 export type SearchLevel = 'light' | 'quick' | 'normal' | 'thorough' | 'exhaustive';
 const RANK: Record<SearchLevel, number> = { light: 0, quick: 1, normal: 2, thorough: 3, exhaustive: 4 };
 export const LEVEL_WORDS: Record<SearchLevel, string> = {
-  light: 'Light',
+  light: 'Checked at once',
   quick: 'Fast',
   normal: 'Exact',
   thorough: 'Very high',

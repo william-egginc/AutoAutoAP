@@ -88,7 +88,7 @@ describe('lightBest', () => {
     expect(r.best.chain).toEqual([212, 309]);
     expect(r.best.from).toBe('lower-te');
     expect(lightFromText(r)).toMatch(/one TE lower/);
-    expect(lightSendLabel(r)).toBe('Send 309 TE by this date (Light)');
+    expect(lightSendLabel(r)).toBe('Send 309 TE by this date');
   });
 
   it('By a date: nothing that makes the date is no result', () => {
@@ -128,7 +128,7 @@ describe('lightShareShown', () => {
     expect(lightShareShown({ ...base, result: null })).toBe(false);
     expect(lightShareShown({ ...base, collector: false })).toBe(false);
   });
-  it('Fastest says Light on the button', () => {
-    expect(lightSendLabel(r)).toBe('Send this route (Light)');
+  it('Fastest: Send this route, no "Light" on the button (22 Oct)', () => {
+    expect(lightSendLabel(r)).toBe('Send this route');
   });
 });

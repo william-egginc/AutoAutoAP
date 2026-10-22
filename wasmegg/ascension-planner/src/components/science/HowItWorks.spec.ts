@@ -20,7 +20,7 @@ describe('Science › How it works', () => {
     expect(text).toContain('Press Check exactly for the most accurate answer');
     expect(text).toContain('An experimental "Prestige by…" line');
     expect(text).not.toMatch(/planned "Prestige by/i);
-    expect(text).toContain('Stronger check. A box under the instant answer. Light runs by itself');
+    expect(text).toContain('Stronger check. A box under the instant answer. After Check exactly, the page goes on by itself');
     expect(text).toContain('you pick how hard to look: Fast or Exact run');
     expect(text).not.toContain('four levels');
     expect(text).not.toContain('Try: stronger check (a prototype)');

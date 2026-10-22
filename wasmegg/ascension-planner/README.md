@@ -7,7 +7,7 @@ with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 24
 
 - **Instant answer**: the best routes for your save in seconds, looked up in ascensions priced ahead of time.
 - **Check exactly**: the shown routes run through the full simulator on your own save.
-- **Stronger check** (Fast / Exact / Custom): Light runs by itself after Check exactly and re-prices routes
+- **Stronger check** (Fast / Exact / Custom): after Check exactly the page re-prices, by itself, the routes
   you already have; Fast and Exact run **Nearby routes**, a search near the instant answer's route.
 - **Exhaustive** (the Custom option): every route in boxes you set, so the answer is proven inside those boxes.
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
@@ -48,7 +48,7 @@ that choice.
   - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
     Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
   - **Fastest to 490 TE** (the name follows your final target): the instant answer and Check exactly
-    on top, then the Stronger check: Light's status, and **Fast**, **Exact** (Nearby routes) or **Custom** (Exhaustive).
+    on top, then the Stronger check: **Fast**, **Exact** (Nearby routes) or **Custom** (Exhaustive).
     **Prefer fewer ascensions** (off by default; within 12 h, 1 day, 2 days or custom) leads the green box
     with the fewest-ascensions route that close to the best. After Check exactly, **Try waiting before each
     prestige** prices the route with waits of 1 to 24 hours, on Your setup's hours, and suggests a wait only

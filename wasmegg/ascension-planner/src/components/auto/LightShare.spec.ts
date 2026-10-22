@@ -101,9 +101,10 @@ describe('LightShare', () => {
     expect(html).toContain('data-testid="light-share"');
     expect(t).toContain('Share this result');
     expect(t).toContain('212 → 300 → 490');
-    expect(t).toContain('recorded as found by Light');
+    expect(t).toContain('Sends the best route priced after Check exactly,');
+    expect(t).not.toMatch(/\bLight\b/);
     expect(html).toContain('data-testid="share-ask"');
-    expect(t).toContain('Send this route (Light)');
+    expect(t).toContain('Send this route');
     expect(t).toContain('nothing is sent by that press');
     // Not agreed: no Send of its own yet.
     expect(html).not.toContain('data-testid="light-send"');
@@ -114,7 +115,7 @@ describe('LightShare', () => {
     const html = await render();
     expect(html).toContain('data-testid="light-send"');
     expect(html).not.toContain('data-testid="share-ask"');
-    expect(textOf(html)).toContain('Send this route (Light)');
+    expect(textOf(html)).toContain('Send this route');
   });
 
   it('not shown while Light runs, before it, or without a result; shown whatever option is picked', async () => {
@@ -131,7 +132,7 @@ describe('LightShare', () => {
   it('By a date: its tab and the date label', async () => {
     const { render } = await setup({ goal: 'date', agreed: true });
     const t = textOf(await render());
-    expect(t).toContain('Send 309 TE by this date (Light)');
+    expect(t).toContain('Send 309 TE by this date');
     expect(t).toMatch(/By a date|Egg Day/);
     expect(t).toContain('one of your earlier routes, priced on this save');
   });
