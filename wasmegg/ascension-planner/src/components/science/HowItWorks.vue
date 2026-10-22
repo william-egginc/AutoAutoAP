@@ -288,9 +288,9 @@
             <b>Accounts without maxed epic research or colleggtibles,</b> on the maxed instant answer: it assumes both.
           </li>
           <li>
-            <b>Today's code, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 pm, on the current
-            code including the low-TE opening: 13 tables, 15 cells each, rebuilt from scratch, and all 195 came out
-            identical to the instant answer's.
+            <b>This simulator, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 pm, on that
+            day's code: 13 tables, 15 cells each, rebuilt from scratch, and all 195 came out identical to the instant
+            answer's. The simulator changed on 21 Oct 2026, so the check has not been repeated on it yet.
           </li>
         </ul>
       </div>
@@ -426,9 +426,9 @@
             route sits on the edge of a box, and it has more spare than one TE costs: let it finish, or widen the boxes.
           </li>
           <li>
-            <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) aren't in this
-            site yet. If they land, every instant answer (one per gear set) has to be simulated again, about 55 to 70
-            hours on a 16-core PC, before it can be trusted against the new simulator.
+            <b>Joo's newer simulator changes</b> (earnings lookaheads, a new opening, a tier-12 unlock) are in this
+            site since 21 Oct 2026. Every instant answer (one per gear set) was simulated with the older one, so each
+            says so until it is simulated again, about 55 to 70 hours on a 16-core PC.
           </li>
         </ul>
         <p>
@@ -463,7 +463,7 @@ import { NAMES } from '@/lib/siteNav';
 import ChainSearchExplainer from '@/components/auto/ChainSearchExplainer.vue';
 
 /** The date every number here was last checked. */
-const UPDATED = '13 Oct 2026';
+const UPDATED = '21 Oct 2026';
 
 /** The checks, in the order a sceptic would ask for them: same inputs, then the simulator, then real runs. */
 const CHECKS: { what: string; result: string; how: string }[] = [
