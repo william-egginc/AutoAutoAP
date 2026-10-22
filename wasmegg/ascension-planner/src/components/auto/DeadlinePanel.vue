@@ -236,7 +236,7 @@
               :max="nearbyRange.max"
               :disabled="store.busy"
               aria-label="Fewest ascensions"
-              class="w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold"
+              class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold sm:min-h-0"
             />
             <span class="text-slate-400">to</span>
             <input
@@ -246,7 +246,7 @@
               :max="DATE_RANGE_BOUNDS.ceil"
               :disabled="store.busy"
               aria-label="Most ascensions"
-              class="w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold"
+              class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold sm:min-h-0"
             />
             <span v-if="nearbyRangeHint" class="text-[10px] text-slate-400" data-test="nearby-range-hint">{{
               nearbyRangeHint
@@ -254,7 +254,7 @@
             <button
               v-if="canFollowNearbyRange"
               type="button"
-              class="text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40"
+              class="inline-flex min-h-[44px] items-center text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 sm:min-h-0"
               :disabled="store.busy"
               data-test="nearby-range-reset"
               @click="followNearbyRange"

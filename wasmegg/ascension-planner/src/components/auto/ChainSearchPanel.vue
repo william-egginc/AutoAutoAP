@@ -200,7 +200,7 @@
               <button
                 v-if="canFollowInstantLimits"
                 type="button"
-                class="pb-2 text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900"
+                class="inline-flex min-h-[44px] items-center text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900 sm:min-h-0 sm:pb-2"
                 data-testid="limits-follow-reset"
                 @click="store.followInstantLimits()"
               >
