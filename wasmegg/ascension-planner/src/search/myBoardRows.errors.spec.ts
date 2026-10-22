@@ -146,3 +146,12 @@ describe('what the player reads', () => {
     expect(src).toContain("error.value = boardErrorText(failedKind.value, myRunsMode.value ? 'myruns' : 'compare');");
   });
 });
+
+describe('Refresh is a full tap target', () => {
+  it("both Leaderboard Refresh buttons (My runs and Compare) are at least 44 px tall", () => {
+    const src = readFileSync(new URL('../components/auto/LeaderboardPanel.vue', import.meta.url), 'utf8');
+    const refresh = src.split('<button').filter(b => b.includes("{{ loading ? 'Loading' : 'Refresh' }}"));
+    expect(refresh).toHaveLength(2);
+    for (const b of refresh) expect(b).toContain('min-h-[44px]');
+  });
+});

@@ -48,7 +48,7 @@
       </p>
       <button
         type="button"
-        class="px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
+        class="min-h-[44px] px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
         :disabled="loading"
         @click="load"
       >
@@ -206,7 +206,7 @@
           </label>
           <button
             type="button"
-            class="px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
+            class="min-h-[44px] px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
             :disabled="loading"
             @click="load"
           >
