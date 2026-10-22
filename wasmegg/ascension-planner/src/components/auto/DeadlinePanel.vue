@@ -221,17 +221,58 @@
           data-test="simple-summary"
         >
           <p v-if="simpleSummary" class="font-bold text-slate-900">{{ simpleSummary }}</p>
+          <p v-else-if="nearbyRangeEmpty" class="font-semibold text-rose-700" data-test="nearby-range-empty">
+            The instant answer has no route with {{ nearbyRange.min }} to {{ nearbyRange.max }} ascensions: widen the
+            range below.
+          </p>
           <p v-else class="font-semibold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
+          <!-- 3 to one more than the instant answer's count until set (lib/ascRange.ts; Jordan, 22 Oct 2026). -->
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1" data-test="nearby-range">
+            <span class="font-bold text-slate-800">Ascensions</span>
+            <input
+              v-model.number="nearbyMin"
+              type="number"
+              :min="DATE_RANGE_BOUNDS.floor"
+              :max="nearbyRange.max"
+              :disabled="store.busy"
+              aria-label="Fewest ascensions"
+              class="w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold"
+            />
+            <span class="text-slate-400">to</span>
+            <input
+              v-model.number="nearbyMax"
+              type="number"
+              :min="nearbyRange.min"
+              :max="DATE_RANGE_BOUNDS.ceil"
+              :disabled="store.busy"
+              aria-label="Most ascensions"
+              class="w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold"
+            />
+            <span v-if="nearbyRangeHint" class="text-[10px] text-slate-400" data-test="nearby-range-hint">{{
+              nearbyRangeHint
+            }}</span>
+            <button
+              v-if="canFollowNearbyRange"
+              type="button"
+              class="text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40"
+              :disabled="store.busy"
+              data-test="nearby-range-reset"
+              @click="followNearbyRange"
+            >
+              Use the instant answer's range
+            </button>
+          </div>
           <p v-if="simpleSpace">
             <template v-if="simpleFrom === 'instant'"
-              >Around the instant answer's route for each number of ascensions<template v-if="instantMax !== null">
+              >Around the instant answer's route for each number of ascensions from {{ nearbyRange.min }} to
+              {{ nearbyRange.max }}<template v-if="instantMax !== null">
                 (at most {{ instantMax }}, as its filter says)</template
               >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
             >
             <template v-else
               ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so this
-              checks suggested routes for 1-5 ascensions instead: {{ simpleWidthsText }}. When the instant answer arrives,
-              the routes follow it.</template
+              checks suggested routes for {{ nearbyRange.min }}-{{ Math.min(5, nearbyRange.max) }} ascensions instead:
+              {{ simpleWidthsText }}. When the instant answer arrives, the routes follow it.</template
             >
           </p>
           <p v-if="simpleSpace">
@@ -923,6 +964,10 @@ const kept = {
   /** The boxes Simple's last run used (its Find, or a carried-on Simple run's spec): what Simple shows
    *  while that run goes, rather than boxes worked out again from an instant answer that moved. */
   simpleUsed: keptRef<{ chains: { asc: number; text: string }[]; lastBox: string } | null>(null),
+  /** Nearby routes' ascension range as the player set it, each end null while it follows the instant answer
+   *  (lib/ascRange.ts). This page load, like the rest. */
+  nearbyLo: keptRef<number | null>(null),
+  nearbyHi: keptRef<number | null>(null),
 };
 </script>
 
@@ -1038,7 +1083,8 @@ import {
   type SavedDeadlineResult,
 } from '@/search/deadlineStore';
 import { COARSE_SUGGESTION_NOTE, SPACE_STEPS, SPACE_WIDTHS, cappedStopsByWidth } from '@/search/deadlineSuggest';
-import { boxCountFromBest } from '@/lib/limitsFollow';
+import { boxCountFromBest, limitsHint } from '@/lib/limitsFollow';
+import { DATE_RANGE_BOUNDS, DATE_RANGE_FALLBACK, rangeFromCount, rangeNow } from '@/lib/ascRange';
 import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, type SimpleSpace } from '@/search/simpleByDate';
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
@@ -1233,15 +1279,79 @@ const simple = computed(() => readsAround(runState()));
 const instantMax = ref<number | null>(null);
 /** What a typical 8-core machine costs, for sizing Simple's boxes the same on every computer. */
 const TYPICAL_WORKERS = 8;
-const simpleCentres = computed<{ from: 'instant' | 'suggested'; routes: Record<number, number[]> }>(() => {
+/**
+ * Nearby routes' ascension range (Jordan, 22 Oct 2026; lib/ascRange.ts): 3 to one more than the instant answer's
+ * count (the route its box leads with under Prefer fewer, else the best; chainSearch.ts `rangeCount.date`), each
+ * end the player set kept; 1 to 5 without an instant answer, as before. It was every count the instant answer has.
+ */
+const { nearbyLo, nearbyHi } = kept;
+const nearbyRange = computed(() =>
+  rangeNow(store.rangeCount.date, DATE_RANGE_BOUNDS, DATE_RANGE_FALLBACK, { min: nearbyLo.value, max: nearbyHi.value })
+);
+/** The range inputs: a value typed in is the player's own until "Use the instant answer's range". */
+function rangeInput(v: unknown): number | null {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= 1 ? Math.min(DATE_RANGE_BOUNDS.ceil, Math.max(DATE_RANGE_BOUNDS.floor, n)) : null;
+}
+const nearbyMin = computed<number>({
+  get: () => nearbyRange.value.min,
+  set: v => {
+    const n = rangeInput(v);
+    if (n !== null) nearbyLo.value = n;
+  },
+});
+const nearbyMax = computed<number>({
+  get: () => nearbyRange.value.max,
+  set: v => {
+    const n = rangeInput(v);
+    if (n !== null) nearbyHi.value = n;
+  },
+});
+/** The grey hint beside the range: which ends follow the instant answer now. */
+const nearbyRangeHint = computed(() => {
+  const want = rangeFromCount(store.rangeCount.date, DATE_RANGE_BOUNDS);
+  if (!want) return '';
+  return limitsHint({
+    min: nearbyLo.value === null && nearbyRange.value.min === want.min,
+    max: nearbyHi.value === null && nearbyRange.value.max === want.max,
+  });
+});
+/** An end was set by hand and the instant answer has a count: offer to follow it again. */
+const canFollowNearbyRange = computed(
+  () => store.rangeCount.date !== null && (nearbyLo.value !== null || nearbyHi.value !== null)
+);
+function followNearbyRange(): void {
+  nearbyLo.value = null;
+  nearbyHi.value = null;
+}
+const inNearbyRange = (k: number) => k >= nearbyRange.value.min && k <= nearbyRange.value.max;
+/** The instant answer's route for each count it has (under its "At most N ascensions"), before the range. */
+const instantCentres = computed<Record<number, number[]>>(() => {
   const te = Math.floor(store.currentTE);
   const max = instantMax.value;
   const fits = (k: number, r: number[] | undefined): r is number[] =>
     !!r && r.length === k && (max === null || k <= max) && r[0] > te;
+  const all: Record<number, number[]> = {};
+  for (const [k, r] of Object.entries(instantByCount.value)) if (fits(Number(k), r)) all[Number(k)] = [...r];
+  return all;
+});
+/** The instant answer has routes, but none with a count in the range. */
+const nearbyRangeEmpty = computed(() => {
+  const ks = Object.keys(instantCentres.value).map(Number);
+  return ks.length > 0 && !ks.some(inNearbyRange);
+});
+const simpleCentres = computed<{ from: 'instant' | 'suggested'; routes: Record<number, number[]> }>(() => {
+  const te = Math.floor(store.currentTE);
+  const max = instantMax.value;
+  const all = instantCentres.value;
+  if (Object.keys(all).length) {
+    const routes: Record<number, number[]> = {};
+    for (const [k, r] of Object.entries(all)) if (inNearbyRange(Number(k))) routes[Number(k)] = r;
+    return { from: 'instant', routes };
+  }
   const routes: Record<number, number[]> = {};
-  for (const [k, r] of Object.entries(instantByCount.value)) if (fits(Number(k), r)) routes[Number(k)] = [...r];
-  if (Object.keys(routes).length) return { from: 'instant', routes };
   for (let n = 1; n <= Math.min(5, max ?? 5); n++) {
+    if (!inNearbyRange(n)) continue;
     const base = suggestBase(n, te, {
       instant: null,
       answer: store.deadlineResult?.byStops.find(r => r.chain.length === n)?.chain ?? null,
