@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import type { AscensionSummary } from '@/auto/types';
 import type { Action } from '@/types/actions/meta';
 import type { AutoLoadoutInputs } from '@/auto/loadout/types';
+import { sanitizeLoadoutInputs, sanitizeLoadoutOverrides } from '@/lib/loadoutInputsGuard';
 
 export type SaleCount = 1 | 2 | 3;
 export type BuildVariantKey = `${SaleCount}-sale` | `${SaleCount}-sale-tier13`;
@@ -152,9 +153,14 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     endTimeOverrides.value = data.endTimeOverrides || {};
     // A saved plan carries its time-off cuts inside its end times and its simulated start times.
     timeOffCuts.value = null;
-    loadoutOverrides.value = data.loadoutOverrides || {};
+    // Prelive fix (21 Oct 2026): a restored file's inputs are checked (lib/loadoutInputsGuard.ts); broken
+    // parts come from what the form holds, else the inventory default. A file with nothing usable keeps
+    // what the setup form already holds, as one without loadout inputs always did.
+    const base = loadoutInputs.value ?? defaultLoadoutInputs.value;
+    const restored = data.loadoutInputs ? sanitizeLoadoutInputs(data.loadoutInputs, base) : null;
+    loadoutOverrides.value = sanitizeLoadoutOverrides(data.loadoutOverrides, restored ?? base);
     // An imported plan without loadout inputs keeps whatever the setup form already holds.
-    if (data.loadoutInputs) loadoutInputs.value = data.loadoutInputs;
+    if (restored) loadoutInputs.value = restored;
     if (data.planVariantOverrides) {
       planVariantOverrides.value = data.planVariantOverrides;
     } else if (data.a1ForceMode === 'continue') {

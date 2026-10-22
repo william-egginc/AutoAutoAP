@@ -6,9 +6,14 @@
    - yes for this account: what is on, read live from the account's consents, with Change (the ticks and
      the credit, applied as they are changed) and Withdraw;
    - yes in this browser but not this account: Use for this account, and Withdraw;
-   - no thanks, or withdrawn: Change (the form again).
+   - no thanks, or withdrawn: what is on for this account RIGHT NOW (read live from its consents, like the yes
+     line: a share button, or another tab, may have turned some on), Withdraw while any sharing is still on,
+     and Change (the form again).
 
-  Withdraw stops future sends only: what was already sent stays, and the CSV choice is left as it is.
+  Withdraw stops future sends only: what was already sent stays, and the CSV choice is left as it is. Its line
+  (Jordan's words, 21 Oct 2026) promises the account on screen only: an account that agreed under a share
+  button keeps its choices. (Accounts that said yes through this box or the strip are still turned off as each
+  next loads, lib/study.ts `afterWithdraw`: more is stopped than the line promises, never less.)
 -->
 <template>
   <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="study-setup">
@@ -105,24 +110,27 @@
     </template>
 
     <template v-else>
-      <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="study-setup-off">
-        <template v-if="state === 'no'"
-          >You said no thanks. Nothing is shared unless you agree under a share button.</template
-        >
-        <template v-else
-          >Withdrawn on {{ answeredOn }}: nothing is shared from this browser’s accounts until you agree
-          again.</template
-        >
+      <p class="text-[11px] text-slate-600 leading-relaxed break-words" data-testid="study-setup-off">
+        <template v-if="state === 'no'">You said no thanks.</template>
+        <template v-else>Withdrawn on {{ answeredOn }}.</template>
+        {{ ' ' }}For this account right now: {{ summary }}.
       </p>
       <StudyForm v-if="formOpen" @answered="formOpen = false" />
-      <button v-else type="button" :class="BTN" data-testid="study-setup-reopen" @click="formOpen = true">
-        Change
-      </button>
+      <div v-else class="flex flex-col sm:flex-row gap-2">
+        <button type="button" :class="BTN" data-testid="study-setup-reopen" @click="formOpen = true">Change</button>
+        <button v-if="anySharing" type="button" :class="WITHDRAW" data-testid="study-setup-withdraw" @click="withdraw">
+          Withdraw
+        </button>
+      </div>
     </template>
 
-    <p v-if="state === 'yes' || state === 'other-account'" class="text-[11px] text-slate-500 leading-relaxed">
-      Withdraw stops what this browser would send from now on; what was already sent stays. Each share button still
-      shows its own agreement, with Withdraw there too.
+    <p
+      v-if="state === 'yes' || state === 'other-account' || (state !== 'unanswered' && anySharing)"
+      class="text-[11px] text-slate-500 leading-relaxed"
+      data-testid="study-setup-withdraw-note"
+    >
+      Withdraw stops what this browser would send for this account from now on; other accounts keep their own choices
+      and what was already sent stays. Each share button still shows its own agreement, with Withdraw there too.
     </p>
   </div>
 </template>
@@ -131,7 +139,7 @@
 import { computed, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { showDay } from '@/lib/displayTime';
-import { TICK_WORDS, type StudyTicks } from '@/lib/study';
+import { TICK_WORDS, WITHDRAW_CONSENTS, type StudyTicks } from '@/lib/study';
 import { consentAgreed, consentState } from '@/composables/useConsent';
 import {
   STUDY_NAME_MAX,
@@ -181,6 +189,8 @@ const WORDS: Record<keyof StudyTicks, [string, string]> = {
   diag: ['diagnostics on', 'diagnostics off'],
   checks: ['checks shared', 'checks not shared'],
 };
+/** Something Withdraw would turn off is on for this account now (whatever the browser's answer says). */
+const anySharing = computed(() => WITHDRAW_CONSENTS.some(id => consentAgreed(id)));
 const said = (k: keyof StudyTicks): string => WORDS[k][liveTick(k) ? 0 : 1];
 const anonymous = computed(() => names.anonymousFor(account.value) ?? true);
 const nickname = ref('');

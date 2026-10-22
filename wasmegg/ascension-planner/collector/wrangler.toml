@@ -40,14 +40,16 @@ migrations_dir = "migrations"
 [triggers]
 crons = ["*/5 * * * *"]
 
-# OPTIONAL per-IP limit on POST /watch, on top of the per-key one (Workers rate-limit binding, free
-# plan included; needs a recent wrangler). Left off so a deploy never fails on it.
-# [[ratelimits]]
-# name = "WATCH_LIMIT"
-# namespace_id = "1001"
-#   [ratelimits.simple]
-#   limit = 10
-#   period = 60
+# Per-IP limit on /watch, on top of the per-key one (Workers rate-limit binding). On since 21 Oct 2026, now
+# that the 11xx bindings deployed fine on this plan. Counted apart for POST (a heartbeat every 5 min per
+# run) and GET (the phone page reads once a minute): 20 a minute each leaves room for several runs and
+# reloads behind one address.
+[[ratelimits]]
+name = "WATCH_LIMIT"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 20
+  period = 60
 
 # The edge rate limit (21 Oct 2026, QA): per address, per endpoint, counted at the edge, NOT in KV (no read or
 # write is spent). `period` can only be 10 or 60 seconds; the limits are per Cloudflare location and approximate.
@@ -67,3 +69,30 @@ namespace_id = "1102"
   [ratelimits.simple]
   limit = 20
   period = 60
+
+# SUBMIT_LIMITER (21 Oct 2026, red team / review) covers POST /submit, /claim and /hide (a key for each),
+# in front of floodGate: floodGate costs a KV read per request even when it refuses, this costs none. 20 a
+# minute is twice floodGate's 10, so a person emptying their results never meets it; a script does.
+[[ratelimits]]
+name = "SUBMIT_LIMITER"
+namespace_id = "1103"
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+# READ_LIMITER covers the reads that spend KV: a GET /all or /leaderboard that misses the edge cache, and
+# GET /csv (one unit a request, more for a file joined from parts or deltas; see worker.js). A page load
+# reads the board once or twice; the Explorer's sweep chart reads a CSV per row it draws, and the owner's
+# scripts (fix-leg-days.sh, winchk.py) read every row's CSV in a loop: 120 a minute, as UPLOAD_LIMITER.
+[[ratelimits]]
+name = "READ_LIMITER"
+namespace_id = "1104"
+  [ratelimits.simple]
+  limit = 120
+  period = 60
+
+# A row ranks on the main board only with currentTE, legs and start/end times that agree (worker.js
+# "ranked only with its evidence"); without them it goes to the flagged board as `unverified`. Delete this
+# line to turn that off without a code change.
+[vars]
+RANK_NEEDS_EVIDENCE = "1"

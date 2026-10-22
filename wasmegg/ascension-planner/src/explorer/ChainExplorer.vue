@@ -76,6 +76,9 @@
           <div class="space-y-0.5">
             <p v-if="loading" class="text-sm font-bold text-slate-500">Reading the collector…</p>
             <p v-else-if="error" class="text-sm font-bold text-rose-700">{{ error }}</p>
+            <p v-else-if="allSimHidden" class="text-sm font-bold text-amber-700" data-testid="sim-all-hidden">
+              {{ allSimHidden }}
+            </p>
             <!-- Inside the planner, a plain headline and what was left out, one line each (the user's
                  screenshot, 30 Sept: the checkboxes ran into the next sentence, and the collector URL and
                  worker-time note read like developer notes). The page on its own keeps the detail. -->
@@ -171,7 +174,11 @@
         Reading the collector…
       </section>
 
-      <p v-if="part === 'insights' && simHidden" class="text-[11px] text-slate-500" data-testid="sim-hidden">
+      <p
+        v-if="part === 'insights' && simHidden && !allSimHidden"
+        class="text-[11px] text-slate-500"
+        data-testid="sim-hidden"
+      >
         {{ simHidden }}
       </p>
 
@@ -1314,7 +1321,7 @@ import {
 } from '@/lib/leaderboardRank';
 import AccountDot from './AccountDot.vue';
 import SimChip from '@/components/auto/SimChip.vue';
-import { bySimToggle, hiddenSimText, useShowOlderSims } from '@/composables/useShowOlderSims';
+import { bySimToggle, allHiddenSimText, hiddenSimText, useShowOlderSims } from '@/composables/useShowOlderSims';
 import { leftOf, leftShareText, leftTitle, longEstimate, plansText, type Left } from './left';
 import { measuredWorkerSeconds } from '@/search/speed';
 
@@ -1364,7 +1371,27 @@ const simHidden = computed(() => hiddenSimText(loadedRows.value.length - rows.va
 /** By a date answers, kept apart: no chart reads them, the What we know card does. */
 const byDateRows = ref<CollectorRow[]>([]);
 const loading = ref(false);
-const error = ref('');
+/** A failed read, or a typed URL that is not one. Cleared by each load. */
+const fetchError = ref('');
+/** The last read came back (so an empty board is the collector's answer, not one still loading). */
+const answered = ref(false);
+/**
+ * What the header says instead of the counts (prelive, 21 Oct 2026). Worked out live, not set once at load:
+ * "holding no runs" is judged on EVERY row the collector sent (`loadedRows`), not on the ones the older-
+ * simulators toggle leaves (`rows`): at launch every row is older, so unticking it used to put this in red,
+ * and it stayed after ticking the box again.
+ */
+const error = computed(
+  () =>
+    fetchError.value ||
+    (answered.value && !loading.value && !loadedRows.value.length
+      ? 'The collector answered, but it is holding no runs yet.'
+      : '')
+);
+/** Every run is hidden by the toggle: say so (and how to see them), in place of "0 runs from 0 accounts". */
+const allSimHidden = computed(() =>
+  simFiltered.value ? allHiddenSimText(loadedRows.value.length, rows.value.length) : ''
+);
 
 const finalTE = ref(0);
 const exhaustiveOnly = ref(false);
@@ -1434,21 +1461,22 @@ async function load(): Promise<void> {
   const controller = new AbortController();
   allController = controller;
   loading.value = true;
-  error.value = '';
+  fetchError.value = '';
+  answered.value = false;
   try {
     const fetched = await fetchAllRows(base.value, controller.signal);
     if (allController !== controller) return;
     now.value = Date.now();
     loadedRows.value = fetched.rows;
     byDateRows.value = fetched.byDate;
-    if (!rows.value.length) error.value = 'The collector answered, but it is holding no runs yet.';
+    answered.value = true;
   } catch (e) {
     if (isAbort(e) || allController !== controller) return;
     // A failed fetch here is almost always CORS or a typo'd host, and the browser's own message
     // for both is "Failed to fetch". Say which two things to check rather than repeating it.
     loadedRows.value = [];
     byDateRows.value = [];
-    error.value =
+    fetchError.value =
       errorKind(e) === 'network'
         ? describeFetchError(e, 'the collector')
         : `Check the URL, and that the collector allows this origin. (${e instanceof Error ? e.message : String(e)})`;
@@ -1465,7 +1493,7 @@ function adoptTypedBase(): void {
   // regexes and the same scheme check drifting apart from it.
   const normalised = normaliseCollectorBase(typedBase.value);
   if (!normalised) {
-    error.value = 'That does not look like an http(s) URL.';
+    fetchError.value = 'That does not look like an http(s) URL.';
     return;
   }
   base.value = normalised;
@@ -1485,6 +1513,7 @@ function forgetBase(): void {
   }
   typedBase.value = base.value ?? '';
   base.value = null;
+  answered.value = false;
   loadedRows.value = [];
   byDateRows.value = [];
   closeTable();

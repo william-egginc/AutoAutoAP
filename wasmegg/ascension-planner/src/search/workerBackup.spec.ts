@@ -127,6 +127,9 @@ describe('a worker given the trimmed save prices chains exactly as with the full
       /^\.farms(\.length)?$/,
       /^\.farms\.0(\.(habs|vehicles|trainLength|commonResearch)(\..*)?)?$/,
       /^\.game(\.(permitLevel|epicResearch)(\..*)?)?$/,
+      // Not a read of the save: Joo's `'pool' in source` probe (lib/artifacts/virtue.ts isDeliverySearch) asks
+      // whether it was handed loadout inputs instead of a backup. It reads nothing from the save itself.
+      /^\.pool$/,
     ];
     // The save's own farm and equipped set were read (continue), not only the inventory.
     expect(read).toContain('.farms.0.habs');
