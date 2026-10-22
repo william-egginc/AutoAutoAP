@@ -155,6 +155,7 @@ import {
   consumeAutoPlannerLoadoutInputs,
   saveAutoPlannerLoadoutInputs,
 } from '@/lib/autoPlannerFormCache';
+import { sanitizeLoadoutInputs } from '@/lib/loadoutInputsGuard';
 import AutoLoadoutEditor from './AutoLoadoutEditor.vue';
 
 const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
@@ -329,7 +330,11 @@ function seedLoadoutInputs({ applyCache }: { applyCache: boolean }) {
     autoPlannerStore.loadoutInputs = cloneLoadoutInputs(fresh);
   }
   if (applyCache) {
-    const cached = consumeAutoPlannerLoadoutInputs(initialStateStore.playerId);
+    // Prelive fix (21 Oct 2026): the cache is checked before use (lib/loadoutInputsGuard.ts); its broken parts
+    // come from the inventory, and one with nothing usable is dropped.
+    const raw: unknown = consumeAutoPlannerLoadoutInputs(initialStateStore.playerId);
+    const cached = raw == null ? null : sanitizeLoadoutInputs(raw, fresh);
+    if (raw != null && !cached) saveAutoPlannerLoadoutInputs(initialStateStore.playerId, null);
     if (cached && !restoredFromPlan) autoPlannerStore.loadoutInputs = cached;
   }
 }
