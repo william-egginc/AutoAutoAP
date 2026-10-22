@@ -36,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+import { plainError } from '@/lib/plainError';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import StrongerCheckView from './StrongerCheckView.vue';
 import { idleLight, useStrongerStore } from '@/stores/stronger';
@@ -473,7 +474,7 @@ async function runAuto(): Promise<void> {
   } catch (err) {
     if (g !== autoGen) return;
     autoStatus.value = 'error';
-    autoText.value = `The stronger check couldn't run: ${err instanceof Error ? err.message : String(err)}`;
+    autoText.value = `The stronger check couldn't run: ${plainError(err)}`;
   } finally {
     if (g === autoGen) {
       stopAuto();
@@ -721,7 +722,7 @@ async function runRefine(): Promise<void> {
       refineStatus.value = 'done';
     } else {
       refineStatus.value = 'error';
-      refineError.value = `Refine couldn't run: ${err instanceof Error ? err.message : String(err)}`;
+      refineError.value = `Refine couldn't run: ${plainError(err)}`;
     }
   } finally {
     if (g === refineGen) {

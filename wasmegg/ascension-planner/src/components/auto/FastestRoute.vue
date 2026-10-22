@@ -34,6 +34,7 @@
         stronger-to="#stronger-check-results"
         @check="checkExactly"
         @state="st => (instantLoad = st)"
+        @unloaded="u => (instantUnloaded = u)"
         @by-date="emit('by-date')"
       />
     </CollapsibleSection>
@@ -98,7 +99,7 @@ import SearchTabs from './SearchTabs.vue';
 import { revealRunTab, selectSearchTab, type SearchTabId } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { routeLine } from '@/search/sectionSummary';
-import { NO_INSTANT_SUMMARY, type InstantState } from '@/search/autoWiden';
+import { NO_INSTANT_SUMMARY, UNLOADED_INSTANT_SUMMARY, type InstantState } from '@/search/autoWiden';
 import { showDateTime } from '@/lib/displayTime';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import SearchCompare from './SearchCompare.vue';
@@ -138,12 +139,18 @@ const planner = useAutoPlannerStore();
 const show = (u: number) => showDateTime(u, planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 /** InstantRoute's `state`: still being worked out, in, or settled with none (then the summary says so). */
 const instantLoad = ref<InstantState>('loading');
+/** InstantRoute's `unloaded`: its file couldn't be loaded. */
+const instantUnloaded = ref(false);
 const lines = computed(() => ({
   instant: routeLine(
     'fastest',
     stronger.instant.fastest,
     show,
-    instantLoad.value === 'none' ? NO_INSTANT_SUMMARY : 'working out…'
+    instantLoad.value === 'none'
+      ? instantUnloaded.value
+        ? UNLOADED_INSTANT_SUMMARY
+        : NO_INSTANT_SUMMARY
+      : 'working out…'
   ),
 }));
 /** What each Nearby routes level would cost on this computer (store `smartEstimate`). */

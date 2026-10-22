@@ -10,6 +10,7 @@
  * FIRE AND FORGET. Every post is a single `fetch` that nothing awaits; a failure is noted for the box
  * and otherwise ignored. The search never waits on any of it.
  */
+import { plainError } from '@/lib/plainError';
 import { ref, watch } from 'vue';
 import * as wl from '@/search/watchLink';
 import { consentAgreed, consentDeclined, consentState } from './useConsent';
@@ -183,7 +184,7 @@ function post(a: ActiveWatch, retry = false, statusOnly = false): void {
     },
     e => {
       if (activeWatch.value?.link.id === a.link.id)
-        activeWatch.value = { ...activeWatch.value, lastError: e instanceof Error ? e.message : String(e) };
+        activeWatch.value = { ...activeWatch.value, lastError: plainError(e) };
     }
   );
 }

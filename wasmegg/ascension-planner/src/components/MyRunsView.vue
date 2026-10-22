@@ -120,6 +120,7 @@
       :egg-day-at="page.eggDayAt"
       :egg-day-year="page.eggDayYear"
       :zone="zone"
+      :board-failed="boardFailed"
     />
 
     <!-- 6. Your runs: one section. -->
@@ -169,7 +170,7 @@
           @toggle="sync('board', $event)"
         >
           <summary :class="SUMMARY">
-            Your runs on the board<span :class="COUNT">{{ countText(boardCount) }}</span>
+            Your runs on the board<span :class="COUNT" data-testid="board-count">{{ boardCountText }}</span>
           </summary>
           <div class="mt-3">
             <LeaderboardPanel
@@ -179,6 +180,7 @@
               @count="n => (boardCount = n)"
               @rows="r => (boardRows = r)"
               @board="r => (allRows = r)"
+              @failed="k => (boardFailed = k)"
             />
           </div>
         </details>
@@ -262,6 +264,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import type { BoardRow } from '@/lib/leaderboardRank';
+import type { BoardReadKind } from '@/search/myBoardRows';
 import {
   buildCards,
   buildSteps,
@@ -352,6 +355,17 @@ function countText(n: number | null): string {
   return n ? ` (${n})` : ' · none yet';
 }
 
+/** Why the board's last read failed (LeaderboardPanel's `failed`), null when it answered. */
+const boardFailed = ref<BoardReadKind | null>(null);
+/**
+ * The board part's count. A read that failed is never "none yet" (QA break-it #3, 22 Oct 2026): that read as
+ * if the player's runs had gone. The part stays open, so the panel's message and Retry show.
+ */
+const boardCountText = computed(() => {
+  if (!boardFailed.value) return countText(boardCount.value);
+  return boardCount.value ? ` (${boardCount.value} · couldn't read the rest)` : " · couldn't read the leaderboard";
+});
+
 /** The viewer's board rows, null until the board's first load is in; every public row, for where you stand. */
 const boardRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
@@ -428,7 +442,7 @@ const open = reactive({
   steps: false,
 });
 type Part = keyof typeof open;
-watch(boardCount, n => (open.board = n !== 0));
+watch([boardCount, boardFailed], ([n, failed]) => (open.board = n !== 0 || !!failed));
 watch(
   () => savedCount.value > 0,
   has => (open.saved = has)

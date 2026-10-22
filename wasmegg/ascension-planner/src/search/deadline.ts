@@ -405,6 +405,20 @@ export function parseStopBox(text: string, defaultStep = 5): number[] {
   return [...set].sort((a, b) => a - b);
 }
 
+/** The highest TE a stop box asks for, as typed (not capped like `parseStopBox`): `1-999999999` gives
+ *  999999999, so a range past the last TE can be refused with a reason rather than quietly cut. 0 when none. */
+export function stopBoxTop(text: string): number {
+  let top = 0;
+  for (const part of text.split(',')) {
+    const range = part.split(':')[0];
+    for (const x of range.split(/[-–]/)) {
+      const v = Number(x.trim());
+      if (x.trim() && Number.isFinite(v)) top = Math.max(top, v);
+    }
+  }
+  return top;
+}
+
 /** A chain's text, Insane-style: one band per early stop, `;` between them, each a stop box
  *  (`138-142:1; 160-200:10, 215; 230-260:5`). */
 export function parseChainText(text: string): number[][] {

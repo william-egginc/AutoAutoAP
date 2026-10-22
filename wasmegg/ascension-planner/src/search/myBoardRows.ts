@@ -15,28 +15,106 @@
 import { accountKeyOf, type BoardRow } from '@/lib/leaderboardRank';
 import { isMyRun, nameKeys, type LookAlike } from '@/lib/myRuns';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
+import { thisDevice } from './device';
 
 /** How long a remembered /all stands in for a new read. */
 export const ALL_FRESH_MS = 60_000;
 
+/** How long one board read waits before giving up (My runs, Compare, Light). */
+export const BOARD_TIMEOUT_MS = 10_000;
+
+/** Why a board read failed: `unreachable` (no answer in time, or no connection) or `read` (it answered, with an
+ *  error status or something that isn't the board). */
+export type BoardReadKind = 'unreachable' | 'read';
+
+/** A failed board read (QA break-it #3 and #4, 22 Oct 2026). The message is for logs: players read
+ *  `boardErrorText` (components/auto/LeaderboardPanel.vue). */
+export class BoardReadError extends Error {
+  constructor(
+    readonly kind: BoardReadKind,
+    detail: string,
+    options?: { cause?: unknown }
+  ) {
+    super(detail, options);
+    this.name = 'BoardReadError';
+  }
+}
+
+/**
+ * `read` with a time limit. The fetch gets an AbortSignal that fires at `timeoutMs` (or with the caller's
+ * own), and the promise rejects at `timeoutMs` whether or not the fetch notices the abort: a request the
+ * network holds open forever left My runs on "loading" for good (QA break-it #4).
+ */
+export async function withBoardTimeout<T>(
+  read: (signal: AbortSignal) => Promise<T>,
+  o: { signal?: AbortSignal; timeoutMs?: number } = {}
+): Promise<T> {
+  const ctrl = new AbortController();
+  const onAbort = () => ctrl.abort();
+  if (o.signal?.aborted) ctrl.abort();
+  else o.signal?.addEventListener('abort', onAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      ctrl.abort();
+      reject(new BoardReadError('unreachable', 'the leaderboard did not answer in time'));
+    }, o.timeoutMs ?? BOARD_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([read(ctrl.signal), timeout]);
+  } catch (e) {
+    if (e instanceof BoardReadError) throw e;
+    // The caller's own abort stays an AbortError (a newer load replaced this one).
+    if (o.signal?.aborted) throw e;
+    // fetch rejects only when there was no answer: offline, refused, DNS.
+    throw new BoardReadError('unreachable', `no answer from the leaderboard (${String(e)})`, { cause: e });
+  } finally {
+    clearTimeout(timer);
+    o.signal?.removeEventListener('abort', onAbort);
+  }
+}
+
+/**
+ * What a failed board read says, in words a player can act on and never the error itself. My runs says the
+ * runs are not lost (a read failure used to read "none yet", as if they were gone); Compare says when to
+ * try again. Each sits beside a Retry button.
+ */
+export function boardErrorText(kind: BoardReadKind, where: 'myruns' | 'compare'): string {
+  if (where === 'compare')
+    return kind === 'unreachable'
+      ? "Couldn't reach the leaderboard right now. Try again in a minute."
+      : "Couldn't read the leaderboard right now. Try again in a minute.";
+  return kind === 'unreachable'
+    ? "Couldn't reach the leaderboard."
+    : `Couldn't read the leaderboard right now. Your runs are safe on ${thisDevice()}.`;
+}
+
+/** The answer's JSON, or a `read` failure (a web page or a cut-off body in its place). */
+async function boardJson<T>(res: Response): Promise<T> {
+  try {
+    return (await res.json()) as T;
+  } catch (e) {
+    throw new BoardReadError('read', 'the leaderboard sent something that is not the board', { cause: e });
+  }
+}
+
 /**
  * GET /mine with this browser's code for the account: its rows, each marked `yours`. Null when the
- * collector could not answer (none, an old one, offline). Never throws.
+ * collector could not answer (none, an old one, offline, or not in `timeoutMs`). Never throws.
  */
 export async function fetchMineRows(
   root: string,
   token: string,
-  o: { signal?: AbortSignal } = {}
+  o: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<BoardRow[] | null> {
   try {
-    const res = await fetch(`${root}/mine`, {
-      headers: { 'x-owner-token': token },
-      ...(o.signal ? { signal: o.signal } : {}),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { rows?: BoardRow[] };
-    // Every row made to match its type first (lib/boardRowGuard.ts).
-    return Array.isArray(data.rows) ? normalizeBoardRows<BoardRow>(data.rows).map(r => ({ ...r, yours: true })) : null;
+    return await withBoardTimeout(async signal => {
+      const res = await fetch(`${root}/mine`, { headers: { 'x-owner-token': token }, signal });
+      if (!res.ok) return null;
+      const data = await boardJson<{ rows?: BoardRow[] }>(res);
+      // Every row made to match its type first (lib/boardRowGuard.ts).
+      return Array.isArray(data.rows) ? normalizeBoardRows<BoardRow>(data.rows).map(r => ({ ...r, yours: true })) : null;
+    }, o);
   } catch {
     return null;
   }
@@ -45,21 +123,22 @@ export async function fetchMineRows(
 /**
  * One `/all` read (with `query`, e.g. "?final=490"). `cut`: an old collector's list may stop at `cap`
  * (the current one sends every row with its snapshot's `builtAt`). Never from the browser's cache.
- * Throws on a failed answer, as the board wants to say so.
+ * Throws a BoardReadError on a failed answer or none within `timeoutMs`, as the board wants to say so.
  */
 export async function fetchAllRows(
   root: string,
   query = '',
-  o: { signal?: AbortSignal; cap?: number } = {}
+  o: { signal?: AbortSignal; cap?: number; timeoutMs?: number } = {}
 ): Promise<{ rows: BoardRow[]; cut: boolean }> {
-  const res = await fetch(`${root}/all${query}`, {
-    cache: 'no-cache',
-    ...(o.signal ? { signal: o.signal } : {}),
-  });
-  if (!res.ok) throw new Error(`the collector answered ${res.status}`);
-  const data = (await res.json()) as { rows?: BoardRow[]; builtAt?: number };
-  const rows = normalizeBoardRows<BoardRow>(data.rows);
-  return { rows, cut: typeof data.builtAt !== 'number' && o.cap !== undefined && rows.length >= o.cap };
+  return withBoardTimeout(async signal => {
+    const res = await fetch(`${root}/all${query}`, { cache: 'no-cache', signal });
+    if (!res.ok) throw new BoardReadError('read', `the leaderboard answered ${res.status}`);
+    const data = await boardJson<{ rows?: BoardRow[]; builtAt?: number }>(res);
+    if (!data || typeof data !== 'object')
+      throw new BoardReadError('read', 'the leaderboard sent something that is not the board');
+    const rows = normalizeBoardRows<BoardRow>(data.rows);
+    return { rows, cut: typeof data.builtAt !== 'number' && o.cap !== undefined && rows.length >= o.cap };
+  }, o);
 }
 
 const lastAll = new Map<string, { at: number; rows: readonly BoardRow[] }>();
@@ -132,24 +211,20 @@ export async function readMyBoardRows(o: {
   timeoutMs?: number;
   now?: number;
 }): Promise<BoardRow[]> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), o.timeoutMs ?? 10_000);
-  try {
-    const held = recentAll(o.root, ALL_FRESH_MS, o.now ?? Date.now());
-    const [mine, all] = await Promise.all([
-      o.token ? fetchMineRows(o.root, o.token, { signal: ctrl.signal }) : Promise.resolve(null),
-      held
-        ? Promise.resolve(held)
-        : fetchAllRows(o.root, '', { signal: ctrl.signal }).then(
-            a => {
-              rememberAll(o.root, a.rows);
-              return a.rows;
-            },
-            () => [] as BoardRow[]
-          ),
-    ]);
-    return myBoardRows(all, mine, o.look(mine));
-  } finally {
-    clearTimeout(timer);
-  }
+  // Each read has its own limit (withBoardTimeout), so neither can hold the other past it.
+  const timeoutMs = o.timeoutMs ?? BOARD_TIMEOUT_MS;
+  const held = recentAll(o.root, ALL_FRESH_MS, o.now ?? Date.now());
+  const [mine, all] = await Promise.all([
+    o.token ? fetchMineRows(o.root, o.token, { timeoutMs }) : Promise.resolve(null),
+    held
+      ? Promise.resolve(held)
+      : fetchAllRows(o.root, '', { timeoutMs }).then(
+          a => {
+            rememberAll(o.root, a.rows);
+            return a.rows;
+          },
+          () => [] as BoardRow[]
+        ),
+  ]);
+  return myBoardRows(all, mine, o.look(mine));
 }

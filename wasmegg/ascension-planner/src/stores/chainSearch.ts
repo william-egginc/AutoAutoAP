@@ -13,6 +13,7 @@
  * a worker never has — the same split researchCalc.worker.ts documents. Everything the simulation
  * itself calls is already Pinia-free.
  */
+import { plainError } from '@/lib/plainError';
 import { markProvisionalDone, stillOpen } from '@/search/doneProvisional';
 import { defineStore } from 'pinia';
 import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
@@ -4981,7 +4982,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return await go;
     } catch (e) {
       // Never throws (the buttons do not wait on it): whatever went wrong is said where they are.
-      return say(false, `Not sent: ${e instanceof Error ? e.message : String(e)}`);
+      return say(false, `Not sent: ${plainError(e)}`);
     } finally {
       bestSoFarSending.value = false;
       if (bestSoFarInFlight === go) bestSoFarInFlight = null;
@@ -5212,7 +5213,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       blackBoxMark('submit', o.sendCsv ? 'sending (the CSV is built as it goes)' : 'sending');
       return await sendSubmission(payload, o.sendCsv ? deadlineCsvChunksNow() : undefined);
     } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+      return { ok: false, message: plainError(e) };
     } finally {
       blackBoxEnd('submit');
       endResultSend();
@@ -5261,7 +5262,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         light: true,
       });
     } catch (e) {
-      return { ok: false, message: e instanceof Error ? e.message : String(e) };
+      return { ok: false, message: plainError(e) };
     }
   }
 
@@ -6652,7 +6653,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       raw = parseSaveFile(text);
     } catch (e) {
-      olderSaveError.value = e instanceof Error ? e.message : String(e);
+      olderSaveError.value = plainError(e, 'That file could not be read as a save.');
       return false;
     }
     preparing.value = true;

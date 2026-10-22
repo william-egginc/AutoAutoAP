@@ -454,8 +454,17 @@
 
       <div v-if="loading" class="text-center py-4 text-gray-600">Loading player data...</div>
 
-      <div v-if="error" class="text-center py-4 text-red-600">
+      <div v-if="error" class="text-center py-4 text-red-600" data-testid="page-error">
         {{ error }}
+        <button
+          v-if="loadRetry && loadRetry.message === error && !loading"
+          type="button"
+          class="ml-2 min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[11px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50"
+          data-testid="page-error-retry"
+          @click="submitPlayerId(loadRetry.id)"
+        >
+          Try again
+        </button>
       </div>
 
       <div v-if="plannerTab === 'manual'">
@@ -725,7 +734,9 @@ import {
 } from '@/lib/siteNav';
 import { storeToRefs } from 'pinia';
 import TheNavBar from 'ui/components/NavBar.vue';
-import { getSavedPlayerID, savePlayerID, requestFirstContact, resolveColleggtibleContracts } from 'lib';
+import { getSavedPlayerID, savePlayerID, resolveColleggtibleContracts } from 'lib';
+import { requestSave, SaveLoadError, SAVE_UNREACHABLE } from '@/lib/saveLoad';
+import { isRawError, plainError } from '@/lib/plainError';
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { offerStartTimes } from '@/lib/onVirtue';
@@ -1404,12 +1415,24 @@ function triggerAutoSave() {
 actionsStore.$subscribe(triggerAutoSave);
 notesStore.$subscribe(triggerAutoSave);
 
-// Re-init persistence when player ID changes
-watch(playerId, async newId => {
+// Re-init persistence when player ID changes. Kept, so an account switch can wait for the account's draft
+// before setting up its save (submitPlayerId).
+let persistenceInit: Promise<void> = Promise.resolve();
+watch(playerId, newId => {
   if (newId) {
-    await initPersistence(newId);
+    persistenceInit = initPersistence(newId).catch(e => console.error('Could not restore the draft:', e));
   }
 });
+/** The save load that failed and what it said, for the error's Try again (shown while that message is). */
+const loadRetry = ref<{ id: string; message: string } | null>(null);
+function failLoad(id: string, message: string): void {
+  error.value = message;
+  loadRetry.value = { id, message };
+}
+/** The account whose save is being fetched now (an older load that answers late is dropped). */
+let loadingSaveFor = '';
+/** The save came in but setting the planner up from it failed. */
+const SAVE_SET_UP_FAILED = "Couldn't set up the planner from your save. Try again.";
 
 // Section expansion state
 const expandedSections = ref({
@@ -1527,7 +1550,7 @@ async function startFromScratch() {
     await initStartFromScratch();
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Reset failed';
+    error.value = plainError(e, "Couldn't reset. Try again.");
     console.error('Start from Scratch error:', e);
   }
 }
@@ -1593,10 +1616,15 @@ async function planFromLastGoodSave(): Promise<void> {
 
 /** The fetch error in words a player can act on. The raw one names the forwarder's URL. */
 function backupFailureReason(e: unknown): string {
+  if (e instanceof SaveLoadError)
+    return e.kind === 'not-found'
+      ? "the game's server has no account under that player ID"
+      : "the game's server couldn't be reached or sent nothing back";
   const msg = e instanceof Error ? e.message : String(e);
   if (/timeout|timed out/i.test(msg)) return "the game's server didn't answer in time";
   if (/failed to fetch|network|load failed/i.test(msg)) return "the game's server couldn't be reached";
-  return msg.length > 140 ? msg.slice(0, 140) + '…' : msg;
+  // Never the error itself: it names the forwarder's URL (the Words audit's S76).
+  return isRawError(e) ? 'something went wrong on the way' : msg.length > 140 ? msg.slice(0, 140) + '…' : msg;
 }
 
 // IntegrityNotice's "Try again". Only initPlanFuture clears the warning: it is the one path that also
@@ -1642,7 +1670,7 @@ async function prepareAutoPlanner(): Promise<string> {
     return '';
   } catch (e) {
     console.error('Failed to auto-init Auto Planner:', e);
-    error.value = 'Failed to load fresh backup for Auto Planner.';
+    error.value = "Couldn't load your latest save.";
     uiStore.staleBackup = backupFailureReason(e);
     await planFromLastGoodSave();
     return initialStateStore.rawBackup ? '' : `Your save could not be loaded: ${uiStore.staleBackup}.`;
@@ -1735,6 +1763,31 @@ function showSweepResult(): void {
  * mode buttons become usable and player info is displayed.
  */
 async function submitPlayerId(id: string) {
+  if (loading.value && loadingSaveFor === id) return;
+  loadingSaveFor = id;
+  error.value = '';
+  loadRetry.value = null;
+  loading.value = true;
+
+  // The save first, and nothing changed until it is in (QA's break-it #1, 22 Oct 2026): the stores used to be
+  // cleared before the fetch, so an empty or hung answer left a made-up default account on the page, with the
+  // raw TypeError beside it. Now a failed load says so in plain words, with Try again, and whatever account
+  // was loaded stays exactly as it was (lib/saveLoad.ts).
+  let backup: import('lib').ei.IBackup;
+  try {
+    ({ backup } = await requestSave(id));
+    resolveColleggtibleContracts(backup);
+  } catch (e) {
+    if (loadingSaveFor !== id) return;
+    loadingSaveFor = '';
+    loading.value = false;
+    failLoad(id, e instanceof SaveLoadError ? e.message : SAVE_UNREACHABLE);
+    console.error('Error fetching player data:', e);
+    return;
+  }
+  if (loadingSaveFor !== id) return;
+  loadingSaveFor = '';
+
   playerId.value = id;
   savePlayerID(id);
   // A `?playerId=` in the address wins over the saved ID on load, so it has to follow a change here:
@@ -1744,18 +1797,15 @@ async function submitPlayerId(id: string) {
     url.searchParams.set('playerId', id);
     window.history.replaceState(window.history.state, '', url.toString());
   }
-  error.value = '';
-  loading.value = true;
   notesStore.$reset();
 
   try {
     // Clear existing plan to ensure a fresh start with new player data
     // We skip recalculate because setInitialSnapshot will trigger it at the end of this function.
     await actionsStore.clearAll(undefined, true);
-
-    const data = await requestFirstContact(id);
-    const backup = data.backup!;
-    resolveColleggtibleContracts(backup);
+    // The account's draft (the playerId watcher) lands before the new snapshot, as it did when the fetch
+    // sat here.
+    await persistenceInit;
 
     try {
       const pHash = await hashID(id);
@@ -1782,8 +1832,8 @@ async function submitPlayerId(id: string) {
     loading.value = false;
   } catch (e) {
     loading.value = false;
-    error.value = e instanceof Error ? e.message : 'Failed to load player data';
-    console.error('Error fetching player data:', e);
+    failLoad(id, SAVE_SET_UP_FAILED);
+    console.error('Error setting up player data:', e);
     return;
   }
   // A player id typed on a link into the Auto Planner: same set-up as the tab click.
@@ -1843,9 +1893,7 @@ async function triggerQuickContinue() {
   error.value = '';
 
   try {
-    const data = await requestFirstContact(playerId.value);
-    if (!data.backup) throw new Error('Could not fetch player backup');
-    const backup = data.backup;
+    const { backup } = await requestSave(playerId.value);
     resolveColleggtibleContracts(backup);
 
     const loadout = getArtifactLoadoutFromBackup(backup);
@@ -1859,7 +1907,7 @@ async function triggerQuickContinue() {
     }
   } catch (e) {
     loading.value = false;
-    error.value = e instanceof Error ? e.message : 'Continue Current Ascension failed';
+    error.value = plainError(e, "Couldn't continue your current ascension. Try again.");
     console.error('Quick Continue error:', e);
   }
 }
@@ -1882,7 +1930,7 @@ async function quickContinueAscension(selection: 'earnings' | 'elr') {
     await initContinueCurrent(playerId.value, selection);
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Continue Current Ascension failed';
+    error.value = plainError(e, "Couldn't continue your current ascension. Try again.");
     console.error('Quick Continue error:', e);
   } finally {
     loading.value = false;
@@ -1909,7 +1957,7 @@ async function planNextAscension() {
     uiStore.runSaveLoaded = null;
     isHeaderCollapsed.value = true;
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Plan Future Ascension failed';
+    error.value = plainError(e, "Couldn't plan your next ascension. Try again.");
     uiStore.staleBackup = backupFailureReason(e);
     await planFromLastGoodSave();
     console.error('Plan Next Ascension error:', e);

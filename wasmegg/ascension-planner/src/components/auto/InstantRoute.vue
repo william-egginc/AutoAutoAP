@@ -979,12 +979,23 @@
       </template>
     </template>
   </section>
-  <!-- No usable table on this site at all: only the card, so the player still sees what to do. -->
+  <!-- The file couldn't be loaded (missing, a web page in its place, cut short, or stalled): say that, not "no
+       instant answer for your TE" (only `below` says that), with Retry and what to do meanwhile. -->
   <section v-else class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3" data-testid="instant-no-table">
     <h3 class="text-base font-black text-slate-900">Instant answer</h3>
-    <NoInstantAnswer :heading="noInstantHeading(null)" @by-date="emit('by-date')">
+    <NoInstantAnswer :heading="TABLE_LOAD_FAILED" @by-date="emit('by-date')">
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
     </NoInstantAnswer>
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        class="min-h-[44px] px-4 rounded-lg border border-emerald-300 bg-white text-[11px] font-black uppercase tracking-widest text-emerald-800 hover:bg-emerald-50"
+        data-testid="instant-retry"
+        @click="run(true)"
+      >
+        Retry
+      </button>
+    </div>
   </section>
 </template>
 
@@ -998,6 +1009,8 @@ import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
+import { TABLE_LOAD_FAILED, tableLoadFailed } from '@/search/tableFetch';
+import { plainError } from '@/lib/plainError';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type FirstLeg, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
@@ -1158,6 +1171,9 @@ const emit = defineEmits<{
   /** Whether the answer is still being worked out, in, or settled with none (no instant answer for
    *  this TE, it failed, or it waits on a run), for By a date's Find (search/autoWiden.ts `awaitInstant`). */
   state: [state: InstantState];
+  /** The instant answer's file couldn't be loaded (`noTable`): the section's folded line says so, not "none
+   *  for your TE". */
+  unloaded: [unloaded: boolean];
   /** Fastest, with no instant answer: open By a date for its quick estimate (NoInstantAnswer.vue). */
   'by-date': [];
 }>();
@@ -1832,7 +1848,9 @@ watch(runBusy, busy => {
 
 /** A thrown message as a player may see it: the loader's own wording says "table", which players never see. */
 function playerFacing(message: string): string {
-  return /table/i.test(message) ? 'the instant answer could not be read' : message;
+  if (/table/i.test(message)) return 'the instant answer could not be read';
+  // Never raw exception text (lib/plainError.ts).
+  return plainError(new Error(message), 'something went wrong');
 }
 
 /** Each run's number: a run that has been superseded (the save or the date changed) is dropped. */
@@ -2086,9 +2104,9 @@ async function run(force = false, goAhead = false): Promise<void> {
     status.value = 'error';
     // No usable table on this site (missing, a web page in its place, or cut short): only the card
     // saying so (NoInstantAnswer.vue), and every search works exactly as without it.
-    noTable.value = /404|not a precomputed table|incomplete|precomputed table version/.test(message);
+    noTable.value = tableLoadFailed(message);
     errorText.value = noTable.value
-      ? 'The instant answer isn’t on this site yet.'
+      ? TABLE_LOAD_FAILED
       : `The instant answer couldn’t run: ${playerFacing(message)}`;
   }
 }
@@ -3186,6 +3204,7 @@ const instantState = computed<InstantState>(() => {
   return status.value === 'done' && result.value ? 'answer' : 'none';
 });
 watch(instantState, s => emit('state', s), { immediate: true });
+watch(noTable, u => emit('unloaded', u));
 
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 /** The exact check's simulated legs for a route (first-ascension shifts, one more TE: RouteExtras.vue). */

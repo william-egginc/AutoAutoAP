@@ -136,6 +136,7 @@
         @check="checkByDate"
         @routes="onInstantRoutes"
         @state="st => (instantLoad = st)"
+        @unloaded="u => (instantUnloaded = u)"
       >
         <!-- No instant answer for this TE (NoInstantAnswer.vue): the fallback's own button, the same run as
              Find on Nearby routes without one (`start`, then `findWithoutInstant`; Jordan, 18 Oct 2026). -->
@@ -336,9 +337,11 @@
                   class="w-40 rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
                 />
               </label>
-              <span class="text-[10px] pb-2" :class="lastRange ? 'text-slate-500' : 'text-rose-600'">
+              <span class="text-[10px] pb-2" :class="lastRange && !lastTooHigh ? 'text-slate-500' : 'text-rose-600'">
                 {{
-                  lastRange
+                  lastTooHigh
+                    ? LAST_TOO_HIGH
+                    : lastRange
                     ? `starts at ${lastRange[0]}-${lastRange[1]} and looks higher or lower if the answer is outside it; found to the exact TE`
                     : 'give it a rough range, e.g. 300-340'
                 }}
@@ -942,6 +945,7 @@ import {
   INSTANT_TIMEOUT_STATUS,
   INSTANT_WAIT_STATUS,
   NO_INSTANT_SUMMARY,
+  UNLOADED_INSTANT_SUMMARY,
   QUICK_ESTIMATE_LABEL,
   QUICK_SCAN_STATUS,
   afterScanStatus,
@@ -1017,6 +1021,7 @@ import {
   countSpaceShapes,
   parseChainText,
   parseStopBox,
+  stopBoxTop,
   stepForBudget,
 } from '@/search/deadline';
 import { formatBand, formatHours } from '@/search/exhaustive';
@@ -1155,6 +1160,9 @@ function rangeOf(box: string): [number, number] | null {
 }
 /** Advanced's last-stop box, as read. */
 const lastRange = computed<[number, number] | null>(() => rangeOf(lastBox.value));
+/** The last stop asks past 490 TE (`1-999999999` was read as up to 490 and Find stayed on; QA break-it #7). */
+const LAST_TOO_HIGH = 'The last stop goes up to 490 TE at most.';
+const lastTooHigh = computed(() => stopBoxTop(lastBox.value) > 490);
 
 /**
  * NEARBY ROUTES (was Simple, batch 3): no chain editor; the boxes are picked here, one
@@ -1280,7 +1288,11 @@ const lines = computed(() => ({
     'date',
     stronger.instant.date,
     inPlannerZone,
-    instantLoad.value === 'none' ? NO_INSTANT_SUMMARY : 'working out…'
+    instantLoad.value === 'none'
+      ? instantUnloaded.value
+        ? UNLOADED_INSTANT_SUMMARY
+        : NO_INSTANT_SUMMARY
+      : 'working out…'
   ),
 }));
 /** The fallback's Nearby routes: how long its boxes may take on this machine; null otherwise. */
@@ -2015,6 +2027,7 @@ const startIssue = computed(() => {
   if (deadline.value <= store.planStart) return 'The deadline is before the plan starts.';
   if (simple.value && !activeChains.value.length) return 'Nothing to check yet: the save has to load first.';
   if (mode.value === 'space') {
+    if (!simple.value && lastTooHigh.value) return LAST_TOO_HIGH;
     if (!runLastRange.value) return 'Give the last stop a range above your TE now.';
     const bad = activeChains.value.findIndex(row => !!problemOf(row, runLastRange.value));
     if (bad >= 0) return `Box ${bad + 1}: ${problemOf(activeChains.value[bad], runLastRange.value)}`;
@@ -2331,6 +2344,8 @@ async function find(fallback?: DeadlineFallback): Promise<void> {
 const autoStatus = ref('');
 /** InstantRoute's `state`: its answer still being worked out, in, or settled with none. */
 const instantLoad = ref<InstantState>('none');
+/** InstantRoute's `unloaded`: its file couldn't be loaded. */
+const instantUnloaded = ref(false);
 /** The instant answer as Find on Nearby routes reads it: in only with a route the boxes centre on. */
 const instantNow = computed<InstantState>(() =>
   instantLoad.value === 'loading' ? 'loading' : simpleFrom.value === 'instant' ? 'answer' : 'none'

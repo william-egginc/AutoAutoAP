@@ -24,7 +24,9 @@
     <div class="mt-3 space-y-2">
       <p v-if="!built.goals.length" class="text-[12px] text-slate-600" data-testid="my-runs-scatter-empty">
         {{
-          rows === null && !savedCount
+          boardFailed
+            ? boardErrorText(boardFailed, 'myruns')
+            : rows === null && !savedCount
             ? 'Your runs are still loading.'
             : 'No routes of yours yet: runs you send or save show here.'
         }}
@@ -304,6 +306,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { BoardRow } from '@/lib/leaderboardRank';
+import { boardErrorText, type BoardReadKind } from '@/search/myBoardRows';
 import {
   FROM_ORDER,
   LEVEL_COLOURS,
@@ -342,8 +345,11 @@ const props = withDefaults(
     zone: string;
     /** Open from the start (specs); otherwise open on a wide screen, closed on a phone. */
     startOpen?: boolean;
+    /** Why the leaderboard could not be read (null when it was): with nothing to plot, say so rather than "none
+     *  yet" (QA break-it #3). */
+    boardFailed?: BoardReadKind | null;
   }>(),
-  { savedRuns: () => [], savedAnswers: () => [], startOpen: false }
+  { savedRuns: () => [], savedAnswers: () => [], startOpen: false, boardFailed: null }
 );
 
 const X_CHOICES: ScatterX[] = ['asc', 'finish'];
@@ -404,7 +410,10 @@ const summary = computed(() => scatterSummary(view.value, props.zone));
 const notes = computed(() => scatterNotes(view.value, built.value.missed));
 const countWords = computed(() => {
   const n = built.value.points.length;
-  if (!built.value.goals.length) return props.rows === null && !savedCount.value ? ' · loading' : ' · none yet';
+  if (!built.value.goals.length) {
+    if (props.boardFailed) return " · couldn't read the leaderboard";
+    return props.rows === null && !savedCount.value ? ' · loading' : ' · none yet';
+  }
   return ` (${n} ${n === 1 ? 'route' : 'routes'}, ${built.value.goals.length} ${built.value.goals.length === 1 ? 'goal' : 'goals'})`;
 });
 

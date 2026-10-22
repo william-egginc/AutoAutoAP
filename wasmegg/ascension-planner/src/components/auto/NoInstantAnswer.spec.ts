@@ -36,7 +36,8 @@ describe('the heading', () => {
   it('takes the lowest TE from the table header, not a number written in', () => {
     expect(instant).toContain('below.value = { from: h.from, te };');
     expect(instantTemplate).toContain(':heading="noInstantHeading(below.from)"');
-    expect(instantTemplate).toContain(':heading="noInstantHeading(null)"');
+    // A file that couldn't be loaded says so (InstantRoute.unloaded.spec.ts), not "for your TE".
+    expect(instantTemplate).toContain(':heading="TABLE_LOAD_FAILED"');
     expect(instantTemplate).not.toMatch(/below TE 120/);
   });
 });
@@ -179,8 +180,9 @@ describe('notes say one thing', () => {
 
   it('the folded Instant answer line says none, not "working out…" forever', () => {
     expect(NO_INSTANT_SUMMARY).toBe('none for your TE');
-    expect(panelScript).toContain("instantLoad.value === 'none' ? NO_INSTANT_SUMMARY : 'working out…'");
-    expect(fastest).toContain("instantLoad.value === 'none' ? NO_INSTANT_SUMMARY : 'working out…'");
+    // (Or that it couldn't be loaded: InstantRoute.unloaded.spec.ts.)
+    for (const src of [panelScript, fastest])
+      expect(src).toMatch(/instantLoad\.value === 'none'\s*\?[^:]*\?\s*UNLOADED_INSTANT_SUMMARY\s*:\s*NO_INSTANT_SUMMARY\s*:\s*'working out…'/);
   });
 
   it('no "table" in the player’s words', () => {

@@ -10,6 +10,7 @@
  * The chain CSV is chunked (`exportCsvChunks`): a long run's table is tens of megabytes, and the
  * one-string version needs three copies of it alive at once (it was crashing the tab outright).
  */
+import { plainError } from '@/lib/plainError';
 import { ref } from 'vue';
 import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
 import type { useChainSearchStore } from '@/stores/chainSearch';
@@ -28,7 +29,7 @@ export function tryDownload(what: string, fn: () => void): void {
     fn();
   } catch (e) {
     console.error(`${what} download failed`, e);
-    downloadError.value = `The ${what} download failed: ${e instanceof Error ? e.message : String(e)}. Please send a screenshot of this message with your report.`;
+    downloadError.value = `The ${what} download failed: ${plainError(e).replace(/\.$/, '')}. Please send a screenshot of this message with your report.`;
   }
 }
 

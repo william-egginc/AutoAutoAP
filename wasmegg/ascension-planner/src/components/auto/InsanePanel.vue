@@ -478,7 +478,7 @@
                     }}<template v-if="suggestion.coarse">. {{ COARSE_SUGGESTION_NOTE }}</template>
                   </template>
                   <template v-else>
-                    measured shape, from {{ plural(suggestion.runs, 'run') }} across {{ suggestion.accounts }} accounts
+                    measured shape, from {{ plural(suggestion.runs, 'run') }} across {{ plural(suggestion.accounts, 'account') }}
                   </template>
                 </span>
                 <span v-else class="text-[10px] text-amber-700">
