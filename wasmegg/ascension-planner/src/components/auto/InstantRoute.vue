@@ -1076,7 +1076,7 @@ import {
   type RowWin,
   type SecondWin,
 } from '@/search/hoursRunnerUp';
-import { NEARBY_DEAL, NEARBY_ROWS, settleDateRow, worthNearby } from '@/search/dateRowCheck';
+import { NEARBY_DEAL, NEARBY_ROWS, pickNearbyRow, settleDateRow, worthNearby } from '@/search/dateRowCheck';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
 import {
   choosePreferFewer,
@@ -2527,11 +2527,15 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
           const alt = got.alts[r.legs.length];
           better(madeOf(r.chain) ?? (alt ? madeOf(alt.chain) : null), r.legs.length);
         }
-        // The highest final TE first (then fewer ascensions), so the nearby routes go to the rows that can raise
-        // the answer.
-        const order = [...list].sort(
-          (a, b) => b.chain[b.chain.length - 1] - a.chain[a.chain.length - 1] || a.legs.length - b.legs.length
-        );
+        // The row that gets the nearby routes (the highest final TE that misses, then fewer ascensions) goes last,
+        // once the others are settled: their lower last stops find their legs still in the workers' memo, and the
+        // best they reach decides whether it is still worth it.
+        const missesNow = (r: Route) => {
+          const alt = got.alts[r.legs.length];
+          return !madeOf(r.chain) && !(alt && madeOf(alt.chain));
+        };
+        const nearbyRow = nearbyRows < NEARBY_ROWS ? pickNearbyRow(list, missesNow, best) : null;
+        const order = [...list.filter(r => r !== nearbyRow), ...(nearbyRow ? [nearbyRow] : [])];
         for (const route of order) {
           const k = route.legs.length;
           done.add(k);
@@ -2543,7 +2547,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
             currentTE: store.currentTE,
             deadline,
             alternatives: found.dateAlternatives?.[k],
-            nearby: nearbyRows < NEARBY_ROWS && worthNearby(route.chain[route.chain.length - 1], k, best),
+            nearby: route === nearbyRow && worthNearby(route.chain[route.chain.length - 1], k, best),
             exactOf: c => exact.value[key(c)],
             price: (chains, how) => price(chains, how === 'lower' ? sticky : NEARBY_DEAL),
             say: s => {

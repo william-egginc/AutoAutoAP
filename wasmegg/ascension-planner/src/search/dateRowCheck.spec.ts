@@ -10,6 +10,7 @@ import {
   closestTo,
   nearbyRoutes,
   NEARBY_SPAN,
+  pickNearbyRow,
   RUNNER_UPS,
   settleDateRow,
   worthNearby,
@@ -94,6 +95,28 @@ describe('worthNearby', () => {
     expect(worthNearby(310, 3, { endTE: 310, ascensions: 4 })).toBe(true);
     expect(worthNearby(310, 5, { endTE: 310, ascensions: 4 })).toBe(false);
     expect(worthNearby(309, 3, { endTE: 310, ascensions: 4 })).toBe(false);
+  });
+});
+
+describe('pickNearbyRow', () => {
+  // The main account's rows on the Oct 18 save: 2 ascensions make it (305), the rest miss.
+  const rows = [
+    [240, 305],
+    [221, 254, 284, 312],
+    [197, 222, 247, 285, 313],
+    [197, 222, 244, 269, 285, 313],
+    [228, 279, 310],
+  ].map(chain => ({ chain, legs: chain }));
+  const misses = (r: { chain: number[] }) => r.chain.length !== 2;
+
+  it('the highest final TE that misses, then the fewest ascensions', () => {
+    expect(pickNearbyRow(rows, misses, { endTE: 305, ascensions: 2 })?.chain).toEqual([197, 222, 247, 285, 313]);
+  });
+
+  it('none when no row that misses could beat the best, or tie it with fewer ascensions', () => {
+    expect(pickNearbyRow(rows, misses, { endTE: 313, ascensions: 4 })).toBeNull();
+    expect(pickNearbyRow(rows, () => false, null)).toBeNull();
+    expect(pickNearbyRow(rows, misses, { endTE: 313, ascensions: 6 })?.chain).toEqual([197, 222, 247, 285, 313]);
   });
 });
 

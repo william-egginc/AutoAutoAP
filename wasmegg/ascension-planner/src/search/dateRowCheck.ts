@@ -19,8 +19,8 @@
  * ended sooner), so a lower final TE starts from the better early stops too.
  *
  * Cost: up to `RUNNER_UPS + 2 x NEARBY_SPAN x (ascensions - 1)` extra routes for a row (27 at 5 ascensions), in one
- * call dealt evenly over the workers (`NEARBY_DEAL`). The component runs it only
- * for a row that could beat or tie the best TE the check has so far, and at most `NEARBY_ROWS` rows a check.
+ * call dealt evenly over the workers (`NEARBY_DEAL`). The component runs it for at most `NEARBY_ROWS` row a check
+ * (`pickNearbyRow`), one that could beat or tie the best TE the rest of the check reaches.
  *
  * Pure apart from the `price` it is handed; the component owns the workers.
  */
@@ -31,9 +31,9 @@ import type { EvaluateOptions } from './pool';
 export const NEARBY_SPAN = 3;
 /** The finder's other kept routes tried for a row, at most. */
 export const RUNNER_UPS = 3;
-/** Rows a check tries nearby early stops for, at most (the highest final TE first, then fewer ascensions). One
- *  keeps Check exactly under about twice its old time: on the main account the 5-ascension row's nearby routes
- *  cost 574 s against a whole check of 891 s before (Node, 4 workers). */
+/** Rows a check tries nearby early stops for, at most. One keeps Check exactly well under twice its old time: on the
+ *  main account (Oct 18 save, Node, 4 workers) the whole check took 280 s before and 388 s with the 5-ascension row's
+ *  24 nearby routes, settled last. */
 export const NEARBY_ROWS = 1;
 
 const key = (chain: readonly number[]) => chain.join(',');
@@ -145,6 +145,23 @@ export function closestTo(
 export function worthNearby(final: number, ascensions: number, best: { endTE: number; ascensions: number } | null): boolean {
   if (!best) return true;
   return final > best.endTE || (final === best.endTE && ascensions < best.ascensions);
+}
+
+/**
+ * Which row of a check gets the nearby routes: of the rows that miss the date as they are (`misses`), the one with
+ * the highest final TE, then the fewest ascensions, that is `worthNearby` the best so far; null for none. The
+ * component settles it LAST, after the other rows' lower last stops (their legs are still in the workers' memo then,
+ * and the best TE they reach decides whether it is still worth it).
+ */
+export function pickNearbyRow<R extends { chain: readonly number[]; legs: readonly unknown[] }>(
+  rows: readonly R[],
+  misses: (row: R) => boolean,
+  best: { endTE: number; ascensions: number } | null
+): R | null {
+  const order = [...rows].sort(
+    (a, b) => b.chain[b.chain.length - 1] - a.chain[a.chain.length - 1] || a.legs.length - b.legs.length
+  );
+  return order.find(r => misses(r) && worthNearby(r.chain[r.chain.length - 1], r.legs.length, best)) ?? null;
 }
 
 /** What `settleDateRow` found for one row. */
