@@ -222,6 +222,22 @@ describe('Setup changes', () => {
   });
 });
 
+describe('a pasted long name (QA, 22 Oct 2026)', () => {
+  it('is saved at 40 from the box, the strip and Setup', async () => {
+    await setConsentAccount(A);
+    const names = useShareNameStore();
+    answerYes({ ...ALL_ON }, 'name', 'x'.repeat(500));
+    expect(names.nameFor(A)).toBe('x'.repeat(40));
+    setStudyCredit('name', 'y'.repeat(500));
+    expect(names.nameFor(A)).toBe('y'.repeat(40));
+    // The strip credits another account by its own name, capped the same way.
+    names.setName(B, 'z'.repeat(500));
+    await setConsentAccount(B);
+    useForThisAccount();
+    expect(names.nameFor(B)).toBe('z'.repeat(40));
+  });
+});
+
 describe('storage', () => {
   it('keeps no player ID and no name', async () => {
     await setConsentAccount(A);

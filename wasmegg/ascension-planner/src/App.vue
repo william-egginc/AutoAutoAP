@@ -276,7 +276,8 @@
         <template v-if="plannerTab === 'automatic'">
           <div class="flex justify-center">
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
-                 cell, so the underline stays on one line; from sm up, a centred row. -->
+                 cell, so the underline stays on one line; from sm up, a centred row. Each at least
+                 44 px tall below sm (Jordan, 21 Oct 2026). -->
             <div
               class="grid grid-cols-2 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
             >
@@ -284,7 +285,7 @@
                 v-for="v in autoTabs"
                 :key="v.id"
                 type="button"
-                class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug"
+                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug"
                 :class="
                   autoView === v.id
                     ? 'border-indigo-600 text-indigo-700'
@@ -309,7 +310,7 @@
                    where a player has just run something. Always, as the top tab (21 Oct 2026: My runs is this device's). -->
               <button
                 type="button"
-                class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-400 hover:text-slate-700"
+                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-400 hover:text-slate-700"
                 data-testid="auto-tab-myruns"
                 @click="selectSection('myruns')"
               >

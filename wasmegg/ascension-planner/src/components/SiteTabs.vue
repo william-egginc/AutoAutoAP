@@ -11,7 +11,8 @@
            Compare, My runs and Science on the second (2 each), so no tab is left alone on a row (five tabs
            in one row need about 900px with the icons; a free wrap left ragged rows). Below sm the icons go,
            so each label fits its cell at 375. From lg up, one row. The second row's tabs share its six columns
-           (SECOND_ROW), however many are shown: My runs always, Leaderboard and Science when turned on in Setup. -->
+           (SECOND_ROW), however many are shown: My runs always, Leaderboard and Science when turned on in Setup.
+           Each tab is at least 44 px tall below sm (Jordan, 21 Oct 2026); from sm up, the old size. -->
       <div
         class="bg-slate-50 p-1 sm:p-1.5 rounded-2xl border border-slate-200/50 shadow-sm grid grid-cols-6 w-full lg:flex lg:w-auto lg:justify-center gap-1"
       >
@@ -23,7 +24,7 @@
             i < 2 ? 'col-span-3' : (SECOND_ROW[tabs.length - 2] ?? 'col-span-2'),
             current === t.tab ? t.on : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50',
           ]"
-          class="min-w-0 px-2 sm:px-4 lg:px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider sm:tracking-[0.15em] transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 text-center leading-tight"
+          class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 lg:px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider sm:tracking-[0.15em] transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 text-center leading-tight"
           :aria-current="current === t.tab ? 'page' : undefined"
           @click="emit('select', t.id)"
         >

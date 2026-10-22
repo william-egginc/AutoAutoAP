@@ -62,4 +62,30 @@ describe('About and privacy page', () => {
     expect(about).toContain('/.well-known/security.txt');
     expect(securityTxt()).toMatch(/Contact: https:\/\/github\.com\/.+\/issues/);
   });
+
+  it('names the study record and what it holds, and says it is never sent (22 Oct 2026)', () => {
+    expect(text).toContain(
+      'This browser keeps your answer in a record called aap.study . It holds the answer (yes, no thanks or withdrawn), when you answered, the ticks, whether you chose a name or to stay anonymous, and a scrambled tag for each account that answered, made in this browser so it never shows the player ID. It holds no player ID and no name, and it is never sent.'
+    );
+    // What it says must stay true: the record's own fields (lib/study.ts storedStudy).
+    const study = read('src/lib/study.ts');
+    expect(study).toContain('answer: rec.answer,');
+    expect(study).toContain('accounts: { ...rec.accounts },');
+    expect(study).toContain("export const STUDY_KEY = 'aap.study';");
+  });
+
+  it('says a public row has the hours, the time off and the start weekday, as the collector keeps them', () => {
+    expect(text).toContain(
+      'If you set them, the row also has your hours (the times of day you said you can play, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
+    );
+    expect(text).toContain('Last updated 22 Oct 2026.');
+    // The fields behind those words: sent by the planner, and kept on the public row by the collector.
+    const sub = read('src/search/submission.ts');
+    expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
+    expect(sub).toContain('...(i.timeOff?.length ? { timeOff: i.timeOff.map(w => ({ ...w })) } : {}),');
+    expect(sub).toContain('startWeekday: weekdayIn(i.planStart, tz),');
+    const worker = read('collector/worker.js');
+    const pick = worker.slice(worker.indexOf('function pickSubmission('));
+    for (const f of ['window:', 'startWeekday:', 'timeOff: timeOffList(s.timeOff)']) expect(pick).toContain(f);
+  });
 });

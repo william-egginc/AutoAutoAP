@@ -15,11 +15,13 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { hashID } from '@/lib/storage/db';
+import { capName } from '@/lib/study';
 
 const PREFIX = 'aap-share-name:';
 const ANON_PREFIX = 'aap-share-anon:';
-/** The collector keeps 40 characters; a little over, in case a box allows it. */
-const MAX = 60;
+/** The collector keeps 40 characters, and every send cuts there: the name is kept at that too (QA, 22 Oct
+ *  2026: a paste of 500 characters was held in full), in memory and in this browser. */
+const MAX = 40;
 
 function read(key: string): string | null {
   try {
@@ -30,7 +32,7 @@ function read(key: string): string | null {
 }
 function write(key: string, v: string): void {
   try {
-    if (v.trim()) localStorage.setItem(PREFIX + key, v.slice(0, MAX));
+    if (v.trim()) localStorage.setItem(PREFIX + key, capName(v, MAX));
     else localStorage.removeItem(PREFIX + key);
   } catch {
     // A private window: the name still works for this visit.
@@ -75,7 +77,7 @@ export const useShareNameStore = defineStore('shareName', () => {
     loaded.add(id);
     const key = await hashID(id);
     const kept = read(key);
-    if (kept !== null && names.value[id] === undefined) names.value = { ...names.value, [id]: kept };
+    if (kept !== null && names.value[id] === undefined) names.value = { ...names.value, [id]: capName(kept, MAX) };
     const keptAnon = readAnon(key);
     if (keptAnon !== undefined && anon.value[id] === undefined) anon.value = { ...anon.value, [id]: keptAnon };
   }
@@ -98,6 +100,7 @@ export const useShareNameStore = defineStore('shareName', () => {
 
   function setName(playerId: string, name: string): void {
     const id = playerId.trim();
+    name = capName(name, MAX);
     names.value = { ...names.value, [id]: name };
     if (!id) return;
     const n = (writes.get(id) ?? 0) + 1;

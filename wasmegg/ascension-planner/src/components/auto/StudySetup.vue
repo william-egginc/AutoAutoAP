@@ -10,10 +10,10 @@
      line: a share button, or another tab, may have turned some on), Withdraw while any sharing is still on,
      and Change (the form again).
 
-  Withdraw stops future sends only: what was already sent stays, and the CSV choice is left as it is. Its line
-  (Jordan's words, 21 Oct 2026) promises the account on screen only: an account that agreed under a share
-  button keeps its choices. (Accounts that said yes through this box or the strip are still turned off as each
-  next loads, lib/study.ts `afterWithdraw`: more is stopped than the line promises, never less.)
+  Withdraw stops future sends only: what was already sent stays, and the CSV choice is left as it is. It turns
+  off the account on screen now and every other account that said yes through this box or the strip as each next
+  loads (lib/study.ts `afterWithdraw`); another account that agreed only under a share button keeps that choice.
+  Its line says exactly that (21 Oct 2026: the words follow the behaviour, which errs safe).
 -->
 <template>
   <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="study-setup">
@@ -68,6 +68,7 @@
             class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-sm font-bold text-slate-800"
             :class="creditShown === 'anon' ? 'opacity-50' : ''"
             data-testid="study-setup-nickname"
+            @input="capField"
             @focus="creditShown = 'name'"
             @change="creditShown = 'name'"
           />
@@ -129,8 +130,9 @@
       class="text-[11px] text-slate-500 leading-relaxed"
       data-testid="study-setup-withdraw-note"
     >
-      Withdraw stops what this browser would send for this account from now on; other accounts keep their own choices
-      and what was already sent stays. Each share button still shows its own agreement, with Withdraw there too.
+      Withdraw turns off sharing for every account in this browser that said yes here: this one now, the others as each
+      next loads. Another account that agreed only under a share button keeps that choice. What was already sent stays.
+      Each share button still shows its own agreement, with Withdraw there too.
     </p>
   </div>
 </template>
@@ -139,7 +141,7 @@
 import { computed, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { showDay } from '@/lib/displayTime';
-import { TICK_WORDS, WITHDRAW_CONSENTS, type StudyTicks } from '@/lib/study';
+import { TICK_WORDS, WITHDRAW_CONSENTS, capName, type StudyTicks } from '@/lib/study';
 import { consentAgreed, consentState } from '@/composables/useConsent';
 import {
   STUDY_NAME_MAX,
@@ -194,9 +196,18 @@ const anySharing = computed(() => WITHDRAW_CONSENTS.some(id => consentAgreed(id)
 const said = (k: keyof StudyTicks): string => WORDS[k][liveTick(k) ? 0 : 1];
 const anonymous = computed(() => names.anonymousFor(account.value) ?? true);
 const nickname = ref('');
+/** A paste or a scripted set past the cap: the box shows the capped name at once (maxlength stops only keys). */
+function capField(e: Event): void {
+  const el = e.target as HTMLInputElement;
+  const c = capName(el.value);
+  if (c !== el.value) {
+    el.value = c;
+    nickname.value = c;
+  }
+}
 watch(
   () => [account.value, names.nameFor(account.value)] as const,
-  () => (nickname.value = knownName(account.value)),
+  () => (nickname.value = capName(knownName(account.value))),
   { immediate: true }
 );
 /** "Credit me as" picked here with no name typed yet: shown picked, and applied once a name is typed (until

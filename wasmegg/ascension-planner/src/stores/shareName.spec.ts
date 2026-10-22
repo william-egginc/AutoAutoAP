@@ -40,6 +40,20 @@ describe('useShareNameStore', () => {
     expect(Object.keys(localStorage)).toEqual([]);
   });
 
+  it('a pasted 500-character name is kept at 40, in memory and in this browser (QA, 22 Oct 2026)', async () => {
+    const s = useShareNameStore();
+    s.setName(ID, 'x'.repeat(500));
+    expect(s.nameFor(ID)).toBe('x'.repeat(40));
+    await flush();
+    expect(localStorage.getItem(`aap-share-name:${await hashID(ID)}`)).toBe('x'.repeat(40));
+    // An older, longer kept name is cut as it loads.
+    localStorage.setItem(`aap-share-name:${await hashID(ID)}`, 'y'.repeat(60));
+    setActivePinia(createPinia());
+    const t = useShareNameStore();
+    await t.load(ID);
+    expect(t.nameFor(ID)).toBe('y'.repeat(40));
+  });
+
   it('a name typed before the kept one loads wins', async () => {
     useShareNameStore().setName(ID, 'Old');
     await flush();

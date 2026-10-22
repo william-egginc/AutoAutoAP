@@ -8,6 +8,8 @@ import {
   afterWithdrawApplied,
   afterYes,
   anyTick,
+  capName,
+  STUDY_NAME_MAX,
   consentsFor,
   emptyStudy,
   parseStudy,
@@ -111,5 +113,18 @@ describe('accountStep', () => {
   it('no thanks changes no account', () => {
     const rec = afterYes(emptyStudy(), A, 1);
     expect(afterNo(rec, 2).accounts).toEqual({ [A]: 'yes' });
+  });
+});
+
+describe('capName (QA, 22 Oct 2026: a paste skips maxlength)', () => {
+  it('holds a name to 40 characters as a player sees them, and leaves a short one alone', () => {
+    expect(STUDY_NAME_MAX).toBe(40);
+    expect(capName('x'.repeat(500))).toBe('x'.repeat(40));
+    expect(capName('Williamthe5thc')).toBe('Williamthe5thc');
+    expect(capName('two words ')).toBe('two words '); // not trimmed while typing
+    const emoji = capName('🥚'.repeat(140));
+    expect(Array.from(emoji)).toHaveLength(40);
+    expect(emoji).toBe('🥚'.repeat(40)); // never half an emoji
+    expect(capName('abcdef', 3)).toBe('abc');
   });
 });

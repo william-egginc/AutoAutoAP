@@ -21,6 +21,19 @@ import type { ConsentId } from '@/composables/useConsent';
 
 export const STUDY_KEY = 'aap.study';
 
+/** The collector keeps 40 characters of a name. */
+export const STUDY_NAME_MAX = 40;
+
+/**
+ * A "Credit me as" name held to the cap, whatever put it in the box (QA, 22 Oct 2026: `maxlength` stops typed
+ * keys, not a paste or a scripted set). Counted in characters as a player sees them, so an emoji is never
+ * cut in half. Not trimmed: a space typed between two words must stay while typing.
+ */
+export function capName(v: string, max: number = STUDY_NAME_MAX): string {
+  const chars = Array.from(v);
+  return chars.length > max ? chars.slice(0, max).join('') : v;
+}
+
 export interface StudyTicks {
   /** "Share my runs on the leaderboard when I press a share button": the `leaderboard` consent. */
   share: boolean;

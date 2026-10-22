@@ -14,6 +14,7 @@
  */
 import { accountKeyOf, type BoardRow } from '@/lib/leaderboardRank';
 import { isMyRun, nameKeys, type LookAlike } from '@/lib/myRuns';
+import { normalizeBoardRows } from '@/lib/boardRowGuard';
 
 /** How long a remembered /all stands in for a new read. */
 export const ALL_FRESH_MS = 60_000;
@@ -34,9 +35,8 @@ export async function fetchMineRows(
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { rows?: BoardRow[] };
-    return Array.isArray(data.rows)
-      ? data.rows.filter(r => r && Array.isArray(r.chain)).map(r => ({ ...r, yours: true }))
-      : null;
+    // Every row made to match its type first (lib/boardRowGuard.ts).
+    return Array.isArray(data.rows) ? normalizeBoardRows<BoardRow>(data.rows).map(r => ({ ...r, yours: true })) : null;
   } catch {
     return null;
   }
@@ -58,7 +58,7 @@ export async function fetchAllRows(
   });
   if (!res.ok) throw new Error(`the collector answered ${res.status}`);
   const data = (await res.json()) as { rows?: BoardRow[]; builtAt?: number };
-  const rows = Array.isArray(data.rows) ? data.rows.filter(r => r && Array.isArray(r.chain)) : [];
+  const rows = normalizeBoardRows<BoardRow>(data.rows);
   return { rows, cut: typeof data.builtAt !== 'number' && o.cap !== undefined && rows.length >= o.cap };
 }
 

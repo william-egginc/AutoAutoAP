@@ -728,7 +728,7 @@
                           >
                         </div>
                       </td>
-                      <td class="py-1.5 pr-3 text-right text-slate-500">{{ row.chainsPriced.toLocaleString() }}</td>
+                      <td class="py-1.5 pr-3 text-right text-slate-500">{{ routesText(row.chainsPriced) }}</td>
                       <td
                         class="py-1.5 pr-3 text-right whitespace-nowrap"
                         :title="
@@ -1322,6 +1322,7 @@ import {
 import AccountDot from './AccountDot.vue';
 import SimChip from '@/components/auto/SimChip.vue';
 import { bySimToggle, allHiddenSimText, hiddenSimText, useShowOlderSims } from '@/composables/useShowOlderSims';
+import { routesText } from '@/lib/boardRowGuard';
 import { leftOf, leftShareText, leftTitle, longEstimate, plansText, type Left } from './left';
 import { measuredWorkerSeconds } from '@/search/speed';
 
