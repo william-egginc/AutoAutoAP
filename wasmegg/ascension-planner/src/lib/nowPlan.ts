@@ -6,7 +6,7 @@
  *
  *   planFromSnapshot  the lead route of a snapshot (Fastest: Check exactly's soonest; By a date: its highest TE),
  *                     its legs when they were kept, when it was worked out, its runner-up gap.
- *   planEvents        the shifts, prestiges and the goal, each with past / next flags.
+ *   planEvents        the shifts, prestiges and the goal, each with past / not done yet / next flags.
  *   onTrack           a newer save against where the plan (made from an older one) expected it (lib/planPace.ts).
  *   shiftsAfter       how many shifts the plan has after a moment (the "all planned shifts" tile).
  *
@@ -247,16 +247,31 @@ export interface PlanEvent {
   /** Goal (By a date): hours to spare. */
   spareHours?: number | null;
   past: boolean;
-  /** The first event still ahead. */
+  /** Its time has passed but the save doesn't show it done yet (still on the egg before the shift, short of the
+   *  prestige's TE): not `past`, shown as "Not done yet", and Next step leads with it. */
+  notDone?: boolean;
+  /** The first event still to do (a not-done-yet one, else the first ahead). */
   next: boolean;
+}
+
+/** What the save shows done: the egg its farm is on (null: not known) and its whole TE. */
+export interface SaveDone {
+  egg: string | null;
+  te: number;
 }
 
 /**
  * Every shift (from the exact legs), every prestige (each leg's end; the table's legs when the exact ones weren't
  * kept) and the goal: Fastest's last stop ("reach 490"), By a date's last prestige then the date itself. In time
- * order, `past` before `nowSeconds`, `next` on the first one ahead.
+ * order, `next` on the first one still to do.
+ *
+ * Done is the save's state, not the clock alone (My runs review, 22 Oct 2026, bug 2: the shift due 1.5 h after the
+ * save showed "passed" while the save was still on the egg before it). Of the events whose time has passed, a shift
+ * is shown done when the save is on its egg, a prestige when the save has its TE; every event before the last one
+ * shown done is done too (the save is past it). One after that whose effect the save doesn't show is `notDone`. The
+ * goal, and a shift when the save's egg isn't known, go by the clock. Without `save`: the clock only.
  */
-export function planEvents(plan: NowPlan, nowSeconds: number): PlanEvent[] {
+export function planEvents(plan: NowPlan, nowSeconds: number, save: SaveDone | null = null): PlanEvent[] {
   const out: Omit<PlanEvent, 'past' | 'next'>[] = [];
   const n = plan.chain.length;
   if (plan.legs) {
@@ -278,12 +293,24 @@ export function planEvents(plan: NowPlan, nowSeconds: number): PlanEvent[] {
   if (plan.goal === 'date' && plan.deadline)
     out.push({ kind: 'goal', at: plan.deadline, asc: n, te: plan.endTE, spareHours: plan.spareHours });
   out.sort((a, b) => a.at - b.at || order(a.kind) - order(b.kind));
+  // true: the save shows it done; false: it doesn't; null: the save can't say (the clock decides).
+  const shows = (e: (typeof out)[number]): boolean | null => {
+    if (!save) return null;
+    if (e.kind === 'shift') return save.egg ? save.egg === e.egg : null;
+    if (e.kind === 'prestige') return typeof e.te === 'number' ? save.te >= e.te : null;
+    return null;
+  };
+  let lastShown = -1;
+  out.forEach((e, i) => {
+    if (e.at <= nowSeconds && shows(e) === true) lastShown = i;
+  });
   let nextSet = false;
-  return out.map(e => {
-    const past = e.at <= nowSeconds;
+  return out.map((e, i) => {
+    const notDone = e.at <= nowSeconds && i > lastShown && shows(e) === false;
+    const past = e.at <= nowSeconds && !notDone;
     const next = !past && !nextSet;
     if (next) nextSet = true;
-    return { ...e, past, next };
+    return { ...e, past, ...(notDone ? { notDone } : {}), next };
   });
 }
 const order = (k: PlanEvent['kind']) => (k === 'shift' ? 0 : k === 'prestige' ? 1 : 2);
@@ -321,7 +348,15 @@ export function mergeSimultaneousShifts(events: readonly PlanEvent[], zone: stri
     const key = e.kind === 'shift' ? minuteKey(e.at, zone) : '';
     if (prev && prev.kind === 'shift' && e.kind === 'shift' && key === lastKey) {
       const eggs = [...(prev.eggs ?? [prev.egg ?? '']), e.egg ?? ''];
-      out[out.length - 1] = { ...prev, eggs, egg: e.egg, next: prev.next || e.next, past: prev.past && e.past };
+      const notDone = !!(prev.notDone || e.notDone);
+      out[out.length - 1] = {
+        ...prev,
+        eggs,
+        egg: e.egg,
+        next: prev.next || e.next,
+        past: prev.past && e.past,
+        ...(notDone ? { notDone } : {}),
+      };
       continue;
     }
     out.push(e);

@@ -477,7 +477,8 @@ const pace = computed(() => (props.track ? paceWords(props.track, props.now, pro
 const chip = computed(() => (pace.value?.text ? { tone: pace.value.tone, text: pace.value.text } : null));
 const paceBadge = computed(() => pace.value?.badge ?? '');
 const nextText = computed(() => (props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone) : ''));
-const nextEvent = computed(() => props.events.find(e => !e.past && e.kind !== 'goal') ?? null);
+/** The calendar button's event: the first one ahead (a step not done yet is already due: nothing to add). */
+const nextEvent = computed(() => props.events.find(e => !e.past && !e.notDone && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>
   nextEvent.value
     ? planCalEvent(nextEvent.value, {

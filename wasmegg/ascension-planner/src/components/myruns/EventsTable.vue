@@ -3,6 +3,8 @@
   calendar date AND the time AND how far away it is. The next one is highlighted; one that has passed stays,
   greyed, as "passed" (a passed prestige says when the plan had you prestige: load a newer save). "+ Add" on each
   upcoming shift and prestige (not the goal); on a phone When and How far sit under the title with the button. Nothing is worked out here.
+  A step whose time has passed but the save doesn't show done (lib/nowPlan.ts `notDone`) stays, in amber, as "Not done
+  yet: shift to Curiosity (due 8:03 pm)", with no calendar button.
 -->
 <template>
   <div data-testid="now-events">
@@ -21,8 +23,8 @@
           v-for="e in events"
           :key="`${e.kind}-${e.at}`"
           class="border-t border-slate-100 align-top"
-          :class="e.past ? 'text-slate-400' : e.next ? 'bg-indigo-50' : 'text-slate-800'"
-          :data-testid="e.past ? 'now-event-past' : e.next ? 'now-event-next' : 'now-event'"
+          :class="e.past ? 'text-slate-400' : e.notDone ? 'bg-amber-50 text-amber-900' : e.next ? 'bg-indigo-50' : 'text-slate-800'"
+          :data-testid="e.past ? 'now-event-past' : e.notDone ? 'now-event-notdone' : e.next ? 'now-event-next' : 'now-event'"
         >
           <td class="py-2 pr-1" aria-hidden="true">{{ e.kind === 'shift' ? '⇄' : e.kind === 'prestige' ? '↑' : '⚑' }}</td>
           <td class="py-2 pr-2">
@@ -59,7 +61,7 @@
 import { computed } from 'vue';
 import CalendarButton from './CalendarButton.vue';
 import { dateAt } from '@/lib/eventWhen';
-import { eventTitle, howFar } from '@/lib/nowWords';
+import { eventTitle, howFar, notDoneTitle } from '@/lib/nowWords';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { virtueEggName } from '@/lib/virtueEggs';
 import type { PlanEvent } from '@/lib/nowPlan';
@@ -79,8 +81,9 @@ const props = defineProps<{
 }>();
 
 const device = thisDevice();
-const title = (e: PlanEvent) => eventTitle(e, props.goal, props.goalName);
-const addable = (e: PlanEvent) => !e.past && e.kind !== 'goal';
+const title = (e: PlanEvent) =>
+  e.notDone ? notDoneTitle(e, props.goal, props.now, props.zone, props.goalName) : eventTitle(e, props.goal, props.goalName);
+const addable = (e: PlanEvent) => !e.past && !e.notDone && e.kind !== 'goal';
 const upcoming = computed(() => props.events.filter(addable));
 function calOf(e: PlanEvent) {
   return planCalEvent(e, {

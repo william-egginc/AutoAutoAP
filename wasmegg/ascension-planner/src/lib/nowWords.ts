@@ -4,6 +4,7 @@
  */
 import { dateAt, eventWhen, relativeWords } from './eventWhen';
 import { shiftTitle, type PlanEvent } from './nowPlan';
+import { clockWords } from './planPace';
 import { virtueEggName } from './virtueEggs';
 import { hoursWords, timeOffWords } from './pricedWith';
 import type { Availability } from '@/search/availabilitySchedule';
@@ -15,9 +16,18 @@ export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te'>, g
   return goal === 'date' ? `${goalName} goal: ${e.te} TE` : `${e.te} TE reached`;
 }
 
-/** "today, in 1 h 20 m" · "tomorrow, in 19 h" · "in 2 days" · "in 271 days · 16.8 h spare" · "passed". */
-export function howFar(e: Pick<PlanEvent, 'at' | 'past' | 'kind' | 'spareHours'>, nowSeconds: number, zone: string): string {
+/** "today, in 1 h 20 m" · "tomorrow, in 19 h" · "in 2 days" · "in 271 days · 16.8 h spare" · "passed" ·
+ *  "not done yet, due 3 h ago". */
+export function howFar(
+  e: Pick<PlanEvent, 'at' | 'past' | 'kind' | 'spareHours' | 'notDone'>,
+  nowSeconds: number,
+  zone: string
+): string {
   if (e.past) return 'passed';
+  if (e.notDone) {
+    const w = eventWhen(e.at, nowSeconds, zone);
+    return w ? `not done yet, due ${w.relative}` : 'not done yet';
+  }
   const w = eventWhen(e.at, nowSeconds, zone);
   if (!w) return '';
   const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${w.relative}` : w.relative;
@@ -30,22 +40,40 @@ export function spareWords(hours: number): string {
   return hours >= 48 ? `${(hours / 24).toFixed(1)} days` : `${hours.toFixed(1)} h`;
 }
 
-/** "Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am". '' with nothing ahead. */
+const lower = (x: string) => x.charAt(0).toLowerCase() + x.slice(1);
+
+/** A step whose time has passed and the save doesn't show done: "Not done yet: shift to Curiosity (due 8:03 pm)"
+ *  ("due Oct 18 at 8:03 pm" when not today). The events table and Next step both say it. */
+export function notDoneTitle(
+  e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te' | 'at'>,
+  goal: 'fastest' | 'date',
+  nowSeconds: number,
+  zone: string,
+  goalName?: string
+): string {
+  return `Not done yet: ${lower(eventTitle(e, goal, goalName))} (due ${clockWords(e.at, nowSeconds, zone)})`;
+}
+
+/** "Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am"; a step not done yet leads:
+ *  "Not done yet: shift to Curiosity (due 8:03 pm), then Humility Oct 23 at 4:06 pm". '' with nothing ahead. */
 export function nextStepText(events: readonly PlanEvent[], goal: 'fastest' | 'date', nowSeconds: number, zone: string): string {
   const ahead = events.filter(e => !e.past && e.kind !== 'goal');
   const first = ahead[0];
   if (!first) return '';
   const w = eventWhen(first.at, nowSeconds, zone);
   if (!w) return '';
-  let text = `${eventTitle(first, goal)} ${w.day} at ${w.clock} (${w.relative})`;
+  let text = first.notDone
+    ? notDoneTitle(first, goal, nowSeconds, zone)
+    : `${eventTitle(first, goal)} ${w.day} at ${w.clock} (${w.relative})`;
   const second = ahead[1];
   const w2 = second ? eventWhen(second.at, nowSeconds, zone) : null;
   if (second && w2) {
     // "then prestige at 197 TE" (only the first letter lowered: "TE" stays), "then Kindness", "then shift to …".
-    const lower = (x: string) => x.charAt(0).toLowerCase() + x.slice(1);
     const what =
       second.kind === 'shift' && !(second.eggs && second.eggs.length > 1) ? virtueEggName(second.egg) : lower(eventTitle(second, goal));
-    text += `, then ${what} ${w2.day} at ${w2.clock}`;
+    text += second.notDone
+      ? `, then ${what} (not done yet, due ${clockWords(second.at, nowSeconds, zone)})`
+      : `, then ${what} ${w2.day} at ${w2.clock}`;
   }
   return text;
 }

@@ -531,7 +531,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
    *  planned-shift total reads the legs, so it still counts both. */
   const events = computed(() =>
-    cardPlan.value ? mergeSimultaneousShifts(planEvents(cardPlan.value.plan, now.value), zone.value) : []
+    cardPlan.value
+      ? mergeSimultaneousShifts(
+          // Done by the save's state, not the clock alone: the egg it is on and its TE (nowPlan `planEvents`).
+          planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null),
+          zone.value
+        )
+      : []
   );
   const shownEvents = computed(() => tableEvents(events.value));
   const ascNow = computed(() => (cardPlan.value ? ascensionAt(cardPlan.value.plan, now.value) : 0));

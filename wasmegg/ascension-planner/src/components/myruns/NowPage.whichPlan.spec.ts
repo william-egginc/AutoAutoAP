@@ -345,7 +345,9 @@ describe('source: everything on the card follows the selected goal', () => {
   it('cardPlan is the selected goal’s; the events, the table, Next step, the timeline and the track read cardPlan', () => {
     const src = read('../../composables/useNowPage.ts');
     expect(src).toContain('const sel = planGoals.value.find(p => p.goal.key === selectedGoal.value);');
-    expect(src).toContain('mergeSimultaneousShifts(planEvents(cardPlan.value.plan, now.value), zone.value)');
+    // Done by the save's state too (22 Oct 2026, review bug 2: "Not done yet").
+    expect(src).toContain('mergeSimultaneousShifts(');
+    expect(src).toContain('planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null)');
     expect(src).toContain('const shownEvents = computed(() => tableEvents(events.value));');
     expect(src).toContain('ascensionAt(cardPlan.value.plan, now.value)');
     // The pick is module state for this visit, scoped to the account and the save (no localStorage).
