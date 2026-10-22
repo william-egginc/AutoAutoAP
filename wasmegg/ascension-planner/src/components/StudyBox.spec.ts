@@ -43,6 +43,12 @@ const INTRO =
   'share button. Each Check exactly sends a private, anonymous record. Your player ID and save are never sent. ' +
   'This account only; change or withdraw it in Setup.';
 
+/** Setup's Withdraw line (21 Oct 2026): the words follow what Withdraw does (lib/study.ts afterWithdraw). */
+const WITHDRAW_LINE =
+  'Withdraw turns off sharing for every account in this browser that said yes here: this one now, the others as ' +
+  'each next loads. Another account that agreed only under a share button keeps that choice. What was already ' +
+  'sent stays. Each share button still shows its own agreement, with Withdraw there too.';
+
 describe('the box', () => {
   it('keeps its paragraph short: under 280 characters, 5 lines at 390 px', async () => {
     await setConsentAccount(A);
@@ -228,9 +234,7 @@ describe('Setup › Help improve the planner', () => {
       'You said no thanks. For this account right now: runs not shared · CSV on · diagnostics off · checks shared'
     );
     expect(t).toContain('Withdraw');
-    expect(t).toContain(
-      'Withdraw stops what this browser would send for this account from now on; other accounts keep their own choices and what was already sent stays.'
-    );
+    expect(t).toContain(WITHDRAW_LINE);
     answerYes({ ...ALL_ON }, 'anon', '');
     withdrawStudy();
     t = textOf(await setup());
@@ -241,13 +245,13 @@ describe('Setup › Help improve the planner', () => {
     expect(t).toContain('Change');
   });
 
-  it('the Withdraw line does not overstate (21 Oct 2026 words)', async () => {
+  it('the Withdraw line says what Withdraw does, no more and no less', async () => {
     await setConsentAccount(A);
     answerYes({ ...ALL_ON }, 'anon', '');
     const t = textOf(await setup());
-    expect(t).toContain(
-      'Withdraw stops what this browser would send for this account from now on; other accounts keep their own choices and what was already sent stays.'
-    );
+    expect(t).toContain(WITHDRAW_LINE);
+    expect(t).not.toContain('keep their own choices');
+    expect(t).not.toContain('for this account from now on');
   });
 });
 
@@ -273,6 +277,10 @@ describe('wiring', () => {
   it('About › What is sent says what the box does', () => {
     const about = read('../../public/about.html').replace(/\s+/g, ' ');
     expect(about).toContain('<b>Help improve the planner</b>, the box under the tabs, asks once in each browser.');
+    expect(about).toContain(
+      'Withdrawing turns off sharing for every account in this browser that said yes there; another account that agreed only under a share button keeps that choice. What was already sent stays.'
+    );
+    expect(about).not.toContain('withdrawing stops what is sent');
     expect(about).toContain('Every choice in it starts unticked. Its Yes turns on the choices you tick');
     expect(about).toContain(
       'for the account on screen only; anything you leave unticked stays off, and you can turn it on later in Setup.'

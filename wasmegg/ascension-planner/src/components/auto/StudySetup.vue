@@ -10,10 +10,10 @@
      line: a share button, or another tab, may have turned some on), Withdraw while any sharing is still on,
      and Change (the form again).
 
-  Withdraw stops future sends only: what was already sent stays, and the CSV choice is left as it is. Its line
-  (Jordan's words, 21 Oct 2026) promises the account on screen only: an account that agreed under a share
-  button keeps its choices. (Accounts that said yes through this box or the strip are still turned off as each
-  next loads, lib/study.ts `afterWithdraw`: more is stopped than the line promises, never less.)
+  Withdraw stops future sends only: what was already sent stays, and the CSV choice is left as it is. It turns
+  off the account on screen now and every other account that said yes through this box or the strip as each next
+  loads (lib/study.ts `afterWithdraw`); another account that agreed only under a share button keeps that choice.
+  Its line says exactly that (21 Oct 2026: the words follow the behaviour, which errs safe).
 -->
 <template>
   <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="study-setup">
@@ -129,8 +129,9 @@
       class="text-[11px] text-slate-500 leading-relaxed"
       data-testid="study-setup-withdraw-note"
     >
-      Withdraw stops what this browser would send for this account from now on; other accounts keep their own choices
-      and what was already sent stays. Each share button still shows its own agreement, with Withdraw there too.
+      Withdraw turns off sharing for every account in this browser that said yes here: this one now, the others as
+      each next loads. Another account that agreed only under a share button keeps that choice. What was already sent
+      stays. Each share button still shows its own agreement, with Withdraw there too.
     </p>
   </div>
 </template>
