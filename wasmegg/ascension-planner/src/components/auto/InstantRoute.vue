@@ -1115,6 +1115,7 @@ import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
 import type { ChainResult } from '@/search/types';
+import { followedCount } from '@/lib/ascRange';
 import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName, tableName } from '@/search/tableGear';
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
@@ -2765,6 +2766,18 @@ const dateChoice = computed<PreferChoice<DateExact> | null>(() => {
 const preferChoice = computed<PreferChoice<unknown> | null>(() => (props.deadline ? dateChoice.value : fastestChoice.value));
 const preferCopy = computed<PreferCopy>(() =>
   preferFewerCopy<unknown>(preferChoice.value, preferGoal.value, preferMargin.value, show)
+);
+/**
+ * The count this screen's default ascension range follows (lib/ascRange.ts; Jordan, 22 Oct 2026): the route the
+ * box leads with under Prefer fewer (the setting, not "Show the fastest instead", which is for now), else the
+ * best. Fastest's Limits box and By a date's Nearby routes read it (chainSearch.ts `rangeCount`).
+ */
+watch(
+  () => followedCount(preferChoice.value),
+  n => {
+    store.rangeCount = { ...store.rangeCount, [preferGoal.value]: n };
+  },
+  { immediate: true }
 );
 /** The box leads with another route than the best now. */
 const preferPicked = computed(() => preferChoice.value?.state === 'fewer' && !preferShowBest.value);

@@ -633,8 +633,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Override for the driver's `maxLast`. Null means "use the driver's default". Advanced only. */
   const maxLastOverride = ref<number | null>(null);
 
-  // Before any instant answer; from then on two either side of its fastest route's count until the
-  // player sets them (lib/limitsFollow.ts, the watch after `suggestedCount`).
+  // Before any instant answer; from then on 3 to one more than its count (the route its box leads with
+  // under Prefer fewer, else the fastest) until the player sets them (lib/limitsFollow.ts, lib/ascRange.ts,
+  // the watch after `suggestedCount`).
   const minPrestiges = ref(DEFAULT_LIMITS.min);
   const maxPrestiges = ref(DEFAULT_LIMITS.max);
   /** Which limits were set on purpose (the inputs, the longer-route hint, a carried-on run's own):
@@ -643,6 +644,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** The player set one of the limits by hand (the Limits box's inputs). */
   function markLimitTouched(which: 'min' | 'max'): void {
     if (!limitsTouched.value[which]) limitsTouched.value = { ...limitsTouched.value, [which]: true };
+  }
+  /** "Use the instant answer's range": both limits follow the instant answer again (while idle). */
+  function followInstantLimits(): void {
+    limitsTouched.value = { min: false, max: false };
   }
   /** Code that sets both limits on purpose (a carry-on, the longer-route hint): they stay put. */
   function setLimits(min: number, max: number): void {
@@ -1131,12 +1136,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const suggestedCount = ref<number | null>(null);
   const suggestedRoute = ref<number[] | null>(null);
+  /**
+   * The count each screen's default ascension range follows (lib/ascRange.ts): the route the instant
+   * answer's box leads with under "Prefer fewer ascensions", else its best (InstantRoute.vue sets it; null
+   * without an answer). Fastest's Limits box reads `fastest` (else `suggestedCount`), By a date's Nearby
+   * routes `date`.
+   */
+  const rangeCount = ref<{ fastest: number | null; date: number | null }>({ fastest: null, date: null });
+  /** What the Limits box follows. */
+  const limitsCount = computed(() => rangeCount.value.fastest ?? suggestedCount.value);
 
   /** Which limits read as the instant answer has them now (the grey hint beside the inputs). */
   const limitsFollowing = computed(() =>
     followingFields(
       { min: minPrestiges.value, max: maxPrestiges.value },
-      suggestedCount.value,
+      limitsCount.value,
       limitsTouched.value
     )
   );
@@ -8882,17 +8896,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /**
    * The Limits box follows the instant answer (Jordan, 14 Oct: Allan's Fast ran inside 5-8 while the
-   * instant answer's best was 4): the fields the player has not set sit two either side of its fastest
-   * route's count (`suggestedCount`, which InstantRoute sets fastest first, by the exact check once in,
-   * under its "At most N ascensions"). Only while nothing runs or is being carried on: a run keeps the
+   * instant answer's best was 4): the fields the player has not set read 3 to one more than its count
+   * (`limitsCount`: the route its box leads with under Prefer fewer, else the fastest, `suggestedCount`,
+   * which InstantRoute sets fastest first, by the exact check once in, under its "At most N ascensions";
+   * Jordan, 22 Oct 2026, it was two either side). Only while nothing runs or is being carried on: a run keeps the
    * limits it started with, and the next idle moment catches up.
    */
   // At the end of the store: `busy` reads refs declared after `suggestedCount`.
   watch(
-    [suggestedCount, busy, limitsTouched],
+    [limitsCount, busy, limitsTouched],
     () => {
       const now = { min: minPrestiges.value, max: maxPrestiges.value };
-      const next = followLimits(now, suggestedCount.value, limitsTouched.value, !busy.value);
+      const next = followLimits(now, limitsCount.value, limitsTouched.value, !busy.value);
       if (next.min !== now.min) minPrestiges.value = next.min;
       if (next.max !== now.max) maxPrestiges.value = next.max;
     },
@@ -8939,6 +8954,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     persistQueue,
     crashedQueue,
     suggestedCount,
+    rangeCount,
+    limitsCount,
     suggestedRoute,
     instantRoutes,
     pricedCounts,
@@ -8976,6 +8993,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pin,
     minPrestiges,
     limitsTouched,
+    followInstantLimits,
     limitsFollowing,
     markLimitTouched,
     setLimits,

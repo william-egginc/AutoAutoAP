@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 
-// The Limits box follows the instant answer's fastest count (lib/limitsFollow.ts) until set on purpose.
+// The Limits box follows the instant answer's count (lib/limitsFollow.ts, lib/ascRange.ts) until set on purpose.
 let mods: { chain: typeof import('./chainSearch') };
 beforeAll(async () => {
   mods = { chain: await import('./chainSearch') };
@@ -16,29 +16,59 @@ function fresh() {
 const limits = (s: ReturnType<typeof fresh>) => [s.minPrestiges, s.maxPrestiges];
 
 describe('the Limits box follows the instant answer', () => {
-  it('5 to 8 before an answer; two either side of its fastest count once in, and again when it changes', async () => {
+  it('5 to 8 before an answer; 3 to one more than its count once in, and again when it changes', async () => {
     const s = fresh();
     expect(limits(s)).toEqual([5, 8]);
     expect(s.limitsFollowing).toEqual({ min: false, max: false });
     s.suggestedCount = 4;
     await nextTick();
-    expect(limits(s)).toEqual([2, 6]);
+    expect(limits(s)).toEqual([3, 5]);
     expect(s.limitsFollowing).toEqual({ min: true, max: true });
     s.suggestedCount = 9;
     await nextTick();
-    expect(limits(s)).toEqual([7, 11]);
+    expect(limits(s)).toEqual([3, 10]);
+  });
+
+  it('follows the count Prefer fewer picked (rangeCount.fastest) over the fastest', async () => {
+    const s = fresh();
+    s.suggestedCount = 6;
+    await nextTick();
+    expect(limits(s)).toEqual([3, 7]);
+    s.rangeCount = { fastest: 4, date: null };
+    await nextTick();
+    expect(limits(s)).toEqual([3, 5]);
+    expect(s.limitsCount).toBe(4);
+    s.rangeCount = { fastest: null, date: null };
+    await nextTick();
+    expect(limits(s)).toEqual([3, 7]);
   });
 
   it('a limit the player set stays; the other keeps following', async () => {
     const s = fresh();
     s.suggestedCount = 6;
     await nextTick();
-    s.minPrestiges = 3;
+    s.minPrestiges = 4;
     s.markLimitTouched('min');
     s.suggestedCount = 8;
     await nextTick();
-    expect(limits(s)).toEqual([3, 10]);
+    expect(limits(s)).toEqual([4, 9]);
     expect(s.limitsFollowing).toEqual({ min: false, max: true });
+  });
+
+  it('"Use the instant answer\'s range" follows again after a hand edit', async () => {
+    const s = fresh();
+    s.suggestedCount = 6;
+    await nextTick();
+    s.maxPrestiges = 11;
+    s.markLimitTouched('max');
+    s.minPrestiges = 2;
+    s.markLimitTouched('min');
+    await nextTick();
+    expect(limits(s)).toEqual([2, 11]);
+    s.followInstantLimits();
+    await nextTick();
+    expect(limits(s)).toEqual([3, 7]);
+    expect(s.limitsTouched).toEqual({ min: false, max: false });
   });
 
   it('code that sets them on purpose (the longer-route hint, a carry-on) stops the follow', async () => {
@@ -58,13 +88,13 @@ describe('the Limits box follows the instant answer', () => {
     expect(limits(s)).toEqual([5, 8]);
     s.isRunning = false;
     await nextTick();
-    expect(limits(s)).toEqual([2, 6]);
+    expect(limits(s)).toEqual([3, 5]);
     s.preparing = true;
     s.suggestedCount = 10;
     await nextTick();
-    expect(limits(s)).toEqual([2, 6]);
+    expect(limits(s)).toEqual([3, 5]);
     s.preparing = false;
     await nextTick();
-    expect(limits(s)).toEqual([8, 12]);
+    expect(limits(s)).toEqual([3, 11]);
   });
 });
