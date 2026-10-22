@@ -8,13 +8,13 @@ import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { consentAgreed, resetConsents, setConsent, setConsentAccount } from '@/composables/useConsent';
 import { answerNo, answerYes, closeThanks, resetStudy, useForThisAccount, withdrawStudy } from '@/composables/useStudy';
-import { DEFAULT_TICKS } from '@/lib/study';
 import { useShareNameStore } from '@/stores/shareName';
 import StudyBox from './StudyBox.vue';
 import StudySetup from './auto/StudySetup.vue';
 
 const A = 'EI1234567890123456';
 const B = 'EI0000000000000000';
+const ALL_ON = { share: true, csv: true, diag: true, checks: true }; // every tick (the box now opens with none)
 
 function mem() {
   const map = new Map<string, string>();
@@ -56,7 +56,7 @@ describe('the box', () => {
     expect(textOf(await box())).toBe('');
   });
 
-  it('says what is sent, with every tick on and the credit choice', async () => {
+  it('says what is sent, with every tick OFF (opt in) and the credit choice', async () => {
     await setConsentAccount(A);
     const html = await box();
     const t = textOf(html);
@@ -71,13 +71,22 @@ describe('the box', () => {
       'Keep sharing my checks (private, anonymous)',
     ])
       expect(t).toContain(words);
-    for (const k of ['share', 'csv', 'diag', 'checks'])
-      expect(html).toMatch(new RegExp(`<input[^>]*checked[^>]*data-testid="study-tick-${k}"`));
+    for (const k of ['share', 'csv', 'diag', 'checks']) {
+      const input = html.match(new RegExp(`<input[^>]*data-testid="study-tick-${k}"[^>]*>`))?.[0] ?? '';
+      expect(input).not.toBe('');
+      expect(input).not.toMatch(/\bchecked\b/);
+    }
     expect(t).toContain('Credit me as');
     expect(t).toContain('Stay anonymous');
     expect(t).toContain('Yes, help improve it');
     expect(t).toContain('No thanks');
-    expect(t).toContain('Anything you untick stays off; you can turn it on later in Setup.');
+    expect(t).toContain(
+      'Tick what you are happy to share; anything you leave unticked stays off. You can change it any time in Setup.'
+    );
+    expect(t).not.toContain('Anything you untick');
+    // Nothing ticked: Yes waits for a tick, and says so.
+    expect(html).toMatch(/<button[^>]*disabled[^>]*data-testid="study-yes"/);
+    expect(t).toContain('Tick at least one to say yes, or press No thanks.');
     expect(html).not.toMatch(/EI\d{16}/);
   });
 
@@ -101,7 +110,7 @@ describe('the box', () => {
 
   it('is gone once answered: Yes leaves a thank-you for this visit, No thanks nothing', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     let t = textOf(await box());
     expect(t).not.toContain('Yes, help improve it');
     expect(t).toContain(
@@ -117,7 +126,7 @@ describe('the box', () => {
 
   it('another account after a yes: the strip, not the box, until it is answered', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     closeThanks();
     await setConsentAccount(B);
     const t = textOf(await box());
@@ -136,7 +145,7 @@ describe('another account in the same visit (no reload)', () => {
   it('A says yes, then B is loaded: the strip, B’s choices untouched, and Setup says not for this account yet', async () => {
     await setConsentAccount(A);
     expect(textOf(await box())).toContain('Yes, help improve it');
-    answerYes({ ...DEFAULT_TICKS }, 'name', 'Williamthe5thc');
+    answerYes({ ...ALL_ON }, 'name', 'Williamthe5thc');
     expect(textOf(await setup())).toContain('You said yes on');
     // The header's Load with another ID: the same visit, the same modules.
     await setConsentAccount(B);
@@ -176,7 +185,7 @@ describe('Setup › Help improve the planner', () => {
 
   it('yes: what is on, read live, with Change and Withdraw', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS, checks: false }, 'name', 'Williamthe5thc');
+    answerYes({ ...ALL_ON, checks: false }, 'name', 'Williamthe5thc');
     let t = textOf(await setup());
     expect(t).toMatch(
       /You said yes on .+ for this account: runs shared · CSV on · diagnostics on · checks not shared · credited as Williamthe5thc\./
@@ -195,24 +204,48 @@ describe('Setup › Help improve the planner', () => {
 
   it('yes in this browser, another account: Use for this account', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     await setConsentAccount(B);
     const t = textOf(await setup());
     expect(t).toContain('You said yes in this browser, but not for this account yet.');
     expect(t).toContain('Use for this account');
   });
 
-  it('no thanks and withdrawn: what that means, and Change', async () => {
+  it('no thanks and withdrawn: the account’s real consents right now, and Change', async () => {
     await setConsentAccount(A);
     answerNo();
     let t = textOf(await setup());
-    expect(t).toContain('You said no thanks. Nothing is shared unless you agree under a share button.');
+    expect(t).toContain(
+      'You said no thanks. For this account right now: runs not shared · CSV on · diagnostics off · checks not shared · anonymous.'
+    );
+    expect(t).not.toContain('Nothing is shared unless');
     expect(t).toContain('Change');
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    expect(t).not.toContain('Withdraw');
+    // Agreed under a share button after No thanks: Setup says so, and offers Withdraw.
+    setConsent('keepSharingChecks', true);
+    t = textOf(await setup());
+    expect(t).toContain('You said no thanks. For this account right now: runs not shared · CSV on · diagnostics off · checks shared');
+    expect(t).toContain('Withdraw');
+    expect(t).toContain(
+      'Withdraw stops what this browser would send for this account from now on; other accounts keep their own choices and what was already sent stays.'
+    );
+    answerYes({ ...ALL_ON }, 'anon', '');
     withdrawStudy();
     t = textOf(await setup());
-    expect(t).toMatch(/Withdrawn on .+: nothing is shared from this browser’s accounts until you agree again\./);
+    expect(t).toMatch(
+      /Withdrawn on [^.]+\. For this account right now: runs not shared · CSV on · diagnostics off · checks not shared · anonymous\./
+    );
+    expect(t).not.toContain('nothing is shared from this browser');
     expect(t).toContain('Change');
+  });
+
+  it('the Withdraw line does not overstate (21 Oct 2026 words)', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...ALL_ON }, 'anon', '');
+    const t = textOf(await setup());
+    expect(t).toContain(
+      'Withdraw stops what this browser would send for this account from now on; other accounts keep their own choices and what was already sent stays.'
+    );
   });
 });
 
@@ -238,9 +271,18 @@ describe('wiring', () => {
   it('About › What is sent says what the box does', () => {
     const about = read('../../public/about.html').replace(/\s+/g, ' ');
     expect(about).toContain('<b>Help improve the planner</b>, the box under the tabs, asks once in each browser.');
+    expect(about).toContain('Every choice in it starts unticked. Its Yes turns on the choices you tick');
     expect(about).toContain(
-      'for the account on screen only; anything you untick stays off, and you can turn it on later in Setup.'
+      'for the account on screen only; anything you leave unticked stays off, and you can turn it on later in Setup.'
     );
+  });
+
+  it('Yes is disabled until at least one tick is on, and then says nothing more', () => {
+    const f = read('./StudyForm.vue');
+    expect(f).toContain(':disabled="!canSayYes"');
+    expect(f).toContain('const canSayYes = computed(() => anyTick(ticks));');
+    expect(f).toMatch(/<p v-if="!canSayYes"[^>]*>\s*Tick at least one to say yes, or press No thanks\.\s*<\/p>/);
+    expect(f).toContain('if (!canSayYes.value) return;');
   });
 
   it('Setup has its section before Sharing, with a collector', () => {
