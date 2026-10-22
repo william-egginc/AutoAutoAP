@@ -195,7 +195,7 @@ describe('Setup › Help improve the planner', () => {
     answerYes({ ...ALL_ON, checks: false }, 'name', 'Williamthe5thc');
     let t = textOf(await setup());
     expect(t).toMatch(
-      /You said yes on .+ for this account: runs shared · CSV on · diagnostics on · checks not shared · credited as Williamthe5thc\./
+      /You said yes on .+ for this account: runs shared · CSV only with a share · diagnostics on · checks not shared · credited as Williamthe5thc\./
     );
     expect(t).toContain('Change');
     expect(t).toContain('Withdraw');
@@ -223,7 +223,7 @@ describe('Setup › Help improve the planner', () => {
     answerNo();
     let t = textOf(await setup());
     expect(t).toContain(
-      'You said no thanks. For this account right now: runs not shared · CSV on · diagnostics off · checks not shared · anonymous.'
+      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks not shared · anonymous.'
     );
     expect(t).not.toContain('Nothing is shared unless');
     expect(t).toContain('Change');
@@ -232,7 +232,7 @@ describe('Setup › Help improve the planner', () => {
     setConsent('keepSharingChecks', true);
     t = textOf(await setup());
     expect(t).toContain(
-      'You said no thanks. For this account right now: runs not shared · CSV on · diagnostics off · checks shared'
+      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks shared'
     );
     expect(t).toContain('Withdraw');
     expect(t).toContain(WITHDRAW_LINE);
@@ -240,10 +240,20 @@ describe('Setup › Help improve the planner', () => {
     withdrawStudy();
     t = textOf(await setup());
     expect(t).toMatch(
-      /Withdrawn on [^.]+\. For this account right now: runs not shared · CSV on · diagnostics off · checks not shared · anonymous\./
+      /Withdrawn on [^.]+\. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks not shared · anonymous\./
     );
     expect(t).not.toContain('nothing is shared from this browser');
     expect(t).toContain('Change');
+  });
+
+  it('the CSV item never reads as "we send your CSV": only with a share, or off', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...ALL_ON }, 'anon', '');
+    expect(textOf(await setup())).toContain('runs shared · CSV only with a share · diagnostics on');
+    setConsent('sendCsv', false);
+    const t = textOf(await setup());
+    expect(t).toContain('runs shared · CSV off · diagnostics on');
+    expect(t).not.toContain('CSV on');
   });
 
   it('a name or anonymous choice changed in another tab shows here at once', async () => {

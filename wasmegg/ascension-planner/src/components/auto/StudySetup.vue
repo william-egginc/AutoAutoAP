@@ -187,7 +187,8 @@ const liveTick = (k: keyof StudyTicks): boolean => consentAgreed(TICK_CONSENT[k]
 /** "runs shared" / "runs not shared", and so on: what the status line says for each. */
 const WORDS: Record<keyof StudyTicks, [string, string]> = {
   share: ['runs shared', 'runs not shared'],
-  csv: ['CSV on', 'CSV off'],
+  // Not "CSV on": the CSV only ever goes with a share (Jordan, 22 Oct 2026), so the line can't read as "we send it".
+  csv: ['CSV only with a share', 'CSV off'],
   diag: ['diagnostics on', 'diagnostics off'],
   checks: ['checks shared', 'checks not shared'],
 };
