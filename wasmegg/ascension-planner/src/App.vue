@@ -30,6 +30,15 @@
       >
         This browser is blocking site storage, so your settings and plans won’t be remembered after you leave.
       </p>
+      <!-- A save with a hab, vehicle or research level newer than this planner's data (lib/saveGuard.ts). -->
+      <p
+        v-if="initialStateStore.saveNote"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        role="status"
+        data-testid="save-note"
+      >
+        {{ initialStateStore.saveNote }}
+      </p>
       <!-- A blocked account says so the moment its save loads, not after the form is filled in. -->
       <IntegrityAlert />
       <!-- Starting a box above 100,000 routes asks first (search/bigBox.ts): one dialog for every start. -->

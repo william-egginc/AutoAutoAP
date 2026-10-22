@@ -29,7 +29,8 @@ import { calculateEffectiveLayRate } from '@/calculations/effectiveLayRate';
 import { calculateHabCapacity_Full } from '@/calculations/habCapacity';
 import { getArtifact, getStone, artifactOptions } from './data';
 import { InventoryItem } from 'lib/artifacts';
-import { VehicleSlot } from '@/types';
+import { VehicleSlot, type CurrentFarmState } from '@/types';
+import { guardEpicLevels, guardFarm } from '@/lib/saveGuard';
 import { DEBUG_ELR_STRUCTURE_CACHE, DEBUG_ELR_STRUCTURE_VERIFY } from '@/lib/debugFlags';
 
 // ---------------------------------------------------------------------------------------------
@@ -404,9 +405,12 @@ export function getOptimalELRSet(backup: ei.IBackup, options: OptimalELRSetOptio
 
   const epicResearchLevels: Record<string, number> = options.epicResearchLevels ?? {};
   if (!options.epicResearchLevels) {
+    const saved: Record<string, unknown> = {};
     for (const r of backup.game?.epicResearch || []) {
-      if (r.id) epicResearchLevels[r.id] = r.level || 0;
+      if (r.id) saved[r.id] = r.level || 0;
     }
+    // Held to each research's max: a level past it gave "Clothed TE NaN" (lib/saveGuard.ts).
+    Object.assign(epicResearchLevels, guardEpicLevels(saved));
   }
 
   // Current farm habs/vehicles, used only when not assuming maxed ones. A backup with no farm
@@ -423,6 +427,12 @@ export function getOptimalELRSet(backup: ei.IBackup, options: OptimalELRSetOptio
   } else if (!assumeMax) {
     const trainLengths = farm.trainLength || [];
     vehicles = (farm.vehicles || []).map((type, i) => ({ vehicleId: type, trainLength: trainLengths[i] || 1 }));
+  }
+  // Habs and vehicles newer than this planner's data are held to the last known (lib/saveGuard.ts).
+  if (habIds || vehicles) {
+    const held = guardFarm({ habs: habIds ?? [], vehicles: vehicles ?? [], commonResearches: {} } as unknown as CurrentFarmState);
+    if (habIds) habIds = held.habs;
+    if (vehicles) vehicles = held.vehicles;
   }
 
   const result = getOptimalELRSetFromPool(buildDeliveryPoolFromBackup(backup), {
