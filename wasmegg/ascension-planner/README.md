@@ -13,6 +13,7 @@ with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 24
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
 - **Prefer fewer ascensions** and **Try waiting before each prestige**: two options on the instant answer.
 - **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
+  Both are off until you tick them in Setup.
 
 Everything runs in your browser. The live site is <https://egg.williamstest.fyi/>. The
 [wiki](https://github.com/william-egginc/AutoAutoAP/wiki) explains each part in detail, for players
@@ -27,9 +28,22 @@ and for developers. The maintainer is Williamthe5thc (Discord).
 
 ## Screens at a glance
 
-- **Manual Planner**: plan an ascension by hand, action by action (upstream's planner).
+The tabs are **Manual Planner**, **Auto Planner** and **My runs**. **Leaderboard** and **Science** are off
+until you tick them in Setup › How the site shows things (kept in this browser). A link to one of them still
+opens it, for that visit. Both need the collector: a build without one never shows them.
+
+Above the tabs, once a save is loaded (and only in a build with a collector), the **Help improve the
+planner** box asks once per browser whether to turn on the site's sharing choices (share runs on the
+leaderboard, the CSV, private diagnostics, keep sharing checks). Each choice can be unticked before Yes. The
+answer is kept in this browser (`aap.study`, no player ID and no name); Yes or No thanks hides the box, and
+the choices change later in Setup › Help improve the planner. Yes applies to the account on screen only;
+another account loaded later gets a one-line offer to use the same choices.
+
+- **Manual Planner**: plan an ascension by hand, action by action (upstream's planner). **Wait for TE** stops
+  at 98 TE per egg.
 - **Auto Planner**
   - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
+    Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
   - **Fastest to 490 TE** (the name follows your final target): the instant answer and Check exactly
     on top, then two tabs, **Nearby routes** (with the Stronger check levels) and **Exhaustive**.
     **Prefer fewer ascensions** (off by default; within 12 h, 1 day, 2 days or custom) leads the green box
@@ -41,8 +55,11 @@ and for developers. The maintainer is Williamthe5thc (Discord).
     minutes in all. A suggested Exhaustive box stays under 20,000 sets of early stops; a typed one is not capped.
   - Exhaustive above 300,000 routes shows a note (about how many hours; the command line); Start asks first
     above 100,000 routes, and again above 500,000 (Science sweeps too).
-- **Leaderboard** (was Compare): Egg Day, Race, All runs, By a date, and **Insights** (charts across everybody's
-  runs; also the standalone `explorer.html`). Its Your latest run tab is one line pointing to My runs now.
+- **Leaderboard** (was Compare, off until ticked in Setup): Egg Day, Race, All runs, By a date, and **Insights**
+  (charts across everybody's runs; also the standalone `explorer.html`). Its Your latest run tab is one line
+  pointing to My runs now. A **sim** chip beside each run says which simulator priced it, since finish times
+  from two simulators do not compare exactly. **Show runs from older simulators** (on by default, kept in this
+  browser) hides the older ones when turned off.
 - **My runs** (a top tab, and the Auto Planner's fourth tab: the same page): the "where am I now" page. A save-age strip;
   **Right now** (your plan's next shifts with dates and calendar reminders built in the browser: an .ics file or a
   Google link, with a 10-minute alert; its gear rows fold out **Missing for a perfect set**, slot by slot against
@@ -50,8 +67,11 @@ and for developers. The maintainer is Williamthe5thc (Discord).
   Low); **Try next**; **Your routes at a glance** (your routes as points, one goal at a time, folded); then **Your
   runs** (Latest or All, with filters): runs on the board that are yours or look like yours, the hidden ones too,
   runs saved on this computer or phone, and results not sent yet. Each run's details say **What was searched**.
+  Saved runs, saved answers and Right now's chip say how many hours ahead of or behind the plan your latest
+  save is: "On schedule (within an hour)", or "5 hours behind, as of 3:42 pm" (days from 48 hours).
   "Dig deeper into your plan ›" opens it. `#/compare/mine` lands here.
-- **Science**: **How it works** (the default), **What we need to check**, **Submit a sweep** and
+- **Science** (off until ticked in Setup): **How it works** (the default), **What we need to check**,
+  **Submit a sweep** and
   **When should I start?** (only before you are on virtue: hidden once your save has a virtue farm)
 
 The addresses are hash routes (`#/auto/fastest`, `#/auto/fastest/full`, `#/compare/race`, ...), and old
@@ -70,6 +90,9 @@ no instant answer; big boxes ask first; faster searches, By a date's Nearby rout
 leg's build up to C3 is now shared by every last stop tried from one start: 171 s to 49 s on one measured
 Egg Day run); no edge warning for an edge Widen and run again can't move; a stopping search says it is
 finishing the routes already started (up to about a minute); and the My runs chart.
+Release 5, in short: Joo's latest planner (his artifact and stone editor, the opening switch, fewer empty
+shifts); the Help improve the planner box; hours ahead or behind on My runs; simulator chips and Show runs
+from older simulators on the Leaderboard; Leaderboard and Science off until ticked in Setup.
 
 ---
 
@@ -79,8 +102,13 @@ Single run (formerly Your plan, formerly Classic) is Joo's Auto Ascension Planne
 (`src/auto`, `src/engine`), the shifts, the generator, the cards, the plan library, export and import are
 his. Our branch adds the shared **Your setup** dock; a plan start never before the save; **Finish without
 buying** and **Prestige now** for the first ascension; **Time off** windows; **Simulate this plan** from
-the searches; and the low-TE gate (below TE 120, Joo's C1/K1/I1 rounds from his PR 717, until it merges).
-It does **not** plan around awake hours or Continue my build-up, and does not find stops for you. Full list:
+the searches; and the opening switch (`lowTeOpening.ts`). Since 21 Oct 2026 the branch carries Joo's planner
+up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with I1 capped at 4 hours, and
+when that pass can't max the habs, the build takes the C1/K1/I1 rounds from his PR 717 (our default,
+`DEFAULT_OPENING_FALLBACK = 'rounds'`) or his v2 openings (`'v2'`), at any TE. This replaced our earlier
+rule, which used the rounds only below TE 120. Joo's Chain Finder and Table Builder tabs were left out of
+this merge, so this site does not have them. It does **not** plan around awake hours or Continue my
+build-up, and does not find stops for you. Full list:
 [Single run vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
 
 ---
@@ -317,7 +345,8 @@ Paths are relative to this folder. The full module map is on
 [Architecture](https://github.com/william-egginc/AutoAutoAP/wiki/Architecture).
 
 - `src/auto/`, `src/engine/`: Joo's simulator. Keep edits minimal and marked; any change can move
-  results. Our hooks: `hold.ts` (your hours), `buildUp.ts`, `lowTeOpening.ts` (the low-TE gate).
+  results. Our hooks: `hold.ts` (your hours), `buildUp.ts`, `lowTeOpening.ts` (the opening switch: PR 717's
+  rounds, our default, or Joo's v2 openings, when one C1/K1/I1 pass can't max the habs).
 - `src/search/`: our layer: the route finder, Check exactly, the searches (`driver.ts`, `effort.ts`,
   `exhaustive.ts`, `deadline.ts`), `preferFewer.ts`, `delays.ts` (waits), `bigBox.ts`, `autoWiden.ts`
   (the quick estimate), `searched.ts`, the CSV, sending and the sim-version guard.
