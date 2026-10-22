@@ -138,8 +138,39 @@ export function parsePlanFile(jsonString: string): any {
   return data;
 }
 
+/**
+ * A plan from a file with its results dropped, so it is recalculated rather than trusted (red team 21 Oct
+ * 2026, data-inputs #7: a file's last `endState.te` of 99999 showed "TE GAINED +-9972"). Own saves (the
+ * library's, the draft) keep theirs; a file never does. Returns the same object, changed.
+ */
+export function dropFileResults<T>(data: T): T {
+  const actions = (data as { actions?: unknown } | null)?.actions;
+  if (Array.isArray(actions)) for (const a of actions) if (a && typeof a === 'object') delete (a as { endState?: unknown }).endState;
+  return data;
+}
+
+/** Per-egg TE (or eggs delivered) from a file: finite, whole and within 0..max, egg by egg. */
+function clampPerEgg(v: unknown, max: number): Record<string, number> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [egg, n] of Object.entries(v as Record<string, unknown>)) {
+    if (egg === '__proto__' || egg === 'constructor' || egg === 'prototype') continue;
+    out[egg] = max === Infinity ? (typeof n === 'number' && isFinite(n) && n >= 0 ? n : 0) : clampTECount(n, max, 0);
+  }
+  return out;
+}
+
 export function importPlanLogic(jsonString: string) {
   const data = parsePlanFile(jsonString);
+  // TE from a file is held to what the game allows (0..98 per egg), as everywhere else.
+  if (data.initialState.initialTeEarned) data.initialState.initialTeEarned = clampPerEgg(data.initialState.initialTeEarned, MAX_TE);
+  if (data.initialState.initialEggsDelivered)
+    data.initialState.initialEggsDelivered = clampPerEgg(data.initialState.initialEggsDelivered, Infinity);
+  if (data.truthEggsState && typeof data.truthEggsState === 'object') {
+    if (data.truthEggsState.teEarned) data.truthEggsState.teEarned = clampPerEgg(data.truthEggsState.teEarned, MAX_TE);
+    if (data.truthEggsState.eggsDelivered)
+      data.truthEggsState.eggsDelivered = clampPerEgg(data.truthEggsState.eggsDelivered, Infinity);
+  }
 
   const initialStateStore = useInitialStateStore();
   const virtueStore = useVirtueStore();

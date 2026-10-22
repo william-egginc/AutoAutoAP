@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue';
 import { useActionsStore } from '@/stores/actions';
+import { dropFileResults } from '@/stores/actions/io';
 import { usePersistence } from '@/composables/usePersistence';
 import { loadLibraryPlans, deletePlanFromLibrary, savePlanToLibrary, type PlanData } from '@/lib/storage/db';
 import { downloadFile } from '@/utils/export';
@@ -422,6 +423,9 @@ async function handleImport(event: Event) {
       } else {
         throw new Error('Unrecognized file format');
       }
+
+      // Results in a file are recalculated when the plan is opened, never trusted (io.ts `dropFileResults`).
+      for (const p of plansToImport) dropFileResults(p.data);
 
       // Track the current library names (live, updated as we add)
       const existingNames = plans.value.map(p => p.name);

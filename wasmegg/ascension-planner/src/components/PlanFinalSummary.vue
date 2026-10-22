@@ -215,7 +215,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useActionsStore } from '@/stores/actions';
-import { PlanImportError } from '@/stores/actions/io';
+import { PlanImportError, dropFileResults, parsePlanFile } from '@/stores/actions/io';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useVirtueStore } from '@/stores/virtue';
 
@@ -423,7 +423,8 @@ function handleImport(event: Event) {
         }
       }
 
-      await actionsStore.importPlan(jsonString);
+      // A file's results are recalculated, never trusted (io.ts `dropFileResults`).
+      await actionsStore.importPlan(JSON.stringify(dropFileResults(parsePlanFile(jsonString))));
     } catch (error) {
       console.error(error);
       // importPlan is all or nothing: the plan on screen was kept.
