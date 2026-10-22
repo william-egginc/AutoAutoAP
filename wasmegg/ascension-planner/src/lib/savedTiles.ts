@@ -23,6 +23,11 @@
  * setup now (hours and time off) leads one priced with other hours even when that finishes sooner, and on a tie the
  * kept snapshot (Right now's plan) leads. A better answer priced with other hours is the tile's `secondary`.
  *
+ * The Egg Day rule (lib/eggDayRule.ts, Jordan 22 Oct 2026): only an answer whose last TE counts before Egg Day starts
+ * can head the Egg Day tile, whatever a later one reaches. Late answers (a board row past the date, a snapshot or a
+ * Check exactly entry whose exact check found no route in time) are kept only for `Tile.late`: "No route finishes
+ * before Egg Day starts. The nearest is N hours after."
+ *
  * A board row's save time is worked out (its plan start less its rounded save age), and a run started from a save
  * a few minutes older than the one loaded used to fall outside the 10-minute "same save" window: the 311 lost to
  * the loaded save's 310. Such an answer now competes, and the tile says which save it was (`saveGapSeconds`:
@@ -33,7 +38,6 @@ import {
   deadlineSpare,
   finishMs,
   isDeadlineRow,
-  madeDeadline,
   sentMs,
   startMs,
   type BoardRow,
@@ -53,6 +57,7 @@ import {
   type SetupCheck,
 } from './currentAnswer';
 import type { CheckEntry } from '@/search/checkHistory';
+import { lateRoutes, nearestLate, onTimeRoutes } from './eggDayRule';
 
 /** Two save times this close are the same save (the agreeing search for How sure is looked for among these); an
  *  answer from a save at most CURRENT_SAVE_SECONDS older is current (fix 21). Both live in lib/currentAnswer.ts. */
@@ -66,6 +71,9 @@ export interface TileAnswer {
   chain: number[];
   /** Fastest: when it reaches the target. By a date: when the last stop is reached. Unix seconds. */
   end: number;
+  /** By a date: when its last TE counts, for lib/eggDayRule.ts (the ascension at the last stop; its time on the
+   *  account when Check exactly found it late; Infinity when it is known to miss, untimed). Absent: `end`. */
+  finish?: number;
   endTE: number;
   /** By a date. */
   spareHours: number | null;
@@ -110,7 +118,14 @@ export interface Tile {
   /** A better answer of this save priced with other hours or time off than Your setup now, shown under the lead
    *  with `secondaryLabel` ("with any hour (before your hours changed)"); null when none beats the lead. */
   secondary?: TileAnswer | null;
+  /** By a date (Egg Day too): no answer in time, but answers that land after the date are kept (lib/eggDayRule.ts).
+   *  They are never the tile's answer: the tile says "No route finishes before Egg Day starts. The nearest is N hours
+   *  after." with the nearest (`answer`, null when none is timed). Null otherwise. */
+  late?: { answer: TileAnswer | null; seconds: number | null; count: number } | null;
 }
+
+/** When a tile answer's last TE counts (lib/eggDayRule.ts). */
+export const answerFinish = (a: Pick<TileAnswer, 'end' | 'finish'>): number => a.finish ?? a.end;
 
 /** "with any hour (before your hours changed)", "with other hours": the secondary answer's label. */
 export function secondaryLabel(a: TileAnswer): string {
@@ -184,6 +199,7 @@ function candidates(i: TileInput): TileAnswer[] {
   const fromSnap = (s: NowPlan, own: boolean, setup: SetupCheck | undefined): TileAnswer => ({
     chain: s.chain,
     end: s.end,
+    ...(s.accountEnd !== undefined ? { finish: s.accountEnd } : {}),
     endTE: s.endTE,
     spareHours: s.spareHours,
     calculatedAt: s.calculatedAt,
@@ -225,6 +241,8 @@ function candidates(i: TileInput): TileAnswer[] {
     out.push({
       chain: a.chain,
       end: a.end,
+      // By a date a finished check with no exact answer found no route in time: the instant route misses (untimed).
+      ...(i.goal === 'date' && !e.exact ? { finish: Infinity } : {}),
       endTE: a.endTE ?? a.chain[a.chain.length - 1],
       spareHours: typeof a.spareHours === 'number' ? a.spareHours : i.goal === 'date' && i.deadline ? (i.deadline - a.end) / 3600 : null,
       calculatedAt: e.at,
@@ -240,7 +258,8 @@ function candidates(i: TileInput): TileAnswer[] {
   for (const r of i.board ?? []) {
     if (r.hidden && !r.yours) continue;
     const isDate = isDeadlineRow(r);
-    if (i.goal === 'date' ? !isDate || r.deadline !== i.deadline || !madeDeadline(r) : isDate || r.finalTE !== i.target) continue;
+    // A row that lands after its date stays a candidate: buildTile keeps it out of the pick (lib/eggDayRule.ts).
+    if (i.goal === 'date' ? !isDate || r.deadline !== i.deadline : isDate || r.finalTE !== i.target) continue;
     const at = sentMs(r);
     const end = isDate ? (deadlineAscendMs(r) ?? 0) / 1000 : (finishMs(r) ?? 0) / 1000;
     if (!at || !end) continue;
@@ -269,6 +288,8 @@ function candidates(i: TileInput): TileAnswer[] {
       out.push({
         chain: a.route.chain,
         end: a.route.reachAt,
+        // Its ascension at the last stop (`spare` is counted from it).
+        finish: a.deadline - a.route.spare,
         endTE: a.route.chain[a.route.chain.length - 1],
         spareHours: a.route.spare / 3600,
         calculatedAt: a.savedAt,
@@ -286,7 +307,11 @@ function candidates(i: TileInput): TileAnswer[] {
 }
 
 export function buildTile(i: TileInput): Tile {
-  const all = candidates(i);
+  const every = candidates(i);
+  // By a date (Egg Day too) only answers in time compete (lib/eggDayRule.ts); late ones are only "the nearest".
+  const deadline = i.goal === 'date' ? i.deadline : null;
+  const all = deadline == null ? every : onTimeRoutes(every, answerFinish, deadline);
+  const late = deadline == null ? [] : lateRoutes(every, answerFinish, deadline);
   const saveNow = i.save?.seconds ?? null;
   const ownKey = (a: TileAnswer) => !!a.ownKey;
   const sameSave = (a: TileAnswer) =>
@@ -300,7 +325,17 @@ export function buildTile(i: TileInput): Tile {
     all.map(a => ({ ...rankOf(a, current(a)), a })),
     i.goal
   );
-  if (!pick) return { goal: i.goal, answer: null, olderSave: false, saveGapSeconds: null, sure: null };
+  if (!pick) {
+    const near = late.length ? nearestLate(late, answerFinish, deadline as number) : null;
+    return {
+      goal: i.goal,
+      answer: null,
+      olderSave: false,
+      saveGapSeconds: null,
+      sure: null,
+      ...(late.length ? { late: { answer: near?.item ?? null, seconds: near?.seconds ?? null, count: late.length } } : {}),
+    };
+  }
   return finish(i, pick.a, secondary?.a ?? null, { current, ownKey, here, saveNow });
 }
 

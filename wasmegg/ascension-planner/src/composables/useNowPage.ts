@@ -40,6 +40,7 @@ import { GEAR_RULE } from '@/search/tableGear';
 import { getSimulationContext } from '@/engine/adapter';
 import { saveOnVirtue } from '@/lib/onVirtue';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
+import { finishesBefore } from '@/lib/eggDayRule';
 import { calculateClothedTEForSet } from '@/lib/artifacts/virtue';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { BoardRow } from '@/lib/leaderboardRank';
@@ -65,6 +66,7 @@ import { buildTile, type SavedDateAnswer, type Tile } from '@/lib/savedTiles';
 import {
   currentSetup,
   otherSetupLabel,
+  planFinish,
   pricedWithWords,
   setupCheck,
   todayIn,
@@ -475,7 +477,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         price: 'exact',
         source: price.source,
         pricedSave: p.meta?.backupTime ?? null,
-        ...(g.deadline && p.end > g.deadline ? { missesDate: true } : {}),
+        ...(g.deadline && !finishesBefore(planFinish(p), g.deadline) ? { missesDate: true } : {}),
       };
       return {
         card,
@@ -500,7 +502,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           source: 'history',
           pricedSave: price.backupTime,
           finish: { end: price.end, endTE: price.endTE, at: price.at },
-          ...(g.deadline && price.end > g.deadline ? { missesDate: true } : {}),
+          ...(g.deadline && !finishesBefore(price.end, g.deadline) ? { missesDate: true } : {}),
         },
         plan: null,
       };

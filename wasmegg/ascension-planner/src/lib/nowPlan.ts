@@ -77,6 +77,10 @@ export interface NowPlan {
   planStart: number | null;
   /** By a date: hours between the last stop and the deadline. */
   spareHours: number | null;
+  /** By a date, the table's route kept when Check exactly found NO route in time on the account: when that route
+   *  lands there (unix seconds; Infinity when it wasn't timed). lib/eggDayRule.ts then counts the plan as late.
+   *  Absent otherwise. */
+  accountEnd?: number;
   /** How far behind the next-best route is, hours; Infinity when every other route makes less TE (By a date);
    *  null when there is no other to compare. */
   runnerUpHours: number | null;
@@ -175,6 +179,13 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
     (r): r is SnapRoute => !!r && key(r.chain) !== key(table.chain)
   );
   const sameTE = others.filter(r => lastTE(r) >= lastTE(table)).sort((a, b) => a.end - b.end);
+  // Check exactly ran (a row per count) and every count missed the date (null): the table's route is late on the
+  // account, at its own exact price when it has one.
+  const byK = Object.values(snap.dateExactByK ?? {});
+  const missed = byK.length > 0 && byK.every(d => d == null);
+  const priced = exactOf(table.chain);
+  const timed = priced && Number.isFinite(priced.end) && deadline != null && priced.end > deadline;
+  const accountEnd = missed ? (timed ? priced.end : Infinity) : undefined;
   return {
     goal,
     deadline,
@@ -186,6 +197,7 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
     exact: false,
     instantTE: lastTE(table),
     spareHours: spare(table.end),
+    ...(accountEnd !== undefined ? { accountEnd } : {}),
     runnerUpHours: sameTE.length ? Math.max(0, (sameTE[0].end - table.end) / 3600) : others.length ? Infinity : null,
     runnerUp: sameTE.length ? { chain: [...sameTE[0].chain], end: sameTE[0].end, endTE: lastTE(sameTE[0]) } : null,
     ...common,
