@@ -10,7 +10,7 @@
  * here is the bookkeeping, not the simulation.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createChainSearchPool, type PoolFault } from './pool';
+import { createChainSearchPool, WorkerLostError, type PoolFault } from './pool';
 import type { SearchInputs } from './types';
 import type { WorkerRequest, WorkerResponse } from '@/workers/chainSearch.protocol';
 
@@ -31,6 +31,7 @@ vi.mock('./batch', () => ({
 class FakeWorker {
   onmessage: ((e: MessageEvent<WorkerResponse>) => void) | null = null;
   onerror: ((e: ErrorEvent) => void) | null = null;
+  onmessageerror: ((e: MessageEvent) => void) | null = null;
   terminated = false;
   static instances: FakeWorker[] = [];
   /** 'ok' replies; 'silent' answers init then never speaks again; 'heartbeat' only heartbeats. */
@@ -627,6 +628,102 @@ describe('worker faults reach the diagnostics (12 Oct)', () => {
       { kind: 'crash', worker: 0, message: '', pending: 0 },
       { kind: 'crash', worker: 0, message: 'Out of memory at w.js:3', pending: 0 },
     ]);
+    pool.terminate();
+  });
+});
+
+/**
+ * A worker killed from outside (red team 21 Oct 2026, data-inputs #5, `worker.terminate()` on a live
+ * run): no event fires, so the run froze and Stop & keep best counted "Stopping... 120 s" for good.
+ */
+describe('a worker that is gone', () => {
+  /** Real thresholds (ten minutes), the injected clock. */
+  function realPool() {
+    return createChainSearchPool(INPUTS, { spawn: () => new FakeWorker() as unknown as Worker, now });
+  }
+  async function settleWithin(promise: Promise<unknown>, ms: number, stepMs: number): Promise<unknown> {
+    let out: unknown = 'pending';
+    promise.then(
+      () => (out = 'resolved'),
+      (e: unknown) => (out = e)
+    );
+    for (let t = 0; t < ms && out === 'pending'; t += stepMs) {
+      clock += stepMs;
+      await vi.advanceTimersByTimeAsync(stepMs);
+    }
+    return out;
+  }
+
+  it('once Stop is pressed (hurry), a silent worker is let go within a minute, as WorkerLostError', async () => {
+    const pool = await realPool();
+    const promise = pool.evaluate([
+      [195, 490],
+      [196, 490],
+    ]);
+    FakeWorker.instances[1].mode = 'silent';
+    await vi.advanceTimersByTimeAsync(0);
+    // Without hurry, two minutes of silence is still "busy" under the ten-minute bound.
+    expect(await settleWithin(promise, 120_000, 5_000)).toBe('pending');
+    pool.hurry!();
+    const out = await settleWithin(promise, 60_000, 5_000);
+    expect(out).toBeInstanceOf(WorkerLostError);
+    expect(String(out)).toMatch(/stopped responding/);
+    pool.terminate();
+  });
+
+  it('hurry never fails a worker that is heartbeating', async () => {
+    const pool = await realPool();
+    pool.hurry!();
+    const promise = pool.evaluate([[195, 490]]);
+    FakeWorker.instances[0].mode = 'hold';
+    await vi.advanceTimersByTimeAsync(0);
+    for (let i = 0; i < 20; i++) {
+      clock += 20_000;
+      await vi.advanceTimersByTimeAsync(5_000);
+      // A heartbeat, as a worker pricing chains sends one per chain.
+      const held = FakeWorker.instances[0].held;
+      if (held)
+        FakeWorker.instances[0].onmessage?.({
+          data: { type: 'progress', requestId: held.requestId, done: 0, total: 1 },
+        } as MessageEvent<WorkerResponse>);
+    }
+    FakeWorker.instances[0].release();
+    await expect(promise).resolves.toMatchObject({ results: [{ chain: [195, 490] }] });
+    pool.terminate();
+  });
+
+  it('a reply the page cannot read (messageerror) fails that worker\'s requests at once', async () => {
+    const faults: PoolFault[] = [];
+    const pool = await createChainSearchPool(INPUTS, {
+      spawn: () => new FakeWorker() as unknown as Worker,
+      now,
+      onFault: f => faults.push(f),
+    });
+    const promise = pool.evaluate([[195, 490]]);
+    FakeWorker.instances[0].mode = 'silent';
+    await vi.advanceTimersByTimeAsync(0);
+    const settled = promise.then(
+      () => 'resolved',
+      (e: unknown) => e
+    );
+    FakeWorker.instances[0].onmessageerror?.({} as MessageEvent);
+    const out = await settled;
+    expect(out).toBeInstanceOf(WorkerLostError);
+    expect(faults).toEqual([expect.objectContaining({ kind: 'crash', worker: 0 })]);
+    pool.terminate();
+  });
+
+  it('a crash (onerror) is a WorkerLostError too', async () => {
+    const pool = await realPool();
+    const promise = pool.evaluate([[195, 490]]);
+    FakeWorker.instances[0].mode = 'silent';
+    await vi.advanceTimersByTimeAsync(0);
+    const settled = promise.then(
+      () => 'resolved',
+      (e: unknown) => e
+    );
+    FakeWorker.instances[0].onerror?.({ message: '', filename: '' } as ErrorEvent);
+    expect(await settled).toBeInstanceOf(WorkerLostError);
     pool.terminate();
   });
 });

@@ -61,6 +61,29 @@ const WATCHDOG_INTERVAL_MS = 30 * 1000;
  */
 const SUSPEND_GAP_MS = 3 * WATCHDOG_INTERVAL_MS;
 
+/**
+ * Once the player pressed Stop (`hurry`), silence this long means the worker is gone. A healthy worker
+ * heartbeats every chain (15-25 s), so 45 s is still about twice the longest gap; it ends the wait in
+ * under a minute where the ten-minute bound left "Stopping... 120 s" counting (red team 21 Oct 2026,
+ * data-inputs #5: a worker killed mid-run). Browsers fire no event when a worker is killed from
+ * outside, so silence is the only sign.
+ */
+const HURRY_STALL_MS = 45 * 1000;
+/** How often the watchdog looks once hurried. */
+const HURRY_INTERVAL_MS = 5 * 1000;
+
+/**
+ * A worker crashed, could not read a message, or went silent: the request it held will never be
+ * answered. The store ends the run with the best route found so far and says a worker stopped, rather
+ * than failing the run.
+ */
+export class WorkerLostError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WorkerLostError';
+  }
+}
+
 interface PendingEntry {
   resolve: (message: WorkerResponse) => void;
   reject: (err: Error) => void;
@@ -284,6 +307,12 @@ export interface ChainSearchPool {
    * check overlaps the two. Failures are not reported here: the batch that uses the worker gets them.
    */
   warm(n: number): void;
+  /**
+   * The player pressed Stop: from now on a worker silent for `HURRY_STALL_MS` is let go (its requests
+   * fail with `WorkerLostError`), so Stop never waits on a worker that is gone. Healthy workers are
+   * unaffected: they heartbeat well inside that.
+   */
+  hurry?(): void;
   terminate(): void;
 }
 
@@ -304,7 +333,8 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   let size = opts.size === undefined ? maxPoolSize() : clampPoolSize(opts.size);
   // Slots for every worker the machine could hold, so `resize` can grow without reallocating.
   const cap = Math.max(size, hardwareThreads());
-  const stallMs = opts.stallMs ?? STALL_MS;
+  let stallMs = opts.stallMs ?? STALL_MS;
+  let hurried = false;
   const now = opts.now ?? (() => Date.now());
   let nextRequestId = 0;
   let terminated = false;
@@ -373,7 +403,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       const detail = [event.message, event.filename && `${event.filename}:${event.lineno ?? '?'}`]
         .filter(Boolean)
         .join(' at ');
-      const err = new Error(
+      const err = new WorkerLostError(
         detail
           ? `A search worker crashed: ${detail}`
           : 'A search worker stopped without reporting why. This is usually the browser reclaiming ' +
@@ -385,6 +415,20 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       } catch {
         // diagnostics only
       }
+      for (const entry of pw.pending.values()) entry.reject(err);
+      pw.pending.clear();
+    };
+
+    // A reply the page could not read back (structured clone failed on arrival): the request it
+    // answered would otherwise wait for good. Same as a crash for that worker's requests.
+    worker.onmessageerror = () => {
+      counts.crashed++;
+      try {
+        opts.onFault?.({ kind: 'crash', worker: pw.index, message: 'a reply could not be read', pending: pw.pending.size });
+      } catch {
+        // diagnostics only
+      }
+      const err = new WorkerLostError('A search worker sent a reply the page could not read.');
       for (const entry of pw.pending.values()) entry.reject(err);
       pw.pending.clear();
     };
@@ -427,7 +471,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         const quiet = t - entry.lastSeen;
         const forHow = quiet >= 60_000 ? `${Math.round(quiet / 60000)} minutes` : `${Math.round(quiet / 1000)}s`;
         entry.reject(
-          new Error(
+          new WorkerLostError(
             `${entry.label} stopped responding: no progress for ${forHow} ` +
               `(${entry.done}/${entry.total} routes done). The worker was very likely killed, ` +
               `most often by the browser reclaiming memory or freezing or discarding the tab. ` +
@@ -886,6 +930,16 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         'worker 0 (live first ascension)'
       )) as { builds: import('./precomputedLeg').BuildParams[] };
       return reply.builds;
+    },
+
+    hurry(): void {
+      if (terminated || hurried) return;
+      hurried = true;
+      stallMs = Math.min(stallMs, HURRY_STALL_MS);
+      if (watchdog) clearInterval(watchdog);
+      watchdog = null;
+      lastSweepAt = now();
+      watchdog = setInterval(sweepStalled, Math.min(HURRY_INTERVAL_MS, stallMs));
     },
 
     resize(n: number): number {

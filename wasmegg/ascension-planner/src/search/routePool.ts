@@ -71,6 +71,11 @@ export class RoutePool {
         if (e.data.kind === 'error') p.reject(new Error(e.data.message));
         else p.resolve(e.data);
       };
+      // A worker that crashes or sends a reply the page cannot read would leave its request waiting
+      // for good (red team 21 Oct 2026, data-inputs #5). Fail everything in flight and start fresh
+      // workers on the next request, as `interrupt` does.
+      w.onerror = () => this.lost('A route worker stopped (it crashed or ran out of memory).');
+      w.onmessageerror = () => this.lost('A route worker sent a reply the page could not read.');
       return w;
     });
   }
@@ -110,6 +115,13 @@ export class RoutePool {
     for (const p of this.pending.values()) p.reject(new Error('paused'));
     this.pending.clear();
     return cut;
+  }
+
+  private lost(why: string): void {
+    for (const w of this.workers ?? []) w.terminate();
+    this.workers = null;
+    for (const p of this.pending.values()) p.reject(new Error(why));
+    this.pending.clear();
   }
 
   get asleep(): boolean {
