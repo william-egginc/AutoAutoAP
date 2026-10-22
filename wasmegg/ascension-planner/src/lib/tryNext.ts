@@ -48,7 +48,7 @@ export function tryNextPills(fastest: { tile: Tile; target: number }, eggDay: Ti
   if (!f || f.level !== 'exhaustive')
     pills.push({
       id: 'exhaustive',
-      label: f ? `Exhaustive (around ${f.chain.length} ascensions)` : 'Exhaustive',
+      label: f ? `Custom (around ${f.chain.length} ascensions)` : 'Custom',
       open: { auto: 'fastest', depth: 'full', tab: 'exhaustive', target: fastest.target },
     });
   if (e?.how === 'instant')

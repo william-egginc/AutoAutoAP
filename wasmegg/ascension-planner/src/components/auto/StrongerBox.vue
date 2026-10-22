@@ -137,7 +137,7 @@ const levels = computed<LevelText[]>(() =>
           id: 'quick',
           does: `${NAMES.smart}. For each number of ascensions the instant answer has, it tries every route with each early stop up to 3 TE either side of the answer's route (fewer on long routes). Each last stop is found to the exact TE.`,
           time: 'Sized to stay under about 25 minutes (a cap, not a measurement); yours is below.',
-          finds: "The highest TE near the instant answer's routes. So far no search has beaten the instant answer's TE by a date (22 paired players' runs, 4 real players, none above TE 250), so expect this to confirm it. It can miss a route whose early stops are further away.",
+          finds: "The highest TE near the instant answer's routes. No search up to 13 Oct beat the instant answer's TE by a date, but that rests on only 2 like-for-like runs from one save, so it will often confirm it. It can miss a route whose early stops are further away.",
         },
         {
           id: 'normal',
@@ -185,7 +185,7 @@ const promises = computed<string[]>(() => {
       PRICED,
       `For each number of ascensions the instant answer has, it tries every route with each early stop within ${w} TE of the answer's route. Long routes get fewer, and it narrows if the search would take too long. Each last stop is found to the exact TE.`,
       `It can miss a route whose early stops are further away. Custom (${NAMES.full}) proves the best only inside the boxes you set.`,
-      "So far no search has beaten the instant answer's TE by a date (22 paired players' runs, 4 real players, none above TE 250), so a long search mostly confirms it. That sample is small.",
+      "No search up to 13 Oct beat the instant answer's TE by a date, but that rests on only 2 like-for-like runs from one save, so a long search will often confirm it. That sample is very small.",
       TIMING,
       STOP,
     ];
