@@ -47,3 +47,15 @@ export function boxPick(i: BoxPickInput): BoxPick {
   // Stopped or failed: the exact picks so far, in the box's own wording; the instant answer's when none finished.
   return i.finished > 0 ? { shows: 'exact', marker: '' } : { shows: 'instant', marker: 'instant answer' };
 }
+
+/**
+ * The plain line under the marker while Check exactly runs (Jordan, 22 Oct 2026): why the box waits. With hours set
+ * the simulator holds the shifts and prestiges for them, which the instant answer can't see (with any hour, exact
+ * and instant agree, so the box would not change). Fastest has no date to miss, so no line about lowering.
+ */
+export function checkingWhy(goal: 'date' | 'fastest', hoursSet: boolean): string {
+  if (!hoursSet) return 'Pricing each route with the full simulator on your save…';
+  return goal === 'date'
+    ? 'Your playing hours move egg shifts and prestiges, so each route is being priced on your hours. Routes that miss the date are lowered or swapped for a nearby one. The answer above updates once, when every count is done.'
+    : 'Your playing hours move egg shifts and prestiges, so each route is being priced on your hours. The answer above updates once, when every count is done.';
+}

@@ -19,7 +19,7 @@ const fastBox = t.slice(
 
 describe('InstantRoute: the green box keeps its pick while Check exactly runs', () => {
   it('reads which pick to show from boxPick, with the check’s status, its start and the counts finished', () => {
-    expect(t).toContain("import { boxPick } from '@/lib/boxPick';");
+    expect(t).toContain("import { boxPick, checkingWhy } from '@/lib/boxPick';");
     expect(t).toContain('boxPick({ status: exactStatus.value, begun: exactBegun.value, ...boxCounts.value })');
     expect(t).toContain('finished: Object.keys(dateExactByK.value).length');
     expect(t).toContain('finished: list.filter(r => exactOf(r) !== undefined).length');
@@ -58,5 +58,20 @@ describe('InstantRoute: the green box keeps its pick while Check exactly runs', 
     expect(t.match(/v-if="prestigeFlag\.enabled\.value && !preferPicked && prestigeOnBox"/g)).toHaveLength(2);
     expect(t).toContain('key(dateBoxOf(found.byDate).chain) === key(found.byDate.chain)');
     expect(t).toContain('key(boxLead.value.chain) === key(found.best.chain)');
+  });
+});
+
+describe('InstantRoute: the line under the marker while Check exactly runs', () => {
+  it('both boxes show it under the marker, only while the check runs and the box keeps the instant pick', () => {
+    const uses = t.match(
+      /<p v-if="boxWhy" class="text-\[11px\] text-slate-500" data-testid="box-checking-why">\{\{ boxWhy \}\}<\/p>/g
+    );
+    expect(uses).toHaveLength(2);
+    expect(dateBox).toContain('data-testid="box-checking-why"');
+    expect(fastBox).toContain('data-testid="box-checking-why"');
+    expect(t).toContain("exactStatus.value === 'running' && shownPick.value.shows === 'instant'");
+    expect(t).toContain(
+      "checkingWhy(props.deadline ? 'date' : 'fastest', hoursOn.value && isConstrained(store.availability))"
+    );
   });
 });

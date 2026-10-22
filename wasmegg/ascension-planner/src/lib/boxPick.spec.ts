@@ -1,6 +1,6 @@
 /** Which pick the green box shows while Check exactly runs (lib/boxPick.ts; Jordan, 22 Oct 2026). */
 import { describe, expect, it } from 'vitest';
-import { boxPick, countsDone } from './boxPick';
+import { boxPick, checkingWhy, countsDone } from './boxPick';
 
 describe('boxPick', () => {
   it('running with some counts finished keeps the instant pick, saying how far the check is', () => {
@@ -48,5 +48,20 @@ describe('boxPick', () => {
     expect(countsDone(0, 1)).toBe('(0 of 1 count done)');
     expect(countsDone(3, 4)).toBe('(3 of 4 counts done)');
     expect(countsDone(6, 5)).toBe('(6 of 6 counts done)');
+  });
+});
+
+describe('checkingWhy', () => {
+  it('with hours set: why each route is priced on them; By a date also says how a miss is handled', () => {
+    expect(checkingWhy('date', true)).toBe(
+      'Your playing hours move egg shifts and prestiges, so each route is being priced on your hours. Routes that miss the date are lowered or swapped for a nearby one. The answer above updates once, when every count is done.'
+    );
+    expect(checkingWhy('fastest', true)).toBe(
+      'Your playing hours move egg shifts and prestiges, so each route is being priced on your hours. The answer above updates once, when every count is done.'
+    );
+  });
+  it('without hours: the plain line', () => {
+    expect(checkingWhy('date', false)).toBe('Pricing each route with the full simulator on your save…');
+    expect(checkingWhy('fastest', false)).toBe('Pricing each route with the full simulator on your save…');
   });
 });

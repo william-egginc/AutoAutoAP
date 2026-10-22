@@ -273,6 +273,7 @@
               <span v-if="boxMarker" class="text-[11px] font-bold text-slate-500" data-testid="box-marker">{{ boxMarker }}</span>
               <span v-else-if="dateExactShown" class="text-[11px] font-bold text-emerald-700">exact, your account</span>
             </div>
+            <p v-if="boxWhy" class="text-[11px] text-slate-500" data-testid="box-checking-why">{{ boxWhy }}</p>
             <div class="font-mono-premium text-sm font-bold text-slate-800">
               {{ dateBoxOf(result.byDate).chain.join(' → ') }}
             </div>
@@ -569,6 +570,7 @@
             <!-- While Check exactly runs the box keeps the instant answer's pick, and says so (lib/boxPick.ts). -->
             <span v-if="boxMarker" class="text-[11px] font-bold text-slate-500" data-testid="box-marker">{{ boxMarker }}</span>
           </div>
+          <p v-if="boxWhy" class="text-[11px] text-slate-500" data-testid="box-checking-why">{{ boxWhy }}</p>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <!-- "Prestige by" is worked out on the instant answer's fastest route: shown only while the box shows that
                route (not over another one, lib/boxPick.ts). -->
@@ -1105,7 +1107,7 @@ import {
   type RowWin,
   type SecondWin,
 } from '@/search/hoursRunnerUp';
-import { boxPick } from '@/lib/boxPick';
+import { boxPick, checkingWhy } from '@/lib/boxPick';
 import { NEARBY_DEAL, NEARBY_ROWS, pickNearbyRow, settleDateRow, worthNearby } from '@/search/dateRowCheck';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
 import {
@@ -2926,6 +2928,12 @@ const boxCounts = computed(() => {
 const shownPick = computed(() => boxPick({ status: exactStatus.value, begun: exactBegun.value, ...boxCounts.value }));
 const boxShowsExact = computed(() => shownPick.value.shows === 'exact');
 const boxMarker = computed(() => shownPick.value.marker);
+/** Under the marker while Check exactly runs: why the box waits ('' once it stops). */
+const boxWhy = computed(() =>
+  exactStatus.value === 'running' && shownPick.value.shows === 'instant'
+    ? checkingWhy(props.deadline ? 'date' : 'fastest', hoursOn.value && isConstrained(store.availability))
+    : ''
+);
 /** By a date: Check exactly's answers as the box reads them (none while it keeps the instant answer's pick). */
 const dateExactShown = computed<DateExact | null>(() => (boxShowsExact.value ? dateExact.value : null));
 const dateExactByKShown = computed<Record<number, DateExact | null>>(() => (boxShowsExact.value ? dateExactByK.value : {}));
