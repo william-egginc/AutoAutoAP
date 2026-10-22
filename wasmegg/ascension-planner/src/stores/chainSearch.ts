@@ -132,6 +132,14 @@ import {
   type Submission,
   type SweepTag,
 } from '@/search/submission';
+import {
+  startProvenanceOf,
+  startWaitOf,
+  type PlanStartSource,
+  type StartProvenance,
+  type StartWait,
+} from '@/search/startProvenance';
+import { backupSecondsOf } from '@/lib/saveFreshness';
 import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
@@ -2120,6 +2128,53 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return plannerStart.value ?? Math.floor(Date.now() / 1000);
   });
 
+  /**
+   * Where the plan start comes from, for the start's provenance (search/startProvenance.ts): 'handoff' when it
+   * is a search's own start handed back (the pin of a run carried on or an older save, or the boxes as
+   * `applyChain` wrote them), 'override' when the player set the start boxes (Joo's start-time override),
+   * else 'now'.
+   */
+  function planStartSource(): PlanStartSource {
+    if (planStartPin.value) return 'handoff';
+    const s = useAutoPlannerStore();
+    if (!s.startDate || !s.startTime) return 'now';
+    if (handedOffBoxes && handedOffBoxes.date === s.startDate && handedOffBoxes.time === s.startTime) return 'handoff';
+    return s.startTimeOverride ? 'override' : 'now';
+  }
+  /** The start boxes as `applyChain` last wrote them from a search's own start (`planStartSource`). */
+  let handedOffBoxes: { date: string; time: string } | null = null;
+
+  /**
+   * Why the instant answer must wait, or '' when the save for the account on screen is set up the Auto
+   * Planner's way (search/startProvenance.ts `startWaitOf`): never on a restored Manual draft, an account
+   * switch's quick load (claimed TE only), another account's stores or a save loaded underneath without a
+   * set-up. Allan's "36 h faster" (22 Oct 2026) was the instant answer run on the draft.
+   */
+  const startWait = computed<StartWait>(() => {
+    const init = useInitialStateStore();
+    const ui = useUIStore();
+    return startWaitOf({
+      screenPlayerId: ui.screenPlayerId,
+      storesPlayerId: init.playerId,
+      source: init.setupSource,
+      lastBackupTime: init.lastBackupTime,
+      saveTime: backupSecondsOf(init.rawBackup),
+      loading: ui.loading,
+    });
+  });
+
+  /** Where this start comes from, read now: the stores' set-up, the save's TE and time, the planner's eggs,
+   *  the plan start's source (`Submission.start`, `InstantRecord.start`). The tab's age is added at send. */
+  function startProvenanceNow(): StartProvenance {
+    const init = useInitialStateStore();
+    return startProvenanceOf({
+      source: init.setupSource,
+      rawBackup: init.rawBackup,
+      eggs: init.initialEggsDelivered,
+      plan: planStartSource(),
+    });
+  }
+
   /** The Auto Planner's own start, or null when it has none (the plan is then timed from now). */
   const plannerStart = computed<number | null>(() => {
     const s = useAutoPlannerStore();
@@ -2464,7 +2519,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       runCounts.value = null;
       // Else the save the run keeps for good (keptSaves.ts), whose moment and TE are the same facts.
       const kept = own?.backupAt ? own : summary.save?.backupAt ? summary.save : null;
-      accountUsed = kept ? { ...accountFields(summary.currentTE), backupTime: kept.backupAt, backupTE: kept.te } : null;
+      // Never this tab's start provenance: the run began elsewhere, and how it began was not kept with it.
+      accountUsed = kept
+        ? { ...accountFields(summary.currentTE), backupTime: kept.backupAt, backupTE: kept.te, start: null }
+        : null;
     }
     runNoteUsed.value = summary.runNote;
     runNote.value = summary.runNote ?? '';
@@ -3636,6 +3694,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // would claim every plan was typed in from above it.
       backupTE: initialStateStore.rawBackup ? backupTE.value : null,
       build: appBuildId(),
+      // Where the start came from (search/startProvenance.ts), as the run starts: an account snapshot is
+      // taken then (`accountUsed`, `lightRun`, a By a date run's own), so a send later still says how it began.
+      start: startProvenanceNow() as StartProvenance | null,
     };
   }
 
@@ -3712,6 +3773,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           }
         : {}),
       ...(accountUsed ?? accountFields(runTEUsed ?? currentTE.value)),
+      // A run opened from the library that kept no save: this tab's start is not how that run began.
+      ...(!accountUsed && openedRun.value ? { start: null } : {}),
       // The player's earlier plans priced again, once `prepareRechecks` (or the end of the run) has
       // worked them out for THIS result. Until then the preview simply has none, and the send adds
       // them if they arrive in time (see `sendSubmission`). Named plans for a named send, anonymous
@@ -6583,7 +6646,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       // Loaded on demand, as for a carry-on: it pulls in the whole save loader.
       const { initPlanFuture } = await import('@/lib/modes/planFuture');
-      await initPlanFuture(playerId, raw as never);
+      await initPlanFuture(playerId, raw as never, o.from === 'file' ? 'file' : 'stored');
     } catch (e) {
       olderSaveError.value = `That save could not be loaded (${describeRunError(e)}). Load your latest save to carry on.`;
       return false;
@@ -8603,6 +8666,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (d && t) {
         planner.startDate = d;
         planner.startTime = t;
+        handedOffBoxes = { date: d, time: t };
       }
     }
     // TIME OFF. The search priced this route with each stretch of time off cutting the ascension in
@@ -9054,6 +9118,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     currentTE,
     planStart,
     planStartIsNow,
+    startWait,
+    startProvenanceNow,
     planStartRestoreNote,
     settingsRestoreNote,
     setupLoaded,

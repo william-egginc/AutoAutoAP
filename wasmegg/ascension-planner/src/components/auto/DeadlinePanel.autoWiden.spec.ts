@@ -134,7 +134,10 @@ describe("the instant answer's state, for Find on Nearby routes", () => {
   const state = instant.slice(instant.indexOf('const instantState = computed'), instant.indexOf("emit('state', s)"));
 
   it('is loading while a run is due or going, in with an answer, else settled with none', () => {
-    expect(state).toContain("if (runDue.value || !store.setupLoaded || status.value === 'loading') return 'loading';");
+    // Waiting for the save set up (search/startProvenance.ts) is loading too.
+    expect(state).toContain(
+      "if (runDue.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';"
+    );
     expect(state).toContain("return status.value === 'done' && result.value ? 'answer' : 'none';");
     expect(instant).toContain("watch(instantState, s => emit('state', s), { immediate: true });");
   });

@@ -34,6 +34,13 @@ import { SIM_VERSION } from './simVersion';
 import type { DeliveryScore } from './virtueScore';
 import { firstLegKindOf, forceContinueOf, type FirstAscension, type FirstLegKind } from './firstAscension';
 import { cleanSearched, MAX_SEARCHED } from './searched';
+import {
+  buildTimeMs,
+  finishStartProvenance,
+  pageOpenedMs,
+  startProvenanceProblems,
+  type StartProvenance,
+} from './startProvenance';
 // `searched`'s cleaner and cap live with its text (search/searched.ts); exported here too, where the
 // rest of the submission's fields are.
 export { cleanSearched, MAX_SEARCHED };
@@ -404,6 +411,16 @@ export interface Submission {
   /** Schema 7: which build of the planner priced the run (`appBuildId`). Simulator changes move
    *  finishes by days, and without this two builds' numbers cannot be told apart. */
   build?: string;
+  /**
+   * Where the run started from (search/startProvenance.ts; 22 Oct 2026, optional, no schema bump: a collector
+   * that does not know it drops it): how the start state was set up (`src`: fresh / stored / file / draft /
+   * switch), the save's claimed and pending TE per egg kept apart, the save's exact time and an 8-hex hash of
+   * its time and eggs (never the account), the eggs the planner started from, where the plan start came from
+   * (`plan`: now / override / handoff), and the tab's age at the send (`tabH` since the page was opened,
+   * `buildH` since its build). About 260 bytes; only on a run priced in this tab. So a row like Allan's
+   * (a plan from a restored draft, or from a tab left open for days) can be told from the board.
+   */
+  start?: StartProvenance;
   /** Which simulator priced the run (search/simVersion.ts SIM_VERSION, 13 Oct 2026): unlike `build` it
    *  moves only when results do, so a row can later be labelled "priced by an older simulator". Sent
    *  whenever `build` is (a run priced in this tab); a collector from before 13 Oct drops it. */
@@ -896,6 +913,9 @@ export interface SubmissionInputs {
   /** `appBuildId()` for a run priced in this tab. Omitted by the upload page: the files it sends
    *  were priced by whichever build the sweep ran on, not by the page doing the upload. */
   build?: string | null;
+  /** Where the run started from, read as it started (stores/chainSearch.ts `startProvenanceNow`); the tab's
+   *  age is added here, at the send. Null or absent: not known (an opened run, the upload page). */
+  start?: StartProvenance | null;
   /** Earlier plans priced again from this save; see `Submission.rechecks`. */
   rechecks?: Recheck[] | null;
   /** A deadline run's date and when its last ascension can be made (see `Submission.deadline`). */
@@ -1017,6 +1037,12 @@ export function buildSubmission(input: SubmissionInputs): Submission {
       : null;
   const rechecks = cleanRechecks(i.rechecks, i.chain, i.finalTE);
   const build = i.build?.trim().slice(0, MAX_BUILD);
+  // The tab's age only for a run priced in this tab (`build`): the upload page's files ran elsewhere.
+  const start = finishStartProvenance(i.start, {
+    now: i.now ?? Date.now(),
+    builtAt: build ? buildTimeMs() : null,
+    openedAt: build ? pageOpenedMs() : null,
+  });
   // Leg 1's choice and how far off the other way was (csv.ts `firstLegCells` writes the same).
   const leg1 = i.legs[0];
   const rival = leg1?.firstLegRival;
@@ -1093,6 +1119,7 @@ export function buildSubmission(input: SubmissionInputs): Submission {
       ? { backupTE: Number(i.backupTE.toFixed(2)) }
       : {}),
     ...(build ? { build, simVersion: SIM_VERSION } : {}),
+    ...(start ? { start } : {}),
     ...(rechecks.length ? { rechecks } : {}),
     ...(i.deadline ? { deadline: Math.round(i.deadline.at), deadlineAscendAt: Math.round(i.deadline.ascendAt) } : {}),
     ...(i.flags?.length ? { flags: [...i.flags] } : {}),
@@ -1273,6 +1300,8 @@ export function validateSubmission(value: unknown): string[] {
       problems.push(`${field} must be an ISO date`);
     }
   }
+  // Where the run started (22 Oct 2026): checked field by field; the collector drops a bad block, never the row.
+  problems.push(...startProvenanceProblems(s.start));
   // Provisional rows: the collector refuses a wrong shape here too (collector/worker.js).
   if (s.provisional !== undefined && typeof s.provisional !== 'boolean')
     problems.push('provisional must be true or false');

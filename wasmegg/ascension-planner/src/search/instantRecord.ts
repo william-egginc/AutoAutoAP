@@ -23,6 +23,7 @@ import type { PrestigeByRecord } from './prestigeBy';
 import type { Route } from './routeFinder';
 import type { LegSummary } from './types';
 import { firstLegKindOf, type FirstAscension, type FirstLegKind } from './firstAscension';
+import type { StartProvenance } from './startProvenance';
 
 export const INSTANT_RECORD_VERSION = 1;
 /** The collector's cap on a record's body (collector/worker.js INSTANT_MAX_BYTES). */
@@ -76,6 +77,10 @@ export interface InstantRecord {
   /** When the save was taken, and the plan start's age against it (signed, as on the board). */
   backupTime?: number;
   backupAgeHours?: number;
+  /** Where the check's start came from (search/startProvenance.ts, 22 Oct 2026; the same block as a board
+   *  row's `start`): the set-up's source, the save's claimed and pending TE, its time and hash, the eggs, the
+   *  plan start's source and the tab's age. A collector from before drops it like any unknown field. */
+  start?: StartProvenance;
   /** The TE the route starts from, and the save's own. */
   currentTE: number;
   backupTE?: number;
@@ -232,13 +237,16 @@ export function fitRecord(rec: InstantRecord, max = INSTANT_MAX_BYTES): InstantR
   return size(r) <= max ? r : null;
 }
 
-/** FNV-1a of the record without what changes on every check of the same answer (its timing, and
- *  the "Prestige by" prediction worked out beside it). */
+/** FNV-1a of the record without what changes on every check of the same answer (its timing, the
+ *  "Prestige by" prediction worked out beside it, and the tab's age in `start`). */
 export function recordSig(rec: InstantRecord): string {
-  const { checkSeconds: _c, prestigeBy: _p, ...rest } = rec;
+  const { checkSeconds: _c, prestigeBy: _p, start, ...rest } = rec;
   void _c;
   void _p;
-  const text = JSON.stringify(rest);
+  const { tabH: _t, buildH: _b, ...startSig } = start ?? {};
+  void _t;
+  void _b;
+  const text = JSON.stringify(start ? { ...rest, start: startSig } : rest);
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
   return h.toString(16);
