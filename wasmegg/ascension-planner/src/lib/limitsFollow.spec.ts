@@ -11,19 +11,19 @@ import {
 
 const none = { min: false, max: false };
 
-describe('limitsFromBest: two either side of the instant answer, inside the box 2..12', () => {
-  it('Allan: best 4 gives 2 to 6, so Fast looks at 4', () => {
-    expect(limitsFromBest(4)).toEqual({ min: 2, max: 6 });
+describe('limitsFromBest: 3 to one more than the instant answer (lib/ascRange.ts), inside the box 2..12', () => {
+  it('Allan: best 4 gives 3 to 5, so Fast looks at 4', () => {
+    expect(limitsFromBest(4)).toEqual({ min: 3, max: 5 });
   });
   it('a middling count', () => {
-    expect(limitsFromBest(7)).toEqual({ min: 5, max: 9 });
+    expect(limitsFromBest(7)).toEqual({ min: 3, max: 8 });
   });
-  it('clamps at the floor (the input min is 2) and the ceiling (12)', () => {
-    expect(limitsFromBest(2)).toEqual({ min: 2, max: 4 });
-    expect(limitsFromBest(1)).toEqual({ min: 2, max: 3 });
-    expect(limitsFromBest(11)).toEqual({ min: 9, max: 12 });
-    expect(limitsFromBest(12)).toEqual({ min: 10, max: 12 });
-    expect(limitsFromBest(15)).toEqual({ min: 12, max: 12 });
+  it('below 3 it starts at the count; clamps at the floor (the input min is 2) and the ceiling (12)', () => {
+    expect(limitsFromBest(2)).toEqual({ min: 2, max: 3 });
+    expect(limitsFromBest(1)).toEqual({ min: 2, max: 2 });
+    expect(limitsFromBest(11)).toEqual({ min: 3, max: 12 });
+    expect(limitsFromBest(12)).toEqual({ min: 3, max: 12 });
+    expect(limitsFromBest(15)).toEqual({ min: 3, max: 12 });
   });
   it('no instant answer: null (the old 5 to 8 stay)', () => {
     expect(limitsFromBest(null)).toBeNull();
@@ -37,20 +37,20 @@ describe('limitsFromBest: two either side of the instant answer, inside the box 
 describe('followLimits', () => {
   it('untouched fields follow, and follow again when the best changes', () => {
     let l = followLimits(DEFAULT_LIMITS, 4, none, true);
-    expect(l).toEqual({ min: 2, max: 6 });
+    expect(l).toEqual({ min: 3, max: 5 });
     l = followLimits(l, 9, none, true);
-    expect(l).toEqual({ min: 7, max: 11 });
+    expect(l).toEqual({ min: 3, max: 10 });
   });
   it('a field the player set stays; the other keeps following', () => {
-    expect(followLimits({ min: 3, max: 8 }, 7, { min: true, max: false }, true)).toEqual({ min: 3, max: 9 });
-    expect(followLimits({ min: 5, max: 10 }, 4, { min: false, max: true }, true)).toEqual({ min: 2, max: 10 });
+    expect(followLimits({ min: 4, max: 8 }, 9, { min: true, max: false }, true)).toEqual({ min: 4, max: 10 });
+    expect(followLimits({ min: 5, max: 10 }, 4, { min: false, max: true }, true)).toEqual({ min: 3, max: 10 });
     expect(followLimits({ min: 3, max: 10 }, 7, { min: true, max: true }, true)).toEqual({ min: 3, max: 10 });
   });
   it('a follower never crosses a set field', () => {
-    // Min set to 9, best 4 asks for at most 6: most is held to 9.
+    // Min set to 9, best 4 asks for at most 5: most is held to 9.
     expect(followLimits({ min: 9, max: 10 }, 4, { min: true, max: false }, true)).toEqual({ min: 9, max: 9 });
-    // Most set to 3, best 9 asks for at least 7: fewest is held to 3.
-    expect(followLimits({ min: 2, max: 3 }, 9, { min: false, max: true }, true)).toEqual({ min: 3, max: 3 });
+    // Most set to 2, best 9 asks for at least 3: fewest is held to 2.
+    expect(followLimits({ min: 2, max: 2 }, 9, { min: false, max: true }, true)).toEqual({ min: 2, max: 2 });
   });
   it('nothing moves while a search runs or is being carried on, or without an answer', () => {
     expect(followLimits({ min: 5, max: 8 }, 4, none, false)).toEqual({ min: 5, max: 8 });
@@ -60,14 +60,14 @@ describe('followLimits', () => {
 
 describe('the grey hint', () => {
   it('names which limits follow the instant answer', () => {
-    expect(limitsHint(followingFields({ min: 2, max: 6 }, 4, none))).toBe('(from the instant answer)');
-    expect(limitsHint(followingFields({ min: 3, max: 6 }, 4, { min: true, max: false }))).toBe(
+    expect(limitsHint(followingFields({ min: 3, max: 5 }, 4, none))).toBe('(from the instant answer)');
+    expect(limitsHint(followingFields({ min: 4, max: 5 }, 4, { min: true, max: false }))).toBe(
       '(most from the instant answer)'
     );
-    expect(limitsHint(followingFields({ min: 2, max: 9 }, 4, { min: false, max: true }))).toBe(
+    expect(limitsHint(followingFields({ min: 3, max: 9 }, 4, { min: false, max: true }))).toBe(
       '(fewest from the instant answer)'
     );
-    expect(limitsHint(followingFields({ min: 2, max: 6 }, 4, { min: true, max: true }))).toBe('');
+    expect(limitsHint(followingFields({ min: 3, max: 5 }, 4, { min: true, max: true }))).toBe('');
   });
   it('none before an instant answer, or while the box still reads otherwise (a run going)', () => {
     expect(limitsHint(followingFields({ min: 5, max: 8 }, null, none))).toBe('');

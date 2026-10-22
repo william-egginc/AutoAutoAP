@@ -193,10 +193,19 @@
                   @input="store.markLimitTouched('max')"
                 />
               </div>
-              <!-- Two either side of the instant answer's fastest count until set (lib/limitsFollow.ts). -->
+              <!-- 3 to one more than the instant answer's count until set (lib/limitsFollow.ts, lib/ascRange.ts). -->
               <span v-if="limitsFollowHint" class="pb-2 text-[10px] text-slate-400" data-testid="limits-follow-hint">{{
                 limitsFollowHint
               }}</span>
+              <button
+                v-if="canFollowInstantLimits"
+                type="button"
+                class="pb-2 text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900"
+                data-testid="limits-follow-reset"
+                @click="store.followInstantLimits()"
+              >
+                Use the instant answer's range
+              </button>
               <div>
                 <span class="flex items-center gap-1.5">
                   <label for="pin-count" class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -1251,6 +1260,13 @@ function startFromCount(n: number): string {
 }
 /** "(from the instant answer)" beside the Limits inputs while they follow it. */
 const limitsFollowHint = computed(() => limitsHint(store.limitsFollowing));
+/** A limit was set by hand (or by a carry-on) and the instant answer has a count: offer to follow it again. */
+const canFollowInstantLimits = computed(
+  () =>
+    !store.isRunning &&
+    store.limitsCount !== null &&
+    (store.limitsTouched.min || store.limitsTouched.max)
+);
 /** A staged run waiting to carry on under limits other than the box's now (it puts its own back). */
 const resumableLimitsNote = computed(() => {
   const r = store.resumable;

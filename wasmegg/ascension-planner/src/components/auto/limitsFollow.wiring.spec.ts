@@ -33,9 +33,10 @@ describe('Fastest, Nearby routes: the Limits box', () => {
     expect(panel).toContain('store.setLimits(plan.minPrestiges, plan.maxPrestiges)');
     expect(panel).not.toMatch(/store\.(min|max)Prestiges = /);
   });
-  it('the store follows suggestedCount only while idle, and a carry-on puts its run’s limits back', () => {
-    expect(store).toMatch(/watch\(\s*\[suggestedCount, busy, limitsTouched\]/);
-    expect(store).toContain('followLimits(now, suggestedCount.value, limitsTouched.value, !busy.value)');
+  it('the store follows the instant answer’s count only while idle, and a carry-on puts its run’s limits back', () => {
+    expect(store).toContain('const limitsCount = computed(() => rangeCount.value.fastest ?? suggestedCount.value);');
+    expect(store).toMatch(/watch\(\s*\[limitsCount, busy, limitsTouched\]/);
+    expect(store).toContain('followLimits(now, limitsCount.value, limitsTouched.value, !busy.value)');
     expect(store).toContain('limits: searchSpace.value ? null : { min: runLimits.min, max: runLimits.max }');
     expect(store).toMatch(
       /const kept = checkpointLimits\(resumeFrom\);\s*if \(kept\) setLimits\(kept\.min, kept\.max\);/
