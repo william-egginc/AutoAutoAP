@@ -187,7 +187,8 @@ describe('the switch, in the source', () => {
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
     expect(app).toContain('chainSearchStore.currentTE === saveTEOf(initialStateStore.rawBackup)');
     expect(app).toContain('void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());');
-    expect(app).toContain('await initPlanFuture(playerId.value, raw);');
+    // A fresh save (the switch fetched it a moment ago), for the start's provenance (search/startProvenance.ts).
+    expect(app).toContain("await initPlanFuture(playerId.value, raw, 'fresh');");
     expect(app).toContain("watch(playerId, () => (myRunsLoadFor = ''));");
   });
 

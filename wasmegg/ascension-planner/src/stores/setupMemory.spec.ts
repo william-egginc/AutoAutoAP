@@ -166,7 +166,7 @@ describe('the gate', () => {
   it('the instant answer waits for it before working anything out (source)', () => {
     const src = fs.readFileSync(path.join(__dirname, '../components/auto/InstantRoute.vue'), 'utf8');
     expect(src).toMatch(
-      /store\.setupLoaded,\n {4}\]\),\n {2}\(\) => \{\n {4}if \(timer\) clearTimeout\(timer\);\n {4}if \(!store\.setupLoaded\) return;/
+      /store\.setupLoaded,\n[\s\S]*?store\.startWait,\n {4}\]\),\n {2}\(\) => \{\n {4}if \(timer\) clearTimeout\(timer\);\n {4}if \(store\.startWait\) \{\n {6}waitForSave\(\);\n {6}return;\n {4}\}\n {4}if \(!store\.setupLoaded\) return;/
     );
   });
 });

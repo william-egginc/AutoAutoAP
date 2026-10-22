@@ -56,8 +56,21 @@
       for fully maxed gear instead.
     </p>
 
+    <!-- Waiting for the save (search/startProvenance.ts): nothing is worked out from a restored draft or an
+         account switch's quick load; an answer from before stays, labelled, until the new one. -->
     <p
-      v-if="atTarget && status !== 'loading'"
+      v-if="result && (resultFromBefore || store.startWait)"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] font-bold text-amber-900"
+      data-testid="instant-from-before"
+    >
+      {{ START_WAIT_LABEL }}
+    </p>
+    <p v-if="saveWaitText" class="text-[12px] text-slate-500 flex items-center gap-2" data-testid="instant-wait-save">
+      <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+      {{ saveWaitText }}
+    </p>
+    <p
+      v-else-if="atTarget && status !== 'loading'"
       class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-600"
       data-testid="instant-at-target"
     >
@@ -1148,6 +1161,14 @@ import {
 } from '@/search/instantRecord';
 import { useInstantShare } from '@/composables/useInstantShare';
 import {
+  buildTimeMs,
+  finishStartProvenance,
+  pageOpenedMs,
+  START_WAIT_LABEL,
+  startWaitText,
+  type StartProvenance,
+} from '@/search/startProvenance';
+import {
   addCheck,
   deltaOf,
   entryFromRecord,
@@ -1875,6 +1896,8 @@ let runs = 0;
  * with each step's arithmetic split across the workers (search/routePool.ts).
  */
 async function run(force = false, goAhead = false): Promise<void> {
+  // Never on a restored draft or a half-set-up account (`waitForSave`): it runs again once the save is set up.
+  if (store.startWait) return;
   const te = Math.floor(store.currentTE);
   if (!(te > 0)) return;
   if (!(target.value > te)) {
@@ -2212,6 +2235,8 @@ const exactPricedWith = ref('');
 /** The same, as the settings themselves: kept with the history entry and the snapshot (fix 22: My runs ranks
  *  answers priced with Your setup now first, and names the hours of the others). */
 let exactSetup: { availability: Availability | null; timeOff: TimeOffDates[] } | null = null;
+/** Where the exact check's start came from, taken as it starts (search/startProvenance.ts): the record's `start`. */
+let exactStart: StartProvenance | null = null;
 /** A date answer: a route, the TE it ends at and the unix second it gets there. */
 interface DateExact {
   chain: number[];
@@ -2327,7 +2352,7 @@ function openPlan(chain: number[]): void {
 }
 /** The top button: price every shown route with the full simulator again. */
 function checkAgain(): void {
-  if (!result.value || exactStatus.value === 'running') return;
+  if (!result.value || exactStatus.value === 'running' || store.startWait) return;
   savedAt.value = null;
   const id = ++runs;
   void runExact(id, result.value, true);
@@ -2394,6 +2419,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
   exactMs.value = null;
   exactPricedWith.value = '';
   exactSetup = null;
+  exactStart = null;
   // An account the integrity check blocks has no routes to check (the panel says why).
   if (store.integrityBlocked) {
     exactStatus.value = 'idle';
@@ -2443,6 +2469,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
   try {
     const inputs = store.collectInputs();
     answerStart.value = inputs.planStart;
+    exactStart = store.startProvenanceNow();
     // The hours and time off this check prices with, as it starts: what the line under it names.
     exactSetup = {
       availability: inputs.availability ? JSON.parse(JSON.stringify(inputs.availability)) : null,
@@ -3234,6 +3261,8 @@ const sinceCache = computed<{ better: boolean; text: string } | null>(() => {
 let timer: ReturnType<typeof setTimeout> | null = null;
 /** A run is due once the inputs settle (`timer`): the answer on screen is for the inputs before. */
 const runDue = ref(false);
+/** The answer on screen was worked out before the save now loading was set up (`waitForSave` below). */
+const resultFromBefore = ref(false);
 watch(
   () =>
     answerInputsKey([
@@ -3248,9 +3277,16 @@ watch(
       // Your setup, remembered per account, still loading (stores/chainSearch.ts `loadSetupFor`): wait for
       // it, so a reload doesn't work the answer out and start Check exactly on the defaults first.
       store.setupLoaded,
+      // The save for the account on screen not set up yet (search/startProvenance.ts): wait, and run again
+      // the moment it is.
+      store.startWait,
     ]),
   () => {
     if (timer) clearTimeout(timer);
+    if (store.startWait) {
+      waitForSave();
+      return;
+    }
     if (!store.setupLoaded) return;
     // (Your setup still loading reads as loading by itself: `instantState`.)
     runDue.value = true;
@@ -3262,10 +3298,41 @@ watch(
   { immediate: true }
 );
 onUnmounted(() => timer && clearTimeout(timer));
+
+/**
+ * WAITING FOR THE SAVE (22 Oct 2026, Allan's "36 h faster"). On a fresh load the stores hold the Manual
+ * planner's restored draft, and after an account switch the claimed-only TE, until the save is set up the
+ * Auto Planner's way; an answer worked out then is for a different start (235 TE against 234, another
+ * route). So nothing is worked out until `store.startWait` clears (the watch above runs it then), and
+ * whatever was in flight is dropped. An answer already on screen stays, labelled `START_WAIT_LABEL`, until
+ * the new one replaces it.
+ */
+function waitForSave(): void {
+  runDue.value = false;
+  ++runs;
+  ++bracketRuns;
+  ++prestigeRuns;
+  prestigeLater = false;
+  afterRun = null;
+  stopExact();
+  if (exactStatus.value === 'running' || exactStatus.value === 'waiting') exactStatus.value = 'idle';
+  if (backgroundStatus.value === 'running') backgroundStatus.value = 'idle';
+  if (bracketStatus.value === 'running') bracketStatus.value = 'idle';
+  if (prestigeStatus.value === 'running') prestigeStatus.value = 'idle';
+  if (status.value === 'loading') status.value = result.value ? 'done' : 'idle';
+  if (result.value) resultFromBefore.value = true;
+}
+// A new answer (or none) replaces the one from before; a saved answer put back is for the save now loaded.
+watch(result, () => {
+  if (!store.startWait) resultFromBefore.value = false;
+});
+/** The waiting line ('' when not waiting). */
+const saveWaitText = computed(() => startWaitText(store.startWait));
+
 /** By a date: the answer still being worked out (or about to be, or Your setup still loading), in with a
  *  route, or settled with none, for the panel's Find (`state` event). */
 const instantState = computed<InstantState>(() => {
-  if (runDue.value || !store.setupLoaded || status.value === 'loading') return 'loading';
+  if (runDue.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';
   return status.value === 'done' && result.value ? 'answer' : 'none';
 });
 watch(instantState, s => emit('state', s), { immediate: true });
@@ -3298,7 +3365,8 @@ const initialState = useInitialStateStore();
 const instantUrl = instantUrlOf(store.submitUrl);
 const SHARE_WHAT =
   "Sends this check's routes, the instant answer's and the exact times, your TE and Clothed TE, a summary of your gear, " +
-  'your plan start, timezone, save time and settings, with an anonymous code for your account. Never your player ID ' +
+  'your plan start, timezone, save time and settings, where the check started from (how your save was loaded, its ' +
+  'claimed and pending TE, eggs and a short code for the save), with an anonymous code for your account. Never your player ID ' +
   'or your save; never shown on the board.';
 /** The gear stamp's hash (the 24 hex of `legacyGearTableName`), worked out with the instant answer. */
 const stampHash = ref('');
@@ -3414,6 +3482,8 @@ function buildRecord(): InstantRecord | null {
       });
   const gap = buildGapOf(contPeak, exLegs);
   const build = appBuildId();
+  // Where the check started, as it started, with the tab's age now (search/startProvenance.ts).
+  const start = finishStartProvenance(exactStart, { now: Date.now(), builtAt: buildTimeMs(), openedAt: pageOpenedMs() });
   return {
     v: 1,
     ...(build ? { build } : {}),
@@ -3422,6 +3492,7 @@ function buildRecord(): InstantRecord | null {
     ...(deadline ? { deadline: Math.round(deadline) } : { target: store.finalTE }),
     planStart: Math.round(planStart),
     timezone: zone.value,
+    ...(start ? { start } : {}),
     ...(backupTime
       ? { backupTime: Math.round(backupTime), backupAgeHours: round((planStart - backupTime) / 3600, 1) }
       : {}),
@@ -3542,7 +3613,7 @@ async function withPrestigeBy(record: InstantRecord): Promise<InstantRecord> {
 
 /** Send this check's record. Never throws; a check that has been superseded is skipped. */
 async function shareCheck(id: number): Promise<void> {
-  if (!instantUrl || id !== runs || doneId !== id || exactStatus.value !== 'done') return;
+  if (!instantUrl || id !== runs || doneId !== id || exactStatus.value !== 'done' || store.startWait) return;
   const c = await recordOf(id);
   if (!c) return;
   const partition = await store.accountPartition();

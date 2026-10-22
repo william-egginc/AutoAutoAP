@@ -513,7 +513,9 @@
               <span class="font-bold text-slate-800">Keep sharing my checks</span>
               (anonymous; helps make the instant answer more accurate). After each Check exactly, at most once an hour
               per save, this browser sends the routes, the instant answer's and the exact times, your TE and Clothed TE,
-              a summary of your gear, your plan start, timezone, save time and settings, and the app version. It goes
+              a summary of your gear, your plan start, timezone, save time and settings, where the check started from
+              (how your save was loaded, its claimed and pending TE, eggs and a short code for the save), and the app
+              version. It goes
               with this browser's anonymous code for your account, never your player ID or your save. Kept privately by
               the planner's maintainer for 6 months, never shown on the board. The same box is under the instant answer,
               with "Share this check" for just one.

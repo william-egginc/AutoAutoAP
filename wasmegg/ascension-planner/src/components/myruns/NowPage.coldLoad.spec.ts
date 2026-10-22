@@ -161,7 +161,8 @@ describe('the cold load, in the source', () => {
     const app = fs.readFileSync(path.resolve(__dirname, '../../App.vue'), 'utf8');
     expect(app).toContain('const storesFromSave = computed(() => initialStateStore.hasData && initialStateStore.lastBackupTime > 0);');
     expect(app).toContain('watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);');
-    expect(app).toMatch(/myRunsReady = true;\s+loadSaveForMyRuns\(\);\s+\}\);/);
+    // Then the Auto Planner's own (setUpForInstantAnswer, search/startProvenance.ts), at the end of the restore too.
+    expect(app).toMatch(/myRunsReady = true;\s+loadSaveForMyRuns\(\);\s+(\/\/[^\n]*\n\s+)?setUpForInstantAnswer\(\);\s+\}\);/);
     expect(app).toContain('if (myRunsLoadFor === playerId.value || searchActive.value || uiStore.runSaveLoaded) return;');
   });
 

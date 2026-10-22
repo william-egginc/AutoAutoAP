@@ -25,12 +25,17 @@ import { computeSnapshot } from '@/engine/compute';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { syncTEOverrideToAccount } from '@/lib/teOverrideAccount';
 import { applyAutoStartingTE } from '@/auto/startingTE';
+import { useInitialStateStore } from '@/stores/initialState';
+import type { StartSource } from '@/search/startProvenance';
 
 /**
  * @param stored A save kept in this browser (search/runSaves.ts) to load INSTEAD of fetching one:
  *   carrying on an interrupted run under the exact save it started with.
+ * @param source Where the save came from, for the start's provenance (search/startProvenance.ts): 'fresh'
+ *   when fetched here, else 'stored' unless the caller says otherwise (a file the player loaded; a save an
+ *   account switch fetched a moment ago).
  */
-export async function initPlanFuture(playerId: string, stored?: ei.IBackup): Promise<void> {
+export async function initPlanFuture(playerId: string, stored?: ei.IBackup, source?: StartSource): Promise<void> {
   // 2 first when it can fail: a fetch that throws after the reset left the planner with no save at
   // all and the previous plan's leftovers on screen.
   const backup = stored ?? (await fetchPlayerBackup(playerId)).backup;
@@ -68,4 +73,7 @@ export async function initPlanFuture(playerId: string, stored?: ei.IBackup): Pro
   const baseState = createBaseEngineState(null);
   const initialSnapshot = computeSnapshot(baseState, context);
   await actionsStore.setInitialSnapshot(initialSnapshot);
+
+  // 8. Set up the Auto Planner's way: the instant answer may run from it now (stores/chainSearch.ts `startWait`).
+  useInitialStateStore().markSetUp(source ?? (stored ? 'stored' : 'fresh'));
 }
