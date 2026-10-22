@@ -35,6 +35,24 @@ import { ActionsState } from './types';
 import { createDefaultStartAction, calculateActionResult } from './simulation';
 import { relinkDependenciesLogic, getActionsRequiringRemovalLogic, collectDependentActions } from './dependency';
 import { exportPlanLogic, importPlanLogic, exportPlanData } from './io';
+import { readStoredJson, writeStoredJson, isPlainRecord } from '@/lib/safeStorage';
+
+/** "Mark as done" ticks per plan id, then per action id (per browser). */
+export const MANUAL_OVERRIDES_KEY = 'ascension_manual_overrides';
+
+/** The stored ticks, keeping only well-formed entries. Garbage (a torn write, another tool, a stored
+ *  `null`) gives no ticks and a `.bad` copy instead of a blank site (red team 21 Oct 2026, #1). */
+export function readManualOverrides(): Record<string, Record<string, boolean>> {
+  const raw = readStoredJson(MANUAL_OVERRIDES_KEY, () => ({}), isPlainRecord);
+  const out: Record<string, Record<string, boolean>> = {};
+  for (const [plan, ticks] of Object.entries(raw)) {
+    if (!isPlainRecord(ticks)) continue;
+    const kept: Record<string, boolean> = {};
+    for (const [id, on] of Object.entries(ticks)) if (typeof on === 'boolean') kept[id] = on;
+    out[plan] = kept;
+  }
+  return out;
+}
 
 export const useActionsStore = defineStore('actions', {
   state: (): ActionsState => {
@@ -59,7 +77,7 @@ export const useActionsStore = defineStore('actions', {
       activePlanId: null,
       lastSavedActionsJson: JSON.stringify([startAction]),
       libraryUpdateTick: 0,
-      manualOverrides: JSON.parse(localStorage.getItem('ascension_manual_overrides') || '{}') as Record<string, Record<string, boolean>>,
+      manualOverrides: readManualOverrides(),
     };
   },
 
@@ -788,7 +806,7 @@ export const useActionsStore = defineStore('actions', {
           [actionId]: !currentOverrides[actionId],
         },
       };
-      localStorage.setItem('ascension_manual_overrides', JSON.stringify(this.manualOverrides));
+      writeStoredJson(MANUAL_OVERRIDES_KEY, this.manualOverrides);
     },
   },
 });

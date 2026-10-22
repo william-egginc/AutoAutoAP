@@ -316,6 +316,7 @@ import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
 import { thisDevice } from '@/search/device';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
+import { readStoredJson, isPlainRecord } from '@/lib/safeStorage';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -7570,14 +7571,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const DEADLINE_RATIO_KEY = 'aap.deadlineRoutesPerSetByShape';
   const deadlineRoutesPerSetByShape = ref<Record<string, number>>(
     (() => {
-      try {
-        const raw = JSON.parse(localStorage.getItem(DEADLINE_RATIO_KEY) ?? '{}') as Record<string, unknown>;
-        const out: Record<string, number> = {};
-        for (const [k, v] of Object.entries(raw ?? {})) if (usableRatio(v)) out[k] = usableRatio(v);
-        return out;
-      } catch {
-        return {};
-      }
+      // Garbage falls back to none and keeps a `.bad` copy (safeStorage.ts).
+      const raw = readStoredJson(DEADLINE_RATIO_KEY, () => ({}), isPlainRecord);
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(raw)) if (usableRatio(v)) out[k] = usableRatio(v);
+      return out;
     })()
   );
   /** The remembered routes per set for a space of this shape, or 0. */
