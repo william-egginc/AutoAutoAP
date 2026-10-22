@@ -43,6 +43,15 @@ describe('GearCaveat', () => {
     // The explicit {{ ' ' }} between the two sentences (no run-together "times.This").
     expect(html.replace(/<!--[\s\S]*?-->/g, '')).toContain('own times. <span');
   });
+  it('a gear combination’s answer above its own rows (scale 0.94): the label', async () => {
+    const html = await renderHtml(GearCaveat, {
+      ...base,
+      gearDiffers: false,
+      optimistic: optimisticForGear('gear', 0.94, true),
+    });
+    expect(textOf(html)).toBe(OPT);
+    expect(boxes(html)).toBe(1);
+  });
   it('the gear caveat alone (scale 0.96) keeps its words, no label', async () => {
     const text = textOf(await render('maxed', 0.96, true));
     expect(text).toContain('Check exactly gives your own times.');
@@ -56,8 +65,10 @@ describe('InstantRoute wiring', () => {
     expect(t).toContain(
       "const answerTable = computed<AnswerTable>(() => (gearTable.value ? 'gear' : own.value ? 'own' : 'maxed'));"
     );
-    expect(t).toContain(
-      'const optimistic = computed(() => optimisticForGear(answerTable.value, deliveryScale.value));'
+    expect(t).toContain('return optimisticForGear(answerTable.value, deliveryScale.value);');
+    // A gear combination's answer: the composite's own scale, and only above the gear table's own rows.
+    expect(t).toMatch(
+      /const comp = parseCompositeUrl\(tableUrl\.value\);\s*if \(comp\) return optimisticForGear\('gear', comp\.scale, gearReadsMaxed\(store\.currentTE, header\.value\?\.gearTo, comp\.split\)\);/
     );
   });
   it('one GearCaveat in place of the old gear box, on both screens (under the shared result)', () => {

@@ -1037,7 +1037,7 @@ import {
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
 import GearCaveat from './GearCaveat.vue';
-import { optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
+import { gearReadsMaxed, optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
 import RouteExtras from './RouteExtras.vue';
@@ -1650,8 +1650,14 @@ const bonusShort = computed(() => (header.value ? header.value.cteBonus - bonus.
 
 /** Which instant answer the card read: the player's own, a gear combination's, or the maxed one scaled. */
 const answerTable = computed<AnswerTable>(() => (gearTable.value ? 'gear' : own.value ? 'own' : 'maxed'));
-/** "May be optimistic for your gear": the maxed answer scaled to a delivery rate under 95% (lib/optimisticAnswer.ts). */
-const optimistic = computed(() => optimisticForGear(answerTable.value, deliveryScale.value));
+/** "May be optimistic for your gear": the maxed answer scaled to a delivery rate under 95%, a gear combination's too
+ *  when the route starts above its own rows (lib/optimisticAnswer.ts). */
+const optimistic = computed(() => {
+  // A gear combination's answer above its own rows: the maxed one at the composite's scale (the one applied).
+  const comp = parseCompositeUrl(tableUrl.value);
+  if (comp) return optimisticForGear('gear', comp.scale, gearReadsMaxed(store.currentTE, header.value?.gearTo, comp.split));
+  return optimisticForGear(answerTable.value, deliveryScale.value);
+});
 
 /**
  * The start TE from which the table's builds hold for any gear: the build reaches full research, so

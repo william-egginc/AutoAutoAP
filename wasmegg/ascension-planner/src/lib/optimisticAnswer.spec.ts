@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { OPTIMISTIC_SCALE, OPTIMISTIC_TEXT, optimisticForGear } from './optimisticAnswer';
+import { OPTIMISTIC_SCALE, OPTIMISTIC_TEXT, gearReadsMaxed, optimisticForGear } from './optimisticAnswer';
 
 // "May be optimistic for your gear": only the maxed answer scaled to a delivery rate under 95%.
 describe('optimisticForGear', () => {
@@ -22,6 +22,20 @@ describe('optimisticForGear', () => {
       expect(optimisticForGear('own', scale)).toBe(false);
       expect(optimisticForGear('gear', scale)).toBe(false);
     }
+  });
+  it('a gear combination’s answer starting above its own rows reads the maxed one scaled: the same rule', () => {
+    expect(optimisticForGear('gear', 0.94, true)).toBe(true);
+    expect(optimisticForGear('gear', 0.96, true)).toBe(false);
+    expect(optimisticForGear('own', 0.94, true)).toBe(false);
+  });
+  it('gearReadsMaxed: above the gear table’s own rows (340 and up by default)', () => {
+    expect(gearReadsMaxed(339, 339)).toBe(false);
+    expect(gearReadsMaxed(340, 339)).toBe(true);
+    expect(gearReadsMaxed(345.6, undefined)).toBe(true);
+    expect(gearReadsMaxed(338, null)).toBe(false);
+    // A gear table that reaches higher keeps its own rows to there.
+    expect(gearReadsMaxed(350, 360)).toBe(false);
+    expect(gearReadsMaxed(361, 360)).toBe(true);
   });
   it('no scale yet (the header not in): not', () => {
     expect(optimisticForGear('maxed', null)).toBe(false);
