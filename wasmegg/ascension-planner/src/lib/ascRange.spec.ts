@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DATE_RANGE_BOUNDS,
-  DATE_RANGE_FALLBACK,
-  RANGE_LOW,
-  followedCount,
-  rangeFromCount,
-  rangeNow,
-} from './ascRange';
+import { DATE_RANGE_BOUNDS, DATE_RANGE_FALLBACK, RANGE_LOW, followedCount, rangeFromCount, rangeNow } from './ascRange';
 import { choosePreferFewer, PREFER_OFF, type PreferRow } from '@/search/preferFewer';
 
 // The default ascension range on Fastest and By a date: 3 to one more than the instant answer's count, the count

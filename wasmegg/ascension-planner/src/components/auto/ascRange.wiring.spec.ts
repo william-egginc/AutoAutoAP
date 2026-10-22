@@ -39,7 +39,9 @@ describe('Fastest: the Limits box', () => {
     expect(panel).toMatch(
       /const canFollowInstantLimits = computed\(\s*\(\) =>\s*!store\.isRunning &&\s*store\.limitsCount !== null &&\s*\(store\.limitsTouched\.min \|\| store\.limitsTouched\.max\)/
     );
-    expect(store).toMatch(/function followInstantLimits\(\): void \{\s*limitsTouched\.value = \{ min: false, max: false \};/);
+    expect(store).toMatch(
+      /function followInstantLimits\(\): void \{\s*limitsTouched\.value = \{ min: false, max: false \};/
+    );
   });
 });
 
@@ -53,7 +55,9 @@ describe('By a date: Nearby routes’ range', () => {
   });
   it('only the counts in the range are searched, from the instant answer or the suggested routes', () => {
     expect(byDate).toContain('if (inNearbyRange(Number(k))) routes[Number(k)] = r;');
-    expect(byDate).toMatch(/for \(let n = 1; n <= Math\.min\(5, max \?\? 5\); n\+\+\) \{\s*if \(!inNearbyRange\(n\)\) continue;/);
+    expect(byDate).toMatch(
+      /for \(let n = 1; n <= Math\.min\(5, max \?\? 5\); n\+\+\) \{\s*if \(!inNearbyRange\(n\)\) continue;/
+    );
   });
   it('the inputs, the grey hint and the way back', () => {
     expect(byDate).toMatch(/v-model\.number="nearbyMin"[\s\S]{0,500}v-model\.number="nearbyMax"/);
@@ -61,7 +65,9 @@ describe('By a date: Nearby routes’ range', () => {
     expect(byDate).toMatch(
       /v-if="canFollowNearbyRange"[\s\S]{0,300}data-test="nearby-range-reset"\s*@click="followNearbyRange"\s*>\s*Use the instant answer's range/
     );
-    expect(byDate).toMatch(/function followNearbyRange\(\): void \{\s*nearbyLo\.value = null;\s*nearbyHi\.value = null;/);
+    expect(byDate).toMatch(
+      /function followNearbyRange\(\): void \{\s*nearbyLo\.value = null;\s*nearbyHi\.value = null;/
+    );
   });
   it('says so when the range leaves out every count the instant answer has', () => {
     expect(byDate).toMatch(
