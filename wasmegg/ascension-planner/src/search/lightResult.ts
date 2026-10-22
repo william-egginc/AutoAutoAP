@@ -85,16 +85,17 @@ export function lightResultKey(r: LightResult, currentTE: number): string {
   ].join('|');
 }
 
-/** Light's Share box shows (LightShare.vue): at the Light level, once Light is done with a result, with a
- *  board to send to. Light starts by itself, so nothing is "started with Find": the box only offers a
+/** Light's Share box shows (LightShare.vue, in Light's status line at the top of the search panel; Light is
+ *  no longer a level to pick, 22 Oct 2026): once Light is done with a result, with a board to send to. Light starts by itself, so nothing is "started with Find": the box only offers a
  *  Send, and nothing goes without that press. */
 export function lightShareShown(o: {
-  level: string;
+  /** No longer read: Light runs whatever option is picked. */
+  level?: string;
   state: 'idle' | 'running' | 'done' | 'error';
   result: LightResult | null;
   collector: boolean;
 }): boolean {
-  return o.level === 'light' && o.state === 'done' && !!o.result && o.collector;
+  return o.state === 'done' && !!o.result && o.collector;
 }
 
 /** The Send button's words: "Send this route (Light)" / By a date "Send 310 TE by this date (Light)". */

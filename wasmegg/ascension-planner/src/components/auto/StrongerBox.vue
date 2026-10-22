@@ -1,114 +1,15 @@
 <!--
-  "Stronger check" under the instant answer, on Fastest and By a date (the user, 12 Oct 2026): one box
-  for "Try: stronger check" and "Search around this answer", with a level bar for how much stronger.
-  Light is the stronger check alone (InstantRoute.vue teleports StrongerCheck into `#stronger-check-results`
-  here, always on): after Check exactly, the instant answer's routes priced ascending at once on your hours
-  (14 Oct), then your earlier routes priced on this save and, by a date, one TE lower. The levels above it also run the search around the instant answer (the default slot:
-  Fastest's Smart search at that effort, By a date's routes around the answer), its controls and results
-  in this box. What it promises, and what it doesn't, is said here.
+  The Fast / Exact content of the search panel (SearchPanel.vue, 22 Oct 2026; was the "Stronger check" box
+  with its own Light / Fast / Exact / Very high bar, 12 Oct): what the option picked does, how long it
+  takes and what it finds, Very high's tick box inside Exact (lib/veryHigh.ts), what it promises and what
+  it doesn't, then the search around the instant answer (the default slot: Fastest's Nearby routes search
+  at that effort, By a date's routes around the answer), its controls and results. Light's status and
+  results are at the top of the panel now (LightStatus.vue).
 -->
 <template>
-  <section
-    class="space-y-3"
-    :class="inTab ? '' : 'rounded-2xl border border-indigo-200 bg-white p-4'"
-    data-testid="stronger-box"
-  >
-    <!-- In the Search nearby tab (SearchTabs.vue) the tab's own name and first lines say this: the
-         heading and the intro would only repeat them (Allan, 14 Oct: too many boxes). -->
-    <div v-if="!inTab" class="flex flex-wrap items-center gap-2">
-      <h3 class="text-base font-black text-slate-900">Stronger check</h3>
-      <span
-        v-if="running"
-        class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
-        >Running</span
-      >
-    </div>
-    <p v-if="inTab" class="text-[10px] font-black uppercase tracking-widest text-slate-500" data-testid="level-bar-label">
-      How hard to look
-    </p>
-    <p v-else class="text-[12px] text-slate-600 leading-relaxed">
-      Checks the instant answer harder, with the full simulator on your save. Light prices the instant answer's routes
-      ascending at once, and routes you have already found; Fast, Exact and Very high also search the routes near the instant answer's ({{ NAMES.smart }}). Pick how
-      much harder:
-    </p>
-    <div
-      class="grid gap-1 rounded-xl bg-slate-100 p-1"
-      :class="'grid-cols-2 sm:grid-cols-4'"
-      role="radiogroup"
-      aria-label="How much stronger"
-    >
-      <button
-        v-for="l in levels"
-        :key="l.id"
-        type="button"
-        role="radio"
-        :aria-checked="level === l.id"
-        :disabled="running"
-        :data-testid="`level-${l.id}`"
-        class="rounded-lg px-2 py-2 text-[11px] font-black uppercase tracking-widest disabled:opacity-60"
-        :class="level === l.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-500 hover:text-slate-800'"
-        @click="pick(l.id)"
-      >
-        <span class="block">{{ l.label }}</span>
-        <span
-          v-if="estimates?.[l.id]"
-          class="block mt-0.5 text-[9px] font-bold normal-case tracking-normal"
-          :class="level === l.id ? 'text-indigo-500' : 'text-slate-400'"
-          >{{ estimates[l.id]!.short }}</span
-        >
-        <!-- What it is for, small, before the player clicks (the user, 15 Oct). -->
-        <span
-          class="block mt-0.5 text-[9px] font-semibold normal-case tracking-normal leading-tight"
-          :class="level === l.id ? 'text-indigo-400' : 'text-slate-400'"
-          :data-testid="`level-for-${l.id}`"
-          >{{ LEVEL_FOR[goal][l.id] }}</span
-        >
-      </button>
-    </div>
-    <!-- Light has nothing to start (the user, 12 Oct: no Find there looked broken): a status sign,
-         waiting -> running -> done, with how many of your earlier routes it priced and when. Right under
-         the level bar so it shows without scrolling past the routes (the user, 12 Oct). -->
-    <p
-      v-if="level === 'light'"
-      class="flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px]"
-      :class="
-        stronger.light.state === 'done'
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-          : 'border-indigo-100 bg-indigo-50/50 text-slate-700'
-      "
-      data-testid="light-status"
-    >
-      <!-- Running: "Searching" with the CSS dots (AnimatedDots.vue, no timer), then what it is on now
-           ("Looking at 7 ascensions (1 of 5)…", "Your earlier routes: 3 of 6…"; Jordan, 14 Oct). -->
-      <span v-if="stronger.light.state === 'running'" data-testid="light-searching"
-        ><b>Searching<AnimatedDots /></b>{{ ' ' }}{{ lightText }}</span
-      >
-      <span v-else>{{ lightText }}</span>
-    </p>
-    <!-- Light's own result, as soon as one route is priced at once: the fastest as you'd play it. -->
-    <p
-      v-if="stronger.light.summary"
-      class="text-[12px] font-bold text-indigo-900"
-      data-testid="light-as-played"
-    >
-      {{ stronger.light.summary }}
-    </p>
-    <!-- Light has no Find on purpose: say where it is (the user, 14 Oct: "where go button?"). -->
-    <p v-if="level === 'light'" class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600" data-testid="light-next">
-      <span>Want it to search for new routes?</span>
-      <button
-        type="button"
-        class="px-2.5 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
-        data-testid="light-go-fast"
-        @click="pick('quick')"
-      >
-        Search with Fast{{ estimates?.quick ? ` (${estimates.quick.short})` : '' }}
-      </button>
-      <span class="text-slate-400">then Find appears</span>
-    </p>
-    <!-- What the level picked is for, in a few words (the user, 14 Oct), from players' runs so far. -->
-    <p class="text-[12px] font-black text-indigo-700" data-testid="level-tag">{{ tag }}</p>
-    <!-- The level picked, in three plain lines: what it does, how long, what it can and can't find. -->
+  <section class="space-y-3" data-testid="stronger-box">
+    <!-- The option picked (Fast or Exact), in three plain lines: what it does, how long, what it can and
+         can't find. -->
     <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] leading-relaxed" data-testid="level-note">
       <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it does</dt>
       <dd class="text-slate-800">{{ current.does }}</dd>
@@ -117,7 +18,39 @@
       <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it finds</dt>
       <dd class="text-slate-800">{{ current.finds }}</dd>
     </dl>
-    <!-- Open until closed (remembered in this browser), amber like the other promise boxes. -->
+    <!-- Very high: a tick box inside Exact (lib/veryHigh.ts). Switched off, a pointer to Custom instead, and
+         a run that used it (a stored or linked `thorough` run) says so. -->
+    <template v-if="isExact">
+      <label
+        v-if="SHOW_VERY_HIGH"
+        class="flex items-start gap-2.5 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 text-[12px]"
+        data-testid="very-high-box"
+      >
+        <input
+          type="checkbox"
+          class="mt-0.5 rounded border-slate-400 text-indigo-600"
+          :checked="level === 'thorough'"
+          :disabled="running"
+          data-testid="very-high-tick"
+          @change="setVeryHigh(($event.target as HTMLInputElement).checked)"
+        />
+        <span
+          ><b>Very high</b
+          ><span v-if="estimates?.thorough" class="text-slate-500">{{ ' ' }}· {{ estimates.thorough.short }} here</span
+          ><span class="text-slate-500">{{ ' ' }}· if you're curious</span><br /><span
+            class="text-slate-500"
+            data-testid="very-high-what"
+            >{{ VERY_HIGH_WHAT[goal] }}</span
+          ></span
+        >
+      </label>
+      <p v-else class="text-[11px] text-slate-600" data-testid="very-high-off">
+        <span v-if="level === 'thorough'" class="font-bold" data-testid="used-very-high">This run used Very high.{{ ' ' }}</span
+        >For a full sweep, use Custom.
+      </p>
+    </template>
+    <slot name="summary" />
+    <!-- Closed until opened (remembered in this browser), amber like the other promise boxes. -->
     <details
       :open="promiseOpen"
       class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900"
@@ -127,20 +60,13 @@
       <summary class="cursor-pointer font-black uppercase tracking-wide text-amber-800">
         What this does and does not promise
       </summary>
-      <!-- What the level picked promises, and only that (the user, 12 Oct: no lines that don't apply). -->
+      <!-- What the option picked promises, and only that (the user, 12 Oct: no lines that don't apply). -->
       <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed" data-testid="promise-lines">
         <li v-for="(line, k) in promises" :key="k">{{ line }}</li>
       </ul>
     </details>
-    <!-- The stronger check's own results (earlier routes, one TE lower, Best now). -->
-    <!-- No heading of ours here: the stronger check's results carry their own ("Your earlier routes",
-         "A TE lower"); a second one doubled it (the user, 12 Oct). -->
-    <div id="stronger-check-results" />
-    <!-- Light's result to the board (Jordan, 15 Oct): once Light is done with one, a Send like Fast's. -->
-    <LightShare v-if="level === 'light'" :goal="goal" :player-id="playerId" />
-    <!-- At Fast and above: the search of the routes near the instant answer's, its controls and results. -->
+    <!-- The search of the routes near the instant answer's, its controls and results. -->
     <h4
-      v-if="level !== 'light'"
       class="pt-2 border-t border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500"
       data-testid="nearby-heading"
     >
@@ -156,160 +82,108 @@ import { NAMES } from '@/lib/siteNav';
 import { EFFORT_NOTES } from '@/search/effort';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
-import { doneWhat } from '@/search/lightAtOnce';
-import AnimatedDots from './AnimatedDots.vue';
-import LightShare from './LightShare.vue';
+import { rememberChoice } from '@/lib/searchOption';
+import { SHOW_VERY_HIGH } from '@/lib/veryHigh';
 
 const props = defineProps<{
-  /** 'fastest': Light, Fast, Exact, Very high (the Smart search's effort). 'date': Light and Around. */
+  /** 'fastest': Fast, Exact (Very high inside) as the Nearby routes search's effort. 'date': the same,
+   *  as wider boxes around the instant answer. */
   goal: 'fastest' | 'date';
-  /** A search in this box is running: the level can't change. */
+  /** A search in this box is running: Very high's box can't change. */
   running?: boolean;
-  /** What each search level would cost on THIS computer (its workers and speed): `short` under the
-   *  level's name, `line` as How long. FastestRoute.vue and DeadlinePanel.vue work them out. */
+  /** What each search level would cost on THIS computer (its workers and speed): `short` on the option,
+   *  `line` as How long. FastestRoute.vue and DeadlinePanel.vue work them out. */
   estimates?: Partial<Record<StrongerLevel, LevelEstimate>>;
-  /** Inside the Search nearby tab (SearchTabs.vue): no frame, heading or intro of its own. */
-  inTab?: boolean;
-  /** The header's player ID, for Light's Share box (LightShare.vue). */
-  playerId?: string;
 }>();
-const emit = defineEmits<{ picked: [level: StrongerLevel] }>();
 
 const store = useChainSearchStore();
 const stronger = useStrongerStore();
 
+type NearbyLevel = Exclude<StrongerLevel, 'light'>;
 interface LevelText {
-  id: StrongerLevel;
-  label: string;
+  id: NearbyLevel;
   does: string;
   time: string;
   finds: string;
 }
+/** Exact's first words: a wider search, not the exact price (Jordan, 22 Oct: the name sits next to Check exactly). */
+const EXACT_FIRST = 'A wider search than Fast, not the exact price (that is Check exactly).';
 /** Each level in plain words, per screen: what it does, how long, what it can and can't find. */
 const levels = computed<LevelText[]>(() =>
   props.goal === 'fastest'
     ? [
         {
-          id: 'light',
-          label: 'Light',
-          does: "After Check exactly, prices the instant answer's routes, ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on the hour. Then it prices the routes you have already found for this target (your searches here, saved runs and answers, earlier checks, and your board runs, from this browser or another) on your save as it is now. It uses your hours and time off, which the instant answer's own estimate leaves out.",
-          time: 'Seconds to a few minutes, once Check exactly has finished.',
-          finds: "When the instant answer's routes finish if you ascend at once, and one of your own routes, if it is now faster than the instant answer. It does not look for new routes.",
-        },
-        {
           id: 'quick',
-          label: 'Fast',
-          does: `Light, then ${NAMES.smart}. Starting from the instant answer's route, it moves one stop at a time, up to 8 TE either way, until nothing gets faster. Then it gives the other numbers of ascensions in your limits a quick try.`,
+          does: `${NAMES.smart}. Starting from the instant answer's route, it moves one stop at a time, up to 8 TE either way, until nothing gets faster. Then it gives the other numbers of ascensions in your limits a quick try.`,
           time: `${EFFORT_NOTES.quick.typicalTime}`,
           finds: "A faster route close to the instant answer's. In players' runs so far, a short search like this found one at least a day sooner in 9 of 12 runs (a small sample; some of that gap may be how the instant route is priced). It can miss one where several stops have to move together, or one far from it.",
         },
         {
           id: 'normal',
-          label: 'Exact',
-          does: 'Fast, plus moving neighbouring stops in pairs. Then it tries one ascension more or fewer.',
+          does: `${EXACT_FIRST} Fast, plus moving neighbouring stops in pairs. Then it tries one ascension more or fewer.`,
           time: EFFORT_NOTES.normal.typicalTime,
           finds: "Also routes where two stops have to move together. Still a search near the instant answer, not of every route. In players' runs so far it rarely found more than Fast did.",
         },
         {
           id: 'thorough',
-          label: 'Very high',
-          does: 'Exact, plus moving three neighbouring stops together.',
+          does: `${EXACT_FIRST} Exact with Very high: Fast and pairs, plus moving three neighbouring stops together.`,
           time: EFFORT_NOTES.thorough.typicalTime,
-          finds: `The strongest search near the instant answer. In players' runs so far it rarely found more than Fast did. Still not a proven best: for that, use the ${NAMES.full} tab with boxes you set.`,
+          finds: `The strongest search near the instant answer. In players' runs so far it never found more than Exact did. Still not a proven best: for that, use Custom with boxes you set.`,
         },
       ]
     : [
         {
-          id: 'light',
-          label: 'Light',
-          does: "After Check exactly, prices the instant answer's routes, ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on the hour. Then it prices your own earlier routes for this date on your save. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed). It uses your hours and time off, which the instant answer's own estimate leaves out.",
-          time: 'Seconds to a few minutes, once Check exactly has finished.',
-          finds: "How much spare time the instant answer's routes have if you ascend at once, and one of your routes that does better, or a route one TE lower that really makes the date. It does not look for new routes.",
-        },
-        {
           id: 'quick',
-          label: 'Fast',
-          does: `Light, then ${NAMES.smart}. For each number of ascensions the instant answer has, it tries every route with each early stop up to 3 TE either side of the answer's route (fewer on long routes). Each last stop is found to the exact TE.`,
+          does: `${NAMES.smart}. For each number of ascensions the instant answer has, it tries every route with each early stop up to 3 TE either side of the answer's route (fewer on long routes). Each last stop is found to the exact TE.`,
           time: 'Sized to stay under about 25 minutes (a cap, not a measurement); yours is below.',
           finds: "The highest TE near the instant answer's routes. So far no search has beaten the instant answer's TE by a date (22 paired players' runs, 4 real players, none above TE 250), so expect this to confirm it. It can miss a route whose early stops are further away.",
         },
         {
           id: 'normal',
-          label: 'Exact',
-          does: 'The same, with one more TE either side of each early stop.',
+          does: `${EXACT_FIRST} The same as Fast, with one more TE either side of each early stop.`,
           time: 'Sized to stay under about 2 hours (a cap, not a measurement); yours is below.',
-          finds: 'A wider net around the same routes.',
+          finds: 'A wider net around the same routes. Still not a proven best: for that, use Custom.',
         },
         {
           id: 'thorough',
-          label: 'Very high',
-          does: 'The same, with two more TE either side of each early stop.',
+          does: `${EXACT_FIRST} With Very high: the same as Fast, with two more TE either side of each early stop.`,
           time: 'Sized to stay under about 8 hours (a cap, not a measurement); yours is below.',
-          finds: `The widest net near the instant answer. Still not a proven best: for that, use the ${NAMES.full} tab with boxes you set.`,
+          finds: `The widest net near the instant answer. Still not a proven best: for that, use Custom with boxes you set.`,
         },
       ]
 );
-const level = computed<StrongerLevel>(() => stronger.level);
+/** Light is no longer picked: it shows as Fast. */
+const level = computed<NearbyLevel>(() => (stronger.level === 'light' ? 'quick' : stronger.level));
+const isExact = computed(() => level.value === 'normal' || level.value === 'thorough');
 
-/** Light's status sign: "runs by itself" -> "Searching… Looking at 7 ascensions (1 of 5)…" -> "Done: priced the
- *  instant answer's 5 routes at once, and 2 of your 3 earlier routes". */
-const lightText = computed(() => {
-  const l = stronger.light;
-  const ex = stronger.exact;
-  const instant = l.instant?.total ?? 0;
-  // Check exactly comes first: Light waits for it, so say so, with how far it is (the user, 14 Oct: "nothing to
-  // start" read as if nothing would happen).
-  if (ex.running && l.state !== 'running') {
-    const progress = ex.total ? ` (${ex.done} of ${ex.total} routes)` : '';
-    const next = l.total ? `${l.total} earlier route${l.total === 1 ? '' : 's'} of yours` : 'your earlier routes';
-    return `Waiting for Check exactly to finish${progress}… then Light prices the instant answer's routes at once, and ${next}, on your hours.`;
-  }
-  if (l.state === 'running') {
-    if (l.step) return l.step;
-    return l.total
-      ? `Pricing your ${l.total} earlier route${l.total === 1 ? '' : 's'} on this save…`
-      : 'Pricing your earlier routes on this save…';
-  }
-  if (l.state === 'done') {
-    const at = l.at ? ` at ${clock(l.at)}` : '';
-    const what = doneWhat({ instantPriced: l.instant?.priced ?? 0, instantTotal: instant, earlierPriced: l.priced, earlierTotal: l.total });
-    if (!what) return 'Nothing of yours to price yet. Pick Fast to search for new routes.';
-    const none = l.total ? '' : ' Nothing of yours to price yet.';
-    // Where the earlier routes came from: "from your board runs sent from another browser" (18 Oct 2026).
-    const from = l.total && l.from ? `, ${l.from}` : '';
-    return `Done${at}: priced ${what}${from}.${none}`;
-  }
-  if (l.state === 'error') return "Stopped before it finished. It runs again after the next Check exactly.";
-  return 'Light runs by itself after Check exactly: nothing to start.';
-});
-/** "12:31 pm" */
-function clock(ms: number): string {
-  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    .format(new Date(ms))
-    .toLowerCase();
+/** Very high's one sentence, per screen (notes/veryhigh-vs-exact.md, 22 Oct 2026). */
+const VERY_HIGH_WHAT: Record<'fastest' | 'date', string> = {
+  fastest:
+    'Also tries every group of three stops together. This takes 3 to 10 times longer, and on the runs we have it has not yet found a faster route than Exact.',
+  date: "Two more TE either side of each early stop instead of one, the widest net near the instant answer; no player's run by a date has used it yet, so nothing measures what it adds.",
+};
+
+/** Very high's box (shown only while lib/veryHigh.ts has it on): Exact's level, remembered on this screen. */
+function setVeryHigh(on: boolean): void {
+  if (props.running) return;
+  const l: NearbyLevel = on ? 'thorough' : 'normal';
+  stronger.level = l;
+  if (props.goal === 'fastest') store.effort = l;
+  rememberChoice(props.goal === 'fastest' ? 'fastest' : 'by-date', { option: 'exact', veryHigh: on });
 }
 
-/** "What this does and does not promise" for the level picked, on this screen. */
+/** "What this does and does not promise" for the option picked, on this screen. */
 const PRICED = 'Every route it shows is priced with the full simulator on your save, the same as Check exactly, so its times are your own.';
 const STOP = 'You can stop it at any point and keep the best route it found so far.';
 const TIMING = "The times come from players' runs and your computer's own speed. Keep this tab in front: a hidden tab runs several times slower.";
 const promises = computed<string[]>(() => {
   const l = level.value;
-  if (l === 'light')
-    return [
-      props.goal === 'date'
-        ? "No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found (your searches here, saved runs and answers, earlier checks, and your board runs, from this browser or another) on your save as it is now. If the instant answer's top route misses the date on your account, it also tries that route one TE lower (two if needed)."
-        : "No search: it only prices the instant answer's routes, ascending at once, on your hours, and routes you have already found (your searches here, saved runs and answers, earlier checks, and your board runs, from this browser or another) on your save as it is now.",
-      'Ascending at once means starting each fresh ascension the moment the one before ends. Its times show under each row of the table above, next to the on-the-hour times.',
-      "It can't find a route nobody has tried yet. Fast, Exact and Very high search for those.",
-      'It runs by itself once Check exactly has finished, and waits while a search is running.',
-    ];
   if (props.goal === 'date') {
     const w = { quick: 3, normal: 4, thorough: 5 }[l];
     return [
       PRICED,
       `For each number of ascensions the instant answer has, it tries every route with each early stop within ${w} TE of the answer's route. Long routes get fewer, and it narrows if the search would take too long. Each last stop is found to the exact TE.`,
-      `It can miss a route whose early stops are further away. The ${NAMES.full} tab proves the best only inside the boxes you set.`,
+      `It can miss a route whose early stops are further away. Custom (${NAMES.full}) proves the best only inside the boxes you set.`,
       "So far no search has beaten the instant answer's TE by a date (22 paired players' runs, 4 real players, none above TE 250), so a long search mostly confirms it. That sample is small.",
       TIMING,
       STOP,
@@ -326,7 +200,7 @@ const promises = computed<string[]>(() => {
     `${PRICED} With "Let me pick my hours" (in Your setup), each prestige and each egg shift waits for your hours, and the CSV counts the waits per ascension.`,
     miss,
     "It starts from the instant answer's route (or the one you picked) and never scans every route, so a poor start can leave it near a poor answer.",
-    `It is a strong nearby answer, never a proven best: the ${NAMES.full} tab proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
+    `It is a strong nearby answer, never a proven best: Custom (${NAMES.full}) proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
     "In players' runs so far, a short search (Fast) often found a route days sooner than the instant answer's: at least a day in 9 of 12 runs. Going bigger rarely added more. That sample is small.",
     TIMING,
     `${STOP} A refresh is safe: its progress is saved and carries on without re-simulating anything.`,
@@ -334,38 +208,13 @@ const promises = computed<string[]>(() => {
 });
 const current = computed(() => levels.value.find(l => l.id === level.value) ?? levels.value[0]);
 
-/** What each level is for, from players' runs so far (analytics of 13 Oct 2026, a small sample).
- *  By a date no search has beaten the instant answer's TE yet, so its Fast is not "where the gain is". */
-const TAGS: Record<'fastest' | 'date', Record<StrongerLevel, string>> = {
-  fastest: {
-    light: 'Ascending at once, and your own routes',
-    quick: 'Where nearly all the gain is',
-    normal: "If you're curious",
-    thorough: "If you're curious",
-  },
-  date: {
-    light: 'Ascending at once, and your own routes',
-    quick: 'A quick second opinion',
-    normal: "If you're curious",
-    thorough: "If you're curious",
-  },
-};
-const tag = computed(() => TAGS[props.goal][level.value]);
-
-/** The few words under each level's name and time: what it is for. Fast is the one to try first; By a date's Fast is a
- *  second opinion on the instant answer. */
-const LEVEL_FOR: Record<'fastest' | 'date', Record<StrongerLevel, string>> = {
-  fastest: { light: 'quick, your routes', quick: 'most likely best', normal: "if you're curious", thorough: "if you're curious" },
-  date: { light: 'quick, your routes', quick: 'a second opinion', normal: "if you're curious", thorough: "if you're curious" },
-};
-
-/** "What this does and does not promise": open unless the player closed it (this browser). */
+/** "What this does and does not promise": closed unless the player opened it (this browser). */
 const PROMISE_KEY = 'aap-stronger-promise-closed';
 function readPromiseOpen(): boolean {
   try {
-    return localStorage.getItem(PROMISE_KEY) !== '1';
+    return localStorage.getItem(PROMISE_KEY) === '0';
   } catch {
-    return true;
+    return false;
   }
 }
 const promiseOpen = ref(readPromiseOpen());
@@ -376,11 +225,5 @@ function onPromiseToggle(e: Event): void {
   } catch {
     /* this visit only */
   }
-}
-
-function pick(id: StrongerLevel): void {
-  stronger.level = id;
-  if (id === 'quick' || id === 'normal' || id === 'thorough') store.effort = id;
-  emit('picked', id);
 }
 </script>

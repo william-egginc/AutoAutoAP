@@ -19,7 +19,7 @@
  * afterwards (`holdInView`): whenever the block moves, the scroll follows it, until it has stayed put
  * for a second and a half, or the player scrolls themselves.
  *
- * And a fourth (Allan, 14 Oct: the search tabs, SearchTabs.vue): a block in the hidden tab is on the page
+ * And a fourth (Allan, 14 Oct: the search tabs, now SearchPanel.vue): a block in the hidden tab is on the page
  * but not laid out, so it would never count as shown and the jump would wait for nothing. While waiting,
  * a block found in a hidden search tab switches to that tab (lib/searchTab.ts `revealElement`); the
  * callers also switch first (App.vue showRun), this catches any that don't.

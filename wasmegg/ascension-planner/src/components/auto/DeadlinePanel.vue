@@ -197,23 +197,25 @@
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
 
-    <!-- The two ways to search, one shown at a time (SearchTabs.vue; Allan, 14 Oct 2026: "too many
-         boxes, use one at a time"). Both stay mounted (v-show): the teleport targets below
-         (#bd-around-*, #bd-exh-*) must be on the page before the run controls move in, and a run in the
-         hidden tab keeps going. -->
-    <SearchTabs screen="by-date" :intro="TAB_INTRO" :running="{ nearby: runKind === 'around', exhaustive: runKind === 'boxes' }">
-    <template #nearby>
-    <!-- Stronger check (StrongerBox.vue; the user, 12 Oct 2026): the stronger check's results, and with
-         Search around the routes around the instant answer, their run controls and results here. -->
-    <StrongerBox
-      v-slot="{ level }"
-      goal="date"
-      in-tab
+    <!-- The search panel (SearchPanel.vue, 22 Oct 2026): Light's status, then Fast | Exact | Custom. Both of
+         its parts stay mounted (v-show): the teleport targets below (#bd-around-*, #bd-exh-*) must be on the
+         page before the run controls move in, and a run in the hidden part keeps going. -->
+    <SearchPanel
+      screen="by-date"
       :player-id="playerId"
+      :running="!!runKind"
+      :estimates="levelEstimates"
+      :opens-on="unfinishedChoice"
+    >
+    <template #nearby>
+    <!-- Fast and Exact (StrongerBox.vue): what they do, and the routes around the instant answer, their run
+         controls and results here. -->
+    <StrongerBox
+      goal="date"
       :running="store.deadlineRunning && !!store.deadlineRunSimple"
       :estimates="levelEstimates"
     >
-      <template v-if="level !== 'light'">
+      <template v-if="true">
         <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
              boxes in Advanced (to widen them, say). -->
         <div
@@ -242,7 +244,7 @@
               data-test="open-in-advanced"
               @click="openInAdvanced"
             >
-              Open in Exhaustive</button
+              Open in Custom</button
             ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
           </p>
         </div>
@@ -254,9 +256,10 @@
     </StrongerBox>
     </template>
 
-    <!-- Exhaustive: the chain editor, and its run controls and results. -->
-    <template #exhaustive>
+    <!-- Custom is Exhaustive, unchanged: the chain editor, and its run controls and results. -->
+    <template #custom>
     <section id="exhaustive" class="space-y-3 scroll-mt-24">
+      <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="custom-intro">{{ CUSTOM_INTRO }}</p>
       <ExhaustivePromise goal="deadline" />
       <template v-if="true">
         <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
@@ -455,7 +458,7 @@
       <div id="bd-exh-results" />
     </section>
     </template>
-    </SearchTabs>
+    </SearchPanel>
 
     <!-- Keep awake is in Your setup at the top, with the other computer settings. -->
     <!-- The run controls (RunControls.vue), one set in each box, as on Fastest: Nearby routes' in the
@@ -910,7 +913,7 @@ const kept = {
   >([{ asc: 4, text: '' }]),
   /** The one default box's Ascensions still follows the instant answer's best route's count (the 4 above
    *  is only for before it is in). Cleared for good (this page load) by anything that sets the boxes on
-   *  purpose: the Ascensions box, Add/Remove, a typed box, a link or Science request, Open in Exhaustive,
+   *  purpose: the Ascensions box, Add/Remove, a typed box, a link or Science request, Open in Custom,
    *  Check exactly, a carried-on run's boxes. */
   ascFollows: keptRef(true),
   lastBox: keptRef(''),
@@ -1007,8 +1010,9 @@ import {
   type ByDateKind,
 } from '@/search/byDateKinds';
 import CollapsibleSection from './CollapsibleSection.vue';
-import SearchTabs from './SearchTabs.vue';
-import { scrollToShownId, selectSearchTab, type SearchTabId } from '@/lib/searchTab';
+import SearchPanel from './SearchPanel.vue';
+import { choiceForEffort, type SearchChoice } from '@/lib/searchOption';
+import { scrollToShownId, selectSearchTab } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
 import { routeLine } from '@/search/sectionSummary';
 import SearchCompare from './SearchCompare.vue';
@@ -1201,13 +1205,15 @@ watch(
   },
   { immediate: true }
 );
-/** The first lines of each tab (SearchTabs.vue): what it does, when to use it, how long it takes. */
-const TAB_INTRO: Record<SearchTabId, string> = {
-  nearby:
-    `Start here. It checks the instant answer on your save and, at Fast and above, tries the routes near it for each number of ascensions, each last stop found to the exact TE. Light takes seconds to a few minutes; each other level's time on ${thisDevice()} is under its name.`,
-  exhaustive:
-    "For proving an answer, not for finding a much better one: it proves the best inside the boxes you set, and so far no search has beaten the instant answer's TE by a date. You set a band of TEs for each ascension and it tries every route in them, the last stop found to the exact TE. Big boxes take hours.",
-};
+/** An unfinished run opens on its own option (SearchPanel.vue): Custom for boxes, else its level. */
+const unfinishedChoice = computed<SearchChoice | null>(() => {
+  const u = store.deadlineUnfinished;
+  if (!u || runKind.value) return null;
+  return choiceForEffort(u.spec.simple ? u.spec.level ?? 'quick' : 'boxes');
+});
+/** Custom's first line (it is the Exhaustive search, unchanged): what it is for and how long it takes. */
+const CUSTOM_INTRO =
+  "For proving an answer, not for finding a much better one: it tries every route in the boxes you set (Exhaustive), and nothing outside them, so its answer is proven for that space, and so far no search has beaten the instant answer's TE by a date. You set a band of TEs for each ascension, the last stop found to the exact TE. Big boxes take hours.";
 /** The answer on screen, by box. */
 const resultKind = computed(() => kindOfSimple(result.value));
 /** The unfinished run, by box. */

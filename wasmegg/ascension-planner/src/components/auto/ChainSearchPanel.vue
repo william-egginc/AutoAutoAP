@@ -1247,7 +1247,7 @@ function startFromCount(n: number): string {
   const set = `Starting route set to ${plan.chain.join(' ')}. Press Find to search from it`;
   return store.effort === 'quick'
     ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a more exact search, pick a higher level above.`
-    : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, in the level bar above, is quicker.`;
+    : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, above, is quicker.`;
 }
 /** "(from the instant answer)" beside the Limits inputs while they follow it. */
 const limitsFollowHint = computed(() => limitsHint(store.limitsFollowing));

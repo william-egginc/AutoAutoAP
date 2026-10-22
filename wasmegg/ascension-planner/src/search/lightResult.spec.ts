@@ -119,9 +119,9 @@ describe('lightResultKey', () => {
 describe('lightShareShown', () => {
   const r = lightBest({ goal: fastest, atOnce: [priced([212, 300, 490], 600)], earlier: [], planStart: START })!;
   const base = { level: 'light', state: 'done' as const, result: r, collector: true };
-  it('only at Light, done, with a result and a board', () => {
+  it('whatever option is picked (Light is no longer a level), done, with a result and a board', () => {
     expect(lightShareShown(base)).toBe(true);
-    expect(lightShareShown({ ...base, level: 'quick' })).toBe(false);
+    expect(lightShareShown({ ...base, level: 'quick' })).toBe(true);
     expect(lightShareShown({ ...base, state: 'running' })).toBe(false);
     expect(lightShareShown({ ...base, state: 'idle' })).toBe(false);
     expect(lightShareShown({ ...base, state: 'error' })).toBe(false);
