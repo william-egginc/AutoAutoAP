@@ -244,7 +244,7 @@ the same process could otherwise differ.
 ### Keeping tables in step with the simulator
 
 - **The stamp.** Each table header carries the `SIM_VERSION` its cells came from
-  (`src/search/simVersion.ts`, now `2026-10-13-lowte-gate`). The page says so when a table's stamp
+  (`src/search/simVersion.ts`, now `2026-10-21-egg-beta2`). The page says so when a table's stamp
   differs from the code's (`tableSimMismatch`), and `--generate` will not mix simulators in one DIR
   without `--allow-sim-change`.
 - **The guard.** `src/search/simVersion.spec.ts` hashes `src/engine`, `src/auto`,

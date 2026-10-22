@@ -34,7 +34,7 @@ opens it, for that visit. Both need the collector: a build without one never sho
 
 Above the tabs, once a save is loaded (and only in a build with a collector), the **Help improve the
 planner** box asks once per browser whether to turn on the site's sharing choices (share runs on the
-leaderboard, the CSV, private diagnostics, keep sharing checks). Each choice can be unticked before Yes. The
+leaderboard, the CSV, private diagnostics, keep sharing checks). Each choice can be changed before Yes. The
 answer is kept in this browser (`aap.study`, no player ID and no name); Yes or No thanks hides the box, and
 the choices change later in Setup › Help improve the planner. Yes applies to the account on screen only;
 another account loaded later gets a one-line offer to use the same choices.
