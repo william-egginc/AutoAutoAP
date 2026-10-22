@@ -224,7 +224,9 @@ describe('Setup › Help improve the planner', () => {
     // Agreed under a share button after No thanks: Setup says so, and offers Withdraw.
     setConsent('keepSharingChecks', true);
     t = textOf(await setup());
-    expect(t).toContain('You said no thanks. For this account right now: runs not shared · CSV on · diagnostics off · checks shared');
+    expect(t).toContain(
+      'You said no thanks. For this account right now: runs not shared · CSV on · diagnostics off · checks shared'
+    );
     expect(t).toContain('Withdraw');
     expect(t).toContain(
       'Withdraw stops what this browser would send for this account from now on; other accounts keep their own choices and what was already sent stays.'
