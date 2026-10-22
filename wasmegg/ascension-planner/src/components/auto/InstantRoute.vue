@@ -907,17 +907,14 @@
 
       <!-- What the answer above does not account for, on both screens. -->
       <template v-if="result">
-        <p
-          v-if="gearDiffers"
-          class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-        >
-          Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"
-            >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
-          >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its rate at full research). Ascensions that start below
-          about TE {{ FULL_RESEARCH_TE }} can take a few percent more or less than these, and may need a longer build
-          (one more research sale) than shown: your earnings set, and how your delivery gear does before research is
-          complete, aren't fully taken off. From there up they match. Check exactly gives your own times.
-        </p>
+        <!-- The gear caveat and "may be optimistic for your gear", one amber box (GearCaveat.vue). -->
+        <GearCaveat
+          :gear-differs="gearDiffers"
+          :optimistic="optimistic"
+          :bonus-short="bonusShort"
+          :delivery-scale="deliveryScale"
+          :full-research-te="FULL_RESEARCH_TE"
+        />
         <p
           v-if="progressionShort"
           class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
@@ -1039,6 +1036,8 @@ import {
   type WarnAt,
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
+import GearCaveat from './GearCaveat.vue';
+import { optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
 import RouteExtras from './RouteExtras.vue';
@@ -1648,6 +1647,11 @@ const leftOut = computed(() => {
 
 /** How far the player's earnings set is from the table's Clothed TE bonus. */
 const bonusShort = computed(() => (header.value ? header.value.cteBonus - bonus.value : 0));
+
+/** Which instant answer the card read: the player's own, a gear combination's, or the maxed one scaled. */
+const answerTable = computed<AnswerTable>(() => (gearTable.value ? 'gear' : own.value ? 'own' : 'maxed'));
+/** "May be optimistic for your gear": the maxed answer scaled to a delivery rate under 95% (lib/optimisticAnswer.ts). */
+const optimistic = computed(() => optimisticForGear(answerTable.value, deliveryScale.value));
 
 /**
  * The start TE from which the table's builds hold for any gear: the build reaches full research, so
@@ -3377,7 +3381,7 @@ function buildRecord(): InstantRecord | null {
     ...(initialState.rawBackup ? { backupTE: round(store.backupTE, 2) } : {}),
     ...(parts ? { clothedTE: round(parts.total, 2) } : {}),
     gear: {
-      answer: gearTable.value ? 'gear' : own.value ? 'own' : 'maxed',
+      answer: answerTable.value,
       ...(stampHash.value ? { stamp: stampHash.value } : {}),
       ...(ownChanged.value ? { ownChanged: ownChanged.value.slice(0, 80) } : {}),
       earningsShort: round(bonusShort.value, 2),
