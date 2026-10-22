@@ -106,6 +106,8 @@
             @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
             class="flex-1 h-11 text-center text-sm font-mono-premium font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
             :disabled="currentTE >= 98"
+            @input="onBoxInput"
+            @blur="onBoxLeave"
           />
           <button
             class="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
@@ -202,7 +204,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { showClamped } from '@/lib/showClamped';
+import { clampBox, showClamped } from '@/lib/showClamped';
 const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL } from 'lib';
@@ -263,6 +265,17 @@ watch(
   },
   { immediate: true }
 );
+
+// A paste, a drop or a scripted set skips the keydown filter and may fire no change (QA, 22 Oct 2026):
+// the box is clamped as it changes and again when it is left, whatever put the value there.
+function onBoxInput(e: Event) {
+  const v = clampBox(e.target as HTMLInputElement, maxTEToGain(currentTE.value), 1, 'wait');
+  if (v !== null && v !== teToGain.value) teToGain.value = v;
+}
+function onBoxLeave(e: Event) {
+  const v = clampBox(e.target as HTMLInputElement, maxTEToGain(currentTE.value), 1, 'min');
+  if (v !== null && v !== teToGain.value) teToGain.value = v;
+}
 
 const eggsToLay = computed(() => {
   if (teToGain.value <= 0) return 0;

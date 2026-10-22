@@ -20,6 +20,8 @@
             @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
             class="w-16 min-h-[44px] sm:min-h-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-mono-premium font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
             @change="handleTotalChange"
+            @input="onBoxInput"
+            @blur="onBoxLeave"
           />
           <button 
             class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
@@ -158,7 +160,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { showClamped } from '@/lib/showClamped';
+import { clampBox, showClamped } from '@/lib/showClamped';
 const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL, shiftCost } from 'lib';
@@ -386,8 +388,28 @@ function adjustTotal(delta: number) {
   rebalance();
 }
 
+// A paste, a drop or a scripted set skips the keydown filter and may fire no change (QA, 22 Oct 2026):
+// the box is clamped as it changes and again when it is left, whatever put the value there.
+function onBoxInput(e: Event) {
+  const v = clampBox(e.target as HTMLInputElement, maxTotalGain(), 0, 'wait');
+  if (v !== null && v !== totalTEToGain.value) {
+    totalTEToGain.value = v;
+    handleTotalChange();
+  }
+}
+function onBoxLeave(e: Event) {
+  const v = clampBox(e.target as HTMLInputElement, maxTotalGain(), 0, 'min');
+  if (v !== null && v !== totalTEToGain.value) {
+    totalTEToGain.value = v;
+    handleTotalChange();
+  }
+}
+function maxTotalGain(): number {
+  return Object.values(eggStartStates.value).reduce((sum, s) => sum + (MAX_TE - s.te), 0);
+}
+
 function handleTotalChange() {
-  const maxPossibleGain = Object.values(eggStartStates.value).reduce((sum, s) => sum + (MAX_TE - s.te), 0);
+  const maxPossibleGain = maxTotalGain();
   // A whole number from 0 to what the five eggs can still gain (1.5, '3.48e45', empty all land in range).
   totalTEToGain.value = clampTECount(totalTEToGain.value, maxPossibleGain, 0);
   showClamped(inputEl.value, totalTEToGain.value);
