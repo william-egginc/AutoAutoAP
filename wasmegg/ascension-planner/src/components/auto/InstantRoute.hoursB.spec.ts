@@ -11,6 +11,7 @@ import { isConstrained } from '@/search/availability';
 
 const t = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
 const sc = fs.readFileSync(path.join(__dirname, 'StrongerCheck.vue'), 'utf8');
+const rc = fs.readFileSync(path.join(__dirname, '../../search/dateRowCheck.ts'), 'utf8');
 
 describe('InstantRoute: hours fix B', () => {
   it('(e) the muted line, on both screens, only with hours on (isConstrained(store.availability))', () => {
@@ -34,8 +35,10 @@ describe('InstantRoute: hours fix B', () => {
     expect(t).toContain('current = withWinners(found, secondRoutes);');
     // A check run again starts from the table's picks.
     expect(t).toContain('const found = withPicks(given, secondRoutes);');
-    // By a date: the winner goes into dateExactByK; lower last stops only when neither makes the date.
-    expect(t).toMatch(/hi > floor && !made && !altMade/);
+    // By a date: the winner goes into dateExactByK; nearby routes and lower last stops only when neither makes the
+    // date (search/dateRowCheck.ts `settleDateRow`, handed the runner-up).
+    expect(t).toMatch(/settleDateRow\(\{[\s\S]*?alt: alt \? alt\.chain : null,/);
+    expect(rc).toContain('if (made || altMade) return out(true);');
     expect(t).toMatch(/if \(win && altMade\) \{[\s\S]*?made = altMade;/);
   });
 

@@ -1076,6 +1076,7 @@ import {
   type RowWin,
   type SecondWin,
 } from '@/search/hoursRunnerUp';
+import { NEARBY_DEAL, NEARBY_ROWS, settleDateRow, worthNearby } from '@/search/dateRowCheck';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
 import {
   choosePreferFewer,
@@ -2122,8 +2123,9 @@ async function run(force = false, goAhead = false): Promise<void> {
  * Fastest route: the table's fastest first, alone, so its exact date comes soonest; then the other
  * rows a round at a time, one route per worker, filling the Exact column as each round returns (a
  * worker only answers when its whole share is done, and the pool deals each call by position, so
- * rounds are the way to see rows arrive). By a date: the date's route; if it misses the date, the
- * same checkpoints with the last one lower, on one worker so the shared legs are simulated once.
+ * rounds are the way to see rows arrive). By a date: the date's route; if it misses the date, nearby
+ * routes with the same TE (search/dateRowCheck.ts), then the closest of them with the last stop lower,
+ * on one worker so the shared legs are simulated once.
  */
 interface Exact {
   /** Seconds from the plan start, and the unix second it ends. */
@@ -2492,12 +2494,15 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
 
     if (props.deadline) {
       const deadline = props.deadline;
-      // Every row's route at once, one per worker; then, for each that misses the date, the same stops
-      // with the last one lower, on one worker (sticky on all but the last stop) so the shared legs
-      // are simulated once and each lower last stop costs one ascension.
+      // Every row's route at once, one per worker; then, for each that misses the date, nearby routes with the
+      // same TE (search/dateRowCheck.ts: the runner-up rows' early stops and each early stop moved 1-3 TE), and
+      // when none makes it either, the closest of them with the last stop lower, on one worker (sticky on all
+      // but the last stop) so the shared legs are simulated once and each lower last stop costs one ascension.
       const sticky = { stickyDepth: -1 };
       const byK: Record<number, DateExact | null> = {};
       const done = new Set<number>();
+      /** Rows that tried nearby routes in this check (at most NEARBY_ROWS). */
+      let nearbyRows = 0;
       const checkRows = async (list: Route[]): Promise<boolean> => {
         exactText.value = hoursOn
           ? 'Checking these routes and their next-best routes on your account with the full simulator…'
@@ -2510,30 +2515,50 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
             ? { chain, endTE: e.endTE, end: e.end, handoff: e.handoff, atOnce: e.atOnce, fresh: e.fresh }
             : null;
         };
-        for (const route of list) {
+        // The best the check has so far (the counts settled, and this list's rows or runner-ups that make the
+        // date as they are): nearby routes only for a row that could beat it, or tie it with fewer ascensions.
+        let best: { endTE: number; ascensions: number } | null = null;
+        const better = (d: DateExact | null, ascensions: number) => {
+          if (d && (!best || d.endTE > best.endTE || (d.endTE === best.endTE && ascensions < best.ascensions)))
+            best = { endTE: d.endTE, ascensions };
+        };
+        for (const [k, d] of Object.entries(byK)) better(d, Number(k));
+        for (const r of list) {
+          const alt = got.alts[r.legs.length];
+          better(madeOf(r.chain) ?? (alt ? madeOf(alt.chain) : null), r.legs.length);
+        }
+        // The highest final TE first (then fewer ascensions), so the nearby routes go to the rows that can raise
+        // the answer.
+        const order = [...list].sort(
+          (a, b) => b.chain[b.chain.length - 1] - a.chain[a.chain.length - 1] || a.legs.length - b.legs.length
+        );
+        for (const route of order) {
           const k = route.legs.length;
           done.add(k);
-          let made = madeOf(route.chain);
           // With hours on: the row's next-best route, priced with it (null when it misses the date too).
           const alt = got.alts[k];
-          const altMade = alt ? madeOf(alt.chain) : null;
-          const prefix = route.chain.slice(0, -1);
-          const floor = prefix.length ? prefix[prefix.length - 1] : Math.floor(store.currentTE);
-          // Lower last stops only when neither makes it (a lower one reaches less TE than the runner-up).
-          for (let hi = route.chain[route.chain.length - 1] - 1; hi > floor && !made && !altMade; hi -= 3) {
-            const tries = [hi, hi - 1, hi - 2].filter(t => t > floor).map(t => [...prefix, t]);
-            exactText.value = `The ${k}-ascension route misses the date on your account; trying lower last stops (${tries.map(c => c[c.length - 1]).join(', ')})…`;
-            if (!(await price(tries, sticky))) return false;
-            for (const c of tries) {
-              const e = exact.value[key(c)];
-              if (e && e.end <= deadline) {
-                made = { chain: c, endTE: e.endTE, end: e.end, handoff: e.handoff, atOnce: e.atOnce, fresh: e.fresh };
-                break;
-              }
-            }
-          }
+          const row = await settleDateRow({
+            chain: route.chain,
+            alt: alt ? alt.chain : null,
+            currentTE: store.currentTE,
+            deadline,
+            alternatives: found.dateAlternatives?.[k],
+            nearby: nearbyRows < NEARBY_ROWS && worthNearby(route.chain[route.chain.length - 1], k, best),
+            exactOf: c => exact.value[key(c)],
+            price: (chains, how) => price(chains, how === 'lower' ? sticky : NEARBY_DEAL),
+            say: s => {
+              exactText.value =
+                s.kind === 'nearby'
+                  ? `The ${k}-ascension route misses the date on your account; trying ${s.routes} nearby routes with the same TE…`
+                  : `The ${k}-ascension route misses the date on your account; trying lower last stops (${s.stops.join(', ')})…`;
+            },
+          });
+          if (!row.ok) return false;
+          if (row.nearbyPriced) nearbyRows++;
+          let made = row.made ? madeOf(row.made) : null;
+          const altMade = row.altMade ? madeOf(row.altMade) : null;
           // The runner-up leads the row when it is better (`got.wins`: it makes the date when the pick misses,
-          // more TE, or more to spare); the lower last stops above only ran when neither made it.
+          // more TE, or more to spare); the nearby and lower last stops above only ran when neither made it.
           const win = got.wins[k];
           const winsNow = { ...secondWins.value };
           delete winsNow[k];
@@ -2548,6 +2573,7 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
           }
           secondWins.value = winsNow;
           byK[k] = made;
+          better(made, k);
           dateExactByK.value = { ...byK };
           emitRoutes(found);
           // The answer: the highest TE that makes the date on the player's account, then the most spare.
