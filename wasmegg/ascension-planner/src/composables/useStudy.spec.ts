@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { hashID } from '@/lib/storage/db';
-import { STUDY_KEY, DEFAULT_TICKS, parseStudy } from '@/lib/study';
+import { STUDY_KEY, afterNo, afterYes, emptyStudy, parseStudy, storedStudy } from '@/lib/study';
 import {
   consentAgreed,
   consentDeclined,
@@ -14,8 +14,10 @@ import {
   consentKey,
   consentRemembered,
   consentWithdrawals,
+  consentStorageEvent,
   parseConsents,
   resetConsents,
+  storedConsents,
   setConsent,
   setConsentAccount,
 } from './useConsent';
@@ -31,12 +33,14 @@ import {
   setStudyTick,
   studyState,
   studyStep,
+  studyStorageEvent,
   useForThisAccount,
   withdrawStudy,
 } from './useStudy';
 
 const A = 'EI1234567890123456';
 const B = 'EI0000000000000000';
+const ALL_ON = { share: true, csv: true, diag: true, checks: true }; // every tick (the box now opens with none)
 
 function mem(init: Record<string, string> = {}) {
   const map = new Map(Object.entries(init));
@@ -67,7 +71,7 @@ describe('the box', () => {
 
   it('Yes sets exactly the four consents, remembered, for this account only, and this visit’s diagnostics', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     for (const id of SHARING) {
       expect(consentAgreed(id)).toBe(true);
       expect(consentRemembered(id)).toBe(true);
@@ -120,7 +124,7 @@ describe('the box', () => {
 
   it('a second account gets nothing until "Yes, for this account"', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS, checks: false }, 'anon', '');
+    answerYes({ ...ALL_ON, checks: false }, 'anon', '');
     await setConsentAccount(B);
     expect(studyStep.value).toBe('ask-strip');
     for (const id of SHARING) expect(consentAgreed(id)).toBe(id === 'sendCsv'); // the CSV's own default
@@ -133,7 +137,7 @@ describe('the box', () => {
 
   it('"Not this account" sets nothing and stops asking it', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     await setConsentAccount(B);
     notThisAccount();
     expect(studyStep.value).toBe('none');
@@ -159,7 +163,7 @@ describe('the box', () => {
 describe('withdraw', () => {
   it('turns sharing off now (a withdraw the sends see), leaves the CSV, and the other accounts as they load', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     await setConsentAccount(B);
     useForThisAccount();
     const was = consentWithdrawals('leaderboard');
@@ -185,7 +189,7 @@ describe('withdraw', () => {
 describe('Setup changes', () => {
   it('a tick applies to the account at once and is kept for the strip', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'anon', '');
+    answerYes({ ...ALL_ON }, 'anon', '');
     setStudyTick('checks', false);
     expect(consentAgreed('keepSharingChecks')).toBe(false);
     setStudyTick('diag', false);
@@ -197,7 +201,7 @@ describe('Setup changes', () => {
     await setConsentAccount(A);
     const names = useShareNameStore();
     expect(defaultCredit(A)).toBe('anon');
-    answerYes({ ...DEFAULT_TICKS }, 'name', '   ');
+    answerYes({ ...ALL_ON }, 'name', '   ');
     expect(names.anonymousFor(A)).toBe(true);
     expect(studyState.rec.credit).toBe('anon');
     setStudyCredit('name', 'Williamthe5thc');
@@ -209,7 +213,7 @@ describe('Setup changes', () => {
 
   it('the strip credits a new account only by its own name, anonymous when it has none', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'name', 'Williamthe5thc');
+    answerYes({ ...ALL_ON }, 'name', 'Williamthe5thc');
     await setConsentAccount(B);
     useForThisAccount();
     const names = useShareNameStore();
@@ -221,7 +225,7 @@ describe('Setup changes', () => {
 describe('storage', () => {
   it('keeps no player ID and no name', async () => {
     await setConsentAccount(A);
-    answerYes({ ...DEFAULT_TICKS }, 'name', 'Williamthe5thc');
+    answerYes({ ...ALL_ON }, 'name', 'Williamthe5thc');
     const raw = st.map.get(STUDY_KEY) ?? '';
     expect(raw).not.toMatch(/EI\d{16}/);
     expect(raw).not.toContain('Williamthe5thc');
@@ -244,8 +248,120 @@ describe('storage', () => {
     resetStudy(blocked);
     await setConsentAccount(A);
     expect(studyStep.value).toBe('ask-box');
-    expect(() => answerYes({ ...DEFAULT_TICKS }, 'anon', '')).not.toThrow();
+    expect(() => answerYes({ ...ALL_ON }, 'anon', '')).not.toThrow();
     expect(studyStep.value).toBe('none');
     expect(consentAgreed('leaderboard')).toBe(true);
+  });
+});
+
+/**
+ * Two tabs of one browser (21 Oct 2026, prelive; Jordan: "one Yes is enough", across tabs, reloads and
+ * restarts). The "other tab" here writes straight to storage, as it would, and this tab gets the `storage`
+ * event (or, for a stale tab, does not).
+ */
+describe('two tabs', () => {
+  const ALL_FOUR_ON = async (at: number) =>
+    storedConsents(Object.fromEntries(SHARING.map(id => [id, { agreed: true, remember: true, at }])));
+
+  /** What tab 1's Yes for A leaves in storage. */
+  async function otherTabYes(): Promise<void> {
+    const h = await hashID(A);
+    st.map.set(consentKey(h), await ALL_FOUR_ON(Date.now()));
+    st.map.set(STUDY_KEY, storedStudy(afterYes(emptyStudy(), h, Date.now(), { ...ALL_ON }, 'anon')));
+  }
+
+  it('a stale tab’s No thanks never replaces a Yes already given in another tab', async () => {
+    await setConsentAccount(A);
+    expect(studyStep.value).toBe('ask-box'); // this tab's box, still open
+    await otherTabYes(); // tab 1 says yes; this tab missed the event
+    expect(answerNo()).toBe(false);
+    expect(parseStudy(st.map.get(STUDY_KEY) ?? null).answer).toBe('yes');
+    expect(studyState.rec.answer).toBe('yes');
+    expect(studyStep.value).toBe('none'); // the box goes
+    // After a reload the record still says yes, so Setup shows the yes with its live consents.
+    resetStudy(st);
+    expect(studyState.rec.answer).toBe('yes');
+    expect(studyState.rec.accounts[await hashID(A)]).toBe('yes');
+  });
+
+  it('No thanks is still written when no tab has said yes', async () => {
+    await setConsentAccount(A);
+    expect(answerNo()).toBe(true);
+    expect(parseStudy(st.map.get(STUDY_KEY) ?? null).answer).toBe('no');
+  });
+
+  it('a Yes in another tab hides this tab’s box live, and its consents show here at once (no reload)', async () => {
+    await setConsentAccount(A);
+    expect(studyStep.value).toBe('ask-box');
+    await otherTabYes();
+    const h = await hashID(A);
+    consentStorageEvent(consentKey(h), st.map.get(consentKey(h)) ?? null);
+    studyStorageEvent(STUDY_KEY, st.map.get(STUDY_KEY) ?? null);
+    expect(studyStep.value).toBe('none');
+    expect(studyState.thanked).toBe(false); // the thank-you is the other tab's
+    for (const id of SHARING) expect(consentAgreed(id)).toBe(true);
+  });
+
+  it('a No thanks in another tab hides this tab’s box live too', async () => {
+    await setConsentAccount(A);
+    studyStorageEvent(STUDY_KEY, storedStudy(afterNo(emptyStudy(), Date.now())));
+    expect(studyStep.value).toBe('none');
+    expect(studyState.rec.answer).toBe('no');
+  });
+
+  it('a Yes in another tab for another account: this tab’s box becomes the strip', async () => {
+    await setConsentAccount(B);
+    await otherTabYes();
+    studyStorageEvent(STUDY_KEY, st.map.get(STUDY_KEY) ?? null);
+    expect(studyStep.value).toBe('ask-strip');
+  });
+
+  it('events for other keys, or another account’s consents, change nothing here', async () => {
+    await setConsentAccount(A);
+    studyStorageEvent('aap.other', storedStudy(afterNo(emptyStudy(), 1)));
+    expect(studyStep.value).toBe('ask-box');
+    consentStorageEvent(consentKey(await hashID(B)), await ALL_FOUR_ON(Date.now()));
+    expect(consentAgreed('leaderboard')).toBe(false);
+  });
+
+  it('a withdraw in another tab stops sends here at once (counted as a withdraw)', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...ALL_ON }, 'anon', '');
+    const was = consentWithdrawals('keepSharingChecks');
+    const h = await hashID(A);
+    const later = Date.now() + 1000;
+    const theirs = storedConsents({
+      ...parseConsents(st.map.get(consentKey(h)) ?? null),
+      keepSharingChecks: { agreed: false, remember: true, at: later },
+    });
+    consentStorageEvent(consentKey(h), theirs);
+    expect(consentAgreed('keepSharingChecks')).toBe(false);
+    expect(consentWithdrawals('keepSharingChecks')).toBe(was + 1);
+    expect(consentAgreed('leaderboard')).toBe(true);
+  });
+
+  it('a stale tab’s save keeps the other tab’s newer choice on another box (re-read before writing)', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...ALL_ON }, 'anon', '');
+    const h = await hashID(A);
+    // Tab 1 turns checks off later; this tab misses the event, then changes the CSV.
+    st.map.set(
+      consentKey(h),
+      storedConsents({
+        ...parseConsents(st.map.get(consentKey(h)) ?? null),
+        keepSharingChecks: { agreed: false, remember: true, at: Date.now() + 1000 },
+      })
+    );
+    setConsent('sendCsv', false);
+    const kept = await storedFor(A);
+    expect(kept.keepSharingChecks?.agreed).toBe(false);
+    expect(kept.sendCsv?.agreed).toBe(false);
+    expect(consentAgreed('keepSharingChecks')).toBe(false);
+  });
+
+  it('listens for storage events from other tabs', async () => {
+    const { readFileSync } = await import('node:fs');
+    for (const f of ['./useStudy.ts', './useConsent.ts'])
+      expect(readFileSync(new URL(f, import.meta.url), 'utf8')).toMatch(/window\.addEventListener\('storage'/);
   });
 });

@@ -218,9 +218,44 @@ let visitStart = Date.now();
 /** The state, read only, for the boxes and the specs. */
 export const consentState: Readonly<State> = state;
 
+/**
+ * Two tabs (21 Oct 2026, prelive): another tab of this browser can change the same account's records at any
+ * time. Each box keeps whichever choice was made LAST (`at`), so a stale tab never writes back a yes the
+ * other tab withdrew, or a no over a later yes. Ties keep `mine` (this tab's own).
+ */
+export function mergeConsents(mine: Records, theirs: Records): Records {
+  const out: Records = { ...mine };
+  for (const id of Object.keys(theirs) as ConsentId[]) {
+    const t = theirs[id];
+    const m = mine[id];
+    if (t && (!m || t.at > m.at)) out[id] = t;
+  }
+  return out;
+}
+
+/** This tab's records with the stored ones merged in; a yes another tab turned off counts as a withdraw
+ *  here too (the chain-search store watches `withdrawals` and stops sends at once). */
+function takeStored(stored: Records): void {
+  const merged = mergeConsents(state.records, stored);
+  const bumped: Partial<Record<ConsentId, number>> = { ...state.withdrawals };
+  let any = false;
+  for (const id of Object.keys(CONSENT_DEFAULTS) as ConsentId[])
+    if (consentAgreed(id) && !(merged[id] ?? { ...CONSENT_DEFAULTS[id] }).agreed) {
+      bumped[id] = (bumped[id] ?? 0) + 1;
+      any = true;
+    }
+  state.records = merged;
+  if (any) state.withdrawals = bumped;
+  if (state.account && state.loaded) visit.set(state.account, state.records);
+}
+
 function persist(): void {
   if (!state.hash) return;
   try {
+    // Re-read first: another tab may have changed other boxes since this one loaded (see mergeConsents).
+    const stored = parseConsents(storage?.getItem(consentKey(state.hash)) ?? null);
+    state.records = mergeConsents(state.records, stored);
+    if (state.account && state.loaded) visit.set(state.account, state.records);
     storage?.setItem(consentKey(state.hash), storedConsents(state.records));
   } catch {
     // for this visit only
@@ -252,7 +287,11 @@ export async function setConsentAccount(playerId: string): Promise<void> {
   }
   if (seq !== loads) return;
   state.hash = hash;
-  if (known) return;
+  if (known) {
+    // Kept from earlier in this visit: another tab may have changed it since (mergeConsents).
+    if (hash) takeStored(parseConsents(get(storage, consentKey(hash))));
+    return;
+  }
   const stored = hash ? parseConsents(get(storage, consentKey(hash))) : {};
   // Chosen while the stored ones loaded wins over them.
   const chosen = Object.keys(state.records).length > 0;
@@ -314,6 +353,23 @@ export function setConsentRemember(id: ConsentId, remember: boolean): void {
  *  only, so it is never remembered for them. */
 export function agreeThisVisit(id: ConsentId): void {
   if (!consentAgreed(id)) setConsent(id, true, false);
+}
+
+/**
+ * A `storage` event (another tab wrote `key`): the account on screen takes that tab's newer choices at once.
+ * Other accounts' records are merged as they next load (setConsentAccount). Exported for the specs.
+ */
+export function consentStorageEvent(key: string | null, newValue: string | null): void {
+  if (!key || !state.hash || !state.loaded || key !== consentKey(state.hash)) return;
+  takeStored(parseConsents(newValue));
+}
+try {
+  if (typeof window !== 'undefined')
+    window.addEventListener('storage', e => {
+      if (e.storageArea === null || e.storageArea === storage) consentStorageEvent(e.key, e.newValue);
+    });
+} catch {
+  // no window events: one tab only
 }
 
 export interface Consent {
