@@ -136,6 +136,7 @@
         @check="checkByDate"
         @routes="onInstantRoutes"
         @state="st => (instantLoad = st)"
+        @unloaded="u => (instantUnloaded = u)"
       >
         <!-- No instant answer for this TE (NoInstantAnswer.vue): the fallback's own button, the same run as
              Find on Nearby routes without one (`start`, then `findWithoutInstant`; Jordan, 18 Oct 2026). -->
@@ -942,6 +943,7 @@ import {
   INSTANT_TIMEOUT_STATUS,
   INSTANT_WAIT_STATUS,
   NO_INSTANT_SUMMARY,
+  UNLOADED_INSTANT_SUMMARY,
   QUICK_ESTIMATE_LABEL,
   QUICK_SCAN_STATUS,
   afterScanStatus,
@@ -1280,7 +1282,11 @@ const lines = computed(() => ({
     'date',
     stronger.instant.date,
     inPlannerZone,
-    instantLoad.value === 'none' ? NO_INSTANT_SUMMARY : 'working out…'
+    instantLoad.value === 'none'
+      ? instantUnloaded.value
+        ? UNLOADED_INSTANT_SUMMARY
+        : NO_INSTANT_SUMMARY
+      : 'working out…'
   ),
 }));
 /** The fallback's Nearby routes: how long its boxes may take on this machine; null otherwise. */
@@ -2331,6 +2337,8 @@ async function find(fallback?: DeadlineFallback): Promise<void> {
 const autoStatus = ref('');
 /** InstantRoute's `state`: its answer still being worked out, in, or settled with none. */
 const instantLoad = ref<InstantState>('none');
+/** InstantRoute's `unloaded`: its file couldn't be loaded. */
+const instantUnloaded = ref(false);
 /** The instant answer as Find on Nearby routes reads it: in only with a route the boxes centre on. */
 const instantNow = computed<InstantState>(() =>
   instantLoad.value === 'loading' ? 'loading' : simpleFrom.value === 'instant' ? 'answer' : 'none'

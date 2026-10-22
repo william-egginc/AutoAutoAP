@@ -31,6 +31,18 @@ async function fetchBytes(url: string, deps: FetchDeps): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
+/** What the instant answer card says when its file could not be loaded (QA break-it #5, 22 Oct 2026): a missing
+ *  file used to read "No instant answer for your TE yet", the words for a TE the instant answer doesn't cover. No "table": players never read that word. */
+export const TABLE_LOAD_FAILED = 'The instant answer couldn’t be loaded.';
+
+/**
+ * A worker's error message (it crosses as text) that means the file itself could not be had: missing, a web
+ * page in its place, cut short, from another version. Not a TE outside the file (InstantRoute's `below`).
+ */
+export function tableLoadFailed(message: string): boolean {
+  return /404|not a precomputed table|incomplete|precomputed table version|instant answer could not be loaded/.test(message);
+}
+
 const isGzip = (b: ArrayBuffer) => b.byteLength > 2 && new Uint8Array(b)[0] === 0x1f && new Uint8Array(b)[1] === 0x8b;
 
 export async function fetchTable(url: string, deps: FetchDeps = defaults()): Promise<Table> {
