@@ -1,7 +1,8 @@
 /**
- * Which of the two search tabs is shown on Fastest and on By a date (SearchTabs.vue; Allan, 14 Oct 2026:
- * "too many boxes, use one at a time"): "Search nearby" (the Stronger check level bar and Nearby routes,
- * the default) or "Exhaustive" (every route in boxes you set).
+ * Which part of the search panel is shown on Fastest and on By a date (SearchPanel.vue, 22 Oct 2026; was
+ * two tabs, Allan, 14 Oct: "too many boxes, use one at a time"): `nearby` (Fast and Exact, Nearby routes,
+ * the default) or `exhaustive` (Custom: every route in boxes you set). lib/searchOption.ts maps the
+ * three options onto these two.
  *
  * Both tabs stay mounted and the hidden one is only `display: none`, so a run, its watchers, its
  * teleport targets (#bd-around-*, #bd-exh-*) and its progress block (lib/runAnchor.ts) all live on.

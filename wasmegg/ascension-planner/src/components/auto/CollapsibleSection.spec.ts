@@ -30,16 +30,16 @@ describe('CollapsibleSection', () => {
   });
 });
 
-describe('both screens (14 Oct: the two searches are tabs, SearchTabs.vue)', () => {
-  it('only the instant answer is a section that can be hidden; Stronger check and Exhaustive are the tabs', () => {
+describe('both screens (22 Oct: one search panel, SearchPanel.vue; was two tabs, 14 Oct)', () => {
+  it('only the instant answer is a section that can be hidden; Stronger check and Custom (Exhaustive) are in the panel', () => {
     for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
       const t = fs.readFileSync(path.join(__dirname, f), 'utf8');
       expect(t.match(/<CollapsibleSection/g)).toHaveLength(1);
       expect(t).toMatch(/<CollapsibleSection[^>]*id="instant"/);
       expect(t).not.toMatch(/<CollapsibleSection[^>]*id="(stronger|exhaustive)"/);
-      expect(t.match(/<SearchTabs\b/g)).toHaveLength(1);
-      // The instant answer stays above the tabs.
-      expect(t.indexOf('<CollapsibleSection')).toBeLessThan(t.indexOf('<SearchTabs'));
+      expect(t.match(/<SearchPanel\b/g)).toHaveLength(1);
+      // The instant answer stays above the panel.
+      expect(t.indexOf('<CollapsibleSection')).toBeLessThan(t.indexOf('<SearchPanel'));
     }
   });
 });

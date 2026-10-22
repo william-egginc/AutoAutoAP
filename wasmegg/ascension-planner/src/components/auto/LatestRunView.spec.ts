@@ -70,7 +70,7 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     expect(t).toContain('Run a search on Fastest to 490 TE or Highest TE by a date and its routes show here');
     // Names both ways of searching, and says Light isn't a search and where its results are.
     expect(t).toContain('Either way of searching counts (Nearby routes or Exhaustive)');
-    expect(t).toContain("Light, the Stronger check's first level, isn't a search");
+    expect(t).toContain("The pricing that follows Check exactly isn't a search");
     expect(t).toContain("its results are on the instant answer's rows");
     expect(html).not.toContain('data-testid="other-options"');
     expect(html).not.toContain('data-testid="search-shape"');

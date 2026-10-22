@@ -101,9 +101,10 @@ describe('LightShare', () => {
     expect(html).toContain('data-testid="light-share"');
     expect(t).toContain('Share this result');
     expect(t).toContain('212 → 300 → 490');
-    expect(t).toContain('recorded as found by Light');
+    expect(t).toContain('Sends the best route priced after Check exactly,');
+    expect(t).not.toMatch(/\bLight\b/);
     expect(html).toContain('data-testid="share-ask"');
-    expect(t).toContain('Send this route (Light)');
+    expect(t).toContain('Send this route');
     expect(t).toContain('nothing is sent by that press');
     // Not agreed: no Send of its own yet.
     expect(html).not.toContain('data-testid="light-send"');
@@ -114,20 +115,24 @@ describe('LightShare', () => {
     const html = await render();
     expect(html).toContain('data-testid="light-send"');
     expect(html).not.toContain('data-testid="share-ask"');
-    expect(textOf(html)).toContain('Send this route (Light)');
+    expect(textOf(html)).toContain('Send this route');
   });
 
-  it('not shown while Light runs, before it, at another level, or without a result', async () => {
-    for (const o of [{ state: 'running' as const }, { state: 'idle' as const }, { level: 'quick' }, { r: null }]) {
+  it('not shown while Light runs, before it, or without a result; shown whatever option is picked', async () => {
+    for (const o of [{ state: 'running' as const }, { state: 'idle' as const }, { r: null }]) {
       const { render } = await setup({ ...o, agreed: true });
       expect(await render()).not.toContain('data-testid="light-share"');
+    }
+    {
+      const { render } = await setup({ level: 'quick', agreed: true });
+      expect(await render()).toContain('data-testid="light-share"');
     }
   });
 
   it('By a date: its tab and the date label', async () => {
     const { render } = await setup({ goal: 'date', agreed: true });
     const t = textOf(await render());
-    expect(t).toContain('Send 309 TE by this date (Light)');
+    expect(t).toContain('Send 309 TE by this date');
     expect(t).toMatch(/By a date|Egg Day/);
     expect(t).toContain('one of your earlier routes, priced on this save');
   });
@@ -145,15 +150,16 @@ describe('LightShare', () => {
 
 describe('where it sits and what feeds it (source)', () => {
   const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
-  it("StrongerBox: under Light's results, at the Light level only", () => {
-    const t = read('StrongerBox.vue');
+  it("Light's status line (top of the search panel): under Light's results, whatever option is picked", () => {
+    const t = read('LightStatus.vue');
     const results = t.indexOf('id="stronger-check-results"');
     const share = t.indexOf('<LightShare');
     expect(results).toBeGreaterThan(0);
     expect(share).toBeGreaterThan(results);
-    expect(t).toMatch(/<LightShare v-if="level === 'light'" :goal="goal" :player-id="playerId" \/>/);
-    expect(read('FastestRoute.vue')).toMatch(/<StrongerBox[\s\S]*?:player-id="playerId"/);
-    expect(read('DeadlinePanel.vue')).toMatch(/<StrongerBox[\s\S]*?:player-id="playerId"/);
+    expect(t).toContain('<LightShare :goal="goal" :player-id="playerId" />');
+    expect(read('SearchPanel.vue')).toContain('<LightStatus :goal="goal" :player-id="playerId" />');
+    expect(read('FastestRoute.vue')).toMatch(/<SearchPanel[\s\S]*?:player-id="playerId"/);
+    expect(read('DeadlinePanel.vue')).toMatch(/<SearchPanel[\s\S]*?:player-id="playerId"/);
   });
   it("StrongerCheck publishes Light's result once done, and records what it priced under", () => {
     const t = read('StrongerCheck.vue');

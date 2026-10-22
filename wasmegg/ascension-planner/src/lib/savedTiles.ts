@@ -404,7 +404,7 @@ export function sourceWords(a: TileAnswer): string {
 /** "Snapshot" etc. in player words, for the tile's calculated line: "(Check exactly)", "(Exhaustive)". */
 export function howWords(a: TileAnswer): string {
   if (a.how === 'instant') return 'instant answer';
-  if (a.how === 'check') return a.level === 'light' ? 'Light' : 'Check exactly';
-  const w: Record<SearchLevel, string> = { light: 'Light', quick: 'Fast', normal: 'Exact', thorough: 'Very high', exhaustive: 'Exhaustive' };
+  if (a.how === 'check') return a.level === 'light' ? 'Checked at once' : 'Check exactly';
+  const w: Record<SearchLevel, string> = { light: 'Checked at once', quick: 'Fast', normal: 'Exact', thorough: 'Very high', exhaustive: 'Exhaustive' };
   return a.level ? w[a.level] : 'a search';
 }

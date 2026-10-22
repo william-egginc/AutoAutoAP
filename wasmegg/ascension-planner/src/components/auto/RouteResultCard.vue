@@ -126,7 +126,7 @@ withDefaults(
 const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();
 
 /** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
- *  page (SearchTabs.vue), so the one laid out is this card's. */
+ *  page (SearchPanel.vue), so the one laid out is this card's. */
 function toShare(): void {
   scrollToShownId('share-this-result');
 }

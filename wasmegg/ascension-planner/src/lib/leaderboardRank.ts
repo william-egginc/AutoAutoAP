@@ -2412,8 +2412,9 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
  *  Advanced). Short, for the Effort column. */
 const NAME_AROUND = 'Nearby routes';
 const NAME_EXHAUSTIVE = 'Exhaustive';
-/** The Stronger check's first level: the instant answer's routes priced at once and your earlier routes. */
-const NAME_LIGHT = 'Light';
+/** What was the Stronger check's Light level (no longer named to players, 22 Oct 2026): the instant answer's
+ *  routes priced at once and your earlier routes, after Check exactly. */
+const NAME_LIGHT = 'Checked at once';
 
 /** A sent effort tier's name on the planner's slider. */
 const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Very high', balanced: 'Balanced (retired)' };

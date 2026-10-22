@@ -791,6 +791,7 @@ import HowItWorks from '@/components/science/HowItWorks.vue';
 import StartTimeCard from '@/components/auto/StartTimeCard.vue';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
+import { choiceForEffort, openOn } from '@/lib/searchOption';
 import { presetByDate } from '@/lib/byDateForm';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 import { needsFreshSave, type RecalcRequest } from '@/lib/recalc';
@@ -872,6 +873,12 @@ function openFromMyRuns(to: MyRunsOpen): void {
     if (to.level) strongerStore.level = to.level;
     if (to.byDate) presetByDate(to.byDate);
     if (to.tab) selectSearchTab(to.auto === 'by-date' ? 'by-date' : 'fastest', to.tab);
+    // The search panel opens on it rather than on the option remembered there (SearchPanel.vue).
+    if (to.level || to.tab)
+      openOn(
+        to.auto === 'by-date' ? 'by-date' : 'fastest',
+        to.tab === 'exhaustive' ? { option: 'custom', veryHigh: false } : choiceForEffort(to.level ?? 'quick')
+      );
   }
   uiStore.autoView = to.auto;
   if (to.depth) uiStore.fastestDepth = to.depth;
@@ -1068,7 +1075,7 @@ function showRun(): void {
     showStartTimes();
     return;
   }
-  // The search tab the run is in first (SearchTabs.vue): the other tab hides it, and a hidden block
+  // The search tab the run is in first (SearchPanel.vue): the other tab hides it, and a hidden block
   // can't be scrolled to.
   if (anchor) revealRunTab(anchor, !!chainSearchStore.deadlineRunSimple);
   if (!runIsHere.value) {

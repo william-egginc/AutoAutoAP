@@ -16,7 +16,7 @@
     compact
     :send-label="label"
     :goal-word="result.goal.kind === 'date' ? 'deadline' : 'target'"
-    csv-detail="(for Light: the routes it priced, best first)"
+    csv-detail="(the routes it priced, best first)"
     v-model:opt-in="optIn"
     v-model:anonymous="anonymous"
     v-model:nickname="nickname"
@@ -26,10 +26,10 @@
   >
     <template #intro>
       <p class="text-[11px] text-indigo-900/80 leading-relaxed" data-testid="light-share-intro">
-        Sends Light's best route, {{ result.best.chain.join(' → ') }}, to the {{ NAMES.compare
+        Sends the best route priced after Check exactly, {{ result.best.chain.join(' → ') }}, to the {{ NAMES.compare
         }}<template v-if="shareTab"
           >'s <span class="font-bold">{{ shareTab }}</span> tab</template
-        >, recorded as found by Light: {{ lightFromText(result) }}.
+        >: {{ lightFromText(result) }}.
       </p>
     </template>
     <template #consent>

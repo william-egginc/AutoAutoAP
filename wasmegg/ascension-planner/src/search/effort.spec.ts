@@ -43,9 +43,9 @@ describe('effort tiers', () => {
     expect(foundByText({ effort: 'normal', deadline: 1, mode: 'advanced' } as never)).toBe('Exhaustive');
   });
 
-  it("names Light, and a Nearby routes answer's level, once rows record them (15 Oct)", () => {
-    expect(foundByText({ effort: 'light' } as never)).toBe('Light');
-    expect(foundByText({ effort: 'deadline', deadline: 1, level: 'light' } as never)).toBe('Light');
+  it("names the at-once check (was Light; no longer named so, 22 Oct), and a Nearby routes answer's level, once rows record them (15 Oct)", () => {
+    expect(foundByText({ effort: 'light' } as never)).toBe('Checked at once');
+    expect(foundByText({ effort: 'deadline', deadline: 1, level: 'light' } as never)).toBe('Checked at once');
     expect(foundByText({ effort: 'deadline', deadline: 1, mode: 'simple', level: 'normal' } as never)).toBe(
       'Nearby routes · Exact'
     );

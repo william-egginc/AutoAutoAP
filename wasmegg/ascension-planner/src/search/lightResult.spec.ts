@@ -88,7 +88,7 @@ describe('lightBest', () => {
     expect(r.best.chain).toEqual([212, 309]);
     expect(r.best.from).toBe('lower-te');
     expect(lightFromText(r)).toMatch(/one TE lower/);
-    expect(lightSendLabel(r)).toBe('Send 309 TE by this date (Light)');
+    expect(lightSendLabel(r)).toBe('Send 309 TE by this date');
   });
 
   it('By a date: nothing that makes the date is no result', () => {
@@ -119,16 +119,16 @@ describe('lightResultKey', () => {
 describe('lightShareShown', () => {
   const r = lightBest({ goal: fastest, atOnce: [priced([212, 300, 490], 600)], earlier: [], planStart: START })!;
   const base = { level: 'light', state: 'done' as const, result: r, collector: true };
-  it('only at Light, done, with a result and a board', () => {
+  it('whatever option is picked (Light is no longer a level), done, with a result and a board', () => {
     expect(lightShareShown(base)).toBe(true);
-    expect(lightShareShown({ ...base, level: 'quick' })).toBe(false);
+    expect(lightShareShown({ ...base, level: 'quick' })).toBe(true);
     expect(lightShareShown({ ...base, state: 'running' })).toBe(false);
     expect(lightShareShown({ ...base, state: 'idle' })).toBe(false);
     expect(lightShareShown({ ...base, state: 'error' })).toBe(false);
     expect(lightShareShown({ ...base, result: null })).toBe(false);
     expect(lightShareShown({ ...base, collector: false })).toBe(false);
   });
-  it('Fastest says Light on the button', () => {
-    expect(lightSendLabel(r)).toBe('Send this route (Light)');
+  it('Fastest: Send this route, no "Light" on the button (22 Oct)', () => {
+    expect(lightSendLabel(r)).toBe('Send this route');
   });
 });

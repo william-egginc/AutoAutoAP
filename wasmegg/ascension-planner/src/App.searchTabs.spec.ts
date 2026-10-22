@@ -1,7 +1,8 @@
 /**
- * Fastest and By a date show one search at a time, in two tabs (SearchTabs.vue; Allan, 14 Oct 2026).
- * The hidden tab is display:none, so nothing in it can be scrolled to: every "go there" must show the
- * right tab first. Source-level checks (no DOM in these specs).
+ * Fastest and By a date show one search at a time (SearchPanel.vue, Fast | Exact | Custom, 22 Oct 2026;
+ * was two tabs, Allan, 14 Oct). Fast and Exact are the `nearby` part, Custom the `exhaustive` one; the
+ * hidden part is display:none, so nothing in it can be scrolled to: every "go there" must show the right
+ * part first. Source-level checks (no DOM in these specs).
  */
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
@@ -35,7 +36,7 @@ describe("the progress bar's Jump to it / Show it", () => {
   });
 });
 
-describe('the handoffs into Exhaustive switch tabs first', () => {
+describe('the handoffs into Custom (Exhaustive) switch parts first', () => {
   it("Fastest: Check exactly (the instant answer's, and a longer route's) selects Exhaustive before scrolling", () => {
     const fn = between(fastest, 'function checkExactly', '\n}');
     expect(fn.indexOf("selectSearchTab('fastest', 'exhaustive')")).toBeGreaterThan(0);
@@ -51,21 +52,27 @@ describe('the handoffs into Exhaustive switch tabs first', () => {
     expect(between(deadline, 'function checkByDate', '\n}')).toContain('showExhaustive();');
     expect(between(deadline, 'async function widenAndRun', '\n}')).toContain('openInAdvanced();');
   });
-  it('the address #/auto/fastest/full opens Exhaustive, and a tab picked by hand sets the address', () => {
+  it('the address #/auto/fastest/full opens Custom (Exhaustive), and an option picked by hand sets the address', () => {
     expect(between(fastest, 'watch(\n  () => props.depth', '{ immediate: true }')).toContain(
       "if (d === 'full') selectSearchTab('fastest', 'exhaustive');"
     );
-    expect(fastest).toContain(`@pick="t => emit('update:depth', t === 'exhaustive' ? 'full' : 'smart')"`);
+    expect(fastest).toContain(`@pick="o => emit('update:depth', o === 'custom' ? 'full' : 'smart')"`);
   });
   it('a run starting or going shows its own tab, on both screens', () => {
     expect(fastest).toMatch(/smartRunning\.value \? 'smart' : fullRunning\.value \? 'full' : null[\s\S]*?revealRunTab\(k, false\)/);
     expect(deadline).toMatch(/watch\(\s*runKind,[\s\S]*?selectSearchTab\('by-date', k === 'around' \? 'nearby' : 'exhaustive'\)/);
   });
-  it('the running dot follows each tab\'s own run', () => {
-    expect(fastest).toContain(':running="{ nearby: smartRunning, exhaustive: fullRunning }"');
-    expect(deadline).toContain(`:running="{ nearby: runKind === 'around', exhaustive: runKind === 'boxes' }"`);
+  it('the Running pill and the lock follow either run on the screen', () => {
+    expect(fastest).toContain(':running="smartRunning || fullRunning"');
+    expect(deadline).toContain(':running="!!runKind"');
   });
-  it("the result cards' share link scrolls to the shown Share this result (both tabs have one)", () => {
+  it('an unfinished By a date run opens on its own option', () => {
+    expect(deadline).toContain(':opens-on="unfinishedChoice"');
+    expect(between(deadline, 'const unfinishedChoice', '});')).toContain(
+      "choiceForEffort(u.spec.simple ? u.spec.level ?? 'quick' : 'boxes')"
+    );
+  });
+  it("the result cards' share link scrolls to the shown Share this result (both parts have one)", () => {
     for (const f of ['components/auto/RouteResultCard.vue', 'components/auto/ByDateRouteCard.vue']) {
       const s = read(f);
       expect(s).toContain("scrollToShownId('share-this-result')");
