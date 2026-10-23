@@ -134,6 +134,7 @@ import {
   continueTailParams,
   continueVariantForCheck,
   buildUpTailParams,
+  buildUpTailParamsV2,
   instantDeliveryScale,
   runLeg,
 } from '@/search/leg';
@@ -160,10 +161,21 @@ import {
   polishFound,
   priceChain,
   priceLeg,
+  type BuildLookup,
   type Route,
+  type TailOptions,
 } from '@/search/routeFinder';
 import { splitByWork } from '@/search/routePool';
-import { packTable, readTable, restampTable, type TableHeader } from '@/search/precomputedTable';
+import {
+  compositeTable,
+  gearShiftTable,
+  packTable,
+  readTable,
+  restampTable,
+  withExtras,
+  type TableHeader,
+} from '@/search/precomputedTable';
+import { instantGearShift } from '@/search/instantGear';
 import { SIM_VERSION } from '@/search/simVersion';
 import type { Availability } from '@/search/availability';
 import { liveFreshBuilds } from '@/search/liveCell';
@@ -172,6 +184,7 @@ import {
   gearStamp,
   gearTableName,
   gearTableNameV3,
+  gearTableNames,
   colleggtibleEffects,
   legacyGearTableName,
   simEpicResearch,
@@ -2874,6 +2887,203 @@ async function pruneBench(file: string): Promise<void> {
   }
 }
 
+/**
+ * --instant2 --backup SAVE --tables DIR [--start ISO] [--final 490 | --deadline ISO]
+ *            [--available-from H --available-to H --timezone TZ] [--stand-in gear-XXXX.bin] [--force-g]
+ *            [--order table] [--no-credit] [--no-hold] [--no-exact] [--no-old] [--keep-stale] [--label NAME]
+ * The instant answer two ways against Check exactly, one JSON line: the page's answer today (OLD: the
+ * maxed table, or the player's own or gear table, at one delivery scale; hours only on the prestiges),
+ * and version 2 (NEW: the maxed version 2 table moved to the player's gear by the form G
+ * (search/instantGear.ts) where no own or gear table fits, every table leg's shifts held for the
+ * player's hours (tableV2.ts sweepReplay), the first leg held too, and the farm laying while a
+ * prestige waits). Each one's route is then priced by Check exactly (search/chain.ts, on the hour, the
+ * shifts held when hours are on), as the page's exact check does. DIR holds table.bin, table-v2.bin and
+ * the own and gear tables (a copy: nothing is written there). --stand-in: the save's inventory replaced
+ * by that gear table's stamp (a weak-gear stand-in; the save gives the rest of the account). No player
+ * id is printed: the own table is found by its hashed name.
+ */
+async function instant2(file: string): Promise<void> {
+  const dir = arg('tables');
+  if (!dir) throw new Error('--instant2 needs --tables DIR');
+  const loadBin = (name: string) => {
+    const b = readFileSync(`${dir}/${name}`);
+    return readTable(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, 1 << 16);
+  };
+  const standIn = arg('stand-in') ? loadBin(arg('stand-in')!) : null;
+  if (standIn && !standIn.header.gear) throw new Error('--stand-in: that table has no gear stamp');
+  await loadInputs(file, standIn ? { edit: b => putStampInventory(b, standIn.header.gear!) } : {});
+  const store = useChainSearchStore();
+  const hoursArgs = arg('available-from') !== undefined;
+  const tz = arg('timezone') ?? 'America/Denver';
+  if (hoursArgs) {
+    useAutoPlannerStore().timezone = tz;
+    store.scheduleEnabled = true;
+    store.availableFrom = Number(arg('available-from'));
+    store.availableTo = Number(arg('available-to'));
+    store.availableDays = [0, 1, 2, 3, 4, 5, 6];
+    store.deferShifts = true;
+  }
+  if (arg('start')) store.pinPlanStart(Math.floor(Date.parse(arg('start')!) / 1000));
+  const inputs = store.collectInputs();
+  const hours = hoursArgs ? (inputs.availability ?? null) : null;
+  if (hoursArgs && !hours) throw new Error('--instant2: the hours did not reach the inputs');
+  const te = Math.floor(inputs.currentTE);
+  const deadline = arg('deadline') ? Math.floor(Date.parse(arg('deadline')!) / 1000) : undefined;
+  const final = Number(arg('final', '490'));
+  const start = inputs.planStart;
+  const maxAscensions = Number(arg('max-asc', '12'));
+  const maxed1 = loadBin('table.bin');
+  const maxed2 = withExtras(loadBin('table-v2.bin'), 1 << 16);
+  const GEAR_TO = 340;
+
+  // Which table the page picks (InstantRoute.vue `run`): the player's own when its stamp fits, else a
+  // gear table built on exactly their gear, else the maxed one.
+  const inv = store.readInventory();
+  let ownFile: string | null = null;
+  const id = (inputs.context.rawBackup as { eiUserId?: string } | undefined)?.eiUserId;
+  if (id && !standIn) {
+    const name = await tableName(id);
+    if (existsSync(`${dir}/${name}`)) {
+      const h = loadBin(name).header;
+      const stamp = h.gear ? gearStamp(inputs, inv.earnings, h.gear.research) : null;
+      if (h.gear && stamp && !gearChanges(h.gear, stamp).length) ownFile = name;
+    }
+  }
+  let gearFile: string | null = null;
+  if (!ownFile && maxed1.header.k3) {
+    const stamp = gearStamp(inputs, inv.earnings, maxed1.header.k3.research);
+    if (stamp) for (const n of await gearTableNames(stamp)) if (existsSync(`${dir}/${n}`)) (gearFile ??= n);
+  }
+  const scale = instantDeliveryScale(inputs, maxed1.header.k3!);
+  const forceG = has('force-g');
+  // Version 2 keeps an own or gear table only when it was made by this simulator (--keep-stale: any).
+  const current = (name: string | null) =>
+    !!name && (has('keep-stale') || loadBin(name).header.simVersion === SIM_VERSION);
+  const ownNew = ownFile && current(ownFile) ? ownFile : null;
+  const gearNew = !ownNew && gearFile && current(gearFile) ? gearFile : null;
+  const shift = instantGearShift(inputs, maxed2.header);
+  const nearMaxed = !!shift && shift.g < 0.05 && Math.abs(shift.geo - 1) < 0.005 && Math.abs(shift.k - 1) < 0.005;
+
+  type Pick = { lookup: BuildLookup; scale: number; kind: string };
+  const oldPick: Pick = ownFile
+    ? { lookup: loadBin(ownFile).lookup, scale: 1, kind: 'own' }
+    : gearFile
+      ? { lookup: compositeTable(loadBin(gearFile), maxed1, GEAR_TO, scale).lookup, scale: 1, kind: 'gear' }
+      : { lookup: maxed1.lookup, scale, kind: 'maxed' };
+  const newPick: Pick =
+    ownNew && !forceG
+      ? { lookup: loadBin(ownNew).lookup, scale: 1, kind: 'own' }
+      : gearNew && !forceG
+        ? { lookup: compositeTable(loadBin(gearNew), maxed2, GEAR_TO, scale).lookup, scale: 1, kind: 'gear' }
+        : shift && !nearMaxed
+          ? { lookup: gearShiftTable(maxed2, shift, 1 << 16).lookup, scale: 1, kind: 'G' }
+          : { lookup: maxed2.lookup, scale, kind: 'maxed' };
+
+  const tail: TailOptions = {
+    ...(hours && !has('no-hold') ? { holdShifts: true } : {}),
+    // The simulator's order by default (version 2 does); --order table: tailTo's.
+    ...(arg('order') !== 'table' ? { order: 'simulator' as const } : {}),
+    ...(hours && !has('no-credit') ? { creditWaits: true } : {}),
+  };
+  const solve = async (p: Pick, v2: boolean) => {
+    const t0 = performance.now();
+    const base = await instantFirstLegsBase(inputs, {
+      startTE: te,
+      final,
+      buildUpTails: s =>
+        v2 && (tail.holdShifts || tail.order === 'simulator') ? buildUpTailParamsV2(inputs, s) : buildUpTailParams(inputs, s),
+    });
+    const firstLegs = firstLegOptions({
+      table: p.lookup,
+      deliveryScale: p.scale,
+      ...base,
+      ...(v2 ? { ...tail, ...(hours ? { hours } : {}) } : {}),
+    });
+    const common = {
+      startTE: te,
+      start,
+      firstLegs,
+      deliveryScale: p.scale,
+      ...(deadline !== undefined ? { deadline } : {}),
+      ...(hours ? { hours } : {}),
+      ...(v2 ? tail : {}),
+    };
+    const found = await findRoutes({ table: p.lookup, final, maxAscensions, ...common });
+    const polished = { ...found, ...polishFound(p.lookup, common, found) };
+    const r = deadline !== undefined ? polished.byDate : polished.best;
+    return { route: r, ms: Math.round(performance.now() - t0) };
+  };
+  const evaluator = createChainEvaluator(inputs);
+  const exactOf = (chain: number[]) => {
+    const t0 = performance.now();
+    const r = evaluator.evaluate(chain, { handoff: 'hour' });
+    const out: Record<string, unknown> = {
+      end: r ? inputs.planStart + r.seconds : null,
+      endTE: r ? r.legs[r.legs.length - 1].endTE : null,
+      legs: r
+        ? r.legs.map(l => ({
+            key: l.key,
+            start: l.startTime,
+            end: l.endTime,
+            endTE: l.endTE,
+            held: Math.round(l.shiftDelaySeconds ?? 0),
+          }))
+        : null,
+    };
+    // By a date: the highest TE the route's stops reach by then, the last stop lowered until it fits.
+    if (deadline !== undefined && r) {
+      let reach: number | null = r.seconds + inputs.planStart <= deadline ? r.legs[r.legs.length - 1].endTE : null;
+      for (let d = 1; reach === null && d <= 8; d++) {
+        const c = [...chain.slice(0, -1), chain[chain.length - 1] - d];
+        if (c.length > 1 && c[c.length - 1] <= c[c.length - 2]) break;
+        const x = evaluator.evaluate(c, { handoff: 'hour' });
+        if (x && x.seconds + inputs.planStart <= deadline) reach = x.legs[x.legs.length - 1].endTE;
+      }
+      out.teByDate = reach;
+    }
+    out.ms = Math.round(performance.now() - t0);
+    return out;
+  };
+  const show = (r: Route | null) =>
+    r
+      ? {
+          chain: r.chain,
+          end: r.end,
+          endTE: r.legs[r.legs.length - 1].endTE,
+          first: r.legs[0].label,
+          legs: r.legs.map(l => ({ label: l.label, start: l.start, end: l.end, endTE: l.endTE })),
+        }
+      : null;
+  const line: Record<string, unknown> = {
+    label: arg('label') ?? null,
+    te,
+    start,
+    hours: hours ? `${hours.fromHour}-${hours.toHour}` : 'off',
+    goal: deadline !== undefined ? `date ${new Date(deadline * 1000).toISOString().slice(0, 10)}` : `fastest ${final}`,
+    standIn: arg('stand-in') ?? null,
+    tableOld: oldPick.kind + (ownFile || gearFile ? ` (${(ownFile ?? gearFile)!.slice(0, 9)}, ${loadBin((ownFile ?? gearFile)!).header.simVersion})` : ''),
+    tableNew: newPick.kind,
+    scale: +scale.toFixed(4),
+    shift: shift ? { g: +shift.g.toFixed(2), geo: +shift.geo.toFixed(4), k: +shift.k.toFixed(4), parts: shift.parts } : null,
+    tail,
+  };
+  const oldR = has('no-old') ? null : await solve(oldPick, false);
+  const newR = await solve(newPick, true);
+  line.old = oldR ? { ...show(oldR.route), ms: oldR.ms } : null;
+  line.new = { ...show(newR.route), ms: newR.ms };
+  if (!has('no-exact')) {
+    const exNew = newR.route ? exactOf(newR.route.chain) : null;
+    line.exactNew = exNew;
+    const same = oldR?.route && newR.route && oldR.route.chain.join() === newR.route.chain.join();
+    line.exactOld = oldR?.route ? (same ? 'same route' : exactOf(oldR.route.chain)) : null;
+    const h = (a: number | null | undefined, b: unknown) => (a && typeof b === 'number' ? +((a - b) / 3600).toFixed(2) : null);
+    line.errNewH = h(newR.route?.end, exNew?.end);
+    const exOld = line.exactOld === 'same route' ? exNew : (line.exactOld as Record<string, unknown> | null);
+    line.errOldH = h(oldR?.route?.end, exOld?.end);
+  }
+  console.log(JSON.stringify(line));
+}
+
 async function main(): Promise<void> {
   if (arg('check-bin')) return checkBin();
   if (has('pack')) return pack();
@@ -3058,6 +3268,7 @@ async function main(): Promise<void> {
   if (has('polish')) return polish(backup);
   if (has('prune-bench')) return pruneBench(backup);
   if (has('v2-check')) return v2Check(backup);
+  if (has('instant2')) return instant2(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('prestige-by')) return prestigeByCheck(backup);
   if (has('route')) return route(backup);

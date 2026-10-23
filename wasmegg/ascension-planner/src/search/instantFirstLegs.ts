@@ -7,7 +7,7 @@
  * 'auto' and 'buildup' with a farm in the save include the build-up's tails; 'continue' and 'fresh'
  * never simulate them.
  */
-import { continueTailParams } from './leg';
+import { continueTailParams, VIRTUE_EGGS_MAP } from './leg';
 import { nextHour } from './routeFinder';
 import { readFirstAscension } from './firstAscension';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
@@ -52,6 +52,8 @@ export async function instantFirstLegsBase(
 ): Promise<InstantFirstLegsBase> {
   const start = p.start ?? inputs.planStart;
   const withSave = p.save !== false;
+  // The egg the save's farm is on (EGG_ORDER), for continue's holds (routeFinder.ts `firstLegOptions`).
+  const contEgg = EGG_ORDER.indexOf(VIRTUE_EGGS_MAP[inputs.currentFarmState?.eggType as number] ?? 'curiosity');
   const buildUp = withSave && p.buildUp !== false && buildsUpFirst(inputs) ? await p.buildUpTails(start) : [];
   return {
     startTE: p.startTE,
@@ -65,6 +67,7 @@ export async function instantFirstLegsBase(
     ...(p.liveFresh
       ? { freshLive: JSON.parse(JSON.stringify(await p.liveFresh(p.startTE, nextHour(start)))) as BuildParams[] }
       : {}),
+    ...(withSave && contEgg >= 0 ? { contEgg } : {}),
     firstAscension: readFirstAscension(inputs),
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,

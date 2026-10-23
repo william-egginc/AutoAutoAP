@@ -22,6 +22,8 @@ import { runBuildUpUntilC3 } from '@/auto/buildUp';
 import { MAX_OPENING_ROUNDS } from '@/auto/lowTeOpening';
 import { isResearchSaleActive } from '@/lib/events';
 import { paramsOf } from './tableBuild';
+import { paramsAndExtrasOf } from './tableV2Build';
+import type { BuildWithExtras } from './tableV2';
 import { heldSecondsOf, holdForPlayer } from '@/auto/hold';
 import { isConstrained, nextAvailable } from './availability';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
@@ -70,7 +72,7 @@ export const LAST_DATEABLE_SECONDS = 8.64e12;
 /** Backup egg enum (50..54) -> EngineState's egg name, the same table the generator keeps as
  *  VIRTUE_EGGS_MAP. Passing the raw number through leaves `currentEgg` as `53` and quietly corrupts
  *  every rate calculation downstream — that was a real bug in the CLI harness. */
-const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
+export const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
   50: 'curiosity',
   51: 'integrity',
   52: 'humility',
@@ -659,6 +661,23 @@ export function buildUpTailParams(inputs: SearchInputs, startTime: number): Buil
   const b = buildUpBuild(inputs, base, startTime, inputs.currentTE);
   if (!b) return [];
   return b.variants.map(v => paramsOf({ ctx: b.ctx, preC3: b.preC3, variants: b.variants }, v, startTime));
+}
+
+/**
+ * `buildUpTailParams` with table version 2's extras (search/tableV2.ts), for the instant answer's held
+ * replay (routeFinder.ts `TailOptions.holdShifts`): the build up to C3 as the search simulates it (its
+ * shifts held for the player's hours, as `buildUpBuild` does), and from H1 on unheld, as a table cell
+ * is, so the replay holds H1, K3 and the tail's shifts itself. Empty without a farm in the save.
+ */
+export function buildUpTailParamsV2(inputs: SearchInputs, startTime: number): BuildWithExtras[] {
+  const base = cloneBaseState(inputs);
+  const b = buildUpBuild(inputs, base, startTime, inputs.currentTE);
+  if (!b) return [];
+  const { holdUntil: _held, ...ctx } = b.ctx;
+  return b.variants.map(v => {
+    const pe = paramsAndExtrasOf({ ctx, preC3: b.preC3, variants: b.variants }, v, startTime);
+    return { ...pe.params, extras: pe.extras };
+  });
 }
 
 /**
