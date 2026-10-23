@@ -14,8 +14,8 @@ import { hasPlayerId } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
 
 const ID = 'EI0000000000000000';
-/** sha256("aap-follow-v1:EI0000000000000000") (node crypto). */
-const KEY = 'c5313ce4197e2fb5c0d4a1fa53cc64742397882977f50d6ddd27f1e230e49cb3';
+/** sha256("aaap-follow-v1:EI0000000000000000") (node crypto). */
+const KEY = '3726b0602ac082295aa779d59a2d977c10f29a2aa3f7673705e02dc1889dab55';
 const SUBMIT = 'https://collector.example/submit';
 const FOLLOW = 'https://collector.example/follow';
 const AT = Date.UTC(2026, 9, 23, 18);
@@ -98,6 +98,34 @@ describe('loading an account', () => {
       expect(follows.followedGoals()).toEqual([]);
       expect(puts()).toEqual([]);
     }
+  });
+
+  it('exactly one GET per account load, however often the store is touched or read again', async () => {
+    const follows = await loadAccount();
+    for (let i = 0; i < 5; i++) {
+      useFollowStore();
+      follows.followedGoals();
+      void follows.loadCloud();
+    }
+    await follows.loadCloud();
+    // The same account set again (a tab opened, the save reloaded): still the one read.
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    await new Promise(r => setTimeout(r, 20));
+    expect(calls.filter(c => c.method === 'GET')).toHaveLength(1);
+    // Another account reads its own; forcing reads again.
+    useInitialStateStore().rawBackup = { eiUserId: 'EI1234567890123456' } as never;
+    await vi.waitFor(() => expect(calls.filter(c => c.method === 'GET')).toHaveLength(2));
+    await follows.loadCloud(true);
+    expect(calls.filter(c => c.method === 'GET')).toHaveLength(3);
+  });
+
+  it('two reads at once share one request', async () => {
+    fakeSearch(SUBMIT);
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    const follows = useFollowStore();
+    await vi.waitFor(() => expect(follows.cloudKey).toBe(KEY));
+    await Promise.all([follows.loadCloud(), follows.loadCloud(), follows.loadCloud()]);
+    expect(calls.filter(c => c.method === 'GET')).toHaveLength(1);
   });
 
   it('without a collector nothing is fetched', async () => {

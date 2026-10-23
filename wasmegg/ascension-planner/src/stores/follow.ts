@@ -96,8 +96,10 @@ export const useFollowStore = defineStore('follow', () => {
 
   // The account (and the collector, once the page has the search store): work out the hashes, then read once.
   watch(
-    () => [idOf(), followUrl()] as const,
-    async ([id]) => {
+    // A string, so touching the store again (or a tab that reads it) never refires with the same account and URL.
+    () => `${idOf()}|${followUrl()}`,
+    async sig => {
+      const id = sig.slice(0, sig.lastIndexOf('|'));
       const h = id ? await accountHash(id).catch(() => '') : '';
       if (idOf() !== id) return;
       partition.value = h;
@@ -120,7 +122,18 @@ export const useFollowStore = defineStore('follow', () => {
    * Read the account's saved routes and follow each that is newer than this browser's (lib/followCloud.ts
    * `mergeCloud`). Quiet: never blocks, never writes anything online; on a failure `cloudStatus` says so.
    */
-  async function loadCloud(): Promise<void> {
+  /** One read per account and collector: the one in flight is shared, and a finished one counts for READ_TTL_MS
+   *  (another account, or `force`, reads again). */
+  let lastRead: { sig: string; at: number; done: Promise<void> } | null = null;
+  const READ_TTL_MS = 60_000;
+  function loadCloud(force = false): Promise<void> {
+    const sig = `${cloudKey.value}|${followUrl()}`;
+    if (!force && lastRead && lastRead.sig === sig && Date.now() - lastRead.at < READ_TTL_MS) return lastRead.done;
+    const done = readCloud();
+    lastRead = { sig, at: Date.now(), done };
+    return done;
+  }
+  async function readCloud(): Promise<void> {
     const url = followUrl();
     const p = partition.value;
     const k = cloudKey.value;
