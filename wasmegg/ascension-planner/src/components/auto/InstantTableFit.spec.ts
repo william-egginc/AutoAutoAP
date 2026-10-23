@@ -6,7 +6,7 @@
  *
  * Since 23 Oct 2026 (wireframes/price-route-v2) the lists show instant numbers only, four columns: By a date
  * Ascensions, TE · spare, Reached, Route; Fastest Ascensions, Reaches, Behind (with the near-tie line's 9rem),
- * Route. The 30rem floor keeps a phone's sideways scroll instead of crushing the columns.
+ * Route. Below 30rem (phones) each count is a stacked row (`.counts-stack`, wireframe v1): no sideways scroll.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -65,9 +65,10 @@ describe('the counts tables fit the card', () => {
         expect(intro).toBeLessThan(card().indexOf('data-testid="counts-scroll"'));
       });
 
-      it('the table wraps: no nowrap on it, a 30rem floor for phones', () => {
+      it('the table wraps: no nowrap on it; a table from 30rem up, stacked rows below (phones)', () => {
         const table = card().match(/<table [^>]*>/)![0];
-        expect(table).toContain('min-w-[30rem]');
+        expect(table).toContain('min-[30rem]:min-w-[30rem]');
+        expect(table).toContain('counts-stack');
         expect(table).toContain('w-full');
         expect(table).not.toContain('whitespace-nowrap');
       });
@@ -95,5 +96,17 @@ describe('the counts tables fit the card', () => {
   it('Fastest: the near-tie line may wrap', () => {
     const fast = cards[1];
     expect(fast).toContain('class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] leading-snug"');
+  });
+});
+
+describe('the counts list on a phone: stacked rows below 30rem (wireframe v1)', () => {
+  const style = src.slice(src.indexOf('<style scoped>'));
+  it('below 30rem: no header, each row a grid, the count on the left, the rest stacked on the right', () => {
+    expect(style).toContain('@media (max-width: 29.99rem)');
+    expect(style).toMatch(/\.counts-stack thead \{\s*display: none;/);
+    expect(style).toMatch(/\.counts-stack tr \{\s*display: grid;\s*grid-template-columns: 2\.25rem minmax\(0, 1fr\);/);
+    expect(style).toMatch(/\.counts-stack td:first-child \{\s*grid-column: 1;\s*grid-row: 1 \/ span 3;/);
+    // Four cells: the count, then three stacked (TE and spare or finish, when or behind, the route).
+    for (const c of cards) expect(c.match(/<td /g)).toHaveLength(4);
   });
 });

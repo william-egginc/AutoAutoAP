@@ -277,12 +277,12 @@
           {{ INSTANT_ONE_LINE }}
         </p>
         <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
-             Only the table scrolls, and only below its min width (phones). -->
+             A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1). -->
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
           <p class="text-[9px] font-black uppercase tracking-widest text-slate-500">Every number of ascensions</p>
           <PreferFewerControl v-model="preferMargin" goal="date" />
           <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="w-full min-w-[30rem] text-[12px]" data-testid="counts-table">
+            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-[12px]" data-testid="counts-table">
               <thead>
                 <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
@@ -397,12 +397,12 @@
         <p v-if="boxLead" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-one-line">
           {{ INSTANT_ONE_LINE }}
         </p>
-        <!-- Every number of ascensions, instant numbers only. Only the table scrolls, and only on phones. -->
+        <!-- Every number of ascensions, instant numbers only. A table from 30rem up; stacked rows below it. -->
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
           <p class="text-[9px] font-black uppercase tracking-widest text-slate-500">Every number of ascensions</p>
           <PreferFewerControl v-model="preferMargin" goal="fastest" />
           <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="w-full min-w-[30rem] text-[12px]" data-testid="counts-table">
+            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-[12px]" data-testid="counts-table">
               <thead>
                 <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
@@ -2522,3 +2522,35 @@ async function shareResult(k: string): Promise<void> {
   shareNote.value = { ...out, at: Date.now() };
 }
 </script>
+
+<style scoped>
+/*
+ * The counts list on a phone (wireframes/price-route-v2 v1, 23 Oct 2026): below 30rem each count is one stacked row,
+ * the number of ascensions on the left and its TE and spare (or finish), when, and the route with its buttons
+ * under each other on the right; nothing scrolls sideways. From 30rem up it is the table.
+ */
+@media (max-width: 29.99rem) {
+  .counts-stack thead {
+    display: none;
+  }
+  .counts-stack,
+  .counts-stack tbody {
+    display: block;
+  }
+  .counts-stack tr {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    column-gap: 0.5rem;
+    padding-block: 0.5rem;
+  }
+  .counts-stack td {
+    display: block;
+    grid-column: 2;
+    padding: 0;
+  }
+  .counts-stack td:first-child {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+}
+</style>
