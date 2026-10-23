@@ -97,6 +97,7 @@
           :goal-key="`fastest-${run.finalTE}`"
           from="saved"
           :label="run.label"
+          :source="sourceOfLevel(foundLevel({ custom: !!run.space, effort: run.effort }))"
         />
         <button
           type="button"
@@ -126,6 +127,7 @@ import { NAMES } from '@/lib/siteNav';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import EntrySaveActions from './EntrySaveActions.vue';
 import FollowButton from '../FollowButton.vue';
+import { sourceOfLevel } from '@/lib/followCloud';
 import SaveFileBar from './SaveFileBar.vue';
 import PaceBadge from '../myruns/PaceBadge.vue';
 import { usePlanPace } from '@/composables/usePlanPace';
