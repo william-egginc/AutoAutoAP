@@ -142,6 +142,9 @@ export interface InstantRecord {
     firstLegOtherHours?: number;
     legs?: ExactLegOut[];
   } | null;
+  /** Which search found `exact` (23 Oct 2026, "Share this result"): Fast, Exact or Custom. Before, `exact` was Check
+   *  exactly's price of the instant answer's routes. A collector that doesn't know it drops it like any unknown field. */
+  exactFrom?: 'fast' | 'exact' | 'custom';
   /** By a date: how late the instant answer's own route arrives on the account (when it misses). */
   exactMissedByHours?: number;
   /** The farm the plan continues against a fresh build's peak delivery (Q/h). */

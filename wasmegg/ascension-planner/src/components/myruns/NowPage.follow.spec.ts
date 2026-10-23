@@ -177,7 +177,7 @@ describe('Right now with a followed route', () => {
     expect(t).toMatch(/Following your pick · checked Oct 14 at 8:50 am: lands Oct 19 at 6:40 pm, no timeline kept · Price it ›/);
   });
 
-  it('"Price it ›" asks Recalculate with the route attached; App passes it on to Check exactly', async () => {
+  it('"Price it ›" asks Recalculate with the route attached; App passes it on (InstantRoute only clears it now)', async () => {
     const none: FollowCard = { chain: [222, 490], from: 'typed', price: 'none', source: null, pricedSave: null };
     const onRecalc = vi.fn();
     let setup: Record<string, unknown> = {};
@@ -198,10 +198,10 @@ describe('Right now with a followed route', () => {
     ui.askExact('target 490', [222, 490]);
     expect(ui.exactAsk).toEqual({ goal: 'target 490', n: 1, chain: [222, 490] });
     expect(read('../../App.vue')).toContain('uiStore.askExact(req.goal, req.chain);');
-    // InstantRoute keeps the asked route and prices it after the rows (lands in `exact`, so in the snapshot).
+    // InstantRoute no longer prices the asked route (no Check exactly since 23 Oct 2026): it clears the ask.
     const route = read('../auto/InstantRoute.vue');
-    expect(route).toMatch(/if \(step !== 'drop' && ui\.exactAsk\?\.chain\?\.length\) followAsk = \[\.\.\.ui\.exactAsk\.chain\];/);
-    expect(route).toMatch(/const followed = followedToPrice\(\);\s*if \(followed\) \{[\s\S]*?await price\(\[followed\]\)/);
+    expect(route).not.toContain('followedToPrice');
+    expect(route).toContain('if (mine) ui.exactAsk = null;');
   });
 
   it('the typed box follows a route for the goal; a bad one says what to fix', async () => {
@@ -244,14 +244,12 @@ describe('Follow this route buttons', () => {
   it('sits beside the existing buttons, each with its goal', () => {
     // The box's button follows the route the box shows (Q6: the fewest-ascensions pick when Prefer fewer is on).
     const route = read('../auto/InstantRoute.vue');
-    expect(route).toContain('<FollowButton class="mt-1 ml-2" primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />');
+    expect(route).toContain('<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />');
     expect(route).toContain(
-      '<FollowButton v-if="boxFollowable" class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />'
+      '<FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />'
     );
     expect(route).toContain('<FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count" />');
-    expect(route).toContain(
-      '<FollowButton v-if="rowFollowable(r)" :chain="(dateExactByK[r.legs.length] ?? tableDate(r)).chain" :goal-key="followGoal" from="count" />'
-    );
+    expect(route).toContain('<FollowButton v-if="rowFollowable(r)" :chain="r.chain" :goal-key="followGoal" from="count" />');
     expect(route).toContain('const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));');
     expect(read('../auto/SavedAnswers.vue')).toContain(':goal-key="screenGoalKey(a.result.deadline, a.result.te)"');
     expect(read('../auto/SavedRuns.vue')).toContain(':goal-key="`fastest-${run.finalTE}`"');

@@ -295,15 +295,17 @@ describe('Recalculate', () => {
     );
   });
 
-  it('the ask: counted, and answered by InstantRoute with its Check exactly action', () => {
+  it('the ask: counted, and cleared by InstantRoute for its goal (no Check exactly since 23 Oct 2026)', () => {
     const ui = useUIStore();
     ui.askExact('target 490');
     ui.askExact('target 490');
     expect(ui.exactAsk).toEqual({ goal: 'target 490', n: 2 });
     const route = read('../auto/InstantRoute.vue');
-    expect(route).toContain('goal: instantGoal(props.deadline, store.finalTE),');
+    // Opening the screen with the save is the whole answer now: the ask for this screen's goal is cleared, nothing
+    // is priced (part B reworks Right now's Recalculate and Price it).
     expect(route).toMatch(
-      /if \(step === 'none' \|\| step === 'wait'\) return;[\s\S]*?ui\.exactAsk = null;\s*if \(step === 'run'\) checkAgain\(\);/
+      /\(\) => ui\.exactAsk\?\.goal === instantGoal\(props\.deadline, store\.finalTE\),\s+mine => \{\s+if \(mine\) ui\.exactAsk = null;/
     );
+    expect(route).not.toContain('checkAgain');
   });
 });

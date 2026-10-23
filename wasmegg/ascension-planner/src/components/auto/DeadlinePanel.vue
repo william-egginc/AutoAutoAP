@@ -128,11 +128,11 @@
     </label>
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
-         date, from every route at once. Check exactly sets its stops in the boxes below. -->
+         date, from every route at once, instant numbers only (it points to a search's result below). -->
     <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant">
       <InstantRoute
         :deadline="deadline"
-        stronger-to="#stronger-check-results"
+        share-to="#search-share-by-date"
         @check="checkByDate"
         @routes="onInstantRoutes"
         @state="st => (instantLoad = st)"
@@ -197,7 +197,7 @@
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
 
-    <!-- The search panel (SearchPanel.vue, 22 Oct 2026): Light's status, then Fast | Exact | Custom. Both of
+    <!-- The search panel (SearchPanel.vue, 22 Oct 2026): Fast | Exact | Custom. Both of
          its parts stay mounted (v-show): the teleport targets below (#bd-around-*, #bd-exh-*) must be on the
          page before the run controls move in, and a run in the hidden part keeps going. -->
     <SearchPanel

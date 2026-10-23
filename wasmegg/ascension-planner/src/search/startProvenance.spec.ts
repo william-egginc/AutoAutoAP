@@ -236,13 +236,13 @@ describe('the instant answer waits for the save (InstantRoute.vue)', () => {
     expect(watchBlock).toMatch(/if \(store\.startWait\) \{\s*waitForSave\(\);\s*return;/);
   });
 
-  it('never works an answer out, checks it exactly or shares it while waiting', () => {
+  it('never works an answer out or shares a result while waiting (no Check exactly since 23 Oct 2026)', () => {
     expect(script).toMatch(
       /async function run\(force = false, goAhead = false\): Promise<void> \{[^}]*if \(store\.startWait\) return;/
     );
-    expect(script).toMatch(/function checkAgain\(\): void \{\s*if \([^)]*store\.startWait\) return;/);
+    expect(script).not.toContain('function checkAgain');
     expect(script).toMatch(
-      /async function shareCheck\(id: number\): Promise<void> \{\s*if \([^)]*store\.startWait\) return;/
+      /async function shareResult\(k: string\): Promise<void> \{\s*const f = searchFound\.value;\s*if \([^)]*store\.startWait[^)]*\) return;/
     );
     expect(script).toContain(
       "if (runDue.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';"
@@ -251,14 +251,14 @@ describe('the instant answer waits for the save (InstantRoute.vue)', () => {
 
   it('drops the work in flight and labels an answer already on screen', () => {
     const fn = script.slice(script.indexOf('function waitForSave(): void {'), script.indexOf('const saveWaitText'));
-    for (const s of ['++runs;', '++bracketRuns;', '++prestigeRuns;', 'stopExact();', 'resultFromBefore.value = true;'])
+    for (const s of ['++runs;', '++bracketRuns;', '++prestigeRuns;', 'afterPrestige = null;', 'resultFromBefore.value = true;'])
       expect(fn).toContain(s);
     expect(src).toContain('{{ START_WAIT_LABEL }}');
     expect(src).toContain('data-testid="instant-wait-save"');
   });
 
-  it('the shared record says where the check started, taken as it started', () => {
-    expect(script).toContain('exactStart = store.startProvenanceNow();');
+  it('the shared record says where the save on screen came from (the result shared is for this save)', () => {
+    expect(script).toContain('const start = finishStartProvenance(store.startProvenanceNow(), {');
     expect(script).toContain('...(start ? { start } : {}),');
   });
 });

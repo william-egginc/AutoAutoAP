@@ -35,9 +35,10 @@ describe('WaitBeforePrestige', () => {
 });
 
 describe('InstantRoute', () => {
-  it('shows it under both answers once Check exactly is done', () => {
-    const src = read('./InstantRoute.vue');
-    expect(src).toMatch(/<WaitBeforePrestige\s+v-if="exactStatus === 'done' && dateExact"\s+:chain="dateExact.chain"/);
-    expect(src).toMatch(/<WaitBeforePrestige\s+v-if="exactStatus === 'done' && exactOf\(boxLead\)"\s+:chain="boxLead.chain"/);
+  // It was shown under the instant answer once Check exactly was done; with no Check exactly (23 Oct 2026) the instant
+  // card has only Simulate this plan and Follow this route, so it is not mounted there. The component is kept for a
+  // search's result card (a decision for Jordan).
+  it('is not on the instant card', () => {
+    expect(read('./InstantRoute.vue')).not.toContain('<WaitBeforePrestige');
   });
 });

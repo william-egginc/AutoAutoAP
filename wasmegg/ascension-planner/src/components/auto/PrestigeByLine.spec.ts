@@ -58,9 +58,10 @@ describe('PrestigeByLine', () => {
     const uses = template.match(/<PrestigeByLine[\s\S]*?\/>/g) ?? [];
     expect(uses).toHaveLength(2);
     for (const u of uses) {
-      // Not over a route Prefer fewer ascensions picked instead of the best (Q6): it is worked out on the best.
-      // Nor over Check exactly's pick when that is another route (lib/boxPick.ts `prestigeOnBox`).
-      expect(u).toContain('v-if="prestigeFlag.enabled.value && !preferPicked && prestigeOnBox"');
+      // Not over a route Prefer fewer ascensions picked instead of the best (Q6): it is worked out on the best. The box
+      // always shows the instant route otherwise (no Check exactly since 23 Oct 2026), so the line is always there.
+      expect(u).toContain('v-if="prestigeFlag.enabled.value && !preferPicked"');
+      expect(u).toContain('mismatch=""');
       expect(u).toContain(':beta="prestigeFlag.beta"');
     }
     // The work itself checks the flag before it starts.

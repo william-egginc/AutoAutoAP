@@ -6,7 +6,8 @@
   date's ByDateRouteCard.vue; both draw this frame.
 -->
 <template>
-  <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+  <!-- data-result-card: the instant card's "See it ↓" scrolls here (InstantRoute.vue `seeResult`). -->
+  <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2 scroll-mt-24" data-result-card>
     <div class="flex items-baseline justify-between gap-4 flex-wrap">
       <div class="min-w-0">
         <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800"><slot name="heading" /></p>

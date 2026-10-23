@@ -68,7 +68,7 @@ describe('instantKey (the hash did not move)', () => {
   it('is what InstantRoute uses (no copy of the hash left there)', () => {
     const src = readFileSync(new URL('../components/auto/InstantRoute.vue', import.meta.url), 'utf8');
     expect(src).toContain('return instantKey({');
-    expect(src).toContain('snapKey = instantSnapKey(cachedKey)');
+    expect(src).toContain('snapKey = instantSnapKey(cacheKey())');
     expect(src).not.toContain('0x811c9dc5');
   });
 });

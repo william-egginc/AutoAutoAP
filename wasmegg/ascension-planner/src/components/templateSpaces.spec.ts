@@ -101,7 +101,8 @@ describe('spaces where a sentence joins a <template>', () => {
 
   it('reads the screens that say "Priced with …"', () => {
     const names = priced.map(f => path.basename(f));
-    for (const f of ['DeadlinePanel.vue', 'InstantRoute.vue', 'ByDateRouteCard.vue', 'RouteResultCard.vue'])
+    // (Not InstantRoute.vue since 23 Oct 2026: with no Check exactly it prices nothing, so it says no "Priced with".)
+    for (const f of ['DeadlinePanel.vue', 'ByDateRouteCard.vue', 'RouteResultCard.vue'])
       expect(names).toContain(f);
   });
 

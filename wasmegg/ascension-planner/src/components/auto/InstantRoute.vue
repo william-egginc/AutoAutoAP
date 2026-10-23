@@ -17,8 +17,9 @@
   (routeFinder.ts `hours`); the shifts inside an ascension are not held to them here.
   What it leaves out: playing hours (or, with that box, only the shifts' hours), time off and dated
   milestones (said beside the result), and the
-  history of how a player reached each TE (shown to barely matter on the board). "Check exactly" hands
-  any route to the Full sweep, which prices it with the full simulator.
+  history of how a player reached each TE (shown to barely matter on the board). The searches under the
+  answer (Fast, Exact, Custom) price routes with the full simulator; this card only points to their result
+  (wireframes/price-route-v2, Jordan 23 Oct 2026: nothing prices it here, the instant numbers never change by themselves).
 -->
 <template>
   <section v-if="!noTable" class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3">
@@ -27,7 +28,7 @@
         Instant answer
         <span
           class="ml-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
-          >precomputed</span
+          >worked out ahead</span
         >
         <span
           v-if="own"
@@ -39,18 +40,6 @@
         >every route checked in {{ (ms / 1000).toFixed(1) }} s</span
       >
     </div>
-    <p class="text-[12px] text-slate-600 leading-relaxed">
-      Every ascension {{ own ? 'your account can make, with the gear your save has now,' : 'a maxed account can make' }}
-      was simulated ahead of time, from every TE at every hour of the week, so
-      {{
-        deadline
-          ? 'finding the highest TE you can reach by the date is arithmetic'
-          : 'finding your fastest route is arithmetic'
-      }}: it tries every stop at every TE, with any number of ascensions.{{
-        own ? ' The instant answer was built on your own gear.' : " It's adjusted for your gear."
-      }}
-      <b>Check exactly</b> prices a route with the full simulator.
-    </p>
     <p v-if="ownChanged" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900">
       Your gear changed since your instant answer was made ({{ ownChanged }}), so this answer uses the instant answer
       for fully maxed gear instead.
@@ -114,7 +103,8 @@
     >
       This instant answer was made with {{ simNote }}, not the simulator this page runs. Where one round of
       research, vehicles and habs (C1, K1, I1) maxes the habs, its times are expected to move only a little. Where it
-      does not, often at low TE on weaker gear, its routes and dates can move a lot. <b>Check exactly</b> to confirm.
+      does not, often at low TE on weaker gear, its routes and dates can move a lot. Fast, Exact or Custom below prices
+      them on your account.
     </p>
 
     <p
@@ -179,26 +169,6 @@
     />
     <!-- No routes while the integrity check holds them back (search/instantIntegrity.ts). -->
     <template v-if="!integrityHold">
-      <!-- The last checked answer for this save and setup, at once; then whether the new check beat it. -->
-      <p
-        v-if="cached && exactStatus !== 'done'"
-        class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-700"
-      >
-        <b>Last checked {{ show(cached.at / 1000) }}</b> (exact, your account):
-        <span class="font-mono-premium">{{ cached.chain.join(' → ') }}</span>
-        <template v-if="deadline"> · {{ cached.endTE }} TE · {{ days(deadline - cached.end) }} to spare</template>
-        <template v-else> · reaches {{ store.finalTE }} on {{ show(cached.end) }}</template
-        >.{{ waiting || exactStatus === 'waiting' ? ' Checked again when the search ends.' : ' Checking again…' }}
-      </p>
-      <p
-        v-if="sinceCache"
-        class="rounded-lg px-3 py-2 text-[12px] font-bold"
-        :class="
-          sinceCache.better ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-50 border border-slate-200 text-slate-700'
-        "
-      >
-        {{ sinceCache.text }}
-      </p>
 
       <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
       <div v-if="result" class="space-y-1">
@@ -237,8 +207,11 @@
         <p v-else-if="bracketText" class="text-[11px] text-slate-700">{{ bracketText }}</p>
       </div>
 
+      <!-- THE INSTANT CARD (wireframes/price-route-v2, Jordan 23 Oct 2026): the green box and the counts list show the
+           instant answer only, and never change by themselves (nothing on this card prices a route). A search below has
+           its own result card; once it has one for this goal, the pointer line at the bottom points to it. -->
       <template v-if="result && deadline">
-        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span class="text-[10px] font-black uppercase tracking-widest text-emerald-700"
               >Highest TE by {{ show(deadline) }}</span
@@ -252,16 +225,11 @@
             >
           </div>
           <template v-if="result.byDate">
-            <!-- The simulator's answer leads once it is in; the table's stays beside it. -->
             <div class="flex flex-wrap items-baseline gap-x-3">
-              <span class="text-2xl font-black text-slate-900"
-                >{{ dateBoxOf(result.byDate).endTE }} TE</span
-              >
+              <span class="text-2xl font-black text-slate-900">{{ dateBoxOf(result.byDate).endTE }} TE</span>
               <span
                 class="text-lg font-black"
-                :class="
-                  spareOf(dateBoxOf(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'
-                "
+                :class="spareOf(dateBoxOf(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'"
                 >{{ days(spareOf(dateBoxOf(result.byDate))) }} to spare</span
               >
               <span
@@ -269,11 +237,8 @@
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
                 >tight</span
               >
-              <!-- While Check exactly runs the box keeps the instant answer's pick, and says so (lib/boxPick.ts). -->
-              <span v-if="boxMarker" class="text-[11px] font-bold text-slate-500" data-testid="box-marker">{{ boxMarker }}</span>
-              <span v-else-if="dateExactShown" class="text-[11px] font-bold text-emerald-700">exact, your account</span>
+              <span class="text-[11px] font-bold text-slate-500" data-testid="box-instant">instant answer</span>
             </div>
-            <p v-if="boxWhy" class="text-[11px] text-slate-500" data-testid="box-checking-why">{{ boxWhy }}</p>
             <div class="font-mono-premium text-sm font-bold text-slate-800">
               {{ dateBoxOf(result.byDate).chain.join(' → ') }}
             </div>
@@ -282,272 +247,109 @@
               {{ dateBoxOf(result.byDate).chain.length }} ascensions
             </div>
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
-            <!-- "Prestige by" is worked out on the instant answer's highest-TE route: shown only while the box shows that
-                 route (not over another one, lib/boxPick.ts). -->
+            <!-- "Prestige by" is worked out on the instant answer's highest-TE route, which the box always shows
+                 unless Prefer fewer picked another. -->
             <PrestigeByLine
-              v-if="prestigeFlag.enabled.value && !preferPicked && prestigeOnBox"
+              v-if="prestigeFlag.enabled.value && !preferPicked"
               :line="prestige?.line ?? null"
               :status="prestigeStatus"
-              :mismatch="prestigeMismatch"
+              mismatch=""
               :beta="prestigeFlag.beta"
             />
-            <RouteExtras
-              v-if="dateExactShown && legsFor(dateBoxOf(result.byDate).chain)"
-              :chain="dateBoxOf(result.byDate).chain"
-              :legs="legsFor(dateBoxOf(result.byDate).chain)"
-              :reach-at="dateBoxOf(result.byDate).end"
-              :zone="zone"
-            />
-            <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026).
-                 Fits a desktop card (18 Oct 2026: at a ~1000 px card the Route column and its buttons were cut
-                 off): only the table scrolls, and only below its min-w-[32rem] (phones); the intro and the maxed
-                 line stay put. Cells wrap: the at-once line, the route, the button under the route. -->
-            <div v-if="dateRows.length > 1" class="rounded-lg bg-white/70 px-2 py-1" data-testid="counts-card">
-              <p class="text-[11px] text-slate-500">
-                Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
-              </p>
-              <p v-if="hoursMoveShifts" class="text-[11px] text-slate-400" data-testid="hours-shifts-note">
-                Your hours move shifts inside each ascension, which the instant answer can’t see; Check exactly decides.
-                With your hours on it also prices each count’s next-best route (about one more route per count).
-              </p>
-              <PreferFewerControl v-model="preferMargin" goal="date" />
-              <div class="overflow-x-auto" data-testid="counts-scroll">
-                <table class="w-full min-w-[32rem] text-[12px]" data-testid="counts-table">
-                  <thead>
-                    <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
-                      <th class="py-1 pr-2">Ascensions</th>
-                      <th class="py-1 pr-2">Instant answer</th>
-                      <th class="py-1 pr-2">Exact, your account</th>
-                      <th class="py-1 pr-2">Spare</th>
-                      <th class="py-1">Route</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template v-for="r in dateRows" :key="r.legs.length">
-                    <tr
-                      class="border-t border-slate-100"
-                      :class="dateRowLit(r) ? 'bg-emerald-50/60' : ''"
-                    >
-                      <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
-                        <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
-                        <button
-                          v-if="rowLegs(dateRowChain(r))"
-                          type="button"
-                          class="mr-1 text-slate-400 hover:text-emerald-700"
-                          :aria-expanded="openRow === key(dateRowChain(r))"
-                          :aria-label="`Show when each stop of ${dateRowChain(r).join(' ')} happens`"
-                          data-testid="instant-row-expand"
-                          @click="toggleRow(dateRowChain(r))"
-                        >
-                          {{ openRow === key(dateRowChain(r)) ? '⌄' : '›' }}
-                        </button>
-                        {{ r.legs.length }}
-                        <span
-                          v-if="datePickedRow(r)"
-                          class="block text-[9px] font-black uppercase tracking-widest text-emerald-700"
-                          :title="preferCopy.chip"
-                          data-testid="prefer-fewer-row"
-                          >shown above</span
-                        >
-                      </td>
-                      <td class="py-1.5 pr-2 text-slate-600 align-top">
-                        <span class="whitespace-nowrap">{{ r.legs[r.legs.length - 1].endTE }} TE</span> ·
-                        <span class="whitespace-nowrap">{{ days(deadline - r.end) }}</span>
-                      </td>
-                      <td class="py-1.5 pr-2 font-bold text-slate-800 align-top">
-                        <template v-if="dateExactByK[r.legs.length]">{{ dateExactByK[r.legs.length]!.endTE }} TE</template>
-                        <template v-else-if="dateExactByK[r.legs.length] === null">misses</template>
-                        <span v-else-if="exactStatus === 'running'" class="text-slate-400 font-normal">…</span>
-                        <!-- Light's price of this row's route at once (StrongerCheck.vue), as it lands. -->
-                        <span
-                          v-if="atOnceText(dateRowChain(r))"
-                          class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] font-normal leading-snug text-indigo-700"
-                          data-testid="at-once-line"
-                          >{{ atOnceText(dateRowChain(r)) }}</span
-                        >
-                      </td>
-                      <td class="py-1.5 pr-2 whitespace-nowrap align-top">
-                        <template v-if="dateExactByK[r.legs.length]">
-                          <span
-                            :class="
-                              spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS
-                                ? 'text-amber-700 font-black'
-                                : 'text-emerald-800 font-bold'
-                            "
-                            >{{ days(spareOf(dateExactByK[r.legs.length]!)) }}</span
-                          >
-                          <span
-                            v-if="spareOf(dateExactByK[r.legs.length]!) < TIGHT_SECONDS"
-                            class="ml-1 px-1 py-0.5 rounded bg-amber-100 text-amber-800 text-[8px] font-black uppercase"
-                            >tight</span
-                          >
-                        </template>
-                      </td>
-                      <!-- The route, with its Simulate button beside it when the card has room and under it when not. -->
-                      <td class="py-1.5 align-top" data-testid="counts-route">
-                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <span class="font-mono-premium text-slate-800">{{
-                            (dateExactByK[r.legs.length] ?? tableDate(r)).chain.join(' ')
-                          }}</span>
-                          <button
-                            type="button"
-                            class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
-                            :title="SIMULATE_TITLE"
-                            @click="openPlan((dateExactByK[r.legs.length] ?? tableDate(r)).chain)"
-                          >
-                            Simulate this plan
-                          </button>
-                          <FollowButton v-if="rowFollowable(r)" :chain="(dateExactByK[r.legs.length] ?? tableDate(r)).chain" :goal-key="followGoal" from="count" />
-                          <span
-                            v-if="simulateCaveat((dateExactByK[r.legs.length] ?? tableDate(r)).chain, r.legs.length)"
-                            class="basis-full text-[10px] leading-snug text-amber-700"
-                            data-testid="simulate-note"
-                            >{{ simulateCaveat((dateExactByK[r.legs.length] ?? tableDate(r)).chain, r.legs.length) }}</span
-                          >
-                          <!-- HOURS FIX B: the route the table ranked second leads this row on your hours. -->
-                          <span
-                            v-if="secondNoteFor(r.legs.length, dateExactByK[r.legs.length]?.chain)"
-                            class="basis-full text-[10px] leading-snug text-slate-500"
-                            data-testid="second-route-note"
-                            >{{ secondNoteFor(r.legs.length, dateExactByK[r.legs.length]?.chain) }}</span
-                          >
-                        </div>
-                      </td>
-                    </tr>
-                    <tr v-if="openRow === key(dateRowChain(r)) && rowLegs(dateRowChain(r))" class="bg-slate-50">
-                      <td colspan="5" class="px-2 py-2">
-                        <div class="space-y-1" data-testid="instant-row-timeline">
-                          <template v-if="exactLegsOf(dateRowChain(r))">
-                            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Check exactly: each ascension on the hour</p>
-                            <RouteTimeline :chain="dateRowChain(r)" :legs="exactLegsOf(dateRowChain(r))" :zone="zone" />
-                          </template>
-                          <template v-if="atOnceLegsOf(dateRowChain(r))">
-                            <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Each ascension at once</p>
-                            <RouteTimeline :chain="dateRowChain(r)" :legs="atOnceLegsOf(dateRowChain(r))" :zone="zone" />
-                          </template>
-                        </div>
-                      </td>
-                    </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </div>
-              <MaxedWhatIf
-                v-if="whatIf"
-                v-bind="whatIf"
-                @result="onWhatIf"
-                :table-url="TABLE_URL"
-                :zone="zone"
-                :final="target"
-                :max-ascensions="MAX_ASCENSIONS"
-                :at-most="filters.maxAscensions"
-                :deadline="deadline"
-              />
+            <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+                :title="SIMULATE_TITLE"
+                data-testid="box-simulate"
+                @click="openPlan(dateBoxOf(result.byDate).chain)"
+              >
+                Simulate this plan
+              </button>
+              <FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />
             </div>
-            <p class="text-[11px] text-slate-600">
-              Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly Research Sale, at
-              once when that ends sooner), and Check exactly prices it the same way, then prices these routes ascending at
-              once, on your hours.
-            </p>
-            <p v-if="atOnceNote(dateExactShown)" class="text-[11px] font-bold text-emerald-800">
-              {{ atOnceNote(dateExactShown) }}
-            </p>
-            <div v-if="dateExactShown" class="text-[11px] text-slate-500">
-              The instant answer said {{ result.byDate.legs[result.byDate.legs.length - 1].endTE }} TE via
-              {{ result.byDate.chain.join(' ') }} with {{ days(deadline - result.byDate.end) }} to spare<template
-                v-if="missedBy !== null"
-                >; on your account that route arrives {{ days(missedBy) }} after the date</template
-              >.
-            </div>
-            <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
-              <span
-                class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
-              />
-              {{ exactText }}
-            </p>
-            <p v-else-if="exactStatus === 'done' && !dateExact" class="text-[11px] text-amber-800">
-              On your account none of these routes reaches above your TE by the date. Check exactly searches for yours.
-            </p>
-            <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-              On {{ thisDevice() }} the full simulator's check runs only when you press Check exactly: it uses every core for a
-              minute or more.
-            </p>
-            <button
-              type="button"
-              :class="
-                exactStatus === 'running'
-                  ? 'opacity-60 cursor-not-allowed hover:bg-emerald-700'
-                  : 'hover:bg-emerald-800'
-              "
-              class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
-              :disabled="exactStatus === 'running'"
-              title="Prices every route in this answer with the full simulator on your account"
-              @click="pressCheck('check-date')"
-            >
-              <span
-                v-if="exactStatus === 'running'"
-                class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white border-t-transparent animate-spin"
-              />
-              {{
-                exactStatus === 'running'
-                  ? 'Checking exactly…'
-                  : exactStatus === 'done'
-                    ? 'Check all again'
-                    : 'Check exactly'
-              }}
-            </button>
-            <button
-              type="button"
-              class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-              :title="SIMULATE_TITLE"
-              @click="openPlan(dateBoxOf(result.byDate).chain)"
-            >
-              Simulate this plan
-            </button>
-            <FollowButton v-if="boxFollowable" class="mt-1 ml-2" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />
-            <span
-              v-if="boxCaveat(result.byDate)"
-              class="block mt-1 text-[10px] leading-snug text-amber-700"
-              data-testid="simulate-note"
-              >{{ boxCaveat(result.byDate) }}</span
-            >
-            <!-- Waiting before each prestige (search/delays.ts): on request, on the route Check exactly found. -->
-            <WaitBeforePrestige
-              v-if="exactStatus === 'done' && dateExact"
-              :chain="dateExact.chain"
-              :zone="zone"
-              :deadline="deadline"
-              :disabled="runBusy"
-            />
-            <InstantShareCheck
-              v-if="instantUrl"
-              v-model:share-this="shareThis"
-              v-model:keep-sharing="keepSharing"
-              class="mt-2"
-              :status="shareText"
-              :sent="shareNote?.result === 'sent'"
-              :title="SHARE_WHAT"
-            />
-            <InstantRunWarning
-              v-if="warnHere(confirming, 'check-date')"
-              class="mt-2"
-              at="check-date"
-              check
-              @go="confirmRun(false)"
-              @remember="confirmRun(true)"
-              @cancel="confirming = null"
-            />
           </template>
           <p v-else class="text-[12px] text-amber-800">
             No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
           </p>
         </div>
+        <p v-if="result.byDate" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-one-line">
+          {{ INSTANT_ONE_LINE }}
+        </p>
+        <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
+             Only the table scrolls, and only below its min width (phones). -->
+        <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
+          <p class="text-[9px] font-black uppercase tracking-widest text-slate-500">Every number of ascensions</p>
+          <PreferFewerControl v-model="preferMargin" goal="date" />
+          <div class="overflow-x-auto" data-testid="counts-scroll">
+            <table class="w-full min-w-[30rem] text-[12px]" data-testid="counts-table">
+              <thead>
+                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
+                  <th class="py-1 pr-2">Ascensions</th>
+                  <th class="py-1 pr-2">TE · spare</th>
+                  <th class="py-1 pr-2">Reached</th>
+                  <th class="py-1">Route</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="r in dateRows"
+                  :key="r.legs.length"
+                  class="border-t border-slate-100"
+                  :class="dateRowLit(r) ? 'bg-emerald-50/60' : ''"
+                >
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
+                    {{ r.legs.length }}
+                    <span
+                      v-if="datePickedRow(r)"
+                      class="block text-[9px] font-black uppercase tracking-widest text-emerald-700"
+                      :title="preferCopy.chip"
+                      data-testid="prefer-fewer-row"
+                      >shown above</span
+                    >
+                  </td>
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 align-top" data-testid="counts-te">
+                    <span class="whitespace-nowrap">{{ r.legs[r.legs.length - 1].endTE }} TE</span> ·
+                    <span class="whitespace-nowrap">{{ days(deadline - r.end) }} spare</span>
+                  </td>
+                  <td class="py-1.5 pr-2 text-slate-600 whitespace-nowrap align-top">{{ show(r.end) }}</td>
+                  <!-- The route, with its buttons beside it when the card has room and under it when not. -->
+                  <td class="py-1.5 align-top" data-testid="counts-route">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span class="font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</span>
+                      <button
+                        type="button"
+                        class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
+                        :title="SIMULATE_TITLE"
+                        @click="openPlan(r.chain)"
+                      >
+                        Simulate this plan
+                      </button>
+                      <FollowButton v-if="rowFollowable(r)" :chain="r.chain" :goal-key="followGoal" from="count" />
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <MaxedWhatIf
+            v-if="whatIf"
+            v-bind="whatIf"
+            @result="onWhatIf"
+            :table-url="TABLE_URL"
+            :zone="zone"
+            :final="target"
+            :max-ascensions="MAX_ASCENSIONS"
+            :at-most="filters.maxAscensions"
+            :deadline="deadline"
+          />
+        </div>
       </template>
 
       <template v-if="result && !deadline">
-        <div v-if="boxLead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1">
+        <div v-if="boxLead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest route</span>
+            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest to {{ store.finalTE }} TE</span>
             <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
             <span
               v-if="preferPicked"
@@ -556,384 +358,165 @@
               >{{ preferCopy.chip }}</span
             >
           </div>
-          <div class="font-mono-premium text-base font-black text-slate-900">{{ boxLead.chain.join(' → ') }}</div>
-          <div v-if="boxExactOf(boxLead)" class="text-[12px] text-slate-800">
-            Reaches {{ store.finalTE }} on <b>{{ show(boxExactOf(boxLead)!.end) }}</b> · {{ days(boxExactOf(boxLead)!.seconds) }} ·
-            {{ plural(boxLead.legs.length, 'ascension') }}
-            <span class="text-[11px] font-bold text-emerald-700">exact, your account</span>
+          <div class="flex flex-wrap items-baseline gap-x-3">
+            <span class="text-2xl font-black text-slate-900">{{ show(boxLead.end) }}</span>
+            <span class="text-[11px] font-bold text-slate-500" data-testid="box-instant">instant answer</span>
           </div>
-          <div :class="boxExactOf(boxLead) ? 'text-[11px] text-slate-500' : 'text-[12px] text-slate-700'">
-            {{ boxExactOf(boxLead) ? 'The instant answer said ' : 'Reaches ' + store.finalTE + ' on '
-            }}<b v-if="!boxExactOf(boxLead)">{{ show(boxLead.end) }}</b
-            ><template v-else>{{ show(boxLead.end) }}</template> · {{ days(boxLead.seconds)
-            }}<template v-if="!boxExactOf(boxLead)"> · {{ plural(boxLead.legs.length, 'ascension') }}</template>
-            <!-- While Check exactly runs the box keeps the instant answer's pick, and says so (lib/boxPick.ts). -->
-            <span v-if="boxMarker" class="text-[11px] font-bold text-slate-500" data-testid="box-marker">{{ boxMarker }}</span>
+          <div class="text-[12px] font-bold text-emerald-800">
+            in {{ days(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
-          <p v-if="boxWhy" class="text-[11px] text-slate-500" data-testid="box-checking-why">{{ boxWhy }}</p>
+          <div class="font-mono-premium text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
-          <!-- "Prestige by" is worked out on the instant answer's fastest route: shown only while the box shows that
-               route (not over another one, lib/boxPick.ts). -->
+          <!-- "Prestige by" is worked out on the instant answer's fastest route, which the box always shows unless
+               Prefer fewer picked another. -->
           <PrestigeByLine
-            v-if="prestigeFlag.enabled.value && !preferPicked && prestigeOnBox"
+            v-if="prestigeFlag.enabled.value && !preferPicked"
             :line="prestige?.line ?? null"
             :status="prestigeStatus"
-            :mismatch="prestigeMismatch"
+            mismatch=""
             :beta="prestigeFlag.beta"
           />
-          <RouteExtras
-            v-if="boxExactOf(boxLead)"
-            :chain="boxLead.chain"
-            :legs="boxExactOf(boxLead)!.legs"
-            :reach-at="boxExactOf(boxLead)!.end"
-            :zone="zone"
-          />
-          <!-- Every number of ascensions, inside the answer's card above its buttons (the user, 12 Oct 2026).
-               Only the table scrolls, and only on phones (see By a date's table above). -->
-          <div class="rounded-lg bg-white/70 px-2 py-1" data-testid="counts-card">
-            <p class="text-[11px] text-slate-500">
-              Exact = the full simulator on your account; filled in automatically. {{ simulateNote() }}
-            </p>
-            <p v-if="hoursMoveShifts" class="text-[11px] text-slate-400" data-testid="hours-shifts-note">
-              Your hours move shifts inside each ascension, which the instant answer can’t see; Check exactly decides.
-              With your hours on it also prices each count’s next-best route (about one more route per count).
-            </p>
-            <PreferFewerControl v-model="preferMargin" goal="fastest" />
-            <div class="overflow-x-auto" data-testid="counts-scroll">
-              <table class="w-full min-w-[32rem] text-[12px]" data-testid="counts-table">
-                <thead>
-                  <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
-                    <th class="py-1 pr-2">Ascensions</th>
-                    <th class="py-1 pr-2">Reaches {{ store.finalTE }}</th>
-                    <th class="py-1 pr-2">Behind</th>
-                    <th class="py-1 pr-2">Exact, your account</th>
-                    <th class="py-1">Route</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template v-for="r in shownRows" :key="r.legs.length">
-                  <tr class="border-t border-slate-100" :class="r === boxLead ? 'bg-emerald-50/60' : ''">
-                    <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
-                      <!-- The arrow: when each stop and egg happens, from Check exactly's legs (RouteTimeline.vue). -->
-                      <button
-                        v-if="rowLegs(r.chain)"
-                        type="button"
-                        class="mr-1 text-slate-400 hover:text-emerald-700"
-                        :aria-expanded="openRow === key(r.chain)"
-                        :aria-label="`Show when each stop of ${r.chain.join(' ')} happens`"
-                        data-testid="instant-row-expand"
-                        @click="toggleRow(r.chain)"
-                      >
-                        {{ openRow === key(r.chain) ? '⌄' : '›' }}
-                      </button>
-                      {{ r.legs.length }}
-                      <span
-                        v-if="preferPicked && r === boxLead"
-                        class="block text-[9px] font-black uppercase tracking-widest text-emerald-700"
-                        :title="preferCopy.chip"
-                        data-testid="prefer-fewer-row"
-                        >shown above</span
-                      >
-                    </td>
-                    <td class="py-1.5 pr-2 text-slate-700 whitespace-nowrap align-top">{{ show(r.end) }}</td>
-                    <td class="py-1.5 pr-2 text-slate-500 align-top">
-                      <span class="whitespace-nowrap">{{ behind(r) }}</span>
-                      <span
-                        v-if="!deadline && nearTie(r)"
-                        class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] leading-snug"
-                        :class="nearTie(r)!.kind === 'fewer' ? 'font-semibold text-emerald-700' : 'text-slate-400'"
-                        :data-testid="`near-tie-${nearTie(r)!.kind}`"
-                        >{{ nearTie(r)!.text }}</span
-                      >
-                    </td>
-                    <td
-                      class="py-1.5 pr-2 align-top"
-                      :class="r === exactBest ? 'font-bold text-emerald-800' : 'text-slate-700'"
-                    >
-                      <template v-if="exactOf(r)"
-                        ><span class="whitespace-nowrap">{{ show(exactOf(r)!.end) }}</span> ·
-                        <span class="whitespace-nowrap">{{ days(exactOf(r)!.seconds) }}</span></template
-                      >
-                      <template v-else-if="exactOf(r) === null">couldn’t price</template>
-                      <span v-else-if="exactStatus === 'running'" class="text-slate-400">…</span>
-                      <!-- Light's price of this route at once (StrongerCheck.vue), as it lands. -->
-                      <span
-                        v-if="atOnceText(r.chain)"
-                        class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] font-normal leading-snug text-indigo-700"
-                        data-testid="at-once-line"
-                        >{{ atOnceText(r.chain) }}</span
-                      >
-                    </td>
-                    <!-- The route, with its Simulate button beside it when the card has room and under it when not. -->
-                    <td class="py-1.5 align-top" data-testid="counts-route">
-                      <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span class="font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</span>
-                        <button
-                          type="button"
-                          class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
-                          :disabled="r.chain.length < 2"
-                          :title="SIMULATE_TITLE"
-                          @click="openPlan(r.chain)"
-                        >
-                          Simulate this plan
-                        </button>
-                        <FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count" />
-                        <span
-                          v-if="simulateCaveat(r.chain)"
-                          class="basis-full text-[10px] leading-snug text-amber-700"
-                          data-testid="simulate-note"
-                          >{{ simulateCaveat(r.chain) }}</span
-                        >
-                        <!-- HOURS FIX B: the route the table ranked second leads this row on your hours. -->
-                        <span
-                          v-if="secondNoteFor(r.legs.length, r.chain)"
-                          class="basis-full text-[10px] leading-snug text-slate-500"
-                          data-testid="second-route-note"
-                          >{{ secondNoteFor(r.legs.length, r.chain) }}</span
-                        >
-                      </div>
-                    </td>
-                  </tr>
-                  <tr v-if="openRow === key(r.chain) && rowLegs(r.chain)" class="bg-slate-50">
-                    <td colspan="5" class="px-2 py-2">
-                      <div class="space-y-1" data-testid="instant-row-timeline">
-                        <template v-if="exactLegsOf(r.chain)">
-                          <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Check exactly: each ascension on the hour</p>
-                          <RouteTimeline :chain="r.chain" :legs="exactLegsOf(r.chain)" :zone="zone" />
-                        </template>
-                        <template v-if="atOnceLegsOf(r.chain)">
-                          <p class="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500">Each ascension at once</p>
-                          <RouteTimeline :chain="r.chain" :legs="atOnceLegsOf(r.chain)" :zone="zone" />
-                        </template>
-                      </div>
-                    </td>
-                  </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
-            <!-- Counts past the best + 1 add stops that no longer help (routeFinder.ts USEFUL_STOP_MAX). -->
+          <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
             <button
-              v-if="hiddenCounts || showMoreCounts"
               type="button"
-              class="mt-1 text-[10px] font-bold text-slate-500 underline hover:text-emerald-800"
-              data-testid="instant-more-counts"
-              @click="showMoreCounts = !showMoreCounts"
+              class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+              :title="SIMULATE_TITLE"
+              data-testid="box-simulate"
+              @click="openPlan(boxLead.chain)"
             >
-              {{ showMoreCounts ? 'Show fewer ascension counts' : `Show more ascension counts (${hiddenCounts})` }}
+              Simulate this plan
             </button>
-            <p v-else-if="moreDontHelp" class="mt-1 text-[10px] text-slate-500" data-testid="instant-more-dont-help">
-              More ascensions don’t help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
-              extra stop only adds a prestige.
-            </p>
-            <MaxedWhatIf
-              v-if="whatIf"
-              v-bind="whatIf"
-              @result="onWhatIf"
-              :table-url="TABLE_URL"
-              :zone="zone"
-              :final="target"
-              :max-ascensions="MAX_ASCENSIONS"
-              :at-most="filters.maxAscensions"
-            />
+            <FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />
           </div>
-          <p class="text-[11px] text-slate-600">
-            Ascend at the times shown: each fresh ascension starts on the hour (inside the weekly Research Sale, at once
-            when that ends sooner), and Check exactly prices it the same way, then prices these routes ascending at once,
-            on your hours.
-          </p>
-          <p v-if="atOnceNote(boxExactOf(boxLead))" class="text-[11px] font-bold text-emerald-800">
-            {{ atOnceNote(boxExactOf(boxLead)) }}
-          </p>
-          <p v-if="reranked && result.best && !preferPicked" class="text-[11px] text-amber-800">
-            The instant answer ranked the {{ result.best.legs.length }}-ascension route first ({{
-              result.best.chain.join(' ')
-            }}); on your account the full simulator has this one
-            {{ days(exactOf(result.best)!.end - exactOf(lead!)!.end) }} sooner.
-          </p>
-          <p v-if="exactStatus === 'running'" class="text-[11px] text-emerald-800 flex items-center gap-2">
-            <span
-              class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
-            />
-            {{ exactText }}
-          </p>
-          <p v-if="small && exactStatus === 'idle'" class="text-[11px] text-slate-500">
-            On {{ thisDevice() }} the full simulator's check runs only when you press Check exactly: it uses every core for a
-            minute or more.
-          </p>
-          <button
-            type="button"
-            :class="
-              exactStatus === 'running' ? 'opacity-60 cursor-not-allowed hover:bg-emerald-700' : 'hover:bg-emerald-800'
-            "
-            class="mt-1 px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"
-            :disabled="exactStatus === 'running'"
-            title="Prices every route in this answer with the full simulator on your account"
-            @click="pressCheck('check-fastest')"
-          >
-            <span
-              v-if="exactStatus === 'running'"
-              class="inline-block w-2.5 h-2.5 rounded-full border-2 border-white border-t-transparent animate-spin"
-            />
-            {{
-              exactStatus === 'running'
-                ? 'Checking exactly…'
-                : exactStatus === 'done'
-                  ? 'Check all again'
-                  : 'Check exactly'
-            }}
-          </button>
-          <button
-            type="button"
-            class="mt-1 ml-2 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
-            :title="SIMULATE_TITLE"
-            @click="openPlan(boxLead.chain)"
-          >
-            Simulate this plan
-          </button>
-          <FollowButton class="mt-1 ml-2" primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />
-          <span
-            v-if="simulateCaveat(boxLead.chain)"
-            class="block mt-1 text-[10px] leading-snug text-amber-700"
-            data-testid="simulate-note"
-            >{{ simulateCaveat(boxLead.chain) }}</span
-          >
-          <!-- Waiting before each prestige (search/delays.ts): on request, on the route shown. -->
-          <WaitBeforePrestige
-            v-if="exactStatus === 'done' && exactOf(boxLead)"
-            :chain="boxLead.chain"
-            :zone="zone"
-            :disabled="runBusy"
-          />
-          <InstantShareCheck
-            v-if="instantUrl"
-            v-model:share-this="shareThis"
-            v-model:keep-sharing="keepSharing"
-            class="mt-2"
-            :status="shareText"
-            :sent="shareNote?.result === 'sent'"
-            :title="SHARE_WHAT"
-          />
-          <InstantRunWarning
-            v-if="warnHere(confirming, 'check-fastest')"
-            class="mt-2"
-            at="check-fastest"
-            check
-            @go="confirmRun(false)"
-            @remember="confirmRun(true)"
-            @cancel="confirming = null"
-          />
         </div>
         <p v-else class="text-[12px] text-amber-800">
           No route reaches {{ store.finalTE }} from here in the instant answer{{
             filtering ? ' with these filters' : ''
           }}.
         </p>
+        <p v-if="boxLead" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-one-line">
+          {{ INSTANT_ONE_LINE }}
+        </p>
+        <!-- Every number of ascensions, instant numbers only. Only the table scrolls, and only on phones. -->
+        <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
+          <p class="text-[9px] font-black uppercase tracking-widest text-slate-500">Every number of ascensions</p>
+          <PreferFewerControl v-model="preferMargin" goal="fastest" />
+          <div class="overflow-x-auto" data-testid="counts-scroll">
+            <table class="w-full min-w-[30rem] text-[12px]" data-testid="counts-table">
+              <thead>
+                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
+                  <th class="py-1 pr-2">Ascensions</th>
+                  <th class="py-1 pr-2">Reaches {{ store.finalTE }}</th>
+                  <th class="py-1 pr-2">Behind</th>
+                  <th class="py-1">Route</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="r in shownRows"
+                  :key="r.legs.length"
+                  class="border-t border-slate-100"
+                  :class="r === boxLead ? 'bg-emerald-50/60' : ''"
+                >
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
+                    {{ r.legs.length }}
+                    <span
+                      v-if="preferPicked && r === boxLead"
+                      class="block text-[9px] font-black uppercase tracking-widest text-emerald-700"
+                      :title="preferCopy.chip"
+                      data-testid="prefer-fewer-row"
+                      >shown above</span
+                    >
+                  </td>
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">{{ show(r.end) }}</td>
+                  <td class="py-1.5 pr-2 text-slate-500 align-top">
+                    <span class="whitespace-nowrap">{{ behind(r) }}</span>
+                    <span
+                      v-if="nearTie(r)"
+                      class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] leading-snug"
+                      :class="nearTie(r)!.kind === 'fewer' ? 'font-semibold text-emerald-700' : 'text-slate-400'"
+                      :data-testid="`near-tie-${nearTie(r)!.kind}`"
+                      >{{ nearTie(r)!.text }}</span
+                    >
+                  </td>
+                  <!-- The route, with its buttons beside it when the card has room and under it when not. -->
+                  <td class="py-1.5 align-top" data-testid="counts-route">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span class="font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</span>
+                      <button
+                        type="button"
+                        class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
+                        :disabled="r.chain.length < 2"
+                        :title="SIMULATE_TITLE"
+                        @click="openPlan(r.chain)"
+                      >
+                        Simulate this plan
+                      </button>
+                      <FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count" />
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Counts past the best + 1 add stops that no longer help (routeFinder.ts USEFUL_STOP_MAX). -->
+          <button
+            v-if="hiddenCounts || showMoreCounts"
+            type="button"
+            class="mt-1 text-[10px] font-bold text-slate-500 underline hover:text-emerald-800"
+            data-testid="instant-more-counts"
+            @click="showMoreCounts = !showMoreCounts"
+          >
+            {{ showMoreCounts ? 'Show fewer ascension counts' : `Show more ascension counts (${hiddenCounts})` }}
+          </button>
+          <p v-else-if="moreDontHelp" class="mt-1 text-[10px] text-slate-500" data-testid="instant-more-dont-help">
+            More ascensions don’t help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
+            extra stop only adds a prestige.
+          </p>
+          <MaxedWhatIf
+            v-if="whatIf"
+            v-bind="whatIf"
+            @result="onWhatIf"
+            :table-url="TABLE_URL"
+            :zone="zone"
+            :final="target"
+            :max-ascensions="MAX_ASCENSIONS"
+            :at-most="filters.maxAscensions"
+          />
+        </div>
       </template>
 
-      <!-- In the Stronger check box under the answer when the screen has one (`strongerTo`, StrongerBox.vue). -->
-      <Teleport defer :to="strongerTo || 'body'" :disabled="!strongerTo">
-      <StrongerCheck
-        v-if="result"
-        :embedded="!!strongerTo"
-        :deadline="deadline"
-        :found="result"
-        :exact-status="exactStatus"
-        :exact-done="exactDone"
-        :best="strongBest"
-        :handoff="strongHandoff"
-        :top-missed="missedBy !== null"
-        :priced="Object.keys(exact)"
-        :ctx="findCtx"
-        :run-busy="runBusy"
-        :zone="zone"
-        :at-once-rows="lightRows"
-      />
+      <!-- THE POINTER (lib/searchPointer.ts): a Fast, Exact or Custom result for this goal on this save. The only thing
+           on this card a search changes. -->
+      <p
+        v-if="result && pointer"
+        class="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-[12px] text-slate-700"
+        data-testid="instant-pointer"
+      >
+        {{ pointer.level }} found <b>{{ pointer.value }}</b> on your account.
+        <button
+          type="button"
+          class="font-bold text-indigo-700 underline hover:text-indigo-900"
+          data-testid="instant-pointer-link"
+          @click="seeResult"
+        >
+          {{ POINTER_LINK }}
+        </button>
+      </p>
+      <!-- "Share this result" for that search result (search/instantRecord.ts), at the bottom of the search panel
+           when the screen has one (`shareTo`). -->
+      <Teleport v-if="instantUrl && result" defer :to="shareTo || 'body'" :disabled="!shareTo">
+        <InstantShareCheck
+          v-if="pointer"
+          v-model:share-this="shareThis"
+          v-model:keep-sharing="keepSharing"
+          :status="shareText"
+          :sent="shareNote?.result === 'sent'"
+          :title="SHARE_WHAT"
+        />
       </Teleport>
-      <p v-if="result && exactStatus === 'error'" class="text-[11px] text-amber-800">{{ exactText }}</p>
-      <p v-if="result && exactStatus === 'waiting'" class="text-[11px] text-slate-500">
-        Check exactly waits while a search is running.
-      </p>
-      <p v-if="result && exactStatus === 'done' && exactMs !== null" class="text-[10px] text-slate-400">
-        Checked on your account with the full simulator in {{ (exactMs / 1000).toFixed(0) }} s.<template v-if="exactPricedWith">{{ ' ' }}{{ exactPricedWith }}.</template>
-      </p>
-      <!-- This account's Check exactly results on this computer (search/checkHistory.ts), shared or not. -->
-      <details v-if="history.length" class="text-[11px] text-slate-600" data-testid="check-history">
-        <summary class="cursor-pointer font-bold text-slate-700">Your check history ({{ history.length }})</summary>
-        <div class="mt-2 overflow-x-auto">
-          <table class="w-full text-[10px] whitespace-nowrap">
-            <thead class="text-left text-slate-400 uppercase tracking-wider">
-              <tr>
-                <th class="pr-3 py-1 font-black">Checked</th>
-                <th class="pr-3 py-1 font-black">Save</th>
-                <th class="pr-3 py-1 font-black">TE</th>
-                <th class="pr-3 py-1 font-black">Goal</th>
-                <th class="pr-3 py-1 font-black">Instant answer</th>
-                <th class="pr-3 py-1 font-black">Exact</th>
-                <th class="pr-3 py-1 font-black">First ascension</th>
-                <th class="pr-3 py-1 font-black">Change</th>
-                <th class="py-1 font-black">Shared</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(h, i) in history" :key="h.at + h.sig" class="border-t border-slate-100">
-                <td class="pr-3 py-1">{{ show(h.at / 1000) }}</td>
-                <td class="pr-3 py-1">{{ h.backupTime ? show(h.backupTime) : '–' }}</td>
-                <td class="pr-3 py-1">{{ h.te }}</td>
-                <td class="pr-3 py-1">{{ h.mode === 'date' ? `by ${show(h.deadline ?? 0)}` : `${h.target} TE` }}</td>
-                <td class="pr-3 py-1 align-top">
-                  <div>{{ historyCell(h, h.instant, show).route }}</div>
-                  <div class="text-slate-500">{{ historyCell(h, h.instant, show).result }}</div>
-                </td>
-                <td class="pr-3 py-1 align-top" data-testid="history-exact">
-                  <template v-if="h.exact">
-                    <div>{{ historyCell(h, h.exact, show).route }}</div>
-                    <div class="text-slate-500">{{ historyCell(h, h.exact, show).result }}</div>
-                  </template>
-                  <template v-else>–</template>
-                </td>
-                <td class="pr-3 py-1">
-                  {{
-                    h.firstLeg === 'continue'
-                      ? 'Continue'
-                      : h.firstLeg === 'buildup'
-                        ? 'Build-up'
-                        : h.firstLeg === 'fresh'
-                          ? 'Fresh'
-                          : '–'
-                  }}
-                </td>
-                <td
-                  class="pr-3 py-1 font-bold"
-                  :class="
-                    historyDeltas[i]?.better === true
-                      ? 'text-emerald-700'
-                      : historyDeltas[i]?.better === false
-                        ? 'text-amber-700'
-                        : 'text-slate-400'
-                  "
-                >
-                  {{ historyDeltas[i]?.text ?? '' }}
-                </td>
-                <td class="py-1">{{ h.shared ? 'Yes' : '' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-slate-400">
-          <span>Kept on {{ thisDevice() }} only, for this account; the last {{ HISTORY_CAP }} checks.</span>
-          <button
-            type="button"
-            class="font-bold text-slate-500 hover:text-rose-700 underline decoration-dotted"
-            data-testid="clear-history"
-            @click="clearHistory"
-          >
-            Clear history
-          </button>
-        </p>
-      </details>
 
-      <!-- What the answer above does not account for, on both screens. -->
+      <!-- What the answer above does not account for, on both screens, where it says more than the one line. -->
       <template v-if="result">
         <!-- The gear caveat and "may be optimistic for your gear", one amber box (GearCaveat.vue). -->
         <GearCaveat
@@ -948,40 +531,42 @@
           class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
         >
           The account the instant answer was built on has every epic research and colleggtible maxed; yours has
-          {{ progressionShort }}. Your real ascensions run slower than these, more so the further short you are. Check
-          exactly gives your own times.
+          {{ progressionShort }}. Your real ascensions run slower than these, more so the further short you are.
         </p>
         <p
           v-if="leftOut.length"
           class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
         >
-          Not in the instant answer's routes: your {{ leftOut.join(', ') }}.
-          {{ deadline ? 'The exact' : 'They are the fastest without them; the exact' }} times on your account include them.
+          Not in the instant answer's routes: your {{ leftOut.join(', ') }}. Fast, Exact and Custom include them.
         </p>
-      </template>
 
-      <template v-if="result && !deadline">
-
-        <details class="text-[11px] text-slate-500">
+        <details class="text-[11px] text-slate-500" data-testid="instant-how">
           <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
+          <p class="mt-1 leading-relaxed">
+            Every ascension {{ own ? 'your account can make, with the gear your save has now,' : 'a maxed account can make' }}
+            was simulated ahead of time, from every TE at every hour of the week, so
+            {{
+              deadline
+                ? 'finding the highest TE you can reach by the date is arithmetic'
+                : 'finding your fastest route is arithmetic'
+            }}: it tries every stop at every TE, with any number of ascensions. Ascend at the times shown: each fresh
+            ascension starts on the hour (inside the weekly Research Sale, at once when that ends sooner).
+          </p>
           <p v-if="gearTable" class="mt-1 leading-relaxed">
             This instant answer was built on gear exactly like yours (the same artifacts and stones, so the same
             earnings and delivery sets, with epic research and colleggtibles maxed), so its ascensions match the full
             simulator for you<template v-if="(header?.gearTo ?? 489) < 489">
               up to TE {{ header?.gearTo }}; above that it uses the instant answer for fully maxed gear at your own
               delivery rate</template
-            >. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly
-            Research Sale, at once when that ends sooner).
+            >.
           </p>
           <p v-else-if="own" class="mt-1 leading-relaxed">
             This instant answer was built on your own account: your earnings and delivery sets, epic research and
             colleggtibles as your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is
             the simulator's own build, and the waiting after it is the simulator's own arithmetic, so a route here
             matches the full simulator on your account. Your first ascension is your own, simulated from your save the
-            way Your setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now). Each
-            fresh ascension starts on the hour, where the instant answer was simulated (inside the weekly Research Sale,
-            at once when that ends sooner). If your gear changes, the page goes back to the instant answer for fully
-            maxed gear until yours is made again.
+            way Your setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now). If your
+            gear changes, the page goes back to the instant answer for fully maxed gear until yours is made again.
           </p>
           <p v-else class="mt-1 leading-relaxed">
             The instant answer was built on a maxed account: perfect delivery set, Clothed TE bonus
@@ -991,10 +576,9 @@
             way Your setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now); the
             waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of the instant
             answer's: the best set your inventory can wear at full research), and each ascension is read from the row
-            for its own TE. Each fresh ascension starts on the hour, where the instant answer was simulated (inside the
-            weekly Research Sale, at once when that ends sooner); the weekly sale is at a fixed Pacific time, so the
-            hour of the week is what matters.
+            for its own TE. The weekly sale is at a fixed Pacific time, so the hour of the week is what matters.
           </p>
+          <p class="mt-1 leading-relaxed">{{ simulateNote() }}</p>
           <p class="mt-1 leading-relaxed">
             How it was built and how closely it matches the full simulator:
             <a href="#/science/how" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.how }}</a
@@ -1026,11 +610,11 @@
 
 <script setup lang="ts">
 import { plural } from '@/lib/format';
-import { computed, markRaw, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { dateStyle, showDateTime } from '@/lib/displayTime';
+import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
@@ -1054,7 +638,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
-import { checkWorkers, isSafari, isSmallDevice, SAFARI_ROUTE_WORKERS, thisDevice } from '@/search/device';
+import { isSafari, isSmallDevice, SAFARI_ROUTE_WORKERS } from '@/search/device';
 import {
   answerInputsKey,
   backgroundMayStart,
@@ -1071,8 +655,6 @@ import GearCaveat from './GearCaveat.vue';
 import { gearReadsMaxed, optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
-import RouteExtras from './RouteExtras.vue';
-import RouteTimeline from './RouteTimeline.vue';
 import { useStrongerStore } from '@/stores/stronger';
 import { usePrestigeBy, recordsPrestigeBy } from '@/composables/usePrestigeBy';
 import {
@@ -1089,32 +671,16 @@ import {
   type PrestigeLine,
 } from '@/search/prestigeBy';
 import InstantIntegrity from './InstantIntegrity.vue';
-import StrongerCheck from './StrongerCheck.vue';
 import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
-import { cutRoute, type FindContext } from '@/search/strongerCheck';
 import FollowButton from '../FollowButton.vue';
-import WaitBeforePrestige from './WaitBeforePrestige.vue';
 import { screenGoalKey } from '@/lib/follow';
 import { finishesBefore } from '@/lib/eggDayRule';
-import { rowAtOnce, rowLine, type AtOnceItem } from '@/search/lightAtOnce';
 import { isConstrained } from '@/search/availability';
-import {
-  nextBest,
-  priceWithRunnerUps,
-  secondNote,
-  withPicks,
-  withWinners,
-  type RowWin,
-  type SecondWin,
-} from '@/search/hoursRunnerUp';
-import { boxPick, checkingWhy } from '@/lib/boxPick';
-import { NEARBY_DEAL, NEARBY_ROWS, pickNearbyRow, settleDateRow, worthNearby } from '@/search/dateRowCheck';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
 import {
   choosePreferFewer,
   preferFewerCopy,
   readPreferFewer,
-  shiftCount,
   writePreferFewer,
   type PreferChoice,
   type PreferCopy,
@@ -1143,18 +709,12 @@ import {
 import { simulateRoute } from '@/search/simulateRoute';
 import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
 import NoInstantAnswer from './NoInstantAnswer.vue';
-import { pricedWithLine } from '@/lib/pricedWith';
-import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
-import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
-import type { HandoffChoice } from '@/search/chain';
-import type { ChainResult } from '@/search/types';
 import { followedCount } from '@/lib/ascRange';
 import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName, tableName } from '@/search/tableGear';
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
-import { exactAskStep } from '@/lib/recalc';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
@@ -1164,7 +724,6 @@ import MaxedWhatIf from './MaxedWhatIf.vue';
 import { accountOf } from '@/search/runSaves';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { describeAvailability } from '@/search/availabilitySchedule';
-import type { TimeOffDates } from '@/search/timeOff';
 import { CTE_CLEARS, INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS } from '@/search/rules';
 import {
   buildGapOf,
@@ -1172,7 +731,6 @@ import {
   firstLegOf,
   instantLegs,
   instantUrlOf,
-  recordSig,
   sendInstantRecordWhy,
   type InstantRecord,
   type InstantSendOutcome,
@@ -1184,31 +742,23 @@ import {
   pageOpenedMs,
   START_WAIT_LABEL,
   startWaitText,
-  type StartProvenance,
 } from '@/search/startProvenance';
-import {
-  addCheck,
-  deltaOf,
-  entryFromRecord,
-  historyCell,
-  HISTORY_CAP,
-  loadHistory,
-  markShared,
-  saveHistory,
-  type CheckEntry,
-} from '@/search/checkHistory';
+import { accountHashNow } from '@/lib/accountHash';
+import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
+import { foundLevel, INSTANT_ONE_LINE, pointerOf, POINTER_LINK, type FoundResult } from '@/lib/searchPointer';
+import type { LegSummary } from '@/search/types';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
   deadline?: number;
-  /** The Stronger check box's results element (a selector, StrongerBox.vue): the stronger check goes
-   *  there, always on, instead of a toggle under this answer. */
-  strongerTo?: string;
+  /** Where "Share this result" goes (a selector in the search panel, SearchPanel.vue `#search-share-…`); under
+   *  this answer without one. */
+  shareTo?: string;
 }>();
 const emit = defineEmits<{
   check: [chain: number[]];
   /** By a date: the route for each number of ascensions, and the "At most N ascensions" filter (null
-   *  for any), which the exact check's routes don't go through. */
+   *  for any). */
   routes: [byCount: Record<number, number[]>, maxAscensions: number | null];
   /** Whether the answer is still being worked out, in, or settled with none (no instant answer for
    *  this TE, it failed, or it waits on a run), for By a date's Find (search/autoWiden.ts `awaitInstant`). */
@@ -1219,14 +769,13 @@ const emit = defineEmits<{
   /** Fastest, with no instant answer: open By a date for its quick estimate (NoInstantAnswer.vue). */
   'by-date': [];
 }>();
-/** By a date: hand the panel this answer's route for each number of ascensions (the exact check's
- *  where it has one), so its chain boxes can be suggested around them. */
+/** By a date: hand the panel this answer's route for each number of ascensions, so its chain boxes can be
+ *  suggested around them. */
 function emitRoutes(found: { byDateByAscensions: (Route | null)[] }): void {
   const byCount: Record<number, number[]> = {};
   found.byDateByAscensions.forEach((r, k) => {
     if (r) byCount[k] = [...r.chain];
   });
-  for (const [k, d] of Object.entries(dateExactByK.value)) if (d) byCount[Number(k)] = [...d.chain];
   emit('routes', byCount, filters.value.maxAscensions);
 }
 const store = useChainSearchStore();
@@ -1312,8 +861,8 @@ const STRONG_POLISH = { wide: 8, candidates: 3 };
 
 /**
  * After the answer is shown: the stronger polish on one worker, a row's route swapped in only where
- * it is better (`polishGains`: sooner, or By a date a higher TE or more to spare), then the exact
- * check on the routes as they now stand.
+ * it is better (`polishGains`: sooner, or By a date a higher TE or more to spare), then the "Prestige
+ * by" line on the answer as it now stands.
  */
 async function polishInBackground(
   id: number,
@@ -1329,7 +878,6 @@ async function polishInBackground(
   // On Safari the polish and "Prestige by" after it run on two route workers (SAFARI MEMORY below); the first answer
   // had them all (`run` gives them back).
   if (SAFARI) p.limitWorkers(SAFARI_ROUTE_WORKERS);
-  let final = shown;
   try {
     const t = performance.now();
     const strong = await p.polish(url, { ...options, ...STRONG_POLISH }, JSON.parse(JSON.stringify(raw)));
@@ -1338,7 +886,6 @@ async function polishInBackground(
     const better = atMostAscensions({ ...raw, ...strong }, filters.value.maxAscensions);
     const g = polishGains(shown, better, !!props.deadline);
     if (g.length) {
-      final = better;
       result.value = better;
       if (props.deadline) emitRoutes(better);
     }
@@ -1354,9 +901,9 @@ async function polishInBackground(
     // Otherwise the first answer stands.
   }
   backgroundStatus.value = 'done';
-  // Check exactly first, so on Safari the "Prestige by" line sees it running and waits for it (`runPrestigeBy`).
-  void runExact(id, final);
   void runPrestigeBy(id, p, url);
+  // Saved now (the nearest tables, if any, save it again when they are in).
+  saveSnapshot(id);
   return true;
 }
 /** The background polish was cut off by a search starting, not by a failure. */
@@ -1388,36 +935,14 @@ let prestigeInputs: {
 } | null = null;
 /** How the waiting farm is counted: laying, for as long as the save's silos hold. */
 const PRESTIGE_EGGS = 'silo' as const;
-/** Set when the exact check gives a different answer from the instant answer the line was worked out on. */
-const prestigeMismatch = computed(() => {
-  const keep = prestige.value?.cutoff.keep;
-  if (!keep || exactStatus.value !== 'done') return '';
-  if (props.deadline) {
-    const d = dateExact.value;
-    return d && d.endTE !== keep.te
-      ? `On your account Check exactly gives ${d.endTE} TE, not the instant answer's ${keep.te}, so these times may be off.`
-      : '';
-  }
-  const best = exactBest.value;
-  const e = best ? exactOf(best) : null;
-  return e && keep.end !== null && Math.abs(e.end - keep.end) > 6 * 3600
-    ? 'On your account Check exactly gives a different date from the instant answer this was worked out on, so these times may be off.'
-    : '';
-});
 function runPrestigeBy(id: number, p: RoutePool, url: string): Promise<void> {
-  // On Safari not beside Check exactly or Light: minutes of route workers and their sweeps on top of the check's
-  // workers (SAFARI MEMORY below). It starts when they are done.
-  if (SAFARI && checksBusy.value) {
-    afterChecks.prestige = () => void runPrestigeBy(id, p, url);
-    return Promise.resolve();
-  }
   prestigeDone = prestigeWork(id, p, url);
   return prestigeDone;
 }
 async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void> {
   const ctx = prestigeInputs;
   const found = result.value;
-  // `id`: the answer's run. Check exactly bumps `runs` too, so the line is tied to its own counter.
+  // `id`: the answer's run; the line is tied to its own counter too.
   if (!prestigeFlag.enabled.value || !ctx || ctx.id !== id || !found) return;
   const pid = ++prestigeRuns;
   const mode = props.deadline ? ('date' as const) : ('fastest' as const);
@@ -1567,14 +1092,8 @@ const whatIf = computed(() => {
     legs: w.legs,
     hours: w.hours,
     mine: { end: mine?.end ?? null, te: mine ? mine.legs[mine.legs.length - 1].endTE : 0 },
-    // Check exactly's answer, once in: the line then says "instead of 248 (instant answer; exact on your account: 247)".
-    exact: props.deadline
-      ? dateExact.value
-        ? { end: dateExact.value.end, te: dateExact.value.endTE }
-        : null
-      : exactBest.value && exactOf(exactBest.value)
-        ? { end: exactOf(exactBest.value)!.end, te: exactOf(exactBest.value)!.endTE }
-        : null,
+    // Check exactly's answer was named beside it until 23 Oct 2026; the instant card is instant only now.
+    exact: null,
     alreadyMaxed:
       !own.value && !gearTable.value && deliveryScale.value !== null && isMaxed({ bonus: bonus.value, k: deliveryScale.value }),
   };
@@ -1586,11 +1105,10 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
     bracketLater = () => void runBracket(bid, legs, hours);
     return;
   }
-  // Nor while Check exactly or Light simulates (`checksBusy`): two more tables and sweep caches on top of their
-  // workers is what took Safari's tab over its limit (22 Oct 2026). It starts when they are done.
-  // On Safari, not beside the "Prestige by" line's route workers either.
-  if (checksBusy.value || (SAFARI && prestigeStatus.value === 'running')) {
-    afterChecks.bracket = () => void runBracket(bid, legs, hours);
+  // On Safari, not beside the "Prestige by" line's route workers: two more tables and sweep caches on top of
+  // theirs (SAFARI MEMORY below). It starts when the line is done.
+  if (SAFARI && prestigeStatus.value === 'running') {
+    afterPrestige = () => void runBracket(bid, legs, hours);
     return;
   }
   bracketArgs = { legs, hours };
@@ -1662,11 +1180,11 @@ const bracketText = computed(() => {
   const lo = b.below?.end ? b.below : null;
   if (props.deadline)
     return lo
-      ? `With your gear you'd likely reach between ${lo.te} TE (on ${name(lo)}) and ${hi.te} TE (on ${name(hi)}) by the date; Check exactly gives your real TE.`
-      : `With your gear you'd likely reach at most ${hi.te} TE by the date (on ${name(hi)}); Check exactly gives your real TE.`;
+      ? `With your gear you'd likely reach between ${lo.te} TE (on ${name(lo)}) and ${hi.te} TE (on ${name(hi)}) by the date; Fast, Exact or Custom below gives your real TE.`
+      : `With your gear you'd likely reach at most ${hi.te} TE by the date (on ${name(hi)}); Fast, Exact or Custom below gives your real TE.`;
   return lo
-    ? `With your gear you'd likely finish between ${show(hi.end!)} (on ${name(hi)}) and ${show(lo.end!)} (on ${name(lo)}); Check exactly gives your real date.`
-    : `With your gear you'd likely finish no sooner than ${show(hi.end!)} (on ${name(hi)}); Check exactly gives your real date.`;
+    ? `With your gear you'd likely finish between ${show(hi.end!)} (on ${name(hi)}) and ${show(lo.end!)} (on ${name(lo)}); Fast, Exact or Custom below gives your real date.`
+    : `With your gear you'd likely finish no sooner than ${show(hi.end!)} (on ${name(hi)}); Fast, Exact or Custom below gives your real date.`;
 });
 
 /** "Works inside my hours" (only with "Let me pick my hours") and "At most N ascensions". */
@@ -1694,15 +1212,15 @@ function setInsideHours(on: boolean): void {
   filters.value = { ...filters.value, inHours: on };
 }
 const filtering = computed(() => useHours.value || filters.value.maxAscensions !== null);
-function fastestRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
-  const top = Math.max(10, (bestK ?? found.best?.legs.length ?? 0) + 2);
+function fastestRowsOf(found: NonNullable<typeof result.value>): Route[] {
+  const top = Math.max(10, (found.best?.legs.length ?? 0) + 2);
   return found.byAscensions.filter((r, k): r is Route => !!r && k <= top);
 }
-const rows = computed(() => (result.value ? fastestRowsOf(result.value, exactBestAll.value?.legs.length) : []));
-/** The per-count table shows counts up to one past the best (the table's and the exact check's), the
- *  rest behind a toggle: past that, more ascensions only add stops that no longer help. */
+const rows = computed(() => (result.value ? fastestRowsOf(result.value) : []));
+/** The per-count table shows counts up to one past the best, the rest behind a toggle: past that, more
+ *  ascensions only add stops that no longer help. */
 const showMoreCounts = ref(false);
-const counts = computed(() => countsShown(rows.value, result.value?.best, exactBestAll.value));
+const counts = computed(() => countsShown(rows.value, result.value?.best, null));
 const shownRows = computed(() => (showMoreCounts.value ? rows.value : counts.value.shown));
 const hiddenCounts = computed(() => counts.value.hidden);
 /** No route at all past the best + 1: the finder left them out (USEFUL_STOP_MAX), so say why. */
@@ -1712,12 +1230,10 @@ const moreDontHelp = computed(
 /** The TE the note names: where builds reach their full laying rate (measured 338; the cap is 360). */
 const USEFUL_STOP_NOTE = 340;
 
-/** Setup the instant answer does not model, named so nobody reads it as accounted for. */
+/** Setup the instant answer does not model, named so nobody reads it as accounted for. Playing hours are in the one
+ *  line under the answer (`INSTANT_ONE_LINE`), so only these are named here. */
 const leftOut = computed(() => {
   const out: string[] = [];
-  // With "Works inside my hours" the prestiges wait for them; the shifts inside an ascension still don't.
-  if (store.scheduleEnabled)
-    out.push(useHours.value ? 'playing hours for the shifts inside each ascension (Check exactly holds those)' : 'playing hours');
   if (store.timeOff.length) out.push('time off');
   if (store.milestones.length) out.push('dates to hit');
   return out;
@@ -1823,17 +1339,14 @@ watch(runBusy, (busy, wasBusy) => {
     const go = afterRun;
     afterRun = null;
     go();
-  } else if (!busy && wasBusy && result.value && exactStatus.value === 'waiting') {
-    checkAgain();
   }
 });
 
 /** Remembered "let the instant answer run during a search" (also a box in Your setup). */
 const instantDuringSearch = useInstantDuringSearch();
-/** The warning is open for this press: which button asked ("again" forces, the waits line goes ahead;
- *  `check`: Check exactly). */
+/** The warning is open for this press: which button asked ("again" forces, the waits line goes ahead). */
 const confirming = ref<WarnAsk | null>(null);
-/** The last run (or exact check) started alongside a search, so the short memory note shows while it
+/** The last run started alongside a search, so the short memory note shows while it
  *  is still going. */
 const alongside = ref(false);
 /** The player chose to run the instant answer alongside the search (search/instantDeferral.ts). */
@@ -1842,10 +1355,9 @@ function runsAlongside(): boolean {
 }
 
 /**
- * A search just started: the instant answer's own work in flight waits for it to end (the exact
- * check, the nearest gear tables, the background polish), unless the player chose to run alongside.
- * Each starts again when the search ends: the exact check from its 'waiting' (the run-end watch
- * above), the bracket and the polish from what is held here.
+ * A search just started: the instant answer's own work in flight waits for it to end (the nearest
+ * gear tables, the background polish), unless the player chose to run alongside. Each starts again
+ * when the search ends, from what is held here.
  */
 function pauseWorkForRun(): void {
   const pause = pauseForRun({
@@ -1853,18 +1365,12 @@ function pauseWorkForRun(): void {
     busy: true,
     alongside: runsAlongside(),
     running: {
-      exact: exactStatus.value === 'running',
+      exact: false,
       bracket: bracketStatus.value === 'running',
       // The route finding itself (status 'loading') shares the pool and is never cut off.
       polish: backgroundStatus.value === 'running' && status.value !== 'loading',
     },
   });
-  if (pause.exact) {
-    // Its awaits see a newer run number and drop what they were doing.
-    ++runs;
-    stopExact();
-    exactStatus.value = 'waiting';
-  }
   if (pause.bracket) {
     const args = bracketArgs;
     const bid = ++bracketRuns;
@@ -1898,30 +1404,13 @@ function pressRun(force: boolean, at: WarnAt): void {
   }
   confirming.value = { force, at };
 }
-/**
- * Check exactly / Check all again: the full simulator on up to four workers. During a search it asks
- * first, as Work it out again does, unless the player chose not to be asked.
- */
-function pressCheck(at: WarnAt): void {
-  if (!runBusy.value || instantDuringSearch.value) {
-    confirming.value = null;
-    goCheck();
-    return;
-  }
-  confirming.value = { force: false, check: true, at };
-}
-function goCheck(): void {
-  alongside.value = runBusy.value;
-  checkAgain();
-}
 /** "Run it anyway" (once) or "Don't ask again, just warn me" (and remember). */
 function confirmRun(remember: boolean): void {
   const ask = confirming.value;
   confirming.value = null;
   if (!ask) return;
   if (remember) instantDuringSearch.value = true;
-  if (ask.check) goCheck();
-  else goRun(ask.force);
+  goRun(ask.force);
 }
 function goRun(force: boolean): void {
   alongside.value = runBusy.value;
@@ -1965,16 +1454,14 @@ async function run(force = false, goAhead = false): Promise<void> {
   const id = ++runs;
   const bid = ++bracketRuns;
   whatIfResult.value = null;
-  cachedKey = cacheKey();
-  cached.value = readCache(cachedKey);
   // The same save, setup and filters as when it was last worked out: show that answer, in full, and
   // skip the work. (The plan start is not in this key, as it is a new minute on every visit: the note says which
   // start the saved dates are for. The "|0" is the retired at-once box, off: snapshots saved before keep loading.)
-  snapKey = instantSnapKey(cachedKey);
+  snapKey = instantSnapKey(cacheKey());
   savedAt.value = null;
   waiting.value = false;
   afterRun = null;
-  stopExact();
+  afterPrestige = null;
   // A "Prestige by" line for the last answer stops asking the route workers.
   ++prestigeRuns;
   prestigeLater = false;
@@ -1998,23 +1485,19 @@ async function run(force = false, goAhead = false): Promise<void> {
     waiting.value = true;
     savedAt.value = null;
     if (whileWaiting(!!result.value).keepAnswer) {
-      // stopExact() above cut a running exact check off: the whole answer is worked out again when
-      // the search ends (resumeAfterRun).
-      // So is whatever the superseded run had going (its awaits see a newer run number and stop).
-      if (exactStatus.value === 'running') exactStatus.value = 'idle';
+      // The whole answer is worked out again when the search ends (resumeAfterRun), and so is whatever the
+      // superseded run had going (its awaits see a newer run number and stop).
       if (status.value === 'loading') status.value = 'done';
       if (backgroundStatus.value === 'running') backgroundStatus.value = 'idle';
       if (bracketStatus.value === 'running') bracketStatus.value = 'idle';
       return;
     }
     status.value = 'idle';
-    exactStatus.value = 'idle';
     backgroundStatus.value = 'idle';
     bracketStatus.value = 'idle';
     result.value = null;
     return;
   }
-  exactStatus.value = 'idle';
   status.value = 'loading';
   noTable.value = false;
   below.value = null;
@@ -2151,22 +1634,14 @@ async function run(force = false, goAhead = false): Promise<void> {
     // The last answer's "Prestige by" line goes with it.
     prestige.value = null;
     prestigeStatus.value = 'idle';
-    findCtx.value = markRaw<FindContext>({
-      startTE: te,
-      start: inputs.planStart,
-      firstLegs,
-      deliveryScale: scale,
-      hours,
-      maxAscensions: filters.value.maxAscensions,
-      expand: (items, settings) => p.expand(url, items, settings),
-      polish: (options, f) => p.polish(url, options, f),
-    });
+    answerStart.value = inputs.planStart;
     ms.value = performance.now() - t0;
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
     if (small) {
       // No background polish on a small device: the line (when it is on) straight after the answer.
       if (!runBusy.value) void runPrestigeBy(id, p, url);
+      saveSnapshot(id);
       return;
     }
     const polish = (): void =>
@@ -2178,8 +1653,7 @@ async function run(force = false, goAhead = false): Promise<void> {
             if (id === runs) polish();
           };
       });
-    // A search started meanwhile (or this was worked out anyway during one): the polish and the exact
-    // check wait for it to end, or for the player to press Check exactly.
+    // A search started meanwhile (or this was worked out anyway during one): the polish waits for it to end.
     if (runBusy.value) {
       afterRun = () => {
         if (id === runs) polish();
@@ -2201,37 +1675,6 @@ async function run(force = false, goAhead = false): Promise<void> {
 }
 
 /**
- * THE EXACT CHECK. The table is exact for its own maxed account; for anyone else it is a few percent
- * off below TE 340, and over a whole route that can move the ranking or a date answer by a TE or two
- * (the alt from TE 138: the table's 9-ascension pick is 1.4% fast and the simulator prefers an
- * 8-ascension route; its Egg Day 248 arrives 5 d late). So once the instant answer is shown, the
- * routes it shows are priced again by the full simulator on the player's own account and setup
- * (search/pool.ts, the same evaluation the searches use), and the page says what that gives.
- *
- * Fastest route: the table's fastest first, alone, so its exact date comes soonest; then the other
- * rows a round at a time, one route per worker, filling the Exact column as each round returns (a
- * worker only answers when its whole share is done, and the pool deals each call by position, so
- * rounds are the way to see rows arrive). By a date: the date's route; if it misses the date, nearby
- * routes with the same TE (search/dateRowCheck.ts), then the closest of them with the last stop lower,
- * on one worker so the shared legs are simulated once.
- */
-interface Exact {
-  /** Seconds from the plan start, and the unix second it ends. */
-  seconds: number;
-  end: number;
-  /** TE when the route ends (above its last checkpoint when a sale wait overshoots). */
-  endTE: number;
-  /** How its fresh ascensions start in the price kept (chain.ts `HandoffChoice`): 'hour'. (The "also try
-   *  ascending at once" box is gone since 14 Oct: Light prices the routes at once, StrongerCheck.vue.) */
-  handoff: HandoffChoice;
-  /** The fresh ascensions (1-based) that start at once rather than on the hour in that price. */
-  atOnce: number[];
-  /** How many of its ascensions are fresh (not the one in progress, continued). */
-  fresh: number;
-  /** Its simulated ascensions, for "Simulate this plan" (time off is worked in from these). */
-  legs: ChainResult['legs'];
-}
-/**
  * THE INTEGRITY CHECK (search/instantIntegrity.ts): the same probe every Start uses, run here too so
  * the instant answer never shows routes for an account that stalls for a week or more on its first
  * Integrity shift. Routes are held back while it runs and for good when it blocks; past an hour they
@@ -2251,579 +1694,82 @@ const integrityHold = computed(() => holdsRoutes(integrity.value));
 const lowTeNote = computed(() => lowTeOpeningNote(store.integrityLowTe));
 /** Why the table's cells may not be this simulator's (search/simVersion.ts), or null. */
 const simNote = computed(() => tableSimMismatch(header.value));
-watch(
-  () => store.integrityBlocked,
-  blocked => {
-    if (blocked && exactStatus.value === 'running') {
-      stopExact();
-      exactStatus.value = 'idle';
-    }
-  }
-);
 
-/** "Try: stronger check" (StrongerCheck.vue, a prototype): the finder's inputs for this answer, for
- *  its step-down; how many exact checks finished in this visit; the answer the box leads with, exact. */
-const findCtx = shallowRef<FindContext | null>(null);
-const exactDone = ref(0);
-const strongBest = computed(() => {
-  if (props.deadline) {
-    const d = dateExact.value;
-    return d ? { chain: d.chain, end: d.end, endTE: d.endTE, seconds: d.end - answerStart.value } : null;
-  }
-  const r = exactBest.value;
-  const e = r ? exactOf(r) : null;
-  return r && e ? { chain: r.chain, end: e.end, endTE: e.endTE, seconds: e.seconds } : null;
-});
-const strongHandoff = computed<HandoffChoice>(() =>
-  props.deadline
-    ? (dateExact.value?.handoff ?? 'hour')
-    : (exactBest.value && exactOf(exactBest.value)?.handoff) || 'hour'
-);
 
-/** Exact prices by `chain.join(',')`; null where the simulator could not price the route. */
-const exact = ref<Record<string, Exact | null>>({});
-const exactStatus = ref<'idle' | 'running' | 'done' | 'error' | 'waiting'>('idle');
-/** A Check exactly started on this answer and has not finished since: the green box keeps the instant answer's
- *  pick until it does (lib/boxPick.ts). */
-const exactBegun = ref(false);
-const exactText = ref('');
-const exactMs = ref<number | null>(null);
-/** "Priced with your hours 9 am to 1 am, no time off": the exact check's own hours and time off, taken when it
- *  starts (lib/pricedWith.ts, 16 Oct 2026); '' for a check restored from an earlier visit. */
-const exactPricedWith = ref('');
-/** The same, as the settings themselves: kept with the history entry and the snapshot (fix 22: My runs ranks
- *  answers priced with Your setup now first, and names the hours of the others). */
-let exactSetup: { availability: Availability | null; timeOff: TimeOffDates[] } | null = null;
-/** Where the exact check's start came from, taken as it starts (search/startProvenance.ts): the record's `start`. */
-let exactStart: StartProvenance | null = null;
-/** A date answer: a route, the TE it ends at and the unix second it gets there. */
-interface DateExact {
+/** Under a day to spare is tight: a slower ascension than planned, or a late start, misses the date. */
+const TIGHT_SECONDS = 86400;
+/** A By a date route as the box and the counts list read it: its stops, the TE it ends at and when. */
+interface DatePick {
   chain: number[];
   endTE: number;
   end: number;
-  handoff: HandoffChoice;
-  atOnce: number[];
-  fresh: number;
 }
-/** By a date: the highest TE that really makes the date on the player's account (the simulator's),
- *  overall and for each row's number of ascensions (null: that row misses it). */
-const dateExact = ref<DateExact | null>(null);
-const dateExactByK = ref<Record<number, DateExact | null>>({});
-/** HOURS FIX B (search/hoursRunnerUp.ts): the counts whose next-best route beat the table's pick on the player's
- *  hours, by count (kept with the snapshot, for the row's note), and Fastest's two Routes for each (to put the
- *  pick back when the check runs again). */
-const secondWins = ref<Record<number, SecondWin>>({});
-let secondRoutes: Record<number, { pick: Route; winner: Route }> = {};
-/** The row's note when the route the table ranked second leads it ('' for none). `shown`: the route the row
- *  shows now (Fastest: its route; By a date: its exact answer's). */
-function secondNoteFor(count: number, shown: readonly number[] | undefined): string {
-  const w = secondWins.value[count];
-  if (!w || !shown || key(w.winner) !== key([...shown])) return '';
-  const mine = exact.value[key(w.winner)];
-  let gap: string | undefined;
-  if (w.pickEnd !== null && mine && (w.why === 'sooner' || w.why === 'spare')) gap = days(w.pickEnd - mine.end);
-  return secondNote(w.why, w.pick, gap);
-}
-/** The player's hours are on: the simulator holds the shifts inside each ascension, which the instant answer
- *  can't see (the muted line by the counts table; Check exactly then prices each count's next-best route too). */
-// Hours move shifts only when the player's hours are on AND each shift is held for them (Your setup › hold each shift): with
-// the hold off, shifts go at once and only the prestige waits, which the instant answer's own estimate already includes.
-const hoursMoveShifts = computed(() => isConstrained(store.availability) && store.deferShifts);
-/** dateExact read through a call, so TypeScript does not keep it narrowed to the null it was reset to
- *  at the start of the exact check while awaits in between set it. */
-const readDateLead = (): DateExact | null => dateExact.value;
-/** Under a day to spare is tight: a slower ascension than planned, or a late start, misses the date. */
-const TIGHT_SECONDS = 86400;
-const tableDate = (r: Route): DateExact => ({
-  chain: r.chain,
-  endTE: r.legs[r.legs.length - 1].endTE,
-  end: r.end,
-  handoff: 'hour',
-  atOnce: [],
-  fresh: r.legs.filter(l => l.label !== 'continue' && l.label !== 'buildup').length,
-});
-/** "Ascend at once for …", when the exact check kept a price that starts some ascensions at once. */
-function atOnceNote(e: { atOnce: number[]; fresh: number } | null | undefined): string {
-  if (!e || !e.atOnce.length) return '';
-  if (e.atOnce.length >= e.fresh)
-    return 'Fastest on your account starting each fresh ascension the moment the one before ends, not on the hour.';
-  const which = e.atOnce.length === 1 ? `ascension ${e.atOnce[0]}` : `ascensions ${e.atOnce.join(', ')}`;
-  return `Fastest on your account starting ${which} the moment the one before ends, not on the hour (the others on the hour).`;
-}
-const spareOf = (d: DateExact) => (props.deadline ?? 0) - d.end;
+const tableDate = (r: Route): DatePick => ({ chain: r.chain, endTE: r.legs[r.legs.length - 1].endTE, end: r.end });
+const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
 /** The rows By a date shows: the table's best number of ascensions and up to two either side. */
-function dateRowsOf(found: NonNullable<typeof result.value>, bestK?: number): Route[] {
+function dateRowsOf(found: NonNullable<typeof result.value>): Route[] {
   const best = found.byDate;
   if (!best) return [];
-  const top = (bestK ?? best.legs.length) + 2;
+  const top = best.legs.length + 2;
   const shown = found.byDateByAscensions.filter((r, k): r is Route => !!r && k <= top);
-  // The best first, so its exact answer comes first.
   // (The overall route and its count's row are separate objects for the same route.)
   return [best, ...shown.filter(r => r.legs.length !== best.legs.length)];
 }
 const dateRows = computed(() =>
-  result.value
-    ? [...dateRowsOf(result.value, dateExact.value?.chain.length)].sort((a, b) => a.legs.length - b.legs.length)
-    : []
+  result.value ? [...dateRowsOf(result.value)].sort((a, b) => a.legs.length - b.legs.length) : []
 );
 
-let exactPool: ChainSearchPool | null = null;
-function stopExact(): void {
-  exactPool?.terminate();
-  exactPool = null;
-}
-onUnmounted(stopExact);
+const key = (chain: readonly number[]) => chain.join(',');
 
-const key = (chain: number[]) => chain.join(',');
-const exactOf = (r: Route) => exact.value[key(r.chain)];
-
-/** The plan start the exact check priced from, for "Simulate this plan". */
+/** The plan start the answer was worked out from, for "Simulate this plan" and the saved answer's note. */
 const answerStart = ref(0);
 /**
- * "Simulate this plan" (a row's, or the answer's): this exact route in Classic, simulated on the
- * player's save from the start it was priced from and with its time off; Classic scrolls to the plan
- * and says where it came from (search/simulateRoute.ts).
+ * "Simulate this plan" (a row's, or the answer's): this route in Classic, simulated on the player's save from the
+ * start the answer was worked out from and with its time off; Classic scrolls to the plan and says where it came
+ * from (search/simulateRoute.ts).
  */
-/**
- * What to say under a Simulate this plan button when the route it opens is the instant answer's own estimate, not the
- * exact check's (ViperTGB, 19 Oct: a new account's Single run landed days later than the instant answer said): before
- * Check exactly has priced it (including on phones, where it does not start by itself), or, on By a date, a row the exact
- * check marked 'misses'. '' once the exact check has priced the row. `count` is the By a date row's ascension count.
- */
-const SIMULATE_ESTIMATE_NOTE = "Instant answer's estimate on standard gear; press Check exactly first";
-const SIMULATE_MISSES_NOTE = 'This route misses the date on your account';
-function simulateCaveat(chain: number[], count?: number): string {
-  if (props.deadline) {
-    if (count === undefined) return dateExact.value ? '' : SIMULATE_ESTIMATE_NOTE;
-    const e = dateExactByK.value[count];
-    if (e === null) return SIMULATE_MISSES_NOTE;
-    return e ? '' : SIMULATE_ESTIMATE_NOTE;
-  }
-  const e = exact.value[key(chain)];
-  if (e) return '';
-  return e === null ? "This route couldn't be priced on your account" : SIMULATE_ESTIMATE_NOTE;
-}
 function openPlan(chain: number[]): void {
-  simulateRoute(chain, props.deadline ? 'by-date' : 'fastest', {
-    ...(answerStart.value ? { start: answerStart.value } : {}),
-    ...(exact.value[key(chain)]?.legs ? { legs: exact.value[key(chain)]!.legs } : {}),
-  });
+  simulateRoute(chain, props.deadline ? 'by-date' : 'fastest', answerStart.value ? { start: answerStart.value } : {});
 }
-/** The top button: price every shown route with the full simulator again. */
-function checkAgain(): void {
-  if (!result.value || exactStatus.value === 'running' || store.startWait) return;
-  savedAt.value = null;
-  const id = ++runs;
-  void runExact(id, result.value, true);
-}
-/**
- * My runs' "Recalculate" (lib/recalc.ts, stores/ui.ts `exactAsk`): App opened this screen for a goal and asks for
- * Check exactly. Answered here as the button above, once this answer is in, only for this screen's own goal and
- * never under a running search (then the ask is dropped). Check exactly already started by itself counts as done.
- */
 /** "Follow this route": the goal My runs' Right now follows it for (lib/follow.ts). */
 const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
-/** The followed route "Price it ›" asked for (`followedToPrice` below). */
-let followAsk: number[] | null = null;
+/**
+ * My runs' "Recalculate" and "Price it ›" (lib/recalc.ts, stores/ui.ts `exactAsk`) asked this screen for Check exactly.
+ * There is no Check exactly any more (the instant card is instant only, 23 Oct 2026): opening the screen with the
+ * save is the whole answer, so the ask for this screen's goal is cleared.
+ */
 const ui = useUIStore();
 watch(
-  () =>
-    exactAskStep({
-      ask: ui.exactAsk,
-      goal: instantGoal(props.deadline, store.finalTE),
-      searchRunning: runBusy.value || store.busy,
-      status: status.value,
-      backgroundStatus: backgroundStatus.value,
-      exactStatus: exactStatus.value,
-      hasResult: !!result.value,
-    }),
-  step => {
-    if (step === 'none' || step === 'wait') return;
-    // "Price it ›" on Right now: the followed route goes with this check (or the one already running) as one more.
-    if (step !== 'drop' && ui.exactAsk?.chain?.length) followAsk = [...ui.exactAsk.chain];
-    ui.exactAsk = null;
-    if (step === 'run') checkAgain();
+  () => ui.exactAsk?.goal === instantGoal(props.deadline, store.finalTE),
+  mine => {
+    if (mine) ui.exactAsk = null;
   },
   { immediate: true }
 );
 
-/**
- * A route the player follows (lib/follow.ts) that Right now asked to price ("Price it ›", `exactAsk.chain`): priced
- * once as one more route after the rows (the stops already passed dropped, `cutRoute`), so it is kept in `exact` and in
- * the snapshot, where Right now reads its times. Cleared once priced.
- */
-function followedToPrice(): number[] | null {
-  const chain = followAsk;
-  if (!chain) return null;
-  const cut = cutRoute(
-    chain,
-    store.currentTE,
-    props.deadline ? { kind: 'date', deadline: props.deadline } : { kind: 'fastest', target: store.finalTE }
-  );
-  return cut && !(key(cut) in exact.value) ? cut : null;
-}
-
-async function runExact(id: number, given: NonNullable<typeof result.value>, manual = false): Promise<void> {
-  stopExact();
-  resetShareForNewCheck();
-  shareNote.value = null;
-  // A check run again starts from the table's own routes (a runner-up that won last time is priced again).
-  const found = withPicks(given, secondRoutes);
-  if (found !== given && result.value === given) result.value = found;
-  secondRoutes = {};
-  secondWins.value = {};
-  exact.value = {};
-  dateExact.value = null;
-  dateExactByK.value = {};
-  exactMs.value = null;
-  exactPricedWith.value = '';
-  exactSetup = null;
-  exactStart = null;
-  exactBegun.value = false;
-  // An account the integrity check blocks has no routes to check (the panel says why).
-  if (store.integrityBlocked) {
-    exactStatus.value = 'idle';
-    return;
-  }
-  // A search the player started has the cores; this waits rather than slowing it down.
-  if (runBusy.value && !manual) {
-    exactStatus.value = 'waiting';
-    return;
-  }
-  // HOURS FIX B (search/hoursRunnerUp.ts): with the player's hours on, the simulator holds the shifts inside
-  // each ascension, which the table can't see, so each row's next-best route is priced too and the better
-  // leads the row. About one extra exact route per count; with hours off, only the rows' own routes.
-  const hoursOn = isConstrained(store.availability) && store.deferShifts;
-  /** Fastest: the counts priced, each one's winner swapped into the answer where its runner-up won. */
-  const settle = (list: Route[], wins: Record<number, RowWin>): void => {
-    if (!hoursOn) return;
-    const routesNow = { ...secondRoutes };
-    const winsNow = { ...secondWins.value };
-    for (const r of list) {
-      const k = r.legs.length;
-      delete routesNow[k];
-      delete winsNow[k];
-      const w = wins[k];
-      if (!w) continue;
-      routesNow[k] = { pick: w.pick, winner: w.winner };
-      const pickEnd = exact.value[key(w.pick.chain)]?.end ?? null;
-      winsNow[k] = { pick: [...w.pick.chain], winner: [...w.winner.chain], why: w.why, pickEnd };
-    }
-    secondRoutes = routesNow;
-    secondWins.value = winsNow;
-    current = withWinners(found, secondRoutes);
-    if (id === runs) result.value = current;
-  };
-  /** The answer with the winners in (Fastest), what the later steps read. */
-  let current = found;
-  const tableRows = fastestRowsOf(found);
-  const routes = props.deadline
-    ? dateRowsOf(found)
-    : [found.best, ...tableRows.filter(r => r !== found.best)].filter((r): r is Route => !!r);
-  if (!routes.length) return;
-  // The last checked answer's route, priced again with the rest (not shown as a row of its own).
-  const again =
-    cached.value && !routes.some(r => key(r.chain) === key(cached.value!.chain)) ? cached.value.chain : null;
-  exactStatus.value = 'running';
-  exactBegun.value = true;
-  const t0 = performance.now();
-  try {
-    const inputs = store.collectInputs();
-    answerStart.value = inputs.planStart;
-    exactStart = store.startProvenanceNow();
-    // The hours and time off this check prices with, as it starts: what the line under it names.
-    exactSetup = {
-      availability: inputs.availability ? JSON.parse(JSON.stringify(inputs.availability)) : null,
-      timeOff: JSON.parse(JSON.stringify(store.timeOff)),
-    };
-    exactPricedWith.value = pricedWithLine(exactSetup);
-    // At most three on Safari (search/device.ts `checkWorkers`; SAFARI MEMORY below).
-    const size = checkWorkers(Math.max(1, Math.min(store.workerBudget, routes.length, 4)));
-    exactPool = await createChainSearchPool(inputs, { size });
-    if (id !== runs) return;
-    const price = async (chains: number[][], opts?: EvaluateOptions) => {
-      // On the hour, as the table was simulated and as the times shown assume (chain.ts
-      // `HandoffChoice`). Ascending at once is Light's job, after this (StrongerCheck.vue, 14 Oct).
-      const ways: HandoffChoice[] = ['hour'];
-      const best = new Map<string, { r: ChainResult; handoff: HandoffChoice }>();
-      for (const handoff of ways) {
-        const { results } = await exactPool!.evaluate(chains, undefined, { ...opts, handoff });
-        if (id !== runs) return false;
-        for (const r of results) {
-          const k = key(r.chain);
-          const b = best.get(k);
-          if (r.seconds > 0 && (!b || r.seconds < b.r.seconds)) best.set(k, { r, handoff });
-        }
-      }
-      const next = { ...exact.value };
-      for (const c of chains) {
-        const b = best.get(key(c));
-        next[key(c)] = b
-          ? {
-              seconds: b.r.seconds,
-              end: inputs.planStart + b.r.seconds,
-              endTE: b.r.legs[b.r.legs.length - 1]?.endTE ?? 0,
-              handoff: b.handoff,
-              atOnce: b.r.legs
-                .map((l, i) =>
-                  l.key !== 'continue' && l.key !== 'buildup' && (l.startTime ?? 0) % 3600 !== 0 ? i + 1 : 0
-                )
-                .filter(n => n > 0),
-              fresh: b.r.legs.filter(l => l.key !== 'continue' && l.key !== 'buildup').length,
-              legs: b.r.legs,
-            }
-          : null;
-      }
-      exact.value = next;
-      return true;
-    };
-    /** Some rows, and with hours on each one's next-best route in the same call (one per worker): about one
-     *  extra exact route per count (hoursRunnerUp.ts `priceWithRunnerUps`). Fastest settles each count's
-     *  winner into the answer; By a date reads `alts` and `wins` itself. */
-    const priceRows = (list: Route[], opts?: EvaluateOptions) =>
-      priceWithRunnerUps({
-        goal: props.deadline ? { kind: 'date', deadline: props.deadline } : { kind: 'fastest' },
-        rows: list,
-        alternatives: props.deadline ? found.dateAlternatives : found.alternatives,
-        hoursOn,
-        price: chains => price(chains, opts ?? (chains.length > 1 ? { spreadOut: true } : undefined)),
-        exactOf: chain => exact.value[key(chain)],
-      });
-
-    if (props.deadline) {
-      const deadline = props.deadline;
-      // Every row's route at once, one per worker; then, for each that misses the date, nearby routes with the
-      // same TE (search/dateRowCheck.ts: the runner-up rows' early stops and each early stop moved 1-3 TE), and
-      // when none makes it either, the closest of them with the last stop lower, on one worker (sticky on all
-      // but the last stop) so the shared legs are simulated once and each lower last stop costs one ascension.
-      const sticky = { stickyDepth: -1 };
-      const byK: Record<number, DateExact | null> = {};
-      const done = new Set<number>();
-      /** Rows that tried nearby routes in this check (at most NEARBY_ROWS). */
-      let nearbyRows = 0;
-      const checkRows = async (list: Route[]): Promise<boolean> => {
-        exactText.value = hoursOn
-          ? 'Checking these routes and their next-best routes on your account with the full simulator…'
-          : 'Checking these routes on your account with the full simulator…';
-        const got = await priceRows(list, { spreadOut: true });
-        if (!got.ok) return false;
-        const madeOf = (chain: number[]): DateExact | null => {
-          const e = exact.value[key(chain)];
-          return e && e.end <= deadline
-            ? { chain, endTE: e.endTE, end: e.end, handoff: e.handoff, atOnce: e.atOnce, fresh: e.fresh }
-            : null;
-        };
-        // The best the check has so far (the counts settled, and this list's rows or runner-ups that make the
-        // date as they are): nearby routes only for a row that could beat it, or tie it with fewer ascensions.
-        let best: { endTE: number; ascensions: number } | null = null;
-        const better = (d: DateExact | null, ascensions: number) => {
-          if (d && (!best || d.endTE > best.endTE || (d.endTE === best.endTE && ascensions < best.ascensions)))
-            best = { endTE: d.endTE, ascensions };
-        };
-        for (const [k, d] of Object.entries(byK)) better(d, Number(k));
-        for (const r of list) {
-          const alt = got.alts[r.legs.length];
-          better(madeOf(r.chain) ?? (alt ? madeOf(alt.chain) : null), r.legs.length);
-        }
-        // The row that gets the nearby routes (the highest final TE that misses, then fewer ascensions) goes last,
-        // once the others are settled: their lower last stops find their legs still in the workers' memo, and the
-        // best they reach decides whether it is still worth it.
-        const missesNow = (r: Route) => {
-          const alt = got.alts[r.legs.length];
-          return !madeOf(r.chain) && !(alt && madeOf(alt.chain));
-        };
-        const nearbyRow = nearbyRows < NEARBY_ROWS ? pickNearbyRow(list, missesNow, best) : null;
-        const order = [...list.filter(r => r !== nearbyRow), ...(nearbyRow ? [nearbyRow] : [])];
-        for (const route of order) {
-          const k = route.legs.length;
-          done.add(k);
-          // With hours on: the row's next-best route, priced with it (null when it misses the date too).
-          const alt = got.alts[k];
-          const row = await settleDateRow({
-            chain: route.chain,
-            alt: alt ? alt.chain : null,
-            currentTE: store.currentTE,
-            deadline,
-            alternatives: found.dateAlternatives?.[k],
-            nearby: route === nearbyRow && worthNearby(route.chain[route.chain.length - 1], k, best),
-            exactOf: c => exact.value[key(c)],
-            price: (chains, how) => price(chains, how === 'lower' ? sticky : NEARBY_DEAL),
-            say: s => {
-              exactText.value =
-                s.kind === 'nearby'
-                  ? `The ${k}-ascension route misses the date on your account; trying ${s.routes} nearby routes with the same TE…`
-                  : `The ${k}-ascension route misses the date on your account; trying lower last stops (${s.stops.join(', ')})…`;
-            },
-          });
-          if (!row.ok) return false;
-          if (row.nearbyPriced) nearbyRows++;
-          let made = row.made ? madeOf(row.made) : null;
-          const altMade = row.altMade ? madeOf(row.altMade) : null;
-          // The runner-up leads the row when it is better (`got.wins`: it makes the date when the pick misses,
-          // more TE, or more to spare); the nearby and lower last stops above only ran when neither made it.
-          const win = got.wins[k];
-          const winsNow = { ...secondWins.value };
-          delete winsNow[k];
-          if (win && altMade) {
-            winsNow[k] = {
-              pick: [...route.chain],
-              winner: [...win.winner.chain],
-              why: win.why,
-              pickEnd: made ? made.end : null,
-            };
-            made = altMade;
-          }
-          secondWins.value = winsNow;
-          byK[k] = made;
-          better(made, k);
-          dateExactByK.value = { ...byK };
-          emitRoutes(found);
-          // The answer: the highest TE that makes the date on the player's account, then the most spare.
-          dateExact.value = Object.values(byK).reduce<DateExact | null>(
-            (a, d) => (d && (!a || d.endTE > a.endTE || (d.endTE === a.endTE && d.end < a.end)) ? d : a),
-            null
-          );
-        }
-        return true;
-      };
-      if (!(await checkRows(routes))) return;
-      // A lead at a higher count than the table's shows rows up to its count plus two.
-      const more = dateRowsOf(found, readDateLead()?.chain.length).filter(r => !done.has(r.legs.length));
-      if (more.length && !(await checkRows(more))) return;
-    } else {
-      exactText.value = hoursOn
-        ? 'Checking the fastest route and its next-best route on your account with the full simulator…'
-        : 'Checking the fastest route on your account with the full simulator…';
-      const first = await priceRows([routes[0]]);
-      if (!first.ok) return;
-      settle([routes[0]], first.wins);
-      const rest = routes.slice(1);
-      for (let i = 0; i < rest.length; i += size) {
-        exactText.value = hoursOn
-          ? `Checking the other routes and their next-best routes: ${i} of ${rest.length} done…`
-          : `Checking the other routes: ${i} of ${rest.length} done…`;
-        strongerStore.exact = { running: true, done: i + 1, total: rest.length + 1 };
-        const batch = rest.slice(i, i + size);
-        const got = await priceRows(batch, { spreadOut: true });
-        if (!got.ok) return;
-        settle(batch, got.wins);
-      }
-    }
-    if (!props.deadline) {
-      // A best at 9 or 10 ascensions shows rows up to its count plus two (the table's picks: `found`).
-      const priced = new Set(routes.map(r => key(r.chain)));
-      const bestNow = bestExactOf(current);
-      const more = bestNow ? fastestRowsOf(found, bestNow.legs.length).filter(r => !priced.has(key(r.chain))) : [];
-      if (more.length) {
-        const got = await priceRows(more, { spreadOut: true });
-        if (!got.ok) return;
-        settle(more, got.wins);
-      }
-    }
-    if (again && !(await price([again]))) return;
-    const followed = followedToPrice();
-    if (followed) {
-      exactText.value = 'Checking the route you follow on your account with the full simulator…';
-      if (!(await price([followed]))) return;
-    }
-    followAsk = null;
-    exactMs.value = performance.now() - t0;
-    exactStatus.value = 'done';
-    exactBegun.value = false;
-    exactDone.value++;
-    // Remembered for the next visit: the answer the page now leads with, exact.
-    const dateLead = readDateLead();
-    const lead = props.deadline ? dateLead : exactBest.value;
-    const le = lead && !props.deadline ? exactOf(lead as Route) : null;
-    if (props.deadline && dateLead)
-      writeCache(cachedKey, { at: Date.now(), chain: dateLead.chain, end: dateLead.end, endTE: dateLead.endTE });
-    else if (lead && le)
-      writeCache(cachedKey, { at: Date.now(), chain: (lead as Route).chain, end: le.end, endTE: le.endTE });
-    saveSnapshot(id);
-    // Kept in this computer's check history, and shared when "Share this check" is ticked.
-    void afterCheck(id);
-  } catch (err) {
-    if (id !== runs) return;
-    exactStatus.value = 'error';
-    exactText.value = `Check exactly couldn’t run: ${playerFacing(err instanceof Error ? err.message : String(err))}`;
-  } finally {
-    if (id === runs) stopExact();
-  }
-}
-
-/** The fastest route by the simulator among every route priced so far. */
-function bestExactOf(found: NonNullable<typeof result.value>): Route | null {
-  let best: Route | null = null;
-  for (const r of found.byAscensions) {
-    if (!r) continue;
-    const e = exactOf(r);
-    if (e && (!best || e.end < exactOf(best)!.end)) best = r;
-  }
-  return best;
-}
-const exactBestAll = computed<Route | null>(() =>
-  !props.deadline && exactStatus.value === 'done' && result.value ? bestExactOf(result.value) : null
-);
-/** The same, once every row is priced (what the box leads with). */
-const exactBest = exactBestAll;
-/** By a date: how many seconds after the date the table's own date route really arrives, when it
- *  misses on the player's account. */
-const missedBy = computed<number | null>(() => {
-  const r = result.value?.byDate;
-  const e = r ? exact.value[key(r.chain)] : undefined;
-  return props.deadline && e && e.end > props.deadline ? e.end - props.deadline : null;
-});
-/** "Follow this route" only on a route in time (lib/eggDayRule.ts, 22 Oct 2026): never the table's route once Check
- *  exactly found it late on the account, never a count row that misses. */
+/** "Follow this route" only on a route in time (lib/eggDayRule.ts, 22 Oct 2026). */
 const boxFollowable = computed(() => {
   const deadline = props.deadline;
-  if (!deadline) return true;
-  if (preferPicked.value && dateChoice.value) return true;
-  if (dateExactShown.value) return finishesBefore(dateExactShown.value.end, deadline);
-  return exactStatus.value !== 'done' && missedBy.value === null;
+  const found = result.value;
+  if (!deadline || !found?.byDate) return true;
+  return finishesBefore(dateBoxOf(found.byDate).end, deadline);
 });
 function rowFollowable(r: Route): boolean {
-  const d = dateExactByK.value[r.legs.length];
-  if (d === null) return false;
-  return !d || !props.deadline || finishesBefore(d.end, props.deadline);
+  return !props.deadline || finishesBefore(r.end, props.deadline);
 }
-// Light's status sign (StrongerBox.vue) says what it is waiting for: Check exactly going, and how far it is.
-watch(exactStatus, st => {
-  strongerStore.exact = st === 'running' ? { ...strongerStore.exact, running: true } : { running: false, done: 0, total: 0 };
-});
 /** A row whose gap to the fastest is under about a tenth of a day (Allan, 14 Oct). With MORE ascensions it is usually the
  *  same route with one ascension cut in two: one more prestige for no gain. With FEWER it is a good option, not a
  *  waste (carpetsage, Discord): one fewer prestige for a little time. */
 const NEAR_TIE_SECONDS = 0.1 * 86400;
 function nearTie(r: Route): NearTie | null {
-  const best = exactBest.value;
-  let gap: number | null = null;
-  let than: Route | null = null;
-  if (best) {
-    const e = exactOf(r);
-    const eb = exactOf(best);
-    if (e && eb && r !== best) {
-      gap = e.end - eb.end;
-      than = best;
-    }
-  } else {
-    const t = result.value?.best;
-    if (t && r !== t) {
-      gap = r.seconds - t.seconds;
-      than = t;
-    }
-  }
-  if (gap === null || than === null || gap >= NEAR_TIE_SECONDS) return null;
-  return nearTieOf(r.legs.length, than.legs.length, gap);
+  const t = result.value?.best;
+  if (!t || r === t) return null;
+  const gap = r.seconds - t.seconds;
+  if (gap >= NEAR_TIE_SECONDS) return null;
+  return nearTieOf(r.legs.length, t.legs.length, gap);
 }
-/** How far a row is behind the fastest: by the simulator once every row is priced, by the table until then. */
+/** How far a row is behind the fastest, on the instant answer. */
 function behind(r: Route): string {
-  const best = exactBest.value;
-  if (best) {
-    const e = exactOf(r);
-    if (!e) return '';
-    return r === best ? 'fastest' : '+' + days(e.end - exactOf(best)!.end);
-  }
   const t = result.value?.best;
   if (!t) return '';
   return r === t ? 'fastest' : '+' + days(r.seconds - t.seconds);
@@ -2831,31 +1777,26 @@ function behind(r: Route): string {
 /**
  * Fastest route only: hand the searches this answer (chainSearch.ts `suggestedCount`/`suggestedRoute`
  * for their "the instant answer suggests N ascensions" notes, and `instantRoutes`, fastest first, for
- * Smart search's starting chain and the Full sweep's Suggest a space), in the exact check's order once
- * it is done.
+ * Smart search's starting chain and the Full sweep's Suggest a space).
  */
-watch([result, exactStatus], () => {
+watch(result, () => {
   if (props.deadline || !result.value) return;
-  const exactDone = exactStatus.value === 'done';
-  const endOf = (r: Route) => (exactDone ? (exactOf(r)?.end ?? Infinity) : r.end);
-  const ordered = result.value.byAscensions.filter((r): r is Route => !!r).sort((a, b) => endOf(a) - endOf(b));
+  const ordered = result.value.byAscensions.filter((r): r is Route => !!r).sort((a, b) => a.end - b.end);
   store.instantRoutes = ordered.map(r => [...r.chain]);
   store.suggestedRoute = ordered[0] ? [...ordered[0].chain] : null;
   store.suggestedCount = ordered[0] ? ordered[0].chain.length : null;
 });
 
-/** The route the box leads with: the simulator's fastest once known, else the table's. */
-const lead = computed(() => exactBest.value ?? result.value?.best ?? null);
-const reranked = computed(() => !!exactBest.value && exactBest.value !== result.value?.best);
+/** The route the box leads with: the instant answer's fastest. */
+const lead = computed(() => result.value?.best ?? null);
 
 /**
  * PREFER FEWER ASCENSIONS (Q6, Wolfcry1993; search/preferFewer.ts). The green box may lead with the route with the
  * fewest ascensions inside the player's margin of the best (Fastest: in time; By a date: in TE). ONLY the box:
- * `lead` and `dateExact` stay the best for everything else (the summary for the result cards, Light, the searches'
+ * `lead` and the date answer stay the best for everything else (the summary for the result cards, the searches'
  * suggestions, Prestige by, the share). Right now follows the chosen route only through the box's own Follow this
  * route button. Remembered per browser, one value per screen; "Show the fastest instead ›" shows the best for now.
- * The numbers are the box's own: Check exactly's once it is in (shifts from its legs), the instant answer's until
- * then (no shifts: none are said).
+ * The numbers are the instant answer's (no shifts: none are said).
  */
 const preferSetting = ref<PreferSetting>(readPreferFewer());
 watch(preferSetting, s => writePreferFewer(s), { deep: true });
@@ -2873,36 +1814,25 @@ watch(preferMargin, () => {
 const fastestChoice = computed<PreferChoice<Route> | null>(() => {
   const best = lead.value;
   if (props.deadline || !result.value || !best) return null;
-  const exactMode = !!exactBest.value;
-  const rowOf = (r: Route): PreferRow<Route> | null => {
-    if (!exactMode) return { item: r, ascensions: r.legs.length, finish: r.end, shifts: null };
-    const e = exactOf(r);
-    return e ? { item: r, ascensions: r.legs.length, finish: e.end, shifts: shiftCount(e.legs, r.legs.length) } : null;
-  };
-  const top = rowOf(best);
-  if (!top) return null;
+  const rowOf = (r: Route): PreferRow<Route> => ({ item: r, ascensions: r.legs.length, finish: r.end, shifts: null });
   const others = rows.value.filter(r => r !== best).map(rowOf);
-  return choosePreferFewer('fastest', [top, ...others.filter((r): r is PreferRow<Route> => !!r)], preferMargin.value, top);
+  const top = rowOf(best);
+  return choosePreferFewer('fastest', [top, ...others], preferMargin.value, top);
 });
-const dateChoice = computed<PreferChoice<DateExact> | null>(() => {
+const dateChoice = computed<PreferChoice<DatePick> | null>(() => {
   const deadline = props.deadline;
   const found = result.value;
   if (!deadline || !found?.byDate) return null;
-  // The box's own reading (lib/boxPick.ts): the instant answer's rows while Check exactly runs.
-  const exactMode = !!dateExactShown.value;
-  const best = dateExactShown.value ?? tableDate(found.byDate);
-  const rowOf = (d: DateExact): PreferRow<DateExact> => ({
+  const best = tableDate(found.byDate);
+  const rowOf = (d: DatePick): PreferRow<DatePick> => ({
     item: d,
     ascensions: d.chain.length,
     finish: d.end,
     endTE: d.endTE,
     spare: deadline - d.end,
-    shifts: exactMode ? shiftCount(legsFor(d.chain), d.chain.length) : null,
+    shifts: null,
   });
-  // Check exactly's answer for each count once it is in (a count that misses is left out), the table's until then.
-  const others = dateRows.value
-    .map(r => (exactMode ? dateExactByKShown.value[r.legs.length] : tableDate(r)))
-    .filter((d): d is DateExact => !!d && key(d.chain) !== key(best.chain));
+  const others = dateRows.value.map(tableDate).filter(d => key(d.chain) !== key(best.chain));
   const top = rowOf(best);
   return choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top);
 });
@@ -2928,60 +1858,15 @@ const preferPicked = computed(() => preferChoice.value?.state === 'fewer' && !pr
 const boxLead = computed<Route | null>(() =>
   preferPicked.value && fastestChoice.value ? fastestChoice.value.chosen.item : lead.value
 );
-/** By a date: the answer the box shows (the best: Check exactly's once in, else the table's). */
-function dateBoxOf(fallback: Route): DateExact {
+/** By a date: the answer the box shows (the instant answer's best, or the one Prefer fewer picked). */
+function dateBoxOf(fallback: Route): DatePick {
   if (preferPicked.value && dateChoice.value) return dateChoice.value.chosen.item;
-  return dateExactShown.value ?? tableDate(fallback);
+  return tableDate(fallback);
 }
-/**
- * WHICH PICK THE GREEN BOX SHOWS (lib/boxPick.ts; Jordan, 22 Oct 2026): while Check exactly runs, the instant answer's,
- * marked "instant answer, checking on your account… (N of M counts done)"; Check exactly's once every count has its
- * final result. The counts table fills in meanwhile. Stopped or failed: the exact picks so far, or the instant
- * answer's (marked) when no count finished. The box's lines (Prestige by, First ascension, One more TE, at once,
- * Simulate's note) follow the route the box shows.
- */
-const boxCounts = computed(() => {
-  if (props.deadline) return { counts: dateRows.value.length, finished: Object.keys(dateExactByK.value).length };
-  const list = rows.value;
-  return { counts: list.length, finished: list.filter(r => exactOf(r) !== undefined).length };
-});
-const shownPick = computed(() => boxPick({ status: exactStatus.value, begun: exactBegun.value, ...boxCounts.value }));
-const boxShowsExact = computed(() => shownPick.value.shows === 'exact');
-const boxMarker = computed(() => shownPick.value.marker);
-/** Under the marker while Check exactly runs: why the box waits ('' once it stops). */
-const boxWhy = computed(() =>
-  exactStatus.value === 'running' && shownPick.value.shows === 'instant'
-    ? checkingWhy(props.deadline ? 'date' : 'fastest', hoursOn.value && isConstrained(store.availability))
-    : ''
-);
-/** By a date: Check exactly's answers as the box reads them (none while it keeps the instant answer's pick). */
-const dateExactShown = computed<DateExact | null>(() => (boxShowsExact.value ? dateExact.value : null));
-const dateExactByKShown = computed<Record<number, DateExact | null>>(() => (boxShowsExact.value ? dateExactByK.value : {}));
-/** Fastest: a route's exact price as the box reads it. */
-const boxExactOf = (r: Route) => (boxShowsExact.value ? exactOf(r) : undefined);
-/** "Prestige by" is worked out on the instant answer's route: the box shows that route. */
-const prestigeOnBox = computed(() => {
-  const found = result.value;
-  if (!found) return false;
-  if (props.deadline) return !!found.byDate && key(dateBoxOf(found.byDate).chain) === key(found.byDate.chain);
-  return !!boxLead.value && !!found.best && key(boxLead.value.chain) === key(found.best.chain);
-});
-/** Simulate's note under By a date's box: the shown route's, priced or not. */
-function boxCaveat(fallback: Route): string {
-  if (boxShowsExact.value) return simulateCaveat(dateBoxOf(fallback).chain, dateBoxCount(fallback));
-  const chain = dateBoxOf(fallback).chain;
-  const e = exact.value[key(chain)];
-  if (e === undefined) return SIMULATE_ESTIMATE_NOTE;
-  return e && props.deadline && e.end <= props.deadline ? '' : SIMULATE_MISSES_NOTE;
-}
-/** The count Simulate's note reads for the box: the chosen route's, else the table answer's as before. */
-function dateBoxCount(fallback: Route): number {
-  return preferPicked.value && dateChoice.value ? dateChoice.value.chosen.ascensions : fallback.legs.length;
-}
-/** By a date's counts row lit as the box's: the chosen one, else Check exactly's best as before. */
+/** By a date's counts row lit as the box's. */
 function dateRowLit(r: Route): boolean {
-  if (preferPicked.value && dateChoice.value) return key(dateRowChain(r)) === key(dateChoice.value.chosen.item.chain);
-  return !!dateExactShown.value && dateExactByK.value[r.legs.length]?.chain === dateExactShown.value.chain;
+  const found = result.value;
+  return !!found?.byDate && key(r.chain) === key(dateBoxOf(found.byDate).chain);
 }
 function datePickedRow(r: Route): boolean {
   return preferPicked.value && dateRowLit(r);
@@ -2990,15 +1875,14 @@ function datePickedRow(r: Route): boolean {
 /**
  * Fastest route only: a read-only summary of the route the box leads with, for the result cards
  * beside it ("The instant answer has a route with 7 ascensions that may finish sooner",
- * lib/longerRouteHint.ts). The simulator's time once the exact check is in, the table's until then.
+ * lib/longerRouteHint.ts), on the instant answer.
  */
 const instantSummary = useInstantSummaryStore();
 watch(
   () => {
     const r = lead.value;
     if (props.deadline || !r || status.value === 'loading') return null;
-    const e = exactOf(r);
-    return { chain: [...r.chain], seconds: e ? e.seconds : r.seconds, exact: !!e };
+    return { chain: [...r.chain], seconds: r.seconds, exact: false };
   },
   s => {
     instantSummary.fastest = s;
@@ -3010,128 +1894,36 @@ const strongerStore = useStrongerStore();
 
 /**
  * SAFARI MEMORY (22 Oct 2026: By a date with hours on reloaded the tab twice in Safari, "using significant memory").
- * Check exactly and Light run the full simulator on workers of their own, for minutes. Until now the route workers
- * stayed up beside them, each with a decoded table and up to 512 MB of sweeps (typed arrays, outside every heap
- * figure), and the nearest tables above and below started two more beside those. Measured in Chrome on the alt's
- * save (4 of 8 workers): 10 workers at once, about 6 GB for the tab, the "Prestige by" line (on by default on
- * egg-beta) keeping the four route workers busy for minutes beside the check. Now, while either check runs, the
- * route workers sleep as they do for a search (once idle; the next request wakes them and reloads the table, so
- * every answer is the same), and the nearest tables wait until both checks are done. On Safari also: the
- * "Prestige by" line waits for both checks too, the nearest tables for it, and the checks use at most three
- * workers (search/device.ts `checkWorkers`); the route workers keep half the sweeps (search/sweepCache.ts), and
- * the background polish and "Prestige by" run on two of them (`limitWorkers`; the same parts, taking turns).
+ * On Safari the route workers keep half the sweeps (search/sweepCache.ts), the background polish and "Prestige by" run
+ * on two of them (`limitWorkers`), and the nearest tables above and below wait for the "Prestige by" line, so their two
+ * extra route workers never run beside it. (Check exactly and Light, which this also waited for, are gone since
+ * 23 Oct 2026.)
  */
 /** Safari, read once (search/device.ts). */
 const SAFARI = isSafari();
-const checksBusy = computed(() => exactStatus.value === 'running' || strongerStore.light.state === 'running');
+/** The nearest tables, held on Safari until the "Prestige by" line is done (`runBracket`). */
+let afterPrestige: (() => void) | null = null;
 watch(
-  () =>
-    checksBusy.value &&
-    status.value !== 'loading' &&
-    backgroundStatus.value !== 'running' &&
-    prestigeStatus.value !== 'running',
-  free => {
-    if (free) pool?.sleep();
-  },
-  { immediate: true }
+  () => prestigeStatus.value === 'running',
+  running => {
+    if (running || !afterPrestige) return;
+    const go = afterPrestige;
+    afterPrestige = null;
+    go();
+  }
 );
-/** Work held back until Check exactly and Light are done: the nearest tables (`runBracket`) and, on Safari, the
- *  "Prestige by" line (`runPrestigeBy`). Each asks again when started, and waits again if still held. */
-const afterChecks: { prestige: (() => void) | null; bracket: (() => void) | null } = { prestige: null, bracket: null };
-watch([checksBusy, () => prestigeStatus.value === 'running'], () => {
-  if (checksBusy.value || (!afterChecks.prestige && !afterChecks.bracket)) return;
-  // A tick later: Light starts as Check exactly finishes (StrongerCheck.vue), and these wait for it too.
-  setTimeout(() => {
-    if (checksBusy.value) return;
-    for (const k of ['prestige', 'bracket'] as const) {
-      const go = afterChecks[k];
-      afterChecks[k] = null;
-      go?.();
-    }
-  }, 0);
-});
 
-/**
- * LIGHT, AT ONCE (Jordan, 14 Oct: it took over the "also try ascending at once"
- * box). After Check exactly, Light (StrongerCheck.vue) prices the counts table's routes with each fresh
- * ascension starting the moment the one before ends, on your hours and time off; each row shows its line
- * as it lands. Fastest: the rows shown (`shownRows`). By a date: each count's route as Check exactly left
- * it (the one that makes the date on the hour, else the table's own), so a row that misses on the hour
- * may make it at once.
- */
-const dateRowChain = (r: Route): number[] => (dateExactByK.value[r.legs.length] ?? tableDate(r)).chain;
-/** With the player's hours on (HOURS FIX B), each row's other route goes to Light too: the table's pick when its
- *  runner-up won Check exactly, else the next-best route; at once the order can flip again. */
-const otherRoute = (count: number, shown: number[], alternatives: Route[] | undefined): number[] | null => {
-  if (!hoursMoveShifts.value) return null;
-  const w = secondWins.value[count];
-  if (w && key(w.winner) === key(shown)) return [...w.pick];
-  const alt = nextBest(shown, alternatives);
-  return alt ? [...alt.chain] : null;
-};
-const lightRows = computed<AtOnceItem[]>(() => {
-  const withAlt = (chain: number[], count: number, alts: Route[] | undefined): AtOnceItem => {
-    const alt = otherRoute(count, chain, alts);
-    return { chain, count, ...(alt ? { alt } : {}) };
-  };
-  return props.deadline
-    ? dateRows.value.map(r =>
-        withAlt([...dateRowChain(r)], r.legs.length, result.value?.dateAlternatives?.[r.legs.length])
-      )
-    : shownRows.value.map(r => withAlt([...r.chain], r.legs.length, result.value?.alternatives?.[r.legs.length]));
-});
-/** A row's other route Light priced at once (lightRows' `alt`), for its line. */
-const lightAltOf = (chain: number[]): number[] | undefined => lightRows.value.find(it => key(it.chain) === key(chain))?.alt;
-/** "at once, on your hours: Feb 16, 9:40 PM (−0.40 days)" under a row, once Light has priced it. */
-/** The counts row whose arrow is open (its route's key); '' for none. */
-const openRow = ref('');
-function toggleRow(chain: number[]): void {
-  openRow.value = openRow.value === key(chain) ? '' : key(chain);
-}
-/** A counts row's legs to show under its arrow: Check exactly's (on the hour), or Light's at once when
- *  only that priced it. Null when neither did. */
-function rowLegs(chain: number[]): ChainResult['legs'] | null {
-  return exactLegsOf(chain) ?? atOnceLegsOf(chain);
-}
-/** Check exactly's legs for a route (on the hour), and Light's at once; null when not priced that way. */
-function exactLegsOf(chain: number[]): ChainResult['legs'] | null {
-  const legs = exact.value[key(chain)]?.legs;
-  return legs?.length ? legs : null;
-}
-function atOnceLegsOf(chain: number[]): ChainResult['legs'] | null {
-  const legs = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'][key(chain)]?.legs;
-  return legs?.length ? legs : null;
-}
-
-function atOnceText(chain: number[]): string {
-  const have = strongerStore.atOnce[props.deadline ? 'date' : 'fastest'];
-  const goal = props.deadline
-    ? ({ kind: 'date', deadline: props.deadline } as const)
-    : ({ kind: 'fastest', target: store.finalTE } as const);
-  // With hours on, the better at once of the row's route and its other one (lightAtOnce.ts `rowAtOnce`).
-  const row = rowAtOnce(goal, have, chain, lightAltOf(chain));
-  if (!row) return '';
-  const line = rowLine({
-    goal,
-    priced: row.priced,
-    hourEnd: exact.value[key(row.chain)]?.end ?? null,
-    hours: !!store.availability,
-    show,
-  });
-  return row.extra ? `${line}, via ${row.chain.join(' ')}` : line;
-}
 watch(
   () => {
     if (!result.value || status.value === 'loading') return null;
     if (props.deadline) {
       if (!result.value.byDate) return null;
-      const d = dateExact.value ?? tableDate(result.value.byDate);
-      return { chain: [...d.chain], end: d.end, endTE: d.endTE, spare: props.deadline - d.end, exact: !!dateExact.value };
+      const d = tableDate(result.value.byDate);
+      return { chain: [...d.chain], end: d.end, endTE: d.endTE, spare: props.deadline - d.end, exact: false };
     }
     const r = lead.value;
     if (!r) return null;
-    const e = exactOf(r);
-    return { chain: [...r.chain], end: e ? e.end : r.end, endTE: store.finalTE, exact: !!e };
+    return { chain: [...r.chain], end: r.end, endTE: store.finalTE, exact: false };
   },
   v => {
     strongerStore.instant[props.deadline ? 'date' : 'fastest'] = v;
@@ -3162,26 +1954,12 @@ onUnmounted(() => {
 });
 
 /**
- * THE LAST CHECKED ANSWER, remembered in this browser per save and setup: shown at once on the next
- * visit, labelled with when it was checked, then checked again. Its route is priced with the new rows,
- * so the page can say whether something better turned up or it is still the best.
- *
- * Valid only for the same thing asked of the same account: the player, the mode (target, or the date),
- * the TE and every egg's count (a new save moves them), the inventory and epic research (the gear
- * stamp's inputs, cheaper to compare raw), and the setup the exact check uses (playing hours, time off,
- * dates to hit, the continue rule). Not the plan start: an answer from this morning is still worth
- * showing beside the new one, with its time.
+ * The key the whole answer is saved under (search/instantSnapshot.ts `instantKey`, shared with My runs since 17 Oct
+ * 2026: the same hash as before, so answers saved in players' browsers keep matching). Valid only for the same thing
+ * asked of the same account: the player, the mode (target, or the date), the TE and every egg's count (a new save
+ * moves them), the inventory and epic research, and the setup (playing hours, time off, dates to hit, the continue
+ * rule, the filters). Not the plan start: the saved answer's note says which start its dates are for.
  */
-interface CachedAnswer {
-  /** Unix ms it was checked. */
-  at: number;
-  chain: number[];
-  /** Unix second it reaches the target (fastest) or the TE it makes (date) and when. */
-  end: number;
-  endTE: number;
-}
-/** The key (search/instantSnapshot.ts `instantKey`, shared with My runs since 17 Oct 2026: the same hash as
- *  before, so answers saved in players' browsers keep matching). */
 function cacheKey(): string | null {
   const inputs = store.collectInputs();
   const raw = inputs.context.rawBackup as { eiUserId?: string } | undefined;
@@ -3204,33 +1982,15 @@ function cacheKey(): string | null {
     maxAscensions: filters.value.maxAscensions,
   });
 }
-function readCache(k: string | null): CachedAnswer | null {
-  if (!k) return null;
-  try {
-    const v = JSON.parse(localStorage.getItem(k) ?? 'null') as CachedAnswer | null;
-    return v && Array.isArray(v.chain) && v.chain.length ? v : null;
-  } catch {
-    return null;
-  }
-}
-function writeCache(k: string | null, v: CachedAnswer): void {
-  if (!k) return;
-  try {
-    localStorage.setItem(k, JSON.stringify(v));
-  } catch {
-    // Storage full or blocked: the next visit simply has nothing to show first.
-  }
-}
-const cached = ref<CachedAnswer | null>(null);
-let cachedKey: string | null = null;
-
 /**
- * THE WHOLE ANSWER, saved when everything has finished (the exact check, the background polish and
+ * THE WHOLE ANSWER, saved when everything has finished (the background polish, the "Prestige by" line and
  * the nearest-tables line) and put back as it was on the next visit with the same key
  * (search/instantSnapshot.ts). It restores the same fields the computation sets, so everything that
  * reads them works unchanged: the searches' seeds (`instantRoutes`, `suggestedRoute`,
- * `suggestedCount`, by the watch below), By a date's box fill (`routes` emit), Simulate this plan,
- * Check exactly and "Check all again" (which start their own workers when pressed).
+ * `suggestedCount`, by the watch below), By a date's box fill (`routes` emit) and Simulate this plan.
+ *
+ * `exact`, `dateExact` and `dateExactByK` were Check exactly's (gone since 23 Oct 2026): written empty, so My runs
+ * reads every new snapshot as the instant answer's; an older snapshot's are never shown here.
  */
 interface InstantSnapshot {
   v: 1;
@@ -3242,11 +2002,9 @@ interface InstantSnapshot {
   /** The gear rule `ownChanged` was worked out under (tableGear.ts GEAR_RULE); absent before it was kept. */
   gearRule?: number;
   ms: number | null;
-  exact: Record<string, Exact | null>;
-  dateExact: DateExact | null;
-  dateExactByK: Record<number, DateExact | null>;
-  /** Counts whose next-best route won on the player's hours (hoursRunnerUp.ts; absent before 16 Oct 2026). */
-  secondWins?: Record<number, SecondWin>;
+  exact: Record<string, unknown>;
+  dateExact: unknown;
+  dateExactByK: Record<number, unknown>;
   answerStart: number;
   exactMs: number | null;
   gains: PolishGain[];
@@ -3262,17 +2020,11 @@ let snapKey: string | null = null;
 /** When the answer on screen was saved, while it is a saved one (not worked out in this visit). */
 const savedAt = ref<number | null>(null);
 function saveSnapshot(id: number): void {
-  if (id !== runs || !snapKey || !result.value || status.value !== 'done' || exactStatus.value !== 'done') return;
+  if (id !== runs || !snapKey || !result.value || status.value !== 'done') return;
   if (backgroundStatus.value === 'running' || bracketStatus.value === 'running') return;
   if (prestigeStatus.value === 'running') return;
   const snap = currentSnapshot();
-  if (!snap) return;
-  // Too big: keep the answer without each route's step-by-step legs ("Simulate this plan" then
-  // simulates them itself).
-  if (!writeSnapshot(snapKey, snap)) {
-    for (const e of Object.values(snap.exact)) if (e) delete (e as Partial<Exact>).legs;
-    writeSnapshot(snapKey, snap);
-  }
+  if (snap) writeSnapshot(snapKey, snap);
 }
 /** The answer on screen as a snapshot: plain copies, without the finder's spare routes (only for the
  *  polish). Null with no answer. */
@@ -3291,12 +2043,11 @@ function currentSnapshot(): InstantSnapshot | null {
       ownChanged: ownChanged.value,
       gearRule: GEAR_RULE,
       ms: ms.value,
-      exact: exact.value,
-      dateExact: dateExact.value,
-      dateExactByK: dateExactByK.value,
-      ...(Object.keys(secondWins.value).length ? { secondWins: secondWins.value } : {}),
+      exact: {},
+      dateExact: null,
+      dateExactByK: {},
       answerStart: answerStart.value,
-      exactMs: exactMs.value,
+      exactMs: null,
       gains: gains.value,
       bracket: bracket.value,
       prestige: prestige.value,
@@ -3318,8 +2069,8 @@ function snapMeta(): SnapMeta | undefined {
     goal: instantGoal(props.deadline, store.finalTE),
     backupTime: initialState.lastBackupTime,
     teByEgg: order.map(e => Math.max(earned?.[e] ?? 0, countTEThresholdsPassed(delivered?.[e] ?? 0))),
-    // The hours and time off: the key holds them, so these are this snapshot's (Check exactly's when it ran here).
-    setup: exactSetup ?? {
+    // The hours and time off: the key holds them, so these are this snapshot's.
+    setup: {
       availability: store.availability ? JSON.parse(JSON.stringify(store.availability)) : null,
       timeOff: JSON.parse(JSON.stringify(store.timeOff)),
     },
@@ -3349,13 +2100,7 @@ function applySnapshot(s: InstantSnapshot): void {
   ownChanged.value = s.ownChanged;
   result.value = s.result;
   ms.value = s.ms;
-  exact.value = s.exact;
-  dateExactByK.value = s.dateExactByK;
-  dateExact.value = s.dateExact;
-  secondWins.value = s.secondWins ?? {};
-  secondRoutes = {};
   answerStart.value = s.answerStart;
-  exactMs.value = s.exactMs;
   gains.value = s.gains;
   bracket.value = s.bracket;
   prestige.value = s.prestige ?? null;
@@ -3363,48 +2108,12 @@ function applySnapshot(s: InstantSnapshot): void {
   prestigeStatus.value = s.prestige ? 'done' : 'idle';
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';
-  exactStatus.value = 'done';
-  exactBegun.value = false;
-  findCtx.value = null;
-  exactText.value = '';
   status.value = 'done';
   noTable.value = false;
   below.value = null;
-  // The last-checked line is for a recompute to compare against; this answer is that check.
-  cached.value = null;
   savedAt.value = s.at;
   if (props.deadline) emitRoutes(s.result);
 }
-
-/** After the exact check: is the new answer better than the last checked one, priced again now? */
-const sinceCache = computed<{ better: boolean; text: string } | null>(() => {
-  const c = cached.value;
-  if (!c || exactStatus.value !== 'done') return null;
-  const when = show(c.at / 1000);
-  if (props.deadline) {
-    const now = dateExact.value;
-    if (!now) return null;
-    if (key(now.chain) === key(c.chain))
-      return { better: false, text: `Still the best since the last check (${when}).` };
-    const again = exact.value[key(c.chain)];
-    const old = again && again.end <= props.deadline ? again.endTE : null;
-    if (old === null || now.endTE > old || (now.endTE === old && now.end < (again?.end ?? Infinity) - 60))
-      return { better: true, text: `Better than the last check (${when}, ${c.endTE} TE via ${c.chain.join(' ')}).` };
-    return { better: false, text: `Still the best since the last check (${when}).` };
-  }
-  const best = exactBest.value;
-  const e = best ? exactOf(best) : null;
-  if (!best || !e) return null;
-  if (key(best.chain) === key(c.chain))
-    return { better: false, text: `Still the best since the last check (${when}).` };
-  const again = exact.value[key(c.chain)];
-  if (!again || e.end < again.end - 60)
-    return {
-      better: true,
-      text: `Better than the last check (${when}, ${c.chain.join(' ')})${again ? `: ${days(again.end - e.end)} sooner` : ''}.`,
-    };
-  return { better: false, text: `Still the best since the last check (${when}).` };
-});
 
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -3424,7 +2133,7 @@ watch(
       useHours.value ? availabilityKey(store.availability) : '',
       filters.value.maxAscensions,
       // Your setup, remembered per account, still loading (stores/chainSearch.ts `loadSetupFor`): wait for
-      // it, so a reload doesn't work the answer out and start Check exactly on the defaults first.
+      // it, so a reload doesn't work the answer out on the defaults first.
       store.setupLoaded,
       // The save for the account on screen not set up yet (search/startProvenance.ts): wait, and run again
       // the moment it is.
@@ -3463,8 +2172,7 @@ function waitForSave(): void {
   ++prestigeRuns;
   prestigeLater = false;
   afterRun = null;
-  stopExact();
-  if (exactStatus.value === 'running' || exactStatus.value === 'waiting') exactStatus.value = 'idle';
+  afterPrestige = null;
   if (backgroundStatus.value === 'running') backgroundStatus.value = 'idle';
   if (bracketStatus.value === 'running') bracketStatus.value = 'idle';
   if (prestigeStatus.value === 'running') prestigeStatus.value = 'idle';
@@ -3488,10 +2196,6 @@ watch(instantState, s => emit('state', s), { immediate: true });
 watch(noTable, u => emit('unloaded', u));
 
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-/** The exact check's simulated legs for a route (first-ascension shifts, one more TE: RouteExtras.vue). */
-function legsFor(chain: number[]): Exact['legs'] | null {
-  return exact.value[key(chain)]?.legs ?? null;
-}
 function show(unix: number): string {
   return showDateTime(unix, zone.value);
 }
@@ -3500,49 +2204,128 @@ function days(seconds: number): string {
 }
 
 /**
- * INSTANT ANSWER RECORDS (opt-in; search/instantRecord.ts). "Share this check" sends this answer and
- * its exact check to the collector, privately (never the player id, never on the board), when Check
- * exactly finishes, or at once if it already has. "Keep sharing my checks" (remembered per browser,
- * mirrored in Your setup › Sharing) ticks it for every check. At most one per save, mode and target an
+ * THE SEARCH RESULT FOR THIS GOAL (Jordan, 23 Oct 2026): a finished Fast, Exact or Custom result for the same goal,
+ * on this save and account. The instant card only points to it (`pointer`); "Share this result" sends it with the
+ * instant answer (below). Fastest: the chain search's best once it stops (its kind and effort say the level); By a
+ * date: the date search's result for this deadline, started from the TE the save has now. A running search's best so
+ * far is not a result yet.
+ */
+interface SearchFound extends FoundResult {
+  legs: LegSummary[];
+  /** When it was found (ms), and the plan start it was priced from. */
+  at: number;
+  planStart: number;
+}
+/** A result tagged for another account than the one loaded is not this save's. Unknown on either side: it is. */
+function ownerMatches(owner: string): boolean {
+  const me = initialState.playerId ? accountHashNow(initialState.playerId) : '';
+  return !owner || !me || owner === me;
+}
+const searchFound = computed<SearchFound | null>(() => {
+  const te = Math.floor(store.currentTE);
+  if (props.deadline) {
+    const r = store.deadlineResult;
+    const best = r?.routes[0];
+    if (store.deadlineRunning || !r || !best || r.deadline !== props.deadline) return null;
+    if (Math.floor(r.te) !== te || !ownerMatches(store.deadlineResultOwner)) return null;
+    return {
+      level: foundLevel({ custom: !r.simple, effort: r.level }),
+      chain: [...best.chain],
+      end: best.reachAt,
+      endTE: best.chain[best.chain.length - 1],
+      legs: best.legs ?? [],
+      at: r.at ?? 0,
+      planStart: r.planStart,
+    };
+  }
+  const chain = store.bestChain;
+  if (store.isRunning || !(store.bestDays > 0) || !chain.length) return null;
+  if (chain[chain.length - 1] !== store.finalTE || !(chain[0] > te) || !ownerMatches(store.chainResultOwner)) return null;
+  const planStart = store.planStartUsed || store.planStart;
+  return {
+    level: foundLevel({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort }),
+    chain: [...chain],
+    end: planStart + store.bestDays * 86400,
+    endTE: store.finalTE,
+    legs: store.bestLegs ?? [],
+    at: store.chainResultAt,
+    planStart,
+  };
+});
+/** "Fast found 312 TE on your account." (lib/searchPointer.ts), or null. */
+const pointer = computed(() => pointerOf(props.deadline ? 'date' : 'fastest', searchFound.value, show));
+/** "See it ↓": the part of the search panel that holds the result, shown, then scrolled to its result card. */
+function seeResult(): void {
+  const f = searchFound.value;
+  if (!f) return;
+  const screen: SearchTabScreen = props.deadline ? 'by-date' : 'fastest';
+  const tab = f.level === 'Custom' ? 'exhaustive' : 'nearby';
+  selectSearchTab(screen, tab);
+  void nextTick(() => {
+    const panel = document.getElementById(`search-panel-${screen}-${tab}`);
+    const card = panel?.querySelector('[data-result-card]') ?? panel;
+    card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+/**
+ * "SHARE THIS RESULT" (opt-in; search/instantRecord.ts). Was "Share this check", sent when Check exactly finished; since
+ * 23 Oct 2026 it sends the search result above (Fast, Exact or Custom) beside the instant answer for the same goal, to
+ * the collector, privately (never the player id, never on the board): `exact` is the search's best route, leg by leg,
+ * `exactFrom` which search found it, and the rows are the instant answer's only. "Share my search results" (the
+ * account's `keepSharingChecks` consent, the same setting as Your setup › Sharing) ticks it for every result found
+ * in this visit; a result opened from before is sent only when ticked by hand. At most one per save, mode and target an
  * hour, and never the same one twice.
  */
 const share = useInstantShare();
-/** "Keep sharing my checks": the account's consent itself (composables/useConsent.ts; Your setup › Sharing
- *  shows the same). */
+/** "Share my search results": the account's consent itself (composables/useConsent.ts). */
 const keepSharing = share.on;
 const initialState = useInitialStateStore();
 const instantUrl = instantUrlOf(store.submitUrl);
 const SHARE_WHAT =
-  "Sends this check's routes, the instant answer's and the exact times, your TE and Clothed TE, a summary of your gear, " +
-  'your plan start, timezone, save time and settings, where the check started from (how your save was loaded, its ' +
-  'claimed and pending TE, eggs and a short code for the save), with an anonymous code for your account. Never your player ID ' +
-  'or your save; never shown on the board.';
+  "Sends this search result's route and times, the instant answer's for the same goal, your TE and Clothed TE, a summary " +
+  'of your gear, your plan start, timezone, save time and settings, where your save was loaded from (its claimed and ' +
+  'pending TE, eggs and a short code for the save), with an anonymous code for your account. Never your player ID or ' +
+  'your save; never shown on the board.';
 /** The gear stamp's hash (the 24 hex of `legacyGearTableName`), worked out with the instant answer. */
 const stampHash = ref('');
-/** Share the check on screen (or the one running). Starts ticked with "Keep sharing my checks". */
-const shareThis = ref(share.on.value);
-/** The run whose Check exactly finished in this visit (a saved answer put back is not shared). */
-let doneId = -1;
-/** A check finished since "Share this check" was last set for one: the next check starts afresh. */
-let shareUsed = false;
+/** Share the result on screen. Ticked for a result found in this visit with "Share my search results" on. */
+const shareThis = ref(false);
 /** What the last share did, for the line beside the boxes. */
 const shareNote = ref<(InstantSendOutcome & { at: number }) | null>(null);
-// Ticked: this check goes too. Withdrawn (or another account with it off): nor does this one, at once.
+/** The result `shareThis` and `shareNote` are about, and the one last sent (or tried). */
+const resultKey = computed(() => {
+  const f = searchFound.value;
+  return f ? `${f.level}|${f.at}|${key(f.chain)}` : '';
+});
+let shownKey = '';
+let sentKey = '';
+/** Found in this visit (a run that ended here), not a result opened from before. */
+const freshResult = (): boolean => (searchFound.value?.at ?? 0) >= (pageOpenedMs() ?? 0);
+watch(
+  resultKey,
+  k => {
+    if (k === shownKey) return;
+    shownKey = k;
+    shareNote.value = null;
+    shareThis.value = !!k && share.on.value && freshResult();
+  },
+  { immediate: true }
+);
+// "Share my search results" ticked: this result goes too (if found in this visit). Withdrawn: nor does this one.
 watch(
   () => share.on.value,
   v => {
-    shareThis.value = v;
+    shareThis.value = v && freshResult();
   }
 );
-watch(shareThis, v => {
-  if (v && doneId === runs && exactStatus.value === 'done') void shareCheck(runs);
-});
-/** A new check: "Share this check" goes back to the "keep sharing" choice once the last one finished. */
-function resetShareForNewCheck(): void {
-  if (shareUsed) shareThis.value = share.on.value;
-  else if (share.on.value) shareThis.value = true;
-  shareUsed = false;
-}
+watch(
+  () => [shareThis.value, resultKey.value, status.value] as const,
+  ([on, k, st]) => {
+    if (on && k && st === 'done' && k !== sentKey) void shareResult(k);
+  },
+  { immediate: true }
+);
 
 /** "11:02 am", in the plan's timezone. */
 function clock(ms: number): string {
@@ -3563,34 +2346,32 @@ const shareText = computed(() => {
     case 'same':
       return 'Already shared.';
     case 'hourly':
-      return `Couldn't share: one check per save and goal an hour${n.nextAt ? `; try after ${clock(n.nextAt)}` : ''}.`;
+      return `Couldn't share: one result per save and goal an hour${n.nextAt ? `; try after ${clock(n.nextAt)}` : ''}.`;
     case 'server':
       return `Couldn't share: the server said no${n.status ? ` (${n.status})` : ''}.`;
     case 'network':
       return "Couldn't share: no connection to the server.";
     case 'too-big':
-      return "Couldn't share: this check is too big to send.";
+      return "Couldn't share: this result is too big to send.";
     default:
-      return "Couldn't share this check.";
+      return "Couldn't share this result.";
   }
 });
 
 const round = (x: number, d: number) => Number(x.toFixed(d)) + 0;
 
-/** The record for the answer and exact check on screen now; null when there is no finished check. */
-function buildRecord(): InstantRecord | null {
+/** The record for the instant answer on screen and the search result `f`; null with no instant answer. */
+function buildRecord(f: SearchFound): InstantRecord | null {
   const found = result.value;
-  if (!found || exactStatus.value !== 'done') return null;
+  if (!found) return null;
   const deadline = props.deadline;
   const pick = deadline ? found.byDate : found.best;
   if (!pick) return null;
   const inputs = store.collectInputs();
-  const planStart = answerStart.value || inputs.planStart;
+  const planStart = f.planStart || answerStart.value || inputs.planStart;
   const backupTime = (initialState.rawBackup as { approxTime?: number } | null)?.approxTime;
   const endTE = (r: Route) => round(r.legs[r.legs.length - 1].endTE, 2);
-  const leadChain = deadline ? (dateExact.value?.chain ?? null) : (exactBest.value?.chain ?? null);
-  const ex = leadChain ? exact.value[key(leadChain)] : null;
-  const exLegs = ex?.legs ?? [];
+  const exLegs = f.legs;
   const parts = store.cteParts();
   const wait = store.integrityWait;
   let contPeak: number | null = null;
@@ -3609,30 +2390,20 @@ function buildRecord(): InstantRecord | null {
         }
       : null;
   const spareH = (end: number) => round(((deadline ?? 0) - end) / 3600, 2);
-  const rowsOut = deadline
-    ? dateRows.value.map(r => {
-        const d = dateExactByK.value[r.legs.length];
-        return {
-          n: r.legs.length,
-          chain: [...r.chain],
-          iEnd: Math.round(r.end),
-          iTE: endTE(r),
-          ...(d !== undefined ? { xEnd: d ? Math.round(d.end) : null, xTE: d ? round(d.endTE, 2) : null } : {}),
-        };
-      })
-    : rows.value.map(r => {
-        const e = exactOf(r);
-        return {
-          n: r.legs.length,
-          chain: [...r.chain],
-          iEnd: Math.round(r.end),
-          ...(e !== undefined ? { xEnd: e ? Math.round(e.end) : null, xTE: e ? round(e.endTE, 2) : null } : {}),
-        };
-      });
+  const rowsOut = (deadline ? dateRows.value : rows.value).map(r => ({
+    n: r.legs.length,
+    chain: [...r.chain],
+    iEnd: Math.round(r.end),
+    ...(deadline ? { iTE: endTE(r) } : {}),
+  }));
   const gap = buildGapOf(contPeak, exLegs);
   const build = appBuildId();
-  // Where the check started, as it started, with the tab's age now (search/startProvenance.ts).
-  const start = finishStartProvenance(exactStart, { now: Date.now(), builtAt: buildTimeMs(), openedAt: pageOpenedMs() });
+  // Where the save on screen was loaded from, with the tab's age now (search/startProvenance.ts).
+  const start = finishStartProvenance(store.startProvenanceNow(), {
+    now: Date.now(),
+    builtAt: buildTimeMs(),
+    openedAt: pageOpenedMs(),
+  });
   return {
     v: 1,
     ...(build ? { build } : {}),
@@ -3691,21 +2462,16 @@ function buildRecord(): InstantRecord | null {
       legs: instantLegs(pick),
     },
     rows: rowsOut,
-    exact:
-      leadChain && ex
-        ? {
-            chain: [...leadChain],
-            end: Math.round(ex.end),
-            endTE: round(ex.endTE, 2),
-            ...(deadline ? { spareHours: spareH(ex.end) } : {}),
-            handoff: ex.handoff,
-            ...firstLegOf(exLegs),
-            legs: exactLegs(exLegs),
-          }
-        : null,
-    ...(missedBy.value !== null ? { exactMissedByHours: round(missedBy.value / 3600, 2) } : {}),
+    exact: {
+      chain: [...f.chain],
+      end: Math.round(f.end),
+      endTE: round(exLegs.length ? exLegs[exLegs.length - 1].endTE : f.endTE, 2),
+      ...(deadline ? { spareHours: spareH(f.end) } : {}),
+      ...firstLegOf(exLegs),
+      legs: exactLegs(exLegs),
+    },
+    exactFrom: f.level === 'Fast' ? 'fast' : f.level === 'Exact' ? 'exact' : 'custom',
     ...(gap ? { buildGap: gap } : {}),
-    ...(exactMs.value !== null ? { checkSeconds: round(exactMs.value / 1000, 1) } : {}),
   };
 }
 
@@ -3717,11 +2483,9 @@ function shareStorage(): Storage | null {
   }
 }
 
-/** This run's record, built once (the history and the share use the same one, and its signature). */
-let checkRec: { id: number; record: InstantRecord; sig: string } | null = null;
-async function recordOf(id: number): Promise<{ record: InstantRecord; sig: string } | null> {
-  if (checkRec && checkRec.id === id) return checkRec;
-  const record = buildRecord();
+/** The record with the gear stamp worked out for a saved answer put back (none was worked out with it). */
+async function recordOf(f: SearchFound): Promise<InstantRecord | null> {
+  const record = buildRecord(f);
   if (!record) return null;
   // A saved answer put back has no stamp worked out: the maxed instant answer's research gives the same one.
   if (!record.gear.stamp && record.gear.answer === 'maxed' && header.value?.k3) {
@@ -3732,24 +2496,12 @@ async function recordOf(id: number): Promise<{ record: InstantRecord; sig: strin
       /* sent without it */
     }
   }
-  if (id !== runs) return null;
-  checkRec = { id, record, sig: recordSig(record) };
-  return checkRec;
-}
-
-/** A Check exactly finished here: kept in the history, and shared when "Share this check" is ticked. */
-async function afterCheck(id: number): Promise<void> {
-  doneId = id;
-  shareUsed = true;
-  const c = await recordOf(id);
-  if (!c) return;
-  await rememberCheck(c);
-  if (shareThis.value) await shareCheck(id);
+  return record;
 }
 
 /**
  * The record with the "Prestige by" prediction added, when the player turned the line on and chose to
- * keep it in shared checks (only shared checks get here). A line still being worked out is waited for,
+ * keep it in shared results (only shared results get here). A line still being worked out is waited for,
  * up to a minute.
  */
 async function withPrestigeBy(record: InstantRecord): Promise<InstantRecord> {
@@ -3760,57 +2512,23 @@ async function withPrestigeBy(record: InstantRecord): Promise<InstantRecord> {
   return prestige.value ? { ...record, prestigeBy: prestige.value.record } : record;
 }
 
-/** Send this check's record. Never throws; a check that has been superseded is skipped. */
-async function shareCheck(id: number): Promise<void> {
-  if (!instantUrl || id !== runs || doneId !== id || exactStatus.value !== 'done' || store.startWait) return;
-  const c = await recordOf(id);
-  if (!c) return;
+/** Send the result `k` (the one on screen) with the instant answer. Never throws; tried once per result. */
+async function shareResult(k: string): Promise<void> {
+  const f = searchFound.value;
+  if (!instantUrl || store.startWait || !f || resultKey.value !== k) return;
+  sentKey = k;
+  const record = await recordOf(f);
+  if (!record || resultKey.value !== k) return;
   const partition = await store.accountPartition();
   const owner = partition ? ownerToken(partition) : null;
   const out = await sendInstantRecordWhy({
     url: instantUrl,
     owner,
     partition,
-    record: await withPrestigeBy(c.record),
+    record: await withPrestigeBy(record),
     storage: shareStorage(),
   });
-  if (id !== runs) return;
+  if (resultKey.value !== k) return;
   shareNote.value = { ...out, at: Date.now() };
-  if (out.result === 'sent' || out.why === 'same') {
-    history.value = markShared(history.value, c.sig);
-    void saveHistory(historyPartition, history.value);
-  }
-}
-
-/**
- * CHECK HISTORY (search/checkHistory.ts): this account's Check exactly results on this computer,
- * newest first, shared or not. Nothing in it is sent.
- */
-const history = ref<CheckEntry[]>([]);
-let historyPartition = '';
-const historyDeltas = computed(() => history.value.map((_, i) => deltaOf(history.value, i)));
-async function loadHistoryNow(): Promise<void> {
-  const partition = await store.accountPartition().catch(() => '');
-  historyPartition = partition;
-  history.value = await loadHistory(partition);
-}
-watch(
-  () => initialState.rawBackup,
-  () => void loadHistoryNow(),
-  { immediate: true }
-);
-async function rememberCheck(c: { record: InstantRecord; sig: string }): Promise<void> {
-  const partition = await store.accountPartition().catch(() => '');
-  if (!partition) return;
-  if (partition !== historyPartition) {
-    historyPartition = partition;
-    history.value = await loadHistory(partition);
-  }
-  history.value = addCheck(history.value, entryFromRecord(c.record, c.sig, Date.now(), false, exactSetup));
-  await saveHistory(partition, history.value);
-}
-function clearHistory(): void {
-  history.value = [];
-  void saveHistory(historyPartition, []);
 }
 </script>

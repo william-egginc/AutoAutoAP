@@ -86,17 +86,17 @@ describe('InstantRoute wiring', () => {
     expect(route).toContain('<PreferFewerControl v-model="preferMargin" goal="fastest" />');
     expect(route).toContain('<PreferFewerControl v-model="preferMargin" goal="date" />');
     expect(route.indexOf('<PreferFewerControl v-model="preferMargin" goal="date" />')).toBeLessThan(
-      route.indexOf('<th class="py-1 pr-2">Instant answer</th>')
+      route.indexOf('<th class="py-1 pr-2">TE · spare</th>')
     );
     expect(route).toContain('get: () => preferSetting.value[preferGoal.value],');
     expect(route).toContain('watch(preferSetting, s => writePreferFewer(s), { deep: true });');
   });
 
-  it('only the box changes: lead and dateExact stay the best for everything else', () => {
-    expect(route).toContain('const lead = computed(() => exactBest.value ?? result.value?.best ?? null);');
+  it('only the box changes: lead and the date answer stay the best for everything else', () => {
+    expect(route).toContain('const lead = computed(() => result.value?.best ?? null);');
     expect(route).toContain('preferPicked.value && fastestChoice.value ? fastestChoice.value.chosen.item : lead.value');
-    // While Check exactly runs the box keeps the instant answer's pick (lib/boxPick.ts).
-    expect(route).toContain('return dateExactShown.value ?? tableDate(fallback);');
+    // The box is the instant answer's pick (no Check exactly since 23 Oct 2026).
+    expect(route).toContain('return tableDate(fallback);');
     // The summary for the result cards and the searches' suggestions still read the best.
     expect(route).toMatch(/const r = lead\.value;\s+if \(props\.deadline \|\| !r \|\| status\.value === 'loading'\) return null;/);
     // The box's own buttons act on the route it shows.
@@ -112,16 +112,16 @@ describe('InstantRoute wiring', () => {
     expect(route).toContain(
       '<PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />'
     );
-    // And only while the box shows the route it was worked out on (lib/boxPick.ts).
-    expect((route.match(/v-if="prestigeFlag.enabled.value && !preferPicked && prestigeOnBox"/g) ?? []).length).toBe(2);
+    // Over the instant route it was worked out on: the box shows it unless Prefer fewer picked another.
+    expect((route.match(/v-if="prestigeFlag.enabled.value && !preferPicked"/g) ?? []).length).toBe(2);
     expect(route).toContain('v-if="preferPicked && r === boxLead"');
     expect(route).toContain('v-if="datePickedRow(r)"');
     expect(route).toContain(`:class="r === boxLead ? 'bg-emerald-50/60' : ''"`);
   });
 
-  it('numbers: Check exactly’s with its shifts once in, the instant answer’s (no shifts) until then', () => {
-    expect(route).toContain('finish: e.end, shifts: shiftCount(e.legs, r.legs.length)');
-    expect(route).toContain('return { item: r, ascensions: r.legs.length, finish: r.end, shifts: null };');
-    expect(route).toContain('shifts: exactMode ? shiftCount(legsFor(d.chain), d.chain.length) : null,');
+  it('numbers: the instant answer’s, with no shifts (none are said)', () => {
+    expect(route).toContain('const rowOf = (r: Route): PreferRow<Route> => ({ item: r, ascensions: r.legs.length, finish: r.end, shifts: null });');
+    expect(route).toMatch(/spare: deadline - d\.end,\s+shifts: null,/);
+    expect(route).not.toContain('shiftCount(');
   });
 });

@@ -26,12 +26,12 @@
          start?" is in Science (#/science/start). -->
     <YourSetup screen="fastest" issues-only />
 
-    <!-- The instant answer from the precomputed table (the precompute fork): every route, at once.
-         Check exactly prices them on your save; its stronger check shows at the top of the search panel. -->
+    <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
+         numbers only. The search panel below prices routes on your save; the answer points to its result. -->
     <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant">
       <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). -->
       <InstantRoute
-        stronger-to="#stronger-check-results"
+        share-to="#search-share-fastest"
         @check="checkExactly"
         @state="st => (instantLoad = st)"
         @unloaded="u => (instantUnloaded = u)"
@@ -47,9 +47,8 @@
       :class="blockedBy ? 'opacity-40 pointer-events-none select-none' : ''"
       :inert="blockedBy ? true : undefined"
     >
-      <!-- The search panel (SearchPanel.vue, 22 Oct): Light's status, then Fast | Exact | Custom. Both of its
-           parts stay mounted (v-show): a run, its progress block and #stronger-check-results (the instant
-           answer teleports the stronger check there) live on in the hidden one. -->
+      <!-- The search panel (SearchPanel.vue, 22 Oct): Fast | Exact | Custom. Both of its parts stay mounted
+           (v-show): a run and its progress block live on in the hidden one. -->
       <SearchPanel
         screen="fastest"
         :player-id="playerId"

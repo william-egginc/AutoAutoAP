@@ -197,14 +197,13 @@ describe('ResultTable expand slot', () => {
     const deadline = read('DeadlinePanel.vue');
     expect(deadline.match(/<RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" \/>/g)?.length).toBe(1);
     expect(read('LatestRunView.vue').match(/<RouteTimeline :chain="r.chain" :legs="r.legs" :zone="zone" \/>/g)?.length).toBe(3);
+    // Not the instant answer since 23 Oct 2026: its rows are instant numbers only, with no simulated legs to show.
     const instant = read('InstantRoute.vue');
-    expect(instant.match(/data-testid="instant-row-expand"/g)?.length).toBe(2);
-    expect(instant).toContain(':legs="exactLegsOf(');
-    expect(instant).toContain(':legs="atOnceLegsOf(');
+    expect(instant).not.toContain('instant-row-expand');
+    expect(instant).not.toContain('<RouteTimeline');
     expect(read('ChainSearchPanel.vue')).toMatch(/<RouteTimeline[\s\S]*?:only="i"/);
     expect(read('ByDateRouteCard.vue')).toMatch(
       /<RouteTimeline :chain="route.chain" :legs="legs" :zone="zone" :only="i" open \/>/
     );
-    expect(read('StrongerCheck.vue')).toMatch(/\.\.\.\(r\.legs\.length \? \{ legs: r\.legs \} : \{\}\)/);
   });
 });

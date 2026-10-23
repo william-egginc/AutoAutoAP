@@ -1,9 +1,11 @@
 <!--
   The search panel under the instant answer, on Fastest and on By a date (22 Oct 2026; mockup
   wireframes/search-panel-fec-v1): one card, "Stronger check", in place of the Nearby routes / Exhaustive
-  tabs and the Light / Fast / Exact / Very high bar. At the top, what the page prices by itself after Check
-  exactly (LightStatus.vue: no status line and no "Light" for players, Jordan 22 Oct), then a 3-way choice, Fast | Exact | Custom, each with its time
-  here and what it is for, then the picked option's content. Fast and Exact are Nearby routes (the
+  tabs and the Light / Fast / Exact / Very high bar. A 3-way choice, Fast | Exact | Custom (Fast until the player
+  picks another), each with its time here and what it is for, then the picked option's content, and at the bottom
+  "Share this result" once a search has one (InstantRoute.vue teleports InstantShareCheck into
+  `#search-share-<screen>`). Nothing here runs by itself: Light, which priced routes after Check exactly, is gone with
+  it (23 Oct 2026). Fast and Exact are Nearby routes (the
   `nearby` slot, StrongerBox.vue: Very high is a tick box inside Exact, lib/veryHigh.ts); Custom is
   Exhaustive, unchanged (the `custom` slot). The levels underneath are unchanged (lib/searchOption.ts).
 
@@ -36,7 +38,6 @@
       Checks the instant answer harder, with the full simulator on your save. Pick how hard to look; your choice is
       remembered.
     </p>
-    <LightStatus :goal="goal" :player-id="playerId" />
 
     <div
       class="grid grid-cols-3 gap-1 sm:gap-2 rounded-2xl bg-slate-100 p-1 sm:p-1.5"
@@ -90,6 +91,8 @@
     >
       <slot :name="p.slot" />
     </div>
+    <!-- "Share this result" (InstantShareCheck.vue, teleported by the instant answer once a search has a result). -->
+    <div :id="`search-share-${screen}`" data-testid="search-share" />
   </section>
 </template>
 
@@ -108,7 +111,6 @@ import {
   type SearchOption,
 } from '@/lib/searchOption';
 import { SHOW_VERY_HIGH } from '@/lib/veryHigh';
-import LightStatus from './LightStatus.vue';
 
 const props = defineProps<{
   screen: SearchTabScreen;
@@ -116,7 +118,7 @@ const props = defineProps<{
   running?: boolean;
   /** What each Nearby routes level would cost on THIS computer (FastestRoute.vue, DeadlinePanel.vue). */
   estimates?: Partial<Record<StrongerLevel, LevelEstimate>>;
-  /** The header's player ID, for Light's Share box. */
+  /** The header's player ID (kept for the screens that pass it). */
   playerId?: string;
   /** An unfinished run's own option (lib/searchOption.ts `choiceForEffort`): the screen opens on it,
    *  without changing what is remembered. */
@@ -125,7 +127,6 @@ const props = defineProps<{
 const emit = defineEmits<{ pick: [option: SearchOption] }>();
 
 const stronger = useStrongerStore();
-const goal = computed(() => (props.screen === 'fastest' ? 'fastest' : 'date'));
 
 const PANELS: { tab: SearchTabId; slot: 'nearby' | 'custom' }[] = [
   { tab: 'nearby', slot: 'nearby' },

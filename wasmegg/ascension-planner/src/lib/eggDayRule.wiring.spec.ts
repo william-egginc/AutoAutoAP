@@ -127,16 +127,16 @@ describe('the words and the follow suggestions', () => {
     expect(fn(follow, 'followableRow')).toContain('madeDeadline(row)');
     expect(fn(follow, 'followableAnswer')).toContain('finishesBefore(at, deadline)');
     const route = src('components/auto/InstantRoute.vue');
-    // The box's route as it shows it (lib/boxPick.ts: the instant answer's while Check exactly runs).
-    expect(route).toContain('if (dateExactShown.value) return finishesBefore(dateExactShown.value.end, deadline);');
-    expect(route).toContain('return !d || !props.deadline || finishesBefore(d.end, props.deadline);');
+    // The box's route as it shows it (the instant answer's, or Prefer fewer's pick), and each count's own route.
+    expect(route).toContain('return finishesBefore(dateBoxOf(found.byDate).end, deadline);');
+    expect(route).toContain('return !props.deadline || finishesBefore(r.end, props.deadline);');
   });
 
   it('no FollowButton anywhere else on a By a date route (the rest are Fastest’s)', () => {
     const route = src('components/auto/InstantRoute.vue');
     // The two unguarded ones are Fastest's (its box lead and its count rows).
     const unguarded = (route.match(/<FollowButton(?! v-if="(rowFollowable|boxFollowable))[^>]*>/g) ?? []).filter(b => !b.includes('v-if="r.chain.length"'));
-    expect(unguarded).toEqual(['<FollowButton class="mt-1 ml-2" primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />']);
+    expect(unguarded).toEqual(['<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />']);
     const users = allSources().filter(f => /<FollowButton/.test(fs.readFileSync(f, 'utf8')));
     expect(users.map(f => path.relative(path.resolve(__dirname, '..'), f)).sort()).toEqual([
       'components/auto/InstantRoute.vue',

@@ -228,12 +228,8 @@ describe("readMyBoardRows: one fetch layer, the board's /all reused for a minute
 });
 
 describe('the sources wire through', () => {
-  it('StrongerCheck.vue reads the board through search/myBoardRows.ts, not /mine on its own', async () => {
+  it('the board panel reads the account\'s runs through search/myBoardRows.ts (StrongerCheck.vue, gone 23 Oct 2026, did too)', async () => {
     const fs = await import('node:fs');
-    const src = fs.readFileSync(new URL('../components/auto/StrongerCheck.vue', import.meta.url), 'utf8');
-    expect(src).toContain('readMyBoardRows(');
-    expect(src).toContain('lookAlikeFor(');
-    expect(src).not.toMatch(/fetch\(`\$\{root\}\/mine`/);
     const board = fs.readFileSync(new URL('../components/auto/LeaderboardPanel.vue', import.meta.url), 'utf8');
     expect(board).toContain('rememberAll(root.value, rows)');
     expect(board).toContain('lookAlikeFor(');

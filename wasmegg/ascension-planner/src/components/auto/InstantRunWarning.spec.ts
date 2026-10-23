@@ -40,8 +40,6 @@ describe('InstantRunWarning', () => {
     const presses: [string, WarnAt][] = [
       ["pressRun(true, 'again')", 'again'],
       ["pressRun(false, 'anyway')", 'anyway'],
-      ["pressCheck('check-date')", 'check-date'],
-      ["pressCheck('check-fastest')", 'check-fastest'],
     ];
     for (const [press, at] of presses) {
       const button = template.indexOf(press);
@@ -54,8 +52,9 @@ describe('InstantRunWarning', () => {
       expect(between.match(/<\/button>/g)?.length ?? 0, at).toBeLessThanOrEqual(2);
       expect(/press(Run|Check)\(/.test(between.slice(press.length)), at).toBe(false);
     }
-    // One warning per spot, no leftover one at the top of the card.
-    expect(template.match(/<InstantRunWarning/g)).toHaveLength(4);
+    // One warning per spot, no leftover one at the top of the card. (Check exactly's two went with it, 23 Oct 2026.)
+    expect(template.match(/<InstantRunWarning/g)).toHaveLength(2);
+    expect(template).not.toContain('pressCheck(');
     expect(template).not.toContain('v-if="confirming"');
   });
 });

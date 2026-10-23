@@ -1,8 +1,9 @@
 <template>
-  <!-- Sharing this check (search/instantRecord.ts), beside the instant answer's Check exactly button: one
-       check, or every check from now on ("Keep sharing my checks", the same setting as Your setup › Sharing).
-       "Keep sharing" is the account's consent (ConsentBox.vue, composables/useConsent.ts): remembered per
-       account, folded to one line once on, withdrawn at once (the next check sends nothing). -->
+  <!-- Sharing a search result (search/instantRecord.ts; was "Share this check" beside Check exactly until 23 Oct
+       2026), at the bottom of the search panel once Fast, Exact or Custom has a result: this one, or every one from
+       now on ("Share my search results", the same setting as Your setup › Sharing). That is the account's consent
+       (ConsentBox.vue, composables/useConsent.ts, still stored as `keepSharingChecks`): remembered per account,
+       folded to one line once on, withdrawn at once (the next result sends nothing). -->
   <div
     class="rounded-lg border border-emerald-200 bg-white/70 px-2.5 py-1.5 text-[11px] text-slate-700 space-y-0.5"
     data-testid="share-check"
@@ -19,7 +20,7 @@
       @update:model-value="(v: boolean) => emit('update:keepSharing', v)"
     >
       <template #summary
-        ><span>Sharing my checks with the planner's maintainer (anonymous)</span
+        ><span>Sharing my search results with the planner's maintainer (anonymous)</span
         ><span
           v-if="status"
           class="text-[10px] font-normal"
@@ -38,7 +39,7 @@
               data-testid="share-this-check"
               @change="emit('update:shareThis', ($event.target as HTMLInputElement).checked)"
             />
-            <span class="font-bold text-slate-800">Share this check</span> (anonymous)
+            <span class="font-bold text-slate-800">Share this result</span> (anonymous)
           </label>
           <span
             v-if="status"
@@ -49,11 +50,12 @@
           >
         </div>
       </template>
-      <template #text><span>Keep sharing my checks</span></template>
+      <template #text><span>Share my search results</span></template>
       <template #after>
         <p class="text-[10px] text-slate-500 leading-snug">
-          Sends this answer and its exact times to the planner's maintainer when Check exactly finishes, to make the
-          instant answer more accurate. Never your player ID, never shown on the board. At most once an hour per save.
+          Sends this result and the instant answer for the same goal to the planner's maintainer when a search
+          finishes, to make the instant answer more accurate. Never your player ID, never shown on the board. At most
+          once an hour per save.
         </p>
       </template>
     </ConsentBox>

@@ -221,7 +221,7 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
 });
 
 describe('the setup is recorded where answers are kept', () => {
-  it('Check exactly history entries keep it; InstantRoute passes it, and its snapshot meta writes it', async () => {
+  it('check history entries keep it (entries from before 23 Oct 2026); the instant snapshot meta writes it', async () => {
     const { entryFromRecord } = await import('@/search/checkHistory');
     const rec = { mode: 'fastest', target: 490, currentTE: 191, instant: { chain: [490], end: 1 }, exact: null } as never;
     expect(entryFromRecord(rec, 's', 1, false, MINE).setup).toEqual(MINE);
@@ -229,8 +229,9 @@ describe('the setup is recorded where answers are kept', () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const src = fs.readFileSync(path.resolve(__dirname, '../components/auto/InstantRoute.vue'), 'utf8');
-    expect(src).toContain('entryFromRecord(c.record, c.sig, Date.now(), false, exactSetup)');
-    expect(src).toMatch(/setup: exactSetup \?\? \{/);
+    // No Check exactly since 23 Oct 2026: nothing new goes into the check history; the snapshot keeps the setup now.
+    expect(src).not.toContain('entryFromRecord(');
+    expect(src).toMatch(/\/\/ The hours and time off: the key holds them, so these are this snapshot's\.\s+setup: \{/);
     // My runs builds both Right now and the tiles from the one selector.
     const page = fs.readFileSync(path.resolve(__dirname, '../composables/useNowPage.ts'), 'utf8');
     expect(page).toContain('plansByGoal(goalList.value, snapCandidates.value, goalAnswers.value, saveSeconds.value, followedKeys.value)');
