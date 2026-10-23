@@ -183,7 +183,9 @@ const INPUTS: SubmissionInputs = {
 describe('board rows carry the start block', () => {
   it('buildSubmission sends it with the tab’s age, for a run priced in this tab, with no schema bump', () => {
     const start = startProvenanceOf({ source: 'fresh', rawBackup: save(), plan: 'now' });
-    const sub = buildSubmission({ ...INPUTS, build: 'abc1234', start });
+    // The tab's age is `now` less the page's real opening time (performance.timeOrigin), so `now` is the real clock
+    // here: INPUTS' fixed Oct 22 6:00 pm UTC made it a day "before" the page opened from Oct 23 6:00 pm UTC on.
+    const sub = buildSubmission({ ...INPUTS, now: Date.now(), build: 'abc1234', start });
     expect(sub.schema).toBe(7);
     expect(sub.start).toMatchObject({ src: 'fresh', claimed: [43, 38, 44, 40, 39], saveAt: SAVE_AT, plan: 'now' });
     expect(sub.start!.saveHash).toBe(saveHashOf(save()));
