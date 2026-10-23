@@ -231,7 +231,7 @@
         <p>
           <b>Stronger check.</b> A box under the instant answer. Nothing in it runs by itself: you pick how hard to look: Fast or Exact run {{ NAMES.smart }}, a search of
           the routes near the instant answer's (Exact a wider one), and Custom is {{ NAMES.full }}, every route in boxes
-          you set. Each option says what it does, how long it should take on your computer, and what it can miss. Anything that beats the answer shows as "Best now".
+          you set. Each option says what it does, how long it should take on your computer, and what it can miss. Its result shows in the box, and the instant answer points to it ("Fast found … See it ↓").
         </p>
       </div>
     </details>

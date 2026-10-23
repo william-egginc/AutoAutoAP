@@ -23,6 +23,8 @@ describe('Science › How it works', () => {
     expect(text).not.toMatch(/planned "Prestige by/i);
     expect(text).toContain('Stronger check. A box under the instant answer. Nothing in it runs by itself');
     expect(text).toContain('you pick how hard to look: Fast or Exact run');
+    expect(text).not.toContain('Best now'); // the instant card's pointer since 23 Oct 2026
+    expect(text).toContain('the instant answer points to it ("Fast found … See it ↓")');
     expect(text).not.toContain('four levels');
     expect(text).not.toContain('Try: stronger check (a prototype)');
     expect(text).toContain('The Integrity check.');
