@@ -185,8 +185,8 @@ describe('gearShiftTable (the weak-gear form G)', () => {
   it('is skipped for a player as good as maxed, and the hours hold only with held shifts', () => {
     expect(nearMaxedGear({ g: 0.01, geo: 0.999, k: 1 })).toBe(true);
     expect(nearMaxedGear({ g: 0, geo: 0.966, k: 0.95 })).toBe(false);
-    expect(instantTail(HOURS, true)).toEqual({ holdShifts: true });
-    expect(instantTail(HOURS, false)).toEqual({});
-    expect(instantTail(null, true)).toEqual({});
+    expect(instantTail(HOURS, true)).toEqual({ order: 'simulator', holdShifts: true });
+    expect(instantTail(HOURS, false)).toEqual({ order: 'simulator' });
+    expect(instantTail(null, true)).toEqual({ order: 'simulator' });
   });
 });

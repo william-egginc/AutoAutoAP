@@ -105,9 +105,9 @@ export function nearMaxedGear(s: Pick<GearShift, 'g' | 'geo' | 'k'>): boolean {
 /**
  * The instant answer's tail options (routeFinder.ts `TailOptions`) for the player's hours: with
  * "Works inside my hours" (`hours`) and Your setup's held shifts on, every table leg's shifts are held
- * as Check exactly holds them. The simulator's order and the laying while a prestige waits are the
- * finder's defaults.
+ * as Check exactly holds them. The simulator's order is asked for by name (the engine's recommendation,
+ * hours on and off; it is also the finder's default); the laying while a prestige waits is the default.
  */
 export function instantTail(hours: Availability | null | undefined, deferShifts: boolean): TailOptions {
-  return hours && deferShifts ? { holdShifts: true } : {};
+  return { order: 'simulator', ...(hours && deferShifts ? { holdShifts: true } : {}) };
 }
