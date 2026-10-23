@@ -72,7 +72,7 @@ export const LAST_DATEABLE_SECONDS = 8.64e12;
 /** Backup egg enum (50..54) -> EngineState's egg name, the same table the generator keeps as
  *  VIRTUE_EGGS_MAP. Passing the raw number through leaves `currentEgg` as `53` and quietly corrupts
  *  every rate calculation downstream — that was a real bug in the CLI harness. */
-export const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
+const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
   50: 'curiosity',
   51: 'integrity',
   52: 'humility',

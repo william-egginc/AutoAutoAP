@@ -7,13 +7,16 @@
  * 'auto' and 'buildup' with a farm in the save include the build-up's tails; 'continue' and 'fresh'
  * never simulate them.
  */
-import { continueTailParams, VIRTUE_EGGS_MAP } from './leg';
+import { continueTailParams } from './leg';
 import { nextHour } from './routeFinder';
 import { readFirstAscension } from './firstAscension';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from './rules';
 import type { FirstLegOptions } from './routeFinder';
 import type { SearchInputs } from './types';
+
+/** The backup's egg numbers (50-54) in EGG_ORDER, as search/leg.ts `continueState` maps them. */
+const SAVE_EGG_INDEX: Record<number, number> = { 50: 0, 54: 1, 51: 2, 53: 3, 52: 4 };
 
 /** `firstLegOptions` without the table and the delivery scale (which the caller's table decides). */
 export type InstantFirstLegsBase = Omit<FirstLegOptions, 'table' | 'deliveryScale'>;
@@ -53,7 +56,7 @@ export async function instantFirstLegsBase(
   const start = p.start ?? inputs.planStart;
   const withSave = p.save !== false;
   // The egg the save's farm is on (EGG_ORDER), for continue's holds (routeFinder.ts `firstLegOptions`).
-  const contEgg = EGG_ORDER.indexOf(VIRTUE_EGGS_MAP[inputs.currentFarmState?.eggType as number] ?? 'curiosity');
+  const contEgg = SAVE_EGG_INDEX[inputs.currentFarmState?.eggType as number] ?? 0;
   const buildUp = withSave && p.buildUp !== false && buildsUpFirst(inputs) ? await p.buildUpTails(start) : [];
   return {
     startTE: p.startTE,

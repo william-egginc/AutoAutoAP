@@ -25,7 +25,7 @@
  *   new Worker(new URL('./chainSearch.worker.ts', import.meta.url), { type: 'module' })
  */
 import { createChainEvaluator, type ChainEvaluator } from '@/search/chain';
-import { buildUpTailParams, integrityCheck } from '@/search/leg';
+import { buildUpTailParamsV2, integrityCheck } from '@/search/leg';
 import { liveFreshBuilds } from '@/search/liveCell';
 import type { SearchInputs } from '@/search/types';
 import type { ChainResult } from '@/search/types';
@@ -123,9 +123,11 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
       }
       case 'buildup-tails': {
         if (!loaded) throw new Error('chainSearch worker received buildup-tails before init');
-        let tails: ReturnType<typeof buildUpTailParams> = [];
+        // With table version 2's extras, so the instant answer replays its tail as the simulator runs it
+        // (and, with the player's hours, held: routeFinder.ts TailOptions).
+        let tails: ReturnType<typeof buildUpTailParamsV2> = [];
         try {
-          tails = buildUpTailParams(loaded, loaded.planStart);
+          tails = buildUpTailParamsV2(loaded, loaded.planStart);
         } catch {
           tails = [];
         }

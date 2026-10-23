@@ -33,6 +33,7 @@ import type {
   FoundRoutes,
   PolishOptions,
   Route,
+  TailOptions,
 } from './routeFinder';
 import type { Availability } from './availabilitySchedule';
 
@@ -489,6 +490,8 @@ export interface FindContext {
   firstLegs: FirstLeg[];
   deliveryScale: number;
   hours: Availability | null;
+  /** How the instant answer priced its tails (routeFinder.ts `TailOptions`): a search from here does the same. */
+  tail?: TailOptions;
   maxAscensions: number | null;
   expand: (items: ArrivalItem[], settings: ExpandSettings) => Promise<Candidate[]>;
   polish: (options: PolishOptions, found: FoundRoutes) => Promise<FoundRoutes>;

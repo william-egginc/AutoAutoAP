@@ -315,6 +315,7 @@ async function findAt(target: number): Promise<number[][]> {
     firstLegs,
     deliveryScale: c.deliveryScale,
     ...(c.hours ? { hours: c.hours } : {}),
+    ...c.tail,
   };
   const found = await findRoutes({ ...base, table: () => null, final: target, maxAscensions: 12, expand: c.expand });
   let all: FoundRoutes = found;

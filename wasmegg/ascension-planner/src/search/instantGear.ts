@@ -27,6 +27,8 @@ import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { Modifiers as ColleggtibleModifiers } from 'lib/collegtibles';
 import type { TableHeader } from './precomputedTable';
 import type { SearchInputs } from './types';
+import type { Availability } from './availability';
+import type { TailOptions } from './routeFinder';
 
 export interface GearShift {
   /** Clothed-TE points below the table (never below 0): the row shift. */
@@ -93,4 +95,19 @@ export function instantGearShift(inputs: SearchInputs, header: TableHeader): Gea
     sigma,
     parts: { artifacts, colleggtibles, lab },
   };
+}
+
+/** A player as good as the maxed table (the old single scale is then exact): no shift needed. */
+export function nearMaxedGear(s: Pick<GearShift, 'g' | 'geo' | 'k'>): boolean {
+  return s.g < 0.05 && Math.abs(s.geo - 1) < 0.005 && Math.abs(s.k - 1) < 0.005;
+}
+
+/**
+ * The instant answer's tail options (routeFinder.ts `TailOptions`) for the player's hours: with
+ * "Works inside my hours" (`hours`) and Your setup's held shifts on, every table leg's shifts are held
+ * as Check exactly holds them. The simulator's order and the laying while a prestige waits are the
+ * finder's defaults.
+ */
+export function instantTail(hours: Availability | null | undefined, deferShifts: boolean): TailOptions {
+  return hours && deferShifts ? { holdShifts: true } : {};
 }

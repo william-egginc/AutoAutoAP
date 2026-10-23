@@ -50,12 +50,15 @@ export type BuildLookup = (te: number, hour: number) => BuildWithExtras[] | null
 /**
  * INSTANT ANSWER V2 (23 Oct 2026): how each table leg's tail is priced beyond `tailTo`.
  *  - `holdShifts` with `hours`: every shift inside the tail waits for the player's hours, the farm
- *    laying meanwhile, as Check exactly holds it (tableV2.ts `sweepReplay`, for builds that carry a
- *    version 2 table's extras; the others as before).
- *  - `order: 'simulator'`: the tail in the simulator's order for builds whose sale wait H1 takes on
- *    humility (tableV2.ts; up to a day off the table's order on ~3% of tails).
+ *    laying meanwhile, as Check exactly holds it with "hold each shift" on (tableV2.ts `sweepReplay`,
+ *    for builds that carry a version 2 table's extras; the others as before). Default off.
+ *  - `order`: a version 2 build's tail in the simulator's order (default), which differs from
+ *    `tailTo`'s for builds whose sale wait H1 takes on humility: up to a day on ~3% of tails, and on a
+ *    maxed account's whole route 136 h of the 136 h the old answer was off with hours off (the
+ *    instant2 notes, 23 Oct). 'table': `tailTo`'s, as version 1.
  *  - `creditWaits` with `hours`: while a prestige waits for the player, the farm keeps laying the egg
- *    the last ascension ended on at its peak rate and those eggs carry on (search/chain.ts does).
+ *    the last ascension ended on at its peak rate and those eggs carry on, as search/chain.ts has it.
+ *    Default on (false: off).
  * Plain data, so it goes to the route workers with the settings.
  */
 export interface TailOptions {
@@ -80,15 +83,15 @@ function holdUntilFor(hours: Availability | undefined | null): ((t: number) => n
 
 /** Whether a build's tail is replayed (`sweepReplay`) rather than swept as the table stores it. */
 function replays(b: BuildWithExtras, holdUntil: ((t: number) => number) | undefined, o: TailOptions): boolean {
-  return !!b.extras && (!!holdUntil || o.order === 'simulator');
+  return !!b.extras && (!!holdUntil || o.order !== 'table');
 }
 
 /** The tail options of a request, only those set (plain data for the workers' settings). */
 export function tailOptionsOf(o: TailOptions): TailOptions {
   return {
     ...(o.holdShifts ? { holdShifts: true } : {}),
-    ...(o.order === 'simulator' ? { order: 'simulator' as const } : {}),
-    ...(o.creditWaits ? { creditWaits: true } : {}),
+    ...(o.order === 'table' ? { order: 'table' as const } : {}),
+    ...(o.creditWaits === false ? { creditWaits: false } : {}),
   };
 }
 
@@ -104,7 +107,7 @@ function sweepOne(
   o: TailOptions
 ): TailSweep {
   return replays(b, holdUntil, o)
-    ? sweepReplay(b, b.extras!, top, { start, lateBy, lowest, holdUntil, order: o.order ?? 'table' })
+    ? sweepReplay(b, b.extras!, top, { start, lateBy, lowest, holdUntil, order: o.order === 'table' ? 'table' : 'simulator' })
     : sweepTails(b, top, lateBy, lowest);
 }
 
@@ -530,7 +533,7 @@ export function expandArrivals(
     const prestige = !!s.hours && item.stop !== undefined;
     // While the prestige waits for the player, the farm lays on (`creditWaits`): more eggs, maybe a TE.
     const credited =
-      prestige && s.creditWaits
+      prestige && s.creditWaits !== false
         ? creditWait(item.te, item.time, item.delivered, item.egg, item.rate, s.hours)
         : { te: item.te, delivered: item.delivered };
     const te = credited.te;
@@ -593,7 +596,8 @@ export function expandArrivals(
               tier13: build.tier13,
               label: `${build.sales}-sale${build.tier13 ? '-tier13' : ''}`,
             },
-            ...(s.creditWaits ? { egg: endEggOf(sweep, build, i, kept), rate: build.peakELR } : {}),
+            egg: endEggOf(sweep, build, i, kept),
+            rate: build.peakELR,
           },
           s.keep
         )
@@ -692,7 +696,7 @@ export async function findRoutes(
         relax(1, Math.min(f.endTE, top), {
           time: f.end,
           delivered: f.delivered,
-          ...(settings.creditWaits && egg !== undefined && rate !== undefined ? { egg, rate } : {}),
+          ...(egg !== undefined && rate !== undefined ? { egg, rate } : {}),
           prev: start,
           leg: {
             from: o.startTE,
@@ -926,7 +930,8 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
         label: pick.label,
         ...(pick.label === 'continue' && o.cont ? farmEnd(o.cont, pick.delivered) : {}),
         ...(pick.label === 'buildup' && bp ? farmEnd(bp.build, pick.delivered) : {}),
-        ...(o.creditWaits ? { lastEgg: pick.lastEgg, rate: pick.rate } : {}),
+        lastEgg: pick.lastEgg,
+        rate: pick.rate,
       });
   }
   return out;
@@ -1028,7 +1033,7 @@ export function priceChain(
     }
     const hours = i > 0 && o.holdForHours !== false ? o.hours : undefined;
     // While this prestige waits for the player the farm lays on (`creditWaits`), as findRoutes has it.
-    if (hours && o.creditWaits) ({ te, delivered: eggs } = creditWait(te, t, eggs, egg, rate, hours));
+    if (hours && o.creditWaits !== false) ({ te, delivered: eggs } = creditWait(te, t, eggs, egg, rate, hours));
     if (target <= te) return (remember(i, false), null);
     const p = priceLeg(table, te, t, eggs, target, scale, hours, tailOptionsOf(o));
     if (!p) return (remember(i, false), null);

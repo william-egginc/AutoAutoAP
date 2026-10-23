@@ -1039,6 +1039,7 @@ import { plainError } from '@/lib/plainError';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { findRoutes, type FirstLeg, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
+import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from '@/search/instantGear';
 import {
   atMostAscensions,
   describeGains,
@@ -1150,7 +1151,7 @@ import type { HandoffChoice } from '@/search/chain';
 import type { ChainResult } from '@/search/types';
 import { followedCount } from '@/lib/ascRange';
 import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName, tableName } from '@/search/tableGear';
-import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
+import { compositeUrl, gearShiftUrl, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
@@ -1238,7 +1239,9 @@ const TABLE_URL = `${import.meta.env.BASE_URL}precompute/table.bin`;
 const tableUrl = ref(TABLE_URL);
 /** Built on this player's gear (their own table, or a board gear combination's exactly like theirs):
  *  no adjustment, and none of the maxed table's caveats. */
-const own = computed(() => tableUrl.value !== TABLE_URL);
+const own = computed(() => tableUrl.value !== TABLE_URL && !shiftedTable.value);
+/** INSTANT ANSWER V2: the maxed table moved to the player's gear (search/instantGear.ts, the form G). */
+const shiftedTable = computed(() => !!parseGearShiftUrl(tableUrl.value));
 /** A gear combination's table below GEAR_TABLE_TO, the maxed one from it. */
 const gearTable = computed(() => !!parseCompositeUrl(tableUrl.value));
 /** Where gear tables end and the maxed table takes over: from there it is exact for any gear on the
@@ -1486,6 +1489,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
           deliveryScale: ctx.scale,
           ...(deadline ? { deadline } : {}),
           ...(hours ? { hours } : {}),
+          ...instantTail(hours, store.deferShifts),
         };
         const f = await findRoutes({
           ...base,
@@ -1734,6 +1738,8 @@ const optimistic = computed(() => {
   // A gear combination's answer above its own rows: the maxed one at the composite's scale (the one applied).
   const comp = parseCompositeUrl(tableUrl.value);
   if (comp) return optimisticForGear('gear', comp.scale, gearReadsMaxed(store.currentTE, header.value?.gearTo, comp.split));
+  // The form G is at the player's own delivery (measured within about 2%, a little pessimistic).
+  if (shiftedTable.value) return optimisticForGear('maxed', 1);
   return optimisticForGear(answerTable.value, deliveryScale.value);
 });
 
@@ -2040,9 +2046,12 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (oh?.gear && mine) {
       const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, oh.gear.research);
       const changes = stamp ? gearChanges(oh.gear, stamp) : ['gear'];
+      // INSTANT ANSWER V2: only a table made by this simulator; an older one gives way to the form G below.
       if (!changes.length) {
-        url = mine;
-        h = oh;
+        if (!tableSimMismatch(oh)) {
+          url = mine;
+          h = oh;
+        }
       } else mismatch = changes.join(', ');
     }
     h ??= await p.header(TABLE_URL);
@@ -2061,7 +2070,10 @@ async function run(force = false, goAhead = false): Promise<void> {
           const gearUrl = `${import.meta.env.BASE_URL}precompute/${gearName}`;
           const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
           try {
-            h = await p.header(both);
+            const gh = await p.header(both);
+            // INSTANT ANSWER V2: a gear table made by an older simulator gives way to the form G below.
+            if (tableSimMismatch(gh)) break;
+            h = gh;
             url = both;
             found = true;
             break;
@@ -2072,6 +2084,18 @@ async function run(force = false, goAhead = false): Promise<void> {
         }
         // No table for this gear (the usual case): the maxed one.
         if (!found) h = await p.header(TABLE_URL);
+      }
+    }
+    // INSTANT ANSWER V2: no own or gear table of this simulator: the maxed table moved to the player's
+    // gear (search/instantGear.ts, the form G), unless they are as good as maxed.
+    let gearShifted = false;
+    if (url === TABLE_URL) {
+      const shift = instantGearShift(store.collectInputs(), h);
+      if (shift && !nearMaxedGear(shift)) {
+        const shiftedUrl = gearShiftUrl(TABLE_URL, gearShiftKey(shift));
+        h = await p.header(shiftedUrl);
+        url = shiftedUrl;
+        gearShifted = true;
       }
     }
     if (id !== runs) return;
@@ -2087,7 +2111,8 @@ async function run(force = false, goAhead = false): Promise<void> {
       return;
     }
     const inputs = store.collectInputs();
-    const scale = deliveryScale.value ?? 1;
+    // The form G is at the player's delivery already.
+    const scale = gearShifted ? 1 : (deliveryScale.value ?? 1);
     const t0 = performance.now();
     // The first-legs request, Continue my build-up included (search/instantFirstLegs.ts): the standard
     // build carried on from the farm in the save, simulated on a background worker (a few seconds).
@@ -2110,12 +2135,14 @@ async function run(force = false, goAhead = false): Promise<void> {
       },
     });
     if (id !== runs) return;
-    const firstLegs = await p.firstLegs({ url, deliveryScale: scale, ...legsRequest });
-    if (id !== runs) return;
-    prestigeInputs = { id, url, firstLegs, scale, planStart: inputs.planStart, te, delivered: legsRequest.delivered };
     // A plain copy: it goes to the workers.
     const hours =
       useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
+    // INSTANT ANSWER V2: the table's legs (and the first) held for the player's hours as Check exactly holds them.
+    const tail = instantTail(hours, store.deferShifts);
+    const firstLegs = await p.firstLegs({ url, deliveryScale: scale, ...legsRequest, ...tail, hours });
+    if (id !== runs) return;
+    prestigeInputs = { id, url, firstLegs, scale, planStart: inputs.planStart, te, delivered: legsRequest.delivered };
     whatIfInputs.value = { legs: legsRequest, hours };
     const found = await findRoutes({
       table: () => null,
@@ -2127,6 +2154,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       deliveryScale: scale,
       ...(props.deadline ? { deadline: props.deadline } : {}),
       ...(hours ? { hours } : {}),
+      ...tail,
       onProgress: (done, of) => {
         if (id === runs) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
       },
@@ -2142,6 +2170,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       deliveryScale: scale,
       ...(props.deadline ? { deadline: props.deadline } : {}),
       ...(hours ? { hours } : {}),
+      ...tail,
     };
     const polished = await p.polish(url, polishOptions, JSON.parse(JSON.stringify(found)));
     if (id !== runs) return;
@@ -2157,6 +2186,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       firstLegs,
       deliveryScale: scale,
       hours,
+      tail,
       maxAscensions: filters.value.maxAscensions,
       expand: (items, settings) => p.expand(url, items, settings),
       polish: (options, f) => p.polish(url, options, f),

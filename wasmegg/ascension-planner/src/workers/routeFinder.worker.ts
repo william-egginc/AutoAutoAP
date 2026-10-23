@@ -6,9 +6,16 @@
  * The table (search/precomputedTable.ts) is fetched here on the first request and kept for the
  * worker's life, so a second search (another start time, another target) costs no download.
  */
-import { compositeTable, parseCompositeUrl, type Table } from '@/search/precomputedTable';
+import {
+  compositeTable,
+  gearShiftTable,
+  parseCompositeUrl,
+  parseGearShiftUrl,
+  withExtras,
+  type Table,
+} from '@/search/precomputedTable';
 import { fetchTable } from '@/search/tableFetch';
-import { expandArrivals, firstLegOptions, polishFound } from '@/search/routeFinder';
+import { expandArrivals, firstLegOptions, polishFound, tailOptionsOf } from '@/search/routeFinder';
 import { estimateProfile } from '@/search/prestigeBy';
 import { SweepCache } from '@/search/sweepCache';
 import type { RouteWorkerRequest, RouteWorkerResponse } from './routeFinder.protocol';
@@ -24,13 +31,18 @@ let tableUrl = '';
 function load(url: string): Promise<Table> {
   if (!table || tableUrl !== url) {
     tableUrl = url;
-    // A gear table below a TE and the maxed one from it (precomputedTable.ts compositeUrl).
+    // A gear table below a TE and the maxed one from it (precomputedTable.ts compositeUrl); the maxed
+    // one moved to the player's gear (gearShiftUrl, the weak-gear form G); or one table. A version 2
+    // table's builds carry their extras for the held replay (withExtras; version 1 as it is).
     const c = parseCompositeUrl(url);
+    const g = c ? null : parseGearShiftUrl(url);
     table = c
       ? Promise.all([fetchTable(c.low), fetchTable(c.high)]).then(([low, high]) =>
-          compositeTable(low, high, c.split, c.scale)
+          compositeTable(low, withExtras(high), c.split, c.scale)
         )
-      : fetchTable(url);
+      : g
+        ? fetchTable(g.url).then(t => gearShiftTable(withExtras(t), g))
+        : fetchTable(url).then(t => withExtras(t));
     // A failed load is retried on the next request rather than remembered.
     table.catch(() => (table = null));
   }
@@ -66,6 +78,9 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
             firstAscension: m.firstAscension,
             pinSeconds: m.pinSeconds,
             maxContinueSeconds: m.maxContinueSeconds,
+            ...(m.hours ? { hours: m.hours } : {}),
+            ...(m.contEgg !== undefined ? { contEgg: m.contEgg } : {}),
+            ...tailOptionsOf(m),
           }),
         });
         return;
