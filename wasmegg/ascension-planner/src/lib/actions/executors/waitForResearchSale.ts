@@ -16,6 +16,6 @@ export const waitForResearchSaleExecutor: ActionExecutor<'wait_for_research_sale
     },
 
     getEffectDescription(payload: WaitForResearchSalePayload) {
-        return `Wait for <b>${formatDuration(payload.totalTimeSeconds)}</b> until next Friday 9:00 am PT`;
+        return `Wait for ${formatDuration(payload.totalTimeSeconds)} until next Friday 9:00 am PT`;
     },
 };

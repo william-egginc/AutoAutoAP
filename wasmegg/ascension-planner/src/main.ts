@@ -1,3 +1,7 @@
+// First: swap a storage the browser blocks for one in memory, before any module reads it (storageGuard.ts).
+import './lib/storageGuard.install';
+// Then: a player ID out of the address bar before anything (the counter, the app) reads it (urlPlayerId.ts).
+import './lib/urlPrivacy.install';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueTippy from 'vue-tippy';

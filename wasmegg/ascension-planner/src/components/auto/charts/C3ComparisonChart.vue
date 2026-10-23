@@ -25,6 +25,7 @@ import type { ChartOption } from '@/lib/charts/echarts';
 import type { VariantKey, VariantResult } from '@/stores/autoPlanner';
 import { useVirtueStore } from '@/stores/virtue';
 import { formatAbsoluteTime, formatNumber } from '@/lib/format';
+import { esc } from '@/lib/charts/tooltip';
 import {
   VARIANT_KEY_ORDER,
   variantColor,
@@ -131,9 +132,10 @@ const option = computed<ChartOption>(() => {
         const timeMs = params.componentType === 'markPoint' ? params.data!.coord![0] : params.value![0];
         const dateStr = formatAbsoluteTime(0, timeMs, 'UTC');
         if (params.componentType === 'markPoint') {
-          return `<b>${params.seriesName}</b><br/>${params.data!.markerLabel}<br/>${dateStr}`;
+          // Escaped: a marker's label comes from the plan, which can be an imported file.
+          return `<b>${esc(params.seriesName)}</b><br/>${esc(params.data!.markerLabel)}<br/>${esc(dateStr)}`;
         }
-        return `<b>${params.seriesName}</b><br/>${formatNumber(params.value![1], 3)}/hr<br/>${dateStr}`;
+        return `<b>${esc(params.seriesName)}</b><br/>${esc(formatNumber(params.value![1], 3))}/hr<br/>${esc(dateStr)}`;
       },
     },
     legend: { top: 0, itemWidth: 14, itemHeight: 8, textStyle: { fontSize: 10 } },

@@ -5,6 +5,7 @@
  * `rollUpPendingTE`), so code that needs the save as it is reads the backup with these.
  */
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { guardFarm } from '@/lib/saveGuard';
 import type { ei } from 'lib';
 import type { CurrentFarmState, ResearchLevels, VehicleSlot, VirtueEgg } from '@/types';
 
@@ -44,8 +45,10 @@ export function parseVirtueProgress(backup: ei.IBackup): VirtueProgress {
   return { teEarned, eggsDelivered, tePending };
 }
 
-/** The active virtue farm (egg types 50-54), or null when the save has none. */
-export function parseVirtueFarm(backup: ei.IBackup): CurrentFarmState | null {
+/** The active virtue farm (egg types 50-54), or null when the save has none. Habs, vehicles and research
+ *  levels this planner doesn't know yet are held to the nearest known (lib/saveGuard.ts), each noted in
+ *  `notes` when given. */
+export function parseVirtueFarm(backup: ei.IBackup, notes: string[] = []): CurrentFarmState | null {
   const farm = backup.farms?.find(f => f.eggType && f.eggType >= 50 && f.eggType <= 54);
   if (!farm) return null;
 
@@ -72,7 +75,7 @@ export function parseVirtueFarm(backup: ei.IBackup): CurrentFarmState | null {
     population = farm.habPopulation.reduce((sum: number, p: number) => sum + (p || 0), 0);
   }
 
-  return {
+  return guardFarm({
     eggType: farm.eggType as number,
     cash: farm.unclaimedCash || Math.max(0, (farm.cashEarned || 0) - (farm.cashSpent || 0)),
     numSilos: farm.silosOwned || 1,
@@ -84,5 +87,5 @@ export function parseVirtueFarm(backup: ei.IBackup): CurrentFarmState | null {
     lastStepTime: farm.lastStepTime || 0,
     cashEarned: farm.cashEarned || 0,
     cashSpent: farm.cashSpent || 0,
-  };
+  }, notes);
 }

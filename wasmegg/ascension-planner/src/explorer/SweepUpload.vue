@@ -195,7 +195,7 @@ import {
   type Submission,
 } from '@/search/submission';
 import type { CollectorRow } from './collector';
-import { inflateIfGzip } from './collector';
+import { readUploadText } from '@/lib/uploadGuard';
 import { presetBandsFor } from './needs';
 import {
   SWEEP_PRESETS,
@@ -238,22 +238,26 @@ async function onFiles(e: Event): Promise<void> {
   sent.value = false;
   sendMessage.value = '';
   try {
+    // Every file read and checked first (lib/uploadGuard.ts: size cap, a capped gzip unpack, strict text
+    // and JSON), and only then shown: one bad file of two leaves nothing half-loaded.
+    let nextDiag: { value: Diagnostics; name: string } | null = null;
+    let nextCsv: { value: UploadCsv; text: string; name: string } | null = null;
     for (const f of files) {
-      const bytes = new Uint8Array(await f.arrayBuffer());
       if (/\.json$/i.test(f.name)) {
-        diag.value = readDiagnostics(new TextDecoder().decode(bytes));
-        diagName.value = f.name;
+        nextDiag = { value: readDiagnostics(await readUploadText(f, 'diagnostics')), name: f.name };
       } else {
-        let text: string;
-        try {
-          text = await inflateIfGzip(bytes);
-        } catch {
-          throw new Error(`${f.name} is a damaged gzip file: it ends before the data does. Download it again.`);
-        }
-        csv.value = readUploadCsv(text);
-        csvText.value = text;
-        csvName.value = f.name;
+        const text = await readUploadText(f, 'csv');
+        nextCsv = { value: readUploadCsv(text), text, name: f.name };
       }
+    }
+    if (nextDiag) {
+      diag.value = nextDiag.value;
+      diagName.value = nextDiag.name;
+    }
+    if (nextCsv) {
+      csv.value = nextCsv.value;
+      csvText.value = nextCsv.text;
+      csvName.value = nextCsv.name;
     }
   } catch (err) {
     readError.value = plainError(err, 'That file could not be read.');

@@ -38,7 +38,7 @@ import { plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/dr
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
 import { lastTECostFrom } from '@/search/oneMoreTE';
-import { createChainSearchPool, type ChainSearchPool, type PoolFault } from '@/search/pool';
+import { createChainSearchPool, WorkerLostError, type ChainSearchPool, type PoolFault } from '@/search/pool';
 import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, sweepSeconds, timeWeightedWorkers, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
@@ -325,6 +325,7 @@ import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
 import { thisDevice } from '@/search/device';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
+import { readStoredJson, isPlainRecord } from '@/lib/safeStorage';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -6296,8 +6297,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         stage.value = finalStage;
       }
     } catch (e) {
-      error.value = describeRunError(e);
-      stage.value = 'failed';
+      if (!(await endOnLostWorker(e))) {
+        error.value = describeRunError(e);
+        stage.value = 'failed';
+      }
     } finally {
       runEndedAt.value = Date.now();
       chainResultAt.value = runEndedAt.value;
@@ -6459,6 +6462,26 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * the default each run starts with, so an error anywhere reads as one.
    */
   let runEnd: 'finished' | 'stopped' | 'failed' = 'failed';
+  /**
+   * A worker was lost mid-run (pool.ts `WorkerLostError`: it crashed, sent an unreadable reply, or went
+   * silent). With a route already found the run ends as if stopped, keeping that best route and the
+   * routes priced, and says a worker stopped; with none it is still a failure. Red team 21 Oct 2026,
+   * data-inputs #5: the run froze, and Stop & keep best never finished.
+   */
+  async function endOnLostWorker(e: unknown): Promise<boolean> {
+    if (!(e instanceof WorkerLostError) || !(bestDays.value > 0)) return false;
+    stoppedEarly.value = true;
+    if (searchSpace.value) searchSpace.value.stoppedEarly = true;
+    stage.value = 'stopped';
+    runLog.value.push(`--- a search worker stopped: ${e.message.slice(0, 160)}`);
+    runNotes.value = [
+      ...runNotes.value,
+      'A search worker stopped, so the search ended early with the best route it had found. Start the search again to carry on: the routes already priced are kept.',
+    ];
+    refreshShortlist(true);
+    runEnd = (await persist(liveCache, true, false)) ? 'stopped' : 'failed';
+    return true;
+  }
   /**
    * A finished run's own send to the board is on its way (or about to be): the instant answer keeps
    * its route workers asleep until it is done (InstantRoute.vue), so the CSV is built and compressed
@@ -7650,14 +7673,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const DEADLINE_RATIO_KEY = 'aap.deadlineRoutesPerSetByShape';
   const deadlineRoutesPerSetByShape = ref<Record<string, number>>(
     (() => {
-      try {
-        const raw = JSON.parse(localStorage.getItem(DEADLINE_RATIO_KEY) ?? '{}') as Record<string, unknown>;
-        const out: Record<string, number> = {};
-        for (const [k, v] of Object.entries(raw ?? {})) if (usableRatio(v)) out[k] = usableRatio(v);
-        return out;
-      } catch {
-        return {};
-      }
+      // Garbage falls back to none and keeps a `.bad` copy (safeStorage.ts).
+      const raw = readStoredJson(DEADLINE_RATIO_KEY, () => ({}), isPlainRecord);
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(raw)) if (usableRatio(v)) out[k] = usableRatio(v);
+      return out;
     })()
   );
   /** The remembered routes per set for a space of this shape, or 0. */
@@ -8067,6 +8087,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   function stopDeadline(): void {
     deadlineStop = true;
+    deadlinePool?.hurry?.();
     stepAwayStopPressed();
   }
 
@@ -8599,8 +8620,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         stage.value = finalStage;
       }
     } catch (e) {
-      error.value = describeRunError(e);
-      stage.value = 'failed';
+      if (!(await endOnLostWorker(e))) {
+        error.value = describeRunError(e);
+        stage.value = 'failed';
+      }
     } finally {
       runEndedAt.value = Date.now();
       chainResultAt.value = runEndedAt.value;
@@ -8624,6 +8647,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  screen at that moment is already a usable answer — that is the property the UI advertises. */
   function stop(): void {
     stopRequested.value = true;
+    // Never wait on a worker that is gone: one silent for 45 s is let go (pool.ts `hurry`).
+    pool?.hurry?.();
     stepAwayStopPressed();
     stage.value = 'stopping after the current batch...';
     // A queued Full sweep stops after this chain whichever Stop was pressed (the panel's, or the

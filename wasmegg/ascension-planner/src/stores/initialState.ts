@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { guardEpicLevels, guardFarm, saveGuardNote } from '@/lib/saveGuard';
 import type {
   InitialState,
   ResearchLevels,
@@ -83,6 +84,9 @@ export interface InitialStateStoreState {
    * `startWait`), and every send says which it was (`Submission.start`).
    */
   setupSource: StartSource | '';
+  /** What the save held that this planner doesn't know yet, held to the nearest known value
+   *  (lib/saveGuard.ts); '' when nothing was. */
+  saveNote: string;
 }
 
 function createEmptyVirtueMap(): Record<VirtueEgg, number> {
@@ -130,6 +134,7 @@ export const useInitialStateStore = defineStore('initialState', {
     activeMissions: [],
     rawBackup: null,
     setupSource: '',
+    saveNote: '',
   }),
 
   getters: {
@@ -224,15 +229,13 @@ export const useInitialStateStore = defineStore('initialState', {
         ...(artifactsDB.virtueAfxDb?.fuelingMission ? [artifactsDB.virtueAfxDb.fuelingMission] : []),
       ];
 
-      // Load epic research levels
-      this.epicResearchLevels = initializeEpicResearchLevels();
-      if (backup.game?.epicResearch) {
-        for (const research of backup.game.epicResearch) {
-          if (research.id && research.level !== null && research.level !== undefined) {
-            this.epicResearchLevels[research.id] = research.level;
-          }
-        }
+      // Load epic research levels, each held to its max (lib/saveGuard.ts)
+      const saveNotes: string[] = [];
+      const savedEpic: Record<string, unknown> = {};
+      for (const research of backup.game?.epicResearch ?? []) {
+        if (research.id && research.level !== null && research.level !== undefined) savedEpic[research.id] = research.level;
       }
+      this.epicResearchLevels = { ...initializeEpicResearchLevels(), ...guardEpicLevels(savedEpic, saveNotes) };
 
       // Load colleggtible tiers from contracts
       this.colleggtibleTiers = getColleggtibleTiers(backup);
@@ -290,7 +293,8 @@ export const useInitialStateStore = defineStore('initialState', {
       this.initialTePending = { ...tePendingPerEgg };
 
       // Load current farm state if on a virtue egg (IDs 50-54)
-      this.currentFarmState = parseVirtueFarm(backup);
+      this.currentFarmState = parseVirtueFarm(backup, saveNotes);
+      this.saveNote = saveGuardNote(saveNotes);
 
       // Return virtue and tank data
       return {
@@ -401,7 +405,7 @@ export const useInitialStateStore = defineStore('initialState', {
       this.soulEggs = data.soulEggs || 1e21;
 
       if (data.epicResearchLevels) {
-        this.epicResearchLevels = { ...data.epicResearchLevels };
+        this.epicResearchLevels = { ...initializeEpicResearchLevels(), ...guardEpicLevels(data.epicResearchLevels) };
       }
       if (data.colleggtibleTiers) {
         // Merge onto current defaults rather than replacing outright, so
@@ -432,7 +436,7 @@ export const useInitialStateStore = defineStore('initialState', {
       } else {
         this.assumeDoubleEarnings = true;
       }
-      this.currentFarmState = data.currentFarmState || null;
+      this.currentFarmState = data.currentFarmState ? guardFarm(data.currentFarmState) : null;
       if (data.initialTankLevel !== undefined) {
         this.initialTankLevel = data.initialTankLevel;
       }
@@ -512,6 +516,7 @@ export const useInitialStateStore = defineStore('initialState', {
       this.isUltra = false;
       this.lastBackupTime = 0;
       this.epicResearchLevels = initializeEpicResearchLevels();
+      this.saveNote = '';
       this.colleggtibleTiers = getDefaultColleggtibleTiers();
       this.artifactLoadout = createEmptyLoadout();
       this.artifactSets = { earnings: null, elr: null };

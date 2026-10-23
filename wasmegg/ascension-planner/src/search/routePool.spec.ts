@@ -4,6 +4,8 @@ import { RoutePool } from './routePool';
 /** A worker that answers a header request when told to. */
 class FakeWorker {
   onmessage: ((e: MessageEvent) => void) | null = null;
+  onerror: ((e: ErrorEvent) => void) | null = null;
+  onmessageerror: ((e: MessageEvent) => void) | null = null;
   terminated = false;
   inbox: { id: number; kind: string }[] = [];
   postMessage(m: { id: number; kind: string }) {
@@ -115,5 +117,26 @@ describe('RoutePool limitWorkers (Safari: the polish and "Prestige by" on two ro
     expect(made.slice(0, 2).every(w => !w.terminated)).toBe(true);
     expect(p.limitWorkers(0)).toBe(true);
     expect(p.workerCount).toBe(1);
+  });
+});
+
+describe('RoutePool when a worker is lost (red team 21 Oct 2026, data-inputs #5)', () => {
+  it('a crash fails the requests in flight instead of leaving them waiting, and the next request starts fresh', async () => {
+    const { p, made } = pool();
+    const header = p.header('t.bin');
+    made[0].onerror?.({} as ErrorEvent);
+    await expect(header).rejects.toThrow(/route worker stopped/);
+    expect(p.idle).toBe(true);
+    expect(made.slice(0, 2).every(w => w.terminated)).toBe(true);
+    const again = p.header('t.bin');
+    made[2].answer();
+    await expect(again).resolves.toEqual({ from: 1 });
+  });
+
+  it('so does a reply the page cannot read', async () => {
+    const { p, made } = pool();
+    const header = p.header('t.bin');
+    made[0].onmessageerror?.({} as MessageEvent);
+    await expect(header).rejects.toThrow(/could not read/);
   });
 });

@@ -2,10 +2,10 @@
  * The ordering bug this composable exists to survive: the first pass runs before the backup has
  * loaded, and the placeholder it writes must not become the reason the backup is ignored.
  */
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
-import { useBackupPlanStart, resetBackupPlanStart } from './useBackupPlanStart';
+import { useBackupPlanStart, resetBackupPlanStart, planStartOwner, setPlanStartOwner } from './useBackupPlanStart';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 
@@ -136,5 +136,92 @@ describe('useBackupPlanStart', () => {
     initial.rawBackup = { approxTime: 0 } as never;
     await nextTick();
     expect(auto.startDate).toBe(placeholder);
+  });
+});
+
+/**
+ * The start belongs to one account (red team 21 Oct 2026, data-inputs #10): a save stamped in 2100 left
+ * "Plan starts Dec 31, 2099" on every later save, and account A's start carried over to account B.
+ * Joo's override rework (fcc9e764) stopped a reload bringing back a start nobody chose, but not these:
+ * within a visit, and for an override, the start was still one for every account.
+ */
+describe('the plan start per account', () => {
+  const A = 'EI1234567890123456';
+  const B = 'EI0000000000000000';
+  beforeEach(() => {
+    installStorageStub();
+    setActivePinia(createPinia());
+    resetBackupPlanStart();
+    vi.useFakeTimers();
+    vi.setSystemTime((BACKUP + 3600) * 1000);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const setup = () => {
+    const auto = useAutoPlannerStore();
+    auto.timezone = 'UTC';
+    return { auto, initial: useInitialStateStore() };
+  };
+
+  it('a save from the future counts as now, so a normal save after it is not dated 2099', async () => {
+    const { auto, initial } = setup();
+    initial.rawBackup = { approxTime: 4102444800, eiUserId: A } as never;
+    useBackupPlanStart();
+    expect(auto.startDate).toBe('2026-09-17');
+    expect(auto.startTime).toBe('22:21');
+    initial.rawBackup = { approxTime: BACKUP, eiUserId: A } as never;
+    await nextTick();
+    expect(auto.startDate).toBe('2026-09-17');
+  });
+
+  it("another account's save drops the start and its override, and starts now", async () => {
+    const { auto, initial } = setup();
+    initial.rawBackup = { approxTime: BACKUP, eiUserId: A } as never;
+    useBackupPlanStart();
+    auto.startTimeOverride = true;
+    auto.startDate = '2026-12-25';
+    auto.startTime = '08:00';
+    expect(planStartOwner()).not.toBe('');
+    expect(planStartOwner()).not.toContain(A);
+
+    initial.rawBackup = { approxTime: BACKUP, eiUserId: B } as never;
+    await nextTick();
+    expect(auto.startTimeOverride).toBe(false);
+    expect([auto.startDate, auto.startTime]).toEqual(['2026-09-17', '22:21']);
+  });
+
+  it("the same account's newer save keeps an override", async () => {
+    const { auto, initial } = setup();
+    initial.rawBackup = { approxTime: BACKUP, eiUserId: A } as never;
+    useBackupPlanStart();
+    auto.startTimeOverride = true;
+    auto.startDate = '2026-12-25';
+    auto.startTime = '08:00';
+    initial.rawBackup = { approxTime: BACKUP + 60, eiUserId: A } as never;
+    await nextTick();
+    expect(auto.startTimeOverride).toBe(true);
+    expect(auto.startDate).toBe('2026-12-25');
+  });
+
+  it('an override restored from the browser for one account is dropped when another account loads', async () => {
+    const { auto, initial } = setup();
+    // What usePlanStartForm restores from the cache, owner included.
+    initial.rawBackup = { approxTime: BACKUP, eiUserId: A } as never;
+    useBackupPlanStart();
+    const ownerA = planStartOwner();
+    setActivePinia(createPinia());
+    resetBackupPlanStart();
+    const again = setup();
+    again.auto.startTimeOverride = true;
+    again.auto.startDate = '2026-12-25';
+    again.auto.startTime = '08:00';
+    setPlanStartOwner(ownerA);
+    again.initial.rawBackup = { approxTime: BACKUP, eiUserId: B } as never;
+    useBackupPlanStart();
+    await nextTick();
+    expect(again.auto.startTimeOverride).toBe(false);
+    expect(again.auto.startDate).toBe('2026-09-17');
+    void auto;
+    void initial;
   });
 });

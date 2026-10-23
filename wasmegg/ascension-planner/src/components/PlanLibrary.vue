@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue';
 import { useActionsStore } from '@/stores/actions';
+import { dropFileResults } from '@/stores/actions/io';
+import { UploadError, readLibraryFile, readUploadText } from '@/lib/uploadGuard';
 import { usePersistence } from '@/composables/usePersistence';
 import { loadLibraryPlans, deletePlanFromLibrary, savePlanToLibrary, type PlanData } from '@/lib/storage/db';
 import { downloadFile } from '@/utils/export';
@@ -274,11 +276,13 @@ async function handleImport(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file || !partitionHash.value) return;
 
-  const reader = new FileReader();
-  reader.onload = async e => {
+  await (async () => {
     try {
-      const content = e.target?.result as string;
-      const imported = JSON.parse(content);
+      // One strict check for every upload (lib/uploadGuard.ts): size, a capped gzip unpack, strict text and
+      // JSON, a packed Auto-Plan export rebuilt (lib/planExportPack.ts), and every plan in the file checked,
+      // all before anything is saved.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imported = readLibraryFile(await readUploadText(file, 'library')) as any;
 
       // Normalize imported data into a uniform array
       let plansToImport: { name: string; data: Record<string, unknown> }[] = [];
@@ -423,6 +427,9 @@ async function handleImport(event: Event) {
         throw new Error('Unrecognized file format');
       }
 
+      // Results in a file are recalculated when the plan is opened, never trusted (io.ts `dropFileResults`).
+      for (const p of plansToImport) dropFileResults(p.data);
+
       // Track the current library names (live, updated as we add)
       const existingNames = plans.value.map(p => p.name);
       let bulkResolution: 'overwrite' | 'keep-both' | 'skip' | null = null;
@@ -508,10 +515,10 @@ async function handleImport(event: Event) {
       }
     } catch (err) {
       importProgress.value = null;
-      alert('Failed to import plans: ' + err);
+      if (err instanceof UploadError) alert(`Couldn’t import this file. ${err.message} Nothing was imported.`);
+      else alert('Failed to import plans: ' + err);
     }
-  };
-  reader.readAsText(file);
+  })();
 
   // Reset the file input so the same file can be imported again
   if (event.target) {

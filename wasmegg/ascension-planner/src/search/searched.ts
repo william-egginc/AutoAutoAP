@@ -145,7 +145,7 @@ const oneLine = (text: string | undefined) => (text ?? '').replace(/[\u0000-\u00
  */
 export function cleanSearched(text: unknown): string | undefined {
   if (typeof text !== 'string') return undefined;
-  const one = oneLine(text).replace(/EI\d{16}/g, 'EI[redacted]');
+  const one = oneLine(text).replace(/EI\d{16}/gi, 'EI[redacted]');
   if (!one) return undefined;
   if (one.length <= MAX_SEARCHED) return one;
   const { boxes, counts } = splitTokens(one);
