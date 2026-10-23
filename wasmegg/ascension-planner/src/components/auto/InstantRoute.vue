@@ -16,7 +16,7 @@
       lab) as a row shift, delivery at the player's own rate.
   With "Works inside my hours", each prestige waits for the player's hours and the wait is priced
   (routeFinder.ts `hours`); with held shifts on, the shifts inside each ascension wait for them too, as
-  Check exactly holds them (instant answer v2: a version 2 table's held tails, `instantTail`).
+  the simulator holds them (instant answer v2: a version 2 table's held tails, `instantTail`).
   What it leaves out: playing hours (or, with that box, only the shifts' hours), time off and dated
   milestones (said beside the result), and the
   history of how a player reached each TE (shown to barely matter on the board). The searches under the
