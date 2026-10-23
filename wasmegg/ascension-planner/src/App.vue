@@ -794,7 +794,7 @@ import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
 import { choiceForEffort, openOn } from '@/lib/searchOption';
 import { presetByDate } from '@/lib/byDateForm';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
-import { needsFreshSave, type RecalcRequest } from '@/lib/recalc';
+import { fastOpen, needsFreshSave, type RecalcRequest } from '@/lib/recalc';
 import { useStrongerStore } from '@/stores/stronger';
 import type { SweepRequest } from '@/search/sweepRequest';
 import { virtueInventory } from '@/search/csv';
@@ -885,10 +885,10 @@ function openFromMyRuns(to: MyRunsOpen): void {
   plannerTab.value = 'automatic';
 }
 /**
- * My runs' "Recalculate" (lib/recalc.ts): a fresh save first when the loaded one is 6 hours old or more (the same
- * path as entering the Auto Planner; stops on its reason), then the goal's screen as Open does, then Check exactly
- * there (`ui.exactAsk`, which InstantRoute.vue answers once its instant answer is in). Under a running search the
- * screen only opens, as Open does: nothing is loaded or run.
+ * My runs' "Run Fast" (lib/recalc.ts; "Recalculate", which ran Check exactly, until 23 Oct 2026): a fresh save first
+ * when the loaded one is 6 hours old or more (the same path as entering the Auto Planner; stops on its reason), then
+ * the goal's screen with the Stronger check panel on Fast. Nothing starts: the player presses Find. Under a running
+ * search the screen only opens, as Open does.
  */
 async function recalcFromMyRuns(req: RecalcRequest): Promise<void> {
   if (searchActive.value) {
@@ -902,8 +902,7 @@ async function recalcFromMyRuns(req: RecalcRequest): Promise<void> {
       return;
     }
   }
-  openFromMyRuns(req.open);
-  uiStore.askExact(req.goal, req.chain);
+  openFromMyRuns(fastOpen(req.open));
 }
 const initialStateStore = useInitialStateStore();
 // The Auto Planner's start and timezone, restored and defaulted before any screen or chunk loads.

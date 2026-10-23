@@ -177,6 +177,6 @@ describe('a step due before now that the save hasn’t done', () => {
       'planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null)'
     );
     expect(read('./RightNowCard.vue')).toContain("props.events.find(e => !e.past && !e.notDone && e.kind !== 'goal')");
-    expect(read('./EventsTable.vue')).toContain("const addable = (e: PlanEvent) => !e.past && !e.notDone && e.kind !== 'goal';");
+    expect(read('./EventsTable.vue')).toContain("const addable = (e: PlanEvent) => !props.rounded && !e.past && !e.notDone && e.kind !== 'goal';");
   });
 });

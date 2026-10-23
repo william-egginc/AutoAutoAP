@@ -1,11 +1,12 @@
 <!--
   My runs (#/myruns): where you are now, from what is already saved (spec "myruns-now" v3, agreed 15 Oct 2026;
   build plan aaap-tools/specialists/ui-nowpage-build.md). NOTHING is calculated on this page: no instant answer,
-  no Check exactly, no search. Top to bottom, one column at every width:
+  no search. Top to bottom, one column at every width:
 
     1. Save-age strip (SaveAgeStrip.vue): every time below comes from the save, so its age comes first.
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
-       "+ Add to calendar", the whole route folded. From the instant answer kept after Check exactly.
+       "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
+       the same goal once one is better (lib/searchPlan.ts).
     3. Your eggs (YourEggs.vue): each egg's TE and the farm's facts, from the save.
     4. Two saved-answer tiles (SavedTile.vue): Fastest to 490 and Egg Day, each with when it was calculated,
        from which save, How sure and where it stands on the board.
@@ -65,6 +66,8 @@
         @select="page.selectGoal"
         @start-times="openStartTimes"
         @recalc="req => emit('recalc', req)"
+        @go-back="page.goBackToInstant"
+        @use-search="page.useSearchResult"
         @follow="followTyped"
         @unfollow="unfollowGoal"
         @simulate="simulateFollowed"
@@ -303,7 +306,7 @@ const emit = defineEmits<{
   open: [to: MyRunsOpen];
   /** "Load a fresh one": App fetches the save again (and stays here). */
   fresh: [];
-  /** Right now's "Recalculate": App opens the goal's screen with the save and runs Check exactly (lib/recalc.ts). */
+  /** Right now's "Run Fast": App opens the goal's screen with the save and Fast selected (lib/recalc.ts). */
   recalc: [req: RecalcRequest];
 }>();
 

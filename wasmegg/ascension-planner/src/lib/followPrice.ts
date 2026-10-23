@@ -18,6 +18,7 @@ import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
 import { pickGoalPlan, type CardCandidate, type SetupCheck } from './currentAnswer';
 import { followedFromNow, sameChain } from './follow';
 import { planFromExactChain, type NowPlan, type SnapLike } from './nowPlan';
+import { planFromSearch, readSearch } from './searchPlan';
 
 /** A kept snapshot to look in. */
 export interface FollowSnap {
@@ -103,7 +104,13 @@ export function followPrice(o: {
   for (const s of o.snaps) {
     const priced = s.startTE != null ? asPricedFrom(chain, s.startTE) : longestPricedTail(s.snap, chain);
     if (!priced || !priced.length) continue;
-    const plan = planFromExactChain(s.snap, priced, goal.goal, goal.deadline);
+    // Check exactly's price (snapshots before 23 Oct 2026), else the snapshot's search result when it is this route.
+    const found = readSearch(s.snap.search);
+    const plan =
+      planFromExactChain(s.snap, priced, goal.goal, goal.deadline) ??
+      (found && sameChain(found.chain, priced)
+        ? planFromSearch(found, goal.goal, goal.deadline, { meta: s.snap.meta ?? null, whatIf: s.snap.whatIf ?? null })
+        : null);
     if (!plan) continue;
     hits.push({ plan, goalIndex: o.goalIndex ?? 0, goalKey: o.goalKey, ownKey: s.ownKey, check: s.check });
   }

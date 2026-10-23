@@ -123,7 +123,7 @@ describe('the Right now card', () => {
     expect(t).toContain('Full timeline');
   });
 
-  it('behind plan: "Check again ›"; no timeline: "Can\'t tell"', async () => {
+  it('behind plan: "Run Fast ›" (was Check again); no timeline: "Can\'t tell"', async () => {
     // R6 (21 Oct 2026): lib/planPace.ts's words, the same as My runs' saved plans ("Behind by 6 h" before).
     const track = {
       kind: 'behind' as const,
@@ -141,8 +141,8 @@ describe('the Right now card', () => {
     };
     const behind = textOf(await renderHtml(RightNowCard, cardProps({ track })));
     expect(behind).toContain('6 hours behind, as of');
-    expect(behind).toContain('6 hours behind. Check again ›');
-    expect(behind).toContain('Check again ›');
+    expect(behind).toContain('6 hours behind. Run Fast ›');
+    expect(behind).not.toContain('Check again ›');
     const cant = textOf(await renderHtml(RightNowCard, cardProps({ track: { kind: 'cant', why: 'no-timeline' } })));
     expect(cant).toContain("Can't tell: saved without its timeline");
   });
@@ -161,7 +161,7 @@ describe('the Right now card', () => {
     expect(off).toContain('No virtue farm in this save');
     expect(off).not.toContain('Next step');
     const changed = textOf(await renderHtml(RightNowCard, cardProps({ card: { ...card, state: 'setup-changed' } })));
-    expect(changed).toContain('Your setup changed since this plan. Work it out again ›');
+    expect(changed).toContain('Your setup changed since this plan. Get the instant answer for your setup ›');
     const older = await renderHtml(
       RightNowCard,
       cardProps({ card: { ...card, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: NOW - 30 * H } } } })
@@ -204,7 +204,7 @@ const tile = (o: Partial<Tile> = {}): Tile => ({
     how: 'instant',
   },
   olderSave: true,
-  sure: { level: 'medium', reason: 'instant answer, 5 days old', action: 'check' },
+  sure: { level: 'medium', reason: 'instant answer, 5 days old', action: 'fast' },
   ...o,
 });
 
@@ -225,7 +225,7 @@ describe('a saved-answer tile', () => {
     expect(t).toContain('248 TE');
     expect(t).toContain('16.8 h spare · 161 198 218 248');
     expect(t).toContain('Calculated Oct 10 at 2:40 pm (5 days ago) · from your save of Oct 10 at 2:20 pm · instant answer');
-    expect(t).toContain('How sure: Medium Instant answer, 5 days old. Check exactly ›');
+    expect(t).toContain('How sure: Medium Instant answer, 5 days old. Run Fast ›');
     expect(t).toContain('Older save than the one you loaded. Work it out again ›');
     expect(t).toContain('Egg Day: 3rd of 12 named players');
     expect(t).toContain('See the routes ›');

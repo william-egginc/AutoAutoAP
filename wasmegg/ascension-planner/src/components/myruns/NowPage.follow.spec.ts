@@ -19,7 +19,6 @@ import type { CardPlan, FollowCard } from '@/composables/useNowPage';
 import type { GoalOption } from '@/lib/planGoals';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useFollowStore } from '@/stores/follow';
-import { useUIStore } from '@/stores/ui';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
@@ -146,7 +145,7 @@ describe('Right now with a followed route', () => {
     const c: CardPlan = { ...followedCard, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: OLD } }, followed: older };
     const t = textOf(await renderHtml(RightNowCard, props(c, older)));
     expect(t).toContain(
-      'Following your pick · priced on your save of Oct 14 at 8:40 am, may have drifted · Price it › · Simulate it › · Use the checked route ›'
+      'Following your pick · priced on your save of Oct 14 at 8:40 am, may have drifted · Run Fast › · Simulate it › · Use the checked route ›'
     );
     // The card's own older-save box is not said twice.
     expect(t).not.toContain('This plan was worked out from your save of');
@@ -157,7 +156,7 @@ describe('Right now with a followed route', () => {
     const html = await renderHtml(RightNowCard, props(null, none));
     const t = textOf(html);
     expect(t).toContain('Following 222 → 490 (Race to 490 · your pick)');
-    expect(t).toContain('Following your pick · not priced on this save yet · Price it › · Simulate it › · Use the checked route ›');
+    expect(t).toContain('Following your pick · not priced on this save yet · Run Fast › · Simulate it › · Use the checked route ›');
     expect(t).toContain('No timeline for your route on this save yet');
     expect(html).not.toContain('data-testid="now-events"');
     expect(html).not.toContain('data-testid="now-timeline"');
@@ -174,10 +173,10 @@ describe('Right now with a followed route', () => {
       finish: { end: NOW + 100 * H, endTE: 490, at: OLD * 1000 + 600_000 },
     };
     const t = textOf(await renderHtml(RightNowCard, props(null, fin)));
-    expect(t).toMatch(/Following your pick · checked Oct 14 at 8:50 am: lands Oct 19 at 6:40 pm, no timeline kept · Price it ›/);
+    expect(t).toMatch(/Following your pick · checked Oct 14 at 8:50 am: lands Oct 19 at 6:40 pm, no timeline kept · Run Fast ›/);
   });
 
-  it('"Price it ›" asks Recalculate with the route attached; App passes it on (InstantRoute only clears it now)', async () => {
+  it('"Run Fast ›" beside a route not priced asks Run Fast for the goal (no Check exactly since 23 Oct 2026)', async () => {
     const none: FollowCard = { chain: [222, 490], from: 'typed', price: 'none', source: null, pricedSave: null };
     const onRecalc = vi.fn();
     let setup: Record<string, unknown> = {};
@@ -192,16 +191,12 @@ describe('Right now with a followed route', () => {
     expect(onRecalc).toHaveBeenCalledWith({
       open: { auto: 'fastest', depth: 'smart', target: 490 },
       goal: 'target 490',
-      chain: [222, 490],
     });
-    const ui = useUIStore();
-    ui.askExact('target 490', [222, 490]);
-    expect(ui.exactAsk).toEqual({ goal: 'target 490', n: 1, chain: [222, 490] });
-    expect(read('../../App.vue')).toContain('uiStore.askExact(req.goal, req.chain);');
-    // InstantRoute no longer prices the asked route (no Check exactly since 23 Oct 2026): it clears the ask.
+    // App opens the goal's screen on Fast (lib/recalc.ts fastOpen); nothing is asked of InstantRoute any more.
+    expect(read('../../App.vue')).toContain('openFromMyRuns(fastOpen(req.open));');
     const route = read('../auto/InstantRoute.vue');
     expect(route).not.toContain('followedToPrice');
-    expect(route).toContain('if (mine) ui.exactAsk = null;');
+    expect(route).not.toContain('exactAsk');
   });
 
   it('the typed box follows a route for the goal; a bad one says what to fix', async () => {

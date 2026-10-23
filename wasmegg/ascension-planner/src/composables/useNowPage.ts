@@ -29,6 +29,7 @@ import {
   instantKey,
   instantSnapKey,
   readSnapIndex,
+  patchSnapshot,
   readSnapshot,
   snapshotUsable,
 } from '@/search/instantSnapshot';
@@ -64,6 +65,8 @@ import {
   type SnapLike,
 } from '@/lib/nowPlan';
 import { buildTile, type SavedDateAnswer, type Tile } from '@/lib/savedTiles';
+import { drivingPlan, liveSearchResult, type Driving, type SnapSearch } from '@/lib/searchPlan';
+import { accountHashNow } from '@/lib/accountHash';
 import {
   currentSetup,
   otherSetupLabel,
@@ -116,6 +119,9 @@ export interface CardPlan {
   name?: string;
   /** The route is the player's own pick for this goal ("Follow this route", lib/follow.ts), priced from a save. */
   followed?: FollowCard;
+  /** This save's instant plan and Fast, Exact or Custom result for the goal, and which drives (lib/searchPlan.ts):
+   *  the card's pill, "Go back to the instant answer" and the one line when the result doesn't take over. */
+  driving?: Driving;
 }
 
 /** The route the player follows for the selected goal, and how it is priced (lib/followPrice.ts). */
@@ -140,9 +146,15 @@ export interface FollowCard {
  * it was picked on, so it falls back to the default when either changes.
  */
 const chosenGoal = ref<{ scope: string; key: GoalKey } | null>(null);
+/**
+ * "Go back to the instant answer" (lib/searchPlan.ts): per account, save and goal, the search result (its `at`) the
+ * player went back from. A newer result takes over again. Module state for this visit, like the goal picked.
+ */
+const wentBack = ref<Record<string, number>>({});
 /** Forget the pick (specs). */
 export function resetGoalChoice(): void {
   chosenGoal.value = null;
+  wentBack.value = {};
 }
 
 const goalOf = (d: PlanGoal): Goal =>
@@ -309,6 +321,57 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return planFromSnapshot(s, g.goal, g.deadline);
   }
 
+  // ---------------------------------------------------------------- the search result (Fast, Exact, Custom)
+
+  /** The chain-search store's finished result for a goal on this save (lib/searchPlan.ts, the instant card's rule). */
+  function liveFor(g: Goal): SnapSearch | null {
+    if (!storeReady.value) return null;
+    const pid = (initial.playerId as string | undefined) ?? '';
+    const me = pid ? accountHashNow(pid) : '';
+    return liveSearchResult({
+      goal: g.goal,
+      deadline: g.deadline,
+      target: g.target,
+      currentTE: store.currentTE,
+      ownerOk: owner => !owner || !me || owner === me,
+      fastest: {
+        running: store.isRunning,
+        bestDays: store.bestDays,
+        bestChain: store.bestChain,
+        bestLegs: store.bestLegs,
+        planStart: store.planStartUsed || store.planStart,
+        custom: store.runKindUsed === 'full',
+        effort: store.runSettingsUsed?.effort,
+        at: store.chainResultAt,
+        owner: store.chainResultOwner,
+      },
+      date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner },
+    });
+  }
+  const backKey = (goalKey: GoalKey) => `${choiceScope.value}|${goalKey}`;
+  /** This save's own snapshot for a goal, with the plan that drives Right now (lib/searchPlan.ts `drivingPlan`). */
+  function drivingOf(g: Goal, goalKey: GoalKey, snapKey: string | null): Driving {
+    return drivingPlan(snapOf(snapKey), g.goal, g.deadline, { live: liveFor(g), back: wentBack.value[backKey(goalKey)] ?? null });
+  }
+  /** Bumped when a result is kept in a snapshot (the parsed copy is dropped). */
+  const kept = ref(0);
+  // A result the store holds is kept with this save's snapshot for the goal, so Right now still has it after a reload.
+  watch(
+    () => keys.value.map(({ g, key }) => ({ snapKey: instantSnapKey(key), live: liveFor(g) })),
+    list => {
+      for (const { snapKey, live } of list) {
+        if (!snapKey || !live) continue;
+        const s = snapOf(snapKey) as (SnapLike & { search?: { at?: number } }) | null;
+        if (!s || (s.search?.at ?? 0) >= live.at) continue;
+        if (patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(live)) })) {
+          parsed.delete(snapKey);
+          kept.value++;
+        }
+      }
+    },
+    { immediate: true }
+  );
+
   // ------------------------------------------------------------------------- the answers kept
 
   const history = ref<CheckEntry[]>([]);
@@ -360,12 +423,14 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const out: CardCandidate[] = [];
     const seen = new Set<string>();
     const sn = setupNow.value;
-    keys.value.forEach(({ g, key }, goalIndex) => {
+    void kept.value;
+    keys.value.forEach(({ g, key, d }, goalIndex) => {
       const snapKey = instantSnapKey(key);
       if (!snapKey) return;
       seen.add(snapKey);
-      const p = planOf(g, snapOf(snapKey));
-      if (p) out.push({ plan: p, goalIndex, goalKey: keys.value[goalIndex].d.key, ownKey: true, check: currentSetup(sn.setup) });
+      const driving = drivingOf(g, d.key, snapKey);
+      const p = driving.plan;
+      if (p) out.push({ plan: p, goalIndex, goalKey: d.key, ownKey: true, check: currentSetup(sn.setup), driving });
     });
     const acct = account.value;
     if (!acct) return out;
@@ -532,8 +597,24 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       secondary: pick.secondary ? { plan: pick.secondary.plan, label: otherSetupLabel(pick.secondary.check) } : null,
       key: sel.goal.key,
       name: sel.goal.name,
+      ...(c.driving ? { driving: c.driving } : {}),
     };
   });
+  /** "Go back to the instant answer": the selected goal follows its instant plan until a newer result lands. */
+  function goBackToInstant(): void {
+    const c = cardPlan.value;
+    const at = c?.driving?.search?.from?.at;
+    if (!c?.key || at == null) return;
+    wentBack.value = { ...wentBack.value, [backKey(c.key)]: at };
+  }
+  /** "Use your Fast run": undo it. */
+  function useSearchResult(): void {
+    const c = cardPlan.value;
+    if (!c?.key) return;
+    const { [backKey(c.key)]: _gone, ...rest } = wentBack.value;
+    void _gone;
+    wentBack.value = rest;
+  }
 
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
    *  planned-shift total reads the legs, so it still counts both. */
@@ -685,7 +766,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       deadline: g.deadline,
       nowMs,
       save: hasSave.value ? { seconds: saveSeconds.value, te: saveTEOf(raw.value) } : null,
-      snapshot: planOf(g, snapOf(instantSnapKey(k))),
+      snapshot: gi >= 0 ? drivingOf(g, keys.value[gi].d.key, instantSnapKey(k)).plan : planOf(g, snapOf(instantSnapKey(k))),
       lastChecked: lastCheckedOf(k && k.startsWith(ANSWER_PREFIX) ? k : null),
       history: history.value,
       board: o.myRows.value,
@@ -739,6 +820,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     goalChoices,
     selectedGoal,
     selectGoal,
+    goBackToInstant,
+    useSearchResult,
     events,
     shownEvents,
     ascNow,

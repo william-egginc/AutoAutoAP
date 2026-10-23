@@ -16,22 +16,49 @@ export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te'>, g
   return goal === 'date' ? `${goalName} goal: ${e.te} TE` : `${e.te} TE reached`;
 }
 
+/**
+ * ROUNDED TIMES (wireframe R1, 23 Oct 2026): the instant answer's times are estimates worked out ahead of time, so
+ * Right now shows them to the hour, "at around 3:00 pm", "in about 28 h", and offers no calendar button. A By a
+ * date goal's own row is the date itself and stays exact. `rounded` false (a search's plan, on the account): exact.
+ */
+export function roundedAt(e: Pick<PlanEvent, 'at' | 'kind'>, goal: 'fastest' | 'date', rounded: boolean): number {
+  return rounded && !(e.kind === 'goal' && goal === 'date') ? Math.round(e.at / 3600) * 3600 : e.at;
+}
+
+/** The events table's When: "Thu, Oct 15 at 4:00 pm", rounded "Fri, Oct 23 at around 3:00 pm". */
+export function whenWords(
+  e: Pick<PlanEvent, 'at' | 'kind'>,
+  goal: 'fastest' | 'date',
+  nowSeconds: number,
+  zone: string,
+  rounded = false
+): string {
+  const at = roundedAt(e, goal, rounded);
+  const d = dateAt(at, nowSeconds, zone, true);
+  return rounded && !(e.kind === 'goal' && goal === 'date') ? d.replace(' at ', ' at around ') : d;
+}
+
 /** "today, in 1 h 20 m" · "tomorrow, in 19 h" · "in 2 days" · "in 271 days · 16.8 h spare" · "passed" ·
- *  "not done yet, due 3 h ago". */
+ *  "not done yet, due 3 h ago". `rounded` (the instant answer's): "tomorrow, in about 28 h", "… spare (instant)". */
 export function howFar(
   e: Pick<PlanEvent, 'at' | 'past' | 'kind' | 'spareHours' | 'notDone'>,
   nowSeconds: number,
-  zone: string
+  zone: string,
+  rounded = false,
+  goal: 'fastest' | 'date' = 'date'
 ): string {
   if (e.past) return 'passed';
+  const at = roundedAt(e, goal, rounded);
   if (e.notDone) {
-    const w = eventWhen(e.at, nowSeconds, zone);
+    const w = eventWhen(at, nowSeconds, zone);
     return w ? `not done yet, due ${w.relative}` : 'not done yet';
   }
-  const w = eventWhen(e.at, nowSeconds, zone);
+  const w = eventWhen(at, nowSeconds, zone);
   if (!w) return '';
-  const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${w.relative}` : w.relative;
-  const spare = e.kind === 'goal' && typeof e.spareHours === 'number' ? ` · ${spareWords(e.spareHours)} spare` : '';
+  const rel = rounded && /^in \d+ (h|min)/.test(w.relative) ? w.relative.replace(/^in /, 'in about ') : w.relative;
+  const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${rel}` : rel;
+  const spare =
+    e.kind === 'goal' && typeof e.spareHours === 'number' ? ` · ${spareWords(e.spareHours)} spare${rounded ? ' (instant)' : ''}` : '';
   return base + spare;
 }
 
@@ -56,24 +83,35 @@ export function notDoneTitle(
 
 /** "Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am"; a step not done yet leads:
  *  "Not done yet: shift to Curiosity (due 8:03 pm), then Humility Oct 23 at 4:06 pm". '' with nothing ahead. */
-export function nextStepText(events: readonly PlanEvent[], goal: 'fastest' | 'date', nowSeconds: number, zone: string): string {
+export function nextStepText(
+  events: readonly PlanEvent[],
+  goal: 'fastest' | 'date',
+  nowSeconds: number,
+  zone: string,
+  rounded = false
+): string {
   const ahead = events.filter(e => !e.past && e.kind !== 'goal');
   const first = ahead[0];
   if (!first) return '';
-  const w = eventWhen(first.at, nowSeconds, zone);
+  const w = eventWhen(roundedAt(first, goal, rounded), nowSeconds, zone);
   if (!w) return '';
+  // Rounded (the instant answer's, R1): "Shift to Humility tomorrow at around 3:00 pm, then prestige at 197 TE Oct 28
+  // at around 4:00 am".
+  const at = rounded ? 'at around' : 'at';
   let text = first.notDone
     ? notDoneTitle(first, goal, nowSeconds, zone)
-    : `${eventTitle(first, goal)} ${w.day} at ${w.clock} (${w.relative})`;
+    : rounded
+      ? `${eventTitle(first, goal)} ${w.day} ${at} ${w.clock}`
+      : `${eventTitle(first, goal)} ${w.day} at ${w.clock} (${w.relative})`;
   const second = ahead[1];
-  const w2 = second ? eventWhen(second.at, nowSeconds, zone) : null;
+  const w2 = second ? eventWhen(roundedAt(second, goal, rounded), nowSeconds, zone) : null;
   if (second && w2) {
     // "then prestige at 197 TE" (only the first letter lowered: "TE" stays), "then Kindness", "then shift to …".
     const what =
       second.kind === 'shift' && !(second.eggs && second.eggs.length > 1) ? virtueEggName(second.egg) : lower(eventTitle(second, goal));
     text += second.notDone
       ? `, then ${what} (not done yet, due ${clockWords(second.at, nowSeconds, zone)})`
-      : `, then ${what} ${w2.day} at ${w2.clock}`;
+      : `, then ${what} ${w2.day} ${at} ${w2.clock}`;
   }
   return text;
 }

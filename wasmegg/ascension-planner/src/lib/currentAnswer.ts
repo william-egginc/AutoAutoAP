@@ -31,6 +31,7 @@ import { hoursShort, pricedWithLine, timeOffWords } from './pricedWith';
 import { parseWindow } from './planFilters';
 import { finishesBefore } from './eggDayRule';
 import type { NowPlan } from './nowPlan';
+import type { Driving } from './searchPlan';
 
 /** Two save times this close are the same save. */
 export const SAME_SAVE_SECONDS = 10 * 60;
@@ -209,6 +210,8 @@ export interface CardCandidate {
   /** Under this save's own key (this save, this setup). */
   ownKey: boolean;
   check: SetupCheck;
+  /** The goal's instant plan and search result from the same snapshot, and which drives (lib/searchPlan.ts). */
+  driving?: Driving;
 }
 
 export interface CardPick {

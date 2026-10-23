@@ -28,7 +28,7 @@
         <span class="block">
           {{ cap(tile.sure.reason) }}.
           <button v-if="tile.sure.action" type="button" class="font-bold underline" @click="emit('open', actionOpen)">
-            {{ tile.sure.action === 'check' ? 'Check exactly ›' : 'Run Fast ›' }}
+            Run Fast ›
           </button>
         </span>
       </div>
@@ -75,6 +75,7 @@ import { formatDate } from '@/lib/leaderboardRank';
 import { fastestName } from '@/lib/siteNav';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
+import { fastOpen } from '@/lib/recalc';
 
 const props = defineProps<{
   tile: Tile;
@@ -128,9 +129,5 @@ const secondaryText = computed(() => {
 const screenOpen = computed<MyRunsOpen>(() =>
   props.goal === 'date' ? { auto: 'by-date', byDate: { eggDay: true } } : { auto: 'fastest', depth: 'smart', target: props.target }
 );
-const actionOpen = computed<MyRunsOpen>(() =>
-  props.tile.sure?.action === 'fast'
-    ? { auto: 'fastest', depth: 'smart', tab: 'nearby', target: props.target, level: 'quick' }
-    : screenOpen.value
-);
+const actionOpen = computed<MyRunsOpen>(() => fastOpen(screenOpen.value));
 </script>

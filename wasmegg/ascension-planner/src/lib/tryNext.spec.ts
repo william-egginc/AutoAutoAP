@@ -29,10 +29,11 @@ describe('try next', () => {
     expect(p[2].open).toMatchObject({ depth: 'full', tab: 'exhaustive' });
   });
 
-  it('table-only tiles add Check exactly, at most four pills', () => {
+  it('table-only tiles: no Check exactly pills any more (23 Oct 2026), at most four pills', () => {
     const p = tryNextPills({ tile: tile('fastest', ans({ how: 'instant' })), target: 490 }, tile('date', ans({ how: 'instant', endTE: 248 })));
-    expect(p).toHaveLength(MAX_PILLS);
-    expect(p.map(x => x.id)).toContain('check-eggday');
+    expect(p.length).toBeLessThanOrEqual(MAX_PILLS);
+    expect(p.map(x => x.id)).toEqual(['eggday-fast', 'exact-race', 'exhaustive']);
+    expect(p.map(x => x.label).join(' ')).not.toContain('Check exactly');
     expect(p[2].label).toBe('Custom (around 4 ascensions)');
   });
 

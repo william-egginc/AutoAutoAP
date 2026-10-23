@@ -75,8 +75,8 @@ export interface Sure {
   level: SureLevel;
   /** "Instant answer, 5 days old" (shown after "How sure: Medium"). */
   reason: string;
-  /** The button beside it: Check exactly (By a date's instant answer) or a short Fast search (Fastest's). */
-  action?: 'check' | 'fast';
+  /** The button beside it: a short Fast search (Check exactly for By a date's instant answer until 23 Oct 2026). */
+  action?: 'fast';
 }
 
 function age(days: number): string {
@@ -143,7 +143,7 @@ export function howSure(i: SureInput): Sure {
   if (i.how === 'instant')
     return i.goal === 'fastest'
       ? { level: 'medium', reason: `instant answer, ${age(i.ageDays)}; a short search usually finds a sooner route`, action: 'fast' }
-      : { level: 'medium', reason: `instant answer, ${age(i.ageDays)}`, action: 'check' };
+      : { level: 'medium', reason: `instant answer, ${age(i.ageDays)}`, action: 'fast' };
   if (i.goal === 'fastest') return { level: 'medium', reason: `${what} done; a short search usually finds a sooner route`, action: 'fast' };
   if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'Check exactly done; it moved the instant answer’s TE' };
   if (typeof i.spareHours === 'number' && i.spareHours < HIGH_SPARE_HOURS)

@@ -36,7 +36,7 @@ export function startLines(goals: readonly StartGoal[], nowSeconds: number, zone
   return goals.map(g => {
     const p = g.plan;
     if (!p) return { key: g.key, text: `${g.name}: no start time is priced yet` };
-    const how = p.exact ? 'Check exactly' : 'instant answer';
+    const how = p.from ? `${p.from.level} run` : p.exact ? 'Check exactly' : 'instant answer';
     const start = p.planStart ? `If you start ${dateAt(p.planStart, nowSeconds, zone)}: ` : '';
     const what =
       g.goal === 'date'

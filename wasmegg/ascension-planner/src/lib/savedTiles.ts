@@ -86,6 +86,8 @@ export interface TileAnswer {
   source: 'snapshot' | 'lastChecked' | 'history' | 'board' | 'saved';
   how: 'instant' | 'check' | 'search';
   level?: SearchLevel | null;
+  /** A snapshot's Fast, Exact or Custom result (lib/searchPlan.ts): the panel's own name for it. */
+  found?: 'Fast' | 'Exact' | 'Custom';
   complete?: boolean;
   exactConfirmsTE?: boolean;
   runnerUpHours?: number | null;
@@ -173,6 +175,9 @@ export interface TileInput {
 const LEVELS: readonly SearchLevel[] = ['light', 'quick', 'normal', 'thorough', 'exhaustive'];
 const asLevel = (v: unknown): SearchLevel | null => (LEVELS.includes(v as SearchLevel) ? (v as SearchLevel) : null);
 
+/** The search panel's levels as the tile's (How sure reads these). */
+const FOUND_LEVEL: Record<'Fast' | 'Exact' | 'Custom', SearchLevel> = { Fast: 'quick', Exact: 'normal', Custom: 'exhaustive' };
+
 /** A board row's search level: Exhaustive for a space (Fastest) or By a date's 'advanced' mode, else its level. */
 export function rowLevel(row: BoardRow): SearchLevel | null {
   if (row.space) return 'exhaustive';
@@ -206,8 +211,12 @@ function candidates(i: TileInput): TileAnswer[] {
     saveSeconds: s.meta?.backupTime ?? (own ? saveNow : null),
     fromTE: own ? (i.save?.te ?? null) : null,
     source: 'snapshot',
-    how: s.exact ? 'check' : 'instant',
-    exactConfirmsTE: i.goal === 'date' && s.exact ? s.instantTE === s.endTE : undefined,
+    // A search's result kept with the snapshot (lib/searchPlan.ts) reads as that search; an older snapshot's exact
+    // lead was Check exactly's.
+    ...(s.from
+      ? { how: 'search' as const, level: FOUND_LEVEL[s.from.level], found: s.from.level }
+      : { how: s.exact ? ('check' as const) : ('instant' as const) }),
+    exactConfirmsTE: i.goal === 'date' && s.exact && !s.from ? s.instantTE === s.endTE : undefined,
     runnerUpHours: s.runnerUpHours,
     runnerUpChain: s.runnerUp?.chain ?? null,
     runnerUpSame: !!s.runnerUp && s.runnerUp.end === s.end && s.runnerUp.endTE === s.endTE,
@@ -403,6 +412,7 @@ export function sourceWords(a: TileAnswer): string {
 
 /** "Snapshot" etc. in player words, for the tile's calculated line: "(Check exactly)", "(Exhaustive)". */
 export function howWords(a: TileAnswer): string {
+  if (a.found) return a.found;
   if (a.how === 'instant') return 'instant answer';
   if (a.how === 'check') return a.level === 'light' ? 'Checked at once' : 'Check exactly';
   const w: Record<SearchLevel, string> = { light: 'Checked at once', quick: 'Fast', normal: 'Exact', thorough: 'Very high', exhaustive: 'Exhaustive' };

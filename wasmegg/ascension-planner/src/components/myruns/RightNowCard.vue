@@ -17,6 +17,12 @@
   the timeline and the calendar text follow it, priced from a save's Check exactly (lib/followPrice.ts). Priced on an
   older save, it says so; not priced, it says so and offers "Price it ›" (Recalculate with the route attached) and
   "Simulate it ›" (Single run). "Use the checked route ›" goes back to the planner's pick.
+  INSTANT FIRST (part B, wireframes/price-route-v2 R1 and R2, 23 Oct 2026; there is no Check exactly any more): the plan
+  is the instant answer's ("from the instant answer": times rounded to the hour, no calendar buttons, a "run Fast" link
+  that only opens the panel) until a Fast, Exact or Custom result for the same goal takes over (lib/searchPlan.ts: it
+  makes the date, or finishes sooner): "from your Fast run, on your account", exact times, calendar Add buttons and
+  "Go back to the instant answer". A result that doesn't take over is named in one line. Recalculate is "Run Fast"
+  (lib/recalc.ts): the goal's screen with Fast selected.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
@@ -24,7 +30,7 @@
       <div class="min-w-0 flex flex-wrap items-baseline gap-x-3">
         <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
         <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
-          Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ card.plan.exact ? 'Check exactly' : 'instant answer' }})<template
+          Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ howText }})<template
             v-if="card.pricedWith"
             >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
           >
@@ -79,14 +85,40 @@
       >{{ ' ' }}({{ followName }})
     </p>
 
+    <!-- Where the plan comes from (lib/searchPlan.ts): the instant answer or a search's result on the account. -->
+    <div v-if="card && pill && !follow" class="space-y-0.5" data-testid="now-source" :data-source="card.plan.from ? 'search' : 'instant'">
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-slate-500">
+        <span
+          class="rounded px-1.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
+          :class="card.plan.from ? 'bg-indigo-600 text-white' : 'bg-emerald-100 text-emerald-800'"
+          data-testid="now-source-pill"
+          >{{ pill }}</span
+        >
+        <span data-testid="now-source-sub">{{ pillSub }}</span>
+      </p>
+      <p v-if="replaceLine" class="text-[12px] text-slate-600" data-testid="now-replaces">
+        {{ replaceLine }}
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-go-back" @click="emit('goBack')">
+          Go back to the instant answer
+        </button>
+      </p>
+      <p v-else-if="backLine" class="text-[12px] text-slate-600" data-testid="now-went-back">
+        {{ backLine }}
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-use-search" @click="emit('useSearch')">
+          Use your {{ card.driving?.search?.from?.level }} run
+        </button>
+      </p>
+      <p v-else-if="keepLine" class="text-[12px] text-slate-600" data-testid="now-keeps-instant">{{ keepLine }}</p>
+    </div>
+
     <!-- The player's own pick (lib/follow.ts): where its price came from, Price it / Simulate it, and the way back. -->
     <p v-if="follow" class="text-[12px] text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
       <span class="font-bold text-indigo-800">Following your pick</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
       ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template
       ><template v-if="offerPrice"
         >{{ ' ' }}·
-        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-price" @click="priceIt">
-          Price it ›
+        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-price" title="Opens the goal's screen with Fast selected; it starts when you press Find" @click="priceIt">
+          Run Fast ›
         </button>
         ·
         <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-simulate" title="Opens Single run with this route on your save (nothing is kept for this page)" @click="emit('simulate', [...follow.chain])">
@@ -130,7 +162,7 @@
 
     <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-setup-changed">
       Your setup changed since this plan.
-      <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Work it out again ›</button>
+      <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Get the instant answer for your setup ›</button>
     </p>
     <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
       This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
@@ -207,16 +239,17 @@
       <template v-if="card">
         <p v-if="nextText" class="text-[13px] text-slate-800">
           <b>{{ nextText }}</b>
-          <span v-if="nextEvent" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
+          <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
         <p v-else class="text-[13px] text-slate-700">Nothing left in this plan: work out a new one.</p>
         <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
           {{ paceBadge }}.
-          <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Check again ›</button>
+          <button type="button" class="font-bold underline" @click="emit('recalc', recalcRequest)">Run Fast ›</button>
         </p>
       </template>
       <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next">
-        No timeline for your route on this save yet: Price it › runs Check exactly on it (about a minute more on a phone).
+        No timeline for your route on this save yet: Simulate it › shows its times in Single run, or Run Fast › for a
+        result on your account.
       </p>
       <!-- By a date (Egg Day too): plans kept, none in time (lib/eggDayRule.ts): said plainly, the nearest shown, marked. -->
       <p v-else-if="selectedOption?.state === 'late'" class="text-[13px] text-slate-700" data-testid="now-no-route-in-time">
@@ -234,27 +267,28 @@
           Work it out ›
         </button>
         <span class="block mt-0.5 text-[11px] text-slate-500"
-          >A plan with its times is kept for a day after Check exactly finishes (computers run it by themselves; on a
-          phone, press Check exactly).</span
+          >The instant answer for a goal is kept for a day after its screen works it out; a Fast, Exact or Custom result
+          for it takes over when it is better.</span
         >
       </p>
       <p v-else class="text-[13px] text-slate-700" data-testid="now-no-plan">
-        No plan with its times is saved for this save yet: one is kept for a day after Check exactly finishes (computers
-        run it by themselves; on a phone, press Check exactly).
+        No plan with its times is saved for this save yet: the instant answer for a goal is kept for a day after its
+        screen works it out.
         <button type="button" class="font-bold text-indigo-700 underline" @click="emit('open', { auto: 'fastest', depth: 'smart', target: 490 })">
           Work out my plan ›
         </button>
       </p>
     </div>
 
-    <!-- Recalculate: the goal's screen with this save, running Check exactly there (lib/recalc.ts). -->
+    <!-- Run Fast (was Recalculate): the goal's screen with this save and Fast selected (lib/recalc.ts). -->
     <div v-if="card && !notOnVirtue" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="now-recalc">
       <button
         type="button"
         class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50"
+        data-testid="now-recalc-button"
         @click="emit('recalc', recalcRequest)"
       >
-        Recalculate
+        {{ recalcLabel }}
       </button>
       <span class="text-[11px] text-slate-500">{{ recalcLine }}</span>
     </div>
@@ -284,6 +318,8 @@
         :save-when="planSaveWhen"
         :calculated-when="calculatedWhen"
         :following="following"
+        :rounded="rounded"
+        @run-fast="emit('recalc', recalcRequest)"
       />
       <details class="mt-2" data-testid="now-timeline">
         <summary class="cursor-pointer text-[13px] font-semibold text-indigo-700">
@@ -294,7 +330,7 @@
             :chain="card.plan.chain"
             :legs="card.plan.legs"
             :zone="zone"
-            no-legs-text="This plan was kept without each ascension's shifts (it was too big to keep whole): open its screen for them."
+            :no-legs-text="rounded ? NO_LEGS_INSTANT : NO_LEGS_KEPT"
           />
         </div>
       </details>
@@ -326,7 +362,9 @@ import type { SnapWhatIf } from '@/search/instantSnapshot';
 import type { SetMatch } from '@/lib/gearMatch';
 import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
 import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
-import { askGoal, recalcWords, type RecalcRequest } from '@/lib/recalc';
+import { askGoal, recalcButton, recalcWords, type RecalcRequest } from '@/lib/recalc';
+import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
+import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { FollowCard } from '@/composables/useNowPage';
@@ -368,8 +406,12 @@ const emit = defineEmits<{
   select: [key: GoalKey];
   /** "When should I start?": Science › When should I start? for this save, on this route when there is one. */
   startTimes: [chain: number[] | null];
-  /** "Recalculate": open the goal's screen with the save and run Check exactly there (App, lib/recalc.ts). */
+  /** "Run Fast": open the goal's screen with the save and Fast selected (App, lib/recalc.ts). */
   recalc: [req: RecalcRequest];
+  /** "Go back to the instant answer" (useNowPage `goBackToInstant`). */
+  goBack: [];
+  /** "Use your Fast run": undo going back. */
+  useSearch: [];
   /** A route typed in "Follow another route": follow it for this goal. */
   follow: [chain: number[]];
   /** "Use the checked route ›": back to the planner's pick for this goal. */
@@ -432,10 +474,10 @@ const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: nu
   const t = Number(/^fastest-(\d+)$/.exec(o?.key ?? '')?.[1] ?? 490);
   return { goal: 'fastest', target: t, deadline: null };
 });
-/** Recalculate with the followed route attached: Check exactly prices it as one more route (lib/recalc.ts). */
+/** "Run Fast ›" beside a followed route not priced on this save: the goal's screen with Fast selected (lib/recalc.ts). */
 function priceIt(): void {
   if (!props.follow) return;
-  emit('recalc', { ...recalcRequest.value, chain: [...props.follow.chain] });
+  emit('recalc', recalcRequest.value);
 }
 const typed = ref('');
 const typedError = ref('');
@@ -493,7 +535,9 @@ const secondaryText = computed(() => {
 const pace = computed(() => (props.track ? paceWords(props.track, props.now, props.zone) : null));
 const chip = computed(() => (pace.value?.text ? { tone: pace.value.tone, text: pace.value.text } : null));
 const paceBadge = computed(() => pace.value?.badge ?? '');
-const nextText = computed(() => (props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone) : ''));
+const nextText = computed(() =>
+  props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value) : ''
+);
 /** The calendar button's event: the first one ahead (a step not done yet is already due: nothing to add). */
 const nextEvent = computed(() => props.events.find(e => !e.past && !e.notDone && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>
@@ -518,4 +562,47 @@ const recalcRequest = computed<RecalcRequest>(() => ({
   goal: askGoal(askFor.value),
 }));
 const recalcLine = computed(() => recalcWords(goalOpen.value));
+const recalcLabel = computed(() => recalcButton(props.card?.plan.from?.level === 'Fast'));
+
+// ------------------------------------------------------------------- instant answer or search result
+/** The instant answer's plan (not a search's, not an older snapshot's Check exactly): times rounded, no calendar. */
+const rounded = computed(() => !!props.card && !props.card.plan.exact);
+const NO_LEGS_INSTANT = 'The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.';
+const NO_LEGS_KEPT = "This plan was kept without each ascension's shifts (it was too big to keep whole): open its screen for them.";
+/** "(instant answer)", "(Fast run)", "(Check exactly)" for an older snapshot's. */
+const howText = computed(() => {
+  const p = props.card?.plan;
+  if (!p) return '';
+  return p.from ? `${p.from.level} run` : p.exact ? 'Check exactly' : 'instant answer';
+});
+const pill = computed(() => {
+  const p = props.card?.plan;
+  if (!p || (p.exact && !p.from)) return '';
+  return sourcePill(p.from?.level ?? null);
+});
+/** "done Oct 22 at 4:47 pm, your save of Oct 22 at 11:03 am, priced with your hours …" / "worked out ahead of time;
+ *  times rounded to the hour". */
+const pillSub = computed(() => {
+  const p = props.card?.plan;
+  if (!p) return '';
+  if (!p.from) return 'worked out ahead of time; times rounded to the hour';
+  const done = dateAt(p.from.at / 1000, props.now, props.zone);
+  return `done ${done}, your save of ${planSaveWhen.value}${props.card?.pricedWith ? `, ${props.card.pricedWith}` : ''}`;
+});
+const replaceLine = computed(() => {
+  const d = props.card?.driving;
+  if (!d?.search || !d.takeover || props.card?.plan !== d.search || !d.instant) return '';
+  return replaceWords(d.takeover, d.search, d.instant);
+});
+const backLine = computed(() => {
+  const d = props.card?.driving;
+  if (!d?.search?.from || !d.wentBack) return '';
+  return `You went back from your ${d.search.from.level} run (done ${dateAt(d.search.from.at / 1000, props.now, props.zone)}).`;
+});
+const keepLine = computed(() => {
+  const d = props.card?.driving;
+  if (!d?.search?.from || !d.takeover || d.wentBack || props.card?.plan === d.search) return '';
+  const kind = props.card?.goal.deadline ? deadlineKind(props.card.goal.deadline) : 'date';
+  return keepWords(d.takeover, d.search.from.level, d.search, d.instant, kind);
+});
 </script>

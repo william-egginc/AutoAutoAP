@@ -357,6 +357,6 @@ describe('source: everything on the card follows the selected goal', () => {
     expect(card).toContain(':chain="card.plan.chain"');
     expect(card).toContain(':legs="card.plan.legs"');
     expect(card).toContain(':events="shownEvents"');
-    expect(card).toContain('nextStepText(props.events, props.card.goal.goal, props.now, props.zone)');
+    expect(card).toContain('nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value)');
   });
 });

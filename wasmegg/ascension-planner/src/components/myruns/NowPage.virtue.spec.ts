@@ -258,10 +258,10 @@ describe('the corner badge and the gear', () => {
   });
 });
 
-describe('Recalculate', () => {
+describe('Run Fast (was Recalculate)', () => {
   it('a button on Right now with a line saying what it does', async () => {
     const t = textOf(await renderHtml(RightNowCard, cardProps()));
-    expect(t).toContain('Recalculate Opens Fastest to 490 TE with your save and runs Check exactly');
+    expect(t).toContain('Run Fast Opens Fastest to 490 TE with your save and Fast selected; it starts when you press Find');
     const d = textOf(
       await renderHtml(
         RightNowCard,
@@ -271,7 +271,7 @@ describe('Recalculate', () => {
         })
       )
     );
-    expect(d).toContain('Opens Highest TE by a date with your save and runs Check exactly');
+    expect(d).toContain('Opens Highest TE by a date with your save and Fast selected; it starts when you press Find');
     // Without a plan there is nothing to recalculate: "Work it out ›" is there.
     const empty = await renderHtml(RightNowCard, cardProps({ card: null, events: [], shownEvents: [], track: null }));
     expect(empty).not.toContain('data-testid="now-recalc"');
@@ -291,21 +291,14 @@ describe('Recalculate', () => {
     const appSrc = read('../../App.vue');
     expect(appSrc).toContain('@recalc="recalcFromMyRuns"');
     expect(appSrc).toMatch(
-      /if \(needsFreshSave\(backupSecondsOf\(initialStateStore\.rawBackup\), Date\.now\(\) \/ 1000\)\) \{\s*const why = await prepareAutoPlanner\(\);[\s\S]*?openFromMyRuns\(req\.open\);\s*uiStore\.askExact\(req\.goal, req\.chain\);/
+      /if \(needsFreshSave\(backupSecondsOf\(initialStateStore\.rawBackup\), Date\.now\(\) \/ 1000\)\) \{\s*const why = await prepareAutoPlanner\(\);[\s\S]*?openFromMyRuns\(fastOpen\(req\.open\)\);/
     );
   });
 
-  it('the ask: counted, and cleared by InstantRoute for its goal (no Check exactly since 23 Oct 2026)', () => {
-    const ui = useUIStore();
-    ui.askExact('target 490');
-    ui.askExact('target 490');
-    expect(ui.exactAsk).toEqual({ goal: 'target 490', n: 2 });
+  it('no ask any more: the ui store has no exactAsk and InstantRoute reads none (23 Oct 2026)', () => {
+    expect('exactAsk' in useUIStore()).toBe(false);
     const route = read('../auto/InstantRoute.vue');
-    // Opening the screen with the save is the whole answer now: the ask for this screen's goal is cleared, nothing
-    // is priced (part B reworks Right now's Recalculate and Price it).
-    expect(route).toMatch(
-      /\(\) => ui\.exactAsk\?\.goal === instantGoal\(props\.deadline, store\.finalTE\),\s+mine => \{\s+if \(mine\) ui\.exactAsk = null;/
-    );
+    expect(route).not.toContain('exactAsk');
     expect(route).not.toContain('checkAgain');
   });
 });

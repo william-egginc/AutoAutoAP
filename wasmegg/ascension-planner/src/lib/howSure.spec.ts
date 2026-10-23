@@ -23,7 +23,7 @@ describe('how sure', () => {
     expect(howSure(date({ how: 'instant', ageDays: 5, spareHours: 30, runnerUpHours: 99 }))).toEqual({
       level: 'medium',
       reason: 'instant answer, 5 days old',
-      action: 'check',
+      action: 'fast',
     });
     const f = howSure(fast({ how: 'instant', ageDays: 13.9, runnerUpHours: 99 }));
     expect(f.level).toBe('medium');
