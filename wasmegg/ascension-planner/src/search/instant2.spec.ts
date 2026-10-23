@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { gearShiftTable, gearShiftUrl, packTable, parseGearShiftUrl, readTable, withExtras } from './precomputedTable';
 import { canonicalDelivered, rebase, tailTo, type BuildParams } from './precomputedLeg';
-import { bestReplay, replayContinue, type BuildExtras } from './tableV2';
+import { bestReplay, replayContinue, type BuildExtras, type BuildWithExtras } from './tableV2';
 import { creditWait, firstLegOptions, priceLeg, type BuildLookup } from './routeFinder';
 import { holdUntilOf, type Availability } from './availability';
 import { gearShiftKey, instantTail, nearMaxedGear } from './instantGear';
@@ -157,7 +157,7 @@ describe('gearShiftTable (the weak-gear form G)', () => {
     };
     const cap = 0.9 * Math.max(...c.builds.map(b => b.peakELR)) * 0.8;
     const t = gearShiftTable(lower, { g, geo: 0.8, cap, k: 0.75 });
-    const got = t.lookup(300, c.h)!;
+    const got = t.lookup(300, c.h)! as BuildWithExtras[];
     c.builds.forEach((b, i) => {
       expect(got[i].delivered).toEqual(rebase(b, 299, canonicalDelivered(300)).delivered);
       expect(got[i].peakELR).toBe(Math.min(b.peakELR * 0.8, cap));
