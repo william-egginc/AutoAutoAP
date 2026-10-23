@@ -63,6 +63,28 @@ describe('Your routes at a glance', () => {
     expect(t).toContain('Every run is also in Your runs below, with its filters.');
   });
 
+  it('the key lists Very high only when a run used it (an Exhaustive saved run is not Very high, 23 Oct 2026)', async () => {
+    const key = (html: string) => textOf(html.match(/data-testid="my-runs-scatter-key"[\s\S]*?<\/div>/)?.[0] ?? '');
+    const none = key(
+      await renderHtml(RouteScatter, {
+        ...base,
+        rows: [race(490, [200, 300, 490], 12.5, { level: 'normal', yours: true })],
+        savedRuns: [
+          { id: 'x', savedAt: 1, finalTE: 490, effort: 'thorough', bestChain: [100, 490], bestDays: 13, space: { kind: 'box' } },
+          { id: 'f', savedAt: 2, finalTE: 490, effort: 'quick', bestChain: [150, 490], bestDays: 14 },
+        ],
+      })
+    );
+    expect(none).toContain('Exact');
+    expect(none).toContain('Fast');
+    expect(none).toContain('Exhaustive');
+    expect(none).not.toContain('Very high');
+    const used = key(
+      await renderHtml(RouteScatter, { ...base, rows: [race(490, [300, 490], 11, { level: 'thorough' })] })
+    );
+    expect(used).toContain('Very high');
+  });
+
   it('loading and empty say so in one line', async () => {
     expect(textOf(await renderHtml(RouteScatter, { ...base, rows: null }))).toContain('Your runs are still loading.');
     expect(textOf(await renderHtml(RouteScatter, { ...base, rows: [] }))).toContain(

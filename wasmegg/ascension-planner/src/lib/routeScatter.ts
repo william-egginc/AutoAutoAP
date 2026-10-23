@@ -70,6 +70,9 @@ export interface SavedRunLike {
   effort: string;
   bestChain: number[];
   bestDays: number;
+  /** Set on an Exhaustive (Custom) run (runLibrary `space`): its `effort` is only the slider's
+   *  setting at the time, not what ran, so the run is Exhaustive whatever that says. */
+  space?: unknown;
 }
 /** An answer saved on this device (store `savedAnswers`, search/deadlineStore.ts `SavedAnswer`), as read here. */
 export interface SavedAnswerLike {
@@ -225,7 +228,9 @@ export function buildScatter(i: ScatterInput): { goals: ScatterGoal[]; points: S
       id: `saved-${s.id}`,
       goal: g.key,
       from: 'saved',
-      level: asLevel(s.effort),
+      // An Exhaustive run's `effort` is the slider's leftover (often `thorough` from before 22 Oct):
+      // read as that, the key said "Very high" with no Very high run (23 Oct 2026).
+      level: s.space ? 'exhaustive' : asLevel(s.effort),
       chain: s.bestChain,
       asc: s.bestChain.length,
       finish: null,
