@@ -41,10 +41,10 @@ describe("the instant answer's low-TE label", () => {
     expect(lowTeOpeningNote({ rounds: 0, openingSeconds: 0 })).toBe('');
   });
 
-  it('names the rounds and the opening, and that Check exactly prices it', () => {
+  it('names the rounds and the opening, and that a Fast search prices it (Check exactly until 23 Oct 2026)', () => {
     const note = lowTeOpeningNote({ rounds: 3, openingSeconds: 15 * 3600 });
     expect(note).toContain('3 times');
     expect(note).toContain('15.0 hours');
-    expect(note).toContain('Check exactly prices the low-TE opening');
+    expect(note).toContain('a Fast search prices the low-TE opening');
   });
 });
