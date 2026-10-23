@@ -46,6 +46,8 @@
         no-rate
         green
       />
+      <!-- What a screen adds under the route's details (DeadlinePanel: "Try waiting before each prestige"). -->
+      <slot v-if="!running" name="extras" />
       <p v-if="!legs.length && running" class="text-[10px] text-emerald-900/70" data-testid="by-date-card-no-legs">
         The time of each stop comes with the finished result.
       </p>

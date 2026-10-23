@@ -29,7 +29,7 @@
     <div v-if="lines" class="mt-1 space-y-0.5" data-testid="wait-result">
       <p v-if="!pricedOnHours" class="mb-1 font-bold text-amber-700" data-testid="wait-any-hour">{{ ANY_HOUR_WARNING }}</p>
       <p v-if="report && report.baseSeconds !== null" class="text-slate-500">
-        Prestiging at once{{ deadline ? ', with ' + spareText(report.baseSeconds) + ' to spare' : '' }}, as Check exactly prices it.
+        Prestiging at once{{ deadline ? ', with ' + spareText(report.baseSeconds) + ' to spare' : '' }}, as the full simulator prices it.
       </p>
       <template v-for="s in lines.singles" :key="s.stop">
         <p :class="s.wait ? 'font-bold text-emerald-800' : 'text-slate-600'">{{ s.text }}</p>

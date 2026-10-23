@@ -741,6 +741,17 @@
           @csv="downloadByDateCsv"
           @save="quickSave"
         >
+          <!-- "Try waiting before each prestige" (WaitBeforePrestige.vue): was on the instant card under Check exactly
+               until 23 Oct 2026; it prices this result's route on the full simulator, on request only. -->
+          <template #extras>
+            <WaitBeforePrestige
+              v-if="best.chain.length"
+              :chain="best.chain"
+              :zone="plannerZone"
+              :deadline="result.deadline"
+              :disabled="store.busy"
+            />
+          </template>
           <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
                than one more TE costs. Otherwise the plain "stopped early". -->
           <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
@@ -908,6 +919,7 @@
 
 <script lang="ts">
 import { plural } from '@/lib/format';
+import WaitBeforePrestige from './WaitBeforePrestige.vue';
 import { ref as keptRef } from 'vue';
 import { byDateForm, eggDayYearAtLoad } from '@/lib/byDateForm';
 import {

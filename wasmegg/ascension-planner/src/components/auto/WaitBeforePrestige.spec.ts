@@ -34,11 +34,16 @@ describe('WaitBeforePrestige', () => {
   });
 });
 
-describe('InstantRoute', () => {
-  // It was shown under the instant answer once Check exactly was done; with no Check exactly (23 Oct 2026) the instant
-  // card has only Simulate this plan and Follow this route, so it is not mounted there. The component is kept for a
-  // search's result card (a decision for Jordan).
-  it('is not on the instant card', () => {
+describe('where it is shown (23 Oct 2026)', () => {
+  // It was shown under the instant answer once Check exactly was done; with no Check exactly the instant card has only
+  // Simulate this plan and Follow this route. It is on the search result cards instead, priced on request only.
+  it('not on the instant card; on the Fastest and By a date result cards once the run has stopped', () => {
     expect(read('./InstantRoute.vue')).not.toContain('<WaitBeforePrestige');
+    const fast = read('./ChainSearchPanel.vue');
+    expect(fast).toMatch(/<WaitBeforePrestige\s+v-if="!store\.isRunning && store\.bestChain\.length > 1"\s+:chain="store\.bestChain"/);
+    const date = read('./DeadlinePanel.vue');
+    expect(date).toMatch(/<template #extras>\s+<WaitBeforePrestige\s+v-if="best\.chain\.length"\s+:chain="best\.chain"/);
+    expect(read('./ByDateRouteCard.vue')).toContain('<slot v-if="!running" name="extras" />');
+    expect(read('./WaitBeforePrestige.vue')).toContain('as the full simulator prices it.');
   });
 });

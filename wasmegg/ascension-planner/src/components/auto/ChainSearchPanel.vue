@@ -589,6 +589,14 @@
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
+              <!-- "Try waiting before each prestige" (WaitBeforePrestige.vue): was on the instant card under Check
+                   exactly until 23 Oct 2026; it prices this result's route on the full simulator, on request only. -->
+              <WaitBeforePrestige
+                v-if="!store.isRunning && store.bestChain.length > 1"
+                :chain="store.bestChain"
+                :zone="autoPlannerStore.timezone || plannerTzFallback"
+                :disabled="store.busy"
+              />
               <!-- The next level up, reusing this run's priced routes (the saved-run box that offered it hides
                    while this result is on screen: the user, 12 Oct, found it clutter). -->
               <p v-if="goFurther" class="text-[11px] text-emerald-900/80" data-testid="go-further">
@@ -1069,6 +1077,7 @@ import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import RouteExtras from './RouteExtras.vue';
+import WaitBeforePrestige from './WaitBeforePrestige.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 import { defaultSeedChain } from '@/search/seedChain';
 import { startFromCountPlan } from '@/lib/longerRouteHint';
