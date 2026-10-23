@@ -121,15 +121,15 @@
       ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template
       ><template v-if="offerPrice"
         >{{ ' ' }}·
-        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-price" title="Opens the goal's screen with Fast selected; it starts when you press Find" @click="priceIt">
+        <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-price" title="Opens the goal's screen with Fast selected; it starts when you press Find" @click="priceIt">
           Run Fast ›
         </button>
         ·
-        <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-simulate" title="Opens Single run with this route on your save (nothing is kept for this page)" @click="emit('simulate', [...follow.chain])">
+        <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-simulate" title="Opens Single run with this route on your save (nothing is kept for this page)" @click="emit('simulate', [...follow.chain])">
           Simulate it ›
         </button></template
       >{{ ' ' }}·
-      <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-follow-back" @click="emit('unfollow')">
+      <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-back" @click="emit('unfollow')">
         Use the checked route ›
       </button>
     </p>

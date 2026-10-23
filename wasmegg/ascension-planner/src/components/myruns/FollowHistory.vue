@@ -7,7 +7,9 @@
 -->
 <template>
   <details v-if="online" class="text-[12px]" data-testid="follow-history" @toggle="onToggle">
-    <summary class="cursor-pointer font-semibold text-indigo-700">Earlier versions</summary>
+    <summary class="cursor-pointer font-semibold text-indigo-700" data-testid="follow-history-summary">
+      <span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>
+    </summary>
     <p v-if="state === 'loading'" class="mt-1 text-slate-500">Loading…</p>
     <p v-else-if="state === 'failed'" class="mt-1 text-slate-500" data-testid="follow-history-failed">{{ UNREACHABLE_NOTE }}</p>
     <p v-else-if="state === 'ready' && !versions.length" class="mt-1 text-slate-500" data-testid="follow-history-none">
@@ -38,7 +40,7 @@
         </button>
       </li>
     </ul>
-    <p v-if="message" class="mt-1 text-rose-700" role="status" data-testid="follow-history-message">{{ message }}</p>
+    <p v-if="message" class="mt-1 text-amber-800" role="status" data-testid="follow-history-message">{{ message }}</p>
   </details>
 </template>
 

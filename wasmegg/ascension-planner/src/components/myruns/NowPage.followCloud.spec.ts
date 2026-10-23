@@ -16,7 +16,9 @@ import FollowHistory from './FollowHistory.vue';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import type { LegSummary } from '@/search/types';
 import { readSnapshot, instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
-import { KEEP_MINE_KEY, type SnapSearch } from '@/lib/searchPlan';
+import { KEEP_MINE_KEY, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
+import { accountOf } from '@/search/runSaves';
+import { instantGoal } from '@/search/instantSnapshot';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
@@ -62,7 +64,7 @@ function save(hoursAgo: number) {
 }
 
 /** Egg Day with an instant answer and a newer Fast result that makes the date with one more TE. */
-async function eggDayWithFastResult(followed: Record<string, unknown> | null) {
+async function eggDayWithFastResult(followed: Record<string, unknown> | null, keptPlan = false) {
   loadAndSyncBackup(A_ID, save(1), 'plan_next');
   rollUpPendingTE();
   const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
@@ -89,7 +91,16 @@ async function eggDayWithFastResult(followed: Record<string, unknown> | null) {
     dateExact: null,
     answerStart: now - H,
   } as never);
-  writeSnapshot(key, { ...(readSnapshot(key) as object), search: found } as never);
+  if (keptPlan)
+    // The result kept beyond the snapshot (aap-search-plans) for this save, priced with the setup now.
+    recordKeptSearch({
+      account: accountOf(useInitialStateStore().rawBackup),
+      goal: instantGoal(eggDayAt, store.finalTE),
+      backupTime: Math.floor(Date.now() / 1000) - 1 * H,
+      setup: { availability: store.availability ? JSON.parse(JSON.stringify(store.availability)) : null, timeOff: JSON.parse(JSON.stringify(store.timeOff ?? [])) },
+      search: found,
+    });
+  else writeSnapshot(key, { ...(readSnapshot(key) as object), search: found } as never);
   if (followed) mem.set(`${FOLLOW_PREFIX}${await hashID(A_ID)}`, JSON.stringify({ [goalKey]: followed }));
   const follows = useFollowStore();
   await vi.waitFor(() => expect(follows.partition).not.toBe(''));
@@ -182,6 +193,22 @@ describe('Right now: a better result with and without a followed route', () => {
     scope.stop();
   });
 
+  it('Right now renders the prompt for a better KEPT search plan (aap-search-plans) on this save\'s pick', async () => {
+    const { page, scope } = await eggDayWithFastResult(
+      { chain: [205, 238], from: 'typed', at: Date.now() - 3_600_000, source: 'manual', finish: EGG_DAY_AT - 1 * D, endTE: 238 },
+      true
+    );
+    await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
+    expect(page.betterRoute.value?.candidate).toMatchObject({ chain: [201, 239], source: 'fast' });
+    const html = await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]);
+    expect(textOf(html)).toContain(
+      "This is a better route than the one you're following (239 TE, 2.5 days to spare vs 238 TE, 1.0 days to spare). Do you want to follow it?"
+    );
+    expect(html).toContain('data-testid="better-route-follow"');
+    expect(html).toContain('data-testid="better-route-keep"');
+    scope.stop();
+  });
+
   it('a route read back from online set with other hours says so, quietly', async () => {
     const { page, scope, eggDayAt } = await eggDayWithFastResult({
       chain: [205, 238],
@@ -256,5 +283,13 @@ describe('the prompt and Earlier versions on their own', () => {
     for (const f of ['../auto/InstantRoute.vue', '../auto/ChainSearchPanel.vue', '../auto/DeadlinePanel.vue', './RightNowCard.vue'])
       expect(read(f)).toContain('<BetterRoutePrompt');
     expect(read('./RightNowCard.vue')).toContain('<FollowHistory');
+    // 44 px tap areas on a phone (desktop unchanged), and the failures in quiet amber, never red.
+    const card = read('./RightNowCard.vue');
+    for (const t of ['now-follow-price', 'now-follow-simulate', 'now-follow-back'])
+      expect(card).toContain(`class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="${t}"`);
+    expect(hist).toContain('<span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>');
+    expect(hist).toContain('<p v-if="message" class="mt-1 text-amber-800"');
+    expect(hist).not.toMatch(/rose|red-/);
+    expect(card).toMatch(/text-amber-800" role="status" data-testid="now-follow-save"/);
   });
 });
