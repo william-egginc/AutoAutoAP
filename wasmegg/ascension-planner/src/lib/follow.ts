@@ -4,8 +4,9 @@
  * instant answer (its lead or a count's row), a saved answer or run, a board row, or typed on Right now.
  *
  * Kept in this browser per account and goal: `aap-follow:<sha-256 of the player ID>` (lib/storage/db.ts `hashID`,
- * as lib/myKeys.ts keeps its keys), never under the ID itself, and never sent anywhere. The value maps each goal key
- * (lib/planGoals.ts `goalKeyOf`) to the route picked. Pure apart from localStorage, which may throw (a private
+ * as lib/myKeys.ts keeps its keys), never under the ID itself. The value maps each goal key (lib/planGoals.ts
+ * `goalKeyOf`) to the route picked. Since 23 Oct 2026 a Follow press also saves it online under a key made from the
+ * ID (lib/followCloud.ts), and loading the account reads it back: the newer of the two is followed. Pure apart from localStorage, which may throw (a private
  * window): the pick then holds for this visit only (stores/follow.ts keeps a copy in memory).
  */
 import { eggDaySeconds, nextEggDayYear } from './eggDay';
@@ -13,6 +14,7 @@ import { goalKeyOf, type GoalKey } from './planGoals';
 import { isDeadlineRow, madeDeadline, remainingChain, type BoardRow } from './leaderboardRank';
 import { finishesBefore } from './eggDayRule';
 import { SAME_DEADLINE_SECONDS, TOP_TE } from '@/search/strongerCheck';
+import type { CloudHours, FollowSource } from './followCloud';
 
 export const FOLLOW_PREFIX = 'aap-follow:';
 
@@ -26,9 +28,32 @@ export interface Followed {
   from: FollowFrom;
   /** When it was picked, ms. */
   at: number;
-  /** Optional words about the source ("Bob's Egg Day run"). */
+  /** Optional words about the source ("Bob's Egg Day run"). Kept in this browser only, never saved online. */
   label?: string;
+  // The summary saved online with the route (lib/followCloud.ts), when known.
+  /** Where it came from: the instant answer, a Fast, Exact or Custom run, or by hand. */
+  source?: FollowSource;
+  /** The plan start its times are from, unix seconds. */
+  planStart?: number;
+  /** When it reaches its last stop, unix seconds. */
+  finish?: number;
+  /** The TE it ends at. */
+  endTE?: number;
+  /** By a date: seconds to spare at the date (negative: late). */
+  spareSeconds?: number;
+  /** The hours window it was set with (null: any time). */
+  hours?: CloudHours | null;
+  /** The save it was set from, unix seconds. */
+  saveTime?: number;
+  /** The simulator (search/simVersion.ts) and the app build it was set with. */
+  simVersion?: string;
+  build?: string;
+  /** Read back from the route saved online (another device's, or this one's from an earlier visit). */
+  cloud?: boolean;
 }
+
+/** The summary fields kept beside the route (all optional). */
+const EXTRA_FIELDS = ['source', 'planStart', 'finish', 'endTE', 'spareSeconds', 'hours', 'saveTime', 'simVersion', 'build', 'cloud'] as const;
 
 export type FollowMap = Record<GoalKey, Followed>;
 
@@ -44,8 +69,11 @@ export function readFollows(partition: string): FollowMap {
     if (!v || typeof v !== 'object') return {};
     const out: FollowMap = {};
     for (const [k, f] of Object.entries(v as Record<string, Partial<Followed>>))
-      if (f && okChain(f.chain) && typeof f.at === 'number')
-        out[k] = { chain: [...f.chain], from: f.from ?? 'typed', at: f.at, ...(f.label ? { label: f.label } : {}) };
+      if (f && okChain(f.chain) && typeof f.at === 'number') {
+        const kept: Followed = { chain: [...f.chain], from: f.from ?? 'typed', at: f.at, ...(f.label ? { label: f.label } : {}) };
+        for (const x of EXTRA_FIELDS) if (f[x] !== undefined) (kept as unknown as Record<string, unknown>)[x] = f[x];
+        out[k] = kept;
+      }
     return out;
   } catch {
     return {};
@@ -65,6 +93,38 @@ export function writeFollow(partition: string, goalKey: GoalKey, f: Followed | n
     // A private window: the pick still holds for this visit.
   }
   return next;
+}
+
+/**
+ * When the player un-followed a goal on this device, per account (`aap-follow-gone:<hash>`, goal key to ms): there is
+ * no delete online, so a route saved before that is not taken back on the next load (lib/followCloud.ts mergeCloud).
+ */
+export const FOLLOW_GONE_PREFIX = 'aap-follow-gone:';
+
+export function readGone(partition: string): Record<GoalKey, number> {
+  if (!partition) return {};
+  try {
+    const v = JSON.parse(localStorage.getItem(FOLLOW_GONE_PREFIX + partition) ?? '{}') as Record<string, unknown>;
+    const out: Record<GoalKey, number> = {};
+    for (const [k, at] of Object.entries(v ?? {})) if (typeof at === 'number' && Number.isFinite(at)) out[k] = at;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** Remember (at, ms) or forget (null) the un-follow of a goal. */
+export function writeGone(partition: string, goalKey: GoalKey, at: number | null): void {
+  if (!partition || !goalKey) return;
+  const next = readGone(partition);
+  if (at == null) delete next[goalKey];
+  else next[goalKey] = at;
+  try {
+    if (Object.keys(next).length) localStorage.setItem(FOLLOW_GONE_PREFIX + partition, JSON.stringify(next));
+    else localStorage.removeItem(FOLLOW_GONE_PREFIX + partition);
+  } catch {
+    // this visit only
+  }
 }
 
 /** The next Egg Day, as Right now's goals have it. */

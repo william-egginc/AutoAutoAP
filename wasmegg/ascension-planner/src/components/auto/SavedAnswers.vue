@@ -60,6 +60,11 @@
         :goal-key="screenGoalKey(a.result.deadline, a.result.te)"
         from="saved"
         :label="a.label"
+        :source="sourceOfLevel(foundLevel({ custom: !a.result.simple, effort: a.result.level }))"
+        :finish="a.result.routes[0].reachAt"
+        :end-te="a.result.routes[0].chain[a.result.routes[0].chain.length - 1]"
+        :plan-start="a.result.planStart"
+        :deadline="a.result.deadline"
       />
       <button
         type="button"
@@ -91,6 +96,7 @@ import { showDateTime } from '@/lib/displayTime';
 import EntrySaveActions from './EntrySaveActions.vue';
 import FollowButton from '../FollowButton.vue';
 import { followableAnswer, screenGoalKey } from '@/lib/follow';
+import { sourceOfLevel } from '@/lib/followCloud';
 import SaveFileBar from './SaveFileBar.vue';
 import PaceBadge from '../myruns/PaceBadge.vue';
 import { usePlanPace } from '@/composables/usePlanPace';

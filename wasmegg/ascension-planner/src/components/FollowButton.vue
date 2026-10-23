@@ -2,7 +2,8 @@
   "Follow this route" (lib/follow.ts, stores/follow.ts): My runs' Right now follows this route for the goal (its key,
   lib/planGoals.ts `goalKeyOf`) instead of the planner's checked pick, remembered per account in this browser.
   "Following ✓" when it is the one kept. Small beside the buttons it sits with; `primary` makes it a 44 px tap
-  target on a phone.
+  target on a phone. A press is the only thing that saves the route online (stores/follow.ts, lib/followCloud.ts):
+  the summary props (where it came from, its finish, TE and plan start) go with it when the screen knows them.
 -->
 <template>
   <button
@@ -26,6 +27,7 @@
 import { computed } from 'vue';
 import { useFollowStore } from '@/stores/follow';
 import type { FollowFrom } from '@/lib/follow';
+import type { FollowSource } from '@/lib/followCloud';
 
 const props = defineProps<{
   chain: readonly number[];
@@ -33,6 +35,13 @@ const props = defineProps<{
   from: FollowFrom;
   label?: string;
   primary?: boolean;
+  /** Saved online with the route (lib/followCloud.ts): where it came from (default: from `from`), when it reaches its
+   *  last stop (unix seconds), the TE it ends at, its plan start, and By a date's deadline (for the spare). */
+  source?: FollowSource;
+  finish?: number | null;
+  endTE?: number | null;
+  planStart?: number | null;
+  deadline?: number | null;
 }>();
 
 /** No store without Pinia (a board list rendered on its own in a spec): the button still shows, and does nothing. */
@@ -52,6 +61,13 @@ const goalName = computed(() => {
 });
 function pick(): void {
   if (!follows || on.value || !props.chain.length) return;
-  void follows.follow(props.goalKey, props.chain, props.from, props.label);
+  const fin = typeof props.finish === 'number' && Number.isFinite(props.finish) ? Math.round(props.finish) : undefined;
+  void follows.follow(props.goalKey, props.chain, props.from, props.label, {
+    ...(props.source ? { source: props.source } : {}),
+    ...(fin !== undefined ? { finish: fin } : {}),
+    ...(typeof props.endTE === 'number' ? { endTE: Math.floor(props.endTE) } : {}),
+    ...(props.planStart ? { planStart: Math.floor(props.planStart) } : {}),
+    ...(fin !== undefined && props.deadline ? { spareSeconds: props.deadline - fin } : {}),
+  });
 }
 </script>
