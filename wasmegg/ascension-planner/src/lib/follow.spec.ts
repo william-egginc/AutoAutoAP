@@ -150,3 +150,15 @@ describe('a typed route', () => {
     expect(followedFromNow([180, 197, 222, 490], 200)).toEqual([222, 490]);
   });
 });
+
+describe('a board row\'s summary for Follow (own runs)', () => {
+  it('its finish, TE and start from the row\'s own times; a By a date row\'s last ascension', async () => {
+    const { boardRowSummary } = await import('./follow');
+    const race = { chain: [222, 490], durationDays: 9, finalTE: 490, startUtc: '2026-10-20T00:00:00Z', endUtc: '2026-10-29T00:00:00Z' };
+    expect(boardRowSummary(race as never)).toEqual({ finish: Date.UTC(2026, 9, 29) / 1000, endTE: 490, planStart: Date.UTC(2026, 9, 20) / 1000 });
+    const date = { ...race, chain: [200, 240], finalTE: 240, deadline: 1800000000, deadlineAscendAt: 1799990000 };
+    expect(boardRowSummary(date as never)).toMatchObject({ finish: 1799990000, endTE: 240, deadline: 1800000000 });
+    expect(boardRowSummary({ chain: [300], durationDays: 1, finalTE: 300 } as never)).toEqual({ endTE: 300 });
+  });
+});
+

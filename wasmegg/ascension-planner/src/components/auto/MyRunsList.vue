@@ -148,7 +148,12 @@
                 >
                   Use
                 </button>
-                <FollowButton v-if="followableRow(l.row)" class="ml-1" :chain="l.row.chain" :goal-key="boardGoalKey(l.row)" from="board" />
+                <FollowButton v-if="followableRow(l.row)" class="ml-1" :chain="l.row.chain" :goal-key="boardGoalKey(l.row)" from="board"
+                  :finish="boardRowSummary(l.row).finish"
+                  :end-te="boardRowSummary(l.row).endTE"
+                  :plan-start="boardRowSummary(l.row).planStart"
+                  :deadline="boardRowSummary(l.row).deadline"
+                />
               </td>
             </tr>
             <tr v-if="open === l.key" class="bg-slate-50">
@@ -166,7 +171,7 @@
 
 <script setup lang="ts">
 import FollowButton from '../FollowButton.vue';
-import { boardGoalKey, followableRow } from '@/lib/follow';
+import { boardGoalKey, boardRowSummary, followableRow } from '@/lib/follow';
 import { lateMarker } from '@/lib/eggDayRule';
 import { computed, inject, ref } from 'vue';
 import {

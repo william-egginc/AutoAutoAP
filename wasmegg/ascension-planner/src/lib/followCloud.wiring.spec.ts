@@ -51,11 +51,21 @@ describe('the followed route saved online: wiring', () => {
     const store = read('stores/follow.ts');
     // saveOnline is called from follow() alone; loadCloud never writes online.
     expect(store.match(/saveOnline\(/g)?.length).toBe(2); // its definition and the one call
-    const load = store.slice(store.indexOf('async function loadCloud('), store.indexOf('/** The route followed for a goal'));
+    const load = store.slice(store.indexOf('function loadCloud('), store.indexOf('/** The route followed for a goal'));
     expect(load).not.toMatch(/putFollow|saveOnline/);
   });
 
   it('the collector URL is the chain-search store\'s submit URL', () => {
     expect(read('stores/follow.ts')).toContain('followUrlOf(searchStore()?.submitUrl)');
   });
+
+  it('every Follow button passes the finish, except another player\'s board row (their account, not comparable)', () => {
+    const tags = allSource(src).flatMap(p =>
+      [...readFileSync(p, 'utf8').matchAll(/<FollowButton\b[^>]*>/g)].map(m => ({ file: p.slice(src.length), tag: m[0] }))
+    );
+    const without = tags.filter(t => !t.tag.includes(':finish=')).map(t => t.file).sort();
+    expect(without).toEqual(['components/auto/LeaderboardPanel.vue', 'components/auto/LeaderboardPanel.vue', 'components/auto/LeaderboardPlanList.vue']);
+    expect(tags.length).toBeGreaterThanOrEqual(9);
+  });
 });
+
