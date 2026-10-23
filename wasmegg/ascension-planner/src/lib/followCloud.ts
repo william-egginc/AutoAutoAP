@@ -5,7 +5,7 @@
  * on a load or on a takeover. Loading an account reads the saved routes back; the newer of the browser's and the
  * saved one (by the client's own `at`, when Follow was pressed) is the one followed.
  *
- * The collector never sees the player ID: the key is SHA-256 of "aap-follow-v1:" + the ID in UPPER case, lowercase
+ * The collector never sees the player ID: the key is SHA-256 of "aaap-follow-v1:" + the ID in UPPER case, lowercase
  * hex, worked out here (`followKey`). Anyone who knows the ID can work out the same key and read or write it: that is
  * accepted (about.html says so). A value never holds the ID or a name (`hasPlayerId` refuses one before sending), and
  * a URL only ever holds the key.
@@ -23,7 +23,9 @@ import { eggDaySeconds } from './eggDay';
 import { screenGoalKey, type Followed, type FollowFrom, type FollowMap } from './follow';
 import type { GoalKey } from './planGoals';
 
-export const FOLLOW_KEY_PREFIX = 'aap-follow-v1:';
+/** The contract's prefix (three a's: follow-contract.md, collector/README.md). The first build hashed 'aap-follow-v1:';
+ *  nothing was stored under that key outside the test collector (the live collector had no /follow), so no migration. */
+export const FOLLOW_KEY_PREFIX = 'aaap-follow-v1:';
 /** The collector's caps (contract v1). */
 export const FOLLOW_MAX_VALUE_BYTES = 4096;
 export const FOLLOW_MAX_STOPS = 16;
@@ -69,7 +71,7 @@ export interface CloudEntry {
 const PLAYER_ID = /EI\d{16}/i;
 export const hasPlayerId = (s: string): boolean => PLAYER_ID.test(s);
 
-/** The key for an ID: lowercase hex SHA-256 of "aap-follow-v1:" + the ID trimmed and upper-cased; '' without one. */
+/** The key for an ID: lowercase hex SHA-256 of "aaap-follow-v1:" + the ID trimmed and upper-cased; '' without one. */
 export async function followKey(playerId: string): Promise<string> {
   const id = (playerId ?? '').trim().toUpperCase();
   if (!id) return '';

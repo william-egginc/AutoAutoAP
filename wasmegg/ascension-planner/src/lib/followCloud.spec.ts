@@ -30,8 +30,8 @@ import { eggDaySeconds } from './eggDay';
 import type { Followed } from './follow';
 
 const ID = 'EI0000000000000000';
-/** sha256("aap-follow-v1:EI0000000000000000"), worked out with node's crypto. */
-const KEY = 'c5313ce4197e2fb5c0d4a1fa53cc64742397882977f50d6ddd27f1e230e49cb3';
+/** sha256("aaap-follow-v1:EI0000000000000000"), worked out with node's crypto. */
+const KEY = '3726b0602ac082295aa779d59a2d977c10f29a2aa3f7673705e02dc1889dab55';
 const URL_ = 'https://collector.example/follow';
 const AT = Date.UTC(2026, 9, 23, 18) as number;
 const T = Math.floor(AT / 1000);
@@ -62,7 +62,7 @@ const followed = (o: Partial<Followed> = {}): Followed => ({
 });
 
 describe('the key', () => {
-  it('is SHA-256 of "aap-follow-v1:" + the ID in UPPER case, lowercase hex (known vector)', async () => {
+  it('is SHA-256 of "aaap-follow-v1:" + the ID in UPPER case, lowercase hex (known vector)', async () => {
     expect(await followKey(ID)).toBe(KEY);
     expect(await followKey(ID.toLowerCase())).toBe(KEY);
     expect(await followKey(`  ${ID.toLowerCase()} `)).toBe(KEY);

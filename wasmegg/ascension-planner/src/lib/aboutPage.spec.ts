@@ -130,7 +130,7 @@ describe('About and privacy page', () => {
     expect(text).toContain('Last updated 23 Oct 2026.');
     // What it says must stay true: the key made in the browser from the ID, the value's fields, Follow the only write.
     const cloud = read('src/lib/followCloud.ts');
-    expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aap-follow-v1:';");
+    expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aaap-follow-v1:';");
     expect(cloud).toContain("const id = (playerId ?? '').trim().toUpperCase();");
     expect(cloud).toContain('export const FOLLOW_VERSIONS = 5;');
     for (const f of ['chain', 'planStart', 'source', 'at', 'finish', 'endTE', 'spareSeconds', 'hours', 'saveTime', 'simVersion', 'build'])
