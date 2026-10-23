@@ -416,6 +416,54 @@ const START = {
   buildH: 51.2,
 };
 
+describe('the shared instant baseline on board rows (23 Oct 2026)', () => {
+  const BASE = { chain: [195, 214, 233, 490], end: 1815580800, endTE: 490, at: 1792700000000 };
+
+  it('stores it on the row and serves it on /all, /mine and the snapshot', async () => {
+    const { id } = await (await postOwned('/submit', { ...MINIMAL, baseline: BASE }, 'a'.repeat(32), '8.8.8.1')).json();
+    const all = await (await get('/all')).json();
+    expect(all.rows.find(r => r.id === id).baseline).toEqual(BASE);
+    const mine = await (await getOwned('/mine', 'a'.repeat(32))).json();
+    expect(mine.rows.find(r => r.id === id).baseline).toEqual(BASE);
+    expect(env.SUBMISSIONS._m.get('snap:sub')).toContain('"baseline":{"chain":[195,214,233,490]');
+    // Not under extra:.
+    const extras = [...env.SUBMISSIONS._m.keys()].filter(k => k.startsWith('extra:'));
+    for (const k of extras) expect(env.SUBMISSIONS._m.get(k)).not.toContain('"baseline"');
+  });
+
+  it('is optional: a row without one has none', async () => {
+    const { id } = await (await post('/submit', MINIMAL, '8.8.8.2')).json();
+    expect((await (await get('/all')).json()).rows.find(r => r.id === id)).not.toHaveProperty('baseline');
+  });
+
+  it.each([
+    ['too many stops', { ...BASE, chain: Array.from({ length: 13 }, (_, i) => 100 + i) }],
+    ['not increasing', { ...BASE, chain: [214, 195, 490] }],
+    ['a stop over 490', { ...BASE, chain: [195, 491] }],
+    ['a fractional stop', { ...BASE, chain: [195.5, 490] }],
+    ['no end', { chain: BASE.chain, endTE: 490 }],
+    ['end out of range', { ...BASE, end: 5 }],
+    ['endTE over 490', { ...BASE, endTE: 500 }],
+    ['not an object', 'x'],
+    ['an array', [1, 2]],
+  ])('drops a baseline with %s, keeps the row', async (_name, baseline) => {
+    const res = await post('/submit', { ...MINIMAL, baseline }, '8.8.8.3');
+    expect(res.status).toBe(200);
+    const row = (await (await get('/all')).json()).rows[0];
+    expect(row).not.toHaveProperty('baseline');
+  });
+
+  it('keeps a baseline without `at`, drops a bad `at` only, and ignores extra fields', async () => {
+    await post('/submit', { ...MINIMAL, baseline: { chain: [195, 490], end: BASE.end, endTE: 490, junk: 'x'.repeat(500) } }, '8.8.8.4');
+    let row = (await (await get('/all')).json()).rows[0];
+    expect(row.baseline).toEqual({ chain: [195, 490], end: BASE.end, endTE: 490 });
+    env.SUBMISSIONS._m.clear();
+    await post('/submit', { ...MINIMAL, baseline: { ...BASE, at: -5 } }, '8.8.8.5');
+    row = (await (await get('/all')).json()).rows[0];
+    expect(row.baseline).toEqual({ chain: BASE.chain, end: BASE.end, endTE: 490 });
+  });
+});
+
 describe('start provenance on board rows (22 Oct 2026)', () => {
   it('stores where a run started and serves it on the row', async () => {
     const { id } = await (await post('/submit', { ...MINIMAL, start: START }, '7.7.8.1')).json();

@@ -588,6 +588,15 @@ seconds, between 2020 and 2100, required and checked) and `deadlineAscendAt` (wh
 ascension can be made with the player's hours counted; it cannot be after the deadline). Only a
 By a date run sends 8, and its `chain` may be a single checkpoint; every other run still sends 7.
 
+**The instant baseline** (`baseline`, 23 Oct 2026; optional on any schema, no schema bump, so an app that sends it
+works with an older collector, which drops it): `{ chain, end, endTE, at? }`, the instant answer's route for the
+same save, sent on a board row only when the player ticked "Share my instant baseline with my runs", so a run can
+say how far it beat the instant answer. `chain` is up to 12 whole TE stops, 0 to 490, strictly increasing; `end` is
+unix seconds (2020 to 2100); `endTE` a whole number 0 to 490; `at` (optional) the time it was worked out, in
+milliseconds. All or nothing (`baselineBlock` in worker.js): a block with a missing or bad field, or over 300 bytes
+as JSON, is dropped whole and the row kept. Stored on the row itself (not under `extra:<id>`), so `/all`, `/mine`
+and the board snapshot carry it, and it is public like the rest of the row: nothing in it names the account.
+
 **Where a run started** (`start`, 22 Oct 2026; optional on any schema, no schema bump, so an app that sends
 it works with an older collector, which drops it): so a row like Allan's "36 h faster" (an instant answer
 worked out on a restored Manual draft, or a plan sent from a tab left open for days) can be told from the

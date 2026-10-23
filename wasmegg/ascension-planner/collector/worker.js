@@ -583,6 +583,37 @@ function startBlock(v) {
   return out;
 }
 
+/**
+ * The instant baseline a run is shown against (23 Oct 2026; optional, no schema bump), on board rows only and
+ * only when the player ticked "Share my instant baseline with my runs": the instant answer's route for the
+ * same save, so a run can say how far it beat it. All or nothing: a block with a missing or bad field is dropped
+ * whole (half a baseline says nothing), never the row.
+ *   chain   up to BASELINE_MAX_STOPS whole TE stops, 0-490, strictly increasing
+ *   end     when the route ends, unix seconds
+ *   endTE   the TE it ends at, a whole number 0-490
+ *   at      when the baseline was worked out, ms since 1970 (optional; dropped if out of range)
+ * At most BASELINE_MAX_BYTES as JSON. Stored on the row itself (not `extra:`), so /all, /mine and the snapshot carry it.
+ */
+const BASELINE_MAX_STOPS = 12;
+const BASELINE_MAX_BYTES = 300;
+function baselineBlock(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const chain = v.chain;
+  if (
+    !Array.isArray(chain) ||
+    !chain.length ||
+    chain.length > BASELINE_MAX_STOPS ||
+    !chain.every((x, i) => Number.isInteger(x) && x >= 0 && x <= 490 && (i === 0 || x > chain[i - 1]))
+  )
+    return undefined;
+  const end = within(v.end, MAX.DEADLINE_FROM, MAX.DEADLINE_TO);
+  const endTE = Number.isInteger(v.endTE) ? within(v.endTE, 0, 490) : undefined;
+  if (end === undefined || endTE === undefined) return undefined;
+  const at = Number.isInteger(v.at) ? within(v.at, MAX.DEADLINE_FROM * 1000, MAX.DEADLINE_TO * 1000) : undefined;
+  const out = { chain: chain.slice(), end: Math.round(end), endTE, ...(at !== undefined ? { at } : {}) };
+  return JSON.stringify(out).length > BASELINE_MAX_BYTES ? undefined : out;
+}
+
 /** Which sweep preset a run came from. Short labels only; the bands are the ones typed into the panel. */
 function sweepTag(t) {
   if (!t || typeof t !== 'object') return undefined;
@@ -854,6 +885,8 @@ function pickSubmission(s) {
     simVersion: simStamp(s.simVersion),
     // Where the run started from (22 Oct 2026, `startBlock`): optional, no schema bump; a bad field is dropped.
     start: startBlock(s.start),
+    // The shared instant baseline (23 Oct 2026, `baselineBlock`): optional, all or nothing.
+    baseline: baselineBlock(s.baseline),
     startUtc: isoStamp(s.startUtc),
     endUtc: isoStamp(s.endUtc),
     rechecks: recheckList(s.rechecks, s.finalTE),
