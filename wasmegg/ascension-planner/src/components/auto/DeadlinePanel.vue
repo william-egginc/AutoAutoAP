@@ -204,6 +204,7 @@
       screen="by-date"
       :player-id="playerId"
       :running="!!runKind"
+      :stopping="stopAsked"
       :estimates="levelEstimates"
       :opens-on="unfinishedChoice"
     >

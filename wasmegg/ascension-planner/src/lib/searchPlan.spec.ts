@@ -166,6 +166,18 @@ describe('liveSearchResult: the store result for this goal and save (the instant
     expect(liveSearchResult({ ...base, target: 500 })).toBeNull();
     expect(liveSearchResult({ ...base, fastest: { ...base.fastest, owner: 'other' } })).toBeNull();
   });
+  it('Fastest, Stop & keep best: no pointer while it is still stopping, then its best so far once it ends (23 Oct 2026)', () => {
+    // Stopping: the store still says running until the workers finish the routes they have (search/stopNote.ts).
+    expect(liveSearchResult({ ...base, fastest: { ...base.fastest, running: true } })).toBeNull();
+    // Ended (stopped early): the best so far is the result, at its own level.
+    expect(liveSearchResult({ ...base, fastest: { ...base.fastest, running: false, bestDays: 101.5 } })).toMatchObject({
+      level: 'Fast',
+      end: NOW + 101.5 * D,
+      endTE: 490,
+    });
+    // Stopped before any route was priced: nothing to point at (not "Invalid Date").
+    expect(liveSearchResult({ ...base, fastest: { ...base.fastest, bestDays: Infinity } })).toBeNull();
+  });
   it('By a date: the result for this deadline, started from the TE the save has now', () => {
     const date: LiveSearchInput = {
       ...base,

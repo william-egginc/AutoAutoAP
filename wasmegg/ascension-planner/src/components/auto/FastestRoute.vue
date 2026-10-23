@@ -53,6 +53,7 @@
         screen="fastest"
         :player-id="playerId"
         :running="smartRunning || fullRunning"
+        :stopping="store.isRunning && store.stopRequested"
         :estimates="levelEstimates"
         @pick="o => emit('update:depth', o === 'custom' ? 'full' : 'smart')"
       >

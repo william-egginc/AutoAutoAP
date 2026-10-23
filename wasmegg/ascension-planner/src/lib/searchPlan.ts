@@ -88,7 +88,8 @@ export function liveSearchResult(i: LiveSearchInput): SnapSearch | null {
   }
   const f = i.fastest;
   const chain = f.bestChain;
-  if (f.running || !(f.bestDays > 0) || !chain.length) return null;
+  // Finite too: a run stopped before any route was priced keeps `Infinity` days (search/driver.ts `ever`).
+  if (f.running || !(f.bestDays > 0) || !Number.isFinite(f.bestDays) || !chain.length) return null;
   if (chain[chain.length - 1] !== i.target || !(chain[0] > te) || !i.ownerOk(f.owner)) return null;
   return {
     level: foundLevel({ custom: f.custom, effort: f.effort }),

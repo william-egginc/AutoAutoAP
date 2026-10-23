@@ -176,6 +176,14 @@ describe('the card', () => {
     expect(optTag(html, 'custom')).toMatch(dis);
     expect(mem.get(searchOptionKey('by-date'))).toBeUndefined();
   });
+  it('says Stopping, not Running, once Stop is pressed (the run ends when its workers finish their routes; 23 Oct 2026)', async () => {
+    const pill = (html: string) => textOf(html.match(/<span[^>]*data-testid="search-panel-running"[^>]*>[\s\S]*?<\/span>/)?.[0] ?? '');
+    expect(pill(await render({ running: true }))).toBe('Running');
+    expect(pill(await render({ running: true, stopping: true }))).toBe('Stopping');
+    const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
+    expect(read('FastestRoute.vue')).toContain(':stopping="store.isRunning && store.stopRequested"');
+    expect(read('DeadlinePanel.vue')).toContain(':stopping="stopAsked"');
+  });
   it('keeps the panels as the reveal helpers find them (data-search-tab-panel, screen, tab)', async () => {
     const html = await render({ screen: 'fastest' });
     const p = panelTag(html, 'exhaustive');

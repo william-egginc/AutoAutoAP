@@ -21,11 +21,14 @@
   >
     <div class="flex flex-wrap items-center gap-2">
       <h3 class="text-base font-black text-slate-900">Stronger check</h3>
+      <!-- "Stopping" once Stop is pressed (23 Oct 2026): the run goes on until the workers finish the routes they
+           have (search/stopNote.ts), which can be minutes, and "Running" then looked as if Stop had not worked. -->
       <span
         v-if="running"
-        class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest"
+        class="px-1.5 py-0.5 rounded text-white text-[9px] font-black uppercase tracking-widest"
+        :class="stopping ? 'bg-amber-600' : 'bg-indigo-600'"
         data-testid="search-panel-running"
-        >Running</span
+        >{{ stopping ? 'Stopping' : 'Running' }}</span
       >
       <a
         href="#/science/how"
@@ -116,6 +119,8 @@ const props = defineProps<{
   screen: SearchTabScreen;
   /** A search in this panel is running: the Running pill, and the choice is locked. */
   running?: boolean;
+  /** Stop was pressed and the run is finishing the routes its workers have: the pill says Stopping. */
+  stopping?: boolean;
   /** What each Nearby routes level would cost on THIS computer (FastestRoute.vue, DeadlinePanel.vue). */
   estimates?: Partial<Record<StrongerLevel, LevelEstimate>>;
   /** The header's player ID (kept for the screens that pass it). */

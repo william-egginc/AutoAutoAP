@@ -8,7 +8,11 @@ const read = (f: string) => fs.readFileSync(path.join(AUTO, f), 'utf8');
 
 describe('the stopping note', () => {
   it('says what is happening in plain words', () => {
-    expect(STOPPING_NOTE).toBe('Stopping: finishing the routes already started (up to about a minute).');
+    expect(STOPPING_NOTE).toBe(
+      'Stopping: finishing the routes the workers already have. This can take a few minutes, longer on a phone or on Fastest, where each route is long. Your best so far is kept.'
+    );
+    // Not "up to about a minute" (23 Oct 2026: over 180 s on a phone on Fastest).
+    expect(STOPPING_NOTE).not.toContain('minute)');
     expect(STOPPING_NOTE.toLowerCase()).not.toContain('table');
   });
 
