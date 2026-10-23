@@ -269,17 +269,17 @@ first read after that settles the board once: it lists the rows and the CSV ids,
 snapshot lacks or whose name the key metadata says changed, flips `hasCsv` where a table arrived,
 and clears `settleAt`. With no writes there are no rebuilds (a snapshot untouched for a day is
 settled once as a backstop). Building from nothing — the first read after deploying a version that
-changes the snapshot, or after `snap:<board>` is deleted by hand — reads at most 700 rows of the main
+changes the snapshot, or after `snap:<board>` is deleted by hand — reads at most 300 rows of the main
 board (200 of the flagged one) per request and carries on at the next read, so a request that rebuilds
-both stays under the Free plan's 1,000 KV operations. Up to about 700 rows a rebuild finishes in one read
-(it was 300 until 22 Oct 2026). The cost is CPU: about 45-60 ms for 700 rows measured in Node, against
-18-28 ms for 300, both past the Free plan's nominal 10 ms; if a rebuild is ever cut off for CPU, that
-board's reads fail until `SETTLE_MAX_GETS` is lowered again. A settle also drops a row that
+both stays under the Free plan's 1,000 KV operations. A board past 300 rows takes two reads to rebuild.
+The limit is CPU, not operations: about 18-28 ms for 300 rows measured in Node, 45-60 ms for 700 (tried on
+22 Oct 2026 and kept at 300), both past the Free plan's nominal 10 ms; if a rebuild is ever cut off for CPU,
+that board's reads fail until `SETTLE_MAX_GETS` is lowered again. A settle also drops a row that
 KV no longer lists, once it is more than 10 minutes old (a newer row may just not be listed yet): a
 replaced provisional row that a racing patch put back, or a row deleted by hand. So after deleting
 rows by hand there is nothing else to do; after *changing* one, still delete `snap:sub` /
 `snap:flag` and the next read rebuilds it. **After deleting a snapshot (as `fix-hide-bad-rows.sh`
-does), `/all` may need two reads**: a board past 700 rows (a flagged board past 200) is rebuilt over
+does), `/all` may need two reads**: a board past 300 rows (a flagged board past 200) is rebuilt over
 more than one read, and the first answers with the rows it has read so far. Read `/all` again before
 checking the board, and before deleting a snapshot again: a delete in between starts the rebuild over.
 
@@ -671,7 +671,8 @@ answer and its exact check, for the analyst:
   awake window, held shifts, "also try ascending at once", time off and dated milestones (counts);
 - `instant`: the instant answer's route, each stop's arrival, build (sales, tier 13) and, By a date,
   the spare; `rows`: every row shown, instant answer against exact;
-- `exact`: the exact check's route leg by leg (start, days, strategy, sales, tier 13, peak delivery,
+- `exactFrom` (23 Oct 2026, optional): `fast`, `exact` or `custom`, which search `exact` came from. Any other value refuses the record.
+- `exact`: from the UI of 23 Oct 2026, the best result of the player's Fast, Exact or Custom search (`exactFrom` says which); before that it was Check exactly's price. The route leg by leg (start, days, strategy, sales, tier 13, peak delivery,
   shift holds and prestige delays) with leg 1's `firstLeg` and `firstLegOtherHours`;
 - `buildGap`: the farm the plan would continue (its peak delivery now) against the first fresh
   build's peak in the exact route, and the ratio (under ~0.85: a half-built farm);

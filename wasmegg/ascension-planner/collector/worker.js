@@ -1316,17 +1316,13 @@ const LIST_MAX_PAGES = 20;
  * (or a /submit) can settle both boards in one request. A normal settle reads a handful; only the first
  * build (no snapshot: a deploy that bumps SNAP_VERSION, or `snap:<board>` deleted by hand) reads every
  * row, and past this it stores what it has with `settleAt` due at once, so the next read carries on where
- * it stopped. 700 (was 300, 22 Oct 2026) so a board of up to about 700 rows rebuilds in ONE read; the
- * flagged board's own settle is held to FLAG_SETTLE_MAX_GETS, so both boards rebuilding in one request
- * stay at 900 reads plus a few lists and writes, under the 1,000. CPU is the risk: measured in Node (M-series
- * Mac, warm) on the live board's rows (3 KB median) copied, a rebuild from nothing takes about 45-60 ms for
- * 700 rows against 18-28 ms for 300 (the old cap), both past the Free plan's nominal 10 ms a request.
- * Rebuilds of ~300 have gone through live, so the limit is not applied strictly to one request, but a
- * rebuild twice as long is likelier to be cut off ("exceeded CPU"). A cut-off rebuild stores nothing, and
- * a board with no snapshot is rebuilt inside the read itself, so every read of that board would then fail
- * the same way: if a rebuild is ever cut off, lower this again (300 rebuilds in steps, as before).
+ * it stopped. KEPT AT 300 (a 700 was tried on 22 Oct 2026 and backed out on the orchestrator's word): CPU is
+ * the limit, not operations. Measured in Node, a rebuild from nothing takes about 18-28 ms for 300 rows and
+ * 45-60 ms for 700, both past the Free plan's nominal 10 ms a request; 300 has gone through live, and a
+ * rebuild cut off for CPU stores nothing and fails every read of that board. The cost: a board past 300
+ * rows needs two reads to rebuild (see README, "After deleting a snapshot").
  */
-const SETTLE_MAX_GETS = 700;
+const SETTLE_MAX_GETS = 300;
 /** The flagged board's share of a request's reads when both boards settle at once (see SETTLE_MAX_GETS). */
 const FLAG_SETTLE_MAX_GETS = 200;
 /** A snapshot write refused (KV takes one write a second per key) is tried once more after this. */
@@ -2635,6 +2631,10 @@ const INSTANT_RECORD = IV.obj(
       )
     ),
     exactMissedByHours: IV.num(0, 1e6),
+    // Which search the record's `exact` came from (23 Oct 2026): the player's Fast, Exact or Custom search.
+    // Absent on a record from before: its `exact` was Check exactly's price. A known field with any other
+    // value refuses the record, like every enum here.
+    exactFrom: IV.oneOf(['fast', 'exact', 'custom']),
     buildGap: IV.obj({
       contQph: IV.num(0, 1e9),
       freshQph: IV.num(0, 1e9),
