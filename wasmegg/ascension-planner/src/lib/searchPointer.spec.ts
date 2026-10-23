@@ -42,3 +42,20 @@ describe('pointerOf', () => {
     );
   });
 });
+
+describe('firstAscensionFromLiveLeg (hook for First ascension and One more TE on the instant card, not wired)', () => {
+  it('passes a live first leg on as RouteExtras props, with its shifts; nothing without one', async () => {
+    const { firstAscensionFromLiveLeg } = await import('./searchPointer');
+    expect(firstAscensionFromLiveLeg(null)).toBeNull();
+    expect(firstAscensionFromLiveLeg({ chain: [197, 313], legs: [], reachAt: 5 })).toBeNull();
+    const leg = { key: 'continue', endTE: 197, durationSeconds: 10, maxELR: 0, endTime: 2_000_000_000, tier13Unlocked: false, shifts: [{ at: 1_900_000_000, egg: 'humility', fromEgg: 'integrity', te: 40 }] };
+    const r = firstAscensionFromLiveLeg({ chain: [197, 313], legs: [leg as never], reachAt: 2_100_000_000 });
+    expect(r?.props.chain).toEqual([197, 313]);
+    expect(r?.shifts).toEqual([{ at: 1_900_000_000, egg: 'humility' }]);
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const route = fs.readFileSync(path.resolve(__dirname, '../components/auto/InstantRoute.vue'), 'utf8');
+    expect(route.match(/HOOK: First ascension/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(route).toContain('`firstAscensionFromLiveLeg`');
+  });
+});

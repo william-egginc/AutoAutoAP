@@ -7,6 +7,9 @@
  * Pure: InstantRoute.vue reads the chain-search store and hands the finished result here.
  */
 
+import type { LegSummary } from '@/search/types';
+import { firstLegShifts, oneMoreTE, type FirstShift, type OneMoreTE } from '@/search/routeExtras';
+
 /** A search's level as the panel names it (lib/searchOption.ts): Fast, Exact or Custom. */
 export type FoundLevel = 'Fast' | 'Exact' | 'Custom';
 
@@ -57,3 +60,34 @@ export const POINTER_LINK = 'See it ↓';
  */
 export const INSTANT_ONE_LINE =
   'These are instant answers, worked out ahead of time. For an answer priced on your account (your hours, your current ascension, your gear), run Fast, Exact or Custom below.';
+
+/**
+ * HOOK, NOT WIRED (23 Oct 2026): "First ascension: 3 egg shifts, Thu Oct 22, 4 pm to Fri Oct 23, 2 am" and "One more
+ * TE (314): …" left the instant card with Check exactly, since they need the simulator's first leg (its shifts) and
+ * the route's last leg on the account. The engine branch (spec-instant2) will simulate the current ascension live
+ * again; when it does, hand its result here and mount RouteExtras.vue under the green box with what comes back
+ * (InstantRoute.vue marks the spot, "HOOK: First ascension"). The words are RouteExtras's own, the same as on the
+ * Fastest and By a date result cards: this only checks the input and passes the same values on.
+ */
+export interface LiveFirstLeg {
+  /** The instant answer's route the live leg belongs to. */
+  chain: number[];
+  /** The simulated legs: at least the first (the current ascension) with its shifts. */
+  legs: LegSummary[];
+  /** Unix second the route's last stop is reached (the instant answer's, until the whole route is simulated). */
+  reachAt: number;
+}
+
+/** What RouteExtras shows for the live first leg: its props, and the shifts and one more TE it would word. */
+export function firstAscensionFromLiveLeg(live: LiveFirstLeg | null): {
+  props: { chain: number[]; legs: LegSummary[]; reachAt: number };
+  shifts: FirstShift[];
+  oneMore: OneMoreTE | null;
+} | null {
+  if (!live || !live.chain.length || !live.legs.length || !(live.reachAt > 0)) return null;
+  return {
+    props: { chain: [...live.chain], legs: live.legs, reachAt: live.reachAt },
+    shifts: firstLegShifts(live.legs),
+    oneMore: oneMoreTE({ chain: live.chain, legs: live.legs, reachAt: live.reachAt }),
+  };
+}
