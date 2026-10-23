@@ -42,7 +42,7 @@ describe('atMostAscensions', () => {
     expect(atMostAscensions(found, null)).toBe(found);
   });
 
-  it('carries each kept count\'s other routes (HOURS FIX B prices the next best: hoursRunnerUp.ts)', () => {
+  it('carries each kept count\'s other routes', () => {
     const f = atMostAscensions({ ...found, alternatives: [[], [r2], [r1], [r1]], dateAlternatives: [[], [], [r3], [r2]] }, 2);
     expect(f.alternatives).toEqual([[], [r2], [r1], []]);
     expect(f.dateAlternatives).toEqual([[], [], [r3], []]);

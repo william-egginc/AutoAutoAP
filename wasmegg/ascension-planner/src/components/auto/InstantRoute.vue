@@ -10,11 +10,13 @@
       account matches the table's (scripts/precompute.ts --verify);
     - the first ascension is the player's own: continue current ascension from their save when the
       continue rule takes it, otherwise a fresh build moved onto their real egg counts;
-    - other gear: the table's account is maxed (perfect delivery, Clothed TE bonus 128.71); a player's
-      waits run at their own peak delivery rate, and their builds are the table's for their own TE (a
-      weaker earnings set is not taken off; the page says so when it is).
+    - other gear: the table's account is maxed (perfect delivery, Clothed TE bonus 128.71); with no
+      table of this simulator built on the player's gear, the maxed table is moved to it (instant answer
+      v2, the form G: search/instantGear.ts): the whole Clothed-TE gap (earnings set, colleggtibles,
+      lab) as a row shift, delivery at the player's own rate.
   With "Works inside my hours", each prestige waits for the player's hours and the wait is priced
-  (routeFinder.ts `hours`); the shifts inside an ascension are not held to them here.
+  (routeFinder.ts `hours`); with held shifts on, the shifts inside each ascension wait for them too, as
+  Check exactly holds them (instant answer v2: a version 2 table's held tails, `instantTail`).
   What it leaves out: playing hours (or, with that box, only the shifts' hours), time off and dated
   milestones (said beside the result), and the
   history of how a player reached each TE (shown to barely matter on the board). The searches under the
@@ -564,13 +566,6 @@
           :delivery-scale="deliveryScale"
           :full-research-te="FULL_RESEARCH_TE"
         />
-        <p
-          v-if="progressionShort"
-          class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-        >
-          The account the instant answer was built on has every epic research and colleggtible maxed; yours has
-          {{ progressionShort }}. Your real ascensions run slower than these, more so the further short you are.
-        </p>
         <p
           v-if="leftOut.length"
           class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
@@ -1310,17 +1305,19 @@ const optimistic = computed(() => {
  */
 const FULL_RESEARCH_TE = 340;
 
-/** The player's gear is not the table's account's, and the route starts where that shows. */
+/** The player's gear is not the table's account's, and the route starts where that shows. Not with the
+ *  form G: it takes the earnings set and the delivery gear off (instant answer v2). */
 const gearDiffers = computed(
   () =>
     !own.value &&
+    !shiftedTable.value &&
     Math.floor(store.currentTE) < FULL_RESEARCH_TE &&
     (bonusShort.value > 0.05 || Math.abs((deliveryScale.value ?? 1) - 1) > 0.005)
 );
 
 /** What the player's epic research and colleggtibles are short of the table's (all maxed), said
- *  plainly; empty when nothing is, or nothing could be read. Both speed every build and every wait,
- *  and the instant answer takes neither off. */
+ *  plainly; empty when nothing is, or nothing could be read. For the instant answer record only: the
+ *  note that said it was dropped with instant answer v2 (the form G takes both off). */
 const progressionShort = computed(() => {
   if (own.value) return '';
   const { epicResearch, colleggtibles } = store.progression();
