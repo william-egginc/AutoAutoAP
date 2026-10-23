@@ -42,7 +42,10 @@ export type ConsentId =
   /** Stepping away?: "Send my progress every ...". */
   | 'autoSend'
   /** A science sweep's "I understand ... sent to the board automatically" (Science and the sweep card). */
-  | 'scienceSweep';
+  | 'scienceSweep'
+  /** "Share my instant baseline with my runs" (My runs, 23 Oct 2026): each run sent to the board carries the instant
+   *  answer for its goal and save (lib/instantBaseline.ts), shown on the board beside it. */
+  | 'shareBaseline';
 
 export interface ConsentRecord {
   agreed: boolean;
@@ -64,6 +67,7 @@ export const CONSENT_DEFAULTS: Record<ConsentId, { agreed: boolean; remember: bo
   watchPhone: { agreed: false, remember: true },
   autoSend: { agreed: false, remember: true },
   scienceSweep: { agreed: false, remember: false },
+  shareBaseline: { agreed: false, remember: true },
 };
 
 export const CONSENT_PREFIX = 'aap-consent:';

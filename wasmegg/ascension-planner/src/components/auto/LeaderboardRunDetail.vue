@@ -10,9 +10,52 @@
   The columns follow this block's own width, not the screen's: it sits inside tables that scroll
   sideways, and on a phone a viewport breakpoint gave one column as wide as the whole table, with
   every value past the right edge of what was on screen (review, 2026-09-26).
+
+  The instant baseline (lib/instantBaseline.ts, wireframe B2, 23 Oct 2026): when the run's row carries the player's
+  baseline (`row.baseline`, sent only with "Share my instant baseline with my runs"), one line "vs their instant
+  baseline: 1.5 days sooner (Exact)" ("your" on the viewer's own run) and the list Instant baseline, Fast, Exact,
+  Custom, each with its finish and the difference ("not run" where that level has no row of the same player, goal and
+  baseline on the board). Without `row.baseline` neither is there.
 -->
 <template>
   <div class="grid gap-4 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] text-[11px]">
+    <div v-if="compare.length" style="grid-column: 1 / -1" class="space-y-1.5" data-testid="run-baseline">
+      <BaselineChip :line="chip" />
+      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400">Compared with {{ whose }} instant baseline</h4>
+      <div class="overflow-x-auto">
+        <table class="w-full text-[11px]" data-testid="run-baseline-list">
+          <thead>
+            <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+              <th class="pr-3 py-1">Answer</th>
+              <th class="pr-3 py-1">Finishes</th>
+              <th class="pr-3 py-1">Difference</th>
+              <th class="py-1">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="c in compare"
+              :key="c.label"
+              class="border-t border-slate-100"
+              :class="c.thisRun ? 'bg-indigo-50' : ''"
+              :data-testid="`run-baseline-${c.label === 'Instant baseline' ? 'instant' : c.label.toLowerCase()}`"
+            >
+              <td class="pr-3 py-1 font-bold text-slate-800">
+                {{ c.label
+                }}<span v-if="c.thisRun" class="ml-1 rounded bg-indigo-600 px-1 text-[9px] font-black uppercase text-white">this run</span>
+              </td>
+              <td class="pr-3 py-1" :class="c.end == null ? 'text-slate-400' : ''">{{ compareFinish(c) }}</td>
+              <td class="pr-3 py-1 font-bold" :class="c.tone === 'better' ? 'text-emerald-700' : 'text-slate-600'">{{ c.diff || '·' }}</td>
+              <td class="py-1 text-slate-500">{{ c.at ? whenText(c.at).main : c.label === 'Instant baseline' ? 'worked out ahead' : '' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-[10px] text-slate-500">
+        The baseline is the instant answer for this save when the run was sent, shared by the player. Every other row is
+        the full simulator on the same save and hours.
+      </p>
+    </div>
     <div>
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Run</h4>
       <!-- Sent while its run was going ("Send best so far"); the run's final row replaces it. -->
@@ -356,6 +399,16 @@ import {
 import { FIRST_ASCENSION_WORDS } from '@/search/firstAscension';
 import { formatBand } from '@/search/exhaustive';
 import { searchedWords } from '@/search/searched';
+import BaselineChip from '../myruns/BaselineChip.vue';
+import {
+  BOARD_ROWS,
+  baselineLine,
+  compareLines,
+  readRowBaseline,
+  rowFoundLevel,
+  rowRun,
+  type CompareLine,
+} from '@/lib/instantBaseline';
 
 const props = defineProps<{
   row: BoardRow;
@@ -368,6 +421,23 @@ const props = defineProps<{
 
 /** More than one copy: list them all. */
 const several = computed(() => (props.copies?.length ?? 0) > 1);
+
+// ------------------------------------------------------------------------------ the instant baseline
+/** The board rows the page holds (LeaderboardPanel provides them): the same player's other levels. */
+const boardRows = inject(BOARD_ROWS, null);
+const whose = computed(() => (props.row.yours ? 'your' : 'their'));
+const compare = computed<CompareLine[]>(() => compareLines(props.row, boardRows?.value ?? []));
+const chip = computed(() => {
+  const base = readRowBaseline(props.row.baseline);
+  const run = rowRun(props.row);
+  return base && run ? baselineLine(run, base, rowFoundLevel(props.row), whose.value) : null;
+});
+/** Fastest the finish; By a date the TE and when its last stop is reached. "not run" without one. */
+function compareFinish(c: CompareLine): string {
+  if (c.end == null) return 'not run';
+  const when = whenText(c.end * 1000).main;
+  return props.row.deadline ? `${c.endTE} TE · ${when}` : when;
+}
 
 /** What its first ascension did, in Classic's words; null for a row sent before that was recorded. */
 const firstAscension = computed(() => rowFirstAscension(props.row));

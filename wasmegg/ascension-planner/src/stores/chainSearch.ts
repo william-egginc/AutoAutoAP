@@ -186,7 +186,8 @@ import {
   type DeltaState,
 } from '@/search/csvDelta';
 import { useShareExtras } from '@/composables/useShareExtras';
-import { consentDeclined, consentWithdrawals } from '@/composables/useConsent';
+import { consentAgreed, consentDeclined, consentWithdrawals } from '@/composables/useConsent';
+import { findBaseline, readBaselines, rowBackupTime, rowBaselineOf, rowGoalWords } from '@/lib/instantBaseline';
 import {
   dropPendingSend,
   keepPendingSend,
@@ -4411,6 +4412,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return timing ? { ...payload, timing } : payload;
   }
 
+  /**
+   * "Share my instant baseline with my runs" (lib/instantBaseline.ts): the instant answer logged in this browser for
+   * the run's goal and save, added to the row. Nothing when the box isn't ticked or no baseline is logged.
+   */
+  function withBaseline(payload: Submission): Submission {
+    if (payload.baseline || !consentAgreed('shareBaseline')) return payload;
+    const e = findBaseline(readBaselines(), {
+      account: accountOf(useInitialStateStore().rawBackup) || null,
+      goal: rowGoalWords(payload),
+      backupTime: rowBackupTime(payload),
+    });
+    return e ? { ...payload, baseline: rowBaselineOf(e) } : payload;
+  }
+
   async function sendSubmission(
     payload: Submission,
     /**
@@ -4450,6 +4465,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     quarantined?: boolean;
   }> {
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    // The instant baseline, when the player shares it (never for a result sent from a file: another save's).
+    if (!saved) payload = withBaseline(payload);
     // A payload whose start contradicts its own save is never sent, from any screen or the command
     // line: the board would file it under a TE the route was not priced from.
     const contradiction = startContradictsSave(payload);

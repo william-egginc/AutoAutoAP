@@ -746,6 +746,7 @@ import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { INSTANT_ONE_LINE, pointerOf, POINTER_LINK } from '@/lib/searchPointer';
 import { liveSearchResult, newerSearch, readSearch, type SnapSearch } from '@/lib/searchPlan';
+import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
@@ -2014,6 +2015,9 @@ function saveSnapshot(id: number): void {
   if (prestigeStatus.value === 'running') return;
   const snap = currentSnapshot();
   if (snap) writeSnapshot(snapKey, snap);
+  // The player's instant baseline for this goal and save (lib/instantBaseline.ts): My runs compares each run with it.
+  const base = snap ? baselineOfSnapshot(snap) : null;
+  if (base) recordBaseline(base);
 }
 /** The answer on screen as a snapshot: plain copies, without the finder's spare routes (only for the
  *  polish). Null with no answer. */

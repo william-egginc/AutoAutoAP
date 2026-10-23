@@ -69,6 +69,7 @@
             class="mt-1"
             :words="pace.paceOf({ kind: 'run', run, goalKey: `fastest-${run.finalTE}` })"
           />
+          <BaselineChip v-if="listOnly && baselineOf(run)" class="mt-1" :line="baselineOf(run)" />
         </div>
         <!-- Resume, not just Open: an unfinished sweep holds every chain it priced, and without this
              the only way to use them was to retype the space and let the search rediscover them. -->
@@ -128,6 +129,11 @@ import FollowButton from '../FollowButton.vue';
 import SaveFileBar from './SaveFileBar.vue';
 import PaceBadge from '../myruns/PaceBadge.vue';
 import { usePlanPace } from '@/composables/usePlanPace';
+import BaselineChip from '../myruns/BaselineChip.vue';
+import { useBaselines } from '@/composables/useBaselines';
+import { fingerprintPlanStart } from '@/search/persistence';
+import { foundLevel } from '@/lib/searchPointer';
+import type { RunSummary } from '@/search/runLibrary';
 
 const props = defineProps<{
   playerId: string;
@@ -153,6 +159,20 @@ const pace = usePlanPace({
   active: () => !!props.listOnly && !!props.paceActive,
   entries: () => store.savedRuns.map(run => ({ kind: 'run' as const, run, goalKey: `fastest-${run.finalTE}` })),
 });
+
+/** "vs your instant baseline: 1.2 days sooner (Fast)" (My runs, wireframe B1): the instant answer for the run's
+ *  target and save, logged here (lib/instantBaseline.ts); null without one or without the run's start. */
+const baselines = props.listOnly ? useBaselines() : null;
+function baselineOf(run: RunSummary) {
+  const start = fingerprintPlanStart(run.fingerprint);
+  if (!baselines || !start) return null;
+  return baselines.lineFor({
+    goal: `target ${run.finalTE}`,
+    backupTime: run.save?.backupAt ?? null,
+    run: { goal: 'fastest', end: start + run.bestDays * 86400, endTE: run.finalTE },
+    level: run.space ? 'Custom' : foundLevel({ custom: false, effort: String(run.effort) }),
+  });
+}
 
 const label = ref('');
 const saving = ref(false);

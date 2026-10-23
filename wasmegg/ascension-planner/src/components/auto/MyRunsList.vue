@@ -110,6 +110,8 @@
                   :title="PROVISIONAL_TITLE"
                   >{{ provisionalTag(l.row) }}</span
                 >
+                <!-- vs your instant baseline (lib/instantBaseline.ts): the row's own, else the one logged here. -->
+                <span v-if="baselineOf(l.row)" class="block mt-1"><BaselineChip :line="baselineOf(l.row)" /></span>
               </td>
               <td class="pr-3 py-1.5 whitespace-nowrap" :title="resultTitle(l)">{{ resultText(l) }}</td>
               <td class="pr-3 py-1.5 text-right">{{ l.row.chain.length }}</td>
@@ -197,6 +199,9 @@ import { HIDE_CONTROL } from '@/lib/hiddenRuns';
 import { onRowClick } from '@/lib/rowClick';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
 import MyRunsFilters from './MyRunsFilters.vue';
+import BaselineChip from '../myruns/BaselineChip.vue';
+import { useBaselines } from '@/composables/useBaselines';
+import { rowBackupTime, rowFoundLevel, rowGoalWords, rowRun } from '@/lib/instantBaseline';
 
 const props = defineProps<{
   /** The viewer's runs (by /mine, or by the save's timezone and artifacts), hidden ones marked `hidden`. */
@@ -310,5 +315,17 @@ function sentText(r: BoardRow): string {
 function sentTitle(r: BoardRow): string | undefined {
   const t = sentMs(r);
   return t != null ? formatDate(t, props.viewZone, { dateStyle: 'medium', timeStyle: 'short' }) : undefined;
+}
+
+/** "vs your instant baseline: 1.2 days sooner (Fast)" under a run (wireframe B1); null without a baseline. */
+const baselines = useBaselines();
+function baselineOf(row: BoardRow) {
+  return baselines.lineFor({
+    goal: rowGoalWords(row),
+    backupTime: rowBackupTime(row),
+    run: rowRun(row),
+    level: rowFoundLevel(row),
+    rowBaseline: row.baseline,
+  });
 }
 </script>

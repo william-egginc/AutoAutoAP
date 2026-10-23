@@ -78,6 +78,7 @@
         v-if="listOnly"
         :words="pace.paceOf({ kind: 'answer', answer: a, goalKey: screenGoalKey(a.result.deadline, a.result.te) })"
       />
+      <BaselineChip v-if="listOnly && baselineOf(a)" :line="baselineOf(a)" />
     </div>
     <SaveFileBar v-if="!listOnly" :player-id="playerId" />
   </div>
@@ -93,6 +94,9 @@ import { followableAnswer, screenGoalKey } from '@/lib/follow';
 import SaveFileBar from './SaveFileBar.vue';
 import PaceBadge from '../myruns/PaceBadge.vue';
 import { usePlanPace } from '@/composables/usePlanPace';
+import BaselineChip from '../myruns/BaselineChip.vue';
+import { useBaselines } from '@/composables/useBaselines';
+import { foundLevel } from '@/lib/searchPointer';
 
 const props = defineProps<{
   playerId: string;
@@ -107,6 +111,20 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ opened: [] }>();
 const store = useChainSearchStore();
+
+/** "vs your instant baseline: −1 TE (313 → 312), 0.28 days more spare (Fast)" (My runs, wireframe B1): the instant
+ *  answer for the answer's date and save, logged here (lib/instantBaseline.ts); null without one. */
+const baselines = props.listOnly ? useBaselines() : null;
+function baselineOf(a: (typeof store.savedAnswers)[number]) {
+  const route = a.result.routes[0];
+  if (!baselines || !route) return null;
+  return baselines.lineFor({
+    goal: `date ${a.result.deadline}`,
+    backupTime: a.save?.backupAt ?? null,
+    run: { goal: 'date', deadline: a.result.deadline, end: route.reachAt, endTE: route.chain[route.chain.length - 1] ?? 0 },
+    level: foundLevel({ custom: !a.result.simple, effort: a.result.level }),
+  });
+}
 
 function open(id: string): void {
   store.openSavedAnswer(id);

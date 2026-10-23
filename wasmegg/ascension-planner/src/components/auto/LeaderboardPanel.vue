@@ -1065,6 +1065,7 @@ import { hashID } from '@/lib/storage/db';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import LeaderboardPlanList from './LeaderboardPlanList.vue';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
+import { BOARD_ROWS } from '@/lib/instantBaseline';
 import MyRunsList from './MyRunsList.vue';
 import MyRunsMissing from './MyRunsMissing.vue';
 import SimChip from './SimChip.vue';
@@ -1438,6 +1439,11 @@ async function downloadOwnCsv(id: string): Promise<void> {
   }
 }
 
+// Every row this page holds, for an opened run's comparison with its player's instant baseline (lib/instantBaseline.ts).
+provide(
+  BOARD_ROWS,
+  computed(() => [...allRows.value, ...(mineRows.value ?? [])])
+);
 provide(HIDE_CONTROL, {
   isMine: id => !!id && mineIds.value.has(id),
   isHidden: id => !!id && hiddenIds.value.has(id),

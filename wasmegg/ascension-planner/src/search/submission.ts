@@ -462,6 +462,13 @@ export interface Submission {
   integrityMinutes?: number;
   /** Time away from the virtue farm the plan was built around, as whole local dates. */
   timeOff?: { from: string; to: string }[];
+  /**
+   * The player's instant baseline for this run (lib/instantBaseline.ts, 23 Oct 2026): the instant answer for the same
+   * goal and save, its route, finish (or last stop, unix seconds) and TE. Added at the send only with "Share my
+   * instant baseline with my runs" (the `shareBaseline` consent). A collector that doesn't know it keeps it under
+   * `extra:<id>` and the board row doesn't carry it.
+   */
+  baseline?: { chain: number[]; end: number; endTE: number; at?: number };
 
   /**
    * "Send best so far" (9 Oct 2026): the best of a run that is still going. The run's final send

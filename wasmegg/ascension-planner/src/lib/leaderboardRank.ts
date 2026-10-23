@@ -173,6 +173,14 @@ export interface BoardRow {
   deadline?: number;
   /** Schema 8: when the route's last ascension can be made (awake hours counted), unix seconds. */
   deadlineAscendAt?: number;
+  /** By a date's Simple ('simple') or boxes ('advanced') mode, when sent. */
+  mode?: string;
+  /**
+   * The player's instant baseline (lib/instantBaseline.ts, 23 Oct 2026): the instant answer for the run's goal and
+   * save, sent only with "Share my instant baseline with my runs". The collector must keep it on the row (until then
+   * it is dropped like any unknown field, and the board shows no comparison).
+   */
+  baseline?: { chain: number[]; end: number; endTE: number; at?: number };
   /**
    * The player, exactly (phase 2): 12 hex characters of an HMAC of the sender's owner code. Only on
    * rows that carry a name AND were sent with a code, never on an anonymous row, so the board links
