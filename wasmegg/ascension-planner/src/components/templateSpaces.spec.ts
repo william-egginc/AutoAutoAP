@@ -18,7 +18,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const INLINE = '(?:span|b|a|strong|em|i|code|template)';
-const P1 = /[^\s>]<template\b(?![^>]*(?:#|v-slot))[^>]*>\s+\{\{/g;
+// (Also after an inline closing tag: BaselineChip's "</b><template v-if> {{ tail }}" gave "2.0 days later(Exact)", 23 Oct.)
+const P1 = new RegExp(`(?:[^\\s>]|</${INLINE}\\s*>)<template\\b(?![^>]*(?:#|v-slot))[^>]*>\\s+\\{\\{`, 'g');
 const P2 = new RegExp(
   `[^\\s>]</${INLINE}\\s*>[ \\t]*\\n\\s*<template\\b(?![^>]*(?:#|v-slot|v-else))[^>]*>(?!\\s|\\{\\{ ' ' \\}\\}|<)`,
   'g'
@@ -94,6 +95,12 @@ describe('spaces where a sentence joins a <template>', () => {
         </template>
       </p></template>`)
     ).toEqual([]);
+  });
+
+  it('the checker finds the baseline chip\'s "later(Exact)", as it was (23 Oct 2026)', () => {
+    expect(
+      lostSpaces(`<template><span>{{ line.lead }} <b>{{ line.words }}</b><template v-if="line.tail"> {{ line.tail }}</template></span></template>`)
+    ).toHaveLength(1);
   });
 
   const files = vueFiles(SRC);

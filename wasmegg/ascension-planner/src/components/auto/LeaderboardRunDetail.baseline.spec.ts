@@ -60,4 +60,10 @@ describe('BaselineChip', () => {
     expect(html).toContain('data-tone="better"');
     expect(await renderHtml(BaselineChip, { line: null })).not.toContain('baseline-chip');
   });
+  it('a space before the level, in the HTML itself ("2.0 days later (Exact)", not "later(Exact)", 23 Oct 2026)', async () => {
+    const html = await renderHtml(BaselineChip, {
+      line: { lead: 'vs their instant baseline:', words: '2.0 days later', tail: '(Exact)', tone: 'worse' },
+    });
+    expect(html.replace(/<!--[\s\S]*?-->/g, '')).toContain('<b>2.0 days later</b> (Exact)</span>');
+  });
 });
