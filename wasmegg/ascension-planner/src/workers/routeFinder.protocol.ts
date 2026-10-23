@@ -11,10 +11,12 @@ import type {
   Candidate,
   ExpandSettings,
   FirstLeg,
+  TailOptions,
   FoundRoutes,
   PolishOptions,
 } from '@/search/routeFinder';
 import type { EstimateRequest, Outcome } from '@/search/prestigeBy';
+import type { Availability } from '@/search/availability';
 
 /** Load the table (once) and say what it is. */
 export interface HeaderRequest {
@@ -24,7 +26,7 @@ export interface HeaderRequest {
 }
 
 /** The player's first ascension to every checkpoint (search/routeFinder.ts `firstLegOptions`). */
-export interface FirstLegsRequest {
+export interface FirstLegsRequest extends TailOptions {
   kind: 'first-legs';
   id: number;
   url: string;
@@ -44,6 +46,9 @@ export interface FirstLegsRequest {
   firstAscension: FirstAscension;
   pinSeconds: number;
   maxContinueSeconds: number;
+  /** "Works inside my hours" (FirstLegOptions.hours), and the egg the save's farm is on. */
+  hours?: Availability | null;
+  contEgg?: number;
 }
 
 /** One step of the route search for a share of the arrivals (`expandArrivals`). */

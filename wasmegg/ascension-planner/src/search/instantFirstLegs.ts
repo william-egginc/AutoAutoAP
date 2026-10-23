@@ -15,6 +15,9 @@ import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS } from './rules';
 import type { FirstLegOptions } from './routeFinder';
 import type { SearchInputs } from './types';
 
+/** The backup's egg numbers (50-54) in EGG_ORDER, as search/leg.ts `continueState` maps them. */
+const SAVE_EGG_INDEX: Record<number, number> = { 50: 0, 54: 1, 51: 2, 53: 3, 52: 4 };
+
 /** `firstLegOptions` without the table and the delivery scale (which the caller's table decides). */
 export type InstantFirstLegsBase = Omit<FirstLegOptions, 'table' | 'deliveryScale'>;
 
@@ -52,6 +55,8 @@ export async function instantFirstLegsBase(
 ): Promise<InstantFirstLegsBase> {
   const start = p.start ?? inputs.planStart;
   const withSave = p.save !== false;
+  // The egg the save's farm is on (EGG_ORDER), for continue's holds (routeFinder.ts `firstLegOptions`).
+  const contEgg = SAVE_EGG_INDEX[inputs.currentFarmState?.eggType as number] ?? 0;
   const buildUp = withSave && p.buildUp !== false && buildsUpFirst(inputs) ? await p.buildUpTails(start) : [];
   return {
     startTE: p.startTE,
@@ -65,6 +70,7 @@ export async function instantFirstLegsBase(
     ...(p.liveFresh
       ? { freshLive: JSON.parse(JSON.stringify(await p.liveFresh(p.startTE, nextHour(start)))) as BuildParams[] }
       : {}),
+    ...(withSave && contEgg >= 0 ? { contEgg } : {}),
     firstAscension: readFirstAscension(inputs),
     pinSeconds: inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS,
     maxContinueSeconds: inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS,
