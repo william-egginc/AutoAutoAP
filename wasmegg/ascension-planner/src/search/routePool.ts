@@ -50,6 +50,12 @@ export class RoutePool {
   private pending = new Map<number, Pending>();
   private nextId = 1;
   private readonly count: number;
+  /**
+   * The workers the `count` parts run on: part `w` goes to worker `w % physical` (`limitWorkers`). A step is still
+   * split into `count` parts, each worked out on its own as before, so the answer is the same on fewer workers;
+   * they only take turns.
+   */
+  private physical: number;
   /** `terminate` is final: no request after it spawns anything. */
   private closed = false;
 
@@ -58,11 +64,12 @@ export class RoutePool {
     private readonly make: () => Worker
   ) {
     this.count = Math.max(1, size);
+    this.physical = this.count;
     this.workers = this.spawn();
   }
 
-  private spawn(): Worker[] {
-    return Array.from({ length: this.count }, () => {
+  private spawn(n: number = this.physical): Worker[] {
+    return Array.from({ length: n }, () => {
       const w = this.make();
       w.onmessage = (e: MessageEvent<RouteWorkerResponse>) => {
         const p = this.pending.get(e.data.id);
@@ -77,6 +84,31 @@ export class RoutePool {
 
   get size(): number {
     return this.count;
+  }
+
+  /** The workers the parts run on now (`limitWorkers`). */
+  get workerCount(): number {
+    return this.physical;
+  }
+
+  /**
+   * Run the pool's parts on at most `n` workers (Safari, 22 Oct 2026: each route worker holds a table and its
+   * sweeps), or on all of them again with `n` = `size`. Only while idle (false otherwise, nothing changed): workers
+   * above `n` are terminated, the first `n` keep their table; growing spawns the missing ones. The split into
+   * `size` parts is unchanged, so every answer is the same.
+   */
+  limitWorkers(n: number): boolean {
+    const want = Math.max(1, Math.min(this.count, Math.floor(n)));
+    if (want === this.physical) return true;
+    if (this.closed || !this.idle) return false;
+    this.physical = want;
+    if (this.workers) {
+      if (this.workers.length > want) {
+        for (const w of this.workers.slice(want)) w.terminate();
+        this.workers = this.workers.slice(0, want);
+      } else this.workers = [...this.workers, ...this.spawn(want - this.workers.length)];
+    }
+    return true;
   }
 
   /** No request in flight. */
@@ -120,7 +152,7 @@ export class RoutePool {
     if (this.closed) return Promise.reject(new Error('stopped'));
     const id = this.nextId++;
     this.workers ??= this.spawn();
-    const target = this.workers[worker];
+    const target = this.workers[worker % this.physical];
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       target.postMessage({ ...message, id });

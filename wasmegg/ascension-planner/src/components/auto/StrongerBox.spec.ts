@@ -278,7 +278,8 @@ describe('the at-once box moved to Light (14 Oct, source)', () => {
     expect(t).toContain('shouldStop: () => g !== autoGen');
     // The same inputs and pool path Check exactly uses, made once for both steps.
     expect(t).toContain('const inputs = store.collectInputs();');
-    expect(t.match(/createChainSearchPool\(inputs, \{ size: Math\.max\(1, Math\.min\(store\.workerBudget, 4\)\) \}\)/g)).toHaveLength(1);
+    // At most three on Safari (search/device.ts checkWorkers, 22 Oct 2026).
+    expect(t.match(/createChainSearchPool\(inputs, \{ size: checkWorkers\(Math\.max\(1, Math\.min\(store\.workerBudget, 4\)\)\) \}\)/g)).toHaveLength(1);
     // At once first, then the earlier routes.
     expect(t.indexOf('await priceAtOnce(g)')).toBeLessThan(t.indexOf('await gatherEarlier()'));
     // Stops: a search starting, Check exactly starting, a new answer, leaving the screen.

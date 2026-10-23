@@ -43,6 +43,7 @@ import { idleLight, useStrongerStore } from '@/stores/stronger';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { showDateTime } from '@/lib/displayTime';
+import { checkWorkers } from '@/search/device';
 import { createChainSearchPool, type ChainSearchPool, type EvaluateOptions } from '@/search/pool';
 import type { HandoffChoice } from '@/search/chain';
 import type { LegSummary } from '@/search/types';
@@ -370,7 +371,8 @@ async function lightPool(): Promise<{ pool: ChainSearchPool; planStart: number }
     lightPlanStart.value = inputs.planStart;
     // What Light prices under, for its board row (store `buildLightSubmission`).
     store.beginLight(inputs.planStart, inputs.currentTE);
-    autoPool = await createChainSearchPool(inputs, { size: Math.max(1, Math.min(store.workerBudget, 4)) });
+    // At most three on Safari (search/device.ts `checkWorkers`): it reloads the tab at a much lower memory level.
+    autoPool = await createChainSearchPool(inputs, { size: checkWorkers(Math.max(1, Math.min(store.workerBudget, 4))) });
   }
   return { pool: autoPool, planStart: pricedFrom };
 }

@@ -1054,7 +1054,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
-import { isSmallDevice, thisDevice } from '@/search/device';
+import { checkWorkers, isSafari, isSmallDevice, SAFARI_ROUTE_WORKERS, thisDevice } from '@/search/device';
 import {
   answerInputsKey,
   backgroundMayStart,
@@ -1326,6 +1326,9 @@ async function polishInBackground(
   backgroundStatus.value = 'running';
   polishCut = false;
   gains.value = [];
+  // On Safari the polish and "Prestige by" after it run on two route workers (SAFARI MEMORY below); the first answer
+  // had them all (`run` gives them back).
+  if (SAFARI) p.limitWorkers(SAFARI_ROUTE_WORKERS);
   let final = shown;
   try {
     const t = performance.now();
@@ -1351,8 +1354,9 @@ async function polishInBackground(
     // Otherwise the first answer stands.
   }
   backgroundStatus.value = 'done';
-  void runPrestigeBy(id, p, url);
+  // Check exactly first, so on Safari the "Prestige by" line sees it running and waits for it (`runPrestigeBy`).
   void runExact(id, final);
+  void runPrestigeBy(id, p, url);
   return true;
 }
 /** The background polish was cut off by a search starting, not by a failure. */
@@ -1401,6 +1405,12 @@ const prestigeMismatch = computed(() => {
     : '';
 });
 function runPrestigeBy(id: number, p: RoutePool, url: string): Promise<void> {
+  // On Safari not beside Check exactly or Light: minutes of route workers and their sweeps on top of the check's
+  // workers (SAFARI MEMORY below). It starts when they are done.
+  if (SAFARI && checksBusy.value) {
+    afterChecks.prestige = () => void runPrestigeBy(id, p, url);
+    return Promise.resolve();
+  }
   prestigeDone = prestigeWork(id, p, url);
   return prestigeDone;
 }
@@ -1574,6 +1584,13 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
   // Two more route workers, each loading a table: not while a search runs, unless the player chose.
   if (!backgroundMayStart({ runBusy: runBusy.value, alongside: runsAlongside() })) {
     bracketLater = () => void runBracket(bid, legs, hours);
+    return;
+  }
+  // Nor while Check exactly or Light simulates (`checksBusy`): two more tables and sweep caches on top of their
+  // workers is what took Safari's tab over its limit (22 Oct 2026). It starts when they are done.
+  // On Safari, not beside the "Prestige by" line's route workers either.
+  if (checksBusy.value || (SAFARI && prestigeStatus.value === 'running')) {
+    afterChecks.bracket = () => void runBracket(bid, legs, hours);
     return;
   }
   bracketArgs = { legs, hours };
@@ -2010,6 +2027,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     : 'Loading the instant answer (a few MB, once) and working out every route…';
   try {
     const p = getPool();
+    // The first answer on every route worker again (Safari keeps two for the polish after it); once idle.
+    if (SAFARI) p.limitWorkers(p.size);
     // The player's own table when there is one built on the gear their save has now; else the maxed one.
     let url = TABLE_URL;
     let h: TableHeader | null = null;
@@ -2518,7 +2537,8 @@ async function runExact(id: number, given: NonNullable<typeof result.value>, man
       timeOff: JSON.parse(JSON.stringify(store.timeOff)),
     };
     exactPricedWith.value = pricedWithLine(exactSetup);
-    const size = Math.max(1, Math.min(store.workerBudget, routes.length, 4));
+    // At most three on Safari (search/device.ts `checkWorkers`; SAFARI MEMORY below).
+    const size = checkWorkers(Math.max(1, Math.min(store.workerBudget, routes.length, 4)));
     exactPool = await createChainSearchPool(inputs, { size });
     if (id !== runs) return;
     const price = async (chains: number[][], opts?: EvaluateOptions) => {
@@ -2987,6 +3007,49 @@ watch(
 );
 // The lead route for the comparison block (SearchCompare.vue, stores/stronger.ts).
 const strongerStore = useStrongerStore();
+
+/**
+ * SAFARI MEMORY (22 Oct 2026: By a date with hours on reloaded the tab twice in Safari, "using significant memory").
+ * Check exactly and Light run the full simulator on workers of their own, for minutes. Until now the route workers
+ * stayed up beside them, each with a decoded table and up to 512 MB of sweeps (typed arrays, outside every heap
+ * figure), and the nearest tables above and below started two more beside those. Measured in Chrome on the alt's
+ * save (4 of 8 workers): 10 workers at once, about 6 GB for the tab, the "Prestige by" line (on by default on
+ * egg-beta) keeping the four route workers busy for minutes beside the check. Now, while either check runs, the
+ * route workers sleep as they do for a search (once idle; the next request wakes them and reloads the table, so
+ * every answer is the same), and the nearest tables wait until both checks are done. On Safari also: the
+ * "Prestige by" line waits for both checks too, the nearest tables for it, and the checks use at most three
+ * workers (search/device.ts `checkWorkers`); the route workers keep half the sweeps (search/sweepCache.ts), and
+ * the background polish and "Prestige by" run on two of them (`limitWorkers`; the same parts, taking turns).
+ */
+/** Safari, read once (search/device.ts). */
+const SAFARI = isSafari();
+const checksBusy = computed(() => exactStatus.value === 'running' || strongerStore.light.state === 'running');
+watch(
+  () =>
+    checksBusy.value &&
+    status.value !== 'loading' &&
+    backgroundStatus.value !== 'running' &&
+    prestigeStatus.value !== 'running',
+  free => {
+    if (free) pool?.sleep();
+  },
+  { immediate: true }
+);
+/** Work held back until Check exactly and Light are done: the nearest tables (`runBracket`) and, on Safari, the
+ *  "Prestige by" line (`runPrestigeBy`). Each asks again when started, and waits again if still held. */
+const afterChecks: { prestige: (() => void) | null; bracket: (() => void) | null } = { prestige: null, bracket: null };
+watch([checksBusy, () => prestigeStatus.value === 'running'], () => {
+  if (checksBusy.value || (!afterChecks.prestige && !afterChecks.bracket)) return;
+  // A tick later: Light starts as Check exactly finishes (StrongerCheck.vue), and these wait for it too.
+  setTimeout(() => {
+    if (checksBusy.value) return;
+    for (const k of ['prestige', 'bracket'] as const) {
+      const go = afterChecks[k];
+      afterChecks[k] = null;
+      go?.();
+    }
+  }, 0);
+});
 
 /**
  * LIGHT, AT ONCE (Jordan, 14 Oct: it took over the "also try ascending at once"

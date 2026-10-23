@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, sweepTails, type BuildParams, type TailSweep } from './precomputedLeg';
-import { routeWorkers, SMALL_SWEEP_BUDGET, SWEEP_BUDGET, SweepCache, sweepBudget } from './sweepCache';
+import { routeWorkers, SAFARI_SWEEP_BUDGET, SMALL_SWEEP_BUDGET, SWEEP_BUDGET, SweepCache, sweepBudget } from './sweepCache';
 
 const fake = (bytes: number): TailSweep => ({
   from: 0,
@@ -44,6 +44,13 @@ describe('SweepCache', () => {
     expect(sweepBudget(true, 6)).toBe(SMALL_SWEEP_BUDGET / 2);
     expect(sweepBudget(false, 20)).toBe(SWEEP_BUDGET / 4);
     expect(sweepBudget(false, 2)).toBe(SWEEP_BUDGET);
+  });
+
+  it('keeps half on Safari on a computer, a phone its own (22 Oct 2026 Safari reloads)', () => {
+    expect(sweepBudget(false, 8, true)).toBe(SAFARI_SWEEP_BUDGET / 4);
+    expect(SAFARI_SWEEP_BUDGET).toBe(SWEEP_BUDGET / 2);
+    expect(sweepBudget(true, 6, true)).toBe(SMALL_SWEEP_BUDGET / 2);
+    expect(sweepBudget(false, 8, false)).toBe(SWEEP_BUDGET / 4);
   });
 
   it("counts a real sweep at what it holds (about 21 KB low in the game; 12 Oct 2026's iPhone crash)", () => {

@@ -16,7 +16,7 @@
  * its share, so a pool's budget goes as far as one cache with all of it.
  */
 import type { TailSweep } from './precomputedLeg';
-import { isSmallDevice } from './device';
+import { isSafari, isSmallDevice } from './device';
 
 /** What `expandArrivals` needs of a cache: a plain Map works too (the command line's precompute). */
 export interface SweepStore {
@@ -31,6 +31,10 @@ const MB = 1024 * 1024;
  *  workers never keep sweeps; the route workers sleep while a search runs. */
 export const SMALL_SWEEP_BUDGET = 384 * MB;
 export const SWEEP_BUDGET = 2048 * MB;
+/** Safari on a computer: half a computer's (22 Oct 2026). Safari reloads the tab at a much lower memory level
+ *  than Chrome, and these sweeps are typed arrays outside every heap figure. 1 GB cost the measured lookups about
+ *  10% more time than no limit (above); the answer is the same. */
+export const SAFARI_SWEEP_BUDGET = 1024 * MB;
 
 /** The route workers the instant answer runs (routePool.ts `poolSize`, two on a small device). */
 export function routeWorkers(small: boolean, cores: number): number {
@@ -41,9 +45,11 @@ export function routeWorkers(small: boolean, cores: number): number {
 /** One route worker's budget on this device. */
 export function sweepBudget(
   small: boolean = isSmallDevice(),
-  cores: number = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4
+  cores: number = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4,
+  safari: boolean = isSafari()
 ): number {
-  return Math.floor((small ? SMALL_SWEEP_BUDGET : SWEEP_BUDGET) / routeWorkers(small, cores));
+  const total = small ? SMALL_SWEEP_BUDGET : safari ? SAFARI_SWEEP_BUDGET : SWEEP_BUDGET;
+  return Math.floor(total / routeWorkers(small, cores));
 }
 
 export class SweepCache implements SweepStore {
