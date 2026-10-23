@@ -62,4 +62,25 @@ describe('priceOnTable', () => {
     const r = await priceOnTable(pool, 'weak', { ...o, atMost: 1 });
     expect(r.route?.legs.length).toBe(1);
   });
+
+  it('passes the answer\'s tail options and hours to both calls, as the instant answer is priced (23 Oct 2026)', async () => {
+    const seen: { first?: Record<string, unknown>; expand?: Record<string, unknown> } = {};
+    const spy: TablePricer = {
+      firstLegs: async r => {
+        seen.first = r as unknown as Record<string, unknown>;
+        return pool.firstLegs(r);
+      },
+      expand: async (url, items, settings) => {
+        seen.expand = settings as unknown as Record<string, unknown>;
+        return pool.expand(url, items, settings);
+      },
+    };
+    const hours: import('./availability').Availability = { days: [], fromHour: 7, toHour: 23, timezone: 'America/Denver' };
+    await priceOnTable(spy, 'weak', { ...o, hours, tail: { order: 'simulator', holdShifts: true } });
+    expect(seen.first).toMatchObject({ order: 'simulator', holdShifts: true, hours });
+    expect(seen.expand).toMatchObject({ holdShifts: true }); // 'simulator' is the finder's default, not sent
+    // Without: nothing held (as before).
+    await priceOnTable(spy, 'weak', o);
+    expect(seen.first?.holdShifts).toBeUndefined();
+  });
 });

@@ -30,10 +30,13 @@ import { maxedLetters, maxedWhatIfText } from '@/search/maxedWhatIf';
 import type { Availability } from '@/search/availability';
 import type { TableEntry } from '@/search/tableBracket';
 import type { SnapWhatIf } from '@/search/instantSnapshot';
+import type { TailOptions } from '@/search/routeFinder';
 
 const props = defineProps<{
   legs: FirstLegsBase;
   hours: Availability | null;
+  /** The answer's tail options (search/instantGear.ts `instantTail`): held as the answer on screen was. */
+  tail?: TailOptions;
   /** The player's own answer: when it reaches the target (Fastest), the TE by the date (By a date). */
   mine: { end: number | null; te: number };
   /** Check exactly's answer for the same goal, once known (search/maxedWhatIf.ts `exact`). */
@@ -98,6 +101,7 @@ async function run(): Promise<void> {
       atMost: props.atMost,
       ...(props.deadline ? { deadline: props.deadline } : {}),
       hours: props.hours ? (JSON.parse(JSON.stringify(props.hours)) as Availability) : null,
+      ...(props.tail ? { tail: { ...props.tail } } : {}),
     });
     if (id !== runs) return;
     maxed.value = r;

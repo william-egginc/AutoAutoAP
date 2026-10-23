@@ -784,6 +784,7 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { INSTANT_ONE_LINE, pointerOf, POINTER_LINK } from '@/lib/searchPointer';
+import { bracketLine } from '@/lib/bracketLine';
 import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
 
@@ -1133,6 +1134,8 @@ const whatIf = computed(() => {
   return {
     legs: w.legs,
     hours: w.hours,
+    // Held as the answer was, so "maxed" and "yours" are priced alike (23 Oct 2026).
+    tail: instantTail(w.hours, store.deferShifts),
     mine: { end: mine?.end ?? null, te: mine ? mine.legs[mine.legs.length - 1].endTE : 0 },
     // Check exactly's answer was named beside it until 23 Oct 2026; the instant card is instant only now.
     exact: null,
@@ -1160,7 +1163,8 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
   try {
     const res = await fetch(`${import.meta.env.BASE_URL}precompute/tables.json`, { cache: 'no-cache' });
     if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) return;
-    entries = ((await res.json()) as TableEntry[]).filter(e => e.from <= legs.startTE);
+    // Only tables of this simulator: an older one's price is not comparable with the answer on screen (23 Oct 2026).
+    entries = ((await res.json()) as TableEntry[]).filter(e => e.from <= legs.startTE && !tableSimMismatch(e));
   } catch {
     return;
   }
@@ -1186,6 +1190,8 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
       atMost: filters.value.maxAscensions,
       ...(props.deadline ? { deadline: props.deadline } : {}),
       hours,
+      // Held as the answer on screen was (`instantTail`), so the two are priced alike.
+      tail: instantTail(hours, store.deferShifts),
     });
     return { entry, end: r.end, te: r.te };
   };
@@ -1212,21 +1218,27 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
     }
   }
 }
-/** The bracket's two ends, or null: the stronger gear's (sooner, or more TE) and the weaker's. */
+/** The bracket's two ends against the answer on screen (lib/bracketLine.ts): never sooner than a maxed answer,
+ *  never contradicting one on the player's gear (the form G); '' when nothing true is left to say. */
 const bracketText = computed(() => {
   const b = bracket.value;
   if (!b?.above?.end) return '';
   const name = (s: BracketSide) =>
     s.entry.file === 'table.bin' ? 'the instant answer for fully maxed gear' : describeGear(s.entry);
-  const hi = b.above;
-  const lo = b.below?.end ? b.below : null;
-  if (props.deadline)
-    return lo
-      ? `With your gear you'd likely reach between ${lo.te} TE (on ${name(lo)}) and ${hi.te} TE (on ${name(hi)}) by the date; Fast, Exact or Custom below gives your real TE.`
-      : `With your gear you'd likely reach at most ${hi.te} TE by the date (on ${name(hi)}); Fast, Exact or Custom below gives your real TE.`;
-  return lo
-    ? `With your gear you'd likely finish between ${show(hi.end!)} (on ${name(hi)}) and ${show(lo.end!)} (on ${name(lo)}); Fast, Exact or Custom below gives your real date.`
-    : `With your gear you'd likely finish no sooner than ${show(hi.end!)} (on ${name(hi)}); Fast, Exact or Custom below gives your real date.`;
+  const side = (s: BracketSide | null) => (s ? { end: s.end, te: s.te, name: name(s) } : null);
+  const r = result.value;
+  const mine = props.deadline ? r?.byDate : r?.best;
+  return bracketLine({
+    goal: props.deadline ? 'date' : 'fastest',
+    answer: {
+      basis: shiftedTable.value ? 'yours' : 'maxed',
+      end: mine?.end ?? null,
+      te: mine?.legs.length ? mine.legs[mine.legs.length - 1].endTE : 0,
+    },
+    hi: side(b.above),
+    lo: side(b.below?.end ? b.below : null),
+    show,
+  });
 });
 
 /** "Works inside my hours" (only with "Let me pick my hours") and "At most N ascensions". */

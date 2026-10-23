@@ -4,7 +4,15 @@
  * other table's gear (delivery scale 1). Used for the nearest stronger and weaker gear (InstantRoute.vue
  * runBracket) and "What if you had maxed gear?" (MaxedWhatIf.vue).
  */
-import { findRoutes, type ArrivalItem, type Candidate, type ExpandSettings, type FirstLeg, type Route } from './routeFinder';
+import {
+  findRoutes,
+  type ArrivalItem,
+  type Candidate,
+  type ExpandSettings,
+  type FirstLeg,
+  type Route,
+  type TailOptions,
+} from './routeFinder';
 import { atMostAscensions } from './instantFilters';
 import type { Availability } from './availability';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
@@ -27,6 +35,10 @@ export interface PriceOnTableOptions {
   atMost: number | null;
   deadline?: number;
   hours?: Availability | null;
+  /** The instant answer's tail options (search/instantGear.ts `instantTail`): held shifts with the player's
+   *  hours, as the answer on screen was priced. Left out, the legs are not held, and a held answer beside it
+   *  is later than this for no reason of gear (the bracket that came out sooner than maxed, 23 Oct 2026). */
+  tail?: TailOptions;
 }
 
 export interface PricedOnTable {
@@ -39,7 +51,7 @@ export interface PricedOnTable {
 }
 
 export async function priceOnTable(pool: TablePricer, url: string, o: PriceOnTableOptions): Promise<PricedOnTable> {
-  const firstLegs = await pool.firstLegs({ url, deliveryScale: 1, ...o.legs });
+  const firstLegs = await pool.firstLegs({ url, deliveryScale: 1, ...o.legs, ...(o.tail ?? {}), ...(o.hours ? { hours: o.hours } : {}) });
   const found = await findRoutes({
     table: () => null,
     startTE: o.legs.startTE,
@@ -49,6 +61,7 @@ export async function priceOnTable(pool: TablePricer, url: string, o: PriceOnTab
     firstLegs,
     ...(o.deadline ? { deadline: o.deadline } : {}),
     ...(o.hours ? { hours: o.hours } : {}),
+    ...(o.tail ?? {}),
     expand: (items, settings) => pool.expand(url, items, settings),
   });
   const f = atMostAscensions(found, o.atMost);
