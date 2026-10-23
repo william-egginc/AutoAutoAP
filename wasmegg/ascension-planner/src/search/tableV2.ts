@@ -17,7 +17,7 @@
  *
  * Pure on purpose (no simulator, no Pinia): the site can load it beside the finder.
  */
-import { EGG_ORDER, type BuildParams, type Tail } from './precomputedLeg';
+import { EGG_ORDER, type BuildParams, type Tail, type TailSweep } from './precomputedLeg';
 import { TE_BREAKPOINTS } from '@/lib/truthEggs';
 
 /** The nine numbers of a version 1 build, in file order. */
@@ -270,4 +270,236 @@ export function bestReplay(
     if (r && (!best || r.seconds < best.seconds)) best = { ...r, index };
   });
   return best;
+}
+
+/** Version 2's numbers attached to a build as the finder carries it (search/routeFinder.ts): the
+ *  table's `lookup` gives plain builds, `withExtras` (precomputedTable.ts) these. Moving a build onto
+ *  other counts (`rebase`) or another delivery rate keeps them. */
+export type BuildWithExtras = BuildParams & { extras?: BuildExtras };
+
+/** A sweep of held tails (`sweepReplay`): what `TailSweep` gives, plus per checkpoint the egg the
+ *  farm is on when the tail ends (EGG_ORDER) and the seconds its shifts waited for the player. */
+export interface ReplaySweep extends TailSweep {
+  lastEgg: Int8Array;
+  held: Float64Array;
+}
+
+/** The order the goal hands out TEs one at a time from counts `d` (shareGoal's greedy, every egg),
+ *  as EGG_ORDER positions, up to `max` of them. Among any subset of the eggs the order is this one
+ *  with the others left out: each egg's costs are its own, and ties break the same way. */
+function greedyOrderOf(d: number[], max: number, thresholds: readonly number[]): Int8Array {
+  const goal = d.map(x => countTE(x, thresholds));
+  const at = d.slice();
+  const out = new Int8Array(Math.max(0, max));
+  let n = 0;
+  while (n < max) {
+    let best = -1;
+    let bestCost = Infinity;
+    for (const e of GREEDY_IDX) {
+      if (goal[e] >= thresholds.length) continue;
+      const cost = Math.max(0, thresholds[goal[e]] - at[e]);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = e;
+      }
+    }
+    if (best < 0) break;
+    goal[best]++;
+    at[best] = thresholds[goal[best] - 1];
+    out[n++] = best;
+  }
+  return out.subarray(0, n);
+}
+
+/**
+ * `replayTail` for every checkpoint from `lowest` (default one above where the counts stand) to `top`
+ * at once, the same numbers to the bit (tableV2.spec.ts), as `sweepTails` is `tailTo`'s. The route
+ * finder prices a whole start's checkpoints from one of these when the player's hours hold the shifts.
+ *
+ * WHY IT CAN BE SWEPT. H1's and K3's holds come before any goal is shared, so they are the same for
+ * every checkpoint. After them, a hold only ever adds eggs to the egg the farm is on, which has had
+ * its wait (it is locked), and a wait only to its own egg, which is then locked: the eggs still to
+ * wait keep the counts they had after K3's hold. So each goal-sharing hands out TEs in one fixed order
+ * (the greedy order from those counts, the locked eggs left out) and needs only how many there are to
+ * hand out; that is worked out once per start, and each checkpoint then costs a few steps.
+ */
+export function sweepReplay(
+  p: BuildParams,
+  x: BuildExtras,
+  top: number,
+  o: ReplayOptions & { lowest?: number }
+): ReplaySweep {
+  const thresholds = o.thresholds ?? TE_BREAKPOINTS;
+  const d0 = p.delivered.slice();
+  const saleEnd = p.saleEnd - (o.lateBy ?? 0);
+  const humility = o.order === 'simulator' && x.waitEgg === H;
+  const rate = p.peakELR;
+  const holdAt = (t: number): number => {
+    if (!o.holdUntil) return 0;
+    const now = o.start + t;
+    const wait = o.holdUntil(now) - now;
+    return wait > 0 ? wait : 0;
+  };
+  // H1's hold and K3's: the same for every checkpoint.
+  let heldPre = 0;
+  let shift = holdAt(x.h1At);
+  d0[C] = d0[C] + x.h1Rate * shift;
+  heldPre += shift;
+  let current0 = H;
+  if (!humility) {
+    const w = holdAt(x.k3At + shift);
+    d0[H] = d0[H] + x.k3Rate * w;
+    heldPre += w;
+    shift += w;
+    current0 = K;
+  }
+  const t0 = p.waitStart + shift;
+  const first = humility ? H : K;
+  const order = [first, ...WAIT_IDX.filter(e => e !== first)];
+
+  const c0 = d0.map(v => countTE(v, thresholds));
+  const now = c0.reduce((a, b) => a + b, 0);
+  const from = Math.min(now + 1, o.lowest ?? now + 1);
+  const to = Math.max(from - 1, top);
+  const n = to - from + 1;
+  const seconds = new Float64Array(Math.max(0, n)).fill(NaN);
+  const endTE = new Int16Array(Math.max(0, n));
+  const lastEgg = new Int8Array(Math.max(0, n));
+  const held = new Float64Array(Math.max(0, n));
+  const ends = new Float64Array(5 * Math.max(0, n));
+  const sweep = (): ReplaySweep => ({
+    from,
+    to,
+    seconds,
+    endTE,
+    lastEgg,
+    held,
+    deliveredInto: (i, out) => {
+      for (let e = 0; e < 5; e++) out[e] = ends[i * 5 + e];
+    },
+    bytes: 4500 + seconds.byteLength * 2 + endTE.byteLength + lastEgg.byteLength + ends.byteLength,
+  });
+  if (n <= 0) return sweep();
+
+  // Step k shares among order[k..4]: how many of the first m TEs handed out among them go to
+  // order[k] (the egg that waits at step k).
+  const all = greedyOrderOf(d0, Math.max(0, to - now), thresholds);
+  const prefix: Int16Array[] = [];
+  for (let k = 0; k < 5; k++) {
+    const set = order.slice(k);
+    const list = Array.from(all).filter(e => set.includes(e));
+    const pre = new Int16Array(list.length + 1);
+    for (let i = 0; i < list.length; i++) pre[i + 1] = pre[i] + (list[i] === order[k] ? 1 : 0);
+    prefix.push(pre);
+  }
+
+  const dd = [0, 0, 0, 0, 0];
+  const cc = [0, 0, 0, 0, 0];
+  for (let target = from; target <= to; target++) {
+    const i = target - from;
+    for (let e = 0; e < 5; e++) {
+      dd[e] = d0[e];
+      cc[e] = c0[e];
+    }
+    let sum = now;
+    let t = t0;
+    let h = heldPre;
+    let current = current0;
+    let ok = true;
+    for (let k = 0; k < 5; k++) {
+      const egg = order[k];
+      if (k > 0 && current !== egg) {
+        const w = holdAt(t);
+        if (w > 0) {
+          dd[current] = dd[current] + rate * w;
+          const c = countTE(dd[current], thresholds);
+          sum += c - cc[current];
+          cc[current] = c;
+          t += w;
+          h += w;
+        }
+      }
+      const left = target - sum;
+      const pre = prefix[k];
+      const need = left > 0 ? pre[Math.min(left, pre.length - 1)] : 0;
+      let wait = k === 0 ? Math.max(0, saleEnd - t) : 0;
+      if (need > 0) {
+        const w = teWait(dd[egg], rate, need, thresholds);
+        if (!Number.isFinite(w)) {
+          ok = false;
+          break;
+        }
+        wait = Math.max(wait, w);
+      }
+      if (k > 0 && need > 0 && current !== egg) current = egg;
+      if (wait > 0) {
+        dd[egg] = dd[egg] + rate * wait;
+        const c = countTE(dd[egg], thresholds);
+        sum += c - cc[egg];
+        cc[egg] = c;
+        t += wait;
+      }
+    }
+    for (let e = 0; e < 5; e++) ends[i * 5 + e] = ok ? dd[e] : d0[e];
+    if (!ok || sum < target) continue;
+    seconds[i] = t;
+    endTE[i] = sum;
+    lastEgg[i] = current;
+    held[i] = h;
+  }
+  return sweep();
+}
+
+/**
+ * Continue current ascension with the player's hours (search/leg.ts `continueTailParams`, held as
+ * auto/ascension.ts `runContinueCurrent` holds it): the goal shared once from the farm's counts, the
+ * eggs visited cheapest first with the egg the farm is on first, and before each shift to another
+ * egg a wait for the player, the farm laying the egg it is on (at its own rate) meanwhile. Null when
+ * the eggs cannot carry that much TE. Without `holdUntil` it is continue's own time (the same total
+ * as `tailTo` on the same params).
+ */
+export function replayContinue(
+  p: BuildParams,
+  /** The egg the farm is on (EGG_ORDER index). */
+  egg: number,
+  target: number,
+  o: Pick<ReplayOptions, 'start' | 'holdUntil' | 'thresholds'>
+): (Tail & { heldSeconds: number; lastEgg: number }) | null {
+  const thresholds = o.thresholds ?? TE_BREAKPOINTS;
+  const d = p.delivered.slice();
+  const rate = p.peakELR;
+  const have = d.map(v => countTE(v, thresholds));
+  const goal = shareGoal(d, target, [false, false, false, false, false], thresholds);
+  // runContinueCurrent's order: by TEs needed (a stable sort over EGG_ORDER), its own egg first.
+  const visit = [0, 1, 2, 3, 4].filter(e => goal[e] > have[e]).sort((a, b) => goal[a] - have[a] - (goal[b] - have[b]));
+  const at = visit.indexOf(egg);
+  if (at > 0) {
+    visit.splice(at, 1);
+    visit.unshift(egg);
+  }
+  let t = 0;
+  let held = 0;
+  let current = egg;
+  for (const e of visit) {
+    if (o.holdUntil && current !== e) {
+      const now = o.start + t;
+      const w = o.holdUntil(now) - now;
+      if (w > 0) {
+        d[current] = d[current] + rate * w;
+        t += w;
+        held += w;
+      }
+    }
+    const need = goal[e] - countTE(d[e], thresholds);
+    if (need <= 0) continue;
+    current = e;
+    const w = teWait(d[e], rate, need, thresholds);
+    if (!Number.isFinite(w)) return null;
+    if (w > 0) {
+      d[e] = d[e] + rate * w;
+      t += w;
+    }
+  }
+  const endTE = d.reduce((n, v) => n + countTE(v, thresholds), 0);
+  return endTE >= target ? { seconds: t, endTE, delivered: d, heldSeconds: held, lastEgg: current } : null;
 }

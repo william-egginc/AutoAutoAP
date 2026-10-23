@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { packTable, readTable, type TableHeader } from './precomputedTable';
-import { tailTo, type BuildParams } from './precomputedLeg';
+import { sweepTails, tailTo, type BuildParams } from './precomputedLeg';
 import { checkStructure } from './tableCheck';
-import { bestReplay, replayTail, V1_FIELDS, V2_FIELDS, type BuildExtras } from './tableV2';
-import { nextAvailable, type Availability } from './availability';
+import { bestReplay, replayContinue, replayTail, sweepReplay, V1_FIELDS, V2_FIELDS, type BuildExtras } from './tableV2';
+import { holdUntilOf, nextAvailable, type Availability } from './availability';
 import { TE_BREAKPOINTS } from '@/lib/truthEggs';
 
 /**
@@ -210,6 +210,120 @@ describe('replayTail', () => {
     expect(best.index).toBe(times.indexOf(Math.min(...times)));
   });
 });
+
+describe('sweepReplay', () => {
+  const zones: Availability[] = [
+    { days: [], fromHour: 7, toHour: 23, timezone: 'America/Denver' },
+    { days: [], fromHour: 8, toHour: 0, timezone: 'America/Denver' },
+    { days: [1, 2, 3, 4, 5], fromHour: 9, toHour: 21, timezone: 'America/New_York' },
+  ];
+  it('is replayTail on every checkpoint, to the bit: 20 cells, every build, both orders, hours on and off', () => {
+    let n = 0;
+    let held = 0;
+    const bad: string[] = [];
+    const out = [0, 0, 0, 0, 0];
+    for (const [ci, c] of cells.entries()) {
+      // Each cell with hours off and two of the schedules, in turn, from a few start instants.
+      for (const zi of [0, 1 + (ci % 3), 1 + ((ci + 1) % 3)]) {
+        const hours = zi ? zones[zi - 1] : null;
+        const start = REFERENCE_WEEK + c.h * 3600 + zi * 7 * 86400 + (ci % 2) * 1800;
+        const holdUntil = hours ? holdUntilOf(hours) : undefined;
+        for (const order of ['table', 'simulator'] as const)
+          for (const b of c.builds) {
+            const o = { start, holdUntil, order, lateBy: ci % 4 === 3 ? 600 : 0 };
+            const sw = sweepReplay(plain(b), b.extras, 490, { ...o, lowest: c.te + 1 });
+            if (sw.from !== c.te + 1) bad.push(`${c.te}: from ${sw.from}`);
+            // Every checkpoint near the start, then every third (the goal's sharing is the same arithmetic).
+            for (let target = c.te + 1; target <= 490; target += target < c.te + 30 ? 1 : 3) {
+              const want = replayTail(plain(b), b.extras, target, o);
+              const i = target - sw.from;
+              if (!want) {
+                if (!Number.isNaN(sw.seconds[i])) bad.push(`${c.te}->${target}: reachable`);
+                continue;
+              }
+              n++;
+              sw.deliveredInto(i, out);
+              if (
+                sw.seconds[i] !== want.seconds ||
+                sw.endTE[i] !== want.endTE ||
+                out.some((x, e) => x !== want.delivered[e]) ||
+                sw.held[i] !== want.heldSeconds ||
+                sw.lastEgg[i] !== want.shifts[want.shifts.length - 1].egg
+              )
+                bad.push(`${c.te}:${c.h} ${order} zone ${zi} -> ${target}`);
+              held += want.heldSeconds;
+            }
+          }
+      }
+    }
+    expect(bad.slice(0, 5)).toEqual([]);
+    expect(n).toBeGreaterThan(20000);
+    expect(held).toBeGreaterThan(0);
+  }, 120_000);
+
+  it('with hours off and the table order is sweepTails to the bit', () => {
+    for (const c of cells.slice(0, 10))
+      for (const b of c.builds) {
+        const a = sweepTails(plain(b), 490, 0, c.te + 1);
+        const r = sweepReplay(plain(b), b.extras, 490, { start: 0, lowest: c.te + 1 });
+        expect(Array.from(r.seconds)).toEqual(Array.from(a.seconds));
+        expect(Array.from(r.endTE)).toEqual(Array.from(a.endTE));
+      }
+  });
+});
+
+describe('holdUntilOf', () => {
+  it('is nextAvailable to the second, across days, a midnight wrap, weekdays only and a half-hour zone', () => {
+    const schedules: Availability[] = [
+      { days: [], fromHour: 7, toHour: 23, timezone: 'America/Denver' },
+      { days: [], fromHour: 8, toHour: 0, timezone: 'America/Denver' },
+      { days: [1, 2, 3, 4, 5], fromHour: 9, toHour: 21, timezone: 'America/New_York' },
+      { days: [], fromHour: 22, toHour: 6, timezone: 'Asia/Kolkata' },
+    ];
+    for (const a of schedules) {
+      const f = holdUntilOf(a);
+      // Two weeks across the November change of clocks, every 7 minutes and 13 seconds.
+      for (let t = 1793500000; t < 1793500000 + 14 * 86400; t += 433) expect(f(t)).toBe(nextAvailable(t, a));
+    }
+  });
+});
+
+describe('replayContinue', () => {
+  const cont: BuildParams = {
+    sales: 0,
+    tier13: false,
+    waitStart: 0,
+    saleEnd: 0,
+    peakELR: 2.1e12,
+    delivered: cells.find(c => c.te === 250)!.builds[0].delivered,
+  };
+  it("without hours is continue's tailTo time on every checkpoint", () => {
+    for (let target = 252; target <= 300; target++) {
+      const a = tailTo(cont, target);
+      const r = replayContinue(cont, 2, target, { start: 0 });
+      expect(r!.seconds).toBeCloseTo(a!.seconds, 3);
+      expect(r!.heldSeconds).toBe(0);
+    }
+  });
+  it('with hours holds each shift into them and costs at most the holds', () => {
+    const hours = zonesOf();
+    const holdUntil = (t: number) => nextAvailable(t, hours);
+    let held = 0;
+    for (let target = 252; target <= 300; target += 4) {
+      const start = REFERENCE_WEEK + target * 3600;
+      const a = replayContinue(cont, 2, target, { start })!;
+      const r = replayContinue(cont, 2, target, { start, holdUntil })!;
+      expect(r.seconds).toBeLessThanOrEqual(a.seconds + r.heldSeconds + 1e-6);
+      expect(r.seconds).toBeGreaterThanOrEqual(a.seconds);
+      held += r.heldSeconds;
+    }
+    expect(held).toBeGreaterThan(0);
+  });
+});
+
+function zonesOf(): Availability {
+  return { days: [], fromHour: 7, toHour: 23, timezone: 'America/Denver' };
+}
 
 const SIM_HELD: [number, number, number, number, number][] = [
   [120, 0, 121, 2, 1673999.9999999548],

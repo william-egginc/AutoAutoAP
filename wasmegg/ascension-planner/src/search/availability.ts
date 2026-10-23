@@ -146,3 +146,31 @@ export function countUnavailable(timestamps: number[], a: Availability | null | 
   for (const t of timestamps) if (!isAvailable(t, a)) n++;
   return n;
 }
+
+/**
+ * `nextAvailable` on `a` as a function of the instant, remembered per UTC hour (the table replay asks
+ * it for every shift of every checkpoint of every start: search/tableV2.ts `sweepReplay`). The hours
+ * change only on local whole hours, which fall at most once in any UTC hour, so an hour whose first
+ * and last seconds are both inside is inside throughout, and one whose two ends are both outside
+ * waits for the same instant throughout; only an hour with a change in it is asked each time.
+ * The same answers as `nextAvailable`, to the second.
+ */
+export function holdUntilOf(a: Availability): (t: number) => number {
+  if (!isConstrained(a)) return t => t;
+  // Per UTC hour: -1 inside throughout, -2 a change inside it, else the instant to wait for.
+  const byHour = new Map<number, number>();
+  return t => {
+    const h = Math.floor(t / 3600);
+    let v = byHour.get(h);
+    if (v === undefined) {
+      const s = h * 3600;
+      const inS = isAvailable(s, a);
+      const inE = isAvailable(s + 3599, a);
+      v = inS && inE ? -1 : !inS && !inE ? nextAvailable(s, a) : -2;
+      // A pattern with no hour at all gives its input back (nextAvailable): ask each time then.
+      if (v === s) v = -2;
+      byHour.set(h, v);
+    }
+    return v === -1 ? t : v === -2 ? nextAvailable(t, a) : v;
+  };
+}
