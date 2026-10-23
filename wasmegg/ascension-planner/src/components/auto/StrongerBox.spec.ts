@@ -121,7 +121,8 @@ describe('(e) the starting route, in the Stronger check box', () => {
     expect(t).toContain('data-testid="start-from"');
     expect(t).toContain(`{ key: 'instant', label: "The instant answer's route (default)" }`);
     expect(t).toContain("instantSummary.listed.slice(1).forEach");
-    expect(t).toContain("strongerStore.earlierChains.forEach");
+    // Light's earlier routes went with Light (23 Oct 2026).
+    expect(t).not.toContain("strongerStore.earlierChains");
     expect(t).toContain("{ key: 'typed', label: 'Type a route…' }");
     // Lock the first N and the limits stay in the same settings.
     expect(t.indexOf('data-testid="start-from"')).toBeLessThan(t.indexOf('Lock the first'));

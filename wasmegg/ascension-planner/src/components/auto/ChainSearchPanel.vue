@@ -1167,7 +1167,6 @@ const startOptions = computed(() => {
     out.push({ key: k, label: `${label}: ${c.join(' ')}`, chain: c });
   };
   instantSummary.listed.slice(1).forEach(c => add(c, `Instant answer, ${c.length} ascensions`));
-  strongerStore.earlierChains.forEach(c => add(c, 'Your earlier route'));
   out.push({ key: 'typed', label: 'Type a route…' });
   return out;
 });

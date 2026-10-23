@@ -290,35 +290,7 @@ describe("Light's send", () => {
     expect(run?.atOncePriced).toBe(1);
   });
 
-  it('only on a press with the agreement: withdrawn, nothing is sent', async () => {
-    const { s, consent, share } = await fresh();
-    s.beginLight(START, TE);
-    const { fetchMock, bodies } = collector({ ok: true, id: 'aaaa0004' });
-    const { useShareConsent } = await import('@/composables/useShareConsent');
-    // The account's own agreement, as the Share box reads it (ConsentBox.vue, composables/useConsent.ts).
-    const identity = share.createShareIdentity(ref(''), undefined, useShareConsent());
-    const result = ref<LightResult | null>(lightFastest());
-    const light = share.useLightShare(s, identity, result);
-    // Not agreed: the press sends nothing.
-    await light.share();
-    expect(fetchMock).not.toHaveBeenCalled();
-    // Agreed, then withdrawn before the press.
-    consent.setConsent('leaderboard', true);
-    expect(identity.optIn.value).toBe(true);
-    consent.setConsent('leaderboard', false);
-    await light.share();
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(light.shareMessage.value).toMatch(/^Not sent: agree/);
-    consent.setConsent('leaderboard', true);
-    await light.share();
-    expect(bodies).toHaveLength(1);
-    expect(light.sent.value).toBe(true);
-    expect(light.shareMessage.value).toMatch(/^Thanks!/);
-    // Sent: a second press says so and sends nothing.
-    await light.share();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(light.shareMessage.value).toMatch(/Already on the board/);
-  });
+  // "only on a press with the agreement" went with useLightShare (no Light send button since 23 Oct 2026).
 });
 
 describe('an older collector', () => {

@@ -137,7 +137,6 @@
     <InstantRunWarning
       v-if="warnHere(confirming, 'again')"
       at="again"
-      :check="confirming?.check"
       @go="confirmRun(false)"
       @remember="confirmRun(true)"
       @cancel="confirming = null"
@@ -162,7 +161,6 @@
     <InstantRunWarning
       v-if="warnHere(confirming, 'anyway')"
       at="anyway"
-      :check="confirming?.check"
       @go="confirmRun(false)"
       @remember="confirmRun(true)"
       @cancel="confirming = null"

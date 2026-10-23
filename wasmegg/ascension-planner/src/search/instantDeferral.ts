@@ -87,17 +87,15 @@ export function pauseForRun(o: {
 
 /**
  * Which button asked for the memory warning, so it shows directly under that button (InstantRoute.vue,
- * InstantRunWarning.vue): Work it out again (the "Saved from…" note), Work it out anyway (the amber
- * "waits" line), or Check exactly / Check all again in the By a date or the fastest-route card.
+ * InstantRunWarning.vue): Work it out again (the "Saved from…" note) or Work it out anyway (the amber
+ * "waits" line). Check exactly's two spots went with it (23 Oct 2026).
  */
-export type WarnAt = 'again' | 'anyway' | 'check-date' | 'check-fastest';
+export type WarnAt = 'again' | 'anyway';
 
 /** The warning open, if any: what it asks about and where it was asked from. */
 export interface WarnAsk {
   /** Work it out again forces a fresh answer; the "waits" line's button does not. */
   force: boolean;
-  /** Check exactly / Check all again (else working the answer out). */
-  check?: boolean;
   at: WarnAt;
 }
 

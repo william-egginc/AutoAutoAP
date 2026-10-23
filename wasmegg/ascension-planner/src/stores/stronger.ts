@@ -11,8 +11,6 @@
  */
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
-import type { LegSummary } from '@/search/types';
-import type { LightResult } from '@/search/lightResult';
 
 export type StrongerLevel = 'light' | 'quick' | 'normal' | 'thorough';
 const KEY = 'aap-stronger-level';
@@ -50,37 +48,6 @@ export interface CompareRoute {
   at?: number;
 }
 
-/** Light's status (stores `light`). */
-export interface LightStatus {
-  state: 'idle' | 'running' | 'done' | 'error';
-  /** The player's earlier routes: priced so far, and how many. */
-  priced: number;
-  total: number;
-  /** When it finished, ms. */
-  at: number;
-  /** The instant answer's routes priced at once: so far, and how many. */
-  instant?: { priced: number; total: number };
-  /** What it is doing now, while running. */
-  step?: string;
-  /** "Fastest as you'd play it: …" once a route is priced at once. */
-  summary?: string;
-  /** Where the earlier routes came from: "from your board runs sent from another browser". */
-  from?: string;
-}
-export function idleLight(): LightStatus {
-  return { state: 'idle', priced: 0, total: 0, at: 0 };
-}
-
-/** A route priced at once (Light): when it ends and at what TE, and its legs (since 15 Oct 2026, for the
- *  instant answer's row arrows: a few kB for the eight or so routes Light prices). */
-export interface AtOncePriced {
-  chain: number[];
-  seconds: number;
-  end: number;
-  endTE: number;
-  legs?: LegSummary[];
-}
-
 export const useStrongerStore = defineStore('stronger', () => {
   const level = ref<StrongerLevel>(read());
   watch(level, v => {
@@ -94,8 +61,6 @@ export const useStrongerStore = defineStore('stronger', () => {
   const strongerBest = ref<{ fastest: CompareRoute | null; date: CompareRoute | null }>({ fastest: null, date: null });
   /** The instant answer's lead route, per goal (InstantRoute.vue). */
   const instant = ref<{ fastest: CompareRoute | null; date: CompareRoute | null }>({ fastest: null, date: null });
-  /** The routes the stronger check priced from the player's own history (for "start from a different route"). */
-  const earlierChains = ref<number[][]>([]);
   /** Each search's last answer in this visit (SearchCompare.vue keeps them), so a later run of the
    *  other search doesn't wipe the comparison: Fastest's Smart search ('smart') and Full sweep ('full'),
    *  By a date's routes around the answer ('around') and boxes ('boxes'). */
@@ -105,22 +70,7 @@ export const useStrongerStore = defineStore('stronger', () => {
     around: null,
     boxes: null,
   });
-  /** Light's status sign (StrongerBox.vue): waiting for Check exactly, running, or done with how many
-   *  of the player's earlier routes it priced and when (ms). Since 14 Oct Light first prices the instant
-   *  answer's routes at once (search/lightAtOnce.ts): `instant` counts those, `step` says what it is
-   *  looking at while running ("Looking at 7 ascensions (1 of 5)"), `summary` is its own result line. */
-  const light = ref<LightStatus>(idleLight());
-  /** The instant answer's routes priced at once by Light, per goal, by `chain.join(',')` (null: couldn't
-   *  price). The counts table shows a line under each row (InstantRoute.vue). This visit only. */
-  const atOnce = ref<{ fastest: Record<string, AtOncePriced | null>; date: Record<string, AtOncePriced | null> }>({
-    fastest: {},
-    date: {},
-  });
-  /** Check exactly on the instant answer (InstantRoute.vue): going or not, and how many of its routes are priced, so
-   *  Light's status sign can say what it is waiting for. */
-  const exact = ref({ running: false, done: 0, total: 0 });
-  /** Light's result to send (search/lightResult.ts), per goal: set by StrongerCheck.vue once Light is done,
-   *  null while it runs, before it and after a new answer. LightShare.vue sends it. This visit only. */
-  const lightResult = ref<{ fastest: LightResult | null; date: LightResult | null }>({ fastest: null, date: null });
-  return { level, strongerBest, instant, earlierChains, lastSearch, light, atOnce, exact, lightResult };
+  // Light's status, its at-once prices and result, Check exactly's progress and the earlier routes Light priced went
+  // with Light and Check exactly (23 Oct 2026).
+  return { level, strongerBest, instant, lastSearch };
 });

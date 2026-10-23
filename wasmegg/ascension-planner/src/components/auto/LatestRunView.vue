@@ -659,7 +659,7 @@ const onDemand = createLegsOnDemand(createChainSearchPool);
 const stronger = useStrongerStore();
 /** The plan start the run's routes were priced from. */
 const runStart = computed(() => store.planStartUsed || store.planStart);
-const anythingRunning = computed(() => store.busy || stronger.exact.running);
+const anythingRunning = computed(() => store.busy);
 watch(anythingRunning, on => on && onDemand.cancel());
 onBeforeUnmount(() => onDemand.cancel());
 function demandOf(row: ShortlistRow): LegsOnDemand | undefined {
