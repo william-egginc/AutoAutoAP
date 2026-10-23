@@ -14,6 +14,7 @@
  */
 import type { LegSummary } from '@/search/types';
 import type { SnapMeta, SnapWhatIf } from '@/search/instantSnapshot';
+import type { FoundLevel } from './searchPointer';
 import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './planPace';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
@@ -53,6 +54,9 @@ export interface SnapLike {
   answerStart?: number;
   meta?: SnapMeta;
   whatIf?: SnapWhatIf | null;
+  /** The last Fast, Exact or Custom result for this goal and save (lib/searchPlan.ts `SnapSearch`; since 23 Oct
+   *  2026). Read with `readSearch`. */
+  search?: unknown;
 }
 
 export interface NowPlan {
@@ -67,8 +71,12 @@ export interface NowPlan {
   legs: LegSummary[] | null;
   /** The table's legs (prestige times only), for when `legs` is null. */
   tableLegs: SnapRoute['legs'] | null;
-  /** The lead is Check exactly's (the simulator on the account), not only the instant answer's. */
+  /** The simulator's times on the account (a search's result, or before 23 Oct 2026 Check exactly's), not only the
+   *  instant answer's. */
   exact: boolean;
+  /** A Fast, Exact or Custom result's plan (lib/searchPlan.ts): which level and when it was found (ms). Absent: the
+   *  instant answer's (or an older snapshot's Check exactly). */
+  from?: { level: FoundLevel; at: number };
   /** By a date: the instant answer's own TE for the date (Check exactly confirms it when equal). */
   instantTE: number | null;
   /** When it was worked out, ms. */

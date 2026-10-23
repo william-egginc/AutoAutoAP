@@ -41,8 +41,8 @@ describe('no automatic run on the answer', () => {
     expect(polish).toContain('saveSnapshot(id);');
     expect(polish).not.toMatch(/runExact|evaluate\(/);
   });
-  it("My runs' Recalculate ask is cleared, never answered with a check", () => {
-    expect(script).toMatch(/if \(mine\) ui\.exactAsk = null;/);
+  it("My runs' Run Fast only opens the screen on Fast: no ask reaches this card (part B, 23 Oct 2026)", () => {
+    expect(script).not.toContain('exactAsk');
   });
 });
 
@@ -101,17 +101,16 @@ describe('the pointer', () => {
     expect(template).toContain('{{ POINTER_LINK }}');
     expect(template).toContain('@click="seeResult"');
   });
-  it('only a finished result for this goal, on this save and account', () => {
+  it('only a finished result for this goal, on this save and account (lib/searchPlan.ts, specs there)', () => {
     const found = fn('const searchFound');
-    expect(found).toContain('store.deadlineRunning ||');
-    expect(found).toContain('r.deadline !== props.deadline');
-    expect(found).toContain('Math.floor(r.te) !== te');
-    expect(found).toContain('ownerMatches(store.deadlineResultOwner)');
-    expect(found).toContain('store.isRunning ||');
-    expect(found).toContain('chain[chain.length - 1] !== store.finalTE');
-    expect(found).toContain('ownerMatches(store.chainResultOwner)');
-    expect(found).toContain("foundLevel({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort })");
-    expect(found).toContain('foundLevel({ custom: !r.simple, effort: r.level })');
+    expect(found).toContain('liveSearchResult({');
+    expect(found).toContain('ownerOk: ownerMatches');
+    expect(found).toContain('running: store.isRunning');
+    expect(found).toContain("custom: store.runKindUsed === 'full'");
+    expect(found).toContain('date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner }');
+    // Kept with the snapshot for My runs' Right now.
+    expect(script).toContain('patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(f)) });');
+    expect(script).toContain('search: newerSearch(keptSearch.value, searchFound.value),');
   });
   it('See it ↓ shows the part of the panel that holds it, then scrolls to its result card', () => {
     const see = fn('function seeResult(');

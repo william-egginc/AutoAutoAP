@@ -714,7 +714,6 @@ import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName,
 import { compositeUrl, parseCompositeUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
-import { useUIStore } from '@/stores/ui';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
@@ -745,8 +744,8 @@ import {
 } from '@/search/startProvenance';
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
-import { foundLevel, INSTANT_ONE_LINE, pointerOf, POINTER_LINK, type FoundResult } from '@/lib/searchPointer';
-import type { LegSummary } from '@/search/types';
+import { INSTANT_ONE_LINE, pointerOf, POINTER_LINK } from '@/lib/searchPointer';
+import { liveSearchResult, newerSearch, readSearch, type SnapSearch } from '@/lib/searchPlan';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
@@ -1454,6 +1453,7 @@ async function run(force = false, goAhead = false): Promise<void> {
   const id = ++runs;
   const bid = ++bracketRuns;
   whatIfResult.value = null;
+  keptSearch.value = null;
   // The same save, setup and filters as when it was last worked out: show that answer, in full, and
   // skip the work. (The plan start is not in this key, as it is a new minute on every visit: the note says which
   // start the saved dates are for. The "|0" is the retired at-once box, off: snapshots saved before keep loading.)
@@ -1733,20 +1733,6 @@ function openPlan(chain: number[]): void {
 }
 /** "Follow this route": the goal My runs' Right now follows it for (lib/follow.ts). */
 const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
-/**
- * My runs' "Recalculate" and "Price it ›" (lib/recalc.ts, stores/ui.ts `exactAsk`) asked this screen for Check exactly.
- * There is no Check exactly any more (the instant card is instant only, 23 Oct 2026): opening the screen with the
- * save is the whole answer, so the ask for this screen's goal is cleared.
- */
-const ui = useUIStore();
-watch(
-  () => ui.exactAsk?.goal === instantGoal(props.deadline, store.finalTE),
-  mine => {
-    if (mine) ui.exactAsk = null;
-  },
-  { immediate: true }
-);
-
 /** "Follow this route" only on a route in time (lib/eggDayRule.ts, 22 Oct 2026). */
 const boxFollowable = computed(() => {
   const deadline = props.deadline;
@@ -2015,6 +2001,9 @@ interface InstantSnapshot {
   meta?: SnapMeta;
   /** "What if you had maxed gear?", once worked out for this answer (MaxedWhatIf `result`). */
   whatIf?: SnapWhatIf | null;
+  /** The last Fast, Exact or Custom result for this goal and save (lib/searchPlan.ts): My runs' Right now follows it
+   *  when it is better than the instant answer (23 Oct 2026). */
+  search?: SnapSearch | null;
 }
 let snapKey: string | null = null;
 /** When the answer on screen was saved, while it is a saved one (not worked out in this visit). */
@@ -2053,6 +2042,7 @@ function currentSnapshot(): InstantSnapshot | null {
       prestige: prestige.value,
       meta: snapMeta(),
       whatIf: whatIfResult.value,
+      search: newerSearch(keptSearch.value, searchFound.value),
     })
   ) as InstantSnapshot;
 }
@@ -2105,6 +2095,7 @@ function applySnapshot(s: InstantSnapshot): void {
   bracket.value = s.bracket;
   prestige.value = s.prestige ?? null;
   whatIfResult.value = s.whatIf ?? null;
+  keptSearch.value = readSearch(s.search);
   prestigeStatus.value = s.prestige ? 'done' : 'idle';
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';
@@ -2205,52 +2196,47 @@ function days(seconds: number): string {
 
 /**
  * THE SEARCH RESULT FOR THIS GOAL (Jordan, 23 Oct 2026): a finished Fast, Exact or Custom result for the same goal,
- * on this save and account. The instant card only points to it (`pointer`); "Share this result" sends it with the
- * instant answer (below). Fastest: the chain search's best once it stops (its kind and effort say the level); By a
- * date: the date search's result for this deadline, started from the TE the save has now. A running search's best so
- * far is not a result yet.
+ * on this save and account (lib/searchPlan.ts `liveSearchResult`, the rule My runs' Right now reads too). The instant
+ * card only points to it (`pointer`); "Share this result" sends it with the instant answer (below). Fastest: the
+ * chain search's best once it stops (its kind and effort say the level); By a date: the date search's result for this
+ * deadline, started from the TE the save has now. A running search's best so far is not a result yet. It is kept in
+ * the snapshot (`search`) for My runs.
  */
-interface SearchFound extends FoundResult {
-  legs: LegSummary[];
-  /** When it was found (ms), and the plan start it was priced from. */
-  at: number;
-  planStart: number;
-}
+type SearchFound = SnapSearch;
+/** The result kept with the snapshot on screen (a restored one's), until a newer one is found. */
+const keptSearch = ref<SnapSearch | null>(null);
 /** A result tagged for another account than the one loaded is not this save's. Unknown on either side: it is. */
 function ownerMatches(owner: string): boolean {
   const me = initialState.playerId ? accountHashNow(initialState.playerId) : '';
   return !owner || !me || owner === me;
 }
-const searchFound = computed<SearchFound | null>(() => {
-  const te = Math.floor(store.currentTE);
-  if (props.deadline) {
-    const r = store.deadlineResult;
-    const best = r?.routes[0];
-    if (store.deadlineRunning || !r || !best || r.deadline !== props.deadline) return null;
-    if (Math.floor(r.te) !== te || !ownerMatches(store.deadlineResultOwner)) return null;
-    return {
-      level: foundLevel({ custom: !r.simple, effort: r.level }),
-      chain: [...best.chain],
-      end: best.reachAt,
-      endTE: best.chain[best.chain.length - 1],
-      legs: best.legs ?? [],
-      at: r.at ?? 0,
-      planStart: r.planStart,
-    };
-  }
-  const chain = store.bestChain;
-  if (store.isRunning || !(store.bestDays > 0) || !chain.length) return null;
-  if (chain[chain.length - 1] !== store.finalTE || !(chain[0] > te) || !ownerMatches(store.chainResultOwner)) return null;
-  const planStart = store.planStartUsed || store.planStart;
-  return {
-    level: foundLevel({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort }),
-    chain: [...chain],
-    end: planStart + store.bestDays * 86400,
-    endTE: store.finalTE,
-    legs: store.bestLegs ?? [],
-    at: store.chainResultAt,
-    planStart,
-  };
+const searchFound = computed<SearchFound | null>(() =>
+  liveSearchResult({
+    goal: props.deadline ? 'date' : 'fastest',
+    deadline: props.deadline ?? null,
+    target: store.finalTE,
+    currentTE: store.currentTE,
+    ownerOk: ownerMatches,
+    fastest: {
+      running: store.isRunning,
+      bestDays: store.bestDays,
+      bestChain: store.bestChain,
+      bestLegs: store.bestLegs,
+      planStart: store.planStartUsed || store.planStart,
+      custom: store.runKindUsed === 'full',
+      effort: store.runSettingsUsed?.effort,
+      at: store.chainResultAt,
+      owner: store.chainResultOwner,
+    },
+    date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner },
+  })
+);
+// Kept with the snapshot as it lands, so My runs' Right now finds it (the snapshot is saved before a search ends).
+watch(searchFound, f => {
+  if (!f || status.value !== 'done' || !snapKey) return;
+  if (keptSearch.value && keptSearch.value.at >= f.at) return;
+  keptSearch.value = f;
+  patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(f)) });
 });
 /** "Fast found 312 TE on your account." (lib/searchPointer.ts), or null. */
 const pointer = computed(() => pointerOf(props.deadline ? 'date' : 'fastest', searchFound.value, show));
