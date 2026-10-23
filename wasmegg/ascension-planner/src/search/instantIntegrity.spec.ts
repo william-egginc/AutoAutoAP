@@ -26,9 +26,9 @@ describe('instantIntegrity', () => {
     expect(holdsRoutes(s)).toBe(false);
     if (s.kind !== 'warn') return;
     expect(s.text).toContain('Times on your account include an Integrity wait of 5.0 hours');
-    expect(s.text).toContain('Check exactly includes it');
+    expect(s.text).toContain('a Fast search includes it');
     const own = instantIntegrity(5 * 3600, false, null, true);
-    expect(own.kind === 'warn' && own.text).not.toContain('Check exactly includes it');
+    expect(own.kind === 'warn' && own.text).not.toContain('a Fast search includes it');
   });
 
   it('over a week: no routes, the Clothed TE against ~225 and what adds up to the gap', () => {

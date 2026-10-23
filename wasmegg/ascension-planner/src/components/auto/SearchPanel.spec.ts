@@ -218,11 +218,12 @@ describe('Very high, inside Exact (lib/veryHigh.ts)', () => {
     expect(t).toContain('This run used Very high. For a full sweep, use Custom.');
     expect(t).toContain('With Very high: the same as Fast, with two more TE either side');
   });
-  it('Exact says first that it is a wider search, not the exact price', async () => {
-    for (const g of ['fastest', 'date'] as const)
-      expect(textOf(await exact(g))).toContain(
-        'What it does A wider search than Fast, not the exact price (that is Check exactly).'
-      );
+  it('Exact says first that it is a wider search, priced the same way (no Check exactly since 23 Oct 2026)', async () => {
+    for (const g of ['fastest', 'date'] as const) {
+      const t = textOf(await exact(g));
+      expect(t).toContain('What it does A wider search than Fast; its times are priced the same way, with the full simulator.');
+      expect(t).not.toContain('Check exactly');
+    }
   });
   it('Fast shows no Very high line', async () => {
     useStrongerStore().level = 'quick';

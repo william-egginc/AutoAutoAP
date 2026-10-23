@@ -65,7 +65,7 @@ export function instantIntegrity(
     text:
       `Times on your account include an Integrity wait of ${long}: a fresh ascension here sits on an ` +
       `Integrity shift that long before it can afford its habs (a healthy account is through it in under an hour).` +
-      (own ? '' : ` The instant answer's own dates may leave that wait out; Check exactly includes it.`),
+      (own ? '' : ` The instant answer's own dates may leave that wait out; a Fast search includes it.`),
   };
 }
 
@@ -88,6 +88,6 @@ export function lowTeOpeningNote(info: { rounds: number; openingSeconds: number 
     `Low-TE opening: a fresh ascension on this account can't max its habs in one round of research, vehicles ` +
     `and habs (C1, K1, I1), so it goes round ${rounds}, about ${describeDuration(info.openingSeconds)} before ` +
     `its habs are maxed. The instant answer may not have been made with this opening for your ascensions, so ` +
-    `its dates for them are rough; Check exactly prices the low-TE opening.`
+    `its dates for them are rough; a Fast search prices the low-TE opening.`
   );
 }

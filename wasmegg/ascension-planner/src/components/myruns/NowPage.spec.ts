@@ -104,7 +104,7 @@ describe('the Right now card', () => {
   it('the plan, its egg, the next step and the events with dates, times and distances', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     const t = textOf(html);
-    expect(t).toContain('Plan for Race to 490 calculated Oct 15 at 12:40 pm (2 h ago) (Check exactly)');
+    expect(t).toContain('Plan for Race to 490 calculated Oct 15 at 12:40 pm (2 h ago) (simulator check)');
     expect(t).toContain('Integrity');
     expect(t).toContain('ascension 1 of 2 · 186 TE so far');
     expect(t).toContain('Made from your latest save'); // R6: one wording with My runs' saved plans (lib/planPace.ts)

@@ -41,9 +41,9 @@
       </p>
       <p>
         <b>The instant answer looks routes up</b> in ascensions simulated ahead of time, so it covers every route in a
-        second or two. <b>Check exactly</b> then runs its routes through the full simulator on your save, ascending on
-        the hour like the instant answer. Press Check exactly for the most accurate answer: it's the simulator's own
-        number for your save. In our checks the instant answer was usually within about 1% of the simulator (within 1.5
+        second or two, ascending on the hour. <b>A Fast, Exact or Custom search</b> then prices routes through the full
+        simulator on your save. Run Fast for the most accurate answer: its times are the simulator's own numbers for
+        your save. In our checks the instant answer was usually within about 1% of the simulator (within 1.5
         hours a route on gear like yours). On maxed gear, for an account with weaker gear, it can be several days too
         hopeful, and on the weakest gear seen far more (section 6). These checks were made on the simulator the site
         ran before 21 Oct 2026, and have not been repeated on the newer one yet.
@@ -128,7 +128,7 @@
           {{ NAMES.fastest }}, Fast takes about 5-10 minutes on an 8-core computer and a few minutes on 16; Exact about
           20-30 minutes on 8 cores and 10-20 on 16 or more; Very high about 1.5-2.5 hours on 8 cores and 45 minutes to
           1.5 hours on 16. {{ NAMES.full }} runs about 70 routes a minute on 8 cores and about 120 on 16, so its time
-          follows the size of your boxes. The pricing after Check exactly takes seconds to a few minutes. The Fast and Very high
+          follows the size of your boxes. The Fast and Very high
           figures rest on very few runs, and the 8- and 16-core figures are estimates fitted from other machines. A tab
           in the background runs several times slower, so keep it in front. On {{ NAMES.fastest }}, a short Fast search
           often found a route sooner than the instant answer's: at least a day in 9 of 12 runs, though some of that gap
@@ -139,7 +139,7 @@
           come in.
         </p>
         <p>
-          <b>Under each answer</b> (and under the instant answer once Check exactly has run) are two short lines: when
+          <b>Under each search's answer</b> are two short lines: when
           your first ascension switches eggs, from the simulation itself, and what one more TE above the last stop would
           take. On {{ NAMES.byDate }} that comes from the run's own numbers (what its last TE cost over the one below);
           elsewhere it's when the next TE would come if you keep laying the same egg at the final rate (another egg needs a shift, which sets your chickens back to zero).
@@ -205,8 +205,8 @@
           much research a build gets through, which a delivery rate can't capture. The page warns you there. Measured on
           a test account with slightly weaker gear, priced on maxed gear: ascensions were off by a median 0.48% from TE
           200-299 (worst 10.8%) and 0.97% from 120-199 (1 in 10 over 6%). One answer from before a 10 Oct fix, when that
-          account fell back to maxed gear, claimed TE 248 by Egg Day; Check exactly gave 246-247. That's why Check
-          exactly exists.
+          account fell back to maxed gear, claimed TE 248 by Egg Day; the full simulator gave 246-247. That's why the
+          searches price every route with the full simulator.
         </p>
         <p>
           <b>Finding the routes.</b> The finder walks up through the TEs once. At each TE, for each number of
@@ -216,9 +216,9 @@
           longer one keeps going in the background (not on phones or small computers).
         </p>
         <p>
-          <b>Check exactly</b> runs the instant answer's routes through the full simulator on your save, ascending on
-          the hour as shown, then prices them ascending at once, on your hours. It takes about 10 to 40 seconds a route. That's the
-          number to plan around. Searches start from the instant answer too: Nearby routes starts from its
+          <b>Pricing a route.</b> Fast, Exact and Custom run each route they try through the full simulator on your
+          save, ascending at once, on your hours. It takes about 10 to 40 seconds a route. That's the number to plan
+          around. Searches start from the instant answer too: Nearby routes starts from its
           route, and Exhaustive's suggested boxes are centred on it.
         </p>
         <p>
@@ -229,15 +229,9 @@
           Clothed TE against the roughly 225 that accounts get through at instead.
         </p>
         <p>
-          <b>Stronger check.</b> A box under the instant answer. After Check exactly, the page goes on by itself, with the full simulator. First it prices the instant answer's
-          routes ascending at once, on your hours: each fresh ascension starts the moment the one before ends, not on
-          the hour, and each row of the answer's table shows that time as it comes in. Then it prices your own earlier
-          routes for the same goal (from your searches here, your saved runs and answers, your earlier checks and your board runs,
-          including ones sent from another browser that look like yours; see My runs). By a date, when the top route misses the date, it also tries the instant answer's route
-          one TE lower (two if needed). Then you pick how hard to look: Fast or Exact run {{ NAMES.smart }}, a search of
+          <b>Stronger check.</b> A box under the instant answer. Nothing in it runs by itself: you pick how hard to look: Fast or Exact run {{ NAMES.smart }}, a search of
           the routes near the instant answer's (Exact a wider one), and Custom is {{ NAMES.full }}, every route in boxes
-          you set. Each option says what it does, how long it should take on your computer, and what it can miss. Anything that beats the answer shows as "Best now". We haven't yet measured how often
-          the pricing after Check exactly finds something better.
+          you set. Each option says what it does, how long it should take on your computer, and what it can miss. Anything that beats the answer shows as "Best now".
         </p>
       </div>
     </details>
@@ -407,8 +401,7 @@
             yours), the instant answer can be far too hopeful. On 18 of 84 board runs sent 14-21 Oct, a run's own route
             priced on the maxed instant answer came out 91 to 4,448 hours sooner than the simulator, and by a date the
             instant answer claimed 3 to 19 TE more than the run's search reached. The lower the account's delivery
-            rate against maxed gear, the bigger the gap. That comparison (21 Oct) used the simulator from before 21 Oct. Use Check exactly, or the bracket it
-            shows.
+            rate against maxed gear, the bigger the gap. That comparison (21 Oct) used the simulator from before 21 Oct. Run a Fast search for your own times.
           </li>
           <li>
             <b>Near-ties.</b> The best TE matched every time we checked, but which route gets there can differ: on one
@@ -513,7 +506,7 @@ const CHECKS: { what: string; result: string; how: string }[] = [
     how: 'the same method, by TE band (1 Oct).',
   },
   {
-    what: 'The instant answer against Check exactly, same save',
+    what: 'The instant answer against the full simulator, same save',
     result:
       'Each ascension within 0.09%, each route within 1.5 hours (0.023%), and the same best route and TE by Egg Day every time.',
     how: 'three shared checks from a test account on 10 Oct, two on the hour and one also at once.',

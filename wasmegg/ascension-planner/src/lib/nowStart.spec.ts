@@ -42,7 +42,7 @@ describe('not on virtue yet: each goal from its saved plan', () => {
       NOW,
       ZONE
     ).map(l => l.text);
-    expect(lines[0]).toBe('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Race to 490, Check exactly)');
+    expect(lines[0]).toBe('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Race to 490, simulator check)');
     expect(lines[1]).toBe('If you start Oct 30 at 6:00 pm: Egg Day 2027 TE 313 (instant answer)');
     expect(lines[2]).toBe('By Mar 3, 2027: no start time is priced yet');
   });

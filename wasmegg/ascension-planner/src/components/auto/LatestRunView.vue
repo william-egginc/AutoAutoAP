@@ -48,9 +48,7 @@
         when every stop and egg happens.
       </p>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        Either way of searching counts ({{ NAMES.smart }} or {{ NAMES.full }}). The pricing that follows Check exactly
-        isn't a search: it prices the instant answer's own routes, so its results are on the instant answer's rows
-        (open a row's arrow after Check exactly) and on the Stronger check's lines.
+        Either way of searching counts ({{ NAMES.smart }} or {{ NAMES.full }}).
       </p>
     </div>
 

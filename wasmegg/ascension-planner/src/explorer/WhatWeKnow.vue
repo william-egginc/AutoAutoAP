@@ -45,8 +45,8 @@
     <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-[12px] text-slate-800 leading-relaxed">
       <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">The short answer</p>
       <p>
-        <b>Use the instant answer, then Check exactly.</b> It finds your fastest route (or the highest TE by a date) for
-        your gear in seconds, and Check exactly prices it with the full simulator.
+        <b>Use the instant answer, then a Fast search.</b> It finds your fastest route (or the highest TE by a date) for
+        your gear in seconds, and Fast prices routes near it with the full simulator.
       </p>
       <p>
         <b>Plan for 5 to 7 ascensions.</b>
@@ -82,9 +82,9 @@
         <div class="px-3 pb-3 pl-10 text-slate-700 space-y-2">
           <p v-if="f.id === 'match'">
             Each ascension lands within about an hour of the full simulator; a whole route can move by a day or two if
-            an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so use Check exactly
+            an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so use a Fast search
             for the final word. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
-            Check exactly, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
+            the full simulator, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
             within an hour) and every new run that week. For the accounts it has precomputed on their own gear (10 so
             far) it reproduces their submitted runs to a median of 0.15% or better. On maxed gear, for an account with

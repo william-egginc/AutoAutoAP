@@ -68,10 +68,9 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     expect(html).toContain('data-testid="latest-run-empty"');
     const t = textOf(html);
     expect(t).toContain('Run a search on Fastest to 490 TE or Highest TE by a date and its routes show here');
-    // Names both ways of searching, and says Light isn't a search and where its results are.
+    // Names both ways of searching (the pricing after Check exactly, and its note, went with it on 23 Oct 2026).
     expect(t).toContain('Either way of searching counts (Nearby routes or Exhaustive)');
-    expect(t).toContain("The pricing that follows Check exactly isn't a search");
-    expect(t).toContain("its results are on the instant answer's rows");
+    expect(t).not.toContain('Check exactly');
     expect(html).not.toContain('data-testid="other-options"');
     expect(html).not.toContain('data-testid="search-shape"');
   });

@@ -111,7 +111,7 @@ describe('Right now and the Fastest tile: one plan, the other hours secondary', 
     const html = await renderHtml(RightNowCard, cardProps(cardOf()));
     const t = textOf(html);
     expect(t).toContain('Plan for Race to 490 calculated Oct 15 at 11:59 pm');
-    expect(t).toContain('(Check exactly) · priced with your hours 7 am to 1 am, no time off · from your save of Oct 15 at 2:40 pm');
+    expect(t).toContain('(simulator check) · priced with your hours 7 am to 1 am, no time off · from your save of Oct 15 at 2:40 pm');
     expect(html).toContain('data-testid="now-secondary"');
     expect(t).toContain(`With any hour (before your hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 pm)`);
   });

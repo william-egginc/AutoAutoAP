@@ -109,7 +109,7 @@ describe('About and privacy page', () => {
     );
     expect(read('src/stores/chainSearch.ts')).toContain("if (payload.baseline || !consentAgreed('shareBaseline')) return payload;");
     expect(text).toContain(
-      "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which held Check exactly's price until that was retired on 23 Oct 2026)"
+      "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which before 23 Oct 2026 held the price of the instant answer's own route)"
     );
     expect(text).toContain('They are anonymous, sent only with that consent, and never shown publicly.');
     expect(text).toContain('Last updated 23 Oct 2026.');

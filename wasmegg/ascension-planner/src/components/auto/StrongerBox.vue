@@ -108,7 +108,7 @@ interface LevelText {
   finds: string;
 }
 /** Exact's first words: a wider search, not the exact price (Jordan, 22 Oct: the name sits next to Check exactly). */
-const EXACT_FIRST = 'A wider search than Fast, not the exact price (that is Check exactly).';
+const EXACT_FIRST = 'A wider search than Fast; its times are priced the same way, with the full simulator.';
 /** Each level in plain words, per screen: what it does, how long, what it can and can't find. */
 const levels = computed<LevelText[]>(() =>
   props.goal === 'fastest'
@@ -174,7 +174,7 @@ function setVeryHigh(on: boolean): void {
 }
 
 /** "What this does and does not promise" for the option picked, on this screen. */
-const PRICED = 'Every route it shows is priced with the full simulator on your save, the same as Check exactly, so its times are your own.';
+const PRICED = 'Every route it shows is priced with the full simulator on your save, so its times are your own.';
 const STOP = 'You can stop it at any point and keep the best route it found so far.';
 const TIMING = "The times come from players' runs and your computer's own speed. Keep this tab in front: a hidden tab runs several times slower.";
 const promises = computed<string[]>(() => {

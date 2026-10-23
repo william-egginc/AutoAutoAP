@@ -66,7 +66,7 @@ describe('saved-answer tiles', () => {
     expect(t.answer?.saveSeconds).toBe(SAVE);
     expect(t.olderSave).toBe(false);
     expect(t.sure?.level).toBe('high');
-    expect(howWords(t.answer!)).toBe('Check exactly');
+    expect(howWords(t.answer!)).toBe('simulator check');
   });
 
   it('the table only: Medium, never High', () => {

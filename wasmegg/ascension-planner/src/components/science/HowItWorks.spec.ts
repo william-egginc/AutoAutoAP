@@ -14,13 +14,14 @@ describe('Science › How it works', () => {
     expect(text.match(/How: /g)?.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('sends players to Check exactly, says Prestige by is experimental, and avoids doom figures', async () => {
+  it('sends players to a Fast search (no Check exactly since 23 Oct 2026), says Prestige by is experimental, and avoids doom figures', async () => {
     const text = textOf(await renderHtml(HowItWorks, {}));
-    expect(text).toContain('ascending on the hour like the instant answer');
-    expect(text).toContain('Press Check exactly for the most accurate answer');
+    expect(text).not.toContain('Check exactly');
+    expect(text).toContain('in a second or two, ascending on the hour');
+    expect(text).toContain('Run Fast for the most accurate answer');
     expect(text).toContain('An experimental "Prestige by…" line');
     expect(text).not.toMatch(/planned "Prestige by/i);
-    expect(text).toContain('Stronger check. A box under the instant answer. After Check exactly, the page goes on by itself');
+    expect(text).toContain('Stronger check. A box under the instant answer. Nothing in it runs by itself');
     expect(text).toContain('you pick how hard to look: Fast or Exact run');
     expect(text).not.toContain('four levels');
     expect(text).not.toContain('Try: stronger check (a prototype)');

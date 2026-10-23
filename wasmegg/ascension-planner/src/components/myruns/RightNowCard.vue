@@ -615,7 +615,7 @@ const NO_LEGS_KEPT = "This plan was kept without each ascension's shifts (it was
 const howText = computed(() => {
   const p = props.card?.plan;
   if (!p) return '';
-  return p.from ? `${p.from.level} run` : p.exact ? 'Check exactly' : 'instant answer';
+  return p.from ? `${p.from.level} run` : p.exact ? 'simulator check' : 'instant answer';
 });
 const pill = computed(() => {
   const p = props.card?.plan;

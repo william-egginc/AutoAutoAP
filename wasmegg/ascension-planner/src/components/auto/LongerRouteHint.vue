@@ -6,7 +6,7 @@
     - the instant answer has a faster route (InstantRoute.vue, through stores/instantSummary.ts), or
     - the best route uses the most ascensions that were searched, so it sits at the edge.
   Each note has a button that sets up that ascension count (the screen says how: a chain on the Full
-  sweep, a starting chain on Smart search), and the instant answer's note also has "Check exactly".
+  sweep, a starting chain on Smart search), and the instant answer's note also has "Price this route" (was "Check exactly" until 23 Oct 2026).
   Nothing runs by itself: the player presses Find.
 -->
 <template>
@@ -35,7 +35,7 @@
           title="Prices this route with the full simulator, in Exhaustive"
           @click="check(h.chain)"
         >
-          Check exactly
+          Price this route
         </button>
       </div>
       <p v-if="done[h.count]" class="text-[10px] text-amber-800/90" data-test="longer-route-done">

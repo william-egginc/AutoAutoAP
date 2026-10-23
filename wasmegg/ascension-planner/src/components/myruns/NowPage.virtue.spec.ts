@@ -171,7 +171,7 @@ describe('not on virtue yet', () => {
   it('the future plan as exploration, from what each goal saved; the switch, the route and the timeline stay', async () => {
     const html = await renderHtml(RightNowCard, offProps());
     const t = textOf(html);
-    expect(t).toContain('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Race to 490, Check exactly)');
+    expect(t).toContain('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Race to 490, simulator check)');
     expect(t).toContain('Egg Day 2027: no start time is priced yet');
     expect(t).toContain('If you start then: Following 198 → 490 (Race to 490)');
     expect(html).toContain('data-testid="now-goal-switch"');

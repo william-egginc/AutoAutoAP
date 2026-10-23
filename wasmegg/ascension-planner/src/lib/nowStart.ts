@@ -27,7 +27,7 @@ export interface StartLine {
 export const NOTHING_PRICED = 'No start time is priced yet for this save.';
 
 /**
- * One line per goal: "If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 3:00 am (Race to 490, Check exactly)",
+ * One line per goal: "If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 3:00 am (Race to 490, simulator check)",
  * "If you start Oct 30 at 6:00 pm: Egg Day 2027 TE 313 (instant answer)", "Egg Day 2027: no start time is priced
  * yet". Empty when no goal has a plan (say `NOTHING_PRICED` instead).
  */
@@ -36,7 +36,7 @@ export function startLines(goals: readonly StartGoal[], nowSeconds: number, zone
   return goals.map(g => {
     const p = g.plan;
     if (!p) return { key: g.key, text: `${g.name}: no start time is priced yet` };
-    const how = p.from ? `${p.from.level} run` : p.exact ? 'Check exactly' : 'instant answer';
+    const how = p.from ? `${p.from.level} run` : p.exact ? 'simulator check' : 'instant answer';
     const start = p.planStart ? `If you start ${dateAt(p.planStart, nowSeconds, zone)}: ` : '';
     const what =
       g.goal === 'date'

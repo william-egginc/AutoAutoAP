@@ -101,7 +101,7 @@ export function behindWords(runner: number, i: Pick<SureInput, 'runnerUpChain' |
 const atLeast = (l: SearchLevel | null | undefined, min: SearchLevel) => !!l && RANK[l] >= RANK[min];
 
 export function howSure(i: SureInput): Sure {
-  const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'Check exactly' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
+  const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'simulator check' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
   // Low.
   if (i.olderSimulator) return { level: 'low', reason: 'priced by an older simulator' };
   if (i.hoursChanged) return { level: 'low', reason: 'priced before your hours changed' };
@@ -120,7 +120,7 @@ export function howSure(i: SureInput): Sure {
     if (i.how !== 'instant' && i.exactConfirmsTE && spareOk && runnerOk)
       return {
         level: 'high',
-        reason: `Check exactly confirms ${i.te ?? 'the'} TE, ${hours(i.spareHours!)} to spare, the next route ${
+        reason: `the full simulator confirms ${i.te ?? 'the'} TE, ${hours(i.spareHours!)} to spare, the next route ${
           runner === Infinity ? 'makes less TE' : `${hours(runner!)} behind`
         }`,
       };
@@ -145,7 +145,7 @@ export function howSure(i: SureInput): Sure {
       ? { level: 'medium', reason: `instant answer, ${age(i.ageDays)}; a short search usually finds a sooner route`, action: 'fast' }
       : { level: 'medium', reason: `instant answer, ${age(i.ageDays)}`, action: 'fast' };
   if (i.goal === 'fastest') return { level: 'medium', reason: `${what} done; a short search usually finds a sooner route`, action: 'fast' };
-  if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'Check exactly done; it moved the instant answer’s TE' };
+  if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'simulator check done; it moved the instant answer’s TE' };
   if (typeof i.spareHours === 'number' && i.spareHours < HIGH_SPARE_HOURS)
     return { level: 'medium', reason: `${what} done; only ${hours(i.spareHours)} to spare` };
   if (runner != null && runner !== Infinity && runner <= HIGH_RUNNER_UP_DATE_HOURS)
