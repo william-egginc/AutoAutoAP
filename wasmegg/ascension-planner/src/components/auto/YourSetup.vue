@@ -522,6 +522,17 @@
               with "Share this result" for just one.
             </span>
           </label>
+          <!-- "Share my instant baseline with my runs" (the `shareBaseline` consent, lib/instantBaseline.ts): the same
+               box as on My runs. -->
+          <label class="flex items-start gap-3 cursor-pointer" data-testid="share-baseline">
+            <input v-model="shareBaselineOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
+            <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="font-bold text-slate-800">Share my instant baseline with my runs</span>
+              (public, with the run). Each run you send to the board also carries your instant baseline for it: the
+              route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
+              can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.
+            </span>
+          </label>
           <p class="text-[11px] text-slate-500 leading-relaxed">
             Sending a result to the board, its CSV and diagnostics are separate choices, under Find and submit.
           </p>
@@ -573,6 +584,7 @@
 </template>
 
 <script setup lang="ts">
+import { useConsent } from '@/composables/useConsent';
 import { ThisDevice } from '@/search/device';
 import SaveFileBar from './SaveFileBar.vue';
 import TabsToggle from './TabsToggle.vue';
@@ -610,6 +622,8 @@ const store = useChainSearchStore();
 const instantDuringSearch = useInstantDuringSearch();
 /** "Share my search results" (mirrors the box under a search's result): only where a collector is configured to take them. */
 const { on: shareInstantOn } = useInstantShare();
+/** "Share my instant baseline with my runs" (composables/useConsent.ts `shareBaseline`). */
+const { agreed: shareBaselineOn } = useConsent('shareBaseline');
 const canShareInstant = !!instantUrlOf(store.submitUrl);
 /** Experimental: the "Prestige by" line (?prestigeBy=1 for one visit, or this box). */
 const prestigeBy = usePrestigeBy();

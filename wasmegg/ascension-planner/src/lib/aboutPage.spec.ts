@@ -78,7 +78,7 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       'If you set them, the row also has your hours (the times of day you said you can play, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
     );
-    expect(text).toContain('Last updated 22 Oct 2026.');
+    expect(text).toContain('Last updated 23 Oct 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
     const sub = read('src/search/submission.ts');
     expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
@@ -101,5 +101,18 @@ describe('About and privacy page', () => {
     const worker = read('collector/worker.js');
     expect(worker.slice(worker.indexOf('function pickSubmission('))).toContain('start: startBlock(s.start),');
     expect(worker).toContain("const START_SOURCES = ['fresh', 'stored', 'file', 'draft', 'switch'];");
+  });
+
+  it('says what the instant baseline and the private search results send (23 Oct 2026)', () => {
+    expect(text).toContain(
+      'If you tick "Share my instant baseline with my runs" (on My runs), a row you send also has your instant baseline for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is shown on your public run so others can compare. Without that tick it is not sent.'
+    );
+    expect(read('src/stores/chainSearch.ts')).toContain("if (payload.baseline || !consentAgreed('shareBaseline')) return payload;");
+    expect(text).toContain(
+      "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which held Check exactly's price until that was retired on 23 Oct 2026)"
+    );
+    expect(text).toContain('They are anonymous, sent only with that consent, and never shown publicly.');
+    expect(text).toContain('Last updated 23 Oct 2026.');
+    expect(text).not.toContain('Keep sharing my checks');
   });
 });

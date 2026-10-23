@@ -110,7 +110,7 @@
     <main>
       <p><a href="./">← Back to the planner</a></p>
       <h1>About and privacy</h1>
-      <p class="muted">Last updated 22 Oct 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+      <p class="muted">Last updated 23 Oct 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
 
       <section id="what">
         <h2>What this is</h2>
@@ -166,6 +166,9 @@
             that time and your eggs, never from your player ID; the eggs delivered for each egg at the start; whether
             the plan starts now, at a time you set, or at a time handed over from a search; and how long the page had
             been open and how old the planner's version was.
+            If you tick "Share my instant baseline with my runs" (on My runs), a row you send also has your instant
+            baseline for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is
+            shown on your public run so others can compare. Without that tick it is not sent.
           </li>
           <li>
             <b>The CSV</b> of every route the search priced. Nothing is sent until you tick the agreement, which is off by
@@ -177,9 +180,12 @@
             whether the tab crashed, to help find bugs. They are never shown publicly.
           </li>
           <li>
-            <b>Instant-answer checks</b> (off unless you turn on "Share this check" or "Keep sharing my checks"): the
-            route the instant answer gave, what Check exactly found for it, and the settings used, so we can see how close
-            the instant answer is, with the same note as a row on where it started from. They are never shown publicly.
+            <b>Search results beside the instant answer</b> (off unless you tick "Share this result" or "Share my search
+            results"): the route the instant answer gave, and the best result of a Fast, Exact or Custom search on your
+            account for the same goal (it is in the record's <code>exact</code> field, which held Check exactly's price
+            until that was retired on 23 Oct 2026), with the settings used, so we can see how close the instant answer
+            is, with the same note as a row on where it started from. They are anonymous, sent only with that consent,
+            and never shown publicly.
           </li>
           <li>
             <b>Progress sends</b> (off unless you turn on "Send my progress every N min", or press "Send best so far"):
@@ -196,8 +202,8 @@
         <p>Sends are anonymous unless you type a name into the "Credit me as" box.</p>
         <p>
           <b>Help improve the planner</b>, the box under the tabs, asks once in each browser. Every choice in it
-          starts unticked. Its Yes turns on the choices you tick (sharing runs, the CSV, private diagnostics and "Keep
-          sharing my checks") and your credit, for the account on screen only; anything you leave unticked stays off,
+          starts unticked. Its Yes turns on the choices you tick (sharing runs, the CSV, private diagnostics and "Share
+          my search results") and your credit, for the account on screen only; anything you leave unticked stays off,
           and you can turn it on later in Setup.
           Another account is asked with a one-line strip. It adds nothing new to what is sent, and nothing goes until
           you press a button, except the checks you agreed to keep sharing. No thanks changes nothing and is not asked

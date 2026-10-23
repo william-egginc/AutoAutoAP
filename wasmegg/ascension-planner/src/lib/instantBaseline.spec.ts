@@ -148,5 +148,7 @@ describe('wiring', () => {
     for (const f of ['../components/auto/MyRunsList.vue', '../components/auto/SavedRuns.vue', '../components/auto/SavedAnswers.vue'])
       expect(read(f), f).toContain('<BaselineChip');
     expect(read('../components/MyRunsView.vue')).toContain("useConsent('shareBaseline')");
+    // Setup › Sharing lists what each tick sends: the same box there.
+    expect(read('../components/auto/YourSetup.vue')).toContain("useConsent('shareBaseline')");
   });
 });
