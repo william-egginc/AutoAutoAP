@@ -41,7 +41,8 @@ export interface StudyTicks {
   csv: boolean;
   /** "Send private diagnostics with them": `diagnosticsDefault` (and this visit's diagnostics tick). */
   diag: boolean;
-  /** "Keep sharing my checks (private, anonymous)": `keepSharingChecks`. */
+  /** "Share my search results (private, anonymous)": `keepSharingChecks` (was "Keep sharing my checks" until
+   *  23 Oct 2026, when Check exactly went; the key and the stored answers are unchanged). */
   checks: boolean;
 }
 
@@ -66,7 +67,7 @@ export const TICK_WORDS: [keyof StudyTicks, string][] = [
   ['share', 'Share my runs on the leaderboard when I press a share button'],
   ['csv', 'Send my CSV with them (public)'],
   ['diag', 'Send private diagnostics with them'],
-  ['checks', 'Keep sharing my checks (private, anonymous)'],
+  ['checks', 'Share my search results (private, anonymous)'],
 ];
 
 /** What the box opens with: every tick OFF (Jordan, 21 Oct 2026: opt in, nothing pre-ticked). Yes needs at

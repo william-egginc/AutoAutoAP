@@ -31,7 +31,7 @@ export type ConsentId =
   | 'sendCsv'
   /** "Tick this by default from now on" under "Also send diagnostics". */
   | 'diagnosticsDefault'
-  /** "Keep sharing my checks" (the instant answer, and Your setup › Sharing). */
+  /** "Share my search results" (was "Keep sharing my checks"; under a search's result, and Your setup › Sharing). */
   | 'keepSharingChecks'
   /** Stepping away?: "Carry on by itself after a crash". */
   | 'carryOn'

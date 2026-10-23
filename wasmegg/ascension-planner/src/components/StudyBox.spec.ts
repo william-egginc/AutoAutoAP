@@ -75,7 +75,7 @@ describe('the box', () => {
       'Share my runs on the leaderboard when I press a share button',
       'Send my CSV with them (public)',
       'Send private diagnostics with them',
-      'Keep sharing my checks (private, anonymous)',
+      'Share my search results (private, anonymous)',
     ])
       expect(t).toContain(words);
     for (const k of ['share', 'csv', 'diag', 'checks']) {

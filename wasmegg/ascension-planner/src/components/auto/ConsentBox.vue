@@ -1,7 +1,7 @@
 <!--
   One consent box, the same on every one of them (Jordan, 15 Oct: "consent, everywhere"): the leaderboard
   agreement of Find and submit and Share this result, the Stepping away? options, a science sweep's
-  "I understand", "Keep sharing my checks", a kept result's agreement.
+  "I understand", "Share my search results", a kept result's agreement.
 
    - Not agreed: the checkbox and the box's own words (`text`, unchanged: this only wraps them).
    - Agreed and remembered from before: folded to ONE line, "[✓] <summary> · Change". Change opens it again.

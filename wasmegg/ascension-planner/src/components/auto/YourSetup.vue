@@ -499,8 +499,9 @@
              tabs is gone (StudySetup.vue). Only with a collector, as the box. -->
         <StudySetup v-if="store.submitUrl" />
 
-        <!-- Sharing: a mirror of "Keep sharing my checks" under the instant answer (the same setting,
-             composables/useInstantShare.ts; search/instantRecord.ts). Off by default. Only with a collector. -->
+        <!-- Sharing: a mirror of "Share my search results" under a search's result (the same setting,
+             composables/useInstantShare.ts; search/instantRecord.ts; was "Keep sharing my checks" until 23 Oct 2026).
+             Off by default. Only with a collector. -->
         <div
           v-if="canShareInstant"
           class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2"
@@ -510,15 +511,15 @@
           <label class="flex items-start gap-3 cursor-pointer">
             <input v-model="shareInstantOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
             <span class="text-[11px] text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Keep sharing my checks</span>
-              (anonymous; helps make the instant answer more accurate). After each Check exactly, at most once an hour
-              per save, this browser sends the routes, the instant answer's and the exact times, your TE and Clothed TE,
-              a summary of your gear, your plan start, timezone, save time and settings, where the check started from
-              (how your save was loaded, its claimed and pending TE, eggs and a short code for the save), and the app
-              version. It goes
+              <span class="font-bold text-slate-800">Share my search results</span>
+              (anonymous; helps make the instant answer more accurate). After each Fast, Exact or Custom search, at most
+              once an hour per save, this browser sends its result's route and times beside the instant answer's for the
+              same goal, your TE and Clothed TE, a summary of your gear, your plan start, timezone, save time and
+              settings, where your save was loaded from (its claimed and pending TE, eggs and a short code for the
+              save), and the app version. It goes
               with this browser's anonymous code for your account, never your player ID or your save. Kept privately by
-              the planner's maintainer for 6 months, never shown on the board. The same box is under the instant answer,
-              with "Share this check" for just one.
+              the planner's maintainer for 6 months, never shown on the board. The same box is under a search's result,
+              with "Share this result" for just one.
             </span>
           </label>
           <p class="text-[11px] text-slate-500 leading-relaxed">
@@ -554,8 +555,8 @@
               data-testid="prestige-by-record"
             />
             <span class="text-[11px] text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Include it in checks I share</span>, so it can be checked against
-              what happens. Only with "Share this check" ticked; nothing more is sent than the prediction itself.
+              <span class="font-bold text-slate-800">Include it in results I share</span>, so it can be checked against
+              what happens. Only with "Share this result" ticked; nothing more is sent than the prediction itself.
             </span>
           </label>
         </div>
@@ -607,7 +608,7 @@ defineProps<{
 
 const store = useChainSearchStore();
 const instantDuringSearch = useInstantDuringSearch();
-/** "Keep sharing my checks" (mirrors the instant answer box): only where a collector is configured to take them. */
+/** "Share my search results" (mirrors the box under a search's result): only where a collector is configured to take them. */
 const { on: shareInstantOn } = useInstantShare();
 const canShareInstant = !!instantUrlOf(store.submitUrl);
 /** Experimental: the "Prestige by" line (?prestigeBy=1 for one visit, or this box). */

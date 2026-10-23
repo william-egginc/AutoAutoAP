@@ -374,8 +374,9 @@
             privately for 180 days and never shown by any page or address.
           </li>
           <li>
-            <b>Share this check</b> (optional, beside Check exactly): the instant answer and its exact times, to measure
-            how accurate the instant answer is. Private, never on the board, at most once an hour per save.
+            <b>Share this result</b> (optional, under a Fast, Exact or Custom result): that result's route and times
+            beside the instant answer's, to measure how accurate the instant answer is. Private, never on the board, at
+            most once an hour per save.
           </li>
           <li>
             <b>Phone watch link</b> (optional): your tab posts the run's progress encrypted. The key is in the part of
