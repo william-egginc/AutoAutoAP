@@ -1054,7 +1054,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
-import { checkWorkers, isSafari, isSmallDevice, thisDevice } from '@/search/device';
+import { checkWorkers, isSafari, isSmallDevice, SAFARI_ROUTE_WORKERS, thisDevice } from '@/search/device';
 import {
   answerInputsKey,
   backgroundMayStart,
@@ -1326,6 +1326,9 @@ async function polishInBackground(
   backgroundStatus.value = 'running';
   polishCut = false;
   gains.value = [];
+  // On Safari the polish and "Prestige by" after it run on two route workers (SAFARI MEMORY below); the first answer
+  // had them all (`run` gives them back).
+  if (SAFARI) p.limitWorkers(SAFARI_ROUTE_WORKERS);
   let final = shown;
   try {
     const t = performance.now();
@@ -2024,6 +2027,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     : 'Loading the instant answer (a few MB, once) and working out every route…';
   try {
     const p = getPool();
+    // The first answer on every route worker again (Safari keeps two for the polish after it); once idle.
+    if (SAFARI) p.limitWorkers(p.size);
     // The player's own table when there is one built on the gear their save has now; else the maxed one.
     let url = TABLE_URL;
     let h: TableHeader | null = null;
@@ -3013,7 +3018,8 @@ const strongerStore = useStrongerStore();
  * route workers sleep as they do for a search (once idle; the next request wakes them and reloads the table, so
  * every answer is the same), and the nearest tables wait until both checks are done. On Safari also: the
  * "Prestige by" line waits for both checks too, the nearest tables for it, and the checks use at most three
- * workers (search/device.ts `checkWorkers`); the route workers keep half the sweeps (search/sweepCache.ts).
+ * workers (search/device.ts `checkWorkers`); the route workers keep half the sweeps (search/sweepCache.ts), and
+ * the background polish and "Prestige by" run on two of them (`limitWorkers`; the same parts, taking turns).
  */
 /** Safari, read once (search/device.ts). */
 const SAFARI = isSafari();

@@ -32,6 +32,9 @@ export function isSafari(nav: Partial<Navigator> = globalThis.navigator ?? {}): 
  *  route workers asleep the tab never runs more than three simulators at once. Each route is priced the same on any
  *  worker; fewer only take longer. */
 export const SAFARI_CHECK_WORKERS = 3;
+/** Route workers for the instant answer's background polish and "Prestige by" on Safari (22 Oct 2026): the pool's
+ *  parts take turns on two workers (search/routePool.ts `limitWorkers`), so the answer is the same. */
+export const SAFARI_ROUTE_WORKERS = 2;
 
 /** The worker count Check exactly and Light ask for: `want`, at most three on Safari. */
 export function checkWorkers(want: number, safari: boolean = isSafari()): number {

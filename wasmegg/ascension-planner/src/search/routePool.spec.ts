@@ -77,3 +77,43 @@ describe('RoutePool sleep (the route workers give their memory to a chain search
     expect(p.interrupt()).toBe(false);
   });
 });
+
+describe('RoutePool limitWorkers (Safari: the polish and "Prestige by" on two route workers, 22 Oct 2026)', () => {
+  it('keeps the parts and runs them on fewer workers, the first ones keeping their table', async () => {
+    const { p, made } = pool(4);
+    expect(p.limitWorkers(2)).toBe(true);
+    expect(p.size).toBe(4);
+    expect(p.workerCount).toBe(2);
+    expect(made.map(w => w.terminated)).toEqual([false, false, true, true]);
+    // Four parts still go out, two to each live worker.
+    const asked = (p as unknown as { ask(w: number, m: unknown): Promise<unknown> }).ask.bind(p);
+    const replies = [0, 1, 2, 3].map(w => asked(w, { kind: 'header', url: 't.bin' }));
+    expect(made[0].inbox).toHaveLength(2);
+    expect(made[1].inbox).toHaveLength(2);
+    made[0].answer();
+    made[0].answer();
+    made[1].answer();
+    made[1].answer();
+    await Promise.all(replies);
+    // Asleep and woken: two again.
+    expect(p.sleep()).toBe(true);
+    void p.header('t.bin');
+    expect(made).toHaveLength(6);
+  });
+
+  it('only while idle, and grows back to every worker', async () => {
+    const { p, made } = pool(4);
+    const h = p.header('t.bin');
+    expect(p.limitWorkers(2)).toBe(false);
+    expect(p.workerCount).toBe(4);
+    made[0].answer();
+    await h;
+    expect(p.limitWorkers(2)).toBe(true);
+    expect(p.limitWorkers(9)).toBe(true);
+    expect(p.workerCount).toBe(4);
+    expect(made).toHaveLength(6);
+    expect(made.slice(0, 2).every(w => !w.terminated)).toBe(true);
+    expect(p.limitWorkers(0)).toBe(true);
+    expect(p.workerCount).toBe(1);
+  });
+});
