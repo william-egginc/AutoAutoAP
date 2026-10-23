@@ -51,3 +51,35 @@ describe('the Setup button’s line', () => {
     expect(setupSummary(null, [{ from: '2026-10-20', to: '2026-10-22' }])).toBe('any hour · time off Oct 20–22');
   });
 });
+
+describe('roundToHourIn: the instant answer times to the hour on the player clock (not UTC)', () => {
+  const minutesIn = (at: number, zone: string) =>
+    new Intl.DateTimeFormat('en-US', { timeZone: zone, minute: 'numeric', second: 'numeric' }).format(new Date(at * 1000));
+  it('a +5:30 zone (India): 2:47 pm local rounds to 3:00 pm local, not to UTC hour (which is :30 there)', async () => {
+    const { roundToHourIn } = await import('./nowWords');
+    const at = Date.UTC(2026, 9, 23, 9, 17) / 1000; // 2:47 pm in Asia/Kolkata
+    const r = roundToHourIn(at, 'Asia/Kolkata');
+    expect(r).toBe(Date.UTC(2026, 9, 23, 9, 30) / 1000); // 3:00 pm local
+    expect(minutesIn(r, 'Asia/Kolkata')).toMatch(/^0?0:00$/);
+    // 2:12 pm local rounds down to 2:00 pm.
+    expect(roundToHourIn(Date.UTC(2026, 9, 23, 8, 42) / 1000, 'Asia/Kolkata')).toBe(Date.UTC(2026, 9, 23, 8, 30) / 1000);
+  });
+  it('a -3:30 zone (Newfoundland in January)', async () => {
+    const { roundToHourIn } = await import('./nowWords');
+    const at = Date.UTC(2027, 0, 12, 13, 5) / 1000; // 9:35 am NST
+    const r = roundToHourIn(at, 'America/St_Johns');
+    expect(r).toBe(Date.UTC(2027, 0, 12, 13, 30) / 1000); // 10:00 am NST
+  });
+  it('across the autumn DST change: 1:40 am PDT rounds to the next hour on the clock', async () => {
+    const { roundToHourIn } = await import('./nowWords');
+    const at = Date.UTC(2026, 10, 1, 8, 40) / 1000; // Nov 1, 1:40 am PDT
+    const r = roundToHourIn(at, 'America/Los_Angeles');
+    expect(r).toBe(Date.UTC(2026, 10, 1, 9, 0) / 1000);
+    expect(minutesIn(r, 'America/Los_Angeles')).toMatch(/^0?0:00$/);
+  });
+  it('whole-hour zones and UTC as before', async () => {
+    const { roundToHourIn } = await import('./nowWords');
+    expect(roundToHourIn(Date.UTC(2026, 9, 23, 21, 31) / 1000, 'America/Denver')).toBe(Date.UTC(2026, 9, 23, 22) / 1000);
+    expect(roundToHourIn(Date.UTC(2026, 9, 23, 21, 29) / 1000, 'UTC')).toBe(Date.UTC(2026, 9, 23, 21) / 1000);
+  });
+});

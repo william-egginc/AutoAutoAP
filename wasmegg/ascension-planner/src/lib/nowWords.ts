@@ -21,8 +21,35 @@ export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te'>, g
  * Right now shows them to the hour, "at around 3:00 pm", "in about 28 h", and offers no calendar button. A By a
  * date goal's own row is the date itself and stays exact. `rounded` false (a search's plan, on the account): exact.
  */
-export function roundedAt(e: Pick<PlanEvent, 'at' | 'kind'>, goal: 'fastest' | 'date', rounded: boolean): number {
-  return rounded && !(e.kind === 'goal' && goal === 'date') ? Math.round(e.at / 3600) * 3600 : e.at;
+export function roundedAt(
+  e: Pick<PlanEvent, 'at' | 'kind'>,
+  goal: 'fastest' | 'date',
+  rounded: boolean,
+  zone: string
+): number {
+  return rounded && !(e.kind === 'goal' && goal === 'date') ? roundToHourIn(e.at, zone) : e.at;
+}
+
+/**
+ * `at` (unix seconds) to the nearest hour on the clock in `zone` (the planner's), not UTC's: in a half-hour zone
+ * (India +5:30, Newfoundland -3:30) UTC's hour is :30 on the player's clock. The minutes and seconds past the local
+ * hour are read in that zone, so a DST change between the two hours is no matter. UTC's hour when the zone is unknown.
+ */
+export function roundToHourIn(at: number, zone: string): number {
+  let into: number;
+  try {
+    const p = Object.fromEntries(
+      new Intl.DateTimeFormat('en-US', { timeZone: zone, minute: 'numeric', second: 'numeric' })
+        .formatToParts(new Date(at * 1000))
+        .map(x => [x.type, x.value])
+    ) as Record<string, string>;
+    into = Number(p.minute) * 60 + Number(p.second);
+    if (!Number.isFinite(into)) throw new Error('no minutes');
+  } catch {
+    into = ((at % 3600) + 3600) % 3600;
+  }
+  const whole = Math.floor(at);
+  return into >= 1800 ? whole - into + 3600 : whole - into;
 }
 
 /** The events table's When: "Thu, Oct 15 at 4:00 pm", rounded "Fri, Oct 23 at around 3:00 pm". */
@@ -33,7 +60,7 @@ export function whenWords(
   zone: string,
   rounded = false
 ): string {
-  const at = roundedAt(e, goal, rounded);
+  const at = roundedAt(e, goal, rounded, zone);
   const d = dateAt(at, nowSeconds, zone, true);
   return rounded && !(e.kind === 'goal' && goal === 'date') ? d.replace(' at ', ' at around ') : d;
 }
@@ -48,7 +75,7 @@ export function howFar(
   goal: 'fastest' | 'date' = 'date'
 ): string {
   if (e.past) return 'passed';
-  const at = roundedAt(e, goal, rounded);
+  const at = roundedAt(e, goal, rounded, zone);
   if (e.notDone) {
     const w = eventWhen(at, nowSeconds, zone);
     return w ? `not done yet, due ${w.relative}` : 'not done yet';
@@ -93,7 +120,7 @@ export function nextStepText(
   const ahead = events.filter(e => !e.past && e.kind !== 'goal');
   const first = ahead[0];
   if (!first) return '';
-  const w = eventWhen(roundedAt(first, goal, rounded), nowSeconds, zone);
+  const w = eventWhen(roundedAt(first, goal, rounded, zone), nowSeconds, zone);
   if (!w) return '';
   // Rounded (the instant answer's, R1): "Shift to Humility tomorrow at around 3:00 pm, then prestige at 197 TE Oct 28
   // at around 4:00 am".
@@ -104,7 +131,7 @@ export function nextStepText(
       ? `${eventTitle(first, goal)} ${w.day} ${at} ${w.clock}`
       : `${eventTitle(first, goal)} ${w.day} at ${w.clock} (${w.relative})`;
   const second = ahead[1];
-  const w2 = second ? eventWhen(roundedAt(second, goal, rounded), nowSeconds, zone) : null;
+  const w2 = second ? eventWhen(roundedAt(second, goal, rounded, zone), nowSeconds, zone) : null;
   if (second && w2) {
     // "then prestige at 197 TE" (only the first letter lowered: "TE" stays), "then Kindness", "then shift to …".
     const what =
