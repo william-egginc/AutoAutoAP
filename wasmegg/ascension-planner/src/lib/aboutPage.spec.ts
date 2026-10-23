@@ -115,4 +115,30 @@ describe('About and privacy page', () => {
     expect(text).toContain('Last updated 23 Oct 2026.');
     expect(text).not.toContain('Keep sharing my checks');
   });
+
+  it('says the route you follow is saved online under a code made from the ID, what is stored and how to restore (23 Oct 2026)', () => {
+    expect(text).toContain(
+      'the route you follow for that goal is saved online, under a code made from your player ID. That is so another device shows your route when you enter your ID there'
+    );
+    expect(text).toContain('Anyone who knows your player ID can make the same code, so they can see the route you follow, and change it.');
+    expect(text).toContain('Nothing else saves it: not a result, not loading your account.');
+    expect(text).toContain(
+      'What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to spare, the hours window you used, the time of your save, and the simulator and planner version. Never your player ID or a name. Your days and time off are not stored.'
+    );
+    expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
+    expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');
+    expect(text).toContain('Last updated 23 Oct 2026.');
+    // What it says must stay true: the key made in the browser from the ID, the value's fields, Follow the only write.
+    const cloud = read('src/lib/followCloud.ts');
+    expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aap-follow-v1:';");
+    expect(cloud).toContain("const id = (playerId ?? '').trim().toUpperCase();");
+    expect(cloud).toContain('export const FOLLOW_VERSIONS = 5;');
+    for (const f of ['chain', 'planStart', 'source', 'at', 'finish', 'endTE', 'spareSeconds', 'hours', 'saveTime', 'simVersion', 'build'])
+      expect(cloud).toMatch(new RegExp(`\\n  ${f}\\??: `));
+    expect(cloud).not.toMatch(/\n  (label|name|playerId|eiUserId)\??: /);
+    const store = read('src/stores/follow.ts');
+    expect(store.match(/putFollow\(/g)?.length).toBe(1);
+    expect(store.indexOf('putFollow(')).toBeGreaterThan(store.indexOf('async function saveOnline('));
+    expect(store.match(/saveOnline\(goalKey, f\)/g)?.length).toBe(1);
+  });
 });

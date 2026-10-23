@@ -533,6 +533,18 @@
               can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.
             </span>
           </label>
+          <!-- The followed route saved online (lib/followCloud.ts, stores/follow.ts): no choice here, it is how Follow
+               works (Jordan, 23 Oct 2026); about.html says the same. -->
+          <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="follow-online">
+            <span class="font-bold text-slate-800">The route you follow is saved online</span> under a code made from
+            your player ID, so another device shows your route when you enter your ID there. Anyone who knows your player
+            ID can see it. It holds the route, the goal, when you set it, the hours window you used, the time of your save
+            and the simulator version: never your player ID or a name. The last 5 versions for each goal are kept: open
+            Earlier versions under the route on My runs, Right now, and press Restore.
+            <span v-if="follows.cloudStatus === 'unreachable'" class="block mt-0.5 text-amber-800" role="status" data-testid="follow-online-unreachable">{{
+              UNREACHABLE_NOTE
+            }}</span>
+          </p>
           <p class="text-[11px] text-slate-500 leading-relaxed">
             Sending a result to the board, its CSV and diagnostics are separate choices, under Find and submit.
           </p>
@@ -600,6 +612,8 @@ import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { useInstantShare } from '@/composables/useInstantShare';
 import { usePrestigeBy } from '@/composables/usePrestigeBy';
 import { instantUrlOf } from '@/search/instantRecord';
+import { useFollowStore } from '@/stores/follow';
+import { UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import SchedulingInputs from './SchedulingInputs.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
@@ -625,6 +639,8 @@ const { on: shareInstantOn } = useInstantShare();
 /** "Share my instant baseline with my runs" (composables/useConsent.ts `shareBaseline`). */
 const { agreed: shareBaselineOn } = useConsent('shareBaseline');
 const canShareInstant = !!instantUrlOf(store.submitUrl);
+/** The followed route saved online: Sharing's note when it couldn't be read on load. */
+const follows = useFollowStore();
 /** Experimental: the "Prestige by" line (?prestigeBy=1 for one visit, or this box). */
 const prestigeBy = usePrestigeBy();
 // Choosing "Let me pick my hours" holds the egg shifts for those hours as well. The player's choosing only:
