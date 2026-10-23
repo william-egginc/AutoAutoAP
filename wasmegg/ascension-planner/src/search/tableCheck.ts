@@ -18,7 +18,7 @@ import { getBuildPhaseEndForSaleCount } from '@/lib/events';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { colleggtibleDefs, modifiersFromColleggtibleTiers, type Modifiers } from 'lib/collegtibles';
 import { canonicalDelivered, EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
-import type { TableHeader } from './precomputedTable';
+import { fieldsPerBuild, type TableHeader } from './precomputedTable';
 import { colleggtibleEffects, simEpicResearch, type TableGear } from './tableGear';
 import type { LoadoutSlot } from './csv';
 
@@ -147,7 +147,9 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
   const read = readHeader(buffer);
   if ('error' in read) return { header: null, readable: false, errors: [read.error], notes };
   const { header, bodyStart } = read;
-  if (header.version !== 1) errors.push(`header version ${header.version} (expected 1)`);
+  if (header.version !== 1 && header.version !== 2) errors.push(`header version ${header.version} (expected 1 or 2)`);
+  if (header.version === 2 && !(fieldsPerBuild(header) >= FIELDS)) errors.push('version 2 without its field list');
+  const stride = header.version === 2 ? fieldsPerBuild(header) : FIELDS;
   const int = (x: unknown) => typeof x === 'number' && Number.isInteger(x);
   if (!int(header.from) || !int(header.to) || header.from > header.to || header.from < 0)
     errors.push(`start TEs from ${header.from} to ${header.to} are not a range`);
@@ -157,7 +159,7 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
     errors.push('fake rows: rows filled from the nearest real ones (--pack --fake-below), never real answers');
   if (errors.length) return { header, readable: false, errors, notes };
   const cells = (header.to - header.from + 1) * WEEK_HOURS;
-  const expected = bodyStart + cells * header.slots * FIELDS * 8;
+  const expected = bodyStart + cells * header.slots * stride * 8;
   if (buffer.byteLength !== expected) {
     errors.push(`the file is ${buffer.byteLength} bytes; ${cells} cells of ${header.slots} slots need ${expected}`);
     return { header, readable: false, errors, notes };
@@ -175,8 +177,8 @@ export function checkStructure(buffer: ArrayBuffer): StructureReport {
       let lastSales = 0;
       let tier13Seen = false;
       for (let s = 0; s < header.slots; s++) {
-        const at = (((te - header.from) * WEEK_HOURS + h) * header.slots + s) * FIELDS;
-        const v = body.subarray(at, at + FIELDS);
+        const at = (((te - header.from) * WEEK_HOURS + h) * header.slots + s) * stride;
+        const v = body.subarray(at, at + stride);
         if (v.some(x => !Number.isFinite(x))) {
           bad.add('NaN or Infinity', `${where} slot ${s}`);
           continue;

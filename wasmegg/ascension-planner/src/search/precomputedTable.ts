@@ -7,15 +7,31 @@
  *   [sales + 8 if tier 13 (0 = empty slot), waitStart, saleEnd, peakELR, delivered x 5 (EGG_ORDER)]
  * Float64 throughout, the egg counts above all: the tail compares them with TE thresholds exactly, and
  * a count rounded to just under its threshold would lose a whole TE.
+ *
+ * VERSION 2 (search/tableV2.ts): the same layout with more numbers per build, version 1's nine first
+ * and then the extras the hours replay needs; the header names them in order (`fields`) and carries
+ * the TE thresholds (`teThresholds`). `lookup` reads version 1's nine from either, so everything that
+ * reads a table works on both; `extras` gives the rest.
  */
 import { EGG_ORDER, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 import type { TableGear } from './tableGear';
 import { jointSimVersion } from './simVersion';
+import { readExtras, V1_FIELDS, V2_FIELDS, writeV2, type BuildExtras } from './tableV2';
 
 const FIELDS = 9;
 
+/** Numbers per build in a table with this header: nine in version 1, the header's `fields` in 2. */
+export function fieldsPerBuild(header: Pick<TableHeader, 'version' | 'fields'>): number {
+  return header.version === 2 ? (header.fields?.length ?? 0) : FIELDS;
+}
+
 export interface TableHeader {
-  version: 1;
+  version: 1 | 2;
+  /** Version 2: each build's numbers in file order (tableV2.ts V2_FIELDS); version 1's nine first. */
+  fields?: string[];
+  /** Version 2: the eggs delivered each TE threshold needs, the same for every egg (lib/truthEggs.ts
+   *  TE_BREAKPOINTS), so a page can replay a tail without the simulator's copy. */
+  teThresholds?: number[];
   /** Unix second of the Monday 00:00 Pacific every entry was simulated from. */
   referenceWeek: number;
   /** The account it was built on: its earnings set's Clothed TE bonus and delivery score. */
@@ -60,18 +76,22 @@ export interface Table {
   header: TableHeader;
   /** The builds for a start TE at a Pacific hour, or null outside the table. */
   lookup(te: number, hour: number): BuildParams[] | null;
+  /** Version 2 only: the same builds' extra numbers (tableV2.ts), in the same order. */
+  extras?(te: number, hour: number): BuildExtras[] | null;
 }
 
 /** Pack per-(TE, hour) builds into the file's bytes. */
 export function packTable(
   header: Omit<TableHeader, 'slots'>,
-  cells: { te: number; h: number; builds: BuildParams[] }[]
+  cells: { te: number; h: number; builds: (BuildParams & { extras?: BuildExtras })[] }[]
 ): Uint8Array {
   const slots = Math.max(1, ...cells.map(c => c.builds.length));
-  const full: TableHeader = { ...header, slots };
+  const v2 = header.version === 2;
+  const full: TableHeader = v2 ? { ...header, fields: [...V2_FIELDS], slots } : { ...header, slots };
+  const stride = fieldsPerBuild(full);
   const json = new TextEncoder().encode(JSON.stringify(full));
   const start = Math.ceil((4 + json.length) / 8) * 8;
-  const count = (header.to - header.from + 1) * WEEK_HOURS * slots * FIELDS;
+  const count = (header.to - header.from + 1) * WEEK_HOURS * slots * stride;
   const bytes = new Uint8Array(start + count * 8);
   new DataView(bytes.buffer).setUint32(0, json.length, true);
   bytes.set(json, 4);
@@ -79,7 +99,12 @@ export function packTable(
   for (const c of cells) {
     if (c.te < header.from || c.te > header.to) continue;
     c.builds.forEach((b, i) => {
-      const at = (((c.te - header.from) * WEEK_HOURS + c.h) * slots + i) * FIELDS;
+      const at = (((c.te - header.from) * WEEK_HOURS + c.h) * slots + i) * stride;
+      if (v2) {
+        if (!b.extras) throw new Error(`TE ${c.te} hour ${c.h}: a version 2 table needs every build's extras`);
+        writeV2(body, at, b, b.extras);
+        return;
+      }
       body[at] = b.sales + (b.tier13 ? 8 : 0);
       body[at + 1] = b.waitStart;
       body[at + 2] = b.saleEnd;
@@ -156,18 +181,46 @@ export function readTable(buffer: ArrayBuffer, maxCells = DECODED_CELLS): Table 
   } catch {
     throw new Error('that file is not a precomputed table');
   }
-  if (header.version !== 1) throw new Error(`precomputed table version ${header.version} is not supported`);
+  if (header.version !== 1 && header.version !== 2)
+    throw new Error(`precomputed table version ${header.version} is not supported`);
+  // Version 2 names its numbers; version 1's nine must lead, in their order, or the cells would be
+  // read as something they are not.
+  if (
+    header.version === 2 &&
+    !(
+      Array.isArray(header.fields) &&
+      header.fields.length >= FIELDS &&
+      V1_FIELDS.every((f, i) => header.fields![i] === f)
+    )
+  )
+    throw new Error('precomputed table version 2 without its field list');
+  const stride = fieldsPerBuild(header);
   const start = Math.ceil((4 + len) / 8) * 8;
   // Every cell must be there: a file cut short (a half-copied upload, a truncated response) would
   // otherwise read its missing cells as empty, and the finder would quietly route around them and
   // show a wrong answer as if it were real.
-  const expected = start + (header.to - header.from + 1) * WEEK_HOURS * header.slots * FIELDS * 8;
+  const expected = start + (header.to - header.from + 1) * WEEK_HOURS * header.slots * stride * 8;
   if (!(header.slots > 0) || buffer.byteLength !== expected)
     throw new Error(`the precomputed table is incomplete (${buffer.byteLength} of ${expected} bytes)`);
   const body = new Float64Array(buffer, start);
   const cache = new LruCache<number, BuildParams[]>(maxCells);
+  const v2 = header.version === 2 && header.fields!.length >= V2_FIELDS.length;
   return {
     header,
+    ...(v2
+      ? {
+          extras(te: number, hour: number): BuildExtras[] | null {
+            if (te < header.from || te > header.to || hour < 0 || hour >= WEEK_HOURS) return null;
+            const key = (te - header.from) * WEEK_HOURS + hour;
+            const out: BuildExtras[] = [];
+            for (let i = 0; i < header.slots; i++) {
+              const at = (key * header.slots + i) * stride;
+              if (body[at]) out.push(readExtras(body, at));
+            }
+            return out;
+          },
+        }
+      : {}),
     lookup(te, hour) {
       if (te < header.from || te > header.to || hour < 0 || hour >= WEEK_HOURS) return null;
       const key = (te - header.from) * WEEK_HOURS + hour;
@@ -175,7 +228,7 @@ export function readTable(buffer: ArrayBuffer, maxCells = DECODED_CELLS): Table 
       if (hit) return hit;
       const builds: BuildParams[] = [];
       for (let i = 0; i < header.slots; i++) {
-        const at = (key * header.slots + i) * FIELDS;
+        const at = (key * header.slots + i) * stride;
         const flags = body[at];
         if (!flags) continue;
         builds.push({
