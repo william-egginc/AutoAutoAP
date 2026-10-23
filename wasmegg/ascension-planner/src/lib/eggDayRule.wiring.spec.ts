@@ -135,8 +135,13 @@ describe('the words and the follow suggestions', () => {
   it('no FollowButton anywhere else on a By a date route (the rest are Fastest’s)', () => {
     const route = src('components/auto/InstantRoute.vue');
     // The two unguarded ones are Fastest's (its box lead and its count rows).
-    const unguarded = (route.match(/<FollowButton(?! v-if="(rowFollowable|boxFollowable))[^>]*>/g) ?? []).filter(b => !b.includes('v-if="r.chain.length"'));
-    expect(unguarded).toEqual(['<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />']);
+    const unguarded = (route.match(/<FollowButton(?! v-if="(rowFollowable|boxFollowable))[^>]*>/g) ?? [])
+      .filter(b => !b.includes('v-if="r.chain.length"'))
+      .map(b => b.replace(/\s+/g, ' '));
+    // (Its summary for the route saved online beside it, 23 Oct 2026.)
+    expect(unguarded).toEqual([
+      '<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" :finish="boxLead.end" :end-te="boxLead.chain[boxLead.chain.length - 1]" :plan-start="answerStart" />',
+    ]);
     const users = allSources().filter(f => /<FollowButton/.test(fs.readFileSync(f, 'utf8')));
     expect(users.map(f => path.relative(path.resolve(__dirname, '..'), f)).sort()).toEqual([
       'components/auto/InstantRoute.vue',

@@ -349,9 +349,9 @@ export const LIMIT_WORDS = 'Too many changes this hour. Try again later.';
 /** What a failed save says (Restore shows it; a Follow press shows it under Right now's route). */
 export function saveFailWords(why: CloudFail): string {
   if (why === 'limit') return LIMIT_WORDS;
-  if (why === 'big') return 'This route is too big to save online; it is still followed on this device.';
-  if (why === 'rejected') return "This route couldn't be saved online; it is still followed on this device.";
-  return "Couldn't save the route online right now; it is still followed on this device.";
+  if (why === 'big') return 'This route is too big to save online; it is still followed in this browser.';
+  if (why === 'rejected') return "This route couldn't be saved online; it is still followed in this browser.";
+  return "Couldn't save the route online right now; it is still followed in this browser.";
 }
 
 /** Right now's quiet note when a saved route was set with other hours or another simulator than the player's now. */

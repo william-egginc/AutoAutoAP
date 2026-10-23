@@ -168,7 +168,7 @@ describe('a Follow press', () => {
     expect(follows.saveState('fastest-490')?.why).toBe('big');
     answer = () => 'offline';
     await follows.follow('fastest-490', [210, 490], 'answer');
-    expect(follows.saveState('fastest-490')?.words).toBe("Couldn't save the route online right now; it is still followed on this device.");
+    expect(follows.saveState('fastest-490')?.words).toBe("Couldn't save the route online right now; it is still followed in this browser.");
     expect(follows.followed('fastest-490')?.chain).toEqual([210, 490]);
   });
 });

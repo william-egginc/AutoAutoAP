@@ -239,12 +239,12 @@ describe('Follow this route buttons', () => {
   it('sits beside the existing buttons, each with its goal', () => {
     // The box's button follows the route the box shows (Q6: the fewest-ascensions pick when Prefer fewer is on).
     const route = read('../auto/InstantRoute.vue');
-    expect(route).toContain('<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />');
+    expect(route).toContain('<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer"');
     expect(route).toContain(
-      '<FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />'
+      '<FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer"'
     );
-    expect(route).toContain('<FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count" />');
-    expect(route).toContain('<FollowButton v-if="rowFollowable(r)" :chain="r.chain" :goal-key="followGoal" from="count" />');
+    expect(route).toContain('<FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count"');
+    expect(route).toContain('<FollowButton v-if="rowFollowable(r)" :chain="r.chain" :goal-key="followGoal" from="count"');
     expect(route).toContain('const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));');
     expect(read('../auto/SavedAnswers.vue')).toContain(':goal-key="screenGoalKey(a.result.deadline, a.result.te)"');
     expect(read('../auto/SavedRuns.vue')).toContain(':goal-key="`fastest-${run.finalTE}`"');

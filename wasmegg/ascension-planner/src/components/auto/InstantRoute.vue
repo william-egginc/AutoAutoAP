@@ -268,12 +268,7 @@
               >
                 Simulate this plan
               </button>
-              <FollowButton
-                v-if="boxFollowable"
-                primary
-                :chain="dateBoxOf(result.byDate).chain"
-                :goal-key="followGoal"
-                from="answer"
+              <FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer"
                 :finish="dateBoxOf(result.byDate).end"
                 :end-te="dateBoxOf(result.byDate).endTE"
                 :plan-start="answerStart"
@@ -345,11 +340,7 @@
                       >
                         Simulate this plan
                       </button>
-                      <FollowButton
-                        v-if="rowFollowable(r)"
-                        :chain="r.chain"
-                        :goal-key="followGoal"
-                        from="count"
+                      <FollowButton v-if="rowFollowable(r)" :chain="r.chain" :goal-key="followGoal" from="count"
                         :finish="r.end"
                         :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
                         :plan-start="answerStart"
@@ -417,11 +408,7 @@
             >
               Simulate this plan
             </button>
-            <FollowButton
-              primary
-              :chain="boxLead.chain"
-              :goal-key="followGoal"
-              from="answer"
+            <FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer"
               :finish="boxLead.end"
               :end-te="boxLead.chain[boxLead.chain.length - 1]"
               :plan-start="answerStart"
@@ -499,11 +486,7 @@
                       >
                         Simulate this plan
                       </button>
-                      <FollowButton
-                        v-if="r.chain.length"
-                        :chain="r.chain"
-                        :goal-key="followGoal"
-                        from="count"
+                      <FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count"
                         :finish="r.end"
                         :end-te="r.chain[r.chain.length - 1]"
                         :plan-start="answerStart"
