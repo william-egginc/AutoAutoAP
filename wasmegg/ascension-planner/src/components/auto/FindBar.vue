@@ -54,7 +54,7 @@
           <!-- A link to the box, which can be a long way below on a phone. -->
           <button
             type="button"
-            class="underline decoration-dotted underline-offset-2 hover:text-indigo-700"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 underline decoration-dotted underline-offset-2 hover:text-indigo-700"
             data-testid="acknowledge-hint-link"
             @click="showConsent"
           >the box below</button

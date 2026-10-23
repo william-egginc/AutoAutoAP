@@ -185,7 +185,11 @@
           </label>
           <label class="flex items-center gap-2">
             At most
-            <select v-model="filters.maxAscensions" class="rounded-lg border-slate-200 text-[11px] py-0.5 pl-2 pr-7">
+            <select
+              v-model="filters.maxAscensions"
+              class="min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-[11px] py-0.5 pl-2 pr-7"
+              data-testid="instant-max-ascensions"
+            >
               <option :value="null">any number of</option>
               <option v-for="n in MAX_ASCENSIONS" :key="n" :value="n">{{ n }}</option>
             </select>
@@ -263,7 +267,7 @@
             <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
               <button
                 type="button"
-                class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+                class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
                 :title="SIMULATE_TITLE"
                 data-testid="box-simulate"
                 @click="openPlan(dateBoxOf(result.byDate).chain)"
@@ -336,13 +340,13 @@
                       <span class="font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</span>
                       <button
                         type="button"
-                        class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
+                        class="inline-flex items-center min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
                         :title="SIMULATE_TITLE"
                         @click="openPlan(r.chain)"
                       >
                         Simulate this plan
                       </button>
-                      <FollowButton v-if="rowFollowable(r)" :chain="r.chain" :goal-key="followGoal" from="count"
+                      <FollowButton v-if="rowFollowable(r)" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count"
                         :finish="r.end"
                         :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
                         :plan-start="answerStart"
@@ -403,7 +407,7 @@
           <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
             <button
               type="button"
-              class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+              class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
               :title="SIMULATE_TITLE"
               data-testid="box-simulate"
               @click="openPlan(boxLead.chain)"
@@ -481,14 +485,14 @@
                       <span class="font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</span>
                       <button
                         type="button"
-                        class="px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
+                        class="inline-flex items-center min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
                         :disabled="r.chain.length < 2"
                         :title="SIMULATE_TITLE"
                         @click="openPlan(r.chain)"
                       >
                         Simulate this plan
                       </button>
-                      <FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count"
+                      <FollowButton v-if="r.chain.length" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count"
                         :finish="r.end"
                         :end-te="r.chain[r.chain.length - 1]"
                         :plan-start="answerStart"
@@ -503,7 +507,7 @@
           <button
             v-if="hiddenCounts || showMoreCounts"
             type="button"
-            class="mt-1 text-[10px] font-bold text-slate-500 underline hover:text-emerald-800"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 mt-1 text-[10px] font-bold text-slate-500 underline hover:text-emerald-800"
             data-testid="instant-more-counts"
             @click="showMoreCounts = !showMoreCounts"
           >
@@ -536,7 +540,7 @@
         {{ pointer.level }} found <b>{{ pointer.value }}</b> on your account.
         <button
           type="button"
-          class="font-bold text-indigo-700 underline hover:text-indigo-900"
+          class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900"
           data-testid="instant-pointer-link"
           @click="seeResult"
         >
@@ -574,7 +578,7 @@
         </p>
 
         <details class="text-[11px] text-slate-500" data-testid="instant-how">
-          <summary class="cursor-pointer font-bold text-slate-600">How this is worked out</summary>
+          <summary class="cursor-pointer font-bold text-slate-600 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0" data-testid="instant-how-summary">How this is worked out</summary>
           <p class="mt-1 leading-relaxed">
             Every ascension {{ own ? 'your account can make, with the gear your save has now,' : 'a maxed account can make' }}
             was simulated ahead of time, from every TE at every hour of the week, so

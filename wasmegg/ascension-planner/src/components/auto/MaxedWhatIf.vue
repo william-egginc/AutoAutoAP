@@ -1,7 +1,10 @@
 <template>
   <!-- "What if you had maxed gear?" (the user, 15 Oct): the answer found again on the maxed table. -->
   <details class="mt-2 text-[11px] text-slate-700" data-testid="instant-maxed-what-if" @toggle="onToggle">
-    <summary class="cursor-pointer font-bold text-slate-600 hover:text-emerald-800">
+    <summary
+      class="cursor-pointer font-bold text-slate-600 hover:text-emerald-800 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0"
+      data-testid="instant-maxed-what-if-summary"
+    >
       What if you had maxed gear? (all legendary + T4 stones)
     </summary>
     <div class="mt-1 space-y-1 pl-3">

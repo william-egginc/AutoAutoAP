@@ -10,10 +10,12 @@
 -->
 <template>
   <div class="relative" :data-testid="`section-${id}`">
+    <!-- Hide: a small pill on the section's edge; on a phone an invisible area round it (before:) makes it 44 px
+         to tap without moving the section (23 Oct 2026). Unchanged from sm up. -->
     <button
       v-if="open"
       type="button"
-      class="absolute -top-2.5 right-4 z-20 px-2 py-0.5 rounded-full border border-slate-200 bg-white text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800"
+      class="absolute -top-2.5 right-4 z-20 px-2 py-0.5 rounded-full border border-slate-200 bg-white text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 before:absolute before:-inset-x-2 before:-inset-y-3.5 before:content-[''] sm:before:hidden"
       :aria-expanded="true"
       :data-testid="`hide-${id}`"
       @click="set(false)"

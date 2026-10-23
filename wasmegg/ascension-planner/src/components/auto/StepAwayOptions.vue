@@ -297,7 +297,7 @@
           <select
             v-model.number="options.autoSendEveryMin"
             aria-label="How often to send my progress"
-            class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
+            class="mx-1 min-h-[44px] sm:min-h-0 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
             data-testid="auto-send-every"
           >
             <option :value="60">1 hour</option>
