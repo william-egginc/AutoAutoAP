@@ -63,11 +63,14 @@
  *                    The page's instant answer for a save, from a table's source DIR; with --deadline
  *                    also each count's By a date answer; with --available-* only routes inside the hours.
  *                    The route finder on a packed table file, timed (what the site's worker runs).
- *   --generate --out DIR [--from TE] [--to TE] [--max-start-te N] [--jobs N]
+ *   --generate --out DIR [--from TE] [--to TE] [--max-start-te N] [--jobs N] [--tes TE,TE,..] [--v2]
  *                    Build the table: every start TE in the range (default 100-489) at each of the
  *                    168 Pacific hours of the week, one file per start TE (DIR/te-NNN.jsonl), with
  *                    DIR/meta.json describing the account and the reference week. Re-running skips
  *                    the start TEs already finished, so an interrupted run carries on.
+ *                    --tes: only those start TEs, in that order. --v2: table version 2 cells (each
+ *                    build also carries its extras, search/tableV2.ts); --pack then writes version 2.
+ *   --v2-check ...   Table version 2 against the simulator (see `v2Check`).
  *
  *   --check-bin FILE.bin [--samples 24] [--seed N|random] [--json] [--ignore-sim] [--base SAVE]
  *               [--own-inventory] [--no-reference] [--truth-bin OURS.bin]
@@ -121,7 +124,7 @@ import { initPlanFuture } from '@/lib/modes/planFuture';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { runAscensionFromC3Variant, runUntilShift } from '@/auto/ascension';
 import { computeTEEarned } from '@/auto/te-thresholds';
-import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
+import { countTEThresholdsPassed, getThresholdForTE, TE_BREAKPOINTS } from '@/lib/truthEggs';
 import { createChainEvaluator } from '@/search/chain';
 import { sanitizeLongs } from '@/lib/artifacts/utils';
 import { nextAvailable } from '@/search/availability';
@@ -176,6 +179,9 @@ import {
   type TableGear,
 } from '@/search/tableGear';
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
+import { holdRate, paramsAndExtrasOf } from '@/search/tableV2Build';
+import { bestReplay, replayTail } from '@/search/tableV2';
+import { heldSecondsOf } from '@/auto/hold';
 import {
   checkStamps,
   checkStructure,
@@ -473,14 +479,22 @@ async function check(file: string): Promise<void> {
 const TABLE_FROM = 100;
 const TABLE_TO = 489;
 
-/** One start TE's 168 hours, as JSON lines: {te, h, builds}. */
+/** One start TE's 168 hours, as JSON lines: {te, h, builds}. With --v2 each build also carries its
+ *  `extras` (search/tableV2.ts), read off the same simulation (search/tableV2Build.ts). */
 function generateStartTE(inputs: SearchInputs, te: number): string {
   const lines: string[] = [];
+  const v2 = has('v2');
   for (let h = 0; h < WEEK_HOURS; h++) {
     const start = REFERENCE_WEEK + h * 3600;
     const state = startStateAt(inputs, te);
     const build = buildAt(inputs, state, start, te);
-    lines.push(JSON.stringify({ te, h, builds: build.variants.map(v => paramsOf(build, v, start)) }));
+    const builds = v2
+      ? build.variants.map(v => {
+          const { params, extras } = paramsAndExtrasOf(build, v, start);
+          return { ...params, extras };
+        })
+      : build.variants.map(v => paramsOf(build, v, start));
+    lines.push(JSON.stringify({ te, h, builds }));
   }
   return lines.join('\n') + '\n';
 }
@@ -523,6 +537,10 @@ async function generate(file: string): Promise<void> {
       `${out} has cells from simulator ${before?.simVersion ?? '(unstamped)'}, and this build is ${SIM_VERSION}. ` +
         'Start a new --out, or pass --allow-sim-change once a bitcheck shows the cells are identical.'
     );
+  // Version 2 cells (--v2) carry more numbers per build; a folder holds one kind only.
+  const tableVersion = has('v2') ? 2 : 1;
+  if (made && (before?.tableVersion ?? 1) !== tableVersion)
+    throw new Error(`${out} has table version ${before?.tableVersion ?? 1} cells; this run makes version ${tableVersion}. Start a new --out.`);
   const inputs = await loadInputs(file);
   const inv = useChainSearchStore().readInventory();
   const k3 = k3Of(inputs);
@@ -532,6 +550,8 @@ async function generate(file: string): Promise<void> {
     JSON.stringify(
       {
         version: 1,
+        // The packed file's version (search/precomputedTable.ts): 2 when the cells carry extras.
+        ...(tableVersion === 2 ? { tableVersion: 2 } : {}),
         referenceWeek: REFERENCE_WEEK,
         reference: has('reference'),
         cteBonus: inv.earnings
@@ -564,10 +584,21 @@ async function generate(file: string): Promise<void> {
   const todo: number[] = [];
   // From the top down: a route climbs through every TE from the player's to the target, so the
   // table is usable from the top first, and grows downward toward where players are.
-  for (let te = to; te >= from; te--) {
+  // --tes A,B,..: only these start TEs (within --from/--to), in the order given, so two machines can
+  // share a range by turns and each take the other's leftovers from the far end.
+  const only = arg('tes')
+    ? arg('tes')!
+        .split(',')
+        .filter(Boolean)
+        .map(Number)
+    : null;
+  for (const te of only ?? Array.from({ length: to - from + 1 }, (_, i) => to - i)) {
+    if (te < from || te > to || !Number.isInteger(te)) continue;
     if (!existsSync(`${out}/te-${String(te).padStart(3, '0')}.jsonl`)) todo.push(te);
   }
-  console.log(`${todo.length} start TEs to build (${to - from + 1 - todo.length} already done), ${jobs} processes`);
+  console.log(
+    `${todo.length} start TEs to build (${(only?.length ?? to - from + 1) - todo.length} already done), ${jobs} processes`
+  );
   if (!todo.length) return;
 
   const t0 = Date.now();
@@ -1066,9 +1097,12 @@ function pack(): void {
     from = fakeBelow;
   }
   const peakCell = cells.find(c => c.te === PEAK_TE && c.h === 0);
+  const v2 = meta.tableVersion === 2;
+  if (v2 && fakeBelow !== null) throw new Error('--fake-below is for version 1 tables only');
   const bytes = packTable(
     {
-      version: 1,
+      version: v2 ? 2 : 1,
+      ...(v2 ? { teThresholds: [...TE_BREAKPOINTS] } : {}),
       referenceWeek: meta.referenceWeek,
       cteBonus: meta.cteBonus,
       deliveryScore: meta.deliveryScore?.score ?? 1,
@@ -3023,6 +3057,7 @@ async function main(): Promise<void> {
   if (has('cache-check')) return cacheCheck(backup);
   if (has('polish')) return polish(backup);
   if (has('prune-bench')) return pruneBench(backup);
+  if (has('v2-check')) return v2Check(backup);
   if (has('verify-cells')) return verifyCells(backup);
   if (has('prestige-by')) return prestigeByCheck(backup);
   if (has('route')) return route(backup);
@@ -3349,5 +3384,201 @@ async function prestigeByCheck(file: string): Promise<void> {
       if (/MISSES|failed/.test(sim)) break;
     }
     void dropRoute;
+  }
+}
+
+/**
+ * --v2-check --backup SAVE [--reference] --cells TE:H,TE:H,.. [--truth-bin TABLE.bin] [--targets +5,+15,..]
+ *            [--available-from H --available-to H --timezone TZ] [--route TE,TE,.. --start ISO] [--sim-cells]
+ * Table version 2 (search/tableV2.ts) against the simulator, one JSON line per check:
+ *  - each cell's builds made as --generate --v2 makes them: version 1's numbers against `paramsOf` and
+ *    (--truth-bin) the packed table's, to the bit;
+ *  - the replay with hours off against `tailTo`, every target from TE+1 to 490, to the second;
+ *  - with hours: the replay of each variant's tail against the simulator's own held tail
+ *    (runAscensionFromC3Variant with holdUntil, the build unheld: the replay's own error), and with
+ *    --sim-cells the best replay against Check exactly's held leg (runLeg with deferShifts: the build
+ *    held too, which no table cell has);
+ *  - --route: the route from TE (first number) through the rest, from --start, both ways: the
+ *    simulator's held legs (runLeg) and the replay on builds made live from the same account, each
+ *    next leg starting at the first whole hour the player is around after the last one ends.
+ */
+async function v2Check(file: string): Promise<void> {
+  const inputs = await loadInputs(file);
+  const hours = hoursArg();
+  const holdUntil = hours ? (t: number) => nextAvailable(t, hours) : undefined;
+  const held: SearchInputs = hours ? { ...inputs, availability: hours, deferShifts: true } : inputs;
+  const truth = arg('truth-bin') ? readTable(new Uint8Array(readFileSync(arg('truth-bin')!)).buffer, Infinity) : null;
+  const out = (o: object) => console.log(JSON.stringify(o));
+  const same = (a: BuildParams, b: BuildParams) =>
+    a.sales === b.sales &&
+    a.tier13 === b.tier13 &&
+    a.waitStart === b.waitStart &&
+    a.saleEnd === b.saleEnd &&
+    a.peakELR === b.peakELR &&
+    a.delivered.every((x, i) => x === b.delivered[i]);
+  const targetsFor = (te: number) =>
+    (arg('targets') ?? '+1,+5,+15,+30,+50,490')
+      .split(',')
+      .map(t => (t.startsWith('+') ? te + Number(t.slice(1)) : Number(t)))
+      .filter(t => t > te && t <= 490);
+  const cells = (arg('cells') ?? '')
+    .split(',')
+    .filter(Boolean)
+    .map(c => c.split(':').map(Number) as [number, number]);
+  for (const [te, h] of cells) {
+    const t0 = Date.now();
+    const start = REFERENCE_WEEK + h * 3600;
+    const state = startStateAt(inputs, te);
+    const build = buildAt(inputs, state, start, te);
+    const tb = Date.now();
+    const both = build.variants.map(v => paramsAndExtrasOf(build, v, start));
+    const tv2 = Date.now();
+    const v1 = build.variants.map(v => paramsOf(build, v, start));
+    const tv1 = Date.now();
+    const paramsSame = both.every((b, i) => same(b.params, v1[i]));
+    const stored = truth?.lookup(te, h) ?? null;
+    const truthSame = stored ? stored.length === both.length && stored.every((b, i) => same(b, both[i].params)) : null;
+    // Hours off: every target, every variant, to the second (in fact to the bit).
+    let offN = 0;
+    let offWorst = 0;
+    let offMismatch = 0;
+    for (let target = te + 1; target <= 490; target++) {
+      for (const b of both) {
+        const a = tailTo(b.params, target);
+        const r = replayTail(b.params, b.extras, target, { start });
+        if (!a || !r) {
+          if (!!a !== !!r) offMismatch++;
+          continue;
+        }
+        offN++;
+        offWorst = Math.max(offWorst, Math.abs(a.seconds - r.seconds));
+        if (a.endTE !== r.endTE || a.delivered.some((x, i) => x !== r.delivered[i])) offMismatch++;
+      }
+    }
+    out({
+      kind: 'cell',
+      te,
+      h,
+      builds: both.length,
+      paramsSame,
+      truthSame,
+      offN,
+      offWorstSeconds: offWorst,
+      offMismatch,
+      waitEggs: both.map(b => b.extras.waitEgg),
+      // The K3 farm's hold rate on each egg over peakELR (version 2 relies on it being 1).
+      tailRateOverPeak: build.variants.map((v, i) => {
+        const k3 = k3StateOf(build, v);
+        return EGG_ORDER.map(
+          e => holdRate({ ...k3.k3, currentEgg: e }, build.ctx, k3.waitStart) / both[i].params.peakELR
+        );
+      }),
+      layShip: both.map(b => [b.extras.layRate, b.extras.shipRate]),
+      ms: Date.now() - t0,
+      buildMs: tb - t0,
+      v2ParamsMs: tv2 - tb,
+      v1ParamsMs: tv1 - tv2,
+    });
+    // --dump FILE: the cells as --generate --v2 writes them (spec fixtures; no account data in them).
+    if (arg('dump'))
+      writeFileSync(arg('dump')!, JSON.stringify({ te, h, builds: both.map(b => ({ ...b.params, extras: b.extras })) }) + '\n', {
+        flag: 'a',
+      });
+    if (!holdUntil) continue;
+    for (const target of targetsFor(te)) {
+      // The replay's own error: the simulator's tail from the same unheld build, with holds.
+      const ctx = { ...build.ctx, holdUntil };
+      const perVariant = build.variants.map((v, i) => {
+        const sim = runAscensionFromC3Variant(state, build.preC3, v, ctx, start, 'asc', target);
+        const simEnd = Object.values(sim.summary.finalTE).reduce((a, b) => a + b, 0);
+        const r = replayTail(both[i].params, both[i].extras, target, { start, holdUntil });
+        const plain = tailTo(both[i].params, target);
+        const free = runAscensionFromC3Variant(state, build.preC3, v, build.ctx, start, 'asc', target);
+        return {
+          simUnheld: free.summary.totalDurationSeconds,
+          sim: simEnd >= target ? sim.summary.totalDurationSeconds : null,
+          simHeld: heldSecondsOf(sim.actions),
+          replay: r?.seconds ?? null,
+          replayHeld: r?.heldSeconds ?? null,
+          replaySimOrder:
+            replayTail(both[i].params, both[i].extras, target, { start, holdUntil, order: 'simulator' })?.seconds ?? null,
+          unheldSimOrder: replayTail(both[i].params, both[i].extras, target, { start, order: 'simulator' })?.seconds ?? null,
+          waitEgg: both[i].extras.waitEgg,
+          unheld: plain?.seconds ?? null,
+        };
+      });
+      const line: Record<string, unknown> = { kind: 'tail', te, h, target, perVariant };
+      if (has('sim-cells')) {
+        const t1 = Date.now();
+        const leg = runLeg(held, startStateAt(inputs, te), start, target, false, te, 1);
+        const best = bestReplay(both, target, { start, holdUntil });
+        const plain = bestTailTo(v1, target);
+        line.checkExactly = leg ? leg.summary.totalDurationSeconds : null;
+        line.checkExactlyHeld = leg ? leg.heldSeconds : null;
+        line.checkExactlyKey = leg?.key ?? null;
+        line.bestReplay = best?.seconds ?? null;
+        line.bestReplayIndex = best?.index ?? null;
+        line.bestReplaySimOrder = bestReplay(both, target, { start, holdUntil, order: 'simulator' })?.seconds ?? null;
+        line.bestUnheld = plain?.seconds ?? null;
+        line.simMs = Date.now() - t1;
+      }
+      out(line);
+    }
+  }
+
+  // A route both ways.
+  const routeArg = arg('route');
+  if (routeArg && holdUntil) {
+    const stops = routeArg.split(',').map(Number);
+    const routeOrder = (arg('order') ?? 'table') as 'table' | 'simulator';
+    const ceilHour = (t: number) => Math.ceil(t / 3600) * 3600;
+    const begin = ceilHour(holdUntil(Math.floor(Date.parse(arg('start')!) / 1000)));
+    // The simulator: Check exactly's held legs, each from the last one's end state.
+    let simState = startStateAt(inputs, stops[0]);
+    let simTE = stops[0];
+    let simAt = begin;
+    // The replay: builds made live (what a version 2 cell holds) at the leg's start TE and the same
+    // hour of the reference week, moved onto the real egg counts, replayed from the real start.
+    let repTE = stops[0];
+    let repAt = begin;
+    let repDelivered = canonicalDelivered(stops[0]);
+    for (const target of stops.slice(1)) {
+      const t0 = Date.now();
+      const leg = runLeg(held, simState, simAt, target, false, simTE, 1);
+      const hour = pacificHourOfWeek(repAt);
+      const cellStart = REFERENCE_WEEK + hour * 3600;
+      const st = startStateAt(inputs, repTE);
+      const build = buildAt(inputs, st, cellStart, repTE);
+      const both = build.variants.map(v => {
+        const pe = paramsAndExtrasOf(build, v, cellStart);
+        return { params: rebase(pe.params, repTE, repDelivered), extras: pe.extras };
+      });
+      const best = bestReplay(both, target, { start: repAt, holdUntil, order: routeOrder });
+      const plain = bestTailTo(
+        both.map(b => b.params),
+        target
+      );
+      out({
+        kind: 'leg',
+        target,
+        simStart: simAt,
+        simEnd: leg ? simAt + leg.summary.totalDurationSeconds : null,
+        simHeld: leg?.heldSeconds ?? null,
+        simKey: leg?.key ?? null,
+        repStart: repAt,
+        repEnd: best ? repAt + best.seconds : null,
+        repHeld: best?.heldSeconds ?? null,
+        repUnheldLeg: plain?.seconds ?? null,
+        ms: Date.now() - t0,
+      });
+      if (!leg || !best) break;
+      simTE = Object.values(leg.summary.finalTE).reduce((a, b) => a + b, 0);
+      simState = leg.nextState;
+      simAt = ceilHour(holdUntil(simAt + leg.summary.totalDurationSeconds));
+      repTE = best.endTE;
+      repDelivered = best.delivered;
+      repAt = ceilHour(holdUntil(repAt + best.seconds));
+    }
+    out({ kind: 'route', stops, begin, order: routeOrder, simArrival: simAt, repArrival: repAt });
   }
 }
