@@ -63,6 +63,7 @@
  */
 
 import { handleWatch, isWatchRequest, watchCron } from './watch.js';
+import { handleFollow, isFollowRequest } from './follow.js';
 
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
 // every tier owned; see src/search/submission.ts. Rows already in KV at schema 1 keep their old
@@ -910,7 +911,7 @@ function pickSubmission(s) {
 
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,POST,OPTIONS',
+  'access-control-allow-methods': 'GET,POST,PUT,OPTIONS',
   'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token,x-delta-token',
 };
 
@@ -3197,6 +3198,8 @@ export default {
     // ------------------------------------------------------------------- watch
     // "Watch this run from your phone" (watch.js): D1, not KV, so none of this touches SUBMISSIONS.
     if (isWatchRequest(url)) return handleWatch(request, env);
+    // "Follow in the cloud" (follow.js): D1 too, none of it touches SUBMISSIONS.
+    if (isFollowRequest(url)) return handleFollow(request, env);
 
     // ------------------------------------------------------------------ submit
     if (url.pathname === '/submit' && request.method === 'POST') {

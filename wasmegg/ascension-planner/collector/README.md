@@ -1078,3 +1078,33 @@ Branch spec-collector2 (from egg-beta2-int 8fd474e0). Specs: `hardening2.spec.js
   or parts, never. `/hide` drops this data centre's copy.
 - **Not done:** rewriting formula cells (`= + - @`) in served CSVs. The Worker serves the stored gzip as is
   (no CPU to inflate and re-pack megabytes on the Free plan); the guard belongs in the app's CSV exporter.
+
+## Follow in the cloud (`/follow`, 23 Oct 2026)
+
+A cloud save of each player's FOLLOWED route, so entering the player ID on any device loads it. The app's
+contract (key, JSON shapes, errors) is `~/code/aaap-tools/notes/follow-contract.md`; the code is `follow.js`.
+
+| endpoint | what |
+|---|---|
+| `GET /follow?k=` | every goal for a key: `{ goals: { <goal>: { value, version, updatedAt } }, now }`; an unknown key is `goals: {}` |
+| `PUT /follow` | `{ k, goal, value }`, written only when the player presses Follow; `{ ok, version, updatedAt, unchanged? }` |
+| `GET /follow/history?k=&goal=` | the last 5 versions of one goal, newest first; a restore is a PUT of an old value |
+
+- **The key** `k` is SHA-256(`"aaap-follow-v1:"` + the player ID in upper case), lowercase hex, computed in the
+  browser. The collector never sees the ID and refuses (`400`) any body or query that holds `EI` + 16 digits.
+  Anyone who knows the ID can compute the key, read the route and write over it: Jordan's design ("one less
+  setup"), so the damage is bounded instead.
+- **D1, not KV** (KV's 1,000 writes a day belong to the board): the `WATCH` binding (aaap-watch), migration
+  `migrations/0002_follow.sql` (tables `follows` and `follow_rate`). A write is an insert, a prune and one budget
+  upsert, about 3 rows of D1's 100,000 a day; a read is a few rows of 5,000,000.
+- **Limits:** 30 writes an hour per key (one upsert on `follow_rate`, no read; `429` with `retryAfter`), the last 5
+  versions per goal, 8 goals per key, 20,000 keys, a 6 KB body (`413`) and a 4 KB value (`413`), plus the
+  `FOLLOW_LIMIT` edge binding (60 a minute per address for GET and PUT each; none without the binding).
+- **Validation** is a whitelist (`readValue`): chain (1 to 16 whole stops, 0 to 490, increasing), planStart, source,
+  `at` required; finish, endTE, spareSeconds, hours (`{start,end,timezone?}` or null), saveTime, simVersion, build
+  optional; a bad field refuses the write with its name (`400`, `problems`), an unknown field is dropped. A value
+  equal to the latest is not stored again (`unchanged: true`).
+- **Newer wins** is the client's job: it compares its local `at` with the cloud value's `at`. CORS is as for the rest
+  (`*`; the preflight allows `PUT` and `content-type`).
+- **Deploy:** apply the migration to the database first (`wrangler d1 migrations apply <db> --remote`), then deploy the
+  Worker. The migration only creates tables.
