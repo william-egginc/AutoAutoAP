@@ -18,6 +18,27 @@ export function isSmallDevice(
 }
 
 /**
+ * Safari (on the Mac, an iPad or an iPhone), not Chrome, Edge or Firefox, which all say "Safari" too: the same
+ * test as SafariNotice.vue. Safari reloads a tab at a much lower memory level than Chrome ("This webpage was
+ * reloaded because it was using significant memory": By a date with hours on, egg-beta, 22 Oct 2026), so the
+ * instant answer keeps its route workers' memory smaller there (search/sweepCache.ts). Works in a worker too.
+ */
+export function isSafari(nav: Partial<Navigator> = globalThis.navigator ?? {}): boolean {
+  const ua = nav.userAgent ?? '';
+  return /safari/i.test(ua) && !/chrome|chromium|crios|fxios|edg|android/i.test(ua);
+}
+
+/** Workers for the instant answer's Check exactly and Light on Safari: at most three (22 Oct 2026), so with the
+ *  route workers asleep the tab never runs more than three simulators at once. Each route is priced the same on any
+ *  worker; fewer only take longer. */
+export const SAFARI_CHECK_WORKERS = 3;
+
+/** The worker count Check exactly and Light ask for: `want`, at most three on Safari. */
+export function checkWorkers(want: number, safari: boolean = isSafari()): number {
+  return Math.max(1, safari ? Math.min(want, SAFARI_CHECK_WORKERS) : want);
+}
+
+/**
  * A phone (not a tablet or a computer), for the note beside Find that searches run much faster on a
  * computer (the user, 12 Oct 2026): a phone's user agent, or a touch-first screen narrower than a
  * tablet (pointer: coarse and under 768 px).
