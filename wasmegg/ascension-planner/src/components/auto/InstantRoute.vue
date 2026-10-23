@@ -255,7 +255,7 @@
               :beta="prestigeFlag.beta"
             />
             <!-- HOOK: "First ascension: N egg shifts" and "One more TE" were here (they need the simulated first leg,
-                 which went with Check exactly on 23 Oct 2026). When the engine simulates the current ascension live
+                 gone from the instant card since 23 Oct 2026). When the engine simulates the current ascension live
                  again, feed it to lib/searchPointer.ts `firstAscensionFromLiveLeg` and mount RouteExtras with what it
                  returns, under both boxes (this one and Fastest's below). -->
             <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
