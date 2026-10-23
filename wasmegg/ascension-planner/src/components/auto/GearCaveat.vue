@@ -2,23 +2,29 @@
   The instant answer's gear caveat, one amber box (InstantRoute.vue): "Your gear isn't the gear the instant answer
   was built on…" below TE 340 when the gear differs, and "may be optimistic for your gear" when the answer is the
   maxed one scaled to a delivery rate under 95% (lib/optimisticAnswer.ts; Jordan, 22 Oct 2026). When both apply the
-  second sentence sits in the same box.
+  second sentence sits in the same box. With the form G (the maxed answer moved to the player's gear,
+  search/instantGear.ts) it says that instead, alone: the gear caveat and the label never apply to it (Jordan, 23 Oct
+  2026: the "your gear changed… uses the instant answer for fully maxed gear" note contradicted a form G answer).
 -->
 <template>
   <p
-    v-if="gearDiffers || optimistic"
+    v-if="gearShift || gearDiffers || optimistic"
     class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
     data-testid="gear-caveat"
   >
-    <template v-if="gearDiffers"
+    <template v-if="gearShift"
+      >Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your
+      gear's rate (about 1–2% per ascension). Fast gives your real date.</template
+    >
+    <template v-else-if="gearDiffers"
       >Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"
         >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
       >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its rate at full research). Ascensions that start
       below about TE {{ fullResearchTe }} can take a few percent more or less than these, and may need a longer build
       (one more research sale) than shown: your earnings set, and how your delivery gear does before research is
       complete, aren't fully taken off. From there up they match. A Fast search gives your own times.</template
-    ><template v-if="gearDiffers && optimistic">{{ ' ' }}</template
-    ><span v-if="optimistic" class="font-bold" data-testid="instant-optimistic">{{ OPTIMISTIC_TEXT }}</span>
+    ><template v-if="!gearShift && gearDiffers && optimistic">{{ ' ' }}</template
+    ><span v-if="!gearShift && optimistic" class="font-bold" data-testid="instant-optimistic">{{ OPTIMISTIC_TEXT }}</span>
   </p>
 </template>
 
@@ -26,6 +32,8 @@
 import { OPTIMISTIC_TEXT } from '@/lib/optimisticAnswer';
 
 defineProps<{
+  /** The answer is the form G: the maxed table moved to the player's gear (InstantRoute `shiftedTable`). */
+  gearShift?: boolean;
   /** The player's gear is not the instant answer's, below full research (InstantRoute `gearDiffers`). */
   gearDiffers: boolean;
   /** The answer is the maxed one scaled to a weak delivery rate (lib/optimisticAnswer.ts `optimisticForGear`). */

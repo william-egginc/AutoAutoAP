@@ -42,7 +42,13 @@
         >every route checked in {{ (ms / 1000).toFixed(1) }} s</span
       >
     </div>
-    <p v-if="ownChanged" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900">
+    <!-- Only when the answer really is the plain maxed one: with the form G (an own table refused as stale, G used)
+         the one amber box under the answer says so instead (GearCaveat.vue `gearShift`). -->
+    <p
+      v-if="ownChanged && !shiftedTable"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900"
+      data-testid="instant-own-changed"
+    >
       Your gear changed since your instant answer was made ({{ ownChanged }}), so this answer uses the instant answer
       for fully maxed gear instead.
     </p>
@@ -564,6 +570,7 @@
       <template v-if="result">
         <!-- The gear caveat and "may be optimistic for your gear", one amber box (GearCaveat.vue). -->
         <GearCaveat
+          :gear-shift="shiftedTable"
           :gear-differs="gearDiffers"
           :optimistic="optimistic"
           :bonus-short="bonusShort"
