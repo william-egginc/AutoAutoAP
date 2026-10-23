@@ -45,6 +45,7 @@ import {
 import { SIM_VERSION } from '@/search/simVersion';
 import { OWN_BUILD_TIME } from '@/composables/useNewVersion';
 import type { GoalKey } from '@/lib/planGoals';
+import type { FollowPrompt } from '@/lib/searchPlan';
 
 /** What a Follow press may say about the route besides its stops (the summary saved with it). */
 export interface FollowExtra {
@@ -266,6 +267,17 @@ export const useFollowStore = defineStore('follow', () => {
     return saves.value[goalKey] ?? { state: 'saved', words: '' };
   }
 
+  /** "Follow it" on a better result (BetterRoutePrompt.vue, lib/searchPlan.ts `followPrompt`): a Follow press. */
+  async function followBetter(goalKey: GoalKey, p: FollowPrompt, deadline: number | null): Promise<boolean> {
+    return follow(goalKey, p.chain, p.source === 'instant' ? 'answer' : 'saved', undefined, {
+      source: p.source,
+      finish: Math.round(p.end),
+      endTE: p.endTE,
+      ...(p.planStart ? { planStart: Math.floor(p.planStart) } : {}),
+      ...(deadline ? { spareSeconds: Math.round(deadline - p.end) } : {}),
+    });
+  }
+
   /** How the last save of a goal went (null: none this visit). */
   function saveState(goalKey: GoalKey | null | undefined): SaveState | null {
     return goalKey ? (saves.value[goalKey] ?? null) : null;
@@ -292,6 +304,7 @@ export const useFollowStore = defineStore('follow', () => {
     loadCloud,
     earlierVersions,
     restore,
+    followBetter,
     saveState,
     reset,
   };

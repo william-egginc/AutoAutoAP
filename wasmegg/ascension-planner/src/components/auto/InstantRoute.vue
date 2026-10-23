@@ -268,8 +268,26 @@
               >
                 Simulate this plan
               </button>
-              <FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" />
+              <FollowButton
+                v-if="boxFollowable"
+                primary
+                :chain="dateBoxOf(result.byDate).chain"
+                :goal-key="followGoal"
+                from="answer"
+                :finish="dateBoxOf(result.byDate).end"
+                :end-te="dateBoxOf(result.byDate).endTE"
+                :plan-start="answerStart"
+                :deadline="deadline"
+              />
             </div>
+            <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts). -->
+            <BetterRoutePrompt
+              class="mt-2"
+              :goal-key="followGoal"
+              goal="date"
+              :deadline="deadline ?? null"
+              :candidate="instantCandidate(dateBoxOf(result.byDate))"
+            />
           </template>
           <p v-else class="text-[12px] text-amber-800">
             No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
@@ -327,7 +345,16 @@
                       >
                         Simulate this plan
                       </button>
-                      <FollowButton v-if="rowFollowable(r)" :chain="r.chain" :goal-key="followGoal" from="count" />
+                      <FollowButton
+                        v-if="rowFollowable(r)"
+                        :chain="r.chain"
+                        :goal-key="followGoal"
+                        from="count"
+                        :finish="r.end"
+                        :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
+                        :plan-start="answerStart"
+                        :deadline="deadline"
+                      />
                     </div>
                   </td>
                 </tr>
@@ -390,8 +417,24 @@
             >
               Simulate this plan
             </button>
-            <FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />
+            <FollowButton
+              primary
+              :chain="boxLead.chain"
+              :goal-key="followGoal"
+              from="answer"
+              :finish="boxLead.end"
+              :end-te="boxLead.chain[boxLead.chain.length - 1]"
+              :plan-start="answerStart"
+            />
           </div>
+          <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts). -->
+          <BetterRoutePrompt
+            class="mt-2"
+            :goal-key="followGoal"
+            goal="fastest"
+            :deadline="null"
+            :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
+          />
         </div>
         <p v-else class="text-[12px] text-amber-800">
           No route reaches {{ store.finalTE }} from here in the instant answer{{
@@ -456,7 +499,15 @@
                       >
                         Simulate this plan
                       </button>
-                      <FollowButton v-if="r.chain.length" :chain="r.chain" :goal-key="followGoal" from="count" />
+                      <FollowButton
+                        v-if="r.chain.length"
+                        :chain="r.chain"
+                        :goal-key="followGoal"
+                        from="count"
+                        :finish="r.end"
+                        :end-te="r.chain[r.chain.length - 1]"
+                        :plan-start="answerStart"
+                      />
                     </div>
                   </td>
                 </tr>
@@ -677,6 +728,7 @@ import {
 import InstantIntegrity from './InstantIntegrity.vue';
 import { holdsRoutes, instantIntegrity, lowTeOpeningNote } from '@/search/instantIntegrity';
 import FollowButton from '../FollowButton.vue';
+import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import { screenGoalKey } from '@/lib/follow';
 import { finishesBefore } from '@/lib/eggDayRule';
 import { isConstrained } from '@/search/availability';
@@ -1738,6 +1790,18 @@ function openPlan(chain: number[]): void {
 }
 /** "Follow this route": the goal My runs' Right now follows it for (lib/follow.ts). */
 const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
+/** When the answer on screen was worked out (ms; a snapshot's own time when restored): a route followed before it is
+ *  older, so a better answer is offered (BetterRoutePrompt.vue). */
+const answerAt = ref(0);
+let restoredAt: number | null = null;
+watch(result, r => {
+  answerAt.value = r ? (restoredAt ?? Date.now()) : 0;
+  restoredAt = null;
+});
+/** The instant answer as the prompt's new result. */
+function instantCandidate(r: { chain: readonly number[]; end: number; endTE: number }) {
+  return { chain: [...r.chain], end: r.end, endTE: r.endTE, at: answerAt.value, source: 'instant' as const, planStart: answerStart.value || null };
+}
 /** "Follow this route" only on a route in time (lib/eggDayRule.ts, 22 Oct 2026). */
 const boxFollowable = computed(() => {
   const deadline = props.deadline;
@@ -2096,6 +2160,7 @@ function applySnapshot(s: InstantSnapshot): void {
   header.value = s.header;
   tableUrl.value = s.tableUrl;
   ownChanged.value = s.ownChanged;
+  restoredAt = typeof s.at === 'number' ? s.at : null;
   result.value = s.result;
   ms.value = s.ms;
   answerStart.value = s.answerStart;

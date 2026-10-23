@@ -597,6 +597,15 @@
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 :disabled="store.busy"
               />
+              <!-- A route followed for this race: this result offered when newer and better (lib/searchPlan.ts). -->
+              <BetterRoutePrompt
+                v-if="fastBetterCandidate"
+                :goal-key="`fastest-${store.finalTE}`"
+                goal="fastest"
+                :deadline="null"
+                :candidate="fastBetterCandidate"
+                :zone="autoPlannerStore.timezone || plannerTzFallback"
+              />
               <!-- The next level up, reusing this run's priced routes (the saved-run box that offered it hides
                    while this result is on screen: the user, 12 Oct, found it clutter). -->
               <p v-if="goFurther" class="text-[11px] text-emerald-900/80" data-testid="go-further">
@@ -1049,6 +1058,9 @@
 </template>
 
 <script setup lang="ts">
+import BetterRoutePrompt from '../BetterRoutePrompt.vue';
+import { sourceOfLevel } from '@/lib/followCloud';
+import { foundLevel as levelOfRun } from '@/lib/searchPointer';
 import { pricedWithLine } from '@/lib/pricedWith';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1212,6 +1224,21 @@ watch(settingsOpen, v => {
 
 const autoPlannerStore = useAutoPlannerStore();
 const plannerTzFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
+/** With a route followed for this race (stores/follow.ts): the finished result, offered when newer and better than it
+ *  (BetterRoutePrompt.vue, lib/searchPlan.ts the 'prompt' path). */
+const fastBetterCandidate = computed(() => {
+  const chain = store.bestChain;
+  if (store.isRunning || !chain.length || !(store.bestDays > 0) || chain[chain.length - 1] !== store.finalTE) return null;
+  const start = store.planStartUsed || store.planStart;
+  return {
+    chain: [...chain],
+    end: start + store.bestDays * 86400,
+    endTE: store.finalTE,
+    at: store.chainResultAt,
+    source: sourceOfLevel(levelOfRun({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort })),
+    planStart: start,
+  };
+});
 
 // The slider is an index, not a tier name — `<input type="range">` only speaks numbers.
 const effortIndex = computed({

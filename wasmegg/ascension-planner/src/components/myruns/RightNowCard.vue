@@ -23,6 +23,10 @@
   makes the date, or finishes sooner): "from your Fast run, on your account", exact times, calendar Add buttons and
   "Go back to the instant answer". A result that doesn't take over is named in one line. Recalculate is "Run Fast"
   (lib/recalc.ts): the goal's screen with Fast selected.
+  FOLLOWED ROUTE SAVED ONLINE (23 Oct 2026, lib/followCloud.ts): a followed route is never replaced by a new result; a
+  newer, better one is asked about (BetterRoutePrompt.vue: "Follow it" / "Keep mine"). "Earlier versions"
+  (FollowHistory.vue) lists the last 5 saved for the goal, each with Restore. A route read back from online that was
+  set with other hours or another simulator says so in one quiet line.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
@@ -129,6 +133,29 @@
         Use the checked route ›
       </button>
     </p>
+
+    <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
+    <p v-if="follow && followSetWith" class="text-[12px] text-slate-500" data-testid="now-follow-set-with">{{ followSetWith }}</p>
+    <p v-if="follow && followSaveWords" class="text-[12px] text-amber-800" role="status" data-testid="now-follow-save">{{ followSaveWords }}</p>
+    <!-- A newer, better result for the goal while a route is followed: asked, never swapped in (lib/searchPlan.ts). -->
+    <BetterRoutePrompt
+      v-if="follow && betterRoute"
+      :goal-key="betterRoute.goalKey"
+      :goal="betterRoute.goal"
+      :deadline="betterRoute.deadline"
+      :candidate="betterRoute.candidate"
+      :followed-finish="betterRoute.followedFinish"
+      :zone="zone"
+    />
+    <!-- The last 5 versions saved online for this goal, with Restore (GET /follow/history). -->
+    <FollowHistory
+      v-if="follow && selectedGoal"
+      :goal-key="selectedGoal"
+      :goal="askFor.goal"
+      :deadline="askFor.deadline"
+      :zone="zone"
+      :now="now"
+    />
 
     <!-- Follow another route: typed stops (lib/follow.ts parseTypedRoute). -->
     <details v-if="selectedOption && !notOnVirtue" class="text-[12px]" data-testid="now-follow-typed">
@@ -342,6 +369,9 @@
 import { computed, nextTick, ref } from 'vue';
 import { iconURL } from 'lib';
 import CalendarButton from './CalendarButton.vue';
+import FollowHistory from './FollowHistory.vue';
+import BetterRoutePrompt from '../BetterRoutePrompt.vue';
+import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
@@ -400,6 +430,18 @@ const props = defineProps<{
   startInfo?: StartLine[];
   /** The route the player follows for this goal (lib/follow.ts) and how it is priced; null or absent: none. */
   follow?: FollowCard | null;
+  /** With a followed route: the planner's newer pick to offer when better (useNowPage `betterRoute`). */
+  betterRoute?: {
+    goalKey: string;
+    goal: 'fastest' | 'date';
+    deadline: number | null;
+    candidate: RouteFinish & { chain: number[]; at: number; source: FollowPrompt['source']; planStart: number | null };
+    followedFinish: RouteFinish | null;
+  } | null;
+  /** "This route was set with a different hours window / simulator version." ('' or absent: none). */
+  followSetWith?: string;
+  /** The last Follow press couldn't be saved online: why, in words. */
+  followSaveWords?: string;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];

@@ -358,3 +358,143 @@ export function findKeptSearch(list: readonly KeptSearch[], k: Pick<KeptSearch, 
   for (const e of list) if (sameKept(e, k) && (!best || e.search.at > best.search.at)) best = e;
   return best;
 }
+
+// ------------------------------------------------------------- a new result when the player follows a route
+
+/**
+ * TWO PATHS FOR A NEW RESULT (Jordan, 23 Oct 2026, the followed route saved online, lib/followCloud.ts):
+ *
+ *   'takeover'  NO route followed for the goal: the instant-first rule above, unchanged (`drivingPlan`): a Fast, Exact
+ *               or Custom result that makes the date (or finishes sooner) replaces the instant answer on Right now,
+ *               with "Go back to the instant answer".
+ *   'prompt'    a route IS followed for the goal: it is never replaced on its own. A newer result (a search's, or a
+ *               new instant answer) that is better than it (`betterThanFollowed`) is OFFERED on Right now and on the
+ *               result's card: "This is a better route than the one you're following (… vs …). Do you want to follow
+ *               it?" with "Follow it" (a Follow press: it saves online too) and "Keep mine" (remembered per result,
+ *               `KEEP_MINE_KEY`, so the same result doesn't ask again).
+ */
+export type NewResultPath = 'takeover' | 'prompt';
+export const newResultPath = (followed: boolean): NewResultPath => (followed ? 'prompt' : 'takeover');
+
+/** Where a route ends: when (unix seconds) and at what TE. */
+export interface RouteFinish {
+  end: number;
+  endTE: number;
+}
+
+/**
+ * The same "better" as the instant-first rule, against the followed route. Fastest: finishes sooner by at least a
+ * minute. By a date: makes the date when the followed one doesn't; or both make it and it ends on more TE; or the
+ * same TE with more to spare (by at least a minute). A followed route with no known finish is never beaten (nothing
+ * to compare).
+ */
+export function betterThanFollowed(
+  goal: 'fastest' | 'date',
+  deadline: number | null,
+  candidate: RouteFinish,
+  followed: RouteFinish | null
+): boolean {
+  if (!followed || !Number.isFinite(followed.end) || !Number.isFinite(candidate.end)) return false;
+  if (goal === 'fastest' || deadline == null) return candidate.end <= followed.end - 60;
+  if (!finishesBefore(candidate.end, deadline)) return false;
+  if (!finishesBefore(followed.end, deadline)) return true;
+  if (candidate.endTE !== followed.endTE) return candidate.endTE > followed.endTE;
+  return candidate.end <= followed.end - 60;
+}
+
+/** A result's own id for "Keep mine": the goal, where it came from, the route and (for a search) when it ends, to the
+ *  minute. An instant answer's leaves the time out: it is worked out again on each visit. */
+export function resultId(goalKey: string, source: string, chain: readonly number[], end: number): string {
+  return `${goalKey}|${source}|${chain.join('-')}${source === 'instant' ? '' : `|${Math.round(end / 60)}`}`;
+}
+
+/** "Keep mine" pressed, per result id (this browser). */
+export const KEEP_MINE_KEY = 'aap-follow-keep-mine';
+const MAX_KEEP_MINE = 100;
+
+export function readKeptMine(st: KeptStorage | null = keptStorage()): string[] {
+  if (!st) return [];
+  try {
+    const v = JSON.parse(st.getItem(KEEP_MINE_KEY) ?? '[]') as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function keepMine(id: string, st: KeptStorage | null = keptStorage()): void {
+  if (!st || !id) return;
+  try {
+    const list = readKeptMine(st).filter(x => x !== id);
+    list.push(id);
+    while (list.length > MAX_KEEP_MINE) list.shift();
+    st.setItem(KEEP_MINE_KEY, JSON.stringify(list));
+  } catch {
+    // this visit only
+  }
+}
+
+/** A route's finish in the player's words: Fastest "Oct 30 at 4:00 pm"; By a date "480 TE, 5 h to spare" (or "lands
+ *  after the date"). `when` formats a unix time (lib/eventWhen.ts dateAt: 12-hour). */
+function finishWords(goal: 'fastest' | 'date', deadline: number | null, r: RouteFinish, when: (t: number) => string): string {
+  if (goal === 'fastest' || deadline == null) return when(r.end);
+  const spare = deadline - r.end;
+  return finishesBefore(r.end, deadline) ? `${r.endTE} TE, ${gapWords(spare)} to spare` : `${r.endTE} TE, lands after the date`;
+}
+
+/** "This is a better route than the one you're following (Oct 30 at 4:00 pm vs Nov 1 at 9:00 am). Do you want to
+ *  follow it?" */
+export function betterRouteWords(
+  goal: 'fastest' | 'date',
+  deadline: number | null,
+  candidate: RouteFinish,
+  followed: RouteFinish,
+  when: (t: number) => string
+): string {
+  const a = finishWords(goal, deadline, candidate, when);
+  const b = finishWords(goal, deadline, followed, when);
+  return `This is a better route than the one you're following (${a} vs ${b}). Do you want to follow it?`;
+}
+
+/** A newer, better result for a goal with a followed route: what the prompt shows and what "Follow it" follows. */
+export interface FollowPrompt {
+  id: string;
+  words: string;
+  chain: number[];
+  source: 'instant' | 'fast' | 'exact' | 'custom';
+  end: number;
+  endTE: number;
+  planStart: number | null;
+}
+
+/**
+ * The prompt for a result, or null: no route followed, the same route, not newer than the follow (by when it was
+ * found against when Follow was pressed), not better (`betterThanFollowed`), or "Keep mine" pressed for it already.
+ */
+export function followPrompt(o: {
+  goalKey: string;
+  goal: 'fastest' | 'date';
+  deadline: number | null;
+  followed: { chain: readonly number[]; at: number; finish: RouteFinish | null } | null;
+  candidate: RouteFinish & { chain: readonly number[]; at: number; source: FollowPrompt['source']; planStart?: number | null };
+  keptMine: readonly string[];
+  when: (t: number) => string;
+}): FollowPrompt | null {
+  const f = o.followed;
+  const c = o.candidate;
+  if (!f || !c.chain.length) return null;
+  if (c.chain.length === f.chain.length && c.chain.every((x, i) => x === f.chain[i])) return null;
+  if (!(c.at > f.at)) return null;
+  if (!betterThanFollowed(o.goal, o.deadline, c, f.finish)) return null;
+  const id = resultId(o.goalKey, c.source, c.chain, c.end);
+  if (o.keptMine.includes(id)) return null;
+  return {
+    id,
+    words: betterRouteWords(o.goal, o.deadline, c, f.finish!, o.when),
+    chain: [...c.chain],
+    source: c.source,
+    end: c.end,
+    endTE: c.endTE,
+    planStart: c.planStart ?? null,
+  };
+}

@@ -110,6 +110,9 @@ import { startLines } from '@/lib/nowStart';
 import { useFollowStore } from '@/stores/follow';
 import { followPrice, type FollowSnap } from '@/lib/followPrice';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
+import { hoursOf, sameHours, setWithOtherWords } from '@/lib/followCloud';
+import { SIM_VERSION } from '@/search/simVersion';
+import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 
 /** The race the Fastest tile is for first (the board's), then the player's own target. */
 export const RACE_TARGET = 490;
@@ -657,8 +660,14 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
 
   /** Right now's plan: the selected goal's (the table, Next step, the timeline and the calendar all follow it). */
   const cardPlan = computed<CardPlan | null>(() => {
-    // A route the player follows replaces the planner's pick (priced from a save, or nothing to show yet).
+    // A route the player follows replaces the planner's pick (priced from a save, or nothing to show yet). A newer,
+    // better result never replaces it: it is offered (`betterRoute`, lib/searchPlan.ts the 'prompt' path).
     if (followState.value) return followState.value.plan;
+    return pickedPlan.value;
+  });
+  /** The planner's pick for the selected goal, without a followed route: the instant answer, or a Fast, Exact or
+   *  Custom result that takes over from it (lib/searchPlan.ts the 'takeover' path). */
+  const pickedPlan = computed<CardPlan | null>(() => {
     const sel = planGoals.value.find(p => p.goal.key === selectedGoal.value);
     const pick = sel?.pick;
     if (!sel || !pick) return null;
@@ -674,6 +683,61 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       ...(c.driving ? { driving: c.driving } : {}),
     };
   });
+  /**
+   * With a followed route for the selected goal: the planner's pick for this save as the new result the prompt
+   * compares (BetterRoutePrompt.vue, lib/searchPlan.ts `followPrompt`), with the followed route's own finish as priced
+   * here (else the one saved with it). Null without a followed route or a pick of this save.
+   */
+  const betterRoute = computed<{
+    goalKey: GoalKey;
+    goal: 'fastest' | 'date';
+    deadline: number | null;
+    candidate: RouteFinish & { chain: number[]; at: number; source: FollowPrompt['source']; planStart: number | null };
+    followedFinish: RouteFinish | null;
+  } | null>(() => {
+    const fs = followState.value;
+    const pick = pickedPlan.value;
+    const key = selectedGoal.value;
+    if (!fs || !pick || !key || pick.state !== 'this-save') return null;
+    const p = pick.plan;
+    const f = follows.followed(key);
+    if (!f) return null;
+    let followedFinish: RouteFinish | null = null;
+    if (fs.plan) followedFinish = { end: planFinish(fs.plan.plan), endTE: fs.plan.plan.endTE };
+    else if (fs.card.finish) followedFinish = { end: fs.card.finish.end, endTE: fs.card.finish.endTE ?? f.chain[f.chain.length - 1] };
+    else if (typeof f.finish === 'number') followedFinish = { end: f.finish, endTE: f.endTE ?? f.chain[f.chain.length - 1] };
+    const level = p.from?.level;
+    return {
+      goalKey: key,
+      goal: pick.goal.goal,
+      deadline: pick.goal.deadline,
+      candidate: {
+        chain: [...p.chain],
+        end: planFinish(p),
+        endTE: p.endTE,
+        at: p.from?.at ?? p.calculatedAt,
+        source: level === 'Exact' ? 'exact' : level === 'Custom' ? 'custom' : level === 'Fast' ? 'fast' : 'instant',
+        planStart: p.planStart,
+      },
+      followedFinish,
+    };
+  });
+  /** A followed route read back from online, set with another hours window or simulator than the player's now: the
+   *  quiet note under it ('' otherwise). */
+  const followSetWith = computed(() => {
+    const key = selectedGoal.value;
+    const f = key && followState.value ? follows.followed(key) : null;
+    if (!f?.cloud) return '';
+    const hours = f.hours !== undefined && !sameHours(f.hours, hoursOf(store.availability));
+    const sim = !!f.simVersion && f.simVersion !== SIM_VERSION;
+    return setWithOtherWords({ hours, sim });
+  });
+  /** The last Follow press on this goal couldn't be saved online: its words ('' otherwise). */
+  const followSaveWords = computed(() => {
+    const s = follows.saveState(selectedGoal.value);
+    return s?.state === 'failed' ? s.words : '';
+  });
+
   /** "Go back to the instant answer": the selected goal follows its instant plan until a newer result lands. */
   function goBackToInstant(): void {
     const c = cardPlan.value;
@@ -901,6 +965,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     eggDayYear,
     cardPlan,
     follow,
+    betterRoute,
+    followSetWith,
+    followSaveWords,
     goalChoices,
     selectedGoal,
     selectGoal,

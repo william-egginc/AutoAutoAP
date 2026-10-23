@@ -751,6 +751,16 @@
               :deadline="result.deadline"
               :disabled="store.busy"
             />
+            <!-- A route followed for this date: this result offered when newer and better (lib/searchPlan.ts). -->
+            <BetterRoutePrompt
+              v-if="dateBetterCandidate"
+              class="mt-2"
+              :goal-key="dateFollowGoal"
+              goal="date"
+              :deadline="result.deadline"
+              :candidate="dateBetterCandidate"
+              :zone="plannerZone"
+            />
           </template>
           <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
                than one more TE costs. Otherwise the plain "stopped early". -->
@@ -988,6 +998,10 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import BetterRoutePrompt from '../BetterRoutePrompt.vue';
+import { sourceOfLevel } from '@/lib/followCloud';
+import { foundLevel } from '@/lib/searchPointer';
+import { screenGoalKey } from '@/lib/follow';
 import { pricedWithLine } from '@/lib/pricedWith';
 import { thisDevice } from '@/search/device';
 import {
@@ -2731,6 +2745,22 @@ function ago(ms: number): string {
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }
 const best = computed(() => result.value?.routes[0] ?? null);
+/** With a route followed for this date (stores/follow.ts): this result, offered when newer and better than it
+ *  (BetterRoutePrompt.vue, lib/searchPlan.ts the 'prompt' path). */
+const dateBetterCandidate = computed(() => {
+  const r = result.value;
+  const b = best.value;
+  if (!r || !b?.chain.length || store.deadlineRunning || !Number.isFinite(b.reachAt)) return null;
+  return {
+    chain: [...b.chain],
+    end: b.reachAt,
+    endTE: b.chain[b.chain.length - 1],
+    at: r.at ?? 0,
+    source: sourceOfLevel(foundLevel({ custom: !r.simple, effort: r.level })),
+    planStart: r.planStart ?? null,
+  };
+});
+const dateFollowGoal = computed(() => (result.value ? screenGoalKey(result.value.deadline, store.finalTE) : null));
 /** The running search's best so far, for its card: the live top's first, else the progress's own. */
 const liveBest = computed(() => {
   const p = store.deadlineProgress;
