@@ -65,7 +65,20 @@ import {
   type SnapLike,
 } from '@/lib/nowPlan';
 import { buildTile, type SavedDateAnswer, type Tile } from '@/lib/savedTiles';
-import { drivingPlan, liveSearchResult, type Driving, type SnapSearch } from '@/lib/searchPlan';
+import {
+  drivingPlan,
+  findKeptSearch,
+  liveSearchResult,
+  markKeptBack,
+  newerSearch,
+  planFromSearch,
+  readKeptSearches,
+  readSearch,
+  recordKeptSearch,
+  type Driving,
+  type KeptSearch,
+  type SnapSearch,
+} from '@/lib/searchPlan';
 import { accountHashNow } from '@/lib/accountHash';
 import {
   currentSetup,
@@ -349,28 +362,49 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     });
   }
   const backKey = (goalKey: GoalKey) => `${choiceScope.value}|${goalKey}`;
-  /** This save's own snapshot for a goal, with the plan that drives Right now (lib/searchPlan.ts `drivingPlan`). */
-  function drivingOf(g: Goal, goalKey: GoalKey, snapKey: string | null): Driving {
-    return drivingPlan(snapOf(snapKey), g.goal, g.deadline, { live: liveFor(g), back: wentBack.value[backKey(goalKey)] ?? null });
-  }
-  /** Bumped when a result is kept in a snapshot (the parsed copy is dropped). */
+  const goalWordsOf = (g: Goal) => instantGoal(g.deadline, g.deadline ? store.finalTE : g.target);
+  /** Bumped when a result is kept (in a snapshot, or beyond it): the parsed copies are read again. */
   const kept = ref(0);
-  // A result the store holds is kept with this save's snapshot for the goal, so Right now still has it after a reload.
-  watch(
-    () => keys.value.map(({ g, key }) => ({ snapKey: instantSnapKey(key), live: liveFor(g) })),
-    list => {
-      for (const { snapKey, live } of list) {
-        if (!snapKey || !live) continue;
-        const s = snapOf(snapKey) as (SnapLike & { search?: { at?: number } }) | null;
-        if (!s || (s.search?.at ?? 0) >= live.at) continue;
-        if (patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(live)) })) {
-          parsed.delete(snapKey);
-          kept.value++;
-        }
-      }
-    },
-    { immediate: true }
-  );
+  /** Results kept beyond the snapshot's day (lib/searchPlan.ts `KeptSearch`), read again when one is kept. */
+  const keptList = computed<KeptSearch[]>(() => {
+    void kept.value;
+    void saveSeconds.value;
+    return readKeptSearches();
+  });
+  /** This save's kept result for a goal, when priced with Your setup now (else it is a candidate of its own). */
+  function keptFor(g: Goal): KeptSearch | null {
+    const acct = account.value;
+    if (!acct) return null;
+    const k = findKeptSearch(keptList.value, { account: acct, goal: goalWordsOf(g), backupTime: saveSeconds.value });
+    if (!k) return null;
+    const sn = setupNow.value;
+    return !k.setup || setupCheck(k.setup, sn.setup, sn.today).fit === 'current' ? k : null;
+  }
+  /** This save's own snapshot for a goal, with the plan that drives Right now (lib/searchPlan.ts `drivingPlan`): the
+   *  store's result, the snapshot's or the one kept beyond it, the newest. */
+  function drivingOf(g: Goal, goalKey: GoalKey, snapKey: string | null): Driving {
+    const k = keptFor(g);
+    return drivingPlan(snapOf(snapKey), g.goal, g.deadline, {
+      live: newerSearch(liveFor(g), k?.search ?? null),
+      // Gone back in this visit, or on an earlier one (kept with the result).
+      back: wentBack.value[backKey(goalKey)] ?? (k?.back ? k.search.at : null),
+      meta: k ? { account: k.account, goal: k.goal, backupTime: k.backupTime, teByEgg: k.teByEgg, setup: k.setup } : null,
+    });
+  }
+  /** Keep a result for this save and goal beyond the snapshot's day. */
+  function keepResult(g: Goal, s: SnapSearch): boolean {
+    const acct = account.value;
+    if (!acct || !hasSave.value) return false;
+    const sn = setupNow.value;
+    return recordKeptSearch({
+      account: acct,
+      goal: goalWordsOf(g),
+      backupTime: saveSeconds.value,
+      setup: { availability: sn.setup.availability ? JSON.parse(JSON.stringify(sn.setup.availability)) : null, timeOff: JSON.parse(JSON.stringify(sn.setup.timeOff ?? [])) },
+      teByEgg: [...teByEgg.value],
+      search: s,
+    });
+  }
 
   // ------------------------------------------------------------------------- the answers kept
 
@@ -413,6 +447,27 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     today: todayIn(now.value * 1000, zone.value),
   }));
 
+  // A result the store holds is kept with this save's snapshot for the goal, and every result (the store's or a
+  // snapshot's) beyond the snapshot's day, so Right now still has it after a reload and the next day.
+  watch(
+    () => keys.value.map(({ g, key }) => ({ g, snapKey: instantSnapKey(key), live: liveFor(g) })),
+    list => {
+      let changed = false;
+      for (const { g, snapKey, live } of list) {
+        const s = snapKey ? (snapOf(snapKey) as (SnapLike & { search?: { at?: number } }) | null) : null;
+        const newest = newerSearch(live, readSearch(s?.search));
+        if (newest && keepResult(g, newest)) changed = true;
+        if (!snapKey || !live || !s || (s.search?.at ?? 0) >= live.at) continue;
+        if (patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(live)) })) {
+          parsed.delete(snapKey);
+          changed = true;
+        }
+      }
+      if (changed) kept.value++;
+    },
+    { immediate: true }
+  );
+
   /**
    * Every kept snapshot Right now could show, each with how it was priced (lib/currentAnswer.ts): this save's own
    * key for each goal (priced with Your setup now: the key holds it), then the index's snapshots of this account and
@@ -449,6 +504,25 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         goalKey: keys.value[goalIndex].d.key,
         ownKey: false,
         check: setupCheck(m.setup ?? null, sn.setup, sn.today),
+      });
+    }
+    // Results kept beyond the snapshot's day for an older save or another setup (this save's with Your setup now
+    // drive its own goal above): ranked like any other answer, so a newer save's leads (lib/currentAnswer.ts).
+    const used = new Set(out.map(c => c.plan.from?.at).filter((x): x is number => x != null));
+    for (const k of keptList.value) {
+      if (k.account !== acct || k.back || used.has(k.search.at)) continue;
+      const goalIndex = keys.value.findIndex(({ g }) => goalWords(g) === k.goal);
+      if (goalIndex < 0) continue;
+      const { g, d } = keys.value[goalIndex];
+      if (keptFor(g)?.search.at === k.search.at) continue;
+      used.add(k.search.at);
+      const meta = { account: k.account, goal: k.goal, backupTime: k.backupTime, teByEgg: k.teByEgg, setup: k.setup };
+      out.push({
+        plan: planFromSearch(k.search, g.goal, g.deadline, { meta, whatIf: null }),
+        goalIndex,
+        goalKey: d.key,
+        ownKey: false,
+        check: setupCheck(k.setup ?? null, sn.setup, sn.today),
       });
     }
     return out;
@@ -606,6 +680,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const at = c?.driving?.search?.from?.at;
     if (!c?.key || at == null) return;
     wentBack.value = { ...wentBack.value, [backKey(c.key)]: at };
+    // Kept with the result, so the next visit doesn't take it over again: the instant answer drives this goal until a
+    // newer result.
+    const f = c.driving?.found;
+    if (f) keepResult(c.goal, f);
+    if (account.value) markKeptBack({ account: account.value, goal: goalWordsOf(c.goal), backupTime: saveSeconds.value }, true);
+    kept.value++;
   }
   /** "Use your Fast run": undo it. */
   function useSearchResult(): void {
@@ -614,6 +694,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const { [backKey(c.key)]: _gone, ...rest } = wentBack.value;
     void _gone;
     wentBack.value = rest;
+    const f = c.driving?.found;
+    if (f) keepResult(c.goal, f);
+    if (account.value) markKeptBack({ account: account.value, goal: goalWordsOf(c.goal), backupTime: saveSeconds.value }, false);
+    kept.value++;
   }
 
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The

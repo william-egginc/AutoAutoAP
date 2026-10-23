@@ -183,3 +183,32 @@ describe('liveSearchResult: the store result for this goal and save (the instant
     expect(liveSearchResult({ ...date, date: { ...date.date, result: { ...date.date.result!, simple: false } } })?.level).toBe('Custom');
   });
 });
+
+describe('results kept beyond the snapshot (aap-search-plans)', () => {
+  const mem = () => {
+    const m = new Map<string, string>();
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+  };
+  const k = { account: 'acct', goal: 'date 1815753600', backupTime: NOW };
+  it('one per account, goal and save; a newer result replaces, an older or the same is ignored; capped', async () => {
+    const { recordKeptSearch, readKeptSearches, findKeptSearch, markKeptBack, forgetKeptSearch, MAX_KEPT_SEARCHES, KEPT_SEARCH_KEY } = await import('./searchPlan');
+    const st = mem();
+    expect(recordKeptSearch({ ...k, search: fast() }, st)).toBe(true);
+    expect(recordKeptSearch({ ...k, backupTime: NOW + 300, search: fast() }, st)).toBe(false);
+    expect(recordKeptSearch({ ...k, search: fast({ at: fast().at + 1, endTE: 313 }) }, st)).toBe(true);
+    expect(readKeptSearches(st)).toHaveLength(1);
+    expect(findKeptSearch(readKeptSearches(st), { ...k, backupTime: NOW + 120 })?.search.endTE).toBe(313);
+    expect(findKeptSearch(readKeptSearches(st), { ...k, backupTime: NOW + 3600 })).toBeNull();
+    markKeptBack(k, true, st);
+    expect(readKeptSearches(st)[0].back).toBe(true);
+    // The same result again doesn't clear going back; a newer one does.
+    expect(recordKeptSearch({ ...k, search: fast({ at: fast().at + 1, endTE: 313 }) }, st)).toBe(false);
+    expect(recordKeptSearch({ ...k, search: fast({ at: fast().at + 2 }) }, st)).toBe(true);
+    expect(readKeptSearches(st)[0].back).toBeUndefined();
+    forgetKeptSearch(k, st);
+    expect(readKeptSearches(st)).toEqual([]);
+    for (let i = 0; i < MAX_KEPT_SEARCHES + 3; i++) recordKeptSearch({ ...k, backupTime: NOW + i * 3600, search: fast({ at: i }) }, st);
+    expect(readKeptSearches(st)).toHaveLength(MAX_KEPT_SEARCHES);
+    expect(st.getItem(KEPT_SEARCH_KEY)).not.toMatch(/EI\d{16}/);
+  });
+});

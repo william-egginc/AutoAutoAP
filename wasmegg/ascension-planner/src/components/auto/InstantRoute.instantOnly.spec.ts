@@ -111,6 +111,8 @@ describe('the pointer', () => {
     // Kept with the snapshot for My runs' Right now.
     expect(script).toContain('patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(f)) });');
     expect(script).toContain('search: newerSearch(keptSearch.value, searchFound.value),');
+    // And beyond the snapshot's day, for this save (lib/searchPlan.ts recordKeptSearch).
+    expect(script).toContain('if (meta) recordKeptSearch({ account: meta.account, goal: meta.goal, backupTime: meta.backupTime');
   });
   it('See it ↓ shows the part of the panel that holds it, then scrolls to its result card', () => {
     const see = fn('function seeResult(');

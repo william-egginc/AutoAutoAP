@@ -151,6 +151,96 @@ describe('useNowPage: the instant answer drives until a better search result exi
   });
 });
 
+describe('kept beyond the snapshot: Right now does not drop back to the instant answer the next day', () => {
+  it('the snapshot gone, the kept result still drives; Go back is kept for the next visit; a newer save leads', async () => {
+    loadAndSyncBackup(A_ID, save(4), 'plan_next');
+    rollUpPendingTE();
+    const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+    const { readKeptSearches } = await import('@/lib/searchPlan');
+    resetGoalChoice();
+    const store = useChainSearchStore();
+    const target = store.finalTE;
+    const now = Math.floor(Date.now() / 1000);
+    const eggDayAt = eggDaySeconds(nextEggDayYear());
+    const key = instantSnapKey(instantKeyFromStores(eggDayAt, target));
+    const found: SnapSearch = {
+      level: 'Exact',
+      chain: [201, 239],
+      end: eggDayAt - 2.5 * D,
+      endTE: 239,
+      legs: [leg(now - H, now + 28 * H, 201), leg(now + 28 * H, eggDayAt - 2.5 * D, 239)],
+      at: Date.now() - 10_000,
+      planStart: now - H,
+    };
+    writeSnapshot(key, {
+      at: Date.now() - 60_000,
+      header: {},
+      result: { best: null, byAscensions: [], byDate: { chain: [200, 240], end: eggDayAt - 2 * D, legs: [] } },
+      exact: {},
+      answerStart: now - H,
+      search: found,
+    } as never);
+    const scope = effectScope();
+    const eggDay = `eggday-${nextEggDayYear()}`;
+    const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    page.selectGoal(eggDay);
+    expect(page.cardPlan.value?.plan.from?.level).toBe('Exact');
+    // My runs kept it beyond the snapshot.
+    expect(readKeptSearches().map(k => k.search.at)).toEqual([found.at]);
+
+    // The next day: the snapshot is gone (24 h), the kept result still drives, priced on this save.
+    localStorage.removeItem(`aap-instant-snap:${key}`);
+    resetGoalChoice();
+    const next = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    next.selectGoal(eggDay);
+    expect(next.cardPlan.value?.plan.from).toEqual({ level: 'Exact', at: found.at });
+    expect(next.cardPlan.value?.state).toBe('this-save');
+
+    // Go back (with the instant answer worked out again): kept, so a reload keeps the instant answer.
+    writeSnapshot(key, {
+      at: Date.now(),
+      header: {},
+      result: { best: null, byAscensions: [], byDate: { chain: [200, 240], end: eggDayAt - 2 * D, legs: [] } },
+      exact: {},
+      answerStart: now - H,
+    } as never);
+    resetGoalChoice();
+    const again = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    again.selectGoal(eggDay);
+    expect(again.cardPlan.value?.plan.from?.level).toBe('Exact');
+    again.goBackToInstant();
+    expect(again.cardPlan.value?.plan.from).toBeUndefined();
+    expect(readKeptSearches()[0].back).toBe(true);
+    resetGoalChoice();
+    const reload = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    reload.selectGoal(eggDay);
+    expect(reload.cardPlan.value?.plan.from).toBeUndefined();
+    expect(reload.cardPlan.value?.driving?.wentBack).toBe(true);
+    reload.useSearchResult();
+    expect(reload.cardPlan.value?.plan.from?.level).toBe('Exact');
+    expect(readKeptSearches()[0].back).toBe(false);
+
+    // A newer save (3 h later, past the 2 h a save stays current): its instant answer leads; the kept result is an
+    // older save's plan, ranked below it (lib/currentAnswer.ts).
+    loadAndSyncBackup(A_ID, save(1), 'plan_next');
+    rollUpPendingTE();
+    const newKey = instantSnapKey(instantKeyFromStores(eggDayAt, target));
+    writeSnapshot(newKey, {
+      at: Date.now(),
+      header: {},
+      result: { best: null, byAscensions: [], byDate: { chain: [200, 240], end: eggDayAt - 2 * D, legs: [] } },
+      exact: {},
+      answerStart: now,
+    } as never);
+    resetGoalChoice();
+    const later = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+    later.selectGoal(eggDay);
+    expect(later.cardPlan.value?.plan.from).toBeUndefined();
+    expect(later.cardPlan.value?.state).toBe('this-save');
+    scope.stop();
+  });
+});
+
 // ------------------------------------------------------------------------------------ the card (R1, R2)
 
 const NOW = Date.UTC(2026, 9, 22, 18, 3) / 1000; // Thu Oct 22, 11:03 am Pacific

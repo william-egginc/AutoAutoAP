@@ -19,6 +19,7 @@ import type { LegSummary } from '@/search/types';
 import { finishesBefore, lateMarker, type DeadlineKind } from './eggDayRule';
 import { foundLevel, type FoundLevel, type FoundResult } from './searchPointer';
 import { planFromSnapshot, type NowPlan, type SnapLike } from './nowPlan';
+import type { SnapMeta } from '@/search/instantSnapshot';
 
 /** A finished search result for one goal, as the snapshot keeps it. */
 export interface SnapSearch extends FoundResult {
@@ -224,24 +225,136 @@ export interface Driving {
   takeover: Takeover | null;
   /** The player pressed "Go back to the instant answer" for this result. */
   wentBack: boolean;
+  /** The result itself (null without one), to keep it again after "Use your Fast run". */
+  found?: SnapSearch | null;
 }
 
 /**
  * The plan a snapshot gives Right now for a goal: the search result's when it takes over (`searchTakeover`) and the
  * player hasn't gone back to the instant answer, else the instant answer's (`planFromSnapshot`). `live`: the store's
- * result for this goal, newer than the kept one. `back`: the result the player went back from (its `at`).
+ * result for this goal, newer than the kept one (or one kept beyond the snapshot, `KeptSearch`). `back`: the result the
+ * player went back from (its `at`). `meta`: the save the result was priced from, when there is no snapshot.
  */
 export function drivingPlan(
   snap: SnapLike | null,
   goal: 'fastest' | 'date',
   deadline: number | null,
-  o: { live?: SnapSearch | null; back?: number | null } = {}
+  o: { live?: SnapSearch | null; back?: number | null; meta?: SnapMeta | null } = {}
 ): Driving {
   const instant = planFromSnapshot(snap, goal, deadline);
   const found = newerSearch(readSearch(snap?.search), o.live ?? null);
   if (!found) return { plan: instant, instant, search: null, takeover: null, wentBack: false };
-  const search = planFromSearch(found, goal, deadline, { meta: snap?.meta ?? instant?.meta ?? null, whatIf: snap?.whatIf ?? null });
+  const search = planFromSearch(found, goal, deadline, { meta: snap?.meta ?? instant?.meta ?? o.meta ?? null, whatIf: snap?.whatIf ?? null });
   const takeover = searchTakeover(instant, search);
   const wentBack = o.back != null && o.back === found.at && !!instant;
-  return { plan: takesOver(takeover) && !wentBack ? search : instant, instant, search, takeover, wentBack };
+  return { plan: takesOver(takeover) && !wentBack ? search : instant, instant, search, takeover, wentBack, found };
+}
+
+// ------------------------------------------------------------------------- kept beyond the snapshot
+
+/**
+ * A search result KEPT for Right now beyond the instant answer's snapshot (which lasts a day): every finished Fast,
+ * Exact or Custom result for a goal, with the save it was priced from, so Right now still follows it the next day
+ * (`drivingPlan` decides whether it takes over, as for one in a snapshot). It stops counting when a newer save is
+ * loaded (it is then an older save's plan, ranked below the new save's like any other, lib/currentAnswer.ts) or when
+ * the player goes back to the instant answer (`markKeptBack`, so the same result doesn't take over again on the next
+ * visit; `forgetKeptSearch` drops one). Kept in this browser: `KEPT_SEARCH_KEY`, at most
+ * `MAX_KEPT_SEARCHES`, the oldest dropped.
+ */
+export const KEPT_SEARCH_KEY = 'aap-search-plans';
+export const MAX_KEPT_SEARCHES = 30;
+/** Two save times this close are the same save (lib/currentAnswer.ts SAME_SAVE_SECONDS). */
+const KEPT_SAME_SAVE_SECONDS = 10 * 60;
+
+export interface KeptSearch {
+  /** search/runSaves.ts `accountOf`: a hash. */
+  account: string;
+  /** `target 490` or `date <unix>` (the instant answer's own goal words). */
+  goal: string;
+  /** The save it was priced from, unix seconds. */
+  backupTime: number;
+  /** The hours and time off it was priced with (search/instantSnapshot.ts SnapMeta `setup`). */
+  setup?: SnapMeta['setup'];
+  /** Each egg's TE in that save (for the pace chip, as a snapshot's meta). */
+  teByEgg?: number[];
+  search: SnapSearch;
+  /** The player went back to the instant answer from this result ("Go back to the instant answer"): kept so it doesn't
+   *  take over again after a reload; a newer result replaces the record and takes over. */
+  back?: boolean;
+}
+
+interface KeptStorage {
+  getItem(k: string): string | null;
+  setItem(k: string, v: string): void;
+}
+function keptStorage(): KeptStorage | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+const sameKept = (a: Pick<KeptSearch, 'account' | 'goal' | 'backupTime'>, b: Pick<KeptSearch, 'account' | 'goal' | 'backupTime'>) =>
+  a.account === b.account && a.goal === b.goal && Math.abs(a.backupTime - b.backupTime) <= KEPT_SAME_SAVE_SECONDS;
+
+export function readKeptSearches(st: KeptStorage | null = keptStorage()): KeptSearch[] {
+  if (!st) return [];
+  try {
+    const v = JSON.parse(st.getItem(KEPT_SEARCH_KEY) ?? '[]') as KeptSearch[];
+    return Array.isArray(v)
+      ? v.filter(e => e && typeof e.account === 'string' && typeof e.goal === 'string' && Number.isFinite(e.backupTime) && !!readSearch(e.search))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Keep one (a newer result for the same account, goal and save replaces the older; an older one is ignored). */
+export function recordKeptSearch(e: KeptSearch, st: KeptStorage | null = keptStorage()): boolean {
+  if (!st || !e.account || !readSearch(e.search)) return false;
+  try {
+    const list = readKeptSearches(st);
+    const old = list.find(x => sameKept(x, e));
+    if (old && old.search.at >= e.search.at) return false;
+    const next = list.filter(x => !sameKept(x, e));
+    next.push(JSON.parse(JSON.stringify(e)) as KeptSearch);
+    next.sort((a, b) => a.search.at - b.search.at);
+    while (next.length > MAX_KEPT_SEARCHES) next.shift();
+    st.setItem(KEPT_SEARCH_KEY, JSON.stringify(next));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** "Go back to the instant answer": the kept result for that account, goal and save is dropped. */
+export function forgetKeptSearch(k: Pick<KeptSearch, 'account' | 'goal' | 'backupTime'>, st: KeptStorage | null = keptStorage()): void {
+  if (!st) return;
+  try {
+    st.setItem(KEPT_SEARCH_KEY, JSON.stringify(readKeptSearches(st).filter(x => !sameKept(x, k))));
+  } catch {
+    // this visit only
+  }
+}
+
+/** "Go back to the instant answer" (`back` true) or "Use your Fast run" (false) for the kept result. */
+export function markKeptBack(
+  k: Pick<KeptSearch, 'account' | 'goal' | 'backupTime'>,
+  back: boolean,
+  st: KeptStorage | null = keptStorage()
+): void {
+  if (!st) return;
+  try {
+    const list = readKeptSearches(st).map(x => (sameKept(x, k) ? { ...x, back } : x));
+    st.setItem(KEPT_SEARCH_KEY, JSON.stringify(list));
+  } catch {
+    // this visit only
+  }
+}
+
+/** The kept result for this account, goal and save, or null. */
+export function findKeptSearch(list: readonly KeptSearch[], k: Pick<KeptSearch, 'account' | 'goal' | 'backupTime'>): KeptSearch | null {
+  let best: KeptSearch | null = null;
+  for (const e of list) if (sameKept(e, k) && (!best || e.search.at > best.search.at)) best = e;
+  return best;
 }

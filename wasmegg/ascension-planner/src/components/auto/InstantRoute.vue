@@ -749,7 +749,7 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { INSTANT_ONE_LINE, pointerOf, POINTER_LINK } from '@/lib/searchPointer';
-import { liveSearchResult, newerSearch, readSearch, type SnapSearch } from '@/lib/searchPlan';
+import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
 
 const props = defineProps<{
@@ -2239,9 +2239,13 @@ const searchFound = computed<SearchFound | null>(() =>
     date: { running: store.deadlineRunning, result: store.deadlineResult, owner: store.deadlineResultOwner },
   })
 );
-// Kept with the snapshot as it lands, so My runs' Right now finds it (the snapshot is saved before a search ends).
+// Kept with the snapshot as it lands, so My runs' Right now finds it (the snapshot is saved before a search ends),
+// and kept beyond the snapshot's day for this save (lib/searchPlan.ts `recordKeptSearch`).
 watch(searchFound, f => {
-  if (!f || status.value !== 'done' || !snapKey) return;
+  if (!f) return;
+  const meta = snapMeta();
+  if (meta) recordKeptSearch({ account: meta.account, goal: meta.goal, backupTime: meta.backupTime, setup: meta.setup, teByEgg: meta.teByEgg, search: f });
+  if (status.value !== 'done' || !snapKey) return;
   if (keptSearch.value && keptSearch.value.at >= f.at) return;
   keptSearch.value = f;
   patchSnapshot(snapKey, { search: JSON.parse(JSON.stringify(f)) });
