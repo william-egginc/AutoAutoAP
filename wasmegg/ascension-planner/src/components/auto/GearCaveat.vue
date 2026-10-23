@@ -16,7 +16,7 @@
       >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its rate at full research). Ascensions that start
       below about TE {{ fullResearchTe }} can take a few percent more or less than these, and may need a longer build
       (one more research sale) than shown: your earnings set, and how your delivery gear does before research is
-      complete, aren't fully taken off. From there up they match. Check exactly gives your own times.</template
+      complete, aren't fully taken off. From there up they match. A Fast search gives your own times.</template
     ><template v-if="gearDiffers && optimistic">{{ ' ' }}</template
     ><span v-if="optimistic" class="font-bold" data-testid="instant-optimistic">{{ OPTIMISTIC_TEXT }}</span>
   </p>

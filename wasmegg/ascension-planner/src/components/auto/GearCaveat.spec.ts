@@ -6,7 +6,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { optimisticForGear } from '@/lib/optimisticAnswer';
 
 // The instant answer's gear caveat and "may be optimistic for your gear" (Jordan, 22 Oct 2026): one amber box.
-const OPT = 'This answer may be optimistic for your gear: Check exactly gives the real number.';
+const OPT = 'This answer may be optimistic for your gear: a Fast search gives the real number.';
 const base = { bonusShort: 0, deliveryScale: 0.94, fullResearchTe: 340 };
 const boxes = (html: string) => (html.match(/bg-amber-50/g) ?? []).length;
 
@@ -38,7 +38,7 @@ describe('GearCaveat', () => {
     expect(boxes(html)).toBe(1);
     expect(text).toContain("Your gear isn't the gear the instant answer was built on (delivery 94.0% of its rate");
     expect(text).toMatch(
-      /Check exactly gives your own times\. This answer may be optimistic for your gear: Check exactly gives the real number\.$/
+      /A Fast search gives your own times\. This answer may be optimistic for your gear: a Fast search gives the real number\.$/
     );
     // The explicit {{ ' ' }} between the two sentences (no run-together "times.This").
     expect(html.replace(/<!--[\s\S]*?-->/g, '')).toContain('own times. <span');
@@ -54,7 +54,8 @@ describe('GearCaveat', () => {
   });
   it('the gear caveat alone (scale 0.96) keeps its words, no label', async () => {
     const text = textOf(await render('maxed', 0.96, true));
-    expect(text).toContain('Check exactly gives your own times.');
+    expect(text).toContain('A Fast search gives your own times.');
+    expect(text).not.toContain('Check exactly');
     expect(text).not.toContain('optimistic');
   });
 });
