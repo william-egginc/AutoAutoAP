@@ -27,6 +27,10 @@
   newer, better one is asked about (BetterRoutePrompt.vue: "Follow it" / "Keep mine"). "Earlier versions"
   (FollowHistory.vue) lists the last 5 saved for the goal, each with Restore. A route read back from online that was
   set with other hours or another simulator says so in one quiet line.
+  A FOLLOWED ROUTE KEEPS ITS TIMELINE (23 Oct 2026, lib/followPrice.ts step 0): following this save's instant answer's own
+  route keeps the instant timeline and its pill ("from the instant answer", rounded, no calendar, "run Fast"); following
+  this save's Fast, Exact or Custom result keeps that result's ("from your Fast run, on your account", exact times,
+  calendar). Only a route that is neither says "not priced on this save yet".
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
@@ -90,7 +94,7 @@
     </p>
 
     <!-- Where the plan comes from (lib/searchPlan.ts): the instant answer or a search's result on the account. -->
-    <div v-if="card && pill && !follow" class="space-y-0.5" data-testid="now-source" :data-source="card.plan.from ? 'search' : 'instant'">
+    <div v-if="card && pill" class="space-y-0.5" data-testid="now-source" :data-source="card.plan.from ? 'search' : 'instant'">
       <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-slate-500">
         <span
           class="rounded px-1.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
@@ -506,8 +510,11 @@ const followNote = computed(() => {
   if (f.source === 'older-save' && f.pricedSave) return `priced on your save of ${dateAt(f.pricedSave, props.now, props.zone)}, may have drifted`;
   return '';
 });
-/** "Price it ›" and "Simulate it ›": whenever the route has no Check exactly times of this save. */
-const offerPrice = computed(() => !!props.follow && (props.follow.price !== 'exact' || props.follow.source === 'older-save'));
+/** "Run Fast ›" and "Simulate it ›": whenever the route has no timeline of this save (the instant answer's has its
+ *  own "run Fast" under the events). */
+const offerPrice = computed(
+  () => !!props.follow && ((props.follow.price !== 'exact' && props.follow.price !== 'instant') || props.follow.source === 'older-save')
+);
 /** The goal asked for: the card's, else the selected option's (a followed route with no plan yet). */
 const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: number | null }>(() => {
   if (props.card) return props.card.goal;

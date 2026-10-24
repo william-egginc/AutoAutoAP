@@ -108,9 +108,9 @@ import { whichSet } from '@/lib/gearMatch';
 import { phaseNow } from '@/lib/nowPhase';
 import { startLines } from '@/lib/nowStart';
 import { useFollowStore } from '@/stores/follow';
-import { followPrice, type FollowSnap } from '@/lib/followPrice';
+import { followPrice, type FollowResult, type FollowSnap } from '@/lib/followPrice';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
-import { hoursOf, sameHours, setWithOtherWords } from '@/lib/followCloud';
+import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 
@@ -145,9 +145,10 @@ export interface FollowCard {
   /** The route shown: as priced (a plan's), else the stops still ahead of the save. */
   chain: number[];
   from: FollowFrom;
-  /** 'exact': Check exactly's times kept (the card's plan is it); 'finish': only its finish, from Check exactly's
-   *  history; 'none': not priced yet. */
-  price: 'exact' | 'finish' | 'none';
+  /** 'exact': the simulator's times kept (Check exactly's, or this save's Fast, Exact or Custom result: the card's
+   *  plan is it); 'instant': this save's instant answer has this route (its rounded times are the card's plan);
+   *  'finish': only its finish, from Check exactly's history; 'none': not priced yet. */
+  price: 'exact' | 'instant' | 'finish' | 'none';
   source: 'this-save' | 'setup-changed' | 'older-save' | 'history' | null;
   /** The save it was priced from, unix seconds (an older save's, or the history entry's); null when not known. */
   pricedSave: number | null;
@@ -583,6 +584,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const sel = planGoals.value.find(p => p.goal.key === selectedGoal.value);
     const f = sel ? follows.followed(sel.goal.key) : null;
     if (!sel || !f || !hasSave.value) return null;
+    // A result kept with the snapshot or beyond it: the parsed copies are read again.
+    void kept.value;
     const g = goalOf(sel.goal);
     const gi = keys.value.findIndex(k => k.d.key === sel.goal.key);
     const sn = setupNow.value;
@@ -606,6 +609,18 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         const te = Array.isArray(m.teByEgg) && m.teByEgg.length ? m.teByEgg.reduce((a, b) => a + b, 0) : null;
         snaps.push({ snap: sp, startTE: te, ownKey: false, check: setupCheck(m.setup ?? null, sn.setup, sn.today) });
       }
+    // This save's Fast, Exact or Custom results for the goal (the store's, the one kept beyond the snapshot): a followed
+    // route that is one of them keeps its timeline (lib/followPrice.ts step 0).
+    const results: FollowResult[] = [];
+    const live = liveFor(g);
+    if (live) results.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }, check: currentSetup(sn.setup) });
+    const k = keptFor(g);
+    if (k)
+      results.push({
+        found: k.search,
+        meta: { account: k.account, goal: k.goal, backupTime: k.backupTime, teByEgg: k.teByEgg, setup: k.setup },
+        check: currentSetup(sn.setup),
+      });
     const price = followPrice({
       chain: f.chain,
       goal: g,
@@ -615,13 +630,16 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       history: history.value,
       goalIndex: Math.max(0, gi),
       goalKey: sel.goal.key,
+      results,
+      // Picked on the instant answer (or read back from online as the instant answer's): its own times lead.
+      prefer: (f.source ?? sourceOfFrom(f.from)) === 'instant' ? 'instant' : 'search',
     });
     if (price.priced === 'exact') {
       const p = price.plan;
       const card: FollowCard = {
         chain: [...p.chain],
         from: f.from,
-        price: 'exact',
+        price: p.exact ? 'exact' : 'instant',
         source: price.source,
         pricedSave: p.meta?.backupTime ?? null,
         ...(g.deadline && !finishesBefore(planFinish(p), g.deadline) ? { missesDate: true } : {}),
