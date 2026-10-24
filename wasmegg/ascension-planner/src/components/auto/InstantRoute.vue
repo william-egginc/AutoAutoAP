@@ -704,6 +704,8 @@ import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
+import { cardDeliveryScale, readKept } from '@/search/instantScale';
+import { getSimulationContext } from '@/engine/adapter';
 import type { SearchInputs, TimeOffWindow } from '@/search/types';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
@@ -944,21 +946,32 @@ const backgroundStatus = ref<'idle' | 'running' | 'done'>('idle');
 const gains = ref<PolishGain[]>([]);
 const gainsText = computed(() => describeGains(gains.value, !!props.deadline));
 
-/** The player's earnings set's Clothed TE bonus (read from the save the planner loaded). */
-const bonus = computed(() => {
-  const inv = store.readInventory();
-  return inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)) : 0;
-});
+/** The player's earnings set's Clothed TE bonus (read from the save the planner loaded). A reading that throws keeps
+ *  the last good one (search/instantScale.ts `readKept`): never the reason the card can't be drawn. */
+const lastBonus = { value: 0 };
+const bonus = computed(() =>
+  readKept(
+    () => {
+      const inv = store.readInventory();
+      return inv.earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(inv.earnings)) : 0;
+    },
+    lastBonus,
+    err => console.warn('instant answer: the earnings set could not be read', err)
+  )
+);
 
 /** The player's peak delivery rate against the table's (search/leg.ts `instantDeliveryScale`). Null
- *  until the table's header is in. */
-const deliveryScale = computed<number | null>(() => {
-  // The player's own table is their own rate already.
-  if (own.value) return 1;
-  const k3 = header.value?.k3;
-  if (!k3) return header.value ? 1 : null;
-  return instantDeliveryScale(store.collectInputs(), k3);
-});
+ *  until the table's header is in. From the save alone (search/instantScale.ts): not the whole setup, so a day off,
+ *  a no-prestige day or the hours changing no longer re-run it inside the card's update, and a reading that throws
+ *  keeps the last good one. */
+const lastScale = { value: null as number | null };
+const deliveryScale = computed<number | null>(() =>
+  readKept(
+    () => cardDeliveryScale(own.value, header.value, getSimulationContext),
+    lastScale,
+    err => console.warn('instant answer: the delivery scale could not be read', err)
+  )
+);
 
 /** The TE routes are found to: the planner's target, or for a date every TE up to the last. */
 const target = computed(() => (props.deadline ? 490 : store.finalTE));
