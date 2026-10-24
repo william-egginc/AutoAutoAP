@@ -28,6 +28,8 @@ let cacheKey = '';
 let table: Promise<Table> | null = null;
 let tableUrl = '';
 
+/** Kept by URL: an own or gear table's `.v2` name (tableGear.ts v2TableName) is another URL from its plain one, so
+ *  the file read under one name is never reused for the other. */
 function load(url: string): Promise<Table> {
   if (!table || tableUrl !== url) {
     tableUrl = url;

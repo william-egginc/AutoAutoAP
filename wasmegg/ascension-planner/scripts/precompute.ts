@@ -49,12 +49,15 @@
  *                    Record, beside the table, the research levels and delivery set a build waits
  *                    with (DIR/k3.json): the site compares a player's peak delivery rate with the
  *                    table's at that research, with the simulator's own rate function.
- *   --table-name --backup FILE
+ *   --table-name --backup FILE [--v2]
  *                    The file name the save's own table is served under (public/precompute/NAME): a slow
- *                    hash of the player id (search/tableGear.ts), never the id.
+ *                    hash of the player id (search/tableGear.ts), never the id. --v2: the name a version
+ *                    2 table goes under (acct-<hex>.v2.bin; older pages refuse version 2 under the plain one).
  *   --pack --table DIR --out FILE [--fake-below TE]
  *                    Pack a generated table into the one file the site loads
- *                    (search/precomputedTable.ts), covering the start TEs finished so far.
+ *                    (search/precomputedTable.ts), covering the start TEs finished so far. An own or
+ *                    gear table of version 2 must be --out acct-<hex>.v2.bin / gear-<hex>.v2.bin, version
+ *                    1 the plain name: anything else is refused.
  *                    --fake-below fills the rows down to TE from the nearest real one (marked fake),
  *                    only to try the page out before the table reaches a player's TE.
  *   --route-bin FILE --te TE [--start ISO] [--keep N] [--max-asc N] [--stop-max N|none]
@@ -88,7 +91,8 @@
  *   --manifest --backup FILE [--dir public/precompute]
  *                    Write DIR/tables.json: every table there by file name with its earnings bonus,
  *                    delivery k against the maxed table and lowest start TE (the instant answer's
- *                    nearest tables above and below, search/tableBracket.ts). No names.
+ *                    nearest tables above and below, search/tableBracket.ts). No names. Refused when a
+ *                    table is named against its version (search/tableBracket.ts tableFileProblem).
  *   --polish --table DIR ...     The polish (routeFinder.ts polishFound) on one start, from the CLI.
  *   --prune-bench --table DIR [--starts N] [--seed S] [--brute-from FILE] [--wide W] [--candidates C] [--wide-all]
  *                    The finder, the polish (and the stronger polish) against brute force over every
@@ -182,15 +186,18 @@ import { liveFreshBuilds } from '@/search/liveCell';
 import {
   gearChanges,
   gearStamp,
+  gearTableFiles,
   gearTableName,
   gearTableNameV3,
-  gearTableNames,
   colleggtibleEffects,
   legacyGearTableName,
+  ownTableNames,
   simEpicResearch,
   tableName,
+  v2TableName,
   type TableGear,
 } from '@/search/tableGear';
+import { manifestFiles, tableFileProblem } from '@/search/tableBracket';
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { holdRate, paramsAndExtrasOf } from '@/search/tableV2Build';
 import { bestReplay, replayTail } from '@/search/tableV2';
@@ -1031,11 +1038,20 @@ async function routeBin(): Promise<void> {
  * ~/code/aaap-tools/alias-gear-tables.sh): a gear table deployed under its legacy name and copied under
  * its canonical one (search/tableGear.ts gearTableName). The copy is listed as an alias on its
  * table's entry, not as a table of its own, so the nearest-tables pick never sees the same table twice.
+ *
+ * VERSION 2 NAMES (24 Oct 2026): each entry has its `version`; an own or gear table of version 2 must be under its
+ * `.v2` name (acct-<hex>.v2.bin, gear-<hex>.v2.bin) and version 1 under the plain one, or nothing is written (older
+ * pages read the plain names with a loader that refuses version 2). Both files of one table (version 1 for older
+ * pages, version 2 for this one) are two entries; the page prefers the `.v2` one (search/tableBracket.ts preferV2).
  */
 async function manifest(file: string): Promise<void> {
   const dir = arg('dir') ?? 'public/precompute';
   const ctx = (await loadInputs(file)).context;
-  const headerOf = (f: string) => readTable(new Uint8Array(readFileSync(`${dir}/${f}`)).buffer).header;
+  const headers = new Map<string, TableHeader>();
+  const headerOf = (f: string) => {
+    if (!headers.has(f)) headers.set(f, readTable(new Uint8Array(readFileSync(`${dir}/${f}`)).buffer).header);
+    return headers.get(f)!;
+  };
   // The maxed table: table-v2.bin (the page's, search/tableBracket.ts MAXED_TABLE_FILE), else table.bin. Both
   // carry k3 when both are deployed: older pages read table.bin's entry, the v2 page table-v2.bin's.
   const maxedFile = existsSync(`${dir}/table-v2.bin`) ? 'table-v2.bin' : 'table.bin';
@@ -1052,18 +1068,16 @@ async function manifest(file: string): Promise<void> {
   const aliasOf: Record<string, string> = existsSync(`${dir}/aliases.json`)
     ? JSON.parse(readFileSync(`${dir}/aliases.json`, 'utf8'))
     : {};
-  const aliasesFor = (f: string) =>
-    Object.keys(aliasOf)
-      .filter(a => aliasOf[a] === f && existsSync(`${dir}/${a}`))
-      .sort();
-  const out = readdirSync(dir)
-    .filter(f => f.endsWith('.bin') && !(f in aliasOf && existsSync(`${dir}/${aliasOf[f]}`)))
-    .sort()
-    .map(f => {
+  // Every table by its own name, its copies as aliases; refused when one is named against its version (an own or
+  // gear table of version 2 under its plain name: older pages refuse it there, search/tableBracket.ts tableFileProblem).
+  const out = manifestFiles({ files: readdirSync(dir), aliasOf, versionOf: f => headerOf(f).version })
+    .map(({ file: f, version, aliases }) => {
       const h = headerOf(f);
       if (!h.k3) throw new Error(`--manifest: ${f} has no k3`);
       return {
         file: f,
+        // The table version: 2 under a `.v2` name (acct-<hex>.v2.bin, gear-<hex>.v2.bin, table-v2.bin), else 1.
+        version,
         bonus: Number(h.cteBonus.toFixed(2)),
         k: Number((rate(h.k3.delivery) / top).toFixed(4)),
         from: h.from,
@@ -1075,7 +1089,7 @@ async function manifest(file: string): Promise<void> {
         label: h.gear
           ? gearLabel(h.gear, h.cteBonus)
           : maxedLabel(describeLoadoutSlots(h.k3.delivery as Parameters<typeof describeLoadoutSlots>[0]), h.cteBonus),
-        ...(aliasesFor(f).length ? { aliases: aliasesFor(f) } : {}),
+        ...(aliases ? { aliases } : {}),
         // The maxed table's waiting research and delivery set: with them the page can work out a
         // player's gear stamp and delivery k before any table is downloaded (search/tablePrefetch.ts).
         ...(f === 'table.bin' || f === 'table-v2.bin' ? { k3: { research: h.k3.research, delivery: h.k3.delivery } } : {}),
@@ -1117,6 +1131,10 @@ function pack(): void {
   const peakCell = cells.find(c => c.te === PEAK_TE && c.h === 0);
   const v2 = meta.tableVersion === 2;
   if (v2 && fakeBelow !== null) throw new Error('--fake-below is for version 1 tables only');
+  // An own or gear table of version 2 under its `.v2` name, version 1 under the plain one (older pages refuse version 2
+  // under the plain name: search/tableBracket.ts tableFileProblem).
+  const misnamed = tableFileProblem(out, v2 ? 2 : 1);
+  if (misnamed) throw new Error(`--pack: ${misnamed}`);
   const bytes = packTable(
     {
       version: v2 ? 2 : 1,
@@ -2947,8 +2965,9 @@ async function instant2(file: string): Promise<void> {
   let ownFile: string | null = null;
   const id = (inputs.context.rawBackup as { eiUserId?: string } | undefined)?.eiUserId;
   if (id && !standIn) {
-    const name = await tableName(id);
-    if (existsSync(`${dir}/${name}`)) {
+    // Its `.v2` name first, then the plain one (tableGear.ts ownTableNames), as the page.
+    const name = (await ownTableNames(id)).find(n => existsSync(`${dir}/${n}`));
+    if (name) {
       const h = loadBin(name).header;
       const stamp = h.gear ? gearStamp(inputs, inv.earnings, h.gear.research) : null;
       if (h.gear && stamp && !gearChanges(h.gear, stamp).length) ownFile = name;
@@ -2957,7 +2976,7 @@ async function instant2(file: string): Promise<void> {
   let gearFile: string | null = null;
   if (!ownFile && maxed1.header.k3) {
     const stamp = gearStamp(inputs, inv.earnings, maxed1.header.k3.research);
-    if (stamp) for (const n of await gearTableNames(stamp)) if (existsSync(`${dir}/${n}`)) (gearFile ??= n);
+    if (stamp) for (const n of await gearTableFiles(stamp)) if (existsSync(`${dir}/${n}`)) (gearFile ??= n);
   }
   const scale = instantDeliveryScale(inputs, maxed1.header.k3!);
   const forceG = has('force-g');
@@ -3150,10 +3169,11 @@ async function main(): Promise<void> {
     const stamp = gearStamp(inputs, inv.earnings, refK3.research)!;
     // --legacy: the name it had before canonical names (tableGear.ts legacyGearTableName), to match a
     // deployed table to its combo; ~/code/aaap-tools/alias-gear-tables.sh takes it from there.
-    if (has('gear-name'))
-      return console.log(
-        await (has('legacy') ? legacyGearTableName(stamp) : has('v3') ? gearTableNameV3(stamp) : gearTableName(stamp))
-      );
+    // --v2: the name a version 2 table of it goes under (tableGear.ts v2TableName).
+    if (has('gear-name')) {
+      const name = await (has('legacy') ? legacyGearTableName(stamp) : has('v3') ? gearTableNameV3(stamp) : gearTableName(stamp));
+      return console.log(has('v2') ? v2TableName(name) : name);
+    }
     if (has('debug'))
       console.log('inventory as read:', JSON.stringify({ artifacts: inv.artifacts, stones: inv.stones }));
     const label = (sl: { artifact: string; stones: string[] }) =>
@@ -3252,10 +3272,12 @@ async function main(): Promise<void> {
     return;
   }
   if (has('table-name')) {
-    // The file name an account's own table is served under (search/tableGear.ts); the id stays here.
+    // The file name an account's own table is served under (search/tableGear.ts); the id stays here. --v2: the
+    // name a version 2 table goes under (acct-<hex>.v2.bin).
     const id = (JSON.parse(readFileSync(arg('backup')!, 'utf8')) as { eiUserId?: string }).eiUserId;
     if (!id) throw new Error('--table-name: the save has no player id');
-    return console.log(await tableName(id));
+    const name = await tableName(id);
+    return console.log(has('v2') ? v2TableName(name) : name);
   }
   if (has('grid-error')) return gridError();
   if (arg('route-bin')) return routeBin();

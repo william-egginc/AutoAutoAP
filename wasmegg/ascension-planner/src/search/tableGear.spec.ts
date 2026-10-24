@@ -3,11 +3,16 @@ import { describe, expect, it } from 'vitest';
 import {
   colleggtibleEffects,
   gearChanges,
+  gearTableFiles,
   gearTableName,
   gearTableNameV3,
   gearTableNames,
   legacyGearTableName,
+  ownTableNames,
+  plainTableName,
   simEpicResearch,
+  tableName,
+  v2TableName,
   type TableGear,
 } from './tableGear';
 
@@ -139,6 +144,34 @@ describe('gear table names', () => {
       await gearTableName(stamp()),
       await legacyGearTableName(stamp()),
     ]);
+  });
+});
+
+describe('version 2 names (older pages refuse version 2 under the plain name)', () => {
+  const ID = 'EI1234567890123456';
+
+  it('the .v2 name of an own or gear name, and back', () => {
+    const hex = '0123456789abcdef01234567';
+    expect(v2TableName(`acct-${hex}.bin`)).toBe(`acct-${hex}.v2.bin`);
+    expect(v2TableName(`gear-${hex}.bin`)).toBe(`gear-${hex}.v2.bin`);
+    expect(v2TableName(`acct-${hex}.v2.bin`)).toBe(`acct-${hex}.v2.bin`);
+    expect(plainTableName(`acct-${hex}.v2.bin`)).toBe(`acct-${hex}.bin`);
+    expect(plainTableName(`gear-${hex}.v2.bin`)).toBe(`gear-${hex}.bin`);
+    expect(plainTableName(`gear-${hex}.bin`)).toBe(`gear-${hex}.bin`);
+    // The maxed table's name is its own (tableBracket.ts MAXED_TABLE_FILE), not a .v2 name.
+    expect(plainTableName('table-v2.bin')).toBe('table-v2.bin');
+  });
+
+  it('own: the .v2 name first, then the plain one', async () => {
+    const plain = await tableName(ID);
+    expect(plain).toMatch(/^acct-[0-9a-f]{24}\.bin$/);
+    expect(await ownTableNames(ID)).toEqual([plain.replace(/\.bin$/, '.v2.bin'), plain]);
+  });
+
+  it('gear: every .v2 name (v3, v2 canonical, legacy) before any plain one', async () => {
+    const names = await gearTableNames(stamp());
+    expect(names).toHaveLength(3);
+    expect(await gearTableFiles(stamp())).toEqual([...names.map(n => n.replace(/\.bin$/, '.v2.bin')), ...names]);
   });
 });
 

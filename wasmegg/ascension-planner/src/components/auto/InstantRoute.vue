@@ -667,7 +667,7 @@ import {
   TABLE_LOAD_FAILED,
   TABLE_OLDER_PAGE,
   isTableStall,
-  probeHeader,
+  probeFirst,
   tableLoadFailed,
   tableNewerThanPage,
 } from '@/search/tableFetch';
@@ -766,7 +766,7 @@ import { simulateRoute } from '@/search/simulateRoute';
 import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { followedCount } from '@/lib/ascRange';
-import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName, tableName } from '@/search/tableGear';
+import { GEAR_RULE, gearChanges, gearStamp, gearTableFiles, legacyGearTableName, ownTableNames } from '@/search/tableGear';
 import { compositeUrl, gearShiftUrl, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -862,13 +862,17 @@ const GEAR_TABLE_TO = 340;
 const ownChanged = ref('');
 
 /** Where the player's own table would be: a slow hash of their id (search/tableGear.ts), worked
- *  out once per id; the id never leaves the page. Null without a save. */
-let ownName: { id: string; name: Promise<string> } | null = null;
-async function ownTableUrl(): Promise<string | null> {
+ *  out once per id; the id never leaves the page. Its `.v2` name, then the plain one (tableGear.ts
+ *  ownTableNames: older pages refuse a version 2 file under the plain name). None without a save. */
+let ownName: { id: string; names: Promise<string[]> } | null = null;
+function ownNames(id: string): Promise<string[]> {
+  if (ownName?.id !== id) ownName = { id, names: ownTableNames(id) };
+  return ownName.names;
+}
+async function ownTableUrls(): Promise<string[]> {
   const id = (store.collectInputs().context.rawBackup as { eiUserId?: string } | undefined)?.eiUserId;
-  if (!id) return null;
-  if (ownName?.id !== id) ownName = { id, name: tableName(id) };
-  return `${import.meta.env.BASE_URL}precompute/${await ownName.name}`;
+  if (!id) return [];
+  return (await ownNames(id)).map(n => `${import.meta.env.BASE_URL}precompute/${n}`);
 }
 
 const status = ref<'idle' | 'loading' | 'error' | 'done'>('idle');
@@ -1608,9 +1612,11 @@ async function run(force = false, goAhead = false): Promise<void> {
     let h: TableHeader | null = null;
     let mismatch = '';
     stampHash.value = '';
-    const mine = await ownTableUrl().catch(() => null);
-    // No table of their own (the usual case): the maxed one. A stall stops here (`probeHeader`).
-    const oh = mine ? await probeHeader(() => p.header(mine)) : null;
+    // Under its `.v2` name, else the plain one: one this page can't read is none (tableFetch.ts probeFirst).
+    // No table of their own (the usual case): the maxed one. A stall stops here.
+    const ownHit = await probeFirst(await ownTableUrls().catch(() => []), u => p.header(u));
+    const mine = ownHit?.url ?? null;
+    const oh = ownHit?.header ?? null;
     if (oh?.gear && mine) {
       const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, oh.gear.research);
       const changes = stamp ? gearChanges(oh.gear, stamp) : ['gear'];
@@ -1632,9 +1638,10 @@ async function run(force = false, goAhead = false): Promise<void> {
         // matches to the deployed files (tableGear.ts legacyGearTableName).
         stampHash.value = (await legacyGearTableName(stamp)).replace(/^gear-|\.bin$/g, '');
         const scale = instantDeliveryScale(store.collectInputs(), h.k3);
-        // The canonical name first (the same gear however it is worn), then the legacy one.
+        // The canonical name first (the same gear however it is worn), then the legacy one; each `.v2` name
+        // before any plain one (tableGear.ts gearTableFiles).
         let found = false;
-        for (const gearName of await gearTableNames(stamp)) {
+        for (const gearName of await gearTableFiles(stamp)) {
           const gearUrl = `${import.meta.env.BASE_URL}precompute/${gearName}`;
           const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
           try {
@@ -2228,13 +2235,10 @@ async function currentTables(): Promise<string | null> {
     if (!entries) return null;
     const names: string[] = [];
     const id = (store.collectInputs().context.rawBackup as { eiUserId?: string } | undefined)?.eiUserId;
-    if (id) {
-      if (ownName?.id !== id) ownName = { id, name: tableName(id) };
-      names.push(await ownName.name);
-    }
+    if (id) names.push(...(await ownNames(id)));
     const k3 = entries.find(e => e.file === MAXED_TABLE_FILE)?.k3 as TableHeader['k3'] | undefined;
     const stamp = k3 ? gearStamp(store.collectInputs(), store.readInventory().earnings, k3.research) : null;
-    if (stamp) names.push(...(await gearTableNames(stamp)));
+    if (stamp) names.push(...(await gearTableFiles(stamp)));
     names.push(MAXED_TABLE_FILE);
     return tablesIdentity(entries, names);
   } catch {
