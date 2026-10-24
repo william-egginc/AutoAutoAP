@@ -1069,6 +1069,8 @@ async function manifest(file: string): Promise<void> {
         from: h.from,
         // The simulator its cells came from (search/simVersion.ts); absent on an unstamped table.
         ...(h.simVersion ? { simVersion: h.simVersion } : {}),
+        // When it was built: a saved instant answer is worked out again when its tables change (search/instantTables.ts).
+        builtAt: h.builtAt,
         // The gear in words (search/tableLabel.ts), e.g. `LLLL · 11 T4 stones · bonus 128.7`.
         label: h.gear
           ? gearLabel(h.gear, h.cteBonus)

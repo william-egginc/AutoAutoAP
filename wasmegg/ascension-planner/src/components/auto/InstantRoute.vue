@@ -757,11 +757,11 @@ import {
   readSnapshot,
   recallShown,
   rememberShown,
-  snapshotUsable,
   writeSnapshot,
   type SnapMeta,
   type SnapWhatIf,
 } from '@/search/instantSnapshot';
+import { savedAnswerFits, tablesIdentity } from '@/search/instantTables';
 import { simulateRoute } from '@/search/simulateRoute';
 import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
 import NoInstantAnswer from './NoInstantAnswer.vue';
@@ -1548,20 +1548,27 @@ async function run(force = false, goAhead = false): Promise<void> {
   prestigeLater = false;
   prestigeInputs = null;
   if (prestigeStatus.value === 'running') prestigeStatus.value = 'idle';
+  // The tables there are now (tables.json, a few KB; search/instantTables.ts): a saved answer made from others is
+  // worked out again, and this answer is saved with them. A short wait, shown as loading (`tablesWait`).
+  tablesWait.value = true;
+  const tablesNow = await currentTables().finally(() => (tablesWait.value = false));
+  if (id !== runs) return;
+  runTables = tablesNow;
   // The old saved answer stays until a new one is saved over it (saveSnapshot): a forced run that is
   // stopped, superseded or fails must not leave the player with nothing.
-  // One whose gear note an older gear rule gave is not shown again (search/instantSnapshot.ts).
-  const saved = !force && snapshotUsable(readSnapshot<InstantSnapshot>(snapKey), GEAR_RULE);
+  // One whose gear note an older gear rule gave is not shown again (search/instantSnapshot.ts), nor one made from
+  // other tables than there are now.
+  const saved = !force && savedAnswerFits(readSnapshot<InstantSnapshot>(snapKey), GEAR_RULE, tablesNow);
   // Pressing "Work it out again" is the go-ahead: it must not drop to "waits" while a search runs.
   const what = onArrival({ runBusy: runBusy.value, hasSaved: saved, goAhead: goAhead || force });
-  if (what === 'restore' && restoreSnapshot()) return;
+  if (what === 'restore' && restoreSnapshot(tablesNow)) return;
   if (what === 'wait' || (what === 'restore' && runBusy.value && !goAhead)) {
     // A search has the memory: no route workers until it ends or the player says go ahead. The
     // answer on screen stays, as the previous one (search/instantDeferral.ts whileWaiting); a panel
     // opened again with none shows the one it had when it closed, if it is for the same key.
     if (!result.value) {
       const prev = recallShown<InstantSnapshot>(snapKey);
-      if (prev && snapshotUsable(prev, GEAR_RULE)) applySnapshot(prev);
+      if (prev && savedAnswerFits(prev, GEAR_RULE, tablesNow)) applySnapshot(prev);
     }
     waiting.value = true;
     savedAt.value = null;
@@ -2127,8 +2134,53 @@ interface InstantSnapshot {
   /** The last Fast, Exact or Custom result for this goal and save (lib/searchPlan.ts): My runs' Right now follows it
    *  when it is better than the instant answer (23 Oct 2026). */
   search?: SnapSearch | null;
+  /** The tables the page could read for this player when it was worked out (search/instantTables.ts
+   *  `tablesIdentity`): put back only while they are the same. Absent before 24 Oct 2026; null when tables.json
+   *  couldn't be read. */
+  tables?: string | null;
 }
 let snapKey: string | null = null;
+/** The tables there were when this run started (`tablesIdentity`), saved with its answer. */
+let runTables: string | null = null;
+/** Reading tables.json before a saved answer is put back: loading, for the card's line and By a date's Find. */
+const tablesWait = ref(false);
+/** tables.json, read again at most once a minute (the cache revalidated); null when it can't be read in 5 s. */
+let tablesJson: { at: number; entries: Promise<TableEntry[] | null> } | null = null;
+function readTablesJson(): Promise<TableEntry[] | null> {
+  if (tablesJson && Date.now() - tablesJson.at < 60_000) return tablesJson.entries;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+  const entries = fetch(`${import.meta.env.BASE_URL}precompute/tables.json`, { cache: 'no-cache', signal: ctrl.signal })
+    .then(async res =>
+      !res.ok || /text\/html/.test(res.headers.get('content-type') ?? '') ? null : ((await res.json()) as TableEntry[])
+    )
+    .then(e => (Array.isArray(e) ? e : null))
+    .catch(() => null)
+    .finally(() => clearTimeout(timer));
+  tablesJson = { at: Date.now(), entries };
+  return entries;
+}
+/** The identity of the tables this player's instant answer could read now: their own, their gear's (by every name
+ *  the page tries) and the maxed one (search/instantTables.ts). Null when it can't be told. */
+async function currentTables(): Promise<string | null> {
+  try {
+    const entries = await readTablesJson();
+    if (!entries) return null;
+    const names: string[] = [];
+    const id = (store.collectInputs().context.rawBackup as { eiUserId?: string } | undefined)?.eiUserId;
+    if (id) {
+      if (ownName?.id !== id) ownName = { id, name: tableName(id) };
+      names.push(await ownName.name);
+    }
+    const k3 = entries.find(e => e.file === MAXED_TABLE_FILE)?.k3 as TableHeader['k3'] | undefined;
+    const stamp = k3 ? gearStamp(store.collectInputs(), store.readInventory().earnings, k3.research) : null;
+    if (stamp) names.push(...(await gearTableNames(stamp)));
+    names.push(MAXED_TABLE_FILE);
+    return tablesIdentity(entries, names);
+  } catch {
+    return null;
+  }
+}
 /** When the answer on screen was saved, while it is a saved one (not worked out in this visit). */
 const savedAt = ref<number | null>(null);
 function saveSnapshot(id: number): void {
@@ -2169,6 +2221,7 @@ function currentSnapshot(): InstantSnapshot | null {
       meta: snapMeta(),
       whatIf: whatIfResult.value,
       search: newerSearch(keptSearch.value, searchFound.value),
+      tables: runTables,
     })
   ) as InstantSnapshot;
 }
@@ -2204,9 +2257,9 @@ function onWhatIf(r: SnapWhatIf): void {
 onUnmounted(() => {
   if (status.value === 'done' && snapKey) rememberShown(snapKey, currentSnapshot());
 });
-function restoreSnapshot(): boolean {
+function restoreSnapshot(tablesNow: string | null): boolean {
   const s = readSnapshot<InstantSnapshot>(snapKey);
-  if (!s || s.v !== 1 || !s.result || !s.header || !snapshotUsable(s, GEAR_RULE)) return false;
+  if (!s || s.v !== 1 || !s.result || !s.header || !savedAnswerFits(s, GEAR_RULE, tablesNow)) return false;
   applySnapshot(s);
   return true;
 }
@@ -2306,13 +2359,13 @@ watch(result, () => {
 const saveWaitText = computed(() => startWaitText(store.startWait));
 /** The card's line when it would otherwise show nothing (search/instantDeferral.ts `idleLine`). */
 const idle = computed(() =>
-  idleLine({ due: runDue.value, setupLoaded: store.setupLoaded, te: Math.floor(store.currentTE) })
+  idleLine({ due: runDue.value || tablesWait.value, setupLoaded: store.setupLoaded, te: Math.floor(store.currentTE) })
 );
 
 /** By a date: the answer still being worked out (or about to be, or Your setup still loading), in with a
  *  route, or settled with none, for the panel's Find (`state` event). */
 const instantState = computed<InstantState>(() => {
-  if (runDue.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';
+  if (runDue.value || tablesWait.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';
   return status.value === 'done' && result.value ? 'answer' : 'none';
 });
 watch(instantState, s => emit('state', s), { immediate: true });

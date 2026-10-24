@@ -32,6 +32,9 @@ export interface TableEntry {
   aliases?: string[];
   /** The simulator its cells came from (TableHeader.simVersion); absent on an unstamped table. */
   simVersion?: string;
+  /** When it was built (TableHeader.builtAt); absent in a tables.json written before 24 Oct 2026. A saved instant
+   *  answer is worked out again when it changes (search/instantTables.ts). */
+  builtAt?: string;
   /** On the maxed table's entry only: its waiting research and delivery set (TableHeader.k3). */
   k3?: { research: Record<string, number>; delivery: unknown[] };
 }

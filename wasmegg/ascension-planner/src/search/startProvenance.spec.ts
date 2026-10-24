@@ -247,7 +247,7 @@ describe('the instant answer waits for the save (InstantRoute.vue)', () => {
       /async function shareResult\(k: string\): Promise<void> \{\s*const f = searchFound\.value;\s*if \([^)]*store\.startWait[^)]*\) return;/
     );
     expect(script).toContain(
-      "if (runDue.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';"
+      "if (runDue.value || tablesWait.value || !store.setupLoaded || store.startWait || status.value === 'loading') return 'loading';"
     );
   });
 
