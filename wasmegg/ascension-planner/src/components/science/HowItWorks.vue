@@ -131,8 +131,9 @@
           follows the size of your boxes. The Fast and Very high
           figures rest on very few runs, and the 8- and 16-core figures are estimates fitted from other machines. A tab
           in the background runs several times slower, so keep it in front. On {{ NAMES.fastest }}, a short Fast search
-          often found a route sooner than the instant answer's: at least a day in 9 of 12 runs, though some of that gap
-          may come from how the instant route is priced. Going bigger (Exact, Very high, {{ NAMES.full }}) rarely added
+          often found a route at least a day sooner than the instant answer's, on about 5 accounts before 23 Oct. Treat
+          that as an upper bound: part of the gap came from how the old instant answer was priced, and it has not been
+          measured again since. Going bigger (Exact, Very high, {{ NAMES.full }}) rarely added
           more. On {{ NAMES.byDate }}, no search up to 13 Oct beat the instant answer's TE, but that rests on 2
           like-for-like runs, both on one developer's save starting below TE 150 (5 counting runs held to fewer
           ascensions). Both reached the same TE; one was a 43.7-hour search, and a 7-minute one found the same route. We will update these figures as more runs

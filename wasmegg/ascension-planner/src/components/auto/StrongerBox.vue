@@ -117,7 +117,7 @@ const levels = computed<LevelText[]>(() =>
           id: 'quick',
           does: `${NAMES.smart}. Starting from the instant answer's route, it moves one stop at a time, up to 8 TE either way, until nothing gets faster. Then it gives the other numbers of ascensions in your limits a quick try.`,
           time: `${EFFORT_NOTES.quick.typicalTime}`,
-          finds: "A faster route close to the instant answer's. In players' runs so far, a short search like this found one at least a day sooner in 9 of 12 runs (a small sample; some of that gap may be how the instant route is priced). It can miss one where several stops have to move together, or one far from it.",
+          finds: "A faster route close to the instant answer's. In players' runs before 23 Oct, on about 5 accounts, a short search like this often found one at least a day sooner. Treat that as an upper bound: part of the gap was how the old instant answer was priced, and it has not been measured again since. It can miss a route where several stops have to move together, or one far from it.",
         },
         {
           id: 'normal',
@@ -202,7 +202,7 @@ const promises = computed<string[]>(() => {
     miss,
     "It starts from the instant answer's route (or the one you picked) and never scans every route, so a poor start can leave it near a poor answer.",
     `It is a strong nearby answer, never a proven best: Custom (${NAMES.full}) proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
-    "In players' runs so far, a short search (Fast) often found a route days sooner than the instant answer's: at least a day in 9 of 12 runs. Going bigger rarely added more. That sample is small.",
+    "In players' runs before 23 Oct, on about 5 accounts, a short search (Fast) often found a route at least a day sooner than the instant answer's. That is an upper bound from the old instant answer, not measured again since. Going bigger rarely added more. That sample is small.",
     TIMING,
     `${STOP} A refresh is safe: its progress is saved and carries on without re-simulating anything.`,
   ];
