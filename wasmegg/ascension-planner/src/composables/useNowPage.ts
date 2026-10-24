@@ -809,6 +809,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return s?.state === 'failed' ? s.words : '';
   });
 
+  /** The followed route of the selected goal isn't saved online (stores/follow.ts `notSaved`): Right now says so, with
+   *  "Save it online". */
+  const followNotSaved = computed(() => !!followState.value && follows.notSaved(selectedGoal.value));
+  /** "Save it online": the followed route of the selected goal saved now (a Follow press's save). */
+  function saveFollowOnline(): void {
+    const g = selectedGoal.value;
+    if (g) void follows.saveNow(g);
+  }
+
   /** "Go back to the instant answer": the selected goal follows its instant plan until a newer result lands. */
   function goBackToInstant(): void {
     const c = cardPlan.value;
@@ -1039,6 +1048,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     betterRoute,
     followSetWith,
     followSaveWords,
+    followNotSaved,
+    saveFollowOnline,
     goalChoices,
     selectedGoal,
     selectGoal,

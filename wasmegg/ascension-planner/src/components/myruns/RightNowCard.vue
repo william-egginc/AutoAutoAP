@@ -140,7 +140,20 @@
 
     <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
     <p v-if="follow && followSetWith" class="text-[12px] text-slate-500" data-testid="now-follow-set-with">{{ followSetWith }}</p>
-    <p v-if="follow && followSaveWords" class="text-[12px] text-amber-800" role="status" data-testid="now-follow-save">{{ followSaveWords }}</p>
+    <!-- Not saved online (a press that didn't get through, its retry too): said, with "Save it online" (stores/follow.ts
+         `notSaved`). -->
+    <p v-if="follow && (followSaveWords || followNotSaved)" class="text-[12px] text-amber-800" role="status" :data-testid="followSaveWords ? 'now-follow-save' : 'now-follow-unsaved'">
+      {{ followSaveWords || NOT_SAVED_WORDS }}<template v-if="followNotSaved">{{ ' ' }}</template>
+      <button
+        v-if="followNotSaved"
+        type="button"
+        class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-save-now"
+        @click="emit('saveOnline')"
+      >
+        Save it online ›
+      </button>
+    </p>
     <!-- A newer, better result for the goal while a route is followed: asked, never swapped in (lib/searchPlan.ts). -->
     <BetterRoutePrompt
       v-if="follow && betterRoute"
@@ -398,6 +411,7 @@ import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
 import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
 import { askGoal, recalcButton, recalcWords, type RecalcRequest } from '@/lib/recalc';
 import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
+import { NOT_SAVED_WORDS } from '@/lib/followCloud';
 import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
@@ -446,6 +460,8 @@ const props = defineProps<{
   followSetWith?: string;
   /** The last Follow press couldn't be saved online: why, in words. */
   followSaveWords?: string;
+  /** The followed route isn't saved online (stores/follow.ts `notSaved`): said, with "Save it online". */
+  followNotSaved?: boolean;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -462,6 +478,7 @@ const emit = defineEmits<{
   follow: [chain: number[]];
   /** "Use the checked route ›": back to the planner's pick for this goal. */
   unfollow: [];
+  saveOnline: [];
   /** "Simulate it ›": the followed route in Single run (search/simulateRoute.ts). */
   simulate: [chain: number[]];
 }>();

@@ -357,6 +357,12 @@ describe('the prompt and Earlier versions on their own', () => {
     expect(hist).toContain('<span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>');
     expect(hist).toContain('<p v-if="message" class="mt-1 text-amber-800"');
     expect(hist).not.toMatch(/rose|red-/);
-    expect(card).toMatch(/text-amber-800" role="status" data-testid="now-follow-save"/);
+    expect(card).toMatch(/text-amber-800" role="status" :data-testid="followSaveWords \? 'now-follow-save' : 'now-follow-unsaved'"/);
+    // Not saved online: said, with "Save it online" (44 px on a phone) calling the store's save.
+    expect(card).toContain('data-testid="now-follow-save-now"');
+    expect(card).toContain("@click=\"emit('saveOnline')\"");
+    const view = read('../MyRunsView.vue');
+    expect(view).toContain(':follow-not-saved="page.followNotSaved.value"');
+    expect(view).toContain('@save-online="page.saveFollowOnline"');
   });
 });

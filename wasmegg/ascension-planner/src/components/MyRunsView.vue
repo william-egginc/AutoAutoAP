@@ -65,6 +65,8 @@
         :better-route="page.betterRoute.value"
         :follow-set-with="page.followSetWith.value"
         :follow-save-words="page.followSaveWords.value"
+        :follow-not-saved="page.followNotSaved.value"
+        @save-online="page.saveFollowOnline"
         @open="to => emit('open', to)"
         @select="page.selectGoal"
         @start-times="openStartTimes"

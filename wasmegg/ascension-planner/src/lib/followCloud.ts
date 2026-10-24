@@ -356,6 +356,9 @@ export function saveFailWords(why: CloudFail): string {
   return "Couldn't save the route online right now; it is still followed in this browser.";
 }
 
+/** Right now's note when the followed route isn't saved online (stores/follow.ts `notSaved`), before "Save it online". */
+export const NOT_SAVED_WORDS = 'Not saved online yet: your other devices don’t see this route.';
+
 /** Right now's quiet note when a saved route was set with other hours or another simulator than the player's now. */
 export function setWithOtherWords(o: { hours: boolean; sim: boolean }): string {
   if (o.hours && o.sim) return 'This route was set with a different hours window and simulator version.';
