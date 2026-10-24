@@ -336,7 +336,7 @@ describe('the prompt and Earlier versions on their own', () => {
       follows.reset();
     };
     const hashOf = await hashID(A_ID);
-    const shown = async (p: object = props) => textOf(await renderHtml(BetterRoutePrompt, p, {}, [pinia]));
+    const shown = async (p: Record<string, unknown> = props) => textOf(await renderHtml(BetterRoutePrompt, p, {}, [pinia]));
     // Unpriced (typed): the instant answer asks, with the reported words.
     keep({ from: 'typed', source: 'manual' });
     expect(await shown()).toMatch(/^This is a better route than the one you're following \(314 TE, 9\.7 h to spare vs 313 TE, 1\.4 days to spare\)/);
