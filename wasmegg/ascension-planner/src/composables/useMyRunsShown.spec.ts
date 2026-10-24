@@ -6,13 +6,13 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, ref } from 'vue';
-import { createPinia, defineStore, setActivePinia } from 'pinia';
+import { createPinia, defineStore, getActivePinia, setActivePinia } from 'pinia';
 
 const library = { runs: 0, answers: 0 };
 vi.mock('@/search/runLibrary', () => ({ listRuns: async () => Array.from({ length: library.runs }, () => ({})) }));
 vi.mock('@/search/deadlineStore', () => ({ listSavedAnswers: async () => Array.from({ length: library.answers }, () => ({})) }));
 
-import { markMyRunsSeen, useMyRunsShown } from './useMyRunsShown';
+import { followedInStore, markMyRunsSeen, useMyRunsShown } from './useMyRunsShown';
 import { MY_RUNS_SEEN_PREFIX, myRunsTab, noteMyRuns } from '@/lib/myRunsShown';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useFollowStore } from '@/stores/follow';
@@ -157,6 +157,86 @@ describe('what the account has', () => {
     playerId.value = OTHER;
     await vi.waitFor(() => expect(content.value).toBe('none'));
     scope.stop();
+  });
+});
+
+describe('a follow counts at once (QA 24 Oct 2026, Safari: Follow this route left My runs hidden)', () => {
+  function shownWith(typed: string, saveId: string) {
+    const playerId = ref(typed);
+    const raw = ref<unknown>({ eiUserId: saveId });
+    const scope = effectScope();
+    const { content } = scope.run(() => useMyRunsShown({ playerId: () => playerId.value, rawBackup: () => raw.value }))!;
+    return { content, scope };
+  }
+
+  it('a Follow press on another screen (store made after the tab rule) shows it, when the save carries another ID than the one typed', async () => {
+    defineStore('chainSearch', () => ({ submitUrl: '', availability: null }))();
+    useInitialStateStore().rawBackup = { eiUserId: OTHER } as never;
+    const { content, scope } = shownWith(ID, OTHER);
+    await settled(content);
+    expect(content.value).toBe('none');
+    // The store is made by the screen with the Follow button, after App's rule started.
+    const follows = useFollowStore();
+    await vi.waitFor(() => expect(follows.partition).not.toBe(''));
+    expect(await follows.follow('target 490', [222, 490], 'answer')).toBe(true);
+    await nextTick();
+    // Right away: no storage read waited for.
+    expect(content.value).toBe('some');
+    await new Promise(r => setTimeout(r, 10));
+    expect(content.value).toBe('some');
+    scope.stop();
+  });
+
+  it('a follow kept only in memory (storage writes refused) shows it', async () => {
+    (localStorage as { setItem: unknown }).setItem = () => {
+      throw new DOMException('full', 'QuotaExceededError');
+    };
+    defineStore('chainSearch', () => ({ submitUrl: '', availability: null }))();
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    const follows = useFollowStore();
+    const { content, scope } = shownWith(ID, ID);
+    await settled(content);
+    expect(content.value).toBe('none');
+    await vi.waitFor(() => expect(follows.partition).not.toBe(''));
+    expect(await follows.follow('target 490', [222, 490], 'answer')).toBe(true);
+    await nextTick();
+    expect(content.value).toBe('some');
+    await new Promise(r => setTimeout(r, 10));
+    expect(content.value).toBe('some');
+    scope.stop();
+  });
+
+  it('an automatic follow (Fastest to 490) shows it at once too', async () => {
+    defineStore('chainSearch', () => ({ submitUrl: '', availability: null }))();
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    const follows = useFollowStore();
+    const { content, scope } = shownWith(ID, ID);
+    await settled(content);
+    expect(content.value).toBe('none');
+    await vi.waitFor(() => expect(follows.autoReady).toBe(true));
+    const now = Math.floor(Date.now() / 1000);
+    const a = instantAutoFollowOf({ route: { chain: [222, 490], end: now + 86400, endTE: 490 }, at: Date.now(), planStart: now, deadline: null, inTime: true, followed: false, goneAt: 0 })!;
+    expect(await follows.autoFollow('fastest-490', a)).toBe(true);
+    await nextTick();
+    expect(content.value).toBe('some');
+    scope.stop();
+  });
+
+  it("the store's follows of an account it hasn't caught up with don't count", async () => {
+    defineStore('chainSearch', () => ({ submitUrl: '', availability: null }))();
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    const follows = useFollowStore();
+    await vi.waitFor(() => expect(follows.partition).not.toBe(''));
+    await follows.follow('target 490', [222, 490], 'answer');
+    // Another account's save, the store still on the last one.
+    expect(followedInStore({ eiUserId: OTHER })).toBe(false);
+    expect(followedInStore({ eiUserId: ID })).toBe(true);
+  });
+
+  it('no follow store made: false, and none is made', () => {
+    expect(followedInStore({ eiUserId: ID })).toBe(false);
+    const pinia = getActivePinia() as unknown as { state: { value: Record<string, unknown> } };
+    expect('follow' in pinia.state.value).toBe(false);
   });
 });
 
