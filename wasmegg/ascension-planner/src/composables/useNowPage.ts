@@ -765,6 +765,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     deadline: number | null;
     candidate: RouteFinish & { chain: number[]; at: number; source: FollowPrompt['source']; planStart: number | null };
     followedFinish: RouteFinish | null;
+    /** The followed route's finish here came from a priced result (a Fast, Exact or Custom timeline, Check exactly's
+     *  price or history): an instant answer never asks about it (lib/searchPlan.ts `followIsPriced`). */
+    followedPriced: boolean;
   } | null>(() => {
     const fs = followState.value;
     const pick = pickedPlan.value;
@@ -791,6 +794,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         planStart: p.planStart,
       },
       followedFinish,
+      followedPriced: fs.card.price === 'exact' || fs.card.price === 'finish',
     };
   });
   /** A followed route read back from online, set with another hours window or simulator than the player's now: the

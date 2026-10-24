@@ -3,7 +3,10 @@
   path; 23 Oct 2026): the followed route is never replaced on its own, so this asks. "Follow it" is a Follow press
   (stores/follow.ts: kept here and saved online); "Keep mine" hides it for this result (remembered in this browser).
   On Right now (RightNowCard.vue, with the followed route's own price as `followedFinish`) and on the result cards
-  (the instant card, Fastest's and By a date's search results). Nothing shows without a followed route.
+  (the instant card, Fastest's and By a date's search results). Nothing shows without a followed route. An instant
+  answer never asks about a PRICED follow (lib/searchPlan.ts `followIsPriced`, Jordan 23 Oct 2026): one from a Fast,
+  Exact or Custom result, the route of such a result for this account and goal (kept, or in the search store now), or
+  one Right now priced from a result (`followedPriced`).
 -->
 <template>
   <div
@@ -37,9 +40,14 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { getActivePinia } from 'pinia';
 import { useFollowStore } from '@/stores/follow';
-import { followPrompt, keepMine, readKeptMine, type FollowPrompt, type RouteFinish } from '@/lib/searchPlan';
+import { followIsPriced, followPrompt, keepMine, readKeptMine, readKeptSearches, type FollowPrompt, type RouteFinish } from '@/lib/searchPlan';
 import { dateAt } from '@/lib/eventWhen';
+import { useInitialStateStore } from '@/stores/initialState';
+import { useChainSearchStore } from '@/stores/chainSearch';
+import { accountOf } from '@/search/runSaves';
+import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
 
 const props = defineProps<{
   goalKey: string | null | undefined;
@@ -49,6 +57,9 @@ const props = defineProps<{
   candidate: (RouteFinish & { chain: readonly number[]; at: number; source: FollowPrompt['source']; planStart?: number | null }) | null;
   /** The followed route's finish as priced on this save (Right now); absent: the one saved with it. */
   followedFinish?: RouteFinish | null;
+  /** Right now's finish for the followed route came from a priced result (a Fast, Exact or Custom timeline, or Check
+   *  exactly's): an instant answer never asks then. */
+  followedPriced?: boolean;
   zone?: string;
 }>();
 
@@ -63,10 +74,52 @@ const follows = (() => {
 const kept = ref<string[]>(readKeptMine());
 const zone = computed(() => props.zone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
+/** The Fast, Exact and Custom results of this account for the goal (their routes): the ones kept in this browser
+ *  (aap-search-plans) and the search store's finished one, for `followIsPriced`. Only read for an instant candidate. */
+function resultRoutes(): number[][] {
+  const out: number[][] = [];
+  const target = props.goal === 'fastest' ? Number(/^fastest-(\d+)$/.exec(props.goalKey ?? '')?.[1] ?? NaN) : NaN;
+  const sameGoal = (words: string) => {
+    const m = /^(target|date) (\d+)$/.exec(words);
+    if (!m) return false;
+    return props.goal === 'fastest'
+      ? m[1] === 'target' && Number(m[2]) === target
+      : m[1] === 'date' && props.deadline != null && Math.abs(Number(m[2]) - props.deadline) <= SAME_DEADLINE_SECONDS;
+  };
+  try {
+    const account = accountOf(useInitialStateStore().rawBackup);
+    if (account) for (const k of readKeptSearches()) if (k.account === account && sameGoal(k.goal)) out.push(k.search.chain);
+  } catch {
+    // no stores (a card on its own in a spec)
+  }
+  try {
+    // Only the store the page already made (making it here would write to storage, stores/follow.ts says why).
+    const pinia = getActivePinia() as { state: { value: Record<string, unknown> } } | undefined;
+    if (!pinia || !('chainSearch' in pinia.state.value)) return out;
+    const s = useChainSearchStore();
+    const me = follows?.partition ?? '';
+    const mine = (owner: string) => !owner || !me || owner === me;
+    if (props.goal === 'fastest') {
+      const c = s.bestChain;
+      if (!s.isRunning && s.bestDays > 0 && c.length && c[c.length - 1] === target && mine(s.chainResultOwner)) out.push([...c]);
+    } else {
+      const r = s.deadlineResult;
+      if (r && !s.deadlineRunning && props.deadline != null && Math.abs(r.deadline - props.deadline) <= SAME_DEADLINE_SECONDS && mine(s.deadlineResultOwner))
+        for (const x of r.routes) if (x.chain.length) out.push([...x.chain]);
+    }
+  } catch {
+    // no search store
+  }
+  return out;
+}
+
 const prompt = computed<FollowPrompt | null>(() => {
   if (!follows || !props.goalKey || !props.candidate) return null;
   const f = follows.followed(props.goalKey);
   if (!f) return null;
+  const priced =
+    props.candidate.source === 'instant' &&
+    followIsPriced({ source: f.source, chain: f.chain, pricedByResult: !!props.followedPriced, results: resultRoutes() });
   const finish =
     props.followedFinish ??
     (typeof f.finish === 'number' ? { end: f.finish, endTE: f.endTE ?? f.chain[f.chain.length - 1] ?? 0 } : null);
@@ -75,7 +128,7 @@ const prompt = computed<FollowPrompt | null>(() => {
     goalKey: props.goalKey,
     goal: props.goal,
     deadline: props.deadline,
-    followed: { chain: f.chain, at: f.at, finish },
+    followed: { chain: f.chain, at: f.at, finish, priced },
     candidate: props.candidate,
     keptMine: kept.value,
     when: t => dateAt(t, nowSec, zone.value),

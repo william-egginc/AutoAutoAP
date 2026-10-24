@@ -162,6 +162,7 @@
       :deadline="betterRoute.deadline"
       :candidate="betterRoute.candidate"
       :followed-finish="betterRoute.followedFinish"
+      :followed-priced="!!betterRoute.followedPriced"
       :zone="zone"
     />
     <!-- The last 5 versions saved online for this goal, with Restore (GET /follow/history). -->
@@ -455,6 +456,8 @@ const props = defineProps<{
     deadline: number | null;
     candidate: RouteFinish & { chain: number[]; at: number; source: FollowPrompt['source']; planStart: number | null };
     followedFinish: RouteFinish | null;
+    /** Its finish here came from a priced result: an instant answer never asks (lib/searchPlan.ts `followIsPriced`). */
+    followedPriced?: boolean;
   } | null;
   /** "This route was set with a different hours window / simulator version." ('' or absent: none). */
   followSetWith?: string;

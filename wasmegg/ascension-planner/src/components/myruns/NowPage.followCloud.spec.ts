@@ -320,6 +320,43 @@ describe('the prompt and Earlier versions on their own', () => {
     expect(text).toMatch(/^This is a better route than the one you're following \(\w{3} \d+ at \d+:\d\d [ap]m vs \w{3} \d+ at \d+:\d\d [ap]m\)\. Do you want to follow it\? Follow it Keep mine$/);
   });
 
+  it('an instant answer never asks about a PRICED follow (a kept Fast result with its route, a fast source, Right now\'s priced finish); a typed one still asks; a Fast result asks about either', async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    useInitialStateStore().rawBackup = { eiUserId: A_ID } as never;
+    const follows = useFollowStore();
+    await vi.waitFor(() => expect(follows.partition).not.toBe(''));
+    const now = Math.floor(Date.now() / 1000);
+    const deadline = EGG_DAY_AT;
+    const route = [197, 228, 257, 285, 313];
+    const instant = { chain: [197, 228, 257, 285, 314], end: deadline - 9.7 * H, endTE: 314, at: Date.now(), source: 'instant', planStart: now };
+    const props = { goalKey: `eggday-${nextEggDayYear()}`, goal: 'date', deadline, candidate: instant, zone: ZONE };
+    const keep = (f: Record<string, unknown>) => {
+      mem.set(`${FOLLOW_PREFIX}${hashOf}`, JSON.stringify({ [props.goalKey]: { chain: route, at: Date.now() - 3 * H * 1000, finish: deadline - 1.4 * D, endTE: 313, ...f } }));
+      follows.reset();
+    };
+    const hashOf = await hashID(A_ID);
+    const shown = async (p: object = props) => textOf(await renderHtml(BetterRoutePrompt, p, {}, [pinia]));
+    // Unpriced (typed): the instant answer asks, with the reported words.
+    keep({ from: 'typed', source: 'manual' });
+    expect(await shown()).toMatch(/^This is a better route than the one you're following \(314 TE, 9\.7 h to spare vs 313 TE, 1\.4 days to spare\)/);
+    // Picked on the instant card, but a Fast run of this account kept the same route: priced, nothing asked.
+    keep({ from: 'answer', source: 'instant' });
+    const fast: SnapSearch = { chain: route, end: deadline - 1.4 * D, endTE: 313, at: Date.now() - 60_000, level: 'Fast', planStart: now } as never;
+    recordKeptSearch({ account: accountOf({ eiUserId: A_ID }), goal: instantGoal(deadline, 313), backupTime: now - 17 * H, search: fast });
+    expect(await shown()).toBe('');
+    mem.delete('aap-search-plans');
+    expect(await shown()).not.toBe('');
+    // A fast source, or Right now's finish priced from a result: nothing asked either.
+    keep({ from: 'saved', source: 'fast' });
+    expect(await shown()).toBe('');
+    keep({ from: 'answer', source: 'instant' });
+    expect(await shown({ ...props, followedPriced: true })).toBe('');
+    // A Fast result that is better asks about the priced follow.
+    keep({ from: 'saved', source: 'fast' });
+    expect(await shown({ ...props, candidate: { ...instant, source: 'fast' } })).toMatch(/^This is a better route/);
+  });
+
   it('Earlier versions shows with a collector and an account, nothing without', async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
