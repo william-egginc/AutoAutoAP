@@ -109,3 +109,41 @@ describe('gearCoverage', () => {
     expect(gearCoverage(entries, 'acct-bbb.bin', [])).toBe('none');
   });
 });
+
+describe('.v2 names (an own or gear table of version 2 beside the version 1 one older pages read)', () => {
+  const both: TableEntry[] = [
+    { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120 },
+    { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138 },
+    { file: 'acct-own.v2.bin', bonus: 126.4, k: 0.94, from: 138 },
+    { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120, aliases: ['gear-canon.bin'] },
+    { file: 'gear-mine.v2.bin', bonus: 121.6, k: 0.94, from: 120, aliases: ['gear-canon.v2.bin'] },
+    { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120 },
+  ];
+  const own = ['acct-own.v2.bin', 'acct-own.bin'];
+  const gear = ['gear-canon.v2.bin', 'gear-mine.v2.bin', 'gear-canon.bin', 'gear-mine.bin'];
+
+  it('the own table under its .v2 name when listed, else the plain one', () => {
+    expect(prefetchPlan({ entries: both, own, gear, player: null, te: 150 })).toEqual(['acct-own.v2.bin']);
+    const plainOnly = both.filter(e => e.file !== 'acct-own.v2.bin');
+    expect(prefetchPlan({ entries: plainOnly, own, gear, player: null, te: 150 })).toEqual(['acct-own.bin']);
+  });
+
+  it('the gear table under its first .v2 name listed (file or alias), else a plain one', () => {
+    expect(prefetchPlan({ entries: both, own: null, gear, player: null, te: 150 })).toEqual(['gear-canon.v2.bin', 'table-v2.bin']);
+    const plainOnly = both.filter(e => !e.file.endsWith('.v2.bin') || e.file === 'table-v2.bin');
+    expect(prefetchPlan({ entries: plainOnly, own: null, gear, player: null, te: 150 })).toEqual(['gear-canon.bin', 'table-v2.bin']);
+  });
+
+  it('the nearest tables: the .v2 file, never its plain twin', () => {
+    expect(
+      prefetchPlan({ entries: both, own: null, gear: ['gear-none.bin'], player: { bonus: 125, k: 0.9 }, te: 150 })
+    ).toEqual(['table-v2.bin', 'acct-own.v2.bin', 'gear-weak.bin']);
+  });
+
+  it('gearCoverage: either own name, any gear name', () => {
+    expect(gearCoverage(both, own, [])).toBe('own');
+    expect(gearCoverage(both.filter(e => e.file !== 'acct-own.v2.bin'), own, [])).toBe('own');
+    expect(gearCoverage(both, ['acct-x.v2.bin', 'acct-x.bin'], gear)).toBe('gear');
+    expect(gearCoverage(both, ['acct-x.v2.bin', 'acct-x.bin'], ['gear-z.v2.bin', 'gear-z.bin'])).toBe('none');
+  });
+});

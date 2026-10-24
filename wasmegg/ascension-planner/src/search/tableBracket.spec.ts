@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { MAXED_TABLE_FILE, describeGear, isMaxed, pickBracket, type TableEntry } from './tableBracket';
+import { MAXED_TABLE_FILE, describeGear, isMaxed, pickBracket, preferV2, type TableEntry } from './tableBracket';
 
 const maxed: TableEntry = { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120 };
 const zen: TableEntry = { file: 'gear-zen.bin', bonus: 115.28, k: 0.709, from: 120 };
@@ -37,6 +37,30 @@ describe('pickBracket', () => {
   });
 });
 
+describe('.v2 names: an own or gear table listed under both names (tableGear.ts v2TableName)', () => {
+  const mid2: TableEntry = { ...mid, file: 'gear-mid.v2.bin' };
+  const own1: TableEntry = { file: 'acct-aaa.bin', bonus: 125, k: 0.9, from: 120 };
+  const own2: TableEntry = { ...own1, file: 'acct-aaa.v2.bin' };
+
+  it('preferV2 drops the plain-name entry when its .v2 twin is listed (as a file or an alias), nothing else', () => {
+    expect(preferV2([maxed, mid, mid2, own1, own2])).toEqual([maxed, mid2, own2]);
+    expect(preferV2([maxed, mid, own1])).toEqual([maxed, mid, own1]);
+    // A gear table deployed under its legacy name, its version 2 under the canonical .v2 name with the legacy .v2 alias.
+    const legacy: TableEntry = { ...mid, file: 'gear-legacy.bin' };
+    const canon2: TableEntry = { ...mid, file: 'gear-canon.v2.bin', aliases: ['gear-legacy.v2.bin'] };
+    expect(preferV2([legacy, canon2])).toEqual([canon2]);
+    // The maxed tables are never touched (table.bin is left out by pickBracket itself).
+    expect(preferV2([{ ...maxed, file: 'table.bin' }, maxed])).toHaveLength(2);
+  });
+
+  it('pickBracket prices on the .v2 file, never its plain twin', () => {
+    expect(pickBracket([maxed, zen, mid, mid2], { bonus: 124, k: 0.9 })).toEqual({ above: mid2, below: zen });
+    // Even when the older plain file would sort nearer (another bonus in its entry).
+    const near: TableEntry = { ...mid, bonus: 124.1, k: 0.91 };
+    expect(pickBracket([maxed, zen, near, mid2], { bonus: 124, k: 0.9 })).toEqual({ above: mid2, below: zen });
+  });
+});
+
 describe('isMaxed and describeGear', () => {
   it('maxed only at the top of both numbers', () => {
     expect(isMaxed({ bonus: 128.71, k: 1 })).toBe(true);
@@ -69,5 +93,13 @@ describe('the maxed table under its version 2 name (23 Oct 2026)', () => {
     }
     for (const f of ['composables/useTablePrefetch.ts', 'composables/useGearCoverage.ts', 'components/auto/MaxedWhatIf.vue'])
       expect(read(f), f).toContain('e.file === MAXED_TABLE_FILE');
+  });
+
+  it('own and gear names: every reader takes the .v2 names and the plain ones (tableGear.ts), never one plain name', () => {
+    for (const f of ['components/auto/InstantRoute.vue', 'composables/useTablePrefetch.ts', 'composables/useGearCoverage.ts']) {
+      expect(read(f), f).not.toMatch(/\btableName\(|\bgearTableNames\(/);
+      expect(read(f), f).toContain('ownTableNames(id)');
+      expect(read(f), f).toContain('gearTableFiles(stamp)');
+    }
   });
 });

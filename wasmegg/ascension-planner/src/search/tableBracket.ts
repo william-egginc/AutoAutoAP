@@ -39,6 +39,20 @@ export interface TableEntry {
   k3?: { research: Record<string, number>; delivery: unknown[] };
 }
 
+/**
+ * tables.json as this page reads it: an own or gear table's plain-name entry (`acct-<hex>.bin`, `gear-<hex>.bin`)
+ * left out when the same table is listed under its `.v2` name too, as a file or an alias (tableGear.ts v2TableName:
+ * a version 2 file beside the version 1 one older pages still read). The page reads the `.v2` one, so the nearest
+ * tables never count that table twice nor price on the older file.
+ */
+export function preferV2<T extends Pick<TableEntry, 'file' | 'aliases'>>(entries: readonly T[]): T[] {
+  const listed = new Set(entries.flatMap(e => [e.file, ...(e.aliases ?? [])]));
+  const plain = /^(acct|gear)-.*(?<!\.v2)\.bin$/;
+  return entries.filter(
+    e => !plain.test(e.file) || ![e.file, ...(e.aliases ?? [])].some(n => listed.has(n.replace(/\.bin$/, '.v2.bin')))
+  );
+}
+
 export interface Gear {
   bonus: number;
   k: number;
@@ -70,7 +84,7 @@ export function pickBracket(
   tables: TableEntry[],
   player: Gear
 ): { above: TableEntry | null; below: TableEntry | null } {
-  tables = tables.filter(t => t.file !== LEGACY_MAXED_TABLE_FILE);
+  tables = preferV2(tables).filter(t => t.file !== LEGACY_MAXED_TABLE_FILE);
   const stronger = tables.filter(t => t.bonus >= player.bonus - EPS_BONUS && t.k >= player.k - EPS_K);
   const weaker = tables.filter(
     t => t.bonus <= player.bonus + EPS_BONUS && t.k <= player.k + EPS_K && !stronger.includes(t)
