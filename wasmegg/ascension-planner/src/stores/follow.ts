@@ -10,6 +10,10 @@
  * account reads the saved routes back once, quietly: each goal follows the newer of this browser's and the saved one
  * (by when Follow was pressed). Nothing but a Follow press (or Restore, which is one) writes: not a load, not a
  * result. A failure is quiet: `cloudStatus` 'unreachable' (Setup › Sharing says so) and the save's words per goal.
+ * UNSYNCED (23 Oct 2026): a Follow press whose save didn't get through (no collector yet, offline, 5xx, the hour's
+ * limit) stays `sync: 'pending'`; the next load, after its read, saves it ONCE when nothing newer is saved online for
+ * the goal (`syncPending`). 400 and 413 mark it 'unsyncable' (never tried again). A follow kept before the flag existed
+ * is saved the same way only when nothing at all is saved online for its goal.
  */
 import { defineStore, getActivePinia } from 'pinia';
 import { computed, ref, watch } from 'vue';
@@ -158,6 +162,36 @@ export const useFollowStore = defineStore('follow', () => {
       version.value++;
     }
     cloudStatus.value = 'ok';
+    await syncPending(p, cloud, taken);
+  }
+
+  /** Follows already tried this visit (goal and `at`): one try per load, never a loop. */
+  const tried = new Set<string>();
+  /** Save online, once, each follow of this browser that never got there, unless something newer is saved. */
+  async function syncPending(p: string, cloud: Record<GoalKey, CloudValue>, taken: readonly GoalKey[]): Promise<void> {
+    for (const [g, f] of Object.entries(mapOf(p))) {
+      if (taken.includes(g) || f.cloud || f.sync === 'synced' || f.sync === 'unsyncable') continue;
+      const there = cloud[g];
+      // Something as new or newer online: this one got there (or lost to it).
+      if (there && there.at >= f.at) {
+        if (f.sync) markSync(p, g, f.at, 'synced');
+        continue;
+      }
+      // Kept before the flag: only when nothing at all is saved for the goal.
+      if (!f.sync && there) continue;
+      const once = `${p}|${g}|${f.at}`;
+      if (tried.has(once)) continue;
+      tried.add(once);
+      await saveOnline(g, f, true);
+      if (partition.value !== p) return;
+    }
+  }
+
+  /** Mark a kept follow's save online (only when it is still that follow: same `at`). */
+  function markSync(p: string, goalKey: GoalKey, at: number, sync: NonNullable<Followed['sync']>): void {
+    const f = mapOf(p)[goalKey];
+    if (!f || f.at !== at || f.sync === sync) return;
+    held.set(p, writeFollow(p, goalKey, { ...f, sync }, mapOf(p)));
   }
 
   /** The route followed for a goal of the account (`p`, else the loaded save's), or null. */
@@ -197,22 +231,27 @@ export const useFollowStore = defineStore('follow', () => {
     };
   }
 
-  /** Save one goal's followed route online (only ever from a Follow press). */
-  async function saveOnline(goalKey: GoalKey, f: Followed): Promise<SaveState> {
+  /** Save one goal's followed route online (from a Follow press; `retry`: the next load's one try for a follow that
+   *  never got there, quiet: nothing is said under Right now). Marks the kept follow's `sync`. */
+  async function saveOnline(goalKey: GoalKey, f: Followed, retry = false): Promise<SaveState> {
     const url = followUrl();
+    const p = partition.value;
     if (!url || !cloudKey.value) return { state: 'saved', words: '' };
     const built = buildCloudValue(f);
     if (!built) {
       const s: SaveState = { state: 'failed', why: 'rejected', words: saveFailWords('rejected') };
-      saves.value = { ...saves.value, [goalKey]: s };
+      markSync(p, goalKey, f.at, 'unsyncable');
+      if (!retry) saves.value = { ...saves.value, [goalKey]: s };
       return s;
     }
-    saves.value = { ...saves.value, [goalKey]: { state: 'saving', words: '' } };
+    if (!retry) saves.value = { ...saves.value, [goalKey]: { state: 'saving', words: '' } };
     const r = await putFollow(url, cloudKey.value, goalKey, built.value);
     const s: SaveState = r.ok
       ? { state: 'saved', words: '', ...(built.trimmed ? { trimmed: true } : {}) }
       : { state: 'failed', why: r.why, words: saveFailWords(r.why) };
-    saves.value = { ...saves.value, [goalKey]: s };
+    // Refused for what it is (400, 413): never tried again. Offline, 5xx, the hour's limit: the next load tries once.
+    markSync(p, goalKey, f.at, r.ok ? 'synced' : r.why === 'rejected' || r.why === 'big' ? 'unsyncable' : 'pending');
+    if (!retry || r.ok) saves.value = { ...saves.value, [goalKey]: s };
     return s;
   }
 
@@ -241,6 +280,7 @@ export const useFollowStore = defineStore('follow', () => {
       ...(extra.endTE !== undefined ? { endTE: extra.endTE } : {}),
       ...(extra.spareSeconds !== undefined ? { spareSeconds: extra.spareSeconds } : {}),
       ...setupNow(),
+      sync: 'pending',
     };
     held.set(p, writeFollow(p, goalKey, f, mapOf(p)));
     writeGone(p, goalKey, null);

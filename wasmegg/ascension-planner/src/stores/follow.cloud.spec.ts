@@ -234,3 +234,86 @@ describe('Earlier versions and Restore', () => {
     expect(await follows.earlierVersions('fastest-490')).toBeNull();
   });
 });
+
+describe("a Follow press that didn't get online (23 Oct 2026)", () => {
+  const reload = async () => {
+    setActivePinia(createPinia());
+    calls = [];
+    return loadAccount();
+  };
+  const kept = async () => readFollows(await hashID(ID))['fastest-490'];
+  const okPut = (goals: Record<string, unknown> = {}) => (_u: string, m: string) =>
+    m === 'PUT' ? { status: 200, body: { ok: true, version: 1 } } : { status: 200, body: { goals, now: AT } };
+
+  it('offline, then the next load saves it ONCE (after its read); the load after that writes nothing', async () => {
+    let follows = await loadAccount();
+    answer = (_u, m) => (m === 'PUT' ? 'offline' : { status: 200, body: { goals: {} } });
+    await follows.follow('fastest-490', [222, 490], 'answer');
+    expect((await kept()).sync).toBe('pending');
+    answer = okPut();
+    follows = await reload();
+    await vi.waitFor(() => expect(puts().length).toBe(1));
+    expect(calls.map(c => c.method)).toEqual(['GET', 'PUT']);
+    expect(JSON.parse(puts()[0].body!).value).toMatchObject({ chain: [222, 490], source: 'instant' });
+    expect(JSON.parse(puts()[0].body!).value.sync).toBeUndefined();
+    await vi.waitFor(async () => expect((await kept()).sync).toBe('synced'));
+    // Quiet: nothing said under Right now for the retry's own failure or success words.
+    expect(follows.saveState('fastest-490')?.words ?? '').toBe('');
+    await reload();
+    await new Promise(r => setTimeout(r, 20));
+    expect(puts()).toEqual([]);
+  });
+
+  it('a retry that fails again (429, 500) waits for the next load: one PUT per load, never a loop', async () => {
+    let follows = await loadAccount();
+    answer = (_u, m) => (m === 'PUT' ? { status: 500, body: {} } : { status: 200, body: { goals: {} } });
+    await follows.follow('fastest-490', [222, 490], 'answer');
+    answer = (_u, m) => (m === 'PUT' ? { status: 429, body: { retryAfter: 60 } } : { status: 200, body: { goals: {} } });
+    follows = await reload();
+    await vi.waitFor(() => expect(puts().length).toBe(1));
+    await follows.loadCloud(true);
+    await new Promise(r => setTimeout(r, 20));
+    expect(puts().length).toBe(1);
+    expect((await kept()).sync).toBe('pending');
+    answer = okPut();
+    await reload();
+    await vi.waitFor(async () => expect((await kept()).sync).toBe('synced'));
+    expect(puts().length).toBe(1);
+  });
+
+  it('something newer saved online: no PUT, the newer one is followed', async () => {
+    const follows = await loadAccount();
+    answer = (_u, m) => (m === 'PUT' ? 'offline' : { status: 200, body: { goals: {} } });
+    await follows.follow('fastest-490', [222, 490], 'answer');
+    const at = (await kept()).at;
+    answer = okPut({ race490: { value: { chain: [230, 490], planStart: T, source: 'fast', at: at + 1000 }, version: 2, updatedAt: AT } });
+    const again = await reload();
+    await new Promise(r => setTimeout(r, 20));
+    expect(puts()).toEqual([]);
+    expect(again.followed('fastest-490')?.chain).toEqual([230, 490]);
+  });
+
+  it('refused (400, 413): marked unsyncable and never tried again', async () => {
+    for (const status of [400, 413]) {
+      mem.clear();
+      setActivePinia(createPinia());
+      calls = [];
+      const follows = await loadAccount();
+      answer = (_u, m) => (m === 'PUT' ? { status, body: { error: 'x' } } : { status: 200, body: { goals: {} } });
+      await follows.follow('fastest-490', [222, 490], 'answer');
+      expect((await kept()).sync).toBe('unsyncable');
+      answer = okPut();
+      await reload();
+      await new Promise(r => setTimeout(r, 20));
+      expect(puts()).toEqual([]);
+    }
+  });
+
+  it('a follow kept before the flag: saved once when NOTHING is saved online for its goal', async () => {
+    mem.set(`${FOLLOW_PREFIX}${await hashID(ID)}`, JSON.stringify({ 'fastest-490': { chain: [200, 490], from: 'typed', at: AT + 60_000 } }));
+    answer = okPut();
+    await loadAccount();
+    await vi.waitFor(() => expect(puts().length).toBe(1));
+    expect(JSON.parse(puts()[0].body!).value).toMatchObject({ chain: [200, 490], at: AT + 60_000 });
+  });
+});

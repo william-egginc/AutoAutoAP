@@ -50,10 +50,15 @@ export interface Followed {
   build?: string;
   /** Read back from the route saved online (another device's, or this one's from an earlier visit). */
   cloud?: boolean;
+  /** This browser's save of it online (stores/follow.ts): 'pending' not saved yet (no collector, offline, the hour's
+   *  limit, an error: tried once more on the next load), 'synced' saved, 'unsyncable' refused (400, 413: never tried
+   *  again). Absent on a follow kept before 23 Oct 2026: tried on the next load only when nothing is saved online for
+   *  the goal. Never sent online. */
+  sync?: 'pending' | 'synced' | 'unsyncable';
 }
 
 /** The summary fields kept beside the route (all optional). */
-const EXTRA_FIELDS = ['source', 'planStart', 'finish', 'endTE', 'spareSeconds', 'hours', 'saveTime', 'simVersion', 'build', 'cloud'] as const;
+const EXTRA_FIELDS = ['source', 'planStart', 'finish', 'endTE', 'spareSeconds', 'hours', 'saveTime', 'simVersion', 'build', 'cloud', 'sync'] as const;
 
 export type FollowMap = Record<GoalKey, Followed>;
 
