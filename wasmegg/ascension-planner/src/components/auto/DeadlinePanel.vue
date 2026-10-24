@@ -756,6 +756,7 @@
           :note="quickSaveNote"
           :run-cost="result.lastTECost ?? null"
           :last-run="store.dateRunLive ? '' : inPlannerZone(Math.floor(result.at / 1000))"
+          :ran-line="ranLine"
           :follow="dateFollow"
           @simulate="simulateResult"
           @csv="downloadByDateCsv"
@@ -1109,6 +1110,7 @@ import { isConstrained } from '@/search/availability';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
+import { lastRunLine } from '@/lib/lastRunLine';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
@@ -3008,5 +3010,20 @@ function inPlannerZone(unixSeconds: number): string {
 }
 /** The hours and time off the answer was priced with: its own recorded settings, never the live setup
  *  (lib/pricedWith.ts); '' for an answer from before settings were recorded. */
+/** "This Fast search ran on ..., on your save of ..., and found 307 TE." (lib/lastRunLine.ts), from the kept result. */
+const ranLine = computed(() => {
+  const r = result.value;
+  const b = best.value;
+  if (!r || !b || !b.chain.length) return '';
+  return lastRunLine({
+    level: r.simple ? (r.level ?? 'quick') : 'exhaustive',
+    at: r.at,
+    saveAt: r.backupAt ?? (r.account?.backupTime as number | null | undefined) ?? null,
+    loadedSaveAt: initialState.lastBackupTime || null,
+    te: b.chain[b.chain.length - 1],
+    zone: plannerZone.value,
+    now: Math.floor(Date.now() / 1000),
+  });
+});
 const resultPricedWith = computed(() => (result.value?.settings ? pricedWithLine(result.value.settings) : ''));
 </script>

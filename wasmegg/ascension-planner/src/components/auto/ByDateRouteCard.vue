@@ -22,6 +22,10 @@
       <!-- The same headline and aside as Fastest's card (RouteResultCard.vue): the route, then the number
            and when it lands on the right. -->
       <template #headline>
+        <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
+        <p v-if="ranLine && !running" class="text-[11px] font-semibold text-emerald-900/80 leading-snug" data-testid="ran-line">
+          {{ ranLine }}
+        </p>
         <div class="font-mono-premium text-lg sm:text-xl font-black text-slate-900 break-words">
           {{ route.chain.join(' ') }}
         </div>
@@ -241,6 +245,8 @@ const props = defineProps<{
   /** Not from a run in this visit on these settings: when it was found; the heading says
    *  "Your last run · ...". */
   lastRun?: string;
+  /** "This Fast search ran on Oct 23 at 6:43 pm, on your save of Oct 23 at 1:03 am, and found 307 TE." (lib/lastRunLine.ts). */
+  ranLine?: string;
   /** The run's measured cost of one more TE above the last stop, seconds (`lastTECost`). */
   runCost?: number | null;
   /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */

@@ -926,6 +926,7 @@
               @csv="downloadCsv"
               @save="save"
               :last-run="lastRunLabel"
+              :ran-line="ranLine"
             >
               <RouteExtras
                 v-if="!store.isRunning"
@@ -1144,6 +1145,8 @@ const kept = {
 import { pricedWithLine } from '@/lib/pricedWith';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
+import { lastRunLine } from '@/lib/lastRunLine';
+import { backupSecondsOf } from '@/lib/saveFreshness';
 import { thisDevice } from '@/search/device';
 import { NAMES } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -2211,6 +2214,21 @@ function buildPlan(): void {
   store.generateWhenPlannerOpens = true;
   ui.openPlannerRequested++;
 }
+
+/** "This search ran on ..., on your save of ..., and found 307 TE." (lib/lastRunLine.ts) */
+const ranLine = computed(() =>
+  store.chainResultAt && !store.isRunning
+    ? lastRunLine({
+        level: 'exhaustive',
+        at: store.chainResultAt,
+        saveAt: store.chainRunSaveAt,
+        loadedSaveAt: backupSecondsOf(useInitialStateStore().rawBackup),
+        te: store.finalTE,
+        zone: autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        now: Math.floor(Date.now() / 1000),
+      })
+    : ''
+);
 
 /** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
  *  (store `chainRunLive`); '' for a live one. */

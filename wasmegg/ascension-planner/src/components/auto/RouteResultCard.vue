@@ -16,6 +16,10 @@
       ><template v-if="claim && !running">: {{ claim }}</template>
     </template>
     <template #headline>
+      <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
+      <p v-if="ranLine && !running" class="text-[11px] font-semibold text-emerald-900/80 leading-snug" data-testid="ran-line">
+        {{ ranLine }}
+      </p>
       <div v-if="source" class="text-[10px] font-bold text-emerald-700/80">{{ source }}</div>
       <div class="font-mono-premium text-lg sm:text-xl font-black text-slate-900 break-words">
         {{ chain.join(' ') }}
@@ -123,6 +127,8 @@ withDefaults(
     /** Not from a run in this visit on these settings: when it was found ("Oct 11, 2026, 4:15 PM"),
      *  and the heading says "Your last run · ..." ('' for a live one). */
     lastRun?: string;
+    /** "This Fast search ran on Oct 23 at 6:43 pm, on your save of Oct 23 at 1:03 am, and found 307 TE." (lib/lastRunLine.ts). */
+    ranLine?: string;
     /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
     pricedWith?: string;
     /** "Follow this route" for the finished result (lib/follow.ts `ResultFollow`); absent: no button. */
@@ -137,6 +143,7 @@ withDefaults(
     saving: false,
     note: '',
     lastRun: '',
+    ranLine: '',
     pricedWith: '',
     follow: null,
   }
