@@ -573,8 +573,8 @@
               v-if="AUTO_FOLLOW_FIRST"
               data-testid="follow-online-auto"
             >
-              The first answer you get for a goal becomes the route you follow and is saved online, unless you already
-              follow one. After that, a better answer only asks you.</span
+              The first answer for Fastest to 490 and for Egg Day 2027 becomes the route you follow and is saved online,
+              unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.</span
             >
             The last 5 versions for each goal are kept: open Earlier versions under the route on My runs, Right now, and
             press Restore.

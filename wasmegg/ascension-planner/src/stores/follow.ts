@@ -51,7 +51,7 @@ import {
   type FollowSource,
 } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
-import { AUTO_FOLLOW_FIRST, type AutoFollow } from '@/lib/followPolicy';
+import { AUTO_FOLLOW_FIRST, autoFollowsGoal, type AutoFollow } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
 import { OWN_BUILD_TIME } from '@/composables/useNewVersion';
 import type { GoalKey } from '@/lib/planGoals';
@@ -332,11 +332,11 @@ export const useFollowStore = defineStore('follow', () => {
   const autoBusy = new Set<string>();
   /**
    * THE FIRST ANSWER BECOMES THE FOLLOW (lib/followPolicy.ts AUTO_FOLLOW_FIRST): follow `a` for the goal (`auto`, its
-   * own source) and save it online once, only when the saved routes are read (`autoReady`), nothing is followed for
+   * own source) and save it online once, only for Fastest to 490 and Egg Day 2027 (autoFollowsGoal), only when the saved routes are read (`autoReady`), nothing is followed for
    * the goal and it was never un-followed on this device. False when it didn't.
    */
   async function autoFollow(goalKey: GoalKey, a: AutoFollow): Promise<boolean> {
-    if (!AUTO_FOLLOW_FIRST || !goalKey || !a.chain.length || !autoReady.value) return false;
+    if (!AUTO_FOLLOW_FIRST || !autoFollowsGoal(goalKey) || !a.chain.length || !autoReady.value) return false;
     const p = partition.value;
     if (followed(goalKey, p) || goneAt(goalKey, p) > 0) return false;
     const busy = `${p}|${goalKey}`;

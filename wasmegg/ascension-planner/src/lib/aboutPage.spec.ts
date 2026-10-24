@@ -153,20 +153,21 @@ describe('About and privacy page', () => {
     expect(text).toContain('Nothing else saves it.');
     // The first answer becoming the follow (lib/followPolicy.ts, 24 Oct 2026): there exactly while the constant is on.
     const auto =
-      'The first answer you get for a goal becomes the route you follow and is saved online, unless you already follow one.';
+      'The first answer for Fastest to 490 and for Egg Day 2027 becomes the route you follow and is saved online, unless you already follow one.';
     if (AUTO_FOLLOW_FIRST) {
       expect(text).toContain(auto);
       expect(text).toContain(
         'That is the instant answer as its box shows it, or a Fast, Exact or Custom run that becomes your route on My runs, Right now, whichever comes first.'
       );
+      expect(text).toContain('Every other goal (another By a date, a race target of your own) is saved only when you press Follow this route');
       expect(text).toContain('so a route you follow on another device is never replaced. After that, a better answer only asks you');
-    } else expect(text).not.toContain('The first answer you get for a goal');
+    } else expect(text).not.toContain('The first answer for Fastest to 490');
     expect(text).not.toContain('When you are not following another route for a goal');
     const setup = read('src/components/auto/YourSetup.vue');
     expect(setup).toContain('It is saved when you press Follow this route,');
     expect(setup).toContain('v-if="AUTO_FOLLOW_FIRST"');
     expect(setup.replace(/\s+/g, ' ')).toContain(
-      'The first answer you get for a goal becomes the route you follow and is saved online, unless you already follow one. After that, a better answer only asks you.'
+      'The first answer for Fastest to 490 and for Egg Day 2027 becomes the route you follow and is saved online, unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.'
     );
     expect(text).not.toContain('not loading your account');
     expect(text).toContain(

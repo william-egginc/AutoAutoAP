@@ -5,7 +5,7 @@
  * this device (one time per goal).
  */
 import { describe, expect, it } from 'vitest';
-import { AUTO_FOLLOW_FIRST, autoFollowOf, followedLabel, instantAutoFollowOf } from './followPolicy';
+import { AUTO_FOLLOW_FIRST, autoFollowOf, autoFollowsGoal, followedLabel, instantAutoFollowOf } from './followPolicy';
 import type { Driving } from './searchPlan';
 import type { NowPlan } from './nowPlan';
 
@@ -81,5 +81,13 @@ describe('followedLabel', () => {
     expect(followedLabel({ source: 'exact', auto: true })).toBe(AUTO_FOLLOW_FIRST ? 'from your Exact run' : 'your pick');
     expect(followedLabel({ source: 'custom', auto: true })).toBe(AUTO_FOLLOW_FIRST ? 'from your Custom run' : 'your pick');
     expect(followedLabel(null)).toBe('your pick');
+  });
+});
+
+describe('which goals follow on their own', () => {
+  it('only Fastest to 490 and Egg Day 2027; any other date or race target waits for a Follow press', () => {
+    expect(autoFollowsGoal('fastest-490')).toBe(true);
+    expect(autoFollowsGoal('eggday-2027')).toBe(true);
+    for (const k of ['eggday-2028', 'date-1800000000', 'fastest-300', 'fastest-1000', '', null, undefined]) expect(autoFollowsGoal(k)).toBe(false);
   });
 });

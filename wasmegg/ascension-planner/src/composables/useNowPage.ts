@@ -112,7 +112,7 @@ import { followPrice, type FollowResult, type FollowSnap } from '@/lib/followPri
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
-import { autoFollowOf, followedLabel } from '@/lib/followPolicy';
+import { autoFollowOf, autoFollowsGoal, followedLabel } from '@/lib/followPolicy';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 
 /** The race the Fastest tile is for first (the board's), then the player's own target. */
@@ -703,6 +703,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     () => {
       if (!follows.autoReady || !hasSave.value) return [];
       return planGoals.value.flatMap(pg => {
+        if (!autoFollowsGoal(pg.goal.key)) return [];
         const pick = pg.pick;
         const a = autoFollowOf({
           driving: pick?.candidate.ownKey ? pick.candidate.driving : null,

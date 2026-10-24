@@ -822,7 +822,7 @@ import { compositeUrl, gearShiftUrl, parseCompositeUrl, parseGearShiftUrl } from
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useFollowStore } from '@/stores/follow';
-import { instantAutoFollowOf } from '@/lib/followPolicy';
+import { autoFollowsGoal, instantAutoFollowOf } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
@@ -2086,7 +2086,7 @@ function datePickedRow(r: Route): boolean {
 /**
  * THE FIRST ANSWER BECOMES THE FOLLOW (lib/followPolicy.ts AUTO_FOLLOW_FIRST, Jordan 24 Oct 2026): with nothing ever
  * followed for this goal, the route the box leads with (as shown: Prefer fewer honoured; By a date only one in time)
- * becomes the followed route and is saved online once (stores/follow.ts `autoFollow`, which waits for the account's
+ * becomes the followed route and is saved online once, for Fastest to 490 and Egg Day 2027 only (stores/follow.ts `autoFollow`, which waits for the account's
  * saved routes to be read). Once the answer is finished: worked out and polished, not one kept on screen while a
  * search has the workers, and kept in this browser (`keptAnswer`), so My runs has its times for any goal (Egg Day,
  * another date, a race target). With a route followed, the box's BetterRoutePrompt asks instead.
@@ -2099,7 +2099,8 @@ watch(
     // Only an answer kept under its key (`keptAnswer`): My runs shows the followed route's times from it.
     if (keptAnswer.value !== found) return null;
     const goalKey = followGoal.value;
-    if (answerGoal.value !== goalKey || !follows.autoReady) return null;
+    // Only Fastest to 490 and Egg Day 2027 follow on their own; every other goal waits for a Follow press.
+    if (!autoFollowsGoal(goalKey) || answerGoal.value !== goalKey || !follows.autoReady) return null;
     const route = props.deadline
       ? found.byDate
         ? dateBoxOf(found.byDate)

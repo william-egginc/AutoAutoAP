@@ -1,7 +1,9 @@
 /**
  * THE FIRST ANSWER BECOMES THE FOLLOW (Jordan, 24 Oct 2026; `AUTO_FOLLOW_FIRST` gates all of it; was
- * AUTO_FOLLOW_RESULT, 23 Oct 2026, for results only). When an account follows NOTHING for a goal (race490, eggday2027,
- * bydate, target), the first answer it gets for that goal becomes the followed route and is saved online once, like a
+ * AUTO_FOLLOW_RESULT, 23 Oct 2026, for results only). ONLY for Fastest to 490 (`fastest-490`) and Egg Day 2027 (`eggday-2027`)
+ * (`autoFollowsGoal`): every other goal (other By a date deadlines, custom race targets) is opt-in, saved when the
+ * player presses Follow (which also keeps an account well under the collector's 8 goals). When an account follows
+ * NOTHING for one of those two, the first answer it gets for that goal becomes the followed route and is saved online once, like a
  * Follow press:
  *   - the instant answer (Fastest or By a date, InstantRoute.vue): the route its box leads with, as shown (Prefer
  *     fewer honoured), once the answer is finished (`instantAutoFollowOf`, source instant);
@@ -21,10 +23,17 @@
  * With the constant false: no automatic follow, no online write without a press, the labels as before. about.html and
  * Setup › Sharing each carry one sentence for it (the aboutPage spec pins it while true).
  */
-import { sourceOfLevel } from './followCloud';
+import { CLOUD_EGG_DAY_YEAR, sourceOfLevel } from './followCloud';
 import type { Driving } from './searchPlan';
 
 export const AUTO_FOLLOW_FIRST = true;
+
+/** The goals whose first answer becomes the follow on its own; every other goal waits for a Follow press. */
+export const AUTO_FOLLOW_GOALS: readonly string[] = ['fastest-490', `eggday-${CLOUD_EGG_DAY_YEAR}`];
+
+export function autoFollowsGoal(goalKey: string | null | undefined): boolean {
+  return !!goalKey && AUTO_FOLLOW_GOALS.includes(goalKey);
+}
 
 /** What the automatic follow follows: the route and the summary a Follow press would save. */
 export interface AutoFollow {

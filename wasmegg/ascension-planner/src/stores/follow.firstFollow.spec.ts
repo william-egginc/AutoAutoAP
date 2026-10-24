@@ -184,12 +184,18 @@ describe.runIf(AUTO_FOLLOW_FIRST)('the first answer becomes the follow', () => {
     expect(await follows.autoFollow('fastest-490', instantAnswer([230, 490], now() + 2 * D))).toBe(false);
     expect(follows.followed('fastest-490')).toBeNull();
     expect(puts()).toHaveLength(1);
-    // Another goal still follows its own first answer.
+    // Egg Day 2027 follows its first answer too; another date waits for a press.
     const d = now() + 30 * D;
     const date = instantAutoFollowOf({ route: { chain: [205, 238], end: d - D, endTE: 238 }, at: Date.now(), planStart: now(), deadline: d, inTime: true, followed: false, goneAt: 0 })!;
-    expect(await follows.autoFollow(`date-${d}`, date)).toBe(true);
-    expect(follows.followed(`date-${d}`)).toMatchObject({ chain: [205, 238], spareSeconds: D, auto: true });
+    expect(await follows.autoFollow(`date-${d}`, date)).toBe(false);
+    expect(follows.followed(`date-${d}`)).toBeNull();
+    expect(await follows.autoFollow('fastest-300', date)).toBe(false);
+    expect(await follows.autoFollow('eggday-2027', date)).toBe(true);
+    expect(follows.followed('eggday-2027')).toMatchObject({ chain: [205, 238], spareSeconds: D, auto: true });
     expect(puts()).toHaveLength(2);
+    // A press still follows any goal.
+    await follows.follow(`date-${d}`, [205, 238], 'answer');
+    expect(followedLabel(follows.followed(`date-${d}`))).toBe('your pick');
   });
 
   it('a press is still "your pick"; Follow it on the prompt too', async () => {
