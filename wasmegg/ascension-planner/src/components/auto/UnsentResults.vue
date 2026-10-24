@@ -15,6 +15,7 @@
     class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-[11px] text-amber-900"
     data-testid="unsent-results"
   >
+    <NoPrestigeSendNote :days="store.noPrestige" />
     <div v-for="p in shown" :key="p.id" class="space-y-1">
       <div class="flex flex-wrap items-center gap-3">
         <span
@@ -24,7 +25,7 @@
         <button
           type="button"
           class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
-          :disabled="sendingId !== null || store.busy || !consentFor(p)"
+          :disabled="sendingId !== null || store.busy || !consentFor(p) || npBlocked"
           :data-testid="`send-unsent-${p.id}`"
           @click="send(p)"
         >
@@ -171,6 +172,8 @@ import { useAccountName, useSharedName } from '@/composables/useShareResult';
 import { sentence } from '@/utils/errors';
 import SendingText from './SendingText.vue';
 import ConsentBox from './ConsentBox.vue';
+import NoPrestigeSendNote from './NoPrestigeSendNote.vue';
+import { sendBlockedByNoPrestige } from '@/lib/npGuard';
 
 const props = defineProps<{
   /** This screen's kind; every kind when left out (My runs' "Not sent yet"). */
@@ -180,6 +183,8 @@ const props = defineProps<{
   nickname?: string;
 }>();
 const store = useChainSearchStore();
+/** No-prestige days set: Send it now is greyed out, with the note (lib/npGuard.ts). */
+const npBlocked = computed(() => sendBlockedByNoPrestige(store.noPrestige));
 
 /** This screen's kept results; none while a run or its own end-of-run send is going. */
 const shown = computed(() =>
@@ -234,7 +239,7 @@ async function send(p: PendingSend): Promise<void> {
     const res = await store.sendPending(p.id, consentFor(p));
     // Refused for the leaderboard but stored: off this list (it is stored), said with its code.
     okIds[p.id] = res.ok && !res.quarantined;
-    messages[p.id] = res.quarantined
+    messages[p.id] = res.quarantined || res.blocked
       ? res.message
       : res.ok
         ? `Thanks! ${sentence(res.message)}`

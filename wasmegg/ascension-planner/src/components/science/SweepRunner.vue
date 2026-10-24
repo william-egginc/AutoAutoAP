@@ -245,6 +245,8 @@
             Start and submit when done
           </button>
           <span v-if="!consent && chainCount" class="text-[10px] text-slate-500">Tick “I understand” first.</span>
+          <!-- No-prestige days set: a sweep only runs to be sent, so it can't start (lib/npGuard.ts). -->
+          <NoPrestigeSendNote :days="store.noPrestige" />
           <span v-if="store.saveNotReady" class="text-[10px] font-semibold text-amber-700">{{
             store.saveNotReady
           }}</span>
@@ -380,6 +382,8 @@ import type { SweepRequest } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
 import IntegrityNotice from '@/components/auto/IntegrityNotice.vue';
 import ConsentBox from '@/components/auto/ConsentBox.vue';
+import NoPrestigeSendNote from '@/components/auto/NoPrestigeSendNote.vue';
+import { sendBlockedByNoPrestige } from '@/lib/npGuard';
 import { useConsent } from '@/composables/useConsent';
 
 const props = defineProps<{
@@ -505,12 +509,15 @@ const { anonymous, nickname, nicknameTouched } = useShareIdentity(() => props.pl
 /** Anonymous wins over whatever is in the box; the collector keeps 40 characters. */
 const effectiveNickname = computed(() => (anonymous.value ? '' : nickname.value.trim().slice(0, 40)));
 
+/** No-prestige days set: the sweep's result couldn't be sent, so Start and submit when done is greyed out. */
+const npBlocked = computed(() => sendBlockedByNoPrestige(store.noPrestige));
 const canStart = computed(
   () =>
     consent.value &&
     chainCount.value > 0 &&
     !store.busy &&
     store.sweepQueue.at < 0 &&
+    !npBlocked.value &&
     !store.integrityBlocked &&
     !store.staleBackupBlocked &&
     !store.saveNotReady

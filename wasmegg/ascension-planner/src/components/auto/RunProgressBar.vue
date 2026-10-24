@@ -53,10 +53,12 @@
         <button
           v-if="bestSoFarHere"
           type="button"
-          :disabled="!p.best || store.bestSoFarSending || store.bestSoFarWait > 0"
+          :disabled="!p.best || store.bestSoFarSending || store.bestSoFarWait > 0 || npBlocked"
           class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-400 disabled:opacity-50"
           :title="
-            store.bestSoFarWait > 0
+            npBlocked
+              ? NO_PRESTIGE_SEND_NOTE
+              : store.bestSoFarWait > 0
               ? `You can send again in ${store.bestSoFarWait} min`
               : 'Send best so far, with the CSV so far and diagnostics if ticked (replaced when the run finishes)'
           "
@@ -84,6 +86,8 @@
       <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
     </div>
     <p v-if="stopping" class="text-[10px] text-white/70 leading-snug" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
+    <!-- No-prestige days set: Send best so far is greyed out, and this says why. -->
+    <NoPrestigeSendNote v-if="bestSoFarHere" dark :days="store.noPrestige" />
     <p v-if="p.stage" class="text-[10px] text-white/60 truncate">{{ p.stage }}</p>
     <!-- What the screen's own progress block used to add (lib/runDetails.ts; the in-page header, bar and time
          line went on 16 Oct 2026, so this bar is the one progress display). Folded: the line above is enough
@@ -131,6 +135,8 @@ import { NAMES, fastestName } from '@/lib/siteNav';
 import { showDateTime } from '@/lib/displayTime';
 import { formatTimeLeft } from '@/search/sweepEstimate';
 import SendingText from './SendingText.vue';
+import NoPrestigeSendNote from './NoPrestigeSendNote.vue';
+import { NO_PRESTIGE_SEND_NOTE, sendBlockedByNoPrestige } from '@/lib/npGuard';
 import { STOPPING_NOTE } from '@/search/stopNote';
 import { queueCountLine } from '@/lib/queueCount';
 import { runDetailLine } from '@/lib/runDetails';
@@ -251,6 +257,8 @@ watch(
 const stopping = computed(() => !!p.value?.stopping || stopClicked.value);
 
 /** The run going is one its screen lets Send best so far (a chain search or a date search). */
+/** No-prestige days set: Send best so far is greyed out (lib/npGuard.ts). */
+const npBlocked = computed(() => sendBlockedByNoPrestige(store.noPrestige));
 const bestSoFarHere = computed(() => {
   const run = store.bestSoFar;
   const kind = p.value?.kind;

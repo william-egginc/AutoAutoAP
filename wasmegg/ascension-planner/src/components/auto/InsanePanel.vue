@@ -1034,6 +1034,7 @@
               v-else-if="ownRun && store.bestDays > 0 && !(store.isRunning && store.submitsWhenDone)"
               compact
               :replaces-best-so-far="!!store.provisionalRows.fastest"
+              :no-prestige-days="store.noPrestige"
               v-model:opt-in="optIn"
               v-model:anonymous="anonymous"
               v-model:nickname="nickname"
@@ -1083,6 +1084,7 @@
               <BoardSubmitButtons
                 :opt-in="optIn"
                 :submit-url="store.submitUrl"
+                :no-prestige-days="store.noPrestige"
                 :name-to-claim="nameToClaim"
                 :claiming="claiming"
                 :sending="submitting"

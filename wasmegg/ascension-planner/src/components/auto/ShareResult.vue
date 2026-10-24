@@ -12,6 +12,8 @@
 <template>
   <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4">
     <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">{{ heading }}</h3>
+    <!-- No-prestige days set: the screen's send button is greyed out, and this says why (lib/npGuard.ts). -->
+    <NoPrestigeSendNote :days="noPrestigeDays" />
     <slot name="intro" />
     <!-- The run sent a best so far (Send best so far): this send takes its place on the board. -->
     <p v-if="replacesBestSoFar" class="text-[11px] font-semibold text-indigo-900" data-testid="share-replaces">
@@ -23,7 +25,8 @@
     <template v-if="compact && !optIn && sendLabel && !asking">
       <button
         type="button"
-        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+        :disabled="npBlocked"
         data-testid="share-ask"
         @click="asking = true"
       >
@@ -98,14 +101,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { sendBlockedByNoPrestige } from '@/lib/npGuard';
+import type { TimeOffDates } from '@/search/timeOff';
+import NoPrestigeSendNote from './NoPrestigeSendNote.vue';
 import ConsentBox from './ConsentBox.vue';
 import ConsentSummary from './ConsentSummary.vue';
 import ShareExtras from './ShareExtras.vue';
 import ShareNameChoice from './ShareNameChoice.vue';
 import RunNoteBox from './RunNoteBox.vue';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     heading?: string;
     /** After "(the same file as Download CSV)" in the CSV box: what this screen's CSV holds. */
@@ -119,6 +125,8 @@ withDefaults(
     compact?: boolean;
     /** With `compact`, and not agreed yet: the screen's one send button, which asks for the consent. */
     sendLabel?: string;
+    /** The no-prestige days (store `noPrestige`): set, nothing here sends (lib/npGuard.ts). */
+    noPrestigeDays?: readonly TimeOffDates[];
   }>(),
   {
     heading: 'Share this result',
@@ -128,8 +136,10 @@ withDefaults(
     replacesBestSoFar: false,
     compact: false,
     sendLabel: '',
+    noPrestigeDays: () => [],
   }
 );
+const npBlocked = computed(() => sendBlockedByNoPrestige(props.noPrestigeDays));
 const emit = defineEmits<{ nicknameTyped: [] }>();
 const optIn = defineModel<boolean>('optIn', { required: true });
 const anonymous = defineModel<boolean>('anonymous', { required: true });
