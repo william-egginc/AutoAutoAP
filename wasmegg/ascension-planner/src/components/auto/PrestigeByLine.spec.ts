@@ -21,13 +21,23 @@ describe('PrestigeByLine', () => {
     const t = textOf(await renderHtml(PrestigeByLine, { line: LINE, status: 'done' }));
     expect(t).toContain('Experimental · needs more data');
     expect(t).toContain(
-      'Checked on 5 test cases so far (4 within an hour of the full simulator, 1 two hours early). Treat it as a hint.'
+      'Checked on 5 cases from one account, with hours off and an older model where the farm stopped laying while you waited: 4 within an hour of the full simulator, 1 two hours early. Not checked with hours on yet. Treat it as a hint.'
     );
+    expect(t).not.toContain('5 test cases so far');
+    // No hours: no hours note.
+    expect(t).not.toContain('With your hours on');
     expect(t).toContain(LINE.text);
     expect(t).toContain('tight');
     expect(t).toContain('lands 5.6 h before the date');
     expect(textOf(await renderHtml(PrestigeByLine, { line: { ...LINE, tight: false }, status: 'done' }))).not.toContain(
       'tight'
+    );
+  });
+
+  it('with hours on, says a prestige minutes off the time shown can move the finish by days (math review, 24 Oct)', async () => {
+    const t = textOf(await renderHtml(PrestigeByLine, { line: LINE, status: 'done', hoursOn: true }));
+    expect(t).toContain(
+      'With your hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.'
     );
   });
 
@@ -63,6 +73,7 @@ describe('PrestigeByLine', () => {
       expect(u).toContain('v-if="prestigeFlag.enabled.value && !preferPicked"');
       expect(u).toContain('mismatch=""');
       expect(u).toContain(':beta="prestigeFlag.beta"');
+      expect(u).toContain(':hours-on="hoursLimited"');
     }
     // The work itself checks the flag before it starts.
     expect(src).toMatch(/if \(!prestigeFlag\.enabled\.value \|\|/);

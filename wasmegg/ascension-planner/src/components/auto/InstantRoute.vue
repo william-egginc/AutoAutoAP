@@ -290,6 +290,7 @@
               :status="prestigeStatus"
               mismatch=""
               :beta="prestigeFlag.beta"
+              :hours-on="hoursLimited"
             />
             <!-- HOOK: "First ascension: N egg shifts" and "One more TE" were here (they need the simulated first leg,
                  gone from the instant card since 23 Oct 2026). When the engine simulates the current ascension live
@@ -432,6 +433,7 @@
             :status="prestigeStatus"
             mismatch=""
             :beta="prestigeFlag.beta"
+            :hours-on="hoursLimited"
           />
           <!-- HOOK: First ascension / One more TE (see the By a date box above, lib/searchPointer.ts
                `firstAscensionFromLiveLeg`). -->
@@ -1275,6 +1277,9 @@ const filters = ref(readFilters());
 watch(filters, f => writeFilters(f), { deep: true });
 const hoursOn = computed(() => store.scheduleEnabled && !!store.availability);
 const useHours = computed(() => hoursOn.value && filters.value.inHours);
+/** Playing hours that limit when a prestige can be made (not any hour): the Prestige by line's "prestige at the time
+ *  shown" note. */
+const hoursLimited = computed(() => hoursOn.value && isConstrained(store.availability));
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
  * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked

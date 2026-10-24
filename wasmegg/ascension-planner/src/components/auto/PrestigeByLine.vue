@@ -34,6 +34,7 @@
       >
       Work it out again from your new save after you prestige.
     </p>
+    <p v-if="hoursOn" class="text-[10px] text-slate-700" data-testid="prestige-by-hours">{{ HOURS_NOTE }}</p>
     <p class="text-[10px] text-violet-800" data-testid="prestige-by-evidence">{{ EVIDENCE }}</p>
     <p v-if="mismatch" class="text-[10px] text-amber-800">{{ mismatch }}</p>
   </div>
@@ -54,11 +55,19 @@ defineProps<{
   mismatch?: string;
   /** The beta site: also say when the line is hidden only because the next prestige is far off. */
   beta?: boolean;
+  /** The player's hours are set (Let me pick my hours, a window that isn't any hour). */
+  hoursOn?: boolean;
 }>();
 
-/** What the line has been checked against so far (the prestige-warn research, 11 Oct 2026). */
+/** What the line has been checked against so far (the prestige-warn research, 11 Oct 2026): the alt's save alone,
+ *  one date, hours off, and the older farm that stopped laying while the prestige waited (the math review's second
+ *  check, 24 Oct 2026, finding 4). Not checked with hours on, nor on the laying farm the line now uses. */
 const EVIDENCE =
-  'Checked on 5 test cases so far (4 within an hour of the full simulator, 1 two hours early). Treat it as a hint.';
+  "Checked on 5 cases from one account, with hours off and an older model where the farm stopped laying while you waited: 4 within an hour of the full simulator, 1 two hours early. Not checked with hours on yet. Treat it as a hint.";
+/** With hours on, the same route moved by days between prestiging at once and on the hour (the math review's second
+ *  check, 24 Oct 2026: 6.3 days on one route, and the instant route at its own times landed up to 154 h late). */
+const HOURS_NOTE =
+  'With your hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.';
 
 function hours(seconds: number): string {
   const h = seconds / 3600;

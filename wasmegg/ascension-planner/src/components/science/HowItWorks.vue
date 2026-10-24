@@ -418,9 +418,11 @@
             site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2 pm to keep 248 TE", then
             what you'd get after that. It prices your routes again from each later whole hour, up to 8 days ahead, with
             your farm laying while you wait (for as long as your silos hold), then confirms the hour it drops with the
-            route finder. In five test cases its cutoff matched the full simulator to within an hour in four, and was
-            two hours early in the fifth. That's too few to trust yet, so treat it as a hint. Work it out again after
-            you prestige.
+            route finder. In five test cases from one account, with hours off and an older model where the farm stopped
+            laying while you waited, its cutoff matched the full simulator to within an hour in four, and was two hours
+            early in the fifth. It has not been checked with hours on. That's too few to trust yet, so treat it as a
+            hint. With your hours on, a prestige even a few minutes off the time shown can move your finish by days, so
+            prestige at the time shown. Work it out again after you prestige.
           </li>
           <li>
             <b>The "a better route may exist" hint.</b> At the top of a {{ NAMES.byDate }} answer, one more TE costs
