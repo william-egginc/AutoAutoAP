@@ -90,4 +90,6 @@ export type RouteWorkerResponse =
   | { kind: 'expand'; id: number; candidates: Candidate[] }
   | { kind: 'polish'; id: number; found: FoundRoutes }
   | { kind: 'prestige-estimate'; id: number; outcomes: Outcome[] }
-  | { kind: 'error'; id: number; message: string };
+  | { kind: 'error'; id: number; message: string }
+  /** Sent once when the worker's script has run (search/routePool.ts ROUTE_WORKER_START_MS). */
+  | { kind: 'ready'; id: 0 };
