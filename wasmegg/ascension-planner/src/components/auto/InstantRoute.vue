@@ -329,6 +329,12 @@
         <p v-if="result.byDate" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-one-line">
           {{ INSTANT_ONE_LINE }}
         </p>
+        <!-- With hours that limit when a prestige can be made: prestige at the time shown (the Prestige by line's words,
+             lib/hoursNote.ts; the math review's second check, 24 Oct 2026: one route moved 6.3 days between at once and
+             on the hour). -->
+        <p v-if="result.byDate && hoursLimited" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-hours-note">
+          {{ HOURS_NOTE }}
+        </p>
         <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
              A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1). -->
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
@@ -469,6 +475,10 @@
         </p>
         <p v-if="boxLead" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-one-line">
           {{ INSTANT_ONE_LINE }}
+        </p>
+        <!-- Prestige at the time shown, with hours (as under By a date's box). -->
+        <p v-if="boxLead && hoursLimited" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-hours-note">
+          {{ HOURS_NOTE }}
         </p>
         <!-- Every number of ascensions, instant numbers only. A table from 30rem up; stacked rows below it. -->
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
@@ -806,6 +816,7 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { INSTANT_ONE_LINE, pointerOf } from '@/lib/searchPointer';
+import { HOURS_NOTE } from '@/lib/hoursNote';
 import InstantPointer from './InstantPointer.vue';
 import { bracketLine } from '@/lib/bracketLine';
 import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
@@ -1279,8 +1290,8 @@ const filters = ref(readFilters());
 watch(filters, f => writeFilters(f), { deep: true });
 const hoursOn = computed(() => store.scheduleEnabled && !!store.availability);
 const useHours = computed(() => hoursOn.value && filters.value.inHours);
-/** Playing hours that limit when a prestige can be made (not any hour): the Prestige by line's "prestige at the time
- *  shown" note. */
+/** Playing hours that limit when a prestige can be made (not any hour): the "prestige at the time shown" note, on the
+ *  Prestige by line and under each box (lib/hoursNote.ts). */
 const hoursLimited = computed(() => hoursOn.value && isConstrained(store.availability));
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts

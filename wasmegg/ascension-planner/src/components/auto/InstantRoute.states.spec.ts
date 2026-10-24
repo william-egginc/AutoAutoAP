@@ -23,6 +23,7 @@ import { renderToString } from 'vue/server-renderer';
 import { compileTemplate, parse } from '@vue/compiler-sfc';
 import ts from 'typescript';
 import { idleLine } from '@/search/instantDeferral';
+import { HOURS_NOTE } from '@/lib/hoursNote';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 
@@ -105,6 +106,7 @@ function ctxOf(s: State): Record<string, unknown> {
   return {
     $slots: {},
     FULL_RESEARCH_TE: 340,
+    HOURS_NOTE,
     INSTANT_ONE_LINE: 'These are instant answers, worked out ahead of time.',
     MAX_ASCENSIONS: 12,
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
@@ -209,8 +211,8 @@ function ctxOf(s: State): Record<string, unknown> {
   };
 }
 
-async function draw(s: State): Promise<string> {
-  const ctx = ctxOf(s);
+async function draw(s: State, over: Record<string, unknown> = {}): Promise<string> {
+  const ctx = { ...ctxOf(s), ...over };
   const cache: unknown[] = [];
   const app = createSSRApp({ render: () => h(defineComponent({ render: () => render(ctx, cache) })) });
   for (const p of PARTS) app.component(p, stub(p));
@@ -378,5 +380,52 @@ describe('the share Teleport lives as long as the card', () => {
     expect(at).toBeGreaterThan(tpl.indexOf('data-testid="instant-no-table"'));
     expect(tpl.slice(at, tpl.indexOf('>', at))).toContain('v-if="instantUrl"');
     expect(tpl).toContain('v-if="pointer && result && !noTable && !integrityHold"');
+  });
+});
+
+// "Prestige at the time shown" on the card itself (the math review's second check, 24 Oct 2026): under each box, in
+// the Prestige by line's words, only with hours that limit when a prestige can be made (`hoursLimited`).
+describe('the hours note under each box', () => {
+  const at = (answer: Answer, deadline: boolean, hours: boolean): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+  const NOTE = 'data-testid="instant-hours-note"';
+  for (const [name, answer, deadline] of [
+    ['By a date', 'date', true],
+    ['Fastest', 'fastest', false],
+  ] as const) {
+    it(`${name}: shown with hours set, in the Prestige by line's words`, async () => {
+      const html = await draw(at(answer, deadline, true));
+      expect(html).toContain(NOTE);
+      expect(html).toContain(HOURS_NOTE);
+      // Small grey text like the one line, after it; no amber box of its own.
+      const note = html.slice(html.lastIndexOf('<p', html.indexOf(NOTE)), html.indexOf(NOTE));
+      expect(note).toContain('text-slate-600');
+      expect(html.indexOf(NOTE)).toBeGreaterThan(html.indexOf('data-testid="instant-one-line"'));
+    });
+    it(`${name}: hidden without hours, and with hours set to any hour`, async () => {
+      expect(await draw(at(answer, deadline, false))).not.toContain(NOTE);
+      expect(await draw(at(answer, deadline, true), { hoursLimited: false })).not.toContain(NOTE);
+    });
+  }
+  it('the words are the Prestige by line\'s own constant, not a copy', () => {
+    expect(HOURS_NOTE).toBe(
+      'With your hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.'
+    );
+    expect(source).toContain("import { HOURS_NOTE } from '@/lib/hoursNote';");
+    expect(source.match(/\{\{ HOURS_NOTE \}\}/g)).toHaveLength(2);
+    expect(source).not.toContain('a prestige even a few minutes off');
+    const line = fs.readFileSync(path.resolve(__dirname, 'PrestigeByLine.vue'), 'utf8');
+    expect(line).toContain("import { HOURS_NOTE } from '@/lib/hoursNote';");
   });
 });
