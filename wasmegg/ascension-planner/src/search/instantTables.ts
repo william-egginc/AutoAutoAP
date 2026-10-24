@@ -22,7 +22,8 @@ export function entryIdentity(e: TableEntry): string {
 
 /**
  * The tables the instant answer could read for this player, as they stand: for each name it tries (their own
- * table's, their gear's, the maxed one), the listed file under that name or alias, or "-" for none. Another
+ * table's and their gear's, each `.v2` name and plain one as tableGear.ts ownTableNames / gearTableFiles give them;
+ * the maxed one), the listed file under that name or alias, or "-" for none. Another
  * player's file coming or going changes nothing. Null when tables.json couldn't be read.
  */
 export function tablesIdentity(entries: readonly TableEntry[] | null, names: readonly string[]): string | null {

@@ -42,6 +42,20 @@ describe('tablesIdentity', () => {
     expect(tablesIdentity([maxed, ownV2], [...names, OWN])).toBe(base);
   });
 
+  it('.v2 names (tableGear.ts ownTableNames, gearTableFiles): a version 2 file deployed beside the plain one changes it', () => {
+    const OWN2 = OWN.replace(/\.bin$/, '.v2.bin');
+    const GEAR2 = GEAR.replace(/\.bin$/, '.v2.bin');
+    const both = [OWN2, OWN, GEAR2, GEAR, 'table-v2.bin'];
+    const plainOnly = tablesIdentity([maxed, ownV1], both);
+    const withV2 = tablesIdentity([maxed, ownV1, { ...ownV2, file: OWN2 }], both);
+    expect(withV2).not.toBe(plainOnly);
+    expect(withV2).toContain(`${OWN2}=${OWN2},`);
+    expect(withV2).toContain(`${OWN}=${OWN},`);
+    // A gear table listed under its .v2 alias.
+    const gear: TableEntry = { file: 'gear-legacy.v2.bin', aliases: [GEAR2], bonus: 124, k: 0.97, from: 150 };
+    expect(tablesIdentity([maxed, ownV1, gear], both)).toContain(`${GEAR2}=gear-legacy.v2.bin,`);
+  });
+
   it('null when tables.json could not be read', () => {
     expect(tablesIdentity(null, names)).toBeNull();
   });
@@ -111,10 +125,13 @@ describe('InstantRoute wiring', () => {
     expect(script).toContain("if (runDue.value || tablesWait.value || !store.setupLoaded");
   });
 
-  it('the names are the ones the page reads: own, every gear name, the maxed one', () => {
+  it('the names are the ones the page reads: own and every gear name (each .v2 name and plain one), the maxed one', () => {
     const fn = script.slice(script.indexOf('async function currentTables'), script.indexOf('async function currentTables') + 1200);
-    expect(fn).toContain('names.push(await ownName.name)');
-    expect(fn).toContain('names.push(...(await gearTableNames(stamp)))');
+    expect(fn).toContain('names.push(...(await ownNames(id)))');
+    expect(fn).toContain('names.push(...(await gearTableFiles(stamp)))');
+    // The same lists the run probes.
+    expect(script).toContain('ownName = { id, names: ownTableNames(id) }');
+    expect(script).toContain('for (const gearName of await gearTableFiles(stamp))');
     expect(fn).toContain('names.push(MAXED_TABLE_FILE)');
   });
 });
