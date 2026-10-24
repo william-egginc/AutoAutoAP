@@ -302,6 +302,10 @@
               <td>No time limit. The last 5 versions of each goal, for up to 8 goals.</td>
             </tr>
             <tr>
+              <td>Version counts</td>
+              <td>30 days, then deleted.</td>
+            </tr>
+            <tr>
               <td>Phone-watch messages</td>
               <td>7 days after the last update, then deleted.</td>
             </tr>
@@ -353,6 +357,16 @@
             GitHub). The cat picture in the plan summary loads from another site only after you click for it.
           </li>
         </ul>
+      </section>
+
+      <section id="version">
+        <h2>Which version of the page you have open</h2>
+        <!-- lib/buildCount.ts and collector/buildcount.js: these words go with that code (lib/aboutPage.spec.ts). -->
+        <p>
+          Each open copy of this page tells our server which version of the page it is, at most once a day: just the
+          version, nothing else. We keep only a count per version per day, for 30 days, so we know when old versions
+          are still in use. If your browser sends Global Privacy Control or Do Not Track, nothing is sent.
+        </p>
       </section>
 
       <section id="security">

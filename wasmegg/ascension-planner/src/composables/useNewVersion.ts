@@ -27,6 +27,7 @@
  * looked.
  */
 import { onMounted, onUnmounted, ref } from 'vue';
+import { buildIdFrom, startBuildCount } from '@/lib/buildCount';
 
 /** The hashed entry script for `entry` (`index`, `explorer`) named in this HTML, or null. */
 export function entryScriptIn(html: string, entry: string): string | null {
@@ -187,6 +188,7 @@ export function useNewVersion(pageUrl: string, entry: string) {
   let channel: BroadcastChannel | null = null;
   let lastChecked = 0;
   let everyMs = checkEveryMs(false);
+  let stopCount: (() => void) | null = null;
 
   const loadedSrc =
     typeof document === 'undefined'
@@ -248,6 +250,8 @@ export function useNewVersion(pageUrl: string, entry: string) {
 
   onMounted(() => {
     if (!loadedSrc) return;
+    // "Which build is in use" (lib/buildCount.ts): this build's id, at most once a day, nothing else.
+    stopCount = startBuildCount(buildIdFrom(loadedSrc, entry));
     everyMs = checkEveryMs(isMobileLike());
     timer = setInterval(onTick, everyMs);
     document.addEventListener('visibilitychange', onVisible);
@@ -259,6 +263,7 @@ export function useNewVersion(pageUrl: string, entry: string) {
   });
   onUnmounted(() => {
     if (timer) clearInterval(timer);
+    stopCount?.();
     document.removeEventListener('visibilitychange', onVisible);
     window.removeEventListener('online', onVisible);
     channel?.close();

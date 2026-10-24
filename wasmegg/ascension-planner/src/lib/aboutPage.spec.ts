@@ -117,6 +117,28 @@ describe('About and privacy page', () => {
     expect(text).not.toContain('Keep sharing my checks');
   });
 
+  it('says each open page sends only its version, at most once a day, kept as a count for 30 days (24 Oct 2026)', () => {
+    expect(text).toContain(
+      'Each open copy of this page tells our server which version of the page it is, at most once a day: just the version, nothing else. We keep only a count per version per day, for 30 days, so we know when old versions are still in use. If your browser sends Global Privacy Control or Do Not Track, nothing is sent.'
+    );
+    expect(text).toContain('Version counts 30 days, then deleted.');
+    // What it says must stay true: the page sends the build id alone, once a day, not with GPC or DNT ...
+    const page = read('src/lib/buildCount.ts');
+    expect(page).toContain('body: build,');
+    expect(page).toContain("referrerPolicy: 'no-referrer',");
+    expect(page).toContain('if (store && sentOn(raw, build!, day)) return stop();');
+    expect(page).toContain('if (nav.globalPrivacyControl === true) return true;');
+    // ... and the collector keeps a count per day and build, 30 days, nothing else.
+    expect(read('collector/migrations/0003_buildcount.sql').replace(/--.*\n/g, '').replace(/\s+/g, ' ').trim()).toBe(
+      'CREATE TABLE IF NOT EXISTS build_counts ( day TEXT NOT NULL, build TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, build) ) WITHOUT ROWID;'
+    );
+    expect(read('collector/buildcount.js')).toContain('export const BUILD_KEEP_DAYS = 30;');
+    const setup = read('src/components/auto/YourSetup.vue').replace(/\s+/g, ' ');
+    expect(setup).toContain(
+      'is sent to our server at most once a day: just the version, nothing else, so we know when old versions are still in use. Global Privacy Control or Do Not Track turns it off.'
+    );
+  });
+
   it('says the route you follow is saved online under a code made from the ID, what is stored and how to restore (23 Oct 2026)', () => {
     expect(text).toContain(
       'the route you follow for that goal is saved online, under a code made from your player ID. That is so another device shows your route when you enter your ID there'

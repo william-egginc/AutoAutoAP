@@ -553,6 +553,13 @@
               UNREACHABLE_NOTE
             }}</span>
           </p>
+          <!-- "Which build is in use" (lib/buildCount.ts): no choice here; Global Privacy Control or Do Not Track turns
+               it off. about.html says the same. -->
+          <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="build-count">
+            <span class="font-bold text-slate-800">The page's version</span> is sent to our server at most once a day:
+            just the version, nothing else, so we know when old versions are still in use. Global Privacy Control or Do
+            Not Track turns it off.
+          </p>
           <p class="text-[11px] text-slate-500 leading-relaxed">
             Sending a result to the board, its CSV and diagnostics are separate choices, under Find and submit.
           </p>
