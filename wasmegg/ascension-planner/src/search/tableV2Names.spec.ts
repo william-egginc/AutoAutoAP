@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { gzipSync } from 'node:zlib';
 import { packTable, restampTable, type TableHeader } from './precomputedTable';
-import { fetchTable, probeFirst, type FetchDeps } from './tableFetch';
+import { fetchTable, gzOnlyWhenMissing, probeFirst, type FetchDeps } from './tableFetch';
 
 const base = { referenceWeek: 1, cteBonus: 128.71, deliveryScore: 1, from: 200, to: 201, builtAt: 'x' };
 const v1 = packTable({ version: 1, ...base }, []);
@@ -51,23 +51,66 @@ describe('own table: .v2 name first, then the plain one', () => {
     expect(log).toEqual([`${V2}.gz`]);
   });
 
-  it('the .v2 name missing, a version 1 file under the plain one: two names, the plain one only after', async () => {
+  it('the .v2 name missing, a version 1 file under the plain one: two requests, the plain one only after', async () => {
     for (const missing of ['html', '404'] as const) {
       const { found, log } = await lookup({ [PLAIN]: v1 }, missing);
       expect(found?.url).toBe(PLAIN);
       expect(found?.header.version).toBe(1);
-      expect(log).toEqual([`${V2}.gz`, V2, `${PLAIN}.gz`]);
+      expect(log).toEqual([`${V2}.gz`, `${PLAIN}.gz`]);
     }
   });
 
-  it('both missing: two names, null, nothing on the console', async () => {
+  it('both missing: two requests (one .gz per name, never the plain file), null, nothing on the console', async () => {
     const spies = (['error', 'warn', 'log', 'info'] as const).map(m => vi.spyOn(console, m));
     for (const missing of ['html', '404'] as const) {
       const { found, log } = await lookup({}, missing);
       expect(found).toBeNull();
-      expect(log).toEqual([`${V2}.gz`, V2, `${PLAIN}.gz`, PLAIN]);
+      expect(log).toEqual([`${V2}.gz`, `${PLAIN}.gz`]);
     }
     for (const s of spies) expect(s).not.toHaveBeenCalled();
+  });
+
+  it('a .gz that is there but broken falls back to that name\'s plain file; no .gz at all is no table there', async () => {
+    const log: string[] = [];
+    const broken: FetchDeps['fetch'] = async url => {
+      log.push(url);
+      if (url === `${V2}.gz`) return new Response(gzipSync(v2).subarray(0, 20) as unknown as BodyInit);
+      if (url === V2) return new Response(v2 as unknown as BodyInit);
+      return new Response(null, { status: 404 });
+    };
+    const found = await probeFirst([V2, PLAIN], u => fetchTable(u, { fetch: broken, DecompressionStream }).then(t => t.header));
+    expect(found?.url).toBe(V2);
+    expect(log).toEqual([`${V2}.gz`, V2]);
+    // Only the plain file on the server (never deployed that way): a miss, one request per name.
+    const plainLog: string[] = [];
+    const onlyPlain: FetchDeps['fetch'] = async url => {
+      plainLog.push(url);
+      return url.endsWith('.gz') ? new Response(null, { status: 404 }) : new Response(v1 as unknown as BodyInit);
+    };
+    expect(await probeFirst([V2, PLAIN], u => fetchTable(u, { fetch: onlyPlain }).then(t => t.header))).toBeNull();
+    expect(plainLog).toEqual([`${V2}.gz`, `${PLAIN}.gz`]);
+  });
+
+  it('only own and gear names skip the plain file on a missing .gz; the maxed table keeps the fallback', async () => {
+    expect(gzOnlyWhenMissing(V2)).toBe(true);
+    expect(gzOnlyWhenMissing(PLAIN)).toBe(true);
+    expect(gzOnlyWhenMissing('/p/gear-aaaaaaaaaaaaaaaaaaaaaaaa.v2.bin')).toBe(true);
+    expect(gzOnlyWhenMissing('/p/table-v2.bin')).toBe(false);
+    expect(gzOnlyWhenMissing('/p/table.bin')).toBe(false);
+    const log: string[] = [];
+    const maxed = '/p/table-v2.bin';
+    const t = await fetchTable(maxed, { fetch: site({}, log, '404') }).catch(() => null);
+    expect(t).toBeNull();
+    expect(log).toEqual([`${maxed}.gz`, maxed]);
+  });
+
+  it('a gear table missing under all six names: six requests, one .gz each', async () => {
+    const names = ['v3', 'canon', 'legacy'].map(n => `/p/gear-${n}.v2.bin`);
+    const urls = [...names, ...names.map(n => n.replace('.v2.bin', '.bin'))];
+    const log: string[] = [];
+    const deps = { fetch: site({}, log, '404'), DecompressionStream };
+    expect(await probeFirst(urls, u => fetchTable(u, deps).then(t => t.header))).toBeNull();
+    expect(log).toEqual(urls.map(u => `${u}.gz`));
   });
 
   it('a version 2 file under the old plain name (deployed before .v2 names) is read: this page reads version 2', async () => {

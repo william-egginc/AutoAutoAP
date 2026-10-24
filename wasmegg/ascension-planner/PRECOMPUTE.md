@@ -90,7 +90,10 @@ version 2 own or gear table under the plain name blanks that account's instant a
   `--table-name --v2` and `--gear-name --v2` print it);
 - a **version 1** table keeps the plain name, which older pages go on reading; both may be deployed at once.
 
-This page tries the `.v2` name first (`.gz`, then the plain file) and the plain name only after it misses
+This page tries the `.v2` name first and the plain name only after it misses. For own and gear tables it asks
+only for `NAME.gz` (one request per name; a missing `.gz` is no table under that name, so always deploy
+`NAME.gz` beside `NAME`; a `.gz` that is there but broken still falls back to `NAME`: `tableFetch.ts`
+`gzOnlyWhenMissing`)
 (`tableGear.ts` `ownTableNames`, `gearTableFiles`: for gear, every name's `.v2` before any plain one;
 `tableFetch.ts` `probeFirst`). It reads version 1 and 2 under either name, so a version 2 file still under its old
 plain name works here; a file of a version it can't read is taken as no table, quietly (no error card). `--pack`

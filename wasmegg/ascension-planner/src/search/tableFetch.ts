@@ -28,6 +28,8 @@ export const TABLE_STALL_MS = 30_000;
 export const TABLE_STALLED = 'the instant answer download stalled (timeout)';
 
 class Stalled extends Error {}
+/** The server has no such file: a 404, or the app's own page in its place. */
+class Missing extends Error {}
 
 /** The error (here, or as text from a worker) is the stall. */
 export function isTableStall(e: unknown): boolean {
@@ -89,7 +91,8 @@ async function fetchBytes(url: string, deps: FetchDeps, stallMs: number): Promis
         const res = await deps.fetch(url, { cache: 'no-cache', signal: ctrl.signal });
         progress();
         if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) {
-          throw new Error(`the instant answer could not be loaded (${res.ok ? 404 : res.status})`);
+          const message = `the instant answer could not be loaded (${res.ok ? 404 : res.status})`;
+          throw res.ok || res.status === 404 ? new Missing(message) : new Error(message);
         }
         if (!res.body) return res.arrayBuffer();
         // Read by chunks, each one putting the stall off again.
@@ -146,10 +149,21 @@ export function tableLoadFailed(message: string): boolean {
 
 const isGzip = (b: ArrayBuffer) => b.byteLength > 2 && new Uint8Array(b)[0] === 0x1f && new Uint8Array(b)[1] === 0x8b;
 
+/**
+ * An own or gear table (`acct-…`, `gear-…`, either name: tableGear.ts ownTableNames, gearTableFiles): looked up by
+ * name, and most players have none, so a miss must be one request per name. The deploy ships every one as `NAME.gz`
+ * beside `NAME`, so a missing `.gz` is no table under that name: the plain file is not asked for. A `.gz` that is
+ * there but broken still falls back to it. The maxed table keeps the full `.gz`-then-plain fallback.
+ */
+export function gzOnlyWhenMissing(url: string): boolean {
+  return /(^|\/)(acct|gear)-[^/]*\.bin$/.test(url);
+}
+
 export async function fetchTable(
   url: string,
   deps: FetchDeps = defaults(),
-  stallMs = TABLE_STALL_MS
+  stallMs = TABLE_STALL_MS,
+  gzOnly = gzOnlyWhenMissing(url)
 ): Promise<Table> {
   try {
     let bytes = await fetchBytes(url + '.gz', deps, stallMs);
@@ -162,6 +176,8 @@ export async function fetchTable(
   } catch (e) {
     // A stall is the connection, not the .gz: the plain file (four times the size) would only stall too.
     if (e instanceof Stalled) throw e;
+    // An own or gear table with no .gz: none under this name (`gzOnlyWhenMissing`).
+    if (gzOnly && e instanceof Missing) throw e;
     return readTable(await fetchBytes(url, deps, stallMs));
   }
 }
