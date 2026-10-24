@@ -110,7 +110,7 @@
     <main>
       <p><a href="./">← Back to the planner</a></p>
       <h1>About and privacy</h1>
-      <p class="muted">Last updated 23 Oct 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+      <p class="muted">Last updated 24 Oct 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
 
       <section id="what">
         <h2>What this is</h2>
@@ -229,9 +229,12 @@
           route you follow, and change it. If it couldn't be saved when you pressed it (you were offline, say), it is
           saved once the next time your account is loaded, unless a newer one is saved online by then. If it still isn't
           saved, My runs, Right now, says so under the route, with <b>Save it online</b>.
-          <!-- AUTO_FOLLOW_RESULT (src/lib/followPolicy.ts): this sentence goes with the constant. -->
-          <span id="follow-auto">When you are not following another route for a goal, a Fast, Exact or Custom run you did
-          that becomes your route on My runs, Right now, is followed and saved online the same way.</span>
+          <!-- AUTO_FOLLOW_FIRST (src/lib/followPolicy.ts): this sentence goes with the constant. -->
+          <span id="follow-auto">The first answer you get for a goal becomes the route you follow and is saved online,
+          unless you already follow one. That is the instant answer as its box shows it, or a Fast, Exact or Custom run
+          that becomes your route on My runs, Right now, whichever comes first. It is saved once, the same way as a press,
+          and only after your saved routes were read, so a route you follow on another device is never replaced. After
+          that, a better answer only asks you (<b>Follow it</b> or <b>Keep mine</b>).</span>
           Nothing else saves it.
         </p>
         <p>

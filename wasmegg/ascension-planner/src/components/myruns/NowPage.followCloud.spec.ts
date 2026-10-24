@@ -28,7 +28,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import { hashID } from '@/lib/storage/db';
 import { FOLLOW_PREFIX } from '@/lib/follow';
-import { AUTO_FOLLOW_RESULT } from '@/lib/followPolicy';
+import { AUTO_FOLLOW_FIRST } from '@/lib/followPolicy';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
 const ZONE = 'America/Los_Angeles';
@@ -136,9 +136,9 @@ function cardProps(page: Awaited<ReturnType<typeof eggDayWithFastResult>>['page'
 }
 
 describe('Right now: a better result with and without a followed route', () => {
-  it('no followed route: the Fast result takes over (the instant-first rule) and, with AUTO_FOLLOW_RESULT, becomes the follow; nothing is asked', async () => {
+  it('no followed route: the Fast result takes over (the instant-first rule) and, with AUTO_FOLLOW_FIRST, becomes the follow; nothing is asked', async () => {
     const { page, scope, found, goalKey, follows } = await eggDayWithFastResult(null);
-    if (!AUTO_FOLLOW_RESULT) {
+    if (!AUTO_FOLLOW_FIRST) {
       expect(page.follow.value).toBeNull();
       expect(page.cardPlan.value?.plan.chain).toEqual(found.chain);
       expect(page.cardPlan.value?.driving?.takeover).toBe('makes-date');
@@ -158,6 +158,36 @@ describe('Right now: a better result with and without a followed route', () => {
     await follows.unfollow(goalKey);
     await new Promise(r => setTimeout(r, 20));
     expect(follows.followed(goalKey)).toBeNull();
+    scope.stop();
+  });
+
+  it('the instant answer that became the follow on its own (24 Oct 2026): "From the instant answer", and a better Fast result only asks', async () => {
+    const { page, scope, goalKey, follows } = await eggDayWithFastResult({
+      chain: [200, 238],
+      from: 'answer',
+      at: Date.now() - 3_600_000,
+      source: 'instant',
+      auto: true,
+      finish: EGG_DAY_AT - 2 * D,
+      endTE: 238,
+    });
+    await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
+    expect(page.follow.value?.label).toBe(AUTO_FOLLOW_FIRST ? 'from the instant answer' : 'your pick');
+    if (!AUTO_FOLLOW_FIRST) {
+      scope.stop();
+      return;
+    }
+    const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
+    expect(text).toContain(`(Egg Day ${nextEggDayYear()} · from the instant answer)`);
+    expect(text).toContain('From the instant answer · Use the checked route ›');
+    expect(text).not.toContain('your pick');
+    // Followed once already: the Fast result is offered, never followed on its own. Simulated against the instant
+    // answer's estimate, so offered without calling it better (lib/searchPlan.ts simulatedOverEstimate).
+    expect(text).toContain(
+      "Your Fast run, simulated on your account, gets 239 TE, 2.5 days to spare; the route you follow is the instant answer's estimate (238 TE, 2.0 days to spare). Do you want to follow it?"
+    );
+    await new Promise(r => setTimeout(r, 20));
+    expect(follows.followed(goalKey)?.chain).toEqual([200, 238]);
     scope.stop();
   });
 
@@ -243,7 +273,7 @@ describe('Right now: a better result with and without a followed route', () => {
   });
 });
 
-describe('a result that becomes the follow, with a collector (AUTO_FOLLOW_RESULT)', () => {
+describe('a result that becomes the follow, with a collector (AUTO_FOLLOW_FIRST)', () => {
   const SUBMIT = 'https://collector.example/submit';
   async function withCollector(goals: (year: number) => Record<string, unknown>) {
     const calls: { url: string; method: string; body?: string }[] = [];
@@ -265,7 +295,7 @@ describe('a result that becomes the follow, with a collector (AUTO_FOLLOW_RESULT
 
   it('nothing saved online: it becomes the follow and is saved online once (source fast)', async () => {
     const { page, scope, goalKey, follows, found, puts } = await withCollector(() => ({}));
-    if (!AUTO_FOLLOW_RESULT) {
+    if (!AUTO_FOLLOW_FIRST) {
       await new Promise(r => setTimeout(r, 20));
       expect(follows.followed(goalKey)).toBeNull();
       expect(puts()).toEqual([]);

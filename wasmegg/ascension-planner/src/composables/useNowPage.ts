@@ -157,8 +157,8 @@ export interface FollowCard {
   finish?: { end: number; endTE: number | null; at: number };
   /** By a date: the route lands after the date. */
   missesDate?: boolean;
-  /** Right now's words for whose route it is: "your pick" (a Follow press), "from your Fast run" (a result that became
-   *  the follow on its own, lib/followPolicy.ts). Absent: "your pick". */
+  /** Right now's words for whose route it is: "your pick" (a Follow press), "from the instant answer" or "from your
+   *  Fast run" (the first answer, followed on its own, lib/followPolicy.ts). Absent: "your pick". */
   label?: string;
 }
 
@@ -692,15 +692,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return { card: { chain: price.chain, from: f.from, label: followedLabel(f), price: 'none', source: null, pricedSave: null }, plan: null };
   });
   /**
-   * A RESULT BECOMES THE FOLLOW (lib/followPolicy.ts, AUTO_FOLLOW_RESULT): each goal whose Fast, Exact or Custom result
-   * of this save drives Right now while nothing is followed for it follows that result (and saves it online once).
-   * Only once the saved routes are read (or there is no collector): a route followed elsewhere is never overwritten.
+   * THE FIRST ANSWER BECOMES THE FOLLOW (lib/followPolicy.ts, AUTO_FOLLOW_FIRST): each goal whose Fast, Exact or Custom
+   * result of this save drives Right now while nothing was ever followed for it follows that result (and saves it
+   * online once; stores/follow.ts `autoFollow`). Only once the saved routes are read (or there is no collector): a
+   * route followed elsewhere is never overwritten. The instant answer does the same on its own screen (InstantRoute.vue).
    */
   const autoTried = new Set<string>();
   watch(
     () => {
-      const ready = !!follows.partition && (follows.cloudStatus === 'ok' || (!follows.online && follows.cloudStatus === 'idle'));
-      if (!ready || !hasSave.value) return [];
+      if (!follows.autoReady || !hasSave.value) return [];
       return planGoals.value.flatMap(pg => {
         const pick = pg.pick;
         const a = autoFollowOf({
@@ -718,9 +718,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         const once = `${choiceScope.value}|${goalKey}|${a.at}`;
         if (autoTried.has(once)) continue;
         autoTried.add(once);
-        const { chain, at: _at, ...extra } = a;
-        void _at;
-        await follows.follow(goalKey, chain, 'saved', undefined, { ...extra, auto: true });
+        await follows.autoFollow(goalKey, a);
       }
     },
     { immediate: true }

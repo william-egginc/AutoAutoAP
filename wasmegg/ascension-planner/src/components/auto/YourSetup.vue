@@ -540,12 +540,14 @@
             your player ID, so another device shows your route when you enter your ID there. Anyone who knows your player
             ID can see it. It holds the route, the goal, when you set it, the hours window you used, the time of your save
             and the simulator version: never your player ID or a name. It is saved when you press Follow this route,
-            Follow it or Restore<!-- AUTO_FOLLOW_RESULT (lib/followPolicy.ts): this part goes with the constant. --><span
-              v-if="AUTO_FOLLOW_RESULT"
+            Follow it or Restore.<!-- AUTO_FOLLOW_FIRST (lib/followPolicy.ts): this part goes with the constant. --><span
+              v-if="AUTO_FOLLOW_FIRST"
               data-testid="follow-online-auto"
-              >, or when a Fast, Exact or Custom run you did becomes your route on My runs because you were not following
-              another one</span
-            >. The last 5 versions for each goal are kept: open Earlier versions under the route on My runs, Right now, and
+            >
+              The first answer you get for a goal becomes the route you follow and is saved online, unless you already
+              follow one. After that, a better answer only asks you.</span
+            >
+            The last 5 versions for each goal are kept: open Earlier versions under the route on My runs, Right now, and
             press Restore.
             <span v-if="follows.cloudStatus === 'unreachable'" class="block mt-0.5 text-amber-800" role="status" data-testid="follow-online-unreachable">{{
               UNREACHABLE_NOTE
@@ -620,7 +622,7 @@ import { usePrestigeBy } from '@/composables/usePrestigeBy';
 import { instantUrlOf } from '@/search/instantRecord';
 import { useFollowStore } from '@/stores/follow';
 import { UNREACHABLE_NOTE } from '@/lib/followCloud';
-import { AUTO_FOLLOW_RESULT } from '@/lib/followPolicy';
+import { AUTO_FOLLOW_FIRST } from '@/lib/followPolicy';
 import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import SchedulingInputs from './SchedulingInputs.vue';
 import TimeOffEditor from './TimeOffEditor.vue';

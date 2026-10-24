@@ -770,6 +770,9 @@ import { GEAR_RULE, gearChanges, gearStamp, gearTableNames, legacyGearTableName,
 import { compositeUrl, gearShiftUrl, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
+import { useFollowStore } from '@/stores/follow';
+import { instantAutoFollowOf } from '@/lib/followPolicy';
+import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
@@ -1854,9 +1857,12 @@ const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
 /** When the answer on screen was worked out (ms; a snapshot's own time when restored): a route followed before it is
  *  older, so a better answer is offered (BetterRoutePrompt.vue). */
 const answerAt = ref(0);
+/** The goal the answer on screen was worked out for (the target or date can change before the next answer lands). */
+const answerGoal = ref('');
 let restoredAt: number | null = null;
 watch(result, r => {
   answerAt.value = r ? (restoredAt ?? Date.now()) : 0;
+  answerGoal.value = r ? followGoal.value : '';
   restoredAt = null;
 });
 /** The instant answer as the prompt's new result. */
@@ -1987,6 +1993,44 @@ function dateRowLit(r: Route): boolean {
 function datePickedRow(r: Route): boolean {
   return preferPicked.value && dateRowLit(r);
 }
+
+/**
+ * THE FIRST ANSWER BECOMES THE FOLLOW (lib/followPolicy.ts AUTO_FOLLOW_FIRST, Jordan 24 Oct 2026): with nothing ever
+ * followed for this goal, the route the box leads with (as shown: Prefer fewer honoured; By a date only one in time)
+ * becomes the followed route and is saved online once (stores/follow.ts `autoFollow`, which waits for the account's
+ * saved routes to be read). Once the answer is finished: worked out and polished, not one kept on screen while a
+ * search has the workers. With a route followed, the box's BetterRoutePrompt asks instead.
+ */
+const follows = useFollowStore();
+watch(
+  () => {
+    const found = result.value;
+    if (!found || status.value !== 'done' || waiting.value || backgroundStatus.value === 'running') return null;
+    const goalKey = followGoal.value;
+    if (answerGoal.value !== goalKey || !follows.autoReady) return null;
+    const route = props.deadline
+      ? found.byDate
+        ? dateBoxOf(found.byDate)
+        : null
+      : boxLead.value
+        ? { chain: boxLead.value.chain, end: boxLead.value.end, endTE: boxLead.value.chain[boxLead.value.chain.length - 1] }
+        : null;
+    const a = instantAutoFollowOf({
+      route,
+      at: answerAt.value,
+      planStart: answerStart.value,
+      deadline: props.deadline ?? null,
+      inTime: boxFollowable.value,
+      followed: !!follows.followed(goalKey),
+      goneAt: follows.goneAt(goalKey),
+    });
+    return a ? { goalKey, a } : null;
+  },
+  next => {
+    if (next) void follows.autoFollow(next.goalKey, next.a);
+  },
+  { immediate: true }
+);
 
 /**
  * Fastest route only: a read-only summary of the route the box leads with, for the result cards
@@ -2204,7 +2248,7 @@ function saveSnapshot(id: number): void {
   if (backgroundStatus.value === 'running' || bracketStatus.value === 'running') return;
   if (prestigeStatus.value === 'running') return;
   const snap = currentSnapshot();
-  if (snap) writeSnapshot(snapKey, snap);
+  if (snap && writeSnapshot(snapKey, snap)) noteMyRuns();
   // The player's instant baseline for this goal and save (lib/instantBaseline.ts): My runs compares each run with it.
   const base = snap ? baselineOfSnapshot(snap) : null;
   if (base) recordBaseline(base);
@@ -2437,7 +2481,8 @@ const searchFound = computed<SearchFound | null>(() =>
 watch(searchFound, f => {
   if (!f) return;
   const meta = snapMeta();
-  if (meta) recordKeptSearch({ account: meta.account, goal: meta.goal, backupTime: meta.backupTime, setup: meta.setup, teByEgg: meta.teByEgg, search: f });
+  if (meta && recordKeptSearch({ account: meta.account, goal: meta.goal, backupTime: meta.backupTime, setup: meta.setup, teByEgg: meta.teByEgg, search: f }))
+    noteMyRuns();
   if (status.value !== 'done' || !snapKey) return;
   if (keptSearch.value && keptSearch.value.at >= f.at) return;
   keptSearch.value = f;
