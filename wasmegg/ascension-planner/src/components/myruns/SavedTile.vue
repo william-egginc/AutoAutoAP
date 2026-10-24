@@ -67,11 +67,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { dateAt } from '@/lib/eventWhen';
+import { dateAt, dayWords } from '@/lib/eventWhen';
 import { spareWords, whenAgo } from '@/lib/nowWords';
 import { howWords, saveGapWords, secondaryLabel, sourceWords, type Tile } from '@/lib/savedTiles';
 import { secondaryLine } from '@/lib/currentAnswer';
-import { formatDate } from '@/lib/leaderboardRank';
 import { fastestName } from '@/lib/siteNav';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
@@ -106,7 +105,7 @@ const lateMark = lateMarker('eggday');
 const headline = computed(() => {
   if (!a.value) return '';
   if (props.goal === 'date') return `${a.value.endTE} TE`;
-  return formatDate(a.value.end * 1000, props.zone, { month: 'short', day: 'numeric', year: 'numeric' });
+  return dayWords(a.value.end, props.zone);
 });
 const sub = computed(() => {
   if (!a.value) return '';
@@ -123,7 +122,7 @@ const secondaryText = computed(() => {
   const b = props.tile.secondary;
   if (!b) return '';
   return secondaryLine(secondaryLabel(b), { goal: props.goal, ...b }, t =>
-    formatDate(t * 1000, props.zone, { month: 'short', day: 'numeric', year: 'numeric' })
+    dayWords(t, props.zone)
   );
 });
 const screenOpen = computed<MyRunsOpen>(() =>

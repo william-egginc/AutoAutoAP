@@ -93,7 +93,7 @@ import {
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
-import { formatDate } from '@/lib/leaderboardRank';
+import { dayWords as dayWordsIn } from '@/lib/eventWhen';
 import {
   defaultGoalKey,
   goalDefs,
@@ -265,7 +265,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     hasSave.value && storeReady.value ? instantKeyFromStores(deadline, finalTE) : null;
 
   const eggDay = { year: eggDayYear, at: eggDayAt };
-  const dayWords = (t: number) => formatDate(t * 1000, zone.value, { month: 'short', day: 'numeric', year: 'numeric' });
+  const dayWords = (t: number) => dayWordsIn(t, zone.value);
   /** Fastest's goal words use the target in the key (`target 490`); By a date's its deadline. */
   const keyOfGoal = (d: PlanGoal) => keyFor(d.deadline, d.goal === 'date' ? store.finalTE : d.target);
 

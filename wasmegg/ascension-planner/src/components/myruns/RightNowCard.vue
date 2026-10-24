@@ -394,14 +394,13 @@ import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
-import { dateAt, relativeWords } from '@/lib/eventWhen';
+import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
 import { emptyGoalWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
 import { type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { paceWords } from '@/lib/planPace';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { secondaryLine } from '@/lib/currentAnswer';
-import { formatDate } from '@/lib/leaderboardRank';
 import { NAMES } from '@/lib/siteNav';
 import { eggIconPath, virtueEggName } from '@/lib/virtueEggs';
 import type { CardPlan } from '@/composables/useNowPage';
@@ -605,7 +604,7 @@ const planSaveWhen = computed(() => dateAt(props.card?.plan.meta?.backupTime || 
 const secondaryText = computed(() => {
   const sec = props.card?.secondary;
   if (!sec) return '';
-  return secondaryLine(sec.label, sec.plan, t => formatDate(t * 1000, props.zone, { month: 'short', day: 'numeric', year: 'numeric' }));
+  return secondaryLine(sec.label, sec.plan, t => dayWords(t, props.zone));
 });
 /** The chip: lib/planPace.ts's words, the same as My runs' saved plans ("3 hours behind, as of 3:42 pm"). */
 const pace = computed(() => (props.track ? paceWords(props.track, props.now, props.zone) : null));

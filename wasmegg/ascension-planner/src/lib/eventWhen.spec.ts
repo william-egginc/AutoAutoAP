@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eventWhen, eventWhenText, relativeWords } from './eventWhen';
+import { dayWords, eventWhen, eventWhenText, relativeWords } from './eventWhen';
 
 const ZONE = 'America/Denver';
 /** 2026-10-15 14:00 in Denver (MDT, UTC-6) = 20:00 UTC. */
@@ -79,5 +79,21 @@ describe('dateAt and agoLong', () => {
     expect(agoLong(45 * 60)).toBe('45 minutes ago');
     expect(agoLong(3 * 3600 + 100)).toBe('3 hours ago');
     expect(agoLong(3 * 86400)).toBe('3 days ago');
+  });
+});
+
+describe('dayWords (Jordan, 24 Oct 2026: "Feb 10, 2027", never "10 Feb 2027")', () => {
+  it('month first, the day, then the year, always with the year, in the zone', () => {
+    // Feb 10, 2027, 9:00 am in Denver (MST, UTC-7).
+    const feb10 = Date.UTC(2027, 1, 10, 16, 0) / 1000;
+    expect(dayWords(feb10, ZONE)).toBe('Feb 10, 2027');
+    expect(dayWords(NOW, ZONE)).toBe('Oct 15, 2026');
+    // 11 pm in Denver is the next day in UTC: the zone's day.
+    expect(dayWords(Date.UTC(2027, 1, 11, 6, 0) / 1000, ZONE)).toBe('Feb 10, 2027');
+  });
+
+  it("'' when unknown", () => {
+    expect(dayWords(null, ZONE)).toBe('');
+    expect(dayWords(Number.NaN, ZONE)).toBe('');
   });
 });

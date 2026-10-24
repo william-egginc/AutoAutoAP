@@ -132,6 +132,20 @@ export function dateAt(at: number | null | undefined, nowSeconds: number, zone: 
   }
 }
 
+/**
+ * A calendar day with its year, month first: "Feb 10, 2027" (Jordan, 24 Oct 2026: never "10 Feb 2027"). '' when
+ * unknown. My runs' By a date goal names ("By Feb 10, 2027") and finish days.
+ */
+export function dayWords(at: number | null | undefined, zone: string): string {
+  if (!at || !Number.isFinite(at)) return '';
+  try {
+    const p = partsOf(at, zone);
+    return `${p.month} ${p.day}, ${p.year}`;
+  } catch {
+    return '';
+  }
+}
+
 /** "3 hours ago", "45 minutes ago", "1 hour ago", "3 days ago", "just now" (the save-age strip's words). */
 export function agoLong(seconds: number): string {
   const s = Math.max(0, seconds);

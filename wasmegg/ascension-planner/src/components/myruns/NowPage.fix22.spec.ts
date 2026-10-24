@@ -15,10 +15,10 @@ import { mergeSimultaneousShifts, planEvents, tableEvents, type NowPlan } from '
 import type { CardPlan } from '@/composables/useNowPage';
 import { currentSetup, otherSetupLabel, pickCardPlan, pricedWithWords, setupCheck, todayIn, type PricedSetup } from '@/lib/currentAnswer';
 import { buildTile } from '@/lib/savedTiles';
-import { formatDate } from '@/lib/leaderboardRank';
+import { dayWords } from '@/lib/eventWhen';
 
-/** The tile's own date format (the browser's locale: "Sep 17, 2028" or "17 Sept 2028"). */
-const day = (unix: number) => formatDate(unix * 1000, ZONE, { month: 'short', day: 'numeric', year: 'numeric' });
+/** The tile's own date format, month first ("Sep 17, 2028", lib/eventWhen.ts `dayWords`). */
+const day = (unix: number) => dayWords(unix, ZONE);
 
 const ZONE = 'America/Denver';
 const SAVE = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Oct 15, 2:40 pm Denver
