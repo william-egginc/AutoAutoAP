@@ -327,7 +327,10 @@ export function sweepReplay(
   p: BuildParams,
   x: BuildExtras,
   top: number,
-  o: ReplayOptions & { lowest?: number }
+  /** `only`: just the checkpoint `top` (the sweep then runs from `top` to `top`), the same numbers as the whole
+   *  sweep's at `top`. One leg priced alone (routeFinder.ts `priceLeg`: the polish, Prestige by) needs no other,
+   *  and the whole sweep's arrays were most of what Safari's route workers allocated (SAFARI MEMORY, 24 Oct 2026). */
+  o: ReplayOptions & { lowest?: number; only?: boolean }
 ): ReplaySweep {
   const thresholds = o.thresholds ?? TE_BREAKPOINTS;
   const d0 = p.delivered.slice();
@@ -359,8 +362,10 @@ export function sweepReplay(
 
   const c0 = d0.map(v => countTE(v, thresholds));
   const now = c0.reduce((a, b) => a + b, 0);
-  const from = Math.min(now + 1, o.lowest ?? now + 1);
-  const to = Math.max(from - 1, top);
+  const first0 = Math.min(now + 1, o.lowest ?? now + 1);
+  const to = Math.max(first0 - 1, top);
+  // Only `top`: a sweep of that one checkpoint (each checkpoint's numbers depend on nothing but itself).
+  const from = o.only && top >= first0 ? top : first0;
   const n = to - from + 1;
   const seconds = new Float64Array(Math.max(0, n)).fill(NaN);
   const endTE = new Int16Array(Math.max(0, n));
@@ -384,14 +389,42 @@ export function sweepReplay(
   // Step k shares among order[k..4]: how many of the first m TEs handed out among them go to
   // order[k] (the egg that waits at step k).
   const all = greedyOrderOf(d0, Math.max(0, to - now), thresholds);
-  const prefix: Int16Array[] = [];
-  for (let k = 0; k < 5; k++) {
-    const set = order.slice(k);
-    const list = Array.from(all).filter(e => set.includes(e));
-    const pre = new Int16Array(list.length + 1);
-    for (let i = 0; i < list.length; i++) pre[i + 1] = pre[i] + (list[i] === order[k] ? 1 : 0);
-    prefix.push(pre);
+  // `prefix[k][m]`: how many of the first m of `all` with order[0..k-1] left out are order[k]. Built in one pass
+  // per step with no list in between (Array.from and filter here were a third of what a route worker allocated);
+  // for a single checkpoint not built at all, `needOf` counting along `all` instead.
+  let prefix: Int16Array[] | null = null;
+  if (n > 1) {
+    prefix = [];
+    let out = 0;
+    for (let k = 0; k < 5; k++) {
+      let len = 0;
+      for (let i = 0; i < all.length; i++) if (!((out >> all[i]) & 1)) len++;
+      const pre = new Int16Array(len + 1);
+      for (let i = 0, j = 0; i < all.length; i++) {
+        const e = all[i];
+        if ((out >> e) & 1) continue;
+        pre[j + 1] = pre[j] + (e === order[k] ? 1 : 0);
+        j++;
+      }
+      prefix.push(pre);
+      out |= 1 << order[k];
+    }
   }
+  const needOf = (k: number, left: number): number => {
+    if (!(left > 0)) return 0;
+    if (prefix) return prefix[k][Math.min(left, prefix[k].length - 1)];
+    let skip = 0;
+    for (let j = 0; j < k; j++) skip |= 1 << order[j];
+    let seen = 0;
+    let count = 0;
+    for (let i = 0; i < all.length && seen < left; i++) {
+      const e = all[i];
+      if ((skip >> e) & 1) continue;
+      seen++;
+      if (e === order[k]) count++;
+    }
+    return count;
+  };
 
   const dd = [0, 0, 0, 0, 0];
   const cc = [0, 0, 0, 0, 0];
@@ -419,9 +452,7 @@ export function sweepReplay(
           h += w;
         }
       }
-      const left = target - sum;
-      const pre = prefix[k];
-      const need = left > 0 ? pre[Math.min(left, pre.length - 1)] : 0;
+      const need = needOf(k, target - sum);
       let wait = k === 0 ? Math.max(0, saleEnd - t) : 0;
       if (need > 0) {
         const w = teWait(dd[egg], rate, need, thresholds);
