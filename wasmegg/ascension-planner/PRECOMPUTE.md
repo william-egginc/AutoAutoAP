@@ -81,6 +81,21 @@ each ascension starts on the hour (`scripts/precompute.ts --verify`, `--verify-t
    simulator's own rate function at the research a build waits with). A weaker earnings set is not
    taken off, and the page says so.
 
+**Version 2 names for own and gear tables** (24 Oct 2026, the same reason as `table-v2.bin`). Pages from before
+instant answer v2 read `acct-<24 hex>.bin` and `gear-<24 hex>.bin` with a loader that refuses version 2, so a
+version 2 own or gear table under the plain name blanks that account's instant answer in every open older tab. So:
+
+- a **version 2** own or gear table goes under its `.v2` name: `acct-<24 hex>.v2.bin` or `gear-<24 hex>.v2.bin`,
+  with `acct-<24 hex>.v2.bin.gz` / `gear-<24 hex>.v2.bin.gz` beside it (the hex is the same as the plain name's;
+  `--table-name --v2` and `--gear-name --v2` print it);
+- a **version 1** table keeps the plain name, which older pages go on reading; both may be deployed at once.
+
+This page tries the `.v2` name first (`.gz`, then the plain file) and the plain name only after it misses
+(`tableGear.ts` `ownTableNames`, `gearTableFiles`: for gear, every name's `.v2` before any plain one;
+`tableFetch.ts` `probeFirst`). It reads version 1 and 2 under either name, so a version 2 file still under its old
+plain name works here; a file of a version it can't read is taken as no table, quietly (no error card). `--pack`
+and `--manifest` refuse a table named against its version (`tableBracket.ts` `tableFileProblem`).
+
 **The gear stamp** (`gearStamp`) is what a table's builds depend on besides the start: the earnings
 set and the delivery sets the simulator's optimizer picks from the inventory (with no research and at
 the waiting research), epic research and colleggtibles. It records the sets chosen, not the raw
@@ -88,10 +103,13 @@ inventory, so a new artifact that changes no choice leaves the table exact.
 
 **Aliases and `tables.json`.** A deployed gear table is copied under its newer (v2, v3) names so a
 player whose stamp hashes to them finds it; the pairs are recorded in `public/precompute/aliases.json`.
-`--manifest` writes `tables.json`: one entry per table with `file`, `bonus`, `k`, `from`,
-`simVersion`, a gear `label` and its `aliases` (an alias is not listed as a table of its own), and on
+`--manifest` writes `tables.json`: one entry per table with `file`, `version`, `bonus`, `k`, `from`,
+`simVersion`, `builtAt`, a gear `label` and its `aliases` (an alias is not listed as a table of its own), and on
 the maxed table's entry (`table-v2.bin`, and `table.bin` while it is still deployed) its `k3`, so the page can work out a player's gear stamp and k before downloading
-any table.
+any table. A table deployed as both a version 1 plain-name file and a version 2 `.v2` file is two entries: older
+pages read the plain one, this page prefers the `.v2` one and ignores its plain twin (`tableBracket.ts`
+`preferV2`). A `.v2` copy under another gear name goes in `aliases.json` as `"gear-<new>.v2.bin":
+"gear-<old>.v2.bin"`.
 
 **k and scale.** `k` (in the manifest) is a table's delivery set's rate over the maxed table's, both
 at the maxed table's waiting research; the maxed table is 1. `scale` (`instantDeliveryScale`) is the
@@ -207,10 +225,10 @@ loads a save (`--backup FILE.json`) the way the site does. Main modes:
 | `--k3 --table DIR`                                           | Record the research and delivery set a build waits with (`DIR/k3.json`; `--generate` already writes it).                       |
 | `--verify-cells --table DIR [--tes …] [--hours …] [--show-diff]` | The bit-check: rebuild sample cells and compare them to the bit, e.g. on a second machine. Defaults: the lowest and highest TE and three between, hours `0,83,167`. |
 | `--check-bin FILE.bin [--samples 24] [--seed N\|random] [--json] [--ignore-sim] [--base SAVE] [--own-inventory] [--against-save SAVE.json \| --current-max]` | Check a table file someone sent: structure, stamps, and random cells (printed seed) plus the edges rebuilt from the table's own inputs. PASS / CLOSE / FAIL / STALE, exit 0 / 1 / 1 / 2. See README.md, "Checking a table someone sent". |
-| `--pack --table DIR --out FILE [--fake-below TE]`            | Pack the generated files into the one file the site loads (the longest run of TEs ending at the top).                          |
+| `--pack --table DIR --out FILE [--fake-below TE]`            | Pack the generated files into the one file the site loads (the longest run of TEs ending at the top). A version 2 own or gear table must be `--out …/acct-<hex>.v2.bin` or `gear-<hex>.v2.bin`. |
 | `--stamp-sim --dir DIR [--sim-version V] [--write]`          | Set `simVersion` in every table header in DIR; a dry run unless `--write`, which also remakes the `.bin.gz`.                   |
-| `--manifest --backup FILE [--dir public/precompute]`         | Write `tables.json` (each table's bonus, delivery k, lowest TE, simulator stamp, label and aliases).                            |
-| `--table-name --backup FILE`                                 | The file name an account's own table is served under.                                                                          |
+| `--manifest --backup FILE [--dir public/precompute]`         | Write `tables.json` (each table's version, bonus, delivery k, lowest TE, simulator stamp, label and aliases); refused when a table is named against its version. |
+| `--table-name --backup FILE [--v2]`                          | The file name an account's own table is served under (`--v2`: a version 2 table's, `acct-<hex>.v2.bin`).                       |
 | `--gear-name`, `--gear-check`, `--v3-name FILE`, `--own-check FILE`, `--restamp` | Gear table names and checks, and rewriting an own table's gear stamp in `meta.json`.                                  |
 | `--route …`, `--route-bin …`                                 | The finder from the command line, optionally checked against the simulator (`--check`, `--brute`; `--stop-max N\|none`). `--route --player` is the page's instant answer for a save; with `--deadline ISO` it also prints each count's By a date answer, with `--available-from H --available-to H [--available-days …] --timezone TZ` only routes inside those hours (the page's "Works inside my hours"), and `--table-top N` tries a table cut at N (the live first ascension above it). |
 | `--polish …`, `--prune-bench …`                              | The polish on one route; the finder-vs-brute-force benchmark.                                                                  |
@@ -225,13 +243,13 @@ node dist-search/precompute.js --route --table tables/own-DIR --backup me.json -
   --start 2026-10-11T01:10:00Z --deadline 2027-07-14T16:00:00Z --available-from 7 --available-to 23 --timezone America/Denver
 ```
 
-A typical pipeline:
+A typical pipeline (a version 2 table, so its `.v2` name; a version 1 one keeps the plain name):
 
 ```bash
-node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --generate --out tables/NAME --from 120 --to 489 --jobs 8
+node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --generate --v2 --out tables/NAME --from 120 --to 489 --jobs 8
 node dist-search/precompute.js --backup save.json --combos combos.json --combo NAME --verify-cells --table tables/NAME --tes 150,300,450
-node dist-search/precompute.js --pack --table tables/NAME --out public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.bin
-gzip -k -9 -n public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.bin
+node dist-search/precompute.js --pack --table tables/NAME --out public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.v2.bin
+gzip -k -9 -n public/precompute/gear-XXXXXXXXXXXXXXXXXXXXXXXX.v2.bin
 node dist-search/precompute.js --backup save.json --manifest
 ```
 

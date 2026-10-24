@@ -1,7 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { MAXED_TABLE_FILE, describeGear, isMaxed, pickBracket, preferV2, type TableEntry } from './tableBracket';
+import {
+  MAXED_TABLE_FILE,
+  describeGear,
+  isMaxed,
+  manifestFiles,
+  pickBracket,
+  preferV2,
+  tableFileProblem,
+  type TableEntry,
+} from './tableBracket';
 
 const maxed: TableEntry = { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120 };
 const zen: TableEntry = { file: 'gear-zen.bin', bonus: 115.28, k: 0.709, from: 120 };
@@ -101,5 +110,69 @@ describe('the maxed table under its version 2 name (23 Oct 2026)', () => {
       expect(read(f), f).toContain('ownTableNames(id)');
       expect(read(f), f).toContain('gearTableFiles(stamp)');
     }
+  });
+});
+
+describe('tables.json names by version (scripts/precompute.ts --manifest, --pack)', () => {
+  const HEX = '09c7c97a50bcbe5d44eea6f0';
+
+  it('tableFileProblem: version 2 own and gear tables under .v2 names, version 1 under plain ones', () => {
+    expect(tableFileProblem(`acct-${HEX}.v2.bin`, 2)).toBeNull();
+    expect(tableFileProblem(`gear-${HEX}.v2.bin`, 2)).toBeNull();
+    expect(tableFileProblem(`acct-${HEX}.bin`, 1)).toBeNull();
+    expect(tableFileProblem(`public/precompute/gear-${HEX}.bin`, 1)).toBeNull();
+    expect(tableFileProblem(`acct-${HEX}.bin`, 2)).toBe(
+      `acct-${HEX}.bin is version 2, which older pages refuse under this name: name it acct-${HEX}.v2.bin`
+    );
+    expect(tableFileProblem(`out/gear-${HEX}.bin`, 2)).toContain(`name it gear-${HEX}.v2.bin`);
+    expect(tableFileProblem(`acct-${HEX}.v2.bin`, 1)).toContain(`name it acct-${HEX}.bin`);
+    expect(tableFileProblem('table-v2.bin', 2)).toBeNull();
+    expect(tableFileProblem('table.bin', 1)).toBeNull();
+    expect(tableFileProblem('table-v2.bin', 1)).not.toBeNull();
+    expect(tableFileProblem('table.bin', 2)).not.toBeNull();
+    // Any other name (a scratch file): not the site's to judge.
+    expect(tableFileProblem('/tmp/try.bin', 2)).toBeNull();
+  });
+
+  const versions: Record<string, number> = {
+    'table.bin': 1,
+    'table-v2.bin': 2,
+    [`acct-${HEX}.bin`]: 1,
+    [`acct-${HEX}.v2.bin`]: 2,
+    'gear-legacy.bin': 1,
+    'gear-canon.bin': 1,
+    'gear-legacy.v2.bin': 2,
+    'gear-canon.v2.bin': 2,
+  };
+  const versionOf = (f: string) => versions[f];
+
+  it('manifestFiles: a version 1 file and its .v2 twin are two entries, each with its version; aliases as before', () => {
+    const files = [...Object.keys(versions), 'tables.json', 'aliases.json', `acct-${HEX}.v2.bin.gz`, `acct-${HEX}.bin.gz`];
+    const aliasOf = { 'gear-canon.bin': 'gear-legacy.bin', 'gear-canon.v2.bin': 'gear-legacy.v2.bin' };
+    expect(manifestFiles({ files, aliasOf, versionOf })).toEqual([
+      { file: `acct-${HEX}.bin`, version: 1 },
+      { file: `acct-${HEX}.v2.bin`, version: 2 },
+      { file: 'gear-legacy.bin', version: 1, aliases: ['gear-canon.bin'] },
+      { file: 'gear-legacy.v2.bin', version: 2, aliases: ['gear-canon.v2.bin'] },
+      { file: 'table-v2.bin', version: 2 },
+      { file: 'table.bin', version: 1 },
+    ]);
+  });
+
+  it('manifestFiles refuses a version 2 own or gear table under its plain name (what blanked older tabs), naming each', () => {
+    const files = ['table-v2.bin', `acct-${HEX}.bin`, 'gear-legacy.v2.bin', 'gear-canon.bin'];
+    const v = (f: string) => (f === 'gear-legacy.v2.bin' || f === `acct-${HEX}.bin` || f === 'table-v2.bin' ? 2 : 1);
+    expect(() => manifestFiles({ files, aliasOf: { 'gear-canon.bin': 'gear-legacy.v2.bin' }, versionOf: v })).toThrow(
+      new RegExp(`acct-${HEX}\\.bin is version 2[\\s\\S]*gear-canon\\.bin is version 2.*an alias of gear-legacy\\.v2\\.bin`)
+    );
+  });
+
+  it('the page reads the .v2 entry of such a pair (preferV2), older pages the plain one they always read', () => {
+    const entries = manifestFiles({ files: Object.keys(versions), aliasOf: {}, versionOf }).map(
+      e => ({ ...e, bonus: 125, k: 0.9, from: 120 }) as TableEntry
+    );
+    expect(preferV2(entries).map(e => e.file)).not.toContain(`acct-${HEX}.bin`);
+    expect(preferV2(entries).map(e => e.file)).toContain(`acct-${HEX}.v2.bin`);
+    expect(entries.map(e => e.file)).toContain(`acct-${HEX}.bin`);
   });
 });

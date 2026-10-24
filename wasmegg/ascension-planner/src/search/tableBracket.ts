@@ -30,6 +30,9 @@ export interface TableEntry {
   /** The same file deployed under other names too: a gear table's canonical name beside the legacy
    *  one it was first deployed under (tableGear.ts gearTableName, scripts/precompute.ts --manifest). */
   aliases?: string[];
+  /** The file's table version (TableHeader.version); absent in a tables.json written before 24 Oct 2026. An own or
+   *  gear table of version 2 is listed under its `.v2` name, version 1 under the plain one (`tableFileProblem`). */
+  version?: number;
   /** The simulator its cells came from (TableHeader.simVersion); absent on an unstamped table. */
   simVersion?: string;
   /** When it was built (TableHeader.builtAt); absent in a tables.json written before 24 Oct 2026. A saved instant
@@ -51,6 +54,61 @@ export function preferV2<T extends Pick<TableEntry, 'file' | 'aliases'>>(entries
   return entries.filter(
     e => !plain.test(e.file) || ![e.file, ...(e.aliases ?? [])].some(n => listed.has(n.replace(/\.bin$/, '.v2.bin')))
   );
+}
+
+/**
+ * What is wrong with a table file's name for its version, or null (scripts/precompute.ts --manifest and --pack refuse
+ * it): an own or gear table of version 2 goes under its `.v2` name (`acct-<hex>.v2.bin`, `gear-<hex>.v2.bin`), since
+ * pages from before instant answer v2 read the plain name with a loader that refuses version 2; version 1 keeps the
+ * plain name, which those pages read. The maxed table: `table-v2.bin` is version 2, `table.bin` version 1.
+ */
+export function tableFileProblem(file: string, version: number): string | null {
+  const name = file.replace(/^.*\//, '');
+  if (name === MAXED_TABLE_FILE) return version === 2 ? null : `${name} is version ${version}: it must be version 2`;
+  if (name === LEGACY_MAXED_TABLE_FILE)
+    return version === 1 ? null : `${name} is version ${version}: it must stay version 1 (older pages read it)`;
+  const m = /^((?:acct|gear)-.*?)(\.v2)?\.bin$/.exec(name);
+  if (!m) return null;
+  if (version === 2 && !m[2])
+    return `${name} is version 2, which older pages refuse under this name: name it ${m[1]}.v2.bin`;
+  if (version !== 2 && m[2]) return `${name} is version ${version}: name it ${m[1]}.bin (.v2 names are for version 2)`;
+  return null;
+}
+
+/**
+ * The files `tables.json` lists (scripts/precompute.ts --manifest), from a directory's file names: every `.bin` by its
+ * own name, with the names it is copied under (`aliasOf`, aliases.json: alias -> file) as its `aliases` rather than
+ * entries of their own, and its version. A version 1 file under the plain name and a version 2 one under the `.v2`
+ * name are two entries: older pages read the first, this page prefers the second (`preferV2`). Throws, listing every
+ * one, when a file or alias is named against its version (`tableFileProblem`), so no tables.json points older pages
+ * at a file they refuse.
+ */
+export function manifestFiles(o: {
+  files: readonly string[];
+  aliasOf: Record<string, string>;
+  versionOf: (file: string) => number;
+}): { file: string; version: number; aliases?: string[] }[] {
+  const has = new Set(o.files);
+  const aliasOf = (f: string) => (Object.hasOwn(o.aliasOf, f) ? o.aliasOf[f] : undefined);
+  const aliasesFor = (f: string) =>
+    Object.keys(o.aliasOf)
+      .filter(a => o.aliasOf[a] === f && has.has(a))
+      .sort();
+  const problems: string[] = [];
+  const out = o.files
+    .filter(f => f.endsWith('.bin') && !(aliasOf(f) !== undefined && has.has(aliasOf(f)!)))
+    .sort()
+    .map(file => {
+      const version = o.versionOf(file);
+      const aliases = aliasesFor(file);
+      for (const n of [file, ...aliases]) {
+        const p = tableFileProblem(n, version);
+        if (p) problems.push(n === file ? p : `${p} (an alias of ${file})`);
+      }
+      return { file, version, ...(aliases.length ? { aliases } : {}) };
+    });
+  if (problems.length) throw new Error(`--manifest: tables named against their version:\n  ${problems.join('\n  ')}`);
+  return out;
 }
 
 export interface Gear {
