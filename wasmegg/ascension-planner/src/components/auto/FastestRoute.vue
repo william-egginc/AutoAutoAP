@@ -29,14 +29,17 @@
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
          numbers only. The search panel below prices routes on your save; the answer points to its result. -->
     <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant">
-      <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). -->
-      <InstantRoute
-        share-to="#search-share-fastest"
-        @check="checkExactly"
-        @state="st => (instantLoad = st)"
-        @unloaded="u => (instantUnloaded = u)"
-        @by-date="emit('by-date')"
-      />
+      <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). Never nothing:
+           a card that can't be drawn says so (InstantGuard.ts). -->
+      <InstantGuard>
+        <InstantRoute
+          share-to="#search-share-fastest"
+          @check="checkExactly"
+          @state="st => (instantLoad = st)"
+          @unloaded="u => (instantUnloaded = u)"
+          @by-date="emit('by-date')"
+        />
+      </InstantGuard>
     </CollapsibleSection>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE" goal="fastest" />
@@ -90,6 +93,7 @@ import { NAMES, fastestName, type Depth } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import StrongerBox from './StrongerBox.vue';
 import CollapsibleSection from './CollapsibleSection.vue';
+import InstantGuard from './InstantGuard';
 import SearchPanel from './SearchPanel.vue';
 import { revealRunTab, selectSearchTab } from '@/lib/searchTab';
 import { useSearchSnapshots } from '@/composables/useSearchSnapshots';
