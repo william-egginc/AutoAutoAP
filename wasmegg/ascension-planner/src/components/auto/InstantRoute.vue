@@ -77,7 +77,7 @@
       Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route for
       the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
     </p>
-    <p v-else-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2">
+    <p v-else-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       {{ loadingText }}{{ result ? ' The answer below is the previous one until the new one is ready.' : '' }}
     </p>
@@ -93,6 +93,7 @@
     <p
       v-else-if="status === 'error'"
       class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900"
+      data-testid="instant-error"
     >
       {{ errorText }}
     </p>
@@ -320,7 +321,7 @@
               :candidate="instantCandidate(dateBoxOf(result.byDate))"
             />
           </template>
-          <p v-else class="text-[12px] text-amber-800">
+          <p v-else class="text-[12px] text-amber-800" data-testid="instant-no-route">
             No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
           </p>
         </div>
@@ -360,7 +361,7 @@
                     >
                   </td>
                   <td class="py-1.5 pr-2 font-bold text-slate-800 align-top" data-testid="counts-te">
-                    <span class="whitespace-nowrap">{{ r.legs[r.legs.length - 1].endTE }} TE</span> ·
+                    <span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
                     <span class="whitespace-nowrap">{{ days(deadline - r.end) }} spare</span>
                   </td>
                   <td class="py-1.5 pr-2 text-slate-600 whitespace-nowrap align-top">{{ show(r.end) }}</td>
@@ -459,7 +460,7 @@
             :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
           />
         </div>
-        <p v-else class="text-[12px] text-amber-800">
+        <p v-else class="text-[12px] text-amber-800" data-testid="instant-no-route">
           No route reaches {{ store.finalTE }} from here in the instant answer{{
             filtering ? ' with these filters' : ''
           }}.
@@ -560,19 +561,6 @@
         </div>
       </template>
 
-      <!-- "Share this result" for that search result (search/instantRecord.ts), at the bottom of the search panel
-           when the screen has one (`shareTo`). -->
-      <Teleport v-if="instantUrl && result" defer :to="shareTo || 'body'" :disabled="!shareTo">
-        <InstantShareCheck
-          v-if="pointer"
-          v-model:share-this="shareThis"
-          v-model:keep-sharing="keepSharing"
-          :status="shareText"
-          :sent="shareNote?.result === 'sent'"
-          :title="SHARE_WHAT"
-        />
-      </Teleport>
-
       <!-- What the answer above does not account for, on both screens, where it says more than the one line. -->
       <template v-if="result">
         <!-- The gear caveat and "may be optimistic for your gear", one amber box (GearCaveat.vue). -->
@@ -649,6 +637,20 @@
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
     </InstantUnloaded>
   </section>
+  <!-- "Share this result" for that search result (search/instantRecord.ts), at the bottom of the search panel
+       when the screen has one (`shareTo`). The Teleport itself lives as long as the card: only what is in it comes and
+       goes. A deferred Teleport removed before it reached its target (an answer, or the integrity hold, changing within
+       one update) throws in Vue 3.5 and stops the card's update half way (InstantGuard.spec.ts). -->
+  <Teleport v-if="instantUrl" defer :to="shareTo || 'body'" :disabled="!shareTo">
+    <InstantShareCheck
+      v-if="pointer && result && !noTable && !integrityHold"
+      v-model:share-this="shareThis"
+      v-model:keep-sharing="keepSharing"
+      :status="shareText"
+      :sent="shareNote?.result === 'sent'"
+      :title="SHARE_WHAT"
+    />
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -1156,7 +1158,7 @@ const whatIf = computed(() => {
     hours: w.hours,
     // Held as the answer was, so "maxed" and "yours" are priced alike (23 Oct 2026).
     tail: instantTail(w.hours, store.deferShifts),
-    mine: { end: mine?.end ?? null, te: mine ? mine.legs[mine.legs.length - 1].endTE : 0 },
+    mine: { end: mine?.end ?? null, te: mine ? lastEndTE(mine) : 0 },
     // Check exactly's answer was named beside it until 23 Oct 2026; the instant card is instant only now.
     exact: null,
     alreadyMaxed:
@@ -1809,7 +1811,11 @@ interface DatePick {
   endTE: number;
   end: number;
 }
-const tableDate = (r: Route): DatePick => ({ chain: r.chain, endTE: r.legs[r.legs.length - 1].endTE, end: r.end });
+/** A route's last TE; 0 for one without legs (a saved answer read back without them), never a throw while drawing. */
+function lastEndTE(r: Route): number {
+  return r.legs?.[r.legs.length - 1]?.endTE ?? 0;
+}
+const tableDate = (r: Route): DatePick => ({ chain: r.chain ?? [], endTE: lastEndTE(r), end: r.end });
 const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
 /** The rows By a date shows: the table's best number of ascensions and up to two either side. */
 function dateRowsOf(found: NonNullable<typeof result.value>): Route[] {
@@ -2210,10 +2216,11 @@ function applySnapshot(s: InstantSnapshot): void {
   ownChanged.value = s.ownChanged;
   restoredAt = typeof s.at === 'number' ? s.at : null;
   result.value = s.result;
-  ms.value = s.ms;
-  answerStart.value = s.answerStart;
-  gains.value = s.gains;
-  bracket.value = s.bracket;
+  // An older saved answer may lack a field: drawn from defaults, never a throw while drawing (InstantGuard.ts).
+  ms.value = typeof s.ms === 'number' ? s.ms : null;
+  answerStart.value = typeof s.answerStart === 'number' ? s.answerStart : 0;
+  gains.value = Array.isArray(s.gains) ? s.gains : [];
+  bracket.value = s.bracket ?? null;
   prestige.value = s.prestige ?? null;
   whatIfResult.value = s.whatIf ?? null;
   keptSearch.value = readSearch(s.search);
