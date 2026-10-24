@@ -511,8 +511,8 @@ const followName = computed(() => {
     (props.card ? (props.card.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value) : (selectedOption.value?.name ?? ''));
   return props.follow ? `${name} · ${props.follow.label ?? 'your pick'}` : name;
 });
-/** "Following your pick" (a Follow press), "From your Fast run" (a result that became the follow on its own,
- *  lib/followPolicy.ts). */
+/** "Following your pick" (a Follow press), "From the instant answer" or "From your Fast run" (the first answer for the
+ *  goal, followed on its own, lib/followPolicy.ts). */
 const followWhose = computed(() => {
   const l = props.follow?.label ?? 'your pick';
   return l === 'your pick' ? 'Following your pick' : l.charAt(0).toUpperCase() + l.slice(1);

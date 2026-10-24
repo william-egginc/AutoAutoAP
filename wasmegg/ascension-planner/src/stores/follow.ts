@@ -9,8 +9,9 @@
  * one every other call uses), a Follow press also saves the route under the account's follow key, and loading an
  * account reads the saved routes back once, quietly: each goal follows the newer of this browser's and the saved one
  * (by when Follow was pressed). Nothing but a Follow press (or Restore, which is one) writes, and, with
- * lib/followPolicy.ts AUTO_FOLLOW_RESULT, a result that became the follow on its own (useNowPage calls `follow` with
- * `auto`). A failure is quiet: `cloudStatus` 'unreachable' (Setup › Sharing says so) and the save's words per goal.
+ * lib/followPolicy.ts AUTO_FOLLOW_FIRST, the first answer for a goal that follows nothing, which becomes the follow on
+ * its own (`autoFollow`: the instant answer from InstantRoute.vue, a Fast, Exact or Custom result from useNowPage).
+ * Only once the account's saved routes are read (`autoReady`), never after that read failed on this load. A failure is quiet: `cloudStatus` 'unreachable' (Setup › Sharing says so) and the save's words per goal.
  * UNSYNCED (23 Oct 2026): a Follow press whose save didn't get through (no collector yet, offline, 5xx, the hour's
  * limit) stays `sync: 'pending'`; the next load, after its read, saves it ONCE when nothing newer is saved online for
  * the goal (`syncPending`). 400 and 413 mark it 'unsyncable' (never tried again). A follow kept before the flag existed
@@ -50,6 +51,7 @@ import {
   type FollowSource,
 } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
+import { AUTO_FOLLOW_FIRST, type AutoFollow } from '@/lib/followPolicy';
 import { OWN_BUILD_TIME } from '@/composables/useNewVersion';
 import type { GoalKey } from '@/lib/planGoals';
 import type { FollowPrompt } from '@/lib/searchPlan';
@@ -61,7 +63,7 @@ export interface FollowExtra {
   finish?: number;
   endTE?: number;
   spareSeconds?: number;
-  /** A result that became the follow on its own (lib/followPolicy.ts), not a press. */
+  /** The first answer for a goal, followed on its own (lib/followPolicy.ts), not a press. */
   auto?: boolean;
 }
 
@@ -103,6 +105,26 @@ export const useFollowStore = defineStore('follow', () => {
   /** The followed routes are saved online for this account (a collector and an account). */
   const online = computed(() => !!cloudKey.value && !!followUrl());
 
+  /** The account and collector (`id|url`) whose hashes are worked out ('' until then). */
+  const hashedFor = ref('');
+  /** The collector reads (`key|url`) that finished: answered (or the collector keeps no routes, 503), or failed. */
+  const readDone = ref<string[]>([]);
+  const readFailed = ref<string[]>([]);
+  /**
+   * An answer may become the follow on its own now (lib/followPolicy.ts): the page has made the search store (so the
+   * collector is known), the account's hashes are worked out, and its saved routes were read on this load, or there is
+   * no collector. Never after that read failed on this load: a route followed on another device must not be
+   * overwritten.
+   */
+  const autoReady = computed(() => {
+    if (!partition.value || !searchStore()) return false;
+    const url = followUrl();
+    if (hashedFor.value !== `${idOf()}|${url}`) return false;
+    if (!url) return true;
+    const sig = `${cloudKey.value}|${url}`;
+    return !!cloudKey.value && readDone.value.includes(sig) && !readFailed.value.includes(sig);
+  });
+
   // The account (and the collector, once the page has the search store): work out the hashes, then read once.
   watch(
     // A string, so touching the store again (or a tab that reads it) never refires with the same account and URL.
@@ -115,6 +137,7 @@ export const useFollowStore = defineStore('follow', () => {
       const k = id ? await followKey(id).catch(() => '') : '';
       if (idOf() !== id) return;
       cloudKey.value = k;
+      hashedFor.value = sig;
       if (h && k) void loadCloud();
       else cloudStatus.value = 'idle';
     },
@@ -153,8 +176,12 @@ export const useFollowStore = defineStore('follow', () => {
     cloudStatus.value = 'loading';
     const got = await getFollows(url, k);
     if (partition.value !== p || cloudKey.value !== k) return;
+    const sig = `${k}|${url}`;
     if (!got.ok) {
       cloudStatus.value = got.why === 'off' ? 'idle' : 'unreachable';
+      // 'off' (503): this collector keeps no routes, so nothing saved online can be overwritten.
+      if (got.why === 'off') readDone.value = [...readDone.value, sig];
+      else readFailed.value = [...readFailed.value, sig];
       return;
     }
     const cloud: Record<GoalKey, CloudValue> = {};
@@ -167,6 +194,7 @@ export const useFollowStore = defineStore('follow', () => {
       version.value++;
     }
     cloudStatus.value = 'ok';
+    readDone.value = [...readDone.value, sig];
     await syncPending(p, cloud, taken);
   }
 
@@ -297,6 +325,29 @@ export const useFollowStore = defineStore('follow', () => {
     return true;
   }
 
+  /** Goals an automatic follow is under way for (partition|goal): two screens asking at once follow once. */
+  const autoBusy = new Set<string>();
+  /**
+   * THE FIRST ANSWER BECOMES THE FOLLOW (lib/followPolicy.ts AUTO_FOLLOW_FIRST): follow `a` for the goal (`auto`, its
+   * own source) and save it online once, only when the saved routes are read (`autoReady`), nothing is followed for
+   * the goal and it was never un-followed on this device. False when it didn't.
+   */
+  async function autoFollow(goalKey: GoalKey, a: AutoFollow): Promise<boolean> {
+    if (!AUTO_FOLLOW_FIRST || !goalKey || !a.chain.length || !autoReady.value) return false;
+    const p = partition.value;
+    if (followed(goalKey, p) || goneAt(goalKey, p) > 0) return false;
+    const busy = `${p}|${goalKey}`;
+    if (autoBusy.has(busy)) return false;
+    autoBusy.add(busy);
+    try {
+      const { chain, at: _at, source, ...extra } = a;
+      void _at;
+      return await follow(goalKey, chain, source === 'instant' ? 'answer' : 'saved', undefined, { ...extra, source, auto: true });
+    } finally {
+      autoBusy.delete(busy);
+    }
+  }
+
   /** Back to the planner's checked route for the goal. Nothing is written online (there is no delete): this browser
    *  remembers when, so the route saved before doesn't come back on the next load. */
   async function unfollow(goalKey: GoalKey): Promise<void> {
@@ -388,6 +439,8 @@ export const useFollowStore = defineStore('follow', () => {
     cloudKey,
     cloudStatus,
     online,
+    autoReady,
+    autoFollow,
     followed,
     followedGoals,
     isFollowed,
