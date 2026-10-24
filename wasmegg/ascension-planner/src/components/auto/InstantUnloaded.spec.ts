@@ -102,7 +102,8 @@ describe('InstantRoute wiring: noTable is never set without a visible card', () 
     expect(template).toMatch(/<template>\s*<section v-if="!noTable"/);
     expect(template.match(/v-if="!noTable"/g)).toHaveLength(1);
     expect(template).toMatch(
-      /<section v-else [^>]*data-testid="instant-no-table">\s*<h3[^>]*>Instant answer<\/h3>\s*<InstantUnloaded :older="olderPage" @retry="run\(true\)" @by-date="emit\('by-date'\)">/
+      // The pointer to a finished search's result (InstantPointer.vue) may sit between, on `pointer` alone (23 Oct 2026).
+      /<section v-else [^>]*data-testid="instant-no-table">\s*<h3[^>]*>Instant answer<\/h3>\s*<InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" \/>\s*<InstantUnloaded :older="olderPage" @retry="run\(true\)" @by-date="emit\('by-date'\)">/
     );
     // `noTable` appears in the template only there.
     expect(template.match(/noTable/g)).toHaveLength(1);
