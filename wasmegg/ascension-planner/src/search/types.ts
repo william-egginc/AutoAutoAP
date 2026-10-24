@@ -162,6 +162,9 @@ export interface LegSummary {
    *  `EvaluateChainOptions.delays`, search/delays.ts), seconds; the farm keeps laying through it. Absent
    *  when none. The prestige is at `endTime + plannedWaitSeconds + sleepDelaySeconds`. */
   plannedWaitSeconds?: number;
+  /** Of `sleepDelaySeconds`, the part a no-prestige day added (SearchInputs.noPrestige): the prestige waited past
+   *  where the player's hours alone would have let it happen. Absent when none. */
+  noPrestigeWaitSeconds?: number;
   /** Total seconds this leg's SHIFTS were held back waiting for the availability window, when
    *  `deferShifts` is on. Zero otherwise. Separate from `sleepDelaySeconds` (the prestige wait)
    *  because they are different costs: one is you not being there to tap prestige, the other is
