@@ -63,4 +63,33 @@ describe('fetchTable', () => {
       })
     ).rejects.toThrow('incomplete');
   });
+  // Safari reload (Jordan, 23 Oct 2026): a cmd+R revalidates the .gz (304) and WebKit hands back the cached copy. Each
+  // way that copy could arrive is read the same; the headers of the packed file never decide anything.
+  it('reads a revalidated .gz whatever its headers say: unpacked under the packed length, packed, or as one buffer', async () => {
+    const headers = {
+      'content-type': 'application/octet-stream',
+      'content-encoding': 'gzip',
+      'content-length': String(gz.length),
+    };
+    const as =
+      (body: Uint8Array, stream = true): FetchDeps['fetch'] =>
+      async url => {
+        if (url !== 't.bin.gz')
+          return new Response(html as unknown as BodyInit, { headers: { 'content-type': 'text/html' } });
+        const r = new Response(body as unknown as BodyInit, { status: 200, headers });
+        if (stream) return r;
+        // No stream (an older WebKit): the whole body at once.
+        return {
+          ok: true,
+          status: 200,
+          headers: r.headers,
+          body: null,
+          arrayBuffer: () => r.arrayBuffer(),
+        } as unknown as Response;
+      };
+    ok(await fetchTable('t.bin', { fetch: as(table), DecompressionStream }));
+    ok(await fetchTable('t.bin', { fetch: as(gz), DecompressionStream }));
+    ok(await fetchTable('t.bin', { fetch: as(table, false), DecompressionStream }));
+    ok(await fetchTable('t.bin', { fetch: as(gz, false), DecompressionStream }));
+  });
 });
