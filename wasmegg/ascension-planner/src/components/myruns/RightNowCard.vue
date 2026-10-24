@@ -121,7 +121,7 @@
 
     <!-- The player's own pick (lib/follow.ts): where its price came from, Price it / Simulate it, and the way back. -->
     <p v-if="follow" class="text-[12px] text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
-      <span class="font-bold text-indigo-800">Following your pick</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
+      <span class="font-bold text-indigo-800" data-testid="now-follow-whose">{{ followWhose }}</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
       ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template
       ><template v-if="offerPrice"
         >{{ ' ' }}·
@@ -489,7 +489,13 @@ const followName = computed(() => {
   const name =
     props.card?.name ??
     (props.card ? (props.card.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value) : (selectedOption.value?.name ?? ''));
-  return props.follow ? `${name} · your pick` : name;
+  return props.follow ? `${name} · ${props.follow.label ?? 'your pick'}` : name;
+});
+/** "Following your pick" (a Follow press), "From your Fast run" (a result that became the follow on its own,
+ *  lib/followPolicy.ts). */
+const followWhose = computed(() => {
+  const l = props.follow?.label ?? 'your pick';
+  return l === 'your pick' ? 'Following your pick' : l.charAt(0).toUpperCase() + l.slice(1);
 });
 /** The route on the line: the plan's, else (a followed route not priced yet) the followed one. */
 const shownChain = computed(() => props.card?.plan.chain ?? props.follow?.chain ?? []);

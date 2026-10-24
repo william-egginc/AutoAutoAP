@@ -28,6 +28,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import { hashID } from '@/lib/storage/db';
 import { FOLLOW_PREFIX } from '@/lib/follow';
+import { AUTO_FOLLOW_RESULT } from '@/lib/followPolicy';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
 const ZONE = 'America/Los_Angeles';
@@ -135,12 +136,28 @@ function cardProps(page: Awaited<ReturnType<typeof eggDayWithFastResult>>['page'
 }
 
 describe('Right now: a better result with and without a followed route', () => {
-  it('no followed route: the Fast result takes over (the instant-first rule, unchanged), nothing is asked', async () => {
-    const { page, scope, found } = await eggDayWithFastResult(null);
-    expect(page.follow.value).toBeNull();
+  it('no followed route: the Fast result takes over (the instant-first rule) and, with AUTO_FOLLOW_RESULT, becomes the follow; nothing is asked', async () => {
+    const { page, scope, found, goalKey, follows } = await eggDayWithFastResult(null);
+    if (!AUTO_FOLLOW_RESULT) {
+      expect(page.follow.value).toBeNull();
+      expect(page.cardPlan.value?.plan.chain).toEqual(found.chain);
+      expect(page.cardPlan.value?.driving?.takeover).toBe('makes-date');
+      expect(page.betterRoute.value).toBeNull();
+      scope.stop();
+      return;
+    }
+    await vi.waitFor(() => expect(follows.followed(goalKey)).toMatchObject({ chain: found.chain, source: 'fast', auto: true }));
+    expect(page.follow.value).toMatchObject({ chain: found.chain, label: 'from your Fast run', price: 'exact' });
     expect(page.cardPlan.value?.plan.chain).toEqual(found.chain);
-    expect(page.cardPlan.value?.driving?.takeover).toBe('makes-date');
-    expect(page.betterRoute.value).toBeNull();
+    const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
+    expect(text).toContain('(Egg Day 2027 · from your Fast run)'.replace('2027', String(nextEggDayYear())));
+    expect(text).toContain('From your Fast run · Use the checked route ›');
+    expect(text).not.toContain('your pick');
+    expect(text).not.toContain('This is a better route');
+    // "Use the checked route": not followed again for the same result.
+    await follows.unfollow(goalKey);
+    await new Promise(r => setTimeout(r, 20));
+    expect(follows.followed(goalKey)).toBeNull();
     scope.stop();
   });
 
@@ -222,6 +239,56 @@ describe('Right now: a better result with and without a followed route', () => {
     });
     await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
     expect(page.followSetWith.value).toBe('This route was set with a different hours window.');
+    scope.stop();
+  });
+});
+
+describe('a result that becomes the follow, with a collector (AUTO_FOLLOW_RESULT)', () => {
+  const SUBMIT = 'https://collector.example/submit';
+  async function withCollector(goals: (year: number) => Record<string, unknown>) {
+    const calls: { url: string; method: string; body?: string }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init?: { method?: string; body?: string }) => {
+      const method = init?.method ?? 'GET';
+      calls.push({ url, method, body: init?.body });
+      const body = url.includes('/follow') && method === 'GET' ? { goals: goals(nextEggDayYear()) } : { ok: true, version: 1 };
+      return { ok: true, status: 200, json: async () => body };
+    });
+    (globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__ = SUBMIT;
+    try {
+      const r = await eggDayWithFastResult(null);
+      await vi.waitFor(() => expect(r.follows.cloudStatus).toBe('ok'));
+      return { ...r, puts: () => calls.filter(c => c.method === 'PUT' && c.url.endsWith('/follow')) };
+    } finally {
+      delete (globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__;
+    }
+  }
+
+  it('nothing saved online: it becomes the follow and is saved online once (source fast)', async () => {
+    const { page, scope, goalKey, follows, found, puts } = await withCollector(() => ({}));
+    if (!AUTO_FOLLOW_RESULT) {
+      await new Promise(r => setTimeout(r, 20));
+      expect(follows.followed(goalKey)).toBeNull();
+      expect(puts()).toEqual([]);
+      scope.stop();
+      return;
+    }
+    await vi.waitFor(() => expect(puts().length).toBe(1));
+    expect(JSON.parse(puts()[0].body!).value).toMatchObject({ chain: found.chain, source: 'fast', endTE: 239 });
+    expect(JSON.parse(puts()[0].body!).value.auto).toBeUndefined();
+    expect(page.follow.value?.label).toBe('from your Fast run');
+    await new Promise(r => setTimeout(r, 20));
+    expect(puts().length).toBe(1);
+    scope.stop();
+  });
+
+  it('a route followed on another device (read on load): kept, never overwritten, nothing written', async () => {
+    const at = Date.now() - 60_000;
+    const { scope, goalKey, follows, puts } = await withCollector(year => ({
+      [`eggday${year}`]: { value: { chain: [205, 238], planStart: Math.floor(at / 1000), source: 'manual', at }, version: 3, updatedAt: at },
+    }));
+    await new Promise(r => setTimeout(r, 30));
+    expect(follows.followed(goalKey)?.chain).toEqual([205, 238]);
+    expect(puts()).toEqual([]);
     scope.stop();
   });
 });

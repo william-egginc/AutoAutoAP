@@ -112,6 +112,7 @@ import { followPrice, type FollowResult, type FollowSnap } from '@/lib/followPri
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
+import { autoFollowOf, followedLabel } from '@/lib/followPolicy';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 
 /** The race the Fastest tile is for first (the board's), then the player's own target. */
@@ -156,6 +157,9 @@ export interface FollowCard {
   finish?: { end: number; endTE: number | null; at: number };
   /** By a date: the route lands after the date. */
   missesDate?: boolean;
+  /** Right now's words for whose route it is: "your pick" (a Follow press), "from your Fast run" (a result that became
+   *  the follow on its own, lib/followPolicy.ts). Absent: "your pick". */
+  label?: string;
 }
 
 /**
@@ -651,6 +655,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       const card: FollowCard = {
         chain: [...p.chain],
         from: f.from,
+        label: followedLabel(f),
         price: p.exact ? 'exact' : 'instant',
         source: price.source,
         pricedSave: p.meta?.backupTime ?? null,
@@ -675,6 +680,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         card: {
           chain: followedFromNow(f.chain, teSoFar.value),
           from: f.from,
+          label: followedLabel(f),
           price: 'finish',
           source: 'history',
           pricedSave: price.backupTime,
@@ -683,8 +689,43 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         },
         plan: null,
       };
-    return { card: { chain: price.chain, from: f.from, price: 'none', source: null, pricedSave: null }, plan: null };
+    return { card: { chain: price.chain, from: f.from, label: followedLabel(f), price: 'none', source: null, pricedSave: null }, plan: null };
   });
+  /**
+   * A RESULT BECOMES THE FOLLOW (lib/followPolicy.ts, AUTO_FOLLOW_RESULT): each goal whose Fast, Exact or Custom result
+   * of this save drives Right now while nothing is followed for it follows that result (and saves it online once).
+   * Only once the saved routes are read (or there is no collector): a route followed elsewhere is never overwritten.
+   */
+  const autoTried = new Set<string>();
+  watch(
+    () => {
+      const ready = !!follows.partition && (follows.cloudStatus === 'ok' || (!follows.online && follows.cloudStatus === 'idle'));
+      if (!ready || !hasSave.value) return [];
+      return planGoals.value.flatMap(pg => {
+        const pick = pg.pick;
+        const a = autoFollowOf({
+          driving: pick?.candidate.ownKey ? pick.candidate.driving : null,
+          thisSave: pick?.state === 'this-save',
+          followed: !!follows.followed(pg.goal.key),
+          goneAt: follows.goneAt(pg.goal.key),
+          deadline: pg.goal.goal === 'date' ? pg.goal.deadline : null,
+        });
+        return a ? [{ goalKey: pg.goal.key, a }] : [];
+      });
+    },
+    async list => {
+      for (const { goalKey, a } of list) {
+        const once = `${choiceScope.value}|${goalKey}|${a.at}`;
+        if (autoTried.has(once)) continue;
+        autoTried.add(once);
+        const { chain, at: _at, ...extra } = a;
+        void _at;
+        await follows.follow(goalKey, chain, 'saved', undefined, { ...extra, auto: true });
+      }
+    },
+    { immediate: true }
+  );
+
   /** The followed route of the selected goal, for the card (null: the planner's checked route is shown). */
   const follow = computed<FollowCard | null>(() => followState.value?.card ?? null);
 

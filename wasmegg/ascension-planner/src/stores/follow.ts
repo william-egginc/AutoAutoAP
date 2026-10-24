@@ -8,8 +8,9 @@
  * SAVED ONLINE (23 Oct 2026, lib/followCloud.ts): with a collector (the chain-search store's `submitUrl`, the same
  * one every other call uses), a Follow press also saves the route under the account's follow key, and loading an
  * account reads the saved routes back once, quietly: each goal follows the newer of this browser's and the saved one
- * (by when Follow was pressed). Nothing but a Follow press (or Restore, which is one) writes: not a load, not a
- * result. A failure is quiet: `cloudStatus` 'unreachable' (Setup › Sharing says so) and the save's words per goal.
+ * (by when Follow was pressed). Nothing but a Follow press (or Restore, which is one) writes, and, with
+ * lib/followPolicy.ts AUTO_FOLLOW_RESULT, a result that became the follow on its own (useNowPage calls `follow` with
+ * `auto`). A failure is quiet: `cloudStatus` 'unreachable' (Setup › Sharing says so) and the save's words per goal.
  * UNSYNCED (23 Oct 2026): a Follow press whose save didn't get through (no collector yet, offline, 5xx, the hour's
  * limit) stays `sync: 'pending'`; the next load, after its read, saves it ONCE when nothing newer is saved online for
  * the goal (`syncPending`). 400 and 413 mark it 'unsyncable' (never tried again). A follow kept before the flag existed
@@ -58,6 +59,8 @@ export interface FollowExtra {
   finish?: number;
   endTE?: number;
   spareSeconds?: number;
+  /** A result that became the follow on its own (lib/followPolicy.ts), not a press. */
+  auto?: boolean;
 }
 
 /** How the last save online of a goal went. */
@@ -279,6 +282,7 @@ export const useFollowStore = defineStore('follow', () => {
       ...(extra.finish !== undefined ? { finish: extra.finish } : {}),
       ...(extra.endTE !== undefined ? { endTE: extra.endTE } : {}),
       ...(extra.spareSeconds !== undefined ? { spareSeconds: extra.spareSeconds } : {}),
+      ...(extra.auto ? { auto: true } : {}),
       ...setupNow(),
       sync: 'pending',
     };
@@ -297,6 +301,12 @@ export const useFollowStore = defineStore('follow', () => {
     held.set(p, writeFollow(p, goalKey, null, mapOf(p)));
     writeGone(p, goalKey, Date.now());
     version.value++;
+  }
+
+  /** When the player un-followed the goal on this device (ms; 0: never). */
+  function goneAt(goalKey: GoalKey, p: string = partition.value): number {
+    void version.value;
+    return p ? (readGone(p)[goalKey] ?? 0) : 0;
   }
 
   /** The last 5 versions saved for a goal, newest first (null: couldn't read them). */
@@ -354,6 +364,7 @@ export const useFollowStore = defineStore('follow', () => {
     isFollowed,
     follow,
     unfollow,
+    goneAt,
     loadCloud,
     earlierVersions,
     restore,

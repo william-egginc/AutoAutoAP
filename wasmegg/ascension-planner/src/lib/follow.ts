@@ -55,10 +55,13 @@ export interface Followed {
    *  again). Absent on a follow kept before 23 Oct 2026: tried on the next load only when nothing is saved online for
    *  the goal. Never sent online. */
   sync?: 'pending' | 'synced' | 'unsyncable';
+  /** It became the follow on its own: a Fast, Exact or Custom result that took over Right now while nothing was
+   *  followed (lib/followPolicy.ts). Kept in this browser only. */
+  auto?: boolean;
 }
 
 /** The summary fields kept beside the route (all optional). */
-const EXTRA_FIELDS = ['source', 'planStart', 'finish', 'endTE', 'spareSeconds', 'hours', 'saveTime', 'simVersion', 'build', 'cloud', 'sync'] as const;
+const EXTRA_FIELDS = ['source', 'planStart', 'finish', 'endTE', 'spareSeconds', 'hours', 'saveTime', 'simVersion', 'build', 'cloud', 'sync', 'auto'] as const;
 
 export type FollowMap = Record<GoalKey, Followed>;
 
