@@ -8,7 +8,7 @@
             ref="inputEl"
             v-model="inputDuration"
             type="text"
-            placeholder="e.g. 8h30m, 12:30pm, or +0"
+            placeholder="e.g. 8h30m, 12:30pm or +2"
             class="w-full sm:flex-1 px-4 py-2.5 text-sm font-mono-premium font-bold bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all placeholder:text-slate-300"
             @keyup.enter="handleWaitTime"
           />
@@ -21,17 +21,13 @@
           </button>
         </div>
         <p class="mt-3 text-[10px] text-slate-400 font-medium leading-relaxed">
-          Enter duration (e.g.
+          Enter a duration (e.g.
           <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">8h</span> or
-          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">1d12h</span>), clock time
-          (e.g.
-          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">12:30pm</span> or
-          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">14:30</span>), or Egg Relative
-          Time (e.g.
-          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">+0</span>,
-          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">+2</span>, or
-          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">-2</span>
-          ).
+          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">1d12h</span>), a clock time (e.g.
+          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">12:30pm</span>), or hours from 9:00 am Pacific (e.g.
+          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">+0</span> = 9:00 am,
+          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">+2</span> = 11:00 am,
+          <span class="font-mono-premium text-slate-600 bg-slate-100 px-1 py-0.5 rounded">-2</span> = 7:00 am).
         </p>
       </div>
 

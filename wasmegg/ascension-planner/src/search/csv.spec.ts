@@ -1,0 +1,549 @@
+/**
+ * The chain-cache CSV export.
+ *
+ * The things worth pinning down are the ones a spreadsheet would silently mangle: chains that came
+ * back from a checkpoint with no per-leg detail (they must appear, with blanks, not vanish),
+ * ordering and the gap column, and local-time rendering in the plan's zone rather than the
+ * runner's.
+ */
+import { describe, expect, it } from 'vitest';
+import { getLocalTimestampInTimezone } from '@/lib/events';
+import {
+  buildChainsCsv,
+  buildDeadlineCsv,
+  DEADLINE_COLUMNS,
+  chainsCsvChunks,
+  CHUNK_ROWS,
+  describeLoadout,
+  describeVirtueInventory,
+  formatInZone,
+  partialLine,
+} from './csv';
+import type { CacheEntry } from './driver';
+import type { LegSummary } from './types';
+
+const DENVER = 'America/Denver';
+const PLAN_START = getLocalTimestampInTimezone('2026-09-04', '21:30', DENVER);
+
+const META = {
+  planStart: PLAN_START,
+  timezone: DENVER,
+  currentTE: 176,
+  final: 490,
+  effort: 'balanced',
+  firstAscension: 'continue' as const,
+  availability: null,
+  seedChain: [195, 490],
+  loadouts: [{ label: 'equipped in the backup', loadout: null }],
+  generatedAt: PLAN_START * 1000,
+};
+
+function leg(over: Partial<LegSummary> = {}): LegSummary {
+  return {
+    key: '2-sale-tier13',
+    endTE: 219,
+    durationSeconds: 60.76 * 86400,
+    maxELR: 5.593e15 / 3600,
+    endTime: PLAN_START + 60 * 86400,
+    tier13Unlocked: true,
+    startTime: PLAN_START,
+    buildPhaseEndTime: PLAN_START + 5 * 86400,
+    buildPhaseSaleCount: 2,
+    nightShifts: 0,
+    sleepDelaySeconds: 0,
+    ...over,
+  };
+}
+
+/** Data rows only — the `#` header block and the column line are asserted separately. */
+function dataRows(csv: string): string[] {
+  return csv.split('\n').filter(l => l && !l.startsWith('#') && !l.startsWith('rank,'));
+}
+
+function column(csv: string, row: number, name: string): string {
+  const header = csv
+    .split('\n')
+    .find(l => l.startsWith('rank,'))!
+    .split(',');
+  return dataRows(csv)[row].split(',')[header.indexOf(name)];
+}
+
+describe('buildChainsCsv', () => {
+  it('emits one row per leg', () => {
+    const entries: CacheEntry[] = [
+      { key: '195,219,490', seconds: 700 * 86400, legs: [leg(), leg({ endTE: 490 }), leg({ endTE: 490 })] },
+    ];
+    expect(dataRows(buildChainsCsv(entries, META))).toHaveLength(3);
+  });
+
+  it('keeps chains that have no per-leg detail, with the total intact', () => {
+    // This is what a resumed run looks like: a checkpoint stores `legs` for the BEST chain only,
+    // so every replayed chain comes back with a duration and nothing else. Skipping them would
+    // under-report what the run priced by thousands of rows.
+    const entries: CacheEntry[] = [
+      { key: '195,219,490', seconds: 741.965 * 86400, legs: [] },
+      { key: '196,232,490', seconds: 744.355 * 86400, legs: [] },
+    ];
+    const csv = buildChainsCsv(entries, META);
+    expect(dataRows(csv)).toHaveLength(2);
+    expect(column(csv, 0, 'total_days')).toBe('741.9650');
+    expect(column(csv, 0, 'strategy')).toBe('');
+    expect(column(csv, 0, 'leg')).toBe('');
+  });
+
+  it('ranks fastest first and states the gap against the best in the file', () => {
+    const entries: CacheEntry[] = [
+      { key: '196,232,490', seconds: 744.355 * 86400, legs: [] },
+      { key: '195,219,490', seconds: 741.965 * 86400, legs: [] },
+    ];
+    const csv = buildChainsCsv(entries, META);
+    expect(column(csv, 0, 'chain')).toBe('195 219 490');
+    expect(column(csv, 0, 'gap_days')).toBe('0.0000');
+    expect(column(csv, 1, 'gap_days')).toBe('2.3900');
+  });
+
+  it('renders times in the plan’s timezone, not the runner’s', () => {
+    const entries: CacheEntry[] = [{ key: '195,490', seconds: 86400, legs: [leg()] }];
+    const csv = buildChainsCsv(entries, META);
+    expect(column(csv, 0, 'leg_start_local')).toBe('2026-09-04 21:30');
+  });
+
+  it('leaves a missing instant blank rather than printing 1970', () => {
+    const entries: CacheEntry[] = [
+      { key: '195,490', seconds: 86400, legs: [leg({ startTime: undefined, buildPhaseEndTime: undefined })] },
+    ];
+    const csv = buildChainsCsv(entries, META);
+    expect(column(csv, 0, 'leg_start_local')).toBe('');
+    expect(column(csv, 0, 'build_phase_end_local')).toBe('');
+  });
+
+  it('recovers the sale count from the strategy key when the field is absent', () => {
+    // Legs restored from a checkpoint written before these fields existed have no
+    // `buildPhaseSaleCount`, but `2-sale-tier13` still says 2.
+    const entries: CacheEntry[] = [{ key: '195,490', seconds: 86400, legs: [leg({ buildPhaseSaleCount: undefined })] }];
+    expect(column(buildChainsCsv(entries, META), 0, 'sales')).toBe('2');
+  });
+
+  it('reports the availability window and the schedule columns', () => {
+    const entries: CacheEntry[] = [
+      { key: '195,490', seconds: 86400, legs: [leg({ nightShifts: 4, sleepDelaySeconds: 3.5 * 3600 })] },
+    ];
+    const csv = buildChainsCsv(entries, {
+      ...META,
+      availability: { days: [], fromHour: 7, toHour: 23, timezone: DENVER },
+    });
+    expect(csv).toContain(`# available every day 07:00-23:00 ${DENVER}`);
+    expect(column(csv, 0, 'night_shifts')).toBe('4');
+    expect(column(csv, 0, 'prestige_delay_hours')).toBe('3.50');
+  });
+
+  it('lists each shift with its egg, in the plan timezone', () => {
+    // "4 night shifts" says there is a problem; only the instants say WHEN, which is the whole
+    // point of carrying twelve numbers per leg.
+    const shifts = [
+      { at: PLAN_START + 3600, egg: 'curiosity' },
+      { at: PLAN_START + 7200, egg: 'integrity' },
+    ];
+    const csv = buildChainsCsv([{ key: '195,490', seconds: 86400, legs: [leg({ shifts })] }], META);
+    // Semicolon separated, so the cell needs no quoting and cannot shift the columns — which is
+    // the whole reason it is not comma separated.
+    expect(column(csv, 0, 'shift_times_local')).toBe('2026-09-04 22:30 curiosity; 2026-09-04 23:30 integrity');
+  });
+
+  it('leaves the shift column blank rather than empty-quoting when there are none', () => {
+    const csv = buildChainsCsv([{ key: '195,490', seconds: 86400, legs: [leg({ shifts: [] })] }], META);
+    expect(column(csv, 0, 'shift_times_local')).toBe('');
+  });
+
+  it('reports the virtue inventory in the header, since "equipped" is usually empty', () => {
+    const csv = buildChainsCsv([], { ...META, inventory: '1x T4L Puzzle cube; stones: 3x T4 Lunar stone' });
+    expect(csv).toContain('virtue inventory: 1x T4L Puzzle cube; stones: 3x T4 Lunar stone');
+  });
+
+  it('quotes a cell containing a comma so the columns do not shift', () => {
+    const csv = buildChainsCsv([], {
+      ...META,
+      loadouts: [{ label: 'a, b', loadout: null }],
+    });
+    expect(csv).toContain('a, b');
+  });
+
+  it("prints the player's note on one header line, line breaks and all", () => {
+    const csv = buildChainsCsv([], { ...META, runNote: 'testing 3 sales\n195,490,1\r\nfast' });
+    expect(csv).toContain('# note: testing 3 sales 195,490,1 fast\n');
+    expect(dataRows(csv)).toHaveLength(0);
+    expect(buildChainsCsv([], META)).not.toContain('# note:');
+  });
+
+  it("says which ascension counts a Smart search searched, the seed's first", () => {
+    const csv = buildChainsCsv([], { ...META, countsProbed: [6, 5, 7, 8] });
+    expect(csv).toContain("# ascension counts searched 5 6 7 8 (seed's 6)\n");
+    expect(buildChainsCsv([], META)).not.toContain('ascension counts searched');
+  });
+
+  it('survives an empty cache', () => {
+    const csv = buildChainsCsv([], META);
+    expect(dataRows(csv)).toHaveLength(0);
+    expect(csv).toContain('# chains priced 0');
+  });
+
+  it('ends with a newline, so the last row is not dropped on import', () => {
+    expect(buildChainsCsv([{ key: '195,490', seconds: 86400, legs: [] }], META).endsWith('\n')).toBe(true);
+  });
+});
+
+describe('formatInZone', () => {
+  it('shows midnight as 00, not 24', () => {
+    expect(formatInZone(getLocalTimestampInTimezone('2026-09-08', '00:00', DENVER), DENVER)).toBe('2026-09-08 00:00');
+  });
+
+  it('is blank for 0 and undefined', () => {
+    expect(formatInZone(0, DENVER)).toBe('');
+    expect(formatInZone(undefined, DENVER)).toBe('');
+  });
+
+  // A continue leg on a bare farm priced at 17 billion days; the CSV download threw on its date
+  // and did nothing at all.
+  it('is blank, not a throw, for an instant past what a Date can hold', () => {
+    expect(formatInZone(1.5e15, DENVER)).toBe('');
+    expect(formatInZone(Infinity, DENVER)).toBe('');
+    expect(formatInZone(NaN, DENVER)).toBe('');
+  });
+});
+
+describe('describeVirtueInventory', () => {
+  it('says "empty" for a backup with no virtue inventory rather than throwing', () => {
+    // Called on whatever the backup happens to contain, including nothing.
+    expect(describeVirtueInventory(null)).toBe('empty');
+    expect(describeVirtueInventory({})).toBe('empty');
+    expect(describeVirtueInventory({ artifactsDb: { virtueAfxDb: { inventoryItems: [] } } })).toBe('empty');
+  });
+
+  it('ignores items it cannot resolve instead of failing the whole export', () => {
+    const backup = {
+      artifactsDb: { virtueAfxDb: { inventoryItems: [{ quantity: 2, artifact: { spec: { name: 9999, level: 9 } } }] } },
+    };
+    expect(describeVirtueInventory(backup)).toBe('empty');
+  });
+});
+
+describe('describeLoadout', () => {
+  it('says "none" for an empty or absent loadout rather than an empty cell', () => {
+    expect(describeLoadout(null)).toBe('none');
+    expect(describeLoadout([])).toBe('none');
+  });
+
+  it('produces plain text with no markup', () => {
+    // The point of not reusing `summarizeLoadout`: that one emits <img> tags.
+    const text = describeLoadout([{ artifactId: 'puzzle-cube-4-3', stones: [null, null, null] }]);
+    expect(text).not.toContain('<');
+  });
+});
+
+describe('chainsCsvChunks', () => {
+  /** Big enough to cross a chunk boundary and no bigger: every row costs several Intl format
+   *  calls, so these are sized to just clear CHUNK_ROWS rather than to a round number of chains. */
+  const justOverOneChunk = (legsEach: number) => Math.ceil(CHUNK_ROWS / legsEach) + 5;
+  const runOf = (chains: number, legsEach: number): CacheEntry[] =>
+    Array.from({ length: chains }, (_, k) => ({
+      key: `${180 + k},490`,
+      seconds: (600 + k) * 86400,
+      legs: Array.from({ length: legsEach }, () => leg()),
+    }));
+
+  // The download path builds its Blob from these pieces, so a chunk boundary that inserted,
+  // dropped or duplicated a byte would produce a file that opens and is subtly wrong -- far worse
+  // than one that fails to download. Pinned against the string builder, whose contents every other
+  // test in this file already checks.
+  it('joins back to exactly the one-string build', () => {
+    const entries = runOf(justOverOneChunk(2), 2);
+    expect([...chainsCsvChunks(entries, META)].join('')).toBe(buildChainsCsv(entries, META));
+    // Generous timeout, not a slow test to fix: crossing a boundary means a couple of thousand
+    // rows, and every row runs several Intl format calls. Under the default 5s it passed alone and
+    // timed out inside the full suite, which is the worst kind of flake.
+  }, 30_000);
+
+  it('actually splits a large run, rather than yielding one chunk', () => {
+    expect([...chainsCsvChunks(runOf(justOverOneChunk(1), 1), META)].length).toBeGreaterThan(1);
+  }, 30_000);
+
+  it('keeps a small run in a single chunk', () => {
+    expect([...chainsCsvChunks(runOf(3, 1), META)]).toHaveLength(1);
+  });
+
+  // A boundary inside one chain's legs would still make a correct file, but keeping chains whole
+  // is what the buffer check promises, and a rank split across two chunks would be a nuisance for
+  // anything consuming the stream a piece at a time.
+  it('never splits a chain across two chunks', () => {
+    for (const chunk of chainsCsvChunks(runOf(justOverOneChunk(3), 3), META)) {
+      const counts = new Map<string, number>();
+      for (const row of dataRows(chunk)) {
+        const rank = row.split(',')[0];
+        counts.set(rank, (counts.get(rank) ?? 0) + 1);
+      }
+      expect([...counts.values()].every(n => n === 3)).toBe(true);
+    }
+  }, 30_000);
+
+  it('ends the file with a newline, exactly once', () => {
+    const csv = [...chainsCsvChunks(runOf(1, 1), META)].join('');
+    expect(csv.endsWith('\n')).toBe(true);
+    expect(csv.endsWith('\n\n')).toBe(false);
+  });
+
+  it('yields nothing but the header block for a run with no entries', () => {
+    expect(dataRows([...chainsCsvChunks([], META)].join(''))).toEqual([]);
+  });
+});
+
+describe('time off in the CSV', () => {
+  it('marks the leg cut by time off and the rebuild after it', () => {
+    const entries: CacheEntry[] = [
+      {
+        key: '200,490',
+        seconds: 900 * 86400,
+        legs: [leg({ endTE: 180, timeOff: 'stopped' }), leg({ endTE: 200, timeOff: 'restarted' }), leg({ endTE: 490 })],
+      },
+    ];
+    const csv = buildChainsCsv(entries, { ...META, timeOff: [{ from: '2026-11-20', to: '2026-11-26' }] });
+    const off = (row: number) => column(csv, row, 'time_off');
+    expect([off(0), off(1), off(2)]).toEqual(['stopped', 'restarted', '']);
+    expect(csv).toContain('time off from virtue: 2026-11-20 to 2026-11-26');
+  });
+});
+
+describe('buildDeadlineCsv', () => {
+  const DEADLINE = PLAN_START + 100 * 86400;
+  const INFO = { deadline: DEADLINE, priced: 1234 };
+  const route = (chain: number[], days: number, legs: LegSummary[]) => ({
+    chain,
+    reachAt: PLAN_START + days * 86400,
+    ascendAt: PLAN_START + days * 86400,
+    spare: (100 - days) * 86400,
+    legs,
+  });
+  const colOf = (csv: string, row: number, name: string) => {
+    const header = csv
+      .split('\n')
+      .find(l => l.startsWith('rank,'))!
+      .split(',');
+    return dataRows(csv)[row].split(',')[header.indexOf(name)];
+  };
+
+  it('keeps the old By a date columns by name and adds the chain-search leg columns', () => {
+    const csv = buildDeadlineCsv([route([195, 219], 60, [leg()])], META, INFO);
+    const header = csv.split('\n').find(l => l.startsWith('rank,'))!;
+    expect(
+      header.startsWith('rank,route,stops,last_stop,reached_local,ascend_from_local,spare_hours,chain,prestiges,')
+    ).toBe(true);
+    for (const c of [
+      'leg',
+      'target_te',
+      'strategy',
+      'sales',
+      'tier13',
+      'leg_start_local',
+      'leg_end_local',
+      'leg_days',
+      'peak_delivery_q_per_hr',
+      'time_off',
+    ]) {
+      expect(header.split(',')).toContain(c);
+    }
+    expect(header).toBe(DEADLINE_COLUMNS.join(','));
+    expect(csv).toContain('# highest TE by ');
+    expect(csv).toContain('# 1234 routes priced');
+    expect(csv).toContain('# plan start 2026-09-04 21:30');
+    // Fastest's effort played no part in a By a date run: its own mode instead.
+    expect(csv).toContain('# effort deadline; force-continue on; first-ascension continue\n');
+    expect(csv).not.toContain('balanced');
+    const advanced = buildDeadlineCsv([route([195, 219], 60, [leg()])], { ...META, mode: 'advanced' }, INFO);
+    expect(advanced).toContain('# effort deadline; force-continue on; first-ascension continue; mode advanced\n');
+  });
+
+  it('writes one row per leg with the route cells repeated', () => {
+    const csv = buildDeadlineCsv(
+      [route([195, 219, 250], 80, [leg(), leg({ endTE: 250, key: '3-sale-tier13' })])],
+      META,
+      INFO
+    );
+    expect(dataRows(csv)).toHaveLength(2);
+    expect(colOf(csv, 1, 'rank')).toBe('1');
+    expect(colOf(csv, 1, 'last_stop')).toBe('250');
+    expect(colOf(csv, 1, 'leg')).toBe('2');
+    expect(colOf(csv, 1, 'strategy')).toBe('3-sale-tier13');
+    expect(colOf(csv, 1, 'target_te')).toBe('250');
+    expect(colOf(csv, 1, 'spare_hours')).toBe('480.00');
+    expect(colOf(csv, 0, 'total_days')).toBe('80.0000');
+  });
+
+  it('writes an arrival-only row past the leg cap and says so', () => {
+    const routes = [route([195, 250], 70, [leg()]), route([195, 240], 75, [leg()])];
+    const csv = buildDeadlineCsv(routes, META, INFO, 1);
+    expect(dataRows(csv)).toHaveLength(2);
+    expect(colOf(csv, 1, 'strategy')).toBe('');
+    expect(csv).toContain('legs are written for the top 1 of 2 routes');
+  });
+
+  it('never carries diagnostics, whatever a caller passes (the CSV is downloadable from the board)', () => {
+    const csv = buildChainsCsv([], { ...META, diagnostics: '{"browser":"chrome on mac"}' });
+    expect(csv).not.toContain('diagnostics');
+    expect(csv).not.toContain('chrome on mac');
+  });
+});
+
+describe('a CSV so far (a progress send, 10 Oct)', () => {
+  const entries: CacheEntry[] = [{ key: '195,490', seconds: 86400, legs: [] }];
+  it('says it is partial, and how far the run had got, right under the title', () => {
+    const csv = buildChainsCsv(entries, { ...META, partial: { done: 3735, total: 12000, unit: 'chains' } });
+    const lines = csv.split('\n');
+    expect(lines[0]).toMatch(/^# ascension-planner chain search/);
+    expect(lines[1]).toBe(
+      '# in progress, 3735 of 12000 chains priced so far: a partial CSV sent while the run was still going; its final CSV replaces it'
+    );
+    expect(partialLine({ done: 5, total: null, unit: 'routes' })).toMatch(/^in progress, 5 of \? routes/);
+  });
+  it('says nothing of the kind on a finished run, and the By a date CSV says it too', () => {
+    expect(buildChainsCsv(entries, META)).not.toContain('in progress');
+    const r = {
+      chain: [195, 219],
+      reachAt: PLAN_START + 60 * 86400,
+      ascendAt: PLAN_START + 60 * 86400,
+      spare: 0,
+      legs: [],
+    };
+    const csv = buildDeadlineCsv(
+      [r],
+      { ...META, partial: { done: 40, total: 90, unit: 'routes' } },
+      {
+        deadline: PLAN_START + 100 * 86400,
+        priced: 40,
+      }
+    );
+    expect(csv.split('\n')[1]).toMatch(/^# in progress, 40 of 90 routes priced so far/);
+  });
+});
+
+describe('leg 1: which way it went, and the way not taken (9 Oct)', () => {
+  const CONT_END = PLAN_START + 60 * 86400 + 19.2 * 3600;
+  const fresh = leg({ key: '2-sale', firstLegRival: { key: 'continue', endTime: CONT_END } });
+
+  it('fills the three columns on leg 1 only, and says it in the header', () => {
+    const csv = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [fresh, leg({ endTE: 490 })] }], {
+      ...META,
+      firstAscension: 'auto',
+    });
+    expect(column(csv, 0, 'first_leg')).toBe('fresh');
+    expect(column(csv, 0, 'first_leg_other_end_local')).toBe(formatInZone(CONT_END, DENVER));
+    expect(column(csv, 0, 'first_leg_other_later_hours')).toBe('19.20');
+    expect(
+      [1, 2, 3].map(k =>
+        column(csv, 1, ['first_leg', 'first_leg_other_end_local', 'first_leg_other_later_hours'][k - 1])
+      )
+    ).toEqual(['', '', '']);
+    expect(csv).toContain(
+      `# first leg (best route): fresh (2-sale build · prestige now); continuing without buying would have ended leg 1 ${formatInZone(CONT_END, DENVER)} (19.2 h later)`
+    );
+  });
+
+  it('a continue leg 1 names the fresh build it beat; one with nothing to compare says why', () => {
+    const won = leg({ key: 'continue', firstLegRival: { key: '1-sale', endTime: PLAN_START + 61 * 86400 } });
+    const csv = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [won] }], {
+      ...META,
+      firstAscension: 'auto',
+    });
+    expect(column(csv, 0, 'first_leg')).toBe('continue');
+    expect(column(csv, 0, 'first_leg_other_later_hours')).toBe('24.00');
+    expect(csv).toContain(
+      '# first leg (best route): continue (finishes the ascension in progress; buys nothing more); the best fresh build (1-sale) would have ended leg 1'
+    );
+
+    const alone = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [leg()] }], {
+      ...META,
+      firstAscension: 'fresh',
+    });
+    expect(column(alone, 0, 'first_leg')).toBe('fresh');
+    expect(column(alone, 0, 'first_leg_other_end_local')).toBe('');
+    expect(alone).toContain('continue not simulated (Prestige Now)');
+  });
+
+  it('a build-up leg 1 says so, with the way it beat', () => {
+    const bu = leg({ key: 'buildup', buildPhaseSaleCount: 1, firstLegRival: { key: '2-sale', endTime: PLAN_START + 61 * 86400 } });
+    const csv = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [bu] }], { ...META, firstAscension: 'auto' });
+    expect(column(csv, 0, 'first_leg')).toBe('buildup');
+    expect(csv).toContain('# first leg (best route): build-up (carries on the build in progress · 1-sale); the best fresh build (2-sale)');
+  });
+
+  it('By a date writes the same columns and line', () => {
+    const csv = buildDeadlineCsv(
+      [{ chain: [219], reachAt: PLAN_START + 60 * 86400, ascendAt: PLAN_START + 60 * 86400, spare: 0, legs: [fresh] }],
+      META,
+      { deadline: PLAN_START + 100 * 86400, priced: 1 }
+    );
+    expect(csv).toContain('# first leg (best route): fresh');
+    expect(csv.split('\n').find(l => l.startsWith('rank,'))).toContain(
+      'first_leg,first_leg_other_end_local,first_leg_other_later_hours'
+    );
+  });
+});
+
+// Numbers and Excel split a line at every comma, comment lines too: the header's own words have none
+// (18 Oct 2026). What still can: lines that carry the player's or the run's own data (below).
+describe('the header’s comment lines have no commas', () => {
+  const DEADLINE = PLAN_START + 100 * 86400;
+  const commaLines = (csv: string) => csv.split('\n').filter(l => l.startsWith('#') && l.includes(','));
+  const firstLeg = leg({ key: 'continue', firstLegRival: { key: '1-sale', endTime: PLAN_START + 61 * 86400 } });
+  const meta = {
+    ...META,
+    firstAscension: 'auto' as const,
+    inventory: 'T4L Gusset · T4L Quantum metronome; stones: 5x T4 Quantum stone · 6x T4 Tachyon stone',
+    countsProbed: [3, 4],
+  };
+  it('the chain search CSV', () => {
+    const csv = buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [firstLeg, leg({ endTE: 490 })] }], meta);
+    expect(csv).toContain('# artifacts and stones — fixed for the whole run; never varied by the search.');
+    expect(commaLines(csv)).toEqual([]);
+  });
+  it('every first-leg line', () => {
+    for (const l of [
+      leg({ key: 'continue', firstLegRival: { key: '1-sale', endTime: PLAN_START + 61 * 86400 } }),
+      leg({ key: '2-sale-tier13', firstLegRival: { key: 'continue', endTime: PLAN_START + 61 * 86400 } }),
+      leg({ key: 'buildup', buildPhaseSaleCount: 1, firstLegRival: { key: '2-sale', endTime: PLAN_START + 61 * 86400 } }),
+      leg({ key: 'continue', replayed: true }),
+      leg(),
+    ])
+      for (const mode of ['auto', 'continue', 'fresh', 'buildup'] as const)
+        expect(commaLines(buildChainsCsv([{ key: '219,490', seconds: 700 * 86400, legs: [l] }], { ...meta, firstAscension: mode }))).toEqual([]);
+  });
+  it('the By a date CSV: stopped early, replayed legs, the summary section, and in deltas', () => {
+    const route = { chain: [195, 219], reachAt: PLAN_START + 60 * 86400, ascendAt: PLAN_START + 60 * 86400, spare: 40 * 86400 };
+    const all = { size: 1, keys: ['195,219'], reachAt: () => route.reachAt, ascendAt: () => route.ascendAt };
+    const routes = [{ ...route, legs: [leg({ replayed: true })] }, { ...route, chain: [196, 219], legs: [] }];
+    for (const info of [
+      { deadline: DEADLINE, priced: 1234, stoppedEarly: true, ascendNeeded: true },
+      { deadline: DEADLINE, priced: 1234, all, kept: 2 },
+      { deadline: DEADLINE, priced: 1234, all, pricedInDeltas: true },
+    ]) {
+      const csv = buildDeadlineCsv(routes, meta, info, 1);
+      expect(commaLines(csv)).toEqual([]);
+    }
+    const csv = buildDeadlineCsv(routes, meta, { deadline: DEADLINE, priced: 1234, stoppedEarly: true }, 1);
+    expect(csv).toContain('# 1234 routes priced; stopped early');
+    expect(csv).toContain("# rank · route · stops · last_stop · reached_local · ascend_from_local · spare_hours repeat on each of a route's rows.");
+  });
+  it('lines that carry data keep theirs: a CSV so far, the boxes searched, a weekday schedule, the player’s note', () => {
+    const csv = buildChainsCsv([], {
+      ...meta,
+      partial: { done: 5, total: 10, unit: 'chains' },
+      searched: '185-200:5, 210; ascensions: 4',
+      availability: { days: [0, 6], fromHour: 7, toHour: 23, timezone: DENVER },
+      runNote: 'mine, for later',
+    });
+    expect(commaLines(csv).map(l => l.slice(0, 16))).toEqual([
+      '# in progress, 5',
+      '# available Sun,',
+      '# note: mine, fo',
+      '# searched: 185-',
+    ]);
+  });
+});

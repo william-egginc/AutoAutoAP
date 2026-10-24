@@ -240,6 +240,8 @@ export function formatAbsoluteTime(seconds: number, baseTimestamp?: number, time
   // rather than truncation here, or a value a fraction of a second short of a whole second displays
   // as a full second (and, in an HH:MM-only view, a full minute) early.
   const date = new Date(Math.round(start + seconds * 1000));
+  // Finite but past what a Date can hold (a wait of billions of days): '∞', not 'Invalid Date'.
+  if (isNaN(date.getTime())) return '∞';
   return date.toLocaleString(undefined, {
     weekday: 'short',
     month: 'short',
@@ -451,4 +453,9 @@ export function formatUnixToTimeInput(timestamp: number, tz: string): string {
     minute: '2-digit', 
     hour12: false 
   }).format(d);
+}
+
+/** "1 chain", "2 chains" (counts get thousands separators). Pass `many` for an irregular plural. */
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n.toLocaleString()} ${n === 1 ? one : many}`;
 }

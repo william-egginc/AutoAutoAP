@@ -11,7 +11,7 @@
         ><span class="inline-block w-3 border-t-2 border-slate-400" /> Simulated</span
       >
       <span class="flex items-center gap-1"
-        ><span class="inline-block w-3 border-t-2 border-dashed border-slate-400" /> Projected (constant ELR)</span
+        ><span class="inline-block w-3 border-t-2 border-dashed border-slate-400" /> Projected (constant delivery rate)</span
       >
       <span class="flex items-center gap-1"><span class="text-slate-700">◆</span> TE earned</span>
       <span class="flex items-center gap-1"><span class="text-slate-700">✦</span> Variants cross</span>

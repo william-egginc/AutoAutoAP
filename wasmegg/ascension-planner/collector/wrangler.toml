@@ -1,0 +1,98 @@
+# Cloudflare Worker holding the submission collector and the leaderboard page.
+#
+#   wrangler kv namespace create SUBMISSIONS   # paste the printed id below
+#   wrangler deploy
+#
+# Then build the app with VITE_SUBMIT_URL=https://<worker>.workers.dev/submit so the panel's
+# Submit button has somewhere to go. Without it the panel hides the button entirely and offers
+# the save-a-file path instead, which is the correct default for a fork nobody has configured.
+
+name = "ascension-chain-collector"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# A KV namespace id is an identifier, not a credential -- it is useless without an authenticated
+# session on the account that owns it, which is why Cloudflare's own examples commit it. Created
+# with `wrangler kv namespace create SUBMISSIONS`.
+[[kv_namespaces]]
+binding = "SUBMISSIONS"
+id = "77c966d5ec964cc2979f59a190737fd4"
+
+# NO R2 BINDING, DELIBERATELY. A run's CSV is gzipped in the browser before it is sent -- 15.3 MB
+# of chain table measures 0.66 MB compressed -- so it fits KV's 25 MB per-value limit and lives
+# under `csv:<id>` in the namespace above. R2 would mean a payment method on the account for a
+# payload that does not need it. See collector/README.md for the tradeoff this makes on the
+# player-id sweep.
+
+# "Watch this run from your phone" (watch.js): heartbeats every 5 min per watched run. D1, NOT KV:
+# KV's free plan allows 1,000 writes a day for the whole account, and one run left going writes ~290.
+# Created once with `wrangler d1 create aaap-watch` (paste the printed database_id below), then
+# `wrangler d1 migrations apply aaap-watch --remote`. See README.md, "Watching a run from a phone".
+[[d1_databases]]
+binding = "WATCH"
+database_name = "aaap-watch"
+database_id = "a83ae6ba-4a22-4107-b4a6-49c9185032c3"
+migrations_dir = "migrations"
+
+# Every 5 minutes: one ntfy note for a run that stopped reporting 15 min ago, and (once an hour) the
+# deletion of watch rows not updated in 7 days (D1). Once an hour at :30 it also sweeps one KV prefix
+# for orphan CSVs and TTL-less counters, 1 list a run (worker.js "the sweep", README "The sweep").
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Per-IP limit on /watch, on top of the per-key one (Workers rate-limit binding). On since 21 Oct 2026, now
+# that the 11xx bindings deployed fine on this plan. Counted apart for POST (a heartbeat every 5 min per
+# run) and GET (the phone page reads once a minute): 20 a minute each leaves room for several runs and
+# reloads behind one address.
+[[ratelimits]]
+name = "WATCH_LIMIT"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+# The edge rate limit (21 Oct 2026, QA): per address, per endpoint, counted at the edge, NOT in KV (no read or
+# write is spent). `period` can only be 10 or 60 seconds; the limits are per Cloudflare location and approximate.
+# UPLOAD_LIMITER covers POST /csv and POST /csvd (a key for each): 120 a minute leaves room for an 8-part CSV
+# with retries and for a long run's deltas. INSTANT_LIMITER covers POST /instant: 20 a minute (the app sends
+# one an hour per save). worker.js treats a missing binding as no limit. Needs wrangler 4.36 or later.
+[[ratelimits]]
+name = "UPLOAD_LIMITER"
+namespace_id = "1101"
+  [ratelimits.simple]
+  limit = 120
+  period = 60
+
+[[ratelimits]]
+name = "INSTANT_LIMITER"
+namespace_id = "1102"
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+# SUBMIT_LIMITER (21 Oct 2026, red team / review) covers POST /submit, /claim and /hide (a key for each),
+# in front of floodGate: floodGate costs a KV read per request even when it refuses, this costs none. 20 a
+# minute is twice floodGate's 10, so a person emptying their results never meets it; a script does.
+[[ratelimits]]
+name = "SUBMIT_LIMITER"
+namespace_id = "1103"
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+# READ_LIMITER covers the reads that spend KV: a GET /all or /leaderboard that misses the edge cache, and
+# GET /csv (one unit a request, more for a file joined from parts or deltas; see worker.js). A page load
+# reads the board once or twice; the Explorer's sweep chart reads a CSV per row it draws, and the owner's
+# scripts (fix-leg-days.sh, winchk.py) read every row's CSV in a loop: 120 a minute, as UPLOAD_LIMITER.
+[[ratelimits]]
+name = "READ_LIMITER"
+namespace_id = "1104"
+  [ratelimits.simple]
+  limit = 120
+  period = 60
+
+# A row ranks on the main board only with currentTE, legs and start/end times that agree (worker.js
+# "ranked only with its evidence"); without them it goes to the flagged board as `unverified`. Delete this
+# line to turn that off without a code change.
+[vars]
+RANK_NEEDS_EVIDENCE = "1"

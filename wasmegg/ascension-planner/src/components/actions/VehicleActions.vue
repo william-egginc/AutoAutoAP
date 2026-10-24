@@ -14,7 +14,7 @@
               >Vehicle Sale</span
             >
           </div>
-          <span class="text-[11px] font-black text-indigo-600 uppercase tracking-tighter">75% Discount Active</span>
+          <span class="text-[11px] font-black text-indigo-600 uppercase tracking-tighter">75% off</span>
         </div>
         <button
           class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
@@ -87,7 +87,7 @@
         </div>
         <div class="flex flex-col items-center relative z-10">
           <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-blue-700"
-            >5 Min Max Shipping</span
+            >Shipping in 5 Min</span
           >
         </div>
       </button>
@@ -106,7 +106,7 @@
             <span class="text-sm font-mono-premium font-black text-slate-900">
               {{ formatNumber(getVehicleCapacity(slot, index) * 3600, 0) }}
             </span>
-            <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest opacity-60">Eggs/Hr</span>
+            <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest opacity-60">eggs/hr</span>
           </div>
         </div>
 
@@ -157,7 +157,7 @@
 
           <!-- Capacity per car hints -->
           <div v-if="slot.trainLength < getMaxTrainLength()" class="mt-2 text-[9px] text-slate-400 italic font-medium">
-            Each car adds +{{ formatNumber((getVehicleType(11)?.baseCapacityPerSecond ?? 0) * 3600, 0) }} eggs/hr
+            Each car adds +{{ formatNumber((getVehicleType(11)?.baseCapacityPerSecond ?? 0) * 3600, 0) }} eggs/hr before research and artifacts
           </div>
         </div>
       </div>
@@ -169,7 +169,7 @@
         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
           Fleet Capacity: {{ activeVehicleCount }}/{{ maxVehicleSlots }} active
         </p>
-        <p class="text-[10px] text-indigo-400 italic font-medium">(upgrade fleet size research to unlock more slots)</p>
+        <p class="text-[10px] text-indigo-400 italic font-medium">(Fleet Size research unlocks more slots)</p>
       </div>
     </div>
 
@@ -325,11 +325,11 @@ function getVehicleDropdownOptions(currentVehicleId: number | null, slotIndex: n
     };
 
     if (isCurrent) {
-      option.subtext = 'Owned';
+      option.subtext = 'Current';
     } else {
       const price = getVehiclePrice(vt.id, slotIndex);
       const capacity = getVehicleCapacity({ vehicleId: vt.id, trainLength: 1 }, slotIndex);
-      option.capacity = `${formatNumber(capacity * 3600, 0)}/hr`;
+      option.capacity = `${formatNumber(capacity * 3600, 0)} eggs/hr`;
       option.price = price;
       option.time = getVehicleTimeToBuy(vt.id, slotIndex);
     }

@@ -106,9 +106,9 @@ export async function checkAndHandleContinuity(
   const store = useContinuityStore();
   const confirmed = await store.requestConfirmation(
     'Continuity Check',
-    `This purchase conflicts with ${conflicts.length} later purchase${conflicts.length > 1 ? 's' : ''}. ` +
-      `Buying this now invalidates the later purchase${conflicts.length > 1 ? 's' : ''}. ` +
-      `Do you want to remove the later purchase${conflicts.length > 1 ? 's' : ''}?`,
+    `This purchase conflicts with ${conflicts.length} later purchase${conflicts.length > 1 ? 's' : ''} ` +
+      `and would make ${conflicts.length > 1 ? 'them' : 'it'} invalid. ` +
+      `Remove the later purchase${conflicts.length > 1 ? 's' : ''}?`,
     conflicts.map(a => a.id)
   );
 

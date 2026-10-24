@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { plural } from '@/lib/format';
 import { ref } from 'vue';
 
 const props = defineProps<{
@@ -24,10 +25,10 @@ const emit = defineEmits<{
           </svg>
         </div>
         
-        <h3 class="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Roadmap Detected</h3>
+        <h3 class="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Auto Planner file detected</h3>
         <p class="text-slate-500 text-sm leading-relaxed mb-8">
-          The file "<span class="font-bold text-slate-700">{{ planName }}</span>" contains a sequential roadmap with 
-          <span class="font-bold text-indigo-600">{{ ascensionCount }} ascensions</span>. 
+          The file "<span class="font-bold text-slate-700">{{ planName }}</span>" has
+          <span class="font-bold text-indigo-600">{{ plural(ascensionCount, 'ascension') }}</span>. 
           How would you like to import it?
         </p>
 
@@ -42,8 +43,8 @@ const emit = defineEmits<{
               </svg>
             </div>
             <div>
-              <div class="text-sm font-black text-slate-900 uppercase tracking-wider">Restore to Auto Planner</div>
-              <div class="text-[10px] font-medium text-slate-500">Resumes the full sequential simulation.</div>
+              <div class="text-sm font-black text-slate-900 uppercase tracking-wider">Open in Single run</div>
+              <div class="text-[10px] font-medium text-slate-500">Restores all ascensions in Auto Planner › Single run.</div>
             </div>
           </button>
 
@@ -58,7 +59,7 @@ const emit = defineEmits<{
             </div>
             <div>
               <div class="text-sm font-black text-slate-900 uppercase tracking-wider">Import into Library</div>
-              <div class="text-[10px] font-medium text-slate-500">Adds {{ ascensionCount }} separate plans to your library.</div>
+              <div class="text-[10px] font-medium text-slate-500">Adds {{ plural(ascensionCount, 'separate plan') }} to your library.</div>
             </div>
           </button>
         </div>

@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-2 mb-4" ref="containerRef">
-    <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sort Research By</div>
+    <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Research View</div>
     <div class="relative">
       <button
         @click="open = !open"

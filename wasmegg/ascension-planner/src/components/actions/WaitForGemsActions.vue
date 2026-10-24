@@ -1,9 +1,5 @@
 <template>
   <div class="space-y-6">
-    <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-6 leading-relaxed">
-      Wait until you have accumulated a target amount of gems.
-    </p>
-
     <!-- Current State -->
     <div class="bg-slate-50/50 rounded-2xl p-5 border border-slate-100 shadow-inner">
       <div class="flex items-center gap-4 mb-4">

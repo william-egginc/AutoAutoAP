@@ -47,7 +47,7 @@
           </div>
           <div>
             <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-              Active Phase
+              Current Egg
             </div>
             <div class="text-sm font-black text-slate-900 uppercase tracking-tight">
               {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }}
@@ -70,7 +70,7 @@
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3.5 h-3.5" alt="SE" />
           </div>
           <span
-            v-tippy="'Shifts remaining before SE goes negative'"
+            v-tippy="'Shifts you can still afford'"
             class="text-[10px] font-bold uppercase tracking-tight"
             :class="shiftsUntilBroke <= 2 ? 'text-red-500' : 'text-slate-400'"
           >
@@ -98,7 +98,7 @@
         <div class="flex-1">
           <h5 class="text-[10px] font-black text-red-800 uppercase tracking-widest mb-0.5">Insufficient SE</h5>
           <p class="text-[11px] font-medium text-red-600/80 leading-relaxed">
-            Shift cost exceeds remaining Soul Eggs. Further progression requires more Soul Eggs.
+            The next shift costs more soul eggs than you have left.
           </p>
         </div>
       </div>

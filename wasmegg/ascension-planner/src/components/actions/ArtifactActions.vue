@@ -142,9 +142,9 @@
           <div>
             <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-tight mb-0.5">Set Optimization</h4>
             <p class="text-[10px] text-blue-700 leading-tight">
-              <strong>Earnings:</strong> Necklaces, Ankhs, Cubes, Lunar stones.
+              <strong>Earnings:</strong> Necklaces, Ankhs, Totems, Cubes, Lunar stones.
               <br />
-              <strong>Delivery:</strong> Metronomes, Compasses, Tachyon/Quantum stones.
+              <strong>Delivery:</strong> Metronomes, Compasses, Gussets, Tachyon/Quantum stones.
             </p>
           </div>
         </div>

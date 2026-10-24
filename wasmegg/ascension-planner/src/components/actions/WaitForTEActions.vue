@@ -86,7 +86,7 @@
         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add how many TE?</span>
         <div class="flex items-center gap-1">
           <button
-            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
+            class="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
             :disabled="teToGain <= 1"
             @click="teToGain = Math.max(1, teToGain - 1)"
             v-tippy="minusButtonTooltip"
@@ -97,15 +97,20 @@
           </button>
           <input
             ref="inputEl"
-            v-model.number="teToGain"
+            v-model.lazy.number="teToGain"
             type="number"
+            inputmode="numeric"
+            step="1"
             :min="1"
             :max="98 - currentTE"
-            class="flex-1 h-10 text-center text-sm font-mono-premium font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
+            @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
+            class="flex-1 h-11 text-center text-sm font-mono-premium font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
             :disabled="currentTE >= 98"
+            @input="onBoxInput"
+            @blur="onBoxLeave"
           />
           <button
-            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
+            class="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-slate-600 hover:bg-white hover:border-slate-200 transition-all active:scale-95 disabled:opacity-20 shadow-sm font-bold"
             :disabled="teToGain >= 98 - currentTE"
             @click="teToGain = Math.min(98 - currentTE, teToGain + 1)"
             v-tippy="plusButtonTooltip"
@@ -120,7 +125,7 @@
       <!-- Calculated values -->
       <div v-if="teToGain > 0" class="space-y-3 bg-slate-50/30 rounded-xl p-4 border border-slate-50">
         <div class="flex justify-between items-center text-[10px]">
-          <span class="font-black text-slate-400 uppercase tracking-widest">Total Result:</span>
+          <span class="font-black text-slate-400 uppercase tracking-widest">Reaches:</span>
           <span class="font-mono-premium font-black text-slate-900">TE #{{ targetTENumber }}</span>
         </div>
         <div class="flex justify-between items-center text-[10px]">
@@ -171,6 +176,17 @@
       </button>
     </div>
 
+    <!-- Not reachable notice -->
+    <div
+      v-if="teToGain > 0 && eggsToLay > 0 && !isTEWaitReachable(timeToLaySeconds)"
+      class="bg-amber-50 border border-amber-100 rounded-2xl p-4"
+    >
+      <p class="text-[11px] font-bold text-amber-700 uppercase tracking-tight">
+        TE #{{ targetTENumber }} is not reachable: it would take over a year at this farm's current delivery
+        rate. Build up the farm first.
+      </p>
+    </div>
+
     <!-- Max TE notice -->
     <div v-if="currentTE >= 98" class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-3">
       <div class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-white">
@@ -188,6 +204,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
+import { clampBox, showClamped } from '@/lib/showClamped';
 const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL } from 'lib';
@@ -197,7 +214,7 @@ import { useActionsStore } from '@/stores/actions';
 import { computeDependencies } from '@/lib/actions/executor';
 import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
 import { generateActionId, VIRTUE_EGG_NAMES } from '@/types';
-import { eggsNeededForTE, countTEThresholdsPassed } from '@/lib/truthEggs';
+import { eggsNeededForTE, countTEThresholdsPassed, isTEWaitReachable, clampTECount, maxTEToGain } from '@/lib/truthEggs';
 import { useActionExecutor } from '@/composables/useActionExecutor';
 import { solveForTime } from '@/engine/apply/math';
 
@@ -237,12 +254,28 @@ watch(
   }
 );
 
-// Ensure selection is valid if currentTE changes (e.g. from previous actions)
-watch(currentTE, newCurrentTE => {
-  if (teToGain.value > 98 - newCurrentTE) {
-    teToGain.value = Math.max(1, 98 - newCurrentTE);
-  }
-});
+// Keep the selection a whole number from 1 to 98 minus the egg's current TE (pending included),
+// whatever was typed (1.5, 1e5, '3.48e45', empty) or when currentTE changes (e.g. from previous actions).
+watch(
+  [teToGain, currentTE],
+  () => {
+    const valid = clampTECount(teToGain.value, maxTEToGain(currentTE.value));
+    if (teToGain.value !== valid) teToGain.value = valid;
+    showClamped(inputEl.value, valid);
+  },
+  { immediate: true }
+);
+
+// A paste, a drop or a scripted set skips the keydown filter and may fire no change (QA, 22 Oct 2026):
+// the box is clamped as it changes and again when it is left, whatever put the value there.
+function onBoxInput(e: Event) {
+  const v = clampBox(e.target as HTMLInputElement, maxTEToGain(currentTE.value), 1, 'wait');
+  if (v !== null && v !== teToGain.value) teToGain.value = v;
+}
+function onBoxLeave(e: Event) {
+  const v = clampBox(e.target as HTMLInputElement, maxTEToGain(currentTE.value), 1, 'min');
+  if (v !== null && v !== teToGain.value) teToGain.value = v;
+}
 
 const eggsToLay = computed(() => {
   if (teToGain.value <= 0) return 0;
@@ -276,7 +309,7 @@ const elrPerHour = computed(() => snapshot.value.elr * 3600);
 const elrPerDay = computed(() => snapshot.value.elr * 86400);
 
 function getAbsoluteEarnedTime(timeSecs: number): string {
-  if (!isFinite(timeSecs)) return 'Never';
+  if (!isTEWaitReachable(timeSecs)) return 'Not reachable';
   const planStartSeconds = virtueStore.planStartTime.getTime() / 1000;
   const currentStepTime = snapshot.value.lastStepTime || planStartSeconds;
   const totalSeconds = currentStepTime + timeSecs;
@@ -308,7 +341,7 @@ const plusButtonTooltip = computed(() => {
 
 // Validation
 const canWait = computed(
-  () => teToGain.value > 0 && eggsToLay.value > 0 && isFinite(timeToLaySeconds.value) && targetTENumber.value <= 98
+  () => teToGain.value > 0 && eggsToLay.value > 0 && isTEWaitReachable(timeToLaySeconds.value) && targetTENumber.value <= 98
 );
 
 function handleWaitForTE() {

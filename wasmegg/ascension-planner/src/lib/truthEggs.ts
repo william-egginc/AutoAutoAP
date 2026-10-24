@@ -175,6 +175,48 @@ export function eggsNeededForTE(currentDelivered: number, targetTE: number): num
 }
 
 /**
+ * Longest Wait for TE the planner accepts (1 year). A fresh farm on an egg already at high TE
+ * can need 1e17+ eggs at a few hundred eggs/s: a finite but absurd wait (billions of days)
+ * that also runs the plan's end date past what a JS Date can hold.
+ */
+export const MAX_TE_WAIT_SECONDS = 365 * 86400;
+
+/**
+ * Whether a Wait for TE of this many seconds can be reached at all (finite, within the cap).
+ */
+export function isTEWaitReachable(seconds: number): boolean {
+  return isFinite(seconds) && seconds >= 0 && seconds <= MAX_TE_WAIT_SECONDS;
+}
+
+/**
+ * A TE count typed by the player (Wait for TE's "Add how many TE?", Bulk's total), as a whole number
+ * in [min, max]: decimals round down, an empty box or NaN gives `min`, a huge number or an
+ * exponent ('3.48e45') gives `max`. Returns `max` when it is below `min` (0: nothing left to gain).
+ */
+export function clampTECount(raw: unknown, max: number, min = 1): number {
+  const hi = Math.max(0, Math.floor(isFinite(max) ? max : 0));
+  if (hi < min) return hi;
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
+  if (isNaN(n)) return min;
+  return Math.min(hi, Math.max(min, Math.floor(n)));
+}
+
+/**
+ * How many more TE an egg can still gain: 98 minus its current TE (claimed or pending).
+ */
+export function maxTEToGain(currentTE: number): number {
+  return Math.max(0, MAX_TE_PER_EGG - currentTE);
+}
+
+/**
+ * A Wait for TE action's gain, bounded by its target (capped at 98) minus its start TE: an action
+ * saved before the input was validated can carry a gain like 3.48e45.
+ */
+export function teGainedOf(payload: { targetTE: number; startTE: number; teGained: number }): number {
+  return clampTECount(payload.teGained, Math.min(payload.targetTE, MAX_TE_PER_EGG) - (payload.startTE || 0), 0);
+}
+
+/**
  * Maximum TE per egg (98).
  */
 export const MAX_TE = MAX_TE_PER_EGG;

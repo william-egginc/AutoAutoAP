@@ -40,6 +40,10 @@ export function getSavedPlayerID() {
   const playerId =
     getLocalStorage(TOOL_SPECIFIC_PLAYER_ID_LOCALSTORAGE_KEY) ||
     getLocalStorageNoPrefix(SITE_WIDE_SAVED_PLAYER_ID_LOCALSTORAGE_KEY);
+  // Nothing saved yet (every first visit): nothing to validate, warn about or delete.
+  if (playerId === undefined || playerId === null || playerId === '') {
+    return undefined;
+  }
   const result = PlayerIdSchema.safeParse(playerId);
   if (!result.success) {
     console.warn('Invalid player ID in localStorage:', playerId, result.error);

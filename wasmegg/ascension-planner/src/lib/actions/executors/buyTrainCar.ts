@@ -32,6 +32,6 @@ export const buyTrainCarExecutor: ActionExecutor<'buy_train_car'> = {
   getEffectDescription(payload: BuyTrainCarPayload): string {
     // Each car adds 50M/min capacity
     const capacityPerCar = 50e6 / 60; // per second
-    return `+${formatNumber(capacityPerCar * 3600, 2)}/hr shipping`;
+    return `+${formatNumber(capacityPerCar * 3600, 2)}/hr base shipping`;
   },
 };

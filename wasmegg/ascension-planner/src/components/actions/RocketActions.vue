@@ -63,8 +63,7 @@
       </div>
 
       <p class="text-[11px] text-gray-500 leading-relaxed italic border-l-2 border-gray-200 pl-3 py-0.5">
-        If you choose this option, the missions will launch for 0 time. This is useful for "pre-shift" sends where you
-        launch ships right before shifting, avoiding adding mission duration to your plan.
+        Use this when you launch right before a shift: the missions add no time to your plan.
       </p>
     </div>
   </div>

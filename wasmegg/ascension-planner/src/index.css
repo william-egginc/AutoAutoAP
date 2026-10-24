@@ -3,9 +3,20 @@
 @import 'tailwindcss/utilities';
 
 @import 'ui/styles/base';
+/* The "Loading application..." line index.html shows until Vue mounts: centred, with a spinner, the
+   same as the other wasmegg tools. It was `display: none`, which left the planner a blank grey page
+   for the whole script download (about 7 s on a slow phone connection). It cannot linger over the
+   app: mounting replaces everything inside #app. */
+@import 'ui/styles/app-loading';
 @import './styles/design-tokens.css';
 @import './styles/components.css';
 
-.app-loading {
-  display: none;
+/* The chart wrapper (components/charts/EChart.vue). It clips because echarts positions a tooltip
+   inside it, and on a phone the tooltip's first placement can hang past the screen edge and leave
+   the page scrolling sideways. `clip` does not make a scroll container; `hidden` is the fallback
+   for a browser without it. */
+.echart-frame {
+  position: relative;
+  overflow: hidden;
+  overflow: clip;
 }

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Run watcher</title>
+    <meta
+      name="description"
+      content="Watches a long Ascension Planner run in another tab and reopens it if it stops."
+    />
+    <!-- A page of its own, not a route: it must stay tiny and never load the simulator. Two modes:
+         without a #fragment it is the second-tab watcher (src/watch/local.ts), reading the run tab's
+         heartbeat from this site's localStorage; with #<id>.<secret> it is the phone page
+         (src/watch/phone.ts), reading the run's sealed heartbeat from the collector and opening it
+         with the secret, which never leaves this browser. src/watch/main.ts picks. -->
+    <meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Add to Home Screen. The manifest has no start_url on purpose: it then defaults to this
+         page's own address, so the icon opens this run. -->
+    <link rel="manifest" href="/watch.webmanifest" />
+    <link rel="apple-touch-icon" href="/static/watch-icon-180.png" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AAAP run" />
+    <script>
+      // Before first paint: show the right half of the page for the mode (no flash of the other).
+      try {
+        if (location.hash.length > 1) document.documentElement.className = 'phone';
+      } catch (e) {}
+    </script>
+    <style>
+      body {
+        margin: 0;
+        background: #f1f5f9;
+        color: #1e293b;
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      main {
+        max-width: 36rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 1rem;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+      #status {
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+      #status.ok {
+        color: #047857;
+      }
+      #status.warn {
+        color: #b45309;
+      }
+      #status.done {
+        color: #334155;
+      }
+      .small {
+        font-size: 13px;
+        color: #475569;
+      }
+      code {
+        background: #f1f5f9;
+        padding: 0 0.25rem;
+        border-radius: 0.25rem;
+        user-select: all;
+      }
+      .copy {
+        margin: 0 0.25rem;
+        padding: 0 0.4rem;
+        font: inherit;
+        font-size: 11px;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.25rem;
+        background: #fff;
+        cursor: pointer;
+      }
+      html.phone #local,
+      html:not(.phone) #phone {
+        display: none;
+      }
+      #phone main {
+        margin-top: max(1rem, env(safe-area-inset-top));
+      }
+      #p-title {
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin: 0;
+      }
+      #p-title.ok {
+        color: #047857;
+      }
+      #p-title.warn {
+        color: #b45309;
+      }
+      #p-title.bad {
+        color: #b91c1c;
+      }
+      #p-title.done {
+        color: #334155;
+      }
+      .bar {
+        height: 0.75rem;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+        margin: 0.75rem 0 0.25rem;
+      }
+      .bar > div {
+        height: 100%;
+        width: 0;
+        background: #4f46e5;
+        transition: width 0.4s;
+      }
+      .big {
+        font-size: 1.15rem;
+        font-weight: 700;
+      }
+      .route {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 13px;
+        word-break: break-word;
+      }
+      .alert {
+        border-color: #fcd34d;
+        background: #fffbeb;
+        color: #92400e;
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      button.refresh {
+        font: inherit;
+        font-size: 13px;
+        padding: 0.25rem 0.75rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.5rem;
+        background: #fff;
+        color: inherit;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+        .card,
+        .copy,
+        button.refresh {
+          background: #1e293b;
+          border-color: #334155;
+          color: #e2e8f0;
+        }
+        .small {
+          color: #94a3b8;
+        }
+        code {
+          background: #0f172a;
+        }
+        .bar {
+          background: #334155;
+        }
+        .bar > div {
+          background: #818cf8;
+        }
+        #status.ok,
+        #p-title.ok {
+          color: #34d399;
+        }
+        #status.warn,
+        #p-title.warn {
+          color: #fbbf24;
+        }
+        #p-title.bad {
+          color: #f87171;
+        }
+        #status.done,
+        #p-title.done {
+          color: #cbd5e1;
+        }
+        .alert {
+          background: #422006;
+          border-color: #92400e;
+          color: #fde68a;
+        }
+        #back {
+          background: #1e1b4b;
+          border-color: #3730a3;
+          color: #c7d2fe;
+        }
+      }
+      #back {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #3730a3;
+        background: #eef2ff;
+        border-color: #c7d2fe;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="local">
+      <h1>Run watcher</h1>
+      <div id="back" class="card" hidden>You can go back to your run's tab now: this one works in the background.</div>
+      <div class="card">
+        <div id="status">Starting...</div>
+        <div id="detail" class="small"></div>
+        <ul id="reopens" class="small"></ul>
+      </div>
+      <div class="card small">
+        <p>
+          Keep this tab open while the run goes; it can sit in the background. It checks about once a minute, and if the
+          run's tab goes quiet for 2 minutes it opens the run's page again, which carries on by itself. It stops after 3
+          reopens in an hour, and when the run finishes or you press Stop.
+        </p>
+      </div>
+      <div id="help" class="card small"></div>
+    </main>
+    <div id="phone">
+      <main>
+        <div class="card">
+          <div class="row">
+            <p id="p-title" class="done">Loading...</p>
+            <button id="p-refresh" class="refresh" type="button">Refresh</button>
+          </div>
+          <div id="p-label" class="small"></div>
+          <div class="bar" hidden id="p-bar-wrap"><div id="p-bar"></div></div>
+          <div class="row small"><span id="p-progress"></span><span id="p-left"></span></div>
+        </div>
+        <div id="p-stale" class="card alert" hidden></div>
+        <div class="card" id="p-best-card" hidden>
+          <div class="small" id="p-best-heading">Best so far</div>
+          <div id="p-best" class="big"></div>
+          <div id="p-route" class="route small"></div>
+        </div>
+        <div id="p-info" class="card small" hidden>
+          <div id="p-updated"></div>
+          <div id="p-meta"></div>
+        </div>
+        <p class="small">
+          This page checks again every minute while it's on screen. Bookmark it, or use Add to Home Screen, to
+          come back to it. Keep the link private: anyone with it can see this run.
+        </p>
+      </main>
+    </div>
+    <script type="module" src="/src/watch/main.ts"></script>
+  </body>
+</html>

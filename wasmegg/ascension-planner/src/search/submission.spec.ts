@@ -1,0 +1,858 @@
+/**
+ * What a shared submission may and may not contain.
+ *
+ * The tests that matter here are the negative ones. A leaderboard submission is the one place
+ * this project sends a player's data somewhere else, so the failure worth catching is not "the
+ * number is wrong" but "something got included that nobody agreed to share".
+ */
+import { describe, expect, it } from 'vitest';
+import { SIM_VERSION } from './simVersion';
+import {
+  asProvisional,
+  bestPerFamily,
+  buildSubmission,
+  cleanNote,
+  keepVirtueStones,
+  keepVirtueArtifacts,
+  MAX_RECHECKS,
+  MAX_SEARCHED,
+  scrubIdentifiers,
+  submissionFilename,
+  SUBMISSION_SCHEMA,
+  summariseProof,
+  PROOF_RUNNERS_UP,
+  provisionalProgress,
+  readProvisionalRow,
+  tooManySubmissionsMessage,
+  validateSubmission,
+  type Submission,
+  type SubmissionInputs,
+} from './submission';
+
+describe('tooManySubmissionsMessage', () => {
+  it('says how long to wait, and that nothing was lost', () => {
+    expect(tooManySubmissionsMessage(42)).toMatch(/about 42 seconds/);
+    expect(tooManySubmissionsMessage(1)).toMatch(/about 1 second\b/);
+    expect(tooManySubmissionsMessage(42)).toMatch(/Nothing was lost/);
+  });
+
+  it('falls back to "a minute" when the collector gave no wait', () => {
+    expect(tooManySubmissionsMessage()).toMatch(/wait a minute/);
+    expect(tooManySubmissionsMessage(0)).toMatch(/wait a minute/);
+  });
+});
+import type { LegSummary } from './types';
+
+const DENVER = 'America/Denver';
+const PLAN_START = Math.floor(Date.UTC(2026, 8, 10, 1, 4) / 1000); // 2026-09-09 19:04 Denver
+
+function leg(te: number, days: number, wait = 0, hold = 0): LegSummary {
+  return {
+    key: '2-sale-tier13',
+    endTE: te,
+    endTime: 0,
+    durationSeconds: days * 86400,
+    maxELR: (5 * 1e15) / 3600,
+    sleepDelaySeconds: wait,
+    shiftDelaySeconds: hold,
+  } as unknown as LegSummary;
+}
+
+function inputs(over: Partial<SubmissionInputs> = {}): SubmissionInputs {
+  return {
+    chain: [182, 195, 228, 257, 285, 322, 490],
+    seconds: 739.4764 * 86400,
+    legs: [leg(182, 7.72, 6.5 * 3600, 0), leg(195, 36.09, 0, 8.9 * 3600)],
+    planStart: PLAN_START,
+    timezone: DENVER,
+    currentTE: 177,
+    finalTE: 490,
+    effort: 'thorough',
+    availability: { days: [], fromHour: 7, toHour: 23, timezone: DENVER },
+    holdShifts: true,
+    artifacts: [{ label: 'T4L Puzzle cube', count: 1 }],
+    stones: [{ label: 'T4 Lunar stone', count: 9 }],
+    chainsPriced: 10122,
+    now: Date.UTC(2026, 8, 13, 12, 0),
+    ...over,
+  };
+}
+
+describe('buildSubmission', () => {
+  it('sends a deadline answer as schema 8 with its deadline, and everything else as 7', () => {
+    expect(buildSubmission(inputs()).schema).toBe(SUBMISSION_SCHEMA);
+    const d = buildSubmission(inputs({ deadline: { at: 1815926400.4, ascendAt: 1815880000.6 } }));
+    expect([d.schema, d.deadline, d.deadlineAscendAt]).toEqual([8, 1815926400, 1815880001]);
+    expect(validateSubmission(d)).toEqual([]);
+  });
+
+  it('carries only the agreed fields, and no others', () => {
+    // A whitelist is only a whitelist if nothing else survives. If someone widens the input
+    // type later, this is what notices.
+    const s = buildSubmission(inputs());
+    expect(Object.keys(s).sort()).toEqual(
+      [
+        'artifacts',
+        'ascensions',
+        'chain',
+        'chainsPriced',
+        'currentTE',
+        'durationDays',
+        'effort',
+        'endLocal',
+        'endUtc',
+        'finalTE',
+        'firstLeg',
+        'holdShifts',
+        'legs',
+        'schema',
+        'startLocal',
+        'startUtc',
+        'startWeekday',
+        'stones',
+        'submittedAt',
+        'timezone',
+        'waitingHours',
+        'window',
+      ].sort()
+    );
+  });
+
+  it('carries a note as one line of at most 500 characters, without player ids, and omits an empty one', () => {
+    expect(buildSubmission(inputs({ note: '  trying 3 sales\non 195  ' })).note).toBe('trying 3 sales on 195');
+    expect(buildSubmission(inputs({ note: 'my alt EI1234567890123456 run' })).note).toBe('my alt EI[redacted] run');
+    expect(buildSubmission(inputs({ note: 'x'.repeat(600) })).note).toHaveLength(500);
+    expect('note' in buildSubmission(inputs({ note: ' \n ' }))).toBe(false);
+    expect('note' in buildSubmission(inputs())).toBe(false);
+    expect(cleanNote(undefined)).toBeUndefined();
+  });
+
+  it('refuses a note that is not a string or is longer than 500 characters', () => {
+    const ok = buildSubmission(inputs({ note: 'fine' }));
+    expect(validateSubmission(ok)).toEqual([]);
+    expect(validateSubmission({ ...ok, note: 'x'.repeat(501) }).join()).toMatch(/note/);
+    expect(validateSubmission({ ...ok, note: 5 as unknown as string }).join()).toMatch(/note/);
+  });
+
+  it('records force-continue when told it, and leaves it off for callers that do not know', () => {
+    // It changes which chain wins, so the analysis must be able to keep the two kinds of run apart.
+    expect(buildSubmission(inputs({ forceContinue: true })).forceContinue).toBe(true);
+    expect(buildSubmission(inputs({ forceContinue: false })).forceContinue).toBe(false);
+    expect('forceContinue' in buildSubmission(inputs())).toBe(false);
+    expect('firstAscension' in buildSubmission(inputs({ forceContinue: true }))).toBe(false);
+  });
+
+  it('sends the first ascension as its word, with the old boolean beside it for old readers', () => {
+    for (const [first, fc] of [
+      ['auto', false],
+      ['continue', true],
+      ['fresh', false],
+    ] as const) {
+      const s = buildSubmission(inputs({ firstAscension: first }));
+      expect(s.firstAscension).toBe(first);
+      expect(s.forceContinue).toBe(fc);
+      expect(validateSubmission(s)).toEqual([]);
+    }
+    expect('firstAscension' in buildSubmission(inputs())).toBe(false);
+  });
+
+  it('carries the schema-6 variables when given them, and leaves each off when not', () => {
+    const s = buildSubmission(
+      inputs({
+        deliveryScore: { lay: 1.5, hab: 1.25, shipping: 1.6, score: 0.97 },
+        clothedTE: 201.234,
+        teByEgg: [40.4, 38, 36, 34, 32],
+        backupTime: inputs().planStart - 5400,
+      })
+    );
+    expect(s.deliveryScore?.score).toBe(0.97);
+    expect(s.clothedTE).toBe(201.23);
+    expect(s.teByEgg).toEqual([40, 38, 36, 34, 32]);
+    expect(s.backupAgeHours).toBe(1.5);
+    expect(buildSubmission(inputs({ clothedTE: null })).clothedTE).toBeUndefined();
+  });
+
+  it('names the weekday in the plan zone, not the browser zone', () => {
+    // 2026-09-19 03:00 UTC is Saturday in UTC and still Friday evening in Chicago.
+    const at = Date.UTC(2026, 8, 19, 3, 0) / 1000;
+    expect(buildSubmission(inputs({ planStart: at, timezone: 'UTC' })).startWeekday).toBe('Sat');
+    expect(buildSubmission(inputs({ planStart: at, timezone: 'America/Chicago' })).startWeekday).toBe('Fri');
+  });
+
+  it('never contains a player id, even when one is typed into the nickname', () => {
+    const s = buildSubmission(inputs({ nickname: 'me EI1234567890123456 here' }));
+    expect(JSON.stringify(s)).not.toMatch(/EI\d{16}/);
+    expect(s.nickname).toBe('me EI[redacted] here');
+  });
+
+  it('omits the nickname entirely rather than sending an empty one', () => {
+    expect(buildSubmission(inputs({ nickname: '   ' })).nickname).toBeUndefined();
+    expect('nickname' in buildSubmission(inputs())).toBe(false);
+  });
+
+  it('caps a nickname rather than relaying whatever was pasted', () => {
+    const s = buildSubmission(inputs({ nickname: 'x'.repeat(400) }));
+    expect(s.nickname!.length).toBe(40);
+  });
+
+  it('reports the plan start to the minute, in the plan zone and as an instant, never to the second', () => {
+    // The instant says nothing the local time and zone did not, except which of the two 01:30s a
+    // clock change repeats. A unix timestamp to the second would, so it is never sent.
+    const s = buildSubmission(inputs({ planStart: PLAN_START + 37 }));
+    expect(s.startLocal).toBe('2026-09-09 19:04');
+    expect(s.startUtc).toBe('2026-09-10T01:04:00.000Z');
+    expect(s.endLocal).toMatch(/^2028-09-18 /);
+    expect(Date.parse(s.endUtc!) % 60_000).toBe(0);
+    expect(JSON.stringify(s)).not.toContain(String(PLAN_START));
+    expect(JSON.stringify(s)).not.toContain(String(PLAN_START + 37));
+    expect('startUtc' in buildSubmission(inputs({ planStart: 0 }))).toBe(false);
+  });
+
+  it('says waiting time is unknown rather than zero when no legs were kept', () => {
+    // A chain replayed from a checkpoint keeps no legs. Publishing 0 would be a measurement
+    // nobody made, and on a leaderboard it would look like the kindest schedule in the list.
+    expect(buildSubmission(inputs({ legs: [] })).waitingHours).toBeNull();
+    expect(buildSubmission(inputs()).waitingHours).toBe(15.4);
+  });
+
+  it('rounds rather than shipping float noise', () => {
+    const s = buildSubmission(inputs());
+    expect(s.durationDays).toBe(739.4764);
+    expect(s.legs[0].peakDeliveryQph).toBe(5);
+  });
+});
+
+describe('keepVirtueArtifacts', () => {
+  it('keeps only what a virtue ascension can equip', () => {
+    // The brooch is the example the request named: 104 of them tell nobody anything about a
+    // delivery rate, and shipping the full inventory is a sharper fingerprint than shipping the
+    // eight families that matter.
+    const kept = keepVirtueArtifacts([
+      { label: 'T1C Aurelian brooch', count: 104, familyId: 'aurelian-brooch' },
+      { label: 'T2C Beak of Midas', count: 904, familyId: 'beak-of-midas' },
+      { label: 'T4L Quantum metronome', count: 1, familyId: 'quantum-metronome' },
+      { label: 'T4L Puzzle cube', count: 1, familyId: 'puzzle-cube' },
+      { label: 'T4L The chalice', count: 3, familyId: 'the-chalice' },
+      { label: 'T1C Gusset', count: 4, familyId: 'ornate-gusset' },
+    ]);
+    expect(kept.map(a => a.label)).toEqual([
+      'T4L Quantum metronome',
+      'T4L Puzzle cube',
+      'T4L The chalice',
+      'T1C Gusset',
+    ]);
+  });
+
+  it('falls back to the label when an older inventory carries no family', () => {
+    // Dropping everything would look like an empty inventory rather than a missing field.
+    const kept = keepVirtueArtifacts([
+      { label: 'T4L Tungsten ankh', count: 1 },
+      { label: 'T3C Phoenix feather', count: 29 },
+    ]);
+    expect(kept.map(a => a.label)).toEqual(['T4L Tungsten ankh']);
+  });
+
+  it('keeps only the best piece in each family, by tier then rarity', () => {
+    const best = bestPerFamily([
+      { label: 'T1C Demeters necklace', count: 732, familyId: 'demeters-necklace', tier: 1, rarity: 0 },
+      { label: 'T4L Demeters necklace', count: 1, familyId: 'demeters-necklace', tier: 4, rarity: 3 },
+      { label: 'T4C Demeters necklace', count: 59, familyId: 'demeters-necklace', tier: 4, rarity: 0 },
+      { label: 'T3L Tungsten ankh', count: 2, familyId: 'tungsten-ankh', tier: 3, rarity: 3 },
+    ]);
+    // One per family, and the T4L wins despite the T1C being 732x more numerous. Rarity breaks
+    // the tie inside tier 4 -- a plain string sort on the label would rank "T4L" under "T4R".
+    expect(best.map(a => a.label)).toEqual(['T3L Tungsten ankh', 'T4L Demeters necklace']);
+  });
+
+  // The game data files the T1 gusset under `ornate-gusset` and T2-T4 under `gusset`, so keying
+  // on the raw family id left every account with a spurious "T1C Gusset" next to its "T4L Gusset".
+  it('treats the T1 gusset and the T2-T4 gusset as one family', () => {
+    const best = bestPerFamily([
+      { label: 'T1C Gusset', count: 374, familyId: 'ornate-gusset', tier: 1, rarity: 0 },
+      { label: 'T4L Gusset', count: 1, familyId: 'gusset', tier: 4, rarity: 3 },
+    ]);
+    expect(best.map(a => a.label)).toEqual(['T4L Gusset']);
+  });
+
+  it('keeps only the stones a virtue set can socket', () => {
+    const kept = keepVirtueStones([
+      { label: 'T4 Tachyon stone', count: 8, familyId: 'tachyon-stone' },
+      { label: 'T4 Quantum stone', count: 4, familyId: 'quantum-stone' },
+      { label: 'T4 Lunar stone', count: 20, familyId: 'lunar-stone' },
+      { label: 'T2 Shell stone', count: 50, familyId: 'shell-stone' },
+      { label: 'T2 Terra stone', count: 72, familyId: 'terra-stone' },
+      { label: 'T3 Life stone', count: 10, familyId: 'life-stone' },
+    ]);
+    expect(kept.map(s => s.label)).toEqual(['T4 Tachyon stone', 'T4 Quantum stone', 'T4 Lunar stone']);
+  });
+
+  it('is applied by buildSubmission', () => {
+    const s = buildSubmission(
+      inputs({
+        artifacts: [
+          { label: 'T1C Aurelian brooch', count: 104, familyId: 'aurelian-brooch' },
+          { label: 'T4L Lunar totem', count: 1, familyId: 'lunar-totem' },
+        ],
+      })
+    );
+    expect(s.artifacts).toEqual(['T4L Lunar totem']);
+    // Stones are narrowed too now -- only the three a virtue set actually sockets.
+    expect(s.stones.every(st => /tachyon|quantum|lunar/i.test(st.label))).toBe(true);
+  });
+});
+
+describe('scrubIdentifiers', () => {
+  it('redacts every id in a block of text', () => {
+    const out = scrubIdentifiers('a EI1111111111111111 b EI2222222222222222');
+    expect(out).toBe('a EI[redacted] b EI[redacted]');
+  });
+
+  it('leaves things that merely look similar alone', () => {
+    expect(scrubIdentifiers('EI123 and EGG1234567890123456')).toBe('EI123 and EGG1234567890123456');
+  });
+});
+
+describe('validateSubmission', () => {
+  const ok = () => JSON.parse(JSON.stringify(buildSubmission(inputs())));
+
+  it('accepts what buildSubmission produces', () => {
+    expect(validateSubmission(ok())).toEqual([]);
+  });
+
+  it('rejects a foreign or future schema rather than guessing', () => {
+    // 8 is taken, by deadline answers (below).
+    expect(validateSubmission({ ...ok(), schema: SUBMISSION_SCHEMA + 2 })[0]).toMatch(/unknown schema/);
+  });
+
+  it('takes a deadline answer as schema 8, and only with its deadline', () => {
+    const d = { ...ok(), schema: 8, deadline: 1815926400, deadlineAscendAt: 1815900000 };
+    expect(validateSubmission(d)).toEqual([]);
+    expect(validateSubmission({ ...d, deadline: undefined })).toContain('a deadline run needs its deadline');
+    expect(validateSubmission({ ...d, chain: [225], finalTE: 225 })).toEqual([]);
+    expect(validateSubmission({ ...ok(), chain: [490] })).toContain('chain must have at least two entries');
+    expect(validateSubmission({ ...d, deadlineAscendAt: 1815926400 + 60 })).toContain(
+      'the last ascension must be on or before the deadline'
+    );
+  });
+
+  it('rejects a chain that does not strictly increase', () => {
+    expect(validateSubmission({ ...ok(), chain: [195, 195, 490] })).toContain('chain must strictly increase');
+  });
+
+  it('rejects a chain that ends somewhere other than its final target', () => {
+    // A run to 309, sent after the target box was changed to 308 (b7c361cc on the board).
+    expect(validateSubmission({ ...ok(), chain: [195, 238, 309], finalTE: 308 })).toContain(
+      'the chain must end at finalTE'
+    );
+  });
+
+  it('rejects nonsense durations and oversized payloads', () => {
+    expect(validateSubmission({ ...ok(), durationDays: 0 })).toContain('durationDays must be positive');
+    const huge = { ...ok(), artifacts: Array.from({ length: 20000 }, () => 'x'.repeat(20)) };
+    expect(validateSubmission(huge)).toContain('submission is implausibly large');
+  });
+
+  it('rejects junk without throwing', () => {
+    for (const junk of [null, 'nope', 42, []]) expect(validateSubmission(junk).length).toBeGreaterThan(0);
+  });
+});
+
+describe('submissionFilename', () => {
+  it('is dated so two submissions do not collide', () => {
+    expect(submissionFilename(buildSubmission(inputs()))).toBe('chain-submission-490te-2026-09-13-12-00.json');
+  });
+});
+
+describe('buildSubmission: run cost', () => {
+  const base = {
+    chain: [195, 226, 277, 317, 490],
+    seconds: 758.9 * 86400,
+    legs: [],
+    planStart: 1_757_000_000,
+    timezone: 'UTC',
+    currentTE: 170,
+    finalTE: 490,
+    effort: 'balanced',
+    availability: null,
+    holdShifts: false,
+    artifacts: [],
+    stones: [],
+    chainsPriced: 1661,
+    now: 1_757_100_000_000,
+  };
+
+  it('omits the run entirely when the cost is unknown', () => {
+    // A checkpoint replay produces an answer in no time at all. Recording that as a fast machine
+    // would poison the estimate this field exists to improve.
+    expect(buildSubmission({ ...base }).run).toBeUndefined();
+  });
+
+  it('carries workers, cores, minutes and seconds-per-chain', () => {
+    const s = buildSubmission({
+      ...base,
+      run: { workers: 12, cores: 20, minutes: 65.25, secondsPerChain: 2.3567 },
+    });
+    expect(s.run).toEqual({ workers: 12, cores: 20, minutes: 65.3, secondsPerChain: 2.36 });
+  });
+
+  it('keeps a null core count rather than inventing one', () => {
+    // `navigator.hardwareConcurrency` is absent on some browsers; null says "not reported",
+    // which a fit can exclude, where 0 would drag an average down.
+    const s = buildSubmission({
+      ...base,
+      run: { workers: 4, cores: null, minutes: 10, secondsPerChain: 1 },
+    });
+    expect(s.run?.cores).toBeNull();
+  });
+
+  it('bumps the schema so the collector can tell old submissions apart', () => {
+    expect(buildSubmission({ ...base }).schema).toBe(SUBMISSION_SCHEMA);
+  });
+});
+
+describe('buildSubmission: the space an exhaustive run covered', () => {
+  const base = {
+    chain: [195, 226, 277, 317, 490],
+    seconds: 758.9 * 86400,
+    legs: [],
+    planStart: 1_757_000_000,
+    timezone: 'UTC',
+    currentTE: 170,
+    finalTE: 490,
+    effort: 'balanced',
+    availability: null,
+    holdShifts: false,
+    artifacts: [],
+    stones: [],
+    chainsPriced: 1661,
+    now: 1_757_100_000_000,
+  };
+  const bandSpace = {
+    mode: 'bands' as const,
+    bands: [
+      [240, 241, 242],
+      [300, 305],
+    ],
+    minGap: 15,
+    minAscensions: 3,
+    maxAscensions: 3,
+    chains: 6,
+    chainsPriced: 6,
+    stoppedEarly: false,
+  };
+
+  it('is absent on a staged run, which proves nothing over a stated space', () => {
+    expect(buildSubmission({ ...base }).space).toBeUndefined();
+  });
+
+  it('carries the bands through, so a reader need not re-parse the typed text', () => {
+    const s = buildSubmission({ ...base, space: bandSpace });
+    expect(s.space?.mode).toBe('bands');
+    expect(s.space?.bands).toEqual([
+      [240, 241, 242],
+      [300, 305],
+    ]);
+    expect(s.space?.minGap).toBe(15);
+  });
+
+  it('distinguishes one pooled range from a range per checkpoint', () => {
+    const s = buildSubmission({
+      ...base,
+      space: {
+        mode: 'range',
+        range: { lo: 185, hi: 390, step: 5 },
+        minGap: 0,
+        minAscensions: 5,
+        maxAscensions: 7,
+        chains: 6006,
+        chainsPriced: 6006,
+        stoppedEarly: false,
+      },
+    });
+    expect(s.space?.mode).toBe('range');
+    expect(s.space?.range).toEqual({ lo: 185, hi: 390, step: 5 });
+    expect(s.space?.bands).toBeUndefined();
+  });
+
+  it('keeps stoppedEarly, which is the difference between a result and a proof', () => {
+    const s = buildSubmission({
+      ...base,
+      space: { ...bandSpace, chainsPriced: 2, stoppedEarly: true },
+    });
+    expect(s.space?.stoppedEarly).toBe(true);
+    expect(s.space?.chainsPriced).toBe(2);
+  });
+});
+
+describe('summariseProof', () => {
+  const c = (chain: number[], days: number) => ({ chain, days });
+
+  it('needs two chains before there is anything to summarise', () => {
+    expect(summariseProof([c([299, 490], 900)], [299, 490])).toBeNull();
+    expect(summariseProof([], [299, 490])).toBeNull();
+  });
+
+  it('lists the runners-up in order, without the winner among them', () => {
+    const p = summariseProof([c([260, 490], 961.2), c([299, 490], 948.4), c([249, 490], 948.44)], [299, 490])!;
+    expect(p.runnersUp.map(r => r.chain)).toEqual([
+      [249, 490],
+      [260, 490],
+    ]);
+    expect(p.runnersUp[0].days).toBe(948.44);
+  });
+
+  // The winner comes from the run's own tracking, and a resumed run can carry one the current
+  // cache never held. Dropping the first entry by position would delete a real chain and promote
+  // the second best into a slot it did not earn.
+  it('drops the winner by chain, not by position', () => {
+    const p = summariseProof([c([249, 490], 900), c([260, 490], 950)], [999, 490])!;
+    expect(p.runnersUp.map(r => r.chain)).toEqual([
+      [249, 490],
+      [260, 490],
+    ]);
+  });
+
+  it('caps the runners-up so the block stays a summary', () => {
+    const many = Array.from({ length: 40 }, (_, k) => c([200 + k, 490], 900 + k));
+    expect(summariseProof(many, [200, 490])!.runnersUp).toHaveLength(PROOF_RUNNERS_UP);
+  });
+
+  // Both caches can hold the same chain -- see allEntries -- and a duplicated winner would
+  // otherwise appear as its own runner-up with a margin of zero, which reads as a tie.
+  it('collapses a chain priced twice, keeping the faster time', () => {
+    const p = summariseProof([c([299, 490], 948.4), c([299, 490], 950), c([260, 490], 961)], [299, 490])!;
+    expect(p.runnersUp).toHaveLength(1);
+    expect(p.spread.best).toBe(948.4);
+  });
+
+  it('reports the best at each ascension count, with how many were priced there', () => {
+    const p = summariseProof(
+      [c([299, 490], 948), c([250, 490], 970), c([249, 330, 490], 900), c([260, 340, 490], 905)],
+      [249, 330, 490]
+    )!;
+    expect(p.byAscensions).toEqual([
+      { ascensions: 2, priced: 2, chain: [299, 490], days: 948 },
+      { ascensions: 3, priced: 2, chain: [249, 330, 490], days: 900 },
+    ]);
+  });
+
+  it('leaves the per-count table empty when there is no comparison to make', () => {
+    expect(summariseProof([c([299, 490], 948), c([250, 490], 970)], [299, 490])!.byAscensions).toEqual([]);
+  });
+
+  it('reports the spread over everything priced', () => {
+    const p = summariseProof([c([1, 490], 100), c([2, 490], 200), c([3, 490], 900)], [1, 490])!;
+    expect(p.spread).toEqual({ best: 100, median: 200, worst: 900 });
+  });
+
+  it('ignores chains with no usable duration rather than sorting them to the top', () => {
+    const p = summariseProof([c([1, 490], 0), c([2, 490], Number.NaN), c([3, 490], 500), c([4, 490], 600)], [3, 490])!;
+    expect(p.spread).toEqual({ best: 500, median: 600, worst: 600 });
+    expect(p.runnersUp.map(r => r.chain)).toEqual([[4, 490]]);
+  });
+});
+
+describe('buildSubmission: what an exhaustive run found', () => {
+  const base = {
+    chain: [299, 490],
+    seconds: 948 * 86400,
+    legs: [],
+    planStart: 1_757_000_000,
+    timezone: 'UTC',
+    currentTE: 170,
+    finalTE: 490,
+    effort: 'balanced',
+    availability: null,
+    holdShifts: false,
+    artifacts: [],
+    stones: [],
+    chainsPriced: 2,
+    now: 1_757_100_000_000,
+  };
+  const proof = summariseProof(
+    [
+      { chain: [299, 490], days: 948 },
+      { chain: [249, 490], days: 949 },
+    ],
+    [299, 490]
+  );
+
+  it('is absent when the run had nothing to summarise', () => {
+    expect(buildSubmission({ ...base }).proof).toBeUndefined();
+    expect(buildSubmission({ ...base, proof: null }).proof).toBeUndefined();
+  });
+
+  it('rides along when there is one', () => {
+    expect(buildSubmission({ ...base, proof }).proof?.runnersUp[0].chain).toEqual([249, 490]);
+  });
+});
+
+describe('buildSubmission: the seed a staged run descended from', () => {
+  const base = {
+    chain: [299, 490],
+    seconds: 948 * 86400,
+    legs: [],
+    planStart: 1_757_000_000,
+    timezone: 'UTC',
+    currentTE: 170,
+    finalTE: 490,
+    effort: 'balanced',
+    availability: null,
+    holdShifts: false,
+    artifacts: [],
+    stones: [],
+    chainsPriced: 2,
+    now: 1_757_100_000_000,
+  };
+
+  it('carries the seed through', () => {
+    expect(buildSubmission({ ...base, seed: [195, 490] }).seed).toEqual([195, 490]);
+  });
+
+  it('copies it, so a later edit to the run cannot rewrite a sent submission', () => {
+    const seed = [195, 490];
+    const s = buildSubmission({ ...base, seed });
+    seed[0] = 999;
+    expect(s.seed).toEqual([195, 490]);
+  });
+
+  it('is absent when there was no seed, rather than an empty list', () => {
+    expect(buildSubmission({ ...base }).seed).toBeUndefined();
+    expect(buildSubmission({ ...base, seed: [] }).seed).toBeUndefined();
+    expect(buildSubmission({ ...base, seed: null }).seed).toBeUndefined();
+  });
+});
+
+describe('buildSubmission: run health', () => {
+  const base = {
+    chain: [195, 226, 277, 317, 490],
+    seconds: 758.9 * 86400,
+    legs: [],
+    planStart: 1_757_000_000,
+    timezone: 'UTC',
+    currentTE: 170,
+    finalTE: 490,
+    effort: 'balanced',
+    availability: null,
+    holdShifts: false,
+    artifacts: [],
+    stones: [],
+    chainsPriced: 1661,
+    now: 1_757_100_000_000,
+  };
+  const run = { workers: 19, cores: 20, minutes: 60, secondsPerChain: 0.5 };
+
+  it('reports a freeze rather than letting it pass as a slow machine', () => {
+    const s = buildSubmission({
+      ...base,
+      run: { ...run, suspendedMinutes: 12.34, longestStallMinutes: 9.87 },
+    });
+    expect(s.run?.suspendedMinutes).toBe(12.3);
+    expect(s.run?.longestStallMinutes).toBe(9.9);
+  });
+
+  it('omits both on a build that did not measure them, rather than claiming zero', () => {
+    const s = buildSubmission({ ...base, run });
+    expect(s.run && 'suspendedMinutes' in s.run).toBe(false);
+    expect(s.run && 'longestStallMinutes' in s.run).toBe(false);
+  });
+});
+
+describe('buildSubmission: schema 7', () => {
+  it('sends the save age signed, so a plan that starts before its save reads as a what-if', () => {
+    // Schema 6 left the field off in exactly this case, which read the same as "not recorded".
+    expect(buildSubmission(inputs({ backupTime: inputs().planStart + 3 * 3600 })).backupAgeHours).toBe(-3);
+    expect(buildSubmission(inputs({ backupTime: inputs().planStart - 5400 })).backupAgeHours).toBe(1.5);
+    // Rounded to a tenth, and never a negative zero.
+    expect(Object.is(buildSubmission(inputs({ backupTime: inputs().planStart + 60 })).backupAgeHours, 0)).toBe(true);
+    // Unknown save time: absent, never guessed.
+    expect('backupAgeHours' in buildSubmission(inputs({ backupTime: null }))).toBe(false);
+    // Past the collector's year either way it would be dropped there, so it is not sent.
+    expect('backupAgeHours' in buildSubmission(inputs({ backupTime: inputs().planStart - 400 * 86400 }))).toBe(false);
+  });
+
+  it("carries the save's TE and the build, and leaves each off when unknown", () => {
+    const s = buildSubmission(inputs({ backupTE: 177, build: '2026-09-25T20:40:00.000Z' }));
+    expect(s.backupTE).toBe(177);
+    expect(s.build).toBe('2026-09-25T20:40:00.000Z');
+    expect(buildSubmission(inputs({ build: 'x'.repeat(90) })).build).toHaveLength(40);
+    const bare = buildSubmission(inputs({ backupTE: null, build: '' }));
+    expect('backupTE' in bare || 'build' in bare).toBe(false);
+  });
+
+  it('stamps the simulator whenever it stamps the build, and neither when the build is unknown', () => {
+    const s = buildSubmission(inputs({ build: '2026-10-13T12:00:00.000Z' }));
+    expect(s.simVersion).toBe(SIM_VERSION);
+    expect('simVersion' in buildSubmission(inputs({ build: '' }))).toBe(false);
+    expect(validateSubmission({ ...s, simVersion: 'x'.repeat(41) })[0]).toMatch(/simVersion/);
+  });
+
+  it('sends only rechecks the collector will take, and never the winner again', () => {
+    const winner = inputs().chain;
+    const s = buildSubmission(
+      inputs({
+        rechecks: [
+          { chain: [195, 227, 270, 303, 490], days: 745.123456 },
+          { chain: [...winner], days: 739.4764 }, // the winner itself: says nothing new
+          { chain: [195, 227, 270, 303, 490], days: 746 }, // a repeat
+          { chain: [227, 195, 490], days: 750 }, // not rising
+          { chain: [200, 300], days: 750 }, // does not reach the target
+          { chain: [200, 490], days: NaN },
+          { chain: [210, 490], days: 760 },
+          { chain: [220, 490], days: 761 },
+          { chain: [230, 490], days: 762 },
+        ],
+      })
+    );
+    expect(s.rechecks).toEqual([
+      { chain: [195, 227, 270, 303, 490], days: 745.1235 },
+      { chain: [210, 490], days: 760 },
+      { chain: [220, 490], days: 761 },
+    ]);
+    expect(s.rechecks).toHaveLength(MAX_RECHECKS);
+    expect('rechecks' in buildSubmission(inputs({ rechecks: [] }))).toBe(false);
+    expect(validateSubmission(JSON.parse(JSON.stringify(s)))).toEqual([]);
+  });
+
+  it('validates the schema-7 fields the way the collector does', () => {
+    const ok = () => JSON.parse(JSON.stringify(buildSubmission(inputs({ backupTime: inputs().planStart - 3600 }))));
+    expect(validateSubmission({ ...ok(), rechecks: [{ chain: [200, 300], days: 5 }] })[0]).toMatch(/recheck/);
+    expect(
+      validateSubmission({
+        ...ok(),
+        rechecks: Array.from({ length: 4 }, (_, k) => ({ chain: [200 + k, 490], days: 5 })),
+      })[0]
+    ).toMatch(/at most 3/);
+    expect(validateSubmission({ ...ok(), backupAgeHours: -9000 })[0]).toMatch(/backupAgeHours/);
+    expect(validateSubmission({ ...ok(), backupAgeHours: -12 })).toEqual([]);
+    expect(validateSubmission({ ...ok(), build: 'x'.repeat(41) })[0]).toMatch(/build/);
+    expect(validateSubmission({ ...ok(), startUtc: 'soon' })[0]).toMatch(/startUtc/);
+  });
+});
+
+describe('a best so far (Send best so far)', () => {
+  const base = {
+    schema: 7,
+    chain: [195, 490],
+    finalTE: 490,
+    durationDays: 700,
+    rechecks: [{ chain: [490], days: 650 }],
+    space: {
+      mode: 'range',
+      range: { lo: 190, hi: 260, step: 1 },
+      minGap: 0,
+      minAscensions: 2,
+      maxAscensions: 2,
+      chains: 70,
+      chainsPriced: 0,
+      stoppedEarly: false,
+    },
+    proof: { runnersUp: [], byAscensions: [], spread: { best: 700, median: 720, worst: 800 } },
+  } as unknown as Submission;
+
+  it('is marked provisional, with its progress, and never reads as a proof', () => {
+    const p = asProvisional(base, provisionalProgress(30.7, 69.2), 'aaaa0001');
+    expect(p).toMatchObject({ provisional: true, progress: { done: 30, total: 70 }, replaces: 'aaaa0001' });
+    expect(p.space).toMatchObject({ chainsPriced: 30, stoppedEarly: true, chains: 70 });
+    expect(p).not.toHaveProperty('proof');
+    expect(p).not.toHaveProperty('rechecks');
+    expect(validateSubmission(p)).toEqual([]);
+    // The original is untouched: the final row still carries its own.
+    expect(base.space?.stoppedEarly).toBe(false);
+  });
+
+  it('sends no progress without an estimate, and no replaces that is not a row id', () => {
+    expect(provisionalProgress(5, null)).toBeNull();
+    expect(provisionalProgress(5, 0)).toBeNull();
+    expect(provisionalProgress(9, 4)).toEqual({ done: 9, total: 9 });
+    const p = asProvisional({ ...base, space: undefined }, null, 'not an id!');
+    expect(p).not.toHaveProperty('progress');
+    expect(p).not.toHaveProperty('replaces');
+  });
+
+  it('is checked the way the collector checks it', () => {
+    expect(validateSubmission({ ...base, provisional: 'yes' })).toContain('provisional must be true or false');
+    expect(validateSubmission({ ...base, replaces: 'not an id!' })).toContain('replaces must be a row id');
+    expect(validateSubmission({ ...base, replaces: 'abcd1234' })).toEqual([]);
+  });
+
+  it('reads a stored row back only when it is one', () => {
+    expect(readProvisionalRow({ id: 'abcd1234', nickname: 'Jo', at: 7 })).toEqual({
+      id: 'abcd1234',
+      nickname: 'Jo',
+      at: 7,
+    });
+    expect(readProvisionalRow({ id: 'abcd1234' })).toEqual({ id: 'abcd1234', nickname: '' });
+    for (const junk of [null, undefined, 'abcd1234', { id: 'NOT AN ID' }, { nickname: 'Jo' }]) {
+      expect(readProvisionalRow(junk)).toBeNull();
+    }
+  });
+});
+
+describe('which way leg 1 went (firstLeg, 9 Oct)', () => {
+  const at = PLAN_START + 49 * 86400;
+  const first = (over: Partial<LegSummary>) => ({ ...leg(161, 49), endTime: at, ...over }) as unknown as LegSummary;
+
+  it('says fresh or continue, and how many hours later the other way would have ended leg 1', () => {
+    const s = buildSubmission(
+      inputs({ legs: [first({ key: '2-sale', firstLegRival: { key: 'continue', endTime: at + 19.2 * 3600 } })] })
+    );
+    expect(s.firstLeg).toBe('fresh');
+    expect(s.firstLegOtherHours).toBe(19.2);
+    expect(validateSubmission(s)).toEqual([]);
+    const c = buildSubmission(
+      inputs({ legs: [first({ key: 'continue', firstLegRival: { key: '1-sale', endTime: at + 3600 } })] })
+    );
+    expect([c.firstLeg, c.firstLegOtherHours]).toEqual(['continue', 1]);
+    const b = buildSubmission(
+      inputs({ legs: [first({ key: 'buildup', firstLegRival: { key: '2-sale', endTime: at + 7200 } })] })
+    );
+    expect([b.firstLeg, b.firstLegOtherHours]).toEqual(['buildup', 2]);
+    expect(validateSubmission(b)).toEqual([]);
+  });
+
+  it('leaves the hours off when only one way was simulated, or the other never ends', () => {
+    expect('firstLegOtherHours' in buildSubmission(inputs({ legs: [first({ key: '2-sale' })] }))).toBe(false);
+    const never = buildSubmission(
+      inputs({ legs: [first({ key: '2-sale', firstLegRival: { key: 'continue', endTime: at + 1e12 } })] })
+    );
+    expect(never.firstLeg).toBe('fresh');
+    expect('firstLegOtherHours' in never).toBe(false);
+    expect('firstLeg' in buildSubmission(inputs({ legs: [] }))).toBe(false);
+  });
+
+  it('refuses a malformed one', () => {
+    const ok = buildSubmission(inputs());
+    expect(validateSubmission({ ...ok, firstLeg: 'auto' } as unknown as Submission).join()).toMatch(/firstLeg/);
+    expect(validateSubmission({ ...ok, firstLegOtherHours: Infinity }).join()).toMatch(/firstLegOtherHours/);
+  });
+});
+
+describe('searched (what the run looked at, search/searched.ts; 18 Oct)', () => {
+  const line = '195-197:2; 209-240:1; last 300-320; ascensions: 3';
+  const BOXES = '195-197:2; 209-240:1; last 300-320; 2-5 ascensions, min gap 20';
+
+  it('is sent as given when the run said, and left off when empty or not recorded', () => {
+    const s = buildSubmission(inputs({ searched: line }));
+    expect(s.searched).toBe(line);
+    expect(validateSubmission(s)).toEqual([]);
+    expect(buildSubmission(inputs({ searched: BOXES })).searched).toBe(BOXES);
+    expect('searched' in buildSubmission(inputs())).toBe(false);
+    expect('searched' in buildSubmission(inputs({ searched: '  ' }))).toBe(false);
+    expect('searched' in buildSubmission(inputs({ searched: '  \n ' }))).toBe(false);
+  });
+
+  it('is held to the cap, one line, and refused by the validator only when over it', () => {
+    const long = Array.from({ length: 200 }, (_, k) => `${100 + k}-${110 + k}:1`).join('; ') + '; ascensions: 3-6';
+    const s = buildSubmission(inputs({ searched: long }));
+    expect(s.searched!.length).toBeLessThanOrEqual(MAX_SEARCHED);
+    expect(s.searched!.endsWith('…; ascensions: 3-6')).toBe(true);
+    expect(validateSubmission(s)).toEqual([]);
+    expect(buildSubmission(inputs({ searched: 'a-b:1; '.repeat(200) })).searched!.length).toBeLessThanOrEqual(600);
+    expect(buildSubmission(inputs({ searched: 'x\ny' })).searched).toBe('x y');
+    expect(validateSubmission({ ...s, searched: 'x'.repeat(MAX_SEARCHED + 1) })).toContain(
+      `searched must be a string of at most ${MAX_SEARCHED} characters`
+    );
+    expect(validateSubmission({ ...s, searched: 'z'.repeat(601) }).join()).toMatch(/searched/);
+  });
+});

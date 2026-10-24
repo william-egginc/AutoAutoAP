@@ -11,7 +11,7 @@ import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useNotesStore } from '@/stores/notes';
 import { useSilosStore } from '@/stores/silos';
 import { createEmptySnapshot, type VirtueEgg, type Action, type CalculationsSnapshot } from '@/types';
-import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { MAX_TE, clampTECount, countTEThresholdsPassed, teGainedOf } from '@/lib/truthEggs';
 import { redactBackupForStorage } from '@/lib/artifacts';
 
 export function exportPlanData(actions: Action[], initialSnapshot?: CalculationsSnapshot, activePlanId: string | null = null) {
@@ -184,7 +184,23 @@ export function importPlanLogic(jsonString: string) {
 
   if (data.actions) {
     data.actions.forEach((a: any, i: number) => a.index = i);
+    // Every plan read in (a file import, a Plan Library load or restore, a reconcile, the saved draft) keeps
+    // Wait for TE within 98 per egg, as the Wait for TE box does (prelive, 21 Oct 2026).
+    data.actions.forEach(capWaitForTE);
   }
 
   return data;
+}
+
+/**
+ * A `wait_for_te` from a file held to the same bounds as one made with the box: a whole target from 0 to 98,
+ * a start from 0 to 98, and a gain of at most target minus start (`teGainedOf`). A file can carry
+ * `targetTE: 9999` (listed as "Wait for TE #9999") or a gain like 3.48e45.
+ */
+export function capWaitForTE(a: any): void {
+  if (!a || a.type !== 'wait_for_te' || !a.payload || typeof a.payload !== 'object') return;
+  const p = a.payload;
+  p.targetTE = clampTECount(p.targetTE, MAX_TE, 0);
+  p.startTE = clampTECount(p.startTE, MAX_TE, 0);
+  p.teGained = teGainedOf(p);
 }

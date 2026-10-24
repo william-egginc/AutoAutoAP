@@ -34,7 +34,7 @@
       <!-- End Date -->
       <div class="summary-item">
         <span class="summary-label">End Date</span>
-        <span class="summary-value text-slate-900">{{ formatDateTime(endDate) }}</span>
+        <span class="summary-value text-slate-900">{{ endReachable ? formatDateTime(endDate) : 'Not reachable' }}</span>
       </div>
 
       <!-- Shifts -->
@@ -293,6 +293,7 @@ const totalDurationSeconds = computed(() => {
 
 const formattedDuration = computed(() => {
   const seconds = totalDurationSeconds.value;
+  if (!endReachable.value) return 'Not reachable';
   if (seconds === 0) return '0s';
 
   const days = Math.floor(seconds / 86400);
@@ -320,6 +321,10 @@ const endDate = computed(() => {
   // `totalDurationSeconds` routinely lands a sub-microsecond residue short of a whole second.
   return new Date(Math.round(startDate.value.getTime() + totalDurationSeconds.value * 1000));
 });
+
+// A wait that can never finish (or finishes past what a Date can hold, e.g. a Wait for TE priced at
+// billions of days on a fresh farm) has no end date: say so instead of printing the raw days.
+const endReachable = computed(() => isFinite(totalDurationSeconds.value) && !isNaN(endDate.value.getTime()));
 
 const shiftCount = computed(() => {
   return actionsStore.actions.filter(a => a.type === 'shift').length;

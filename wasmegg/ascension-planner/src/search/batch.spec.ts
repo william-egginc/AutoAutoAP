@@ -1,0 +1,97 @@
+/**
+ * The pool-size rules. Small, and worth pinning: `clampPoolSize` is the only thing standing between
+ * a typed number and how many workers a machine is asked to run.
+ */
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_WORKER_CAP, defaultWorkerCount, clampPoolSize, maxPoolSize, targetWorkerCount } from './batch';
+
+describe('clampPoolSize', () => {
+  const withCores = (cores: number | undefined, run: () => void) => {
+    const original = Object.getOwnPropertyDescriptor(globalThis.navigator, 'hardwareConcurrency');
+    Object.defineProperty(globalThis.navigator, 'hardwareConcurrency', { value: cores, configurable: true });
+    try {
+      run();
+    } finally {
+      if (original) Object.defineProperty(globalThis.navigator, 'hardwareConcurrency', original);
+    }
+  };
+
+  it('allows every core, not cores minus one', () => {
+    // Leaving one for the main thread is the default, not a ceiling: someone giving a machine over
+    // to an overnight run should be able to spend the last core.
+    withCores(20, () => {
+      expect(maxPoolSize()).toBe(19);
+      expect(clampPoolSize(20)).toBe(20);
+    });
+  });
+
+  it('refuses to exceed the core count, where there is nothing left to buy', () => {
+    withCores(8, () => expect(clampPoolSize(64)).toBe(8));
+  });
+
+  it('never returns less than one worker', () => {
+    withCores(8, () => {
+      expect(clampPoolSize(0)).toBe(1);
+      expect(clampPoolSize(-5)).toBe(1);
+    });
+  });
+
+  it('falls back to the default rather than NaN', () => {
+    withCores(8, () => expect(clampPoolSize(Number.NaN)).toBe(7));
+  });
+
+  it('floors a fractional request instead of spawning a fraction of a worker', () => {
+    withCores(8, () => expect(clampPoolSize(3.9)).toBe(3));
+  });
+});
+
+describe('targetWorkerCount', () => {
+  it('uses the full budget in front, and when no background count is set', () => {
+    expect(targetWorkerCount(9, 2, false)).toBe(9);
+    expect(targetWorkerCount(9, 0, true)).toBe(9);
+  });
+  it('drops to the background count while hidden', () => {
+    expect(targetWorkerCount(9, 2, true)).toBe(2);
+  });
+  it('never goes above the budget, even if the remembered background count is larger', () => {
+    expect(targetWorkerCount(3, 4, true)).toBe(3);
+  });
+});
+
+describe('defaultWorkerCount', () => {
+  it('is half the logical cores, at least one', () => {
+    expect(defaultWorkerCount(20)).toBe(10);
+    expect(defaultWorkerCount(7)).toBe(3);
+    expect(defaultWorkerCount(1)).toBe(1);
+    expect(defaultWorkerCount(2)).toBe(1);
+  });
+  it('stops at 12 (13 Oct 2026: 19 was no faster than 12 on a 20-thread PC)', () => {
+    expect(DEFAULT_WORKER_CAP).toBe(12);
+    expect(defaultWorkerCount(24)).toBe(12);
+    expect(defaultWorkerCount(26)).toBe(12);
+    expect(defaultWorkerCount(64)).toBe(12);
+  });
+});
+
+describe('many workers on a long run (12 Oct 2026)', () => {
+  it('warns above 16, in the words agreed, and every long-run screen asks for it', async () => {
+    const { MANY_WORKERS, MANY_WORKERS_TEXT } = await import('./batch');
+    expect(MANY_WORKERS).toBe(16);
+    expect(MANY_WORKERS_TEXT).toBe(
+      "More than 16 workers may run out of browser memory on long runs (each tab's workers share about 4 GB). It may work. If the tab crashes, the routes already priced are kept and you can carry on."
+    );
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const dir = path.join(__dirname, '../components/auto');
+    const rc = fs.readFileSync(path.join(dir, 'RunControls.vue'), 'utf8');
+    expect(rc).toContain('store.workerBudget > MANY_WORKERS');
+    expect(fs.readFileSync(path.join(dir, 'InsanePanel.vue'), 'utf8')).toMatch(/<RunControls\s+long-run/);
+    // By a date: Exhaustive always, Nearby routes at Very high (about 8 hours).
+    expect(fs.readFileSync(path.join(dir, 'DeadlinePanel.vue'), 'utf8')).toContain(
+      `:long-run="k === 'boxes' || stronger.level === 'thorough'"`
+    );
+    expect(fs.readFileSync(path.join(dir, 'ChainSearchPanel.vue'), 'utf8')).toContain(
+      `:long-run="store.effort === 'thorough' || store.smartEstimate(store.effort).seconds > 7200"`
+    );
+  });
+});

@@ -1,0 +1,277 @@
+/**
+ * Shared vocabulary for the in-browser chain search (src/search/*).
+ *
+ * A "chain" is the list of Truth-Egg checkpoints a player ascends through, ending at the final
+ * target — `[195, 219, 248, 286, 327, 490]`. Every checkpoint is one ascension ("leg"); the number
+ * the search reports is the wall-clock time from the plan start to the end of the last leg.
+ *
+ * The types here exist for one reason: `scripts/fastsearch.ts` reads all of its inputs out of Pinia
+ * (`getSimulationContext()`, `createBaseEngineState(null)`, `useInitialStateStore()`), and a Web
+ * Worker has no Pinia instance. So `SearchInputs` is the same information, resolved ONCE on the main
+ * thread and shipped over `postMessage` — exactly the split researchCalc.worker.ts already uses, and
+ * for the same reason (see its doc comment: the Pinia-bound helpers in engine/adapter.ts throw
+ * immediately outside a Pinia context). Everything the simulation itself calls — `auto/ascension.ts`,
+ * `auto/shifts/*`, `engine/compute.ts`, `lib/artifacts/*` — is already Pinia-free and safe to import
+ * in a worker.
+ */
+import type { EngineState, SimulationContext } from '@/engine/types';
+import type { CurrentFarmState, VirtueEgg } from '@/types';
+import type { VariantKey } from '@/stores/autoPlanner';
+import type { Availability } from './availability';
+import type { Milestone } from './milestones';
+import type { FirstAscension } from './firstAscension';
+
+/**
+ * Everything one leg simulation needs, resolved off the stores.
+ *
+ * `context.rawBackup` must already be `sanitizeLongs`'d: protobufjs `Long` instances do not survive
+ * `structuredClone` with their prototype intact, and `getOptimalELRSet` (called from
+ * `auto/shifts/c3.ts` and `auto/shifts/h1.ts` through `context.rawBackup`) reads artifact item ids
+ * out of it. Same hazard, same fix as researchCalc.worker.ts documents.
+ */
+export interface SearchInputs {
+  /** `getSimulationContext()`'s result. `ascensionStartTime`/`planStartOffset` are overwritten per
+   *  leg, exactly as fastsearch.ts does — the value carried here is irrelevant. */
+  context: SimulationContext;
+  /** `createBaseEngineState(null)` — the permanent upgrades/artifact-set template every leg starts
+   *  from and `deriveNextStartState` copies forward. Deep-cloned per use, never mutated in place. */
+  baseState: EngineState;
+  /** `useInitialStateStore().currentFarmState` — the live farm, needed only by A1's "continue
+   *  current ascension" variant. Null when there is no usable farm state (the search then falls
+   *  back to build variants for A1, same as the CLI). */
+  currentFarmState: CurrentFarmState | null;
+  /** Plan start, unix seconds. Pinned once for a whole run: a plan's duration depends on (chain,
+   *  plan start) jointly, and comparing chains evaluated from different starts is meaningless. */
+  planStart: number;
+  /** The player's TE right now. Checkpoints at or below this are not reachable and get filtered. */
+  currentTE: number;
+  /** Final target TE, the last entry of every chain. */
+  final: number;
+  /** What A1 does with the ascension in progress (search/firstAscension.ts): 'auto' takes the faster
+   *  of continuing and a fresh start, 'continue' pins continue (and skips A1's whole `runC3Variants`
+   *  fan-out when it finishes within a week), 'fresh' never continues. Already the setting the run
+   *  prices under: the app resolves Classic's one-hour rule before it gets here. Read it with
+   *  `readFirstAscension` (firstAscension.ts), never directly: inputs stored before it existed carry only `forceContinue`. */
+  firstAscension?: FirstAscension;
+  /** @deprecated The boolean `firstAscension` replaced (true = 'continue', false = 'auto'). Only on
+   *  inputs stored before 9 Oct 2026 (checkpoints, run saves), which carry on as they were priced. */
+  forceContinue?: boolean;
+  /** How long a pinned continue may take before leg 1 compares it with the fresh starts instead.
+   *  Unset means `CONTINUE_PIN_MAX_SECONDS` (search/leg.ts). Set only by the CLI's
+   *  `--continue-pin-days`, to measure one rule against another. */
+  continuePinSeconds?: number;
+  /** Longest continue that is still a candidate at all. Unset means `CONTINUE_MAX_SECONDS`. Set only
+   *  by the CLI's `--continue-max-days`, for the same kind of experiment. */
+  continueMaxSeconds?: number;
+  /** When the player can act, so prestige instants are pushed into it and the delay is charged.
+   *  Null/absent means the simulator's own assumption: the player acts the instant the plan asks.
+   *  Changing this changes every duration, so it is part of the run fingerprint. See
+   *  search/availability.ts for exactly what it does and does not model. */
+  availability?: Availability | null;
+  /** Dated TE milestones a chain must meet to be a candidate at all. A chain that misses one is
+   *  dropped the same way an unevaluable chain is — see search/milestones.ts for why that is the
+   *  whole implementation. */
+  milestones?: Milestone[] | null;
+  /** Also hold each SHIFT until the player is available, not just each prestige.
+   *
+   *  This is what turns "a plan that reports your night shifts" into "a plan that has none". It is
+   *  a delay model layered on the simulated timeline rather than a re-simulation — see chain.ts for
+   *  exactly what that approximates and in which direction it errs. */
+  deferShifts?: boolean;
+  /**
+   * Time away from the virtue farm, absolute unix seconds, sorted and not overlapping: Egg Day, a
+   * week chasing a legendary on the home farm. The ascension in progress ENDS when the time off
+   * begins -- it keeps the TE it reached -- nothing happens while away, and the player comes back
+   * to a complete rebuild: a fresh ascension toward the same checkpoint. Null/absent means none.
+   */
+  timeOff?: TimeOffWindow[] | null;
+}
+
+/**
+ * One shift inside an ascension: the instant, and the virtue egg it switches TO.
+ *
+ * `fromEgg` exists so the panel can reconstruct the block the leg OPENS on, which is not a shift
+ * and therefore is not in this list. A leg that switches eleven times lays twelve eggs, and the
+ * first of those needs no action from the player because the ascension already starts there.
+ * Without `fromEgg` the panel had no way to name it, so it simply omitted it — and the list then
+ * appeared to start on Integrity when every ascension in fact starts on Curiosity.
+ */
+export interface ShiftMoment {
+  at: number;
+  egg: string;
+  /** The egg being switched away from. The first entry's names the egg the leg opens on; the rest are
+   *  read by search/routeTimeline.ts (which egg a shift's `te` belongs to). */
+  fromEgg?: string;
+  /** The TE of the egg being LEFT (`fromEgg`) at this shift, lifetime as the game counts it: the
+   *  shift action's own end state, `max(teEarned, thresholds its eggs delivered passed)` as
+   *  search/endEggs.ts reads a route's end. Nothing is laid between that state and the switch, so it is
+   *  that egg's TE from here until the farm comes back to it (search/leg.shiftTE.spec.ts). Absent on
+   *  legs simulated before 15 Oct 2026 and on replayed legs. */
+  te?: number;
+}
+
+/** One leg's headline numbers, kept for the results table. Mirrors fastsearch's CSV `legs` row. */
+export interface LegSummary {
+  /** Which variant the app's own `pickVariant` chose, e.g. `2-sale-tier13` or `continue`. */
+  key: VariantKey;
+  /** Total TE at the end of this leg. */
+  endTE: number;
+  /** Leg duration, seconds: `endTime - startTime`. Shift holds (`shiftDelaySeconds`) happen inside
+   *  the leg and are part of this; the prestige wait after it (`sleepDelaySeconds`) is not. */
+  durationSeconds: number;
+  /** Peak eggs/second after K3 — the number the CLI's pruning bound is stated against. */
+  maxELR: number;
+  /** Absolute end instant, unix seconds. */
+  endTime: number;
+  tier13Unlocked: boolean;
+
+  // ---------------------------------------------------------------- CSV / realism detail
+  //
+  // All OPTIONAL, and deliberately so. `LegSummary` is what gets written into the IndexedDB
+  // checkpoint, and bumping the record version to add these would throw away every checkpoint on
+  // disk — including a multi-hour run in progress. Old records simply come back without them, and
+  // the CSV leaves those cells blank rather than inventing a value.
+
+  /** Absolute start instant, unix seconds. `endTime - durationSeconds`, carried explicitly so the
+   *  CSV does not have to reconstruct it. */
+  startTime?: number;
+  /** When the build phase ended — the Research Sale boundary this leg's strategy was chosen for. */
+  buildPhaseEndTime?: number;
+  /** How many sale boundaries the build phase spanned. The same number `key` encodes as
+   *  `2-sale-tier13`, as a number. */
+  buildPhaseSaleCount?: number;
+  /** How many of this leg's twelve shifts land OUTSIDE the player's schedule.
+   *
+   *  REPORTED, NOT CHARGED, and the distinction is the whole point of the field. A schedule moves
+   *  the PRESTIGE instants (see search/availability.ts); the twelve shifts inside an ascension are
+   *  scheduled by the simulator's own `te-wait` logic and are not moved, so some will still fall
+   *  outside your hours. Without this number a plan built with a schedule would look like it fits
+   *  when it does not. 0 when no schedule is set. */
+  nightShifts?: number;
+  /** Seconds the prestige at the end of this leg waited for the player to become available. 0 when
+   *  no schedule is set, or when the leg already ended inside it. */
+  sleepDelaySeconds?: number;
+  /** A wait before the prestige that was planned rather than forced by the player's hours (search/chain.ts
+   *  `EvaluateChainOptions.delays`, search/delays.ts), seconds; the farm keeps laying through it. Absent
+   *  when none. The prestige is at `endTime + plannedWaitSeconds + sleepDelaySeconds`. */
+  plannedWaitSeconds?: number;
+  /** Total seconds this leg's SHIFTS were held back waiting for the availability window, when
+   *  `deferShifts` is on. Zero otherwise. Separate from `sleepDelaySeconds` (the prestige wait)
+   *  because they are different costs: one is you not being there to tap prestige, the other is
+   *  you not being there to switch eggs twelve times. The shift holds are inside `durationSeconds`
+   *  (the simulation waited for them) and this records how much of it they were; the prestige wait
+   *  sits between this leg's end and the next leg's start. */
+  shiftDelaySeconds?: number;
+  /** This leg's twelve shifts, in order — when each happens and which egg it switches TO.
+   *
+   *  Small enough to carry for every chain in a batch and it is the only way the panel can answer
+   *  "when am I being asked to do something, and to what", which a count cannot. `nightShifts` is
+   *  derived from exactly these. */
+  shifts?: ShiftMoment[];
+  /** Time off from the virtue farm (SearchInputs.timeOff). `stopped`: this leg was cut short when
+   *  the time off began, reaching whatever TE it had. `restarted`: this leg is the rebuild after it,
+   *  toward the same checkpoint. Absent on every other leg. */
+  timeOff?: 'stopped' | 'restarted';
+  /** A `stopped` leg that also STARTED after time off: it sits between two stretches of it. Its
+   *  start then matters to the plan builder as much as its end. */
+  afterTimeOff?: true;
+  /** Leg 1 only, when continue and a fresh build were both simulated: the best option of the kind
+   *  NOT taken and when its leg would have ended (search/leg.ts `LegResult.rival`). Whether leg 1
+   *  continued is `key === 'continue'`. Absent on every other leg and on runs from before 9 Oct. */
+  firstLegRival?: { key: VariantKey; endTime: number };
+  /** Leg 1 only: when each kind of first ascension simulated would have ended it, unix seconds
+   *  ('continue' = finish without buying, 'buildup' = continue my build-up, 'fresh' = the best fresh
+   *  build; search/leg.ts `LegResult.firstLegEnds`). Absent on runs from before 10 Oct 2026. */
+  firstLegEnds?: Partial<Record<'continue' | 'buildup' | 'fresh', number>>;
+  /** The route's LAST leg only (search/chain.ts): each virtue egg's lifetime eggs delivered and TE at
+   *  the end of the route, in VIRTUE_EGGS order, and the egg the farm is on then. By a date's card
+   *  reads it for TE per egg and when the next TE would come (search/endEggs.ts). Absent on every
+   *  other leg, on replayed legs and on runs from before 11 Oct 2026. */
+  endEggs?: { delivered: number[]; te: number[]; egg: string };
+  /** The egg the farm is on when this leg ends and its TE then (the leg's own end state, search/leg.ts
+   *  `LegResult.endEgg`): the one egg of a leg no shift moves off, for "Integrity reaches 45 TE on ..."
+   *  (search/routeTimeline.ts). Every leg; absent on replayed legs and on runs from before 15 Oct 2026. */
+  endEgg?: { egg: string; te: number };
+  /** Read back from a By a date checkpoint (search/deadlineStore.ts `replayingEvaluator`), which keeps
+   *  only each leg's end TE, end time, duration and strategy: peak delivery, start, shifts and leg 1's
+   *  rival are UNKNOWN here, not zero. Absent on a leg simulated in this session. */
+  replayed?: true;
+}
+
+/** A fully evaluated chain. `seconds` is what every stage of the driver minimises. */
+export interface ChainResult {
+  chain: number[];
+  seconds: number;
+  legs: LegSummary[];
+}
+
+/** `chain.join(',')` — the key every cache in the search is addressed by. */
+export type ChainKey = string;
+
+/**
+ * Effort tiers, ported from `EFFORT`/`EFFORT_NOTE` in scripts/autoplan.py.
+ *
+ * The stages are strictly NESTED (resolve_last -> descent -> 2-D slices -> count probe), so a tier
+ * is a STOP POINT, not a different algorithm. That is the property the UI leans on: stopping a
+ * higher tier early always leaves the lower tier's answer already in hand.
+ */
+export type EffortTier = 'quick' | 'normal' | 'thorough';
+
+export interface EffortConfig {
+  /** Stage 5: exhaustive step-1 2-D slices over adjacent checkpoint pairs. */
+  slices2: boolean;
+  /** Stage 6: exhaustive 3-D slices. Over budget at every chain length; see EFFORT_NOTES. */
+  slices3: boolean;
+  /** Descent / 2-D slice radius. 8 in every tier — the replay found the knee at 4 and exactness
+   *  at 7, so 8 is one step of margin, not a guess. */
+  radius: number;
+  /** 3-D slice radius (0 when slices3 is off). */
+  radius3: number;
+  /** Stage 7: prestige-count probe — drop one checkpoint / insert one, then re-polish. */
+  countProbe: boolean;
+  /** Stage 4c (Fast): one descent pass at each other ascension count worth checking (the instant
+   *  answer's route at that count, else a one-off drop/insert of the best route), walking outward
+   *  while the edge keeps winning, inside the limits; the winning count is then polished in full. */
+  otherCounts: boolean;
+}
+
+/** What the driver reports back after every batch, for the progress bar and the live best chain. */
+export interface SearchProgress {
+  stage: string;
+  /** Free-form line for the stage's own running commentary, e.g. `pass 2: 742.021`. */
+  detail: string;
+  /** Chains evaluated so far this run (cache hits excluded — these are real simulations). */
+  chainsDone: number;
+  /** The driver's own estimate of the chains this configuration still has to evaluate. An
+   *  ESTIMATE: the descent's per-pass work depends on how many axes actually move. */
+  chainsEstimated: number;
+  /** Best chain found anywhere so far, and its duration in days. Always usable. */
+  bestChain: number[];
+  bestDays: number;
+  /** Per-leg breakdown of bestChain, so the panel's leg table updates DURING the run
+   *  instead of only when it finishes. Empty until the best chain has been priced. */
+  bestLegs: LegSummary[];
+  /** Ascension counts (chain lengths) the run has searched from so far, in the order it started each
+   *  one: the seed's first. Fast's stage 4c adds to it; absent on older drivers. */
+  countsProbed?: number[];
+}
+
+/** Per-egg TE map, as the summaries carry it. */
+export type TEByEgg = Record<VirtueEgg, number>;
+
+/** One priced chain, flattened for the shape chart. Built in the store from the driver's cache. */
+export interface PricedChain {
+  chain: number[];
+  days: number;
+  /** Chain length including the final target: one ascension each. */
+  prestiges: number;
+  /** The checkpoint before the final target, which is the axis the sawtooth is visible against. */
+  lastCheckpoint: number;
+}
+
+/** One stretch of time off, absolute unix seconds: from the start of the first day away to the start
+ *  of the day after the last. See `SearchInputs.timeOff`. */
+export interface TimeOffWindow {
+  from: number;
+  to: number;
+}

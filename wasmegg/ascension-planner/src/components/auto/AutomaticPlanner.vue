@@ -6,7 +6,9 @@
 
       <div class="relative z-10">
         <div class="flex items-center gap-4 mb-8">
-          <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+          <div
+            class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200"
+          >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
@@ -20,14 +22,20 @@
             v-if="isGenerating"
             class="absolute -inset-4 bg-white/60 backdrop-blur-[1px] z-50 flex items-center justify-center rounded-3xl transition-all duration-300"
           >
-            <div class="flex items-center gap-3 bg-white px-6 py-3 rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-500/10">
+            <div
+              class="flex items-center gap-3 bg-white px-6 py-3 rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-500/10"
+            >
               <div class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-              <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Form locked while calculating...</span>
+              <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest"
+                >Form locked while calculating...</span
+              >
             </div>
           </div>
 
           <div class="space-y-8">
-            <SchedulingInputs />
+            <!-- Start time, timezone and the rest: one setup shared by every Auto Planner screen
+                 (YourSetup.vue), here where the start time used to be. -->
+            <YourSetup screen="classic" />
             <VirtueProgressSection />
 
             <!-- Ascension Targets -->
@@ -47,18 +55,20 @@
                     <input
                       ref="targetInput"
                       v-model="targetTE"
-                      @input="handleTargetTEInput"
-                      @keydown.enter="runGenerate()"
                       type="text"
                       class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:border-indigo-500/50 transition-all pr-10"
                       placeholder="e.g. 300 400 490"
+                      @input="handleTargetTEInput"
+                      @keydown.enter="runGenerate()"
                     />
-                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-black text-[10px]">TE</div>
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-black text-[10px]">
+                      TE
+                    </div>
                   </div>
                   <button
                     v-if="deferForEarningsMode"
                     type="button"
-                    title="Defer for earnings mode is on — click to turn it off"
+                    title="Defer for earnings mode is on. Click to turn it off."
                     class="flex-shrink-0 w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center hover:bg-indigo-100 transition-colors"
                     @click="deferForEarningsMode = false"
                   >
@@ -66,7 +76,7 @@
                   </button>
                 </div>
                 <p class="text-[10px] font-bold text-slate-400 leading-relaxed px-1 mt-2">
-                  Enter a sequence of target TEs separated by spaces to generate an entire multi-ascension chain at once.
+                  Enter several target TEs separated by spaces to generate a whole multi-ascension route at once.
                 </p>
               </div>
             </div>
@@ -77,16 +87,29 @@
           v-if="showLowClothedTEWarning"
           class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex gap-3"
         >
-          <svg class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <svg
+            class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
           <p class="leading-relaxed">
-            Auto-AP is really built for players farther along — below 200 Clothed TE, its assumptions (like habs
-            staying full throughout) don't hold up well, so the plan it generates may be pretty suboptimal for
-            you right now. You're welcome to generate one anyway just to see what it does, but for a plan you can
-            actually rely on, raise your Clothed TE in the Virtue Progress section above first.
+            Auto-AP is really built for players farther along. Below 200 Clothed TE its assumptions (like habs staying
+            full the whole time) don't hold up well, so the plan it generates may be pretty suboptimal for you right
+            now. You can still generate one to see what it does, but for a plan you can rely on, raise your Clothed TE
+            in the Virtue Progress section above first.
           </p>
         </div>
+        <div class="mt-4"><IntegrityNotice /></div>
+        <!-- An older save in the planner (a saved entry's, a file's, a carried-on run's): Your plan uses it. -->
+        <div v-if="ui.runSaveLoaded" class="mt-4"><RunSaveNotice /></div>
 
         <button
           class="btn-premium btn-primary w-full py-4 mt-8 text-sm shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
@@ -97,30 +120,53 @@
           <span v-else>{{ ascensionChain.length > 0 ? 'Update Plan' : 'Generate Plan' }}</span>
         </button>
 
-        <div v-if="ascensionChain.length === 0" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
-          <p class="font-bold uppercase tracking-wide text-amber-700">Before you generate — a few assumptions to know about</p>
+        <div
+          v-if="ascensionChain.length === 0"
+          class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2"
+        >
+          <p class="font-bold uppercase tracking-wide text-amber-700">
+            Before you generate: a few assumptions to know about
+          </p>
           <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
-            <li><span class="font-semibold">Habs are always full.</span> To keep processing fast, Auto-AP assumes full habs throughout. Results are most reliable once you're around 100 TE and time to fill habs is negligible.</li>
-            <li><span class="font-semibold">Your artifacts don't improve.</span> The plan is built around whatever artifacts you have right now — it won't account for better gear you might find later.</li>
-            <li><span class="font-semibold">No downtime between ascensions.</span> Each ascension is assumed to start the moment the previous one ends.</li>
-            <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't do any accounting for sleep hours.</li>
+            <li>
+              <span class="font-semibold">Habs are always full.</span> Most reliable from around 100 TE, once filling
+              habs takes no real time.
+            </li>
+            <li>
+              <span class="font-semibold">Artifacts and stones come from Artifacts &amp; Stones.</span> It starts from
+              your inventory, and you can change it there or per ascension.
+            </li>
+            <li>
+              <span class="font-semibold">No downtime between ascensions.</span> Each ascension is assumed to start the
+              moment the previous one ends. A plan built from a {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }} result keeps
+              that search's time off.
+            </li>
+            <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't plan around your awake hours.</li>
           </ul>
-          <p class="text-amber-600 leading-relaxed">Use this as a starting point, not a final word. Your actual results may vary.</p>
+          <p class="text-amber-600 leading-relaxed">Treat this as a starting point. Your actual results may vary.</p>
 
           <div class="border-t border-amber-200 pt-3 mt-1">
-            <p class="font-bold uppercase tracking-wide text-amber-700 mb-2">Each ascension will have exactly this shift order (except that it will consider CKI vs CIK starts):</p>
+            <p class="font-bold uppercase tracking-wide text-amber-700 mb-2">How each ascension runs</p>
             <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
-              <li><span class="font-semibold">C1</span> — Spends up to 30 minutes with the primary target being fleet size and Graviton Coupling.</li>
-              <li><span class="font-semibold">K1</span> — Spends up to 30 minutes buying the best vehicles it can afford. Swaps places with I1 below if I1 can finish in under an hour.</li>
-              <li><span class="font-semibold">I1</span> — Max Chicken Universes. Runs before K1 instead if it can finish in under an hour.</li>
-              <li><span class="font-semibold">C2</span> — Maxes fleet size research. If it can afford Graviton Coupling within 4 hours, it does.</li>
-              <li><span class="font-semibold">K2</span> — Max Vehicles and Hyperloop Train Cars.</li>
-              <li><span class="font-semibold">R1</span> — Buys as many silos as possible within one hour.</li>
-              <li><span class="font-semibold">C3</span> — Purchases remaining Delivery Rate-boosting research: lay rate, shipping capacity, and hab capacity.</li>
-              <li><span class="font-semibold">H1</span> — Swaps to the optimal artifact loadout for Delivery Rate.</li>
-              <li><span class="font-semibold">K3</span> — Buys new hyperloop cars unlocked by C3, then waits out the ascension until the TE goal is reached.</li>
-              <li><span class="font-semibold">C4 / I2 / R2 / H2</span> — Each shifts to its respective virtue egg and waits until that egg's share of the TE goal is met.</li>
+              <li>
+                <span class="font-semibold">Opening (C1, K1, I1):</span> Research for 30 minutes, the best vehicles, then
+                the best habs it can buy in 4 hours. If that can't max the habs, it repeats C1, K1, I1 until it can.
+              </li>
+              <li>
+                <span class="font-semibold">C2 / K2 / R1:</span> Finishes fleet size and Graviton Coupling, maxes
+                Hyperloops and train cars, then buys silos. A shift that would buy nothing is left out.
+              </li>
+              <li>
+                <span class="font-semibold">C3:</span> Rides one to three weekly research sales, buying earnings research
+                first and Delivery Rate research in the final sale.
+              </li>
+              <li><span class="font-semibold">H1:</span> Equips the best delivery set for your research at that point.</li>
+              <li>
+                <span class="font-semibold">K3, then C4 / I2 / R2 / H2:</span> Waits on each virtue egg until the TE goal
+                is reached.
+              </li>
             </ul>
+            <p class="mt-2 text-amber-600 leading-relaxed">Auto-AP tries several build lengths and keeps the fastest; you can switch to another on each ascension's card.</p>
           </div>
         </div>
       </div>
@@ -132,49 +178,96 @@
         <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Generated Roadmap</h2>
         <div class="flex flex-wrap justify-center items-center gap-3">
           <button
-            @click="copySummary"
             :disabled="isGenerating"
             class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            @click="copySummary"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+              />
             </svg>
             {{ copySuccess ? 'Copied!' : 'Copy Summary' }}
           </button>
           <button
-            @click="saveToLibrary"
             :disabled="isGenerating || isSavingToLibrary"
             class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            @click="saveToLibrary"
           >
             <svg v-if="isSavingToLibrary" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <svg v-else-if="saveToLibrarySuccess" class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              v-else-if="saveToLibrarySuccess"
+              class="w-4 h-4 text-green-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
             <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+              />
             </svg>
             {{ isSavingToLibrary ? 'Saving...' : saveToLibrarySuccess ? 'Saved!' : 'Save to Library' }}
           </button>
           <button
-            @click="exportCurrentPlan"
             :disabled="isGenerating || isExporting"
             class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+            @click="exportCurrentPlan"
           >
             <svg v-if="isExporting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
             <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
             </svg>
             {{ isExporting ? 'Exporting...' : 'Export Plan' }}
           </button>
         </div>
       </div>
 
+      <!-- A route the instant answer's "Simulate this plan" sent here: said where it came from, and the
+           page scrolls here once it is simulated (search/simulateRoute.ts). -->
+      <div
+        v-if="fromInstant"
+        ref="planStart"
+        class="mb-3 scroll-mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[12px] text-emerald-900 flex flex-wrap items-center gap-x-3 gap-y-1"
+      >
+        <span
+          >Simulated <b class="font-mono-premium">{{ routeText(fromInstant.chain) }}</b> from
+          {{ fromInstant.from ?? 'the instant answer' }}. Each ascension's View details lists its steps and
+          purchases.</span
+        >
+        <a
+          :href="fromInstant.back === 'by-date' ? '#/auto/by-date' : '#/auto/fastest'"
+          class="font-bold text-emerald-800 underline"
+          >Back to the answer</a
+        >
+        <button
+          type="button"
+          class="ml-auto text-emerald-700 hover:text-emerald-900"
+          aria-label="Dismiss"
+          @click="ui.planFromInstant = null"
+        >
+          ×
+        </button>
+      </div>
       <div class="space-y-4">
         <template v-for="(result, idx) in bestResults" :key="idx">
           <ForcedAscensionPreview
@@ -200,8 +293,37 @@
             @set-plan-variant="(variant: VariantKey) => handleSetPlanVariant(idx, variant)"
             @save-single-to-library="saveSingleAscensionToLibrary(idx)"
             @override-end-time="(endTime: number | null) => handleSetEndTimeOverride(idx, endTime)"
+            :loadout-inputs="resolveLoadoutInputs(idx)"
+            :has-loadout-override="autoPlannerStore.loadoutOverrides[idx] !== undefined"
+            :inventory-delivery="autoPlannerStore.defaultLoadoutInputs?.delivery ?? null"
+            @override-loadout="(inputs: AutoLoadoutInputs | null) => requestLoadoutOverride(idx, inputs)"
           />
         </template>
+      </div>
+
+      <!-- Time off worked into this plan by the chain search's Apply (stores/autoPlanner.ts). -->
+      <div
+        v-if="timeOffInPlan.length"
+        class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
+      >
+        <span class="font-black uppercase tracking-wide">Includes your time off.</span>
+        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Build this plan or Simulate this plan
+        on the search again to put it back.
+      </div>
+      <div
+        v-if="timeOffDroppedFor"
+        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+      >
+        <span class="font-black uppercase tracking-wide">Time off left out.</span>
+        It was worked into this route for a plan starting {{ timeOffDroppedFor }}, and the start is now
+        {{ autoPlannerStore.startDate }} {{ autoPlannerStore.startTime }} (a newer save moves it up), so this plan farms
+        straight through it. Search again, or re-apply from the search, to put it back.
+      </div>
+      <div
+        v-if="olderSaveNote"
+        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+      >
+        {{ olderSaveNote }}
       </div>
 
       <SimulationErrorAlert v-if="simulationError" :message="simulationError" />
@@ -227,33 +349,63 @@
       :message="validationErrorMessage"
       @close="isValidationErrorOpen = false"
     />
+
+    <LoadoutOverrideScopeDialog
+      v-if="pendingLoadoutOverride"
+      :mode="pendingLoadoutOverride.inputs ? 'set' : 'remove'"
+      :current-index="pendingLoadoutOverride.idx"
+      :total="visibleTotal"
+      :overridden-indices="Object.keys(autoPlannerStore.loadoutOverrides).map(Number)"
+      @confirm="confirmLoadoutOverride"
+      @cancel="pendingLoadoutOverride = null"
+    />
+
+    <!-- Cancel (and the backdrop) keeps the overrides: the safe choice if dismissed by accident. -->
+    <ConfirmationDialog
+      v-if="isKeepOverridesPromptOpen"
+      title="Artifact Overrides"
+      :message="`You have artifact overrides on ${overriddenAscensionLabels}. Keep them or use the defaults?`"
+      confirm-label="Use defaults"
+      cancel-label="Keep them"
+      @confirm="finishGenerate(true)"
+      @cancel="finishGenerate(false)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { NAMES, fastestName } from '@/lib/siteNav';
+import IntegrityNotice from './IntegrityNotice.vue';
+import RunSaveNotice from './RunSaveNotice.vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore, type VariantKey } from '@/stores/autoPlanner';
-import { useVirtueStore } from '@/stores/virtue';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useAscensionGenerator } from '@/auto/useAscensionGenerator';
+import { useChainSearchStore } from '@/stores/chainSearch';
+import { useUIStore } from '@/stores/ui';
+import { routeText } from '@/search/simulateRoute';
+import { showDateTime } from '@/lib/displayTime';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { isTestingEnvironment } from '@/lib/isTestingEnvironment';
 import { iconURL } from 'lib';
-import SchedulingInputs from './SchedulingInputs.vue';
 import VirtueProgressSection from './VirtueProgressSection.vue';
+import YourSetup from './YourSetup.vue';
 import ChainSummaryBar from './ChainSummaryBar.vue';
 import SimulationErrorAlert from './SimulationErrorAlert.vue';
 import AscensionOverview from './AscensionOverview.vue';
 import ForcedAscensionPreview from './ForcedAscensionPreview.vue';
 import ValidationDialog from './ValidationDialog.vue';
+import LoadoutOverrideScopeDialog from './LoadoutOverrideScopeDialog.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import type { AutoLoadoutInputs } from '@/auto/loadout';
 
 const autoPlannerStore = useAutoPlannerStore();
-const virtueStore = useVirtueStore();
 const truthEggsStore = useTruthEggsStore();
 
-const { ascensionChain, timezone, startDate, startTime, targetTE, deferForEarningsMode } = storeToRefs(autoPlannerStore);
+const { ascensionChain, timezone, startDate, startTime, startTimeOverride, targetTE, deferForEarningsMode } =
+  storeToRefs(autoPlannerStore);
 
 // The forced-490 ascension is a silent bonus card — don't count it in the "A1 of N" denominator.
 const visibleTotal = computed(() => {
@@ -267,35 +419,17 @@ const showLowClothedTEWarning = computed(() => earningsClothedTe.value !== null 
 const targetInput = ref<HTMLInputElement | null>(null);
 const isCollapsed = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
-// Restore a cached form (start date/time/timezone, target TE) from a previous visit, if any,
-// so a page reload doesn't wipe out what the user had entered. This runs before the defaulting
-// logic below, which only fills in fields that are still empty.
+// Restore the rest of the cached form (target TE and its time-off cuts) from a previous visit, so a
+// page reload doesn't wipe out what the user had entered. The start and timezone are restored, and
+// defaulted to the save, by Your setup (usePlanStartForm), which is on every Auto Planner screen.
 const cachedSchedule = loadAutoPlannerSchedule();
 if (cachedSchedule) {
-  if (cachedSchedule.timezone) timezone.value = cachedSchedule.timezone;
-  if (cachedSchedule.startDate) startDate.value = cachedSchedule.startDate;
-  if (cachedSchedule.startTime) startTime.value = cachedSchedule.startTime;
   if (cachedSchedule.targetTE) targetTE.value = cachedSchedule.targetTE;
+  // The cuts for that chain, if the search put some there. The generator still checks they match the
+  // Target TE and start before using them.
+  if (!autoPlannerStore.timeOffCuts && cachedSchedule.timeOffCuts?.targets === targetTE.value)
+    autoPlannerStore.timeOffCuts = cachedSchedule.timeOffCuts;
   if (cachedSchedule.deferForEarningsMode && isTestingEnvironment) deferForEarningsMode.value = true;
-}
-
-// Initialize timezone default
-if (!timezone.value) {
-  timezone.value = virtueStore.ascensionTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-// Initialize start date/time defaults
-const now = new Date();
-if (!startDate.value) {
-  startDate.value = new Intl.DateTimeFormat('en-CA', { timeZone: timezone.value }).format(now);
-}
-if (!startTime.value) {
-  startTime.value = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone.value,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(now);
 }
 
 // Initialize Target TE to current + 30 once store data loads
@@ -311,14 +445,17 @@ watch(
   { immediate: true }
 );
 
-// Persist the form (start date/time/timezone, target TE, defer for earnings mode) so it survives a page reload.
-watch([timezone, startDate, startTime, targetTE, deferForEarningsMode], () => {
+// Persist the form (start date/time/timezone and whether the start is overridden, target TE, defer for
+// earnings mode) so it survives a page reload.
+watch([timezone, startDate, startTime, startTimeOverride, targetTE, deferForEarningsMode, () => autoPlannerStore.timeOffCuts], () => {
   saveAutoPlannerSchedule({
     timezone: timezone.value,
     startDate: startDate.value,
     startTime: startTime.value,
+    startTimeOverride: startTimeOverride.value,
     targetTE: targetTE.value,
     deferForEarningsMode: deferForEarningsMode.value,
+    timeOffCuts: autoPlannerStore.timeOffCuts ? JSON.parse(JSON.stringify(autoPlannerStore.timeOffCuts)) : null,
   });
 });
 
@@ -333,6 +470,7 @@ const {
   validationErrorMessage,
   copySuccess,
   bestResults,
+  generate,
   regeneratePlan,
   copySummary,
   exportCurrentPlan,
@@ -342,16 +480,148 @@ const {
   saveSingleAscensionToLibrary,
   handleSetPlanVariant,
   handleSetEndTimeOverride,
+  handleSetLoadoutOverride,
+  resolveLoadoutInputs,
 } = useAscensionGenerator();
 
 // The main Generate/Update Plan button (and Enter in the Target TE field) always starts fresh —
 // see `regeneratePlan`'s own doc comment for why it clears both override maps rather than trying to
 // detect what actually changed. Per-ascension overrides (variant dropdown, end-time editor) still
 // regenerate surgically via their own handlers, which call `generate()` directly.
-const runGenerate = () => {
+//
+// Loadout overrides are the exception: if any exist, ask first whether to keep them.
+const isKeepOverridesPromptOpen = ref(false);
+const overriddenAscensionLabels = computed(() =>
+  Object.keys(autoPlannerStore.loadoutOverrides)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(i => `A${i + 1}`)
+    .join(', ')
+);
+
+const finishGenerate = (clearLoadoutOverrides: boolean) => {
+  isKeepOverridesPromptOpen.value = false;
   console.clear();
-  regeneratePlan(() => nextTick(() => targetInput.value?.focus()));
+  regeneratePlan(() => nextTick(() => targetInput.value?.focus()), {
+    keep: chainSearchStore.classicFirstPick(),
+    clearLoadoutOverrides,
+    // Joo's "starts now": the button restarts the plan from the current time unless a start is overridden.
+    startNow: true,
+  });
 };
+
+const runGenerate = () => {
+  if (Object.keys(autoPlannerStore.loadoutOverrides).length > 0) {
+    isKeepOverridesPromptOpen.value = true;
+    return;
+  }
+  finishGenerate(true);
+};
+
+// Setting or removing a per-ascension artifact override first asks which other ascensions it
+// applies to (a single-ascension chain skips the question).
+const pendingLoadoutOverride = ref<{ idx: number; inputs: AutoLoadoutInputs | null } | null>(null);
+
+const requestLoadoutOverride = (idx: number, inputs: AutoLoadoutInputs | null) => {
+  if (visibleTotal.value <= 1) {
+    handleSetLoadoutOverride([idx], inputs);
+    return;
+  }
+  pendingLoadoutOverride.value = { idx, inputs };
+};
+
+const confirmLoadoutOverride = (indices: number[]) => {
+  const pending = pendingLoadoutOverride.value;
+  pendingLoadoutOverride.value = null;
+  if (pending) handleSetLoadoutOverride(indices, pending.inputs);
+};
+
+// The chain search's "Use this chain and generate" lands here. It signals rather than calling
+// `generate()` itself because that composable would hand it a SECOND instance, whose
+// `isGenerating`/`generateProgress` nothing renders - the plan would appear with no sign of work
+// in between. Generating through the instance this component already owns keeps the progress
+// visible where the user is looking.
+const chainSearchStore = useChainSearchStore();
+
+/** The time-off cuts in force for the chain in Target TE, in words. Empty when there are none. */
+const plannerTargets = computed(() =>
+  (autoPlannerStore.targetTE || '').trim().split(/\s+/).filter(Boolean).map(Number).join(' ')
+);
+const olderSaveNote = computed(() => {
+  const n = chainSearchStore.olderSaveNote;
+  return n && n.targets === plannerTargets.value ? n.text : '';
+});
+/** Time off worked in for THIS chain but from another start (a newer save moved the start up, or
+ *  the player changed it): left out, and said so rather than silently farming through the days off. */
+const timeOffDroppedFor = computed(() => {
+  const c = autoPlannerStore.timeOffCuts;
+  if (!c || !c.start || c.targets !== plannerTargets.value) return '';
+  return c.start !== `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}` ? c.start : '';
+});
+const timeOffInPlan = computed(() => {
+  const c = autoPlannerStore.timeOffCuts;
+  if (!c || c.targets !== plannerTargets.value) return [];
+  // Same test the generator applies (useAscensionGenerator `timeOffCuts`): a moved start drops them.
+  if (c.start && c.start !== `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`) return [];
+  const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const out: string[] = [];
+  for (const i of Object.keys(c.ends).map(Number)) out.push(`A${i + 1} stops ${showDateTime(c.ends[i], tz)}.`);
+  for (const i of Object.keys(c.starts).map(Number)) out.push(`A${i + 1} starts ${showDateTime(c.starts[i], tz)}.`);
+  return out;
+});
+watch(
+  () => chainSearchStore.generateRequested,
+  () => {
+    regeneratePlan(undefined, { keep: chainSearchStore.classicFirstPick() });
+  }
+);
+// Your setup's First ascension moved A1's pick: rebuild a plan already here from A2 on, as picking it
+// in A1's own dropdown would. Immediate, for a change made on another screen while this was closed.
+watch(
+  () => [chainSearchStore.classicFirstPickChanged, isGenerating.value] as const,
+  ([pending, busy]) => {
+    if (!pending || busy) return;
+    chainSearchStore.classicFirstPickChanged = false;
+    if (autoPlannerStore.ascensionChain.length) void generate(undefined, { dirtyFrom: 1 });
+  },
+  { immediate: true }
+);
+/**
+ * "Simulate this plan" from the instant answer (search/simulateRoute.ts): the banner above the plan
+ * while the Target TE is still that route, and one scroll to it once a generation started after the
+ * click has finished (not to whatever plan was on the page before).
+ */
+const ui = useUIStore();
+const planStart = ref<HTMLElement | null>(null);
+const fromInstant = computed(() => {
+  const f = ui.planFromInstant;
+  return f && targetTE.value.trim().split(/\s+/).join(' ') === f.chain.join(' ') ? f : null;
+});
+let scrollState: 'idle' | 'waiting' | 'generating' = ui.planFromInstant ? 'waiting' : 'idle';
+watch(
+  () => ui.planFromInstant,
+  f => {
+    if (f) scrollState = 'waiting';
+  }
+);
+watch(
+  isGenerating,
+  gen => {
+    if (gen && scrollState === 'waiting') scrollState = 'generating';
+    else if (!gen && scrollState === 'generating') {
+      scrollState = 'idle';
+      void nextTick(() => planStart.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  },
+  { immediate: true }
+);
+
+// Arrived from Insane mode's "Build this plan": the signal above fired before this existed.
+onMounted(() => {
+  if (!chainSearchStore.generateWhenPlannerOpens) return;
+  chainSearchStore.generateWhenPlannerOpens = false;
+  regeneratePlan(undefined, { keep: chainSearchStore.classicFirstPick() });
+});
 
 const handleTargetTEInput = (e: Event) => {
   const input = e.target as HTMLInputElement;

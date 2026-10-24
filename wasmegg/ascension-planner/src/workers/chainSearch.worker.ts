@@ -1,0 +1,182 @@
+/**
+ * Web Worker entry point for the chain search: evaluates batches of Truth-Egg checkpoint chains
+ * with the app's own simulator.
+ *
+ * The reason this is a worker at all is the same one researchCalc.worker.ts gives — one chain is
+ * roughly fifteen seconds of straight-line CPU, and a whole run is hours, which the main thread
+ * cannot absorb without Chrome's "Page Unresponsive" detector firing (that detector only watches the
+ * main thread; a worker may peg its own for as long as it likes). The reason there are MANY of these
+ * is different: the work is embarrassingly parallel over chains, and the CLI harness gets its speed
+ * from `--jobs`.
+ *
+ * Thin dispatcher only, exactly like researchCalc.worker.ts: `init` builds a `ChainEvaluator` from
+ * inputs the MAIN thread resolved out of Pinia, and `evaluate` runs chains through it. Do NOT import
+ * `engine/adapter.ts`'s Pinia-bound helpers (`getSimulationContext`, the no-snapshot branch of
+ * `createBaseEngineState`) here — they throw immediately outside a Pinia context, which a worker
+ * never has. Everything under `auto/`, `engine/compute.ts`, `calculations/` and `lib/artifacts/` is
+ * Pinia-free and safe; `stores/autoPlanner.ts` is imported only for its plain exported `pickVariant`
+ * function, and a module-level `defineStore(...)` call needs no active Pinia instance.
+ *
+ * The evaluator is kept ALIVE between messages, holding the prefix memo. That is not an
+ * optimisation detail — it is most of why a coordinate-descent sweep is affordable (see
+ * search/chain.ts).
+ *
+ * Loaded via Vite's native worker support, no bundler config needed:
+ *   new Worker(new URL('./chainSearch.worker.ts', import.meta.url), { type: 'module' })
+ */
+import { createChainEvaluator, type ChainEvaluator } from '@/search/chain';
+import { buildUpTailParams, integrityCheck } from '@/search/leg';
+import { liveFreshBuilds } from '@/search/liveCell';
+import type { SearchInputs } from '@/search/types';
+import type { ChainResult } from '@/search/types';
+import type { WorkerRequest, WorkerResponse } from './chainSearch.protocol';
+import { ownHeapMB } from '@/search/blackBox';
+
+// Typed as `Worker` — the DOM-lib interface for a worker as seen from the main thread — rather than
+// `DedicatedWorkerGlobalScope`. Same workaround researchCalc.worker.ts uses and for the same reason:
+// tsconfig.json's `lib` is `["esnext", "dom"]` for the whole program, and TypeScript's `dom` and
+// `webworker` libs declare conflicting globals when both are in scope.
+const ctx = self as unknown as Worker;
+
+let evaluator: ChainEvaluator | null = null;
+let loaded: SearchInputs | null = null;
+
+function post(message: WorkerResponse): void {
+  ctx.postMessage(message);
+}
+
+/**
+ * This worker's JS heap, MB, for the black box. `performance.memory` is a non-standard Chromium
+ * API and may not be exposed inside a worker at all (it is documented for the window); where it is
+ * missing this is null, and the black box records the workers' memory as unknown rather than zero.
+ * Reading it is a property access, cheap enough to do once per chain.
+ */
+function heap(): number | null {
+  try {
+    return ownHeapMB();
+  } catch {
+    return null;
+  }
+}
+
+/** Prefixes in the run's own memo; 0 before init. */
+function memo(): number {
+  return evaluator?.memoSize ?? 0;
+}
+
+/** The memo's fields for a message: how full it is and how big it may get. */
+function memoFields(): { memoEntries: number; memoCapacity?: number } {
+  return { memoEntries: memo(), ...(evaluator ? { memoCapacity: evaluator.memoCapacity } : {}) };
+}
+
+ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
+  const msg = event.data;
+
+  try {
+    switch (msg.kind) {
+      case 'init': {
+        evaluator = createChainEvaluator(msg.inputs);
+        loaded = msg.inputs;
+        post({ type: 'init-done', requestId: msg.requestId, heapMB: heap(), ...memoFields() });
+        break;
+      }
+
+      case 'starts': {
+        if (!loaded) throw new Error('chainSearch worker received starts before init');
+        const base = loaded;
+        const seconds: (number | null)[] = [];
+        const total = msg.starts.length;
+        for (let i = 0; i < total; i++) {
+          const inputs = {
+            ...base,
+            planStart: msg.starts[i],
+            ...(msg.fresh ? { currentFarmState: null } : {}),
+          };
+          const r = createChainEvaluator(inputs).evaluate(msg.chain);
+          seconds.push(r ? r.seconds : null);
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), ...memoFields() });
+        }
+        post({ type: 'starts', requestId: msg.requestId, seconds, heapMB: heap(), ...memoFields() });
+        break;
+      }
+
+      case 'delays': {
+        if (!loaded || !evaluator) throw new Error('chainSearch worker received delays before init');
+        const results: (ChainResult | null)[] = [];
+        const total = msg.delays.length;
+        for (let i = 0; i < total; i++) {
+          results.push(
+            evaluator.evaluate(msg.chain, { delays: msg.delays[i], ...(msg.handoff ? { handoff: msg.handoff } : {}) })
+          );
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), ...memoFields() });
+        }
+        post({ type: 'delays', requestId: msg.requestId, results, heapMB: heap(), ...memoFields() });
+        break;
+      }
+
+      case 'integrity': {
+        if (!loaded) throw new Error('chainSearch worker received integrity before init');
+        // LOW-TE OPENING (auto/lowTeOpening.ts): the low-TE opening rides along.
+        const check = integrityCheck(loaded);
+        post({ type: 'integrity', requestId: msg.requestId, seconds: check.seconds, lowTe: check.lowTe });
+        break;
+      }
+      case 'buildup-tails': {
+        if (!loaded) throw new Error('chainSearch worker received buildup-tails before init');
+        let tails: ReturnType<typeof buildUpTailParams> = [];
+        try {
+          tails = buildUpTailParams(loaded, loaded.planStart);
+        } catch {
+          tails = [];
+        }
+        post({ type: 'buildup-tails', requestId: msg.requestId, tails });
+        break;
+      }
+      case 'live-fresh': {
+        if (!loaded) throw new Error('chainSearch worker received live-fresh before init');
+        let builds: ReturnType<typeof liveFreshBuilds> = [];
+        try {
+          builds = liveFreshBuilds(loaded, msg.te, msg.start);
+        } catch {
+          builds = [];
+        }
+        post({ type: 'live-fresh', requestId: msg.requestId, builds });
+        break;
+      }
+      case 'evaluate': {
+        if (!evaluator) throw new Error('chainSearch worker received evaluate before init');
+        const before = evaluator.legSims;
+        if (msg.memo?.capacity !== undefined) evaluator.setMemo({ capacity: msg.memo.capacity });
+        const keepLast = msg.memo?.keepLast !== false;
+        const results: ChainResult[] = [];
+        const total = msg.chains.length;
+        for (let i = 0; i < total; i++) {
+          // A chain that cannot be simulated is dropped, not reported as an error: the search space
+          // legitimately contains unreachable chains (a checkpoint below the player's current TE, a
+          // build phase that cannot fit) and the driver's job is to ignore them.
+          const r = evaluator.evaluate(msg.chains[i], {
+            ...(msg.handoff ? { handoff: msg.handoff } : {}),
+            ...(keepLast ? {} : { keepLast: false }),
+          });
+          if (r) results.push(r);
+          // Heartbeat. Posted per chain rather than per batch because a batch can be ~2200 chains
+          // (stage 6's widest sweep) and the pool has no other way to tell a worker that is
+          // thinking from one that has died — see the protocol's own comment for the hang this
+          // was added after. Sent AFTER the chain, so a worker that dies mid-chain simply stops.
+          post({ type: 'progress', requestId: msg.requestId, done: i + 1, total, heapMB: heap(), ...memoFields() });
+        }
+        post({
+          type: 'result',
+          requestId: msg.requestId,
+          results,
+          legSims: evaluator.legSims - before,
+          heapMB: heap(),
+          ...memoFields(),
+        });
+        break;
+      }
+    }
+  } catch (err) {
+    post({ type: 'error', requestId: msg.requestId, message: err instanceof Error ? err.message : String(err) });
+  }
+};

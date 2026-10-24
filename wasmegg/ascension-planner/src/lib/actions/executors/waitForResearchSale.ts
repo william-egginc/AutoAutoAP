@@ -12,10 +12,10 @@ export const waitForResearchSaleExecutor: ActionExecutor<'wait_for_research_sale
     },
 
     getDisplayName() {
-        return 'Wait: Research Sale (Fri 9AM PT)';
+        return 'Wait: Research Sale (Fri 9:00 am PT)';
     },
 
     getEffectDescription(payload: WaitForResearchSalePayload) {
-        return `Wait for <b>${formatDuration(payload.totalTimeSeconds)}</b> until next Friday 9AM PT`;
+        return `Wait for <b>${formatDuration(payload.totalTimeSeconds)}</b> until next Friday 9:00 am PT`;
     },
 };

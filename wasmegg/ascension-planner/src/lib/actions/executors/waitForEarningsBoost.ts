@@ -12,10 +12,10 @@ export const waitForEarningsBoostExecutor: ActionExecutor<'wait_for_earnings_boo
     },
 
     getDisplayName() {
-        return 'Wait: 2x Earnings (Mon 9AM PT)';
+        return 'Wait: 2x Earnings (Mon 9:00 am PT)';
     },
 
     getEffectDescription(payload: WaitForEarningsBoostPayload) {
-        return `Wait for <b>${formatDuration(payload.totalTimeSeconds)}</b> until next Monday 9AM PT`;
+        return `Wait for <b>${formatDuration(payload.totalTimeSeconds)}</b> until next Monday 9:00 am PT`;
     },
 };

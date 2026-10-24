@@ -2,15 +2,33 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { AscensionSummary } from '@/auto/types';
 import type { Action } from '@/types/actions/meta';
+import type { AutoLoadoutInputs } from '@/auto/loadout/types';
+import { sanitizeLoadoutInputs, sanitizeLoadoutOverrides, sanitizeTEOverride } from '@/lib/loadoutInputsGuard';
+import type { VirtueEgg } from '@/types';
 
 export type SaleCount = 1 | 2 | 3;
 export type BuildVariantKey = `${SaleCount}-sale` | `${SaleCount}-sale-tier13`;
 /** Every possible variant slot an ascension step can produce. Presence in a `variants` map (not a
- * separate boolean) is what signals a variant was actually computed and survived pruning. */
-export type VariantKey = BuildVariantKey | 'continue';
+ * separate boolean) is what signals a variant was actually computed and survived pruning.
+ * 'buildup' ("continue my build-up", search/leg.ts) is the chain search's leg 1 only; the Classic
+ * planner never produces it. */
+export type VariantKey = BuildVariantKey | 'continue' | 'buildup';
 export interface VariantResult {
   summary: AscensionSummary;
   actions: Action[];
+}
+
+/** Where time off cuts a plan -- see `timeOffCuts` in the store below. */
+export interface TimeOffCuts {
+  /** The Target TE text the cuts were worked out for. */
+  targets: string;
+  /** Ascension index -> when it ends (the time off starts), unix seconds. */
+  ends: Record<number, number>;
+  /** Ascension index -> the earliest it may start (the time off is over), unix seconds. */
+  starts: Record<number, number>;
+  /** The plan start they were worked out from, as the start boxes read (`YYYY-MM-DD HH:MM`).
+   *  Absent on cuts from before this was kept. */
+  start?: string;
 }
 
 export interface ChainedAscension {
@@ -33,6 +51,9 @@ export interface ChainedAscension {
   };
   /** True when this ascension was silently injected to reach 490 TE, not entered by the user. */
   forcedTarget490?: boolean;
+  /** `hashLoadoutInputs` of the artifact/stone inputs this ascension was simulated with. Absent on
+   * chains generated before loadout inputs existed (treated as "doesn't match"). */
+  loadoutHash?: string;
 }
 
 /**
@@ -65,11 +86,21 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
   const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const startDate = ref('');
   const startTime = ref('');
+  /** False = the plan starts "now": `startDate`/`startTime` are resampled to the current time on each
+   * fresh Generate. True = the user picked `startDate`/`startTime`/`timezone` themselves. */
+  const startTimeOverride = ref(false);
+  /** Null = start from the backup's virtue progress (claimed + pending TE, partial progress toward
+   * the next TE, and — for Continue — eggs laid since the last sync). Otherwise the user's own claimed
+   * TE per egg, with none of those extras. Applied to the stores by `applyAutoStartingTE`. */
+  const teOverride = ref<Record<VirtueEgg, number> | null>(null);
+  /** The account (search/runSaves.ts `accountOf`) `teOverride` was set up for, so another account's
+   *  save never starts from it (lib/teOverrideAccount.ts). '' until an account is set up. */
+  const teOverrideAccount = ref('');
   const targetTE = ref<string>('');
   const targetEndDate = ref('');
   const targetEndTime = ref('');
-  const nextGoals = ref<Record<number, { te: number | null, date: string, time: string }>>({
-    0: { te: 490, date: '', time: '' }
+  const nextGoals = ref<Record<number, { te: number | null; date: string; time: string }>>({
+    0: { te: 490, date: '', time: '' },
   });
 
   const planVariantOverrides = ref<Record<number, VariantKey>>({});
@@ -83,7 +114,28 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
    * recomputed, mirroring `planVariantOverrides`' own dirty-invalidation treatment there.
    */
   const endTimeOverrides = ref<Record<number, number>>({});
+  /**
+   * Where time off cuts this plan, exactly as the chain search priced it: an ascension that ENDS
+   * when the time off starts (index -> unix seconds), and the next one that may not START until it
+   * is over. Written by the chain search's Apply; `useAscensionGenerator` applies them.
+   *
+   * Kept apart from `endTimeOverrides` on purpose: Generate/Update Plan clears every user override
+   * before regenerating, and that must not quietly drop the player's days off. Tied to the Target
+   * TE text it was worked out for (`targets`), and ignored the moment that text changes -- a cut at
+   * "ascension 2" means nothing for a different chain. Likewise the plan start (`start`): the cuts
+   * are absolute instants, so a plan moved to another start (or another account's save, which
+   * brings its own) would put them on the wrong ascensions.
+   */
+  const timeOffCuts = ref<TimeOffCuts | null>(null);
   const deferForEarningsMode = ref(false);
+  /** Setup-form artifact/stone inputs (Virtue Progress), used by every ascension without an override.
+   * Null until seeded from the backup (or from the manual planner's saved sets when there's none). */
+  const loadoutInputs = ref<AutoLoadoutInputs | null>(null);
+  /** What the setup form's Reset returns to: the inventory-derived default. Never persisted. */
+  const defaultLoadoutInputs = ref<AutoLoadoutInputs | null>(null);
+  /** Per-ascension artifact/stone overrides from Show Details: index -> inputs. Setting or removing
+   * one forces that ascension and every one after it to be recomputed, like `endTimeOverrides`. */
+  const loadoutOverrides = ref<Record<number, AutoLoadoutInputs>>({});
 
   function setPlan(data: {
     ascensionChain: ChainedAscension[];
@@ -93,9 +145,11 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     targetTE: string;
     targetEndDate?: string;
     targetEndTime?: string;
-    nextGoals: Record<number, { te: number | null, date: string, time: string }>;
+    nextGoals: Record<number, { te: number | null; date: string; time: string }>;
     planVariantOverrides?: Record<number, VariantKey>;
     endTimeOverrides?: Record<number, number>;
+    loadoutInputs?: AutoLoadoutInputs | null;
+    loadoutOverrides?: Record<number, AutoLoadoutInputs>;
     /** @deprecated use planVariantOverrides */
     a1ForceMode?: 'continue' | 'prestige' | null;
   }) {
@@ -103,11 +157,26 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     timezone.value = data.timezone;
     startDate.value = data.startDate;
     startTime.value = data.startTime;
+    // A restored plan starts when and with what it was simulated with, not "now" / today's backup.
+    startTimeOverride.value = true;
+    // Checked like the loadout inputs below (lib/loadoutInputsGuard.ts): a file's TE is outside data.
+    const restoredTE = sanitizeTEOverride(data.ascensionChain[0]?.initialParams?.teEarned);
+    if (restoredTE) teOverride.value = restoredTE;
     targetTE.value = data.targetTE || '';
     targetEndDate.value = data.targetEndDate || '';
     targetEndTime.value = data.targetEndTime || '';
     nextGoals.value = data.nextGoals;
     endTimeOverrides.value = data.endTimeOverrides || {};
+    // A saved plan carries its time-off cuts inside its end times and its simulated start times.
+    timeOffCuts.value = null;
+    // Prelive fix (21 Oct 2026): a restored file's inputs are checked (lib/loadoutInputsGuard.ts); broken
+    // parts come from what the form holds, else the inventory default. A file with nothing usable keeps
+    // what the setup form already holds, as one without loadout inputs always did.
+    const base = loadoutInputs.value ?? defaultLoadoutInputs.value;
+    const restored = data.loadoutInputs ? sanitizeLoadoutInputs(data.loadoutInputs, base) : null;
+    loadoutOverrides.value = sanitizeLoadoutOverrides(data.loadoutOverrides, restored ?? base);
+    // An imported plan without loadout inputs keeps whatever the setup form already holds.
+    if (restored) loadoutInputs.value = restored;
     if (data.planVariantOverrides) {
       planVariantOverrides.value = data.planVariantOverrides;
     } else if (data.a1ForceMode === 'continue') {
@@ -125,6 +194,8 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     nextGoals.value = { 0: { te: 490, date: '', time: '' } };
     planVariantOverrides.value = {};
     endTimeOverrides.value = {};
+    timeOffCuts.value = null;
+    loadoutOverrides.value = {};
   }
 
   return {
@@ -132,13 +203,20 @@ export const useAutoPlannerStore = defineStore('autoPlanner', () => {
     timezone,
     startDate,
     startTime,
+    startTimeOverride,
+    teOverride,
+    teOverrideAccount,
     targetTE,
     targetEndDate,
     targetEndTime,
     nextGoals,
     planVariantOverrides,
     endTimeOverrides,
+    timeOffCuts,
     deferForEarningsMode,
+    loadoutInputs,
+    defaultLoadoutInputs,
+    loadoutOverrides,
     setPlan,
     clear,
   };

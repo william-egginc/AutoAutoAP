@@ -310,8 +310,10 @@ async function handleImport(event: Event) {
         if (resolution === 'cancel') return;
 
         if (resolution === 'restore') {
-          // 1. Switch tab
+          // 1. Switch tab: Classic, where a restored auto plan is shown (the Auto Planner has three
+          //    screens now, and the last one visited may be a search).
           uiStore.plannerTab = 'automatic';
+          uiStore.autoView = 'classic';
           uiStore.isHeaderCollapsed = true;
 
           // 2. Load fresh backup first (ensures we have latest epic research/artifacts as a baseline)
@@ -334,6 +336,7 @@ async function handleImport(event: Event) {
                 goal: a.goal,
               };
               if (a.result3SkippedReason) item.result3SkippedReason = a.result3SkippedReason;
+              if (a.loadoutHash) item.loadoutHash = a.loadoutHash;
               return item;
             });
 
@@ -376,15 +379,29 @@ async function handleImport(event: Event) {
               targetEndTime: formatUnixToTimeInput(a1EndTime, plan.timezone),
               nextGoals: nextGoalsMap,
               planVariantOverrides: importedOverrides,
-              endTimeOverrides: plan.endTimeOverrides ?? {},
+              // The cut ends are in there for older importers; they belong to the cuts, not to the
+              // player (Generate clears player overrides, and must not clear the days off).
+              endTimeOverrides: Object.fromEntries(
+                Object.entries(plan.endTimeOverrides ?? {}).filter(([k, v]) => plan.timeOffCuts?.ends[Number(k)] !== v)
+              ),
+              loadoutInputs: plan.loadoutInputs ?? null,
+              loadoutOverrides: plan.loadoutOverrides ?? {},
             });
+            if (plan.timeOffCuts) {
+              autoPlannerStore.timeOffCuts = {
+                targets: autoPlannerStore.targetTE,
+                ends: { ...plan.timeOffCuts.ends },
+                starts: { ...plan.timeOffCuts.starts },
+                start: `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`,
+              };
+            }
 
             // Hydrate stores so the form shows the correct numbers from the plan
             initialStateStore.hydrate(plan.initialState);
             truthEggsStore.hydrate(plan.initialState);
           } catch (e) {
             console.error('Failed to restore roadmap:', e);
-            alert('Failed to restore roadmap simulation state.');
+            alert('Failed to restore the Single run state.');
           } finally {
             uiStore.loading = false;
           }
@@ -646,7 +663,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
 
           <div class="flex items-center space-x-0 sm:space-x-2">
             <span class="hidden sm:inline text-[10px] text-gray-400 whitespace-nowrap mr-1">
-              Updated {{ new Date(plan.timestamp).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }}
+              Updated {{ new Date(plan.timestamp).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) }}
             </span>
             <button class="p-0.5 sm:p-1 text-gray-400 hover:text-indigo-600" v-tippy="'Export this plan (JSON)'" @click="exportPlan(plan)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

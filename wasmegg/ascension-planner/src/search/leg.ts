@@ -1,0 +1,812 @@
+/**
+ * One ascension ("leg"), simulated with the app's own simulator and scored the way the app itself
+ * would score it.
+ *
+ * This is a straight port of `runLeg`/`buildContinueVariant` in scripts/fastsearch.ts, with exactly
+ * one change: everything that file reads out of Pinia is passed in as `SearchInputs` instead, so
+ * this module runs unchanged in a Web Worker (see search/types.ts for why). The call sequence —
+ * `runUntilShift('C3')` once, then `runC3Variants`, then `runAscensionFromC3Variant` per surviving
+ * variant, then the app's own `pickVariant` — is deliberately identical, because the whole point of
+ * the exercise is that the search scores chains with the SAME code path the Auto Planner tab does.
+ * Any divergence here is a bug, not an optimisation.
+ *
+ * Cost, measured: about 2.5 s per leg on a 20-core Windows box via the CLI harness, so a 6-leg chain
+ * is ~15 s. Nothing in here is cheap, and `runC3Variants` (specifically `evaluateStones` inside it)
+ * is the hotspot.
+ */
+import { computeSnapshot } from '@/engine/compute';
+import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
+import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
+import { runBuildUpUntilC3 } from '@/auto/buildUp';
+// LOW-TE OPENING (auto/lowTeOpening.ts)
+import { MAX_OPENING_ROUNDS } from '@/auto/lowTeOpening';
+import { isResearchSaleActive } from '@/lib/events';
+import { paramsOf } from './tableBuild';
+import { heldSecondsOf, holdForPlayer } from '@/auto/hold';
+import { isConstrained, nextAvailable } from './availability';
+import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
+import {
+  calculateArtifactModifiers,
+  getArtifactLoadoutFromBackup,
+  getOptimalEarningsSet,
+  getOptimalELRSet,
+} from '@/lib/artifacts';
+import { computeRealisticELR } from '@/calculations/realisticELR';
+import type { EquippedArtifact } from '@/lib/artifacts/types';
+import type { EngineState, SimulationContext } from '@/engine/types';
+import type { Action } from '@/types/actions/meta';
+import type { AscensionSummary } from '@/auto/types';
+import type { VirtueEgg } from '@/types';
+import type { SearchInputs, ShiftMoment } from './types';
+import { CONTINUE_PIN_MAX_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
+import { readFirstAscension } from './firstAscension';
+import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
+import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { EGG_ORDER, type BuildParams } from './precomputedLeg';
+import type { TableHeader } from './precomputedTable';
+
+/** Mirrors useAscensionGenerator's own constant: below this starting TE a Tier 13 unlock cannot
+ *  realistically land inside one build phase, so those variants are skipped rather than simulated
+ *  and thrown away. */
+export const TIER_13_MIN_STARTING_TE = 190;
+
+/**
+ * THE CONTINUE RULE for leg 1 (thresholds in search/rules.ts). Continue holds the farm exactly as it
+ * is -- no more habs, vehicles or research, the current lay rate forever -- so it is right over days,
+ * pessimistic over months, and absurd on a farm synced minutes into an ascension (a real humility
+ * farm came back as 17 billion days and every chain after it overflowed to Infinity). So: taken
+ * outright under a week; compared with the fresh 1/2/3-sale starts up to six months, continue
+ * winning unless a fresh start is strictly better; not a candidate past six months. A continue leg 1
+ * past three months carries a warning (health.ts).
+ */
+export { CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
+
+/**
+ * The last instant a JS `Date` can hold, in unix seconds. A leg that ends past it cannot be shown,
+ * dated or written to the CSV (`Intl.DateTimeFormat` throws on it), so it is not a result.
+ */
+export const LAST_DATEABLE_SECONDS = 8.64e12;
+
+/** Backup egg enum (50..54) -> EngineState's egg name, the same table the generator keeps as
+ *  VIRTUE_EGGS_MAP. Passing the raw number through leaves `currentEgg` as `53` and quietly corrupts
+ *  every rate calculation downstream — that was a real bug in the CLI harness. */
+const VIRTUE_EGGS_MAP: Record<number, VirtueEgg> = {
+  50: 'curiosity',
+  51: 'integrity',
+  52: 'humility',
+  53: 'resilience',
+  54: 'kindness',
+};
+
+export interface LegResult {
+  summary: AscensionSummary;
+  key: VariantKey;
+  /** The starting state for the NEXT leg, via the app's own `deriveNextStartState`. */
+  nextState: EngineState;
+  /** Absolute instants, unix seconds, at which this leg's twelve shifts happen. Only the shifts:
+   *  they are the manual moments inside an ascension that cannot be missed without the plan
+   *  slipping, and unlike a research purchase there are exactly twelve of them, so a count of how
+   *  many fall in a sleep window means something. See `shiftInstants` for why `timestamp` is not
+   *  the field to read. */
+  shifts: ShiftMoment[];
+  /** Seconds the leg's shifts waited for the player's hours inside the simulation (auto/hold.ts):
+   *  0 without hours. With hours the shift instants above already include these waits. */
+  heldSeconds: number;
+  /** The egg the farm is on when the leg ends: the one it keeps laying while the player waits to
+   *  prestige (search/chain.ts). */
+  lastEgg: string;
+  /** That egg and its TE when the leg ends (the leg's end state, as `eggTE` reads a shift's): the one
+   *  egg no shift moves off (LegSummary.endEgg, search/routeTimeline.ts). Absent when the state doesn't
+   *  say. */
+  endEgg?: { egg: string; te: number };
+  /** A1 only, when both kinds were simulated: the best option of the OTHER kind -- the fresh build
+   *  continue beat, or the continue that lost (also when it was dropped for running past six months,
+   *  so a record can say how far off it was). Absent when only one kind was simulated: Prestige Now,
+   *  no farm in the save, the one-hour rule, or Continue Asc. taken outright inside a week. */
+  rival?: FirstLegRival;
+  /** A1 only: when each KIND of first ascension simulated would have ended leg 1 (unix seconds):
+   *  'continue' (finish without buying), 'buildup' (continue my build-up), 'fresh' (the best fresh
+   *  build). Only the kinds actually simulated. Read by health.ts (build-up against frozen continue). */
+  firstLegEnds?: FirstLegEnds;
+}
+
+/** search/leg.ts `LegResult.firstLegEnds`. */
+export type FirstLegEnds = Partial<Record<'continue' | 'buildup' | 'fresh', number>>;
+
+/** The leg-1 option that lost (LegResult.rival): its variant and when its leg would have ended. */
+export interface FirstLegRival {
+  key: VariantKey;
+  /** Absolute end instant, unix seconds. */
+  endTime: number;
+}
+
+/**
+ * When each action actually happens, absolute unix seconds.
+ *
+ * `Action.timestamp` is NOT the field to use: `runAscension` sets it only on the synthetic
+ * `start_ascension` action (and in milliseconds), while every action the shift helpers create keeps
+ * `createSimAction`'s placeholder of "now". The app itself never reads it for scheduling either —
+ * `useResearchViews` derives absolute time as `baseTimestamp + (snapshot.lastStepTime - offset)`,
+ * and this is the same expression with `legContext`'s `planStartOffset: 0` substituted in.
+ */
+function shiftInstants(actions: Action[], legStart: number): ShiftMoment[] {
+  const out: ShiftMoment[] = [];
+  for (const a of actions) {
+    if (a.type !== 'shift') continue;
+    const step = a.endState?.lastStepTime;
+    if (typeof step !== 'number' || !Number.isFinite(step)) continue;
+    // `toEgg` is the virtue egg this shift switches to - the thing the player physically does.
+    // `fromEgg` is carried so the panel can name the block the leg starts on; see ShiftMoment.
+    const payload = a.payload as { toEgg?: string; fromEgg?: string } | undefined;
+    // The TE of the egg being left, from this shift's own end state: the shift only changes which egg
+    // is laid (and spends soul eggs), so nothing has been laid between that state and the switch, and
+    // the egg keeps this TE until the farm comes back to it (search/leg.shiftTE.spec.ts). Read only;
+    // the simulation is untouched.
+    const te = payload?.fromEgg ? eggTE(a.endState, payload.fromEgg) : null;
+    out.push({
+      at: legStart + step,
+      egg: payload?.toEgg ?? '',
+      fromEgg: payload?.fromEgg,
+      ...(te !== null ? { te } : {}),
+    });
+  }
+  return out;
+}
+
+/** An egg's TE in a simulated state, lifetime as the game counts it: the larger of the TE the state
+ *  records and the thresholds its eggs delivered have passed (search/endEggs.ts reads a route's end
+ *  the same way). Null when the state doesn't say. */
+export function eggTE(
+  state: { teEarned?: Partial<Record<string, number>>; eggsDelivered?: Partial<Record<string, number>> } | undefined,
+  egg: string
+): number | null {
+  const te = state?.teEarned?.[egg];
+  const delivered = state?.eggsDelivered?.[egg];
+  const okTE = typeof te === 'number' && Number.isFinite(te);
+  const okDelivered = typeof delivered === 'number' && Number.isFinite(delivered) && delivered >= 0;
+  if (!okTE && !okDelivered) return null;
+  return Math.max(okTE ? Math.round(te) : 0, okDelivered ? countTEThresholdsPassed(delivered) : 0);
+}
+
+/** A fresh `SimulationContext` pinned to this leg's start. The stored context is never mutated —
+ *  legs are evaluated out of order and share one `SearchInputs`. */
+function legContext(inputs: SearchInputs, startTime: number): SimulationContext {
+  // With the player's hours picked, every egg shift waits for them inside the simulation, the farm
+  // laying the egg it is on meanwhile (auto/hold.ts). Built here from the inputs' plain data, so a
+  // worker that received the inputs by message gets the same hook.
+  const a = inputs.availability;
+  const hours = a && inputs.deferShifts && isConstrained(a) ? a : null;
+  return {
+    ...inputs.context,
+    ascensionStartTime: startTime,
+    planStartOffset: 0,
+    ...(hours ? { holdUntil: (t: number) => nextAvailable(t, hours) } : {}),
+  };
+}
+
+/** A deep, proxy-free copy of the base state. `runUntilShift` clones its own input too, but
+ *  `deriveNextStartState` spreads this straight into the next leg's state, so a shared reference
+ *  would let one leg's mutation leak into another's. */
+function cloneBaseState(inputs: SearchInputs): EngineState {
+  return JSON.parse(JSON.stringify(inputs.baseState)) as EngineState;
+}
+
+/** A simulated variant once `runLeg` is done with its actions: what `LegResult` and `pickVariant`
+ *  read, with an empty `actions` so it still satisfies `pickVariant`'s `VariantResult`. */
+interface CompactVariant extends VariantResult {
+  shifts: ShiftMoment[];
+  heldSeconds: number;
+  lastEgg: string;
+}
+const NO_ACTIONS: Action[] = Object.freeze([]) as unknown as Action[];
+
+/** `LegResult.endEgg` from a simulated variant: the egg it ends on and its TE then. */
+function endEggOf(v: CompactVariant): { endEgg?: { egg: string; te: number } } {
+  const s = v.summary as { finalTE?: Partial<Record<string, number>>; eggsDelivered?: Partial<Record<string, number>> };
+  const te = v.lastEgg ? eggTE({ teEarned: s.finalTE, eggsDelivered: s.eggsDelivered }, v.lastEgg) : null;
+  return te !== null ? { endEgg: { egg: v.lastEgg, te } } : {};
+}
+
+/**
+ * Simulate one ascension and return the variant the app itself would pick.
+ *
+ * `allowContinue` is only true for A1: "continue current ascension" is a claim about the farm as it
+ * stands right now, so it has no meaning further down a chain, and the app only offers it there for
+ * the same reason.
+ *
+ * Returns null when the leg is unevaluable (no surviving variant). The caller treats that as "this
+ * chain failed", not as an error.
+ */
+export function runLeg(
+  inputs: SearchInputs,
+  baseState: EngineState,
+  startTime: number,
+  targetTE: number,
+  allowContinue: boolean,
+  startTE: number,
+  idx: number,
+  /** Absolute unix seconds the leg must END at (time off starting). Supersedes `targetTE`: the leg
+   *  reaches whatever TE it can by then. Same contract as the CLI's `--override-ascension`. */
+  endOverride?: number
+): LegResult | null {
+  const ctx = legContext(inputs, startTime);
+  // runAscensionFromC3Variant and runContinueCurrent only consult the deadline when the TE goal is
+  // absent, so leaving the goal set here would silently ignore it (the trap the generator documents).
+  const goalTE = endOverride !== undefined ? undefined : targetTE;
+  const byDeadline = endOverride !== undefined;
+  // Each variant is boiled down to what the leg's result and `pickVariant` read the moment it is
+  // simulated, and its action list -- hundreds of actions, each carrying a whole EngineState as its
+  // `endState` -- is let go then, rather than all of them being held until the pick. Nothing past
+  // this function reads a variant's actions (LegResult does not carry them).
+  const compact = (v: VariantResult): CompactVariant => ({
+    summary: v.summary,
+    actions: NO_ACTIONS,
+    shifts: shiftInstants(v.actions, startTime),
+    heldSeconds: heldSecondsOf(v.actions),
+    lastEgg:
+      (v.actions.filter(a => a.type === 'shift').pop()?.payload as { toEgg?: string } | undefined)?.toEgg ??
+      baseState.currentEgg,
+  });
+  const compactOrNull = (v: VariantResult | null): CompactVariant | null => (v ? compact(v) : null);
+  // Leg 1's options by kind, filled in as they are simulated: what `rival` and `firstLegEnds` read.
+  const kinds: Partial<Record<'continue' | 'buildup' | 'fresh', { v: CompactVariant; key: VariantKey }>> = {};
+  const kindOf = (key: VariantKey): 'continue' | 'buildup' | 'fresh' =>
+    key === 'continue' ? 'continue' : key === 'buildup' ? 'buildup' : 'fresh';
+  const asLeg = (v: CompactVariant, key: VariantKey): LegResult => {
+    // The rival: the sooner (by a deadline, the more TE) of the best options of the OTHER kinds.
+    // In pick order, so equals go the way a pick would: a fresh start, then the build-up, then continue.
+    // Under Finish without buying the build-up was no candidate, so it is never the rival there.
+    const others = (['fresh', 'buildup', 'continue'] as const)
+      .filter(k => k !== kindOf(key) && !(k === 'buildup' && mode === 'continue'))
+      .map(k => kinds[k])
+      .filter((o): o is NonNullable<typeof o> => !!o && Number.isFinite(o.v.summary.endTime));
+    const rival = others.length
+      ? others.reduce((x, y) =>
+          (byDeadline ? y.v.summary.endTE > x.v.summary.endTE : y.v.summary.endTime < x.v.summary.endTime) ? y : x
+        )
+      : null;
+    const ends: FirstLegEnds = {};
+    for (const [k, o] of Object.entries(kinds)) if (o) ends[k as keyof FirstLegEnds] = o.v.summary.endTime;
+    return {
+      summary: v.summary,
+      key,
+      nextState: deriveNextStartState(v.summary, cloneBaseState(inputs)),
+      shifts: v.shifts,
+      heldSeconds: v.heldSeconds,
+      lastEgg: v.lastEgg,
+      ...endEggOf(v),
+      ...(rival ? { rival: { key: rival.key, endTime: rival.v.summary.endTime } } : {}),
+      ...(Object.keys(ends).length ? { firstLegEnds: ends } : {}),
+    };
+  };
+
+  // Continue first (A1 only): see CONTINUE_PIN_MAX_SECONDS for the whole rule. Past six months it
+  // is dropped rather than compared, so a bare farm's billion-day continue can never win anything.
+  // 'fresh' (Prestige Now) never continues; 'continue' pins it; 'auto' and 'buildup' let it compete.
+  const mode = readFirstAscension(inputs);
+  let cont =
+    allowContinue && mode !== 'fresh'
+      ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride))
+      : null;
+  // Kept even when dropped below, as the rival a fresh leg 1 is recorded against.
+  if (cont) kinds.continue = { v: cont, key: 'continue' };
+  if (cont && !(cont.summary.totalDurationSeconds <= (inputs.continueMaxSeconds ?? CONTINUE_MAX_SECONDS))) cont = null;
+  // Continue my build-up (A1 only): the standard build carried on from the farm in the save
+  // (auto/buildUp.ts). A real build, so no six-month rule. A candidate under 'auto' and 'buildup';
+  // under 'continue' (Finish without buying) only recorded, so the plan can say when building on
+  // would have been sooner (health.ts `buildUpNote`). Worked out once per run and plan start.
+  const buildUp =
+    allowContinue && mode !== 'fresh'
+      ? compactOrNull(buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride))
+      : null;
+  if (buildUp) kinds.buildup = { v: buildUp, key: 'buildup' };
+
+  if (
+    cont &&
+    mode === 'continue' &&
+    !byDeadline &&
+    cont.summary.totalDurationSeconds <= (inputs.continuePinSeconds ?? CONTINUE_PIN_MAX_SECONDS)
+  ) {
+    return asLeg(cont, 'continue');
+  }
+
+  // 'buildup': finish the ascension in progress, building on or (when the build is done) just
+  // laying, whichever is sooner. No fresh start unless neither can be simulated.
+  if (mode === 'buildup' && (buildUp || cont)) {
+    if (buildUp && cont) {
+      const pick = pickVariant({ buildup: buildUp, continue: cont }, undefined, byDeadline);
+      return pick === cont ? asLeg(cont, 'continue') : asLeg(buildUp, 'buildup');
+    }
+    return buildUp ? asLeg(buildUp, 'buildup') : asLeg(cont!, 'continue');
+  }
+
+  // The build to C3 and its variants: no target in it, so shared by every target tried from this
+  // start (legBuild below).
+  const { preC3, c3 } = legBuild(inputs, baseState, ctx, startTime, startTE);
+  let surviving = c3.filter(x => !x.impossible);
+  // K3's mandatory wait to buildPhaseEnd cannot be truncated, so under a deadline a variant whose
+  // build phase ends after it is not slower but unevaluable.
+  if (byDeadline) surviving = surviving.filter(v => v.buildPhaseEnd <= endOverride!);
+
+  const fresh: Partial<Record<VariantKey, CompactVariant>> = {};
+  for (const v of surviving) {
+    const key = (v.attemptTier13Unlock ? `${v.saleCount}-sale-tier13` : `${v.saleCount}-sale`) as VariantKey;
+    fresh[key] = compact(
+      runAscensionFromC3Variant(baseState, preC3, v, ctx, startTime, `asc_${idx}`, goalTE, endOverride)
+    );
+  }
+  const freshKeys = Object.keys(fresh) as VariantKey[];
+  // By a deadline every variant ends at the same instant, so "better" is more TE, not less time.
+  // `pickVariant` reads only `summary`, and returns one of the records it was given.
+  const freshBest = freshKeys.length ? (pickVariant(fresh, undefined, byDeadline) as CompactVariant) : null;
+  const freshKey = freshBest ? freshKeys.find(k => fresh[k] === freshBest)! : null;
+  if (freshBest && freshKey) kinds.fresh = { v: freshBest, key: freshKey };
+
+  if (mode === 'continue' && cont) {
+    // Continue Asc.: it holds unless a fresh start is strictly better.
+    const contWins = !freshBest
+      ? true
+      : byDeadline
+        ? cont.summary.endTE >= freshBest.summary.endTE
+        : cont.summary.totalDurationSeconds <= freshBest.summary.totalDurationSeconds;
+    if (contWins) return asLeg(cont, 'continue');
+  }
+  if (mode === 'auto' && (cont || buildUp)) {
+    // Fastest: every kind one more candidate, as Classic treats continue with nothing picked. Ties go
+    // to the fresh start, then to the build-up (pickVariant keeps the first of equals).
+    const all: Partial<Record<VariantKey, CompactVariant>> = { ...fresh };
+    if (buildUp) all.buildup = buildUp;
+    if (cont) all.continue = cont;
+    const pick = pickVariant(all, undefined, byDeadline) as CompactVariant;
+    if (pick === cont) return asLeg(cont!, 'continue');
+    if (pick === buildUp) return asLeg(buildUp!, 'buildup');
+  }
+  if (!freshBest || !freshKey) return null;
+  return asLeg(freshBest, freshKey);
+}
+
+/**
+ * THE BUILD TO C3, SHARED ACROSS TARGETS (16 Oct 2026; aaap-tools specialists/gpu-research.md). A
+ * fresh leg is the C1..R1 build, C3's variants, and each variant's K3..H2 tail to the leg's target.
+ * The build and the variants are 99.5% of the time and depend on the leg's start (state, time, TE
+ * and the run's settings) but never on its target, yet every target a search tries from one start
+ * -- each last stop By a date brackets, each value a sweep gives the last stop -- simulated them
+ * again. They are kept here for the next leg from the same start: the pool deals a shape's last
+ * stops to one worker (search/stickyDealer.ts), so they come one after another.
+ *
+ * Kept small: of the build's actions (each carrying a whole state; ~22 MB as JSON) only what
+ * anything after it reads -- the shifts (count, moments, eggs: `shiftInstants`, the tail's shift
+ * cost) and the waits held for the player (`heldSecondsOf`) -- on every leg, shared or not, so the
+ * two cannot differ. The tail clones the state it resumes from (auto/ascension.ts `runAscension`),
+ * so a shared build is never changed by one target and read by the next. `setLegBuildSharing(false)`
+ * runs the build in full every time, as before, for the specs that prove the results identical.
+ */
+const LEG_BUILD_CACHE = 8;
+interface LegBuild {
+  preC3: { actions: Action[]; state: EngineState; elapsedSeconds: number };
+  c3: C3Variant[];
+}
+const legBuilds = new Map<string, LegBuild>();
+let sharing = true;
+let builds = { hits: 0, misses: 0 };
+/** One id per save (`context.rawBackup`) a worker has seen, for the key. */
+const backupIds = new WeakMap<object, number>();
+let nextBackupId = 1;
+
+/** Turn the sharing off (and empty it) or back on; the specs compare the two. */
+export function setLegBuildSharing(on: boolean): void {
+  sharing = on;
+  legBuilds.clear();
+}
+/** How often a leg found its build already done, since the last reset. */
+export function legBuildStats(reset = false): { hits: number; misses: number } {
+  const out = { ...builds };
+  if (reset) builds = { hits: 0, misses: 0 };
+  return out;
+}
+
+/** The actions anything after the build reads (see above). */
+function keptActions(actions: Action[]): Action[] {
+  return actions.filter(
+    a =>
+      a.type === 'shift' ||
+      (a.type === 'wait_for_te' && !!(a.payload as { heldForPlayer?: boolean } | undefined)?.heldForPlayer)
+  );
+}
+
+/** Everything the build reads: the start state, the context (its save by identity, the rest by value,
+ *  the player's hours for the hook that waits for them), the start time and TE. */
+function legBuildKey(inputs: SearchInputs, baseState: EngineState, ctx: SimulationContext, startTE: number): string {
+  const raw = ctx.rawBackup as object | undefined;
+  let id = 0;
+  if (raw && typeof raw === 'object') {
+    id = backupIds.get(raw) ?? 0;
+    if (!id) backupIds.set(raw, (id = nextBackupId++));
+  }
+  // The save left out before stringifying (JSON.stringify would read even its toJSON; a worker is given
+  // a trimmed save, search/workerBackup.ts, and the spec there checks nothing else is read). Functions
+  // (the hours hook) are dropped by JSON; the hours themselves are in the key below.
+  const { rawBackup: _save, ...rest } = ctx;
+  const context = JSON.stringify(rest);
+  const hours = JSON.stringify({ a: inputs.availability ?? null, d: !!inputs.deferShifts });
+  return `${id}|${startTE}|${hours}|${context}|${JSON.stringify(baseState)}`;
+}
+
+function legBuild(
+  inputs: SearchInputs,
+  baseState: EngineState,
+  ctx: SimulationContext,
+  startTime: number,
+  startTE: number
+): LegBuild {
+  const key = sharing ? legBuildKey(inputs, baseState, ctx, startTE) : '';
+  const hit = sharing ? legBuilds.get(key) : undefined;
+  if (hit) {
+    builds.hits++;
+    // Most recently used last, so the oldest is the first to go.
+    legBuilds.delete(key);
+    legBuilds.set(key, hit);
+    return hit;
+  }
+  builds.misses++;
+  // Single C1->R1 precompute shared by every build variant, exactly as the app does it — K3..H2 is
+  // the expensive part and must not be repeated per variant.
+  const pre = runUntilShift(baseState, ctx, 'C3');
+  // C3's own shift waits for the player too (the C3 variants start with it, outside the main loop).
+  const held = holdForPlayer(pre.state, ctx, startTime, pre.elapsedSeconds, 'curiosity');
+  if (held.heldSeconds) {
+    pre.actions = [...pre.actions, ...held.actions];
+    pre.state = held.state;
+    pre.elapsedSeconds = held.elapsedSeconds;
+  }
+  const c3 = runC3Variants(pre.state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE);
+  if (!sharing) return { preC3: { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds }, c3 };
+  const build: LegBuild = {
+    preC3: { actions: keptActions(pre.actions), state: pre.state, elapsedSeconds: pre.elapsedSeconds },
+    c3: c3.map(v => (v.result ? { ...v, result: { ...v.result, actions: keptActions(v.result.actions) } } : v)),
+  };
+  legBuilds.set(key, build);
+  while (legBuilds.size > LEG_BUILD_CACHE) legBuilds.delete(legBuilds.keys().next().value!);
+  return build;
+}
+
+/**
+ * A1-only "continue current ascension" variant, mirroring the generator's own setup.
+ *
+ * The field names below are load-bearing and were each a real bug in the CLI harness:
+ *   - `habIds`, NOT `habs`. Writing `habs` left habIds at `[0,null,null,null]` — one starter hab,
+ *     no capacity, so the farm could never afford research and `buyResearch` recursed until the
+ *     stack blew on the third leg.
+ *   - `currentEgg` must be the NAME, not the backup's 50..54 enum.
+ *   - the ELR set is recomputed rather than reusing the equipped (earnings) loadout. Filing the
+ *     earnings set under `artifactSets.elr` made "continue" report 1.580q/hr instead of 3.574q/hr.
+ */
+/** The farm "continue current ascension" carries on with: the save's own farm, the best delivery
+ *  set it can wear, its eggs and TE. Null without a farm in the save. */
+function continueState(inputs: SearchInputs, baseState: EngineState): EngineState | null {
+  const farmState = inputs.currentFarmState;
+  const raw = inputs.context.rawBackup;
+  if (!farmState || !raw) return null;
+
+  const rawLoadout = getArtifactLoadoutFromBackup(raw);
+  const optimalEarnings = getOptimalEarningsSet(raw);
+  const elr =
+    getOptimalELRSet(raw, {
+      commonResearch: farmState.commonResearches,
+      epicResearchLevels: inputs.context.epicResearchLevels,
+      colleggtibleModifiers: inputs.context.colleggtibleModifiers,
+      currentSet: rawLoadout,
+      assumeMaxHabsVehicles: false,
+    }) ?? rawLoadout;
+
+  const state = {
+    ...JSON.parse(JSON.stringify(baseState)),
+    currentEgg: VIRTUE_EGGS_MAP[farmState.eggType as number] ?? 'curiosity',
+    researchLevels: { ...farmState.commonResearches },
+    habIds: farmState.habs || [0, null, null, null],
+    vehicles: farmState.vehicles || [{ vehicleId: 0, trainLength: 1 }],
+    siloCount: farmState.numSilos || 1,
+    tankLevel: baseState.tankLevel,
+    artifactLoadout: elr.map(s => ({ artifactId: s.artifactId, stones: [...s.stones] })),
+    activeArtifactSet: 'elr',
+    artifactSets: {
+      earnings: optimalEarnings ? JSON.parse(JSON.stringify(optimalEarnings)) : null,
+      elr: JSON.parse(JSON.stringify(elr)),
+    },
+    fuelTankAmounts: { ...baseState.fuelTankAmounts },
+    eggsDelivered: { ...baseState.eggsDelivered },
+    teEarned: { ...baseState.teEarned },
+    population: farmState.population || 0,
+    lastStepTime: farmState.lastStepTime || 0,
+    bankValue: farmState.cash || 0,
+    activeSales: { research: false, hab: false, vehicle: false },
+    earningsBoost: { active: false, multiplier: 1 },
+  } as EngineState;
+  return state;
+}
+
+function buildContinueVariant(
+  inputs: SearchInputs,
+  baseState: EngineState,
+  startTime: number,
+  targetTE: number | undefined,
+  idx: number,
+  endOverride?: number
+): VariantResult | null {
+  const state = continueState(inputs, baseState);
+  if (!state) return null;
+  const ctx = legContext(inputs, startTime);
+  const elrNow = computeSnapshot(state, ctx, { skipGrowth: true }).elr;
+  if (!(elrNow > 0)) return null;
+  return runContinueCurrent(state, ctx, startTime, elrNow, targetTE, `asc_${idx}_continue`, endOverride);
+}
+
+/**
+ * The farm "continue my build-up" starts the standard build from (auto/buildUp.ts): the save's farm
+ * as `continueState` reads it, at the plan start (`lastStepTime` 0), on its earnings set (the build
+ * up to H1 earns; H1 swaps to the delivery set), with what it laid and earned between the last sync
+ * and the plan start credited: eggs at its delivery rate, as continue credits them, and cash at its
+ * away earnings, both capped at the silos. Null without a farm in the save.
+ */
+function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: number): EngineState | null {
+  const cont = continueState(inputs, baseState);
+  if (!cont) return null;
+  const ctx = legContext(inputs, startTime);
+  const sync = cont.lastStepTime;
+  const away =
+    sync > 1e9 && startTime > sync
+      ? catchUpSeconds(sync, startTime, siloSeconds(cont.siloCount, ctx.epicResearchLevels?.['silo_capacity']))
+      : 0;
+  const earnings = cont.artifactSets.earnings;
+  const state: EngineState = {
+    ...cont,
+    lastStepTime: 0,
+    ...(earnings
+      ? {
+          artifactLoadout: earnings.map(x => ({ artifactId: x.artifactId, stones: [...x.stones] })),
+          activeArtifactSet: 'earnings' as const,
+        }
+      : {}),
+    activeSales: { research: isResearchSaleActive(startTime), hab: false, vehicle: false },
+  };
+  if (away > 0) {
+    const egg = cont.currentEgg as VirtueEgg;
+    const elr = computeSnapshot(cont, ctx, { skipGrowth: true }).elr;
+    const cash = computeSnapshot(state, ctx, { skipGrowth: true }).offlineEarnings;
+    state.eggsDelivered = { ...state.eggsDelivered, [egg]: (state.eggsDelivered[egg] || 0) + elr * away };
+    state.bankValue = (state.bankValue || 0) + (Number.isFinite(cash) ? cash * away : 0);
+  }
+  return state;
+}
+
+/** One plan start's build-up as far as C3's variants: everything a checkpoint does not change. */
+interface BuildUpBuild {
+  start: EngineState;
+  ctx: SimulationContext;
+  preC3: { actions: Action[]; state: EngineState; elapsedSeconds: number };
+  variants: C3Variant[];
+}
+
+/** Per run (its inputs) and plan start: leg 1 is priced to many checkpoints from the same farm, and
+ *  the build-up to C3 is the same for every one of them. A couple of starts at most per run (the
+ *  plan start, and the hour after it for the instant answer's exact check). */
+const buildUpCache = new WeakMap<SearchInputs, Map<number, BuildUpBuild | null>>();
+
+function buildUpBuild(inputs: SearchInputs, baseState: EngineState, startTime: number, startTE: number): BuildUpBuild | null {
+  let byStart = buildUpCache.get(inputs);
+  if (!byStart) buildUpCache.set(inputs, (byStart = new Map()));
+  if (byStart.has(startTime)) return byStart.get(startTime)!;
+  let built: BuildUpBuild | null = null;
+  const start = buildUpState(inputs, baseState, startTime);
+  if (start) {
+    const ctx = legContext(inputs, startTime);
+    const pre = runBuildUpUntilC3(start, ctx);
+    let { actions, state, elapsedSeconds } = pre;
+    if (!pre.stayOnCuriosity) {
+      // C3 shifts to Curiosity: it waits for the player, as a fresh build's does (runLeg).
+      const held = holdForPlayer(state, ctx, startTime, elapsedSeconds, 'curiosity');
+      if (held.heldSeconds) {
+        actions = [...actions, ...held.actions];
+        state = held.state;
+        elapsedSeconds = held.elapsedSeconds;
+      }
+    }
+    const variants = runC3Variants(state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE, {
+      stayOnCuriosity: pre.stayOnCuriosity,
+    }).filter(v => !v.impossible);
+    built = variants.length ? { start, ctx, preC3: { actions, state, elapsedSeconds }, variants } : null;
+  }
+  if (byStart.size >= 4) byStart.delete(byStart.keys().next().value as number);
+  byStart.set(startTime, built);
+  return built;
+}
+
+/** "Continue my build-up" to `targetTE` (or to `endOverride`): the best of its sale variants, the
+ *  way `runLeg` picks a fresh build's. Null without a farm in the save or with no variant left. */
+function buildBuildUpVariant(
+  inputs: SearchInputs,
+  baseState: EngineState,
+  startTime: number,
+  targetTE: number | undefined,
+  idx: number,
+  startTE: number,
+  endOverride?: number
+): VariantResult | null {
+  const b = buildUpBuild(inputs, baseState, startTime, startTE);
+  if (!b) return null;
+  const variants = endOverride !== undefined ? b.variants.filter(v => v.buildPhaseEnd <= endOverride) : b.variants;
+  const res: Partial<Record<VariantKey, VariantResult>> = {};
+  for (const v of variants) {
+    const key = (v.attemptTier13Unlock ? `${v.saleCount}-sale-tier13` : `${v.saleCount}-sale`) as VariantKey;
+    res[key] = runAscensionFromC3Variant(b.start, b.preC3, v, b.ctx, startTime, `asc_${idx}_buildup`, targetTE, endOverride);
+  }
+  if (!Object.keys(res).length) return null;
+  const best = pickVariant(res, undefined, endOverride !== undefined);
+  return { ...best, summary: { ...best.summary, strategyLabel: `Build-up, ${best.summary.strategyLabel}` } };
+}
+
+/** `buildBuildUpVariant` for checks and the CLI; the search calls it through `runLeg`. */
+export const buildUpVariantForCheck = buildBuildUpVariant;
+
+/**
+ * Continue my build-up as the precomputed tail takes it (search/precomputedLeg.ts), one `BuildParams`
+ * per sale variant, timed from `startTime`: the instant answer prices every checkpoint from these the
+ * way it prices a fresh build's (routeFinder.ts `firstLegOptions`). Empty without a farm in the save.
+ * A few seconds of simulation, so it belongs on a worker (chainSearch.worker.ts 'buildup-tails').
+ */
+export function buildUpTailParams(inputs: SearchInputs, startTime: number): BuildParams[] {
+  const base = cloneBaseState(inputs);
+  const b = buildUpBuild(inputs, base, startTime, inputs.currentTE);
+  if (!b) return [];
+  return b.variants.map(v => paramsOf({ ctx: b.ctx, preC3: b.preC3, variants: b.variants }, v, startTime));
+}
+
+/**
+ * Continue current ascension as the precomputed tail takes it (search/precomputedLeg.ts): no build
+ * and no sale, the farm's own delivery rate, and its eggs after the catch-up `runContinueCurrent`
+ * credits from the last sync to the plan start. `tailTo` on this gives continue's time to any
+ * checkpoint, the same as `buildContinueVariant` does for one (scripts/precompute.ts checks).
+ */
+export function continueTailParams(inputs: SearchInputs, startTime: number): BuildParams | null {
+  const state = continueState(inputs, cloneBaseState(inputs));
+  if (!state) return null;
+  const ctx = legContext(inputs, startTime);
+  const elr = computeSnapshot(state, ctx, { skipGrowth: true }).elr;
+  if (!(elr > 0)) return null;
+  const delivered = { ...state.eggsDelivered };
+  const last = state.lastStepTime;
+  if (last > 1e9 && startTime > last) {
+    const egg = state.currentEgg as VirtueEgg;
+    delivered[egg] =
+      (delivered[egg] || 0) +
+      elr * catchUpSeconds(last, startTime, siloSeconds(state.siloCount, ctx.epicResearchLevels?.['silo_capacity']));
+  }
+  return {
+    sales: 0,
+    tier13: false,
+    waitStart: 0,
+    saleEnd: 0,
+    peakELR: elr,
+    delivered: EGG_ORDER.map(e => delivered[e] || 0),
+  };
+}
+
+/**
+ * The farm in the save laying while a fresh prestige waits (search/prestigeBy.ts `Laying`): its own
+ * delivery rate on the egg it is on, for at most what its silos hold (a player who is away collects no
+ * more). Null without a farm to read.
+ */
+export function farmLaying(
+  inputs: SearchInputs,
+  startTime: number
+): { egg: number; rate: number; capSeconds: number } | null {
+  const farm = inputs.currentFarmState;
+  const cont = continueTailParams(inputs, startTime);
+  if (!farm || !cont) return null;
+  const egg = EGG_ORDER.indexOf(VIRTUE_EGGS_MAP[farm.eggType as number] ?? 'curiosity');
+  return {
+    egg,
+    rate: cont.peakELR,
+    capSeconds: siloSeconds(farm.numSilos || 1, inputs.context.epicResearchLevels?.['silo_capacity']),
+  };
+}
+
+/** What the save's silos hold, in seconds (the cap on a waiting farm's laying). */
+export function saveSiloSeconds(inputs: SearchInputs): number {
+  return siloSeconds(inputs.currentFarmState?.numSilos || 1, inputs.context.epicResearchLevels?.['silo_capacity']);
+}
+
+/**
+ * The instant answer's delivery adjustment (components/auto/InstantRoute.vue): the player's peak
+ * delivery rate against the precomputed table's, at the research a build waits with (the table's
+ * `k3`). The best set the player's whole inventory can wear there, through the simulator's own rate
+ * function: at that research nearly every stone goes to lay rate, so the set a save shows (chosen at
+ * today's research) would understate everyone (scripts/precompute.ts --verify-table --as). 1 without
+ * a save to read.
+ */
+export function instantDeliveryScale(inputs: SearchInputs, k3: NonNullable<TableHeader['k3']>): number {
+  const ctx = inputs.context;
+  const raw = ctx.rawBackup;
+  if (!raw) return 1;
+  const rate = (set: EquippedArtifact[]) =>
+    computeRealisticELR(k3.research, calculateArtifactModifiers(set), ctx.epicResearchLevels, ctx.colleggtibleModifiers)
+      .effectiveRate;
+  const mine = getOptimalELRSet(raw, {
+    commonResearch: k3.research,
+    epicResearchLevels: ctx.epicResearchLevels,
+    colleggtibleModifiers: ctx.colleggtibleModifiers,
+    assumeMaxHabsVehicles: true,
+  });
+  const theirs = rate(k3.delivery as EquippedArtifact[]);
+  return mine && theirs > 0 ? rate(mine as EquippedArtifact[]) / theirs : 1;
+}
+
+/** `buildContinueVariant` for checks (scripts/precompute.ts); the search calls it through `runLeg`. */
+export const continueVariantForCheck = buildContinueVariant;
+
+/**
+ * How long a FRESH ascension from the plan start sits on its first Integrity shift, in seconds, or
+ * null when it never reaches one (no backup, or a simulation that could not run).
+ *
+ * This is the stall that makes the planner useless on low-earnings accounts: the build buys cheap
+ * vehicles, reaches Integrity shipping almost nothing, and then waits months or years to afford its
+ * habs. It happens inside the C1->C3 precompute every build variant shares, so simulating just that
+ * much is enough, and it is the same for every chain -- a fresh start from today's TE is the worst
+ * case the plan can contain (later legs start with more TE, so they earn more).
+ *
+ * Built exactly as chain.ts builds leg 1 for a fresh start (curiosity, one chicken, no cash, no
+ * research), so the wait measured here is the wait the run would contain.
+ */
+export function integrityWaitSeconds(inputs: SearchInputs): number | null {
+  return integrityCheck(inputs).seconds;
+}
+
+/** LOW-TE OPENING (auto/lowTeOpening.ts): a fresh build that took the low-TE opening
+ *  (auto/lowTeOpening.ts): its rounds of C1/K1/I1 and how long they took, plan start to max habs. */
+export interface LowTeOpeningInfo {
+  rounds: number;
+  openingSeconds: number;
+}
+
+/**
+ * `integrityWaitSeconds`, with the low-TE opening when the fresh build took it.
+ *
+ * LOW-TE OPENING (auto/lowTeOpening.ts): on the low-TE path every I1 but the last round's
+ * is capped at 4 hours and the rounds are the plan, not a stall, so the first Integrity shift no
+ * longer says anything. There the wait is the last round's I1 only when the opening ran into its
+ * backstop (round `MAX_OPENING_ROUNDS`, whose I1 is uncapped): that is the stall the rounds could not
+ * fix, and the same lines (an hour, a week) apply to it. An opening that maxed its habs inside the
+ * backstop has no stall (0). Builds off the low-TE path are measured exactly as before.
+ */
+export function integrityCheck(inputs: SearchInputs): { seconds: number | null; lowTe: LowTeOpeningInfo | null } {
+  const b = cloneBaseState(inputs);
+  b.currentEgg = 'curiosity';
+  b.population = 1;
+  b.bankValue = 0;
+  b.researchLevels = {};
+  const ctx = legContext(inputs, inputs.planStart);
+  let pre: ReturnType<typeof runUntilShift>;
+  try {
+    pre = runUntilShift(b, ctx, 'C3');
+  } catch {
+    return { seconds: null, lowTe: null };
+  }
+  const shifts = shiftInstants(pre.actions, inputs.planStart);
+  const rounds = pre.state.lowTeOpening;
+  if (rounds) {
+    // The opening ends at the shift after its last I1 (C2, K2 or R1).
+    let last = -1;
+    shifts.forEach((s, i) => {
+      if (s.egg === 'integrity') last = i;
+    });
+    if (last < 0) return { seconds: null, lowTe: null };
+    const end = shifts[last + 1]?.at ?? inputs.planStart + pre.elapsedSeconds;
+    const lowTe = { rounds, openingSeconds: Math.max(0, end - inputs.planStart) };
+    return { seconds: rounds >= MAX_OPENING_ROUNDS ? Math.max(0, end - shifts[last].at) : 0, lowTe };
+  }
+  const at = shifts.findIndex(s => s.egg === 'integrity');
+  if (at < 0) return { seconds: null, lowTe: null };
+  // The next shift ends the wait; with none inside the precompute, the wait runs to its end.
+  const until = shifts[at + 1]?.at ?? inputs.planStart + pre.elapsedSeconds;
+  return { seconds: Math.max(0, until - shifts[at].at), lowTe: null };
+}

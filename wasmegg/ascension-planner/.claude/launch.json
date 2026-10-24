@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ascension-planner",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "5177", "--strictPort"],
+      "port": 5177
+    }
+  ]
+}

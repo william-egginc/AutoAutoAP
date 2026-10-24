@@ -11,6 +11,8 @@
     "serve": "vite preview",
     "format": "prettier --write \"src/**/*.{js,ts,vue}\"",
     "generate:pacific-time-table": "node --experimental-strip-types scripts/generatePacificTimeTable.ts",
+    "search:build": "vite build --config vite.search.config.ts",
+    "fastsearch": "node dist-search/fastsearch.js",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "test:watch": "vitest"
@@ -19,7 +21,9 @@
     "@heroicons/vue": "^1.0.6",
     "echarts": "^6.1.0",
     "lib": "workspace:^",
+    "pako": "2.1.0",
     "pinia": "^3.0.4",
+    "qrcode": "^1.5.4",
     "tippy.js": "^6.3.7",
     "ui": "workspace:^",
     "vue": "^3.5.31",
@@ -27,6 +31,8 @@
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
+    "@types/pako": "^2.0.4",
+    "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vitejs/plugin-vue-jsx": "^5.1.5",
     "@vitest/coverage-v8": "^4.1.8",

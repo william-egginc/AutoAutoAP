@@ -8,11 +8,12 @@ import {
   runResearchMilestoneIfWorthwhile,
   runSmartBuyForSeconds,
 } from './helpers/milestones';
-import { applyShiftAction } from './helpers/actionHelpers';
+import { applyShiftAction, syncResearchSale } from './helpers/actionHelpers';
 import { advanceTimeWithBoundaries } from './helpers/advanceTime';
 import { runWithEarningsEventDeferral, MULTI_LAYERING_ID } from './helpers/earningsEventDeferral';
 import { computeSnapshot } from '../../engine/compute';
 import { calculateArtifactModifiers } from '../../lib/artifacts';
+import { contextDeliverySource } from '../loadout/resolve';
 import { simulateSaleAwareBuy, simulateSaleEndsBuy, simulateFinalSaleGapBuy } from '../../calculations/smartBuyPreview';
 import {
   buildSaleAwareBuyNotePayload,
@@ -28,10 +29,16 @@ import {
   countSalesThrough,
 } from '@/lib/events';
 import { DEBUG_SHIFT_TIMING } from '@/lib/debugFlags';
+import { calculateEggsLaidDuringActions } from '../engine/eggs';
 
 export interface C3Params {
   /** Attempt to unlock Tier 13 before anything else, if it isn't already unlocked. Default false. */
   attemptTier13Unlock?: boolean;
+  /** Start without the shift to Curiosity when the farm is already on it ("continue my build-up",
+   *  auto/buildUp.ts): a shift resets the farm's chickens and cash, and a player already on
+   *  Curiosity has no reason to shift. The research sale is still synced to the calendar. A farm on
+   *  any other egg shifts as usual. Default false: every fresh build shifts. */
+  stayOnCuriosity?: boolean;
 }
 
 // MULTI_LAYERING_ID comes from './helpers/earningsEventDeferral' (shared with its own deferral logic).
@@ -43,6 +50,9 @@ const MULTI_LAYERING_TARGET_LEVEL = 2;
 // independently rather than sharing C1's own constant since the two calls are tuned for different
 // jobs and have no reason to move together.
 const OPENING_SMART_BUY_THRESHOLD_SECONDS = 10;
+
+// Graviton Coupling's tier — normally unlocked by C1/C2, but not always (see step 1b).
+const TIER_12 = 12;
 
 /**
  * C3: the "build phase" shift, spent riding out one or more weekly research sales in Curiosity.
@@ -68,6 +78,17 @@ const OPENING_SMART_BUY_THRESHOLD_SECONDS = 10;
  *    being hoisted out and shared — deliberately, to keep all of C3's buying logic together in one
  *    place instead of splitting it across a shared pre-step and this function; the sweep itself is
  *    cheap enough that repeating it a handful of times is not worth that split.
+ * 1b. If Tier 12 isn't unlocked yet (C1/C2 only attempt it within their own short time budgets, so
+ *    a low-earnings ascension can reach C3 without it), try to unlock it via the milestone view's
+ *    tier-unlock chain, capped at whatever's left of `buildPhaseEnd`. Runs unconditionally — not
+ *    just for Tier 13 variants — since everything in Tier 12 is otherwise out of reach for the rest
+ *    of the ascension, including step 4's delivery buying. If the chain can't finish in time, it's
+ *    rolled back in full so that budget goes to steps 3-4's ROI-gated buying instead; if it
+ *    succeeds, step 1a's sweep runs again so Tier 12's newly available research gets the same
+ *    cheap pre-pass (for the same performance reason). Placed after
+ *    step 1a so the sweep's cheap purchases count toward the unlock threshold first, and before
+ *    step 2 since Tier 13 can't be reached without passing Tier 12 anyway (step 2's own rewind
+ *    point is taken after this step, so a retry never undoes it).
  * 2. If Tier 13 is wanted: first, if Multiversal Layering 2 isn't already unlocked, try to grab it
  *    via the milestone view's research-level-target chain — staged as level 1 (if not already
  *    bought) then level 2, as two separate chain attempts, so a level-1-only ML doesn't get skipped
@@ -218,13 +239,7 @@ export function runC3(
         if (!helpers.buyResearch(id, tl)) return false;
         return helpers.getActions()[helpers.getActions().length - 1].cost;
       },
-      {
-        getAbsTime: helpers.getAbsTime,
-        previewPurchase: helpers.previewPurchase,
-        advanceTime: helpers.advanceTime,
-        getElapsedSeconds: helpers.getElapsedSeconds,
-        getState: helpers.getState,
-      },
+      helpers.deferralHost,
       context,
       timeLimit,
       id => (helpers.getState().researchLevels[id] || 0) >= (targetLevels[id] || 0)
@@ -301,7 +316,7 @@ export function runC3(
       deadline,
       'realistic',
       'efficiency',
-      context.rawBackup
+      contextDeliverySource(context)
     );
     executePlanToLevels(
       plan.researchIds,
@@ -332,7 +347,7 @@ export function runC3(
       buildPhaseEnd,
       'realistic',
       'efficiency',
-      context.rawBackup
+      contextDeliverySource(context)
     );
     executePlanToLevels(
       plan.purchases.map(p => p.researchId),
@@ -343,11 +358,21 @@ export function runC3(
     );
   };
 
-  // 1. Shift to Curiosity
-  const shifted = applyShiftAction(currentState, context, 'curiosity');
-  currentState = shifted.state;
-  actions.push(shifted.action);
-  if (shifted.saleToggleAction) actions.push(shifted.saleToggleAction);
+  // 1. Shift to Curiosity (or, already on it with `stayOnCuriosity`, just sync the sale).
+  if (params.stayOnCuriosity && currentState.currentEgg === 'curiosity') {
+    const synced = syncResearchSale(currentState, context);
+    currentState = synced.state;
+    if (synced.action) actions.push(synced.action);
+  } else {
+    const shifted = applyShiftAction(currentState, context, 'curiosity');
+    currentState = shifted.state;
+    actions.push(shifted.action);
+    if (shifted.saleToggleAction) actions.push(shifted.saleToggleAction);
+    // Name the shift, as runAscension's loop names every other one: C3 variants are run here and
+    // never pass through that loop, and the charts find the C3 phase by this name
+    // (lib/charts/variantComparisonData.ts phaseWindow), not by counting shifts.
+    if (shifted.action.type === 'shift') shifted.action.payload.autoShiftName = 'C3';
+  }
 
   // 1a. Opening smart-buy sweep — see this function's own top-level doc comment (step 1a) for why
   // this exists and why it's placed here, before step 2's Tier-13 attempt. Capped at the shift's
@@ -361,6 +386,35 @@ export function runC3(
       Math.max(0, buildPhaseEnd - getAbsTime())
     )
   );
+
+  // 1b. Unlock Tier 12 if C1/C2 didn't — see this function's own top-level doc comment (step 1b).
+  // Checkpointed so a chain that runs out of runway partway is discarded in full rather than
+  // leaving a pile of unlock-motivated purchases with no unlock to show for them (mirrors C2's own
+  // Graviton Coupling checkpoint/rollback).
+  if (!isTierUnlocked(currentState.researchLevels, TIER_12)) {
+    const checkpointState = currentState;
+    const checkpointElapsedSeconds = elapsedSeconds;
+    const checkpointActionsLength = actions.length;
+
+    const timeLimit = Math.max(0, buildPhaseEnd - getAbsTime());
+    runStep(runTierUnlockMilestone(currentState, context, TIER_12, timeLimit, roiDeadline, true));
+
+    if (!isTierUnlocked(currentState.researchLevels, TIER_12)) {
+      currentState = checkpointState;
+      elapsedSeconds = checkpointElapsedSeconds;
+      actions.length = checkpointActionsLength;
+    } else {
+      // Same sweep as step 1a, now that Tier 12's own research is available to it.
+      runStep(
+        runSmartBuyForSeconds(
+          currentState,
+          context,
+          OPENING_SMART_BUY_THRESHOLD_SECONDS,
+          Math.max(0, buildPhaseEnd - getAbsTime())
+        )
+      );
+    }
+  }
 
   // 2 (only when requested): try to unlock Tier 13 before any of steps 3-4's own deliberate,
   // ROI-gated spending gets a chance to eat into the same budget. Safe to run after step 1a's sweep
@@ -418,7 +472,8 @@ export function runC3(
               MULTI_LAYERING_LEVEL_1,
               Infinity,
               level1TimeLimit,
-              roiDeadline
+              roiDeadline,
+              true
             )
           );
         }
@@ -432,7 +487,8 @@ export function runC3(
             MULTI_LAYERING_TARGET_LEVEL,
             Infinity,
             timeLimit,
-            roiDeadline
+            roiDeadline,
+            true
           )
         );
       }
@@ -538,12 +594,25 @@ export function runC3Variants(
   startState: EngineState,
   context: SimulationContext,
   maxSaleCount: number = 3,
-  skipTier13Attempts: boolean = false
+  skipTier13Attempts: boolean = false,
+  /** Passed to every `runC3` call (only `stayOnCuriosity` is meant here). */
+  base: Omit<C3Params, 'attemptTier13Unlock'> = {}
 ): C3Variant[] {
   const maxTier = Math.max(...getTiers());
   const tier13AlreadyUnlocked = isTierUnlocked(startState.researchLevels, maxTier);
   const variants: C3Variant[] = [];
   const variantTimings: { name: string; ms: number }[] = [];
+  // Unlike C1/C2/etc., these `runC3` calls never pass through `runAscension`'s/`runUntilShift`'s own
+  // eggsLaid-attachment loop — `runAscensionFromC3Variant` resumes past C3 entirely (see its own doc
+  // comment), so a variant's actions here are the only chance to attach it before the shift summary
+  // UI looks for it.
+  const attachEggsLaid = (result: ShiftResult) => {
+    const eggsLaid = calculateEggsLaidDuringActions(result.actions, startState, context);
+    if (result.actions.length > 0) {
+      Object.assign(result.actions[0].payload, { eggsLaid });
+    }
+  };
+
   let tier13KnownImpossible = skipTier13Attempts;
   for (let saleCount = maxSaleCount; saleCount >= 1; saleCount--) {
     const buildPhaseEnd = getBuildPhaseEndForSaleCount(context.ascensionStartTime, saleCount);
@@ -551,7 +620,8 @@ export function runC3Variants(
     let tier13SucceededThisSaleCount = false;
     if (!tier13AlreadyUnlocked && !tier13KnownImpossible) {
       const t0 = performance.now();
-      const result = runC3(startState, context, buildPhaseEnd, undefined, { attemptTier13Unlock: true });
+      const result = runC3(startState, context, buildPhaseEnd, undefined, { ...base, attemptTier13Unlock: true });
+      attachEggsLaid(result);
       variantTimings.push({ name: `${saleCount}-sale-tier13`, ms: performance.now() - t0 });
       const impossible = !isTierUnlocked(result.endState.researchLevels, maxTier);
       if (impossible) {
@@ -564,7 +634,8 @@ export function runC3Variants(
 
     if (!tier13SucceededThisSaleCount) {
       const t0 = performance.now();
-      const result = runC3(startState, context, buildPhaseEnd, undefined, { attemptTier13Unlock: false });
+      const result = runC3(startState, context, buildPhaseEnd, undefined, { ...base, attemptTier13Unlock: false });
+      attachEggsLaid(result);
       variantTimings.push({ name: `${saleCount}-sale`, ms: performance.now() - t0 });
       variants.push({ saleCount, attemptTier13Unlock: false, buildPhaseEnd, result, impossible: false });
     }

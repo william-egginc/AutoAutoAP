@@ -1,23 +1,580 @@
-import { defineConfig } from 'vite';
+import { createReadStream, statSync, type Stats } from 'node:fs';
+import { cp, mkdir, readFile, rm } from 'node:fs/promises';
+import type { ServerResponse } from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
+import release from './release';
+import {
+  BROTLI_TYPES,
+  digest,
+  freshBrotli,
+  restoreKept,
+  verifyAssets,
+  writeBrotliCopies,
+} from './src/lib/buildAssets';
+import {
+  COMMON_HEADERS,
+  contentSecurityPolicy,
+  documentHeaders,
+  hostKind,
+  inlineScriptHashes,
+  originOf,
+  robotsTag,
+  robotsTxt,
+  rootFile,
+  securityTxt,
+} from './src/lib/securityHeaders';
+
+/**
+ * `version.json`: each page's hashed entry script, `{"index":"assets/index-BGv8tSVu.js",...}`.
+ *
+ * An open tab polls this to learn that a newer build is live (src/composables/useNewVersion.ts).
+ * It is ~90 bytes where the page's HTML is ~1.2 KB, so a tab can check every minute for less than
+ * it used to spend every five. The entry names are content hashes, so a rebuild that changed no
+ * code writes the same file and no tab is told to reload for nothing.
+ *
+ * `release` (from release.ts) says whether a tab built before a given time needs to reload: players
+ * asked for the difference between a real fix and a wording change -- the same loud banner on every
+ * deploy taught them to ignore it (2026-09-25). Each bundle carries its own build time
+ * (__BUILD_TIME__) to compare with.
+ */
+const BUILD_TIME = new Date().toISOString();
+
+function versionFile(): Plugin {
+  return {
+    name: 'aap-version-file',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const entries: Record<string, string> = {};
+      for (const out of Object.values(bundle)) {
+        if (out.type === 'chunk' && out.isEntry) entries[out.name] = out.fileName;
+      }
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({
+          ...entries,
+          release: {
+            reloadIfBuiltBefore: release.reloadIfBuiltBefore,
+            note: release.note.slice(0, 200),
+            history: release.history
+              .slice(0, 8)
+              .map(h => ({ at: h.at, note: h.note.slice(0, 200), ...(h.level === 'big' ? { level: 'big' } : {}) })),
+          },
+        }),
+      });
+    },
+  };
+}
+
+/**
+ * FAIL THE BUILD ON A CHUNK IMPORT CYCLE. Two chunks that statically import each other evaluate in
+ * an order that depends on which one the entry reaches first, so a module-level value taken from
+ * the other chunk can still be undefined. 85defedf did exactly that with one `await import('lib')`
+ * (the barrel became a chunk that re-exported shipping_capacity while the shippingCapacity chunk
+ * read `allResearches` from it): the production page hung on "Loading application..." with
+ * "Cannot read properties of undefined (reading 'filter')", while dev and vitest, which do not
+ * chunk, were fine. Caught here, at build time, instead of on the live site.
+ */
+function noChunkCycles(): Plugin {
+  return {
+    name: 'aap-no-chunk-cycles',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const imports = new Map<string, string[]>();
+      for (const out of Object.values(bundle)) if (out.type === 'chunk') imports.set(out.fileName, out.imports);
+      const state = new Map<string, 'open' | 'done'>();
+      const stack: string[] = [];
+      const visit = (name: string): string[] | null => {
+        if (state.get(name) === 'done') return null;
+        if (state.get(name) === 'open') return [...stack.slice(stack.indexOf(name)), name];
+        state.set(name, 'open');
+        stack.push(name);
+        for (const dep of imports.get(name) ?? []) {
+          const cycle = visit(dep);
+          if (cycle) return cycle;
+        }
+        stack.pop();
+        state.set(name, 'done');
+        return null;
+      };
+      for (const name of imports.keys()) {
+        const cycle = visit(name);
+        if (cycle)
+          this.error(
+            `Chunk import cycle: ${cycle.join(' -> ')}. A chunk can run before one it reads from; ` +
+              `look for a dynamic import of a barrel (e.g. import('lib')) or a module split across them.`
+          );
+      }
+    },
+  };
+}
+
+/**
+ * A loud line in the build output when src/ has commits newer than release.ts's last one. The note
+ * is written by hand, and it went four days without a change (26-30 Sep 2026): every deploy in that
+ * time told players "New: an Egg Day 2027 leaderboard", and the fixes in them only got the quiet
+ * "small update" note instead of a reload. Only a warning: a build with no git (or no history) goes
+ * ahead silently, and a deploy of wording alone rightly leaves release.ts alone.
+ */
+const HERE = fileURLToPath(new URL('.', import.meta.url));
+
+function warnIfReleaseStale(): Plugin {
+  return {
+    name: 'aap-release-stale',
+    apply: 'build',
+    buildStart() {
+      try {
+        const last = (paths: string[]) =>
+          Number(
+            execFileSync('git', ['log', '-1', '--format=%ct', '--', ...paths], { cwd: HERE })
+              .toString()
+              .trim()
+          );
+        const src = last(['src']);
+        const rel = last(['release.ts']);
+        if (src && rel && src > rel) {
+          const n = execFileSync('git', ['rev-list', '--count', `--since=${rel + 1}`, 'HEAD', '--', 'src'], {
+            cwd: HERE,
+          })
+            .toString()
+            .trim();
+          this.warn(
+            `release.ts is older than ${n} commit(s) in src/: open tabs will be shown its old note ` +
+              `("${release.note.slice(0, 60)}..."). Update its note, and reloadIfBuiltBefore if a fix ships.`
+          );
+        }
+      } catch {
+        /* no git here: nothing to compare */
+      }
+    },
+  };
+}
+
+/**
+ * Hashed files under `assets/` are cached for a year by browsers and by Cloudflare, and sent
+ * brotli-compressed when the build made a `.br` copy (see `writeBrotliCopies`); everything else (the two
+ * HTML pages, version.json, favicon) keeps `vite preview`'s `no-cache`.
+ *
+ * WHY. The live site is `vite preview` behind a Cloudflare tunnel, so netlify.toml's headers never
+ * apply. Preview's static server (sirv, in dev mode) sends `no-cache` on everything, which Cloudflare
+ * turns into a 4-hour browser TTL plus an origin revalidation on every edge hit: a returning player
+ * on a phone re-downloaded or re-checked ~650 KB of JavaScript that cannot have changed, because
+ * its name is a hash of its content. A new build writes new names and new HTML, and the HTML is
+ * still revalidated on every visit, so a year is safe.
+ *
+ * HOW. A pre-middleware sets the header before sirv runs; sirv copies any header already set on
+ * the response over its own default (vite 8.0.16's bundled sirv, `send`: `tmp = res.getHeader(key);
+ * if (tmp) headers[key] = tmp`), so the value survives to the 200 and the 304. Only for a file that
+ * EXISTS: an unknown name under assets/ gets preview's SPA fallback (index.html, status 200), and
+ * that marked immutable would be kept by the browser and Cloudflare for a year -- asking for a name
+ * a build has not finished writing yet (mid-deploy) is exactly when that would happen.
+ *
+ * Takes effect when `pnpm serve` restarts; it has nothing to do with `vite build`.
+ */
+/**
+ * `Cross-Origin-Opener-Policy: same-origin` on the run watcher (watch.html). The watcher must not
+ * share a renderer process with the run tab it watches, or the crash it is there to catch kills it
+ * too. The planner opens it with `noopener`, which is the main fix (composables/useStepAway.ts); the
+ * header severs the link from the watcher's own side as well, however it was opened. COOP is a
+ * response header only (a <meta> does nothing), so it is set here, in dev and in preview (the live
+ * site). Takes effect when `pnpm serve` restarts.
+ */
+function watcherIsolation(): Plugin {
+  const set = (req: { url?: string }, res: ServerResponse, next: () => void) => {
+    if (/(^|\/)watch\.html$/.test((req.url ?? '').split('?')[0]))
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    next();
+  };
+  return {
+    name: 'aap-watcher-isolation',
+    configureServer(server) {
+      server.middlewares.use(set);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(set);
+    },
+  };
+}
+
+/**
+ * Security headers on everything `vite preview` serves (src/lib/securityHeaders.ts says which and
+ * why): nosniff, a referrer policy and HSTS on every response; X-Frame-Options and the
+ * Content-Security-Policy on the HTML pages, recognised by their content type as the response goes
+ * out (a page, or preview's SPA fallback to index.html). The inline scripts' hashes are read from the
+ * built pages when the server starts. Also /robots.txt, /.well-known/security.txt, /favicon.ico and X-Robots-Tag,
+ * by the request's Host (live or test site). Preview only: the dev server's own inline scripts (HMR)
+ * would need a looser policy. Takes effect when `pnpm serve` restarts.
+ */
+function securityHeaders(env: Record<string, string | undefined>): Plugin {
+  return {
+    name: 'aap-security-headers',
+    async configurePreviewServer(server) {
+      const { config } = server;
+      const outDir = path.resolve(config.root, config.build.outDir);
+      const hashes = new Set<string>();
+      for (const page of ['index.html', 'explorer.html', 'watch.html']) {
+        try {
+          for (const h of await inlineScriptHashes(await readFile(path.join(outDir, page), 'utf8'))) hashes.add(h);
+        } catch {
+          // Not built (yet): its inline scripts, if any, are refused until the next restart.
+        }
+      }
+      const extra = [env.VITE_SUBMIT_URL, env.VITE_EGG_PROXY, env.VITE_EGG_AUTH_PROXY]
+        .map(originOf)
+        .filter((o): o is string => !!o && !o.endsWith('.workers.dev'));
+      const doc = documentHeaders(contentSecurityPolicy([...hashes], extra));
+      // The planner's path, for robots.txt (a relative base is served from `/` by preview).
+      const base = config.base.startsWith('/') ? config.base : '/';
+      // A year from when the server started; a restart (every deploy) moves it on.
+      const security = securityTxt();
+      server.middlewares.use((req, res, next) => {
+        for (const [k, v] of Object.entries(COMMON_HEADERS)) res.setHeader(k, v);
+        const kind = hostKind(req.headers.host);
+        const pathname = (req.url ?? '').split('?')[0];
+        const tag = robotsTag(kind, pathname);
+        if (tag) res.setHeader('X-Robots-Tag', tag);
+        // At the site root, outside the planner's path, so answered here rather than by preview.
+        if ((req.method === 'GET' || req.method === 'HEAD') && (pathname === '/robots.txt' || pathname === '/.well-known/security.txt')) {
+          const text = pathname === '/robots.txt' ? robotsTxt(kind, base) : security;
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          res.end(req.method === 'HEAD' ? undefined : text);
+          return;
+        }
+        const root = req.method === 'GET' || req.method === 'HEAD' ? rootFile(pathname) : null;
+        if (root && isFile(path.join(outDir, root.file))) {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', root.type);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          if (req.method === 'HEAD') {
+            res.end();
+            return;
+          }
+          createReadStream(path.join(outDir, root.file))
+            .on('error', () => res.destroy())
+            .pipe(res);
+          return;
+        }
+        const writeHead = res.writeHead;
+        res.writeHead = function (this: ServerResponse, ...args: unknown[]) {
+          const given = args.find(a => a && typeof a === 'object' && !Array.isArray(a)) as
+            | Record<string, unknown>
+            | undefined;
+          const type = String(
+            res.getHeader('Content-Type') ??
+              (given && Object.entries(given).find(([k]) => k.toLowerCase() === 'content-type')?.[1]) ??
+              ''
+          );
+          if (/text\/html/i.test(type)) for (const [k, v] of Object.entries(doc)) res.setHeader(k, v);
+          return (writeHead as (...a: unknown[]) => ServerResponse).apply(this, args);
+        } as typeof res.writeHead;
+        next();
+      });
+    },
+  };
+}
+
+const IMMUTABLE = 'public, max-age=31536000, immutable';
+
+function immutableAssets(): Plugin {
+  return {
+    name: 'aap-immutable-assets',
+    configurePreviewServer(server) {
+      const { config } = server;
+      // A relative base (`VITE_BASE=./`) is served from `/` by preview.
+      const base = config.base.startsWith('/') ? config.base : '/';
+      const prefix = `${base}${config.build.assetsDir}/`.replace(/\/{2,}/g, '/');
+      const outDir = path.resolve(config.root, config.build.outDir);
+      server.middlewares.use((req, res, next) => {
+        const pathname = (req.url ?? '').split('?')[0];
+        if ((req.method !== 'GET' && req.method !== 'HEAD') || !pathname.startsWith(prefix)) return next();
+        let file = '';
+        try {
+          file = path.join(outDir, decodeURIComponent(pathname.slice(base.length)));
+        } catch {
+          // Malformed escape: let sirv answer it, with its own headers.
+        }
+        if (!file.startsWith(outDir + path.sep) || !isFile(file)) return next();
+        res.setHeader('Cache-Control', IMMUTABLE);
+
+        // The build's brotli copy, when there is one and this client takes it. Sent here in full
+        // rather than through sirv, which preview runs without its brotli option. Anything unusual
+        // (a Range request, no .br, a client without br) falls through to the normal gzip path.
+        const brFile = `${file}.br`;
+        const type = BROTLI_TYPES[path.extname(file)];
+        if (!type || !freshBrotli(file, brFile)) return next();
+        appendVary(res, 'Accept-Encoding');
+        if (req.headers.range || !acceptsBrotli(req.headers['accept-encoding'])) return next();
+        let stat: Stats;
+        try {
+          stat = statSync(brFile);
+        } catch {
+          return next();
+        }
+        const size = stat.size;
+        const etag = `W/"br-${stat.size}-${stat.mtime.getTime()}"`;
+        res.setHeader('Content-Type', type);
+        res.setHeader('Content-Encoding', 'br');
+        res.setHeader('ETag', etag);
+        if (req.headers['if-none-match'] === etag) {
+          res.statusCode = 304;
+          res.end();
+          return;
+        }
+        res.setHeader('Content-Length', size);
+        res.statusCode = 200;
+        if (req.method === 'HEAD') {
+          res.end();
+          return;
+        }
+        createReadStream(brFile)
+          .on('error', () => res.destroy())
+          .pipe(res);
+      });
+    },
+  };
+}
+
+function isFile(file: string): boolean {
+  try {
+    return statSync(file).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/** True unless the client leaves `br` out or refuses it with `q=0`. */
+function acceptsBrotli(header: string | string[] | undefined): boolean {
+  const value = Array.isArray(header) ? header.join(',') : (header ?? '');
+  return value.split(',').some(part => {
+    const [token, ...params] = part.split(';').map(x => x.trim());
+    if (token.toLowerCase() !== 'br') return false;
+    const q = params.find(x => /^q=/i.test(x));
+    return !q || Number(q.slice(2)) > 0;
+  });
+}
+
+/** Adds to `Vary` without dropping what an earlier middleware (CORS: `Origin`) put there. */
+function appendVary(res: ServerResponse, field: string): void {
+  const prev = res.getHeader('Vary');
+  const list = (Array.isArray(prev) ? prev.join(',') : String(prev ?? ''))
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean);
+  if (!list.some(x => x === '*' || x.toLowerCase() === field.toLowerCase())) list.push(field);
+  res.setHeader('Vary', list.join(', '));
+}
+
+/**
+ * Brotli copies of the text assets, written next to them at the end of `vite build`.
+ *
+ * WHY. Preview compresses on the fly with gzip at the default level, for every request. Brotli at
+ * its highest quality is about a quarter smaller on this bundle (the planner's first load ~660 KB
+ * gzip -> ~480 KB br; the Explorer's ~380 -> ~295), which on a slow phone connection is roughly a
+ * second, and it is paid once per build instead of once per request. Cloudflare asks the origin for
+ * `accept-encoding: br, gzip` and passes an origin brotli response through to browsers that accept
+ * it (developers.cloudflare.com/speed/optimization/content/compression/), so players get these
+ * bytes, not a recompression.
+ *
+ * Never fails the build: a file that will not compress simply has no copy, and preview then serves
+ * it as before. Build-only (`apply`), so a dev server shutting down never writes into dist.
+ */
+
+/**
+ * KEEP THE PREVIOUS BUILDS' CHUNKS (the user, 7 Oct). A build empties dist/, so a tab opened before a
+ * deploy asked for a lazy chunk that no longer existed the next time it switched screens, and got the
+ * "New version available, please refresh" dialog (lib/import.ts) after even a small update. The old
+ * hashed files are copied aside before the build and the ones the new build did not write are put
+ * back, so an open tab keeps working until it reloads on its own. Hashed names never collide (only
+ * what the bundle itself did not emit is put back), and
+ * anything older than KEEP_DAYS is dropped so dist/ does not grow forever.
+ */
+function keepOldAssets(): Plugin {
+  let assetsPath = '';
+  let assetsDir = '';
+  let stash = '';
+  /** File name under assets/ -> digest, for every file this build emitted (writeBundle). */
+  const emitted = new Map<string, string>();
+  return {
+    name: 'aap-keep-old-assets',
+    apply: 'build',
+    configResolved(config) {
+      assetsPath = path.resolve(config.root, config.build.outDir, config.build.assetsDir);
+      assetsDir = config.build.assetsDir;
+      stash = path.resolve(config.root, 'node_modules/.aap-old-assets');
+    },
+    async buildStart() {
+      await rm(stash, { recursive: true, force: true });
+      try {
+        await mkdir(path.dirname(stash), { recursive: true });
+        await cp(assetsPath, stash, { recursive: true, preserveTimestamps: true });
+      } catch {
+        // First build, or no assets yet: nothing to keep.
+      }
+    },
+    // What this build wrote, and a digest of each, as the bundler handed it over.
+    writeBundle(_options, bundle) {
+      for (const [name, out] of Object.entries(bundle)) {
+        if (!name.startsWith(`${assetsDir}/`)) continue;
+        const body = out.type === 'chunk' ? out.code : out.source;
+        emitted.set(path.basename(name), digest(Buffer.from(body)));
+      }
+    },
+    // One after another (closeBundle hooks may run in parallel): put the old files back, write the
+    // brotli copies, then check what is on disk before anyone is served it.
+    async closeBundle() {
+      await restoreKept(stash, assetsPath, emitted);
+      await writeBrotliCopies(assetsPath);
+      const problems = await verifyAssets(assetsPath, emitted);
+      if (problems.length)
+        throw new Error(
+          `[aap-keep-old-assets] the built files are not what the build emitted; do not deploy this:\n  ${problems.slice(0, 20).join('\n  ')}`
+        );
+    },
+  };
+}
+
+/**
+ * The Chain Explorer's run list, requested while the page's JavaScript is still downloading.
+ *
+ * The Explorer can draw nothing until the collector's `GET /all` answers, and it used to ask only
+ * once the whole bundle had arrived and mounted: on a slow phone connection that is a fresh TLS
+ * handshake to another host plus the request itself, all after five seconds of script. This writes
+ * two tags at the top of explorer.html, only when the build has a collector (VITE_SUBMIT_URL, read
+ * from the same env as `import.meta.env`, so the URL is the one the bundle would fetch anyway):
+ *
+ *   - `<link rel="preconnect" crossorigin>` to its origin. `crossorigin` because the request is a
+ *     CORS fetch without credentials, which cannot reuse a connection opened for a credentialed one;
+ *   - a few lines that start the fetch and leave the pending response on `window.__aapEarlyAll`.
+ *     explorer/collector.ts `prefetchAll` adopts it and `fetchAll` uses it once, for that same base.
+ *
+ * `?collector=` on the URL means someone asked for a different collector, so the script skips it,
+ * exactly as `resolveCollectorBase` does. If anything here disagrees with the module (a base string
+ * that does not match), the module simply fetches for itself: the worst case is one wasted request.
+ */
+function collectorEarlyStart(submitUrl: string | undefined): Plugin {
+  // Same transformation as collector.ts `stripSubmit`, untrimmed like it, so the strings match.
+  const base = submitUrl?.replace(/\/submit\/?$/, '').replace(/\/$/, '');
+  const usable = base && /^https?:\/\/[^/]/i.test(base) ? base : null;
+  return {
+    name: 'aap-collector-early-start',
+    transformIndexHtml(html, ctx) {
+      if (!usable || path.basename(ctx.filename) !== 'explorer.html') return;
+      const literal = JSON.stringify(usable).replace(/</g, '\\u003c');
+      const tags =
+        `<link rel="preconnect" href="${new URL(usable).origin}" crossorigin>\n    ` +
+        `<script>(function(){try{if(new URLSearchParams(location.search).get('collector'))return;` +
+        `var b=${literal},r=fetch(b+'/all');r.catch(function(){});` +
+        `window.__aapEarlyAll={base:b,response:r,at:Date.now()}}catch(e){}})();</script>`;
+      // Straight after the charset and viewport, which should stay the first things in <head>.
+      const viewport = /<meta\s+name="viewport"[^>]*>/i;
+      return viewport.test(html)
+        ? html.replace(viewport, m => `${m}\n    ${tags}`)
+        : html.replace('<head>', `<head>\n    ${tags}`);
+    },
+  };
+}
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  base: '/ascension-planner/',
-  resolve: {
-    tsconfigPaths: true,
-  },
-  plugins: [vue(), vueJsx()],
-  build: {
-    chunkSizeWarningLimit: 2000,
-  },
+export default defineConfig(({ mode }) => {
+  // vite.config.ts is evaluated before vite loads .env files, so `process.env` here holds only
+  // what the shell exported -- a VITE_PREVIEW_HOSTS written into .env.local would be invisible.
+  // loadEnv reads those files explicitly, so one .env.local configures both the build (VITE_*
+  // inlined into the bundle) and `vite preview` (the hostnames below). A real shell variable
+  // still wins, so a one-off `VITE_PREVIEW_HOSTS=... pnpm serve` keeps working.
+  const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
 
-  server: {
-    host: true,
-    forwardConsole: {
-      unhandledErrors: true,
-      logLevels: ['warn', 'error'],
+  return {
+    // Where the built pages will be SERVED from, which is not always where they are built.
+    //
+    // Netlify serves this at /ascension-planner/, which is why that is the default and why it is
+    // hardcoded historically. A GitHub Pages copy lives at /<repo>/ instead, and a page built with
+    // the wrong base loads no JS at all -- every asset 404s and the tab shows the "Loading..."
+    // fallback forever, which looks like a broken build rather than a path mistake. So it is an
+    // env var: `VITE_BASE=/AutoAutoAP/ pnpm build` for a Pages deploy, `VITE_BASE=./` for a folder
+    // opened over plain HTTP at an unknown path.
+    base: env.VITE_BASE || '/ascension-planner/',
+    resolve: {
+      tsconfigPaths: true,
+      // `lib` and `ui` are workspace packages that declare their own vue/pinia. pnpm keys a
+      // package directory by its resolved peers, so a single differing peer -- typescript 6.0.2
+      // for this workspace, 6.0.3 for lib -- produces two physically distinct vue and pinia
+      // directories. Vite's dev-time dep optimizer collapses them by bare specifier, so dev is
+      // fine; the production build follows the real paths and ships two Vue runtimes and two
+      // Pinia registries. Components from `ui` then run on the other runtime: `app.use(pinia)`
+      // registers on one instance while `useEidsStore()` reads `activePinia` from the other, the
+      // store call throws, and Vue drops that subtree silently -- the Player ID form simply is
+      // not in the DOM, with no visible error. Force one copy of each.
+      dedupe: ['vue', 'pinia'],
+      // protobufjs's `inquire` looks for Node's require with an eval, which always fails in a
+      // browser and, under the Content-Security-Policy (securityHeaders), is reported as a violation
+      // on every load. The stub gives the same answer (nothing) without the eval. Not under vitest,
+      // which runs in Node.
+      alias: process.env.VITEST
+        ? []
+        : [{ find: /^@protobufjs\/inquire$/, replacement: fileURLToPath(new URL('./src/lib/inquireStub.cjs', import.meta.url)) }],
     },
-  },
+    plugins: [
+      vue(),
+      vueJsx(),
+      versionFile(),
+      noChunkCycles(),
+      warnIfReleaseStale(),
+      // Also writes the brotli copies and checks the files (one closeBundle, in order).
+      keepOldAssets(),
+      // Before immutableAssets, which answers brotli requests itself.
+      securityHeaders(env),
+      immutableAssets(),
+      watcherIsolation(),
+      collectorEarlyStart(env.VITE_SUBMIT_URL),
+    ],
+    define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
+    build: {
+      chunkSizeWarningLimit: 2000,
+      // TWO PAGES, ONE BUILD. `explorer.html` is the Chain Explorer: a static reader of the
+      // collector's public endpoints that needs no save, no player id and no Pinia, so it is a
+      // separate document rather than a route inside the planner. Listing it here is what makes
+      // `dist/explorer.html` exist; vite's default single-entry build would simply ignore the file
+      // and the page would 404 in production while working perfectly in dev.
+      rollupOptions: {
+        input: {
+          index: fileURLToPath(new URL('./index.html', import.meta.url)),
+          explorer: fileURLToPath(new URL('./explorer.html', import.meta.url)),
+          // The run watcher ("Stepping away?"): a few KB, no Vue, never the simulator (src/watch/main.ts).
+          watch: fileURLToPath(new URL('./watch.html', import.meta.url)),
+        },
+      },
+    },
+
+    // `vite preview` refuses any request whose Host header it does not recognise -- DNS-rebinding
+    // protection -- and localhost is the only name it knows by default. Put a reverse proxy or a
+    // Cloudflare tunnel in front of it and every request comes back "Blocked request. This host is
+    // not allowed", which looks like a broken app and is really a one-line config gap.
+    //
+    // Supplied out of band so no one's private hostname ends up in the repo -- either in the
+    // gitignored .env.local next to this file, or for a one-off:
+    //   VITE_PREVIEW_HOSTS=egg.example.org pnpm serve
+    // Comma-separate for several. Unset keeps the safe localhost-only default.
+    preview: {
+      host: true,
+      allowedHosts:
+        env.VITE_PREVIEW_HOSTS?.split(',')
+          .map(h => h.trim())
+          .filter(Boolean) ?? [],
+    },
+
+    server: {
+      host: true,
+      forwardConsole: {
+        unhandledErrors: true,
+        logLevels: ['warn', 'error'],
+      },
+    },
+  };
 });

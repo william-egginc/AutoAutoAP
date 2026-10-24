@@ -1,0 +1,86 @@
+/**
+ * The "Run this sweep" hand-off from the Chain Explorer to the planner's Insane mode.
+ *
+ * One module for both ends, so the link the Explorer writes and the link Insane mode reads cannot
+ * drift apart:
+ *
+ *   ./?insane=1&sweep=M2&label=M2,+3+ascensions&bands=181-280:2;+270-372:2&gap=10[&fc=1|0][&first=fresh|buildup]
+ *
+ * The first ascension (search/firstAscension.ts): `fc=1` is Continue Asc. and `fc=0` Fastest, as
+ * links have said since before the setting had three values; `first=` names any of the three, and
+ * is how Prestige Now is written. Neither leaves the player's own setting alone.
+ *
+ * NO PLAYER ID IN IT, deliberately. The Explorer never sees one; the player enters it in the planner,
+ * which already knows how to remember it. A link someone shares therefore hands over a sweep, never
+ * an account.
+ */
+import { parseBands } from './exhaustive';
+import { isFirstAscension, readFirstAscensionOrNull, type FirstAscension } from './firstAscension';
+
+export interface SweepRequest {
+  preset: string;
+  label: string;
+  bands: string;
+  minGap: number;
+  /** What the first ascension does (search/firstAscension.ts), or null to leave the player's own. */
+  firstAscension: FirstAscension | null;
+}
+
+/** The sweep link's own parameters, which `parseSweepRequest` reads. */
+const SWEEP_PARAMS = ['sweep', 'label', 'bands', 'gap', 'fc', 'first'];
+
+/**
+ * `href` without the sweep link's parameters (everything else kept). Used once the sweep has
+ * started: the panel reads them every time it opens, which since the planner's tabs is every
+ * return to the Full sweep, so a link run hours ago kept re-filling its box and re-tagging runs.
+ */
+export function withoutSweepParams(href: string): string {
+  const url = new URL(href);
+  for (const k of SWEEP_PARAMS) url.searchParams.delete(k);
+  return url.toString();
+}
+
+/** The query string (with a leading `?`) that opens the Full sweep on this sweep. */
+export function sweepRequestQuery(
+  r: Omit<SweepRequest, 'firstAscension'> & {
+    firstAscension?: FirstAscension | null;
+    /** @deprecated The old boolean: true is 'continue', false is 'auto'. */
+    forceContinue?: boolean | null;
+  }
+): string {
+  const q = new URLSearchParams({
+    insane: '1',
+    sweep: r.preset,
+    label: r.label,
+    bands: r.bands,
+    gap: String(r.minGap),
+  });
+  const first = readFirstAscensionOrNull({ firstAscension: r.firstAscension, forceContinue: r.forceContinue });
+  if (first === 'continue') q.set('fc', '1');
+  else if (first === 'auto') q.set('fc', '0');
+  else if (first === 'fresh' || first === 'buildup') q.set('first', first);
+  return `?${q.toString()}`;
+}
+
+/**
+ * Read a sweep request back out of a query string, or null when there is none or it is malformed.
+ * Everything here ends up on screen and in a submission, so each field is bounded: the preset is a
+ * short plain id (it becomes the sweep tag), the label and bands are length-capped, and the bands
+ * must parse.
+ */
+export function parseSweepRequest(search: string): SweepRequest | null {
+  const params = new URLSearchParams(search);
+  const preset = params.get('sweep') ?? '';
+  const bands = (params.get('bands') ?? '').slice(0, 400);
+  if (!/^[A-Za-z0-9-]{1,16}$/.test(preset) || !parseBands(bands).length) return null;
+  const gap = Number(params.get('gap') ?? 10);
+  const fc = params.get('fc');
+  const first = params.get('first');
+  return {
+    preset,
+    label: (params.get('label') ?? preset).slice(0, 80),
+    bands,
+    minGap: Number.isFinite(gap) ? Math.max(0, Math.floor(gap)) : 10,
+    firstAscension: isFirstAscension(first) ? first : fc === '1' ? 'continue' : fc === '0' ? 'auto' : null,
+  };
+}

@@ -12,7 +12,7 @@
       >
       <span class="flex items-center gap-1"><span class="text-amber-500">◆</span> Tier 13 unlocked</span>
       <span class="flex items-center gap-1"
-        ><span class="text-slate-400">▲ / ▼</span> Research sale or 2× earnings start / end</span
+        ><span class="text-slate-400">▲ / ▼</span> Research Sale or 2× earnings start / end</span
       >
     </div>
   </template>

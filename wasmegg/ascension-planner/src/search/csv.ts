@@ -1,0 +1,936 @@
+/**
+ * The run's whole chain -> duration cache, as a CSV — one row per LEG, not per chain.
+ *
+ * The panel's "show what it tried" log answers "what is the search doing"; this answers the
+ * different question of "what did each candidate actually look like": which sale strategy each leg
+ * used, when each leg started and ended in local time, what the peak delivery rate was, and which
+ * milestones land in the middle of the night. Per-leg is the only granularity at which those
+ * questions have answers, so a 4000-chain run becomes roughly 24000 rows — which is fine for a
+ * spreadsheet and is the point.
+ *
+ * TWO HONEST GAPS, both visible in the output rather than hidden:
+ *
+ *   1. Per-leg detail exists only for chains still in memory. A checkpoint deliberately keeps
+ *      `legs` for the BEST chain alone (see persistence.ts — keeping them all would multiply the
+ *      record's size by about six for data nothing reads), so after a refresh-and-resume the
+ *      replayed chains come back with their duration and nothing else. Those rows are emitted with
+ *      the total filled in and the per-leg cells blank, because dropping them would silently
+ *      under-report what the run priced.
+ *
+ *   2. Artifacts and stones are a property of the RUN, not of a candidate — the search never varies
+ *      them, and the simulator re-optimises the equipped set inside each leg via `getOptimalELRSet`
+ *      rather than being told what to wear. So they are recorded once in the header block, from the
+ *      backup the run was launched against, and the header says which sets those are.
+ */
+import { SIM_VERSION } from './simVersion';
+import { describeTimeOff, type TimeOffDates } from './timeOff';
+import { getArtifact, getStone } from '@/lib/artifacts/data';
+// The workspace tier table, the same source src/lib/artifacts/data.ts parses its own
+// options from. Needed raw here because an inventory item carries (afx name, level),
+// not a planner artifact id.
+import { allPossibleTiers } from 'lib/artifacts/data';
+import type { EquippedArtifact } from '@/lib/artifacts/types';
+import type { CacheEntry } from './driver';
+import { describeAvailability, type Availability } from './availability';
+import type { LegSummary } from './types';
+import { firstLegKindOf, forceContinueOf, type FirstAscension, type FirstLegKind } from './firstAscension';
+// Runtime import in this direction only: submission.ts takes `InventoryCount` from here as a
+// type-only import, which is erased, so there is no cycle at runtime.
+import { bestPerFamily, keepVirtueArtifacts, keepVirtueStones } from './submission';
+import { searchedCsvLines } from './searched';
+
+export interface CsvMeta {
+  planStart: number;
+  /** IANA zone every local timestamp in the file is rendered in — the plan's own, not the
+   *  browser's, so the file reads the same as the planner does. */
+  timezone: string;
+  currentTE: number;
+  final: number;
+  /** Fastest's effort setting. A By a date CSV writes `deadline` here whatever it is given: Fastest's
+   *  setting played no part in the run (it printed "effort quick" on 10 Oct). */
+  effort: string;
+  /** By a date's own mode (`simple` or `advanced`), written after the first-ascension setting. */
+  mode?: string;
+  /** A1's setting (search/firstAscension.ts). */
+  firstAscension: FirstAscension;
+  availability?: Availability | null;
+  /** Time off from the virtue farm the plan was built around (search/timeOff.ts). */
+  timeOff?: TimeOffDates[];
+  seedChain: number[];
+  /** Ascension counts (chain lengths) a Smart search searched from, the seed's first (driver
+   *  `countsProbed`). Fast checks the other counts in its limits (driver.ts stage 4c), so the file says
+   *  which. Written after the seed chain; left out when unknown. */
+  countsProbed?: number[];
+  /** The player's note on the run. Printed on one line whatever it holds (line breaks would end the
+   *  comment and start a data row). */
+  runNote?: string;
+  /** What the run looked at (search/searched.ts `searchedText`): written as `# searched: ...` and
+   *  `# ascensions: N-M; min gap: G` under the count line. Left out when unknown. */
+  searched?: string;
+  /** The run's worker count over its life (search/runTimeline.ts `workersSummary`): By a date only,
+   *  so a run's speed can be read in the worker-hours it really had. */
+  workers?: string;
+  /** Named artifact/stone sets, in the order they should appear. */
+  loadouts: { label: string; loadout: EquippedArtifact[] | null }[];
+  /** Everything in the VIRTUE inventory, already summarised. This is the honest answer to "what
+   *  artifacts and stones were used": the sim re-optimises the equipped set inside every leg, so
+   *  what matters is what it had to choose FROM. */
+  inventory?: string;
+  /** @deprecated Ignored. Diagnostics used to ride in the CSV header, which made them public (an
+   *  uploaded CSV can be downloaded from the board). They now go as a private field of the
+   *  submission body (search/sendRun.ts `withPrivateDiagnostics`). Kept only so old callers compile. */
+  diagnostics?: string;
+  /** Defaults to now. Injectable so the tests are not clock-dependent. */
+  generatedAt?: number;
+  /**
+   * A CSV SO FAR, sent with a progress send while the run is still going (stores/chainSearch.ts
+   * `sendBestSoFar`): how far it had got. Written into the header as `in progress, N of M ...`, the
+   * line the Chain Explorer reads to know the file is partial (explorer/collector.ts `parseRunCsv`).
+   */
+  partial?: { done: number; total: number | null; unit: string };
+}
+
+/** The header line that marks a CSV so far (see `CsvMeta.partial`), without its leading `# `. */
+export function partialLine(p: { done: number; total: number | null; unit: string }): string {
+  const done = Math.max(0, Math.floor(p.done));
+  const of = p.total && Number.isFinite(p.total) ? String(Math.max(done, Math.ceil(p.total))) : '?';
+  return `in progress, ${done} of ${of} ${p.unit} priced so far: a partial CSV sent while the run was still going; its final CSV replaces it`;
+}
+
+/** One formatter per zone: building one is far dearer than using it, and a By a date CSV formats a
+ *  few hundred thousand instants. Throws for an unknown zone, as building one always did. */
+const zoneFormats = new Map<string, Intl.DateTimeFormat>();
+function zoneFormat(timezone: string): Intl.DateTimeFormat {
+  let f = zoneFormats.get(timezone);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    zoneFormats.set(timezone, f);
+  }
+  return f;
+}
+
+/** `2028-09-16 00:22` in `timezone`. Blank for a missing instant, never `1970-01-01`, and blank
+ *  for one past what a `Date` can hold: `formatToParts` throws on an invalid date, and one row
+ *  like that used to take the whole download down with it, silently, from a click handler. */
+export function formatInZone(unixSeconds: number | undefined, timezone: string): string {
+  if (!unixSeconds || !Number.isFinite(unixSeconds) || Math.abs(unixSeconds) >= 8.64e12) return '';
+  const parts = zoneFormat(timezone).formatToParts(new Date(unixSeconds * 1000));
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
+  // `hour12: false` still yields "24" for midnight in some engines; the planner shows 00.
+  const hour = get('hour') === '24' ? '00' : get('hour');
+  return `${get('year')}-${get('month')}-${get('day')} ${hour}:${get('minute')}`;
+}
+
+/** `T4L Interstellar compass + 3x T4 Tachyon stone`, plain text — `summarizeLoadout` in
+ *  lib/artifacts/utils.ts produces `<img>` tags, which is right for the action history and useless
+ *  in a spreadsheet cell. `label` already carries the tier and rarity ("T4L Puzzle cube"), so it is
+ *  used verbatim rather than re-assembled. */
+export function describeLoadout(loadout: EquippedArtifact[] | null | undefined): string {
+  if (!loadout?.length) return 'none';
+  const items: string[] = [];
+  const stones = new Map<string, number>();
+  for (const slot of loadout) {
+    const a = getArtifact(slot.artifactId);
+    if (a) items.push(a.label);
+    for (const id of slot.stones) {
+      if (!id) continue;
+      const s = getStone(id);
+      if (s) stones.set(s.label, (stones.get(s.label) ?? 0) + 1);
+    }
+  }
+  for (const [label, n] of stones) items.push(`${n}x ${label}`);
+  return items.length ? items.join(' + ') : 'none';
+}
+
+/** One slot of a solved loadout, as words. */
+export interface LoadoutSlot {
+  /** `T4L Interstellar compass`. Carries tier and rarity already. */
+  artifact: string;
+  /** The stones socketed into it, in slot order, repeats included. */
+  stones: string[];
+}
+
+/**
+ * A solved loadout broken out per slot, rather than flattened into one line.
+ *
+ * `describeLoadout` joins everything with `+` for a spreadsheet cell, which loses which stones
+ * are in which artifact -- and that is the whole story of a virtue delivery set. The fourth slot
+ * is chosen as a STONE HOLDER, so a T3 legendary ankh beats a T4 epic chalice: more sockets
+ * matters more than the better base effect. Flattened, that set looks like a mistake.
+ */
+export function describeLoadoutSlots(loadout: EquippedArtifact[] | null | undefined): LoadoutSlot[] {
+  if (!loadout?.length) return [];
+  const slots: LoadoutSlot[] = [];
+  for (const slot of loadout) {
+    const a = getArtifact(slot.artifactId);
+    if (!a) continue;
+    const stones: string[] = [];
+    for (const id of slot.stones) {
+      if (!id) continue;
+      const st = getStone(id);
+      if (st) stones.push(st.label);
+    }
+    slots.push({ artifact: a.label, stones });
+  }
+  return slots;
+}
+
+/**
+ * Everything in the VIRTUE artifact inventory, counted by tier and rarity.
+ *
+ * This is the line that actually answers "what artifacts and stones were used". The equipped
+ * loadout is usually empty — `getArtifactLoadoutFromBackup` reads `virtueAfxDb.activeArtifacts`,
+ * which has nothing in it unless you are mid-virtue-ascension — and reporting only that produced a
+ * header saying `equipped in the backup: none`, which is true and useless. The simulator picks a
+ * set per leg out of this inventory, so the inventory is the input that matters.
+ *
+ * Reads the raw backup rather than a parsed structure because that is where the list lives; the
+ * planner has no "what do I own" model of its own.
+ */
+export interface InventoryCount {
+  label: string;
+  count: number;
+  /** Artifact family, e.g. `puzzle-cube`. Carried so consumers can filter by family without
+   *  parsing the human label back apart — `submission.ts` keeps only the families a virtue
+   *  ascension can actually equip. Absent only for an item whose family could not be resolved. */
+  familyId?: string;
+  /** Tier (1-4) and rarity (0 common .. 3 legendary), carried for the same reason as `familyId`:
+   *  so "the best one they own" can be decided on the real numbers rather than by parsing "T4L"
+   *  back out of the label. Absent when the source data did not resolve. */
+  tier?: number;
+  rarity?: number;
+}
+
+/** The virtue inventory split into artifacts and stones, counted, sorted by label. The UI renders
+ *  this as two lists; `describeVirtueInventory` flattens the same data into one CSV cell. */
+interface Meta {
+  count: number;
+  familyId?: string;
+  tier?: number;
+  rarity?: number;
+}
+
+export function virtueInventory(rawBackup: unknown): { artifacts: InventoryCount[]; stones: InventoryCount[] } {
+  const db = (rawBackup as { artifactsDb?: { virtueAfxDb?: { inventoryItems?: unknown[] } } })?.artifactsDb
+    ?.virtueAfxDb;
+  const items = db?.inventoryItems;
+  const artifacts = new Map<string, Meta>();
+  const stones = new Map<string, Meta>();
+  if (!Array.isArray(items) || !items.length) return { artifacts: [], stones: [] };
+  const bump = (m: Map<string, Meta>, label: string, n: number, familyId?: string, tier?: number, rarity?: number) => {
+    const cur = m.get(label);
+    if (cur) cur.count += n;
+    else m.set(label, { count: n, familyId, tier, rarity });
+  };
+  /** Resolve one spec to its game-data tier, or null when the data does not know it. */
+  const resolve = (spec: { name?: number; level?: number } | undefined) =>
+    spec
+      ? (allPossibleTiers.find(
+          (t: { afx_id: number; afx_level: number; family: { id: string }; tier_number: number }) =>
+            t.afx_id === spec.name && t.afx_level === spec.level
+        ) ?? null)
+      : null;
+
+  for (const raw of items) {
+    const item = raw as {
+      quantity?: number;
+      artifact?: {
+        spec?: { name?: number; level?: number; rarity?: number };
+        /** Stones already socketed INTO this artifact. They are not separate inventory entries,
+         *  so a pass that only reads `artifact.spec` cannot see them -- which is exactly how the
+         *  inventory line came to report no T4 Tachyon or T4 Lunar stones at all on an account
+         *  whose own loadouts used five and eight of them. `lib/artifacts/virtue.ts` has always
+         *  flattened these back out; this did not. */
+        stones?: { name?: number; level?: number }[];
+      };
+    };
+    const spec = item?.artifact?.spec;
+    if (!spec) continue;
+
+    // A socketed stone is still a stone the player owns. Counted once per artifact held, since
+    // `quantity` covers identical artifacts and each carries its own copy of the socket.
+    const held = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
+    for (const socket of item.artifact?.stones ?? []) {
+      const st = resolve(socket);
+      if (!st) continue;
+      const stone = getStone(`${st.family.id}-${st.tier_number}`);
+      if (stone) bump(stones, stone.label, held, stone.familyId, st.tier_number, 0);
+    }
+    const tier = allPossibleTiers.find(
+      (t: { afx_id: number; afx_level: number; family: { id: string }; tier_number: number }) =>
+        t.afx_id === spec.name && t.afx_level === spec.level
+    );
+    if (!tier) continue;
+    // `quantity` is how many of that exact item the player holds; absent means one.
+    const n = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
+    const stone = getStone(`${tier.family.id}-${tier.tier_number}`);
+    if (stone) {
+      bump(stones, stone.label, n, stone.familyId, tier.tier_number, 0);
+      continue;
+    }
+    const art = getArtifact(`${tier.family.id}-${tier.tier_number}-${spec.rarity ?? 0}`);
+    if (art) bump(artifacts, art.label, n, art.familyId, tier.tier_number, spec.rarity ?? 0);
+  }
+
+  const list = (m: Map<string, Meta>): InventoryCount[] =>
+    [...m.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([label, v]) => ({
+        label,
+        count: v.count,
+        ...(v.familyId ? { familyId: v.familyId } : {}),
+        ...(v.tier !== undefined ? { tier: v.tier } : {}),
+        ...(v.rarity !== undefined ? { rarity: v.rarity } : {}),
+      }));
+  return { artifacts: list(artifacts), stones: list(stones) };
+}
+
+/**
+ * The inventory line in the CSV header, narrowed to what the simulator could actually wear.
+ *
+ * FILTERED, which it was not before. `virtueInventory` returns the whole virtue-slot inventory,
+ * and that includes families a virtue ascension cannot equip at all -- Aurelian brooches, Books
+ * of Basan, Vials of Martian dust. On a real account that was ninety-odd entries and 2,800
+ * characters of header describing a hoard, when eight lines describe the loadout. It also meant
+ * the CSV carried a sharper inventory fingerprint than the JSON submission did, while the consent
+ * text the player agreed to was written about the JSON.
+ *
+ * Same shape as the submission, deliberately: best piece per family by name for artifacts, counts
+ * kept for stones. See `bestPerFamily` in submission.ts for why those differ.
+ */
+export function describeVirtueInventory(rawBackup: unknown): string {
+  const { artifacts, stones } = virtueInventory(rawBackup);
+  const parts: string[] = [];
+  const best = bestPerFamily(keepVirtueArtifacts(artifacts));
+  if (best.length) parts.push(best.map(x => x.label).join(' · '));
+  const keptStones = keepVirtueStones(stones);
+  if (keptStones.length) parts.push(`stones: ${keptStones.map(x => `${x.count}x ${x.label}`).join(' · ')}`);
+  return parts.length ? parts.join('; ') : 'empty';
+}
+
+/** Quote only when a cell needs it, so the common case stays readable in a text editor. */
+function cell(value: string | number | undefined): string {
+  if (value === undefined || value === null) return '';
+  const s = String(value);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+const COLUMNS = [
+  'rank',
+  'chain',
+  'prestiges',
+  'total_days',
+  'gap_days',
+  'leg',
+  'target_te',
+  'strategy',
+  'sales',
+  'tier13',
+  'leg_start_local',
+  'build_phase_end_local',
+  'leg_end_local',
+  'leg_days',
+  'peak_delivery_q_per_hr',
+  'night_shifts',
+  'prestige_delay_hours',
+  'shift_hold_hours',
+  'starts_on_egg',
+  'shift_times_local',
+  // Last, so the readers that go by position (the Explorer's) are unaffected. `stopped` is a leg
+  // cut short when time off began; `restarted` is the rebuild after it. Blank otherwise.
+  'time_off',
+  // Leg 1 only (9 Oct 2026), after everything else for the same reason: `continue` or `fresh`, and
+  // when both were simulated, when the option NOT taken would have ended leg 1 and how many hours
+  // later than the one taken (`firstLegCells`).
+  'first_leg',
+  'first_leg_other_end_local',
+  'first_leg_other_later_hours',
+] as const;
+
+/** Leg 1's choice as words: `continue`, `buildup` or `fresh`. */
+export function firstLegChoice(leg: LegSummary): FirstLegKind {
+  return firstLegKindOf(leg.key);
+}
+
+/** Hours the leg-1 option not taken would have ended after the one taken (negative: before). */
+export function firstLegOtherLaterHours(leg: LegSummary): number | null {
+  const r = leg.firstLegRival;
+  if (!r || !Number.isFinite(r.endTime) || !Number.isFinite(leg.endTime)) return null;
+  return (r.endTime - leg.endTime) / 3600;
+}
+
+/** The three leg-1 cells: blank on every other leg, and the last two blank when only one kind was
+ *  simulated. */
+function firstLegCells(leg: LegSummary | null, legIndex: number | '', tz: string): (string | undefined)[] {
+  if (!leg || legIndex !== 0) return [undefined, undefined, undefined];
+  const later = firstLegOtherLaterHours(leg);
+  return [
+    firstLegChoice(leg),
+    leg.firstLegRival ? formatInZone(leg.firstLegRival.endTime, tz) || 'never' : undefined,
+    later === null ? undefined : later.toFixed(2),
+  ];
+}
+
+/** The header line for the best route's leg 1: which way it went and what the other way gave. Null
+ *  without the leg (a checkpoint replay keeps no legs for anything but the best). */
+export function firstLegLine(leg: LegSummary | null | undefined, tz: string, mode: FirstAscension): string | null {
+  if (!leg) return null;
+  const kind = firstLegKindOf(leg.key);
+  const continued = kind !== 'fresh';
+  const what =
+    kind === 'continue'
+      ? 'continue (finishes the ascension in progress; buys nothing more)'
+      : kind === 'buildup'
+        ? `build-up (carries on the build in progress · ${leg.buildPhaseSaleCount ?? '?'}-sale)`
+        : `fresh (${leg.key} build · prestige now)`;
+  const r = leg.firstLegRival;
+  const later = firstLegOtherLaterHours(leg);
+  let other: string;
+  if (leg.replayed) {
+    other = 'the other way unknown (this route was replayed from a saved checkpoint: it keeps no leg detail)';
+  } else if (r && later !== null) {
+    const otherWhat =
+      r.key === 'continue'
+        ? 'continuing without buying'
+        : r.key === 'buildup'
+          ? 'continuing the build-up'
+          : `the best fresh build (${r.key})`;
+    const at = formatInZone(r.endTime, tz);
+    other = at
+      ? `${otherWhat} would have ended leg 1 ${at} (${Math.abs(later).toFixed(1)} h ${later >= 0 ? 'later' : 'earlier'})`
+      : `${otherWhat} would never have ended leg 1`;
+  } else if (continued) {
+    other =
+      mode === 'continue'
+        ? 'no fresh build simulated (Continue Asc. takes it outright inside a week)'
+        : 'no fresh build to compare';
+  } else {
+    other =
+      mode === 'fresh'
+        ? 'continue not simulated (Prestige Now)'
+        : 'continue not simulated (no farm in the save · a plan start over an hour ahead · or time off at the start)';
+  }
+  return `first leg (best route): ${what}; ${other}`;
+}
+
+function legCells(
+  rank: number,
+  chain: string,
+  prestiges: number,
+  totalDays: number,
+  gapDays: number,
+  legIndex: number | '',
+  leg: LegSummary | null,
+  tz: string
+): (string | number | undefined)[] {
+  // `sales` is the same number `strategy` already encodes as `2-sale-tier13`, broken out so a
+  // spreadsheet can group on it. `continue` has no build phase and so no sale count.
+  const salesFromKey = leg ? /^(\d+)-sale/.exec(leg.key)?.[1] : undefined;
+  return [
+    rank,
+    chain,
+    prestiges,
+    totalDays.toFixed(4),
+    gapDays.toFixed(4),
+    legIndex === '' ? '' : legIndex + 1,
+    leg?.endTE,
+    leg?.key,
+    leg ? (leg.buildPhaseSaleCount ?? salesFromKey) : undefined,
+    leg ? (leg.tier13Unlocked ? 'yes' : 'no') : undefined,
+    formatInZone(leg?.startTime, tz),
+    formatInZone(leg?.buildPhaseEndTime, tz),
+    formatInZone(leg?.endTime, tz),
+    leg ? (leg.durationSeconds / 86400).toFixed(4) : undefined,
+    // Replayed from a checkpoint: not measured, so blank rather than a 0 that reads as one.
+    leg && !leg.replayed ? ((leg.maxELR * 3600) / 1e15).toFixed(3) : undefined,
+    leg?.nightShifts,
+    leg?.sleepDelaySeconds === undefined ? undefined : (leg.sleepDelaySeconds / 3600).toFixed(2),
+    leg?.shiftDelaySeconds === undefined ? undefined : (leg.shiftDelaySeconds / 3600).toFixed(2),
+    // One cell, semicolon separated. Twelve columns would be worse: the count is not always
+    // twelve (A1's "continue" variant is a part-finished ascension) and a spreadsheet handles a
+    // split-on-semicolon better than twelve mostly-empty columns.
+    leg?.shifts?.[0]?.fromEgg,
+    leg?.shifts?.length ? leg.shifts.map(x => `${formatInZone(x.at, tz)} ${x.egg}`).join('; ') : undefined,
+    leg?.timeOff,
+    ...firstLegCells(leg, legIndex, tz),
+  ];
+}
+
+function legRow(
+  rank: number,
+  chain: string,
+  prestiges: number,
+  totalDays: number,
+  gapDays: number,
+  legIndex: number | '',
+  leg: LegSummary | null,
+  tz: string
+): string {
+  return legCells(rank, chain, prestiges, totalDays, gapDays, legIndex, leg, tz).map(cell).join(',');
+}
+
+/** The metadata block both CSVs share: plan start, TE, settings, schedule, time off, note, and the
+ *  artifact/stone sets. `head` goes first (the title, and for By a date the deadline line);
+ *  `count` replaces the "chains priced" line. */
+function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
+  const tz = meta.timezone;
+  const lines: string[] = [];
+  const note = (s: string) => lines.push(`# ${s}`);
+  for (const h of head) note(h);
+  if (meta.partial) note(partialLine(meta.partial));
+  note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
+  // Which simulator priced these routes (search/simVersion.ts), so a file can be matched to its code.
+  note(`simulator ${SIM_VERSION}`);
+  note(`plan start ${formatInZone(meta.planStart, tz)}`);
+  note(`current TE ${meta.currentTE} -> final target ${meta.final}`);
+  // `force-continue on|off` stays first, as it always read, for the readers that parse it (the Chain
+  // Explorer's upload); `first-ascension` after it says which of the three it was.
+  note(
+    `effort ${meta.effort}; force-continue ${forceContinueOf(meta.firstAscension) ? 'on' : 'off'}; first-ascension ${meta.firstAscension}${meta.mode ? `; mode ${meta.mode}` : ''}`
+  );
+  note(`available ${describeAvailability(meta.availability)}`);
+  if (meta.workers) note(`workers: ${meta.workers}`);
+  if (meta.timeOff?.length)
+    note(
+      `time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
+    );
+  if (meta.seedChain.length) note(`seed chain ${meta.seedChain.join(' ')}`);
+  if (meta.countsProbed?.length)
+    note(
+      `ascension counts searched ${[...meta.countsProbed].sort((a, b) => a - b).join(' ')} (seed's ${meta.countsProbed[0]})`
+    );
+  // eslint-disable-next-line no-control-regex
+  const runNote = meta.runNote?.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
+  if (runNote) note(`note: ${runNote}`);
+  note(count);
+  for (const line of searchedCsvLines(meta.searched)) note(line);
+  note('');
+  note('artifacts and stones — fixed for the whole run; never varied by the search.');
+  note('The simulator re-optimises the equipped set inside each leg: what matters is what it');
+  note('had to choose FROM (not what happened to be equipped when the backup was taken).');
+  if (meta.inventory) note(`  virtue inventory: ${meta.inventory}`);
+  for (const { label, loadout } of meta.loadouts) note(`  ${label}: ${describeLoadout(loadout)}`);
+  note('  ("equipped" is empty whenever you are not mid-virtue-ascension. That is normal and');
+  note('   does not mean the plan was simulated bare - the inventory line above is what counts.)');
+  note('');
+  return lines;
+}
+
+/**
+ * Rows per emitted chunk. Chosen so a chunk is on the order of a hundred kilobytes: small enough
+ * that the row strings inside it are collected promptly, large enough that a 100k-chain run yields
+ * a few hundred chunks rather than a few hundred thousand.
+ */
+export const CHUNK_ROWS = 2000;
+
+/**
+ * And at most about this many characters a chunk, whichever comes first (12 Oct). A By a date leg row
+ * is several hundred characters, so 2,000 of them made a chunk of a megabyte or more -- a large
+ * object in V8, which needs that much CONTIGUOUS room in the 4 GB pointer-compression cage the page
+ * shares with every search worker. The PC's 34-hour run died building its CSV so far with 117 MB free
+ * in that cage but no free run longer than 1.5 MB ("ran out of reservation", in `scrubIdentifiers`'s
+ * `replace` flattening one such chunk). Chunks well under V8's large-object size (128 KB) fit in an
+ * ordinary heap page. The text is the same either way: only where it is cut changes.
+ */
+export const CHUNK_CHARS = 64 * 1024;
+
+/** The rows gathered so far as one chunk (each row then a newline), and the buffer emptied. Joined
+ *  in one go: a `+ '\n'` on the end made a rope that the scrub's regex then had to flatten. */
+function takeChunk(lines: string[]): string {
+  lines.push('');
+  const out = lines.join('\n');
+  lines.length = 0;
+  return out;
+}
+
+/**
+ * The CSV, a chunk at a time.
+ *
+ * WHY THIS IS A GENERATOR. The straightforward version built every row into one `string[]` and
+ * returned `lines.join('\n')`, which is three copies of the file alive at once: the array of row
+ * strings (each with its own object header, and there are several per chain), the joined string,
+ * and then the Blob built from it. On an Insane run that is not a rounding error -- 11,000 chains
+ * is 15.3 MB of text, and the runs this panel exists for are an order of magnitude past that, so
+ * the peak lands in the hundreds of megabytes and the tab is killed by the browser before the
+ * download starts. Reported from Windows as "This page is having a problem /
+ * Crashpad_HandlerDidNotRespond", which is the renderer dying rather than anything in this code
+ * throwing.
+ *
+ * Yielding lets the caller hand each chunk to a Blob and drop it. The Blob still holds the whole
+ * file, but once -- as UTF-8 bytes the browser can spill to disk -- instead of three times over in
+ * the JS heap.
+ */
+export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generator<string> {
+  const tz = meta.timezone;
+  const ranked = [...entries].sort((a, b) => a.seconds - b.seconds);
+  const bestSeconds = ranked.length ? ranked[0].seconds : 0;
+
+  const lines: string[] = metaLines(
+    meta,
+    ['ascension-planner chain search — every chain this run priced'],
+    `chains priced ${entries.length}`
+  );
+  const note = (s: string) => lines.push(`# ${s}`);
+
+  const firstLeg = firstLegLine(ranked[0]?.legs[0], tz, meta.firstAscension);
+  if (firstLeg) note(firstLeg);
+  note('One row per leg. Blank per-leg cells mean the chain was replayed from a saved checkpoint:');
+  note('it keeps per-leg detail for the best chain only — the total is still exact.');
+  note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
+
+  lines.push(COLUMNS.join(','));
+
+  let rank = 0;
+  let chars = 0;
+  const push = (row: string) => {
+    lines.push(row);
+    chars += row.length + 1;
+  };
+  for (const entry of ranked) {
+    rank++;
+    const chain = entry.key.split(',').map(Number);
+    const chainText = chain.join(' ');
+    const totalDays = entry.seconds / 86400;
+    const gapDays = (entry.seconds - bestSeconds) / 86400;
+    if (!entry.legs.length) {
+      push(legRow(rank, chainText, chain.length, totalDays, gapDays, '', null, tz));
+    } else {
+      entry.legs.forEach((leg, i) => {
+        push(legRow(rank, chainText, chain.length, totalDays, gapDays, i, leg, tz));
+      });
+    }
+    // Flushed between chains, never inside one: a chunk boundary in the middle of a chain's legs
+    // would still produce a correct file, but it makes the buffer length depend on leg count and
+    // there is no reason to pay that for nothing.
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
+    }
+  }
+
+  // Trailing newline: some spreadsheet importers drop the last row without one.
+  if (lines.length) yield takeChunk(lines);
+}
+
+/**
+ * The whole CSV as one string.
+ *
+ * Kept for the callers that genuinely need one -- the submission path scrubs it with a regex and
+ * gzips it, both of which want text -- and for tests. The DOWNLOAD path should use the generator
+ * above instead; see the note there about what building this costs on a large run.
+ */
+export function buildChainsCsv(entries: CacheEntry[], meta: CsvMeta): string {
+  return [...chainsCsvChunks(entries, meta)].join('');
+}
+
+/** What the By a date CSV adds to the shared metadata. */
+export interface DeadlineCsvInfo {
+  deadline: number;
+  /** Routes the search priced (the header's own count; `routes` is only the kept ones). */
+  priced: number;
+  stoppedEarly?: boolean;
+  ascendNeeded?: boolean;
+  /**
+   * Every route priced (search/deadline.ts `PricedRoutes`). With it the file ends with one summary
+   * line per priced route, those that miss the date included, and only the top `legRoutes` routes
+   * are written above with their legs. Without it (a saved result, which keeps no such list), the
+   * kept routes are written as before.
+   */
+  all?: PricedRoutesLike | null;
+  /** How many routes were kept, when `routes` is only the top of them (the store trims to the leg cap). */
+  kept?: number;
+  /**
+   * The summary lines are not written here: they follow in DELTAS, in the order the routes were
+   * priced (`pricedDeltaChunks`; a progress send's "CSV so far in deltas", search/csvDelta.ts). With
+   * `all`, the file stops after the summary section's header.
+   */
+  pricedInDeltas?: boolean;
+}
+
+/** One route the By a date search kept. */
+export interface DeadlineCsvRoute {
+  chain: number[];
+  reachAt: number;
+  ascendAt: number;
+  spare: number;
+  legs: LegSummary[];
+}
+
+/**
+ * Routes whose legs are written. The collector takes 8 MB gzipped (~180 MB of raw text at the ~23x
+ * this data achieves); a leg row is about 200 bytes and a route has a handful of legs, so 20,000
+ * routes is roughly 25 MB raw, about 1 MB gzipped. Routes past the cap keep their arrival row only
+ * (or, with every priced route listed, just their summary line).
+ */
+export const DEADLINE_LEG_ROUTES = 20000;
+
+/**
+ * Every route a By a date run priced, compactly (search/deadline.ts `PricedRoutes`): what the CSV's
+ * summary section is written from. NaN times: the route could not be priced.
+ */
+export interface PricedRoutesLike {
+  readonly size: number;
+  readonly keys: readonly string[];
+  reachAt(i: number): number;
+  ascendAt(i: number): number;
+}
+
+/** The first cell of a summary line. Not a digit, so every reader that takes a data row by its
+ *  leading rank number (the Explorer's, the analyst's) passes these lines by. */
+export const PRICED_ROW_TAG = 'priced';
+
+/** The summary section's own column header, after the leg rows. */
+export const DEADLINE_PRICED_COLUMNS = [
+  'kind',
+  'route',
+  'stops',
+  'last_stop',
+  'reached_local',
+  'ascend_from_local',
+  'spare_hours',
+  'total_days',
+  'makes_it',
+] as const;
+
+/** The line that starts the summary section (a comment, so position-based readers skip it). */
+export const PRICED_SECTION_LINE = '# every route priced: one summary line each';
+
+/**
+ * The order of the summary lines: the routes that make the date first (highest last stop, then most
+ * time to spare), then those that miss it (highest last stop, then least late), then any that could
+ * not be priced. Index order within ties, so the file is the same every time.
+ */
+export function pricedOrder(all: PricedRoutesLike, deadline: number): Uint32Array {
+  const n = all.size;
+  const last = new Float64Array(n);
+  const group = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const key = all.keys[i];
+    last[i] = Number(key.slice(key.lastIndexOf(',') + 1));
+    const at = all.ascendAt(i);
+    group[i] = Number.isNaN(at) ? 2 : at <= deadline ? 0 : 1;
+  }
+  const order = new Uint32Array(n);
+  for (let i = 0; i < n; i++) order[i] = i;
+  order.sort((a, b) => {
+    if (group[a] !== group[b]) return group[a] - group[b];
+    if (last[a] !== last[b]) return last[b] - last[a];
+    if (group[a] < 2) {
+      const d = all.ascendAt(a) - all.ascendAt(b);
+      if (d) return d;
+    }
+    return a - b;
+  });
+  return order;
+}
+
+/** The By a date columns: its own first (names unchanged), then the chain-search columns minus the
+ *  `rank` they share, in the same order, so the analyst's leg readers find what they look for. */
+export const DEADLINE_COLUMNS = [
+  'rank',
+  'route',
+  'stops',
+  'last_stop',
+  'reached_local',
+  'ascend_from_local',
+  'spare_hours',
+  ...COLUMNS.slice(1),
+] as const;
+
+export function* deadlineCsvChunks(
+  routes: DeadlineCsvRoute[],
+  meta: CsvMeta,
+  info: DeadlineCsvInfo,
+  legRoutes = DEADLINE_LEG_ROUTES
+): Generator<string> {
+  const tz = meta.timezone;
+  const all = info.all && info.all.size ? info.all : null;
+  const withLegs = Math.min(routes.length, legRoutes);
+  // With every priced route summarised below, a kept route past the leg cap has nothing more to say
+  // than its summary line, so the leg section stops at the cap.
+  const shown = all ? withLegs : routes.length;
+  let earliest = Infinity;
+  for (let i = 0; i < shown; i++) earliest = Math.min(earliest, routes[i].reachAt);
+  const lines = metaLines(
+    { ...meta, effort: 'deadline' },
+    [
+      `highest TE by ${formatInZone(info.deadline, tz)} (${tz}); plan start ${formatInZone(meta.planStart, tz)} at ${meta.currentTE} TE`,
+    ],
+    `${info.priced} routes priced${info.stoppedEarly ? '; stopped early' : ''}${info.ascendNeeded ? '; must ascend at the last stop in awake hours' : ''}`
+  );
+  const note = (s: string) => lines.push(`# ${s}`);
+  const firstLeg = firstLegLine(routes[0]?.legs?.[0], tz, meta.firstAscension);
+  if (firstLeg) note(firstLeg);
+  note('One row per leg of each kept route (the same leg columns as the chain search); best route first.');
+  if (routes.slice(0, withLegs).some(r => r.legs?.some(l => l.replayed)))
+    note(
+      'Some routes were replayed from a saved checkpoint (the run was carried on): their legs keep only strategy · end · duration; their start · peak delivery · shifts · first-leg cells are blank.'
+    );
+  note(
+    "rank · route · stops · last_stop · reached_local · ascend_from_local · spare_hours repeat on each of a route's rows."
+  );
+  note(`total_days is plan start to the last stop; gap_days is days behind the earliest arrival in this file.`);
+  if (all) {
+    note(
+      `Kept routes are each set of early stops' best route that makes the date. Legs are written for the top ${withLegs} of ${Math.max(routes.length, info.kept ?? 0)}.`
+    );
+    note(
+      `After them every route priced (${all.size}; those that miss the date too) has ONE summary line starting "${PRICED_ROW_TAG}" under its own column header.`
+    );
+  } else if (routes.length > withLegs) {
+    note(
+      `legs are written for the top ${withLegs} of ${routes.length} routes; the rest have one arrival-only row with blank leg cells.`
+    );
+  } else {
+    note(
+      'Blank leg cells mean the route came back from a saved checkpoint without its legs; the arrival is still exact.'
+    );
+  }
+  lines.push(DEADLINE_COLUMNS.join(','));
+
+  let chars = 0;
+  for (let i = 0; i < shown; i++) {
+    const x = routes[i];
+    const rank = i + 1;
+    const chainText = x.chain.join(' ');
+    const totalDays = (x.reachAt - meta.planStart) / 86400;
+    const gapDays = (x.reachAt - earliest) / 86400;
+    const own = [
+      rank,
+      chainText,
+      x.chain.length,
+      x.chain[x.chain.length - 1],
+      formatInZone(x.reachAt, tz),
+      formatInZone(x.ascendAt, tz),
+      (x.spare / 3600).toFixed(2),
+    ];
+    const legs = i < withLegs && x.legs?.length ? x.legs : [null];
+    legs.forEach((leg, k) => {
+      const cells = legCells(rank, chainText, x.chain.length, totalDays, gapDays, leg ? k : '', leg, tz);
+      const row = [...own, ...cells.slice(1)].map(cell).join(',');
+      lines.push(row);
+      chars += row.length + 1;
+    });
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
+    }
+  }
+  if (all && info.pricedInDeltas) {
+    pricedSectionHead(lines, true);
+    yield takeChunk(lines);
+  } else if (all) yield* pricedSummaryChunks(all, meta, info.deadline, lines, chars);
+  else if (lines.length) yield takeChunk(lines);
+}
+
+/**
+ * The summary section: a comment that starts it, what its columns mean, its own column header, then
+ * one line per priced route (`pricedOrder`). Each line is about 90 bytes, so 159,000 routes add some
+ * 14 MB of text, about 1.5 MB gzipped (the 9 Oct run's size; the collector takes 8 MB gzipped).
+ * `lines` is whatever the leg section left unflushed.
+ */
+function* pricedSummaryChunks(
+  all: PricedRoutesLike,
+  meta: CsvMeta,
+  deadline: number,
+  lines: string[],
+  /** Characters already in `lines`, for the chunk bound. */
+  carried = 0
+): Generator<string> {
+  pricedSectionHead(lines, false);
+  const order = pricedOrder(all, deadline);
+  let chars = carried;
+  for (let j = 0; j < order.length; j++) {
+    const row = pricedLine(all, order[j], meta, deadline);
+    lines.push(row);
+    chars += row.length + 1;
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
+    }
+  }
+  if (lines.length) yield takeChunk(lines);
+}
+
+/** The summary section's opening: a comment that starts it, what its columns mean, its header. */
+function pricedSectionHead(lines: string[], inDeltas: boolean): void {
+  const note = (s: string) => lines.push(`# ${s}`);
+  note('');
+  lines.push(PRICED_SECTION_LINE);
+  note(
+    'reached_local is when the last stop is reached; spare_hours is the time to spare at the deadline (negative: that many hours late).'
+  );
+  note(
+    inDeltas
+      ? "makes_it: yes · doesn't make it · or couldn't be priced (then the times are blank). In this file so far the lines are in the order the routes were priced (not ranked); the final file ranks them."
+      : "makes_it: yes · doesn't make it · or couldn't be priced (then the times are blank). Routes that make it come first; then the rest; highest last stop first."
+  );
+  lines.push(DEADLINE_PRICED_COLUMNS.join(','));
+}
+
+/** Route `i`'s summary line (no newline). */
+export function pricedLine(all: PricedRoutesLike, i: number, meta: Pick<CsvMeta, 'timezone' | 'planStart'>, deadline: number): string {
+  const tz = meta.timezone;
+  const key = all.keys[i];
+  const reach = all.reachAt(i);
+  const at = all.ascendAt(i);
+  const route = key.split(',');
+  const priced = !Number.isNaN(at);
+  const makes = priced && at <= deadline;
+  return [
+    PRICED_ROW_TAG,
+    route.join(' '),
+    route.length,
+    route[route.length - 1],
+    priced ? formatInZone(reach, tz) : '',
+    priced ? formatInZone(at, tz) : '',
+    priced ? ((deadline - at) / 3600).toFixed(2) : '',
+    priced ? ((reach - meta.planStart) / 86400).toFixed(4) : '',
+    makes ? 'yes' : priced ? "doesn't make it" : "couldn't be priced",
+  ]
+    .map(cell)
+    .join(',');
+}
+
+/**
+ * The summary lines of routes `from` (inclusive) to `to` (exclusive) of `all`, in the order they were
+ * priced, a chunk at a time: one delta of a progress send's CSV so far (search/csvDelta.ts). Nothing
+ * else: the header and the leg rows are the head's (`deadlineCsvChunks` with `pricedInDeltas`).
+ */
+export function* pricedDeltaChunks(
+  all: PricedRoutesLike,
+  from: number,
+  to: number,
+  meta: Pick<CsvMeta, 'timezone' | 'planStart'>,
+  deadline: number
+): Generator<string> {
+  const lines: string[] = [];
+  let chars = 0;
+  for (let i = Math.max(0, from); i < Math.min(to, all.size); i++) {
+    const row = pricedLine(all, i, meta, deadline);
+    lines.push(row);
+    chars += row.length + 1;
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
+    }
+  }
+  if (lines.length) yield takeChunk(lines);
+}
+
+export function buildDeadlineCsv(
+  routes: DeadlineCsvRoute[],
+  meta: CsvMeta,
+  info: DeadlineCsvInfo,
+  legRoutes = DEADLINE_LEG_ROUTES
+): string {
+  return [...deadlineCsvChunks(routes, meta, info, legRoutes)].join('');
+}

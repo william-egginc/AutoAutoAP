@@ -8,7 +8,8 @@
 import type { ActionExecutor, ExecutorContext } from '../executor';
 import type { WaitForTEPayload } from '@/types';
 import { VIRTUE_EGG_NAMES } from '@/types';
-import { formatNumber, formatDuration } from '@/lib/format';
+import { formatDuration } from '@/lib/format';
+import { isTEWaitReachable, teGainedOf } from '@/lib/truthEggs';
 
 export const waitForTEExecutor: ActionExecutor<'wait_for_te'> = {
   execute(payload: WaitForTEPayload, context: ExecutorContext): number {
@@ -27,6 +28,8 @@ export const waitForTEExecutor: ActionExecutor<'wait_for_te'> = {
 
   getEffectDescription(payload: WaitForTEPayload): string {
     const fromStr = payload.startTE > 0 ? ` (from #${payload.startTE})` : '';
-    return `+${payload.teGained} TE${fromStr} — ${formatDuration(payload.timeSeconds)}`;
+    // Bounded, so a saved action from before the input was validated reads sanely.
+    const time = isTEWaitReachable(payload.timeSeconds) ? formatDuration(payload.timeSeconds) : 'not reachable';
+    return `+${teGainedOf(payload)} TE${fromStr} — ${time}`;
   },
 };

@@ -6,7 +6,7 @@
         <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total TE to Gain</label>
         <div class="flex items-center gap-3">
           <button 
-            class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             @click="adjustTotal(-1)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
@@ -14,12 +14,17 @@
           <input
             ref="inputEl"
             type="number"
-            v-model.number="totalTEToGain"
-            class="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-mono-premium font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
+            inputmode="numeric"
+            step="1"
+            v-model.lazy.number="totalTEToGain"
+            @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
+            class="w-16 min-h-[44px] sm:min-h-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-mono-premium font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
             @change="handleTotalChange"
+            @input="onBoxInput"
+            @blur="onBoxLeave"
           />
           <button 
-            class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+            class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
             @click="adjustTotal(1)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -37,7 +42,7 @@
 
       <div class="w-full sm:w-auto">
         <button 
-          class="w-full sm:w-auto px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-sm border"
+          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-sm border"
           :class="canRebalance ? 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800' : 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'"
           :disabled="!canRebalance"
           @click="rebalance"
@@ -55,7 +60,7 @@
         class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
         :class="{ 'ring-1 ring-slate-900/5': eggPlan.isCurrentEgg }"
       >
-        <div class="px-5 py-4 flex items-center justify-between gap-4">
+        <div class="px-5 py-4 flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center p-1.5 shadow-inner">
               <img :src="iconURL(`egginc/egg_${eggPlan.egg}.png`, 64)" class="w-full h-full object-contain" />
@@ -78,7 +83,7 @@
             <!-- Individual Adjustments -->
             <div class="flex items-center bg-slate-50 rounded-lg border border-slate-100 p-0.5 shadow-inner">
               <button 
-                class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
+                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
                 @click="adjustEgg(eggPlan.egg, -1)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
@@ -88,7 +93,7 @@
                 <span class="text-indigo-600 font-bold ml-1">(+{{ eggPlan.teToGain }})</span>
               </span>
               <button 
-                class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
+                class="w-11 h-11 sm:w-6 sm:h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white transition-all active:scale-90"
                 @click="adjustEgg(eggPlan.egg, 1)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -98,14 +103,14 @@
             <!-- Reorder Controls -->
             <div v-if="!eggPlan.isCurrentEgg" class="flex flex-col gap-0.5">
               <button 
-                class="w-6 h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
+                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
                 :class="{ 'opacity-0 pointer-events-none': index === 1 }"
                 @click="moveEgg(index, -1)"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
               </button>
               <button 
-                class="w-6 h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
+                class="w-11 h-11 sm:w-6 sm:h-5 flex items-center justify-center text-slate-300 hover:text-slate-900 transition-all"
                 :class="{ 'opacity-0 pointer-events-none': index === eggPlans.length - 1 }"
                 @click="moveEgg(index, 1)"
               >
@@ -135,17 +140,27 @@
     <div class="pt-2">
       <button 
         class="btn-premium btn-primary w-full py-4 text-xs font-black uppercase tracking-[0.3em] shadow-xl"
-        :disabled="totalTEToGain <= 0"
+        :disabled="totalTEToGain <= 0 || !allReachable"
         @click="handleApply"
       >
         Apply Bulk TE Plan
       </button>
+      <div
+        v-if="totalTEToGain > 0 && !allReachable"
+        class="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-4"
+      >
+        <p class="text-[11px] font-bold text-amber-700 uppercase tracking-tight">
+          Can't apply: at least one egg's wait would take over a year at this farm's current delivery rate
+          ({{ unreachableEggNames }}). Lower the number or build up the farm first.
+        </p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { clampBox, showClamped } from '@/lib/showClamped';
 const inputEl = ref<HTMLInputElement | null>(null);
 defineExpose({ focus: () => inputEl.value?.focus() });
 import { iconURL, shiftCost } from 'lib';
@@ -156,7 +171,7 @@ import { useActionExecutor } from '@/composables/useActionExecutor';
 import { computeDependencies } from '@/lib/actions/executor';
 import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
 import { generateActionId, VIRTUE_EGG_NAMES, VIRTUE_EGGS, type VirtueEgg } from '@/types';
-import { TE_BREAKPOINTS, countTEThresholdsPassed, MAX_TE, eggsNeededForTE } from '@/lib/truthEggs';
+import { TE_BREAKPOINTS, countTEThresholdsPassed, MAX_TE, eggsNeededForTE, isTEWaitReachable, clampTECount } from '@/lib/truthEggs';
 import { integrateRate } from '@/engine/apply/math';
 
 const truthEggsStore = useTruthEggsStore();
@@ -292,9 +307,9 @@ const eggPlans = computed(() => {
         const remainingToLay = Math.max(0, eggsToLay - eggsDuringFill);
         
         // 2. Shipping phase at full capacity
-        durationSeconds += fullHabRate > 0 ? remainingToLay / fullHabRate : 0;
+        durationSeconds += fullHabRate > 0 ? remainingToLay / fullHabRate : remainingToLay > 0 ? Infinity : 0;
       } else {
-        durationSeconds += fullHabRate > 0 ? eggsToLay / fullHabRate : 0;
+        durationSeconds += fullHabRate > 0 ? eggsToLay / fullHabRate : Infinity;
       }
     }
 
@@ -315,6 +330,15 @@ const eggPlans = computed(() => {
     return plan;
   });
 });
+
+// Every egg's wait must be reachable (finite, within a year at the current rate).
+const allReachable = computed(() => eggPlans.value.every(p => isTEWaitReachable(p.durationSeconds)));
+const unreachableEggNames = computed(() =>
+  eggPlans.value
+    .filter(p => !isTEWaitReachable(p.durationSeconds))
+    .map(p => VIRTUE_EGG_NAMES[p.egg])
+    .join(', ')
+);
 
 const totalDurationSeconds = computed(() => {
   return eggPlans.value.reduce((sum, p) => sum + p.durationSeconds, 0);
@@ -346,15 +370,15 @@ function formatSimTime(seconds: number) {
   return `Day ${day}, ${displayHour}:${displayMinute} ${period}`;
 }
 
-// Initialization
-onMounted(() => {
-  const currentEgg = actionsStore.effectiveSnapshot.currentEgg as VirtueEgg;
-  // Current egg first, then others in standard order
-  visitOrder.value = [
-    currentEgg,
-    ...VIRTUE_EGGS.filter(e => e !== currentEgg)
-  ];
-});
+// Initialization (in setup, not onMounted: it needs no DOM, and a server render sees the plan too)
+const openingEgg = actionsStore.effectiveSnapshot.currentEgg as VirtueEgg;
+// Current egg first, then others in standard order
+visitOrder.value = [
+  openingEgg,
+  ...VIRTUE_EGGS.filter(e => e !== openingEgg)
+];
+// The default 15 may be more than the eggs can still gain.
+handleTotalChange();
 
 // Methods
 function adjustTotal(delta: number) {
@@ -364,9 +388,31 @@ function adjustTotal(delta: number) {
   rebalance();
 }
 
+// A paste, a drop or a scripted set skips the keydown filter and may fire no change (QA, 22 Oct 2026):
+// the box is clamped as it changes and again when it is left, whatever put the value there.
+function onBoxInput(e: Event) {
+  const v = clampBox(e.target as HTMLInputElement, maxTotalGain(), 0, 'wait');
+  if (v !== null && v !== totalTEToGain.value) {
+    totalTEToGain.value = v;
+    handleTotalChange();
+  }
+}
+function onBoxLeave(e: Event) {
+  const v = clampBox(e.target as HTMLInputElement, maxTotalGain(), 0, 'min');
+  if (v !== null && v !== totalTEToGain.value) {
+    totalTEToGain.value = v;
+    handleTotalChange();
+  }
+}
+function maxTotalGain(): number {
+  return Object.values(eggStartStates.value).reduce((sum, s) => sum + (MAX_TE - s.te), 0);
+}
+
 function handleTotalChange() {
-  const maxPossibleGain = Object.values(eggStartStates.value).reduce((sum, s) => sum + (MAX_TE - s.te), 0);
-  totalTEToGain.value = Math.min(Math.max(0, totalTEToGain.value), maxPossibleGain);
+  const maxPossibleGain = maxTotalGain();
+  // A whole number from 0 to what the five eggs can still gain (1.5, '3.48e45', empty all land in range).
+  totalTEToGain.value = clampTECount(totalTEToGain.value, maxPossibleGain, 0);
+  showClamped(inputEl.value, totalTEToGain.value);
   rebalance();
 }
 

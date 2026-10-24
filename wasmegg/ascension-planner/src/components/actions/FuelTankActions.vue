@@ -6,7 +6,7 @@
     <div class="section-premium p-5">
       <div class="flex justify-between items-end mb-4">
         <div>
-          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Capacity</div>
+          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Contents</div>
           <div class="text-xl font-bold text-slate-800 tracking-tight">
             {{ formatNumber(fuelTankStore.totalFuel, 1) }} <span class="text-slate-300 font-normal">/</span>
             {{ formatNumber(fuelTankStore.tankCapacity, 1) }}
@@ -48,7 +48,7 @@
             <div class="flex items-center gap-1.5">
               <svg
                 v-if="getRoundingShortfall(fuelTankStore.fuelAmounts[egg]) > 0"
-                v-tippy="'Rounding is likely to cause a problem for you, since you are below the displayed number of eggs.'"
+                v-tippy="'The amount shown is rounded up. You have fewer eggs than it shows.'"
                 class="w-4 h-4 text-warning"
                 fill="none"
                 stroke="currentColor"
@@ -154,7 +154,7 @@
           <span class="text-sm font-mono-premium font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
         </div>
         <div v-if="effectiveStoreAmount > 0" class="flex justify-between items-center">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transit Time</span>
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Time to Store</span>
           <span class="text-sm font-mono-premium font-bold text-slate-900">{{
             formatDuration(timeToStoreSeconds)
           }}</span>
@@ -276,8 +276,8 @@
           </svg>
         </div>
         <div>
-          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Tier</div>
-          <div class="text-sm font-bold text-slate-700">Level {{ fuelTankStore.tankLevel }}/7</div>
+          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Level</div>
+          <div class="text-sm font-bold text-slate-700">Lv {{ fuelTankStore.tankLevel }}/7</div>
         </div>
       </div>
       <div class="text-right">
@@ -289,7 +289,7 @@
     </div>
 
     <p class="text-[10px] text-slate-400 text-center uppercase font-black tracking-widest opacity-60">
-      Production rate calibrated to maximum habitat scale
+      Time assumes your chickens keep growing until the habs are full.
     </p>
   </div>
 </template>

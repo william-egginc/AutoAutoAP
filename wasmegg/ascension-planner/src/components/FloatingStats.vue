@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="actionsStore.hasStartAction"
-    class="fixed right-4 top-20 z-50 flex flex-col items-center card-glass p-1.5 shadow-2xl transition-all duration-300"
+    class="fixed right-2 md:right-4 bottom-28 md:bottom-auto md:top-20 z-50 flex flex-col items-center card-glass p-1.5 shadow-2xl transition-all duration-300"
     :class="[isCollapsed ? 'w-12' : 'p-4 min-w-[140px]']"
   >
     <!-- Toggle Handler -->
@@ -58,7 +58,7 @@
           {{ formatDateTime(dates.start) }}
         </div>
         <div class="text-xs font-mono-premium font-bold text-slate-900 my-1 tracking-tight">
-          {{ formatShiftDuration(dates.duration) }}
+          {{ isNaN(dates.end.getTime()) ? 'Not reachable' : formatShiftDuration(dates.duration) }}
         </div>
         <div class="text-[9px] font-black text-slate-900 uppercase tracking-widest text-center">
           {{ formatDateTime(dates.end) }}
@@ -321,6 +321,8 @@ const dates = computed(() => {
  * Format date/time as: Feb 7, 9:14 PM
  */
 function formatDateTime(date: Date): string {
+  // Past what a Date can hold (a wait priced at billions of days): no real end time.
+  if (isNaN(date.getTime())) return 'Not reachable';
   const options: Intl.DateTimeFormatOptions = {
     weekday: 'short',
     month: 'short',

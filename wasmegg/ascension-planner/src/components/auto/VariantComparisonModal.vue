@@ -50,7 +50,7 @@
                     <th class="px-2 py-1.5">Tier 13</th>
                     <th class="px-2 py-1.5">Build</th>
                     <th class="px-2 py-1.5">Duration</th>
-                    <th class="px-2 py-1.5">Peak ELR</th>
+                    <th class="px-2 py-1.5">Peak Delivery</th>
                     <th class="px-2 py-1.5">Peak Earnings</th>
                   </tr>
                 </thead>

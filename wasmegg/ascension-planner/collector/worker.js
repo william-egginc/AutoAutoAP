@@ -1,0 +1,4543 @@
+/**
+ * Cloudflare Worker: collects chain-search submissions and serves the leaderboard.
+ *
+ * Deploy this and point the app's `VITE_SUBMIT_URL` at `https://<worker>/submit`. Everything
+ * lives in one Worker plus one KV namespace, because the whole dataset is a few thousand small
+ * JSON objects and reaching for a database would be borrowing trouble. (The one exception is the
+ * phone watch in watch.js, which keeps its rows in a small D1 database.)
+ *
+ *   POST /submit       one submission, validated, stored, rate-limited by IP. A copy of a result
+ *                      already on the board is caught here and not stored twice (see "duplicates").
+ *   POST /claim        {id, nickname} -> put a name on a row you sent. Needs that row's owner code.
+ *   POST /hide         {ids: [row ids] | all: true, hidden: true|false} -> take your own rows off every
+ *                      public view, or show them again. Needs the rows' owner code (one) in x-owner-token.
+ *                      Answers {ok, hidden, ids, changed, missing?, more?}. Nothing is deleted. See
+ *                      "hidden rows".
+ *   POST /instant      one opt-in instant-answer record (the instant answer and its Check exactly),
+ *                      stored privately under `inst:` and never served. Needs an owner code; at most
+ *                      30 a day per code. See "instant answer records".
+ *   GET  /leaderboard  ?final=490&limit=50  -> one line per distinct result, fastest first
+ *   GET  /all          everything public, for anyone who wants to do their own analysis (a row its
+ *                      sender hid is on no public read: /all, /leaderboard, /flagged)
+ *   GET  /csv?id=      a row's gzipped CSV; a hidden row's only with its owner code in x-owner-token
+ *   GET  /mine         the caller's own rows from both boards, anonymous and hidden ones included (a
+ *                      hidden one carries `hidden: true`). Needs the owner code(s), comma-separated, in
+ *                      x-owner-token. Never cached.
+ *   GET  /flagged      the flagged board: runs from accounts the planner cannot help yet (a stall
+ *                      on the Integrity shift, a plan past ten years). Anonymous, except a row
+ *                      whose owner code the caller presents. A result that contradicts itself is
+ *                      quarantined instead: stored privately, on no board (see "quarantine").
+ *   GET  /             the leaderboard page (see leaderboard.html)
+ *
+ * WHAT ROWS CARRY THAT NOBODY SENT. `id` and `hasCsv` (from the key and the CSV list), `receivedAt`
+ * (the collector's own clock at /submit, so "when was this sent" no longer rests on the sender's
+ * clock), `dupOf` (on a row whose exact result the same sender already had on the board from a
+ * different search -- the first such row's id, and only when both are named or both anonymous, so it
+ * never ties an anonymous run to a name), and `acct`: the first 12 hex of
+ * HMAC(CSV_UPLOAD_KEY, 'acct:' + owner hash), on rows that have BOTH a nickname and an owner code
+ * and on no others. `acct` is what lets a reader tell "the same browser account" from "someone
+ * typing the same name" without the owner hash ever leaving KV; keeping it off anonymous rows is
+ * what keeps a reader from linking a player's unnamed runs to their name.
+ *
+ * VALIDATION IS DUPLICATED ON PURPOSE. `validateSubmission` in src/search/submission.ts is the
+ * same ruleset, and the app runs it before sending -- but a public endpoint cannot trust that
+ * the thing posting to it is the app. The rules are kept identical by being short enough to read
+ * side by side; if they drift, the Worker's copy is the one that matters.
+ *
+ * WHAT THIS DELIBERATELY DOES NOT STORE. No IP addresses beyond a rate-limit key that lives in
+ * KV under a 120-second TTL and is never read back into any record, no cookies, nothing derived
+ * from the connection. The one header read into a record is `x-owner-token`: a random code the
+ * app keeps per account in the submitter's browser, stored here only as its SHA-256 and never
+ * served back. It is not derived from the player id. It is what lets a player -- and only that
+ * player -- see their own rows on the flagged board and in /mine, put a name on a row they sent
+ * (/claim, or re-sending it named), and have a repeated send of the same result folded into the
+ * row already stored rather than stored again. Those last uses are new with schema 7 and the app's
+ * consent text says so. A submission is what the
+ * player chose to send and nothing more. If you change that, change the consent text in the app
+ * to match -- people agreed to a specific list.
+ *
+ * Setup:
+ *   wrangler kv namespace create SUBMISSIONS
+ *   # put the returned id in wrangler.toml, then:
+ *   wrangler deploy
+ */
+
+import { handleWatch, isWatchRequest, watchCron } from './watch.js';
+
+// 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
+// every tier owned; see src/search/submission.ts. Rows already in KV at schema 1 keep their old
+// shape and the page renders both -- a stored row is history, not something to migrate.
+const SCHEMA = 8;
+
+/**
+ * Schemas this Worker will accept, newest last.
+ *
+ * NOT just `SCHEMA`. The app and the Worker deploy separately and never at the same instant, so
+ * insisting on an exact match guarantees a window where every submission is refused -- which is
+ * exactly what happened when 3 shipped in the app first: "collector said 400: unknown schema 3",
+ * with the sender given nothing to do about it.
+ *
+ * 3 is purely additive over 2 (run cost, epic research, colleggtibles, all optional), 4 adds
+ * `space` and 5 adds `proof`, both Insane-only and both optional, so a
+ * schema-2 row is a valid row that happens to carry none of them, and storing it is strictly better
+ * than rejecting the run that produced it. The `schema` field is stored as sent, so a reader can
+ * still tell which rows can have timing data and which cannot.
+ *
+ * 6 adds the virtue variables (weekday, delivery score, Clothed TE, TE per egg, backup age) and the
+ * upload page's sweep tag and machine block. All optional, so the same reasoning holds.
+ *
+ * 7 adds what the finish-date leaderboard needs to stop guessing: `startUtc`/`endUtc` (no DST
+ * reconstruction from a local stamp), `backupTE` (the TE the save actually shows, so a plan
+ * priced from a higher TE is recognisably a what-if), `build` (which simulator priced it),
+ * `rechecks` (the sender's best older plans priced again from this save) -- and `backupAgeHours`
+ * becomes SIGNED, because a start before the save is exactly the case the app used to omit it for.
+ * All optional again, so 6 is still a valid 7 that carries none of them.
+ *
+ * 8 (2026-09-29) is the deadline search's answer to "the highest TE by this date": `deadline` (unix
+ * seconds) and `deadlineAscendAt` (when the route's last ascension can actually be made, awake hours
+ * counted). Only a deadline run sends 8 -- every other run still sends 7 -- so an app built before
+ * this Worker is deployed loses nothing but the new send, which says "unknown schema 8".
+ */
+const ACCEPTED_SCHEMAS = new Set([2, 3, 4, 5, 6, 7, 8]);
+
+/**
+ * Bounds on everything countable.
+ *
+ * These are not guesses about malice so much as the values past which a submission stops
+ * describing a plan anybody ran: a real chain is single digits of ascensions and a real answer
+ * is a few hundred days.
+ *
+ * DURATION_DAYS is the one that is load-bearing rather than tidy. The KV key embeds
+ * `round(days * 10000)` zero-padded to ten characters so that listing a prefix returns the board
+ * already in duration order. A value large enough to need an eleventh character -- or large
+ * enough that `String()` renders it in exponential form -- sorts ABOVE every genuine entry and
+ * takes the top of the leaderboard. Measured before this cap existed: `durationDays: 1e24` was
+ * accepted and stored as `sub:490:000001e+28:...`, first in the scan. 100000 days is 274 years,
+ * far past any real plan, and `100000 * 10000` is exactly ten digits.
+ */
+const MAX = {
+  CHAIN: 64,
+  LEGS: 64,
+  ARTIFACTS: 64,
+  STONES: 64,
+  /** Items listed in an epic-research or colleggtible summary. The app already caps at 12; this
+   *  is the receiver refusing to take a longer list from a client that did not. */
+  PROGRESSION: 16,
+  /** One band per checkpoint; a chain longer than this is not a chain anyone is planning. */
+  BAND_CHECKPOINTS: 32,
+  /** Values inside one band. A step-1 band over the whole TE range is a few hundred. */
+  BAND_VALUES: 1024,
+  /** Runners-up carried in a proof block. The app sends 8; this is the receiver refusing a
+   *  client that decided to send its whole result table through a summary field. */
+  RUNNERS_UP: 16,
+  /** One entry per ascension count, bounded by the same ceiling as the ascension range itself. */
+  PROOF_GROUPS: 64,
+  /** Timezone, effort, window, the two local stamps. */
+  TEXT: 64,
+  NICKNAME: 40,
+  /** What the sender says the run was for ("testing a Friday start", ...). Plain text, shown as
+   *  text. Long enough for a sentence or two, short enough that it can't carry a CSV. */
+  NOTE: 500,
+  /** What a search looked at, as the CLI writes it ("195-197:2; 209-240:1; last 300-320; 2-5 ascensions,
+   *  min gap 20"). A dozen boxes fit well inside this; a longer string is cut, not refused. */
+  SEARCHED: 600,
+  /** Schema 7: the simulator build that priced a run. A short commit id is seven characters; this
+   *  leaves room for a tag without letting the field become a second free-text box. */
+  BUILD: 40,
+  /** Schema 7: older plans priced again from this save. The app sends the sender's best three. */
+  RECHECKS: 3,
+  /** How far a backup can be from the plan start, either side: a year is past any real save. */
+  BACKUP_AGE_HOURS: 24 * 365,
+  /** Owner codes one /mine call may present -- one per account this browser has sent for. */
+  OWNER_TOKENS: 20,
+  /** Rows one /hide call may name, or change with `all` (see "hidden rows"): each is a read and a write. */
+  HIDE_IDS: 50,
+  DURATION_DAYS: 100000,
+  /** Schema 8: a deadline between 2020 and 2100. */
+  DEADLINE_FROM: 1577836800,
+  DEADLINE_TO: 4102444800,
+  TE: 1000000,
+  /** Gzipped CSV bytes. 8 MB compressed is roughly 180 MB of raw CSV at the ~23x this data
+   *  achieves -- far past the largest run anyone has produced, and still inside KV's 25 MB
+   *  per-value ceiling with margin for data that compresses worse than measured. */
+  CSV_BYTES: 8 * 1024 * 1024,
+  /** Parts one CSV may be split into when its gzip is over CSV_BYTES (see "the CSV in parts"): 64 MB
+   *  compressed in all, about 1.5 GB of raw CSV. Each part is one KV write. */
+  CSV_PARTS: 8,
+  /** Deltas one run's CSV so far may be made of (see "the CSV so far in deltas"): one per progress
+   *  send, and a run sends at most PROVISIONAL_PER_DAY a day, so this is about five days of sends. */
+  CSV_DELTAS: 256,
+  /** A virtue loadout is four artifacts with at most three stones each; the caps are generous
+   *  rather than exact so a future game change does not silently truncate a real set. */
+  LOADOUT_SLOTS: 8,
+  LOADOUT_STONES: 8,
+  /** Per address, per minute. Enough to post every result of a sitting; far short of a script. */
+  SUBMITS_PER_MINUTE: 10,
+};
+
+/**
+ * A stable signature for the space an exhaustive run covered, for the dedupe key below.
+ *
+ * Empty string for every searched row, which is what keeps this change invisible to schema 2-4:
+ * they all share one signature and collapse exactly as they did before. It also means an
+ * exhaustive row and a searched row that happen to agree on a chain are kept apart, which is
+ * correct -- a proof and a heuristic hit are not the same submission even when the answer matches.
+ */
+function spaceKey(sp) {
+  if (!sp || typeof sp !== 'object') return '';
+  const where =
+    sp.mode === 'range' && sp.range
+      ? `r${sp.range.lo}-${sp.range.hi}/${sp.range.step}`
+      : `b${(sp.bands || []).map(b => (b || []).join('.')).join('_')}`;
+  return `${where}|g${sp.minGap}|a${sp.minAscensions}-${sp.maxAscensions}|n${sp.chains}`;
+}
+
+/** Same rules as src/search/submission.ts. Returns the problems; empty means acceptable. */
+function validateSubmission(s) {
+  const problems = [];
+  if (!s || typeof s !== 'object' || Array.isArray(s)) return ['not an object'];
+  if (!ACCEPTED_SCHEMAS.has(s.schema)) {
+    problems.push(`unknown schema ${String(s.schema)}; this collector accepts ${[...ACCEPTED_SCHEMAS].join(', ')}`);
+  }
+  // A deadline answer can be one ascension straight to its last stop; any other run is a chain to a
+  // target with at least one checkpoint on the way.
+  if (!Array.isArray(s.chain) || s.chain.length < (s.schema === 8 ? 1 : 2)) {
+    problems.push(s.schema === 8 ? 'chain must have at least one entry' : 'chain must have at least two entries');
+  } else if (s.chain.length > MAX.CHAIN) {
+    problems.push(`chain must have at most ${MAX.CHAIN} entries`);
+  } else {
+    if (!s.chain.every(v => Number.isInteger(v) && v > 0 && v <= MAX.TE)) {
+      problems.push('chain must be positive integers within range');
+    }
+    if (!s.chain.every((v, i) => i === 0 || v > s.chain[i - 1])) problems.push('chain must strictly increase');
+  }
+  // Number.isFinite, not `> 0`: Infinity passes a `> 0` test and then poisons the sort key.
+  if (!Number.isFinite(s.durationDays) || s.durationDays <= 0 || s.durationDays > MAX.DURATION_DAYS) {
+    problems.push(`durationDays must be positive and at most ${MAX.DURATION_DAYS}`);
+  }
+  if (!Number.isFinite(s.finalTE) || s.finalTE <= 0 || s.finalTE > MAX.TE) {
+    problems.push(`finalTE must be positive and at most ${MAX.TE}`);
+  }
+  if (s.nickname !== undefined && (typeof s.nickname !== 'string' || s.nickname.length > MAX.NICKNAME)) {
+    problems.push(`nickname must be a string of at most ${MAX.NICKNAME} characters`);
+  }
+  if (s.note !== undefined && (typeof s.note !== 'string' || s.note.length > MAX.NOTE)) {
+    problems.push(`note must be a string of at most ${MAX.NOTE} characters`);
+  }
+  for (const [field, cap] of [
+    ['legs', MAX.LEGS],
+    ['artifacts', MAX.ARTIFACTS],
+    ['stones', MAX.STONES],
+  ]) {
+    if (s[field] !== undefined && (!Array.isArray(s[field]) || s[field].length > cap)) {
+      problems.push(`${field} must be an array of at most ${cap} entries`);
+    }
+  }
+  if (s.artifacts !== undefined && Array.isArray(s.artifacts) && !s.artifacts.every(a => typeof a === 'string')) {
+    problems.push('artifacts must be a list of labels');
+  }
+  // Schema 7. The SHAPE is refused here, like `legs` and `nickname` above; a single entry or value
+  // that does not parse is dropped in pickSubmission, like every optional block.
+  if (s.rechecks !== undefined && (!Array.isArray(s.rechecks) || s.rechecks.length > MAX.RECHECKS)) {
+    problems.push(`rechecks must be an array of at most ${MAX.RECHECKS} entries`);
+  }
+  if (s.build !== undefined && (typeof s.build !== 'string' || s.build.length > MAX.BUILD)) {
+    problems.push(`build must be a string of at most ${MAX.BUILD} characters`);
+  }
+  // Schema 8. A deadline row is ranked by it, so it is required and checked, not dropped quietly.
+  if (s.schema === 8) {
+    if (!Number.isFinite(s.deadline) || s.deadline < MAX.DEADLINE_FROM || s.deadline > MAX.DEADLINE_TO) {
+      problems.push('deadline must be a date (unix seconds)');
+    } else if (
+      s.deadlineAscendAt !== undefined &&
+      (!Number.isFinite(s.deadlineAscendAt) || s.deadlineAscendAt > s.deadline)
+    ) {
+      problems.push('deadlineAscendAt must be a time on or before the deadline');
+    }
+  }
+  // Provisional rows (see "provisional rows" below). Refused on a wrong shape rather than dropped: a
+  // final send whose `replaces` was quietly ignored would leave the in-progress row up forever.
+  if (s.provisional !== undefined && typeof s.provisional !== 'boolean') {
+    problems.push('provisional must be true or false');
+  }
+  if (s.replaces !== undefined && !rowId(s.replaces)) problems.push('replaces must be a row id');
+  return problems;
+}
+
+/** A row id as /submit makes them (8 hex), with the same slack /claim and /csv allow. */
+const ROW_ID = /^[a-f0-9-]{4,40}$/;
+const rowId = v => (typeof v === 'string' && ROW_ID.test(v) ? v : undefined);
+
+/** How far a provisional row's run had got: two whole numbers, done <= total. Anything else is dropped. */
+function progressOf(p) {
+  if (!p || typeof p !== 'object') return undefined;
+  const { done, total } = p;
+  if (!Number.isInteger(done) || !Number.isInteger(total)) return undefined;
+  if (done < 0 || total < 1 || done > total || total > 1e12) return undefined;
+  return { done, total };
+}
+
+/** A player id is a bearer token for the whole save. One must never be stored here even if
+ *  someone posts one by hand, so text is swept on the way in. */
+function scrubText(s) {
+  return String(s).replace(/EI\d{16}/g, 'EI[redacted]');
+}
+
+// ---------------------------------------------------------------- private extras
+// Fields the whitelist does not recognise (today: `diagnostics`, the opt-in black box summary) are
+// kept apart from the public row, under `extra:<row id>` with a TTL. NOTHING here ever serves that
+// prefix: the board, /all, /flagged, /csv and the snapshots are built from `sub:`, `flag:`, `csv:`
+// and `snap:` only, and no route reads a key from a request. The owner reads one with:
+//   wrangler kv key get --binding SUBMISSIONS "extra:<id>"
+const EXTRA_MAX_BYTES = 16 * 1024;
+const DIAGNOSTICS_MAX_BYTES = 4 * 1024;
+/** The raw body of a /submit, capped before it is parsed (21 Oct 2026, QA). The largest real row is 4.6 KB public
+ *  plus at most 16 KB of private extras; this leaves a proof block with all its bands room to grow. */
+const SUBMIT_MAX_BYTES = 512 * 1024;
+const EXTRA_TTL_SECONDS = 180 * 24 * 60 * 60;
+const EXTRA_MAX_DEPTH = 6;
+
+/** A key that names a player id, in any casing or separator: eiUserId, player_id, user-id, EIID. */
+function idLikeKey(k) {
+  const n = String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return n === 'id' || n === 'eiid' || n.includes('playerid') || n.includes('userid');
+}
+
+/** JSON-only copy of `v`: id-like keys dropped, EI ids inside strings redacted, depth bounded. */
+function cleanExtra(v, depth = 0) {
+  if (v === null || typeof v === 'boolean') return v;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string') return scrubText(v);
+  if (depth >= EXTRA_MAX_DEPTH) return undefined;
+  if (Array.isArray(v)) return v.map(x => cleanExtra(x, depth + 1) ?? null);
+  if (typeof v === 'object') {
+    const out = {};
+    for (const [k, x] of Object.entries(v)) {
+      if (idLikeKey(k)) continue;
+      const c = cleanExtra(x, depth + 1);
+      if (c !== undefined) out[k] = c;
+    }
+    return out;
+  }
+  return undefined;
+}
+
+/** What to keep privately from a request body: its top-level fields that did not become public. */
+function pickExtras(body, record) {
+  const out = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (k in record || idLikeKey(k) || k === 'replaces' || k === 'csvRun') continue;
+    const c = cleanExtra(v);
+    if (c === undefined) continue;
+    if (k === 'diagnostics' && JSON.stringify(c).length > DIAGNOSTICS_MAX_BYTES) continue;
+    out[k] = c;
+  }
+  if (!Object.keys(out).length) return null;
+  const text = JSON.stringify(out);
+  return text.length > EXTRA_MAX_BYTES ? null : text;
+}
+
+/** The Stronger check levels a row can record (src/search/submission.ts `SUBMISSION_LEVELS`). */
+const SUBMISSION_LEVELS = ['light', 'quick', 'normal', 'thorough', 'exhaustive'];
+/** Where a Light row's routes came from (`Submission.lightFrom`). */
+const LIGHT_FROMS = ['instant', 'earlier', 'lower-te'];
+/** A Light row: it says so by level, or by effort on a Fastest row (By a date Light rows carry level only). */
+const isLightRow = s => s.level === 'light' || s.effort === 'light';
+
+/**
+ * SIMULATOR STAMPS (21 Oct 2026, red team). `simVersion` is the app's SIM_VERSION (src/search/simVersion.ts):
+ * a UTC date and a few lower-case words, `2026-10-13-lowte-gate`. Only that shape is kept, at most
+ * SIM_STAMP_MAX characters and with a real date; anything else is dropped (not refused, like every
+ * optional field). A stamp is the sender's word: it cannot be checked, only bounded.
+ *
+ * SIM_KNOWN lists the stamps this Worker was deployed knowing. A row whose stamp is not one of them and
+ * is dated on or after the newest of them is marked `simNewer: true`: either a simulator released after
+ * this Worker (add it here with the next deploy), or a hand-made stamp claiming to be current. An older
+ * unknown stamp is kept unmarked: old rows are history, not suspects.
+ */
+const SIM_STAMP = /^(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+){0,6}$/;
+const SIM_STAMP_MAX = 40;
+const SIM_KNOWN = new Set(['2026-10-13-lowte-gate', '2026-10-21-egg-beta2']);
+const SIM_NEWEST_DAY = [...SIM_KNOWN]
+  .map(v => v.slice(0, 10))
+  .sort()
+  .pop();
+function simStamp(v) {
+  if (typeof v !== 'string' || v.length > SIM_STAMP_MAX) return undefined;
+  const m = SIM_STAMP.exec(v);
+  if (!m) return undefined;
+  const day = Date.parse(`${m[1]}T00:00:00Z`);
+  return Number.isFinite(day) && new Date(day).toISOString().slice(0, 10) === m[1] ? v : undefined;
+}
+/** True when `v` (a stamp simStamp kept) is newer than this Worker knows about (see above). */
+const simNewer = v => !!v && !SIM_KNOWN.has(v) && v.slice(0, 10) >= SIM_NEWEST_DAY;
+const text = (v, max) => (typeof v === 'string' ? scrubText(v).slice(0, max) : undefined);
+const num = v => (Number.isFinite(v) ? v : undefined);
+const flag = v => (typeof v === 'boolean' ? v : undefined);
+/** The first-ascension setting's four values (src/search/firstAscension.ts; 'buildup' since 10 Oct 2026). */
+const FIRST_ASCENSIONS = new Set(['auto', 'buildup', 'continue', 'fresh']);
+/** Which way leg 1 went (src/search/firstAscension.ts `FirstLegKind`; 'buildup' since 10 Oct 2026). */
+const FIRST_LEG_KINDS = ['continue', 'buildup', 'fresh'];
+/** `label`/`count` pairs, the shape both artifacts and stones use. */
+const counts = (v, cap) =>
+  Array.isArray(v)
+    ? v.slice(0, cap).map(a => ({ label: text(a?.label, MAX.TEXT) ?? '', count: num(a?.count) ?? 0 }))
+    : undefined;
+/** A solved loadout: up to four slots, each an artifact label and the stones socketed in it. */
+const loadout = v =>
+  Array.isArray(v)
+    ? v.slice(0, MAX.LOADOUT_SLOTS).map(slot =>
+        defined({
+          artifact: text(slot?.artifact, MAX.TEXT),
+          stones: Array.isArray(slot?.stones)
+            ? slot.stones.slice(0, MAX.LOADOUT_STONES).map(x => text(x, MAX.TEXT) ?? '')
+            : undefined,
+        })
+      )
+    : undefined;
+
+/** Drop keys whose value came back undefined, so a missing field is absent rather than null. */
+const defined = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+
+/**
+ * Build the stored record by WHITELIST, the same way the app builds what it sends.
+ *
+ * `validateSubmission` answers whether a body is acceptable; this answers what is kept. They are
+ * separate because a public endpoint faces a question the app never does -- what to do with
+ * fields nobody asked for. Storing the posted object verbatim, which is what scrubbing a body
+ * amounts to, turns an open write endpoint into free hosting for whatever someone wants to put
+ * in front of the people reading `/all`. Measured before this existed: a POST carrying a 5 KB
+ * `evilPayload` string was stored and served back in full. A fresh object with a fixed field
+ * list cannot carry anything not named here.
+ *
+ * Unknown fields are DROPPED, not rejected. A newer app that adds a field bumps SCHEMA, and an
+ * unrecognised schema is already refused above; within a schema, silence is the forgiving
+ * choice and matches how src/search/submission.ts treats the CSV it builds from.
+ */
+/**
+ * Run cost, bounded. Same whitelist discipline as everything else here: a field is rebuilt from
+ * named keys with sane ranges rather than trusted, because these numbers are going into an
+ * average and one `1e9` would move it for everyone.
+ */
+function runCost(r) {
+  if (!r || typeof r !== 'object') return undefined;
+  const workers = num(r.workers);
+  const minutes = num(r.minutes);
+  const perChain = num(r.secondsPerChain);
+  const cores = r.cores === null || r.cores === undefined ? null : num(r.cores);
+  if (workers === undefined || minutes === undefined || perChain === undefined) return undefined;
+  if (workers < 1 || workers > 256) return undefined;
+  if (minutes < 0 || minutes > 60 * 24 * 30) return undefined;
+  if (perChain < 0 || perChain > 3600) return undefined;
+  if (cores !== null && (cores === undefined || cores < 1 || cores > 256)) return undefined;
+  const suspended = num(r.suspendedMinutes);
+  const stall = num(r.longestStallMinutes);
+  return {
+    workers,
+    cores,
+    minutes,
+    secondsPerChain: perChain,
+    // Run health. Optional, and clamped to the same month-long ceiling as `minutes`: a submission
+    // claiming a freeze longer than the run itself is telling us nothing we can use.
+    ...(suspended !== undefined && suspended >= 0 && suspended <= 60 * 24 * 30 ? { suspendedMinutes: suspended } : {}),
+    ...(stall !== undefined && stall >= 0 && stall <= 60 * 24 * 30 ? { longestStallMinutes: stall } : {}),
+  };
+}
+
+/** A number inside [lo, hi], or undefined. The schema-6 fields are all single bounded numbers. */
+const within = (v, lo, hi) => (Number.isFinite(v) && v >= lo && v <= hi ? v : undefined);
+
+const WEEKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+
+/** Why a run belongs on the flagged board. The app's list is `SUBMISSION_FLAGS` in
+ *  src/search/rules.ts; anything else is dropped. */
+const FLAGS = new Set(['integrity-stall', 'decades-long', 'contradicts-itself']);
+/** Past this a plan is flagged whatever the client said: ten years is a statement about the
+ *  account, not a route to the target, and an older app sends no flags at all. */
+const DECADES_LONG_DAYS = 3652.5;
+
+function flagList(v) {
+  if (!Array.isArray(v)) return undefined;
+  const out = [...new Set(v.filter(f => typeof f === 'string' && FLAGS.has(f)))];
+  return out.length ? out : undefined;
+}
+
+/** Time off from the virtue farm: whole local dates, a handful at most. */
+function timeOffList(v) {
+  if (!Array.isArray(v)) return undefined;
+  const date = x => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : undefined);
+  const out = v
+    .slice(0, 8)
+    .map(w => ({ from: date(w?.from), to: date(w?.to) }))
+    .filter(w => w.from && w.to && w.from <= w.to);
+  return out.length ? out : undefined;
+}
+
+/**
+ * Schema 7: an absolute instant, as `Date.prototype.toISOString` writes it (an explicit offset is
+ * accepted too). Anything else is dropped: the point of these fields is that a reader never has to
+ * guess what a stamp means, and a stamp that needs guessing is worse than none.
+ */
+function isoStamp(v) {
+  if (typeof v !== 'string' || v.length > 32) return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(v)) return undefined;
+  return Number.isFinite(Date.parse(v)) ? v : undefined;
+}
+
+/**
+ * Schema 7: the sender's best older plans, priced again from this run's save.
+ *
+ * Bounded like a proof's runners-up -- the same kind of thing, a chain and its days -- with two
+ * rules of its own. The chain may be as short as one checkpoint, because a re-check prices only
+ * what is LEFT of an old plan and a player past every intermediate checkpoint has just the target
+ * to go. And it must end at this row's target: a re-check of a plan for a different goal is not
+ * a statement about any plan on this row's board. Entries that fail are dropped, not refused.
+ */
+function recheckList(v, finalTE) {
+  if (!Array.isArray(v)) return undefined;
+  const out = v
+    .slice(0, MAX.RECHECKS)
+    .map(c => {
+      const days = num(c?.days);
+      if (days === undefined || days <= 0 || days > MAX.DURATION_DAYS) return undefined;
+      const chain = c?.chain;
+      if (!Array.isArray(chain) || !chain.length || chain.length > MAX.CHAIN) return undefined;
+      if (!chain.every((x, i) => Number.isInteger(x) && x > 0 && x <= MAX.TE && (i === 0 || x > chain[i - 1]))) {
+        return undefined;
+      }
+      if (chain[chain.length - 1] !== finalTE) return undefined;
+      return { chain: chain.slice(), days };
+    })
+    .filter(Boolean);
+  return out.length ? out : undefined;
+}
+
+/** SHA-256 of an owner token, hex. The token itself is never stored. */
+async function ownerHash(token) {
+  if (typeof token !== 'string' || !/^[a-f0-9]{32,64}$/.test(token)) return undefined;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Four multipliers, each bounded to what a real artifact set can reach. */
+function deliveryScore(d) {
+  if (!d || typeof d !== 'object') return undefined;
+  const out = {
+    lay: within(d.lay, 1, 10),
+    hab: within(d.hab, 1, 10),
+    shipping: within(d.shipping, 1, 10),
+    score: within(d.score, 0, 1.5),
+  };
+  return Object.values(out).some(v => v === undefined) ? undefined : out;
+}
+
+/** Truth eggs per virtue egg. Five eggs; each is a count, bounded like any TE. */
+function teByEgg(v) {
+  if (!Array.isArray(v) || !v.length || v.length > 8) return undefined;
+  const out = v.map(x => within(x, 0, MAX.TE));
+  return out.some(x => x === undefined) ? undefined : out.map(Math.round);
+}
+
+/**
+ * Where a run started from (22 Oct 2026, src/search/startProvenance.ts; optional, no schema bump): on board
+ * rows (`start`) and instant records alike. Kept field by field: one that does not check out is dropped,
+ * never the row, and the whole block past START_MAX_BYTES is dropped. Never an id: `saveHash` is 8 hex of
+ * the save's time and eggs, and the arrays are numbers.
+ *   src      fresh | stored | file | draft | switch (how the planner's start state was set up)
+ *   claimed  the save's claimed TE per virtue egg, five whole numbers 0-98
+ *   pending  its pending TE per egg beside them (thresholds passed, not claimed), five whole numbers 0-98;
+ *            kept only with `claimed`, and only when each pair adds up to 98 or less
+ *   saveAt   the save's own time, unix seconds
+ *   saveHash 8 hex
+ *   eggs     eggs delivered per virtue egg in the start state, five numbers 0-1e30
+ *   plan     now | override | handoff (where the plan start came from)
+ *   tabH     hours from the page being opened to the send; buildH from its build to the send (-24 to 87,600)
+ */
+const START_SOURCES = ['fresh', 'stored', 'file', 'draft', 'switch'];
+const PLAN_START_SOURCES = ['now', 'override', 'handoff'];
+const START_MAX_BYTES = 400;
+const START_AGE_H = [-24, 24 * 3650];
+function startBlock(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const five = (xs, max, whole) =>
+    Array.isArray(xs) &&
+    xs.length === 5 &&
+    xs.every(x => Number.isFinite(x) && x >= 0 && x <= max && (!whole || Number.isInteger(x)))
+      ? xs.slice()
+      : undefined;
+  const claimed = five(v.claimed, 98, true);
+  const pending = five(v.pending, 98, true);
+  const paired = claimed && pending && claimed.every((c, i) => c + pending[i] <= 98);
+  const out = defined({
+    src: START_SOURCES.includes(v.src) ? v.src : undefined,
+    claimed: paired ? claimed : undefined,
+    pending: paired ? pending : undefined,
+    saveAt: within(v.saveAt, MAX.DEADLINE_FROM, MAX.DEADLINE_TO),
+    saveHash: typeof v.saveHash === 'string' && /^[a-f0-9]{8}$/.test(v.saveHash) ? v.saveHash : undefined,
+    eggs: five(v.eggs, 1e30, false),
+    plan: PLAN_START_SOURCES.includes(v.plan) ? v.plan : undefined,
+    tabH: within(v.tabH, ...START_AGE_H),
+    buildH: within(v.buildH, ...START_AGE_H),
+  });
+  if (!Object.keys(out).length || JSON.stringify(out).length > START_MAX_BYTES) return undefined;
+  return out;
+}
+
+/** Which sweep preset a run came from. Short labels only; the bands are the ones typed into the panel. */
+function sweepTag(t) {
+  if (!t || typeof t !== 'object') return undefined;
+  const preset = text(t.preset, 16);
+  if (!preset) return undefined;
+  return defined({ preset, bands: text(t.bands, 200), minGap: within(t.minGap, 0, 1000) });
+}
+
+/** What the player says about their machine. Typed, not measured, so bounded generously and never trusted further. */
+function machineInfo(m) {
+  if (!m || typeof m !== 'object') return undefined;
+  const out = defined({
+    cores: within(m.cores, 1, 256),
+    ramGB: within(m.ramGB, 1, 4096),
+    workers: within(m.workers, 1, 256),
+  });
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * The space an exhaustive run proved its answer over. Schema 4, Insane mode only.
+ *
+ * Bounded hard on both axes: the band list is per checkpoint and the values inside it are the TEs
+ * the panel enumerated, so a malformed or hostile submission could otherwise arrive as a very large
+ * nested array. Anything that does not parse is dropped rather than rejected, same as every other
+ * optional block here -- a submission is still worth keeping without its provenance.
+ */
+function searchSpace(sp) {
+  if (!sp || typeof sp !== 'object') return undefined;
+  const mode = sp.mode === 'bands' ? 'bands' : sp.mode === 'range' ? 'range' : undefined;
+  if (!mode) return undefined;
+  const chains = num(sp.chains);
+  const priced = num(sp.chainsPriced);
+  const minGap = num(sp.minGap);
+  const minAsc = num(sp.minAscensions);
+  const maxAsc = num(sp.maxAscensions);
+  if (chains === undefined || chains < 0 || chains > 1e12) return undefined;
+  if (minAsc === undefined || maxAsc === undefined || minAsc < 1 || maxAsc > 64 || maxAsc < minAsc) return undefined;
+
+  const out = {
+    mode,
+    minGap: minGap !== undefined && minGap >= 0 && minGap <= MAX.TE ? minGap : 0,
+    minAscensions: minAsc,
+    maxAscensions: maxAsc,
+    chains,
+    chainsPriced: priced !== undefined && priced >= 0 && priced <= chains ? priced : 0,
+    stoppedEarly: sp.stoppedEarly === true,
+  };
+
+  if (mode === 'range' && sp.range && typeof sp.range === 'object') {
+    const lo = num(sp.range.lo);
+    const hi = num(sp.range.hi);
+    const step = num(sp.range.step);
+    if (lo !== undefined && hi !== undefined && step !== undefined && step > 0 && hi >= lo && hi <= MAX.TE) {
+      out.range = { lo, hi, step };
+    }
+  }
+  if (mode === 'bands' && Array.isArray(sp.bands)) {
+    out.bands = sp.bands.slice(0, MAX.BAND_CHECKPOINTS).map(b =>
+      Array.isArray(b)
+        ? b
+            .slice(0, MAX.BAND_VALUES)
+            .map(v => num(v))
+            .filter(v => v !== undefined && v >= 0 && v <= MAX.TE)
+        : []
+    );
+  }
+  return out;
+}
+
+/**
+ * The outcome of an exhaustive run. Schema 5, Insane mode only.
+ *
+ * Rebuilt field by field like everything else here, and bounded on the two axes that a hostile or
+ * broken client could otherwise use to grow a row without limit: how many chains are listed, and
+ * how long each one is. A chain inside this block is subject to the same `MAX.CHAIN` ceiling as
+ * the submission's own chain, because it is the same kind of thing and there is no reason for one
+ * to be longer than the other.
+ *
+ * Dropped rather than rejected when it does not parse, like every other optional block: the
+ * headline result is still worth keeping without its distribution.
+ */
+function proofChain(c) {
+  if (!c || typeof c !== 'object') return undefined;
+  const days = num(c.days);
+  if (days === undefined || days <= 0 || days > MAX.DURATION_DAYS) return undefined;
+  if (!Array.isArray(c.chain) || !c.chain.length || c.chain.length > MAX.CHAIN) return undefined;
+  const chain = c.chain.map(v => num(v)).filter(v => v !== undefined && v > 0 && v <= MAX.TE);
+  if (chain.length !== c.chain.length) return undefined;
+  return { chain, days };
+}
+
+function proof(p) {
+  if (!p || typeof p !== 'object') return undefined;
+  const sp = p.spread;
+  if (!sp || typeof sp !== 'object') return undefined;
+  const best = num(sp.best);
+  const median = num(sp.median);
+  const worst = num(sp.worst);
+  if ([best, median, worst].some(v => v === undefined || v <= 0 || v > MAX.DURATION_DAYS)) return undefined;
+
+  const runnersUp = Array.isArray(p.runnersUp)
+    ? p.runnersUp.slice(0, MAX.RUNNERS_UP).map(proofChain).filter(Boolean)
+    : [];
+  const byAscensions = Array.isArray(p.byAscensions)
+    ? p.byAscensions
+        .slice(0, MAX.PROOF_GROUPS)
+        .map(g => {
+          const c = proofChain(g);
+          const n = num(g?.ascensions);
+          const priced = num(g?.priced);
+          if (!c || n === undefined || n < 1 || n > MAX.CHAIN) return undefined;
+          return { ascensions: n, priced: priced !== undefined && priced >= 0 ? priced : 0, ...c };
+        })
+        .filter(Boolean)
+    : [];
+
+  return { runnersUp, byAscensions, spread: { best, median, worst } };
+}
+
+/** Epic research summary, re-bounded. */
+function epicResearch(e) {
+  if (!e || typeof e !== 'object') return undefined;
+  const total = num(e.total);
+  const atMax = num(e.atMax);
+  if (total === undefined || atMax === undefined) return undefined;
+  if (total < 0 || total > 200 || atMax < 0 || atMax > total) return undefined;
+  return {
+    maxed: flag(e.maxed),
+    atMax,
+    total,
+    short: Array.isArray(e.short) ? e.short.slice(0, MAX.PROGRESSION).map(x => text(x, MAX.TEXT) ?? '') : [],
+  };
+}
+
+/** Colleggtible summary, re-bounded. `byTier` is five fixed buckets: none, then T1-T4. */
+function colleggtibles(c) {
+  if (!c || typeof c !== 'object') return undefined;
+  const total = num(c.total);
+  if (total === undefined || total < 0 || total > 200) return undefined;
+  if (!Array.isArray(c.byTier) || c.byTier.length !== 5) return undefined;
+  const byTier = c.byTier.map(v => num(v));
+  if (byTier.some(v => v === undefined || v < 0 || v > 200)) return undefined;
+  return {
+    maxed: flag(c.maxed),
+    byTier,
+    total,
+    short: Array.isArray(c.short) ? c.short.slice(0, MAX.PROGRESSION).map(x => text(x, MAX.TEXT) ?? '') : [],
+  };
+}
+
+function pickSubmission(s) {
+  return defined({
+    // As sent, not `SCHEMA`: stamping the current one would claim a schema-2 row carried fields it
+    // never had.
+    schema: num(s.schema) ?? SCHEMA,
+    nickname: s.nickname ? text(s.nickname, MAX.NICKNAME) : undefined,
+    // Control characters other than line breaks are dropped: a note is read, never interpreted.
+    note: s.note ? text(s.note.replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, ''), MAX.NOTE) || undefined : undefined,
+
+    chain: s.chain.slice(0, MAX.CHAIN),
+    ascensions: num(s.ascensions),
+    durationDays: s.durationDays,
+    startLocal: text(s.startLocal, MAX.TEXT),
+    endLocal: text(s.endLocal, MAX.TEXT),
+    timezone: text(s.timezone, MAX.TEXT),
+
+    currentTE: num(s.currentTE),
+    finalTE: s.finalTE,
+
+    effort: text(s.effort, MAX.TEXT),
+    window: s.window === null ? null : text(s.window, MAX.TEXT),
+    holdShifts: flag(s.holdShifts),
+    // Whether leg 1 finished the current run first. Changes which chain wins, so the analysis must
+    // never pool runs that differ on it. Absent on submissions made before it was recorded.
+    forceContinue: flag(s.forceContinue),
+    // What leg 1 did with the ascension in progress, as one of three words (9 Oct 2026): 'auto' the
+    // faster of continuing and a fresh start, 'continue', 'fresh'. Sent beside `forceContinue`, which
+    // is true exactly when this is 'continue'. Anything else is dropped. No schema bump: optional.
+    firstAscension: FIRST_ASCENSIONS.has(s.firstAscension) ? s.firstAscension : undefined,
+    // Which way leg 1 actually went (9 Oct 2026): 'continue' or 'fresh', anything else dropped. And,
+    // when both were simulated, hours the way NOT taken would have ended leg 1 after the one taken
+    // (negative: before), within the duration bound either way. Optional, no schema bump.
+    firstLeg: FIRST_LEG_KINDS.includes(s.firstLeg) ? s.firstLeg : undefined,
+    firstLegOtherHours: within(s.firstLegOtherHours, -MAX.DURATION_DAYS * 24, MAX.DURATION_DAYS * 24),
+    // By a date only: which mode found the row (the board's Effort column). Absent before 9 Oct 2026.
+    mode: s.mode === 'simple' || s.mode === 'advanced' ? s.mode : undefined,
+    // Which Stronger check level found it (15 Oct 2026, optional, no schema bump): one of five words, anything
+    // else dropped. A Light row (`level` 'light', or effort 'light' on a Fastest row) also says whether it
+    // was priced at once and where its routes came from; those two are kept for Light rows only.
+    level: SUBMISSION_LEVELS.includes(s.level) ? s.level : undefined,
+    atOnce: isLightRow(s) ? flag(s.atOnce) : undefined,
+    lightFrom: isLightRow(s) && LIGHT_FROMS.includes(s.lightFrom) ? s.lightFrom : undefined,
+    // What the search looked at (18 Oct 2026, optional, no schema bump): the boxes and the ascension range as
+    // the CLI writes them, plain text kept to MAX.SEARCHED characters (cut, never refused; control characters
+    // dropped). Old rows have none: it is never guessed.
+    searched: typeof s.searched === 'string' ? text(s.searched.replace(/[\u0000-\u001F\u007F]/g, ''), MAX.SEARCHED)?.trim() || undefined : undefined,
+    waitingHours: s.waitingHours === null ? null : num(s.waitingHours),
+
+    // Labels, not counts: an artifact slot takes one artifact, so how many are owned never
+    // mattered, and exact counts of a whole hoard are a far sharper fingerprint than the handful
+    // that decided the answer. Stones keep their counts -- see the app's `bestPerFamily`.
+    artifacts: Array.isArray(s.artifacts)
+      ? s.artifacts.slice(0, MAX.ARTIFACTS).map(a => text(a, MAX.TEXT) ?? '')
+      : undefined,
+    // The two sets the simulator wears, per slot. Additive since schema 2 -- an older app sends
+    // neither and the row simply has none, which cannot be misread as an empty loadout because
+    // the field is absent rather than `[]`.
+    delivery: loadout(s.delivery),
+    earnings: loadout(s.earnings),
+    stones: counts(s.stones, MAX.STONES),
+
+    // Additive in schema 3: what the run cost the machine that did it, so the panel's time
+    // estimate can eventually be fitted against real hardware instead of quoting one 20-core
+    // desktop at everybody. Absent from older clients and from checkpoint replays, and `defined`
+    // drops the key entirely in that case rather than storing a zeroed row.
+    run: runCost(s.run),
+
+    // Additive in schema 3. Already summarised by the app (max / how many short / a short list),
+    // and re-bounded here anyway: the list is what a brand-new account would otherwise post its
+    // whole research tree through.
+    epicResearch: epicResearch(s.epicResearch),
+    colleggtibles: colleggtibles(s.colleggtibles),
+    space: searchSpace(s.space),
+    proof: proof(s.proof),
+
+    legs: Array.isArray(s.legs)
+      ? s.legs.slice(0, MAX.LEGS).map(l =>
+          defined({
+            te: num(l?.te),
+            strategy: text(l?.strategy, MAX.TEXT),
+            days: num(l?.days),
+            peakDeliveryQph: num(l?.peakDeliveryQph),
+          })
+        )
+      : undefined,
+    // Same bounds as `chain`: it is the same kind of thing, and there is no reason for the chain a
+    // run started from to be longer than the one it ended on.
+    seed: Array.isArray(s.seed)
+      ? s.seed
+          .slice(0, MAX.CHAIN)
+          .map(v => num(v))
+          .filter(v => v !== undefined && v > 0 && v <= MAX.TE)
+      : undefined,
+    chainsPriced: num(s.chainsPriced),
+
+    // Schema 6. See `Submission` in src/search/submission.ts for what each one is for.
+    startWeekday: WEEKDAYS.has(s.startWeekday) ? s.startWeekday : undefined,
+    deliveryScore: deliveryScore(s.deliveryScore),
+    clothedTE: within(s.clothedTE, -1000, MAX.TE),
+    teByEgg: teByEgg(s.teByEgg),
+    // Signed since schema 7 (and read that way for every schema: a negative age was simply refused
+    // before, so no stored row changes meaning). Negative means the plan starts before the save
+    // was taken -- a what-if the finish-date board has to be able to see.
+    backupAgeHours: within(s.backupAgeHours, -MAX.BACKUP_AGE_HOURS, MAX.BACKUP_AGE_HOURS),
+    sweep: sweepTag(s.sweep),
+    machine: machineInfo(s.machine),
+    source: s.source === 'upload' ? 'upload' : undefined,
+    // Board hygiene and time off (2026-09-24). Both optional: an older app sends neither.
+    flags: flagList(s.flags),
+    integrityMinutes: within(s.integrityMinutes, 0, 1e9),
+    timeOff: timeOffList(s.timeOff),
+
+    // Schema 7 (2026-09-25), for the finish-date board. See the note on ACCEPTED_SCHEMAS.
+    backupTE: within(s.backupTE, 0, MAX.TE),
+    build: text(s.build, MAX.BUILD),
+    // The simulator that priced it (13 Oct 2026, the app's SIM_VERSION): moves only when results do, for
+    // 'priced by an older simulator' labels. Optional, no schema bump; a plain stamp, nothing else kept.
+    simVersion: simStamp(s.simVersion),
+    // Where the run started from (22 Oct 2026, `startBlock`): optional, no schema bump; a bad field is dropped.
+    start: startBlock(s.start),
+    startUtc: isoStamp(s.startUtc),
+    endUtc: isoStamp(s.endUtc),
+    rechecks: recheckList(s.rechecks, s.finalTE),
+
+    // Schema 8 (2026-09-29): a deadline search's answer. Validated above for schema 8; ignored on
+    // anything older, which never meant it.
+    deadline: s.schema === 8 ? within(s.deadline, MAX.DEADLINE_FROM, MAX.DEADLINE_TO) : undefined,
+    deadlineAscendAt: s.schema === 8 ? within(s.deadlineAscendAt, MAX.DEADLINE_FROM, MAX.DEADLINE_TO) : undefined,
+
+    // Provisional rows (2026-10-09): the best so far of a run still going, sent with "Send best so
+    // far". `true` or absent, nothing else; `progress` only rides on one. No schema bump: optional.
+    provisional: s.provisional === true ? true : undefined,
+    progress: s.provisional === true ? progressOf(s.progress) : undefined,
+
+    submittedAt: text(s.submittedAt, MAX.TEXT),
+    // NOT here, on purpose: `receivedAt`, `dupOf`, `owner`. The collector sets those itself after
+    // this returns, and a client that sends them is sending exactly the fields it must not choose.
+    // Nor `replaces`: it is an instruction to /submit (which row this one takes over), not data.
+  });
+}
+
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
+  'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token,x-delta-token',
+};
+
+/**
+ * The token that lets ONE CSV be attached to ONE submission.
+ *
+ * `POST /csv?id=` used to store whatever it was sent under any id, and every id is public on the
+ * leaderboard -- so anyone could replace every player's table, or fill the namespace with ids
+ * nobody submitted. Now `/submit` hands back HMAC(CSV_UPLOAD_KEY, id) and `/csv` accepts only
+ * that, only once. The flood gate on `/submit` therefore covers `/csv` too: no submission, no
+ * token.
+ *
+ * AN HMAC, NOT A RANDOM TOKEN STORED IN KV. KV is eventually consistent across locations, and the
+ * app posts the CSV milliseconds after the submission; a token written by one request can be
+ * invisible to the next. A signature is checked with no read at all. The price is one secret:
+ * `wrangler secret put CSV_UPLOAD_KEY`. Without it CSV uploads are refused outright (503) rather
+ * than silently falling back to the old open door.
+ */
+async function uploadToken(env, id, provisional = false) {
+  // A provisional row's token signs another string, so /csv can tell the CSV so far from a final
+  // table without reading anything (see "provisional rows"). A quarantined row's (`'quar'`) signs a
+  // third, so its CSV goes to the private `quarcsv:` prefix (see "quarantine").
+  return hmacHex(env, (provisional === 'quar' ? 'csvq:' : provisional ? 'csvp:' : 'csv:') + id);
+}
+
+/** The token for a run's deltas (see "the CSV so far in deltas"): signs `csvd:<run>`, a fifth kind. */
+const deltaToken = (env, run) => hmacHex(env, 'csvd:' + run);
+
+async function hmacHex(env, what) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(env.CSV_UPLOAD_KEY),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(what)));
+  return [...sig].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ------------------------------------------------------------- CRC-32 of joined pieces
+//
+// zlib's crc32_combine: the CRC-32 of A+B from crc(A), crc(B) and len(B), with no data. Lets the CSV
+// so far be served as ONE gzip member made of independently compressed pieces without ever reading or
+// compressing them here (see "the CSV so far in deltas"). GF(2) matrix squaring, as in zlib.
+function gf2Times(mat, vec) {
+  let sum = 0;
+  for (let i = 0; vec; vec >>>= 1, i++) if (vec & 1) sum ^= mat[i];
+  return sum >>> 0;
+}
+function gf2Square(sq, mat) {
+  for (let n = 0; n < 32; n++) sq[n] = gf2Times(mat, mat[n]);
+}
+/** crc32(A + B) from crc32(A), crc32(B) and B's length in bytes. All unsigned 32-bit numbers. */
+export function crc32Combine(crc1, crc2, len2) {
+  crc1 >>>= 0;
+  crc2 >>>= 0;
+  if (!(len2 > 0)) return crc1;
+  const even = new Array(32);
+  const odd = new Array(32);
+  odd[0] = 0xedb88320;
+  let row = 1;
+  for (let n = 1; n < 32; n++) {
+    odd[n] = row;
+    row <<= 1;
+  }
+  gf2Square(even, odd);
+  gf2Square(odd, even);
+  do {
+    gf2Square(even, odd);
+    if (len2 % 2) crc1 = gf2Times(even, crc1);
+    len2 = Math.floor(len2 / 2);
+    if (!len2) break;
+    gf2Square(odd, even);
+    if (len2 % 2) crc1 = gf2Times(odd, crc1);
+    len2 = Math.floor(len2 / 2);
+  } while (len2);
+  return (crc1 ^ crc2) >>> 0;
+}
+
+/** Compare without an early exit, so the response time does not leak how much of a guess matched. */
+function sameToken(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+const JSON_HEADERS = { 'content-type': 'application/json;charset=utf-8', ...CORS };
+
+const json = (body, status = 200, extra = {}) =>
+  new Response(JSON.stringify(body), { status, headers: { ...JSON_HEADERS, ...extra } });
+
+/** A body that is already JSON text -- the stored snapshot, served without a parse and re-stringify. */
+const jsonText = (body, extra = {}) => new Response(body, { status: 200, headers: { ...JSON_HEADERS, ...extra } });
+
+/** Answers that depend on who is asking: never kept by the edge or the browser. */
+const PRIVATE = { 'cache-control': 'private, no-store' };
+
+async function sha256hex(s) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** The key's duration segment: `round(days * 10000)` zero-padded to ten (see MAX.DURATION_DAYS). */
+const durKey = days => String(Math.round(days * 10000)).padStart(10, '0');
+/** A row's KV key. Every part is stored on the record verbatim, so this is exact, not a guess. */
+const keyOf = (board, record, id) => `${board}:${record.finalTE}:${durKey(record.durationDays)}:${id}`;
+const idOf = key => key.slice(key.lastIndexOf(':') + 1);
+
+// ----------------------------------------------------------------- duplicates
+//
+// WHAT COUNTS AS THE SAME RESULT. Measured on the live board (2026-09-25): 103 rows held 12 groups
+// of copies, 19 rows that added nothing -- an auto-send and then a press of Send three minutes
+// later; five sends in four minutes; a run sent anonymously and then again with a name. The
+// fingerprint below is everything that decides a plan's finish and nothing about who sent it or
+// how it was found: target, chain, the plan's start to the minute, the duration to the key's own
+// 1e-4 precision, timezone, artifacts, starting TE, schedule, held shifts, whether leg 1 finishes
+// the current run, time off. It is character for character `contentFingerprint` in the app's
+// src/lib/leaderboardRank.ts, so the app can recognise a result it already sent without asking.
+//
+// THREE OUTCOMES, and only between rows from the SAME SENDER -- the same owner code, or (for
+// senders with no code at all) no code and the same nickname:
+//   - EXACT copy: same fingerprint AND the same search (effort, searched space, chains priced).
+//     Nothing is stored; the reply names the row already there. If that row is anonymous, this
+//     copy is named and both carry the same owner code, the stored row takes the name: the
+//     owner-proven "that was me".
+//   - SAME RESULT, OTHER SEARCH: a thorough search agreeing with a balanced one. Stored -- its CSV
+//     and run timing are real data -- with `dupOf` naming the first copy, so readers fold it. Only a
+//     first copy that is named when this one is, or anonymous when this one is: `dupOf` is public and
+//     only ever joins one sender's rows, so across the two it would say whose the anonymous run is.
+//   - Anything from a different sender, or with a code on one side only: stored as usual. A copy
+//     of somebody else's public row can never rename, replace or merge into theirs.
+//
+// ONE LIST, NO READS. A copy has the same target and the same 1e-4 duration, so it sits under
+// `<board>:<final>:<dur>:` -- a prefix that holds zero to three keys. Each new row carries its
+// fingerprint, its search, its owner (first 12 hex), its nickname and its receipt time as KV
+// METADATA, which list() returns with the key: comparing needs no get. Rows written before this
+// have no metadata and are read once each; there are a handful per prefix at most.
+//
+// KV is eventually consistent, so two copies inside the same few seconds can both land. The fold
+// in /leaderboard (and the app's own fold) is the backstop; this check is what keeps the common
+// case -- copies minutes apart -- out of storage entirely.
+const FP_HEX = 32;
+const SEARCH_HEX = 16;
+const OWNER_HEX = 12;
+const ACCT_HEX = 12;
+
+/** Artifact labels, tolerating schema-1 rows that stored `{label, count}`. */
+const artifactLabels = r =>
+  (Array.isArray(r.artifacts) ? r.artifacts : []).map(a => (typeof a === 'string' ? a : (a?.label ?? '')));
+
+/**
+ * The fingerprint's first-ascension part, as `firstAscensionPart` in src/lib/leaderboardRank.ts: the
+ * old boolean for Fastest and Continue Asc., so every stored digest still matches, and 'fresh' for
+ * Prestige Now, which the boolean could not say. A row without `firstAscension` reads its boolean.
+ */
+function firstAscensionPart(r) {
+  const first = FIRST_ASCENSIONS.has(r.firstAscension)
+    ? r.firstAscension
+    : r.forceContinue === true
+      ? 'continue'
+      : r.forceContinue === false
+        ? 'auto'
+        : null;
+  return first === 'fresh' ? 'fresh' : first === 'buildup' ? 'buildup' : first === 'continue';
+}
+
+/** Same result, as a string. Keep identical to `contentFingerprint` in src/lib/leaderboardRank.ts. */
+function fingerprint(r) {
+  return JSON.stringify([
+    r.finalTE,
+    r.chain ?? [],
+    (typeof r.startLocal === 'string' ? r.startLocal : '').trim().slice(0, 16),
+    Number.isFinite(r.durationDays) ? Math.round(r.durationDays * 1e4) : null,
+    r.timezone ?? '',
+    [...artifactLabels(r)].sort(),
+    r.currentTE ?? null,
+    r.window || '',
+    !!r.holdShifts,
+    firstAscensionPart(r),
+    (Array.isArray(r.timeOff) ? r.timeOff : []).map(t => `${t.from}~${t.to}`),
+  ]);
+}
+
+/** Same search. The space signature plus what `spaceKey` leaves out on purpose -- how much of it
+ *  was priced, and whether it was stopped -- since here "the same run sent twice" is the question. */
+function searchSig(r) {
+  const sp = r.space && typeof r.space === 'object' ? r.space : null;
+  return JSON.stringify([
+    r.effort || '',
+    spaceKey(sp),
+    r.chainsPriced ?? null,
+    sp ? (sp.chainsPriced ?? null) : null,
+    sp ? !!sp.stoppedEarly : null,
+    // A provisional row is never the same search as a final one, so the final is never folded into
+    // it as an exact copy (and stored as nothing). Appended only when set: every other row keeps the
+    // digest it was stored with.
+    ...(r.provisional === true ? ['provisional'] : []),
+    // A Light row prices a route at once from what the instant answer or an earlier run offered: a
+    // different measurement from a searched row of the same route, even when the effort word is the
+    // same (By a date says 'deadline' for both). Appended for Light rows only, so no other row's digest moves.
+    ...(r.level === 'light' ? ['light', r.atOnce ?? null, r.lightFrom ?? null] : []),
+  ]);
+}
+
+/**
+ * What a row's key carries as metadata. Digests, not the strings: a fingerprint holds the artifact
+ * list and a searched space can hold thousands of band values, and KV caps metadata at 1 KB. Never
+ * served -- list() output does not leave this file.
+ */
+async function metaOf(r) {
+  return defined({
+    fp: (await sha256hex(fingerprint(r))).slice(0, FP_HEX),
+    s: (await sha256hex(searchSig(r))).slice(0, SEARCH_HEX),
+    o: typeof r.owner === 'string' ? r.owner.slice(0, OWNER_HEX) : undefined,
+    n: r.nickname || undefined,
+    at: r.receivedAt || r.submittedAt || undefined,
+    // A provisional row: never a `dupOf` anchor, since its run will replace it and delete it.
+    p: r.provisional === true ? 1 : undefined,
+    // A row hidden from the public (see "hidden rows"): never a `dupOf` anchor either, and what a
+    // maintainer lists to find them (`wrangler kv key list --prefix sub:`, metadata `h: 1`).
+    h: r.hidden === true ? 1 : undefined,
+  });
+}
+
+/** The sender rule: the same owner code, or no code on either side and the same nickname. */
+function sameSender(a, b) {
+  if (a.o || b.o) return !!a.o && a.o === b.o;
+  return (a.n || '') === (b.n || '');
+}
+
+/**
+ * Earlier copies of `mine` from the same sender under one prefix, earliest first. One list; a get
+ * only for a row stored before metadata existed.
+ */
+async function findCopies(env, prefix, mine) {
+  const { keys } = await env.SUBMISSIONS.list({ prefix, limit: 1000 });
+  const found = [];
+  for (const k of keys) {
+    let meta = k.metadata && typeof k.metadata.fp === 'string' ? k.metadata : null;
+    let stored = null;
+    if (!meta) {
+      try {
+        stored = JSON.parse(await env.SUBMISSIONS.get(k.name));
+      } catch {
+        continue;
+      }
+      if (!stored || typeof stored !== 'object') continue;
+      meta = await metaOf(stored);
+    }
+    if (meta.fp !== mine.fp || !sameSender(meta, mine)) continue;
+    found.push({ key: k.name, id: idOf(k.name), meta, stored });
+  }
+  // A legacy row with no stamp sorts first, which is also where it belongs in time. Stable, so
+  // equal stamps keep key order.
+  found.sort((a, b) => (a.meta.at || '').localeCompare(b.meta.at || ''));
+  return found;
+}
+
+/** Whether a CSV is stored for `id`, without pulling megabytes across to find out. `base` is the
+ *  key prefix: `csv:` for a board row, `quarcsv:` for a quarantined one. */
+async function hasCsv(env, id, base = 'csv:') {
+  const v = await env.SUBMISSIONS.get(`${base}${id}`, 'stream');
+  if (v && typeof v.cancel === 'function') await v.cancel().catch(() => {});
+  return v !== null && v !== undefined;
+}
+
+/**
+ * The `acct` signer for one snapshot build: owner hash -> 12 hex of HMAC(CSV_UPLOAD_KEY, 'acct:' +
+ * owner hash), memoised, because a board has far fewer owners than rows. Keyed with the upload
+ * secret so nobody can recompute it from anything public, and prefixed so it can never equal a
+ * CSV upload token for any id. Null when the secret is not configured: then no row carries `acct`.
+ */
+async function acctSigner(env) {
+  if (!env.CSV_UPLOAD_KEY) return null;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(env.CSV_UPLOAD_KEY),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const memo = new Map();
+  return async owner => {
+    if (!memo.has(owner)) {
+      const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('acct:' + owner)));
+      memo.set(
+        owner,
+        [...sig]
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('')
+          .slice(0, ACCT_HEX)
+      );
+    }
+    return memo.get(owner);
+  };
+}
+
+/**
+ * The flood guard, shared by /submit and /claim.
+ *
+ * A small burst rather than a hard one-per-minute. One per minute was not "far above what a human
+ * needs" after all: comparing effort tiers, or two chain shapes, means submitting several results
+ * back to back, and the old gate made the second one fail with a message that read like the
+ * collector was broken. A burst covers a person emptying their results; it still stops a script.
+ *
+ * The window is carried in the value rather than leaned on KV's TTL, because updating a key to
+ * count a request would otherwise reset its expiry and turn a fixed minute into a window that never
+ * closes while someone keeps posting. `commit` is called only once a request has done real work,
+ * so a refused body costs no write.
+ */
+async function floodGate(env, request) {
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  const gateKey = `gate:${ip}`;
+  const now = Date.now();
+  let gate = null;
+  try {
+    gate = JSON.parse((await env.SUBMISSIONS.get(gateKey)) || 'null');
+  } catch {
+    gate = null;
+  }
+  if (!gate || typeof gate.until !== 'number' || gate.until <= now) {
+    gate = { n: 0, until: now + 60000 };
+  }
+  if (gate.n >= MAX.SUBMITS_PER_MINUTE) {
+    // The wait goes in the BODY, not only a Retry-After header: a cross-origin page cannot read
+    // response headers the Worker does not also list in Access-Control-Expose-Headers, and the
+    // one thing the person needs is "how long", in words the panel can show as is.
+    const retryAfter = Math.max(1, Math.ceil((gate.until - now) / 1000));
+    return {
+      refused: json({ error: `slow down - at most ${MAX.SUBMITS_PER_MINUTE} submissions a minute`, retryAfter }, 429),
+    };
+  }
+  gate.n++;
+  return {
+    refused: null,
+    // TTL is longer than the window so a stale counter cannot outlive it and lock anyone out; the
+    // `until` inside decides, and the TTL only keeps the address from being retained.
+    commit: () => env.SUBMISSIONS.put(gateKey, JSON.stringify(gate), { expirationTtl: 120 }),
+  };
+}
+
+/**
+ * The edge rate limit (21 Oct 2026, QA): Cloudflare's Workers rate-limit binding, counted per address and
+ * per endpoint, at no KV cost (it is not KV). `env[name]` is optional: a collector deployed without the
+ * binding (the plan may not offer it, or a fork) simply has no per-minute limit, as before. The limits
+ * are in wrangler.toml and are per Cloudflare location and approximate, so they are a brake on a flood,
+ * not a quota; the daily KV caps and the write-once checks are what protect the 1,000 writes.
+ * A refused request costs no KV read.
+ */
+async function edgeLimited(env, request, name, endpoint) {
+  const limiter = env[name];
+  if (!limiter || typeof limiter.limit !== 'function') return null;
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  try {
+    const { success } = await limiter.limit({ key: `${endpoint}|${ip}` });
+    if (success) return null;
+  } catch {
+    return null; // a limiter that errors must never take uploads down
+  }
+  return json({ error: 'slow down - too many requests a minute from this address', retryAfter: 60 }, 429);
+}
+
+// ------------------------------------------------------------------ snapshots
+//
+// WHY. Every board read used to list the namespace twice (the rows and the CSV ids) and read every
+// row: 2 LISTS and ~100 READS per page load. Workers KV's free tier allows 1,000 lists a day, so the
+// planner's leaderboard plus the Chain Explorer ran out at about 500 page loads (2026-09-25, when the
+// leaderboard started loading every row to rank by finish date).
+//
+// NOW. Each board (`sub`, `flag`) is kept as ONE value, `snap:<board>`: every row, with its id, its
+// hasCsv flag and (main board, named rows with an owner) its `acct`. Reads cost 1 KV read and no list.
+//
+// WRITES PATCH IT IN PLACE; THEY NEVER RE-LIST OR RE-READ THE BOARD. The first version rebuilt the
+// whole snapshot from a list on every write, and that was wrong three ways (review, 2026-09-26):
+//   - KV's list() lags a write by up to a minute, so a rebuild right after a write dropped whatever
+//     the list could not see yet. A CSV posted a moment after its /submit wiped the new row off the
+//     board (and /claim then answered 404 for it); three uploads in a row left only the last.
+//   - it read every row, one KV read each. Workers Free allows 1,000 KV operations per invocation,
+//     so past ~990 rows every rebuild would have thrown -- and, never updating the snapshot, been
+//     started again by every read after it.
+//   - its CPU grew with the board: 15 ms at 1,000 rows against a ~10 ms budget.
+// So /submit, /claim and /csv now change the snapshot they read: one read, one write, no list, and no
+// JSON.parse of the rows either -- see "the text" below.
+//
+// WHAT A PATCH CAN MISS, AND HOW IT HEALS. Two writes at the same moment both read the old snapshot
+// and the second write wins, dropping the first one's change; KV also refuses a second write to one
+// key inside a second (429). Neither is rare: the app posts a run's CSV a moment after its summary.
+// So every patch also stamps `settleAt` (now + SETTLE_MS) in the head, and the first read after that
+// moment "settles" the board once: it lists the rows and the CSV ids -- a minute and a half after the
+// last write, when the list has caught up -- and reads only the rows the snapshot lacks, or whose
+// name the key's metadata says has changed. Then `settleAt` goes back to 0. With no writes there are
+// no rebuilds at all (the first version rebuilt every half hour whatever happened, which alone spent
+// a third of the day's list budget on a quiet board). A snapshot untouched for SNAP_MAX_AGE_MS is
+// settled anyway, as a backstop for a write that failed outright.
+//
+// THE TEXT is two JSON documents on two lines, and the first one IS the /all response:
+//
+//   {"builtAt":1727...,"v":3,"settleAt":0,"finals":[490],"count":97,"rows":[{"id":"…","hasCsv":…},…]}
+//   {"own":{"<id>":"<owner 12 hex>",...}}
+//
+// The free Workers plan allows ~10 ms of CPU a request, and parsing a few hundred rows only to
+// stringify them again spends most of it. So an unfiltered /all is the first line sent as is, and
+// everything else works on the TEXT of each row: every row is written with `id` first and `hasCsv`
+// second, so a row starts with `{"id":"` and nothing inside a row can (no nested object has an `id`,
+// and a quote inside a string is always escaped). Splitting the rows is then a scan for `,{"id":"`,
+// flipping hasCsv is one string replace, and a row's target and duration -- its KV key -- are two
+// small regexes. JSON.stringify never writes a raw newline, so the first newline is the line break.
+// `builtAt`, `v`, `settleAt` and `finals` lead so a regex over the first few dozen characters reads
+// them: `v` retires a snapshot written by an older Worker, and `finals` lets `/all?final=490` send
+// the same bytes when every row is for 490 -- which, today, every row is.
+//
+// The second line is private and never served: id -> first 12 hex of the owner hash, for /mine,
+// /flagged's "yours" and /leaderboard's fold. That is why rows themselves never carry `owner`, on
+// either board, and why /mine needs no list: the index is already here.
+//
+// Rows stay in key order (target, then duration, then id): a patch inserts a new row where its key
+// sorts, and a settle re-sorts. The Worker deletes exactly one kind of row: a provisional row its own
+// sender's run has replaced (see "provisional rows"). That patch takes the row out; and since a patch
+// can lose a race and put it back, a settle drops any row KV no longer lists once it is older than
+// UNLISTED_GRACE_MS (a row that new may just not be listed yet). The same settle now also clears a
+// row deleted by hand, so `snap:<board>` no longer has to be deleted after hand edits.
+/** Bumped when the snapshot's shape changes, so the first read after a deploy rebuilds it. */
+const SNAP_VERSION = 3;
+/** How long after a write the board is settled (see above): KV's list shows a write within ~60 s. */
+const SETTLE_MS = 90 * 1000;
+/** A snapshot this old is settled even with no write since: a backstop, not a schedule. */
+const SNAP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** More distinct targets than this and `finals` is written as null: a filtered read then filters. */
+const SNAP_MAX_FINALS = 16;
+/** Pages of 1,000 keys a settle will list before it stops: 20,000 rows, far past today's hundred. */
+const LIST_MAX_PAGES = 20;
+/**
+ * Row reads one settle may make. Workers Free caps an invocation at 1,000 KV operations, and /mine
+ * (or a /submit) can settle both boards in one request. A normal settle reads a handful; only the first
+ * build (no snapshot: a deploy that bumps SNAP_VERSION, or `snap:<board>` deleted by hand) reads every
+ * row, and past this it stores what it has with `settleAt` due at once, so the next read carries on where
+ * it stopped. 700 (was 300, 22 Oct 2026) so a board of up to about 700 rows rebuilds in ONE read; the
+ * flagged board's own settle is held to FLAG_SETTLE_MAX_GETS, so both boards rebuilding in one request
+ * stay at 900 reads plus a few lists and writes, under the 1,000. CPU is the risk: measured in Node (M-series
+ * Mac, warm) on the live board's rows (3 KB median) copied, a rebuild from nothing takes about 45-60 ms for
+ * 700 rows against 18-28 ms for 300 (the old cap), both past the Free plan's nominal 10 ms a request.
+ * Rebuilds of ~300 have gone through live, so the limit is not applied strictly to one request, but a
+ * rebuild twice as long is likelier to be cut off ("exceeded CPU"). A cut-off rebuild stores nothing, and
+ * a board with no snapshot is rebuilt inside the read itself, so every read of that board would then fail
+ * the same way: if a rebuild is ever cut off, lower this again (300 rebuilds in steps, as before).
+ */
+const SETTLE_MAX_GETS = 700;
+/** The flagged board's share of a request's reads when both boards settle at once (see SETTLE_MAX_GETS). */
+const FLAG_SETTLE_MAX_GETS = 200;
+/** A snapshot write refused (KV takes one write a second per key) is tried once more after this. */
+const PUT_RETRY_MS = 1100;
+/** Edge cache for the public board reads, in seconds. KV itself takes up to 60 s to show a write. */
+const EDGE_CACHE_S = 60;
+/** A snapshot row KV no longer lists is dropped by a settle only once it is this old: KV's list shows
+ *  a write within ~60 s, so a row younger than this may simply not be listed yet. */
+const UNLISTED_GRACE_MS = 10 * 60 * 1000;
+
+/** Run after the response when the platform allows it; otherwise (tests) just wait for it. */
+function later(ctx, promise) {
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(promise.catch(() => {}));
+  else return promise;
+}
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Every key under a prefix, following the cursor: a board past 1,000 rows must not silently end.
+ *  `complete` is false when LIST_MAX_PAGES ran out first. */
+async function listAll(env, prefix) {
+  const out = [];
+  let cursor;
+  let complete = false;
+  for (let page = 0; page < LIST_MAX_PAGES; page++) {
+    const r = await env.SUBMISSIONS.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
+    out.push(...r.keys);
+    if (r.list_complete !== false || !r.cursor) {
+      complete = true;
+      break;
+    }
+    cursor = r.cursor;
+  }
+  return Object.assign(out, { complete });
+}
+
+/** The header fields of a stored snapshot, read without parsing it; null if it is not one. */
+const SNAP_HEAD = /^\{"builtAt":(\d+),"v":(\d+),"settleAt":(\d+),"finals":(null|\[[^\]]*\]),"count":(\d+),"rows":\[/;
+function snapHead(raw) {
+  if (typeof raw !== 'string') return null;
+  const m = SNAP_HEAD.exec(raw.slice(0, 512));
+  if (!m) return null;
+  let finals;
+  try {
+    finals = JSON.parse(m[4]);
+  } catch {
+    return null;
+  }
+  return {
+    builtAt: Number(m[1]),
+    v: Number(m[2]),
+    settleAt: Number(m[3]),
+    finals,
+    count: Number(m[5]),
+    rowsAt: m[0].length,
+  };
+}
+
+/** The first line: exactly the public /all body. */
+const publicPart = raw => {
+  const cut = raw.indexOf('\n');
+  return cut < 0 ? raw : raw.slice(0, cut);
+};
+
+const ROW_START = '{"id":"';
+const ROW_SEP = ',{"id":"';
+/** `{"id":"<id>"` -- the exact start of that row's text (the closing quote keeps `ab` off `abc`). */
+const rowPrefix = id => `${ROW_START}${id}"`;
+const spanId = span => span.slice(ROW_START.length, span.indexOf('"', ROW_START.length));
+const FINAL_RE = /"finalTE":(-?[\d.eE+]+)/;
+const DUR_RE = /"durationDays":(-?[\d.eE+]+)/;
+const NICK_RE = /"nickname":("(?:[^"\\]|\\.)*")/;
+/** A top-level field's JSON text, from a row's text. Only for fields no nested object has. */
+const spanField = (span, re) => {
+  const m = re.exec(span);
+  return m ? m[1] : null;
+};
+/** The row's KV key, from its text: every part of a key is stored on the row verbatim. */
+const spanKey = (board, span) =>
+  `${board}:${spanField(span, FINAL_RE)}:${durKey(Number(spanField(span, DUR_RE)))}:${spanId(span)}`;
+function spanNickname(span) {
+  const m = NICK_RE.exec(span);
+  if (!m) return '';
+  try {
+    return JSON.parse(m[1]);
+  } catch {
+    return '';
+  }
+}
+const RECEIVED_RE = /"receivedAt":"([^"]*)"/;
+/** A row's `receivedAt` from its text ('' when it has none: a row from before the collector stamped). */
+const spanReceivedAt = span => {
+  const m = RECEIVED_RE.exec(span);
+  return m ? m[1] : '';
+};
+const spanFinal = span => {
+  const t = spanField(span, FINAL_RE);
+  return t === null ? NaN : Number(t);
+};
+
+/** Fields a stored record never passes into the snapshot as they are: derived here, or private. */
+const NOT_FROM_RECORD = new Set(['id', 'hasCsv', 'hidden', 'acct', 'owner', 'yours', 'provSeq', 'csvRun']);
+/**
+ * A ROW'S SIZE IN THE SNAPSHOT IS CAPPED (21 Oct 2026, review). The body cap (512 KB) bounds one send, not
+ * the board: `space.bands` alone may be 32 x 1,024 numbers, so ~50 such rows would push `snap:<board>`
+ * past KV's 25 MB value limit and every board read far past the Free plan's CPU. Live, the largest row is
+ * 4.6 KB (median 2.8 KB), so SNAP_ROW_MAX_BYTES is 3.5 times that. A row over it goes into the snapshot
+ * with its biggest optional blocks left out, in SNAP_TRIM_ORDER, until it fits, and says `"trimmed":true`.
+ * Only the snapshot's copy: the stored `sub:`/`flag:` record keeps everything. The fields the snapshot's
+ * text is read by (`id`, `hasCsv`, `hidden`, `finalTE`, `durationDays`, `nickname`, `receivedAt`, `dupOf`)
+ * and the ranking ones are never trimmed, and all of those are small and bounded.
+ */
+const SNAP_ROW_MAX_BYTES = 16 * 1024;
+// prettier-ignore
+const SNAP_TRIM_ORDER = [
+  'space', 'proof', 'rechecks', 'searched', 'sweep', 'machine', 'run', 'epicResearch', 'colleggtibles',
+  'stones', 'artifacts', 'delivery', 'earnings', 'start', 'teByEgg', 'timeOff', 'note', 'progress', 'seed', 'legs',
+];
+
+/** A row as the snapshot writes it: `id` then `hasCsv` first (see "the text"), never the owner. A
+ *  hidden row (see "hidden rows") says so third, `"hidden":true`, so one test on the text tells. */
+function rowText(record, id, hasCsv, acct) {
+  const row = { id, hasCsv: !!hasCsv };
+  if (record.hidden === true) row.hidden = true;
+  for (const [k, v] of Object.entries(record)) if (!NOT_FROM_RECORD.has(k)) row[k] = v;
+  if (acct) row.acct = acct;
+  let text = JSON.stringify(row);
+  if (text.length <= SNAP_ROW_MAX_BYTES) return text;
+  // Too big for the board: drop the biggest optional blocks, in order, until it fits.
+  delete row.trimmed;
+  for (const k of SNAP_TRIM_ORDER) {
+    if (!(k in row)) continue;
+    delete row[k];
+    row.trimmed = true;
+    text = JSON.stringify(row);
+    if (text.length <= SNAP_ROW_MAX_BYTES) return text;
+  }
+  return JSON.stringify(row);
+}
+/** Does this row's text say it has a CSV? */
+const spanHasCsv = (span, id) => span.startsWith(`${rowPrefix(id)},"hasCsv":true`);
+/** Is this row hidden from the public (see "hidden rows")? Read off the row's own text. */
+const HIDDEN_AT = /^\{"id":"[^"]*","hasCsv":(?:true|false),"hidden":true[,}]/;
+const spanHidden = span => HIDDEN_AT.test(span);
+/** A public row's `dupOf`, from its text (top-level only: no nested object has one). */
+const DUP_RE = /,"dupOf":"([a-f0-9-]+)"/;
+/** The `acct` for a record on `board`, or undefined: main board, named, sent with an owner code. */
+async function acctFor(sign, board, record) {
+  return sign && board === 'sub' && record.nickname && typeof record.owner === 'string'
+    ? sign(record.owner)
+    : undefined;
+}
+
+/** The rows' texts, split without parsing; null when the text is not laid out the way this writes it. */
+function splitRows(first, head) {
+  if (!first.endsWith(']}')) return null;
+  const body = first.slice(head.rowsAt, first.length - 2);
+  if (!body) return head.count === 0 ? [] : null;
+  if (!body.startsWith(ROW_START)) return null;
+  const spans = [];
+  let at = 0;
+  for (;;) {
+    const next = body.indexOf(ROW_SEP, at + 1);
+    if (next < 0) {
+      spans.push(body.slice(at));
+      break;
+    }
+    spans.push(body.slice(at, next));
+    at = next + 1;
+  }
+  return spans.length === head.count ? spans : null;
+}
+
+/**
+ * A snapshot opened for work: its head, every row's text, and the private owner index. Null when
+ * `raw` is not a snapshot of this version. Rows laid out some other way (hand-planted, say) are
+ * parsed and re-written the canonical way, which costs CPU but only ever happens once.
+ */
+function openSnapshot(raw) {
+  const head = snapHead(raw);
+  if (!head || head.v !== SNAP_VERSION) return null;
+  const cut = raw.indexOf('\n');
+  const first = cut < 0 ? raw : raw.slice(0, cut);
+  let spans = splitRows(first, head);
+  const laidOut = !!spans;
+  if (!spans) {
+    try {
+      const rows = JSON.parse(first).rows;
+      spans = (Array.isArray(rows) ? rows : [])
+        .filter(r => r && typeof r === 'object' && typeof r.id === 'string')
+        .map(r => rowText(r, r.id, r.hasCsv, r.acct));
+    } catch {
+      return null;
+    }
+  }
+  let own = {};
+  let prov = {};
+  let hid = [];
+  let dup = {};
+  try {
+    const priv = cut < 0 ? {} : JSON.parse(raw.slice(cut + 1));
+    own = priv.own || {};
+    prov = priv.prov && typeof priv.prov === 'object' ? priv.prov : {};
+    hid = Array.isArray(priv.hid) ? priv.hid : [];
+    dup = priv.dup && typeof priv.dup === 'object' ? priv.dup : {};
+  } catch {
+    own = {};
+    prov = {};
+  }
+  // `pub` is line 1 exactly: what the public reads serve. `spans` is every row, as the writes and the
+  // owner's reads need it: the hidden rows merged back where their keys sort, and a `dupOf` the public
+  // text left out (its target is hidden) put back. Neither costs anything on a board with no hidden row.
+  // (A line 1 laid out by hand is re-written above, and may carry a hidden row: never served.)
+  const pub = laidOut ? spans : spans.filter(s => !spanHidden(s));
+  if (hid.length || Object.keys(dup).length) {
+    spans = spans.slice();
+    for (const [id, to] of Object.entries(dup)) {
+      const at = typeof to === 'string' && ROW_ID.test(to) ? spans.findIndex(s => s.startsWith(rowPrefix(id))) : -1;
+      if (at >= 0 && !DUP_RE.test(spans[at])) spans[at] = `${spans[at].slice(0, -1)},"dupOf":"${to}"}`;
+    }
+    for (const r of hid) {
+      if (!r || typeof r !== 'object' || typeof r.id !== 'string' || r.hidden !== true) continue;
+      if (spans.some(s => s.startsWith(rowPrefix(r.id)))) continue;
+      insertSorted(spans, rowText(r, r.id, r.hasCsv, r.acct));
+    }
+  }
+  return { head, first, pub, spans, own, prov };
+}
+
+/** Put a row's text where it sorts among `spans` (target, then duration, then id: the key's order,
+ *  which is the same on both boards since only the prefix differs). */
+function insertSorted(spans, text) {
+  const key = spanKey('', text);
+  let lo = 0;
+  let hi = spans.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (spanKey('', spans[mid]) < key) lo = mid + 1;
+    else hi = mid;
+  }
+  spans.splice(lo, 0, text);
+}
+
+/**
+ * Both lines, as the snapshot stores them. `finals` is worked out here from the rows. `prov` (the
+ * provisional rows' send counts, see "provisional rows") keeps only rows still in the owner index:
+ * a row taken off the board takes its entry with it.
+ */
+function composeSnapshot(spans, own, builtAt, settleAt, prov = {}) {
+  // Hidden rows (see "hidden rows") go to the private line; the public one never sees them, so its
+  // `count` and `finals` do not either.
+  const pub = [];
+  const hid = [];
+  for (const s of spans) (spanHidden(s) ? hid : pub).push(s);
+  // A public row's `dupOf` naming a hidden row would say the sender has another, hidden, row with
+  // this result: left out of the public text, remembered privately (`dup`), put back when it is shown.
+  const dup = {};
+  if (hid.length) {
+    const hidIds = new Set(hid.map(spanId));
+    for (let i = 0; i < pub.length; i++) {
+      const m = DUP_RE.exec(pub[i]);
+      if (!m || !hidIds.has(m[1])) continue;
+      dup[spanId(pub[i])] = m[1];
+      pub[i] = pub[i].replace(m[0], '');
+    }
+  }
+  const finals = [...new Set(pub.map(spanFinal).filter(Number.isFinite))].sort((a, b) => a - b);
+  const kept = {};
+  for (const [id, v] of Object.entries(prov)) if (own[id] !== undefined && typeof v === 'string') kept[id] = v;
+  const priv = JSON.stringify({
+    own,
+    ...(Object.keys(kept).length ? { prov: kept } : {}),
+    ...(Object.keys(dup).length ? { dup } : {}),
+  });
+  return (
+    `{"builtAt":${builtAt},"v":${SNAP_VERSION},"settleAt":${settleAt},` +
+    `"finals":${finals.length <= SNAP_MAX_FINALS ? JSON.stringify(finals) : 'null'},` +
+    `"count":${pub.length},"rows":[${pub.join(',')}]}\n` +
+    (hid.length ? `${priv.slice(0, -1)},"hid":[${hid.join(',')}]}` : priv)
+  );
+}
+
+/** Put a row's text where its key sorts, or over the row with the same id. */
+function placeRow(board, spans, key, text) {
+  const id = idOf(key);
+  const at = spans.findIndex(s => s.startsWith(rowPrefix(id)));
+  if (at >= 0) {
+    spans[at] = text;
+    return;
+  }
+  let lo = 0;
+  let hi = spans.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (spanKey(board, spans[mid]) < key) lo = mid + 1;
+    else hi = mid;
+  }
+  spans.splice(lo, 0, text);
+}
+
+/** Mark row `id` as having a CSV, in place. False when the row is not in `spans`. */
+function flipCsv(spans, id) {
+  const at = spans.findIndex(s => s.startsWith(rowPrefix(id)));
+  if (at < 0) return false;
+  const off = `${rowPrefix(id)},"hasCsv":false`;
+  if (spans[at].startsWith(off)) spans[at] = `${rowPrefix(id)},"hasCsv":true${spans[at].slice(off.length)}`;
+  return true;
+}
+
+/** Write a snapshot. A refused write (429: KV takes one a second per key) returns false, never throws:
+ *  the caller already has the text it built, and the next settle puts the board right. */
+async function putSnapshot(env, board, text) {
+  try {
+    await env.SUBMISSIONS.put(`snap:${board}`, text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The rows a change writes: `row` (one), or `rows` (a hide of several, see "hidden rows"). */
+const changedRows = change => (change?.rows ?? (change?.row ? [change.row] : []));
+
+/**
+ * Apply one write's change to `snap:<board>`: `{row: {key, record}}` (a new or renamed row; `rows`
+ * for several, as a hide sends),
+ * `{remove: id}` (a replaced provisional row, alone or beside `row`) or `{csvId}`. One read, one
+ * write, no list. Resolves to the new text, to null when `csvId` (or a lone `remove`) is not a row of
+ * this board (nothing written), or to false when the write did not land.
+ *
+ * With no snapshot of this version to patch (the first write after a deploy), it settles the board
+ * from scratch instead, with the change folded in.
+ */
+async function patchSnapshot(env, board, change, preRead) {
+  // `preRead`: the snapshot text this request already read a moment ago (the quarantine's spam count,
+  // see "quarantine"), so the patch costs no second read. Only ever for the first try.
+  const raw = typeof preRead === 'string' ? preRead : await env.SUBMISSIONS.get(`snap:${board}`);
+  const snap = openSnapshot(raw);
+  if (!snap) {
+    const settled = await settleSnapshot(env, board, raw, change);
+    return settled.stored ? settled.text : false;
+  }
+  const { spans, own, prov } = snap;
+  const rows = changedRows(change);
+  if (change.remove) {
+    const at = spans.findIndex(s => s.startsWith(rowPrefix(change.remove)));
+    if (at < 0 && !rows.length && !change.csvId) return null;
+    if (at >= 0) spans.splice(at, 1);
+    delete own[change.remove];
+    delete prov[change.remove];
+  }
+  const sign = rows.length && board === 'sub' ? await acctSigner(env) : null;
+  for (const { key, record } of rows) {
+    const id = idOf(key);
+    const held = spans.find(s => s.startsWith(rowPrefix(id)));
+    const acct = await acctFor(sign, board, record);
+    // A rename (or a hide) keeps the row's hasCsv; a new row has no CSV yet (its token was not even sent).
+    placeRow(board, spans, key, rowText(record, id, !!held && spanHasCsv(held, id), acct));
+    if (typeof record.owner === 'string') own[id] = record.owner.slice(0, OWNER_HEX);
+    if (typeof record.provSeq === 'string') prov[id] = record.provSeq;
+  }
+  if (change.csvId && !flipCsv(spans, change.csvId)) return null;
+  const now = Date.now();
+  const text = composeSnapshot(spans, own, now, now + SETTLE_MS, prov);
+  return (await putSnapshot(env, board, text)) ? text : false;
+}
+
+/**
+ * Settle `snap:<board>` against KV (see "what a patch can miss"): list the rows and the CSV ids, read
+ * only the rows the snapshot lacks or whose name changed, flip hasCsv where a table has arrived, fold
+ * in `change` if a write brought one, re-sort, and store it. Starts from `raw` when that is a snapshot
+ * of this version, else from nothing. Resolves to `{text, stored}`: the text either way, since a
+ * read that asked for it already has a correct answer whether or not KV took the write.
+ */
+async function settleSnapshot(env, board, raw, change = null) {
+  const snap = openSnapshot(raw) || { spans: [], own: {}, prov: {} };
+  const byId = new Map(snap.spans.map(s => [spanId(s), s]));
+  const own = snap.own;
+  const prov = snap.prov;
+  const [listed, csvListed] = await Promise.all([listAll(env, `${board}:`), listAll(env, 'csv:')]);
+  // A CSV's later parts (`csv:<id>:p<n>`) are not CSVs of their own; `csv:<id>` is the whole file.
+  const csvIds = new Set(csvListed.map(k => k.name.slice(4)).filter(n => !n.includes(':')));
+
+  // Rows KV no longer has: a replaced provisional row a racing patch put back, or one deleted by hand.
+  // Only past UNLISTED_GRACE_MS, and only from a list that ran to the end (see "snapshots").
+  if (listed.complete) {
+    const listedIds = new Set(listed.map(k => idOf(k.name)));
+    const cutoff = Date.now() - UNLISTED_GRACE_MS;
+    for (const [id, s] of byId) {
+      if (listedIds.has(id)) continue;
+      const at = Date.parse(spanReceivedAt(s));
+      if (Number.isFinite(at) && at > cutoff) continue;
+      byId.delete(id);
+      delete own[id];
+    }
+  }
+  if (change?.remove) {
+    byId.delete(change.remove);
+    delete own[change.remove];
+  }
+
+  const need = [];
+  for (const k of listed) {
+    const held = byId.get(idOf(k.name));
+    if (!held) need.push(k.name);
+    // A rename writes the key's metadata too; a row stored before metadata existed was never renamed.
+    // So does a hide (`h`, see "hidden rows"): a hide whose patch lost a race is put right here.
+    else if (
+      k.metadata &&
+      typeof k.metadata.fp === 'string' &&
+      ((k.metadata.n || '') !== spanNickname(held) || !!k.metadata.h !== spanHidden(held))
+    ) {
+      need.push(k.name);
+    }
+  }
+  const take = need.slice(0, board === 'flag' ? FLAG_SETTLE_MAX_GETS : SETTLE_MAX_GETS);
+  const raws = await Promise.all(take.map(k => env.SUBMISSIONS.get(k)));
+  // The flagged board is anonymous to everyone but the owner, and an `acct` there would link its
+  // rows to the same player's named rows on the main board. So only the main board gets one.
+  const sign = board === 'sub' ? await acctSigner(env) : null;
+  const addRecord = async (key, record) => {
+    const id = idOf(key);
+    const held = byId.get(id);
+    byId.set(
+      id,
+      rowText(record, id, (!!held && spanHasCsv(held, id)) || csvIds.has(id), await acctFor(sign, board, record))
+    );
+    if (typeof record.owner === 'string') own[id] = record.owner.slice(0, OWNER_HEX);
+    if (typeof record.provSeq === 'string') prov[id] = record.provSeq;
+  };
+  for (let i = 0; i < take.length; i++) {
+    let record;
+    // One unparseable value must not take the whole board down with it.
+    try {
+      record = JSON.parse(raws[i]);
+    } catch {
+      continue;
+    }
+    if (record && typeof record === 'object' && !Array.isArray(record)) await addRecord(take[i], record);
+  }
+  for (const r of changedRows(change)) await addRecord(r.key, r.record);
+  if (change?.csvId) csvIds.add(change.csvId);
+  const keyed = [];
+  for (const [id, s] of byId) {
+    const off = `${rowPrefix(id)},"hasCsv":false`;
+    const span = csvIds.has(id) && s.startsWith(off) ? `${rowPrefix(id)},"hasCsv":true${s.slice(off.length)}` : s;
+    keyed.push([spanKey(board, span), span]);
+  }
+  keyed.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+
+  const now = Date.now();
+  // A write's own change settles again later, like any patch; a first build that hit the read cap is
+  // due again at once; otherwise the board is settled.
+  const settleAt = change ? now + SETTLE_MS : need.length > take.length ? now : 0;
+  const text = composeSnapshot(
+    keyed.map(([, s]) => s),
+    own,
+    now,
+    settleAt,
+    prov
+  );
+  return { text, stored: await putSnapshot(env, board, text) };
+}
+
+/**
+ * One settle per snapshot per isolate: reads that arrive together (LeaderboardPanel asks for /all and
+ * /mine at once), or that still see the old value through KV's read cache, share the first one's work
+ * instead of each listing the board again. A settle that failed is not tried again for a minute.
+ */
+const settling = new WeakMap();
+/** How long a finished settle answers for the snapshot it started from: KV's read cache is 60 s. */
+const SETTLE_REUSE_MS = 60 * 1000;
+function settleOnce(env, board, raw) {
+  let byBoard = settling.get(env.SUBMISSIONS);
+  if (!byBoard) settling.set(env.SUBMISSIONS, (byBoard = new Map()));
+  const head = snapHead(raw);
+  // No snapshot at all is one tag for every moment, so that one is shared only while in flight.
+  const tag = head ? `${head.v}:${head.builtAt}:${head.settleAt}` : '';
+  const held = byBoard.get(board);
+  if (held && held.tag === tag) {
+    const age = Date.now() - held.at;
+    // In flight: share it. Failed a moment ago: not again yet (one failure must not become a
+    // settle on every read). Done: its text stands for this snapshot while KV may still serve it.
+    if (!held.done || (held.failed ? age < SETTLE_REUSE_MS : !!tag && age < SETTLE_REUSE_MS)) return held.promise;
+  }
+  const entry = { tag, at: Date.now(), done: false, failed: false, promise: null };
+  entry.promise = settleSnapshot(env, board, raw).then(
+    ({ text }) => {
+      entry.done = true;
+      return text;
+    },
+    e => {
+      entry.done = entry.failed = true;
+      throw e;
+    }
+  );
+  byBoard.set(board, entry);
+  return entry.promise;
+}
+
+/**
+ * The board's snapshot TEXT: built on the spot if there is none (first deploy) or it was written in
+ * an older shape, settled in the background when a write asked for it (or it is very old).
+ */
+async function readSnapshotText(env, ctx, board) {
+  const raw = await env.SUBMISSIONS.get(`snap:${board}`);
+  const head = snapHead(raw);
+  if (!head || head.v !== SNAP_VERSION) return settleOnce(env, board, raw);
+  const now = Date.now();
+  // A settle writes settleAt 0, so this fires once per write (or once per capped first-build step).
+  const due = (head.settleAt > 0 && now >= head.settleAt) || now - head.builtAt > SNAP_MAX_AGE_MS;
+  if (due) await later(ctx, settleOnce(env, board, raw));
+  return raw;
+}
+
+/** Every PUBLIC row of a snapshot (line 1: never a hidden one), parsed, and the owner index: for the
+ *  public reads that need to look inside. */
+function parseSnapshot(raw) {
+  const snap = openSnapshot(raw);
+  if (!snap) return { rows: [], own: {} };
+  const rows = [];
+  for (const s of snap.pub) {
+    try {
+      rows.push(JSON.parse(s));
+    } catch {
+      /* one bad row is not the board */
+    }
+  }
+  return { rows, own: snap.own };
+}
+
+/**
+ * The same result sent more than once, as one line -- the fold /leaderboard serves to clients that
+ * do not fold for themselves. Replaces the old nickname-keyed collapse, which kept copies apart by
+ * effort tier and never folded anonymous ones.
+ *
+ * WHO SPEAKS FOR A GROUP. Only copies from the sender of the EARLIEST copy are eligible to stand for
+ * it or to name it: a stranger re-posting a public row can neither put their name on it nor lend it
+ * an "exhaustive" badge it never earned. "The sender" is /submit's rule (`sameSender`):
+ *   - the earliest copy has an owner code: copies with that same code;
+ *   - it has none: copies with no code that were stored before the collector stamped rows (they
+ *     predate the rule, and nobody can add one now), or that carry exactly the earliest copy's
+ *     nickname. A code-less re-post of a legacy row under some other name -- or under no name, of a
+ *     named one -- is a different sender, and only counts as a copy.
+ * Among the eligible, a final copy stands over a provisional one; then the biggest search (the space it enumerated, else the chains it priced;
+ * then how much of that it priced, so a finished proof beats the same proof stopped halfway), then
+ * the one with a CSV, then the earliest. The name is the earliest named eligible copy's.
+ */
+function foldCopies(rows, own) {
+  const groups = new Map();
+  for (const r of rows) {
+    const fp = fingerprint(r);
+    if (!groups.has(fp)) groups.set(fp, []);
+    groups.get(fp).push(r);
+  }
+  const sentAt = r => r.receivedAt || r.submittedAt || '';
+  const size = r => (r.space && r.space.chains) || r.chainsPriced || 0;
+  const priced = r => (r.space ? r.space.chainsPriced : r.chainsPriced) || 0;
+  return [...groups.values()].map(copies => {
+    if (copies.length === 1) return copies[0];
+    const byTime = [...copies].sort((a, b) => sentAt(a).localeCompare(sentAt(b)));
+    const first = byTime[0];
+    const firstOwner = own[first.id] || '';
+    const eligible = firstOwner
+      ? byTime.filter(r => own[r.id] === firstOwner)
+      : byTime.filter(r => !own[r.id] && (!r.receivedAt || (r.nickname || '') === (first.nickname || '')));
+    let rep = eligible[0];
+    for (const r of eligible.slice(1)) {
+      // A final copy always stands over a provisional one, whatever either searched.
+      const d =
+        Number(!r.provisional) - Number(!rep.provisional) ||
+        size(r) - size(rep) ||
+        priced(r) - priced(rep) ||
+        Number(!!r.hasCsv) - Number(!!rep.hasCsv);
+      if (d > 0) rep = r;
+    }
+    const named = eligible.find(r => r.nickname);
+    const row = { ...rep, copies: copies.length };
+    delete row.acct;
+    // Every eligible copy has the one owner (or, with none, none), so the named copy's `acct` -- if
+    // it has one -- is the group's.
+    if (named) Object.assign(row, defined({ nickname: named.nickname, acct: named.acct }));
+    else delete row.nickname;
+    return row;
+  });
+}
+
+/**
+ * GET a public board read through the edge cache. Misses call `build`; hits cost no KV at all.
+ *
+ * Two different Cache-Control values on purpose. The copy kept at the edge lives EDGE_CACHE_S, and a
+ * write drops it (`dropEdgeCache`). The copy the BROWSER gets says `no-cache`: a browser's own copy is
+ * one no write can clear, so "Refresh" -- or the reload after a send or a rename -- would show the
+ * board from before it for as long as the browser liked. NOTE: the Cache API only works on a custom
+ * domain; on a workers.dev host it stores nothing, so there every view costs its KV read.
+ */
+async function edgeCached(request, ctx, build) {
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  // The cache key is `request`: the caller passes the read's URL with only the parameters it reads, in a
+  // fixed order (boardKey; 21 Oct 2026, review), so `/all?x=<random>` is `/all`, not a fresh KV read.
+  const key = new Request(request.url, { method: 'GET' });
+  const forBrowser = res => {
+    const out = new Response(res.body, res);
+    out.headers.set('cache-control', 'no-cache');
+    return out;
+  };
+  if (cache) {
+    const hit = await cache.match(key);
+    if (hit) return forBrowser(hit);
+  }
+  const res = await build();
+  if (res.status !== 200) return res;
+  if (!cache) return forBrowser(res);
+  const body = await res.text();
+  const edge = new Response(body, res);
+  edge.headers.set('cache-control', `public, max-age=${EDGE_CACHE_S}`);
+  await later(ctx, cache.put(key, edge));
+  return forBrowser(new Response(body, res));
+}
+
+/**
+ * A board read's cache key (see edgeCached): `final` (a whole TE) and, for /leaderboard, `limit` (clamped
+ * as the read clamps it), in the order dropEdgeCache names them; every other parameter is ignored. Null
+ * when `final` is not a whole TE in range (the read answers 400: no real caller sends one).
+ */
+function boardKey(url) {
+  const finalRaw = url.searchParams.get('final');
+  let final = null;
+  if (finalRaw !== null) {
+    if (!/^\d{1,7}$/.test(finalRaw) || Number(finalRaw) <= 0 || Number(finalRaw) > MAX.TE) return null;
+    final = String(Number(finalRaw));
+  }
+  const q = [];
+  if (final !== null) q.push(`final=${final}`);
+  const limitRaw = url.searchParams.get('limit');
+  if (url.pathname === '/leaderboard' && limitRaw !== null) q.push(`limit=${Math.min(Number(limitRaw) || 50, 200)}`);
+  return { final, href: `${url.origin}${url.pathname}${q.length ? `?${q.join('&')}` : ''}` };
+}
+
+/** GET /csv's cost unit for READ_LIMITER: one unit a request, plus one per this many extra reads (parts
+ *  or deltas), so an address gets about as many KV reads a minute from a heavy file as from light ones. */
+const CSV_READS_PER_UNIT = 2;
+/** The most units one CSV read is charged (a 256-delta file: 1 + 100, so about one read a minute per
+ *  address): below READ_LIMITER's 120, so a heavy file is slow to re-read, never unreadable. */
+const CSV_UNITS_MAX = 100;
+
+/** Drop this data centre's cached copies of these rows' CSVs (a hide). */
+async function dropCsvCache(origin, ids) {
+  if (typeof caches === 'undefined') return;
+  await Promise.all(ids.map(id => caches.default.delete(new Request(`${origin}/csv?id=${id}`)).catch(() => false)));
+}
+
+/** Drop this data centre's cached board reads after a write, so the writer sees it at once. Run it
+ *  AFTER the snapshot write: dropped first, a read in between would cache the old board again. */
+async function dropEdgeCache(origin) {
+  if (typeof caches === 'undefined') return;
+  // The last two are the URLs the inline board page asks for.
+  const urls = [
+    '/all',
+    '/all?final=490',
+    '/leaderboard',
+    '/leaderboard?final=490',
+    '/leaderboard?limit=50',
+    '/leaderboard?final=490&limit=50',
+  ];
+  await Promise.all(urls.map(u => caches.default.delete(new Request(origin + u)).catch(() => false)));
+}
+
+/**
+ * Put one write's change on the board before answering, so the reply means "it is on the board
+ * now": a /claim or a CSV that follows finds the row. A write refused by KV is tried once more in the
+ * background a second later; if that fails too, the settle a patch always asks for puts it right.
+ */
+async function commitSnapshot(env, ctx, board, change, origin, preRead) {
+  const done = await patchSnapshot(env, board, change, preRead).catch(() => false);
+  if (done === false) {
+    await later(
+      ctx,
+      sleep(PUT_RETRY_MS)
+        .then(() => patchSnapshot(env, board, change))
+        .then(() => dropEdgeCache(origin))
+    );
+    return;
+  }
+  await later(ctx, dropEdgeCache(origin));
+}
+
+/** A CSV arrived: flip hasCsv on whichever board holds its row (a read each, no list). */
+async function markCsv(env, id, origin) {
+  for (const board of ['sub', 'flag']) {
+    let done = await patchSnapshot(env, board, { csvId: id }).catch(() => false);
+    if (done === false) {
+      // Most often the /submit's own snapshot write a moment ago: KV takes one write a second per key.
+      await sleep(PUT_RETRY_MS);
+      done = await patchSnapshot(env, board, { csvId: id }).catch(() => false);
+    }
+    // Not on this board: try the other. On neither (its /submit's patch has not landed yet), that
+    // patch asks for a settle, and the settle's CSV list flips it.
+    if (done !== null) break;
+  }
+  await dropEdgeCache(origin);
+}
+
+/**
+ * Which board holds row `id`, its KV key and whether it has a CSV, from the snapshots (a read each, no
+ * list). `boards` is snapshot text already read for this request, by board, to read nothing again.
+ */
+async function findRow(env, ctx, id, boards = {}) {
+  for (const b of ['sub', 'flag']) {
+    const raw = boards[b] ?? (await readSnapshotText(env, ctx, b));
+    if (!raw.includes(rowPrefix(id))) continue;
+    const span = openSnapshot(raw)?.spans.find(sp => sp.startsWith(rowPrefix(id)));
+    if (span) return { board: b, key: spanKey(b, span), hasCsv: spanHasCsv(span, id) };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- provisional rows
+//
+// A long run (Highest TE by a date, a Full sweep) can take a day, and used to send only at the end.
+// "Send best so far" sends its best mid-run as a PROVISIONAL row (`provisional: true`, with
+// `progress: {done, total}`), and the run carries on. When it finishes, its final row comes with
+// `replaces: <the provisional row's id>`, and so does a second best-so-far from the same run.
+//
+// WHO MAY REPLACE: the sender, proven exactly as /claim proves it -- the owner code in x-owner-token,
+// whose full SHA-256 must equal the `owner` stored on the old row. Never the name (anyone can type
+// one), never the 12-hex prefix in the index. So a provisional row sent without a code can never be
+// replaced, by anybody; the app always sends one.
+//
+// WHAT MAY BE REPLACED: only a row that is itself provisional. A final row stands; a `replaces`
+// pointing at one (or at someone else's row, or a row that is not there) is REFUSED: the new row is
+// stored as an ordinary submission, the old row stays, and the reply says why (`replaceRefused`).
+//
+// A VALID REPLACE stores the new row first, then deletes the old row's key, its `csv:` and its
+// `extra:` (three deletes, whether or not the last two exist: a lookup would cost a read, and the
+// CSV may have landed after the snapshot last said) and takes it off the snapshot. Ids are never
+// reused, so a `dupOf` that pointed at the old row points at nothing; the app and /leaderboard fold
+// by content anyway.
+//
+// PROGRESS SENDS (10 Oct 2026). A provisional row now carries the run's DATA too: /submit hands it an
+// upload token (signed over `csvp:<id>`, not `csv:<id>`), so the CSV of everything priced so far can
+// follow it to /csv, and its private extras (diagnostics) go to `extra:<id>` as for any row. Partial
+// CSVs are identifiable: the row is `provisional`, and the app writes "in progress, N of M" into the
+// CSV's own header. /csv flips the row's `hasCsv` with a snapshot patch, as for a final table (1 read,
+// 1 write). It used to skip that and leave it to the settle the /submit asked for, to save the write,
+// but that settle runs at the first read after 90 s and lists the CSVs then: a CSV so far that landed
+// later (or was not listed yet) was missed, and the settle clears `settleAt`, so the row showed no
+// CSV until the next write or the day-old backstop (live, 10 Oct). The next send (or the final)
+// deletes it with the row it replaces.
+//
+// RATIONED, because KV's free plan allows 1,000 writes and 1,000 deletes a day. A provisional send
+// needs an owner code (without one the row could never be replaced, so it would only ever pile up),
+// and a sender may send one every PROVISIONAL_GAP_MS: the check reads the sender's newest provisional
+// row's `receivedAt` from the snapshots, through the owner index they already carry -- no new KV key.
+// Too soon is a 429 with `tooSoon: true` and `retryAfter`, and nothing is written. A FINAL row is
+// never held back: a run may finish a minute after its best so far went. A provisional send also
+// skips the copy check (its one list): it is never an exact copy worth folding, and never an anchor.
+//
+// AND CAPPED: at most PROVISIONAL_PER_DAY provisional sends per owner code per UTC day. Counting costs
+// no KV operation either. Each provisional row is stored with a private `provSeq`
+// ("<UTC day>|<sends that day in its chain>|<the ids it took over, newest first>"), copied into the snapshot's private
+// line (`prov`, beside `own`) and never into the row's public text. A chain of replaces leaves one row
+// on the board whose count is the chain's whole day, so the sender's total is the sum over their
+// provisional rows still up. Over the cap is a 429 with `tooSoon: true`, `dailyCap: true` and
+// `retryAfter` (to the next UTC midnight), and nothing is written. A run that ended (its final
+// replaced the chain) takes its count off with it; that is fine, a final is never rationed anyway.
+//
+// A CRASHED RUN KEEPS ITS CHAIN. The app keeps the id to replace in the run's checkpoint, which can lag
+// a send by a minute; a page that dies in between carries on with the id BEFORE the newest. The
+// `provSeq` remembers the last PROVISIONAL_HOPS rows each one took over, so a `replaces` naming a row
+// that is gone is followed forward (same owner) to the row of its chain still up, and that row is
+// replaced instead of being left on the board for ever.
+//
+// A replace costs three deletes beyond an ordinary send (the old row, its `csv:`, its `extra:`) and
+// no extra snapshot write when both rows are on one board: the new row and the removal are one patch.
+//
+// NO EXPIRY. A run that is abandoned leaves its provisional row up, tagged as in progress, with its
+// CSV so far: that is the point of sending it.
+
+/** The least time between two provisional sends from one sender. The app waits 30 minutes. */
+const PROVISIONAL_GAP_MS = 25 * 60 * 1000;
+/** The most provisional sends one owner code may make in a UTC day (the gap alone allows 57). */
+const PROVISIONAL_PER_DAY = 48;
+/** How many rows back a provisional row remembers its chain, for a stale `replaces` (see above). */
+const PROVISIONAL_HOPS = 4;
+
+const utcDay = ms => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * `openSnapshot`, remembered for the last few snapshot texts, for the helpers below that only READ
+ * it: a provisional send asks four of them about the same two snapshots, and splitting a board of
+ * rows four times over is CPU the free plan's ~10 ms does not have. Never for a patch, which edits.
+ */
+const viewed = new Map();
+function viewSnapshot(raw) {
+  if (typeof raw !== 'string') return null;
+  if (!viewed.has(raw)) {
+    if (viewed.size >= 4) viewed.delete(viewed.keys().next().value);
+    viewed.set(raw, openSnapshot(raw));
+  }
+  return viewed.get(raw);
+}
+
+/** Row `id`'s `provSeq`, from whichever snapshot holds it. */
+function provSeqAcross(boards, id) {
+  for (const raw of Object.values(boards)) {
+    const sn = viewSnapshot(raw);
+    const seq = sn && provSeqOf(sn, id);
+    if (seq) return seq;
+  }
+  return null;
+}
+
+/** A row's `provSeq` from a snapshot's private line: `{day, n, back}` (`back`: the ids it took the
+ *  place of, newest first), or null. */
+function provSeqOf(snap, id) {
+  const v = snap.prov?.[id];
+  if (typeof v !== 'string') return null;
+  const [day, n, from] = v.split('|');
+  const count = Number(n);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isInteger(count) && count > 0
+    ? { day, n: count, back: (from || '').split(',').filter(x => ROW_ID.test(x)) }
+    : null;
+}
+
+/**
+ * The sender's provisional sends today, from the snapshots: each of their provisional rows still up
+ * counts its chain's sends that day (`provSeq`), or 1 when it has none (sent before the count) and
+ * arrived today. `byId` is each row's own count, for the chain a new send continues.
+ */
+function provisionalToday(boards, owner, day) {
+  const mine = owner.slice(0, OWNER_HEX);
+  let sent = 0;
+  const byId = new Map();
+  for (const raw of Object.values(boards)) {
+    const snap = viewSnapshot(raw);
+    if (!snap) continue;
+    for (const span of snap.spans) {
+      const id = spanId(span);
+      if (snap.own[id] !== mine || !span.includes('"provisional":true')) continue;
+      const seq = provSeqOf(snap, id);
+      const n = seq ? (seq.day === day ? seq.n : 0) : spanReceivedAt(span).startsWith(day) ? 1 : 0;
+      sent += n;
+      byId.set(id, n);
+    }
+  }
+  return { sent, byId };
+}
+
+/**
+ * The row that took `id`'s place, when `id` is gone: the one of `owner`'s rows still up that lists
+ * `id` among the rows its chain replaced (`provSeq`). Null when there is none.
+ */
+function successorOf(boards, owner, id) {
+  const mine = owner.slice(0, OWNER_HEX);
+  for (const raw of Object.values(boards)) {
+    const sn = viewSnapshot(raw);
+    if (!sn) continue;
+    for (const x of Object.keys(sn.prov)) {
+      if (sn.own[x] === mine && provSeqOf(sn, x)?.back.includes(id) && sn.spans.some(sp => sp.startsWith(rowPrefix(x))))
+        return x;
+    }
+  }
+  return null;
+}
+
+/** When `owner` last sent a provisional row still on a board (ms), from the snapshots; null for never. */
+function lastProvisionalAt(boards, owner) {
+  const mine = owner.slice(0, OWNER_HEX);
+  let last = null;
+  for (const raw of Object.values(boards)) {
+    const snap = viewSnapshot(raw);
+    if (!snap) continue;
+    for (const span of snap.spans) {
+      if (snap.own[spanId(span)] !== mine || !span.includes('"provisional":true')) continue;
+      const at = Date.parse(spanReceivedAt(span));
+      if (Number.isFinite(at) && (last === null || at > last)) last = at;
+    }
+  }
+  return last;
+}
+
+/**
+ * The row a submission asks to replace, checked: `{ok: true, id, board, key}` when this sender may
+ * replace it, `{ok: false, id, why}` when not, or null when nothing was asked.
+ */
+async function replaceTarget(env, ctx, id, owner, boards) {
+  if (id === undefined) return null;
+  let found = await findRow(env, ctx, id, boards);
+  if (!found && owner) {
+    // Gone: a newer send from the same run may have taken its place (a crash before the app's
+    // checkpoint learned the newer id). Both boards are needed for that; a final has read neither.
+    for (const b of ['sub', 'flag']) boards[b] ??= await readSnapshotText(env, ctx, b);
+    const next = successorOf(boards, owner, id);
+    if (next) {
+      found = await findRow(env, ctx, next, boards);
+      if (found) id = next;
+    }
+  }
+  let stored = null;
+  if (found) {
+    try {
+      stored = JSON.parse(await env.SUBMISSIONS.get(found.key));
+    } catch {
+      stored = null;
+    }
+  }
+  if (!found || !stored || typeof stored !== 'object') return { ok: false, id, why: 'that row is not on the board' };
+  // The record's own full hash decides, as in /claim.
+  if (!owner || typeof stored.owner !== 'string' || stored.owner !== owner) {
+    return { ok: false, id, why: 'that row was not sent with your owner code' };
+  }
+  if (stored.provisional !== true) return { ok: false, id, why: 'that row is a final result, not a best so far' };
+  return { ok: true, id, board: found.board, key: found.key, hasCsv: found.hasCsv, hidden: stored.hidden === true };
+}
+
+/** Delete a replaced provisional row, its CSV so far and its private extras. The snapshot is the
+ *  caller's (it shares the new row's patch when both are on one board). The CSV and the extras go
+ *  unconditionally: the snapshot's hasCsv may not have caught up with a CSV so far yet, and deleting
+ *  nothing costs one operation where finding out would cost a read. A CSV in parts (see "the CSV in
+ *  parts") says how many in its `csv:<id>` metadata, so that key is read first (one read) and its
+ *  other parts go too. */
+async function deleteRow(env, target, keepRun) {
+  await env.SUBMISSIONS.delete(target.key);
+  const meta = await csvMeta(env, target.id);
+  const parts = partsOf(meta);
+  for (let n = 1; n < parts; n++) await env.SUBMISSIONS.delete(csvPartKey(target.id, n));
+  // A CSV so far in deltas (see "the CSV so far in deltas"): its deltas belong to its RUN, so they go
+  // unless the row replacing this one carries the same run (its new head will reference them).
+  if (typeof meta?.run === 'string' && meta.run !== keepRun) {
+    const k = deltaCount(meta);
+    for (let n = 0; n < k; n++) await env.SUBMISSIONS.delete(csvdKey(meta.run, n));
+  }
+  await env.SUBMISSIONS.delete(`csv:${target.id}`);
+  await env.SUBMISSIONS.delete(`extra:${target.id}`);
+}
+
+// ------------------------------------------------------------------ hidden rows
+//
+// "Hide from the public" (Oct 2026): a player takes their own rows off every public view with one
+// click, and can show them again. NO DELETE: a hidden row stays in KV, and in the maintainer's
+// analytics, which read KV with wrangler.
+//
+// WHO: proven exactly as /claim proves it -- the owner code in x-owner-token, whose full SHA-256 must
+// equal the `owner` stored on the row. Never the name, never the 12 hex in the owner index (that only
+// narrows the search; every row is read and checked on the full hash before anything is written).
+// One code per call. A row that is not yours and a row that does not exist get the same answer
+// (`missing`), so /hide cannot be used to ask whether someone else's row exists.
+//
+// WHAT IS STORED: `hidden: true` on the row's record (absent once shown again) and `h: 1` in its key's
+// metadata. The metadata is how a maintainer finds them (see the README) and how a settle notices a
+// hide whose snapshot patch lost a race (as `n` does for a rename). In the snapshot a hidden row moves
+// to the PRIVATE second line (`hid`: the rows, written exactly as public ones, `"hidden":true` third),
+// so line 1 -- the /all body, and what /leaderboard and /flagged read -- never holds one, and its
+// `count` and `finals` do not count one. `own` and `prov` keep them, so /mine, /claim, a `replaces`,
+// the provisional ration, the 60-a-day count and the sweep all still find them with no extra read.
+// A public row whose `dupOf` names a hidden row has that field left out of line 1 (remembered in the
+// private `dup`, put back when the row is shown again): it would tell a reader the sender has another,
+// hidden, row with this result.
+//
+// AND EVERYWHERE ELSE: a hidden row is never a `dupOf` anchor (`h`); an exact copy of it is caught as
+// usual, stores nothing and stays hidden (the reply says `hidden: true`: sending it again is not "Show
+// again"); a new row whose same-sender copies are ALL hidden is stored hidden; a row that replaces a
+// hidden provisional row (a final, or the next progress send) is stored hidden; a rename keeps it
+// hidden. GET /csv serves a hidden row's CSV only to its owner (403 to everyone else).
+//
+// COST (`POST /hide`, N rows, N <= MAX.HIDE_IDS): reads: rate gate, both snapshots, N rows, the owner's
+// daily count; writes: N rows (only those that change), one snapshot per board touched, the count, the
+// rate gate. No list, no delete. Capped at HIDE_PER_DAY row changes per owner code per UTC day, so one
+// account toggling cannot spend the free plan's 1,000 writes.
+//
+// A ROLLBACK to a Worker from before this would show hidden rows again: its settle reads the records
+// and does not know `hidden`.
+/** Row changes one owner code may make with /hide in a UTC day (a hide and a show are one each). */
+const HIDE_PER_DAY = 200;
+
+/**
+ * Where row `id` is, from the snapshots: `{board, key, hidden}`, or null when it is on neither (a
+ * row deleted, or one whose patch has not landed). `boards` as for findRow.
+ */
+async function rowPlace(env, ctx, id, boards = {}) {
+  for (const b of ['sub', 'flag']) {
+    const raw = (boards[b] ??= await readSnapshotText(env, ctx, b));
+    if (typeof raw !== 'string') continue;
+    const at = raw.indexOf(rowPrefix(id));
+    if (at < 0) continue;
+    const cut = raw.indexOf('\n');
+    // Line 1 holds only public rows; a hidden one is in line 2's `hid`, the only `{"id":"` there.
+    const hidden = cut >= 0 && at > cut;
+    const span = viewSnapshot(raw)?.spans.find(sp => sp.startsWith(rowPrefix(id)));
+    if (span) return { board: b, key: spanKey(b, span), hidden };
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ the CSV in parts
+//
+// A big run's gzipped CSV can pass the 8 MB a request (MAX.CSV_BYTES): an overnight 154k-route run's
+// CSV so far was already 6 MB. Such a file goes in PARTS: the app gzips the whole CSV once and cuts the
+// BYTES into slices of at most 8 MB, so the parts joined in order are the original .csv.gz exactly.
+//
+//   POST /csv?id=<id>&part=<n>&parts=<m>     2 <= m <= MAX.CSV_PARTS, 0 <= n < m, same token as ever
+//
+// - Parts 1..m-1 go first, each to `csv:<id>:p<n>` (one write each). They may be sent again (a retry
+//   whose answer was lost) until the file is sealed.
+// - Part 0 goes LAST and seals the file: it is stored at `csv:<id>` itself, with metadata
+//   `{ parts: m }`, after a read of each other part to see that it is there (missing ones refuse with
+//   422 and `missing: [n...]`, for the app to send again). So `csv:<id>` existing still means "this
+//   row has its whole CSV": hasCsv, the write-once 409, the settle's CSV list and the delete of a
+//   replaced row all keep working off that one key.
+// - Part 0 last also keeps a collector from before parts safe: it would take part 1 for a whole file,
+//   but part 1 does not start with the gzip magic, so it is refused (400) and nothing is stored.
+// - GET /csv?id= joins them: `csv:<id>`, then each part, streamed as one .csv.gz.
+// - A single-part upload (no `part`/`parts`) is exactly as before. A CSV of m parts costs m writes
+//   (plus the snapshot patch, as for one), and m - 1 extra reads to seal and to serve.
+// - Parts of a file never sealed (the tab closed half-way) are orphans: nothing reads them, and they
+//   are not deleted with the row. The hourly sweep deletes them a day later (see "the sweep").
+
+const csvPartKey = (id, n, base = 'csv:') => `${base}${id}:p${n}`;
+
+/** How many parts the stored CSV of `id` has: 1 for a single file (or none), from `csv:<id>`'s metadata. */
+async function csvParts(env, id) {
+  return partsOf(await csvMeta(env, id));
+}
+
+/** Whether `key` exists and its KV metadata (null for none), read without pulling the bytes across. */
+async function kvHead(env, key) {
+  if (typeof env.SUBMISSIONS.getWithMetadata !== 'function') return { exists: await hasCsv(env, key, ''), metadata: null };
+  const got = await env.SUBMISSIONS.getWithMetadata(key, 'stream');
+  if (got?.value && typeof got.value.cancel === 'function') await got.value.cancel().catch(() => {});
+  return { exists: got?.value !== null && got?.value !== undefined, metadata: got?.metadata ?? null };
+}
+/** `csv:<id>`'s KV metadata (null for none). */
+const csvMeta = async (env, id) => (await kvHead(env, `csv:${id}`)).metadata;
+const partsOf = meta => {
+  const m = meta?.parts;
+  return Number.isInteger(m) && m > 1 && m <= MAX.CSV_PARTS ? m : 1;
+};
+
+/** `part` and `parts` from a /csv URL: null for a single upload, 'bad' for nonsense. */
+function partOf(url) {
+  const p = url.searchParams.get('part');
+  const m = url.searchParams.get('parts');
+  if (p === null && m === null) return null;
+  if (!/^\d{1,3}$/.test(p ?? '') || !/^\d{1,3}$/.test(m ?? '')) return 'bad';
+  const part = Number(p);
+  const parts = Number(m);
+  if (parts < 2 || parts > MAX.CSV_PARTS || part >= parts) return 'bad';
+  return { part, parts };
+}
+
+// ------------------------------------------------------ the CSV so far in deltas
+//
+// A long run's progress send used to upload the WHOLE CSV so far each time (and the next send
+// replaced it). Now it uploads only what was priced since the last send, a DELTA, under the RUN's key,
+// plus a small HEAD for the row; GET /csv stitches them into one gzip member with no recompression.
+//
+//   POST /submit (provisional)   body.csvRun /^[a-f0-9]{16,32}$/ -> reply.deltaToken (HMAC of `csvd:<run>`)
+//   POST /csvd?run&seq&len&crc&count   x-upload-token: deltaToken. Body: raw deflate, sync-flushed
+//                                (ends 00 00 ff ff, BFINAL=0), compressed independently. Stored at
+//                                `csvd:<run>:<seq>`, write-once (409 carries the stored `count`).
+//   POST /csv?id&run&deltas=k&len&crc   x-upload-token: the row's `csvp:` token, x-delta-token: deltaToken.
+//                                Body: the head, same kind of segment. Needs csvd:<run>:0..k-1 (else 422
+//                                `missing`). Stored at `csv:<id>`, metadata `{run, deltas, crc, len}`
+//                                where crc and len are those of the WHOLE text (crc32Combine).
+//   GET /csv?id=                 `1f 8b 08 00 00 00 00 00 00 ff`, head, deltas..., `03 00`, crc32 LE, len LE.
+//
+// `03 00` is an empty final fixed-Huffman block: the segments end byte-aligned (sync flush) and none
+// is final, so the stream is one valid deflate stream, which the browser's DecompressionStream needs
+// (it rejects multi-member gzip). The run's deltas outlive each progress row: a replacing provisional
+// row with the same csvRun keeps them, a final deletes them (deleteRow), and the sweep takes the rest.
+// `csvRun` is private: kept on the stored record and as the 4th field of the snapshot's `prov` entry.
+
+const CSV_RUN = /^[a-f0-9]{16,32}$/;
+const csvdKey = (run, seq) => `csvd:${run}:${seq}`;
+const deltaCount = meta => (Number.isInteger(meta?.deltas) && meta.deltas >= 0 && meta.deltas <= MAX.CSV_DELTAS ? meta.deltas : 0);
+const SYNC_TAIL = [0x00, 0x00, 0xff, 0xff];
+/** Does `buf` (an ArrayBuffer) end with a sync flush marker? */
+function endsSynced(buf) {
+  const u = new Uint8Array(buf);
+  return u.length >= 4 && SYNC_TAIL.every((b, i) => u[u.length - 4 + i] === b);
+}
+/** A whole number in [lo, hi] from a query string, or null. */
+function wholeParam(url, name, lo, hi) {
+  const t = url.searchParams.get(name);
+  if (t === null || !/^\d{1,12}$/.test(t)) return null;
+  const n = Number(t);
+  return n >= lo && n <= hi ? n : null;
+}
+/** The run `prov` entry's 4th field (see provSeq) from a snapshot's private line. */
+const runOfProv = v => (typeof v === 'string' && CSV_RUN.test(v.split('|')[3] ?? '') ? v.split('|')[3] : null);
+
+// ------------------------------------------------------------- instant answer records
+//
+// POST /instant: one opt-in record of an instant answer and its Check exactly, sent by the app
+// (src/search/instantRecord.ts) when the player ticked "Share my instant answers and their Check
+// exactly results" in Your setup. What it is FOR: the instant answer against the full simulator on
+// real accounts, across gear and TE, which gear the next instant answers should be built for, how
+// far a half-built farm is from a fresh build, and (from repeat checks of one save) prestige windows.
+//
+// PRIVATE, LIKE `extra:`. Stored under `inst:<UTC day>:<id>` with a 180-day TTL. Nothing serves the
+// prefix: no route reads a key from a request, and the board, /all, /mine, /flagged, /csv and the
+// snapshots never look at it. The maintainer reads them with wrangler:
+//   wrangler kv key list --binding SUBMISSIONS --prefix "inst:2026-10-10" --config "$PWD/wrangler.toml"
+//   wrangler kv key get  --binding SUBMISSIONS "inst:2026-10-10:<id>" --config "$PWD/wrangler.toml"
+//
+// WHO SENT IT. Only the owner code (x-owner-token, required): stored as `owner`, the first 12 hex of
+// its SHA-256 (what the board snapshots' private owner index holds), and `acct`, the same HMAC the
+// public board shows on named rows, so a record lines up with the sender's board rows. Never the
+// player id: text is swept for one, and an id-like key is not on the whitelist.
+//
+// COST, PER RECORD: 2 reads + 3 writes, no list, no delete. The reads and two writes are the two daily
+// counters (TTL 2 days): `instn:<IP hash 12 hex>:<UTC day>` (INSTANT_PER_IP_DAY) and `instn:all:<UTC
+// day>` (INSTANT_PER_DAY_ALL, the whole collector); the third write is the record. A refused record
+// (bad body, over a cap) costs at most those two reads. The cap was per owner code until 21 Oct 2026,
+// but an owner code is any 32 to 64 hex characters a script can invent, so a flood of fresh codes
+// could spend the day's 1,000 KV writes and break /submit, /claim and /hide for everyone. Now an
+// address, and the whole day, are what is capped; the address is hashed, never kept (QA, 21 Oct).
+//
+// STRICT. The raw body is capped at INSTANT_MAX_BYTES before it is parsed. Every field is on the
+// whitelist below with a type and a bound; a known field that is out of bounds refuses the record
+// (with the path, so a drifting app says what drifted), an unknown field is dropped.
+const INSTANT_MAX_BYTES = 8 * 1024;
+const INSTANT_TTL_SECONDS = 180 * 24 * 60 * 60;
+/** Records one address may send in a UTC day, and the whole collector may take in one. Real use is 2 to 19
+ *  a day across all accounts (15 Oct, the busiest), so the day's cap spends at most 180 writes. */
+const INSTANT_PER_IP_DAY = 30;
+const INSTANT_PER_DAY_ALL = 60;
+const INSTANT_VERSIONS = new Set([1]);
+/** Unix seconds between 2020 and 2100, the same window as a deadline. */
+const UNIX_LO = 1577836800;
+const UNIX_HI = 4102444800;
+
+/** Field checkers: each takes (value, path, problems) and returns the clean value, or undefined after
+ *  noting why. `opt` wraps one so an absent (undefined) value is fine. */
+const IV = {
+  int: (lo, hi) => (v, p, pr) =>
+    Number.isInteger(v) && v >= lo && v <= hi ? v : (pr.push(`${p} must be a whole number ${lo} to ${hi}`), undefined),
+  num: (lo, hi) => (v, p, pr) =>
+    Number.isFinite(v) && v >= lo && v <= hi ? v : (pr.push(`${p} must be a number ${lo} to ${hi}`), undefined),
+  bool: (v, p, pr) => (typeof v === 'boolean' ? v : (pr.push(`${p} must be true or false`), undefined)),
+  str: max => (v, p, pr) =>
+    typeof v === 'string' && v.length <= max
+      ? scrubText(v).replace(/[\u0000-\u001f\u007f]/g, ' ')
+      : (pr.push(`${p} must be text of at most ${max} characters`), undefined),
+  oneOf: values => (v, p, pr) => (values.includes(v) ? v : (pr.push(`${p} must be one of ${values.join(', ')}`), undefined)),
+  hex: n => (v, p, pr) =>
+    typeof v === 'string' && new RegExp(`^[a-f0-9]{${n}}$`).test(v) ? v : (pr.push(`${p} must be ${n} hex digits`), undefined),
+  orNull: f => (v, p, pr) => (v === null ? null : f(v, p, pr)),
+  list: (max, f) => (v, p, pr) => {
+    if (!Array.isArray(v) || v.length > max) return pr.push(`${p} must be a list of at most ${max}`), undefined;
+    const out = v.map((x, i) => f(x, `${p}[${i}]`, pr));
+    return out.every(x => x !== undefined) ? out : undefined;
+  },
+  /** A route's checkpoints: strictly increasing TEs. */
+  chain: (v, p, pr) =>
+    Array.isArray(v) &&
+    v.length >= 1 &&
+    v.length <= MAX.CHAIN &&
+    v.every((x, i) => Number.isInteger(x) && x > 0 && x <= MAX.TE && (i === 0 || x > v[i - 1]))
+      ? v.slice()
+      : (pr.push(`${p} must be increasing whole TEs, at most ${MAX.CHAIN}`), undefined),
+  /** An object of known fields; `need` lists the ones that must be there. Unknown keys are dropped. */
+  obj: (spec, need = []) => (v, p, pr) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return pr.push(`${p} must be an object`), undefined;
+    const out = {};
+    let ok = true;
+    for (const [k, f] of Object.entries(spec)) {
+      if (v[k] === undefined) {
+        if (need.includes(k)) {
+          pr.push(`${p}.${k} is required`);
+          ok = false;
+        }
+        continue;
+      }
+      if (idLikeKey(k)) continue;
+      const c = f(v[k], `${p}.${k}`, pr);
+      if (c === undefined) ok = false;
+      else out[k] = c;
+    }
+    return ok ? out : undefined;
+  },
+};
+
+const IUNIX = IV.int(UNIX_LO, UNIX_HI);
+const IHOURS = IV.num(-MAX.BACKUP_AGE_HOURS, MAX.BACKUP_AGE_HOURS);
+const ITE = IV.num(0, MAX.TE);
+/** One of the instant answer's own legs (src/search/routeFinder.ts `RouteLeg`). */
+const INSTANT_LEG = IV.obj(
+  {
+    to: IV.int(1, MAX.TE),
+    endTE: ITE,
+    start: IUNIX,
+    end: IUNIX,
+    label: IV.str(24),
+    sales: IV.int(0, 20),
+    tier13: IV.bool,
+  },
+  ['to', 'start', 'end']
+);
+/** One of the full simulator's legs (src/search/types.ts `LegSummary`, in days and Q/h). */
+const EXACT_LEG = IV.obj(
+  {
+    te: ITE,
+    start: IUNIX,
+    days: IV.num(0, MAX.DURATION_DAYS),
+    strategy: IV.str(32),
+    sales: IV.int(0, 20),
+    tier13: IV.bool,
+    peakQph: IV.num(0, 1e9),
+    holdHours: IV.num(0, 1e6),
+    delayHours: IV.num(0, 1e6),
+    timeOff: IV.oneOf(['stopped', 'restarted']),
+  },
+  ['te', 'days']
+);
+const BRACKET_SIDE = IV.obj({ gear: IV.str(120), end: IV.orNull(IUNIX), te: ITE }, ['gear']);
+
+const INSTANT_RECORD = IV.obj(
+  {
+    v: IV.int(1, 1),
+    build: IV.str(MAX.BUILD),
+    // The simulator the page ran (13 Oct 2026) and the one that built the answer's table (null: none).
+    simVersion: IV.str(MAX.BUILD),
+    mode: IV.oneOf(['fastest', 'date']),
+    target: IV.int(1, MAX.TE),
+    deadline: IV.int(MAX.DEADLINE_FROM, MAX.DEADLINE_TO),
+    planStart: IUNIX,
+    timezone: IV.str(MAX.TEXT),
+    backupTime: IUNIX,
+    backupAgeHours: IHOURS,
+    currentTE: ITE,
+    backupTE: ITE,
+    clothedTE: IV.num(-1000, 100000),
+    gear: IV.obj(
+      {
+        stamp: IV.hex(24),
+        answer: IV.oneOf(['own', 'gear', 'maxed']),
+        ownChanged: IV.str(80),
+        earningsShort: IV.num(-1000, 1000),
+        deliveryScale: IV.num(0, 100),
+        adjusted: IV.bool,
+        progressionShort: IV.bool,
+        tableFrom: ITE,
+        gearTo: ITE,
+        tableSim: IV.orNull(IV.str(MAX.BUILD)),
+        bracket: IV.obj({ above: IV.orNull(BRACKET_SIDE), below: IV.orNull(BRACKET_SIDE) }),
+      },
+      ['answer']
+    ),
+    stall: IV.obj({
+      cte: IV.num(-1000, 100000),
+      clears: IV.num(0, 100000),
+      belowLine: IV.bool,
+      integrityHours: IV.orNull(IV.num(0, 1e7)),
+      notice: IV.oneOf(['none', 'stalls', 'blocked', 'unknown']),
+    }),
+    settings: IV.obj({
+      firstAscension: IV.oneOf([...FIRST_ASCENSIONS]),
+      maxAscensions: IV.orNull(IV.int(1, MAX.CHAIN)),
+      inHours: IV.bool,
+      window: IV.orNull(IV.str(MAX.TEXT)),
+      holdShifts: IV.bool,
+      tryAtOnce: IV.bool,
+      timeOff: IV.int(0, 64),
+      milestones: IV.int(0, 64),
+      small: IV.bool,
+    }),
+    instant: IV.obj(
+      {
+        chain: IV.chain,
+        end: IUNIX,
+        endTE: ITE,
+        spareHours: IV.num(-1e6, 1e6),
+        legs: IV.list(MAX.LEGS, INSTANT_LEG),
+      },
+      ['chain', 'end']
+    ),
+    rows: IV.list(
+      24,
+      IV.obj(
+        {
+          n: IV.int(1, MAX.CHAIN),
+          chain: IV.chain,
+          iEnd: IUNIX,
+          iTE: ITE,
+          xEnd: IV.orNull(IUNIX),
+          xTE: IV.orNull(ITE),
+        },
+        ['n', 'chain']
+      )
+    ),
+    exact: IV.orNull(
+      IV.obj(
+        {
+          chain: IV.chain,
+          end: IUNIX,
+          endTE: ITE,
+          spareHours: IV.num(-1e6, 1e6),
+          handoff: IV.oneOf(['hour', 'now', 'sooner']),
+          firstLeg: IV.oneOf(FIRST_LEG_KINDS),
+          firstLegOtherHours: IV.num(-MAX.DURATION_DAYS * 24, MAX.DURATION_DAYS * 24),
+          legs: IV.list(MAX.LEGS, EXACT_LEG),
+        },
+        ['chain', 'end']
+      )
+    ),
+    exactMissedByHours: IV.num(0, 1e6),
+    buildGap: IV.obj({
+      contQph: IV.num(0, 1e9),
+      freshQph: IV.num(0, 1e9),
+      ratio: IV.num(0, 1000),
+      freshLeg: IV.int(1, MAX.CHAIN),
+    }),
+    checkSeconds: IV.num(0, 1e6),
+  },
+  ['v', 'mode', 'planStart', 'currentTE', 'gear', 'instant']
+);
+
+/** The experimental "Prestige by" prediction worked out beside the check (src/search/prestigeBy.ts
+ *  `PrestigeByRecord`), present only when the player turned the line on and kept it in shared checks.
+ *  Checked on its own, NOT as part of INSTANT_RECORD: an experimental field that drifts out of bounds
+ *  is dropped (with its first problem noted as `prestigeByDropped`), never the record it rides on.
+ *  Times are numbers, not whole numbers: they come out of the prediction's own arithmetic. */
+const IUNIXN = IV.num(UNIX_LO, UNIX_HI);
+const PRESTIGE_BY = IV.obj(
+  {
+    v: IV.int(1, 1),
+    mode: IV.oneOf(['date', 'fastest']),
+    eggs: IV.oneOf(['frozen', 'silo', 'laying']),
+    prestigeAt: IUNIXN,
+    fresh: IV.bool,
+    keepTE: ITE,
+    keepEnd: IV.orNull(IUNIXN),
+    kind: IV.oneOf(['drop', 'none', 'unsure']),
+    latest: IUNIXN,
+    drop: IV.orNull(IUNIXN),
+    dropTE: IV.orNull(ITE),
+    dropEnd: IV.orNull(IUNIXN),
+    until: IV.orNull(IUNIXN),
+    thenTE: IV.orNull(ITE),
+    spareHours: IV.orNull(IV.num(-1e6, 1e6)),
+    tight: IV.bool,
+    shown: IV.bool,
+    estimateDropHours: IV.orNull(IV.num(0, 1e6)),
+    lookups: IV.int(0, 100),
+  },
+  ['v', 'mode', 'prestigeAt', 'kind', 'latest']
+);
+
+/** A record from a request body: `{record}` or `{problems}`. */
+function pickInstant(body) {
+  const problems = [];
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { problems: ['body must be a JSON object'] };
+  if (!INSTANT_VERSIONS.has(body.v)) return { problems: [`unknown record version ${body.v}`] };
+  const record = INSTANT_RECORD(body, 'record', problems);
+  if (!record) return { problems: problems.length ? problems.slice(0, 12) : ['rejected'] };
+  if (record.mode === 'fastest' && record.target === undefined) return { problems: ['record.target is required'] };
+  if (record.mode === 'date' && record.deadline === undefined) return { problems: ['record.deadline is required'] };
+  // Where the check started from (22 Oct 2026, `startBlock`): checked on its own, like prestigeBy below, so
+  // a field that drifts is dropped (`startDropped`), never the record.
+  if (body.start !== undefined) {
+    const start = startBlock(body.start);
+    if (start) record.start = start;
+    else record.startDropped = true;
+  }
+  if (body.prestigeBy !== undefined) {
+    const pbProblems = [];
+    const pb = PRESTIGE_BY(body.prestigeBy, 'record.prestigeBy', pbProblems);
+    if (pb) record.prestigeBy = pb;
+    else record.prestigeByDropped = String(pbProblems[0] || 'rejected').slice(0, 120);
+  }
+  return { record };
+}
+
+/** Read a body as text, refusing past `max` bytes without buffering the rest. Null when too big. */
+async function cappedText(request, max) {
+  const declared = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > max) return null;
+  const text = await request.text();
+  return new TextEncoder().encode(text).length > max ? null : text;
+}
+
+// ------------------------------------------------------------------------ quarantine
+//
+// "A garbage collector for the collector" (11 Oct 2026). A submission that is WELL-FORMED (it passes
+// validateSubmission, so it is not a 400) but says something that cannot be true -- a plan to 308 TE
+// whose chain ends at 309, legs that add up to 70 days under a total of 742, a finish before its
+// start -- is neither put on a board nor thrown away. It is QUARANTINED: stored privately with the
+// reasons, and the sender is told "Refused for the leaderboard, but stored. Contact Williamthe5thc on
+// Discord with this code: <id>", so a bug in the app that produced it can be found from the evidence.
+//
+// WHAT IS QUARANTINED, AND WHY EACH LINE IS WHERE IT IS. Every threshold was set against the live
+// board (GET /all, 215 rows, 11 Oct 2026; the flagged board was empty) so that no real row trips it.
+// The margin each one has is in QUAR below. A rule reads only fields the row carries; a row without
+// the field (an older schema, a run with no legs) is never quarantined for not having it.
+//
+// WHERE IT GOES. `quar:<UTC day>:<id>` with a 180-day TTL: `{row, reasons, extras}`, where `row` is
+// the record exactly as a board row would have been stored (owner hash included, as on any row) and
+// `extras` the private extras a board row would have kept under `extra:<id>`. Its CSV, when one
+// follows, goes to `quarcsv:<id>` (parts `quarcsv:<id>:p<n>`), same TTL, write-once, never served:
+// /csv GET reads `csv:` only. NOTHING serves `quar:` or `quarcsv:`: the boards, /all, /mine, /flagged
+// and the snapshots never look at them, and no route reads a key from a request. Read them, like
+// `extra:` and `inst:`, with wrangler:
+//   wrangler kv key list --binding SUBMISSIONS --remote --prefix "quar:" --config "$PWD/wrangler.toml"
+//   wrangler kv key get  --binding SUBMISSIONS --remote "quar:2026-10-11:<id>" --config "$PWD/wrangler.toml"
+//   wrangler kv key get  --binding SUBMISSIONS --remote "quarcsv:<id>" --config "$PWD/wrangler.toml" > q.csv.gz
+//
+// THE ID IS THE CONTENT. `<id>` is 8 hex of SHA-256 over the sender (owner hash, or nickname for a
+// code-less send), the result's fingerprint and its search -- what "the same result" means for copies
+// (see "duplicates"). So the same refused run sent again (a retry, an old client's "Send it now")
+// gets the same code, and a key already there that day costs a read instead of another write.
+//
+// THE ANSWER, TWO WAYS. A client that says it knows quarantine (`POST /submit?quarantine=1`, the app
+// since 11 Oct) gets `200 {ok: true, quarantined: true, id, reasons, reasonText, message,
+// uploadToken}`: an answer, not an error, so it does not retry or keep the result as unsent, and its
+// CSV follows as evidence. An older client (or the board page's upload box from before) would read a
+// 200 as "sent" -- "Thanks! Sent." for a row that is on no board -- so it gets `422 {error,
+// quarantined: true, id, reasons, reasonText, problems: [the message]}` instead, which every older
+// app already shows as "collector said 422: Refused for the leaderboard, but stored. Contact ...".
+// No token there: an older app would not know where its CSV went.
+//
+// COST, PER QUARANTINED SEND: 2 reads (rate gate, the day's key), 2 writes (the record, rate gate), no
+// list, no delete; a repeat the same day 2 reads and 1 write. Its CSV: 1 read + 1 write (plus 2 per
+// extra part), no snapshot patch. The spam rule's count reads the board's snapshot, which the patch
+// that stores an accepted row then reuses, so an accepted send costs what it always did.
+const QUAR = {
+  TTL_SECONDS: 180 * 24 * 60 * 60,
+  /** Legs vs the total: the total may exceed the legs by the time off (whole dates) and by this much
+   *  either way. Live: worst 1.05 d (0.16%), and 2.0 d on rows with 2 days off, which the time off
+   *  explains to 0.001 d. */
+  LEGS_SUM_DAYS: 3,
+  LEGS_SUM_FRACTION: 0.01,
+  /** endUtc - startUtc against durationDays. Live: worst 0.0007 d. */
+  SPAN_DAYS: 1,
+  /** A deadline answer finishing after its deadline. Live: latest 0.04 d before it. */
+  DEADLINE_DAYS: 1,
+  /** Plan start ahead of the collector's clock. Live: -7.1 d to +4.8 d. A what-if ("if I started on
+   *  23 Nov") is a few weeks ahead; a start a year ahead is a broken clock or a hand-made body. */
+  START_DAYS: 365,
+  /** |backupAgeHours|. Live: -168.1 h to +119.5 h (seven days either way). Negative is a what-if
+   *  (a start before the save) and stays one; past 90 days the save says nothing about the plan. */
+  SAVE_AGE_HOURS: 90 * 24,
+  /** TE a day on any leg after the first, or a first leg that is not a continue. Live: 0.53 at most.
+   *  A continue may be quick (it finishes a run already under way: 9 TE/day over 0.1 d is live), so
+   *  it is left out, and the whole-plan rate below covers it. */
+  LEG_TE_PER_DAY: 3,
+  /** (finalTE - currentTE) / durationDays. Live: 0.48 at most, with one row at 0.71 (62 TE in a
+   *  1.9-day continue, then 0.5/day). */
+  PLAN_TE_PER_DAY: 2,
+  /** A leg's peak delivery below this fraction of the leg before it: the app's own `COLLAPSE_RATIO`
+   *  (src/search/health.ts), the check it marks `contradicts-itself`. Live: 0.92 at worst. */
+  COLLAPSE_RATIO: 0.5,
+  /** Rows one owner code put on the board it is sending to in the last 24 h. Live: 10 at most from
+   *  any one sender (6 from one owner code), with exact copies already folded at /submit. */
+  ROWS_PER_DAY: 60,
+};
+
+/** What the sender is told. The name is exact: it is who reads the evidence. */
+const quarantineMessage = id => `Refused for the leaderboard, but stored. Contact Williamthe5thc on Discord with this code: ${id}`;
+
+/** Whole days of time off (inclusive date windows), for the legs-vs-total rule. */
+function timeOffDays(list) {
+  if (!Array.isArray(list)) return 0;
+  return list.reduce((n, w) => {
+    const d = (Date.parse(w.to) - Date.parse(w.from)) / 86400000 + 1;
+    return n + (Number.isFinite(d) && d > 0 ? d : 0);
+  }, 0);
+}
+
+const fmt = (v, digits = 2) => (Number.isFinite(v) ? String(Number(v.toFixed(digits))) : String(v));
+
+/**
+ * Why a well-formed submission cannot go on a board: `[{code, text}]`, empty when it can. `body` is
+ * the request as sent (for the one value the whitelist would drop silently: a save age past a year),
+ * `record` what pickSubmission kept, `now` the collector's clock in ms.
+ */
+function quarantineReasons(body, record, now) {
+  const out = [];
+  const add = (code, text) => out.push({ code, text });
+  const chain = record.chain;
+  const last = chain[chain.length - 1];
+  const legs = Array.isArray(record.legs) ? record.legs : [];
+  const cur = Number.isFinite(record.currentTE) ? record.currentTE : null;
+
+  if ((record.flags || []).includes('contradicts-itself')) {
+    add('contradicts-itself', 'the planner marked this result as contradicting itself (delivery falls as TE rises)');
+  }
+  if (last !== record.finalTE) add('target-not-last', `the target is ${record.finalTE} TE but the chain ends at ${last}`);
+  if (Number.isFinite(record.ascensions) && record.ascensions !== chain.length) {
+    add('ascensions-disagree', `it says ${record.ascensions} ascensions but the chain has ${chain.length}`);
+  }
+  if (cur !== null && chain[0] <= cur) {
+    add('first-checkpoint-reached', `the first checkpoint (${chain[0]} TE) is not above the starting TE (${cur})`);
+  }
+
+  if (legs.length) {
+    const tes = legs.map(l => l.te);
+    if (tes.every(Number.isFinite)) {
+      const increasing = tes.every((t, i) => i === 0 || t > tes[i - 1]);
+      let at = 0;
+      const covers = chain.every(c => {
+        while (at < tes.length && tes[at] !== c) at++;
+        return at++ < tes.length;
+      });
+      if (!increasing || !covers || tes[tes.length - 1] !== last) {
+        add('legs-disagree', `the legs go to ${tes.join(' ')} but the chain is ${chain.join(' ')}`);
+      }
+    }
+    const days = legs.map(l => l.days);
+    // A first leg that is a continue may take exactly 0 days: the run under way had already reached its
+    // first checkpoint when the plan starts (a save older than the plan start; 15 Oct 2026, 190 -> 191).
+    // A negative leg, or a zero one anywhere else, is still refused.
+    const zeroOk = i => i === 0 && legs[0].strategy === 'continue';
+    if (days.some((d, i) => Number.isFinite(d) && (d < 0 || (d === 0 && !zeroOk(i))))) {
+      add('leg-not-positive', 'a leg takes no time or less than none');
+    }
+    if (days.every(Number.isFinite)) {
+      const sum = days.reduce((a, b) => a + b, 0);
+      const slack = Math.max(QUAR.LEGS_SUM_DAYS, QUAR.LEGS_SUM_FRACTION * record.durationDays);
+      const extra = record.durationDays - sum;
+      if (extra < -slack || extra > timeOffDays(record.timeOff) + slack) {
+        add('legs-sum', `the legs add up to ${fmt(sum)} days but the total says ${fmt(record.durationDays)}`);
+      }
+    }
+    // TE a day, leg by leg, from the TE before it. A first leg that is a continue is left out (QUAR).
+    let prev = cur;
+    legs.forEach((l, i) => {
+      const fast =
+        prev !== null &&
+        Number.isFinite(l.te) &&
+        Number.isFinite(l.days) &&
+        l.days > 0 &&
+        !(i === 0 && l.strategy === 'continue') &&
+        (l.te - prev) / l.days > QUAR.LEG_TE_PER_DAY;
+      if (fast && !out.some(r => r.code === 'impossible-te-jump')) {
+        add('impossible-te-jump', `leg ${i + 1} gains ${fmt(l.te - prev, 0)} TE in ${fmt(l.days)} days`);
+      }
+      prev = Number.isFinite(l.te) ? l.te : null;
+    });
+    const peaks = legs.map(l => l.peakDeliveryQph);
+    // A By a date answer (schema 8) replays its legs with no delivery figure (src/search/deadlineStore.ts
+    // writes maxELR 0 on purpose): three live rows have 0 on every leg, and they are real.
+    const deadline = record.schema === 8 || record.effort === 'deadline';
+    if (!deadline && peaks.every(p => p === 0)) add('no-delivery', 'every leg peaks at 0 q/hr of delivery');
+    for (let i = 1; i < peaks.length; i++) {
+      if (Number.isFinite(peaks[i - 1]) && Number.isFinite(peaks[i]) && peaks[i - 1] > 0 && peaks[i] < peaks[i - 1] * QUAR.COLLAPSE_RATIO) {
+        add('delivery-collapse', `leg ${i + 1}'s delivery (${fmt(peaks[i], 3)} q/hr) is under half of leg ${i}'s (${fmt(peaks[i - 1], 3)})`);
+        break;
+      }
+    }
+  }
+
+  if (cur !== null && (record.finalTE - cur) / record.durationDays > QUAR.PLAN_TE_PER_DAY) {
+    add('too-fast', `${fmt(record.finalTE - cur, 0)} TE in ${fmt(record.durationDays)} days is faster than any farm can go`);
+  }
+
+  const start = record.startUtc ? Date.parse(record.startUtc) : NaN;
+  const end = record.endUtc ? Date.parse(record.endUtc) : NaN;
+  if (Number.isFinite(start) && Number.isFinite(end)) {
+    if (end <= start) add('finish-before-start', 'the plan finishes before it starts');
+    else if (Math.abs((end - start) / 86400000 - record.durationDays) > QUAR.SPAN_DAYS) {
+      add('times-disagree', `its start and finish are ${fmt((end - start) / 86400000)} days apart but the total says ${fmt(record.durationDays)}`);
+    }
+  }
+  // Only ahead: a start long BEFORE the send is an old saved result uploaded late, which is fine (the
+  // save age above relates the start to its save, which is what matters).
+  if (Number.isFinite(start) && (start - now) / 86400000 > QUAR.START_DAYS) {
+    add('start-out-of-range', 'the plan starts more than a year after it was sent');
+  }
+  if (record.schema === 8 && Number.isFinite(end) && Number.isFinite(record.deadline) && end / 1000 > record.deadline + QUAR.DEADLINE_DAYS * 86400) {
+    add('after-deadline', 'the answer finishes after its own deadline');
+  }
+  const age = body.backupAgeHours;
+  if (Number.isFinite(age) && Math.abs(age) > QUAR.SAVE_AGE_HOURS) {
+    add('save-age', `the save is ${fmt(Math.abs(age) / 24, 0)} days ${age < 0 ? 'after' : 'before'} the plan's start`);
+  }
+  // BACKDATED BOTH WAYS (16 Oct 2026): the plan starts before the save it was made from AND from a TE below
+  // the save's own. A start before the save alone is the what-if feature (the board drops those); a lower TE
+  // alone is the app's 'contradicts-itself'. Together they say "I was here when my build began", while the
+  // eggs laid come from the save: a plan that finishes days sooner than any real one. Two rows from 14 Sep
+  // did exactly this and ranked first until the maintainer hid them.
+  const saved = record.backupTE;
+  if (Number.isFinite(age) && age < -1 && cur !== null && Number.isFinite(saved) && cur < saved) {
+    add(
+      'backdated-start',
+      `it starts ${fmt(-age, 0)} hours before the save it was made from, and from TE ${cur} when that save already had TE ${saved}`
+    );
+  }
+  return out;
+}
+
+/**
+ * RANKED ONLY WITH ITS EVIDENCE (21 Oct 2026, red team). Every check above runs only on the fields a row
+ * carries, so a body that leaves them out had nothing to fail: `{chain:[999000,1000000], durationDays:
+ * 0.0001, ...}` went to the top of the main board unflagged. A row now ranks on the main board only when
+ * it carries everything the checks need -- `currentTE`, its `legs` (each with a TE and days), and
+ * `startUtc`/`endUtc` -- and they agree (quarantineReasons). A row missing any of them is not refused:
+ * it goes to the flagged board with the flag `unverified` (public, unranked, its sender still sees it as
+ * theirs). Not quarantined, because real sends can lack legs: a By a date carry-on whose legs stay
+ * replayed from a checkpoint sends `legs: []` (src/search/submission.ts buildSubmission), as do older
+ * apps (schemas 2-6 have no start/end). Live board, 21 Oct 2026: 186 of 187 rows at schema 7-8 carry
+ * all four; the one without legs is from 28 Sep. The rule is on when `RANK_NEEDS_EVIDENCE = "1"`
+ * (wrangler.toml [vars], set there): deleting that line turns it off without a code change, should a
+ * real kind of send turn out to lack them. (Off without the var, so a fork, and the older specs that
+ * post a bare minimal body to test something else, behave as before.)
+ */
+const UNVERIFIED = 'unverified';
+function verifiable(r) {
+  const legs = Array.isArray(r.legs) ? r.legs : [];
+  return (
+    Number.isFinite(r.currentTE) &&
+    legs.length > 0 &&
+    legs.every(l => Number.isFinite(l?.te) && Number.isFinite(l?.days)) &&
+    !!r.startUtc &&
+    !!r.endUtc
+  );
+}
+
+/** How many rows `owner` put on the board in `raw` (a snapshot's text) in the 24 h before `now`. */
+function rowsToday(raw, owner, now) {
+  const snap = viewSnapshot(raw);
+  if (!snap) return 0;
+  const mine = owner.slice(0, OWNER_HEX);
+  let n = 0;
+  for (const span of snap.spans) {
+    if (snap.own[spanId(span)] !== mine) continue;
+    const at = Date.parse(spanReceivedAt(span));
+    if (Number.isFinite(at) && now - at < 86400000) n++;
+  }
+  return n;
+}
+
+/** The content id of a quarantined send (see "the id is the content"). */
+async function quarantineId(record) {
+  const sender = typeof record.owner === 'string' ? `o:${record.owner}` : `n:${record.nickname || ''}`;
+  return (await sha256hex(`quar|${sender}|${fingerprint(record)}|${searchSig(record)}`)).slice(0, 8);
+}
+
+/** Store a quarantined send and answer it (see "the answer, two ways"). The gate is committed here. */
+async function quarantine(env, body, record, reasons, gate, knowsQuarantine) {
+  const id = await quarantineId(record);
+  const key = `quar:${utcDay(Date.parse(record.receivedAt))}:${id}`;
+  // The same refused run again today: already there, so no second write (KV writes are the scarce ones).
+  const held = await env.SUBMISSIONS.get(key, 'stream');
+  if (held && typeof held.cancel === 'function') await held.cancel().catch(() => {});
+  if (held === null || held === undefined) {
+    let extras = null;
+    try {
+      const e = pickExtras(body, record);
+      extras = e ? JSON.parse(e) : null;
+    } catch {
+      extras = null;
+    }
+    const value = JSON.stringify({ row: record, reasons, ...(extras ? { extras } : {}) });
+    await env.SUBMISSIONS.put(key, value, {
+      expirationTtl: QUAR.TTL_SECONDS,
+      metadata: { r: reasons.map(r => r.code).join(',').slice(0, 200) },
+    });
+  }
+  await gate.commit();
+  const message = quarantineMessage(id);
+  const reasonText = reasons.map(r => r.text).join('; ');
+  const codes = reasons.map(r => r.code);
+  if (knowsQuarantine) {
+    return json({
+      ok: true,
+      quarantined: true,
+      id,
+      reasons: codes,
+      reasonText,
+      message,
+      ...(env.CSV_UPLOAD_KEY ? { uploadToken: await uploadToken(env, id, 'quar') } : {}),
+    });
+  }
+  return json(
+    {
+      error: 'refused for the leaderboard, but stored',
+      quarantined: true,
+      id,
+      reasons: codes,
+      reasonText,
+      problems: [`${message} (${reasonText})`],
+    },
+    422
+  );
+}
+
+// ---------------------------------------------------------------------- the sweep (cron)
+//
+// The other half of the garbage collector: keys nothing will ever read again, deleted by the cron
+// (scheduled(), once an hour at :30) a few at a time. Three kinds, one per hour in turn (plus `csvd:` in place of two of `instn:`'s hours), so each run
+// costs ONE list (KV's free plan allows 1,000 lists a day; this is 24):
+//   hour % 3 == 0  `csv:`   - a CSV whose row is on neither board (a row deleted by hand, a replaced
+//                             progress row whose deletes failed), and a part `csv:<id>:p<n>` whose
+//                             `csv:<id>` was never sealed (the tab closed half-way). The CSV so far of
+//                             a progress send (signed `csvp:`, stored at `csv:<id>`) is the first kind.
+//   hour % 3 == 1  `gate:`  - rate-limit counters written without a TTL (every current write has one;
+//   hour % 3 == 2  `instn:`   one without can only be an older Worker's, and would never go).
+// A CSV key is deleted only when it was an orphan on two sweeps at least GC_GRACE_MS apart: KV's list
+// and the snapshots can lag a write, and a CSV posted a moment after its row must never be taken for
+// an orphan. "Seen" times live in one key, `gc:state`, with each prefix's list cursor, so a namespace
+// past one page is walked an hour at a time. Whole-CSV orphans need both board snapshots: when either
+// is missing or unreadable that part of the run is skipped, never guessed.
+//
+//   hours 11, 23   `csvd:`  - a delta (see "the CSV so far in deltas") of a run no row on either board
+//                             names, once its own `metadata.at` is GC_GRACE_MS old. Costs the 2 snapshot reads.
+// COST PER RUN: 1 list; 1 read (`gc:state`); for `csv:` 2 more reads (the snapshots) plus at most
+// GC_MAX_READS reads to check a part's `csv:<id>` off the page; at most GC_MAX_DELETES deletes; 1
+// write only when the state changed. So at most 24 lists, 24 writes and 240 deletes a day, and on a
+// clean namespace 24 lists, ~40 reads and no writes or deletes.
+const GC_GRACE_MS = 24 * 60 * 60 * 1000;
+const GC_MAX_DELETES = 10;
+const GC_MAX_READS = 20;
+/** A "seen" entry not looked at again in this long is forgotten (its key is on a page not walked lately). */
+const GC_FORGET_MS = 7 * 24 * 60 * 60 * 1000;
+const GC_MAX_SEEN = 2000;
+const GC_PREFIXES = ['csv:', 'gate:', 'instn:'];
+/** The two UTC hours a day that sweep `csvd:` instead of their usual prefix (both would have swept
+ *  `instn:`, the idlest one), so the other prefixes keep their rotation. */
+const CSVD_HOURS = [11, 23];
+const sweepPrefixOf = now => (CSVD_HOURS.includes(new Date(now).getUTCHours()) ? 'csvd:' : GC_PREFIXES[new Date(now).getUTCHours() % GC_PREFIXES.length]);
+
+/** One sweep. `prefix` defaults to the hour's (see above). Resolves to what it did, for tests and logs. */
+async function sweepGarbage(env, now, prefix = sweepPrefixOf(now)) {
+  const kv = env.SUBMISSIONS;
+  const stats = { prefix, listed: 0, deleted: [], seen: 0, skipped: null };
+  let state;
+  try {
+    state = JSON.parse((await kv.get('gc:state')) || 'null');
+  } catch {
+    state = null;
+  }
+  if (!state || typeof state !== 'object') state = { cursor: {}, seen: {} };
+  state.cursor = state.cursor && typeof state.cursor === 'object' ? state.cursor : {};
+  state.seen = state.seen && typeof state.seen === 'object' ? state.seen : {};
+  const before = JSON.stringify(state);
+  /** Keys looked at this run: their "seen" entries are current, whatever their age. */
+  const touched = new Set();
+
+  const page = await kv.list({ prefix, limit: 1000, ...(state.cursor[prefix] ? { cursor: state.cursor[prefix] } : {}) });
+  const keys = page.keys || [];
+  stats.listed = keys.length;
+  if (page.list_complete === false && page.cursor) state.cursor[prefix] = page.cursor;
+  else delete state.cursor[prefix];
+  const del = async name => {
+    if (stats.deleted.length >= GC_MAX_DELETES) return false;
+    touched.add(name);
+    await kv.delete(name);
+    stats.deleted.push(name);
+    delete state.seen[name];
+    return true;
+  };
+
+  if (prefix === 'csv:') {
+    const names = new Set(keys.map(k => k.name));
+    let boards = null;
+    if (keys.some(k => !k.name.slice(4).includes(':'))) {
+      const [sub, flag] = await Promise.all([kv.get('snap:sub'), kv.get('snap:flag')]);
+      if (openSnapshot(sub) && openSnapshot(flag)) boards = [sub, flag];
+      else stats.skipped = 'a board snapshot is missing, so no CSV is judged an orphan of its row this run';
+    }
+    let reads = 0;
+    for (const k of keys) {
+      const rest = k.name.slice(4);
+      const part = /^([^:]+):p\d+$/.exec(rest);
+      let orphan = null;
+      if (part) {
+        const parent = `csv:${part[1]}`;
+        if (names.has(parent)) orphan = false;
+        else if (reads < GC_MAX_READS) {
+          reads++;
+          const v = await kv.get(parent, 'stream');
+          if (v && typeof v.cancel === 'function') await v.cancel().catch(() => {});
+          orphan = v === null || v === undefined;
+        }
+      } else if (!rest.includes(':') && boards) {
+        orphan = !boards.some(raw => raw.includes(rowPrefix(rest)));
+      }
+      if (orphan === null) continue;
+      touched.add(k.name);
+      if (!orphan) {
+        delete state.seen[k.name];
+        continue;
+      }
+      const first = state.seen[k.name];
+      if (typeof first === 'number' && now - first >= GC_GRACE_MS) {
+        if (!(await del(k.name))) continue;
+        // A sealed CSV in parts says how many in its metadata: its parts go with it.
+        const m = k.metadata?.parts;
+        if (!part && Number.isInteger(m) && m > 1 && m <= MAX.CSV_PARTS) {
+          for (let n = 1; n < m; n++) if (names.has(csvPartKey(rest, n))) await del(csvPartKey(rest, n));
+        }
+      } else if (typeof first !== 'number') {
+        state.seen[k.name] = now;
+        stats.seen++;
+      }
+    }
+  } else if (prefix === 'csvd:') {
+    // A delta of a run no row on either board names (see "the CSV so far in deltas"), a day after it
+    // was written (its own `metadata.at`: no "seen" state needed). Both snapshots are read; when either
+    // is missing nothing is judged.
+    const [sub, flag] = await Promise.all([kv.get('snap:sub'), kv.get('snap:flag')]);
+    const snaps = [viewSnapshot(sub), viewSnapshot(flag)];
+    if (!snaps[0] || !snaps[1]) stats.skipped = 'a board snapshot is missing, so no delta is judged an orphan of its run this run';
+    else {
+      const live = new Set(snaps.flatMap(sn => Object.values(sn.prov).map(runOfProv)).filter(Boolean));
+      for (const k of keys) {
+        const run = /^csvd:([^:]+):\d+$/.exec(k.name)?.[1];
+        const at = k.metadata?.at;
+        if (run && !live.has(run) && typeof at === 'number' && now - at >= GC_GRACE_MS) await del(k.name);
+      }
+    }
+  } else {
+    // A counter with no expiration can only be an older Worker's: real KV lists `expiration` on a key
+    // written with a TTL.
+    for (const k of keys) if (k.expiration === undefined) await del(k.name);
+  }
+
+  for (const [name, at] of Object.entries(state.seen)) {
+    if (typeof at !== 'number' || (!touched.has(name) && now - at > GC_FORGET_MS)) delete state.seen[name];
+  }
+  const seen = Object.entries(state.seen);
+  if (seen.length > GC_MAX_SEEN) state.seen = Object.fromEntries(seen.sort((a, b) => b[1] - a[1]).slice(0, GC_MAX_SEEN));
+  if (JSON.stringify(state) !== before) await kv.put('gc:state', JSON.stringify(state));
+  return stats;
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
+
+    // ------------------------------------------------------------------- watch
+    // "Watch this run from your phone" (watch.js): D1, not KV, so none of this touches SUBMISSIONS.
+    if (isWatchRequest(url)) return handleWatch(request, env);
+
+    // ------------------------------------------------------------------ submit
+    if (url.pathname === '/submit' && request.method === 'POST') {
+      // Flood guard first (see floodGate): a refused request costs one read and nothing else.
+      // The edge limit first (see edgeLimited): a flood past it costs no KV read at all.
+      const slow = await edgeLimited(env, request, 'SUBMIT_LIMITER', 'submit');
+      if (slow) return slow;
+      const gate = await floodGate(env, request);
+      if (gate.refused) return gate.refused;
+
+      // Capped before it is parsed (21 Oct 2026, QA): the content-length first, then the text itself.
+      const rawSubmit = await cappedText(request, SUBMIT_MAX_BYTES);
+      if (rawSubmit === null) {
+        return json({ error: 'rejected', problems: [`a submission must be at most ${SUBMIT_MAX_BYTES} bytes`] }, 413);
+      }
+      let body;
+      try {
+        body = JSON.parse(rawSubmit);
+      } catch {
+        return json({ error: 'body must be JSON' }, 400);
+      }
+
+      const problems = validateSubmission(body);
+      if (problems.length) return json({ error: 'rejected', problems }, 400);
+
+      const record = pickSubmission(body);
+      if (record.durationDays > DECADES_LONG_DAYS && !(record.flags || []).includes('decades-long')) {
+        record.flags = [...(record.flags || []), 'decades-long'];
+      }
+      const owner = await ownerHash(request.headers.get('x-owner-token'));
+      if (owner) record.owner = owner;
+      // The collector's clock, not the sender's: `submittedAt` is whatever the client said.
+      record.receivedAt = new Date().toISOString();
+      // Well-formed but not possibly true: stored privately, on no board (see "quarantine"). A run the
+      // app marked `contradicts-itself` comes here too; it used to go to the flagged board.
+      const knowsQuarantine = url.searchParams.get('quarantine') === '1';
+      const reasons = quarantineReasons(body, record, Date.parse(record.receivedAt));
+      if (reasons.length) return quarantine(env, body, record, reasons, gate, knowsQuarantine);
+      // Missing the fields the checks need: unranked, on the flagged board (see "ranked only with its evidence").
+      if (env.RANK_NEEDS_EVIDENCE === '1' && !verifiable(record)) record.flags = [...(record.flags || []), UNVERIFIED];
+      // A simulator stamp newer than this Worker knows (see "simulator stamps"): kept, and marked.
+      if (simNewer(record.simVersion)) record.simNewer = true;
+      // A flagged run goes under its own prefix, so the main board -- /leaderboard, /all and every
+      // analysis built on them -- never sees it, and no reader has to remember to filter.
+      const board = record.flags?.length ? 'flag' : 'sub';
+      const flagged = board === 'flag' ? { flagged: record.flags } : {};
+      // One owner code flooding a board (QUAR.ROWS_PER_DAY): counted from the board's snapshot, which
+      // the patch below then reuses instead of reading it again. A best so far has its own cap.
+      let preRead;
+      if (owner && !record.provisional) {
+        preRead = await env.SUBMISSIONS.get(`snap:${board}`);
+        if (rowsToday(preRead, owner, Date.parse(record.receivedAt)) >= QUAR.ROWS_PER_DAY) {
+          const spam = [
+            { code: 'too-many-today', text: `more than ${QUAR.ROWS_PER_DAY} results from this account went on the board in the last 24 hours` },
+          ];
+          return quarantine(env, body, record, spam, gate, knowsQuarantine);
+        }
+      }
+
+      // A best so far being taken over by its run's final row, or by a newer best so far (see
+      // "provisional rows"). Checked before the copy test, and the old row is left out of it: a final
+      // must never be folded into the very row it replaces.
+      // A best so far is rationed (see "provisional rows"): it needs a code, and one per gap.
+      let boards = {};
+      if (record.provisional) {
+        if (!owner) {
+          return json(
+            { error: 'rejected', problems: ['a best so far needs the owner code, so its run can replace it'] },
+            400
+          );
+        }
+        boards = { sub: await readSnapshotText(env, ctx, 'sub'), flag: await readSnapshotText(env, ctx, 'flag') };
+        const last = lastProvisionalAt(boards, owner);
+        const wait = last === null ? 0 : last + PROVISIONAL_GAP_MS - Date.now();
+        if (wait > 0) {
+          const minutes = Math.ceil(wait / 60000);
+          return json(
+            {
+              error: `you sent a best so far less than ${PROVISIONAL_GAP_MS / 60000} minutes ago; send again in ${minutes} min`,
+              retryAfter: Math.ceil(wait / 1000),
+              tooSoon: true,
+            },
+            429
+          );
+        }
+        // The daily cap, counted from the same snapshots (see "provisional rows"): no KV operation.
+        const now = Date.now();
+        if (provisionalToday(boards, owner, utcDay(now)).sent >= PROVISIONAL_PER_DAY) {
+          const midnight = Date.UTC(
+            new Date(now).getUTCFullYear(),
+            new Date(now).getUTCMonth(),
+            new Date(now).getUTCDate() + 1
+          );
+          return json(
+            {
+              error: `at most ${PROVISIONAL_PER_DAY} progress sends a day from one account; more after midnight UTC`,
+              retryAfter: Math.max(1, Math.ceil((midnight - now) / 1000)),
+              tooSoon: true,
+              dailyCap: true,
+            },
+            429
+          );
+        }
+      }
+      const replace = await replaceTarget(env, ctx, rowId(body.replaces), owner, boards);
+      const replaced = replace?.ok ? replace : null;
+      // A row that takes a hidden row's place is hidden too (see "hidden rows"): the run's newer
+      // answer is the same thing its sender took off the board.
+      if (replaced?.hidden) record.hidden = true;
+      if (record.provisional) {
+        // This send's place in its chain's day (see "provisional rows"): private, never on the row's text.
+        const day = utcDay(Date.parse(record.receivedAt));
+        const before = replaced ? (provisionalToday(boards, owner, day).byId.get(replaced.id) ?? 0) : 0;
+        // The rows this one takes over, newest first: the one it replaced and that one's own list.
+        const back = replaced ? [replaced.id, ...(provSeqAcross(boards, replaced.id)?.back ?? [])] : [];
+        record.provSeq = `${day}|${before + 1}|${back.slice(0, PROVISIONAL_HOPS).join(',')}`;
+        // The run its CSV so far is made of (see "the CSV so far in deltas"): private, never on the row.
+        if (env.CSV_UPLOAD_KEY && typeof body.csvRun === 'string' && CSV_RUN.test(body.csvRun)) {
+          record.csvRun = body.csvRun;
+          record.provSeq += `|${body.csvRun}`;
+        }
+      }
+      const replaceReply = replace
+        ? replace.ok
+          ? { replaced: replace.id }
+          : { replaceRefused: `the earlier row (${replace.id}) was kept: ${replace.why}` }
+        : {};
+      /** The snapshot change that takes the old row off `onBoard`, when it is there. */
+      const removal = onBoard => (replaced && replaced.board === onBoard ? { remove: replaced.id } : {});
+      /** Delete the old row, and take it off its board when no patch of `patched` already did. */
+      const retire = async patched => {
+        if (!replaced) return;
+        await deleteRow(env, replaced, record.csvRun);
+        if (replaced.board !== patched)
+          await commitSnapshot(env, ctx, replaced.board, { remove: replaced.id }, url.origin);
+      };
+
+      // Has this sender already put this result on this board? One list (see "duplicates").
+      const meta = await metaOf(record);
+      // Not for a best so far: never an exact copy worth folding, never an anchor, and it saves a list.
+      const copies = record.provisional
+        ? []
+        : (await findCopies(env, `${board}:${record.finalTE}:${durKey(record.durationDays)}:`, meta)).filter(
+            c => c.id !== replaced?.id
+          );
+      const exact = copies.find(c => c.meta.s === meta.s);
+      if (exact) {
+        // Nothing new to store. The reply names the row that is there, so the app can point at it,
+        // and the name it is on the board under ('' for none): this sender's own row, so nothing is
+        // told that they did not send. Without it the app would take the name it just sent as the
+        // row's, and never offer "Put my name on it" when the two differ.
+        const reply = {
+          ok: true,
+          id: exact.id,
+          duplicate: 'exact',
+          firstAt: exact.meta.at ?? null,
+          nickname: exact.meta.n || '',
+          // Hidden, and it stays hidden: sending it again is not "Show again" (see "hidden rows").
+          ...(exact.meta.h ? { hidden: true } : {}),
+          ...flagged,
+          ...replaceReply,
+        };
+        // Owners must be PRESENT and equal. Two anonymous code-less sends are the same sender for
+        // folding, but a token for them would let anyone who replays a public row attach a CSV to it.
+        // Never for a provisional send: its run sends the CSV with its final row.
+        const ownersMatch = !!meta.o && exact.meta.o === meta.o;
+        if (ownersMatch && !record.provisional && env.CSV_UPLOAD_KEY && !(await hasCsv(env, exact.id))) {
+          // The retry-until-it-sticks case: a CSV that failed after the first send can follow this one.
+          reply.uploadToken = await uploadToken(env, exact.id);
+        }
+        let patched = null;
+        if (ownersMatch && !exact.meta.n && record.nickname) {
+          // "That anonymous row was me": proven by the owner code, not by the name. One write.
+          let stored = exact.stored;
+          if (!stored) {
+            try {
+              stored = JSON.parse(await env.SUBMISSIONS.get(exact.key));
+            } catch {
+              stored = null;
+            }
+          }
+          // Checked on the full hash, not the 12 hex in the metadata, before anything is written.
+          if (stored && !stored.nickname && stored.owner === owner) {
+            stored.nickname = record.nickname;
+            await env.SUBMISSIONS.put(exact.key, JSON.stringify(stored), { metadata: await metaOf(stored) });
+            await commitSnapshot(
+              env,
+              ctx,
+              board,
+              { row: { key: exact.key, record: stored }, ...removal(board) },
+              url.origin,
+              preRead
+            );
+            patched = board;
+            reply.renamed = true;
+            reply.nickname = stored.nickname;
+          }
+        }
+        // The result the old row stood in for is on the board already: the old row goes.
+        await retire(patched);
+        await gate.commit();
+        return json(reply);
+      }
+
+      // Keyed by finalTE then duration then a random suffix: KV lists lexicographically, so this
+      // makes "best chains for a 490 target" a prefix scan in sorted order rather than a full
+      // read-and-sort. Duration is zero-padded so 9.5 does not sort above 100.
+      const id = crypto.randomUUID().slice(0, 8);
+      const key = keyOf(board, record, id);
+      // Same result, other search: kept (its CSV and timing are real data), pointed at the first copy
+      // -- but only at one that is named when this one is, or anonymous when this one is. `dupOf` is
+      // public and only ever joins rows of ONE sender, so a link from a named row to an anonymous one
+      // would tell every reader that the anonymous run (its CSV, its run cost, its machine) is that
+      // player's -- exactly what the app promises an anonymous send never shows. The reply still says
+      // it is the same result: that goes to the sender alone. Never at a provisional row: its run
+      // will replace it, and the row will be gone.
+      // Nor at a hidden row (see "hidden rows"). And a result whose every copy from this sender is
+      // hidden arrives hidden: a re-send from another search never quietly shows it again.
+      const anchor = copies.find(c => !c.meta.p && !c.meta.h && !!c.meta.n === !!record.nickname);
+      if (anchor) record.dupOf = anchor.id;
+      if (!record.hidden && copies.length && copies.every(c => c.meta.h)) record.hidden = true;
+      if (record.hidden) meta.h = 1;
+      await env.SUBMISSIONS.put(key, JSON.stringify(record), { metadata: meta });
+      // On the board before the answer goes back, so the CSV and a "Put my name on it" that follow
+      // find the row (see "snapshots" above). A replaced row on the same board leaves in the same
+      // patch: two snapshot writes in one second would have KV refuse the second.
+      await commitSnapshot(env, ctx, board, { row: { key, record }, ...removal(board) }, url.origin, preRead);
+      // Only now, with the new row stored: a failure in between never loses both.
+      await retire(board);
+      // Private extras (see above): never part of the row, never served. A failure costs nothing.
+      const extras = pickExtras(body, record);
+      if (extras) {
+        try {
+          await env.SUBMISSIONS.put(`extra:${id}`, extras, { expirationTtl: EXTRA_TTL_SECONDS });
+        } catch {
+          /* the headline result is on the board; the extras are a courtesy */
+        }
+      }
+      await gate.commit();
+
+      // No key configured means no token: the client then skips the CSV instead of being refused. A
+      // provisional row's token is its own kind: its CSV is the CSV so far (see "provisional rows").
+      return json({
+        ok: true,
+        id,
+        ...(env.CSV_UPLOAD_KEY ? { uploadToken: await uploadToken(env, id, !!record.provisional) } : {}),
+        ...(record.csvRun ? { deltaToken: await deltaToken(env, record.csvRun) } : {}),
+        ...flagged,
+        ...(copies.length ? { duplicate: 'result', ...(record.dupOf ? { dupOf: record.dupOf } : {}) } : {}),
+        ...(record.hidden ? { hidden: true } : {}),
+        ...replaceReply,
+      });
+    }
+
+    // ------------------------------------------------------------------- claim
+    // Put a name on a row you sent: the "Put my name on it" button, for a result that went out
+    // anonymously (an auto-send, say) or under a name since changed. The proof is the owner code
+    // the row was sent with -- never the name, which anyone can type -- so a row sent with no code
+    // can never be claimed by anybody, and that is the intended price of sending without one.
+    if (url.pathname === '/claim' && request.method === 'POST') {
+      // The edge limit first (see edgeLimited): a flood past it costs no KV read at all.
+      const slow = await edgeLimited(env, request, 'SUBMIT_LIMITER', 'claim');
+      if (slow) return slow;
+      const gate = await floodGate(env, request);
+      if (gate.refused) return gate.refused;
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'body must be JSON' }, 400);
+      }
+      const id = body?.id;
+      if (typeof id !== 'string' || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
+      // The /submit rule, plus non-empty: this endpoint puts a name ON; it is not a way to take one off.
+      const nick = body.nickname;
+      if (typeof nick !== 'string' || !nick.trim() || nick.length > MAX.NICKNAME) {
+        return json(
+          { error: 'rejected', problems: [`nickname must be a string of at most ${MAX.NICKNAME} characters`] },
+          400
+        );
+      }
+
+      // Which board, from the snapshots (a read each, no list); the key follows from the row's text.
+      const found = await findRow(env, ctx, id);
+      let stored = null;
+      if (found) {
+        try {
+          stored = JSON.parse(await env.SUBMISSIONS.get(found.key));
+        } catch {
+          stored = null;
+        }
+      }
+      if (!found || !stored || typeof stored !== 'object') return json({ error: 'not found' }, 404);
+
+      // The record's own full hash decides, not the snapshot's index.
+      const owner = await ownerHash(request.headers.get('x-owner-token'));
+      if (!owner || typeof stored.owner !== 'string' || stored.owner !== owner) {
+        return json({ error: 'this row was not sent with your owner code, so it cannot be renamed from here' }, 403);
+      }
+      const nickname = text(nick, MAX.NICKNAME);
+      if (stored.nickname === nickname) return json({ ok: true, id, nickname, unchanged: true });
+      stored.nickname = nickname;
+      await env.SUBMISSIONS.put(found.key, JSON.stringify(stored), { metadata: await metaOf(stored) });
+      // In the snapshot before the answer, so the app's reload shows the name.
+      await commitSnapshot(env, ctx, found.board, { row: { key: found.key, record: stored } }, url.origin);
+      await gate.commit();
+      return json({ ok: true, id, nickname });
+    }
+
+    // -------------------------------------------------------------------- hide
+    // "Hide from the public" and "Show again" (see "hidden rows"). `{ids: [...]}` or `{all: true}`,
+    // with `hidden: true` to hide and `false` to show; one owner code in x-owner-token. Idempotent: a
+    // row already in that state is answered as done and written again only if its snapshot disagrees.
+    if (url.pathname === '/hide' && request.method === 'POST') {
+      // The edge limit first (see edgeLimited): a flood past it costs no KV read at all.
+      const slow = await edgeLimited(env, request, 'SUBMIT_LIMITER', 'hide');
+      if (slow) return slow;
+      const gate = await floodGate(env, request);
+      if (gate.refused) return gate.refused;
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'body must be JSON' }, 400, PRIVATE);
+      }
+      const owner = await ownerHash(request.headers.get('x-owner-token'));
+      if (!owner) return json({ error: 'send your owner code (one) in the x-owner-token header' }, 400, PRIVATE);
+      const problems = [];
+      if (!body || typeof body !== 'object' || Array.isArray(body)) problems.push('body must be an object');
+      else {
+        if (typeof body.hidden !== 'boolean') problems.push('hidden must be true (hide) or false (show again)');
+        const all = body.all === true;
+        if (body.all !== undefined && typeof body.all !== 'boolean') problems.push('all must be true or false');
+        if (all === (body.ids !== undefined)) problems.push('send either ids (a list of row ids) or all: true');
+        if (
+          body.ids !== undefined &&
+          (!Array.isArray(body.ids) || !body.ids.length || body.ids.length > MAX.HIDE_IDS || !body.ids.every(rowId))
+        ) {
+          problems.push(`ids must be a list of 1 to ${MAX.HIDE_IDS} row ids`);
+        }
+      }
+      if (problems.length) return json({ error: 'rejected', problems }, 400, PRIVATE);
+      const want = body.hidden;
+      const mine = owner.slice(0, OWNER_HEX);
+
+      // Which rows, from the snapshots (two reads, no list). The 12-hex owner index narrows; each row's
+      // record is read below and its full hash decides.
+      const boards = { sub: await readSnapshotText(env, ctx, 'sub'), flag: await readSnapshotText(env, ctx, 'flag') };
+      const owned = [];
+      for (const b of ['sub', 'flag']) {
+        const snap = viewSnapshot(boards[b]);
+        if (!snap) continue;
+        for (const sp of snap.spans) {
+          const id = spanId(sp);
+          if (snap.own[id] === mine) owned.push({ id, board: b, key: spanKey(b, sp), wasHidden: spanHidden(sp) });
+        }
+      }
+      let picked;
+      let missing = [];
+      let more = false;
+      if (body.all) {
+        // Rows whose board does not already show the asked-for state first, so the cap is spent on work.
+        const todo = [...owned.filter(r => r.wasHidden !== want), ...owned.filter(r => r.wasHidden === want)];
+        picked = todo.slice(0, MAX.HIDE_IDS);
+        more = todo.slice(MAX.HIDE_IDS).some(r => r.wasHidden !== want);
+      } else {
+        const ids = [...new Set(body.ids)];
+        const byId = new Map(owned.map(r => [r.id, r]));
+        picked = ids.filter(id => byId.has(id)).map(id => byId.get(id));
+        missing = ids.filter(id => !byId.has(id));
+      }
+      const records = await Promise.all(
+        picked.map(r =>
+          env.SUBMISSIONS.get(r.key).then(
+            v => {
+              try {
+                return JSON.parse(v);
+              } catch {
+                return null;
+              }
+            },
+            () => null
+          )
+        )
+      );
+      const done = [];
+      const writes = [];
+      const patches = { sub: [], flag: [] };
+      picked.forEach((r, i) => {
+        const rec = records[i];
+        // Not yours (on the full hash), or gone: the same answer as an id nobody sent.
+        if (!rec || typeof rec !== 'object' || rec.owner !== owner) {
+          if (!body.all) missing.push(r.id);
+          return;
+        }
+        done.push(r.id);
+        const recordChanges = (rec.hidden === true) !== want;
+        if (recordChanges) {
+          if (want) rec.hidden = true;
+          else delete rec.hidden;
+          writes.push({ r, rec });
+        }
+        // The snapshot is patched when the record changes, or when it shows the row the other way (a
+        // patch that lost a race): the record is the truth.
+        if (recordChanges || r.wasHidden !== want) patches[r.board].push({ key: r.key, record: rec });
+      });
+      // The owner's daily ration (see "hidden rows"): read only when something would be written.
+      const countKey = `hidn:${mine}:${utcDay(Date.now())}`;
+      let used = 0;
+      if (writes.length) {
+        used = Number(await env.SUBMISSIONS.get(countKey)) || 0;
+        if (used + writes.length > HIDE_PER_DAY) {
+          const now = Date.now();
+          const midnight = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1);
+          await gate.commit();
+          return json(
+            {
+              error: `at most ${HIDE_PER_DAY} hides and shows a day from one account; more after midnight UTC`,
+              retryAfter: Math.max(1, Math.ceil((midnight - now) / 1000)),
+              dailyCap: true,
+            },
+            429,
+            PRIVATE
+          );
+        }
+      }
+      // Records first, then the boards: a snapshot write that loses a race is put right by the settle,
+      // which reads the `h` this writes into each key's metadata.
+      for (const { r, rec } of writes) await env.SUBMISSIONS.put(r.key, JSON.stringify(rec), { metadata: await metaOf(rec) });
+      for (const b of ['sub', 'flag']) {
+        if (patches[b].length) await commitSnapshot(env, ctx, b, { rows: patches[b] }, url.origin, boards[b]);
+      }
+      // A newly hidden row's CSV leaves this data centre's cache now (see "GET /csv is cached"); elsewhere
+      // within EDGE_CACHE_S, as the board reads do.
+      const hiddenNow = writes.map(w => w.r.id);
+      if (want) await later(ctx, dropCsvCache(url.origin, hiddenNow));
+      if (writes.length) {
+        try {
+          await env.SUBMISSIONS.put(countKey, String(used + writes.length), { expirationTtl: 2 * 86400 });
+        } catch {
+          /* KV refuses a second write to one key inside a second: the rows are done, the count can lag */
+        }
+      }
+      await gate.commit();
+      return json(
+        {
+          ok: true,
+          hidden: want,
+          ids: done,
+          changed: writes.map(w => w.r.id),
+          ...(missing.length ? { missing } : {}),
+          ...(more ? { more: true } : {}),
+        },
+        200,
+        PRIVATE
+      );
+    }
+
+    // --------------------------------------------------------------- the CSV
+    // A run's full working -- every chain, one row per leg -- is megabytes, so it goes as its own
+    // request. The JSON submission is the thing that must land; this is the bulky optional half,
+    // and losing it must never cost the headline result.
+    //
+    // GZIPPED, AND COMPRESSED BY THE BROWSER, NOT HERE. Measured on real output: 11,000 chains is
+    // 15.3 MB raw and 0.66 MB gzipped, about 23x, because the file is repetitive numeric text.
+    // That fits KV's 25 MB per-value limit with room to spare, which is why this needs no R2 and
+    // no payment method on the account.
+    //
+    // The compression happens client-side for a reason that is not just upload speed: the free
+    // Workers plan allows ~10ms of CPU per request, and compressing 15 MB here would blow through
+    // it. The Worker stores the bytes it is handed.
+    //
+    // CONSEQUENCE, STATED PLAINLY: the `EI\d{16}` sweep that runs on the JSON path cannot run on
+    // an opaque gzip stream without decompressing it, which is the CPU cost we just avoided. So
+    // the sweep moved into the app, which scrubs before compressing (see exportCsv). This is
+    // belt-and-braces either way -- `buildChainsCsv` has no playerId in its metadata and never
+    // printed one -- but the guarantee is now enforced one step upstream, and a hand-made gzip
+    // posted directly is NOT swept. It is still capped and still has to be valid gzip.
+    // One delta of a run's CSV so far (see "the CSV so far in deltas").
+    if (url.pathname === '/csvd' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'UPLOAD_LIMITER', 'csvd');
+      if (slow) return slow;
+      const run = url.searchParams.get('run') ?? '';
+      if (!CSV_RUN.test(run)) return json({ error: 'bad run' }, 400);
+      const seq = wholeParam(url, 'seq', 0, MAX.CSV_DELTAS - 1);
+      const len = wholeParam(url, 'len', 1, 2 ** 31);
+      const crc = wholeParam(url, 'crc', 0, 2 ** 32 - 1);
+      const count = wholeParam(url, 'count', 0, 1e9);
+      if (!env.CSV_UPLOAD_KEY) return json({ error: 'CSV uploads are not configured on this collector' }, 503);
+      // Before the body is read, so a refused upload costs nothing.
+      if (!sameToken(request.headers.get('x-upload-token'), await deltaToken(env, run))) {
+        return json({ error: 'missing or wrong delta token' }, 403);
+      }
+      if (seq === null || len === null || crc === null || count === null) {
+        return json({ error: `seq (0..${MAX.CSV_DELTAS - 1}), len (1..2^31), crc (0..2^32-1) and count (>= 0) must be whole numbers` }, 400);
+      }
+      const key = csvdKey(run, seq);
+      const have = await kvHead(env, key);
+      if (have.exists) {
+        return json({ error: 'this delta is already stored', count: Number.isInteger(have.metadata?.count) ? have.metadata.count : 0 }, 409);
+      }
+      const body = await request.arrayBuffer();
+      if (!body.byteLength) return json({ error: 'empty body' }, 400);
+      if (body.byteLength > MAX.CSV_BYTES) {
+        return json({ error: `delta too large (${body.byteLength} bytes, limit ${MAX.CSV_BYTES})` }, 413);
+      }
+      if (!endsSynced(body)) return json({ error: 'a delta must be a sync-flushed raw deflate segment' }, 400);
+      await env.SUBMISSIONS.put(key, body, { metadata: { len, crc, count, at: Date.now() } });
+      return json({ ok: true, seq, bytes: body.byteLength });
+    }
+
+    if (url.pathname === '/csv' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'UPLOAD_LIMITER', 'csv');
+      if (slow) return slow;
+      const id = url.searchParams.get('id');
+      if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
+
+      // Checked before the body is read, so a refused upload costs no bandwidth or CPU.
+      if (!env.CSV_UPLOAD_KEY) return json({ error: 'CSV uploads are not configured on this collector' }, 503);
+      const sent = request.headers.get('x-upload-token');
+      const final = sameToken(sent, await uploadToken(env, id));
+      // A provisional row's CSV so far: signed differently, so this needs no read to tell.
+      const soFar = !final && sameToken(sent, await uploadToken(env, id, true));
+      // A quarantined send's CSV: kept as evidence under `quarcsv:`, never served (see "quarantine").
+      const quar = !final && !soFar && sameToken(sent, await uploadToken(env, id, 'quar'));
+      if (!final && !soFar && !quar) {
+        return json({ error: 'missing or wrong upload token - a CSV can only follow its own /submit' }, 403);
+      }
+      const base = quar ? 'quarcsv:' : 'csv:';
+      const ttl = quar ? { expirationTtl: QUAR.TTL_SECONDS } : {};
+      // The head of a CSV so far in deltas (see "the CSV so far in deltas"): its own mode.
+      if (url.searchParams.has('run')) {
+        if (!soFar || url.searchParams.has('part') || url.searchParams.has('parts')) {
+          return json({ error: 'run is only for a best so far\'s CSV so far (its csvp token), and not in parts' }, 400);
+        }
+        const run = url.searchParams.get('run');
+        if (!CSV_RUN.test(run) || !sameToken(request.headers.get('x-delta-token'), await deltaToken(env, run))) {
+          return json({ error: 'missing or wrong delta token' }, 403);
+        }
+        const k = wholeParam(url, 'deltas', 0, MAX.CSV_DELTAS);
+        const len = wholeParam(url, 'len', 0, 2 ** 31);
+        const crc = wholeParam(url, 'crc', 0, 2 ** 32 - 1);
+        if (k === null || len === null || crc === null) {
+          return json({ error: `deltas (0..${MAX.CSV_DELTAS}), len (0..2^31) and crc (0..2^32-1) must be whole numbers` }, 400);
+        }
+        if (await hasCsv(env, id)) return json({ error: 'this submission already has a CSV' }, 409);
+        const head = await request.arrayBuffer();
+        if (!head.byteLength) return json({ error: 'empty body' }, 400);
+        if (head.byteLength > MAX.CSV_BYTES) {
+          return json({ error: `head too large (${head.byteLength} bytes, limit ${MAX.CSV_BYTES})` }, 413);
+        }
+        if (!endsSynced(head)) return json({ error: 'a head must be a sync-flushed raw deflate segment' }, 400);
+        const missing = [];
+        let total = len;
+        let all = crc;
+        for (let n = 0; n < k; n++) {
+          const d = await kvHead(env, csvdKey(run, n));
+          const dm = d.metadata;
+          if (!d.exists || !Number.isFinite(dm?.len) || !Number.isFinite(dm?.crc)) missing.push(n);
+          else {
+            all = crc32Combine(all, dm.crc, dm.len);
+            total += dm.len;
+          }
+        }
+        if (missing.length) return json({ error: 'deltas missing; send them, then the head again', missing }, 422);
+        await env.SUBMISSIONS.put(`csv:${id}`, head, { metadata: { run, deltas: k, crc: all, len: total } });
+        await later(ctx, markCsv(env, id, url.origin));
+        return json({ ok: true, bytes: head.byteLength, deltas: k, partial: true });
+      }
+      // One part of a CSV over the cap (see "the CSV in parts"), or null for a whole file.
+      const split = partOf(url);
+      if (split === 'bad') {
+        return json({ error: `part and parts must be whole numbers, 0 <= part < parts, 2 <= parts <= ${MAX.CSV_PARTS}` }, 400);
+      }
+      // Write-once. The token never expires, so without this it would let the submitter (or anyone
+      // who saw the token) replace the table later. A part checks without pulling the bytes across.
+      // A whole file is checked by stream too (21 Oct 2026, QA): `get(..., 'arrayBuffer')` pulled up to 8 MB
+      // across just to answer 409 to a replay.
+      if (await hasCsv(env, id, base)) {
+        return json({ error: 'this submission already has a CSV' }, 409);
+      }
+      // A later part is write-once too: the head check above says nothing about it, and a token that
+      // never expires could otherwise rewrite one part (a write each time) until part 0 sealed the file.
+      // Answered 200, not 409: the app's retry (a lost answer, or "send every part again") treats a 409
+      // as the whole file being there and stops before the seal. A read, no write, no bytes taken.
+      if (split && split.part > 0 && (await kvHead(env, csvPartKey(id, split.part, base))).exists) {
+        return json({ ok: true, bytes: 0, part: split.part, parts: split.parts, already: true });
+      }
+
+      const body = await request.arrayBuffer();
+      if (!body.byteLength) return json({ error: 'empty body' }, 400);
+      if (body.byteLength > MAX.CSV_BYTES) {
+        return json({ error: `CSV too large (${body.byteLength} bytes gzipped, limit ${MAX.CSV_BYTES})` }, 413);
+      }
+      // A later part is a slice from the middle of one gzip stream: stored as it came, and done.
+      if (split && split.part > 0) {
+        await env.SUBMISSIONS.put(csvPartKey(id, split.part, base), body, ttl);
+        return json({ ok: true, bytes: body.byteLength, part: split.part, parts: split.parts });
+      }
+      // Gzip magic. Rejects a raw CSV posted by an older build, which would otherwise be stored
+      // and then served with a Content-Encoding the bytes do not have -- a file that downloads
+      // and will not open, which is worse than a clear refusal.
+      const head = new Uint8Array(body.slice(0, 2));
+      if (head[0] !== 0x1f || head[1] !== 0x8b) {
+        return json({ error: 'body must be gzip (the app compresses before sending)' }, 400);
+      }
+
+      if (split) {
+        // Part 0 seals the file: every other part must be there first.
+        const missing = [];
+        for (let n = 1; n < split.parts; n++) {
+          const v = await env.SUBMISSIONS.get(csvPartKey(id, n, base), 'stream');
+          if (v && typeof v.cancel === 'function') await v.cancel().catch(() => {});
+          if (v === null || v === undefined) missing.push(n);
+        }
+        if (missing.length) return json({ error: 'parts missing; send them, then part 0 again', missing }, 422);
+        await env.SUBMISSIONS.put(`${base}${id}`, body, { metadata: { parts: split.parts }, ...ttl });
+      } else await env.SUBMISSIONS.put(`${base}${id}`, body, ...(quar ? [ttl] : []));
+      // On no board, so there is no hasCsv to flip.
+      if (quar) return json({ ok: true, bytes: body.byteLength, ...(split ? { part: 0, parts: split.parts } : {}), quarantined: true });
+      // Flip this row's hasCsv in whichever snapshot holds it: patched in place, never re-listed. A
+      // list here, a moment after the row's own /submit, would not show that row yet, and rebuilding
+      // from it took the new row off the board (see "snapshots"). A CSV so far too: leaving it to
+      // the settle its /submit asked for missed it whenever that settle ran before the CSV landed
+      // or was listed, and nothing looked again (live, 10 Oct; see "provisional rows").
+      await later(ctx, markCsv(env, id, url.origin));
+      return json({
+        ok: true,
+        bytes: body.byteLength,
+        ...(split ? { part: 0, parts: split.parts } : {}),
+        ...(soFar ? { partial: true } : {}),
+      });
+    }
+
+    if (url.pathname === '/csv' && request.method === 'GET') {
+      const id = url.searchParams.get('id');
+      if (!id || !/^[a-f0-9-]{4,40}$/.test(id)) return json({ error: 'bad id' }, 400);
+      // GET /csv IS CACHED AND LIMITED (21 Oct 2026, review: a CSV in 256 deltas cost ~258 KV reads a
+      // request, unthrottled). A public whole file is kept at the edge for EDGE_CACHE_S under
+      // `/csv?id=<id>` alone (other parameters ignored), so a repeat costs no KV read. A miss is counted
+      // against READ_LIMITER per address, and a file joined from parts or deltas counts again once per
+      // CSV_READS_PER_UNIT reads it makes (at most CSV_UNITS_MAX), so a heavy file cannot be read as often
+      // as a light one. A hidden row's file (owner only) and a CSV so far in deltas are never cached.
+      const csvCache = typeof caches !== 'undefined' ? caches.default : null;
+      const csvKey = new Request(`${url.origin}/csv?id=${id}`, { method: 'GET' });
+      if (csvCache) {
+        const hit = await csvCache.match(csvKey);
+        if (hit) return hit;
+      }
+      const slowCsv = await edgeLimited(env, request, 'READ_LIMITER', 'csv');
+      if (slowCsv) return slowCsv;
+      // A hidden row's CSV is its owner's alone (see "hidden rows"): the snapshot says which rows are
+      // hidden (a read, two for a flagged row), and the record's full owner hash decides (one more).
+      const place = await rowPlace(env, ctx, id);
+      if (place?.hidden) {
+        const owner = await ownerHash(request.headers.get('x-owner-token'));
+        let stored = null;
+        if (owner) {
+          try {
+            stored = JSON.parse(await env.SUBMISSIONS.get(place.key));
+          } catch {
+            stored = null;
+          }
+        }
+        if (!owner || !stored || stored.owner !== owner) {
+          return json({ error: 'this CSV is not public: its row was hidden by the player who sent it' }, 403, PRIVATE);
+        }
+      }
+      const csvHeaders = place?.hidden ? PRIVATE : {};
+      // One read for a whole file, as before; a CSV in parts says so in its metadata and is joined
+      // here (see "the CSV in parts"), so the board's link and every script reading /csv get one file.
+      const got =
+        typeof env.SUBMISSIONS.getWithMetadata === 'function'
+          ? await env.SUBMISSIONS.getWithMetadata(`csv:${id}`, 'arrayBuffer')
+          : { value: await env.SUBMISSIONS.get(`csv:${id}`, 'arrayBuffer'), metadata: null };
+      if (!got?.value) return json({ error: 'not found' }, 404);
+      let buf = got.value;
+      const parts = got.metadata?.parts;
+      const isDeltas = typeof got.metadata?.run === 'string' && CSV_RUN.test(got.metadata.run);
+      const extraReads = isDeltas ? deltaCount(got.metadata) : Number.isInteger(parts) && parts > 1 ? parts - 1 : 0;
+      for (let u = Math.min(Math.ceil(extraReads / CSV_READS_PER_UNIT), CSV_UNITS_MAX); u > 0; u--) {
+        const slower = await edgeLimited(env, request, 'READ_LIMITER', 'csv');
+        if (slower) return slower;
+      }
+      if (isDeltas) {
+        // A CSV so far in deltas: head + deltas as one gzip member (see "the CSV so far in deltas").
+        const k = deltaCount(got.metadata);
+        const rest = [];
+        for (let n = 0; n < k; n++) {
+          const v = await env.SUBMISSIONS.get(csvdKey(got.metadata.run, n), 'stream');
+          if (v === null || v === undefined) {
+            for (const r of rest) if (typeof r.cancel === 'function') await r.cancel().catch(() => {});
+            return json({ error: `this CSV is stored in ${k} deltas and delta ${n} is missing` }, 500);
+          }
+          rest.push(v);
+        }
+        const trailer = new Uint8Array(10);
+        trailer.set([0x03, 0x00]);
+        new DataView(trailer.buffer).setUint32(2, Number(got.metadata.crc) >>> 0, true);
+        new DataView(trailer.buffer).setUint32(6, Number(got.metadata.len) % 2 ** 32 >>> 0, true);
+        const { readable, writable } = new TransformStream();
+        const pump = (async () => {
+          const w = writable.getWriter();
+          await w.write(new Uint8Array([0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0, 0, 0xff]));
+          await w.write(new Uint8Array(got.value));
+          w.releaseLock();
+          for (const r of rest) {
+            if (r instanceof ReadableStream) await r.pipeTo(writable, { preventClose: true });
+            else {
+              const w2 = writable.getWriter();
+              await w2.write(new Uint8Array(r));
+              w2.releaseLock();
+            }
+          }
+          const w3 = writable.getWriter();
+          await w3.write(trailer);
+          await w3.close();
+        })();
+        later(ctx, pump.catch(() => {}));
+        buf = readable;
+      } else if (Number.isInteger(parts) && parts > 1 && parts <= MAX.CSV_PARTS) {
+        const rest = [];
+        for (let n = 1; n < parts; n++) {
+          const v = await env.SUBMISSIONS.get(csvPartKey(id, n), 'stream');
+          if (v === null || v === undefined) {
+            for (const r of rest) if (typeof r.cancel === 'function') await r.cancel().catch(() => {});
+            return json({ error: `this CSV is stored in ${parts} parts and part ${n} is missing` }, 500);
+          }
+          rest.push(v);
+        }
+        // Streamed one after another, never all held at once: up to MAX.CSV_PARTS x 8 MB.
+        const { readable, writable } = new TransformStream();
+        const first = got.value;
+        const pump = (async () => {
+          const w = writable.getWriter();
+          await w.write(new Uint8Array(first));
+          w.releaseLock();
+          for (const r of rest) {
+            if (r instanceof ReadableStream) await r.pipeTo(writable, { preventClose: true });
+            else {
+              const w2 = writable.getWriter();
+              await w2.write(new Uint8Array(r));
+              w2.releaseLock();
+            }
+          }
+          await writable.close();
+        })();
+        later(ctx, pump.catch(() => {}));
+        buf = readable;
+      }
+      // Served as a GZIP FILE, not as a gzip-encoded CSV. The difference is not pedantry: the
+      // obvious version -- `content-type: text/csv` plus `content-encoding: gzip`, letting the
+      // browser inflate on arrival -- is broken by the CDN in front of this Worker. Cloudflare
+      // sees a compressible content-type and compresses the response itself, so the body on the
+      // wire becomes gzip(gzip(csv)) with only one layer declared. The client strips the declared
+      // layer and saves the inner gzip under a .csv name: a file that downloads and will not open.
+      // Confirmed against the deployed Worker -- `file` reported the download as gzip whose
+      // recorded original size was exactly the COMPRESSED length we uploaded.
+      //
+      // `application/gzip` is not on the edge's compressible list, so the bytes pass through
+      // untouched, and a .csv.gz is a thing every operating system already opens. No decompression
+      // here either way, for the CPU reason above.
+      const csvResponse = body =>
+        new Response(body, {
+          headers: {
+            'content-type': 'application/gzip',
+            'content-disposition': `attachment; filename="chains-${id}.csv.gz"`,
+            ...CORS,
+            ...csvHeaders,
+          },
+        });
+      // Only a public whole file is kept at the edge: one value, fixed once written. Parts (over 8 MB, rare)
+      // would need the stream split, and so buffered, which a 64 MB file must never be.
+      if (!csvCache || place?.hidden || isDeltas || buf instanceof ReadableStream) return csvResponse(buf);
+      const edge = csvResponse(buf.slice(0));
+      edge.headers.set('cache-control', `public, max-age=${EDGE_CACHE_S}`);
+      const kept = csvCache.put(csvKey, edge).catch(() => {});
+      await later(ctx, kept);
+      return csvResponse(buf);
+    }
+
+    // ------------------------------------------------------------- leaderboard
+    if ((url.pathname === '/leaderboard' || url.pathname === '/all') && request.method === 'GET') {
+      const bk = boardKey(url);
+      if (!bk) return json({ error: 'final must be a whole TE' }, 400);
+      // Cached under the normalised URL (boardKey), not the request's own.
+      return edgeCached(new Request(bk.href), ctx, async () => {
+        // A miss reads KV, so misses are what the edge limit counts (hits cost nothing; see READ_LIMITER).
+        const slow = await edgeLimited(env, request, 'READ_LIMITER', 'board');
+        if (slow) return slow;
+        const final = bk.final;
+        // From the snapshot: one KV read, no list (see "snapshots" above). Rows are in key order --
+        // target, then duration -- which IS the ranking.
+        const raw = await readSnapshotText(env, ctx, 'sub');
+        if (url.pathname === '/all') {
+          // The stored first line IS this response. Sent as bytes when nothing needs filtering out:
+          // no target asked for, or every row already for the one asked for. Every row, no cap: the
+          // finish-date race needs all of them, and the snapshot already holds exactly that. The
+          // `builtAt` it carries is also how a reader tells this from the old capped /all.
+          const head = snapHead(raw);
+          if (!final || (head && head.finals && head.finals.length === 1 && String(head.finals[0]) === final)) {
+            return jsonText(publicPart(raw));
+          }
+          // Filtered on the rows' text, not on parsed rows (the target is a top-level number).
+          const spans = (openSnapshot(raw)?.pub ?? []).filter(sp => spanField(sp, FINAL_RE) === final);
+          const builtAt = head ? head.builtAt : Date.now();
+          return jsonText(`{"builtAt":${builtAt},"count":${spans.length},"rows":[${spans.join(',')}]}`);
+        }
+
+        const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
+        const snap = parseSnapshot(raw);
+        // Deadline answers (schema 8) are not plans to a target: a board of plan lengths has no
+        // place for them. /all serves them for the app's By a date tab.
+        const rows = (final ? snap.rows.filter(r => String(r.finalTE) === final) : snap.rows).filter(
+          r => typeof r.deadline !== 'number'
+        );
+
+        // One line per distinct RESULT, for clients that do not fold for themselves.
+        //
+        // This used to key on nickname, target, chain, effort, schedule and searched space, keeping
+        // the fastest of each -- "collapse re-runs, not different experiments". Two things were wrong
+        // with it. It split a result by how it was found: a thorough search agreeing with a balanced
+        // one showed twice, as did a wide proof agreeing with a narrow one. And it folded what are not
+        // copies at all: the same chain priced again from a later save is a NEW measurement of that
+        // plan, and keeping only the faster one kept whichever was more optimistic. Deciding which
+        // measurement of a plan stands is the finish-date board's job (src/lib/leaderboardRank.ts),
+        // with rules this read cannot apply.
+        //
+        // So the fold is by content fingerprint (see "duplicates"): the same finish, sent more than
+        // once, is one line whoever sent it and however it was found, with `copies` saying how many.
+        // Anonymous copies fold too -- content that identical reveals nothing by being folded -- and
+        // who may stand for and name a group is settled by foldCopies, from the owner codes.
+        const best = foldCopies(rows, snap.own).slice(0, limit);
+        return json({ count: best.length, rows: best });
+      });
+    }
+
+    // -------------------------------------------------------------------- mine
+    // The caller's own rows, from both boards, anonymous ones included -- "My plans", and the plans
+    // the app re-checks before its next send. x-owner-token may carry every code this browser holds,
+    // comma-separated (the first OWNER_TOKENS are used); a row matches if it was sent with any of
+    // them. Two snapshot reads and no list: the owner index is inside the snapshot, and the rows are
+    // picked out of its text without parsing the board. Never cached -- at the edge or in the
+    // browser -- since the answer is per caller and says who sent what.
+    if (url.pathname === '/mine' && request.method === 'GET') {
+      const tokens = (request.headers.get('x-owner-token') || '')
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean)
+        .slice(0, MAX.OWNER_TOKENS);
+      const hashes = (await Promise.all(tokens.map(ownerHash))).filter(Boolean);
+      if (!hashes.length) return json({ error: 'send your owner code in the x-owner-token header' }, 400, PRIVATE);
+      const mine = new Set(hashes.map(h => h.slice(0, OWNER_HEX)));
+      const rows = [];
+      for (const board of ['sub', 'flag']) {
+        const snap = openSnapshot(await readSnapshotText(env, ctx, board));
+        if (!snap) continue;
+        // A row's text ends with its closing brace: `yours` goes in just before it.
+        for (const sp of snap.spans) if (mine.has(snap.own[spanId(sp)])) rows.push(`${sp.slice(0, -1)},"yours":true}`);
+      }
+      return jsonText(`{"count":${rows.length},"rows":[${rows.join(',')}]}`, PRIVATE);
+    }
+
+    // ----------------------------------------------------------------- instant
+    // One opt-in instant-answer record (see "instant answer records"): private, never served.
+    if (url.pathname === '/instant' && request.method === 'POST') {
+      const slow = await edgeLimited(env, request, 'INSTANT_LIMITER', 'instant');
+      if (slow) return slow;
+      const owner = await ownerHash(request.headers.get('x-owner-token'));
+      if (!owner) return json({ error: 'rejected', problems: ['an instant answer record needs the owner code'] }, 400);
+      const raw = await cappedText(request, INSTANT_MAX_BYTES);
+      if (raw === null) return json({ error: 'rejected', problems: [`a record must be at most ${INSTANT_MAX_BYTES} bytes`] }, 413);
+      let body;
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        return json({ error: 'body must be JSON' }, 400);
+      }
+      const { record, problems } = pickInstant(body);
+      if (!record) return json({ error: 'rejected', problems }, 400);
+      const now = Date.now();
+      const day = utcDay(now);
+      const mine = owner.slice(0, OWNER_HEX);
+      // The daily caps (see "instant answer records"): one address, and the whole collector. Both read
+      // only after the body passed, so a refused body costs no read.
+      const ipHash = (await sha256hex(`instant-ip|${request.headers.get('cf-connecting-ip') || 'unknown'}`)).slice(0, OWNER_HEX);
+      const ipKey = `instn:${ipHash}:${day}`;
+      const allKey = `instn:all:${day}`;
+      const sentIp = Number(await env.SUBMISSIONS.get(ipKey)) || 0;
+      const sentAll = Number(await env.SUBMISSIONS.get(allKey)) || 0;
+      if (sentIp >= INSTANT_PER_IP_DAY || sentAll >= INSTANT_PER_DAY_ALL) {
+        const midnight = Date.UTC(new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate() + 1);
+        return json(
+          {
+            error:
+              sentIp >= INSTANT_PER_IP_DAY
+                ? `at most ${INSTANT_PER_IP_DAY} instant answer records a day from one address; more after midnight UTC`
+                : `the collector takes at most ${INSTANT_PER_DAY_ALL} instant answer records a day; more after midnight UTC`,
+            retryAfter: Math.max(1, Math.ceil((midnight - now) / 1000)),
+          },
+          429
+        );
+      }
+      const sign = await acctSigner(env);
+      const id = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+      const stored = {
+        ...record,
+        owner: mine,
+        ...(sign ? { acct: await sign(owner) } : {}),
+        receivedAt: new Date(now).toISOString(),
+      };
+      await env.SUBMISSIONS.put(`inst:${day}:${id}`, JSON.stringify(stored), { expirationTtl: INSTANT_TTL_SECONDS });
+      for (const [k, n] of [[ipKey, sentIp], [allKey, sentAll]]) {
+        try {
+          await env.SUBMISSIONS.put(k, String(n + 1), { expirationTtl: 2 * 86400 });
+        } catch {
+          /* KV refuses a second write to one key inside a second: the record is in, the count can lag */
+        }
+      }
+      return json({ ok: true, id }, 200, PRIVATE);
+    }
+
+    // ------------------------------------------------------------ flagged board
+    // Runs from accounts the planner cannot help yet. Kept, because they are the evidence for where
+    // it stops working; kept APART, because they are not routes anyone should copy; and anonymous,
+    // because a stalled account is nobody's business -- except the owner's. A caller presenting a
+    // row's owner code (the app keeps one per account in the browser that submitted) gets that row
+    // with its nickname and `yours: true`; everybody else gets it without.
+    if (url.pathname === '/flagged' && request.method === 'GET') {
+      const mine = await ownerHash(request.headers.get('x-owner-token'));
+      const mine12 = mine ? mine.slice(0, OWNER_HEX) : null;
+      // From the flag board's snapshot (1 read, no list). Not edge-cached: the answer depends on
+      // the caller's owner code.
+      const snap = parseSnapshot(await readSnapshotText(env, ctx, 'flag'));
+      const rows = snap.rows.map(stored => {
+        const row = { ...stored };
+        const yours = !!mine12 && snap.own[row.id] === mine12;
+        delete row.acct;
+        if (yours) row.yours = true;
+        else {
+          // A flagged row's words are its sender's: hidden from everyone else, like the name.
+          delete row.nickname;
+          delete row.note;
+        }
+        return row;
+      });
+      return json({ count: rows.length, rows }, 200, mine ? PRIVATE : {});
+    }
+
+    // -------------------------------------------------------------------- page
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      return new Response(LEADERBOARD_HTML, {
+        headers: { 'content-type': 'text/html;charset=utf-8', ...CORS },
+      });
+    }
+
+    return json({ error: 'not found' }, 404);
+  },
+
+  /** The cron trigger (wrangler.toml): the watch rows' 15-minute stale note, and once an hour the
+   *  7-day clean-up (D1); and once an hour, at :30, the KV sweep (see "the sweep"). */
+  async scheduled(event, env, ctx) {
+    const at = typeof event?.scheduledTime === 'number' ? event.scheduledTime : Date.now();
+    ctx.waitUntil(
+      watchCron(env, at, fetch, {
+        prune: new Date(at).getUTCMinutes() < 5,
+      }).catch(() => undefined)
+    );
+    // The sweep (see "the sweep"): once an hour, at :30, one prefix a time. KV, not D1.
+    const minute = new Date(at).getUTCMinutes();
+    if (minute >= 30 && minute < 35 && env.SUBMISSIONS) ctx.waitUntil(sweepGarbage(env, at).catch(() => undefined));
+  },
+};
+
+// The page is inlined so the Worker is a single file with no build step and no asset hosting.
+// It is small, it has no dependencies, and it reads the same endpoints documented above.
+//
+// NOT String.raw, and that is not a style choice. The page's own script builds rows with a
+// template literal, so its backticks and `${...}` have to be escaped to survive being nested
+// inside this one. String.raw keeps backslashes verbatim, which shipped `=> \`` and `\${i + 1}`
+// as literal text into the served HTML -- a SyntaxError on the first line of the inline script,
+// killing the whole thing. The page then sat on "Loading…" forever with the API working fine
+// underneath it. A cooked literal resolves those escapes to the backtick and `${` the page
+// needs. These escapes are the only backslashes in the block, so nothing else changes meaning.
+const LEADERBOARD_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ascension chain leaderboard</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f6f7f9; --fg:#1e293b; --mut:#64748b; --line:#e2e8f0; --card:#fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f172a; --fg:#e2e8f0; --mut:#94a3b8; --line:#1e293b; --card:#111c33; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .wrap { max-width:70rem; margin:0 auto; padding:2rem 1rem 4rem; }
+  h1 { font-size:1.5rem; margin:0 0 .25rem; }
+  p.sub { color:var(--mut); margin:0 0 1.5rem; }
+  .controls { display:flex; gap:.75rem; align-items:end; flex-wrap:wrap; margin-bottom:1rem; }
+  label { display:block; font-size:.65rem; font-weight:800; letter-spacing:.1em;
+          text-transform:uppercase; color:var(--mut); margin-bottom:.25rem; }
+  select,input { padding:.4rem .6rem; border:1px solid var(--line); border-radius:.5rem;
+                 background:var(--card); color:var(--fg); font-weight:700; }
+  table { width:100%; border-collapse:collapse; background:var(--card);
+          border:1px solid var(--line); border-radius:.75rem; overflow:hidden; }
+  th { text-align:left; font-size:.65rem; letter-spacing:.1em; text-transform:uppercase;
+       color:var(--mut); padding:.6rem .75rem; border-bottom:1px solid var(--line); }
+  td { padding:.6rem .75rem; border-bottom:1px solid var(--line); }
+  tr:last-child td { border-bottom:0; }
+  .chain { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:700; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .muted { color:var(--mut); }
+  .note { margin-top:1.25rem; color:var(--mut); font-size:.8rem; }
+  .empty { padding:2rem; text-align:center; color:var(--mut); }
+  .scroll { overflow-x:auto; }
+  details.upload { margin:1.25rem 0 0; padding:.75rem 1rem; background:var(--card);
+                   border:1px solid var(--line); border-radius:.75rem; }
+  details.upload summary { cursor:pointer; font-weight:800; font-size:.8rem; }
+  details.upload p { color:var(--mut); font-size:.8rem; }
+  tr.row { cursor:pointer; }
+  tr.row:hover td { background:color-mix(in srgb, var(--fg) 4%, transparent); }
+  tr.row.open td { background:color-mix(in srgb, var(--fg) 6%, transparent); }
+  .caret { display:inline-block; width:.8rem; color:var(--mut); }
+  td.detail { padding:0 .75rem 1rem; }
+  .detail-grid { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); }
+  .detail h3 { font-size:.62rem; letter-spacing:.1em; text-transform:uppercase;
+               color:var(--mut); margin:.25rem 0 .4rem; }
+  .kv { font-size:.8rem; }
+  .kv div { display:flex; justify-content:space-between; gap:1rem; padding:.1rem 0; }
+  .kv span:first-child { color:var(--mut); }
+  .legs { font-size:.75rem; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .legs div { padding:.1rem 0; }
+  a.csv { display:inline-block; margin-top:.5rem; font-size:.75rem; font-weight:800; }
+  /* An exhaustive row is a different KIND of claim from a searched one -- a proven optimum of a
+     stated space rather than the best thing a heuristic happened to reach -- so it gets a mark
+     rather than a value in the effort column. Insane mode does not use the effort knob, and the
+     tier it sends is whatever the main panel was left on; printing "balanced" next to a proof
+     is worse than printing nothing. */
+  .exh { display:inline-block; padding:.05rem .4rem; border-radius:.35rem; font-size:.6rem;
+         font-weight:900; letter-spacing:.08em; text-transform:uppercase;
+         background:#4f46e5; color:#fff; }
+  .exh.partial { background:#b45309; }
+  .bands { font-size:.72rem; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+           max-height:9rem; overflow:auto; }
+  .bands div { padding:.05rem 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ascension chain leaderboard</h1>
+  <p class="sub">Fastest chains submitted by players, one line per result: the same result sent
+    twice shows once, marked with how many times it was sent. Click a row for the
+    artifacts, stones and per-leg detail it was simulated with. Rows marked
+    <span class="exh">exhaustive</span> were proven optimal over a stated space rather than found
+    by a search &mdash; open one to see exactly what was enumerated.</p>
+
+  <div class="controls">
+    <div>
+      <label for="final">Target TE</label>
+      <select id="final"><option value="">all</option></select>
+    </div>
+    <div>
+      <label for="limit">Rows</label>
+      <input id="limit" type="number" min="5" max="200" value="50" />
+    </div>
+  </div>
+
+  <div class="scroll"><table>
+    <thead><tr>
+      <th></th><th>#</th><th>Who</th><th>Chain</th><th class="num">Ascensions</th>
+      <th class="num">Days</th><th>Finishes</th><th class="num">Waiting</th>
+      <th>Window</th><th>Effort</th><th>Submitted</th>
+    </tr></thead>
+    <tbody id="rows"><tr><td colspan="11" class="empty">Loading…</td></tr></tbody>
+  </table></div>
+
+  <details class="upload">
+    <summary>Upload a saved result</summary>
+    <p>
+      Saved a result to disk instead of submitting it? Drop the JSON here. This is the same
+      endpoint the app posts to, so a file saved on a machine with no network reaches the board
+      from any machine that has one. A file that carries your owner code is sent the way the app
+      sends it -- as a header, never stored -- so a result you already sent is recognised rather
+      than stored twice.
+    </p>
+    <input id="file" type="file" accept="application/json,.json" multiple />
+    <span id="upstatus" class="muted"></span>
+  </details>
+
+  <p class="note">
+    <strong>Durations are not directly comparable.</strong> A chain's length depends on the account's
+    artifacts, research and starting TE as much as on the chain, and on whether the run was
+    constrained to the player's waking hours. Read this as "what shapes are winning for people",
+    not as a ranking of players. <em>Waiting</em> is the time the plan spends held for the player's
+    schedule; blank means the submission carried no per-leg detail, which is not the same as zero.
+  </p>
+</div>
+
+<script>
+const rowsEl = document.getElementById('rows');
+const finalEl = document.getElementById('final');
+const limitEl = document.getElementById('limit');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+
+async function load() {
+  const q = new URLSearchParams();
+  if (finalEl.value) q.set('final', finalEl.value);
+  q.set('limit', limitEl.value || '50');
+  rowsEl.innerHTML = '<tr><td colspan="11" class="empty">Loading…</td></tr>';
+  try {
+    const res = await fetch('/leaderboard?' + q);
+    const data = await res.json();
+    if (!data.rows || !data.rows.length) {
+      rowsEl.innerHTML = '<tr><td colspan="11" class="empty">Nothing submitted yet.</td></tr>';
+      return;
+    }
+    // Two rows per entry: the summary, and a detail row that starts hidden. Same shape as the
+    // planner's own runner-up table, so the two read alike.
+    rowsEl.innerHTML = data.rows.map((r, i) => \`
+      <tr class="row" data-i="\${i}">
+        <td class="caret">›</td>
+        <td class="muted">\${i + 1}</td>
+        <td>\${esc(r.nickname || 'anonymous')}\${r.copies > 1 ? ' <span class="muted">&middot; sent &times;' + esc(r.copies) + '</span>' : ''}\${provisionalTag(r)}</td>
+        <td class="chain">\${esc((r.chain || []).join(' '))}</td>
+        <td class="num">\${esc(r.ascensions)}</td>
+        <td class="num">\${Number(r.durationDays).toFixed(3)}</td>
+        <td class="muted">\${esc(r.endLocal || '')}</td>
+        <td class="num">\${r.waitingHours == null ? '<span class="muted">—</span>' : Number(r.waitingHours).toFixed(1) + ' h'}</td>
+        <td class="muted">\${esc(r.window || 'no schedule')}</td>
+        <td class="muted">\${effortCell(r)}</td>
+        <td class="muted">\${esc((r.submittedAt || '').slice(0, 10))}</td>
+      </tr>
+      <tr class="detail" data-detail="\${i}" hidden>
+        <td class="detail" colspan="11">\${detail(r)}</td>
+      </tr>\`).join('');
+    // Populate the target filter from what has actually been submitted.
+    if (finalEl.options.length === 1) {
+      for (const te of [...new Set(data.rows.map(r => r.finalTE))].sort((a, b) => a - b)) {
+        finalEl.add(new Option(te, te));
+      }
+    }
+  } catch (e) {
+    rowsEl.innerHTML = '<tr><td colspan="11" class="empty">Could not load: ' + esc(e.message) + '</td></tr>';
+  }
+}
+// What the row was simulated with. Counts are capped by the app before sending, so a number at
+// the cap means "that many or more" -- rendered as such rather than as a precise-looking figure.
+function counts(list) {
+  if (!list || !list.length) return '<div class="muted">none recorded</div>';
+  // Two shapes on purpose. Schema 2 sends artifacts as bare labels -- an artifact slot takes one
+  // artifact, so the count said nothing -- while stones keep counts because how many you hold
+  // decides what can be socketed. Rows stored under schema 1 are still objects and still render.
+  return list.map(a =>
+    typeof a === 'string'
+      ? \`<div><span>\${esc(a)}</span><span></span></div>\`
+      : \`<div><span>\${esc(a.label)}</span><span>\${esc(a.count)}</span></div>\`).join('');
+}
+
+// A solved loadout, per slot, with the stones inside each artifact. The fourth DELIVERY slot is
+// picked as a stone holder -- a T3 legendary ankh beats a T4 epic chalice because sockets matter
+// more than the base effect -- so the stones are the part that makes the set legible.
+// The fallback argument renders the bare inventory for rows submitted before loadouts existed.
+// (No backticks in comments in here: this whole page is itself inside a template literal.)
+function sets(slots, fallback) {
+  if (!slots || !slots.length) {
+    if (fallback) return '<div class="kv">' + counts(fallback) + '</div>';
+    return '<div class="muted">not recorded</div>';
+  }
+  return slots.map(s =>
+    \`<div style="margin-bottom:.35rem">
+        <div style="font-weight:700">\${esc(s.artifact)}</div>
+        <div class="muted" style="margin-left:.6rem">\${
+          (s.stones || []).length ? esc((s.stones || []).join(', ')) : 'no stones'
+        }</div>
+      </div>\`).join('');
+}
+
+// A best so far, sent while its run was still going: replaced by the run's final row when it ends.
+function provisionalTag(r) {
+  if (!r.provisional) return '';
+  const p = r.progress;
+  const pct = p && p.total > 0 ? Math.min(99, Math.floor((100 * p.done) / p.total)) : null;
+  return ' <span class="exh partial">in progress' + (pct === null ? '' : ' (' + pct + '% searched)') + '</span>';
+}
+
+// What goes in the Effort column.
+//
+// Two different things share it because they answer the same question -- how hard did this row
+// look -- and a proof is the strongest possible answer to it. \`space\` is only ever present on a
+// schema-4 Insane submission, so an older row is unaffected and still prints its tier.
+function effortCell(r) {
+  if (!r.space) return esc(r.effort || '');
+  return r.space.stoppedEarly
+    ? '<span class="exh partial">partial</span>'
+    : '<span class="exh">exhaustive</span>';
+}
+
+// The space an exhaustive run proved its answer over.
+//
+// Rendered in full rather than summarised, because the whole value of an exhaustive row is that
+// the reader can check the claim: "fastest 2-ascension chain to 490 with a first checkpoint in
+// {249, 299}" is a statement you can agree or disagree with, where "fastest chain found" is not.
+//
+// \`stoppedEarly\` is called out loudly. A run that was cut short enumerated a space it did not
+// finish, so its answer is the best of what it reached -- exactly an ordinary search result --
+// and letting that render as a proof would be the one way this block could mislead.
+function provenance(sp) {
+  if (!sp) return '';
+  const asc = sp.minAscensions === sp.maxAscensions
+    ? String(sp.minAscensions)
+    : sp.minAscensions + '-' + sp.maxAscensions;
+  const where = sp.mode === 'range' && sp.range
+    ? 'every ' + esc(sp.range.step) + ' TE from ' + esc(sp.range.lo) + ' to ' + esc(sp.range.hi)
+    : 'listed bands';
+  const bands = sp.mode === 'bands' && sp.bands && sp.bands.length
+    ? '<div class="bands">' + sp.bands.map((b, k) =>
+        '<div>C' + (k + 1) + ': ' + esc((b || []).join(' ')) + '</div>').join('') + '</div>'
+    : '';
+  const warn = sp.stoppedEarly
+    ? '<div class="muted" style="margin-top:.4rem;color:#b45309;font-weight:700">' +
+      'Stopped before the space was finished — this is the best of what it reached, not a proof.' +
+      '</div>'
+    : '';
+  return \`<div><h3>Proven over</h3><div class="kv">
+      <div><span>Checkpoints from</span><span>\${where}</span></div>
+      <div><span>Ascensions</span><span>\${esc(asc)}</span></div>
+      <div><span>Minimum gap</span><span>\${esc(sp.minGap)} TE</span></div>
+      <div><span>Chains in space</span><span>\${Number(sp.chains).toLocaleString()}</span></div>
+      <div><span>Chains priced</span><span>\${Number(sp.chainsPriced).toLocaleString()}</span></div>
+    </div>\${bands}\${warn}</div>\`;
+}
+
+// What the exhaustive run found, next to what it looked at.
+//
+// The margin is computed here rather than stored, because it is a subtraction and a stored copy
+// is a second thing that can disagree with the two numbers it came from. It is the figure most
+// worth putting first: a winner ahead by 0.03 days is a flat neighbourhood where the exact chain
+// hardly matters, and a winner ahead by forty is a real find, and the same "948.41" is printed
+// either way.
+function outcome(r) {
+  const p = r.proof;
+  if (!p) return '';
+  const best = Number(r.durationDays);
+  const next = p.runnersUp && p.runnersUp.length ? Number(p.runnersUp[0].days) : null;
+  const margin = next === null ? null : next - best;
+  const rows = (p.runnersUp || []).map((c, k) =>
+    '<div>' + (k + 2) + '. ' + esc((c.chain || []).join(' ')) + '  ' +
+    Number(c.days).toFixed(3) + ' d  <span class="muted">+' +
+    (Number(c.days) - best).toFixed(3) + '</span></div>').join('');
+  const groups = (p.byAscensions || []).map(g =>
+    '<div>' + esc(g.ascensions) + ' asc: ' + esc((g.chain || []).join(' ')) + '  ' +
+    Number(g.days).toFixed(3) + ' d  <span class="muted">(' +
+    Number(g.priced).toLocaleString() + ' priced)</span></div>').join('');
+  return \`<div><h3>What it found</h3><div class="kv">
+      <div><span>Margin over 2nd</span><span>\${
+        margin === null ? '&mdash;' : margin.toFixed(3) + ' d'
+      }</span></div>
+      <div><span>Best in space</span><span>\${Number(p.spread.best).toFixed(3)} d</span></div>
+      <div><span>Median</span><span>\${Number(p.spread.median).toFixed(3)} d</span></div>
+      <div><span>Worst</span><span>\${Number(p.spread.worst).toFixed(3)} d</span></div>
+    </div>
+    \${rows ? '<h3 style="margin-top:.6rem">Runners-up</h3><div class="legs">' + rows + '</div>' : ''}
+    \${groups ? '<h3 style="margin-top:.6rem">Best per ascension count</h3><div class="legs">' + groups + '</div>' : ''}
+  </div>\`;
+}
+
+function detail(r) {
+  const legs = (r.legs || []).length
+    ? r.legs.map((l, k) =>
+        \`<div>A\${k + 1} → \${esc(l.te)}  \${esc(l.strategy || '')}  \${Number(l.days).toFixed(2)} d  \${Number(l.peakDeliveryQph).toFixed(2)} q/hr</div>\`
+      ).join('')
+    : '<div class="muted">no per-leg detail — this chain was replayed from a saved checkpoint</div>';
+  // A provisional row's CSV is the CSV so far: its run is still going, and its final replaces it.
+  const csv = r.hasCsv
+    ? \`<a class="csv" href="/csv?id=\${encodeURIComponent(r.id)}">\${r.provisional ? 'Download the CSV so far (.csv.gz, the run is still going) ↓' : 'Download the full CSV (.csv.gz) ↓'}</a>\`
+    : '<div class="muted" style="margin-top:.5rem;font-size:.75rem">No CSV was attached to this run.</div>';
+  return \`<div class="detail-grid">
+      <div><h3>Run</h3><div class="kv">
+        <div><span>Starting TE</span><span>\${esc(r.currentTE)}</span></div>
+        <div><span>Target TE</span><span>\${esc(r.finalTE)}</span></div>
+        <div><span>Plan starts</span><span>\${esc(r.startLocal || '—')}</span></div>
+        <div><span>Seed chain</span><span>\${
+          r.seed && r.seed.length ? esc(r.seed.join(' ')) : '<span class="muted">exhaustive — no seed</span>'
+        }</span></div>
+        <div><span>Submitted</span><span>\${esc((r.submittedAt || '').replace('T', ' ').slice(0, 16))} UTC</span></div>
+        <div><span>Chains priced</span><span>\${esc(r.chainsPriced ?? '—')}</span></div>
+        <div><span>Shifts held</span><span>\${r.holdShifts ? 'yes' : 'no'}</span></div>
+      </div>\${csv}</div>
+      <div><h3>Delivery set</h3>\${sets(r.delivery, r.artifacts)}</div>
+      <div><h3>Earnings set</h3>\${sets(r.earnings, null)}</div>
+      <div><h3>Stones</h3><div class="kv">\${counts(r.stones)}</div></div>
+      <div><h3>Legs</h3><div class="legs">\${legs}</div></div>
+      \${provenance(r.space)}
+      \${outcome(r)}
+    </div>\`;
+}
+
+// Delegated, because the rows are replaced wholesale on every load and per-row listeners would
+// leak with them.
+rowsEl.onclick = ev => {
+  const tr = ev.target.closest('tr.row');
+  if (!tr) return;
+  const detailRow = rowsEl.querySelector('tr[data-detail="' + tr.dataset.i + '"]');
+  if (!detailRow) return;
+  const opening = detailRow.hidden;
+  detailRow.hidden = !opening;
+  tr.classList.toggle('open', opening);
+  tr.querySelector('.caret').textContent = opening ? '⌄' : '›';
+};
+
+finalEl.onchange = load;
+limitEl.onchange = load;
+
+// Uploading a file saved offline. Posts to the same /submit the app uses, so the Worker's
+// validation applies identically -- there is no second, looser path into the dataset.
+//
+// A saved file may carry the account's owner code as ownerToken. The app sends that code as the
+// x-owner-token header and never in the body, and so does this: lifted out, sent as the header,
+// and deleted from what is posted. The collector would drop an unknown body field anyway; taking
+// it out here means the code never travels as submission data at all. With it, a sweep's upload
+// folds into a result the browser already sent, and can put a name on it, exactly like a send.
+async function uploadOne(f) {
+  const raw = await f.text();
+  const headers = { 'content-type': 'application/json' };
+  let body = raw;
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === 'object' && !Array.isArray(obj) && 'ownerToken' in obj) {
+      if (typeof obj.ownerToken === 'string' && obj.ownerToken) headers['x-owner-token'] = obj.ownerToken;
+      delete obj.ownerToken;
+      body = JSON.stringify(obj);
+    }
+  } catch (e) {
+    // Not JSON: post it as is, and let the collector say what is wrong with it.
+  }
+  // ?quarantine=1: a run refused for the board but stored comes back as an answer, not an error.
+  return fetch('/submit?quarantine=1', { method: 'POST', headers: headers, body: body });
+}
+
+document.getElementById('file').onchange = async ev => {
+  const status = document.getElementById('upstatus');
+  const files = [...ev.target.files];
+  let ok = 0;
+  let already = 0;
+  const fails = [];
+  const held = [];
+  for (const f of files) {
+    try {
+      const res = await uploadOne(f);
+      if (res.ok) {
+        const reply = await res.json().catch(() => ({}));
+        // An exact copy is a success that stored nothing: said as such, not as an error.
+        if (reply.quarantined) held.push(f.name + ': ' + reply.message + (reply.reasonText ? ' (' + reply.reasonText + ')' : ''));
+        else if (reply.duplicate === 'exact') already++;
+        else ok++;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        fails.push(f.name + ': ' + (err.problems ? err.problems.join('; ') : res.status));
+      }
+    } catch (e) {
+      fails.push(f.name + ': ' + e.message);
+    }
+  }
+  status.textContent = ok + ' accepted' +
+    (already ? ', ' + already + ' already on the board (nothing new stored)' : '') +
+    (held.length ? ', ' + held.length + ' refused for the leaderboard but stored - ' + held.join(' | ') : '') +
+    (fails.length ? ', ' + fails.length + ' rejected - ' + fails.join(' | ') : '');
+  if (ok || already) load();
+};
+
+load();
+</script>
+</body>
+</html>`;
