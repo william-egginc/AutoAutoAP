@@ -121,6 +121,9 @@ describe('the words and the follow suggestions', () => {
       ['components/auto/SavedAnswers.vue', 'followableAnswer(a.result.routes[0], a.result.deadline)'],
       ['components/auto/InstantRoute.vue', '<FollowButton v-if="rowFollowable(r)"'],
       ['components/auto/InstantRoute.vue', '<FollowButton v-if="boxFollowable"'],
+      // By a date's result card and its Best for each stop count rows (23 Oct 2026).
+      ['components/auto/DeadlinePanel.vue', 'if (!c || !r || !g || !followableAnswer(best.value, r.deadline)) return null;'],
+      ['components/auto/DeadlinePanel.vue', 'v-if="dateRowFollow && followableAnswer(r, result.deadline)"'],
     ];
     for (const [f, s] of guarded) expect(src(f), f).toContain(s);
     const follow = src('lib/follow.ts');
@@ -143,13 +146,20 @@ describe('the words and the follow suggestions', () => {
       '<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" :finish="boxLead.end" :end-te="boxLead.chain[boxLead.chain.length - 1]" :plan-start="answerStart" />',
     ]);
     const users = allSources().filter(f => /<FollowButton/.test(fs.readFileSync(f, 'utf8')));
+    // The result cards (23 Oct 2026) take their follow from the screen: By a date's guarded above, Fastest's
+    // (ChainSearchPanel, InsanePanel) a race.
     expect(users.map(f => path.relative(path.resolve(__dirname, '..'), f)).sort()).toEqual([
+      'components/auto/ByDateRouteCard.vue',
+      'components/auto/DeadlinePanel.vue',
+      'components/auto/InsanePanel.vue',
       'components/auto/InstantRoute.vue',
       'components/auto/LeaderboardPanel.vue',
       'components/auto/LeaderboardPlanList.vue',
       'components/auto/MyRunsList.vue',
+      'components/auto/RouteResultCard.vue',
       'components/auto/SavedAnswers.vue',
       'components/auto/SavedRuns.vue',
     ]);
+    expect(src('components/auto/ByDateRouteCard.vue')).toContain('<FollowButton\n            v-if="follow"');
   });
 });
