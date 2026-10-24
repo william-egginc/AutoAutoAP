@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SCRIPT_ORIGINS, securityTxt } from './securityHeaders';
+import { AUTO_FOLLOW_RESULT } from './followPolicy';
 
 const root = new URL('../../', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
@@ -125,6 +126,14 @@ describe('About and privacy page', () => {
       "If it couldn't be saved when you pressed it (you were offline, say), it is saved once the next time your account is loaded, unless a newer one is saved online by then."
     );
     expect(text).toContain('Nothing else saves it.');
+    // The sentence for a result that becomes the follow (lib/followPolicy.ts): there exactly while the constant is on.
+    const auto =
+      'When you are not following another route for a goal, a Fast, Exact or Custom run you did that becomes your route on My runs, Right now, is followed and saved online the same way.';
+    if (AUTO_FOLLOW_RESULT) expect(text).toContain(auto);
+    else expect(text).not.toContain('a Fast, Exact or Custom run you did that becomes your route');
+    const setup = read('src/components/auto/YourSetup.vue');
+    expect(setup).toContain('It is saved when you press Follow this route,');
+    expect(setup).toContain('v-if="AUTO_FOLLOW_RESULT"');
     expect(text).not.toContain('not loading your account');
     expect(text).toContain(
       'What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to spare, the hours window you used, the time of your save, and the simulator and planner version. Never your player ID or a name. Your days and time off are not stored.'
