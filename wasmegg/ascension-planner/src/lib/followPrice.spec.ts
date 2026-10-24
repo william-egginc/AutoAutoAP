@@ -192,9 +192,28 @@ describe("followPrice: the instant answer's route and this save's results keep t
     expect(p).toEqual({ priced: 'none', chain: [240, 490] });
   });
 
-  it("an older save's instant answer and result are never matched (another save's timeline)", () => {
+  it("an older save's instant answer is never matched; its result is, said to be that save's", () => {
     const old: FollowSnap = { snap: instantSnap({ backupTime: OLD, search: fast([222, 490], OLD + 70 * H) }), startTE: 200, ownKey: false, check: elsewhere };
-    expect(followPrice({ ...base, chain: [230, 490], snaps: [old] }).priced).toBe('none');
-    expect(followPrice({ ...base, chain: [222, 490], snaps: [old] }).priced).toBe('none');
+    expect(followPrice({ ...base, chain: [230, 490], snaps: [old], prefer: 'instant' }).priced).toBe('none');
+    const p = followPrice({ ...base, chain: [222, 490], snaps: [old] });
+    expect(p.priced === 'exact' && p.source).toBe('older-save');
+    expect(p.priced === 'exact' && p.plan.from?.level).toBe('Fast');
+  });
+
+  it("results kept from older saves (aap-search-plans): the newest that is this route; this save's own first", () => {
+    const meta = (bt: number) => ({ account: 'acct', goal: 'target 490', backupTime: bt, teByEgg: [190] });
+    const older = [
+      { found: fast([222, 490], SAVE - 17 * H + 70 * H, (SAVE - 17 * H) * 1000), meta: meta(SAVE - 17 * H), check: here },
+      { found: fast([222, 490], SAVE - 5 * H + 69 * H, (SAVE - 5 * H) * 1000), meta: meta(SAVE - 5 * H), check: here },
+      { found: fast([240, 490], SAVE + 60 * H, SAVE * 1000), meta: meta(SAVE - 1 * H), check: here },
+    ];
+    const p = followPrice({ ...base, chain: [197, 222, 490], snaps: [], olderResults: older });
+    expect(p.priced === 'exact' && p.source).toBe('older-save');
+    expect(p.priced === 'exact' && p.plan.meta?.backupTime).toBe(SAVE - 5 * H);
+    // This save has a result for it too: this save's leads.
+    const mine = { found: fast([222, 490], SAVE + 71 * H), meta: meta(SAVE), check: here };
+    const q = followPrice({ ...base, chain: [222, 490], snaps: [own(instantSnap({ backupTime: SAVE }))], results: [mine], olderResults: older });
+    expect(q.priced === 'exact' && q.source).toBe('this-save');
+    expect(q.priced === 'exact' && q.plan.end).toBe(SAVE + 71 * H);
   });
 });

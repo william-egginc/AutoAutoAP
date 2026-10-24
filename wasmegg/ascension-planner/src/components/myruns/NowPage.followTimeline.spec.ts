@@ -2,8 +2,8 @@
  * Right now with a followed route keeps the route's timeline (regression, 23 Oct 2026): following the instant answer's
  * own route kept "Following your pick · not priced on this save yet" and "No timeline for your route on this save yet"
  * where the instant timeline had been. Now (lib/followPrice.ts step 0): the instant answer's route keeps the instant
- * timeline and its pill; this save's kept Fast result keeps the Fast timeline; only a route that is neither is "not
- * priced on this save yet"; an older save's result is never matched. Through useNowPage with the synthetic save (id
+ * timeline and its pill; this save's kept Fast result keeps the Fast timeline; then an older save's kept result, with "priced on
+ * your save of …, may have drifted"; only a route that is none of these is "not priced on this save yet". Through useNowPage with the synthetic save (id
  * EI0000000000000000, never printed), the card server-rendered.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -64,7 +64,7 @@ function save() {
  * kept with the snapshot (`where` 'snap'), beyond it in aap-search-plans ('kept'), only there with no snapshot
  * ('kept-only'), or kept for an OLDER save ('stale'). Then the route followed, as given.
  */
-async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' | 'kept-only' | 'stale' = 'snap') {
+async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' | 'kept-only' | 'stale' = 'snap', staleHours = 5) {
   loadAndSyncBackup(A_ID, save(), 'plan_next');
   rollUpPendingTE();
   const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
@@ -108,8 +108,8 @@ async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' 
     recordKeptSearch({
       account: accountOf(useInitialStateStore().rawBackup),
       goal: instantGoal(eggDayAt, store.finalTE),
-      // 'stale': priced on a save five hours before this one.
-      backupTime: now - SAVE_AGO - (where === 'stale' ? 5 * H : 0),
+      // 'stale': priced on a save `staleHours` before this one.
+      backupTime: now - SAVE_AGO - (where === 'stale' ? staleHours * H : 0),
       setup: { availability: store.availability ? JSON.parse(JSON.stringify(store.availability)) : null, timeOff: JSON.parse(JSON.stringify(store.timeOff ?? [])) },
       search: found,
     });
@@ -226,12 +226,19 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     scope.stop();
   });
 
-  it('(e) a Fast result kept for an older save: not matched, the route is not priced on this save', async () => {
-    const { page, scope } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'fast' }, 'stale');
-    expect(page.follow.value?.price).toBe('none');
-    const { text } = await render(page);
-    expect(text).toContain(NOT_PRICED);
-    expect(text).not.toContain('from your Fast run');
-    scope.stop();
+  it('(e) a Fast result kept for a save 5 h or 17 h older: its timeline, with the drift note and Add buttons', async () => {
+    for (const hours of [5, 17]) {
+      setActivePinia(createPinia());
+      mem.clear();
+      const { page, scope } = await eggDay({ chain: [201, 239], from: 'saved', at: now(), source: 'fast' }, 'stale', hours);
+      expect(page.follow.value, `${hours} h`).toMatchObject({ price: 'exact', source: 'older-save' });
+      expect(page.cardPlan.value?.plan.from?.level).toBe('Fast');
+      const { html, text } = await render(page);
+      expect(text, `${hours} h`).toMatch(/Following your pick · priced on your save of .+, may have drifted/);
+      expect(text).not.toContain(NOT_PRICED);
+      expect(text).not.toContain(NO_TIMELINE);
+      expect(html).toContain('data-testid="calendar-button"');
+      scope.stop();
+    }
   });
 });

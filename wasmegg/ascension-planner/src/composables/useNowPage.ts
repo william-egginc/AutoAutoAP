@@ -621,7 +621,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         meta: { account: k.account, goal: k.goal, backupTime: k.backupTime, teByEgg: k.teByEgg, setup: k.setup },
         check: currentSetup(sn.setup),
       });
+    // The account's results for the goal kept from older saves (or this save under another setup): a followed route
+    // that is one of them shows its timeline, said to be priced on that save.
+    const olderResults: FollowResult[] = [];
+    for (const e of keptList.value) {
+      if (!acct || e.account !== acct || e.goal !== words || e.search.at === k?.search.at) continue;
+      olderResults.push({
+        found: e.search,
+        meta: { account: e.account, goal: e.goal, backupTime: e.backupTime, teByEgg: e.teByEgg, setup: e.setup },
+        check: setupCheck(e.setup ?? null, sn.setup, sn.today),
+      });
+    }
     const price = followPrice({
+      olderResults,
       chain: f.chain,
       goal: g,
       currentTE: teSoFar.value,
