@@ -84,6 +84,46 @@ export class WorkerLostError extends Error {
   }
 }
 
+/** Whether the page is in front: visible and focused. */
+export interface PageFront {
+  hidden: boolean;
+  focused: boolean;
+}
+
+/** The page as it is now (in front when there is no document, as in a test or a worker). */
+export function pageFrontNow(): PageFront {
+  if (typeof document === 'undefined') return { hidden: false, focused: true };
+  let focused = true;
+  try {
+    focused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+  } catch {
+    focused = true;
+  }
+  return { hidden: !!document.hidden, focused };
+}
+
+/**
+ * What the watchdog says when a worker has gone quiet. QA 24 Oct 2026 (Safari not the frontmost app): after about 65 s
+ * it said the worker had very probably been killed, but it was the browser slowing a window that is not in front, not a
+ * crash. So when the page is hidden or not focused at that moment it says so and asks for the window to be brought
+ * to the front, and doesn't call it killed; in front, the message is as before.
+ */
+export function stallMessage(o: { label: string; quietMs: number; done: number; total: number; page: PageFront }): string {
+  const mins = Math.round(o.quietMs / 60000);
+  const forHow = o.quietMs >= 60_000 ? `${mins} minute${mins === 1 ? '' : 's'}` : `${Math.round(o.quietMs / 1000)}s`;
+  const head = `${o.label} stopped responding: no progress for ${forHow} (${o.done}/${o.total} routes done).`;
+  const saved = 'Your progress is saved, so resuming re-uses every route already priced.';
+  if (o.page.hidden || !o.page.focused)
+    return (
+      `${head} Your browser slows windows that are not in front: bring this window to the front and the search ` +
+      `carries on. ${saved}`
+    );
+  return (
+    `${head} The worker was very likely killed, most often by the browser reclaiming memory or freezing or ` +
+    `discarding the tab. ${saved}`
+  );
+}
+
 interface PendingEntry {
   resolve: (message: WorkerResponse) => void;
   reject: (err: Error) => void;
@@ -472,10 +512,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
         const forHow = quiet >= 60_000 ? `${Math.round(quiet / 60000)} minutes` : `${Math.round(quiet / 1000)}s`;
         entry.reject(
           new WorkerLostError(
-            `${entry.label} stopped responding: no progress for ${forHow} ` +
-              `(${entry.done}/${entry.total} routes done). The worker was very likely killed, ` +
-              `most often by the browser reclaiming memory or freezing or discarding the tab. ` +
-              `Your progress is saved, so resuming re-uses every route already priced.`
+            stallMessage({ label: entry.label, quietMs: quiet, done: entry.done, total: entry.total, page: pageFrontNow() })
           )
         );
         counts.stalled++;
