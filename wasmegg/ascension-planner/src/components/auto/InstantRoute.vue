@@ -306,6 +306,14 @@
               :beta="prestigeFlag.beta"
               :hours-on="hoursLimited"
             />
+            <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
+            <p
+              v-if="prestigeFlag.enabled.value && !preferPicked && noPrestigeOn && prestigeStatus !== 'idle'"
+              class="text-[11px] text-amber-800"
+              data-testid="prestige-by-no-days"
+            >
+              The “Prestige by” line doesn’t know your no-prestige days; Fast, Exact or Custom do.
+            </p>
             <!-- HOOK: "First ascension: N egg shifts" and "One more TE" were here (they need the simulated first leg,
                  gone from the instant card since 23 Oct 2026). When the engine simulates the current ascension live
                  again, feed it to lib/searchPointer.ts `firstAscensionFromLiveLeg` and mount RouteExtras with what it
@@ -455,6 +463,14 @@
             :beta="prestigeFlag.beta"
             :hours-on="hoursLimited"
           />
+          <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
+          <p
+            v-if="prestigeFlag.enabled.value && !preferPicked && noPrestigeOn && prestigeStatus !== 'idle'"
+            class="text-[11px] text-amber-800"
+            data-testid="prestige-by-no-days"
+          >
+            The “Prestige by” line doesn’t know your no-prestige days; Fast, Exact or Custom do.
+          </p>
           <!-- HOOK: First ascension / One more TE (see the By a date box above, lib/searchPointer.ts
                `firstAscensionFromLiveLeg`). -->
           <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
