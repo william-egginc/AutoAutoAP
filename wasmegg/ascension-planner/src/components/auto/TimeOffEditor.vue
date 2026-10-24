@@ -1,27 +1,29 @@
 <!--
-  Time off from the virtue farm: Egg Day, a week chasing a legendary deflector on the home farm.
-  Each stretch ends the ascension in progress (it keeps the TE it reached), nothing happens while
-  away, and coming back is a complete rebuild. The search prices every chain with those gaps in it,
-  so the winner is the best plan AROUND the time off, not the best plan with a hole cut in it.
+  Days picked as whole local dates, two kinds (the three kinds of "not now", Jordan 24 Oct 2026):
+
+  - kind 'timeOff' (the default): away from virtue. Egg Day, a week chasing a legendary deflector on the home farm.
+    Each stretch ends the ascension in progress (it keeps the TE it reached; going to the home farm is a prestige),
+    nothing happens while away, and coming back is a complete rebuild. The search prices every chain with those gaps
+    in it, so the winner is the best plan AROUND the time off, not the best plan with a hole cut in it.
+  - kind 'noPrestige': no prestige on these days (search/noPrestige.ts). The player stays on the virtue farm; a
+    prestige that would fall on one waits for the next allowed moment, the farm laying meanwhile. Shifts still happen.
 -->
 <template>
   <div class="space-y-2">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <span class="text-[11px] font-bold text-slate-800">Time off from virtue</span>
+      <span class="text-[11px] font-bold text-slate-800">{{ words.title }}</span>
       <button
         type="button"
-        :disabled="store.isRunning || store.timeOff.length >= 8"
+        :disabled="store.isRunning || rows.length >= 8"
         class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+        :data-testid="`${kind}-add`"
         @click="add"
       >
-        Add time off
+        {{ words.add }}
       </button>
     </div>
-    <p class="text-[11px] text-slate-500 leading-relaxed">
-      Days you will be off the virtue farm, in the plan's timezone. The ascension you are in ends when the time off
-      starts and keeps the TE it has; when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.
-    </p>
-    <div v-for="(row, i) in store.timeOff" :key="i" class="flex flex-wrap items-center gap-2">
+    <p class="text-[11px] text-slate-500 leading-relaxed" :data-testid="`${kind}-explain`">{{ words.explain }}</p>
+    <div v-for="(row, i) in rows" :key="i" class="flex flex-wrap items-center gap-2">
       <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
         From
         <input
@@ -47,25 +49,60 @@
         type="button"
         :disabled="store.isRunning"
         class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-600 disabled:opacity-40"
-        @click="store.timeOff.splice(i, 1)"
+        @click="rows.splice(i, 1)"
       >
         Remove
       </button>
     </div>
-    <p v-if="store.isRunning && store.timeOff.length" class="text-[11px] font-semibold text-amber-700">
-      Locked while a run is going: time off changes which route is fastest.
-    </p>
+    <p v-if="store.isRunning && rows.length" class="text-[11px] font-semibold text-amber-700">{{ words.locked }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { nextDate, type TimeOffDates } from '@/search/timeOff';
+import { formatInZone } from '@/search/csv';
+import { useAutoPlannerStore } from '@/stores/autoPlanner';
+
+const props = withDefaults(defineProps<{ kind?: 'timeOff' | 'noPrestige' }>(), { kind: 'timeOff' });
 
 const store = useChainSearchStore();
 
-/** Starts on the next Egg Day, the one date nearly everybody takes off. */
+/** The store's list this editor changes (the same shape for both kinds). */
+const rows = computed<TimeOffDates[]>(() => (props.kind === 'noPrestige' ? store.noPrestige : store.timeOff));
+
+/** The player's words for each kind: the three kinds of "not now" must read as different things. */
+const WORDS = {
+  timeOff: {
+    title: 'Away from virtue (time off)',
+    add: 'Add time off',
+    explain:
+      "Days you will be off the virtue farm, on the home farm, in the plan's timezone. Going to the home farm is a prestige: the ascension you are in ends when the time off starts and keeps the TE it has, and when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.",
+    locked: 'Locked while a run is going: time off changes which route is fastest.',
+  },
+  noPrestige: {
+    title: 'No prestige on these days',
+    add: 'Add days',
+    explain:
+      "Days you stay on the virtue farm but won't prestige, in the plan's timezone. A prestige that would land on one waits for the next allowed time (inside your hours, if you picked them), and the farm keeps laying while it waits, until its silos are full. Egg shifts still happen on these days.",
+    locked: 'Locked while a run is going: these days change which route is fastest.',
+  },
+} as const;
+const words = computed(() => WORDS[props.kind]);
+
+/** The plan's timezone (the store's own rule): the days are read there. */
+function planZone(): string {
+  return useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/** Time off starts on the next Egg Day, the one date nearly everybody takes off; no-prestige days on tomorrow. */
 function add(): void {
+  if (props.kind === 'noPrestige') {
+    const tomorrow = nextDate(formatInZone(Date.now() / 1000, planZone()).slice(0, 10));
+    store.noPrestige.push({ from: tomorrow, to: tomorrow });
+    return;
+  }
   const now = new Date();
   const year = now.getMonth() > 6 || (now.getMonth() === 6 && now.getDate() > 14) ? now.getFullYear() + 1 : now.getFullYear();
   const eggDay = `${year}-07-14`;

@@ -139,7 +139,7 @@
             <li>
               <span class="font-semibold">No downtime between ascensions.</span> Each ascension is assumed to start the
               moment the previous one ends. A plan built from a {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }} result keeps
-              that search's time off.
+              that search's time off from virtue.
             </li>
             <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't plan around your awake hours.</li>
           </ul>
@@ -306,7 +306,7 @@
         v-if="timeOffInPlan.length"
         class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
       >
-        <span class="font-black uppercase tracking-wide">Includes your time off.</span>
+        <span class="font-black uppercase tracking-wide">Includes your time away from virtue (time off).</span>
         {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Build this plan or Simulate this plan
         on the search again to put it back.
       </div>
@@ -314,7 +314,7 @@
         v-if="timeOffDroppedFor"
         class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
       >
-        <span class="font-black uppercase tracking-wide">Time off left out.</span>
+        <span class="font-black uppercase tracking-wide">Time away from virtue left out.</span>
         It was worked into this route for a plan starting {{ timeOffDroppedFor }}, and the start is now
         {{ autoPlannerStore.startDate }} {{ autoPlannerStore.startTime }} (a newer save moves it up), so this plan farms
         straight through it. Search again, or re-apply from the search, to put it back.

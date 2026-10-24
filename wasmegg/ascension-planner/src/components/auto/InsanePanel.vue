@@ -46,12 +46,12 @@
           </p>
           <p class="text-[11px] text-slate-600">
             <template v-if="timeOffText">
-              Planned around time off: <b>{{ timeOffText }}</b
+              Planned around time off from virtue: <b>{{ timeOffText }}</b
               >. It still prices every route, but the result goes on the board with the time-off runs and won't fill
               this gap.
             </template>
             <template v-else>
-              Taking time off, like Egg Day or a trip?
+              Taking time away from virtue, like Egg Day or a trip?
               <button type="button" class="font-bold text-indigo-700 underline" @click="ui.openSetupRequested++">
                 Add it in Your setup
               </button>
@@ -983,8 +983,8 @@
                 You stopped it early, so this is the best of what was priced, not the optimum of the space.
               </p>
               <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
-                Your time off goes into the plan too: the ascension it interrupts ends when the time off starts, and the
-                next one starts after it.
+                Your time away from virtue goes into the plan too: the ascension it interrupts ends when the time off starts
+                (going to the home farm is a prestige), and a rebuild starts after it.
               </p>
             </RouteResultCard>
           </template>

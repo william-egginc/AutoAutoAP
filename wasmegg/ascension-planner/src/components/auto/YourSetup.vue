@@ -58,7 +58,10 @@
         >Awake <span class="font-bold text-slate-900">{{ awakeLabel }}</span></span
       >
       <span class="text-[12px] text-slate-600"
-        >Time off <span class="font-bold text-slate-900">{{ timeOffCount || 'none' }}</span></span
+        >Away from virtue <span class="font-bold text-slate-900">{{ timeOffCount || 'none' }}</span></span
+      >
+      <span v-if="noPrestigeCount" class="text-[12px] text-slate-600" data-testid="setup-no-prestige"
+        >No prestige <span class="font-bold text-slate-900">{{ noPrestigeCount }}</span></span
       >
       <span class="text-[12px] text-slate-600"
         ><span class="font-bold text-slate-900">{{ store.workerBudget }} of {{ store.machineThreads }}</span>
@@ -80,7 +83,7 @@
         data-testid="setup-remembered"
       >
         Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours, hold
-        shifts, time off and first ascension. ·
+        shifts, time off, no-prestige days and first ascension. ·
         <button
           type="button"
           class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
@@ -124,6 +127,19 @@
         {{ NAMES.byDate }} all use it.
       </p>
 
+      <!-- The three kinds of "not now" (Jordan, 24 Oct 2026), side by side so none is read as another. -->
+      <ul class="text-[11px] text-slate-500 leading-relaxed list-disc pl-5" data-testid="setup-not-now">
+        <li><span class="font-bold text-slate-700">Awake hours:</span> no shifts outside them, and prestiges wait for them.</li>
+        <li>
+          <span class="font-bold text-slate-700">No prestige on these days:</span> stay on virtue; a prestige waits for the
+          next allowed time.
+        </li>
+        <li>
+          <span class="font-bold text-slate-700">Away from virtue (time off):</span> go to the home farm, and rebuild when
+          you return.
+        </li>
+      </ul>
+
       <p
         v-if="store.setupIsRemembered"
         class="text-[11px] text-slate-500"
@@ -131,7 +147,7 @@
         data-testid="setup-remembered"
       >
         Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours, hold
-        shifts, time off and first ascension. ·
+        shifts, time off, no-prestige days and first ascension. ·
         <button
           type="button"
           class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
@@ -148,7 +164,7 @@
         v-if="locked"
         class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold text-amber-800 leading-relaxed"
       >
-        A search is running, so the plan start, your hours and time off are locked: they change which route is fastest,
+        A search is running, so the plan start, your hours, no-prestige days and time off are locked: they change which route is fastest,
         and the routes already priced used the old ones. Stop the search (your best so far is kept), change them, and
         start again. The computer settings still work.
       </p>
@@ -368,6 +384,19 @@
           </div>
         </fieldset>
 
+        <!-- No prestige on these days (search/noPrestige.ts): the second kind of "not now". -->
+        <fieldset
+          :disabled="locked"
+          class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0"
+          :class="screen === 'classic' ? 'opacity-60' : ''"
+          data-testid="setup-no-prestige-days"
+        >
+          <TimeOffEditor kind="noPrestige" />
+          <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
+            {{ NAMES.classic }} doesn't plan around no-prestige days yet. The searches do.
+          </p>
+        </fieldset>
+
         <!-- Time off -->
         <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
@@ -378,7 +407,7 @@
             straight through it for now.
           </p>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
-            The searches price every route with the time off in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
+            The searches price every route with the time away from virtue in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
             {{ NAMES.insights }} keeps runs with time off apart from the rest, since they answer a different
             question.
           </p>
@@ -687,6 +716,7 @@ const awakeLabel = computed(() =>
   store.scheduleEnabled && !store.scheduleIsEmpty ? scheduleText(store.availability) : 'any hour'
 );
 const timeOffCount = computed(() => usableTimeOff(store.timeOff).length);
+const noPrestigeCount = computed(() => usableTimeOff(store.noPrestige).length);
 
 /** Your setup's First ascension, which also sets A1's pick in Your plan (store `setFirstAscension`). */
 const firstChoice = computed<FirstAscension>({

@@ -85,6 +85,13 @@ export interface SearchInputs {
    * to a complete rebuild: a fresh ascension toward the same checkpoint. Null/absent means none.
    */
   timeOff?: TimeOffWindow[] | null;
+  /**
+   * No prestige on these days (search/noPrestige.ts), absolute unix seconds like `timeOff`: the player stays on the
+   * virtue farm, and a prestige that would fall inside one waits for the next allowed moment (inside the hours when
+   * they are set). The farm keeps laying meanwhile, up to what its silos hold; shifts are unaffected. Null/absent
+   * means none, and a run without them prices exactly as before.
+   */
+  noPrestige?: TimeOffWindow[] | null;
 }
 
 /**

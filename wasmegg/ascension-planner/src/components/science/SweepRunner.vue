@@ -174,7 +174,7 @@
         </label>
 
         <p v-if="timeOffText" class="text-[11px] text-slate-600">
-          Planned around your time off (<b>{{ timeOffText }}</b
+          Planned around your time off from virtue (<b>{{ timeOffText }}</b
           >). It still prices every route, but the result goes on the board with the time-off runs and won’t fill this
           gap.
         </p>

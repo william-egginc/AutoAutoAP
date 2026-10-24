@@ -1356,7 +1356,7 @@ const USEFUL_STOP_NOTE = 340;
  *  line under the answer (`INSTANT_ONE_LINE`), so only these are named here. */
 const leftOut = computed(() => {
   const out: string[] = [];
-  if (store.timeOff.length) out.push('time off');
+  if (store.timeOff.length) out.push('time away from virtue (time off)');
   if (store.milestones.length) out.push('dates to hit');
   return out;
 });

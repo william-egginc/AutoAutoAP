@@ -618,6 +618,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Time off from the virtue farm, as whole local dates (search/timeOff.ts). Each stretch ends the
    *  ascension in progress, and the player comes back to a complete rebuild. */
   const timeOff = ref<TimeOffDates[]>([]);
+  /** No prestige on these days (search/noPrestige.ts), whole local dates like time off: the player stays on the
+   *  virtue farm and a prestige that would fall on one waits for the next allowed moment. */
+  const noPrestige = ref<TimeOffDates[]>([]);
   /**
    * The tag the CURRENT RESULT was run under, captured when an exhaustive run starts. `sweepTag`
    * itself only says a link was followed; a staged search started afterwards, or a sweep whose
@@ -764,6 +767,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       },
       holdShifts: deferShifts.value,
       timeOff: timeOff.value.map(w => ({ from: w.from, to: w.to })),
+      noPrestige: noPrestige.value.map(w => ({ from: w.from, to: w.to })),
       firstAscension: firstAscensionChoice.value,
     };
   }
@@ -777,6 +781,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availableDays.value = [...v.hours.days];
       deferShifts.value = v.holdShifts;
       timeOff.value = v.timeOff.map(w => ({ ...w }));
+      noPrestige.value = (v.noPrestige ?? []).map(w => ({ ...w }));
       firstAscensionChoice.value = v.firstAscension;
     });
   }
@@ -814,6 +819,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
   watch(deferShifts, () => noteSetupEdit('holdShifts'), { flush: 'sync' });
   watch(timeOff, () => noteSetupEdit('timeOff'), { flush: 'sync', deep: true });
+  watch(noPrestige, () => noteSetupEdit('noPrestige'), { flush: 'sync', deep: true });
   watch(firstAscensionChoice, () => noteSetupEdit('firstAscension'), { flush: 'sync' });
 
   /**
@@ -9104,6 +9110,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     sweepTag,
     runNote,
     timeOff,
+    noPrestige,
     errorBeforeStart,
     runNotes,
     pin,
