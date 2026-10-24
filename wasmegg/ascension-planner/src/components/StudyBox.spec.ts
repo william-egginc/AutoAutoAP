@@ -97,6 +97,20 @@ describe('the box', () => {
     expect(html).not.toMatch(/EI\d{16}/);
   });
 
+  it('has Yes to all beside Yes: on with nothing ticked, 44 px, ticks all four and says yes in one press', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const btn = html.match(/<button[^>]*data-testid="study-yes-all"[^>]*>/)?.[0] ?? '';
+    expect(btn).not.toBe('');
+    expect(btn).not.toContain('disabled');
+    expect(btn).toContain('min-h-[44px]');
+    expect(textOf(html)).toContain('Yes to all');
+    expect(textOf(html)).toContain('No thanks');
+    const src = readFileSync('src/components/StudyForm.vue', 'utf8');
+    expect(src).toContain('for (const [k] of TICK_WORDS) ticks[k] = true;');
+    expect(src).toMatch(/function yesAll\(\): void \{[^}]*\n  yes\(\);/);
+  });
+
   it('starts anonymous when the account has no name, and credited when it has one', async () => {
     await setConsentAccount(A);
     let html = await box();

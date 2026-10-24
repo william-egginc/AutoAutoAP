@@ -1,6 +1,6 @@
 <!--
   "Help improve the planner": what is sent, the four ticks (all off when it opens: tick to opt in; Yes needs at least one), the credit, and
-  Yes / No thanks (composables/useStudy.ts). The box above the tabs (StudyBox.vue) and Setup's Answer now
+  Yes / Yes to all (ticks every box and says yes) / No thanks (composables/useStudy.ts). The box above the tabs (StudyBox.vue) and Setup's Answer now
   and Change (StudySetup.vue) show this same form. Nothing is set until Yes.
 
   Phone (390 px): one column, every tap target at least 44 px tall, the name box full width.
@@ -99,6 +99,15 @@
       >
         Yes, help improve it
       </button>
+      <!-- Ticks all four and says yes in one press (the credit stays as shown). Always on: it ticks first. -->
+      <button
+        type="button"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-800 text-[11px] font-black uppercase tracking-widest hover:bg-indigo-100"
+        data-testid="study-yes-all"
+        @click="yesAll"
+      >
+        Yes to all
+      </button>
       <button
         type="button"
         class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-[11px] font-black uppercase tracking-widest hover:bg-slate-50"
@@ -169,6 +178,11 @@ function yes(): void {
   if (!canSayYes.value) return;
   answerYes({ ...ticks }, credit.value, nickname.value);
   emit('answered', 'yes');
+}
+/** Every tick on and yes, in one press. */
+function yesAll(): void {
+  for (const [k] of TICK_WORDS) ticks[k] = true;
+  yes();
 }
 function no(): void {
   answerNo();
