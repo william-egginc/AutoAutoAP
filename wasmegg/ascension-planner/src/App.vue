@@ -30,6 +30,15 @@
       >
         This browser is blocking site storage, so your settings and plans won’t be remembered after you leave.
       </p>
+      <!-- A storage write failed (full or refused; lib/storageWrites.ts): what was just set may not survive a reload. -->
+      <p
+        v-if="storageWontSave"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        role="status"
+        data-testid="storage-write-failed"
+      >
+        {{ STORAGE_WRITE_FAILED_WORDS }}
+      </p>
       <!-- A save with a hab, vehicle or research level newer than this planner's data (lib/saveGuard.ts). -->
       <p
         v-if="initialStateStore.saveNote"
@@ -832,6 +841,7 @@ import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
 import { storageBlocked } from '@/lib/storageGuard';
+import { STORAGE_WRITE_FAILED_WORDS, storageWriteFailed } from '@/lib/storageWrites';
 import { forgetLinkPlayerId, linkPlayerId } from '@/lib/urlPlayerId';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
@@ -852,6 +862,9 @@ import {
 
 /** The browser refused site storage, so this visit runs on memory (lib/storageGuard.ts). Fixed for the visit. */
 const storageIsBlocked = storageBlocked();
+/** A storage write failed and that key hasn't been written since (lib/storageWrites.ts). Not with storage blocked:
+ *  that has its own line. */
+const storageWontSave = computed(() => storageWriteFailed.value && !storageIsBlocked);
 
 // The four big tab panels load on first use: each sits behind a v-if (a tab, a loaded backup, or
 // `?insane=1`), and together they were a large share of the planner's first download that nobody
