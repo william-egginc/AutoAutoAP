@@ -77,11 +77,16 @@ describe('GearCaveat with the form G', () => {
     expect(boxes(html)).toBe(1);
     expect(html).not.toContain('instant-optimistic');
   });
-  it("keeps the shipped cap (k3.peak x k): the real ratio alone would make the told finish more optimistic", () => {
-    // buildPeak / k3.peak (0.9651 on main) fixes each leg but moves the told finish to 4.7-6.6 days sooner than the
-    // route really takes (from -0.8 to +5.3): it waits for a route-level fix, not the note alone.
+  it('the cap is a named choice (search/formG.ts fullResearchCap), with the route-level cost written beside it', () => {
+    // The full-research ratio (= buildPeak / k3.peak, 0.9651 on main) fixes each leg from TE 300, but on main it moves
+    // the told finish from within about a day of the route's real time to 4.7-6.4 days sooner (Jordan's go, 24 Oct
+    // 2026; aaap-tools/notes/table-augment-2026-10-24.md). The G sentence above must keep saying a route can
+    // finish later than shown.
     const gear = readFileSync(resolve(__dirname, '../../search/instantGear.ts'), 'utf8');
-    expect(gear).toContain('cap: k3.peak * k,');
+    expect(gear).toContain('cap: k3.peak * (FORM_G_DELIVERY.fullResearchCap ? kFull : k),');
+    const fit = readFileSync(resolve(__dirname, '../../search/formG.ts'), 'utf8');
+    expect(fit).toContain('4.7-6.4 days sooner');
+    expect(G).toContain('finished up to about 5 days later than shown');
   });
   it('without G: no G sentence (plain maxed keeps the label)', async () => {
     const off = await renderHtml(GearCaveat, { ...base, gearShift: false, gearDiffers: false, optimistic: true });

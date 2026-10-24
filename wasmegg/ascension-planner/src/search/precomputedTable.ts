@@ -15,6 +15,7 @@
  */
 import { canonicalDelivered, EGG_ORDER, rebase, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 import type { TableGear } from './tableGear';
+import { erExponentAt, FORM_G_DELIVERY, type FormGDelivery } from './formG';
 import { jointSimVersion } from './simVersion';
 import { readExtras, V1_FIELDS, V2_FIELDS, writeV2, type BuildExtras, type BuildWithExtras } from './tableV2';
 
@@ -59,8 +60,12 @@ export interface TableHeader {
   /** A gear table joined to the maxed one (compositeTable): the last start TE from the gear table. */
   gearTo?: number;
   /** The maxed table moved to a player's gear (gearShiftTable, search/instantGear.ts): the Clothed-TE
-   *  row shift, the delivery scale below full research and the full-research peak. */
-  gearShift?: { g: number; geo: number; cap: number; k: number };
+   *  row shift, the delivery scale below full research, the full-research peak, and the research and
+   *  colleggtible part of the delivery scale when it is not 1. */
+  gearShift?: { g: number; geo: number; cap: number; k: number; geoEr?: number };
+  /** The form G's delivery correction fitted on this table's simulator (search/formG.ts); absent: the
+   *  page's FORM_G_DELIVERY. */
+  formG?: FormGDelivery;
   /** The simulator the cells came from (search/simVersion.ts SIM_VERSION). Absent on a table packed
    *  before stamping; the page then treats it as older (tableSimMismatch). */
   simVersion?: string;
@@ -319,46 +324,54 @@ export function withExtras(t: Table, maxCells = DECODED_CELLS): Table {
 }
 
 /** The maxed table moved to a player's gear, named by one url string as composites are:
- *  `gearshift:URL|g,geo,cap,k` (search/instantGear.ts `gearShiftKey`). */
+ *  `gearshift:URL|g,geo,cap,k[,geoEr]` (search/instantGear.ts `gearShiftKey`; without geoEr it is 1). */
 export function gearShiftUrl(url: string, key: string): string {
   return `gearshift:${url}|${key}`;
 }
 
-export function parseGearShiftUrl(url: string): { url: string; g: number; geo: number; cap: number; k: number } | null {
+export function parseGearShiftUrl(
+  url: string
+): { url: string; g: number; geo: number; cap: number; k: number; geoEr?: number } | null {
   if (!url.startsWith('gearshift:')) return null;
   const rest = url.slice('gearshift:'.length);
   const bar = rest.lastIndexOf('|');
   if (bar < 0) return null;
-  const [g, geo, cap, k] = rest
+  const nums = rest
     .slice(bar + 1)
     .split(',')
     .map(Number);
-  if (![g, geo, cap, k].every(Number.isFinite)) return null;
-  return { url: rest.slice(0, bar), g, geo, cap, k };
+  const [g, geo, cap, k, geoEr] = nums;
+  if (nums.length < 4 || nums.length > 5 || !nums.every(Number.isFinite)) return null;
+  return { url: rest.slice(0, bar), g, geo, cap, k, ...(geoEr !== undefined && geoEr !== 1 ? { geoEr } : {}) };
 }
 
 /**
  * The maxed table at a player's gear (search/instantGear.ts, the weak-gear form G): the builds for a
  * start TE are the maxed table's TE - g row (the two rows either side of a fractional g, blended by
  * sale count), moved onto TE's canonical counts, with every delivery rate x `geo` and the peak no
- * higher than `cap`. A row whose shifted rows fall below the table's first falls back to the old
- * single scale (the same row, peak x k): the table does not reach that far down.
+ * higher than `cap`. Below the correction's TE (search/formG.ts) the rates are also x geoEr^a(TE),
+ * for a player short on delivery epic research or colleggtibles. A row whose shifted rows fall below
+ * the table's first falls back to the old single scale (the same row, peak x k): the table does not
+ * reach that far down.
  */
 export function gearShiftTable(
   maxed: Table,
-  shift: { g: number; geo: number; cap: number; k: number },
+  shift: { g: number; geo: number; cap: number; k: number; geoEr?: number },
   maxCells = DECODED_CELLS
 ): Table {
   const g = Math.max(0, shift.g);
   const gf = Math.floor(g);
   const gc = Math.ceil(g);
   const w = g - gf;
-  const { geo, cap, k } = shift;
+  const { cap, k } = shift;
+  const geoEr = shift.geoEr ?? 1;
+  const fit = maxed.header.formG ?? FORM_G_DELIVERY;
   const cache = new LruCache<number, BuildWithExtras[] | null>(maxCells);
   const moved = (te: number, row: number, hour: number): BuildWithExtras[] | null => {
     const cell = maxed.lookup(row, hour) as BuildWithExtras[] | null;
     if (!cell) return null;
     const canon = canonicalDelivered(te);
+    const geo = geoEr === 1 ? shift.geo : shift.geo * Math.pow(geoEr, erExponentAt(fit, te));
     return cell.map(b => ({
       ...rebase(b, row, canon),
       peakELR: Math.min(b.peakELR * geo, cap),
@@ -413,7 +426,7 @@ export function gearShiftTable(
     return out;
   };
   return {
-    header: { ...maxed.header, gearShift: { g, geo, cap, k } },
+    header: { ...maxed.header, gearShift: { g, geo: shift.geo, cap, k, ...(geoEr !== 1 ? { geoEr } : {}) } },
     lookup(te, hour) {
       if (te < maxed.header.from || te > maxed.header.to || hour < 0 || hour >= WEEK_HOURS) return null;
       const key = te * WEEK_HOURS + hour;

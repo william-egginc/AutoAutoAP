@@ -7,6 +7,7 @@ import { bestReplay, replayContinue, type BuildExtras, type BuildWithExtras } fr
 import { creditWait, firstLegOptions, priceLeg, type BuildLookup } from './routeFinder';
 import { holdUntilOf, type Availability } from './availability';
 import { gearShiftKey, instantTail, nearMaxedGear } from './instantGear';
+import { erExponentAt, FORM_G_DELIVERY } from './formG';
 import { countTEThresholdsPassed, TE_BREAKPOINTS } from '@/lib/truthEggs';
 
 /** The table version 2 spec's twenty generator cells (tableV2.fixture.jsonl). */
@@ -176,6 +177,13 @@ describe('gearShiftTable (the weak-gear form G)', () => {
     expect(t.lookup(120, c.h)!.map(b => b.peakELR)).toEqual(c.builds.map(b => b.peakELR * 0.75));
     expect(t.header.gearShift).toEqual({ g: 10, geo: 0.8, cap: Infinity, k: 0.75 });
   });
+  it('reads the exponent off its points: straight between them, flat beyond, none from belowTe', () => {
+    const fit = { erExponent: [[100, 0.1], [200, 0.3]] as const, belowTe: 300 };
+    expect(erExponentAt(fit, 50)).toBe(0.1);
+    expect(erExponentAt(fit, 150)).toBeCloseTo(0.2, 12);
+    expect(erExponentAt(fit, 250)).toBe(0.3);
+    expect(erExponentAt(fit, 300)).toBe(0);
+  });
   it('round-trips its url', () => {
     const key = gearShiftKey({ g: 13.43, geo: 0.794, cap: 2.4e12, k: 0.7094 });
     expect(parseGearShiftUrl(gearShiftUrl('/precompute/table-v2.bin', key))).toEqual({
@@ -186,10 +194,43 @@ describe('gearShiftTable (the weak-gear form G)', () => {
       k: 0.7094,
     });
     expect(parseGearShiftUrl('/precompute/table-v2.bin')).toBeNull();
+    // The research and colleggtible part rides along only when it is not 1, so maxed players' urls are as before.
+    const er = gearShiftKey({ g: 0, geo: 0.7246, cap: 2.4e12, k: 0.7143, geoEr: 0.7246 });
+    expect(er.split(',')).toHaveLength(5);
+    expect(parseGearShiftUrl(gearShiftUrl('/precompute/table-v2.bin', er))!.geoEr).toBe(0.7246);
+    expect(gearShiftKey({ g: 13.43, geo: 0.794, cap: 2.4e12, k: 0.7094, geoEr: 1 })).toBe(key);
+    expect(parseGearShiftUrl(gearShiftUrl('/precompute/table-v2.bin', key + ',1'))).not.toHaveProperty('geoEr');
+    expect(parseGearShiftUrl(gearShiftUrl('/precompute/table-v2.bin', key + ',1,2'))).toBeNull();
+  });
+  it('scales a player short on delivery epic research a little more below the correction TE, and not from it', () => {
+    const geoEr = 0.8;
+    const shift = { g: 0, geo: 0.8, cap: Infinity, k: 0.75 };
+    const plainG = gearShiftTable(v2, shift);
+    const er = gearShiftTable(v2, { ...shift, geoEr });
+    for (const c of cells) {
+      const a = plainG.lookup(c.te, c.h)! as BuildWithExtras[];
+      const b = er.lookup(c.te, c.h)! as BuildWithExtras[];
+      const f = Math.pow(geoEr, erExponentAt(FORM_G_DELIVERY, c.te));
+      expect(f < 1).toBe(c.te < FORM_G_DELIVERY.belowTe);
+      b.forEach((x, i) => {
+        expect(x.peakELR).toBeCloseTo(a[i].peakELR * f, 0);
+        expect(x.extras!.k3Rate / a[i].extras!.k3Rate).toBeCloseTo(f, 12);
+        expect(x.waitStart).toBe(a[i].waitStart);
+      });
+    }
+    expect(cells.some(c => c.te < FORM_G_DELIVERY.belowTe) && cells.some(c => c.te >= FORM_G_DELIVERY.belowTe)).toBe(true);
+    expect(er.header.gearShift).toEqual({ ...shift, geoEr });
+    // A table that carries its own fit uses it.
+    const own = gearShiftTable(
+      { ...v2, header: { ...v2.header, formG: { erExponent: [[0, 0]], belowTe: 300, fullResearchCap: true } } },
+      { ...shift, geoEr }
+    );
+    for (const c of cells) expect(own.lookup(c.te, c.h)).toEqual(plainG.lookup(c.te, c.h));
   });
   it('is skipped for a player as good as maxed, and the hours hold only with held shifts', () => {
     expect(nearMaxedGear({ g: 0.01, geo: 0.999, k: 1 })).toBe(true);
     expect(nearMaxedGear({ g: 0, geo: 0.966, k: 0.95 })).toBe(false);
+    expect(nearMaxedGear({ g: 0.01, geo: 0.999, k: 1, kFull: 0.98 })).toBe(false);
     expect(instantTail(HOURS, true)).toEqual({ order: 'simulator', holdShifts: true });
     expect(instantTail(HOURS, false)).toEqual({ order: 'simulator' });
     expect(instantTail(null, true)).toEqual({ order: 'simulator' });

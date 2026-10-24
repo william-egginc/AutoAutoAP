@@ -13,15 +13,24 @@
  *   multipliers over the table's K3 set (each at its own epic research and colleggtibles). A weaker set's
  *   build buys more of whichever side it is short on, so below full research its peak moves with the
  *   geometric mean; at full research there is nothing left to rebalance and it is stuck at its own
- *   full-research peak, the table's `k3.peak` x k. Measured per leg against the gear tables' own
- *   cells: |error| p90 0.5-2.8% on nine tables (all-common 5.3%, optimistic above TE 300), where the
- *   single delivery scale it replaces was 6-42%.
+ *   full-research peak: the table's `k3.peak` x the player's rate over the table's with EVERY common
+ *   research at its top level (each side's best delivery set there). That ratio is the player's own
+ *   simulated peak over the table's (tableBuild.ts buildPeak / k3.peak) to every digit on 31 research
+ *   and colleggtible profiles and on main, alt and kelli; the ratio at the table's K3 research (k) was
+ *   up to 1.8% low for a player short on shipping, whose own build buys more shipping research.
+ *   Measured per leg against the gear tables' own cells: |error| p90 0.5-2.8% on nine tables
+ *   (all-common 5.3%, optimistic above TE 300), where the single delivery scale it replaces was 6-42%.
+ *
+ *   DELIVERY EPIC RESEARCH AND COLLEGGTIBLES, a little more below TE 300 (search/formG.ts): geoEr is the
+ *   part of sqrt(lambda sigma) that comes from them, and the rates there are x geoEr^erExponent.
  *
  * The wrapper itself is precomputedTable.ts `gearShiftTable`; this works out its numbers.
  */
 import { calculateArtifactModifiers, getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { computeRealisticELR } from '@/calculations/realisticELR';
+import { getCommonResearches } from '@/calculations/commonResearch';
+import { FORM_G_DELIVERY } from './formG';
 import { cteFromArtifacts, cteFromColleggtibles, cteFromLabUpgrade } from 'lib/virtue';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { Modifiers as ColleggtibleModifiers } from 'lib/collegtibles';
@@ -35,10 +44,15 @@ export interface GearShift {
   g: number;
   /** sqrt(lambda sigma): the peak delivery rate's scale below full research. */
   geo: number;
-  /** The player's own full-research peak (the table's `k3.peak` x k), eggs per second. */
+  /** The player's own full-research peak (the table's `k3.peak` x kFull), eggs per second. */
   cap: number;
   /** The player's peak against the table's at the table's K3 research (the old single scale). */
   k: number;
+  /** The same at every common research's top level: the player's own full-research peak over the table's. */
+  kFull: number;
+  /** sqrt(lambda sigma) of the table's own delivery set at the player's epic research and colleggtibles
+   *  over at the table's: the part of geo that the form G's correction scales (search/formG.ts). */
+  geoEr: number;
   lambda: number;
   sigma: number;
   /** The parts of `g`, for the record. */
@@ -46,8 +60,11 @@ export interface GearShift {
 }
 
 /** Only the gear shift's numbers, rounded for a url (the worker builds the wrapper from these). */
-export function gearShiftKey(s: Pick<GearShift, 'g' | 'geo' | 'cap' | 'k'>): string {
-  return [s.g.toFixed(4), s.geo.toFixed(6), s.cap.toPrecision(10), s.k.toFixed(6)].join(',');
+export function gearShiftKey(s: Pick<GearShift, 'g' | 'geo' | 'cap' | 'k'> & { geoEr?: number }): string {
+  const key = [s.g.toFixed(4), s.geo.toFixed(6), s.cap.toPrecision(10), s.k.toFixed(6)];
+  // geoEr 1 (every delivery epic research and colleggtible maxed) stays out, so those urls are as before.
+  const er = (s.geoEr ?? 1).toFixed(6);
+  return (er === '1.000000' ? key : [...key, er]).join(',');
 }
 
 /**
@@ -76,6 +93,21 @@ export function instantGearShift(inputs: SearchInputs, header: TableHeader): Gea
   const lambda = mine.layRate / theirs.layRate;
   const sigma = mine.shippingRate / theirs.shippingRate;
   const k = mine.effectiveRate / theirs.effectiveRate;
+  // The table's set at the player's research and colleggtibles: what of lambda sigma is not gear.
+  const theirsAtMine = rates(k3.delivery as EquippedArtifact[], ctx.epicResearchLevels, ctx.colleggtibleModifiers);
+  const geoEr = Math.sqrt((theirsAtMine.layRate / theirs.layRate) * (theirsAtMine.shippingRate / theirs.shippingRate));
+  // Full research: every common research at its top level, each side's best delivery set there.
+  const top = Object.fromEntries(getCommonResearches().map(r => [r.id, r.levels]));
+  const mineTopSet = getOptimalELRSet(raw, {
+    commonResearch: top,
+    epicResearchLevels: ctx.epicResearchLevels,
+    colleggtibleModifiers: ctx.colleggtibleModifiers,
+    assumeMaxHabsVehicles: true,
+  });
+  const topRate = (set: EquippedArtifact[], epic: Record<string, number>, coll: ColleggtibleModifiers) =>
+    computeRealisticELR(top, calculateArtifactModifiers(set), epic, coll).effectiveRate;
+  const theirsTop = topRate(k3.delivery as EquippedArtifact[], tableEpic, tableColl);
+  const kFull = mineTopSet && theirsTop > 0 ? topRate(mineTopSet as EquippedArtifact[], ctx.epicResearchLevels, ctx.colleggtibleModifiers) / theirsTop : k;
 
   const earnings = getOptimalEarningsSet(raw);
   const artifacts = header.cteBonus - (earnings ? cteFromArtifacts(equippedArtifactsToLibArtifacts(earnings)) : 0);
@@ -89,8 +121,10 @@ export function instantGearShift(inputs: SearchInputs, header: TableHeader): Gea
   return {
     g,
     geo: Math.sqrt(lambda * sigma),
-    cap: k3.peak * k,
+    cap: k3.peak * (FORM_G_DELIVERY.fullResearchCap ? kFull : k),
     k,
+    kFull,
+    geoEr,
     lambda,
     sigma,
     parts: { artifacts, colleggtibles, lab },
@@ -98,8 +132,8 @@ export function instantGearShift(inputs: SearchInputs, header: TableHeader): Gea
 }
 
 /** A player as good as the maxed table (the old single scale is then exact): no shift needed. */
-export function nearMaxedGear(s: Pick<GearShift, 'g' | 'geo' | 'k'>): boolean {
-  return s.g < 0.05 && Math.abs(s.geo - 1) < 0.005 && Math.abs(s.k - 1) < 0.005;
+export function nearMaxedGear(s: Pick<GearShift, 'g' | 'geo' | 'k'> & { kFull?: number }): boolean {
+  return s.g < 0.05 && Math.abs(s.geo - 1) < 0.005 && Math.abs(s.k - 1) < 0.005 && Math.abs((s.kFull ?? s.k) - 1) < 0.005;
 }
 
 /**
