@@ -96,3 +96,13 @@ namespace_id = "1104"
 # line to turn that off without a code change.
 [vars]
 RANK_NEEDS_EVIDENCE = "1"
+
+# "Follow in the cloud" (follow.js): per-address, counted at the edge, no D1 or KV spent. 60 a minute for GET and
+# PUT each (the app reads once when an ID is entered and writes only when Follow is pressed). The per-key
+# budget (30 writes an hour) is in D1 and needs no binding. A missing binding means no per-address limit.
+[[ratelimits]]
+name = "FOLLOW_LIMIT"
+namespace_id = "1105"
+  [ratelimits.simple]
+  limit = 60
+  period = 60
