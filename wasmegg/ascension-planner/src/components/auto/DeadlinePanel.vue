@@ -120,7 +120,14 @@
     </p>
     <!-- For both searches (Nearby routes and Exhaustive), so it sits with the deadline. -->
     <label v-if="store.scheduleEnabled" class="flex items-start gap-3 cursor-pointer">
-      <input v-model="ascendNeeded" type="checkbox" :disabled="store.busy" class="mt-0.5 rounded border-slate-300" />
+      <input
+        :checked="ascendNeeded"
+        type="checkbox"
+        :disabled="store.busy"
+        class="mt-0.5 rounded border-slate-300"
+        data-testid="ascend-needed"
+        @change="setAscendNeeded(($event.target as HTMLInputElement).checked)"
+      />
       <span class="text-[11px] text-slate-600 leading-relaxed">
         <span class="font-bold text-slate-800">I need to ascend at the last stop before the deadline.</span> Counts the
         wait until your awake hours after reaching it, so you reach the last stop in time to act on it.
@@ -1094,6 +1101,8 @@ import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { ascendNeededFor, readAscendNeededChoice, writeAscendNeededChoice } from '@/search/instantFilters';
+import { isConstrained } from '@/search/availability';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1217,6 +1226,24 @@ watch(
 );
 /** The finest first-look grid allowed; the thoroughness slider decides how far it widens. */
 const { step, ascendNeeded } = kept;
+/**
+ * "I need to ascend at the last stop" ticked by default whenever playing hours are set (search/instantFilters.ts
+ * `ascendNeededFor`; the math review, 24 Oct 2026). The player's own tick or untick is remembered and wins: never ticked
+ * again by itself once unticked. No hours, or any hour: off, as before.
+ */
+const ascendNeededChoice = ref(readAscendNeededChoice());
+watch(
+  () => [store.scheduleEnabled && !!store.availability, isConstrained(store.availability)] as const,
+  ([on, constrained]) => {
+    ascendNeeded.value = ascendNeededFor(on, constrained, ascendNeededChoice.value);
+  },
+  { immediate: true }
+);
+function setAscendNeeded(on: boolean): void {
+  ascendNeededChoice.value = on ? 'on' : 'off';
+  writeAscendNeededChoice(ascendNeededChoice.value);
+  ascendNeeded.value = on;
+}
 
 /** The first look's budget in sets of early stops; the middle one is the long-standing default. */
 const THOROUGH = [

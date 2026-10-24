@@ -102,6 +102,34 @@ export function writeInsideHoursChoice(c: 'on' | 'off'): void {
   }
 }
 
+/**
+ * By a date's "I need to ascend at the last stop before the deadline" ticked by default whenever playing hours are set
+ * (the math review, 24 Oct 2026, finding 9: a TE counts once a prestige claims it, and a reach in the night can't be
+ * claimed before a morning deadline). The same rule as "Works inside my hours" (`defaultInsideHours`): the player's
+ * own tick or untick is remembered and wins, so once unticked it is never ticked again by itself. No hours, or any
+ * hour, and no choice: off, as before.
+ */
+const ASCEND_NEEDED_KEY = 'aap-ascend-needed';
+export function ascendNeededFor(hoursOn: boolean, constrained: boolean, stored: InsideHoursChoice): boolean {
+  if (!hoursOn) return false;
+  return defaultInsideHours(constrained, !constrained, stored);
+}
+export function readAscendNeededChoice(): InsideHoursChoice {
+  try {
+    const v = localStorage.getItem(ASCEND_NEEDED_KEY);
+    return v === 'on' || v === 'off' ? v : null;
+  } catch {
+    return null;
+  }
+}
+export function writeAscendNeededChoice(c: 'on' | 'off'): void {
+  try {
+    localStorage.setItem(ASCEND_NEEDED_KEY, c);
+  } catch {
+    // Storage blocked: the default applies again next time.
+  }
+}
+
 /** One count's route improved by the background polish: hours sooner (Fastest) or, By a date, the TE
  *  gained and the hours more to spare. */
 export interface PolishGain {
