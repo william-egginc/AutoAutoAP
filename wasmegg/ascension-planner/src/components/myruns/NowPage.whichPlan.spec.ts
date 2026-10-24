@@ -283,7 +283,8 @@ describe('the page: the default is the goal checked last, the pick follows every
     expect(page.goalChoices.value.map(g => [g.key, g.label, g.state])).toEqual([
       [`fastest-${target}`, `Race to ${target}`, 'plan'],
       [`eggday-${year}`, `Egg Day ${year}`, 'plan'],
-      [`date-${MAR}`, 'By a date', 'plan'],
+      // Named by its date, month first ("By Mar 16, 2027"; was "By a date" for every date).
+      [`date-${MAR}`, expect.stringMatching(/^By [A-Z][a-z]{2} \d{1,2}, \d{4}$/), 'plan'],
     ]);
     // Egg Day was checked last.
     expect(page.selectedGoal.value).toBe(`eggday-${year}`);

@@ -579,11 +579,12 @@ const lateKind = computed(() => (selectedOption.value?.kind === 'eggday' ? 'eggd
 const lateWords = computed(() => noRouteInTimeWords(lateKind.value, selectedOption.value?.late?.seconds ?? null));
 const lateMark = computed(() => lateMarker(lateKind.value));
 const radios = ref<(HTMLButtonElement | null)[]>([]);
+/** Under the pill's name: the plan's state. (A By a date pill's date is its name now, "By Feb 10, 2027", so the
+ *  line no longer starts with it.) */
 function optionSub(g: GoalOption): string {
   if (g.state === 'late') return 'no route in time';
   if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved plan with its times yet' : 'no saved plan yet';
-  const day = g.kind === 'date' && g.deadline ? `${dateAt(g.deadline, props.now, props.zone).replace(/ at .*$/, '')} · ` : '';
-  return g.calculatedAt ? `${day}calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : `${day}saved plan`;
+  return g.calculatedAt ? `calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : 'saved plan';
 }
 /** Arrow keys, Home and End move the pick and the focus (a radiogroup). */
 function onSwitchKey(ev: KeyboardEvent): void {

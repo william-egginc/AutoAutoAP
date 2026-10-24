@@ -1,6 +1,6 @@
 /**
  * My runs' "which plan" switch (Jordan, 16 Oct 2026): Right now shows the saved plan of ONE goal at a time, the
- * player picks which (Race to 490 | Egg Day 2027 | By a date). Saved data only: every plan here is a kept instant
+ * player picks which (Race to 490 | Egg Day 2027 | By Feb 10, 2027). Saved data only: every plan here is a kept instant
  * answer snapshot, every "answer" a last checked answer, a Check exactly history entry or a saved By a date answer.
  *
  * Goal keys:
@@ -27,7 +27,8 @@ export interface PlanGoal {
   target: number;
   deadline: number | null;
   kind: 'race' | 'eggday' | 'date';
-  /** The switch's words: "Race to 490", "Egg Day 2027", "By a date". */
+  /** The switch's words: "Race to 490", "Race to 312", "Egg Day 2027", "By Feb 10, 2027" (each date a pill of its own,
+   *  named by its date: Jordan, 24 Oct 2026; was "By a date" for every one). */
   label: string;
   /** The goal named in the chain line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
   name: string;
@@ -119,14 +120,15 @@ export function goalDefs(o: {
   });
   for (const d of [...new Set(o.otherDates)].sort((a, b) => a - b)) {
     if (d === o.eggDay.at) continue;
+    const name = `By ${o.dayWords(d)}`;
     list.push({
       key: `date-${d}`,
       goal: 'date',
       target: o.ownTarget,
       deadline: d,
       kind: 'date',
-      label: 'By a date',
-      name: `By ${o.dayWords(d)}`,
+      label: name,
+      name,
       optional: true,
     });
   }
