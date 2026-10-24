@@ -121,7 +121,11 @@ describe('About and privacy page', () => {
       'the route you follow for that goal is saved online, under a code made from your player ID. That is so another device shows your route when you enter your ID there'
     );
     expect(text).toContain('Anyone who knows your player ID can make the same code, so they can see the route you follow, and change it.');
-    expect(text).toContain('Nothing else saves it: not a result, not loading your account.');
+    expect(text).toContain(
+      "If it couldn't be saved when you pressed it (you were offline, say), it is saved once the next time your account is loaded, unless a newer one is saved online by then."
+    );
+    expect(text).toContain('Nothing else saves it.');
+    expect(text).not.toContain('not loading your account');
     expect(text).toContain(
       'What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to spare, the hours window you used, the time of your save, and the simulator and planner version. Never your player ID or a name. Your days and time off are not stored.'
     );

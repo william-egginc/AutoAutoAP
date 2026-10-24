@@ -226,7 +226,9 @@
           goal is saved online, under a code made from your player ID. That is so another device shows your route when you
           enter your ID there: loading your account reads the saved routes, and the newer of the saved one and the one on
           that device is the one followed. Anyone who knows your player ID can make the same code, so they can see the
-          route you follow, and change it. Nothing else saves it: not a result, not loading your account.
+          route you follow, and change it. If it couldn't be saved when you pressed it (you were offline, say), it is
+          saved once the next time your account is loaded, unless a newer one is saved online by then.
+          Nothing else saves it.
         </p>
         <p>
           What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a
