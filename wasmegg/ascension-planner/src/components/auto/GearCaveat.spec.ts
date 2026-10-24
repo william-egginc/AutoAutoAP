@@ -64,7 +64,7 @@ describe('GearCaveat', () => {
 // How far off a whole route can be (the math review's second check, 24 Oct 2026: up to 5.3 days sooner than its route
 // really takes, on one account).
 const G =
-  "Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your gear's rate (about 1–2% off per ascension). Over a whole route that adds up: in checks on one account, the route it picked finished up to about 5 days later than shown. Fast gives your real date.";
+  "Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your gear's rate (about 1–2% off per ascension). Over a whole route that adds up: in checks on one account, the route it picked finished about 5 to 6 days later than shown. Fast gives your real date.";
 describe('GearCaveat with the form G', () => {
   it('the G sentence alone, in one box', async () => {
     const html = await renderHtml(GearCaveat, { ...base, gearShift: true, gearDiffers: false, optimistic: false });
@@ -86,7 +86,7 @@ describe('GearCaveat with the form G', () => {
     expect(gear).toContain('cap: k3.peak * ((header.formG ?? FORM_G_DELIVERY).fullResearchCap ? kFull : k),');
     const fit = readFileSync(resolve(__dirname, '../../search/formG.ts'), 'utf8');
     expect(fit).toContain('4.7-6.4 days sooner');
-    expect(G).toContain('finished up to about 5 days later than shown');
+    expect(G).toContain('finished about 5 to 6 days later than shown');
   });
   it('without G: no G sentence (plain maxed keeps the label)', async () => {
     const off = await renderHtml(GearCaveat, { ...base, gearShift: false, gearDiffers: false, optimistic: true });

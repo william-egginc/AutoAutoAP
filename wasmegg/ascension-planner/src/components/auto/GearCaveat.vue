@@ -18,7 +18,7 @@
     <template v-if="gearShift"
       >Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your
       gear's rate (about 1–2% off per ascension). Over a whole route that adds up: in checks on one account, the route
-      it picked finished up to about 5 days later than shown. Fast gives your real date.</template
+      it picked finished about 5 to 6 days later than shown. Fast gives your real date.</template
     >
     <template v-else-if="gearDiffers"
       >Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"
