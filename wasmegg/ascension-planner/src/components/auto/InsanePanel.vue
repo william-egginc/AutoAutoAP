@@ -935,6 +935,8 @@
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
+              <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
+              <SoulEggWarning v-if="!store.isRunning" :legs="store.bestLegs" :ascensions="store.bestChain.length" planner />
               <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
                 {{ resultExplain }}
               </p>
@@ -1160,6 +1162,7 @@ import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import RouteExtras from './RouteExtras.vue';
+import SoulEggWarning from '../SoulEggWarning.vue';
 import { queueCountLine } from '@/lib/queueCount';
 import ResultHealth from './ResultHealth.vue';
 import { parseSweepRequest, withoutSweepParams } from '@/search/sweepRequest';

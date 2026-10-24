@@ -590,6 +590,8 @@
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
                 green
               />
+              <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
+              <SoulEggWarning v-if="!store.isRunning" :legs="store.bestLegs" :ascensions="store.bestChain.length" planner />
               <!-- "Try waiting before each prestige" (WaitBeforePrestige.vue): was on the instant card under Check
                    exactly until 23 Oct 2026; it prices this result's route on the full simulator, on request only. -->
               <WaitBeforePrestige
@@ -1091,6 +1093,7 @@ import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
 import RouteExtras from './RouteExtras.vue';
+import SoulEggWarning from '../SoulEggWarning.vue';
 import WaitBeforePrestige from './WaitBeforePrestige.vue';
 import LongerRouteHint from './LongerRouteHint.vue';
 import { defaultSeedChain } from '@/search/seedChain';

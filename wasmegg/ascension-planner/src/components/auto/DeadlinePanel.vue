@@ -771,6 +771,8 @@
               :deadline="result.deadline"
               :disabled="store.busy"
             />
+            <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
+            <SoulEggWarning :legs="best.legs" :ascensions="best.chain.length" planner />
             <!-- A route followed for this date: this result offered when newer and better (lib/searchPlan.ts). -->
             <BetterRoutePrompt
               v-if="dateBetterCandidate"
@@ -965,6 +967,7 @@
 <script lang="ts">
 import { plural } from '@/lib/format';
 import WaitBeforePrestige from './WaitBeforePrestige.vue';
+import SoulEggWarning from '../SoulEggWarning.vue';
 import { ref as keptRef } from 'vue';
 import { byDateForm, eggDayYearAtLoad } from '@/lib/byDateForm';
 import {

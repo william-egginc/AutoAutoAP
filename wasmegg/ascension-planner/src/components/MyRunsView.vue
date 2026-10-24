@@ -78,6 +78,7 @@
         @simulate="simulateFollowed"
       />
 
+      <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
       <YourEggs
         :eggs="page.eggs.value"
         :facts="page.facts.value"
@@ -316,6 +317,7 @@ import DashboardGaps from './myruns/DashboardGaps.vue';
 import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
+import SoulEggWarning from './SoulEggWarning.vue';
 import SavedTile from './myruns/SavedTile.vue';
 import TryNext from './myruns/TryNext.vue';
 import RouteScatter from './myruns/RouteScatter.vue';
