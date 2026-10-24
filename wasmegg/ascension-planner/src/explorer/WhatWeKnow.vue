@@ -80,10 +80,17 @@
           <span class="finding-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
         </summary>
         <div class="px-3 pb-3 pl-10 text-slate-700 space-y-2">
+          <!-- How far the hour holds (the math review's second check, 24 Oct 2026, findings 3 and 10): with hours off,
+               on an instant answer built for the account's gear or for fully maxed gear. With hours on, main's route
+               played at the instant answer's own times landed +134.6, +24.8, +153.9 and +0.3 h from it. The form G's
+               per-ascension figure is GearCaveat.vue's. -->
           <p v-if="f.id === 'match'">
-            Each ascension lands within about an hour of the full simulator; a whole route can move by a day or two if
-            an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so use a Fast search
-            for the final word. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
+            With your hours off, each ascension lands within about an hour of the full simulator; a whole route can move
+            by a day or two if an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so
+            use a Fast search for the final word. With your hours on it can be days out: in 4 checks on one account (24
+            Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of
+            them. {{ HOURS_NOTE }} When the answer is the fully maxed one adjusted to your gear's rate, each ascension is
+            about 1–2% off. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
             the full simulator, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
             within an hour) and every new run that week. For the accounts it has precomputed on their own gear (10 so
@@ -222,6 +229,7 @@
 
 <script setup lang="ts">
 import { plural } from '@/lib/format';
+import { HOURS_NOTE } from '@/lib/hoursNote';
 import type { KnowStats } from './knowStats';
 
 /** The date the analyst last checked the findings against the board. */
@@ -237,7 +245,10 @@ defineProps<{
 }>();
 
 const findings = [
-  { id: 'match', headline: 'The instant answer lands within about an hour of the full simulator on each ascension.' },
+  {
+    id: 'match',
+    headline: 'With your hours off, the instant answer lands within about an hour of the full simulator on each ascension.',
+  },
   { id: 'wider', headline: 'Wider searches would have found faster routes.' },
   { id: 'misses', headline: 'The instant answer rarely misses, but it can.' },
   { id: 'count', headline: 'More ascensions help, then level off.' },
