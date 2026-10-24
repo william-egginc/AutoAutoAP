@@ -75,7 +75,8 @@ each ascension starts on the hour (`scripts/precompute.ts --verify`, `--verify-t
    its research levels). It is joined to the maxed table (`compositeTable`): every
    row the gear table has is used, and the maxed table, with its delivery rate scaled to the player's,
    only fills in above where a gear table stops (`GEAR_TABLE_TO` = 340 at the lowest).
-3. **The maxed table** (`table.bin`): a fully maxed account. A player's waits run at their own peak
+3. **The maxed table** (`table-v2.bin`, a version 2 table; the version 1 `table.bin` stays deployed for pages
+   from before instant answer v2, whose loader refuses version 2): a fully maxed account. A player's waits run at their own peak
    delivery rate against the table's (`src/search/leg.ts` `instantDeliveryScale`, computed with the
    simulator's own rate function at the research a build waits with). A weaker earnings set is not
    taken off, and the page says so.
@@ -89,7 +90,7 @@ inventory, so a new artifact that changes no choice leaves the table exact.
 player whose stamp hashes to them finds it; the pairs are recorded in `public/precompute/aliases.json`.
 `--manifest` writes `tables.json`: one entry per table with `file`, `bonus`, `k`, `from`,
 `simVersion`, a gear `label` and its `aliases` (an alias is not listed as a table of its own), and on
-`table.bin`'s entry its `k3`, so the page can work out a player's gear stamp and k before downloading
+the maxed table's entry (`table-v2.bin`, and `table.bin` while it is still deployed) its `k3`, so the page can work out a player's gear stamp and k before downloading
 any table.
 
 **k and scale.** `k` (in the manifest) is a table's delivery set's rate over the maxed table's, both

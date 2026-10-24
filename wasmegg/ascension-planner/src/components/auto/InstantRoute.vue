@@ -633,22 +633,13 @@
     </template>
   </section>
   <!-- The file couldn't be loaded (missing, a web page in its place, cut short, or stalled): say that, not "no
-       instant answer for your TE" (only `below` says that), with Retry and what to do meanwhile. -->
+       instant answer for your TE" (only `below` says that), with Retry and what to do meanwhile; a file newer
+       than this page: reload it (InstantUnloaded.vue). Every way `noTable` is set lands here. -->
   <section v-else class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3" data-testid="instant-no-table">
     <h3 class="text-base font-black text-slate-900">Instant answer</h3>
-    <NoInstantAnswer :heading="TABLE_LOAD_FAILED" @by-date="emit('by-date')">
+    <InstantUnloaded :older="olderPage" @retry="run(true)" @by-date="emit('by-date')">
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
-    </NoInstantAnswer>
-    <div class="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        class="min-h-[44px] px-4 rounded-lg border border-emerald-300 bg-white text-[11px] font-black uppercase tracking-widest text-emerald-800 hover:bg-emerald-50"
-        data-testid="instant-retry"
-        @click="run(true)"
-      >
-        Retry
-      </button>
-    </div>
+    </InstantUnloaded>
   </section>
 </template>
 
@@ -662,7 +653,15 @@ import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
-import { TABLE_LOAD_FAILED, isTableStall, probeHeader, tableLoadFailed } from '@/search/tableFetch';
+import {
+  TABLE_LOAD_FAILED,
+  TABLE_OLDER_PAGE,
+  isTableStall,
+  probeHeader,
+  tableLoadFailed,
+  tableNewerThanPage,
+} from '@/search/tableFetch';
+import InstantUnloaded from './InstantUnloaded.vue';
 import { plainError } from '@/lib/plainError';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
@@ -682,7 +681,7 @@ import {
 import { availabilityKey, type Availability } from '@/search/availabilitySchedule';
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
-import { describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
+import { MAXED_TABLE_FILE, describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
 import { isSafari, isSmallDevice, SAFARI_ROUTE_WORKERS } from '@/search/device';
 import {
   answerInputsKey,
@@ -828,7 +827,9 @@ function emitRoutes(found: { byDateByAscensions: (Route | null)[] }): void {
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 
-const TABLE_URL = `${import.meta.env.BASE_URL}precompute/table.bin`;
+/** The maxed table under its version 2 name (tableBracket.ts MAXED_TABLE_FILE): `.gz` first, then the plain file
+ *  (search/tableFetch.ts). Older pages keep reading the version 1 `table.bin`. */
+const TABLE_URL = `${import.meta.env.BASE_URL}precompute/${MAXED_TABLE_FILE}`;
 
 /** The table the answer came from: the player's own (search/tableGear.ts) or the maxed one. */
 const tableUrl = ref(TABLE_URL);
@@ -858,6 +859,8 @@ async function ownTableUrl(): Promise<string | null> {
 const status = ref<'idle' | 'loading' | 'error' | 'done'>('idle');
 /** This site has no usable table: only the no-instant-answer card is shown (NoInstantAnswer.vue). */
 const noTable = ref(false);
+/** With `noTable`: the file is a newer version than this page reads (tableFetch.ts `tableNewerThanPage`). */
+const olderPage = ref(false);
 /** The route starts below the table's lowest TE (`from`, the table header's): no instant answer for it. */
 const below = ref<{ from: number; te: number } | null>(null);
 const loadingText = ref('');
@@ -1187,7 +1190,7 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
   const side = async (entry: TableEntry | null): Promise<BracketSide | null> => {
     if (!entry) return null;
     const url =
-      entry.file === 'table.bin'
+      entry.file === MAXED_TABLE_FILE
         ? TABLE_URL
         : compositeUrl(`${import.meta.env.BASE_URL}precompute/${entry.file}`, TABLE_URL, GEAR_TABLE_TO, entry.k);
     const r = await priceOnTable(pool, url, {
@@ -1231,7 +1234,7 @@ const bracketText = computed(() => {
   const b = bracket.value;
   if (!b?.above?.end) return '';
   const name = (s: BracketSide) =>
-    s.entry.file === 'table.bin' ? 'the instant answer for fully maxed gear' : describeGear(s.entry);
+    s.entry.file === MAXED_TABLE_FILE ? 'the instant answer for fully maxed gear' : describeGear(s.entry);
   const side = (s: BracketSide | null) => (s ? { end: s.end, te: s.te, name: name(s) } : null);
   const r = result.value;
   const mine = props.deadline ? r?.byDate : r?.best;
@@ -1757,8 +1760,11 @@ async function run(force = false, goAhead = false): Promise<void> {
     // No usable table on this site (missing, a web page in its place, or cut short): only the card
     // saying so (NoInstantAnswer.vue), and every search works exactly as without it.
     noTable.value = tableLoadFailed(message);
+    olderPage.value = noTable.value && tableNewerThanPage(message);
     errorText.value = noTable.value
-      ? TABLE_LOAD_FAILED
+      ? olderPage.value
+        ? TABLE_OLDER_PAGE
+        : TABLE_LOAD_FAILED
       : `The instant answer couldn’t run: ${playerFacing(message)}`;
   }
 }

@@ -105,6 +105,16 @@ async function fetchBytes(url: string, deps: FetchDeps, stallMs: number): Promis
  *  file used to read "No instant answer for your TE yet", the words for a TE the instant answer doesn't cover. No "table": players never read that word. */
 export const TABLE_LOAD_FAILED = 'The instant answer couldn’t be loaded.';
 
+/** What the card says when the file is a newer version than this page reads (`tableNewerThanPage`): the site was
+ *  updated while the tab was open (Jordan's By a date on egg-beta, 23 Oct 2026). With a Reload button. */
+export const TABLE_OLDER_PAGE = 'An older version of this page is open: reload it to get the instant answer.';
+
+/** The error (as text from a worker) is the loader refusing the file's version (precomputedTable.ts readTable):
+ *  this page is older than the file. A load failure too (`tableLoadFailed`), said as an older page. */
+export function tableNewerThanPage(message: string): boolean {
+  return /precomputed table version \d+ is not supported/i.test(message);
+}
+
 /**
  * A worker's error message (it crosses as text) that means the file itself could not be had: missing, a web
  * page in its place, cut short, from another version, stalled, or no connection. Not a TE outside the file (InstantRoute's `below`).

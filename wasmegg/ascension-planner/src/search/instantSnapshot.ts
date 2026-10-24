@@ -175,8 +175,14 @@ export function removeSnapshot(key: string | null, st: StorageLike | null = defa
  * would then be the maxed table's when the player's own fits. Such an answer is worked out again.
  * One with no gear note stands: every newer rule matches whatever an older one matched.
  */
-export function snapshotUsable(s: { ownChanged?: string; gearRule?: number } | null, gearRule: number): boolean {
+export function snapshotUsable(
+  s: { ownChanged?: string; gearRule?: number; tableUrl?: string } | null,
+  gearRule: number
+): boolean {
   if (!s) return false;
+  // Read from the version 1 maxed table (precompute/table.bin, before it moved to table-v2.bin): worked out again,
+  // and never taken for the player's own (InstantRoute `own` is any table but the maxed one's URL).
+  if (typeof s.tableUrl === 'string' && /(^|\/)table\.bin(\||$)/.test(s.tableUrl)) return false;
   return !s.ownChanged || (s.gearRule ?? 1) >= gearRule;
 }
 

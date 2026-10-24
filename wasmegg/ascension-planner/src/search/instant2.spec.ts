@@ -173,14 +173,14 @@ describe('gearShiftTable (the weak-gear form G)', () => {
   });
   it('round-trips its url', () => {
     const key = gearShiftKey({ g: 13.43, geo: 0.794, cap: 2.4e12, k: 0.7094 });
-    expect(parseGearShiftUrl(gearShiftUrl('/precompute/table.bin', key))).toEqual({
-      url: '/precompute/table.bin',
+    expect(parseGearShiftUrl(gearShiftUrl('/precompute/table-v2.bin', key))).toEqual({
+      url: '/precompute/table-v2.bin',
       g: 13.43,
       geo: 0.794,
       cap: 2.4e12,
       k: 0.7094,
     });
-    expect(parseGearShiftUrl('/precompute/table.bin')).toBeNull();
+    expect(parseGearShiftUrl('/precompute/table-v2.bin')).toBeNull();
   });
   it('is skipped for a player as good as maxed, and the hours hold only with held shifts', () => {
     expect(nearMaxedGear({ g: 0.01, geo: 0.999, k: 1 })).toBe(true);

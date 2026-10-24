@@ -10,8 +10,18 @@
  * described by its gear, never by whose it is.
  */
 
+/**
+ * The maxed table's file in precompute/ (with `.gz` beside it). A version 2 table, under its own name: pages
+ * from before instant answer v2 read `table.bin` with a loader that refuses version 2 ("precomputed table
+ * version 2 is not supported"), so swapping v2 in under that name blanked every open older tab (By a date on
+ * egg-beta, 23 Oct 2026). Those pages keep reading the version 1 `table.bin`, untouched.
+ */
+export const MAXED_TABLE_FILE = 'table-v2.bin';
+/** The version 1 maxed table, still deployed for older pages: never read here, and left out of the nearest tables. */
+export const LEGACY_MAXED_TABLE_FILE = 'table.bin';
+
 export interface TableEntry {
-  /** File name in precompute/ ('table.bin' is the maxed table). */
+  /** File name in precompute/ (MAXED_TABLE_FILE is the maxed table). */
   file: string;
   bonus: number;
   k: number;
@@ -57,6 +67,7 @@ export function pickBracket(
   tables: TableEntry[],
   player: Gear
 ): { above: TableEntry | null; below: TableEntry | null } {
+  tables = tables.filter(t => t.file !== LEGACY_MAXED_TABLE_FILE);
   const stronger = tables.filter(t => t.bonus >= player.bonus - EPS_BONUS && t.k >= player.k - EPS_K);
   const weaker = tables.filter(
     t => t.bonus <= player.bonus + EPS_BONUS && t.k <= player.k + EPS_K && !stronger.includes(t)
@@ -64,7 +75,7 @@ export function pickBracket(
   const nearest = (ts: TableEntry[]) =>
     ts.reduce<TableEntry | null>((a, t) => (!a || distance(t, player) < distance(a, player) ? t : a), null);
   return {
-    above: nearest(stronger) ?? tables.find(t => t.file === 'table.bin') ?? null,
+    above: nearest(stronger) ?? tables.find(t => t.file === MAXED_TABLE_FILE) ?? null,
     below: nearest(weaker),
   };
 }

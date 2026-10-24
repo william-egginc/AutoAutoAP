@@ -3,7 +3,7 @@ import { gearCoverage, prefetchAllowed, prefetchFiles, prefetchPlan } from './ta
 import type { TableEntry } from './tableBracket';
 
 const entries: TableEntry[] = [
-  { file: 'table.bin', bonus: 128.71, k: 1, from: 120 },
+  { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120 },
   { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138 },
   { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120 },
   { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120 },
@@ -19,12 +19,12 @@ describe('prefetchPlan', () => {
   it('else the gear table and the maxed one', () => {
     expect(prefetchPlan({ entries, own: 'acct-x.bin', gear: 'gear-mine.bin', player: null, te: 150 })).toEqual([
       'gear-mine.bin',
-      'table.bin',
+      'table-v2.bin',
     ]);
     // An own table that starts above the player's TE is no use to them.
     expect(prefetchPlan({ entries, own: 'acct-own.bin', gear: 'gear-mine.bin', player: null, te: 130 })).toEqual([
       'gear-mine.bin',
-      'table.bin',
+      'table-v2.bin',
     ]);
   });
   it('a gear table under the first name tried that is listed, as a file or an alias', () => {
@@ -33,18 +33,29 @@ describe('prefetchPlan', () => {
     );
     expect(
       prefetchPlan({ entries: aliased, own: null, gear: ['gear-canon.bin', 'gear-mine.bin'], player: null, te: 150 })
-    ).toEqual(['gear-canon.bin', 'table.bin']);
+    ).toEqual(['gear-canon.bin', 'table-v2.bin']);
     // Not aliased yet: the legacy name the page falls back to.
     expect(
       prefetchPlan({ entries, own: null, gear: ['gear-canon.bin', 'gear-mine.bin'], player: null, te: 150 })
-    ).toEqual(['gear-mine.bin', 'table.bin']);
+    ).toEqual(['gear-mine.bin', 'table-v2.bin']);
   });
   it('else the maxed table, then the nearest tables above and below (none for maxed gear)', () => {
     expect(
       prefetchPlan({ entries, own: null, gear: 'gear-none.bin', player: { bonus: 125, k: 0.9 }, te: 150 })
-    ).toEqual(['table.bin', 'acct-own.bin', 'gear-weak.bin']); // another account's table can be the nearer one
+    ).toEqual(['table-v2.bin', 'acct-own.bin', 'gear-weak.bin']); // another account's table can be the nearer one
     expect(prefetchPlan({ entries, own: null, gear: null, player: { bonus: 128.71, k: 1 }, te: 150 })).toEqual([
-      'table.bin',
+      'table-v2.bin',
+    ]);
+  });
+});
+
+describe('prefetchPlan beside the version 1 maxed table', () => {
+  it('table-v2.bin, never table.bin (kept on the site for older pages)', () => {
+    const both: TableEntry[] = [{ file: 'table.bin', bonus: 128.71, k: 1, from: 120 }, ...entries];
+    expect(prefetchPlan({ entries: both, own: null, gear: 'gear-none.bin', player: { bonus: 125, k: 0.9 }, te: 150 })).toEqual([
+      'table-v2.bin',
+      'acct-own.bin',
+      'gear-weak.bin',
     ]);
   });
 });
@@ -86,7 +97,7 @@ describe('prefetchFiles', () => {
 
 describe('gearCoverage', () => {
   const entries = [
-    { file: 'table.bin', bonus: 128.71, k: 1, from: 100 },
+    { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 100 },
     { file: 'acct-aaa.bin', bonus: 128.71, k: 1, from: 100 },
     { file: 'gear-old.bin', bonus: 120, k: 0.9, from: 100, aliases: ['gear-new.bin'] },
   ];

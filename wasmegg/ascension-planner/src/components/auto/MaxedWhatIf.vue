@@ -28,7 +28,7 @@ import { RoutePool } from '@/search/routePool';
 import { priceOnTable, type FirstLegsBase, type PricedOnTable } from '@/search/priceOnTable';
 import { maxedLetters, maxedWhatIfText } from '@/search/maxedWhatIf';
 import type { Availability } from '@/search/availability';
-import type { TableEntry } from '@/search/tableBracket';
+import { MAXED_TABLE_FILE, type TableEntry } from '@/search/tableBracket';
 import type { SnapWhatIf } from '@/search/instantSnapshot';
 import type { TailOptions } from '@/search/routeFinder';
 
@@ -123,7 +123,7 @@ async function loadLetters(): Promise<void> {
     const res = await fetch(`${import.meta.env.BASE_URL}precompute/tables.json`);
     if (!res.ok) return;
     const entries = (await res.json()) as (TableEntry & { label?: string })[];
-    letters.value = maxedLetters(entries.find(e => e.file === 'table.bin')?.label);
+    letters.value = maxedLetters(entries.find(e => e.file === MAXED_TABLE_FILE)?.label);
   } catch {
     // The line stands without the letters.
   }

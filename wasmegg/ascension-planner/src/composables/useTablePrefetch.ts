@@ -12,7 +12,7 @@ import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
 import { instantDeliveryScale } from '@/search/leg';
 import { gearStamp, gearTableNames, tableName } from '@/search/tableGear';
 import { prefetchAllowed, prefetchFiles, prefetchPlan } from '@/search/tablePrefetch';
-import type { TableEntry } from '@/search/tableBracket';
+import { MAXED_TABLE_FILE, type TableEntry } from '@/search/tableBracket';
 import type { TableHeader } from '@/search/precomputedTable';
 
 const DONE_KEY = 'aap-table-prefetch';
@@ -51,7 +51,7 @@ export function useTablePrefetch(): void {
       const res = await fetch(`${base}tables.json`, { cache: 'no-cache' });
       if (!res.ok || /text\/html/.test(res.headers.get('content-type') ?? '')) return;
       const entries = (await res.json()) as TableEntry[];
-      const k3 = entries.find(e => e.file === 'table.bin')?.k3 as TableHeader['k3'] | undefined;
+      const k3 = entries.find(e => e.file === MAXED_TABLE_FILE)?.k3 as TableHeader['k3'] | undefined;
       if (!k3) return;
       const earnings = store.readInventory().earnings;
       const stamp = gearStamp(inputs, earnings, k3.research);

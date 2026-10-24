@@ -7,7 +7,7 @@
  * connection or a 2G one; never an error: a file that fails is simply fetched when the panel opens.
  */
 import { isSmallDevice } from './device';
-import { isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket';
+import { MAXED_TABLE_FILE, isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket';
 
 /** The files to fetch for a player, in order: their own table if the site has one; else the table of
  *  their gear and the maxed one; else the maxed one and then the nearest tables above and below. */
@@ -27,8 +27,8 @@ export function prefetchPlan(o: {
   // A gear table under the first name the page will fetch it by: its file or one of its aliases.
   const listed = (f: string) => usable.some(e => e.file === f || e.aliases?.includes(f));
   const gear = (Array.isArray(o.gear) ? o.gear : o.gear ? [o.gear] : []).find(listed);
-  if (gear) return [gear, 'table.bin'];
-  const out = ['table.bin'];
+  if (gear) return [gear, MAXED_TABLE_FILE];
+  const out = [MAXED_TABLE_FILE];
   if (o.player && !isMaxed(o.player)) {
     const { above, below } = pickBracket(usable, o.player);
     for (const e of [above, below]) if (e && !out.includes(e.file)) out.push(e.file);

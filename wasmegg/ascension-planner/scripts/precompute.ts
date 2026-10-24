@@ -1023,7 +1023,7 @@ async function routeBin(): Promise<void> {
 /**
  * --manifest --backup FILE [--dir public/precompute]: DIR/tables.json, every table there by file with
  * its gear: the earnings bonus, and the delivery k, its delivery set's rate against the maxed
- * table.bin's at the maxed table's waiting research (as leg.ts `instantDeliveryScale` measures a
+ * table's (table-v2.bin, else table.bin) at the maxed table's waiting research (as leg.ts `instantDeliveryScale` measures a
  * player; epic research and colleggtibles from FILE, the same for every table). For the instant
  * answer's nearest tables above and below (search/tableBracket.ts). File names and numbers only.
  *
@@ -1036,8 +1036,11 @@ async function manifest(file: string): Promise<void> {
   const dir = arg('dir') ?? 'public/precompute';
   const ctx = (await loadInputs(file)).context;
   const headerOf = (f: string) => readTable(new Uint8Array(readFileSync(`${dir}/${f}`)).buffer).header;
-  const maxed = headerOf('table.bin').k3;
-  if (!maxed) throw new Error('--manifest: table.bin has no k3');
+  // The maxed table: table-v2.bin (the page's, search/tableBracket.ts MAXED_TABLE_FILE), else table.bin. Both
+  // carry k3 when both are deployed: older pages read table.bin's entry, the v2 page table-v2.bin's.
+  const maxedFile = existsSync(`${dir}/table-v2.bin`) ? 'table-v2.bin' : 'table.bin';
+  const maxed = headerOf(maxedFile).k3;
+  if (!maxed) throw new Error(`--manifest: ${maxedFile} has no k3`);
   const rate = (set: unknown) =>
     computeRealisticELR(
       maxed.research,
@@ -1073,7 +1076,7 @@ async function manifest(file: string): Promise<void> {
         ...(aliasesFor(f).length ? { aliases: aliasesFor(f) } : {}),
         // The maxed table's waiting research and delivery set: with them the page can work out a
         // player's gear stamp and delivery k before any table is downloaded (search/tablePrefetch.ts).
-        ...(f === 'table.bin' ? { k3: { research: maxed.research, delivery: maxed.delivery } } : {}),
+        ...(f === 'table.bin' || f === 'table-v2.bin' ? { k3: { research: h.k3.research, delivery: h.k3.delivery } } : {}),
       };
     });
   writeFileSync(`${dir}/tables.json`, JSON.stringify(out, null, 1) + '\n');

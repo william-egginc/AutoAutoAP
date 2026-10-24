@@ -37,7 +37,8 @@ describe('the heading', () => {
     expect(instant).toContain('below.value = { from: h.from, te };');
     expect(instantTemplate).toContain(':heading="noInstantHeading(below.from)"');
     // A file that couldn't be loaded says so (InstantRoute.unloaded.spec.ts), not "for your TE".
-    expect(instantTemplate).toContain(':heading="TABLE_LOAD_FAILED"');
+    expect(instantTemplate).toContain('<InstantUnloaded :older="olderPage"');
+    expect(read('InstantUnloaded.vue')).toContain(':heading="older ? TABLE_OLDER_PAGE : TABLE_LOAD_FAILED"');
     expect(instantTemplate).not.toMatch(/below TE 120/);
   });
 });
