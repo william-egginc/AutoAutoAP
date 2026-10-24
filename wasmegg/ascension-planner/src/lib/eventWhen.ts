@@ -146,6 +146,17 @@ export function dayWords(at: number | null | undefined, zone: string): string {
   }
 }
 
+/** The day with its year and the 12-hour clock: "Feb 10, 2027 at 2:36 pm". '' when unknown. My runs' tooltips. */
+export function dayClockWords(at: number | null | undefined, zone: string): string {
+  if (!at || !Number.isFinite(at)) return '';
+  try {
+    const p = partsOf(at, zone);
+    return `${p.month} ${p.day}, ${p.year} at ${p.hour}:${p.minute} ${p.period}`;
+  } catch {
+    return '';
+  }
+}
+
 /** "3 hours ago", "45 minutes ago", "1 hour ago", "3 days ago", "just now" (the save-age strip's words). */
 export function agoLong(seconds: number): string {
   const s = Math.max(0, seconds);

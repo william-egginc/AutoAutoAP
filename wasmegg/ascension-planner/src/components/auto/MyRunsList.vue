@@ -173,15 +173,13 @@
 import FollowButton from '../FollowButton.vue';
 import { boardGoalKey, boardRowSummary, followableRow } from '@/lib/follow';
 import { lateMarker } from '@/lib/eggDayRule';
+import { dayClockWords, dayWords } from '@/lib/eventWhen';
 import { computed, inject, ref } from 'vue';
 import {
   contentFingerprint,
   deadlineSpare,
-  finishDateText,
   finishMs,
-  finishTitle,
   foldCopies,
-  formatDate,
   madeDeadline,
   provisionalTag,
   PROVISIONAL_TITLE,
@@ -281,8 +279,20 @@ function toggle(key: string): void {
   open.value = open.value === key ? '' : key;
 }
 
+// Every date here is month first, with its year: "Feb 10, 2027" (lib/eventWhen.ts `dayWords`), and a tooltip's
+// clock 12-hour: "Feb 10, 2027 at 2:36 pm". Never "10 Feb 2027" (Jordan, 24 Oct 2026).
+/** "Feb 10, 2027", or '—' when unknown. */
+function day(seconds: number | null | undefined, zone: string | undefined): string {
+  return dayWords(seconds, zone || 'UTC') || '—';
+}
+/** "Feb 10, 2027 at 2:36 pm", or '' when unknown. */
+function dayClock(seconds: number | null | undefined, zone: string | undefined): string {
+  return dayClockWords(seconds, zone || 'UTC');
+}
+const msToSeconds = (ms: number | null | undefined): number | null => (ms == null ? null : ms / 1000);
+
 function deadlineText(seconds: number): string {
-  return formatDate(seconds * 1000, props.viewZone, { dateStyle: 'medium' });
+  return day(seconds, props.viewZone);
 }
 
 function kindText(l: Line): string {
@@ -299,27 +309,27 @@ function spareText(seconds: number): string {
 
 /** A date answer: the TE reached and the time to spare. A race run: when it finishes. */
 function resultText(l: Line): string {
-  if (l.kind === 'race') return `finishes ${finishDateText(finishMs(l.row), props.viewZone)}`;
+  if (l.kind === 'race') return `finishes ${day(msToSeconds(finishMs(l.row)), props.viewZone)}`;
   // Shown, marked, never followed (lib/eggDayRule.ts): "after Egg Day starts", "after your date".
   if (!madeDeadline(l.row)) return `${l.row.finalTE} TE, ${lateMarker(l.kind === 'eggday' ? 'eggday' : 'date')}`;
   return `${l.row.finalTE} TE, ${spareText(deadlineSpare(l.row))} spare`;
 }
 
 function resultTitle(l: Line): string | undefined {
-  if (l.kind === 'race') return finishTitle(finishMs(l.row), l.row.timezone);
-  return `The highest TE this answer reaches by ${formatDate((l.row.deadline as number) * 1000, props.viewZone, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })}`;
+  if (l.kind === 'race') {
+    const text = dayClock(msToSeconds(finishMs(l.row)), l.row.timezone);
+    return text ? `${text}, ${l.row.timezone || 'UTC'} time` : 'No finish date: the plan start or timezone is missing';
+  }
+  return `The highest TE this answer reaches by ${dayClock(l.row.deadline as number, props.viewZone) || '—'}`;
 }
 
 function sentText(r: BoardRow): string {
   const t = sentMs(r);
-  return t != null ? formatDate(t, props.viewZone, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  return t != null ? day(t / 1000, props.viewZone) : '—';
 }
 function sentTitle(r: BoardRow): string | undefined {
   const t = sentMs(r);
-  return t != null ? formatDate(t, props.viewZone, { dateStyle: 'medium', timeStyle: 'short' }) : undefined;
+  return t != null ? dayClock(t / 1000, props.viewZone) || undefined : undefined;
 }
 
 /** "vs your instant baseline: 1.2 days sooner (Fast)" under a run (wireframe B1); null without a baseline. */

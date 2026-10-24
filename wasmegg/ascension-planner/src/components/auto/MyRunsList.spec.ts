@@ -92,6 +92,23 @@ describe('MyRunsList (My runs › Your runs on the board)', () => {
     expect(t).toContain('finishes');
   });
 
+  it('every date is month first with its year ("Feb 10, 2027"), and a tooltip adds the 12-hour clock', async () => {
+    const html = await renderWith({});
+    const t = textOf(html);
+    // The By label, a finish and the Sent column.
+    expect(t).toContain('By Jan 15, 2027');
+    expect(t).toContain('finishes Oct 21, 2026');
+    expect(t).toContain('Oct 10, 2026');
+    expect(t).toContain('Oct 8, 2026');
+    // Their tooltips.
+    expect(html).toContain('title="The highest TE this answer reaches by Jan 15, 2027 at 8:00 am"');
+    expect(html).toContain('title="Oct 21, 2026 at 12:00 am, UTC time"');
+    expect(html).toContain('title="Oct 10, 2026 at 12:00 am"');
+    // Never day first.
+    expect(t).not.toMatch(/\b\d+ [A-Z][a-z]{2} 20\d\d\b/);
+    expect(html).not.toMatch(/title="[^"]*\b\d+ [A-Z][a-z]{2} 20\d\d/);
+  });
+
   it('a hidden run is listed, tagged "hidden", and its CSV is fetched with the code (no plain link)', async () => {
     const html = await renderWith({});
     expect(html.match(/data-testid="my-runs-hidden-tag"/g)).toHaveLength(1);
@@ -164,7 +181,9 @@ describe('MyRunsList with a realistic mix (16 Oct: "Showing 0 of 25" under Kind 
     expect(t).toContain('Egg Day 2027');
     expect(t).toContain('Race to 490');
     expect(t).toContain('Race to 300');
-    expect(t).toMatch(/By \d+ [A-Z][a-z]{2} 2027/);
+    // Month first with the year (Jordan, 24 Oct 2026): "By Feb 10, 2027", never "By 10 Feb 2027".
+    expect(t).toMatch(/By [A-Z][a-z]{2} \d+, 2027/);
+    expect(t).not.toMatch(/\b\d+ [A-Z][a-z]{2} 20\d\d\b/);
   });
 
   it('the header and the list count the same: runs, a result sent twice once (myRunsCount)', () => {

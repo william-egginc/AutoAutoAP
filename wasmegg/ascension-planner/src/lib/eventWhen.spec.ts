@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayWords, eventWhen, eventWhenText, relativeWords } from './eventWhen';
+import { dayClockWords, dayWords, eventWhen, eventWhenText, relativeWords } from './eventWhen';
 
 const ZONE = 'America/Denver';
 /** 2026-10-15 14:00 in Denver (MDT, UTC-6) = 20:00 UTC. */
@@ -95,5 +95,17 @@ describe('dayWords (Jordan, 24 Oct 2026: "Feb 10, 2027", never "10 Feb 2027")', 
   it("'' when unknown", () => {
     expect(dayWords(null, ZONE)).toBe('');
     expect(dayWords(Number.NaN, ZONE)).toBe('');
+  });
+});
+
+describe('dayClockWords: the day with its year, then the 12-hour clock', () => {
+  it('"Feb 10, 2027 at 9:00 am", in the zone', () => {
+    expect(dayClockWords(Date.UTC(2027, 1, 10, 16, 0) / 1000, ZONE)).toBe('Feb 10, 2027 at 9:00 am');
+    expect(dayClockWords(Date.UTC(2027, 1, 11, 6, 5) / 1000, ZONE)).toBe('Feb 10, 2027 at 11:05 pm');
+    expect(dayClockWords(Date.UTC(2026, 9, 10, 0, 0) / 1000, 'UTC')).toBe('Oct 10, 2026 at 12:00 am');
+  });
+  it("'' when unknown", () => {
+    expect(dayClockWords(null, ZONE)).toBe('');
+    expect(dayClockWords(Number.NaN, ZONE)).toBe('');
   });
 });
