@@ -131,3 +131,70 @@ describe('followPrice', () => {
     expect(p.priced === 'exact' && p.plan.spareHours).toBe(-10);
   });
 });
+
+describe("followPrice: the instant answer's route and this save's results keep their timeline (23 Oct 2026)", () => {
+  // This save's instant answer: the lead 230 → 490, a 3-ascension row 222 → 260 → 490; no Check exactly prices.
+  const tableLegs = (chain: number[], end: number) =>
+    chain.map((to, i) => ({ to, endTE: to, start: SAVE + i * 10 * H, end: i === chain.length - 1 ? end : SAVE + (i + 1) * 10 * H }));
+  const route = (chain: number[], end: number) => ({ chain, end, legs: tableLegs(chain, end) });
+  const instantSnap = (o: { backupTime: number; search?: unknown }): SnapLike => ({
+    ...snap({ backupTime: o.backupTime, te: 200, exact: {} }),
+    result: { best: route([230, 490], SAVE + 80 * H), byAscensions: [null, route([230, 490], SAVE + 80 * H), route([222, 260, 490], SAVE + 90 * H)] },
+    ...(o.search ? { search: o.search } : {}),
+  });
+  const fast = (chain: number[], end: number, at = SAVE * 1000 + 5000) => ({
+    level: 'Fast' as const,
+    chain,
+    end,
+    endTE: 490,
+    legs: [{ key: 'continue', endTE: 490, endTime: end, shifts: [] } as unknown as LegSummary],
+    at,
+    planStart: SAVE,
+  });
+  const own = (s: SnapLike): FollowSnap => ({ snap: s, startTE: 200, ownKey: true, check: here });
+
+  it("the instant answer's lead: its own plan, the table's times (not exact), this save", () => {
+    const p = followPrice({ ...base, chain: [230, 490], snaps: [own(instantSnap({ backupTime: SAVE }))], prefer: 'instant' });
+    expect(p.priced).toBe('exact');
+    if (p.priced !== 'exact') return;
+    expect(p.source).toBe('this-save');
+    expect(p.plan).toMatchObject({ chain: [230, 490], exact: false, end: SAVE + 80 * H, legs: null, runnerUp: null });
+    expect(p.plan.from).toBeUndefined();
+    expect(p.plan.tableLegs?.length).toBe(2);
+  });
+
+  it("one of the instant answer's rows (a count, not the lead): that row's times; the stops passed are dropped", () => {
+    const p = followPrice({ ...base, chain: [197, 222, 260, 490], snaps: [own(instantSnap({ backupTime: SAVE }))] });
+    expect(p.priced === 'exact' && p.plan).toMatchObject({ chain: [222, 260, 490], exact: false, end: SAVE + 90 * H });
+  });
+
+  it("this save's kept Fast result (aap-search-plans): its plan, exact, from Fast", () => {
+    const r = { found: fast([222, 490], SAVE + 70 * H), meta: null, check: here };
+    const p = followPrice({ ...base, chain: [222, 490], snaps: [own(instantSnap({ backupTime: SAVE }))], results: [r] });
+    expect(p.priced === 'exact' && p.plan).toMatchObject({ chain: [222, 490], exact: true, from: { level: 'Fast' }, end: SAVE + 70 * H });
+    // No snapshot for the goal any more (a day old): the kept result alone.
+    const q = followPrice({ ...base, chain: [222, 490], snaps: [], results: [r] });
+    expect(q.priced === 'exact' && q.source).toBe('this-save');
+    expect(q.priced === 'exact' && q.plan.from?.level).toBe('Fast');
+  });
+
+  it('the instant answer and a result both this route: where it was picked from leads', () => {
+    const s = own(instantSnap({ backupTime: SAVE, search: fast([230, 490], SAVE + 79 * H) }));
+    const inst = followPrice({ ...base, chain: [230, 490], snaps: [s], prefer: 'instant' });
+    expect(inst.priced === 'exact' && inst.plan.exact).toBe(false);
+    const srch = followPrice({ ...base, chain: [230, 490], snaps: [s], prefer: 'search' });
+    expect(srch.priced === 'exact' && srch.plan.from?.level).toBe('Fast');
+  });
+
+  it('a route that is neither: not priced', () => {
+    const r = { found: fast([222, 490], SAVE + 70 * H), meta: null, check: here };
+    const p = followPrice({ ...base, chain: [240, 490], snaps: [own(instantSnap({ backupTime: SAVE }))], results: [r] });
+    expect(p).toEqual({ priced: 'none', chain: [240, 490] });
+  });
+
+  it("an older save's instant answer and result are never matched (another save's timeline)", () => {
+    const old: FollowSnap = { snap: instantSnap({ backupTime: OLD, search: fast([222, 490], OLD + 70 * H) }), startTE: 200, ownKey: false, check: elsewhere };
+    expect(followPrice({ ...base, chain: [230, 490], snaps: [old] }).priced).toBe('none');
+    expect(followPrice({ ...base, chain: [222, 490], snaps: [old] }).priced).toBe('none');
+  });
+});

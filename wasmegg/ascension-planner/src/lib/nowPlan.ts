@@ -250,6 +250,44 @@ export function planFromExactChain(
   };
 }
 
+/**
+ * One route's plan from a snapshot's INSTANT answer, for a route the player follows (lib/followPrice.ts): the goal's
+ * lead when it is that route, else the table's own row for it (Fastest one per count, By a date the lead and one per
+ * count). The table's times (prestige times only, `exact` false: Right now rounds them, no calendar). Null when the
+ * instant answer has no such route. No runner-up: it is the player's pick, not the planner's.
+ */
+export function planFromInstantChain(
+  snap: SnapLike | null,
+  chain: readonly number[],
+  goal: 'fastest' | 'date',
+  deadline: number | null = null
+): NowPlan | null {
+  if (!snap?.result || !chain.length) return null;
+  const lead = planFromSnapshot(snap, goal, deadline);
+  if (lead && !lead.exact && key(lead.chain) === key(chain)) return { ...lead, runnerUpHours: null, runnerUp: null };
+  const rows = goal === 'fastest' ? [snap.result.best, ...(snap.result.byAscensions ?? [])] : [snap.result.byDate ?? null, ...(snap.result.byDateByAscensions ?? [])];
+  const r = rows.find((x): x is SnapRoute => !!x && Array.isArray(x.chain) && key(x.chain) === key(chain) && Number.isFinite(x.end));
+  if (!r) return null;
+  return {
+    goal,
+    deadline: goal === 'date' ? deadline : null,
+    chain: [...r.chain],
+    end: r.end,
+    endTE: lastTE(r),
+    legs: null,
+    tableLegs: r.legs ?? null,
+    exact: false,
+    instantTE: goal === 'date' ? lastTE(r) : null,
+    spareHours: goal === 'date' && deadline ? (deadline - r.end) / 3600 : null,
+    runnerUpHours: null,
+    runnerUp: null,
+    calculatedAt: snap.at,
+    planStart: typeof snap.answerStart === 'number' ? snap.answerStart : null,
+    meta: snap.meta ?? null,
+    whatIf: snap.whatIf ?? null,
+  };
+}
+
 // ------------------------------------------------------------------------------------- events
 
 export interface PlanEvent {

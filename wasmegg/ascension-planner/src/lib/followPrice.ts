@@ -2,6 +2,12 @@
  * The price of a route the player follows (lib/follow.ts), read from what is saved: nothing is worked out here (My
  * runs never computes). In order:
  *
+ *   0. (23 Oct 2026, the followed route keeps its timeline) For THIS save only: the instant answer's own route (the
+ *      own key's snapshot, its lead or one of its rows: `planFromInstantChain`, times rounded) and the Fast, Exact or
+ *      Custom result for the goal (the snapshot's `search`, the store's, the one kept in aap-search-plans:
+ *      `results`), when the followed route is that route from the TE now. When both match, the one it was picked
+ *      from leads (`prefer`: 'instant' for the instant answer's, else the result's). An older save's instant plan or
+ *      result is never matched (it is another save's timeline).
  *   1. Check exactly's prices kept in the instant answer snapshots (`exact`, every route a check priced: each count's
  *      row, the lead, the hours runner-ups, By a date's lower last stops, and a followed route "Price it" asked for):
  *      the loaded save's own key first, then the account's older snapshots of the same goal, ranked by the current
@@ -17,8 +23,9 @@
 import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
 import { pickGoalPlan, type CardCandidate, type SetupCheck } from './currentAnswer';
 import { followedFromNow, sameChain } from './follow';
-import { planFromExactChain, type NowPlan, type SnapLike } from './nowPlan';
-import { planFromSearch, readSearch } from './searchPlan';
+import { planFromExactChain, planFromInstantChain, type NowPlan, type SnapLike } from './nowPlan';
+import { planFromSearch, readSearch, type SnapSearch } from './searchPlan';
+import type { SnapMeta, SnapWhatIf } from '@/search/instantSnapshot';
 
 /** A kept snapshot to look in. */
 export interface FollowSnap {
@@ -28,6 +35,14 @@ export interface FollowSnap {
   startTE: number | null;
   /** Under the loaded save's own key (this save, this setup). */
   ownKey: boolean;
+  check: SetupCheck;
+}
+
+/** A Fast, Exact or Custom result of THIS save for the goal (the store's, or the one kept beyond the snapshot). */
+export interface FollowResult {
+  found: SnapSearch;
+  /** The save it was priced from (used when this save has no snapshot for the goal). */
+  meta: SnapMeta | null;
   check: SetupCheck;
 }
 
@@ -95,24 +110,44 @@ export function followPrice(o: {
   history: readonly FollowHistory[];
   goalIndex?: number;
   goalKey?: string;
+  /** This save's results for the goal beyond its snapshot's `search` (step 0). */
+  results?: readonly FollowResult[];
+  /** Which leads when the instant answer and a result are both this route: where the route was picked from. */
+  prefer?: 'instant' | 'search';
 }): FollowPrice {
   const { chain, goal } = o;
   const fromNow = followedFromNow(chain, o.currentTE);
   if (!chain.length || !fromNow.length) return { priced: 'none', chain: fromNow };
 
   const hits: CardCandidate[] = [];
+  const hit = (plan: NowPlan, ownKey: boolean, check: SetupCheck) =>
+    hits.push({ plan, goalIndex: o.goalIndex ?? 0, goalKey: o.goalKey, ownKey, check });
+  // This save's results: the newest that is this route from the TE now.
+  const results = (o.results ?? []).filter(r => sameChain(r.found.chain, fromNow)).sort((a, b) => b.found.at - a.found.at);
+  const preferInstant = o.prefer === 'instant';
+  let ownDone = false;
   for (const s of o.snaps) {
     const priced = s.startTE != null ? asPricedFrom(chain, s.startTE) : longestPricedTail(s.snap, chain);
     if (!priced || !priced.length) continue;
-    // Check exactly's price (snapshots before 23 Oct 2026), else the snapshot's search result when it is this route.
-    const found = readSearch(s.snap.search);
-    const plan =
-      planFromExactChain(s.snap, priced, goal.goal, goal.deadline) ??
-      (found && sameChain(found.chain, priced)
-        ? planFromSearch(found, goal.goal, goal.deadline, { meta: s.snap.meta ?? null, whatIf: s.snap.whatIf ?? null })
-        : null);
+    // Check exactly's price (snapshots before 23 Oct 2026), from any kept snapshot of the goal.
+    let plan = planFromExactChain(s.snap, priced, goal.goal, goal.deadline);
+    if (!plan && s.ownKey) {
+      // This save's own: the instant answer's route, and its newest result for the goal when it is this route.
+      const common = { meta: s.snap.meta ?? null, whatIf: s.snap.whatIf ?? null };
+      const inSnap = readSearch(s.snap.search);
+      const found = [...(inSnap && sameChain(inSnap.chain, priced) ? [inSnap] : []), ...results.map(r => r.found)].sort((a, b) => b.at - a.at)[0];
+      const search = found ? planFromSearch(found, goal.goal, goal.deadline, common) : null;
+      const instant = planFromInstantChain(s.snap, priced, goal.goal, goal.deadline);
+      plan = preferInstant ? (instant ?? search) : (search ?? instant);
+    }
     if (!plan) continue;
-    hits.push({ plan, goalIndex: o.goalIndex ?? 0, goalKey: o.goalKey, ownKey: s.ownKey, check: s.check });
+    if (s.ownKey) ownDone = true;
+    hit(plan, s.ownKey, s.check);
+  }
+  // No snapshot of this save for the goal (it lasts a day): its result kept beyond it.
+  if (!ownDone && results.length) {
+    const r = results[0];
+    hit(planFromSearch(r.found, goal.goal, goal.deadline, { meta: r.meta, whatIf: null }), true, r.check);
   }
   // The player's own pick: priced even when it lands after the date (the card marks it, lib/eggDayRule.ts).
   const pick = pickGoalPlan(hits, o.loadedSave, { anyTime: true });
