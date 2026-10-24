@@ -39,6 +39,8 @@ import {
 import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { holdUntilOf, isAvailable, type Availability } from './availability';
+import { creditedWaitSeconds, noPrestigeAt, prestigeHoldOf } from './noPrestige';
+import type { TimeOffWindow } from './types';
 import type { FirstAscension } from './firstAscension';
 import { replayContinue, sweepReplay, type BuildWithExtras, type ReplaySweep } from './tableV2';
 import { openingSpan } from './openingSpan';
@@ -78,6 +80,13 @@ export interface TailOptions {
    *  opening of a player that many TE behind the table's account is about that account's opening at their TE less
    *  the gap. Default 0. */
   openingRows?: number;
+  /** No prestige on these days (search/noPrestige.ts), absolute windows: every prestige (a fresh ascension's start,
+   *  By a date's claim) waits past them to the next allowed time, inside `hours` when set; shifts are unaffected.
+   *  Absent or empty: exactly as before. */
+  noPrestige?: TimeOffWindow[];
+  /** With `noPrestige`: what the save's silos hold, seconds (saveAge.ts `siloSeconds`), the cap on the farm's laying
+   *  while a no-prestige day holds a prestige (`creditWait`). Absent: uncapped. */
+  siloSeconds?: number;
 }
 
 /** Remembered `holdUntilOf` per schedule (the settings come to a worker as plain data each step). */
@@ -108,7 +117,35 @@ export function tailOptionsOf(o: TailOptions): TailOptions {
     ...(o.inSale === 'atOnce' ? { inSale: 'atOnce' as const } : {}),
     ...(o.heldOpening === false ? { heldOpening: false } : {}),
     ...(o.openingRows ? { openingRows: o.openingRows } : {}),
+    ...(o.noPrestige?.length ? { noPrestige: o.noPrestige.map(w => ({ from: w.from, to: w.to })) } : {}),
+    ...(o.noPrestige?.length && o.siloSeconds !== undefined ? { siloSeconds: o.siloSeconds } : {}),
   };
+}
+
+/** Remembered `prestigeHoldOf` per hours and days (asked for every arrival, like `holdUntilFor`). */
+const prestigeHoldCache = new Map<string, ((t: number) => number) | undefined>();
+/**
+ * When a prestige may happen from `t`: the player's hours (`holdUntilFor`) and the no-prestige days
+ * (search/noPrestige.ts) together. Without days it IS `holdUntilFor(hours)`, so nothing changes; undefined when
+ * neither limits anything.
+ */
+export function prestigeBackFor(
+  hours: Availability | undefined | null,
+  o: Pick<TailOptions, 'noPrestige'> | undefined
+): ((t: number) => number) | undefined {
+  const back = holdUntilFor(hours ?? undefined);
+  if (!o?.noPrestige?.length) return back;
+  const key = JSON.stringify([hours ?? null, o.noPrestige]);
+  if (prestigeHoldCache.has(key)) return prestigeHoldCache.get(key);
+  if (prestigeHoldCache.size > 8) prestigeHoldCache.clear();
+  const f = prestigeHoldOf(back, o.noPrestige);
+  prestigeHoldCache.set(key, f);
+  return f;
+}
+
+/** Whether `t` falls on a no-prestige day (`TailOptions.noPrestige`). */
+function onNoPrestigeDay(t: number, o: Pick<TailOptions, 'noPrestige'> | undefined): boolean {
+  return !!o?.noPrestige?.length && noPrestigeAt(t, o.noPrestige) !== null;
 }
 
 /** Every checkpoint's tail from one build: `sweepTails`, or with hours held (or the simulator's order)
@@ -167,7 +204,10 @@ function teOfCounts(eggs: number[]): number {
 /**
  * A prestige waiting for the player's hours (`creditWaits`): the farm keeps laying `egg` at `rate`
  * from `time` until the player is back, and the next ascension starts from those counts, as Check
- * exactly carries them (search/chain.ts). The counts and TE unchanged when nothing waits.
+ * exactly carries them (search/chain.ts). The counts and TE unchanged when nothing waits. With
+ * no-prestige days (`days.noPrestige`) the prestige may wait longer, and the part they add lays only
+ * until the silos are full (`days.siloSeconds`; search/noPrestige.ts `creditedWaitSeconds`), as Check
+ * exactly has it.
  */
 export function creditWait(
   te: number,
@@ -175,13 +215,16 @@ export function creditWait(
   delivered: number[],
   egg: number | undefined,
   rate: number | undefined,
-  hours: Availability | undefined
+  hours: Availability | undefined,
+  days?: Pick<TailOptions, 'noPrestige' | 'siloSeconds'>
 ): { te: number; delivered: number[] } {
-  if (!hours || egg === undefined || !(rate && rate > 0)) return { te, delivered };
-  const back = holdUntilFor(hours)!(time);
+  if ((!hours && !days?.noPrestige?.length) || egg === undefined || !(rate && rate > 0)) return { te, delivered };
+  const hoursBack = holdUntilFor(hours);
+  const hoursEnd = hoursBack ? hoursBack(time) : time;
+  const back = prestigeBackFor(hours, days)!(time);
   if (!(back > time)) return { te, delivered };
   const out = delivered.slice();
-  out[egg] = out[egg] + rate * (back - time);
+  out[egg] = out[egg] + rate * creditedWaitSeconds(time, hoursEnd, back, days?.siloSeconds);
   return { te: Math.max(te, teOfCounts(out)), delivered: out };
 }
 
@@ -306,8 +349,13 @@ export function prestigesInHours(route: { legs: { start: number }[] }, hours: Av
  * 1-2 am in eastern Australia and Japan) cannot be claimed in time. `t` itself with no hours, or when they are
  * around. The search's "I need to ascend at the last stop" (search/deadline.ts `ascendAt`) is the same rule.
  */
-export function claimAt(t: number, hours: Availability | undefined | null): number {
-  const back = holdUntilFor(hours ?? undefined);
+export function claimAt(
+  t: number,
+  hours: Availability | undefined | null,
+  /** No-prestige days (search/noPrestige.ts): the claim is a prestige, so it waits past them too. */
+  days?: Pick<TailOptions, 'noPrestige'>
+): number {
+  const back = prestigeBackFor(hours, days);
   return back ? back(t) : t;
 }
 
@@ -446,8 +494,8 @@ export function priceLeg(
 } | null {
   const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
   // Back from outside the hours, the player prestiges at once inside the sale (as Check exactly does
-  // at the moment they are back), or on the next whole hour inside the hours.
-  const back = holdUntilFor(hours);
+  // at the moment they are back), or on the next whole hour inside the hours (and past any no-prestige day).
+  const back = prestigeBackFor(hours, tail);
   const base = back ? back(t) : t;
   const wanted = back ? nextHour(back(nextHour(base))) : nextHour(t);
   const holdUntil = tail.holdShifts ? holdUntilFor(shiftHours) : undefined;
@@ -669,8 +717,9 @@ export function expandArrivals(
   // A build moved onto the same counts at the same hour prices the same; arrivals at one TE often
   // share counts (several routes ending on thresholds), so each such sweep is worked out once.
   // When the player is next around (`nextAvailable`, remembered per hour: asked for every arrival).
-  const back = holdUntilFor(s.hours);
-  const holdUntil = s.holdShifts ? back : undefined;
+  // Shifts wait for the hours only; a prestige for the hours and the no-prestige days (`prestigeBackFor`).
+  const holdUntil = s.holdShifts ? holdUntilFor(s.hours) : undefined;
+  const back = prestigeBackFor(s.hours, s);
   const sweepOf = (b: BuildWithExtras, key: string, lateBy: number, lowest: number, start: number): TailSweep => {
     let sw = sweepCache.get(key);
     if (!sw) {
@@ -694,11 +743,11 @@ export function expandArrivals(
   for (const item of items) {
     // A route that ascended above the useful stops goes no further (USEFUL_STOP_MAX).
     if (item.stop !== undefined && item.stop > cap) continue;
-    const prestige = !!s.hours && item.stop !== undefined;
+    const prestige = !!back && item.stop !== undefined;
     // While the prestige waits for the player, the farm lays on (`creditWaits`): more eggs, maybe a TE.
     const credited =
       prestige && s.creditWaits !== false
-        ? creditWait(item.te, item.time, item.delivered, item.egg, item.rate, s.hours)
+        ? creditWait(item.te, item.time, item.delivered, item.egg, item.rate, s.hours, s)
         : { te: item.te, delivered: item.delivered };
     const te = credited.te;
     const delivered = credited.delivered;
@@ -942,13 +991,14 @@ export async function findRoutes(
   const byDateByAscensions: (Route | null)[] = Array.from({ length: K + 1 }, () => null);
   if (o.deadline !== undefined) {
     const claimHours = o.claimInHours === false ? undefined : hours;
+    const claimDays = o.claimInHours === false ? undefined : o;
     let overall: { te: number; label: Label } | null = null;
     for (let k = 1; k <= K; k++) {
       let mine: { te: number; label: Label } | null = null;
       for (const [te, list] of arrivals[k]) {
         const l = list[0];
         // Claimed in time (`claimAt`): with hours, a prestige inside them by the deadline.
-        if (claimAt(l.time, claimHours) > o.deadline) continue;
+        if (claimAt(l.time, claimHours, claimDays) > o.deadline) continue;
         if (!mine || te > mine.te || (te === mine.te && l.time < mine.label.time)) mine = { te, label: l };
       }
       if (!mine && k >= firstDrop) outOfHours.add(k);
@@ -956,7 +1006,7 @@ export async function findRoutes(
       byDateByAscensions[k] = routeTo(mine.label);
       dateAlternatives[k] = arrivals[k]
         .get(mine.te)!
-        .filter(l => l !== mine!.label && claimAt(l.time, claimHours) <= o.deadline!)
+        .filter(l => l !== mine!.label && claimAt(l.time, claimHours, claimDays) <= o.deadline!)
         .map(routeTo);
       if (!overall || mine.te > overall.te || (mine.te === overall.te && mine.label.time < overall.label.time))
         overall = mine;
@@ -1019,7 +1069,9 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   // A fresh first ascension starts on the next whole hour (inside the player's hours, with them), as
   // every later one does; continuing the one in progress needs no ascension and runs from the plan
   // start itself.
-  const wanted = hours ? nextHour(holdUntilFor(hours)!(nextHour(o.start))) : nextHour(o.start);
+  // No-prestige days hold it too (`prestigeBackFor`); continuing needs no prestige, so it is not held.
+  const freshBack = prestigeBackFor(hours, o);
+  const wanted = freshBack ? nextHour(freshBack(nextHour(o.start))) : nextHour(o.start);
   // THE HELD OPENING (`heldOpeningStart`): with held shifts, on the hour from where the opening fits inside the hours.
   // (Not for a build simulated live, `freshLive`: it is not a cell of the table, and was simulated for its own start.)
   const opening =
@@ -1046,6 +1098,7 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   const late =
     wanted !== o.start &&
     (!hours || isAvailable(o.start, hours)) &&
+    !onNoPrestigeDay(o.start, o) &&
     (!opening || openingFits(o.start, row - (o.openingRows ?? 0), holdUntil!))
       ? startInSale(o.table, row, o.start, o.inSale === 'atOnce')
       : null;
@@ -1239,7 +1292,8 @@ export function priceChain(
     }
     const hours = i > 0 && o.holdForHours !== false ? o.hours : undefined;
     // While this prestige waits for the player the farm lays on (`creditWaits`), as findRoutes has it.
-    if (hours && o.creditWaits !== false) ({ te, delivered: eggs } = creditWait(te, t, eggs, egg, rate, hours));
+    if ((hours || o.noPrestige?.length) && o.creditWaits !== false)
+      ({ te, delivered: eggs } = creditWait(te, t, eggs, egg, rate, hours, o));
     if (target <= te) return (remember(i, false), null);
     // Shifts are held with the hours on every leg, the fresh first one too (findRoutes' settings carry the hours
     // from the start); only the prestige of a fresh first ascension does not wait for them.
@@ -1397,7 +1451,8 @@ export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRo
           r,
           found.dateAlternatives?.[k],
           c =>
-            claimAt(c.end, o.claimInHours === false ? undefined : o.hours) <= o.deadline! &&
+            claimAt(c.end, o.claimInHours === false ? undefined : o.hours, o.claimInHours === false ? undefined : o) <=
+              o.deadline! &&
             lastTE(c) >= lastTE(r) &&
             inHours(c)
         )

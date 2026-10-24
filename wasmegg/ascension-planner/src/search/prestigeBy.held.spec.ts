@@ -142,6 +142,6 @@ describe('the instant answer asks for the estimate held', () => {
     const src = readFileSync(fileURLToPath(new URL('../components/auto/InstantRoute.vue', import.meta.url)), 'utf8');
     const req = src.slice(src.indexOf('const req = {'), src.indexOf('const stale = () => pid !== prestigeRuns;'));
     expect(req).toContain('...(hours ? { playHours: hours } : {}),');
-    expect(req).toContain('tail: instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g),');
+    expect(req).toContain('tail: instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g, daysOf(inputs)),');
   });
 });

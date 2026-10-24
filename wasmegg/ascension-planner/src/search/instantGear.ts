@@ -119,12 +119,21 @@ export function nearMaxedGear(s: Pick<GearShift, 'g' | 'geo' | 'k'>): boolean {
 export function instantTail(
   hours: Availability | null | undefined,
   deferShifts: boolean,
-  gearRows?: number
+  gearRows?: number,
+  /** No prestige on these days and the save's silo seconds (routeFinder.ts `TailOptions.noPrestige`): every
+   *  prestige waits past them, whether or not "Works inside my hours" is ticked; shifts are unaffected. */
+  days?: Pick<TailOptions, 'noPrestige' | 'siloSeconds'> | null
 ): TailOptions {
   const held = !!hours && deferShifts;
   return {
     order: 'simulator',
     ...(held ? { holdShifts: true } : {}),
     ...(held && gearRows && gearRows > 0 ? { openingRows: gearRows } : {}),
+    ...(days?.noPrestige?.length
+      ? {
+          noPrestige: days.noPrestige.map(w => ({ from: w.from, to: w.to })),
+          ...(days.siloSeconds !== undefined ? { siloSeconds: days.siloSeconds } : {}),
+        }
+      : {}),
   };
 }
