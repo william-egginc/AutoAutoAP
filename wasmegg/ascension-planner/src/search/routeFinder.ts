@@ -234,7 +234,9 @@ export interface FindOptions extends TailOptions {
   /** No route continues from a checkpoint above this (default USEFUL_STOP_MAX; Infinity: no limit). */
   usefulStopMax?: number;
   /** Also find the highest TE reachable by this unix second (Highest TE by a date), from the same
-   *  pass: the highest TE whose earliest arrival is no later. */
+   *  pass: the highest TE whose earliest arrival is no later. With `hours`, the TE must also be claimed
+   *  by then: the prestige at the last stop waits for the player's hours as every other prestige does
+   *  (`claimAt`). */
   deadline?: number;
   /** Told after each number of ascensions is done (k of `maxAscensions`), for a progress bar. */
   onProgress?: (done: number, of: number) => void;
@@ -260,6 +262,18 @@ export interface FindOptions extends TailOptions {
  *  and reaching the final target needs no prestige (search/availability.ts). */
 export function prestigesInHours(route: { legs: { start: number }[] }, hours: Availability): boolean {
   return route.legs.every((l, i) => i === 0 || isAvailable(l.start, hours));
+}
+
+/**
+ * CLAIMED, NOT REACHED (Jordan, 22 Oct 2026: a TE counts once a prestige claims it; the math review, 24 Oct,
+ * finding 9). By a date with the player's hours, the last stop's TE reached at `t` is claimed at the first moment
+ * they are around (`nextAvailable`): a reach in the night before a morning deadline (Egg Day's 9:00 am Pacific is
+ * 1-2 am in eastern Australia and Japan) cannot be claimed in time. `t` itself with no hours, or when they are
+ * around. The search's "I need to ascend at the last stop" (search/deadline.ts `ascendAt`) is the same rule.
+ */
+export function claimAt(t: number, hours: Availability | undefined | null): number {
+  const back = holdUntilFor(hours ?? undefined);
+  return back ? back(t) : t;
 }
 
 /** The next whole hour at or after `t` (unix seconds). Pacific hours begin on UTC hour boundaries. */
@@ -791,7 +805,8 @@ export async function findRoutes(
       let mine: { te: number; label: Label } | null = null;
       for (const [te, list] of arrivals[k]) {
         const l = list[0];
-        if (l.time > o.deadline) continue;
+        // Claimed in time (`claimAt`): with hours, a prestige inside them by the deadline.
+        if (claimAt(l.time, hours) > o.deadline) continue;
         if (!mine || te > mine.te || (te === mine.te && l.time < mine.label.time)) mine = { te, label: l };
       }
       if (!mine && k >= firstDrop) outOfHours.add(k);
@@ -799,7 +814,7 @@ export async function findRoutes(
       byDateByAscensions[k] = routeTo(mine.label);
       dateAlternatives[k] = arrivals[k]
         .get(mine.te)!
-        .filter(l => l !== mine!.label && l.time <= o.deadline!)
+        .filter(l => l !== mine!.label && claimAt(l.time, hours) <= o.deadline!)
         .map(routeTo);
       if (!overall || mine.te > overall.te || (mine.te === overall.te && mine.label.time < overall.label.time))
         overall = mine;
@@ -977,7 +992,7 @@ export interface PolishOptions extends TailOptions {
   reach?: number;
   pairs?: boolean;
   /** As FindOptions: each prestige waits for these hours (priceLeg), and only moves that keep every
-   *  prestige inside them. */
+   *  prestige inside them; by a date, the last stop claimed inside them by the deadline (`claimAt`). */
   hours?: Availability;
   /** As FindOptions. */
   holdForHours?: boolean;
@@ -1212,7 +1227,11 @@ export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRo
   const best = byAscensions.reduce<Route | null>((a, r) => (r && (!a || r.end < a.end) ? r : a), null);
   const byDateByAscensions = found.byDateByAscensions.map((r, k) =>
     r && o.deadline !== undefined
-      ? polishFrom(r, found.dateAlternatives?.[k], c => c.end <= o.deadline! && lastTE(c) >= lastTE(r) && inHours(c))
+      ? polishFrom(
+          r,
+          found.dateAlternatives?.[k],
+          c => claimAt(c.end, o.hours) <= o.deadline! && lastTE(c) >= lastTE(r) && inHours(c)
+        )
       : r
   );
   const byDate =
