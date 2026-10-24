@@ -36,7 +36,7 @@
       <button
         v-else-if="submitUrl"
         type="button"
-        :disabled="!optIn || sending || alreadySubmitted || npBlocked"
+        :disabled="!optIn || sending || alreadySubmitted"
         class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
         @click="emit('submit')"
       >
@@ -82,13 +82,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { sendBlockedByNoPrestige } from '@/lib/npGuard';
-import type { TimeOffDates } from '@/search/timeOff';
+import { ref } from 'vue';
 import SendingText from './SendingText.vue';
 import ShareStatus from './ShareStatus.vue';
 
-const props = defineProps<{
+defineProps<{
   optIn: boolean;
   /** The collector's address; empty in a build without one. */
   submitUrl: string;
@@ -104,11 +102,7 @@ const props = defineProps<{
   retrying: boolean;
   /** The payload as it would go, pretty-printed; called only while it is shown. */
   preview: () => string;
-  /** The no-prestige days (store `noPrestige`): set, Submit result is greyed out (lib/npGuard.ts); the note is
-   *  ShareResult's, above. */
-  noPrestigeDays?: readonly TimeOffDates[];
 }>();
-const npBlocked = computed(() => sendBlockedByNoPrestige(props.noPrestigeDays));
 const emit = defineEmits<{ claim: []; submit: []; save: []; retry: [] }>();
 const showPayload = ref(false);
 </script>

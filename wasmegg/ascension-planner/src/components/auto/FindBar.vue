@@ -42,7 +42,7 @@
         <button
           type="button"
           class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-          :disabled="findDisabled || notReady || !optIn || npBlocked"
+          :disabled="findDisabled || notReady || !optIn"
           @click="emit('find', true)"
         >
           Find and submit
@@ -65,7 +65,7 @@
         <button
           type="button"
           class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-          :disabled="!hasBest || store.bestSoFarSending || store.bestSoFarWait > 0 || (asking && !optIn) || npBlocked"
+          :disabled="!hasBest || store.bestSoFarSending || store.bestSoFarWait > 0 || (asking && !optIn)"
           data-testid="send-best-so-far"
           @click="sendBestSoFar"
         >
@@ -91,8 +91,6 @@
         <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop &amp; keep best</template>
       </button>
     </div>
-    <!-- No-prestige days set: Find and submit and Send best so far are greyed out, and this says why. -->
-    <NoPrestigeSendNote v-if="showSubmit || bestSoFarHere" :days="store.noPrestige" />
     <p v-if="running && stopping" class="text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
     <p
       v-if="bestSoFarHere && store.bestSoFarStatus"
@@ -227,8 +225,6 @@ import ShareExtras from './ShareExtras.vue';
 import ConsentSummary from './ConsentSummary.vue';
 import ConsentBox from './ConsentBox.vue';
 import ShareNameChoice from './ShareNameChoice.vue';
-import NoPrestigeSendNote from './NoPrestigeSendNote.vue';
-import { sendBlockedByNoPrestige } from '@/lib/npGuard';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { stepAwayOptions } from '@/composables/useStepAway';
 
@@ -279,8 +275,6 @@ const anonymous = defineModel<boolean>('anonymous', { required: true });
 const nickname = defineModel<string>('nickname', { required: true });
 /** The run note (store `runNote`). Left unbound, the box isn't shown. */
 const note = defineModel<string>('note');
-/** No-prestige days set: nothing here sends to the board (lib/npGuard.ts). Find itself still runs. */
-const npBlocked = computed(() => sendBlockedByNoPrestige(store.noPrestige));
 /** Find waits for the save to settle; a run already going is left alone. */
 const notReady = computed(() => !props.running && !!store.saveNotReady);
 

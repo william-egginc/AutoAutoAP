@@ -314,13 +314,11 @@
         >
       </template>
       <template #aside>
-        <!-- No-prestige days set: the automatic sends are skipped (store `autoTick`, lib/npGuard.ts). -->
-        <NoPrestigeSendNote v-if="options.autoSendBest" class="pl-6" :days="store.noPrestige" />
         <span v-if="options.autoSendBest && !autoHere" class="block pl-6 text-slate-500"
           >It asks for your OK when a run starts, unless you start it with Find and submit.</span
         >
         <span
-          v-if="autoLine && !npBlocked"
+          v-if="autoLine"
           class="block pl-6 font-semibold text-slate-800"
           role="status"
           data-testid="auto-send-line"
@@ -344,8 +342,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { hashID } from '@/lib/storage/db';
 import ConsentBox from './ConsentBox.vue';
-import NoPrestigeSendNote from './NoPrestigeSendNote.vue';
-import { sendBlockedByNoPrestige } from '@/lib/npGuard';
 import { useConsent } from '@/composables/useConsent';
 import {
   agoShort,
@@ -398,8 +394,6 @@ const everyLabel = computed(() => {
 /** A run of this screen's kind is going and may send its best so far. */
 const autoHere = computed(() => store.bestSoFar?.kind === (props.kind === 'deadline' ? 'deadline' : 'fastest'));
 const autoLine = computed(() => (autoHere.value ? store.bestSoFarAutoLine : ''));
-/** No-prestige days set: nothing is sent automatically, so the schedule line gives way to the note. */
-const npBlocked = computed(() => sendBlockedByNoPrestige(store.noPrestige));
 
 // ------------------------------------------------------------------ watch from your phone
 

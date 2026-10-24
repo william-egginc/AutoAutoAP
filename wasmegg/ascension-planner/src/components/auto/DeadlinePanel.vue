@@ -919,7 +919,6 @@
           compact
           :send-label="`Send ${best.chain[best.chain.length - 1]} TE by this date`"
           :replaces-best-so-far="!!store.provisionalRows.deadline"
-          :no-prestige-days="store.noPrestige"
           v-model:opt-in="shareOptIn"
           v-model:anonymous="shareAnonymous"
           v-model:nickname="shareName"
@@ -940,7 +939,7 @@
             </p>
             <button
               type="button"
-              :disabled="sharing || store.deadlineRunning || sentKey === resultKey || sendBlockedByNoPrestige(store.noPrestige)"
+              :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
               class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
               @click="share"
             >
@@ -1167,7 +1166,6 @@ import { useUIStore } from '@/stores/ui';
 import { eggDayYearOf } from '@/lib/eggDay';
 import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
-import { sendBlockedByNoPrestige } from '@/lib/npGuard';
 import InstantRoute from './InstantRoute.vue';
 
 const props = defineProps<{
