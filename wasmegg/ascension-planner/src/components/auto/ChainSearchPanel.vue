@@ -564,6 +564,7 @@
               :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
               :last-run="lastRunLabel"
               :busy="store.busy"
+              :follow="fastFollow"
               can-fill
               can-save
               :saving="saving"
@@ -1060,6 +1061,7 @@
 <script setup lang="ts">
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import { sourceOfLevel } from '@/lib/followCloud';
+import type { ResultFollow } from '@/lib/follow';
 import { foundLevel as levelOfRun } from '@/lib/searchPointer';
 import { pricedWithLine } from '@/lib/pricedWith';
 import { offerStartTimes } from '@/lib/onVirtue';
@@ -1238,6 +1240,13 @@ const fastBetterCandidate = computed(() => {
     source: sourceOfLevel(levelOfRun({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort })),
     planStart: start,
   };
+});
+
+/** "Follow this route" on the result card (RouteResultCard.vue): the finished result for this race, its level as the
+ *  source. */
+const fastFollow = computed<ResultFollow | null>(() => {
+  const c = fastBetterCandidate.value;
+  return c ? { goalKey: `fastest-${store.finalTE}`, source: c.source, finish: c.end, endTE: c.endTE, planStart: c.planStart } : null;
 });
 
 // The slider is an index, not a tier name — `<input type="range">` only speaks numbers.

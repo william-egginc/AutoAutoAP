@@ -841,7 +841,7 @@
               </p>
               <ResultTable
                 v-if="queueResults.length"
-                :columns="['Box', 'Best found', 'Days', 'Finishes']"
+                :columns="['Box', 'Best found', 'Days', 'Finishes', '']"
                 :rows="queueResults"
                 :row-key="q => q.label"
               >
@@ -852,6 +852,20 @@
                   <td class="pr-4 py-1 font-bold">{{ q.chain.join(' ') }}</td>
                   <td class="pr-4 py-1">{{ q.days ? q.days.toFixed(3) : '—' }}</td>
                   <td class="pr-4 py-1">{{ q.finish ? saveWhen(q.finish) : '—' }}</td>
+                  <td class="pr-4 py-1">
+                    <!-- Follow this route (Jordan, 23 Oct 2026): any box's best, as the card's. -->
+                    <FollowButton
+                      v-if="rowFollow && q.finish && q.chain[q.chain.length - 1] === store.finalTE"
+                      class="min-h-[44px] sm:min-h-0"
+                      :chain="q.chain"
+                      :goal-key="rowFollow.goalKey"
+                      from="saved"
+                      :source="rowFollow.source"
+                      :finish="q.finish"
+                      :end-t-e="store.finalTE"
+                      :plan-start="rowFollow.planStart"
+                    />
+                  </td>
                 </template>
               </ResultTable>
               <p class="text-[10px] text-slate-500">
@@ -905,6 +919,7 @@
               :running="store.isRunning"
               :claim="store.stoppedEarly ? '' : resultClaim"
               :busy="store.busy"
+              :follow="customFollow"
               can-save
               :saving="saving"
               @build="buildPlan"
@@ -1190,6 +1205,10 @@ import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
 import ResultTable from './ResultTable.vue';
 import DigDeeperLink from './DigDeeperLink.vue';
+import FollowButton from '../FollowButton.vue';
+import { sourceOfLevel } from '@/lib/followCloud';
+import { foundLevel as levelOfRun } from '@/lib/searchPointer';
+import type { ResultFollow } from '@/lib/follow';
 import LongerRouteHint from './LongerRouteHint.vue';
 import ConsentBox from './ConsentBox.vue';
 import { agreeThisVisit, useConsent } from '@/composables/useConsent';
@@ -2198,6 +2217,30 @@ const lastRunLabel = computed(() => {
   return at
     ? showDateTime(at / 1000, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
     : 'from an earlier visit';
+});
+/** "Follow this route" on the result card (RouteResultCard.vue): the finished result for this race, its level as the
+ *  source (Custom for this screen's own run). */
+/** The same for a row of the boxes' results (once the queue is done): the goal, source and plan start. */
+const rowFollow = computed<Pick<ResultFollow, 'goalKey' | 'source' | 'planStart'> | null>(() =>
+  store.isRunning || queueAt.value >= 0
+    ? null
+    : {
+        goalKey: `fastest-${store.finalTE}`,
+        source: sourceOfLevel(levelOfRun({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort })),
+        planStart: store.planStartUsed || store.planStart,
+      }
+);
+const customFollow = computed<ResultFollow | null>(() => {
+  const chain = store.bestChain;
+  if (store.isRunning || !chain.length || !(store.bestDays > 0) || chain[chain.length - 1] !== store.finalTE) return null;
+  const start = store.planStartUsed || store.planStart;
+  return {
+    goalKey: `fastest-${store.finalTE}`,
+    source: sourceOfLevel(levelOfRun({ custom: store.runKindUsed === 'full', effort: store.runSettingsUsed?.effort })),
+    finish: start + store.bestDays * 86400,
+    endTE: store.finalTE,
+    planStart: start,
+  };
 });
 function saveWhen(unixSeconds: number | undefined): string {
   if (!unixSeconds) return 'an unknown time';

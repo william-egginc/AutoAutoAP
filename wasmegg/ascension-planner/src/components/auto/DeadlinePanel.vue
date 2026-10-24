@@ -746,6 +746,7 @@
           :note="quickSaveNote"
           :run-cost="result.lastTECost ?? null"
           :last-run="store.dateRunLive ? '' : inPlannerZone(Math.floor(result.at / 1000))"
+          :follow="dateFollow"
           @simulate="simulateResult"
           @csv="downloadByDateCsv"
           @save="quickSave"
@@ -863,6 +864,21 @@
           <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
           <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
           <td class="pr-4 py-1">{{ spareLabel(r.spare) }} spare</td>
+          <td class="pr-4 py-1">
+            <!-- Follow this route (Jordan, 23 Oct 2026): any stop count's best that makes the date, as the card's. -->
+            <FollowButton
+              v-if="dateRowFollow && followableAnswer(r, result.deadline)"
+              class="min-h-[44px] sm:min-h-0"
+              :chain="r.chain"
+              :goal-key="dateRowFollow.goalKey"
+              from="saved"
+              :source="dateRowFollow.source"
+              :finish="r.reachAt"
+              :end-t-e="r.chain[r.chain.length - 1]"
+              :plan-start="dateRowFollow.planStart"
+              :deadline="result.deadline"
+            />
+          </td>
         </template>
       </ResultTable>
 
@@ -1008,9 +1024,10 @@ const kept = {
 
 <script setup lang="ts">
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
+import FollowButton from '../FollowButton.vue';
 import { sourceOfLevel } from '@/lib/followCloud';
 import { foundLevel } from '@/lib/searchPointer';
-import { screenGoalKey } from '@/lib/follow';
+import { followableAnswer, screenGoalKey, type ResultFollow } from '@/lib/follow';
 import { pricedWithLine } from '@/lib/pricedWith';
 import { thisDevice } from '@/search/device';
 import {
@@ -2771,6 +2788,22 @@ const dateBetterCandidate = computed(() => {
   };
 });
 const dateFollowGoal = computed(() => (result.value ? screenGoalKey(result.value.deadline, store.finalTE) : null));
+/** "Follow this route" on the result card (ByDateRouteCard.vue): the finished result for this date, its level as the
+ *  source; only a route that makes the date (lib/follow.ts `followableAnswer`, as Saved answers). */
+/** The same for a row of "Best for each stop count": the goal, source and plan start of the finished result. */
+const dateRowFollow = computed<Pick<ResultFollow, 'goalKey' | 'source' | 'planStart'> | null>(() => {
+  const r = result.value;
+  const g = dateFollowGoal.value;
+  if (!r || !g || store.deadlineRunning) return null;
+  return { goalKey: g, source: sourceOfLevel(foundLevel({ custom: !r.simple, effort: r.level })), planStart: r.planStart ?? null };
+});
+const dateFollow = computed<ResultFollow | null>(() => {
+  const c = dateBetterCandidate.value;
+  const r = result.value;
+  const g = dateFollowGoal.value;
+  if (!c || !r || !g || !followableAnswer(best.value, r.deadline)) return null;
+  return { goalKey: g, source: c.source, finish: c.end, endTE: c.endTE, planStart: c.planStart, deadline: r.deadline };
+});
 /** The running search's best so far, for its card: the live top's first, else the progress's own. */
 const liveBest = computed(() => {
   const p = store.deadlineProgress;
