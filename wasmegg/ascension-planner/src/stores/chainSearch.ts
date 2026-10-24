@@ -1574,6 +1574,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const runEndedAt = ref(0);
   /** When the chain result on screen was found (ms): a run's end, or an opened saved run's save. */
   const chainResultAt = ref(0);
+  /** The save the shown result priced, its own time in seconds (0: not known); for the card's "ran on ... on your save of ..." line. */
+  const chainRunSaveAt = ref(0);
   /**
    * Whose that result (or the run going now) is: the partition hash of the player ID it ran for
    * (lib/accountHash.ts), '' when unknown. My runs › Your latest run shows it only on that account (16 Oct
@@ -2552,6 +2554,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     integrityLowTe.value = null;
     openedRun.value = summary;
     chainResultAt.value = summary.savedAt || 0;
+    chainRunSaveAt.value = runSaveFor(summary.inputsKey)?.backupAt ?? summary.save?.backupAt ?? 0;
     chainOwnerSeq++;
     chainResultOwner.value = owner;
     // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
@@ -6141,6 +6144,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runTEUsed = startInputs.currentTE;
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
+    chainRunSaveAt.value = backupSecondsOf(runBackupUsed);
     runSeedUsed = [];
     runCounts.value = null;
     chainsEstimated.value = chains.length;
@@ -8399,6 +8403,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runTEUsed = startInputs.currentTE;
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
+    chainRunSaveAt.value = backupSecondsOf(runBackupUsed);
     // A carry-on starts from its own run's seed, not whatever the instant answer suggests by now:
     // the replayed chains are that seed's search, and another seed is another search.
     const kept = resumeFrom?.seedChain;
@@ -9069,6 +9074,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chainRunLive,
     dateRunLive,
     chainResultAt,
+    chainRunSaveAt,
     chainResultOwner,
     stopRun,
     provisionalRows,

@@ -563,6 +563,7 @@
               :running="store.isRunning"
               :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
               :last-run="lastRunLabel"
+              :ran-line="ranLine"
               :busy="store.busy"
               :follow="fastFollow"
               can-fill
@@ -1068,6 +1069,8 @@ import { foundLevel as levelOfRun } from '@/lib/searchPointer';
 import { pricedWithLine } from '@/lib/pricedWith';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
+import { lastRunLine } from '@/lib/lastRunLine';
+import { backupSecondsOf } from '@/lib/saveFreshness';
 import { thisDevice } from '@/search/device';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { NAMES } from '@/lib/siteNav';
@@ -1385,6 +1388,21 @@ const host = typeof window !== 'undefined' ? window.location.host : 'this site';
 const tabHelp = browserHelp(detectBrowser().browser, typeof window !== 'undefined' ? window.location.host : '');
 
 // The eggs a leg lays, in order, INCLUDING the one it opens on: search/routeTimeline.ts `eggBlocks`.
+
+/** "This search ran on ..., on your save of ..., and found 307 TE." (lib/lastRunLine.ts) */
+const ranLine = computed(() =>
+  store.chainResultAt && !store.isRunning
+    ? lastRunLine({
+        level: store.runSettingsUsed?.effort ?? 'quick',
+        at: store.chainResultAt,
+        saveAt: store.chainRunSaveAt,
+        loadedSaveAt: backupSecondsOf(useInitialStateStore().rawBackup),
+        te: store.finalTE,
+        zone: autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        now: Math.floor(Date.now() / 1000),
+      })
+    : ''
+);
 
 /** The card's "Your last run · ..." when its result isn't from a run in this visit on these settings
  *  (store `chainRunLive`); '' for a live one. */

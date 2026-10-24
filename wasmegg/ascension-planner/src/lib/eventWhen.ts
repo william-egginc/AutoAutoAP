@@ -172,3 +172,18 @@ export function agoLong(seconds: number): string {
   const d = Math.floor(s / DAY);
   return `${d} days ago`;
 }
+
+/**
+ * The day and the 12-hour clock for a sentence: "Oct 23 at 6:43 pm", with the year ("Oct 23, 2027 at 6:43 pm") only
+ * when it isn't the year of `nowSeconds` in `zone`. '' when unknown.
+ */
+export function dayClockShort(at: number | null | undefined, nowSeconds: number, zone: string): string {
+  if (!at || !Number.isFinite(at)) return '';
+  try {
+    const p = partsOf(at, zone);
+    const year = partsOf(nowSeconds, zone).year === p.year ? '' : `, ${p.year}`;
+    return `${p.month} ${p.day}${year} at ${p.hour}:${p.minute} ${p.period}`;
+  } catch {
+    return '';
+  }
+}

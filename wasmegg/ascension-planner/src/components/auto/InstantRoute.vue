@@ -296,6 +296,7 @@
               {{ dateBoxOf(result.byDate).chain.length }} ascensions
             </div>
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
+            <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the instant answer's highest-TE route, which the box always shows
                  unless Prefer fewer picked another. -->
             <PrestigeByLine
@@ -453,6 +454,7 @@
           </div>
           <div class="font-mono-premium text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
+          <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the instant answer's fastest route, which the box always shows unless
                Prefer fewer picked another. -->
           <PrestigeByLine
@@ -699,7 +701,7 @@
 import { plural } from '@/lib/format';
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
-import { usableTimeOff } from '@/search/timeOff';
+import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
@@ -814,6 +816,7 @@ import {
 } from '@/search/instantSnapshot';
 import { savedAnswerFits, tablesIdentity } from '@/search/instantTables';
 import { simulateRoute } from '@/search/simulateRoute';
+import InstantSteps from './InstantSteps.vue';
 import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { followedCount } from '@/lib/ascRange';
@@ -1346,6 +1349,9 @@ const openingNote = computed(() =>
 );
 /** Playing hours that limit when a prestige can be made (not any hour): the "prestige at the time shown" note, on the
  *  Prestige by line and under each box (lib/hoursNote.ts). */
+/** What "When each step happens" (InstantSteps.vue) reads: the hours the answer was held to, the no-prestige days as windows. */
+const stepHours = computed(() => (hoursLimited.value ? store.availability : null));
+const stepDays = computed(() => timeOffWindows(usableTimeOff(store.noPrestige), zone.value));
 const hoursLimited = computed(() => hoursOn.value && isConstrained(store.availability));
 /**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
@@ -2074,6 +2080,14 @@ function dateBoxOf(fallback: Route): DatePick {
   if (preferPicked.value && dateChoice.value) return dateChoice.value.chosen.item;
   return tableDate(fallback);
 }
+/** The legs of the route the By a date box shows (the box's own route, or the one Prefer fewer chose). */
+const dateBoxLegs = computed(() => {
+  const found = result.value;
+  if (!found?.byDate) return [];
+  const want = key(dateBoxOf(found.byDate).chain);
+  const same = [found.byDate, ...dateRowsOf(found)].find(r => key(r.chain) === want);
+  return same?.legs ?? [];
+});
 /** By a date's counts row lit as the box's. */
 function dateRowLit(r: Route): boolean {
   const found = result.value;
