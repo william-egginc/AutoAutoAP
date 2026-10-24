@@ -19,8 +19,9 @@
   "Simulate it ›" (Single run). "Use the checked route ›" goes back to the planner's pick.
   INSTANT FIRST (part B, wireframes/price-route-v2 R1 and R2, 23 Oct 2026; there is no Check exactly any more): the plan
   is the instant answer's ("from the instant answer": times rounded to the hour, no calendar buttons, a "run Fast" link
-  that only opens the panel) until a Fast, Exact or Custom result for the same goal takes over (lib/searchPlan.ts: it
-  makes the date, or finishes sooner): "from your Fast run, on your account", exact times, calendar Add buttons and
+  that only opens the panel) until a Fast, Exact or Custom result for the same goal takes over (lib/searchPlan.ts: By a
+  date, it makes the date; Fastest, always, since the instant answer's finish is an estimate, math review 24 Oct
+  2026): "from your Fast run, on your account", exact times, calendar Add buttons and
   "Go back to the instant answer". A result that doesn't take over is named in one line. Recalculate is "Run Fast"
   (lib/recalc.ts): the goal's screen with Fast selected.
   FOLLOWED ROUTE SAVED ONLINE (23 Oct 2026, lib/followCloud.ts): a followed route is never replaced by a new result; a

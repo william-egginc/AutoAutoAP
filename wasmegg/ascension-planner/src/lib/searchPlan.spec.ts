@@ -86,11 +86,19 @@ describe('which plan drives Right now (lib/searchPlan.ts)', () => {
     );
   });
 
-  it('Fastest: sooner (or the same minute) replaces; later keeps the instant answer', () => {
-    const inst = { end: NOW + 475 * D };
+  it('Fastest: sooner (or the same minute) replaces; later keeps the instant answer only when both are simulated', () => {
+    // An older snapshot's Check exactly price: simulated on the account like the result.
+    const inst = { end: NOW + 475 * D, exact: true };
     expect(searchTakeover(inst, { goal: 'fastest', end: NOW + 473.8 * D, deadline: null })).toBe('sooner');
     expect(searchTakeover(inst, { goal: 'fastest', end: NOW + 475 * D + 30, deadline: null })).toBe('sooner');
     expect(searchTakeover(inst, { goal: 'fastest', end: NOW + 475 * D + 22 * 60, deadline: null })).toBe('later');
+    // The instant answer's own estimate (every snapshot since 23 Oct 2026): the simulated result drives outright.
+    const estimate = { end: NOW + 475 * D, exact: false };
+    expect(searchTakeover(estimate, { goal: 'fastest', end: NOW + 473.8 * D, deadline: null })).toBe('sooner');
+    expect(searchTakeover(estimate, { goal: 'fastest', end: NOW + 475 * D + 22 * 60, deadline: null })).toBe('simulated');
+    expect(searchTakeover({ end: NOW + 475 * D }, { goal: 'fastest', end: NOW + 476 * D, deadline: null })).toBe('simulated');
+    expect(takesOver('simulated')).toBe(true);
+    expect(keepWords('simulated', 'Fast', { end: NOW + 476 * D }, estimate, 'date')).toBe('');
     expect(searchTakeover(null, { goal: 'fastest', end: NOW, deadline: null })).toBe('no-instant');
     expect(takesOver('later')).toBe(false);
     expect(takesOver('misses-date')).toBe(false);
@@ -100,6 +108,51 @@ describe('which plan drives Right now (lib/searchPlan.ts)', () => {
     expect(replaceWords('sooner', { end: inst.end - 1.2 * D }, inst)).toBe(
       'Finishes 1.2 days sooner than the instant answer for the same goal:'
     );
+  });
+
+  // Math review 24 Oct 2026 (verified), finding 1: one account, hours 7 am to 11 pm Denver, Fastest to 490. The
+  // instant answer estimated Sep 21 2028, 2:08 am; its own route simulates to Sep 27; a Fast run seeded with it reached
+  // Sep 21, 8:22 am. The rule kept the estimate ("6.2 h later than the instant answer"): now the Fast result drives.
+  it('the verified case: an instant estimate of Sep 21, 2:08 am against a Fast result of Sep 21, 8:22 am: the Fast result drives', () => {
+    const at = (iso: string) => Date.parse(iso) / 1000;
+    const estimate = at('2028-09-21T08:08:00Z'); // Sep 21 2028, 2:08 am Denver (MDT)
+    const fastEnd = at('2028-09-21T14:22:00Z'); // Sep 21 2028, 8:22 am Denver
+    const reallySimulates = at('2028-09-27T08:08:00Z'); // the instant route at once: Sep 27, 2:08 am
+    const instantSnap: SnapLike = {
+      at: NOW * 1000,
+      answerStart: NOW,
+      result: { best: { chain: [196, 221, 241, 260, 287, 328, 359, 490], end: estimate, legs: [] }, byAscensions: [] },
+    } as unknown as SnapLike;
+    const found = fast({ chain: [196, 221, 245, 260, 287, 328, 331, 490], end: fastEnd, endTE: 490 });
+    const d = drivingPlan({ ...instantSnap, search: found }, 'fastest', null);
+    expect(d.instant?.exact).toBe(false);
+    expect(d.instant?.end).toBe(estimate);
+    expect(d.takeover).toBe('simulated');
+    expect(d.plan).toBe(d.search);
+    expect(d.plan?.chain).toEqual([196, 221, 245, 260, 287, 328, 331, 490]);
+    expect(fastEnd).toBeLessThan(reallySimulates);
+    expect(replaceWords(d.takeover!, d.search!, d.instant)).toBe(
+      "Simulated on your account with your hours, time off and dates, so it replaces the instant answer's estimate for the same goal:"
+    );
+    // Nothing says "later than the instant answer".
+    expect(keepWords(d.takeover!, 'Fast', d.search!, d.instant, 'date')).toBe('');
+  });
+
+  it('Egg Day time off (Fastest): the result carries the rebuild the estimate leaves out, and still drives', () => {
+    const estimate = NOW + 300 * D;
+    const instantSnap = {
+      at: NOW * 1000,
+      answerStart: NOW,
+      result: { best: { chain: [197, 228, 255, 490], end: estimate, legs: [] }, byAscensions: [] },
+    } as unknown as SnapLike;
+    // Time off over Egg Day: the ascension ends when it starts and is rebuilt after (search/chain.ts), 3.4 days on.
+    const withTimeOff = fast({ chain: [197, 228, 255, 490], end: estimate + 3.4 * D, endTE: 490 });
+    const d = drivingPlan({ ...instantSnap, search: withTimeOff }, 'fastest', null);
+    expect(d.takeover).toBe('simulated');
+    expect(d.plan).toBe(d.search);
+    expect(d.plan?.end).toBe(estimate + 3.4 * D);
+    // "Go back to the instant answer" still works for it.
+    expect(drivingPlan({ ...instantSnap, search: withTimeOff }, 'fastest', null, { back: withTimeOff.at }).plan?.exact).toBe(false);
   });
 
   it('"Go back to the instant answer" holds for that result only; a newer one takes over again', () => {

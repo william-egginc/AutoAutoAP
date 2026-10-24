@@ -152,25 +152,43 @@ export type Takeover =
   | 'makes-date'
   /** Fastest: it finishes sooner (or at the same minute). */
   | 'sooner'
+  /** Fastest: the instant answer's finish is only the table's estimate, so the result, simulated on the account with
+   *  the setup (hours, held shifts, time off, dates to hit), drives outright (math review 24 Oct 2026, finding 1). */
+  | 'simulated'
   /** There is no instant plan for the goal to compare with: the result drives. */
   | 'no-instant'
   /** By a date: it lands after the date. The instant answer keeps driving. */
   | 'misses-date'
-  /** Fastest: it finishes later than the instant answer. The instant answer keeps driving. */
+  /** Fastest: it finishes later than the instant answer, BOTH simulated on the account (an older snapshot's Check
+   *  exactly price). The instant answer keeps driving. */
   | 'later';
 
-/** The rule at the top. `instant` null: the goal has no instant plan. */
-export function searchTakeover(instant: Pick<NowPlan, 'end'> | null, search: Pick<NowPlan, 'goal' | 'end' | 'deadline'>): Takeover {
+/**
+ * The rule at the top. `instant` null: the goal has no instant plan.
+ *
+ * SIMULATED AGAINST AN ESTIMATE (math review 24 Oct 2026, verified, finding 1): the instant answer's finish is the
+ * table's estimate (`exact` false; every snapshot since Check exactly went, 23 Oct 2026). It leaves out time off and
+ * dates to hit, and with hours on it is optimistic by days: on one account (hours 7 am to 11 pm) it said Sep 21, 2:08
+ * am while its own route simulates to Sep 27, and a Fast run seeded with it reached Sep 21, 8:22 am. So a finished
+ * Fast, Exact or Custom result for the same goal, save and setup drives Fastest outright ('simulated'), and "later
+ * than the instant answer" is said only when both finishes are simulated ('later'). Sooner than even the estimate
+ * stays 'sooner'. By a date is unchanged: one that makes the date drives, one that lands after it doesn't count.
+ */
+export function searchTakeover(
+  instant: (Pick<NowPlan, 'end'> & Partial<Pick<NowPlan, 'exact'>>) | null,
+  search: Pick<NowPlan, 'goal' | 'end' | 'deadline'>
+): Takeover {
   if (search.goal === 'date') {
     if (search.deadline != null && !finishesBefore(search.end, search.deadline)) return 'misses-date';
     return instant ? 'makes-date' : 'no-instant';
   }
   if (!instant) return 'no-instant';
-  return search.end <= instant.end + 60 ? 'sooner' : 'later';
+  if (search.end <= instant.end + 60) return 'sooner';
+  return instant.exact ? 'later' : 'simulated';
 }
 
 /** Whether that reason means the result drives Right now. */
-export const takesOver = (t: Takeover): boolean => t === 'makes-date' || t === 'sooner' || t === 'no-instant';
+export const takesOver = (t: Takeover): boolean => t === 'makes-date' || t === 'sooner' || t === 'simulated' || t === 'no-instant';
 
 /** "1.2 days", "22 min", "5 h" (a gap between two finishes). */
 export function gapWords(seconds: number): string {
@@ -195,6 +213,8 @@ export function sourcePill(level: FoundLevel | null): string {
  */
 export function replaceWords(t: Takeover, search: Pick<NowPlan, 'end'>, instant: Pick<NowPlan, 'end'> | null): string {
   if (t === 'makes-date') return 'Makes the date on your account, so it replaces the instant answer for the same goal:';
+  if (t === 'simulated')
+    return "Simulated on your account with your hours, time off and dates, so it replaces the instant answer's estimate for the same goal:";
   if (t === 'sooner' && instant) {
     const gap = instant.end - search.end;
     return gap < 60
@@ -488,6 +508,35 @@ function sameTail(a: readonly number[], b: readonly number[]): boolean {
 export const mayPrompt = (candidate: FollowPrompt['source'], followedPriced: boolean): boolean =>
   candidate !== 'instant' || !followedPriced;
 
+/**
+ * A PRICED RESULT OVER AN INSTANT FOLLOW (math review 24 Oct 2026, finding 1): a Fast, Exact or Custom result asks about
+ * a route followed from the instant answer that has no simulated price on the account (not `priced`) WITHOUT the
+ * `betterThanFollowed` comparison: that would set a simulated finish against the table's optimistic estimate. (An
+ * instant answer still never asks about a priced follow, `mayPrompt`.)
+ */
+export function simulatedOverEstimate(
+  candidate: FollowPrompt['source'],
+  followed: { priced?: boolean; source?: string | null }
+): boolean {
+  return candidate !== 'instant' && followed.source === 'instant' && !followed.priced;
+}
+
+/** "Your Fast run, simulated on your account, finishes Oct 30 at 4:00 pm; the route you follow is the instant answer's
+ *  estimate (Oct 29 at 9:00 am). Do you want to follow it?": no "better", the two aren't priced alike. */
+export function simulatedRouteWords(
+  goal: 'fastest' | 'date',
+  deadline: number | null,
+  candidate: RouteFinish & { source: FollowPrompt['source'] },
+  followed: RouteFinish | null,
+  when: (t: number) => string
+): string {
+  const level = candidate.source[0].toUpperCase() + candidate.source.slice(1);
+  const a = finishWords(goal, deadline, candidate, when);
+  const verb = goal === 'fastest' || deadline == null ? 'finishes' : 'gets';
+  const b = followed && Number.isFinite(followed.end) ? ` (${finishWords(goal, deadline, followed, when)})` : '';
+  return `Your ${level} run, simulated on your account, ${verb} ${a}; the route you follow is the instant answer's estimate${b}. Do you want to follow it?`;
+}
+
 /** A newer, better result for a goal with a followed route: what the prompt shows and what "Follow it" follows. */
 export interface FollowPrompt {
   id: string;
@@ -508,8 +557,9 @@ export function followPrompt(o: {
   goalKey: string;
   goal: 'fastest' | 'date';
   deadline: number | null;
-  /** `priced`: the followed route has a priced result on the account (`followIsPriced`): an instant answer never asks. */
-  followed: { chain: readonly number[]; at: number; finish: RouteFinish | null; priced?: boolean } | null;
+  /** `priced`: the followed route has a priced result on the account (`followIsPriced`): an instant answer never asks.
+   *  `source`: where it came from (lib/followCloud.ts FollowSource). */
+  followed: { chain: readonly number[]; at: number; finish: RouteFinish | null; priced?: boolean; source?: string | null } | null;
   candidate: RouteFinish & { chain: readonly number[]; at: number; source: FollowPrompt['source']; planStart?: number | null };
   keptMine: readonly string[];
   when: (t: number) => string;
@@ -520,12 +570,17 @@ export function followPrompt(o: {
   if (c.chain.length === f.chain.length && c.chain.every((x, i) => x === f.chain[i])) return null;
   if (!mayPrompt(c.source, !!f.priced)) return null;
   if (!(c.at > f.at)) return null;
-  if (!betterThanFollowed(o.goal, o.deadline, c, f.finish)) return null;
+  const overEstimate = simulatedOverEstimate(c.source, f);
+  if (!overEstimate && !betterThanFollowed(o.goal, o.deadline, c, f.finish)) return null;
+  // By a date: a route that lands after the date never counts (lib/eggDayRule.ts), estimate or not.
+  if (overEstimate && o.goal === 'date' && o.deadline != null && !finishesBefore(c.end, o.deadline)) return null;
   const id = resultId(o.goalKey, c.source, c.chain, c.end);
   if (o.keptMine.includes(id)) return null;
   return {
     id,
-    words: betterRouteWords(o.goal, o.deadline, c, f.finish!, o.when),
+    words: overEstimate
+      ? simulatedRouteWords(o.goal, o.deadline, c, f.finish, o.when)
+      : betterRouteWords(o.goal, o.deadline, c, f.finish!, o.when),
     chain: [...c.chain],
     source: c.source,
     end: c.end,

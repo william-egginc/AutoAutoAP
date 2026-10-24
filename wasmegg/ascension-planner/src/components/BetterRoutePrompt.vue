@@ -6,7 +6,9 @@
   (the instant card, Fastest's and By a date's search results). Nothing shows without a followed route. An instant
   answer never asks about a PRICED follow (lib/searchPlan.ts `followIsPriced`, Jordan 23 Oct 2026): one from a Fast,
   Exact or Custom result, the route of such a result for this account and goal (kept, or in the search store now), or
-  one Right now priced from a result (`followedPriced`).
+  one Right now priced from a result (`followedPriced`). A Fast, Exact or Custom result asks about an unpriced route
+  followed from the instant answer without comparing finishes (lib/searchPlan.ts `simulatedOverEstimate`: simulated
+  against the table's estimate, math review 24 Oct 2026).
 -->
 <template>
   <div
@@ -45,6 +47,7 @@ import { useFollowStore } from '@/stores/follow';
 import { followIsPriced, followPrompt, keepMine, readKeptMine, readKeptSearches, type FollowPrompt, type RouteFinish } from '@/lib/searchPlan';
 import { dateAt } from '@/lib/eventWhen';
 import { useInitialStateStore } from '@/stores/initialState';
+import { sourceOfFrom } from '@/lib/followCloud';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { accountOf } from '@/search/runSaves';
 import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
@@ -117,9 +120,12 @@ const prompt = computed<FollowPrompt | null>(() => {
   if (!follows || !props.goalKey || !props.candidate) return null;
   const f = follows.followed(props.goalKey);
   if (!f) return null;
+  const source = f.source ?? sourceOfFrom(f.from);
+  // Read for an instant candidate (it never asks about a priced follow) and for a result against an instant-sourced
+  // follow (it asks without comparing, unless that route has a simulated price: lib/searchPlan.ts simulatedOverEstimate).
   const priced =
-    props.candidate.source === 'instant' &&
-    followIsPriced({ source: f.source, chain: f.chain, pricedByResult: !!props.followedPriced, results: resultRoutes() });
+    (props.candidate.source === 'instant' || source === 'instant') &&
+    followIsPriced({ source, chain: f.chain, pricedByResult: !!props.followedPriced, results: resultRoutes() });
   const finish =
     props.followedFinish ??
     (typeof f.finish === 'number' ? { end: f.finish, endTE: f.endTE ?? f.chain[f.chain.length - 1] ?? 0 } : null);
@@ -128,7 +134,7 @@ const prompt = computed<FollowPrompt | null>(() => {
     goalKey: props.goalKey,
     goal: props.goal,
     deadline: props.deadline,
-    followed: { chain: f.chain, at: f.at, finish, priced },
+    followed: { chain: f.chain, at: f.at, finish, priced, source },
     candidate: props.candidate,
     keptMine: kept.value,
     when: t => dateAt(t, nowSec, zone.value),

@@ -181,8 +181,11 @@ describe('Right now: a better result with and without a followed route', () => {
     expect(text).toContain(`(Egg Day ${nextEggDayYear()} · from the instant answer)`);
     expect(text).toContain('From the instant answer · Use the checked route ›');
     expect(text).not.toContain('your pick');
-    // Followed once already: the better Fast result is offered, never followed on its own.
-    expect(text).toContain("This is a better route than the one you're following");
+    // Followed once already: the Fast result is offered, never followed on its own. Simulated against the instant
+    // answer's estimate, so offered without calling it better (lib/searchPlan.ts simulatedOverEstimate).
+    expect(text).toContain(
+      "Your Fast run, simulated on your account, gets 239 TE, 2.5 days to spare; the route you follow is the instant answer's estimate (238 TE, 2.0 days to spare). Do you want to follow it?"
+    );
     await new Promise(r => setTimeout(r, 20));
     expect(follows.followed(goalKey)?.chain).toEqual([200, 238]);
     scope.stop();
