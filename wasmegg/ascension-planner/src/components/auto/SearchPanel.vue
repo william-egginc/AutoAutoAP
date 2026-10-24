@@ -154,7 +154,7 @@ const here = (l: StrongerLevel): string => {
   return s ? `${s} here` : '';
 };
 const options = computed(() => [
-  { id: 'fast' as const, label: 'Fast', time: here('quick'), purpose: 'most likely best' },
+  { id: 'fast' as const, label: 'Fast', time: here('quick'), purpose: 'usually close to the best' },
   {
     id: 'exact' as const,
     label: 'Exact',

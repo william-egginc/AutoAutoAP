@@ -227,9 +227,10 @@ describe('a finished saved run (12 Oct)', () => {
 });
 
 describe('what each option is for, on its button (15 Oct; kept on Fast / Exact / Custom, 22 Oct)', () => {
-  it('Fast most likely best, Exact a second opinion, Custom to prove it in your boxes, on both screens', () => {
+  it('Fast usually close to the best (not "most likely best": effort.ts says occasionally days off), Exact a second opinion, Custom to prove it in your boxes, on both screens', () => {
     const t = fs.readFileSync(path.join(__dirname, 'SearchPanel.vue'), 'utf8');
-    expect(t).toContain("purpose: 'most likely best'");
+    expect(t).toContain("purpose: 'usually close to the best'");
+    expect(t).not.toContain('most likely best');
     expect(t).toContain("purpose: 'a second opinion'");
     expect(t).toContain("purpose: 'to prove it in your boxes'");
     expect(fs.readFileSync(path.join(__dirname, 'StrongerBox.vue'), 'utf8')).toContain("if you're curious");

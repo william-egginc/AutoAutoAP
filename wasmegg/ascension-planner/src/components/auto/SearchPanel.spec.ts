@@ -147,7 +147,7 @@ describe('the card', () => {
       /^Stronger check How it works › Checks the instant answer harder, with the full simulator on your save\. Pick how hard to look; your choice is remembered\. Fast/
     );
     expect(t).toContain(
-      "Fast ~18 min here most likely best Exact ~1.7 h here a second opinion Custom you set the boxes to prove it in your boxes"
+      "Fast ~18 min here usually close to the best Exact ~1.7 h here a second opinion Custom you set the boxes to prove it in your boxes"
     );
     expect(t).toContain('NEARBY BODY');
     expect(t).toContain('CUSTOM BODY');
