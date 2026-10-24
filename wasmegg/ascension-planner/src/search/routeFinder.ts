@@ -120,6 +120,21 @@ function sweepOne(
     : sweepTails(b, top, lateBy, lowest);
 }
 
+/** Every checkpoint's tail from one build, priced as the finder prices it (`sweepOne`): with `holdShifts` and
+ *  `hours`, each shift waits for the player's hours (a version 2 build's held replay). For Prestige by's estimate
+ *  (prestigeBy.ts `highestByDeadline`), so it is priced like the answer. */
+export function sweepLeg(
+  b: BuildWithExtras,
+  top: number,
+  lateBy: number,
+  lowest: number,
+  start: number,
+  hours: Availability | undefined,
+  o: TailOptions
+): TailSweep {
+  return sweepOne(b, top, lateBy, lowest, start, o.holdShifts ? holdUntilFor(hours) : undefined, o);
+}
+
 /** The egg a swept tail ends on (EGG_ORDER): the replay says; else the last whose count its waits raised. */
 function endEggOf(sweep: TailSweep, build: BuildParams, i: number, end: number[]): number {
   const r = sweep as Partial<ReplaySweep>;
@@ -299,7 +314,10 @@ export function priceLeg(
   /** A prestige outside these hours waits for the next hour inside them (expandArrivals). */
   hours?: Availability,
   /** How the tail is priced (`TailOptions`; `holdShifts` needs `hours`). */
-  tail: TailOptions = {}
+  tail: TailOptions = {},
+  /** The hours the tail's shifts wait for with `holdShifts` (default `hours`). A fresh first ascension's prestige is
+   *  the player's own and does not wait, but its shifts are held as findRoutes holds them (`priceChain`). */
+  shiftHours: Availability | undefined = hours
 ): {
   start: number;
   end: number;
@@ -320,7 +338,7 @@ export function priceLeg(
   if (raw?.length) options.push({ start: at, lateBy: 0, builds: raw });
   const late = at !== base ? startInSale(table, te, base) : null;
   if (late) options.push({ start: base, ...late });
-  const holdUntil = tail.holdShifts ? holdUntilFor(hours) : undefined;
+  const holdUntil = tail.holdShifts ? holdUntilFor(shiftHours) : undefined;
   let best: ReturnType<typeof priceLeg> = null;
   for (const o of options) {
     const moved = scaled(o.builds, deliveryScale).map(b => rebase(b, te, delivered));
@@ -1044,7 +1062,10 @@ export function priceChain(
     // While this prestige waits for the player the farm lays on (`creditWaits`), as findRoutes has it.
     if (hours && o.creditWaits !== false) ({ te, delivered: eggs } = creditWait(te, t, eggs, egg, rate, hours));
     if (target <= te) return (remember(i, false), null);
-    const p = priceLeg(table, te, t, eggs, target, scale, hours, tailOptionsOf(o));
+    // Shifts are held with the hours on every leg, the fresh first one too (findRoutes' settings carry the hours
+    // from the start); only the prestige of a fresh first ascension does not wait for them.
+    const shiftHours = o.holdForHours !== false ? o.hours : undefined;
+    const p = priceLeg(table, te, t, eggs, target, scale, hours, tailOptionsOf(o), shiftHours);
     if (!p) return (remember(i, false), null);
     legs.push({
       from: te,

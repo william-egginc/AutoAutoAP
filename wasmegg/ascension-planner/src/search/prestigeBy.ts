@@ -30,17 +30,21 @@
  */
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { isAvailable, nextAvailable, type Availability } from './availability';
-import { pacificHourOfWeek, rebase, sweepTails, type BuildParams } from './precomputedLeg';
+import { pacificHourOfWeek, rebase, type BuildParams } from './precomputedLeg';
 import {
+  creditWait,
   nextHour,
   priceChain,
   startInSale,
+  sweepLeg,
+  tailOptionsOf,
   type BuildLookup,
   type FirstLeg,
   type FoundRoutes,
   type PolishOptions,
   type PricedPrefix,
   type Route,
+  type TailOptions,
 } from './routeFinder';
 
 export type PrestigeMode = 'date' | 'fastest';
@@ -177,6 +181,9 @@ export interface EstimateRequest {
   /** "Works inside my hours": each prestige after this one waits for these hours, as the finder
    *  holds it (routeFinder.ts FindOptions `hours`). This one is the player's, at the hour tried. */
   playHours?: Availability;
+  /** How each leg's tail is priced, as the answer's (InstantRoute.vue `instantTail`: the simulator's order, and with
+   *  "hold each shift" every shift waiting for `playHours`). Left out: the simulator's order, shifts not held. */
+  tail?: TailOptions;
 }
 
 /** Where a prestige `h` hours late starts: the time, the TE and the eggs. */
@@ -192,7 +199,8 @@ export function startStateAt(
 /**
  * The last ascension from (te, t, eggs) to the highest TE it reaches by the deadline, priced as the
  * finder prices one (on the next whole hour, or late from its own hour inside the sale): one sweep of
- * every checkpoint up to `top` per build.
+ * every checkpoint up to `top` per build, held as the finder holds it (`sweepLeg`: with `holdShifts`
+ * each shift waits for `shiftHours`, in the simulator's order; the math review, 24 Oct 2026, finding 4).
  */
 function highestByDeadline(
   table: BuildLookup,
@@ -203,7 +211,11 @@ function highestByDeadline(
   top: number,
   scale: number,
   /** The player's hours, when this ascension starts with a prestige that waits for them. */
-  hours?: Availability
+  hours?: Availability,
+  /** How the tail is priced (the request's `tail`). */
+  tail: TailOptions = {},
+  /** The player's hours its shifts wait for with `holdShifts` (also when the prestige is the player's own). */
+  shiftHours?: Availability
 ): Outcome | null {
   const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
   const at = hours ? nextHour(nextAvailable(nextHour(t), hours)) : nextHour(t);
@@ -215,7 +227,7 @@ function highestByDeadline(
   for (const o of options)
     for (const b of o.builds) {
       const moved = rebase(scale === 1 ? b : { ...b, peakELR: b.peakELR * scale }, te, eggs);
-      const sw = sweepTails(moved, top, o.lateBy, te + 1);
+      const sw = sweepLeg(moved, top, o.lateBy, te + 1, o.start, shiftHours, tail);
       for (let i = sw.seconds.length - 1; i >= 0; i--) {
         const s = sw.seconds[i];
         if (Number.isNaN(s)) continue;
@@ -243,6 +255,8 @@ export function estimateAt(table: BuildLookup, req: EstimateRequest, h: number):
     startDelivered: s.delivered,
     deliveryScale: req.deliveryScale,
     ...(req.playHours ? { hours: req.playHours } : {}),
+    // Held as the answer is (InstantRoute.vue passes `instantTail`), not on the unheld table alone.
+    ...tailOptionsOf(req.tail ?? {}),
   };
   const memo = new Map<string, PricedPrefix | null>();
   const chains = dedupe(req.candidates.map(c => c.filter(x => x > s.startTE)));
@@ -273,10 +287,26 @@ export function estimateAt(table: BuildLookup, req: EstimateRequest, h: number):
         const m = memo.get(k);
         if (!m) continue;
         at = { t: m.t, te: m.te, eggs: m.eggs };
+        // While that prestige waits for the player the farm lays on (`creditWaits`), as priceChain and the finder have it.
+        if (req.playHours && o.creditWaits !== false) {
+          const c = creditWait(at.te, at.t, at.eggs, m.egg, m.rate, req.playHours);
+          at = { t: at.t, te: c.te, eggs: c.delivered };
+        }
       }
       // The last ascension starts with a prestige that waits for the hours, unless it is the player's.
       const hold = prefix.length ? req.playHours : undefined;
-      const last = highestByDeadline(table, at.te, at.t, at.eggs, deadline, req.final, req.deliveryScale, hold);
+      const last = highestByDeadline(
+        table,
+        at.te,
+        at.t,
+        at.eggs,
+        deadline,
+        req.final,
+        req.deliveryScale,
+        hold,
+        o,
+        req.playHours
+      );
       best = better('date', best, last)!;
     }
   return best;

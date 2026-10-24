@@ -1062,6 +1062,8 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     candidates: plan.candidates,
     hours: HORIZON_HOURS,
     ...(hours ? { playHours: hours } : {}),
+    // Held as the answer and the lookups below are (`instantTail`), so the estimate and the lookups price alike.
+    tail: instantTail(hours, store.deferShifts),
   };
   const stale = () => pid !== prestigeRuns;
   const t0 = performance.now();
