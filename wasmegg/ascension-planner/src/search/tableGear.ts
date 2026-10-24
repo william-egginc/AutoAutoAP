@@ -189,6 +189,38 @@ export async function gearTableNames(stamp: TableGear): Promise<string[]> {
 }
 
 /**
+ * VERSION 2 NAMES (24 Oct 2026, the same reason as the maxed table's `table-v2.bin`, tableBracket.ts
+ * MAXED_TABLE_FILE): pages from before instant answer v2 read `acct-<hex>.bin` and `gear-<hex>.bin` with a loader
+ * that refuses version 2 ("precomputed table version 2 is not supported"), so an own or gear table of version 2
+ * deployed under the plain name blanked that account's instant answer in every open older tab. A version 2 own or
+ * gear table goes under `acct-<hex>.v2.bin` / `gear-<hex>.v2.bin` (and `.v2.bin.gz`); version 1 keeps the plain
+ * name, which older pages go on reading. This page tries the `.v2` name first and the plain one only after it
+ * misses; it reads either version under either name, and one it can't read is no table, quietly.
+ */
+export function v2TableName(name: string): string {
+  return name.replace(/(?<!\.v2)\.bin$/, '.v2.bin');
+}
+
+/** The `.v2` name's plain one (`acct-<hex>.v2.bin` -> `acct-<hex>.bin`); any other name as it is. */
+export function plainTableName(name: string): string {
+  return name.replace(/\.v2\.bin$/, '.bin');
+}
+
+/** The file names a player's own table is looked up under, in order: the `.v2` name, then the plain one. */
+export async function ownTableNames(playerId: string): Promise<string[]> {
+  const name = await tableName(playerId);
+  return [v2TableName(name), name];
+}
+
+/** The file names a player's gear table is looked up under, in order: every `gearTableNames` name's `.v2` first
+ *  (v3, v2 canonical, legacy), then the plain ones in the same order. A version 2 file is always the newer, so
+ *  no plain file is taken while one of them is there. */
+export async function gearTableFiles(stamp: TableGear): Promise<string[]> {
+  const names = await gearTableNames(stamp);
+  return [...names.map(v2TableName), ...names];
+}
+
+/**
  * A set as what it does: its artifacts and its stones, each as a sorted list. An artifact's effect and
  * a stone's effect are each a factor of their own, whichever artifact the stone sits in
  * (src/lib/artifacts/calculator.ts multiplies every effect in), so the same artifacts with the same

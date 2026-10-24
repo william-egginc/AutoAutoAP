@@ -49,6 +49,23 @@ export async function probeHeader<T>(load: () => Promise<T>): Promise<T | null> 
   }
 }
 
+/**
+ * The first of `urls` that has a header (`probeHeader` on each in turn, one after another): a player's own table
+ * under its `.v2` name, then the plain one (tableGear.ts ownTableNames). The plain name is asked for only after the
+ * `.v2` one misses. A file this page can't read (a newer version) is no table, as a missing one: nothing shown. Null
+ * when none; a stall is thrown on, so no later name waits another 30 s.
+ */
+export async function probeFirst<T>(
+  urls: readonly string[],
+  load: (url: string) => Promise<T>
+): Promise<{ url: string; header: T } | null> {
+  for (const url of urls) {
+    const header = await probeHeader(() => load(url));
+    if (header) return { url, header };
+  }
+  return null;
+}
+
 /** One file's bytes, or an error when the server has none (the preview server answers a missing file
  *  with the app's own page, status 200), or when no byte arrives for `stallMs`. Revalidated, not taken
  *  from cache: a table can be replaced while the site is up. */
