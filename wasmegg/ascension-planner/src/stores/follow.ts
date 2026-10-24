@@ -52,6 +52,7 @@ import {
 } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
 import { AUTO_FOLLOW_FIRST, type AutoFollow } from '@/lib/followPolicy';
+import { noteMyRuns } from '@/lib/myRunsShown';
 import { OWN_BUILD_TIME } from '@/composables/useNewVersion';
 import type { GoalKey } from '@/lib/planGoals';
 import type { FollowPrompt } from '@/lib/searchPlan';
@@ -87,6 +88,8 @@ export const useFollowStore = defineStore('follow', () => {
   /** 'unreachable': the saved routes couldn't be read on the last load (offline, the hour's limit, an error). */
   const cloudStatus = ref<'idle' | 'loading' | 'ok' | 'unreachable'>('idle');
   const saves = ref<Record<GoalKey, SaveState>>({});
+  // A follow (or one read back from online) is something My runs shows: the tab looks again (lib/myRunsShown.ts).
+  watch(version, () => noteMyRuns());
 
   const idOf = () => ((useInitialStateStore().rawBackup as { eiUserId?: string } | null)?.eiUserId ?? '').trim();
   /** The chain-search store once the page has made it (the app always does; it is never made here only for this,

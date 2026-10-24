@@ -770,6 +770,7 @@ import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useFollowStore } from '@/stores/follow';
 import { instantAutoFollowOf } from '@/lib/followPolicy';
+import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
@@ -2173,7 +2174,7 @@ function saveSnapshot(id: number): void {
   if (backgroundStatus.value === 'running' || bracketStatus.value === 'running') return;
   if (prestigeStatus.value === 'running') return;
   const snap = currentSnapshot();
-  if (snap) writeSnapshot(snapKey, snap);
+  if (snap && writeSnapshot(snapKey, snap)) noteMyRuns();
   // The player's instant baseline for this goal and save (lib/instantBaseline.ts): My runs compares each run with it.
   const base = snap ? baselineOfSnapshot(snap) : null;
   if (base) recordBaseline(base);
@@ -2404,7 +2405,8 @@ const searchFound = computed<SearchFound | null>(() =>
 watch(searchFound, f => {
   if (!f) return;
   const meta = snapMeta();
-  if (meta) recordKeptSearch({ account: meta.account, goal: meta.goal, backupTime: meta.backupTime, setup: meta.setup, teByEgg: meta.teByEgg, search: f });
+  if (meta && recordKeptSearch({ account: meta.account, goal: meta.goal, backupTime: meta.backupTime, setup: meta.setup, teByEgg: meta.teByEgg, search: f }))
+    noteMyRuns();
   if (status.value !== 'done' || !snapKey) return;
   if (keptSearch.value && keptSearch.value.at >= f.at) return;
   keptSearch.value = f;

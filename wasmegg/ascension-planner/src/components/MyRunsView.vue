@@ -310,6 +310,7 @@ import { useFollowStore } from '@/stores/follow';
 import { simulateRoute } from '@/search/simulateRoute';
 import type { RecalcRequest } from '@/lib/recalc';
 import { saveTEOf } from '@/lib/saveFreshness';
+import { markMyRunsSeen } from '@/composables/useMyRunsShown';
 import DashboardCards from './myruns/DashboardCards.vue';
 import DashboardGaps from './myruns/DashboardGaps.vue';
 import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
@@ -324,7 +325,7 @@ import SavedAnswers from './auto/SavedAnswers.vue';
 import UnsentResults from './auto/UnsentResults.vue';
 import LatestRunView from './auto/LatestRunView.vue';
 
-withDefaults(defineProps<{ playerId: string; loading?: boolean }>(), { loading: false });
+const props = withDefaults(defineProps<{ playerId: string; loading?: boolean }>(), { loading: false });
 const emit = defineEmits<{
   use: [chain: number[]];
   /** A saved run or answer was opened (the Auto Planner screen it is on), or a Next step's screen, set up. */
@@ -394,6 +395,11 @@ const boardCountText = computed(() => {
   return boardCount.value ? ` (${boardCount.value} · couldn't read the rest)` : " · couldn't read the leaderboard";
 });
 
+// A run of the account's on the board: remembered, so the tab stays for the next visit (lib/myRunsShown.ts; the board is
+// only read here, never to decide whether the tab shows).
+watch(boardCount, n => {
+  if (n) void markMyRunsSeen(props.playerId);
+});
 /** The viewer's board rows, null until the board's first load is in; every public row, for where you stand. */
 const boardRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);

@@ -36,4 +36,9 @@ describe('the instant answer becomes the follow', () => {
     expect(template.match(/<FollowButton v-if="boxFollowable" primary/g) ?? []).toHaveLength(1);
     expect(template.match(/<BetterRoutePrompt/g) ?? []).toHaveLength(2);
   });
+
+  it('an answer saved or a result kept tells My runs to look again (lib/myRunsShown.ts)', () => {
+    expect(script).toContain('if (snap && writeSnapshot(snapKey, snap)) noteMyRuns();');
+    expect(script).toMatch(/if \(meta && recordKeptSearch\([^\n]+\)\)\n\s+noteMyRuns\(\);/);
+  });
 });

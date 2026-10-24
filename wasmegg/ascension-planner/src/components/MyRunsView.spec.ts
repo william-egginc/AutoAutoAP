@@ -187,14 +187,15 @@ describe('Compare without My plans', () => {
 describe('the My runs tab', () => {
   const app = read('../App.vue');
 
-  it('sits after Leaderboard and before Science, always (collector or not; 21 Oct 2026), and opens MyRunsView', () => {
+  it('sits after Leaderboard and before Science (collector or not), shown once there is something on it (24 Oct 2026), and opens MyRunsView', () => {
     const tabs = app.slice(app.indexOf('const topTabs = computed'), app.indexOf('/** "Fastest to 490 TE"'));
     const ids = [...tabs.matchAll(/id: '(\w+)' as const/g)].map(m => m[1]);
     expect(ids).toEqual(['manual', 'auto', 'compare', 'myruns', 'science']);
-    // Leaderboard and Science each behind their own switch; My runs behind none.
+    // Leaderboard and Science each behind their own switch; My runs behind what the account has (lib/myRunsShown.ts),
+    // never behind the collector.
     expect(tabs).not.toContain('submitUrl');
     const my = tabs.slice(tabs.indexOf("id: 'compare'"), tabs.indexOf("id: 'science'"));
-    expect(my.slice(my.indexOf(': []),'), my.indexOf("id: 'myruns'"))).not.toMatch(/\?\s*\[/);
+    expect(my.slice(my.indexOf(': []),'), my.indexOf("id: 'myruns'"))).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[/);
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'"');
     expect(app).toMatch(
       /<MyRunsView\s+:player-id="playerId"\s+:loading="loading"\s+@use="useLeaderboardChain"\s+@open="openFromMyRuns"\s+@fresh="loadFreshSave"\s+@recalc="recalcFromMyRuns"\s+\/>/
@@ -215,8 +216,9 @@ describe('the My runs tab', () => {
     expect(nav).toContain('data-testid="auto-tab-myruns"');
     expect(nav).toContain("@click=\"selectSection('myruns')\"");
     expect(nav).toContain('{{ NAMES.myRuns }}');
-    // Always, like the top tab; four tabs make two rows of two on a phone.
+    // With the top tab (myRunsTabShown); four tabs make two rows of two on a phone.
     expect(nav).not.toContain('submitUrl');
+    expect(nav).toMatch(/v-if="myRunsTabShown"\s+type="button"\s+class="[^"]*"\s+data-testid="auto-tab-myruns"/);
     expect(app).toContain('class="grid grid-cols-2 w-full sm:flex');
   });
 });
