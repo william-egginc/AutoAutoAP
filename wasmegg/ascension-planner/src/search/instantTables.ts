@@ -15,6 +15,13 @@
 import { snapshotUsable } from './instantSnapshot';
 import type { TableEntry } from './tableBracket';
 
+/**
+ * The rules the instant answer is worked out by, beyond the tables: bump when a change moves answers made from the
+ * same tables (24 Oct 2026: the held opening waits for the player's hours and By a date counts a TE only once it can
+ * be claimed, spec-heldfix), so answers saved under the old rules are worked out again once.
+ */
+export const INSTANT_RULES = '2026-10-24-heldfix';
+
 /** One file as tables.json lists it: what changes when the file is rebuilt, restamped or replaced. */
 export function entryIdentity(e: TableEntry): string {
   return [e.file, e.simVersion ?? '', e.builtAt ?? '', e.from, e.bonus, e.k].join(',');
@@ -28,12 +35,13 @@ export function entryIdentity(e: TableEntry): string {
  */
 export function tablesIdentity(entries: readonly TableEntry[] | null, names: readonly string[]): string | null {
   if (!entries) return null;
-  return [...new Set(names)]
-    .map(n => {
+  return [
+    `rules=${INSTANT_RULES}`,
+    ...[...new Set(names)].map(n => {
       const e = entries.find(x => x.file === n || x.aliases?.includes(n));
       return `${n}=${e ? entryIdentity(e) : '-'}`;
-    })
-    .join('|');
+    }),
+  ].join('|');
 }
 
 /** A saved answer, as far as this check reads it. */

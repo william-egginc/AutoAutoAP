@@ -85,7 +85,10 @@ describe("Prestige by's estimate with the hours held (math review, 24 Oct 2026)"
         { start, holdUntil, order: 'simulator' }
       );
       const req = request(c, start, target, 'fastest');
-      const held = estimateAt(table, { ...req, tail: instantTail(HOURS, true) }, 0);
+      // The held replay alone: no wait for a start where the opening fits (routeFinder.ts `heldOpeningStart`), which
+      // would look up another hour's cell than the fixture's one.
+      const tail = { ...instantTail(HOURS, true), heldOpening: false };
+      const held = estimateAt(table, { ...req, tail }, 0);
       if (!want) {
         expect(held.end).toBeNull();
         continue;
@@ -100,7 +103,7 @@ describe("Prestige by's estimate with the hours held (math review, 24 Oct 2026)"
         final: target,
         maxAscensions: 1,
         hours: HOURS,
-        ...instantTail(HOURS, true),
+        ...tail,
       });
       expect(held.end).toBe(f.best!.end);
       // Without the request's tail the shifts are not held (as before this fix).
@@ -122,7 +125,7 @@ describe("Prestige by's estimate with the hours held (math review, 24 Oct 2026)"
       );
       if (!want) continue;
       const deadline = start + want.seconds;
-      const tail = instantTail(HOURS, true);
+      const tail = { ...instantTail(HOURS, true), heldOpening: false };
       const held = estimateAt(table, { ...request(c, start, target, 'date', deadline), tail }, 0);
       expect(held).toEqual({ te: target, end: deadline });
       // A second sooner and the held answer no longer reaches the target.
@@ -139,6 +142,6 @@ describe('the instant answer asks for the estimate held', () => {
     const src = readFileSync(fileURLToPath(new URL('../components/auto/InstantRoute.vue', import.meta.url)), 'utf8');
     const req = src.slice(src.indexOf('const req = {'), src.indexOf('const stale = () => pid !== prestigeRuns;'));
     expect(req).toContain('...(hours ? { playHours: hours } : {}),');
-    expect(req).toContain('tail: instantTail(hours, store.deferShifts),');
+    expect(req).toContain('tail: instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g),');
   });
 });

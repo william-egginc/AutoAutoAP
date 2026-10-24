@@ -61,7 +61,12 @@ describe('priceLeg with the player\'s hours held (instant answer v2)', () => {
       const start = REFERENCE_WEEK + c.h * 3600 + 7 * 86400;
       if (holdUntil(start) !== start) continue;
       for (const target of [c.te + 3, c.te + 20].filter(t => t <= 490)) {
-        const p = priceLeg(lookup, c.te, start, canonicalDelivered(c.te), target, 1, HOURS, { holdShifts: true });
+        // The held replay alone: no wait for a start where the opening fits (routeFinder.ts `heldOpeningStart`,
+        // routeFinder.heldOpening.spec.ts), which would look up another hour's cell.
+        const p = priceLeg(lookup, c.te, start, canonicalDelivered(c.te), target, 1, HOURS, {
+          holdShifts: true,
+          heldOpening: false,
+        });
         const want = bestReplay(
           c.builds.map(b => ({ params: plain(b), extras: b.extras })),
           target,
@@ -188,5 +193,8 @@ describe('gearShiftTable (the weak-gear form G)', () => {
     expect(instantTail(HOURS, true)).toEqual({ order: 'simulator', holdShifts: true });
     expect(instantTail(HOURS, false)).toEqual({ order: 'simulator' });
     expect(instantTail(null, true)).toEqual({ order: 'simulator' });
+    // The form G's gap goes with the held opening, and only with it.
+    expect(instantTail(HOURS, true, 31.2)).toEqual({ order: 'simulator', holdShifts: true, openingRows: 31.2 });
+    expect(instantTail(HOURS, false, 31.2)).toEqual({ order: 'simulator' });
   });
 });

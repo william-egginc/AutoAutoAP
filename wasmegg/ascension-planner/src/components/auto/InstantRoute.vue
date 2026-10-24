@@ -230,6 +230,15 @@
         <p v-if="useHours" class="text-[11px] text-slate-500">
           Each prestige waits for your hours (the times shown include the wait).
         </p>
+        <p v-if="useHours && openingNote === 'morning'" class="text-[11px] text-slate-500" data-testid="held-opening">
+          A stop reached late in your day waits for the next morning to prestige: an ascension’s first shifts come in
+          its first hours, and started that late some would fall after your hours end, which the instant answer can’t
+          time.
+        </p>
+        <p v-else-if="useHours && openingNote === 'uncertain'" class="text-[11px] text-amber-800" data-testid="held-opening">
+          Less certain with these hours: an ascension’s first shifts take longer than your hours last, so some of them
+          will wait for you in ways the instant answer can’t time. A search below simulates them.
+        </p>
         <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
           Polishing the routes in the background…
         </p>
@@ -687,7 +696,14 @@ import InstantUnloaded from './InstantUnloaded.vue';
 import { plainError } from '@/lib/plainError';
 import { cteFromArtifacts } from 'lib/virtue';
 import { equippedArtifactsToLibArtifacts } from '@/lib/artifacts/utils';
-import { findRoutes, type FirstLeg, type FoundRoutes, type PolishOptions, type Route } from '@/search/routeFinder';
+import {
+  findRoutes,
+  heldOpeningOf,
+  type FirstLeg,
+  type FoundRoutes,
+  type PolishOptions,
+  type Route,
+} from '@/search/routeFinder';
 import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from '@/search/instantGear';
 import {
   atMostAscensions,
@@ -1074,7 +1090,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     hours: HORIZON_HOURS,
     ...(hours ? { playHours: hours } : {}),
     // Held as the answer and the lookups below are (`instantTail`), so the estimate and the lookups price alike.
-    tail: instantTail(hours, store.deferShifts),
+    tail: instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g),
   };
   const stale = () => pid !== prestigeRuns;
   const t0 = performance.now();
@@ -1097,7 +1113,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
           deliveryScale: ctx.scale,
           ...(deadline ? { deadline } : {}),
           ...(hours ? { hours } : {}),
-          ...instantTail(hours, store.deferShifts),
+          ...instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g),
         };
         const f = await findRoutes({
           ...base,
@@ -1290,6 +1306,11 @@ const filters = ref(readFilters());
 watch(filters, f => writeFilters(f), { deep: true });
 const hoursOn = computed(() => store.scheduleEnabled && !!store.availability);
 const useHours = computed(() => hoursOn.value && filters.value.inHours);
+/** The held opening on the route shown (routeFinder.ts `heldOpeningOf`): a prestige that waits for a start where the
+ *  ascension's first shifts fit inside the hours ('morning'), or none fits ('uncertain': less certain). */
+const openingNote = computed(() =>
+  heldOpeningOf((props.deadline ? result.value?.byDate : result.value?.best) ?? null)
+);
 /** Playing hours that limit when a prestige can be made (not any hour): the "prestige at the time shown" note, on the
  *  Prestige by line and under each box (lib/hoursNote.ts). */
 const hoursLimited = computed(() => hoursOn.value && isConstrained(store.availability));
@@ -1732,7 +1753,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const hours =
       useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
     // INSTANT ANSWER V2: the table's legs (and the first) held for the player's hours as Check exactly holds them.
-    const tail = instantTail(hours, store.deferShifts);
+    const tail = instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g);
     const firstLegs = await p.firstLegs({ url, deliveryScale: scale, ...legsRequest, ...tail, hours });
     if (id !== runs) return;
     prestigeInputs = { id, url, firstLegs, scale, planStart: inputs.planStart, te, delivered: legsRequest.delivered };
