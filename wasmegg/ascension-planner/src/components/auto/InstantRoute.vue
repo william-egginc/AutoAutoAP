@@ -690,7 +690,7 @@ import { availabilityKey, type Availability } from '@/search/availabilitySchedul
 import { describeColleggtibles } from '@/search/progression';
 import { poolSize, RoutePool } from '@/search/routePool';
 import { MAXED_TABLE_FILE, describeGear, isMaxed, pickBracket, type TableEntry } from '@/search/tableBracket';
-import { isSafari, isSmallDevice, SAFARI_ROUTE_WORKERS } from '@/search/device';
+import { isSafari, isSmallDevice, releaseRouteWorkers, SAFARI_ROUTE_WORKERS } from '@/search/device';
 import {
   answerInputsKey,
   backgroundMayStart,
@@ -1999,13 +1999,29 @@ const strongerStore = useStrongerStore();
  * SAFARI MEMORY (22 Oct 2026: By a date with hours on reloaded the tab twice in Safari, "using significant memory").
  * On Safari the route workers keep half the sweeps (search/sweepCache.ts), the background polish and "Prestige by" run
  * on two of them (`limitWorkers`), and the nearest tables above and below wait for the "Prestige by" line, so their two
- * extra route workers never run beside it. (Check exactly and Light, which this also waited for, are gone since
+ * extra route workers never run beside it; the answer's own route workers are let go before they start (24 Oct 2026). (Check exactly and Light, which this also waited for, are gone since
  * 23 Oct 2026.)
  */
 /** Safari, read once (search/device.ts). */
 const SAFARI = isSafari();
 /** The nearest tables, held on Safari until the "Prestige by" line is done (`runBracket`). */
 let afterPrestige: (() => void) | null = null;
+// On Safari the answer's own route workers are let go once the polish and "Prestige by" are done (search/device.ts
+// `releaseRouteWorkers`), before the nearest tables start theirs: one step at a time, answer, polish, Prestige by,
+// nearest tables, each with only its own workers alive. Declared before the watch below that starts the nearest
+// tables, so the workers are gone first.
+watch(
+  () =>
+    releaseRouteWorkers({
+      safari: SAFARI,
+      answer: status.value,
+      polish: backgroundStatus.value,
+      prestige: prestigeStatus.value,
+    }),
+  free => {
+    if (free) pool?.sleep();
+  }
+);
 watch(
   () => prestigeStatus.value === 'running',
   running => {
