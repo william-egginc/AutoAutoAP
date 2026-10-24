@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
-import { expandArrivals, findRoutes, firstLegOptions, nextHour, priceLeg, startInSale, type BuildLookup } from './routeFinder';
+import {
+  expandArrivals,
+  findRoutes,
+  firstLegOptions,
+  nextHour,
+  priceLeg,
+  startInSale,
+  type BuildLookup,
+} from './routeFinder';
 import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
 
 // AT ONCE INSIDE THE SALE (`TailOptions.inSale: 'atOnce'`, the instant answer's since 24 Oct 2026): a fresh ascension
@@ -49,7 +57,14 @@ describe('inSale', () => {
   it('the finder and the first ascension do the same', async () => {
     const exact = await findRoutes({ table, startTE: TE, start: t, final: TE + 1, maxAscensions: 1 });
     expect(exact.best!.legs[0].start).toBe(nextHour(t));
-    const atOnce = await findRoutes({ table, startTE: TE, start: t, final: TE + 1, maxAscensions: 1, inSale: 'atOnce' });
+    const atOnce = await findRoutes({
+      table,
+      startTE: TE,
+      start: t,
+      final: TE + 1,
+      maxAscensions: 1,
+      inSale: 'atOnce',
+    });
     expect(atOnce.best!.legs[0].start).toBe(t);
     const item = { id: 0, te: TE, time: t, delivered: canonicalDelivered(TE), stop: TE };
     const settings = { top: TE + 1, deliveryScale: 1, onTheHour: true, keep: 6 };

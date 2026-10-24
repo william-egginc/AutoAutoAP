@@ -134,7 +134,11 @@ describe('the finder with held shifts', () => {
     }
     // priceLeg, as the polish prices a leg, agrees.
     const p = priceLeg(table, 110, evening, canonicalDelivered(110), 115, 1, days7to11, { holdShifts: true })!;
-    expect([p.start, p.heldOpening, p.wanted]).toEqual([at('2027-01-06T15:00:00Z'), 'morning', at('2027-01-06T06:00:00Z')]);
+    expect([p.start, p.heldOpening, p.wanted]).toEqual([
+      at('2027-01-06T15:00:00Z'),
+      'morning',
+      at('2027-01-06T06:00:00Z'),
+    ]);
   });
 
   it('starts every fresh ascension where its opening fits', async () => {

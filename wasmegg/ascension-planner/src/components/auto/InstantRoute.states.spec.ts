@@ -158,6 +158,7 @@ function ctxOf(s: State): Record<string, unknown> {
     lowTeNote: '',
     moreDontHelp: false,
     ms: 900,
+    openingNote: s.hours ? 'morning' : null,
     nearTie: () => null,
     noInstantHeading: (from: number) => `No instant answer below TE ${from}`,
     noTable: s.noTable,
