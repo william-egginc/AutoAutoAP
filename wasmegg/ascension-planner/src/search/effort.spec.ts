@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_EFFORT, EFFORT, EFFORT_ORDER, normalizeEffort } from './effort';
+import { DEFAULT_EFFORT, EFFORT, EFFORT_NOTES, EFFORT_ORDER, normalizeEffort } from './effort';
 import { effortText, foundByText } from '@/lib/leaderboardRank';
 
 describe('effort tiers', () => {
@@ -53,5 +53,14 @@ describe('effort tiers', () => {
       'Exhaustive'
     );
     expect(foundByText({ effort: 'quick', level: 'quick' } as never)).toBe('Nearby routes · Fast');
+  });
+});
+
+describe("Exact's accuracy words (the math review, 24 Oct 2026)", () => {
+  it('says the 4,913 routes were a box with the first two stops, the count and the target fixed', () => {
+    const t = EFFORT_NOTES.normal.accuracy;
+    expect(t).toContain('4,913 routes');
+    expect(t).toContain('kept its first two stops, its number of ascensions and its final target fixed');
+    expect(t).not.toContain('plans');
   });
 });

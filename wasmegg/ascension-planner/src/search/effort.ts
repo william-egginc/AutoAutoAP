@@ -77,8 +77,9 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
       '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
       'The count check adds roughly 10 to 15% more routes.',
     accuracy:
-      'Matched the best of all 4,913 plans tested in full around it, on 1 account. ' +
-      'The other accounts have no proven answer to check against.',
+      'Matched the best of all 4,913 routes tested in full around it, on 1 account, in a box that kept its first two ' +
+      'stops, its number of ascensions and its final target fixed. ' +
+      'Outside that box, and on the other accounts, there is no proven answer to check against.',
     warning: null,
   },
   thorough: {
