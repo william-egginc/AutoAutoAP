@@ -272,6 +272,14 @@
                 (at most {{ instantMax }}, as its filter says)</template
               >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
             >
+            <!-- Still being worked out (InstantRoute `state` 'loading'; a held answer with hours set can take a while):
+                 Find waits for it up to INSTANT_SETTLE_MS, then goes on with suggested routes (search/autoWiden.ts). -->
+            <template v-else-if="instantLoad === 'loading'"
+              ><span class="font-bold" data-test="instant-still-working">The instant answer is still being worked out.</span>
+              Find waits up to {{ INSTANT_SETTLE_MS / 1000 }} seconds for it, then checks suggested routes for
+              {{ nearbyRange.min }}-{{ Math.min(5, nearbyRange.max) }} ascensions until it is ready:
+              {{ simpleWidthsText }}.</template
+            >
             <template v-else
               ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so this
               checks suggested routes for {{ nearbyRange.min }}-{{ Math.min(5, nearbyRange.max) }} ascensions instead:
@@ -1020,6 +1028,7 @@ import {
   FALLBACK_BUDGET_SECONDS,
   INSTANT_TIMEOUT_STATUS,
   INSTANT_WAIT_STATUS,
+  INSTANT_SETTLE_MS,
   NO_INSTANT_SUMMARY,
   UNLOADED_INSTANT_SUMMARY,
   QUICK_ESTIMATE_LABEL,
