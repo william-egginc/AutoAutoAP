@@ -125,6 +125,9 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       "If it couldn't be saved when you pressed it (you were offline, say), it is saved once the next time your account is loaded, unless a newer one is saved online by then."
     );
+    expect(text).toContain(
+      "If it still isn't saved, My runs, Right now, says so under the route, with Save it online"
+    );
     expect(text).toContain('Nothing else saves it.');
     // The sentence for a result that becomes the follow (lib/followPolicy.ts): there exactly while the constant is on.
     const auto =
@@ -152,6 +155,8 @@ describe('About and privacy page', () => {
     const store = read('src/stores/follow.ts');
     expect(store.match(/putFollow\(/g)?.length).toBe(1);
     expect(store.indexOf('putFollow(')).toBeGreaterThan(store.indexOf('async function saveOnline('));
-    expect(store.match(/saveOnline\(goalKey, f\)/g)?.length).toBe(1);
+    // follow() and Right now's "Save it online" (saveNow, a press): the only two saves of a goal's route besides the
+    // next load's one retry.
+    expect(store.match(/saveOnline\(goalKey, f\)/g)?.length).toBe(2);
   });
 });
