@@ -281,7 +281,6 @@ import { existingOwnerToken, ownerToken } from '@/search/owner';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { nextPrestigeAt } from '@/search/noPrestige';
-import { NO_PRESTIGE_SEND_NOTE, sendBlockedByNoPrestige } from '@/lib/npGuard';
 import {
   DEFAULT_FIRST_ASCENSION,
   firstAscensionAt,
@@ -1445,8 +1444,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function autoSend(): Promise<void> {
     const r = await sendBestSoFar();
     const a = bestSoFarAuto.value;
-    // Skipped for no-prestige days: not a failure, and nothing to try again on a timer.
-    if (r.blocked) return;
     if (r.ok) bestSoFarAuto.value = { ...a, lastFailAt: null, retryAt: null, failed: false, refused: null };
     // Refused for the leaderboard but stored: not tried again this run (the next would be refused the
     // same way), and the line says why with the code.
@@ -1465,8 +1462,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function autoTick(): void {
     const run = bestSoFar.value;
     if (!run || !stepAwayOptions.value.autoSendBest) return;
-    // No-prestige days set: the automatic sends are skipped (lib/npGuard.ts), no asking either.
-    if (sendBlockedByNoPrestige(noPrestige.value)) return;
     bestSoFarNow.value = Date.now();
     // Withdrawn: no send, no asking again, no yes taken back from the board's row. Only a new tick.
     if (!run.consent && shareWithdrawn.value) return;
@@ -4495,11 +4490,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** Refused for the leaderboard but stored (collector "quarantine"): `ok` (nothing to retry, nothing
      *  left unsent), `message` says so with the code to quote, and `id` is that code. */
     quarantined?: boolean;
-    /** Not sent: no-prestige days are set (lib/npGuard.ts). Nothing was posted; `message` says why. */
-    blocked?: boolean;
   }> {
-    // No-prestige days set: nothing goes to the board, from any screen, button or automatic send.
-    if (sendBlockedByNoPrestige(noPrestige.value)) return { ok: false, blocked: true, message: NO_PRESTIGE_SEND_NOTE };
     if (!submitUrl) return { ok: false, message: 'no collector configured' };
     // The instant baseline, when the player shares it (never for a result sent from a file: another save's).
     if (!saved) payload = withBaseline(payload);
@@ -5006,13 +4997,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     dailyCap?: boolean;
     /** Refused for the leaderboard but stored (collector "quarantine"): the automatic option stops. */
     quarantined?: boolean;
-    /** Not sent: no-prestige days are set (lib/npGuard.ts). */
-    blocked?: boolean;
   }> {
     const say = (
       ok: boolean,
       text: string,
-      more: { tooSoon?: boolean; retryAfter?: number; dailyCap?: boolean; quarantined?: boolean; blocked?: boolean } = {}
+      more: { tooSoon?: boolean; retryAfter?: number; dailyCap?: boolean; quarantined?: boolean } = {}
     ) => {
       // Too soon is a wait, not a failure: said in neither green nor red.
       bestSoFarStatus.value = { ok, text, ...(more.tooSoon ? { pending: true } : {}) };
@@ -5021,8 +5010,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const run = bestSoFar.value;
     const p = runProgress.value;
     if (bestSoFarSending.value) return { ok: false, text: 'Already sending.' };
-    // No-prestige days set: no best so far goes to the board (`sendSubmission` refuses it too).
-    if (sendBlockedByNoPrestige(noPrestige.value)) return say(false, NO_PRESTIGE_SEND_NOTE, { blocked: true });
     if (!run) return say(false, 'This run cannot send its best so far.');
     if (!run.consent) return say(false, 'Not sent: tick the box under Find to agree first.');
     if (!p?.best || (p.kind === 'by-date') !== (run.kind === 'deadline'))
@@ -5163,8 +5150,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const go = async () => {
       const hash = partitionHash;
       if (!hash || !submitUrl) return;
-      // No-prestige days set: the result can't go to the board, so it isn't kept as one waiting to be sent.
-      if (sendBlockedByNoPrestige(noPrestige.value)) return;
       blackBox.note(`keeping the ${kind === 'deadline' ? 'By a date' : 'Fastest'} result until it is sent`);
       let payload: Submission | null = null;
       let label = '';
@@ -5286,8 +5271,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function sendPending(
     id: string,
     consent?: PendingConsent
-  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean; blocked?: boolean }> {
-    if (sendBlockedByNoPrestige(noPrestige.value)) return { ok: false, blocked: true, message: NO_PRESTIGE_SEND_NOTE };
+  ): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }> {
     const p = pendingSends.value.find(x => x.id === id);
     const yes = consent ?? p?.consent ?? null;
     if (!p) return { ok: false, message: 'There is nothing waiting to be sent.' };
@@ -5333,12 +5317,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     nickname: string;
     sendCsv: boolean;
     diagnostics: boolean;
-  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean; blocked?: boolean }> {
-    if (sendBlockedByNoPrestige(noPrestige.value)) {
-      // The run's end may have held the instant answer for this send (`beginResultSend`): let it go.
-      endResultSend();
-      return { ok: false, blocked: true, message: NO_PRESTIGE_SEND_NOTE };
-    }
+  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }> {
     const r = deadlineResult.value;
     if (!r) return { ok: false, message: 'Nothing to send yet.' };
     beginResultSend();
@@ -5375,8 +5354,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     note?: string;
     sendCsv: boolean;
     diagnostics: boolean;
-  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean; blocked?: boolean }> {
-    if (sendBlockedByNoPrestige(noPrestige.value)) return { ok: false, blocked: true, message: NO_PRESTIGE_SEND_NOTE };
+  }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }> {
     try {
       if (lightSent(o.result))
         return { ok: true, duplicate: 'exact', message: 'Already on the board: this result was sent from this browser.' };
@@ -7506,7 +7484,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // them asleep) until that send is done, rather than let them wake for the moment between.
       if (
         runEnd !== 'failed' &&
-        !sendBlockedByNoPrestige(noPrestige.value) &&
         (submitsWhenDone.value || !!bestSoFar.value?.consent || !!provisionalRows.value.deadline)
       )
         beginResultSend();

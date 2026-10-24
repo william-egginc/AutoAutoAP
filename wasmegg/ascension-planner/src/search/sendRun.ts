@@ -62,8 +62,6 @@ export async function sendRunResult(
     // A copy the collector already had stored nothing, so there is nothing to thank anyone for. One it
     // refused for the leaderboard (but stored) is said as the collector's note, with its code.
     if (res.quarantined) return { ok: false, text: res.message };
-    // No-prestige days set (lib/npGuard.ts): nothing was posted, said as the plain note.
-    if (res.blocked) return { ok: false, text: res.message };
     const text = !res.ok
       ? `Not sent: ${res.message}`
       : res.duplicate === 'exact'
