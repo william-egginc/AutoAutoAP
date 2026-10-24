@@ -12,9 +12,13 @@
     class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
     data-testid="gear-caveat"
   >
+    <!-- The form G's honest range (the math review's second check, 24 Oct 2026, finding 6): on main from TE 192 at three
+         plan starts, the finish it told was 0.8 days later to 5.3 days sooner than its own route really takes there. The
+         cap fix alone (buildPeak / k3.peak) would make that 4.7-6.6 days sooner, so the cap stays as it is for now. -->
     <template v-if="gearShift"
       >Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your
-      gear's rate (about 1–2% per ascension). Fast gives your real date.</template
+      gear's rate (about 1–2% off per ascension). Over a whole route that adds up: in checks on one account, the route
+      it picked finished up to about 5 days later than shown. Fast gives your real date.</template
     >
     <template v-else-if="gearDiffers"
       >Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"

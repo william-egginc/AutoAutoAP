@@ -61,8 +61,10 @@ describe('GearCaveat', () => {
 });
 
 // The form G (Jordan, 23 Oct 2026): a form G answer said "uses the instant answer for fully maxed gear" above it.
+// How far off a whole route can be (the math review's second check, 24 Oct 2026: up to 5.3 days sooner than its route
+// really takes, on one account).
 const G =
-  "Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your gear's rate (about 1–2% per ascension). Fast gives your real date.";
+  "Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your gear's rate (about 1–2% off per ascension). Over a whole route that adds up: in checks on one account, the route it picked finished up to about 5 days later than shown. Fast gives your real date.";
 describe('GearCaveat with the form G', () => {
   it('the G sentence alone, in one box', async () => {
     const html = await renderHtml(GearCaveat, { ...base, gearShift: true, gearDiffers: false, optimistic: false });
@@ -74,6 +76,12 @@ describe('GearCaveat with the form G', () => {
     expect(textOf(html)).toBe(G);
     expect(boxes(html)).toBe(1);
     expect(html).not.toContain('instant-optimistic');
+  });
+  it("keeps the shipped cap (k3.peak x k): the real ratio alone would make the told finish more optimistic", () => {
+    // buildPeak / k3.peak (0.9651 on main) fixes each leg but moves the told finish to 4.7-6.6 days sooner than the
+    // route really takes (from -0.8 to +5.3): it waits for a route-level fix, not the note alone.
+    const gear = readFileSync(resolve(__dirname, '../../search/instantGear.ts'), 'utf8');
+    expect(gear).toContain('cap: k3.peak * k,');
   });
   it('without G: no G sentence (plain maxed keeps the label)', async () => {
     const off = await renderHtml(GearCaveat, { ...base, gearShift: false, gearDiffers: false, optimistic: true });
