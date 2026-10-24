@@ -110,3 +110,6 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
     reply({ kind: 'error', id: m.id, message: err instanceof Error ? err.message : String(err) });
   }
 };
+
+// Up: the pool stops waiting on a worker that never says so (search/routePool.ts ROUTE_WORKER_START_MS).
+reply({ kind: 'ready', id: 0 });

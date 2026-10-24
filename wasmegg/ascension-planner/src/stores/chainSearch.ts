@@ -39,6 +39,7 @@ import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
 import { lastTECostFrom } from '@/search/oneMoreTE';
 import { createChainSearchPool, WorkerLostError, type ChainSearchPool, type PoolFault } from '@/search/pool';
+import { probeLimit } from '@/search/instantIntegrity';
 import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, sweepSeconds, timeWeightedWorkers, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
@@ -1779,18 +1780,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     integrityLowTe.value = null;
     integrityChecking.value = true;
     let probe: ChainSearchPool | null = null;
-    try {
+    let over = false;
+    const work = (async () => {
       probe = await createChainSearchPool(collectInputs(), { size: 1 });
-      const wait = await probe.integrityWait();
+      // Given up on before the pool was made: it goes at once.
+      if (over) probe.terminate();
+      return probe.integrityWait();
+    })();
+    try {
+      // Bounded (search/instantIntegrity.ts INTEGRITY_PROBE_MS): the instant answer is held back while this runs.
+      const wait = await probeLimit(work);
       if (integrityKey === key) {
         integrityWait.value = wait;
         // LOW-TE OPENING (auto/lowTeOpening.ts)
-        integrityLowTe.value = probe.integrityLowTe?.() ?? null;
+        integrityLowTe.value = (probe as ChainSearchPool | null)?.integrityLowTe?.() ?? null;
       }
     } catch {
       // Not worth a message: Start runs the same check again and reports properly.
+      work.catch(() => {});
     } finally {
-      probe?.terminate();
+      over = true;
+      (probe as ChainSearchPool | null)?.terminate();
       if (integrityKey === key) integrityChecking.value = false;
     }
   }

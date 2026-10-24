@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { RoutePool } from './routePool';
+import { ROUTE_WORKER_NOT_STARTED, RoutePool } from './routePool';
+import { tableLoadFailed } from './tableFetch';
 
 /** A worker that answers a header request when told to. */
 class FakeWorker {
@@ -21,13 +22,17 @@ class FakeWorker {
   }
 }
 
-function pool(size = 2) {
+function pool(size = 2, startMs?: number) {
   const made: FakeWorker[] = [];
-  const p = new RoutePool(size, () => {
-    const w = new FakeWorker();
-    made.push(w);
-    return w as unknown as Worker;
-  });
+  const p = new RoutePool(
+    size,
+    () => {
+      const w = new FakeWorker();
+      made.push(w);
+      return w as unknown as Worker;
+    },
+    startMs
+  );
   return { p, made };
 }
 
@@ -138,5 +143,42 @@ describe('RoutePool when a worker is lost (red team 21 Oct 2026, data-inputs #5)
     const header = p.header('t.bin');
     made[0].onmessageerror?.({} as MessageEvent);
     await expect(header).rejects.toThrow(/could not read/);
+  });
+});
+
+describe('RoutePool when a worker never starts (Safari reload, 23 Oct 2026)', () => {
+  const ready = (w: FakeWorker) => w.onmessage?.({ data: { kind: 'ready', id: 0 } } as MessageEvent);
+  const later = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+  it('a worker that sends nothing within the start limit fails the request, as a load failure (the card with Retry)', async () => {
+    const { p, made } = pool(2, 20);
+    const header = p.header('t.bin');
+    const failed = header.catch((e: Error) => e);
+    await later(40);
+    const e = await failed;
+    expect(e).toBeInstanceOf(Error);
+    expect((e as Error).message).toBe(ROUTE_WORKER_NOT_STARTED);
+    expect(tableLoadFailed((e as Error).message)).toBe(true);
+    expect(made.slice(0, 2).every(w => w.terminated)).toBe(true);
+    // Retry: fresh workers, and one that starts answers.
+    const again = p.header('t.bin');
+    ready(made[2]);
+    await later(40);
+    made[2].answer();
+    await expect(again).resolves.toEqual({ from: 1 });
+  });
+
+  it('a started worker may take as long as it needs (the table download has its own limit)', async () => {
+    const { p, made } = pool(2, 20);
+    const header = p.header('t.bin');
+    ready(made[0]);
+    await later(40);
+    made[0].answer();
+    await expect(header).resolves.toEqual({ from: 1 });
+  });
+
+  it('a crashed or unreadable worker is a load failure too', () => {
+    expect(tableLoadFailed('A route worker stopped (it crashed or ran out of memory).')).toBe(true);
+    expect(tableLoadFailed('A route worker sent a reply the page could not read.')).toBe(true);
   });
 });

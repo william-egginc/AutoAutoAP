@@ -117,10 +117,12 @@ export function tableNewerThanPage(message: string): boolean {
 
 /**
  * A worker's error message (it crosses as text) that means the file itself could not be had: missing, a web
- * page in its place, cut short, from another version, stalled, or no connection. Not a TE outside the file (InstantRoute's `below`).
+ * page in its place, cut short, from another version, stalled, or no connection; or the route worker reading it never
+ * started, stopped or sent a reply the page couldn't read (search/routePool.ts), which a Retry may get past. Not a TE
+ * outside the file (InstantRoute's `below`).
  */
 export function tableLoadFailed(message: string): boolean {
-  return /404|not a precomputed table|incomplete|precomputed table version|instant answer could not be loaded|download stalled|failed to fetch|networkerror|load failed/i.test(
+  return /404|not a precomputed table|incomplete|precomputed table version|instant answer could not be loaded|download stalled|failed to fetch|networkerror|load failed|route worker/i.test(
     message
   );
 }
