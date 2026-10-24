@@ -103,3 +103,24 @@ export interface WarnAsk {
 export function warnHere(ask: WarnAsk | null, at: WarnAt): boolean {
   return !!ask && ask.at === at;
 }
+
+/**
+ * The instant answer's card never shows nothing (Jordan's Safari reload, 23 Oct 2026: the answer gone, no word why):
+ * with no answer, nothing loading, no error and nothing waited for, this line says where it stands. Due (a run starts
+ * in a moment, or Your setup is still being read): loading. No save yet: it waits for one. Otherwise it has not been
+ * worked out, with a button that works it out.
+ */
+export interface IdleLine {
+  text: string;
+  spin: boolean;
+  /** Show "Work it out". */
+  button: boolean;
+}
+export const IDLE_LOADING = 'Loading the instant answer…';
+export const IDLE_NO_SAVE = 'The instant answer is worked out once your save has loaded.';
+export const IDLE_NOT_YET = 'The instant answer isn’t worked out yet.';
+export function idleLine(o: { due: boolean; setupLoaded: boolean; te: number }): IdleLine {
+  if (o.due || !o.setupLoaded) return { text: IDLE_LOADING, spin: true, button: false };
+  if (!(o.te > 0)) return { text: IDLE_NO_SAVE, spin: false, button: false };
+  return { text: IDLE_NOT_YET, spin: false, button: true };
+}

@@ -96,6 +96,27 @@
     >
       {{ errorText }}
     </p>
+    <!-- Never nothing (search/instantDeferral.ts idleLine): no answer, nothing loading or waited for, no error. -->
+    <p
+      v-else-if="!result && !waiting"
+      class="text-[12px] text-slate-500 flex flex-wrap items-center gap-2"
+      data-testid="instant-idle"
+    >
+      <span
+        v-if="idle.spin"
+        class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
+      />
+      {{ idle.text }}
+      <button
+        v-if="idle.button"
+        type="button"
+        class="min-h-[44px] sm:min-h-0 font-black uppercase tracking-widest text-[10px] text-emerald-800 underline hover:text-emerald-900"
+        data-testid="instant-idle-run"
+        @click="pressRun(false, 'again')"
+      >
+        Work it out
+      </button>
+    </p>
     <InstantIntegrity v-if="status !== 'loading' && !atTarget" :state="integrity" />
     <!-- LOW-TE OPENING (auto/lowTeOpening.ts): search/instantIntegrity.ts lowTeOpeningNote. -->
     <p
@@ -673,6 +694,7 @@ import { isSafari, isSmallDevice, SAFARI_ROUTE_WORKERS } from '@/search/device';
 import {
   answerInputsKey,
   backgroundMayStart,
+  idleLine,
   onArrival,
   pauseForRun,
   resumeAfterRun,
@@ -2275,6 +2297,10 @@ watch(result, () => {
 });
 /** The waiting line ('' when not waiting). */
 const saveWaitText = computed(() => startWaitText(store.startWait));
+/** The card's line when it would otherwise show nothing (search/instantDeferral.ts `idleLine`). */
+const idle = computed(() =>
+  idleLine({ due: runDue.value, setupLoaded: store.setupLoaded, te: Math.floor(store.currentTE) })
+);
 
 /** By a date: the answer still being worked out (or about to be, or Your setup still loading), in with a
  *  route, or settled with none, for the panel's Find (`state` event). */
