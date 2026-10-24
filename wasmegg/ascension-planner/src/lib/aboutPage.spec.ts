@@ -77,7 +77,7 @@ describe('About and privacy page', () => {
 
   it('says a public row has the hours, the time off and the start weekday, as the collector keeps them', () => {
     expect(text).toContain(
-      'If you set them, the row also has your hours (the times of day you said you can play, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
+      'If you set them, the row also has your hours (the times of day you said you can play, shown in the Schedule column) and the days you marked as away from virtue (time off). It always has the weekday your plan starts on. Rows are public.'
     );
     expect(text).toContain('Last updated 24 Oct 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
@@ -148,7 +148,7 @@ describe('About and privacy page', () => {
     );
     expect(text).not.toContain('not loading your account');
     expect(text).toContain(
-      'What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to spare, the hours window you used, the time of your save, and the simulator and planner version. Never your player ID or a name. Your days and time off are not stored.'
+      'What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to spare, the hours window you used, the time of your save, and the simulator and planner version. Never your player ID or a name. Your days, time off and no-prestige days are not stored.'
     );
     expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
     expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');

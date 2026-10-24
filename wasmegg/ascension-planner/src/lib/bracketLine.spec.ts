@@ -96,9 +96,9 @@ describe('InstantRoute wiring', () => {
     expect(src).not.toContain("With your gear you'd likely finish between");
   });
   it('the bracket is priced as the answer (held tail), on tables of this simulator only', () => {
-    expect(src).toContain('tail: instantTail(hours, store.deferShifts),');
+    expect(src).toContain('tail: instantTail(hours, store.deferShifts, undefined, answerDays),');
     expect(src).toContain('e.from <= legs.startTE && !tableSimMismatch(e)');
     // "What if you had maxed gear?" too.
-    expect(src).toContain('tail: instantTail(w.hours, store.deferShifts),');
+    expect(src).toContain('tail: instantTail(w.hours, store.deferShifts, undefined, answerDays),');
   });
 });
