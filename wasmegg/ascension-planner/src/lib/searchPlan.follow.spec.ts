@@ -9,8 +9,10 @@ import {
   betterRouteWords,
   betterThanFollowed,
   drivingPlan,
+  followIsPriced,
   followPrompt,
   keepMine,
+  mayPrompt,
   newResultPath,
   readKeptMine,
   resultId,
@@ -107,5 +109,56 @@ describe('the prompt', () => {
     expect(JSON.parse(mem.get(KEEP_MINE_KEY)!)).toEqual(['b', 'a']);
     expect(resultId('fastest-490', 'instant', [230, 490], 1)).toBe(resultId('fastest-490', 'instant', [230, 490], 99999));
     expect(resultId('fastest-490', 'fast', [230, 490], 60)).not.toBe(resultId('fastest-490', 'fast', [230, 490], 6000));
+  });
+});
+
+describe('an instant answer never asks about a PRICED follow (Jordan, 23 Oct 2026)', () => {
+  // The reported case: Egg Day, the instant card's 314 TE with 9.7 h to spare against his followed 313 TE with 1.4 days
+  // to spare, a route his own Fast run had priced.
+  const route = [197, 228, 257, 285, 313];
+  const followedFinish = { end: DEADLINE - 1.4 * D, endTE: 313 };
+  const instant = { chain: [197, 228, 257, 285, 314], end: DEADLINE - 9.7 * H, endTE: 314, at: NOW * 1000, source: 'instant' as const, planStart: NOW };
+  const base = (priced: boolean) => ({
+    goalKey: 'eggday-2027',
+    goal: 'date' as const,
+    deadline: DEADLINE,
+    followed: { chain: route, at: NOW * 1000 - 3 * H * 1000, finish: followedFinish, priced },
+    candidate: instant,
+    keptMine: [] as string[],
+    when,
+  });
+
+  it('the reported case: 314 TE / 9.7 h against a follow priced by his Fast run asks nothing', () => {
+    const priced = followIsPriced({ source: 'instant', chain: route, results: [[197, 228, 257, 285, 313]] });
+    expect(priced).toBe(true);
+    expect(followPrompt(base(priced))).toBeNull();
+  });
+  it('the same instant answer against an UNPRICED follow (typed, a board row, an older instant answer) still asks', () => {
+    for (const source of ['manual', 'instant', null]) expect(followIsPriced({ source, chain: route, results: [] })).toBe(false);
+    expect(followPrompt(base(false))?.words).toBe(
+      "This is a better route than the one you're following (314 TE, 9.7 h to spare vs 313 TE, 1.4 days to spare). Do you want to follow it?"
+    );
+  });
+  it('a Fast, Exact or Custom result that is better asks against a priced follow too (the existing rules)', () => {
+    for (const source of ['fast', 'exact', 'custom'] as const) {
+      const p = followPrompt({ ...base(true), candidate: { ...instant, source } });
+      expect(p?.source).toBe(source);
+    }
+    // ...and not when it isn't better.
+    expect(followPrompt({ ...base(true), candidate: { ...instant, source: 'fast', endTE: 312, chain: [197, 228, 257, 285, 312] } })).toBeNull();
+  });
+  it("priced: a fast/exact/custom source, Right now's finish from a priced result, or a kept result with the same route (stops passed in front too)", () => {
+    for (const source of ['fast', 'exact', 'custom']) expect(followIsPriced({ source, chain: route })).toBe(true);
+    expect(followIsPriced({ source: 'instant', chain: route, pricedByResult: true })).toBe(true);
+    expect(followIsPriced({ source: 'instant', chain: [228, 257, 285, 313], results: [[166, 197, 228, 257, 285, 313]] })).toBe(true);
+    expect(followIsPriced({ source: 'instant', chain: route, results: [[166, 197, 228, 257, 285, 310]] })).toBe(false);
+  });
+  it('mayPrompt: only an instant answer is held back, and only by a priced follow', () => {
+    expect(mayPrompt('instant', true)).toBe(false);
+    expect(mayPrompt('instant', false)).toBe(true);
+    for (const s of ['fast', 'exact', 'custom'] as const) {
+      expect(mayPrompt(s, true)).toBe(true);
+      expect(mayPrompt(s, false)).toBe(true);
+    }
   });
 });

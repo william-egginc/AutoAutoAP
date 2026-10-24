@@ -457,6 +457,37 @@ export function betterRouteWords(
   return `This is a better route than the one you're following (${a} vs ${b}). Do you want to follow it?`;
 }
 
+/**
+ * AN INSTANT ANSWER NEVER PROMPTS AGAINST A PRICED FOLLOW (Jordan, 23 Oct 2026: the instant card offered "314 TE, 9.7 h
+ * to spare vs 313 TE, 1.4 days to spare" against a route his own Fast run had priced; the instant answer is an
+ * estimate, optimistic for his account, his Fast runs got 313 and 310). A followed route is PRICED when it came from a
+ * Fast, Exact or Custom result (`source`), when it is the route of a Fast, Exact or Custom result kept for this account
+ * and goal (`results`: the same route, or one with stops already passed in front), or when Right now's finish for it
+ * came from a priced result (`pricedByResult`: a result's timeline, or Check exactly's). Otherwise (typed, a board row,
+ * an older instant answer) it is UNPRICED, and an instant answer may still ask about it. A Fast, Exact or Custom result
+ * asks against either, by `betterThanFollowed`.
+ */
+export function followIsPriced(o: {
+  source?: string | null;
+  chain: readonly number[];
+  results?: readonly (readonly number[])[];
+  pricedByResult?: boolean;
+}): boolean {
+  if (o.source === 'fast' || o.source === 'exact' || o.source === 'custom') return true;
+  if (o.pricedByResult) return true;
+  return (o.results ?? []).some(r => sameTail(r, o.chain));
+}
+/** The same route, one maybe with stops already passed in front. */
+function sameTail(a: readonly number[], b: readonly number[]): boolean {
+  if (!a.length || !b.length) return false;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  const tail = long.slice(long.length - short.length);
+  return short.every((x, i) => x === tail[i]);
+}
+/** May a new result of this source ask about the followed route? An instant answer only about an unpriced one. */
+export const mayPrompt = (candidate: FollowPrompt['source'], followedPriced: boolean): boolean =>
+  candidate !== 'instant' || !followedPriced;
+
 /** A newer, better result for a goal with a followed route: what the prompt shows and what "Follow it" follows. */
 export interface FollowPrompt {
   id: string;
@@ -469,14 +500,16 @@ export interface FollowPrompt {
 }
 
 /**
- * The prompt for a result, or null: no route followed, the same route, not newer than the follow (by when it was
- * found against when Follow was pressed), not better (`betterThanFollowed`), or "Keep mine" pressed for it already.
+ * The prompt for a result, or null: no route followed, the same route, an instant answer against a priced follow
+ * (`mayPrompt`), not newer than the follow (by when it was found against when Follow was pressed), not better
+ * (`betterThanFollowed`), or "Keep mine" pressed for it already.
  */
 export function followPrompt(o: {
   goalKey: string;
   goal: 'fastest' | 'date';
   deadline: number | null;
-  followed: { chain: readonly number[]; at: number; finish: RouteFinish | null } | null;
+  /** `priced`: the followed route has a priced result on the account (`followIsPriced`): an instant answer never asks. */
+  followed: { chain: readonly number[]; at: number; finish: RouteFinish | null; priced?: boolean } | null;
   candidate: RouteFinish & { chain: readonly number[]; at: number; source: FollowPrompt['source']; planStart?: number | null };
   keptMine: readonly string[];
   when: (t: number) => string;
@@ -485,6 +518,7 @@ export function followPrompt(o: {
   const c = o.candidate;
   if (!f || !c.chain.length) return null;
   if (c.chain.length === f.chain.length && c.chain.every((x, i) => x === f.chain[i])) return null;
+  if (!mayPrompt(c.source, !!f.priced)) return null;
   if (!(c.at > f.at)) return null;
   if (!betterThanFollowed(o.goal, o.deadline, c, f.finish)) return null;
   const id = resultId(o.goalKey, c.source, c.chain, c.end);
