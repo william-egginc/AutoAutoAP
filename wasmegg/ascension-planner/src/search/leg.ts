@@ -741,9 +741,13 @@ export function saveSiloSeconds(inputs: SearchInputs): number {
  * `k3`). The best set the player's whole inventory can wear there, through the simulator's own rate
  * function: at that research nearly every stone goes to lay rate, so the set a save shows (chosen at
  * today's research) would understate everyone (scripts/precompute.ts --verify-table --as). 1 without
- * a save to read.
+ * a save to read. It reads the save's context only (the backup, epic research, colleggtibles), not the
+ * setup: the instant card asks for it without collecting the whole setup (search/instantScale.ts).
  */
-export function instantDeliveryScale(inputs: SearchInputs, k3: NonNullable<TableHeader['k3']>): number {
+export function instantDeliveryScale(
+  inputs: Pick<SearchInputs, 'context'>,
+  k3: NonNullable<TableHeader['k3']>
+): number {
   const ctx = inputs.context;
   const raw = ctx.rawBackup;
   if (!raw) return 1;

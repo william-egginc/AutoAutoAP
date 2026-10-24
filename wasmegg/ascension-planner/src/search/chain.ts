@@ -239,9 +239,9 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
     let te = te0;
     let restarted = false;
     for (let guard = 0; guard <= timeOff.length + 1; guard++) {
-      const away = timeOff.find(w => w.from <= t && t < w.to);
-      if (away) {
-        // Back on virtue: the rebuild starts with a prestige, so inside the hours and not on a no-prestige day.
+      // Back on virtue: the rebuild starts with a prestige, so inside the hours and not on a no-prestige day. Past
+      // every stretch that time falls in: overlapping or back-to-back stretches (as given, not merged) are one.
+      for (let away = timeOff.find(w => w.from <= t && t < w.to); away; away = timeOff.find(w => w.from <= t && t < w.to)) {
         t = allowed(away.to);
         restarted = true;
       }
