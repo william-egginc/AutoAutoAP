@@ -97,9 +97,12 @@ describe('the one line', () => {
 describe('the pointer', () => {
   it('By a date and Fastest: the result’s own level and number, then See it ↓', () => {
     expect(script).toContain("const pointer = computed(() => pointerOf(props.deadline ? 'date' : 'fastest', searchFound.value, show));");
-    expect(template).toContain('{{ pointer.level }} found <b>{{ pointer.value }}</b> on your account.');
-    expect(template).toContain('{{ POINTER_LINK }}');
-    expect(template).toContain('@click="seeResult"');
+    // InstantPointer.vue at the top of both sections (the answer's and the file-not-loaded one), on `pointer` alone.
+    expect(template.match(/<InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" \/>/g)).toHaveLength(2);
+    const box = fs.readFileSync(path.join(__dirname, 'InstantPointer.vue'), 'utf8');
+    expect(box).toContain("{{ pointer.level }} found <b>{{ pointer.value }}</b> on your account.{{ ' ' }}<button");
+    expect(box).toContain('{{ POINTER_LINK }}');
+    expect(box).toContain(`@click="emit('see')"`);
   });
   it('only a finished result for this goal, on this save and account (lib/searchPlan.ts, specs there)', () => {
     const found = fn('const searchFound');

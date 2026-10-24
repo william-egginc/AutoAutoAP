@@ -31,10 +31,15 @@ describe('InstantRoute layout', () => {
       expect(buttons).toContain('from="answer"');
     });
   }
-  it('the pointer sits after both counts lists, on the instant card', () => {
-    const pointer = t.indexOf('data-testid="instant-pointer"');
-    expect(pointer).toBeGreaterThan(t.lastIndexOf('v-for="r in shownRows"'));
-    expect(pointer).toBeGreaterThan(t.lastIndexOf('v-for="r in dateRows"'));
+  it('the pointer sits at the TOP of the instant card (23 Oct 2026), before what the instant area shows, in both sections', () => {
+    const pointer = t.indexOf('<InstantPointer v-if="pointer"');
+    expect(pointer).toBeGreaterThan(t.indexOf('every route checked in'));
+    for (const after of ['v-if="saveWaitText"', "status === 'loading'", '<NoInstantAnswer', 'v-for="r in shownRows"', 'v-for="r in dateRows"'])
+      expect(t.indexOf(after)).toBeGreaterThan(pointer);
+    // Never behind the instant answer's own result.
+    expect(t.slice(pointer - 200, pointer)).not.toMatch(/result &&/);
+    const noTable = t.indexOf('data-testid="instant-no-table"');
+    expect(t.indexOf('<InstantPointer v-if="pointer"', noTable)).toBeLessThan(t.indexOf('<InstantUnloaded', noTable));
   });
   it('no Check exactly and no check history on the card', () => {
     expect(t).not.toContain('Check exactly');

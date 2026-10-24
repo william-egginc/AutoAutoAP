@@ -42,6 +42,9 @@
         >every route checked in {{ (ms / 1000).toFixed(1) }} s</span
       >
     </div>
+    <!-- THE POINTER (lib/searchPointer.ts): a Fast, Exact or Custom result for this goal on this save, at the top,
+         whether the instant answer is here, still working or missing. The only thing on this card a search changes. -->
+    <InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" />
     <!-- Only when the answer really is the plain maxed one: with the form G (an own table refused as stale, G used)
          the one amber box under the answer says so instead (GearCaveat.vue `gearShift`). -->
     <p
@@ -536,23 +539,6 @@
         </div>
       </template>
 
-      <!-- THE POINTER (lib/searchPointer.ts): a Fast, Exact or Custom result for this goal on this save. The only thing
-           on this card a search changes. -->
-      <p
-        v-if="result && pointer"
-        class="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-[12px] text-slate-700"
-        data-testid="instant-pointer"
-      >
-        {{ pointer.level }} found <b>{{ pointer.value }}</b> on your account.
-        <button
-          type="button"
-          class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900"
-          data-testid="instant-pointer-link"
-          @click="seeResult"
-        >
-          {{ POINTER_LINK }}
-        </button>
-      </p>
       <!-- "Share this result" for that search result (search/instantRecord.ts), at the bottom of the search panel
            when the screen has one (`shareTo`). -->
       <Teleport v-if="instantUrl && result" defer :to="shareTo || 'body'" :disabled="!shareTo">
@@ -637,6 +623,7 @@
        than this page: reload it (InstantUnloaded.vue). Every way `noTable` is set lands here. -->
   <section v-else class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3" data-testid="instant-no-table">
     <h3 class="text-base font-black text-slate-900">Instant answer</h3>
+    <InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" />
     <InstantUnloaded :older="olderPage" @retry="run(true)" @by-date="emit('by-date')">
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
     </InstantUnloaded>
@@ -789,7 +776,8 @@ import {
 } from '@/search/startProvenance';
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
-import { INSTANT_ONE_LINE, pointerOf, POINTER_LINK } from '@/lib/searchPointer';
+import { INSTANT_ONE_LINE, pointerOf } from '@/lib/searchPointer';
+import InstantPointer from './InstantPointer.vue';
 import { bracketLine } from '@/lib/bracketLine';
 import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';

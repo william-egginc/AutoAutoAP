@@ -32,7 +32,7 @@ describe('the instant card on a phone', () => {
     expect(read('FollowButton.vue')).toContain("primary ? 'min-h-[44px] sm:min-h-0");
   });
   it('the pointer link (See it ↓) and Show more ascension counts', () => {
-    expect(tagWith(src, 'data-testid="instant-pointer-link"')).toContain(TAP);
+    expect(tagWith(read('auto/InstantPointer.vue'), 'data-testid="instant-pointer-link"')).toContain(TAP);
     expect(tagWith(src, 'data-testid="instant-more-counts"')).toContain(TAP);
   });
   it('How this is worked out and What if you had maxed gear? summary rows', () => {
