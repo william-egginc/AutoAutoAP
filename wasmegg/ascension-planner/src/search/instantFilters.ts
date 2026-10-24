@@ -128,7 +128,10 @@ export function polishGains(before: FoundRoutes, after: FoundRoutes, dated: bool
 
 /** "4 ascensions 4.1 h sooner; 7 ascensions +1 TE". */
 export function describeGains(gains: PolishGain[], dated: boolean): string {
-  return gains
+  // Read back from a saved answer: anything that isn't a number (an Infinity saved as null) is left out, never a
+  // throw while the card draws.
+  return (Array.isArray(gains) ? gains : [])
+    .filter(g => !!g && Number.isFinite(g.hours) && Number.isFinite(g.te) && Number.isFinite(g.k))
     .map(g => {
       const h = `${g.hours >= 10 ? g.hours.toFixed(0) : g.hours.toFixed(1)} h`;
       const what = g.te > 0 ? `+${g.te} TE` : dated ? `${h} more to spare` : `${h} sooner`;

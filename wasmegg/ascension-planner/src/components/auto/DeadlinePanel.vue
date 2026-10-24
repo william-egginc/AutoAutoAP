@@ -130,6 +130,8 @@
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
     <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant">
+      <!-- Never nothing: a card that can't be drawn says so (InstantGuard.ts, lib/renderGuard.ts). -->
+      <InstantGuard>
       <InstantRoute
         :deadline="deadline"
         share-to="#search-share-by-date"
@@ -193,6 +195,7 @@
           </div>
         </template>
       </InstantRoute>
+      </InstantGuard>
     </CollapsibleSection>
     <!-- The answers side by side (SearchCompare.vue): instant answer, stronger check, Exhaustive. -->
     <SearchCompare v-if="SHOW_COMPARE && deadline" goal="date" />
@@ -1109,6 +1112,7 @@ import {
   type ByDateKind,
 } from '@/search/byDateKinds';
 import CollapsibleSection from './CollapsibleSection.vue';
+import InstantGuard from './InstantGuard';
 import SearchPanel from './SearchPanel.vue';
 import { choiceForEffort, type SearchChoice } from '@/lib/searchOption';
 import { scrollToShownId, selectSearchTab } from '@/lib/searchTab';

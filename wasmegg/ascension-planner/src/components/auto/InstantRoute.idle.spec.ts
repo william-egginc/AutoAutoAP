@@ -56,7 +56,7 @@ describe('InstantRoute: the line closes the chain of states', () => {
     expect(line).toContain('{{ idle.text }}');
     expect(line).toContain(`@click="pressRun(false, 'again')"`);
     expect(instant).toContain(
-      'idleLine({ due: runDue.value, setupLoaded: store.setupLoaded, te: Math.floor(store.currentTE) })'
+      'idleLine({ due: runDue.value || tablesWait.value, setupLoaded: store.setupLoaded, te: Math.floor(store.currentTE) })'
     );
   });
 });

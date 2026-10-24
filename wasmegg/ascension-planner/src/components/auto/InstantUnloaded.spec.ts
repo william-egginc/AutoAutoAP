@@ -105,8 +105,10 @@ describe('InstantRoute wiring: noTable is never set without a visible card', () 
       // The pointer to a finished search's result (InstantPointer.vue) may sit between, on `pointer` alone (23 Oct 2026).
       /<section v-else [^>]*data-testid="instant-no-table">\s*<h3[^>]*>Instant answer<\/h3>\s*<InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" \/>\s*<InstantUnloaded :older="olderPage" @retry="run\(true\)" @by-date="emit\('by-date'\)">/
     );
-    // `noTable` appears in the template only there.
-    expect(template.match(/noTable/g)).toHaveLength(1);
+    // `noTable` appears in the template only there, and in the share line, which lives beside the card (its
+    // Teleport stays as long as the card; InstantRoute.states.spec.ts) and shows only with the answer section.
+    expect(template.match(/noTable/g)).toHaveLength(2);
+    expect(template).toContain('v-if="pointer && result && !noTable && !integrityHold"');
   });
   it('the only ways noTable is set: off, or from a load failure (whose card is the one above)', () => {
     const sets = script.match(/noTable\.value = [^;]+;/g) ?? [];
@@ -120,9 +122,12 @@ describe('InstantRoute wiring: noTable is never set without a visible card', () 
   it('both screens keep the section on the page whatever the instant answer did (folded: its one line)', () => {
     const fastest = read('FastestRoute.vue');
     const byDate = read('DeadlinePanel.vue');
-    expect(fastest).toMatch(/<CollapsibleSection id="instant"[^>]*>\s*(<!--[\s\S]*?-->\s*)?<InstantRoute/);
+    // In the guard that says so when the card can't be drawn (InstantGuard.ts), and nothing else.
+    expect(fastest).toMatch(/<CollapsibleSection id="instant"[^>]*>\s*(<!--[\s\S]*?-->\s*)?<InstantGuard>\s*<InstantRoute/);
     // By a date: only without a date (then it says "Pick a date and time.").
-    expect(byDate).toMatch(/<CollapsibleSection v-if="deadline" id="instant"[^>]*>\s*<InstantRoute/);
+    expect(byDate).toMatch(
+      /<CollapsibleSection v-if="deadline" id="instant"[^>]*>\s*(<!--[\s\S]*?-->\s*)?<InstantGuard>\s*<InstantRoute/
+    );
     expect(byDate).toContain('<template v-else>Pick a date and time.</template>');
   });
 });
