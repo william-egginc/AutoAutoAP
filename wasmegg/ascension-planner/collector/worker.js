@@ -3,8 +3,9 @@
  *
  * Deploy this and point the app's `VITE_SUBMIT_URL` at `https://<worker>/submit`. Everything
  * lives in one Worker plus one KV namespace, because the whole dataset is a few thousand small
- * JSON objects and reaching for a database would be borrowing trouble. (The one exception is the
- * phone watch in watch.js, which keeps its rows in a small D1 database.)
+ * JSON objects and reaching for a database would be borrowing trouble. (The exceptions are the
+ * phone watch in watch.js, the followed routes in follow.js and the daily build counts in
+ * buildcount.js, which keep their rows in a small D1 database.)
  *
  *   POST /submit       one submission, validated, stored, rate-limited by IP. A copy of a result
  *                      already on the board is caught here and not stored twice (see "duplicates").
@@ -64,6 +65,7 @@
 
 import { handleWatch, isWatchRequest, watchCron } from './watch.js';
 import { handleFollow, isFollowRequest } from './follow.js';
+import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
 // every tier owned; see src/search/submission.ts. Rows already in KV at schema 1 keep their old
@@ -3200,6 +3202,8 @@ export default {
     if (isWatchRequest(url)) return handleWatch(request, env);
     // "Follow in the cloud" (follow.js): D1 too, none of it touches SUBMISSIONS.
     if (isFollowRequest(url)) return handleFollow(request, env);
+    // "Which build is in use" (buildcount.js): a daily count per page build in D1, nothing else.
+    if (isBuildCountRequest(url)) return handleBuildCount(request, env);
 
     // ------------------------------------------------------------------ submit
     if (url.pathname === '/submit' && request.method === 'POST') {
@@ -4160,14 +4164,17 @@ export default {
   },
 
   /** The cron trigger (wrangler.toml): the watch rows' 15-minute stale note, and once an hour the
-   *  7-day clean-up (D1); and once an hour, at :30, the KV sweep (see "the sweep"). */
+   *  7-day clean-up and the build counts' 30-day clean-up (D1); and once an hour, at :30, the KV sweep
+   *  (see "the sweep"). */
   async scheduled(event, env, ctx) {
     const at = typeof event?.scheduledTime === 'number' ? event.scheduledTime : Date.now();
+    const prune = new Date(at).getUTCMinutes() < 5;
     ctx.waitUntil(
       watchCron(env, at, fetch, {
-        prune: new Date(at).getUTCMinutes() < 5,
+        prune,
       }).catch(() => undefined)
     );
+    if (prune) ctx.waitUntil(buildCountSweep(env, at).catch(() => undefined));
     // The sweep (see "the sweep"): once an hour, at :30, one prefix a time. KV, not D1.
     const minute = new Date(at).getUTCMinutes();
     if (minute >= 30 && minute < 35 && env.SUBMISSIONS) ctx.waitUntil(sweepGarbage(env, at).catch(() => undefined));

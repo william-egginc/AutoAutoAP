@@ -1108,3 +1108,28 @@ contract (key, JSON shapes, errors) is `~/code/aaap-tools/notes/follow-contract.
   (`*`; the preflight allows `PUT` and `content-type`).
 - **Deploy:** apply the migration to the database first (`wrangler d1 migrations apply <db> --remote`), then deploy the
   Worker. The migration only creates tables.
+
+## Which build is in use (`/v`, 24 Oct 2026)
+
+Each open copy of the page tells the collector which build it is, at most once a day, so the maintainer knows when
+old builds are still open. The code is `buildcount.js`; the page side is `src/lib/buildCount.ts`.
+
+| endpoint | what |
+|---|---|
+| `POST /v` | body: the build id as plain text (`index-BGv8tSVu`, the hashed entry script the page loaded); `{ ok, counted }` |
+
+- **What is kept:** one row per (UTC day, build) in D1 `build_counts` (`day`, `build`, `n`), migration
+  `migrations/0003_buildcount.sql`. No address, no header, no time beyond the day. The cron deletes days more than
+  30 days back on its hourly clean-up (minutes 0 to 4, beside the watch rows').
+- **What the page sends:** the build id alone, with no referrer and no cookies (`no-cors` keepalive POST), at most
+  once a UTC day per build per browser (a localStorage stamp; once per page load where storage is blocked), only
+  after the page has been visible 5 seconds, never offline, and nothing at all with Global Privacy Control or Do Not
+  Track on. A failure is ignored.
+- **Validation:** the body must be exactly one id, `^[a-z]{1,16}-[A-Za-z0-9_-]{6,16}$` (33 characters at most, so a
+  player ID's 18 cannot fit), else `400`; a body over 64 bytes is `413`.
+- **Limits:** the `BUILD_LIMIT` edge binding, 10 a minute per address (the address is the binding's key only, never
+  stored; none without the binding), and at most 200 different builds a day: past that a new build is not counted
+  (`counted: false`), builds already seen that day still are. A count is one upsert.
+- **Reading it:** `npx wrangler@4 d1 execute aaap-watch --remote --command "SELECT day, build, n FROM build_counts ORDER BY day DESC, n DESC"`.
+- **Deploy:** apply the migration first (`wrangler d1 migrations apply aaap-watch --remote`), then deploy the Worker.
+  The migration only creates a table.

@@ -106,3 +106,13 @@ namespace_id = "1105"
   [ratelimits.simple]
   limit = 60
   period = 60
+
+# "Which build is in use" (buildcount.js, 24 Oct 2026): POST /v, one per browser a day at most. Per address, counted at
+# the edge; the address is only this binding's key, never stored. 10 a minute leaves room for many browsers behind
+# one address (a school, a phone network). A missing binding means no per-address limit.
+[[ratelimits]]
+name = "BUILD_LIMIT"
+namespace_id = "1106"
+  [ratelimits.simple]
+  limit = 10
+  period = 60
