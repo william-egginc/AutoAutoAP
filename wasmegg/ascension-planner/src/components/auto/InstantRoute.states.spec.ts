@@ -145,6 +145,7 @@ function ctxOf(s: State): Record<string, unknown> {
     header: { from: 120, to: 489, cteBonus: 128.71, gearTo: 489 },
     hiddenCounts: 0,
     hoursOn: s.hours,
+    hoursLimited: s.hours,
     idle: idleLine({ due: false, setupLoaded: true, te: 250 }),
     instantCandidate: (r: unknown) => r,
     instantUrl: 'https://collector.example/instant',
