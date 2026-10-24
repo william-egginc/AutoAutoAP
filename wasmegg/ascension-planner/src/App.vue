@@ -764,7 +764,7 @@ import {
 import { storeToRefs } from 'pinia';
 import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, resolveColleggtibleContracts } from 'lib';
-import { requestSave, SaveLoadError, SAVE_UNREACHABLE } from '@/lib/saveLoad';
+import { errorAfterSaveLoaded, LATEST_SAVE_FAILED, requestSave, SaveLoadError, SAVE_UNREACHABLE } from '@/lib/saveLoad';
 import { isRawError, plainError } from '@/lib/plainError';
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1744,13 +1744,15 @@ async function prepareAutoPlanner(): Promise<string> {
   try {
     await initPlanFuture(playerId.value);
     uiStore.staleBackup = null;
+    // A Try again that worked: the "Couldn't load your latest save." line goes with the button (QA 24 Oct 2026).
+    error.value = errorAfterSaveLoaded(error.value);
     // Back from a run's own older save: its pinned start belongs to that save, not this one.
     if (uiStore.runSaveLoaded) chainSearchStore.resetPlanStartTo(initialStateStore.rawBackup?.approxTime);
     uiStore.runSaveLoaded = null;
     return '';
   } catch (e) {
     console.error('Failed to auto-init Auto Planner:', e);
-    error.value = "Couldn't load your latest save.";
+    error.value = LATEST_SAVE_FAILED;
     uiStore.staleBackup = backupFailureReason(e);
     await planFromLastGoodSave();
     return initialStateStore.rawBackup ? '' : `Your save could not be loaded: ${uiStore.staleBackup}.`;

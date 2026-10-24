@@ -33,3 +33,14 @@ describe('page error placement', () => {
     expect(body).toContain("scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' })");
   });
 });
+
+describe('a Try again that worked clears the line (QA 24 Oct 2026, Safari)', () => {
+  it('prepareAutoPlanner clears the save-load failure on success and sets it from the shared words on failure', () => {
+    const start = app.indexOf('async function prepareAutoPlanner(): Promise<string> {');
+    const body = app.slice(start, app.indexOf('\n}\n', start));
+    const ok = body.slice(body.indexOf('await initPlanFuture(playerId.value);'), body.indexOf('} catch (e) {'));
+    expect(ok).toContain('error.value = errorAfterSaveLoaded(error.value);');
+    expect(body.slice(body.indexOf('} catch (e) {'))).toContain('error.value = LATEST_SAVE_FAILED;');
+    expect(app).not.toContain(`error.value = "Couldn't load your latest save.";`);
+  });
+});
