@@ -317,3 +317,139 @@ describe("a Follow press that didn't get online (23 Oct 2026)", () => {
     expect(JSON.parse(puts()[0].body!).value).toMatchObject({ chain: [200, 490], at: AT + 60_000 });
   });
 });
+
+describe("Jordan's Egg Day follow that never reached the collector (23 Oct 2026)", () => {
+  const EGG = 'eggday-2027';
+  const kept = async () => readFollows(await hashID(ID))[EGG];
+  const reload = async () => {
+    setActivePinia(createPinia());
+    calls = [];
+    return loadAccount();
+  };
+  /** A collector without /follow (before ~6:19 pm on the real one): 404 JSON for every /follow request. */
+  const noRoute = () => ({ status: 404, body: { error: 'not found' } });
+  const okPut = (goals: Record<string, unknown> = {}) => (_u: string, m: string) =>
+    m === 'PUT' ? { status: 200, body: { ok: true, version: 1 } } : { status: 200, body: { goals, now: AT } };
+  /** The shape the build before the flag (dddc870d) kept: summary fields, no `sync`. */
+  const preFlag = {
+    chain: [197, 228, 257, 285, 313],
+    from: 'answer',
+    at: AT,
+    source: 'instant',
+    planStart: T - 17 * 3600,
+    finish: T + 86400 * 200,
+    endTE: 313,
+    spareSeconds: 1.4 * 86400,
+    hours: { start: '07:00', end: '05:00', timezone: 'America/Denver' },
+    saveTime: T - 17 * 3600,
+    simVersion: SIM_VERSION,
+    build: '2026-10-24T00:08:31.000Z',
+  };
+
+  it('a pre-flag Egg Day follow: exactly one PUT (goal eggday2027) on load when nothing is online, then marked saved', async () => {
+    mem.set(`${FOLLOW_PREFIX}${await hashID(ID)}`, JSON.stringify({ [EGG]: preFlag }));
+    answer = okPut();
+    const follows = await loadAccount();
+    await vi.waitFor(() => expect(puts().length).toBe(1));
+    expect(calls.map(c => c.method)).toEqual(['GET', 'PUT']);
+    const body = JSON.parse(puts()[0].body!);
+    expect(body).toMatchObject({ k: KEY, goal: 'eggday2027' });
+    expect(body.value).toMatchObject({ chain: [197, 228, 257, 285, 313], source: 'instant', at: AT, hours: { start: '07:00', end: '05:00' } });
+    expect(hasPlayerId(puts()[0].body!)).toBe(false);
+    await vi.waitFor(async () => expect((await kept()).sync).toBe('synced'));
+    expect(follows.notSaved(EGG)).toBe(false);
+    await reload();
+    await new Promise(r => setTimeout(r, 20));
+    expect(puts()).toEqual([]);
+  });
+
+  it('a 404 from a collector without /follow is NOT a refusal: the press stays pending and the next load saves it', async () => {
+    let follows = await loadAccount();
+    answer = noRoute;
+    await follows.follow(EGG, [197, 228, 257, 285, 313], 'answer');
+    expect((await kept()).sync).toBe('pending');
+    // Another load while the collector still has no /follow: the read fails, nothing is written, still pending.
+    follows = await reload();
+    await new Promise(r => setTimeout(r, 20));
+    expect(puts()).toEqual([]);
+    expect((await kept()).sync).toBe('pending');
+    // The route exists now: one PUT.
+    answer = okPut();
+    await reload();
+    await vi.waitFor(() => expect(puts().length).toBe(1));
+    expect(JSON.parse(puts()[0].body!).goal).toBe('eggday2027');
+    await vi.waitFor(async () => expect((await kept()).sync).toBe('synced'));
+  });
+
+  it('an HTML 404 page or a CORS refusal (network failure) is the same: pending, never unsyncable', async () => {
+    for (const a of [() => ({ status: 404, body: '<!doctype html>' }), () => 'offline' as const]) {
+      mem.clear();
+      setActivePinia(createPinia());
+      calls = [];
+      const follows = await loadAccount();
+      answer = (_u, m) => (m === 'PUT' ? a() : { status: 200, body: { goals: {} } });
+      await follows.follow(EGG, [197, 228, 257, 285, 313], 'answer');
+      expect((await kept()).sync).toBe('pending');
+    }
+  });
+
+  it('every way to follow (typed on Right now, Follow it, Restore, a result that became the follow) is pending until saved, then PUT on the next load', async () => {
+    const ways: [string, (f: ReturnType<typeof useFollowStore>) => Promise<unknown>][] = [
+      ['typed', f => f.follow(EGG, [197, 228, 257, 285, 313], 'typed')],
+      ['follow it', f => f.followBetter(EGG, { id: 'x', words: '', chain: [197, 228, 257, 285, 313], source: 'fast', end: T + 86400 * 200, endTE: 313, planStart: T }, T + 86400 * 201)],
+      ['restore', f => f.restore(EGG, { chain: [197, 228, 257, 285, 313], planStart: T, source: 'exact', at: AT - 1000 })],
+      ['auto', f => f.follow(EGG, [197, 228, 257, 285, 313], 'saved', undefined, { source: 'fast', auto: true })],
+    ];
+    for (const [, way] of ways) {
+      mem.clear();
+      setActivePinia(createPinia());
+      calls = [];
+      const follows = await loadAccount();
+      answer = (_u, m) => (m === 'PUT' ? 'offline' : { status: 200, body: { goals: {} } });
+      await way(follows);
+      expect((await kept()).sync).toBe('pending');
+      answer = okPut();
+      await reload();
+      await vi.waitFor(() => expect(puts().length).toBe(1));
+      expect(JSON.parse(puts()[0].body!).goal).toBe('eggday2027');
+    }
+  });
+
+  it('Right now\'s "Save it online": shown while a follow is not saved, saves it on a press, then gone', async () => {
+    let follows = await loadAccount();
+    answer = (_u, m) => (m === 'PUT' ? 'offline' : { status: 200, body: { goals: {} } });
+    await follows.follow(EGG, [197, 228, 257, 285, 313], 'answer');
+    // The retry on the next load fails too: said, with the button.
+    follows = await reload();
+    await vi.waitFor(() => expect(puts().length).toBe(1));
+    await vi.waitFor(() => expect(follows.notSaved(EGG)).toBe(true));
+    answer = okPut();
+    const s = await follows.saveNow(EGG);
+    expect(s?.state).toBe('saved');
+    expect(puts().length).toBe(2);
+    expect(follows.notSaved(EGG)).toBe(false);
+    expect((await kept()).sync).toBe('synced');
+  });
+
+  it('a pre-flag follow while an OLDER route is saved online: not written on its own, said to be unsaved; a newer one online counts as saved', async () => {
+    mem.set(`${FOLLOW_PREFIX}${await hashID(ID)}`, JSON.stringify({ [EGG]: preFlag }));
+    answer = okPut({ eggday2027: { value: { chain: [200, 250, 300], planStart: T, source: 'fast', at: AT - 60_000 }, version: 1, updatedAt: AT } });
+    let follows = await loadAccount();
+    await new Promise(r => setTimeout(r, 20));
+    expect(puts()).toEqual([]);
+    expect(follows.followed(EGG)?.chain).toEqual([197, 228, 257, 285, 313]);
+    expect(follows.notSaved(EGG)).toBe(true);
+    // The same route online (or a newer one): saved, nothing said.
+    answer = okPut({ eggday2027: { value: { ...preFlag, at: AT } , version: 2, updatedAt: AT } });
+    follows = await reload();
+    await vi.waitFor(async () => expect((await kept()).sync).toBe('synced'));
+    expect(puts()).toEqual([]);
+    expect(follows.notSaved(EGG)).toBe(false);
+  });
+
+  it('without a collector, or before the saved routes are read, nothing is said', async () => {
+    mem.set(`${FOLLOW_PREFIX}${await hashID(ID)}`, JSON.stringify({ [EGG]: preFlag }));
+    const follows = await loadAccount('');
+    expect(follows.notSaved(EGG)).toBe(false);
+  });
+});

@@ -49,9 +49,10 @@ describe('the followed route saved online: wiring', () => {
     const callers = allSource(src).filter(p => /\b(putFollow|getFollows|getFollowHistory)\(/.test(readFileSync(p, 'utf8')));
     expect(callers.map(p => p.slice(src.length)).sort()).toEqual(['lib/followCloud.ts', 'stores/follow.ts']);
     const store = read('stores/follow.ts');
-    // saveOnline is called from follow() and, once per load, for a Follow press that never got there (syncPending,
-    // `retry` true); the read itself writes nothing else.
-    expect(store.match(/saveOnline\(/g)?.length).toBe(3); // its definition, follow() and syncPending
+    // saveOnline is called from follow(), once per load for a Follow press that never got there (syncPending,
+    // `retry` true), and from Right now's "Save it online" (saveNow, a press); the read itself writes nothing else.
+    expect(store.match(/saveOnline\(/g)?.length).toBe(4); // its definition, follow(), syncPending and saveNow
+    expect(store).toContain('return saveOnline(goalKey, f);');
     expect(store).toContain('await saveOnline(g, f, true);');
     const load = store.slice(store.indexOf('function loadCloud('), store.indexOf('/** Follows already tried this visit'));
     expect(load).not.toMatch(/putFollow|saveOnline/);

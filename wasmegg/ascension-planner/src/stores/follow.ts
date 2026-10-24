@@ -14,7 +14,9 @@
  * UNSYNCED (23 Oct 2026): a Follow press whose save didn't get through (no collector yet, offline, 5xx, the hour's
  * limit) stays `sync: 'pending'`; the next load, after its read, saves it ONCE when nothing newer is saved online for
  * the goal (`syncPending`). 400 and 413 mark it 'unsyncable' (never tried again). A follow kept before the flag existed
- * is saved the same way only when nothing at all is saved online for its goal.
+ * is saved the same way only when nothing at all is saved online for its goal. NOT SAVED (Jordan, 23 Oct 2026: his
+ * Egg Day follow never reached the collector and nothing said so): while a follow is still not saved after the read,
+ * Right now says so with "Save it online" (`notSaved`, `saveNow`).
  */
 import { defineStore, getActivePinia } from 'pinia';
 import { computed, ref, watch } from 'vue';
@@ -175,9 +177,10 @@ export const useFollowStore = defineStore('follow', () => {
     for (const [g, f] of Object.entries(mapOf(p))) {
       if (taken.includes(g) || f.cloud || f.sync === 'synced' || f.sync === 'unsyncable') continue;
       const there = cloud[g];
-      // Something as new or newer online: this one got there (or lost to it).
+      // Something as new or newer online: this one got there (or lost to it). A follow kept before the flag too, so
+      // Right now doesn't call it unsaved (`notSaved`).
       if (there && there.at >= f.at) {
-        if (f.sync) markSync(p, g, f.at, 'synced');
+        markSync(p, g, f.at, 'synced');
         continue;
       }
       // Kept before the flag: only when nothing at all is saved for the goal.
@@ -195,6 +198,7 @@ export const useFollowStore = defineStore('follow', () => {
     const f = mapOf(p)[goalKey];
     if (!f || f.at !== at || f.sync === sync) return;
     held.set(p, writeFollow(p, goalKey, { ...f, sync }, mapOf(p)));
+    version.value++;
   }
 
   /** The route followed for a goal of the account (`p`, else the loaded save's), or null. */
@@ -341,6 +345,31 @@ export const useFollowStore = defineStore('follow', () => {
     });
   }
 
+  /**
+   * The followed route of a goal is not saved online (23 Oct 2026, Jordan's Egg Day follow never reached the
+   * collector and nothing said so): there is a collector and the account's saved routes were read this visit, and the
+   * kept follow is neither read back from online nor marked saved (a press whose save didn't get through and whose
+   * retry failed too, or one kept before the flag while an older route is saved online). Right now says so and offers
+   * `saveNow`. Not while a save is under way, nor after a refusal (its own words are shown then).
+   */
+  function notSaved(goalKey: GoalKey | null | undefined): boolean {
+    void version.value;
+    if (!goalKey || !online.value || cloudStatus.value !== 'ok') return false;
+    const f = followed(goalKey);
+    if (!f || f.cloud || f.sync === 'synced' || f.sync === 'unsyncable') return false;
+    const s = saves.value[goalKey];
+    return s?.state !== 'saving';
+  }
+
+  /** "Save it online" on Right now: the kept follow of a goal saved online now, as a Follow press saves it (the same
+   *  route and `at`: the collector stores nothing new when it already has it). */
+  async function saveNow(goalKey: GoalKey): Promise<SaveState | null> {
+    const p = partition.value;
+    const f = p ? mapOf(p)[goalKey] : null;
+    if (!f) return null;
+    return saveOnline(goalKey, f);
+  }
+
   /** How the last save of a goal went (null: none this visit). */
   function saveState(goalKey: GoalKey | null | undefined): SaveState | null {
     return goalKey ? (saves.value[goalKey] ?? null) : null;
@@ -370,6 +399,8 @@ export const useFollowStore = defineStore('follow', () => {
     restore,
     followBetter,
     saveState,
+    notSaved,
+    saveNow,
     reset,
   };
 });
