@@ -41,6 +41,19 @@
       >
         Build this plan
       </button>
+      <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
+      <FollowButton
+        v-if="follow"
+        primary
+        :chain="chain"
+        :goal-key="follow.goalKey"
+        from="saved"
+        :source="follow.source"
+        :finish="follow.finish"
+        :end-t-e="follow.endTE"
+        :plan-start="follow.planStart"
+        :deadline="follow.deadline ?? null"
+      />
       <button
         v-if="canFill"
         type="button"
@@ -84,6 +97,8 @@
 import { simulateNote } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import ResultCardFrame from './ResultCardFrame.vue';
+import FollowButton from '../FollowButton.vue';
+import type { ResultFollow } from '@/lib/follow';
 import { CARD_NOTE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 
 withDefaults(
@@ -110,6 +125,8 @@ withDefaults(
     lastRun?: string;
     /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
     pricedWith?: string;
+    /** "Follow this route" for the finished result (lib/follow.ts `ResultFollow`); absent: no button. */
+    follow?: ResultFollow | null;
   }>(),
   {
     claim: '',
@@ -121,6 +138,7 @@ withDefaults(
     note: '',
     lastRun: '',
     pricedWith: '',
+    follow: null,
   }
 );
 const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();

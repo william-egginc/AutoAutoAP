@@ -101,7 +101,7 @@
       <!-- The same row as Fastest's card, in the same order: the main action (Simulate this plan, as
            the instant answer's rows: this route in Single run (NAMES.classic), search/simulateRoute.ts), Share, CSV, Save.
            Mid-run only Simulate (the rest belong to the finished answer). -->
-      <template v-if="simulate || canShare || canCsv || canSave" #actions>
+      <template v-if="simulate || canShare || canCsv || canSave || (follow && !running)" #actions>
         <button
           v-if="simulate"
           type="button"
@@ -113,6 +113,19 @@
           Simulate this plan
         </button>
         <template v-if="!running">
+          <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
+          <FollowButton
+            v-if="follow"
+            primary
+            :chain="route.chain"
+            :goal-key="follow.goalKey"
+            from="saved"
+            :source="follow.source"
+            :finish="follow.finish"
+            :end-t-e="follow.endTE"
+            :plan-start="follow.planStart"
+            :deadline="follow.deadline ?? null"
+          />
           <button v-if="canShare" type="button" :class="SECONDARY_BUTTON" data-testid="by-date-share" @click="toShare">
             Share
           </button>
@@ -192,6 +205,8 @@ import { SIMULATE_TITLE, simulateNote as simulateLine } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import { computed, ref, watch } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';
+import FollowButton from '../FollowButton.vue';
+import type { ResultFollow } from '@/lib/follow';
 import RouteExtras from './RouteExtras.vue';
 import RouteTimeline from './RouteTimeline.vue';
 import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
@@ -230,6 +245,8 @@ const props = defineProps<{
   runCost?: number | null;
   /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
   pricedWith?: string;
+  /** "Follow this route" for the finished result (lib/follow.ts `ResultFollow`); absent: no button. */
+  follow?: ResultFollow | null;
 }>();
 const emit = defineEmits<{ simulate: []; csv: []; save: [] }>();
 

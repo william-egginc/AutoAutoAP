@@ -206,6 +206,21 @@ export function boardRowSummary(row: BoardRow): { finish?: number; endTE: number
   };
 }
 
+/**
+ * "Follow this route" on a search's result card (Fastest's RouteResultCard.vue, By a date's ByDateRouteCard.vue; Jordan,
+ * 23 Oct 2026: "I can't follow the fast results"): the goal and the summary saved with it. `source` is the result's
+ * level (fast, exact, custom); `finish` when it reaches its last stop (By a date: `reachAt`, as Saved answers pass).
+ */
+export interface ResultFollow {
+  goalKey: GoalKey;
+  source: FollowSource;
+  finish: number | null;
+  endTE: number;
+  planStart: number | null;
+  /** By a date's deadline (the spare saved with it). */
+  deadline?: number | null;
+}
+
 /** Same stops in the same order. */
 export function sameChain(a: readonly number[] | null | undefined, b: readonly number[] | null | undefined): boolean {
   return !!a && !!b && a.length === b.length && a.every((x, i) => x === b[i]);
