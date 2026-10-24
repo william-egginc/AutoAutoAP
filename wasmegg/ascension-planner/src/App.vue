@@ -346,8 +346,10 @@
                 ></span>
               </button>
               <!-- My runs here too (Jordan, 16 Oct 2026): the same page as the top tab (#/myruns), from
-                   where a player has just run something. Always, as the top tab (21 Oct 2026: My runs is this device's). -->
+                   where a player has just run something. Shown with the top tab: once the account has something there,
+                   or while a search runs (Jordan, 24 Oct 2026; lib/myRunsShown.ts). -->
               <button
+                v-if="myRunsTabShown"
                 type="button"
                 class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-400 hover:text-slate-700"
                 data-testid="auto-tab-myruns"
@@ -792,6 +794,8 @@ import PlanLibrary from '@/components/PlanLibrary.vue';
 import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { allowForVisit, useTabPrefs } from '@/composables/useTabPrefs';
+import { useMyRunsShown } from '@/composables/useMyRunsShown';
+import { myRunsTab } from '@/lib/myRunsShown';
 import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
 import { scrollToRun } from '@/lib/runAnchor';
@@ -1209,18 +1213,36 @@ watch(playerId, id => void setConsentAccount(id), { immediate: true });
 // with no collector. An address that asks for one opens it for this visit (allowForVisit, here and in goTo).
 const { shown: optionalShown } = useTabPrefs(() => !!chainSearchStore.submitUrl);
 if (initialRoute) allowForVisit(initialRoute.section);
+/**
+ * MY RUNS ONLY WITH SOMETHING TO SHOW (Jordan, 24 Oct 2026; lib/myRunsShown.ts): its tab (top and the Auto Planner's)
+ * shows once the account has a followed route, a saved answer or snapshot, a kept result or a board run seen there,
+ * and always while a search runs. On a reload of #/myruns it stays while that is worked out.
+ */
+const { content: myRunsContent } = useMyRunsShown({
+  playerId: () => playerId.value,
+  rawBackup: () => initialStateStore.rawBackup,
+  library: () => chainSearchStore.savedRuns.length + chainSearchStore.savedAnswers.length,
+});
+const myRunsRunning = computed(() => searchActive.value || chainSearchStore.isRunning || chainSearchStore.deadlineRunning);
+const myRunsTabShown = computed(
+  () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
+);
 /** The last tab shown that is always there or still allowed: where a tab that has just gone falls back to. */
 let lastShownTab: typeof plannerTab.value = 'myruns';
 function tabHidden(tab: typeof plannerTab.value): boolean {
-  return (tab === 'leaderboard' && !optionalShown.value.leaderboard) || (tab === 'science' && !optionalShown.value.science);
+  return (
+    (tab === 'leaderboard' && !optionalShown.value.leaderboard) ||
+    (tab === 'science' && !optionalShown.value.science) ||
+    (tab === 'myruns' && !myRunsTabShown.value)
+  );
 }
-// On a tab that isn't shown (its box just turned off in Setup, or an address for it in a copy with no collector):
-// the tab it came from, or My runs, never a blank page.
+// On a tab that isn't shown (its box just turned off in Setup, an address for it in a copy with no collector, or My
+// runs with nothing to show): the tab it came from, else My runs, else the Auto Planner, never a blank page.
 watch(
-  [plannerTab, optionalShown],
+  [plannerTab, optionalShown, myRunsTabShown],
   () => {
     if (!tabHidden(plannerTab.value)) lastShownTab = plannerTab.value;
-    else plannerTab.value = tabHidden(lastShownTab) ? 'myruns' : lastShownTab;
+    else plannerTab.value = !tabHidden(lastShownTab) ? lastShownTab : !tabHidden('myruns') ? 'myruns' : 'automatic';
   },
   { immediate: true, flush: 'sync' }
 );
@@ -1259,13 +1281,18 @@ const topTabs = computed(() => [
         },
       ]
     : []),
-  // My runs always: it is this device's (saved plans, Right now); its board parts hide with no collector.
-  {
-    id: 'myruns' as const,
-    tab: 'myruns',
-    label: NAMES.myRuns,
-    on: 'bg-sky-600 text-white shadow-lg shadow-sky-100',
-  },
+  // My runs once the account has something there, or while a search runs (myRunsTabShown); its board parts hide with
+  // no collector.
+  ...(myRunsTabShown.value
+    ? [
+        {
+          id: 'myruns' as const,
+          tab: 'myruns',
+          label: NAMES.myRuns,
+          on: 'bg-sky-600 text-white shadow-lg shadow-sky-100',
+        },
+      ]
+    : []),
   ...(optionalShown.value.science
     ? [
         {

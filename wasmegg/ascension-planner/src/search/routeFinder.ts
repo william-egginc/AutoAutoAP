@@ -104,10 +104,19 @@ function sweepOne(
   lowest: number,
   start: number,
   holdUntil: ((t: number) => number) | undefined,
-  o: TailOptions
+  o: TailOptions,
+  /** Only `top` is wanted (`priceLeg`): a replay works out that checkpoint alone (tableV2.ts `sweepReplay` `only`). */
+  only = false
 ): TailSweep {
   return replays(b, holdUntil, o)
-    ? sweepReplay(b, b.extras!, top, { start, lateBy, lowest, holdUntil, order: o.order === 'table' ? 'table' : 'simulator' })
+    ? sweepReplay(b, b.extras!, top, {
+        start,
+        lateBy,
+        lowest,
+        holdUntil,
+        order: o.order === 'table' ? 'table' : 'simulator',
+        ...(only ? { only } : {}),
+      })
     : sweepTails(b, top, lateBy, lowest);
 }
 
@@ -316,7 +325,7 @@ export function priceLeg(
   for (const o of options) {
     const moved = scaled(o.builds, deliveryScale).map(b => rebase(b, te, delivered));
     for (const b of moved) {
-      const sw = sweepOne(b, target, o.lateBy, target, o.start, holdUntil, tail);
+      const sw = sweepOne(b, target, o.lateBy, target, o.start, holdUntil, tail, true);
       const i = target - sw.from;
       if (i < 0 || i >= sw.seconds.length || Number.isNaN(sw.seconds[i])) continue;
       const end = o.start + sw.seconds[i];

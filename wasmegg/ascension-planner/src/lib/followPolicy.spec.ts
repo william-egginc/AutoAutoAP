@@ -1,10 +1,11 @@
 /**
- * lib/followPolicy.ts: a Fast, Exact or Custom result that drives Right now while nothing is followed becomes the
- * follow (AUTO_FOLLOW_RESULT); never over a followed route, a gone-back result, another save's plan, or after the
- * player un-followed it.
+ * lib/followPolicy.ts (AUTO_FOLLOW_FIRST, 24 Oct 2026): the first answer for a goal that follows nothing becomes the
+ * follow, the instant answer's box route or a Fast, Exact or Custom result that drives Right now; never over a followed
+ * route, a gone-back result, another save's plan, a By a date route out of time, or after the goal was un-followed on
+ * this device (one time per goal).
  */
 import { describe, expect, it } from 'vitest';
-import { AUTO_FOLLOW_RESULT, autoFollowOf, followedLabel } from './followPolicy';
+import { AUTO_FOLLOW_FIRST, autoFollowOf, followedLabel, instantAutoFollowOf } from './followPolicy';
 import type { Driving } from './searchPlan';
 import type { NowPlan } from './nowPlan';
 
@@ -28,23 +29,57 @@ describe('autoFollowOf', () => {
     expect(autoFollowOf({ ...base, driving: driving({ found: { ...found, level: 'Custom' } }) })?.source).toBe('custom');
   });
 
-  it('nothing when off, followed, not driving, gone back, another save, or un-followed after it was found', () => {
+  it('nothing when off, followed, not driving, gone back, another save, or un-followed on this device at all', () => {
     expect(autoFollowOf({ ...base, enabled: false })).toBeNull();
     expect(autoFollowOf({ ...base, followed: true })).toBeNull();
     expect(autoFollowOf({ ...base, driving: driving({ plan: instant, takeover: 'later' }) })).toBeNull();
     expect(autoFollowOf({ ...base, driving: driving({ plan: instant, wentBack: true }) })).toBeNull();
     expect(autoFollowOf({ ...base, driving: driving({ found: null, search: null, plan: instant }) })).toBeNull();
     expect(autoFollowOf({ ...base, thisSave: false })).toBeNull();
+    // One time per goal: un-followed before (whenever), the result only asks.
     expect(autoFollowOf({ ...base, goneAt: found.at + 1 })).toBeNull();
-    expect(autoFollowOf({ ...base, goneAt: found.at - 1 })).not.toBeNull();
+    expect(autoFollowOf({ ...base, goneAt: found.at - 1 })).toBeNull();
+    expect(autoFollowOf({ ...base, goneAt: 0 })).not.toBeNull();
+  });
+});
+
+describe('instantAutoFollowOf', () => {
+  const route = { chain: [205, 238], end: 1_900_000_000.6, endTE: 238 };
+  const ib = { route, at: 1_700_000_000_000, planStart: 1_899_000_000, deadline: 1_900_100_000, inTime: true, followed: false, goneAt: 0, enabled: true };
+
+  it('the box route, as the instant answer, with the summary a Follow press saves', () => {
+    expect(instantAutoFollowOf(ib)).toEqual({
+      chain: [205, 238],
+      source: 'instant',
+      at: ib.at,
+      finish: 1_900_000_001,
+      endTE: 238,
+      planStart: 1_899_000_000,
+      spareSeconds: 99_999,
+    });
+    // Fastest: no spare.
+    expect(instantAutoFollowOf({ ...ib, deadline: null })).not.toHaveProperty('spareSeconds');
+  });
+
+  it('nothing when off, followed, un-followed before, out of time, or with no route', () => {
+    expect(instantAutoFollowOf({ ...ib, enabled: false })).toBeNull();
+    expect(instantAutoFollowOf({ ...ib, followed: true })).toBeNull();
+    expect(instantAutoFollowOf({ ...ib, goneAt: 1 })).toBeNull();
+    expect(instantAutoFollowOf({ ...ib, inTime: false })).toBeNull();
+    expect(instantAutoFollowOf({ ...ib, route: null })).toBeNull();
+    expect(instantAutoFollowOf({ ...ib, route: { ...route, chain: [] } })).toBeNull();
   });
 });
 
 describe('followedLabel', () => {
-  it('"your pick" for a press; "from your Fast run" for a result that became the follow (while the constant is on)', () => {
+  it('"your pick" for a press (Follow it, Restore); "from the instant answer" / "from your Fast run" for the first answer followed on its own', () => {
     expect(followedLabel({ source: 'fast' })).toBe('your pick');
-    expect(followedLabel({ source: 'instant', auto: true })).toBe('your pick');
-    expect(followedLabel({ source: 'exact', auto: true })).toBe(AUTO_FOLLOW_RESULT ? 'from your Exact run' : 'your pick');
+    expect(followedLabel({ source: 'instant' })).toBe('your pick');
+    expect(followedLabel({ source: 'manual', auto: true })).toBe('your pick');
+    expect(followedLabel({ source: 'instant', auto: true })).toBe(AUTO_FOLLOW_FIRST ? 'from the instant answer' : 'your pick');
+    expect(followedLabel({ source: 'fast', auto: true })).toBe(AUTO_FOLLOW_FIRST ? 'from your Fast run' : 'your pick');
+    expect(followedLabel({ source: 'exact', auto: true })).toBe(AUTO_FOLLOW_FIRST ? 'from your Exact run' : 'your pick');
+    expect(followedLabel({ source: 'custom', auto: true })).toBe(AUTO_FOLLOW_FIRST ? 'from your Custom run' : 'your pick');
     expect(followedLabel(null)).toBe('your pick');
   });
 });

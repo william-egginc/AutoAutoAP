@@ -162,3 +162,53 @@ describe('an instant answer never asks about a PRICED follow (Jordan, 23 Oct 202
     }
   });
 });
+
+/**
+ * A PRICED RESULT OVER AN INSTANT FOLLOW (math review 24 Oct 2026, verified, finding 1): a route followed from the
+ * instant answer with no simulated price keeps the table's estimate as its finish, optimistic by days with hours on. A
+ * Fast, Exact or Custom result asks about it without comparing, in words that don't call it "better".
+ */
+describe('a simulated result against an instant-sourced follow', () => {
+  const at = (iso: string) => Date.parse(iso) / 1000;
+  const estimate = at('2028-09-21T08:08:00Z'); // Sep 21 2028, 2:08 am Denver: the instant answer's estimate
+  const fastEnd = at('2028-09-21T14:22:00Z'); // Sep 21 2028, 8:22 am Denver: the Fast run, simulated
+  const followed = { chain: [196, 221, 241, 260, 287, 328, 359, 490], at: NOW * 1000 - 60_000, finish: { end: estimate, endTE: 490 }, source: 'instant', priced: false };
+  const candidate = { chain: [196, 221, 245, 260, 287, 328, 331, 490], end: fastEnd, endTE: 490, at: NOW * 1000, source: 'fast' as const, planStart: NOW };
+  const base = { goalKey: 'fastest-490', goal: 'fastest' as const, deadline: null, followed, candidate, keptMine: [] as string[], when };
+
+  it('the verified case: Sep 21, 8:22 am (Fast) is offered over the Sep 21, 2:08 am estimate', () => {
+    expect(betterThanFollowed('fastest', null, candidate, followed.finish)).toBe(false);
+    const p = followPrompt(base);
+    expect(p?.chain).toEqual(candidate.chain);
+    expect(p?.words).toBe(
+      "Your Fast run, simulated on your account, finishes Sep 21, 2028 at 8:22 am; the route you follow is the instant answer's estimate (Sep 21, 2028 at 2:08 am). Do you want to follow it?"
+    );
+    expect(p?.words).not.toContain('better');
+  });
+
+  it('only over an unpriced instant follow: a priced one, or a typed one, keeps the comparison', () => {
+    expect(followPrompt({ ...base, followed: { ...followed, priced: true } })).toBeNull();
+    expect(followPrompt({ ...base, followed: { ...followed, source: 'manual' } })).toBeNull();
+    expect(followPrompt({ ...base, followed: { ...followed, source: 'fast', priced: true } })).toBeNull();
+    // An instant answer still never asks about a priced follow, and against an unpriced one it compares.
+    expect(followPrompt({ ...base, followed: { ...followed, priced: true }, candidate: { ...candidate, source: 'instant', end: estimate - H } })).toBeNull();
+    expect(followPrompt({ ...base, candidate: { ...candidate, source: 'instant' } })).toBeNull();
+  });
+
+  it('By a date (Egg Day with time off): a simulated 310 that makes the date is offered over an estimated 312; one that lands after it is not', () => {
+    const f = { ...followed, chain: [196, 221, 241, 260, 284, 312], finish: { end: DEADLINE - 2 * D, endTE: 312 } };
+    const c = { ...candidate, chain: [196, 221, 241, 260, 284, 310], end: DEADLINE - 3 * H, endTE: 310 };
+    const date = { ...base, goalKey: `date-${DEADLINE}`, goal: 'date' as const, deadline: DEADLINE, followed: f, candidate: c };
+    expect(betterThanFollowed('date', DEADLINE, c, f.finish)).toBe(false);
+    expect(followPrompt(date)?.words).toBe(
+      "Your Fast run, simulated on your account, gets 310 TE, 3 h to spare; the route you follow is the instant answer's estimate (312 TE, 2.0 days to spare). Do you want to follow it?"
+    );
+    expect(followPrompt({ ...date, candidate: { ...c, end: DEADLINE + H } })).toBeNull();
+  });
+
+  it('not newer than the follow, or Keep mine pressed: nothing, as before', () => {
+    expect(followPrompt({ ...base, candidate: { ...candidate, at: followed.at } })).toBeNull();
+    const p = followPrompt(base)!;
+    expect(followPrompt({ ...base, keptMine: [p.id] })).toBeNull();
+  });
+});

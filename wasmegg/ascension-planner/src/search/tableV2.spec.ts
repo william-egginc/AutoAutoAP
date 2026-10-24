@@ -261,6 +261,46 @@ describe('sweepReplay', () => {
     expect(held).toBeGreaterThan(0);
   }, 120_000);
 
+  it('`only` gives the one checkpoint `top` as the whole sweep has it, to the bit, and nothing below it', () => {
+    let n = 0;
+    const bad: string[] = [];
+    const a = [0, 0, 0, 0, 0];
+    const b5 = [0, 0, 0, 0, 0];
+    for (const [ci, c] of cells.entries()) {
+      const hours = ci % 2 ? zones[ci % 3] : null;
+      const start = REFERENCE_WEEK + c.h * 3600 + (ci % 2) * 1800;
+      const holdUntil = hours ? holdUntilOf(hours) : undefined;
+      for (const order of ['table', 'simulator'] as const)
+        for (const b of c.builds) {
+          const o = { start, holdUntil, order, lateBy: ci % 4 === 3 ? 600 : 0 };
+          // As priceLeg asks: `lowest` the target itself, and below where the counts stand too.
+          for (const target of [c.te - 1, c.te, c.te + 1, c.te + 7, c.te + 40, 300, 490]) {
+            const whole = sweepReplay(plain(b), b.extras, target, { ...o, lowest: target });
+            const one = sweepReplay(plain(b), b.extras, target, { ...o, lowest: target, only: true });
+            const i = target - whole.from;
+            if (one.from !== target || one.to !== target || one.seconds.length !== 1) {
+              bad.push(`${c.te}->${target}: from ${one.from} to ${one.to}`);
+              continue;
+            }
+            n++;
+            whole.deliveredInto(i, a);
+            one.deliveredInto(0, b5);
+            const same = (x: number, y: number) => x === y || (Number.isNaN(x) && Number.isNaN(y));
+            if (
+              !same(one.seconds[0], whole.seconds[i]) ||
+              one.endTE[0] !== whole.endTE[i] ||
+              one.held[0] !== whole.held[i] ||
+              one.lastEgg[0] !== whole.lastEgg[i] ||
+              a.some((x, e) => x !== b5[e])
+            )
+              bad.push(`${c.te}:${c.h} ${order} -> ${target}`);
+          }
+        }
+    }
+    expect(bad.slice(0, 5)).toEqual([]);
+    expect(n).toBeGreaterThan(500);
+  });
+
   it('with hours off and the table order is sweepTails to the bit', () => {
     for (const c of cells.slice(0, 10))
       for (const b of c.builds) {

@@ -36,6 +36,23 @@ export const SAFARI_CHECK_WORKERS = 3;
  *  parts take turns on two workers (search/routePool.ts `limitWorkers`), so the answer is the same. */
 export const SAFARI_ROUTE_WORKERS = 2;
 
+/**
+ * Safari: the instant answer's own route workers are let go (search/routePool.ts `sleep`) once nothing of theirs is
+ * running: the answer is in, and the background polish and the "Prestige by" line after it are done (24 Oct 2026).
+ * Each holds a table and its sweeps, and in Safari each route worker's freed memory comes back slowly; the nearest
+ * tables then run on their own two workers with these gone, and a later request (Check again, another start) starts
+ * them again, reloading the table (a revalidated download, a second or two). Never on other browsers, never while
+ * anything waits on them.
+ */
+export function releaseRouteWorkers(s: {
+  safari: boolean;
+  answer: 'idle' | 'loading' | 'done' | 'error' | string;
+  polish: 'idle' | 'running' | 'done' | string;
+  prestige: 'idle' | 'running' | 'done' | 'error' | string;
+}): boolean {
+  return s.safari && s.answer !== 'loading' && s.polish !== 'running' && s.prestige !== 'running';
+}
+
 /** The worker count Check exactly and Light ask for: `want`, at most three on Safari. */
 export function checkWorkers(want: number, safari: boolean = isSafari()): number {
   return Math.max(1, safari ? Math.min(want, SAFARI_CHECK_WORKERS) : want);

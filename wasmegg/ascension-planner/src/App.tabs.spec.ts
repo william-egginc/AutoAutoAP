@@ -80,10 +80,15 @@ describe('App.vue optional tabs', () => {
     expect(goTo.indexOf('allowForVisit(r.section)')).toBeLessThan(goTo.indexOf('applyRoute(r)'));
   });
 
-  it("on a tab that isn't shown, falls back to the last tab shown or My runs, at once", () => {
+  it("on a tab that isn't shown, falls back to the last tab shown, else My runs, else the Auto Planner, at once", () => {
     const block = app.slice(app.indexOf('let lastShownTab'), app.indexOf('/**\n * On a link into the Auto Planner'));
     expect(block).toContain("let lastShownTab: typeof plannerTab.value = 'myruns';");
-    expect(block).toContain("plannerTab.value = tabHidden(lastShownTab) ? 'myruns' : lastShownTab;");
+    expect(block).toContain(
+      "plannerTab.value = !tabHidden(lastShownTab) ? lastShownTab : !tabHidden('myruns') ? 'myruns' : 'automatic';"
+    );
+    // My runs with nothing to show is a hidden tab too (lib/myRunsShown.ts), and the fallback follows it.
+    expect(block).toContain("(tab === 'myruns' && !myRunsTabShown.value)");
+    expect(block).toContain('[plannerTab, optionalShown, myRunsTabShown],');
     expect(block).toContain("{ immediate: true, flush: 'sync' }");
     // The old rule (no collector: My runs and Science sent to the Manual Planner) is gone.
     expect(app).not.toContain("plannerTab.value === 'myruns' || plannerTab.value === 'science'");

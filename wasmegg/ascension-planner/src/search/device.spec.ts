@@ -1,5 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { checkWorkers, isSafari, isSmallDevice, SAFARI_CHECK_WORKERS } from './device';
+import { checkWorkers, isSafari, isSmallDevice, releaseRouteWorkers, SAFARI_CHECK_WORKERS } from './device';
 
 const desktop = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/129.0 Safari/537.36';
 describe('isSmallDevice', () => {
@@ -60,5 +62,30 @@ describe('checkWorkers', () => {
     expect(checkWorkers(2, true)).toBe(2);
     expect(checkWorkers(4, false)).toBe(4);
     expect(checkWorkers(0, false)).toBe(1);
+  });
+});
+
+describe('releaseRouteWorkers (Safari, 24 Oct 2026)', () => {
+  const at = (answer: string, polish: string, prestige: string, safari = true) =>
+    releaseRouteWorkers({ safari, answer, polish, prestige });
+  it('on Safari, once the answer, the polish and Prestige by are all done, in that order', () => {
+    expect(at('loading', 'idle', 'idle')).toBe(false);
+    expect(at('done', 'running', 'idle')).toBe(false);
+    expect(at('done', 'done', 'running')).toBe(false);
+    expect(at('done', 'done', 'done')).toBe(true);
+    // No "Prestige by" (off, or nothing to work out), a failed one, a failed answer: nothing left for them.
+    expect(at('done', 'done', 'idle')).toBe(true);
+    expect(at('done', 'done', 'error')).toBe(true);
+    expect(at('error', 'idle', 'idle')).toBe(true);
+  });
+  it('never on other browsers', () => {
+    expect(at('done', 'done', 'done', false)).toBe(false);
+  });
+  it('InstantRoute lets the pool sleep on it, before the watch that starts the nearest tables after Prestige by', () => {
+    const vue = fs.readFileSync(path.resolve(__dirname, '../components/auto/InstantRoute.vue'), 'utf8');
+    const release = vue.indexOf('releaseRouteWorkers({');
+    expect(release).toBeGreaterThan(0);
+    expect(vue.slice(release, release + 400)).toMatch(/free => \{\s*if \(free\) pool\?\.sleep\(\);/);
+    expect(release).toBeLessThan(vue.indexOf("() => prestigeStatus.value === 'running',"));
   });
 });

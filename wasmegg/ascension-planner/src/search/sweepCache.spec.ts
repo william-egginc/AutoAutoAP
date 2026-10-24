@@ -46,9 +46,10 @@ describe('SweepCache', () => {
     expect(sweepBudget(false, 2)).toBe(SWEEP_BUDGET);
   });
 
-  it('keeps half on Safari on a computer, a phone its own (22 Oct 2026 Safari reloads)', () => {
+  it('keeps an eighth on Safari on a computer, a phone its own (22 and 24 Oct 2026 Safari reloads)', () => {
     expect(sweepBudget(false, 8, true)).toBe(SAFARI_SWEEP_BUDGET / 4);
-    expect(SAFARI_SWEEP_BUDGET).toBe(SWEEP_BUDGET / 2);
+    expect(SAFARI_SWEEP_BUDGET).toBe(SWEEP_BUDGET / 8);
+    expect(SAFARI_SWEEP_BUDGET).toBe(256 * 1024 * 1024);
     expect(sweepBudget(true, 6, true)).toBe(SMALL_SWEEP_BUDGET / 2);
     expect(sweepBudget(false, 8, false)).toBe(SWEEP_BUDGET / 4);
   });
