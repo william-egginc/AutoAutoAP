@@ -41,6 +41,7 @@ import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { holdUntilOf, isAvailable, type Availability } from './availability';
 import type { FirstAscension } from './firstAscension';
 import { replayContinue, sweepReplay, type BuildWithExtras, type ReplaySweep } from './tableV2';
+import { openingSpan } from './openingSpan';
 
 /** The table as the finder reads it: the builds for a start TE at a Pacific hour of the week. A
  *  version 2 table's builds carry their `extras` (precomputedTable.ts `withExtras`), which the held
@@ -59,12 +60,24 @@ export type BuildLookup = (te: number, hour: number) => BuildWithExtras[] | null
  *  - `creditWaits` with `hours`: while a prestige waits for the player, the farm keeps laying the egg
  *    the last ascension ended on at its peak rate and those eggs carry on, as search/chain.ts has it.
  *    Default on (false: off).
+ *  - `inSale: 'atOnce'`: inside the weekly sale a fresh ascension the player can start at once (they are around) does
+ *    start at once, priced from this hour's cell moved by the minutes for EVERY build, as the simulator and the
+ *    searches start it (`startInSale`). Default 'exact': at once only for the builds that finish inside this sale
+ *    (exact), else on the next whole hour, whichever ends sooner.
  * Plain data, so it goes to the route workers with the settings.
  */
 export interface TailOptions {
   holdShifts?: boolean;
   order?: 'table' | 'simulator';
   creditWaits?: boolean;
+  inSale?: 'exact' | 'atOnce';
+  /** With `holdShifts`: false prices a fresh ascension whose opening's shifts may fall outside the player's hours
+   *  as before (`heldOpeningStart`), for comparing. Default: it starts when the opening fits. */
+  heldOpening?: boolean;
+  /** The held opening's TE rows below the player's TE (the form G's whole Clothed-TE gap, search/instantGear.ts): the
+   *  opening of a player that many TE behind the table's account is about that account's opening at their TE less
+   *  the gap. Default 0. */
+  openingRows?: number;
 }
 
 /** Remembered `holdUntilOf` per schedule (the settings come to a worker as plain data each step). */
@@ -92,6 +105,9 @@ export function tailOptionsOf(o: TailOptions): TailOptions {
     ...(o.holdShifts ? { holdShifts: true } : {}),
     ...(o.order === 'table' ? { order: 'table' as const } : {}),
     ...(o.creditWaits === false ? { creditWaits: false } : {}),
+    ...(o.inSale === 'atOnce' ? { inSale: 'atOnce' as const } : {}),
+    ...(o.heldOpening === false ? { heldOpening: false } : {}),
+    ...(o.openingRows ? { openingRows: o.openingRows } : {}),
   };
 }
 
@@ -182,6 +198,12 @@ export interface RouteLeg {
   tier13: boolean;
   /** How it is played: 'continue', '2-sale', '1-sale-tier13'. */
   label: string;
+  /** THE HELD OPENING (`heldOpeningStart`), with held shifts only: 'morning', the prestige waited for the next start
+   *  inside the player's hours where the opening's shifts fit (the leg would otherwise have started at `wanted`);
+   *  'uncertain', no such start within a week (the hours are shorter than the opening), so the leg is priced as the
+   *  table has it and its shifts before C3's end may wait for the player. */
+  heldOpening?: 'morning' | 'uncertain';
+  wanted?: number;
 }
 
 export interface Route {
@@ -210,6 +232,17 @@ export interface FirstLeg {
    *  prestige waits for the player (`creditWaits`). */
   lastEgg?: number;
   rate?: number;
+  /** A fresh first ascension's held opening (RouteLeg.heldOpening, wanted). */
+  heldOpening?: 'morning' | 'uncertain';
+  wanted?: number;
+}
+
+/** A first leg's held-opening fields for its RouteLeg. */
+function heldOf(f: { heldOpening?: 'morning' | 'uncertain'; wanted?: number }): Pick<RouteLeg, 'heldOpening' | 'wanted'> {
+  return {
+    ...(f.heldOpening ? { heldOpening: f.heldOpening } : {}),
+    ...(f.wanted !== undefined ? { wanted: f.wanted } : {}),
+  };
 }
 
 export interface FindOptions extends TailOptions {
@@ -238,6 +271,8 @@ export interface FindOptions extends TailOptions {
    *  by then: the prestige at the last stop waits for the player's hours as every other prestige does
    *  (`claimAt`). */
   deadline?: number;
+  /** False: with hours, the last stop counts when reached, as before 24 Oct 2026 (for comparing). */
+  claimInHours?: boolean;
   /** Told after each number of ascensions is done (k of `maxAscensions`), for a progress bar. */
   onProgress?: (done: number, of: number) => void;
   /** Filled in with what the search did, for tuning (scripts/precompute.ts --route-bin). */
@@ -276,6 +311,61 @@ export function claimAt(t: number, hours: Availability | undefined | null): numb
   return back ? back(t) : t;
 }
 
+/** The first moment from `start` through its opening's span (`openingSpan`) when the player is away (`holdUntil`:
+ *  when they are next around, `t` when they are), or null. Their hours are whole local hours (half hours in a few
+ *  zones), so a look every quarter hour sees every hour away. */
+function awayInOpening(start: number, te: number, holdUntil: (t: number) => number): number | null {
+  const end = start + openingSpan(te, start);
+  for (let x = start; ; x = Math.min(x + 900, end)) {
+    if (holdUntil(x) !== x) return x;
+    if (x >= end) return null;
+  }
+}
+
+/** Whether the player is around for the whole of a fresh ascension's opening from `start`. */
+export function openingFits(start: number, te: number, holdUntil: (t: number) => number): boolean {
+  return awayInOpening(start, te, holdUntil) === null;
+}
+
+/**
+ * THE HELD OPENING (a stopgap, 24 Oct 2026; notes/heldfix.md). A version 2 table's held replay starts at H1
+ * (tableV2.ts `replayTail`): the opening's shifts (K1, I1, C2, K2, R1 and the shift into C3, all in an ascension's
+ * first hours) are never held. Started late in the player's day, one of them can fall after their hours end; the
+ * simulator then waits for the player and the leg ends anywhere from a day sooner to a week later than the table says
+ * (main's own table, hours 7 am to 11 pm, a fresh leg from TE 260 to 287 started on the hour at 9 am, 1 pm and each
+ * hour from 5 pm to 10 pm for a week: 20 of 56 legs more than an hour off the simulator, 17 of them too soon). The table does not store when those shifts happen, so how long the
+ * opening runs is a measured curve (search/openingSpan.ts), and a fresh ascension that would start where the opening
+ * cannot fit waits for the first whole hour from which it does: that hour's cell is the simulator's own number again
+ * (52 of those 56 legs within an hour). What it gives up is the evening start's chance of ending sooner (a median of 2
+ * h on the moved legs, but up to a week when the morning misses a sale the evening catches); the finder then routes
+ * around such starts.
+ *
+ * The start for a fresh ascension the player would start at `start` (a whole hour inside their hours): `start` when
+ * its opening fits inside them (`openingFits`), else the first whole hour after the time away that cuts it short from
+ * which it does, within a week; when none does (hours shorter than the opening), `start`, with `fits` false.
+ */
+export function heldOpeningStart(
+  start: number,
+  te: number,
+  holdUntil: (t: number) => number
+): { start: number; fits: boolean } {
+  let at = start;
+  for (let tries = 0; tries < 30 && at < start + 7 * 86400; tries++) {
+    const away = awayInOpening(at, te, holdUntil);
+    if (away === null) return { start: at, fits: true };
+    at = nextHour(holdUntil(away));
+  }
+  return { start, fits: false };
+}
+
+/** A route's held-opening note (`RouteLeg.heldOpening`): 'uncertain' when any leg could not wait for a start where its
+ *  opening fits (the answer is less certain with these hours), 'morning' when a prestige waits for one, else null. */
+export function heldOpeningOf(route: { legs: { heldOpening?: 'morning' | 'uncertain' }[] } | null): 'morning' | 'uncertain' | null {
+  if (!route) return null;
+  if (route.legs.some(l => l.heldOpening === 'uncertain')) return 'uncertain';
+  return route.legs.some(l => l.heldOpening === 'morning') ? 'morning' : null;
+}
+
 /** The next whole hour at or after `t` (unix seconds). Pacific hours begin on UTC hour boundaries. */
 export function nextHour(t: number): number {
   return Math.ceil(t / 3600) * 3600;
@@ -301,7 +391,16 @@ const SALE_MARGIN = 60;
 export function startInSale(
   table: BuildLookup,
   te: number,
-  t: number
+  t: number,
+  /**
+   * AT ONCE INSIDE THE SALE (problem B of the 24 Oct math review): every build of this hour's cell, the 2- and 3-sale
+   * ones too, moved by the minutes. Not exact for those (the cell had a little more of this sale than the real start),
+   * but closer to the simulator's at-once leg than the next hour's cell: hours off, main's own table, TE 190-300, 192
+   * starts 10-50 minutes into a sale hour, within an hour of the simulator in 156 (81%) against 136 (71%) for the
+   * next hour's cell or the exact builds; more than a day off in 8 against 6. Not asked for by the instant answer:
+   * a whole route takes the estimates that err soonest (search/instantGear.ts `instantTail`, notes/heldfix.md).
+   */
+  all = false
 ): { lateBy: number; builds: BuildParams[] } | null {
   const cell = Math.floor(t / 3600) * 3600;
   const lateBy = t - cell;
@@ -309,7 +408,7 @@ export function startInSale(
   const left = getNextSaleEnd(t) - t;
   // A sale lasts a day; anything longer means the end found was the next week's.
   if (!(left > 0 && left <= 86400)) return null;
-  const builds = (table(te, pacificHourOfWeek(cell)) ?? []).filter(b => b.waitStart <= left - SALE_MARGIN);
+  const builds = (table(te, pacificHourOfWeek(cell)) ?? []).filter(b => all || b.waitStart <= left - SALE_MARGIN);
   return builds.length ? { lateBy, builds } : null;
 }
 
@@ -341,20 +440,43 @@ export function priceLeg(
   /** The egg the farm ends on and its rate (for `creditWaits`). */
   lastEgg: number;
   rate: number;
+  /** RouteLeg.heldOpening and wanted. */
+  heldOpening?: 'morning' | 'uncertain';
+  wanted?: number;
 } | null {
   const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
   // Back from outside the hours, the player prestiges at once inside the sale (as Check exactly does
   // at the moment they are back), or on the next whole hour inside the hours.
   const back = holdUntilFor(hours);
   const base = back ? back(t) : t;
-  const at = back ? nextHour(back(nextHour(base))) : nextHour(t);
+  const wanted = back ? nextHour(back(nextHour(base))) : nextHour(t);
+  const holdUntil = tail.holdShifts ? holdUntilFor(shiftHours) : undefined;
+  // THE HELD OPENING (`heldOpeningStart`): on the hour from where the opening fits inside the hours.
+  const opening =
+    holdUntil && tail.heldOpening !== false ? heldOpeningStart(wanted, te - (tail.openingRows ?? 0), holdUntil) : null;
+  const at = opening ? opening.start : wanted;
   const raw = table(te, pacificHourOfWeek(at));
   if (raw?.length) options.push({ start: at, lateBy: 0, builds: raw });
-  const late = at !== base ? startInSale(table, te, base) : null;
+  const atOnce = tail.inSale === 'atOnce';
+  const late =
+    wanted !== base && (!opening || openingFits(base, te - (tail.openingRows ?? 0), holdUntil!))
+      ? startInSale(table, te, base, atOnce)
+      : null;
   if (late) options.push({ start: base, ...late });
-  const holdUntil = tail.holdShifts ? holdUntilFor(shiftHours) : undefined;
   let best: ReturnType<typeof priceLeg> = null;
-  for (const o of options) {
+  // `inSale: 'atOnce'`: the at-once start is THE start whenever it reaches the target (the on-the-hour one only when
+  // it does not).
+  for (const o of atOnce && late ? [options[options.length - 1], ...options.slice(0, -1)] : options) {
+    if (atOnce && late && best && o.start !== base) break;
+    // The on-the-hour start waited for its opening (`heldOpeningStart`), or could find none that fits.
+    const held =
+      o.start === base || !opening
+        ? {}
+        : at !== wanted
+          ? { heldOpening: 'morning' as const, wanted }
+          : opening.fits
+            ? {}
+            : { heldOpening: 'uncertain' as const };
     const moved = scaled(o.builds, deliveryScale).map(b => rebase(b, te, delivered));
     for (const b of moved) {
       const sw = sweepOne(b, target, o.lateBy, target, o.start, holdUntil, tail, true);
@@ -372,6 +494,7 @@ export function priceLeg(
         build: b,
         lastEgg: endEggOf(sw, b, i, eggs),
         rate: b.peakELR,
+        ...held,
       };
     }
   }
@@ -584,13 +707,27 @@ export function expandArrivals(
     // does) or on the next whole hour inside them (on the hour, as the table is).
     const base = prestige ? back!(item.time) : item.time;
     const ready = s.onTheHour ? nextHour(base) : base;
-    const startAt = prestige ? nextHour(back!(ready)) : ready;
+    const wanted = prestige ? nextHour(back!(ready)) : ready;
+    // THE HELD OPENING (`heldOpeningStart`): with held shifts, on the hour from where the opening fits inside the hours.
+    const opening =
+      holdUntil && s.heldOpening !== false ? heldOpeningStart(wanted, te - (s.openingRows ?? 0), holdUntil) : null;
+    const startAt = opening ? opening.start : wanted;
+    const held =
+      opening && startAt !== wanted
+        ? { heldOpening: 'morning' as const, wanted }
+        : opening && !opening.fits
+          ? { heldOpening: 'uncertain' as const }
+          : {};
     const hour = pacificHourOfWeek(startAt);
     // Seconds into the hour (0 on the hour): the table was built at the hour's first second.
     const lateBy = ((startAt % 3600) + 3600) % 3600;
     const raw = table(te, hour) ?? [];
     // Inside the sale, this hour's own cell started late too (`startInSale`); whichever ends sooner.
-    const late = s.onTheHour && startAt !== base ? startInSale(table, te, base) : null;
+    const atOnce = s.inSale === 'atOnce';
+    const late =
+      s.onTheHour && wanted !== base && (!opening || openingFits(base, te - (s.openingRows ?? 0), holdUntil!))
+        ? startInSale(table, te, base, atOnce)
+        : null;
     if (!raw.length && !late) continue;
     if (stats) stats.expanded++;
     // The table's builds, moved onto the eggs this route really arrived with, each priced to every
@@ -606,8 +743,10 @@ export function expandArrivals(
       if (target > cap && target < top && !s.keepHighEnds) continue;
       const onHour = fastest(sweeps, builds, target);
       const early = late ? fastest(lateSweeps, lateBuilds, target) : null;
+      // `inSale: 'atOnce'`: the at-once start whenever it reaches the target; else the sooner.
       const takeEarly =
-        !!early && (!onHour || base + early.sweep.seconds[early.i] < startAt + onHour.sweep.seconds[onHour.i]);
+        !!early &&
+        (atOnce || !onHour || base + early.sweep.seconds[early.i] < startAt + onHour.sweep.seconds[onHour.i]);
       const pick = takeEarly ? early : onHour;
       if (!pick) continue;
       const { sweep, build, i } = pick;
@@ -636,6 +775,7 @@ export function expandArrivals(
               sales: build.sales,
               tier13: build.tier13,
               label: `${build.sales}-sale${build.tier13 ? '-tier13' : ''}`,
+              ...(takeEarly ? {} : held),
             },
             egg: endEggOf(sweep, build, i, kept),
             rate: build.peakELR,
@@ -748,6 +888,7 @@ export async function findRoutes(
             sales: 0,
             tier13: false,
             label: f.label ?? 'first',
+            ...heldOf(f),
           },
         });
       }
@@ -800,13 +941,14 @@ export async function findRoutes(
   let byDate: Route | null = null;
   const byDateByAscensions: (Route | null)[] = Array.from({ length: K + 1 }, () => null);
   if (o.deadline !== undefined) {
+    const claimHours = o.claimInHours === false ? undefined : hours;
     let overall: { te: number; label: Label } | null = null;
     for (let k = 1; k <= K; k++) {
       let mine: { te: number; label: Label } | null = null;
       for (const [te, list] of arrivals[k]) {
         const l = list[0];
         // Claimed in time (`claimAt`): with hours, a prestige inside them by the deadline.
-        if (claimAt(l.time, hours) > o.deadline) continue;
+        if (claimAt(l.time, claimHours) > o.deadline) continue;
         if (!mine || te > mine.te || (te === mine.te && l.time < mine.label.time)) mine = { te, label: l };
       }
       if (!mine && k >= firstDrop) outOfHours.add(k);
@@ -814,7 +956,7 @@ export async function findRoutes(
       byDateByAscensions[k] = routeTo(mine.label);
       dateAlternatives[k] = arrivals[k]
         .get(mine.te)!
-        .filter(l => l !== mine!.label && claimAt(l.time, hours) <= o.deadline!)
+        .filter(l => l !== mine!.label && claimAt(l.time, claimHours) <= o.deadline!)
         .map(routeTo);
       if (!overall || mine.te > overall.te || (mine.te === overall.te && mine.label.time < overall.label.time))
         overall = mine;
@@ -877,7 +1019,20 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   // A fresh first ascension starts on the next whole hour (inside the player's hours, with them), as
   // every later one does; continuing the one in progress needs no ascension and runs from the plan
   // start itself.
-  const freshAt = hours ? nextHour(holdUntilFor(hours)!(nextHour(o.start))) : nextHour(o.start);
+  const wanted = hours ? nextHour(holdUntilFor(hours)!(nextHour(o.start))) : nextHour(o.start);
+  // THE HELD OPENING (`heldOpeningStart`): with held shifts, on the hour from where the opening fits inside the hours.
+  // (Not for a build simulated live, `freshLive`: it is not a cell of the table, and was simulated for its own start.)
+  const opening =
+    holdUntil && o.heldOpening !== false && !o.freshLive?.length
+      ? heldOpeningStart(wanted, o.startTE - (o.openingRows ?? 0), holdUntil)
+      : null;
+  const freshAt = opening ? opening.start : wanted;
+  const held =
+    opening && freshAt !== wanted
+      ? { heldOpening: 'morning' as const, wanted }
+      : opening && !opening.fits
+        ? { heldOpening: 'uncertain' as const }
+        : {};
   const hour = pacificHourOfWeek(freshAt);
   const row = o.startTE;
   const lowest = Math.floor(o.startTE) + 1;
@@ -889,7 +1044,11 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
   const freshSweeps = fresh.map(b => sweepOne(b, o.final, 0, lowest, freshAt, holdUntil, o));
   // Inside the sale, ascending right away from this hour's cell can catch what the next hour misses.
   const late =
-    freshAt !== o.start && (!hours || isAvailable(o.start, hours)) ? startInSale(o.table, row, o.start) : null;
+    wanted !== o.start &&
+    (!hours || isAvailable(o.start, hours)) &&
+    (!opening || openingFits(o.start, row - (o.openingRows ?? 0), holdUntil!))
+      ? startInSale(o.table, row, o.start, o.inSale === 'atOnce')
+      : null;
   const lateFresh = late ? scaled(late.builds, o.deliveryScale ?? 1).map(b => rebase(b, row, o.delivered)) : [];
   const lateSweeps = lateFresh.map(b => sweepOne(b, o.final, late!.lateBy, lowest, o.start, holdUntil, o));
   const forced = o.firstAscension === 'continue';
@@ -920,7 +1079,7 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
     // Measured from the plan start, so it compares with continue on the same clock.
     const onHour = fp ? ended(fp, freshAt - o.start) : null;
     const now = lp ? ended(lp, 0) : null;
-    const f = now && (!onHour || now.seconds < onHour.seconds) ? now : onHour;
+    const f = now && (o.inSale === 'atOnce' || !onHour || now.seconds < onHour.seconds) ? now : onHour;
     let c: { seconds: number; endTE: number; delivered: number[]; lastEgg: number; rate: number } | null = null;
     if (contHeld) {
       const r = replayContinue(o.cont!, o.contEgg!, target, { start: o.start, holdUntil });
@@ -974,6 +1133,8 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
         ...(pick.label === 'buildup' && bp ? farmEnd(bp.build, pick.delivered) : {}),
         lastEgg: pick.lastEgg,
         rate: pick.rate,
+        // A fresh start on the hour (not at once inside the sale) that waited for its opening.
+        ...(f && f === onHour && pick.label.endsWith('-sale') ? held : {}),
       });
   }
   return out;
@@ -996,6 +1157,8 @@ export interface PolishOptions extends TailOptions {
   hours?: Availability;
   /** As FindOptions. */
   holdForHours?: boolean;
+  /** As FindOptions. */
+  claimInHours?: boolean;
   /** The stronger polish (the user, 6 Oct): the first two stops searched together, each moved by up
    *  to this many TE, before the local search (default 0: off). */
   wide?: number;
@@ -1064,6 +1227,7 @@ export function priceChain(
         sales: 0,
         tier13: false,
         label: f.label ?? 'first',
+        ...heldOf(f),
       });
       t = f.end;
       te = f.endTE;
@@ -1091,6 +1255,8 @@ export function priceChain(
       sales: p.build.sales,
       tier13: p.build.tier13,
       label: `${p.build.sales}-sale${p.build.tier13 ? '-tier13' : ''}`,
+      ...(p.heldOpening ? { heldOpening: p.heldOpening } : {}),
+      ...(p.wanted !== undefined ? { wanted: p.wanted } : {}),
     });
     t = p.end;
     te = p.endTE;
@@ -1230,7 +1396,10 @@ export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRo
       ? polishFrom(
           r,
           found.dateAlternatives?.[k],
-          c => claimAt(c.end, o.hours) <= o.deadline! && lastTE(c) >= lastTE(r) && inHours(c)
+          c =>
+            claimAt(c.end, o.claimInHours === false ? undefined : o.hours) <= o.deadline! &&
+            lastTE(c) >= lastTE(r) &&
+            inHours(c)
         )
       : r
   );

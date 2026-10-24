@@ -105,9 +105,26 @@ export function nearMaxedGear(s: Pick<GearShift, 'g' | 'geo' | 'k'>): boolean {
 /**
  * The instant answer's tail options (routeFinder.ts `TailOptions`) for the player's hours: with
  * "Works inside my hours" (`hours`) and Your setup's held shifts on, every table leg's shifts are held
- * as Check exactly holds them. The simulator's order is asked for by name (the engine's recommendation,
- * hours on and off; it is also the finder's default); the laying while a prestige waits is the default.
+ * as Check exactly holds them, and a fresh ascension waits for a start where its opening's shifts fit
+ * inside the hours (routeFinder.ts `heldOpeningStart`; `gearRows`: the form G's gap, so the opening is
+ * read at the player's own TE less it). The simulator's order is asked for by name (the engine's
+ * recommendation, hours on and off; it is also the finder's default); the laying while a prestige waits
+ * is the default.
+ *
+ * Not `inSale: 'atOnce'` (every build at once inside the sale, as the searches start it): measured on 22
+ * of main's routes with hours, it left 16 within an hour of the simulator against 18 without it, and 6
+ * more than a day too soon against 3; the finder takes the at-once estimates that err soonest
+ * (notes/heldfix.md).
  */
-export function instantTail(hours: Availability | null | undefined, deferShifts: boolean): TailOptions {
-  return { order: 'simulator', ...(hours && deferShifts ? { holdShifts: true } : {}) };
+export function instantTail(
+  hours: Availability | null | undefined,
+  deferShifts: boolean,
+  gearRows?: number
+): TailOptions {
+  const held = !!hours && deferShifts;
+  return {
+    order: 'simulator',
+    ...(held ? { holdShifts: true } : {}),
+    ...(held && gearRows && gearRows > 0 ? { openingRows: gearRows } : {}),
+  };
 }

@@ -46,6 +46,7 @@ describe('claimAt', () => {
 describe('By a date with hours: the last stop claimed inside them by the deadline', () => {
   it('a deadline in the night counts what was reached by the end of the last evening, and no more', async () => {
     let checked = 0;
+    let more = 0;
     for (let night = 4; night < 30; night += 3) {
       // 2:00 am PST on the nights after the plan start, and the last second of the hours before it (4:59:59 pm).
       const deadline = START + 17 * 3600 + night * 86400;
@@ -59,8 +60,14 @@ describe('By a date with hours: the last stop claimed inside them by the deadlin
       }
       expect(lastTE(atNight.byDate)).toBe(lastTE(atEvening.byDate));
       if (atNight.byDate) checked++;
+      // As before (`claimInHours: false`): what was reached by 2:00 am, never less.
+      const reached = await find({ hours: days9to5, deadline, claimInHours: false });
+      expect(lastTE(reached.byDate)).toBeGreaterThanOrEqual(lastTE(atNight.byDate));
+      if (lastTE(reached.byDate) > lastTE(atNight.byDate)) more++;
     }
     expect(checked).toBeGreaterThan(0);
+    // Some night counted a TE reached after the hours ended, which could not be claimed by 2:00 am.
+    expect(more).toBeGreaterThan(0);
   });
 
   it('the polish keeps each count claimable in time', async () => {
