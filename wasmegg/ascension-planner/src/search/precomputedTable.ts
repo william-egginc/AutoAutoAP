@@ -15,7 +15,7 @@
  */
 import { canonicalDelivered, EGG_ORDER, rebase, WEEK_HOURS, type BuildParams } from './precomputedLeg';
 import type { TableGear } from './tableGear';
-import { erExponentAt, FORM_G_DELIVERY, type FormGDelivery } from './formG';
+import { FORM_G_DELIVERY, type FormGDelivery } from './formG';
 import { jointSimVersion } from './simVersion';
 import { readExtras, V1_FIELDS, V2_FIELDS, writeV2, type BuildExtras, type BuildWithExtras } from './tableV2';
 
@@ -349,7 +349,7 @@ export function parseGearShiftUrl(
  * The maxed table at a player's gear (search/instantGear.ts, the weak-gear form G): the builds for a
  * start TE are the maxed table's TE - g row (the two rows either side of a fractional g, blended by
  * sale count), moved onto TE's canonical counts, with every delivery rate x `geo` and the peak no
- * higher than `cap`. Below the correction's TE (search/formG.ts) the rates are also x geoEr^a(TE),
+ * higher than `cap`. Below the correction's TE (search/formG.ts) the rates are also x geoEr^erExponent,
  * for a player short on delivery epic research or colleggtibles. A row whose shifted rows fall below
  * the table's first falls back to the old single scale (the same row, peak x k): the table does not
  * reach that far down.
@@ -366,12 +366,13 @@ export function gearShiftTable(
   const { cap, k } = shift;
   const geoEr = shift.geoEr ?? 1;
   const fit = maxed.header.formG ?? FORM_G_DELIVERY;
+  const low = shift.geo * Math.pow(geoEr, fit.erExponent);
   const cache = new LruCache<number, BuildWithExtras[] | null>(maxCells);
   const moved = (te: number, row: number, hour: number): BuildWithExtras[] | null => {
     const cell = maxed.lookup(row, hour) as BuildWithExtras[] | null;
     if (!cell) return null;
     const canon = canonicalDelivered(te);
-    const geo = geoEr === 1 ? shift.geo : shift.geo * Math.pow(geoEr, erExponentAt(fit, te));
+    const geo = te < fit.belowTe ? low : shift.geo;
     return cell.map(b => ({
       ...rebase(b, row, canon),
       peakELR: Math.min(b.peakELR * geo, cap),

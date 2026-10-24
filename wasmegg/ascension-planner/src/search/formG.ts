@@ -8,12 +8,17 @@
  * shortfall (weaker artifacts) is not: on main's own table G is already right to slightly pessimistic
  * there. So the extra scale is on the research and colleggtible part of the delivery scale only:
  *
- *   peak x geo x geoEr^a(TE), for a start TE below belowTe (a from erExponent's points)
+ *   peak x geo x geoEr^erExponent, for a start TE below belowTe
  *
  * where geoEr is sqrt(lambda sigma) of the table's own delivery set at the player's epic research and
  * colleggtibles over at the table's (1 for a player with every delivery epic research and colleggtible
  * maxed, as 107 of the board's 108 accounts are). From belowTe a build reaches full research and its
  * peak is the cap, which already counts the research.
+ *
+ * Fit (24 Oct 2026, simulator 2026-10-21-egg-beta2): 2,064 fresh cells (Comfy Nests 15; Lobbyists 20; Comfy 10 +
+ * Lobbyists 15; Comfy 12 + Lobbyists 18 + chocolate tier 2) x TE 60-480 every 10 x 12 hours on JORDAN-PC. Below
+ * TE 300, |G/truth - 1| p90 5.56% -> 3.50%, median -2.29% -> -0.27%; each profile left out picks 0.139 from the
+ * other three in 3 of 4 (the fourth 0.17); no steady trend with TE (bands 0.09-0.22), so one number.
  *
  * A table header's `formG` (a later table built with its own fit) takes the place of these numbers.
  *
@@ -25,31 +30,14 @@
  * keeps the K3 ratio.
  */
 export const FORM_G_DELIVERY: FormGDelivery = {
-  erExponent: [[0, 0.139]],
+  erExponent: 0.139,
   belowTe: 300,
   fullResearchCap: true,
 };
 
 export interface FormGDelivery {
-  /** [start TE, exponent] points, straight lines between them and flat beyond the ends. */
-  erExponent: readonly (readonly [number, number])[];
+  erExponent: number;
   /** From this start TE no extra scale (a build there reaches full research; the cap has it). */
   belowTe: number;
   fullResearchCap: boolean;
-}
-
-/** The exponent on geoEr for a start TE. */
-export function erExponentAt(fit: Pick<FormGDelivery, 'erExponent' | 'belowTe'>, te: number): number {
-  if (te >= fit.belowTe) return 0;
-  const p = fit.erExponent;
-  if (!p.length) return 0;
-  if (te <= p[0][0]) return p[0][1];
-  for (let i = 1; i < p.length; i++) {
-    if (te <= p[i][0]) {
-      const [t0, a0] = p[i - 1];
-      const [t1, a1] = p[i];
-      return a0 + ((a1 - a0) * (te - t0)) / (t1 - t0);
-    }
-  }
-  return p[p.length - 1][1];
 }

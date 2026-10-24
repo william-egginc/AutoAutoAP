@@ -121,7 +121,7 @@ export function instantGearShift(inputs: SearchInputs, header: TableHeader): Gea
   return {
     g,
     geo: Math.sqrt(lambda * sigma),
-    cap: k3.peak * (FORM_G_DELIVERY.fullResearchCap ? kFull : k),
+    cap: k3.peak * ((header.formG ?? FORM_G_DELIVERY).fullResearchCap ? kFull : k),
     k,
     kFull,
     geoEr,

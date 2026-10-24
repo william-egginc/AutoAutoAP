@@ -83,7 +83,7 @@ describe('GearCaveat with the form G', () => {
     // 2026; aaap-tools/notes/table-augment-2026-10-24.md). The G sentence above must keep saying a route can
     // finish later than shown.
     const gear = readFileSync(resolve(__dirname, '../../search/instantGear.ts'), 'utf8');
-    expect(gear).toContain('cap: k3.peak * (FORM_G_DELIVERY.fullResearchCap ? kFull : k),');
+    expect(gear).toContain('cap: k3.peak * ((header.formG ?? FORM_G_DELIVERY).fullResearchCap ? kFull : k),');
     const fit = readFileSync(resolve(__dirname, '../../search/formG.ts'), 'utf8');
     expect(fit).toContain('4.7-6.4 days sooner');
     expect(G).toContain('finished up to about 5 days later than shown');
