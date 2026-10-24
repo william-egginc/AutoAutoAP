@@ -37,8 +37,18 @@ describe('the instant answer becomes the follow', () => {
     expect(template.match(/<BetterRoutePrompt/g) ?? []).toHaveLength(2);
   });
 
+  it('only once the answer is kept under its key, so My runs has its times for any goal (24 Oct 2026)', () => {
+    // A By a date answer followed before its snapshot was written (the nearest tables or "Prestige by" still running,
+    // then the screen left or a search started) showed "from the instant answer · not priced on this save yet".
+    expect(block).toContain('if (keptAnswer.value !== found) return null;');
+    expect(script).toMatch(/if \(snap && writeSnapshot\(snapKey, snap\)\) \{\n\s+keptAnswer\.value = result\.value;/);
+    expect(script).toMatch(/applySnapshot\(s\);\n\s+keptAnswer\.value = result\.value;\n\s+return true;/);
+    // Declared before the watch reads it (immediate).
+    expect(script.indexOf('const keptAnswer = shallowRef')).toBeLessThan(script.indexOf('THE FIRST ANSWER BECOMES THE FOLLOW'));
+  });
+
   it('an answer saved or a result kept tells My runs to look again (lib/myRunsShown.ts)', () => {
-    expect(script).toContain('if (snap && writeSnapshot(snapKey, snap)) noteMyRuns();');
+    expect(script).toMatch(/if \(snap && writeSnapshot\(snapKey, snap\)\) \{\n\s+keptAnswer\.value = result\.value;\n\s+noteMyRuns\(\);/);
     expect(script).toMatch(/if \(meta && recordKeptSearch\([^\n]+\)\)\n\s+noteMyRuns\(\);/);
   });
 });

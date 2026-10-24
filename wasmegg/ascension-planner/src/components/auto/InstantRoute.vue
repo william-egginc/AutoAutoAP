@@ -1905,6 +1905,14 @@ const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
 const answerAt = ref(0);
 /** The goal the answer on screen was worked out for (the target or date can change before the next answer lands). */
 const answerGoal = ref('');
+/**
+ * The answer on screen once it is kept in this browser under its key (`saveSnapshot`, or put back by
+ * `restoreSnapshot`): My runs prices a route followed from the instant answer with this snapshot's own times, so the
+ * answer becomes the follow only once kept (below). Before (24 Oct 2026), a By a date answer became the follow as soon
+ * as the polish was done, while the snapshot waited for the nearest tables and the "Prestige by" line: leaving the
+ * screen or starting a search then left Right now with "from the instant answer · not priced on this save yet".
+ */
+const keptAnswer = shallowRef<FoundRoutes | null>(null);
 let restoredAt: number | null = null;
 watch(result, r => {
   answerAt.value = r ? (restoredAt ?? Date.now()) : 0;
@@ -2045,13 +2053,16 @@ function datePickedRow(r: Route): boolean {
  * followed for this goal, the route the box leads with (as shown: Prefer fewer honoured; By a date only one in time)
  * becomes the followed route and is saved online once (stores/follow.ts `autoFollow`, which waits for the account's
  * saved routes to be read). Once the answer is finished: worked out and polished, not one kept on screen while a
- * search has the workers. With a route followed, the box's BetterRoutePrompt asks instead.
+ * search has the workers, and kept in this browser (`keptAnswer`), so My runs has its times for any goal (Egg Day,
+ * another date, a race target). With a route followed, the box's BetterRoutePrompt asks instead.
  */
 const follows = useFollowStore();
 watch(
   () => {
     const found = result.value;
     if (!found || status.value !== 'done' || waiting.value || backgroundStatus.value === 'running') return null;
+    // Only an answer kept under its key (`keptAnswer`): My runs shows the followed route's times from it.
+    if (keptAnswer.value !== found) return null;
     const goalKey = followGoal.value;
     if (answerGoal.value !== goalKey || !follows.autoReady) return null;
     const route = props.deadline
@@ -2291,7 +2302,10 @@ function saveSnapshot(id: number): void {
   if (backgroundStatus.value === 'running' || bracketStatus.value === 'running') return;
   if (prestigeStatus.value === 'running') return;
   const snap = currentSnapshot();
-  if (snap && writeSnapshot(snapKey, snap)) noteMyRuns();
+  if (snap && writeSnapshot(snapKey, snap)) {
+    keptAnswer.value = result.value;
+    noteMyRuns();
+  }
   // The player's instant baseline for this goal and save (lib/instantBaseline.ts): My runs compares each run with it.
   const base = snap ? baselineOfSnapshot(snap) : null;
   if (base) recordBaseline(base);
@@ -2364,6 +2378,7 @@ function restoreSnapshot(tablesNow: string | null): boolean {
   const s = readSnapshot<InstantSnapshot>(snapKey);
   if (!s || s.v !== 1 || !s.result || !s.header || !savedAnswerFits(s, GEAR_RULE, tablesNow)) return false;
   applySnapshot(s);
+  keptAnswer.value = result.value;
   return true;
 }
 function applySnapshot(s: InstantSnapshot): void {
