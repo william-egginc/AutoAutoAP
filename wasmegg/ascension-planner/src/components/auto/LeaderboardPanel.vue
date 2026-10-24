@@ -627,7 +627,7 @@
             </select>
           </label>
           <label class="block">
-            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Time off</span>
+            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Away from virtue</span>
             <select v-model="dateOff" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
               <option :value="null">either</option>
               <option value="with">with time off</option>

@@ -280,6 +280,7 @@ import {
 import { existingOwnerToken, ownerToken } from '@/search/owner';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
+import { nextPrestigeAt } from '@/search/noPrestige';
 import {
   DEFAULT_FIRST_ASCENSION,
   firstAscensionAt,
@@ -618,6 +619,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Time off from the virtue farm, as whole local dates (search/timeOff.ts). Each stretch ends the
    *  ascension in progress, and the player comes back to a complete rebuild. */
   const timeOff = ref<TimeOffDates[]>([]);
+  /** No prestige on these days (search/noPrestige.ts), whole local dates like time off: the player stays on the
+   *  virtue farm and a prestige that would fall on one waits for the next allowed moment. */
+  const noPrestige = ref<TimeOffDates[]>([]);
   /**
    * The tag the CURRENT RESULT was run under, captured when an exhaustive run starts. `sweepTag`
    * itself only says a link was followed; a staged search started afterwards, or a sweep whose
@@ -764,6 +768,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       },
       holdShifts: deferShifts.value,
       timeOff: timeOff.value.map(w => ({ from: w.from, to: w.to })),
+      noPrestige: noPrestige.value.map(w => ({ from: w.from, to: w.to })),
       firstAscension: firstAscensionChoice.value,
     };
   }
@@ -777,6 +782,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availableDays.value = [...v.hours.days];
       deferShifts.value = v.holdShifts;
       timeOff.value = v.timeOff.map(w => ({ ...w }));
+      noPrestige.value = (v.noPrestige ?? []).map(w => ({ ...w }));
       firstAscensionChoice.value = v.firstAscension;
     });
   }
@@ -814,6 +820,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
   watch(deferShifts, () => noteSetupEdit('holdShifts'), { flush: 'sync' });
   watch(timeOff, () => noteSetupEdit('timeOff'), { flush: 'sync', deep: true });
+  watch(noPrestige, () => noteSetupEdit('noPrestige'), { flush: 'sync', deep: true });
   watch(firstAscensionChoice, () => noteSetupEdit('firstAscension'), { flush: 'sync' });
 
   /**
@@ -2320,6 +2327,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     availability: Availability | null;
     deferShifts: boolean;
     timeOff: TimeOffDates[];
+    /** No prestige on these days (absent on settings kept before 24 Oct 2026: none). */
+    noPrestige?: TimeOffDates[];
   }
   const runSettingsUsed = ref<RunSettings | null>(null);
   function snapshotSettings(): RunSettings {
@@ -2329,6 +2338,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value ? (JSON.parse(JSON.stringify(availability.value)) as Availability) : null,
       deferShifts: deferShifts.value,
       timeOff: JSON.parse(JSON.stringify(timeOff.value)) as TimeOffDates[],
+      noPrestige: JSON.parse(JSON.stringify(noPrestige.value)) as TimeOffDates[],
     };
   }
   /** The finished or running search's own settings, else the live ones. */
@@ -2627,6 +2637,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     timeOff.value = set.timeOff.map(w => ({
       from: formatInZone(w.from, tz).slice(0, 10),
       // Windows end at the start of the day after the last one away.
+      to: formatInZone(w.to - 1, tz).slice(0, 10),
+    }));
+    noPrestige.value = (set.noPrestige ?? []).map(w => ({
+      from: formatInZone(w.from, tz).slice(0, 10),
       to: formatInZone(w.to - 1, tz).slice(0, 10),
     }));
   }
@@ -2960,6 +2974,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
+      noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     });
   }
 
@@ -3217,6 +3232,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
+      noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     };
   }
 
@@ -7265,7 +7281,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           ...(spec.refine === false ? { refine: false } : {}),
           ...(spec.bands?.length ? { bands: spec.bands } : {}),
           ...(spec.bandSets?.length ? { bandSets: runBandSets(spec) } : {}),
-          ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
+          // The claim is a prestige: inside the hours and not on a no-prestige day (search/noPrestige.ts).
+          ...(spec.ascendNeeded && schedule
+            ? { ascendAt: (t: number) => nextPrestigeAt(t, schedule, inputs.noPrestige) }
+            : {}),
         },
         {
           evaluate: async (chains, onResult) => {
@@ -8766,6 +8785,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           "This route's leg detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Use one of the top routes, or re-run to price it again.";
       }
     }
+    // NO PRESTIGE ON THESE DAYS (search/noPrestige.ts): the search held these prestiges; the plan builder does not
+    // hold them yet, so say so rather than show dates that run ahead of the search's.
+    const heldForDays = olderResults ? 0 : legs.filter(l => (l.noPrestigeWaitSeconds ?? 0) > 0).length;
+    if (heldForDays) {
+      applyNote.value = `${applyNote.value ? `${applyNote.value} ` : ''}The search held ${heldForDays === 1 ? 'a prestige' : `${heldForDays} prestiges`} for your no-prestige days; this plan prestiges as soon as each stop is reached, so its dates can run ahead of the search's.`;
+    }
     // The seed box keeps the checkpoints WITHOUT the final target: `seedChain` appends `finalTE`
     // itself, so leaving it in would ask for it twice.
     seedOverride.value = chain.filter(v => v !== finalTE.value).join(' ');
@@ -8970,6 +8995,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
+      noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     })
   );
   const chainLiveKey = ref('');
@@ -9104,6 +9130,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     sweepTag,
     runNote,
     timeOff,
+    noPrestige,
     errorBeforeStart,
     runNotes,
     pin,

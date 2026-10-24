@@ -224,6 +224,9 @@ export interface InstantKeyInput {
   epic: unknown;
   availability: unknown;
   timeOff: unknown;
+  /** No prestige on these days (Your setup, whole dates): keyed only when some are set, so every answer saved
+   *  without them keeps its key, and one worked out without them is never shown for a setup with them. */
+  noPrestige?: readonly unknown[] | null;
   milestones: unknown;
   firstAscension: string | null | undefined;
   /** "Works inside my hours" in effect. */
@@ -258,7 +261,13 @@ export function instantKey(i: InstantKeyInput): string {
     artifacts: i.artifacts,
     stones: i.stones,
     epic: i.epic,
-    setup: [i.availability, i.timeOff, i.milestones, keyFirst(i.firstAscension ?? 'auto')],
+    setup: [
+      i.availability,
+      i.timeOff,
+      i.milestones,
+      keyFirst(i.firstAscension ?? 'auto'),
+      ...(i.noPrestige?.length ? [{ noPrestige: i.noPrestige }] : []),
+    ],
     filters: [i.useHours, i.maxAscensions],
   };
   // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.

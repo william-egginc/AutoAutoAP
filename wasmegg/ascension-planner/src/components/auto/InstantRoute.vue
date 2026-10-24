@@ -230,6 +230,11 @@
         <p v-if="useHours" class="text-[11px] text-slate-500">
           Each prestige waits for your hours (the times shown include the wait).
         </p>
+        <!-- No prestige on these days (search/noPrestige.ts): held in every route here, hours ticked or not. -->
+        <p v-if="noPrestigeOn" class="text-[11px] text-slate-500" data-testid="instant-no-prestige">
+          No prestige on your no-prestige days: a prestige that would land on one waits for the next allowed time, and
+          the farm keeps laying until its silos are full (the times shown include the wait).
+        </p>
         <p v-if="useHours && openingNote === 'morning'" class="text-[11px] text-slate-500" data-testid="held-opening">
           A stop reached late in your day waits for the next morning to prestige: an ascension’s first shifts come in
           its first hours, and started that late some would fall after your hours end, which the instant answer can’t
@@ -301,6 +306,14 @@
               :beta="prestigeFlag.beta"
               :hours-on="hoursLimited"
             />
+            <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
+            <p
+              v-if="prestigeFlag.enabled.value && !preferPicked && noPrestigeOn && prestigeStatus !== 'idle'"
+              class="text-[11px] text-amber-800"
+              data-testid="prestige-by-no-days"
+            >
+              The “Prestige by” line doesn’t know your no-prestige days; Fast, Exact or Custom do.
+            </p>
             <!-- HOOK: "First ascension: N egg shifts" and "One more TE" were here (they need the simulated first leg,
                  gone from the instant card since 23 Oct 2026). When the engine simulates the current ascension live
                  again, feed it to lib/searchPointer.ts `firstAscensionFromLiveLeg` and mount RouteExtras with what it
@@ -450,6 +463,14 @@
             :beta="prestigeFlag.beta"
             :hours-on="hoursLimited"
           />
+          <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
+          <p
+            v-if="prestigeFlag.enabled.value && !preferPicked && noPrestigeOn && prestigeStatus !== 'idle'"
+            class="text-[11px] text-amber-800"
+            data-testid="prestige-by-no-days"
+          >
+            The “Prestige by” line doesn’t know your no-prestige days; Fast, Exact or Custom do.
+          </p>
           <!-- HOOK: First ascension / One more TE (see the By a date box above, lib/searchPointer.ts
                `firstAscensionFromLiveLeg`). -->
           <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
@@ -678,10 +699,12 @@
 import { plural } from '@/lib/format';
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { usableTimeOff } from '@/search/timeOff';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
+import type { SearchInputs, TimeOffWindow } from '@/search/types';
 import { instantFirstLegsBase } from '@/search/instantFirstLegs';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
 import {
@@ -1090,7 +1113,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     hours: HORIZON_HOURS,
     ...(hours ? { playHours: hours } : {}),
     // Held as the answer and the lookups below are (`instantTail`), so the estimate and the lookups price alike.
-    tail: instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g),
+    tail: instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g, daysOf(inputs)),
   };
   const stale = () => pid !== prestigeRuns;
   const t0 = performance.now();
@@ -1113,7 +1136,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
           deliveryScale: ctx.scale,
           ...(deadline ? { deadline } : {}),
           ...(hours ? { hours } : {}),
-          ...instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g),
+          ...instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g, daysOf(inputs)),
         };
         const f = await findRoutes({
           ...base,
@@ -1183,6 +1206,14 @@ let bracketArgs: { legs: FirstLegsBase; hours: Availability | null } | null = nu
 /** The bracket, held back until the search running now ends. */
 let bracketLater: (() => void) | null = null;
 
+/** No prestige on these days for the instant answer (routeFinder.ts `TailOptions.noPrestige`, with the save's silo
+ *  seconds for the laying while one holds a prestige), from the inputs; null without them. */
+function daysOf(inputs: SearchInputs): { noPrestige: TimeOffWindow[]; siloSeconds: number } | null {
+  return inputs.noPrestige?.length ? { noPrestige: inputs.noPrestige, siloSeconds: saveSiloSeconds(inputs) } : null;
+}
+/** The days the answer on screen was worked out with (`daysOf`), for its maxed what-if and bracket. */
+let answerDays: ReturnType<typeof daysOf> = null;
+
 /** "What if you had maxed gear?" (MaxedWhatIf.vue): the last answer's first-legs request and hours,
  *  its own answer, and whether the player is on the maxed table at maxed gear already. */
 const whatIfInputs = shallowRef<{ legs: FirstLegsBase; hours: Availability | null } | null>(null);
@@ -1195,7 +1226,7 @@ const whatIf = computed(() => {
     legs: w.legs,
     hours: w.hours,
     // Held as the answer was, so "maxed" and "yours" are priced alike (23 Oct 2026).
-    tail: instantTail(w.hours, store.deferShifts),
+    tail: instantTail(w.hours, store.deferShifts, undefined, answerDays),
     mine: { end: mine?.end ?? null, te: mine ? lastEndTE(mine) : 0 },
     // Check exactly's answer was named beside it until 23 Oct 2026; the instant card is instant only now.
     exact: null,
@@ -1251,7 +1282,7 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
       ...(props.deadline ? { deadline: props.deadline } : {}),
       hours,
       // Held as the answer on screen was (`instantTail`), so the two are priced alike.
-      tail: instantTail(hours, store.deferShifts),
+      tail: instantTail(hours, store.deferShifts, undefined, answerDays),
     });
     return { entry, end: r.end, te: r.te };
   };
@@ -1301,6 +1332,8 @@ const bracketText = computed(() => {
   });
 });
 
+/** No prestige on these days set in Your setup (the answer holds every prestige past them: `daysOf`). */
+const noPrestigeOn = computed(() => usableTimeOff(store.noPrestige).length > 0);
 /** "Works inside my hours" (only with "Let me pick my hours") and "At most N ascensions". */
 const filters = ref(readFilters());
 watch(filters, f => writeFilters(f), { deep: true });
@@ -1356,7 +1389,7 @@ const USEFUL_STOP_NOTE = 340;
  *  line under the answer (`INSTANT_ONE_LINE`), so only these are named here. */
 const leftOut = computed(() => {
   const out: string[] = [];
-  if (store.timeOff.length) out.push('time off');
+  if (store.timeOff.length) out.push('time away from virtue (time off)');
   if (store.milestones.length) out.push('dates to hit');
   return out;
 });
@@ -1753,7 +1786,9 @@ async function run(force = false, goAhead = false): Promise<void> {
     const hours =
       useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
     // INSTANT ANSWER V2: the table's legs (and the first) held for the player's hours as Check exactly holds them.
-    const tail = instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g);
+    // No prestige on these days (search/noPrestige.ts): every prestige waits past them, hours ticked or not.
+    answerDays = daysOf(inputs);
+    const tail = instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g, answerDays);
     const firstLegs = await p.firstLegs({ url, deliveryScale: scale, ...legsRequest, ...tail, hours });
     if (id !== runs) return;
     prestigeInputs = { id, url, firstLegs, scale, planStart: inputs.planStart, te, delivered: legsRequest.delivered };
@@ -2209,6 +2244,7 @@ function cacheKey(): string | null {
     epic: inputs.context.epicResearchLevels,
     availability: store.availability,
     timeOff: store.timeOff,
+    noPrestige: store.noPrestige,
     milestones: store.milestones,
     firstAscension: inputs.firstAscension,
     useHours: useHours.value,

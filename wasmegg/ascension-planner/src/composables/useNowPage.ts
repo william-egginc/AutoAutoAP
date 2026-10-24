@@ -204,6 +204,7 @@ export function instantKeyFromStores(deadline: number | null, finalTE: number): 
       epic: inputs.context.epicResearchLevels,
       availability: store.availability,
       timeOff: store.timeOff,
+      noPrestige: store.noPrestige,
       milestones: store.milestones,
       firstAscension: inputs.firstAscension,
       // "Works inside my hours" as the instant answer's tick box has it (ticked by default with hours set).

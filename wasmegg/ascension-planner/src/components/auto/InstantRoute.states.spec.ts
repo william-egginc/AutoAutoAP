@@ -204,6 +204,7 @@ function ctxOf(s: State): Record<string, unknown> {
     store: { currentTE: 250, finalTE: 300, startWait: s.saveWait ? { since: 1 } : null },
     target: s.deadline ? 490 : 300,
     useHours: s.hours,
+    noPrestigeOn: false,
     waiting: s.waiting,
     warnHere: () => false,
     whatIf: null,

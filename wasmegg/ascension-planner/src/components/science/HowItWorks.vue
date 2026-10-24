@@ -158,8 +158,11 @@
         </p>
         <p>
           <b>Your hours.</b> With "Let me pick my hours" in Your setup, each prestige and egg switch waits for your
-          awake window, the farm keeps laying while it waits, and the wait counts in that ascension's time. Time off is
-          planned the same way. With no hours set, nothing waits.
+          awake window, the farm keeps laying while it waits, and the wait counts in that ascension's time. With no
+          hours set, nothing waits. <b>No prestige on these days</b> works the same way for prestiges only: you stay on
+          virtue, a prestige that would land on one of those days waits for the next allowed time, and the farm lays
+          until its silos are full; shifts still happen. <b>Away from virtue (time off)</b> is different: going to the
+          home farm is a prestige, so the ascension ends when it starts, and you rebuild when you return.
         </p>
       </div>
     </details>
