@@ -63,6 +63,31 @@ describe('RunsExploreBar at several run sets', () => {
   });
 });
 
+describe('RunsExploreBar folds under "Filter and sort"', () => {
+  it('closed with no picks; "N of M runs" outside the fold', async () => {
+    const html = await list(mix());
+    expect(html).toMatch(/<details data-testid="runs-explore-fold"/);
+    expect(html).not.toMatch(/<details open[^>]*data-testid="runs-explore-fold"/);
+    expect(textOf(html)).toContain('Filter and sort Goal');
+    expect(textOf(html)).not.toContain('picked');
+    const afterFold = html.slice(html.indexOf('</details>'));
+    expect(afterFold).toContain('data-testid="runs-explore-count"');
+  });
+
+  it('open with a remembered pick, saying how many; Clear filters outside the fold', async () => {
+    const html = await list(mix(), { initialExplore: { goal: ['eggday'], level: [], hours: ['mine'] } });
+    expect(html).toMatch(/<details open[^>]*data-testid="runs-explore-fold"/);
+    expect(textOf(html)).toContain('Filter and sort · 2 picked');
+    const afterFold = html.slice(html.indexOf('</details>'));
+    expect(afterFold).toContain('data-testid="runs-explore-clear"');
+  });
+
+  it('the summary is 44 px tall', async () => {
+    const html = await list(mix());
+    expect(html).toMatch(/<summary class="min-h-\[44px\][^"]*"[^>]*data-testid="runs-explore-summary"/);
+  });
+});
+
 describe('RunsExploreBar on a phone', () => {
   const groups = chipGroups(mix(), emptyExplore(), { eggDayAt: EGG_DAY, eggDayYear: 2027, mainTarget: 490, nowMs: NOW, zone: 'UTC' });
   const render = () => renderHtml(RunsExploreBar, { groups, sort: 'best', stops: '', shown: 3, total: 25, active: 1 });
