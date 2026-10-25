@@ -88,7 +88,7 @@
           </select>
         </label>
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Bands as typed</span>
+          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Ranges as typed</span>
           <input v-model="bands" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 font-mono text-[12px]" />
         </label>
         <label class="space-y-1">
@@ -131,7 +131,7 @@
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest"
-            >Workers (jobs) the run used</span
+            >Workers the run used</span
           >
           <input
             v-model.number="workers"
@@ -324,7 +324,7 @@ async function send(): Promise<void> {
     } catch {
       sendOk.value = false;
       sendMessage.value =
-        'Could not reach the collector (check your connection). Your files are still loaded here, so press Submit this sweep again once you are back online.';
+        "Couldn't reach the server (check your connection). Your files are still loaded here, so press Submit this sweep again once you are back online.";
       return;
     }
     const body = (await res.json().catch(() => ({}))) as {
@@ -344,7 +344,7 @@ async function send(): Promise<void> {
     }
     if (!res.ok || !body.id) {
       sendOk.value = false;
-      sendMessage.value = `The collector said ${res.status}${body.problems?.length ? `: ${body.problems.join('; ')}` : body.error ? `: ${body.error}` : ''}`;
+      sendMessage.value = `The server refused it (${res.status})${body.problems?.length ? `: ${body.problems.join('; ')}` : body.error ? `: ${body.error}` : ''}`;
       return;
     }
     // The same result from the same sender is already stored, so the collector stored nothing. It
@@ -363,7 +363,7 @@ async function send(): Promise<void> {
       // The collector signs a one-time token for the CSV; without one it would refuse the table.
       sent.value = true;
       sendOk.value = false;
-      sendMessage.value = `Stored as ${body.id}, but this collector does not accept CSVs.`;
+      sendMessage.value = `Sent as row ${body.id}, but this server does not accept CSVs.`;
       emit('submitted', body.id);
       return;
     }
@@ -404,7 +404,7 @@ async function postTable(): Promise<void> {
     });
   } catch {
     sendOk.value = false;
-    sendMessage.value = `Stored as ${table.id}, but the CSV did not upload (the connection dropped). Press Retry the CSV.`;
+    sendMessage.value = `Sent as row ${table.id}, but the CSV did not upload (the connection dropped). Press Retry the CSV.`;
     return;
   }
   if (res.ok || res.status === 409) {
@@ -413,18 +413,18 @@ async function postTable(): Promise<void> {
     sendMessage.value = res.ok
       ? table.existing
         ? `Already on the board as ${table.id}; its missing CSV was added.`
-        : `Stored as ${table.id}, with its CSV.`
-      : `Stored as ${table.id}; the CSV was already there.`;
+        : `Sent as row ${table.id}, with its CSV.`
+      : `Sent as row ${table.id}; the CSV was already there.`;
     return;
   }
   sendOk.value = false;
   if (res.status === 403) {
     // Retrying from this tab cannot fix a token mismatch; a reload of the page can.
     pendingTable.value = null;
-    sendMessage.value = `Stored as ${table.id}, but the CSV was refused. Keep your two files, reload this page (it may be an old version) and upload again.`;
+    sendMessage.value = `Sent as row ${table.id}, but the CSV was refused. Keep your two files, reload this page (it may be an old version) and upload again.`;
     return;
   }
-  sendMessage.value = `Stored as ${table.id}, but the CSV did not upload (${res.status}). Press Retry the CSV.`;
+  sendMessage.value = `Sent as row ${table.id}, but the CSV did not upload (${res.status}). Press Retry the CSV.`;
 }
 
 async function retryTable(): Promise<void> {

@@ -221,8 +221,8 @@
         </p>
         <p>
           <b>Pricing a route.</b> Fast, Exact and Custom run each route they try through the full simulator on your
-          save, ascending at once, on your hours. It takes about 10 to 40 seconds a route. That's the number to plan
-          around. Searches start from the instant answer too: Nearby routes starts from its
+          save, ascending at once, on your hours. It takes about 10 to 40 seconds of one processor core a route.
+          That's the number to plan around. Searches start from the instant answer too: Nearby routes starts from its
           route, and Exhaustive's suggested boxes are centred on it.
         </p>
         <p>
@@ -291,8 +291,8 @@
           </li>
           <li>
             <b>This simulator, bit for bit.</b> The last cell-by-cell check was on 13 Oct 2026 at 6:44 pm, on that
-            day's code: 13 tables, 15 cells each, rebuilt from scratch, and all 195 came out identical to the instant
-            answer's. The simulator changed on 21 Oct 2026, so the check has not been repeated on it yet.
+            day's code: 13 instant answers, 15 starts each, rebuilt from scratch, and all 195 came out identical. The simulator changed on 21 Oct 2026, so the
+            check has not been repeated on it yet.
           </li>
         </ul>
       </div>
@@ -471,14 +471,14 @@ import { NAMES } from '@/lib/siteNav';
 import ChainSearchExplainer from '@/components/auto/ChainSearchExplainer.vue';
 
 /** The date every number here was last checked. */
-const UPDATED = '21 Oct 2026';
+const UPDATED = 'Oct 21, 2026';
 
 /** The checks, in the order a sceptic would ask for them: same inputs, then the simulator, then real runs. */
 const CHECKS: { what: string; result: string; how: string }[] = [
   {
     what: 'The same start gives the same answer on any machine',
     result:
-      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched. On 13 Oct, 195 of 195 cells (13 tables, 15 cells each) matched on that day's code.",
+      "Identical to the bit. 20 of 20 starts simulated on a second computer matched, and one whole TE came out byte for byte the same. Rebuilt later with the code of the day, 12 of 12 matched. After a 5 Oct fix, 8 starts from each older file matched, and the one file the fix did change was rebuilt and passed 67 of 67. A test account's starts were rechecked on 10 Oct and matched. On 13 Oct, 195 of 195 starts (13 instant answers, 15 starts each) matched on that day's code.",
     how: 'rebuilding individual starts from scratch and comparing every number (1-13 Oct).',
   },
   {

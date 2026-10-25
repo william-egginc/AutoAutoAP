@@ -81,7 +81,7 @@ describe('the prompt', () => {
   it('asks with both finishes in 12-hour times', () => {
     const p = followPrompt(base)!;
     expect(p.words).toBe(
-      "This is a better route than the one you're following (Oct 25 at 12:00 pm vs Oct 26 at 12:00 pm). Do you want to follow it?"
+      "This is a better route than the one you're following (this one: Oct 25 at 12:00 pm; yours: Oct 26 at 12:00 pm). Do you want to follow it?"
     );
     expect(p.chain).toEqual([230, 490]);
     expect(p.source).toBe('fast');
@@ -89,7 +89,7 @@ describe('the prompt', () => {
   });
   it('By a date says TE and spare', () => {
     expect(betterRouteWords('date', DEADLINE, { end: DEADLINE - 2.5 * D, endTE: 241 }, { end: DEADLINE + 3 * H, endTE: 240 }, when)).toBe(
-      "This is a better route than the one you're following (241 TE, 2.5 days to spare vs 240 TE, lands after the date). Do you want to follow it?"
+      "This is a better route than the one you're following (this one: 241 TE, 2.5 days to spare; yours: 240 TE, lands after the date). Do you want to follow it?"
     );
   });
   it('not shown: no followed route, the same route, not newer than the follow, not better, or Keep mine pressed', () => {
@@ -136,7 +136,7 @@ describe('an instant answer never asks about a PRICED follow (Jordan, 23 Oct 202
   it('the same instant answer against an UNPRICED follow (typed, a board row, an older instant answer) still asks', () => {
     for (const source of ['manual', 'instant', null]) expect(followIsPriced({ source, chain: route, results: [] })).toBe(false);
     expect(followPrompt(base(false))?.words).toBe(
-      "This is a better route than the one you're following (314 TE, 9.7 h to spare vs 313 TE, 1.4 days to spare). Do you want to follow it?"
+      "This is a better route than the one you're following (this one: 314 TE, 9.7 h to spare; yours: 313 TE, 1.4 days to spare). Do you want to follow it?"
     );
   });
   it('a Fast, Exact or Custom result that is better asks against a priced follow too (the existing rules)', () => {
@@ -181,7 +181,7 @@ describe('a simulated result against an instant-sourced follow', () => {
     const p = followPrompt(base);
     expect(p?.chain).toEqual(candidate.chain);
     expect(p?.words).toBe(
-      "Your Fast run, simulated on your account, finishes Sep 21, 2028 at 8:22 am; the route you follow is the instant answer's estimate (Sep 21, 2028 at 2:08 am). Do you want to follow it?"
+      "Your Fast run, simulated on your account, finishes Sep 21, 2028 at 8:22 am; the route you follow is the instant answer's estimate (Sep 21, 2028 at 2:08 am). Do you want to follow the Fast run's route?"
     );
     expect(p?.words).not.toContain('better');
   });
@@ -201,7 +201,7 @@ describe('a simulated result against an instant-sourced follow', () => {
     const date = { ...base, goalKey: `date-${DEADLINE}`, goal: 'date' as const, deadline: DEADLINE, followed: f, candidate: c };
     expect(betterThanFollowed('date', DEADLINE, c, f.finish)).toBe(false);
     expect(followPrompt(date)?.words).toBe(
-      "Your Fast run, simulated on your account, gets 310 TE, 3 h to spare; the route you follow is the instant answer's estimate (312 TE, 2.0 days to spare). Do you want to follow it?"
+      "Your Fast run, simulated on your account, gets 310 TE, 3 h to spare; the route you follow is the instant answer's estimate (312 TE, 2.0 days to spare). Do you want to follow the Fast run's route?"
     );
     expect(followPrompt({ ...date, candidate: { ...c, end: DEADLINE + H } })).toBeNull();
   });

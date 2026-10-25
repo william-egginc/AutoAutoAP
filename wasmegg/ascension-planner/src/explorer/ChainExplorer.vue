@@ -74,7 +74,7 @@
 
         <div v-else class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-0.5">
-            <p v-if="loading" class="text-sm font-bold text-slate-500">Reading the collector…</p>
+            <p v-if="loading" class="text-sm font-bold text-slate-500">Loading the runs…</p>
             <p v-else-if="error" class="text-sm font-bold text-rose-700">{{ error }}</p>
             <p v-else-if="allSimHidden" class="text-sm font-bold text-amber-700" data-testid="sim-all-hidden">
               {{ allSimHidden }}
@@ -171,7 +171,7 @@
         class="flex h-40 items-center justify-center rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-400"
         role="status"
       >
-        Reading the collector…
+        Loading the runs…
       </section>
 
       <p
@@ -424,7 +424,7 @@
                 <span class="font-mono-premium">:1</span> every TE); the full box is on hover. <b>What's left</b> is how
                 much of that same box at every TE the run did not price (the TEs between its steps, or the rest of a box
                 it stopped early) and how long pricing the rest would take on a 16-20 core machine. Runs that improved a
-                seed route instead of trying a fixed box have nothing to measure against. <b>can't check</b> marks a run
+                starting route instead of trying a fixed box have nothing to measure against. <b>can't check</b> marks a run
                 the delivery-set check could not look at (no delivery set or per-leg detail recorded, a last stop under
                 190 TE, or a target other than 490): not flagged, and not cleared either.
               </p>
@@ -736,7 +736,7 @@
                             ? leftTitle(leftById.get(row.id)!)
                             : row.space
                               ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown.'
-                              : 'A Nearby routes search improved a seed route rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
+                              : 'A Nearby routes search improved a starting route rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
                         "
                       >
                         <template v-if="leftById.get(row.id)">
@@ -877,7 +877,7 @@
                 +115 and +129, so the marks sit on one narrow diagonal between the dashed guides. More TE has always
                 come with more Clothed TE, so these runs cannot yet say whether a plan follows the gear or the TE. The
                 pink band is where the planner estimates a first ascension stalls on Integrity, and no account is near
-                it. The grey areas are open asks from What we need to check (the Science tab): places the board still
+                it. The grey areas are open asks from {{ NAMES.check }} (the {{ NAMES.science }} tab): places the board still
                 wants more accounts from. One can already hold an account or two ("1 of 2"); it stays grey until enough
                 have covered it.
               </p>
@@ -1220,20 +1220,20 @@
         v-if="!embedded && part === 'insights' && base"
         class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 space-y-2"
       >
-        <h2 class="text-lg font-black text-slate-900">Help fill the gaps, and Submit a sweep</h2>
+        <h2 class="text-lg font-black text-slate-900">Help fill the gaps, and {{ NAMES.submit }}</h2>
         <p class="text-[12px] text-indigo-900/80 leading-relaxed max-w-3xl">
-          Both are on the planner's Science tab now, next to the searches that run the sweeps.
+          Both are on the planner's {{ NAMES.science }} tab now, where the sweeps run.
         </p>
         <div class="flex flex-wrap gap-2">
           <a
             :href="scienceHref('check')"
             class="px-3 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
-            >What we need to check &rarr;</a
+            >{{ NAMES.check }} &rarr;</a
           >
           <a
             :href="scienceHref('submit')"
             class="px-3 py-2 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-800 hover:border-indigo-500"
-            >Submit a sweep &rarr;</a
+            >{{ NAMES.submit }} &rarr;</a
           >
         </div>
       </section>

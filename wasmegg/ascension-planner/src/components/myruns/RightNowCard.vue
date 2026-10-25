@@ -16,7 +16,7 @@
   run, a board row, or typed in the box under the route line) replaces the planner's pick: the route line, the events,
   the timeline and the calendar text follow it, priced from a save's Check exactly (lib/followPrice.ts). Priced on an
   older save, it says so; not priced, it says so and offers "Price it ›" (Recalculate with the route attached) and
-  "Simulate it ›" (Single run). "Use the checked route ›" goes back to the planner's pick.
+  "Simulate it ›" (Single run). "Use the planner's route ›" goes back to the planner's pick.
   INSTANT FIRST (part B, wireframes/price-route-v2 R1 and R2, 23 Oct 2026; there is no Check exactly any more): the plan
   is the instant answer's ("from the instant answer": times rounded to the hour, no calendar buttons, a "run Fast" link
   that only opens the panel) until a Fast, Exact or Custom result for the same goal takes over (lib/searchPlan.ts: By a
@@ -134,12 +134,12 @@
           Run Fast ›
         </button>
         ·
-        <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-simulate" title="Opens Single run with this route on your save (nothing is kept for this page)" @click="emit('simulate', [...follow.chain])">
+        <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-simulate" :title="`Opens ${NAMES.classic} with this route on your save. Its times aren't brought back here.`" @click="emit('simulate', [...follow.chain])">
           Simulate it ›
         </button></template
       >{{ ' ' }}·
       <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-back" @click="emit('unfollow')">
-        Use the checked route ›
+        Use the planner's route ›
       </button>
     </p>
 
@@ -327,7 +327,7 @@
         ><template v-else-if="follow.estimating === 'failed'"
           >Your route couldn't be priced on the instant answer's data:{{ ' ' }}</template
         ><template v-else>No timeline for your route on this save yet:{{ ' ' }}</template>Simulate it › shows its times in
-        Single run, or Run Fast › for a result on your account.
+        {{ NAMES.classic }}, or Run Fast › for a result on your account.
       </p>
       <!-- By a date (Egg Day too): plans kept, none in time (lib/eggDayRule.ts): said plainly, the nearest shown, marked. -->
       <p v-else-if="selectedOption?.state === 'late'" class="text-[13px] text-slate-700" data-testid="now-no-route-in-time">

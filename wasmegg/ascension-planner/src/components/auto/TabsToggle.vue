@@ -41,7 +41,7 @@ const ROWS: { id: OptionalTab; label: string; what: string }[] = [
   {
     id: 'leaderboard',
     label: `Show the ${NAMES.compare} tab`,
-    what: 'Everyone’s shared runs: Egg Day, the race to 490 and the charts.',
+    what: "Everyone’s shared runs: Egg Day, the race to 490 and the charts.",
   },
   {
     id: 'science',

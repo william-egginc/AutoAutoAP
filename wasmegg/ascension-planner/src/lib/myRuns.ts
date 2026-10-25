@@ -188,7 +188,7 @@ export function whyNotMine(
   const named = l.names.has(nameKey(row.nickname));
   if (reasons.includes('other-code'))
     out.push(
-      `It was sent ${row.nickname?.trim() ? `as “${row.nickname.trim()}” ` : ''}from another browser or site, with that browser’s code, and that name isn’t one this account uses here. A named run from another browser counts only when its name is yours too (your account’s name or in-game name, or the name you credit runs to here): set the same “Credit me as” name in both browsers.`
+      `It was sent ${row.nickname?.trim() ? `as “${row.nickname.trim()}” ` : ''}from another browser or site, with that browser's code, and that name isn't one this account uses here. A named run from another browser counts only when its name is yours too (your account's name or in-game name, or the name you credit runs to here): set the same “Credit me as” name in both browsers.`
     );
   if (reasons.includes('key')) {
     const theirs = splitKey(accountKeyOf(row));
@@ -205,17 +205,17 @@ export function whyNotMine(
         out.push(`It was sent with the timezone ${theirs.zone}; your planner is set to ${mine.zone}.${extra.length || missing.length ? '' : nameHint}`);
       if (extra.length || missing.length)
         out.push(
-          `Its gear differs from your save’s${extra.length ? `: it has ${some(extra)}` : ''}${
+          `Its gear differs from your save's${extra.length ? `: it has ${some(extra)}` : ''}${
             missing.length ? `${extra.length ? ';' : ':'} your save has ${some(missing)}` : ''
           }.${theirs.zone === mine.zone && Math.max(extra.length, missing.length) === 1 ? nameHint : ''}`
         );
       if (theirs.zone === mine.zone && !extra.length && !missing.length)
-        out.push('Its timezone and gear match your save’s, but not as this browser remembers them.');
+        out.push("Its timezone and gear match your save's, but not as this browser remembers them.");
     }
   }
   if (reasons.includes('te'))
     out.push(
-      `It starts from TE ${row.backupTE ?? row.currentTE}, above your save’s ${l.viewerTE}: a save is never at a higher TE earlier, so it can’t be yours. If the other browser had a newer save than the one loaded here, load a fresh save.`
+      `It starts from TE ${row.backupTE ?? row.currentTE}, above your save's ${l.viewerTE}: a save is never at a higher TE earlier, so it can't be yours. If the other browser had a newer save than the one loaded here, load a fresh save.`
     );
   return [...out, ...noCode];
 }

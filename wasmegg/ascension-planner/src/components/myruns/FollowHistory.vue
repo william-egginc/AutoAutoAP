@@ -11,7 +11,7 @@
       <span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>
     </summary>
     <p v-if="state === 'loading'" class="mt-1 text-slate-500">Loading…</p>
-    <p v-else-if="state === 'failed'" class="mt-1 text-slate-500" data-testid="follow-history-failed">{{ UNREACHABLE_NOTE }}</p>
+    <p v-else-if="state === 'failed'" class="mt-1 text-slate-500" data-testid="follow-history-failed">Couldn't load the earlier versions right now.</p>
     <p v-else-if="state === 'ready' && !versions.length" class="mt-1 text-slate-500" data-testid="follow-history-none">
       No earlier versions saved for this goal yet.
     </p>
@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useFollowStore } from '@/stores/follow';
-import { UNREACHABLE_NOTE, sourceWords, type CloudEntry, type CloudValue } from '@/lib/followCloud';
+import { sourceWords, type CloudEntry, type CloudValue } from '@/lib/followCloud';
 import { sameChain } from '@/lib/follow';
 import { dateAt } from '@/lib/eventWhen';
 import { finishesBefore } from '@/lib/eggDayRule';

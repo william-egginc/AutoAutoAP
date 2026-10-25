@@ -85,7 +85,7 @@
     <NoInstantAnswer
       v-else-if="status === 'error' && below"
       :heading="noInstantHeading(below.from)"
-      :sub="`Your route starts at TE ${below.te}.`"
+      :sub="`Your TE now is ${below.te}.`"
       @by-date="emit('by-date')"
     >
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>
@@ -249,21 +249,21 @@
           Each prestige waits for your hours (the times shown include the wait).
         </p>
         <p v-if="rangeText" class="text-[11px] text-slate-500" data-testid="instant-range-note">
-          Only routes with {{ rangeText }} ascensions: the box and the rows below leave the others out.
+          Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
         </p>
         <!-- No prestige on these days (search/noPrestige.ts): held in every route here, hours ticked or not. -->
         <p v-if="noPrestigeOn" class="text-[11px] text-slate-500" data-testid="instant-no-prestige">
-          No prestige on your no-prestige days: a prestige that would land on one waits for the next allowed time, and
+          Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time, and
           the farm keeps laying until its silos are full (the times shown include the wait).
         </p>
         <p v-if="useHours && openingNote === 'morning'" class="text-[11px] text-slate-500" data-testid="held-opening">
-          A stop reached late in your day waits for the next morning to prestige: an ascension’s first shifts come in
-          its first hours, and started that late some would fall after your hours end, which the instant answer can’t
+          A stop reached late in your day waits for the next morning to prestige: an ascension's first shifts come in
+          its first hours, and started that late some would fall after your hours end, which the instant answer can't
           time.
         </p>
         <p v-else-if="useHours && openingNote === 'uncertain'" class="text-[11px] text-amber-800" data-testid="held-opening">
-          Less certain with these hours: an ascension’s first shifts take longer than your hours last, so some of them
-          will wait for you in ways the instant answer can’t time. A search below simulates them.
+          Less certain with these hours: an ascension's first shifts take longer than your hours last, so some of them
+          will wait for you in ways the instant answer can't time. A search below simulates them.
         </p>
         <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
           Polishing the routes in the background…
@@ -314,7 +314,7 @@
             </div>
             <div class="text-[12px] text-slate-700">
               Reached {{ show(dateBoxOf(result.byDate).end) }} ·
-              {{ dateBoxOf(result.byDate).chain.length }} ascensions
+              {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
             </div>
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
@@ -334,7 +334,7 @@
               class="text-[11px] text-amber-800"
               data-testid="prestige-by-no-days"
             >
-              The “Prestige by” line doesn’t know your no-prestige days; Fast, Exact or Custom do.
+              The “Prestige by” line doesn't know your no-prestige days; Fast, Exact or Custom do.
             </p>
             <!-- HOOK: "First ascension: N egg shifts" and "One more TE" were here (they need the simulated first leg,
                  gone from the instant card since 23 Oct 2026). When the engine simulates the current ascension live
@@ -506,7 +506,7 @@
             class="text-[11px] text-amber-800"
             data-testid="prestige-by-no-days"
           >
-            The “Prestige by” line doesn’t know your no-prestige days; Fast, Exact or Custom do.
+            The “Prestige by” line doesn't know your no-prestige days; Fast, Exact or Custom do.
           </p>
           <!-- HOOK: First ascension / One more TE (see the By a date box above, lib/searchPointer.ts
                `firstAscensionFromLiveLeg`). -->
@@ -638,7 +638,7 @@
             {{ showMoreCounts ? 'Show fewer ascension counts' : `Show more ascension counts (${hiddenCounts})` }}
           </button>
           <p v-else-if="moreDontHelp" class="mt-1 text-[10px] text-slate-500" data-testid="instant-more-dont-help">
-            More ascensions don’t help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
+            More ascensions don't help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
             extra stop only adds a prestige.
           </p>
           <MaxedWhatIf
@@ -1967,7 +1967,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       ? olderPage.value
         ? TABLE_OLDER_PAGE
         : TABLE_LOAD_FAILED
-      : `The instant answer couldn’t run: ${playerFacing(message)}`;
+      : `The instant answer couldn't run: ${playerFacing(message)}`;
   }
 }
 

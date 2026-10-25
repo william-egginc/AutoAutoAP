@@ -61,7 +61,7 @@
       }}<template v-if="earlierLabel">
         (<button type="button" class="underline" @click="showEarlier = !showEarlier">{{ earlierLabel }}</button
         >)</template
-      >. You'll get it next time you open the page, or reload when convenient.
+      >. You’ll get it next time you open the page, or reload when convenient.
       <ul v-if="showEarlier && earlierList.length" class="mt-1 list-disc pl-4">
         <li v-for="(n, i) in earlierList" :key="i">{{ n }}</li>
       </ul>

@@ -82,13 +82,13 @@
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours, hold
-        shifts, time off, no-prestige days and first ascension. ·
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours (and
+        whether shifts wait for them), time off, no-prestige days and first ascension. ·
         <button
           type="button"
           class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, hold shifts on, no time off, first ascension Fastest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no-prestige days, first ascension Fastest'"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -146,13 +146,13 @@
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours, hold
-        shifts, time off, no-prestige days and first ascension. ·
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours (and
+        whether shifts wait for them), time off, no-prestige days and first ascension. ·
         <button
           type="button"
           class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, hold shifts on, no time off, first ascension Fastest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no-prestige days, first ascension Fastest'"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -277,7 +277,7 @@
         >
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When you can play</h3>
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
-            {{ NAMES.classic }} doesn't plan around awake hours yet. The two searches do.
+            {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
           </p>
           <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
           <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="When you can prestige">
@@ -334,7 +334,7 @@
                   :key="h - 1"
                   class="h-3 flex-1 rounded-sm"
                   :class="hourAwake(h - 1) ? 'bg-indigo-500' : 'bg-slate-200'"
-                  :title="showHour(h - 1) + (hourAwake(h - 1) ? ': can prestige' : ': away')"
+                  :title="showHour(h - 1) + (hourAwake(h - 1) ? ': you play' : ': asleep')"
                 ></span>
               </div>
               <div class="flex justify-between text-[9px] text-slate-400 mt-0.5">
@@ -345,7 +345,7 @@
                 ><span>{{ showHour(23) }}</span>
               </div>
               <p class="text-[10px] text-slate-500 mt-1">
-                Hours are in the plan's timezone ({{ zone }}). Blue is when the plan may prestige. Days you can play:
+                Hours are in the plan's timezone ({{ zone }}). Blue is when you play: shifts and prestiges happen only then. Days you can play:
               </p>
             </div>
             <div class="flex flex-wrap gap-1">
@@ -466,7 +466,7 @@
           <details class="rounded-lg border border-dashed border-slate-200 px-3 py-2" @toggle="onAdvanced">
             <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
               Memory · detail kept for
-              {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'every' }} routes
+              {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'all' }} routes
             </summary>
             <div class="mt-3 space-y-3">
               <dl class="grid grid-cols-2 gap-3 text-[11px]">
@@ -573,7 +573,7 @@
               v-if="AUTO_FOLLOW_FIRST"
               data-testid="follow-online-auto"
             >
-              The first answer for Fastest to 490 and for Egg Day 2027 becomes the route you follow and is saved online,
+              The first answer for {{ NAMES.fastest }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online,
               unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.</span
             >
             The last 5 versions for each goal are kept: open Earlier versions under the route on My runs, Right now, and
@@ -585,8 +585,8 @@
           <!-- "Which build is in use" (lib/buildCount.ts): no choice here; Global Privacy Control or Do Not Track turns
                it off. about.html says the same. -->
           <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="build-count">
-            <span class="font-bold text-slate-800">The page's version</span> is sent to our server at most once a day:
-            just the version, nothing else, so we know when old versions are still in use. Global Privacy Control or Do
+            <span class="font-bold text-slate-800">The page's version</span> is sent to the planner's server at most once a day:
+            just the version, nothing else, so the maintainer knows when old versions are still in use. Global Privacy Control or Do
             Not Track turns it off.
           </p>
           <p class="text-[11px] text-slate-500 leading-relaxed">
@@ -657,7 +657,7 @@ import { useInstantShare } from '@/composables/useInstantShare';
 import { usePrestigeBy } from '@/composables/usePrestigeBy';
 import { instantUrlOf } from '@/search/instantRecord';
 import { useFollowStore } from '@/stores/follow';
-import { UNREACHABLE_NOTE } from '@/lib/followCloud';
+import { CLOUD_EGG_DAY_YEAR, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { AUTO_FOLLOW_FIRST } from '@/lib/followPolicy';
 import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import SchedulingInputs from './SchedulingInputs.vue';

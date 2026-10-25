@@ -69,7 +69,7 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     const t = textOf(html);
     expect(t).toContain('Run a search on Fastest to 490 TE or Highest TE by a date and its routes show here');
     // Names both ways of searching (the pricing after Check exactly, and its note, went with it on 23 Oct 2026).
-    expect(t).toContain('Either way of searching counts (Nearby routes or Exhaustive)');
+    expect(t).toContain('Fast, Exact and Custom all count.');
     expect(t).not.toContain('Check exactly');
     expect(html).not.toContain('data-testid="other-options"');
     expect(html).not.toContain('data-testid="search-shape"');
@@ -146,7 +146,7 @@ describe("Fastest's results: one line in place of the moved blocks", () => {
     expect(src).not.toMatch(/title="Top routes so far"/);
     expect(src).not.toContain('result.routes.slice(0, 15)');
     // Kept.
-    expect(src).toMatch(/title="Best for each stop count"/);
+    expect(src).toMatch(/title="Best for each number of ascensions"/);
     expect(src).toMatch(/<ByDateRouteCard\s+v-if="best"/);
     expect(src).toMatch(/<ShareResult\b/);
     // While it runs, a line to the top routes so far.

@@ -314,7 +314,7 @@ export function needleText(n: NeedleWarning | null, chosenHours: number, minLoss
   if (!n || n.lossSeconds < minLossSeconds) return null;
   const off = Math.abs(n.hours - chosenHours);
   const which = n.hours === 0 ? 'prestiging at once' : `waiting ${n.hours} h`;
-  return `needle-sharp: ${which} (off by ${off} h) costs ${hoursText(n.lossSeconds)}`;
+  return `very sensitive: ${which} (off by ${off} h) costs ${hoursText(n.lossSeconds)}`;
 }
 
 /** "2 h later costs 92 h" / "1 h sooner costs 18 h" (prestiging that much off the time shown). */

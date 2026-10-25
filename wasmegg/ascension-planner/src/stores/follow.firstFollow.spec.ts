@@ -176,7 +176,7 @@ describe.runIf(AUTO_FOLLOW_FIRST)('the first answer becomes the follow', () => {
     expect(calls).toEqual([]);
   });
 
-  it('one time per goal: after "Use the checked route" un-followed it, an answer never follows again', async () => {
+  it('one time per goal: after "Use the planner\'s route" un-followed it, an answer never follows again', async () => {
     const follows = load();
     await vi.waitFor(() => expect(follows.autoReady).toBe(true));
     await follows.autoFollow('fastest-490', instantAnswer([222, 490], now() + 3 * D));

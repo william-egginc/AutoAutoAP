@@ -1,7 +1,7 @@
 /**
  * "Follow this route" on Right now (16 Oct 2026), server-rendered: the player's pick replaces the planner's on the
  * route line, priced from a save (this one, or an older one, said so), or not priced yet with "Price it ›"
- * (Recalculate with the route attached) and "Simulate it ›"; "Use the checked route ›" goes back. Then the buttons
+ * (Recalculate with the route attached) and "Simulate it ›"; "Use the planner's route ›" goes back. Then the buttons
  * that pick a route, wired where the plan says. Ids: placeholders only.
  */
 import fs from 'node:fs';
@@ -131,7 +131,7 @@ describe('Right now with a followed route', () => {
   it('priced on this save: the route line names it your pick, with the way back and no Price it', async () => {
     const t = textOf(await renderHtml(RightNowCard, props(followedCard, thisSave)));
     expect(t).toContain('Following 222 → 490 (Race to 490 · your pick)');
-    expect(t).toContain('Following your pick · Use the checked route ›');
+    expect(t).toContain('Following your pick · Use the planner\'s route ›');
     expect(t).not.toContain('Price it');
     expect(t).not.toContain('may have drifted');
     // Its events and timeline are there (they follow the plan, which is the followed route's).
@@ -145,7 +145,7 @@ describe('Right now with a followed route', () => {
     const c: CardPlan = { ...followedCard, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: OLD } }, followed: older };
     const t = textOf(await renderHtml(RightNowCard, props(c, older)));
     expect(t).toContain(
-      'Following your pick · priced on your save of Oct 14 at 8:40 am, may have drifted · Run Fast › · Simulate it › · Use the checked route ›'
+      'Following your pick · priced on your save of Oct 14 at 8:40 am, may have drifted · Run Fast › · Simulate it › · Use the planner\'s route ›'
     );
     // The card's own older-save box is not said twice.
     expect(t).not.toContain('This plan was worked out from your save of');
@@ -156,7 +156,7 @@ describe('Right now with a followed route', () => {
     const html = await renderHtml(RightNowCard, props(null, none));
     const t = textOf(html);
     expect(t).toContain('Following 222 → 490 (Race to 490 · your pick)');
-    expect(t).toContain('Following your pick · not priced on this save yet · Run Fast › · Simulate it › · Use the checked route ›');
+    expect(t).toContain('Following your pick · not priced on this save yet · Run Fast › · Simulate it › · Use the planner\'s route ›');
     expect(t).toContain('No timeline for your route on this save yet');
     expect(html).not.toContain('data-testid="now-events"');
     expect(html).not.toContain('data-testid="now-timeline"');
@@ -257,7 +257,7 @@ describe('Follow this route buttons', () => {
 });
 
 describe('the page: a followed route replaces the lead, priced from the saved exact legs', () => {
-  it('a priced pick leads the card; an unpriced one shows no plan; "Use the checked route" goes back', async () => {
+  it('a priced pick leads the card; an unpriced one shows no plan; "Use the planner\'s route" goes back', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const b = syntheticBackup();
     const t = Math.floor(Date.now() / 1000) - 2 * H;

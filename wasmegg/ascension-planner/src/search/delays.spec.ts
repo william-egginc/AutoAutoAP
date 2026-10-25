@@ -96,8 +96,8 @@ describe('try waiting before each prestige', () => {
     // Waiting 0 (prestiging at once) is the gain itself, not a needle.
     expect(needleOf([10, 12], 1, 2)).toBeNull();
     expect(needleOf([10, 9, 12], 1, 2)).toEqual({ hours: 2, lossSeconds: 3 });
-    expect(needleText({ hours: 7, lossSeconds: 40 * H }, 5)).toBe('needle-sharp: waiting 7 h (off by 2 h) costs 40 h');
-    expect(needleText({ hours: 3, lossSeconds: 3.6 * H }, 2)).toBe('needle-sharp: waiting 3 h (off by 1 h) costs 3.6 h');
+    expect(needleText({ hours: 7, lossSeconds: 40 * H }, 5)).toBe('very sensitive: waiting 7 h (off by 2 h) costs 40 h');
+    expect(needleText({ hours: 3, lossSeconds: 3.6 * H }, 2)).toBe('very sensitive: waiting 3 h (off by 1 h) costs 3.6 h');
     expect(hoursText(28.14 * H)).toBe('28.1 h');
     expect(needleText({ hours: 3, lossSeconds: 0.2 * H }, 2)).toBeNull();
     expect(hoursText(25 * 60)).toBe('25 min');

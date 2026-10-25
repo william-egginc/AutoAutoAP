@@ -79,7 +79,7 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       'If you set them, the row also has your hours (the times of day you said you can play, shown in the Schedule column) and the days you marked as away from virtue (time off). It always has the weekday your plan starts on. Rows are public.'
     );
-    expect(text).toContain('Last updated 24 Oct 2026.');
+    expect(text).toContain('Last updated Oct 24, 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
     const sub = read('src/search/submission.ts');
     expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
@@ -110,16 +110,16 @@ describe('About and privacy page', () => {
     );
     expect(read('src/stores/chainSearch.ts')).toContain("if (payload.baseline || !consentAgreed('shareBaseline')) return payload;");
     expect(text).toContain(
-      "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which before 23 Oct 2026 held the price of the instant answer's own route)"
+      "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which before Oct 23, 2026 held the price of the instant answer's own route)"
     );
     expect(text).toContain('They are anonymous, sent only with that consent, and never shown publicly.');
-    expect(text).toContain('Last updated 24 Oct 2026.');
+    expect(text).toContain('Last updated Oct 24, 2026.');
     expect(text).not.toContain('Keep sharing my checks');
   });
 
   it('says each open page sends only its version, at most once a day, kept as a count for 30 days (24 Oct 2026)', () => {
     expect(text).toContain(
-      'Each open copy of this page tells our server which version of the page it is, at most once a day: just the version, nothing else. We keep only a count per version per day, for 30 days, so we know when old versions are still in use. If your browser sends Global Privacy Control or Do Not Track, nothing is sent.'
+      'Each open copy of the planner tells our server which version it is, at most once a day: just the version, nothing else. We keep only a count per version per day, for 30 days, so we know when old versions are still in use. If your browser sends Global Privacy Control or Do Not Track, nothing is sent.'
     );
     expect(text).toContain('Version counts 30 days, then deleted.');
     // What it says must stay true: the page sends the build id alone, once a day, not with GPC or DNT ...
@@ -135,7 +135,7 @@ describe('About and privacy page', () => {
     expect(read('collector/buildcount.js')).toContain('export const BUILD_KEEP_DAYS = 30;');
     const setup = read('src/components/auto/YourSetup.vue').replace(/\s+/g, ' ');
     expect(setup).toContain(
-      'is sent to our server at most once a day: just the version, nothing else, so we know when old versions are still in use. Global Privacy Control or Do Not Track turns it off.'
+      'is sent to the planner\'s server at most once a day: just the version, nothing else, so the maintainer knows when old versions are still in use. Global Privacy Control or Do Not Track turns it off.'
     );
   });
 
@@ -167,7 +167,7 @@ describe('About and privacy page', () => {
     expect(setup).toContain('It is saved when you press Follow this route,');
     expect(setup).toContain('v-if="AUTO_FOLLOW_FIRST"');
     expect(setup.replace(/\s+/g, ' ')).toContain(
-      'The first answer for Fastest to 490 and for Egg Day 2027 becomes the route you follow and is saved online, unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.'
+      'The first answer for {{ NAMES.fastest }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online, unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.'
     );
     expect(text).not.toContain('not loading your account');
     expect(text).toContain(
@@ -175,7 +175,7 @@ describe('About and privacy page', () => {
     );
     expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
     expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');
-    expect(text).toContain('Last updated 24 Oct 2026.');
+    expect(text).toContain('Last updated Oct 24, 2026.');
     // What it says must stay true: the key made in the browser from the ID, the value's fields, Follow the only write.
     const cloud = read('src/lib/followCloud.ts');
     expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aaap-follow-v1:';");

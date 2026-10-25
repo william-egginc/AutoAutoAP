@@ -133,7 +133,7 @@ describe('what the board says', () => {
 
   it('says a network error and a refusal in plain words', () => {
     expect(hideStatus({ kind: 'network', message: 'Failed to fetch' }, true)).toEqual({
-      text: "Couldn't reach the board. Check your connection and try again.",
+      text: "Couldn't reach the leaderboard. Check your connection and try again.",
       tone: 'error',
     });
     expect(hideStatus({ kind: 'bad', message: 'rejected', problems: [] }, true).tone).toBe('error');

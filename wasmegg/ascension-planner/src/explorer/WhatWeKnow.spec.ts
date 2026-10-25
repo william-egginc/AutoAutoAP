@@ -21,7 +21,7 @@ describe('What we know: the instant answer against the full simulator', () => {
     expect(text).toContain(
       "With your hours on it can be days out: in 4 checks on one account (24 Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of them. " +
         HOURS_NOTE +
-        " When the answer is the fully maxed one adjusted to your gear's rate, each ascension is about 1–2% off."
+        " When the answer is the fully maxed one adjusted to your gear's rate, each ascension is about 1-2% off."
     );
     expect(text).toContain(
       'With your hours off, the instant answer lands within about an hour of the full simulator on each ascension.'

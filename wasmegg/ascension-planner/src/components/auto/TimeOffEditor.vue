@@ -54,7 +54,6 @@
         Remove
       </button>
     </div>
-    <p v-if="store.isRunning && rows.length" class="text-[11px] font-semibold text-amber-700">{{ words.locked }}</p>
   </div>
 </template>
 
@@ -79,14 +78,12 @@ const WORDS = {
     add: 'Add time off',
     explain:
       "Days you will be off the virtue farm, on the home farm, in the plan's timezone. Going to the home farm is a prestige: the ascension you are in ends when the time off starts and keeps the TE it has, and when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.",
-    locked: 'Locked while a run is going: time off changes which route is fastest.',
   },
   noPrestige: {
     title: 'No prestige on these days',
     add: 'Add days',
     explain:
       "Days you stay on the virtue farm but won't prestige, in the plan's timezone. A prestige that would land on one waits for the next allowed time (inside your hours, if you picked them), and the farm keeps laying while it waits, until its silos are full. Egg shifts still happen on these days.",
-    locked: 'Locked while a run is going: these days change which route is fastest.',
   },
 } as const;
 const words = computed(() => WORDS[props.kind]);

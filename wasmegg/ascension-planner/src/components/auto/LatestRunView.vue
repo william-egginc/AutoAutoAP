@@ -40,7 +40,7 @@
         and its routes show here.
       </p>
       <p v-else-if="want === 'fastest'" class="text-xs text-slate-700" data-testid="latest-run-none-fastest">
-        No {{ fastestName(store.finalTE) }} run yet on this account: run Nearby routes or Exhaustive on it and its routes
+        No {{ fastestName(store.finalTE) }} run yet on this account: run Fast, Exact or Custom on it and its routes
         show here.
       </p>
       <p v-else class="text-xs text-slate-700">
@@ -48,7 +48,7 @@
         when every stop and egg happens.
       </p>
       <p class="text-[11px] text-slate-500 leading-relaxed">
-        Either way of searching counts ({{ NAMES.smart }} or {{ NAMES.full }}).
+        Fast, Exact and Custom all count.
       </p>
     </div>
 

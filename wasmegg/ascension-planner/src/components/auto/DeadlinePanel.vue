@@ -11,7 +11,7 @@
     <CarryOnOffer
       v-if="store.deadlineUnfinished && !store.busy"
       id="by-date-unfinished"
-      title="Unfinished By a date search"
+      title="Unfinished Highest TE by a date search"
       :elsewhere="store.runElsewhere.deadline"
       :can-carry-on="store.deadlineUnfinished.saveKept"
       discardable
@@ -63,7 +63,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Egg Day {{ eggDayYear }}</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers you send go on the {{ NAMES.compare }}'s Egg Day
+          >July 14, {{ eggDayYear }}, 9:00 am Pacific. Answers you send go on the {{ NAMES.compare }}'s Egg Day
           {{ eggDayYear }} tab.</span
         >
       </button>
@@ -115,8 +115,7 @@
         starts.</template
       >
       <template v-else>Pick a date and time.</template>
-      The weekly Research Sale and Monday 2× earnings boost are in the plan; other game events (including Egg Day's own
-      bonuses) aren't. The plan is for reaching the TE by then.
+      Egg Day's own bonuses aren't in the plan. The plan is for reaching the TE by then.
     </p>
     <!-- For both searches (Nearby routes and Exhaustive), so it sits with the deadline. -->
     <label v-if="store.scheduleEnabled" class="flex items-start gap-3 cursor-pointer">
@@ -415,14 +414,12 @@
             Each box is one band of TEs per ascension before the last, like {{ fastestName(store.finalTE) }} ›
             {{ NAMES.fullFirst }}'s, separated by <span class="font-mono-premium">;</span>. A band is
             <span class="font-mono-premium">lo-hi:step</span>, a single value, or several values with commas. Boxes with
-            other ascension counts all run from the same click, and a 1- or 2-ascension box costs next to nothing. Every
-            route in your boxes is tried, and nothing outside them, so the answer is proven for that space. The last stop
-            is found to the exact TE.
+            other ascension counts all run from the same click, and a 1- or 2-ascension box costs next to nothing.
             <template v-if="suggestFrom">{{ suggestFrom }}</template>
           </p>
           <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
             This search starts each fresh ascension the moment the last one ends, or with your hours set, as soon as you
-            are next available; the instant answer's exact check starts it on the next whole hour inside your hours, so
+            are next available; the instant answer starts it on the next whole hour inside your hours, so
             the same route's times here and there can differ by up to about an hour per fresh ascension.
           </p>
         </template>
@@ -865,7 +862,7 @@
 
       <ResultTable
         v-if="result.byStops.length > 1"
-        title="Best for each stop count"
+        title="Best for each number of ascensions"
         :rows="result.byStops"
         :row-key="r => r.chain.join(',')"
         :can-expand="hasLegs"
@@ -874,7 +871,7 @@
           <RouteTimeline :chain="r.chain" :legs="r.legs" :zone="plannerZone" />
         </template>
         <template #default="{ row: r }">
-          <td class="pr-4 py-1 text-slate-500">{{ r.chain.length }} stop{{ r.chain.length === 1 ? '' : 's' }}</td>
+          <td class="pr-4 py-1 text-slate-500">{{ plural(r.chain.length, 'ascension') }}</td>
           <td class="pr-4 py-1 font-bold">{{ r.chain.join(' ') }}</td>
           <td class="pr-4 py-1">{{ spareLabel(r.spare) }} spare</td>
           <td class="pr-4 py-1">
@@ -1732,7 +1729,7 @@ function instantNote(k: number): string {
 function rowSummary(k: number): string {
   const row = chains.value[k];
   if (!row) return '';
-  if (row.asc <= 1) return 'No ascension: keep going on this farm to the last stop. One route.';
+  if (row.asc <= 1) return 'One ascension: keep going on this farm to the last stop. One route.';
   const sizes = rowBands(k).map(b => b.length);
   const all = sizes.reduce((n, x) => n * x, 1);
   const sets = rowShapes(k);

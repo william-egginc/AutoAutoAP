@@ -24,7 +24,7 @@
         How {{ NAMES.byDate }} works
       </summary>
       <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-        Finds the highest TE you can reach by a date. Nearby routes picks the early stops for you: the
+        Nearby routes picks the early stops for you: the
         instant answer's route for each number of ascensions and a few TE either side of each stop. In Exhaustive you
         set the early stops and it tries every route in them. Either way the last stop is found to the exact TE. Like
         any run, it uses the plan start, hours, time off and computer settings in Your setup.

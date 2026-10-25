@@ -264,7 +264,7 @@
       <div class="space-y-2" data-testid="my-runs-summary">
         <details :open="open.steps" class="rounded-xl border border-slate-200 p-3" @toggle="sync('steps', $event)">
           <summary :class="SUMMARY">
-            Next steps<span :class="COUNT"> ({{ steps.steps.length }} to look at)</span>
+            Next steps<span :class="COUNT">{{ steps.steps.length ? ` (${steps.steps.length} to look at)` : ' · nothing to look at' }}</span>
           </summary>
           <div class="mt-2"><DashboardGaps :state="steps" @act="act" /></div>
         </details>

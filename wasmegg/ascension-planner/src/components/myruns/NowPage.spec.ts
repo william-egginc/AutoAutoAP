@@ -119,7 +119,7 @@ describe('the Right now card', () => {
     expect(t).toContain('Prestige at 198 TE');
     expect(t).toContain('490 TE reached');
     expect(t).toContain('Add all 3 upcoming to calendar');
-    expect(t).toContain('If the plan changes, add them again after a new check.');
+    expect(t).toContain('If the plan changes, add them again after a new run.');
     expect(t).toContain('Full timeline');
   });
 

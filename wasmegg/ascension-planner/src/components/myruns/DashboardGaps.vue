@@ -9,7 +9,6 @@
     aria-label="Next steps"
     data-testid="my-runs-steps"
   >
-    <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-700">Next steps</h3>
     <p v-if="!state.steps.length" class="text-[11px] text-emerald-800 font-semibold" data-testid="my-runs-steps-none">
       Nothing to change: keep following your route.
     </p>

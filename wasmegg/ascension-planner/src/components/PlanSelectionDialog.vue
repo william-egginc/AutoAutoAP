@@ -69,7 +69,7 @@ const emit = defineEmits(['select', 'cancel']);
               </span>
             </div>
             <div class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">
-              {{ new Date(plan.timestamp).toLocaleDateString() }} at {{ new Date(plan.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }) }}
+              {{ new Date(plan.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) }} at {{ new Date(plan.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }) }}
             </div>
           </button>
         </div>

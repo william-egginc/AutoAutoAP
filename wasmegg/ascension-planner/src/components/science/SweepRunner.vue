@@ -66,7 +66,7 @@
       >
         <p class="font-bold">Another search is running.</p>
         <p>
-          One search at a time: they share {{ thisDevice() }}'s workers. Let it finish, or stop it from the bar at the top of
+          One search at a time: they share {{ thisDevice() }}’s workers. Let it finish, or stop it from the bar at the top of
           the page, then open this sweep again.
         </p>
       </div>
@@ -188,7 +188,7 @@
             testid="sweep-consent"
             label-class="text-[11px] text-slate-700"
             summary-class="text-[11px] text-slate-700"
-            withdrawn-text="Withdrawn: this sweep's result will not be sent."
+            withdrawn-text="Withdrawn: this sweep’s result will not be sent."
           >
             <template #summary>
               <span>You agreed the sweep is sent to the board automatically when it finishes</span>

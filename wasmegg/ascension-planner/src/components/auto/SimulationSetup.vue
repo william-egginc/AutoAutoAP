@@ -105,7 +105,7 @@
         <span class="font-black uppercase tracking-wide">Held fixed for the whole plan.</span>
         This is what you own <span class="font-semibold">today</span>, and the searches assume it never changes. You'll
         craft and upgrade along the way, so the real run should come in <span class="font-semibold">faster</span> than
-        the dates here. Comparisons between routes stay fair, because every one is simulated with the same inventory.
+        the dates the searches show. Comparisons between routes stay fair, because every one is simulated with the same inventory.
         After any big crafting, load your latest save and search again.
       </p>
     </div>

@@ -13,7 +13,7 @@ const route = (end: number, te: number): Route => ({
 describe('maxedWhatIfText', () => {
   it('Fastest: how many days sooner', () => {
     const t = maxedWhatIfText({ final: 490, mine: { end: 100 * 86400, te: 490 }, maxed: { route: route(88 * 86400, 490), end: 88 * 86400, te: 490 }, show });
-    expect(t).toBe('With maxed gear: 490 on day 88, 12.0 d sooner than your gear.');
+    expect(t).toBe('With maxed gear: 490 on day 88, 12.0 days sooner than with your gear.');
   });
 
   it('Fastest: about the same when within an hour or so', () => {
@@ -58,9 +58,9 @@ describe('maxedWhatIfText beside Check exactly (18 Oct 2026: "instead of 248" un
 
   it('Fastest: dates, the instant answer\'s and the exact one, when they differ', () => {
     const t = maxedWhatIfText({ final: 490, mine: { end: 100 * 86400, te: 490 }, exact: { end: 102 * 86400, te: 490 }, maxed: { route: route(88 * 86400, 490), end: 88 * 86400, te: 490 }, show });
-    expect(t).toBe('With maxed gear: 490 on day 88, 12.0 d sooner than your gear (instant answer: day 100; exact on your account: day 102).');
+    expect(t).toBe('With maxed gear: 490 on day 88, 12.0 days sooner than with your gear (instant answer: day 100; exact on your account: day 102).');
     const same = maxedWhatIfText({ final: 490, mine: { end: 100 * 86400, te: 490 }, exact: { end: 100 * 86400 + 60, te: 490 }, maxed: { route: route(88 * 86400, 490), end: 88 * 86400, te: 490 }, show });
-    expect(same).toBe('With maxed gear: 490 on day 88, 12.0 d sooner than your gear.');
+    expect(same).toBe('With maxed gear: 490 on day 88, 12.0 days sooner than with your gear.');
   });
 });
 

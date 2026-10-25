@@ -11,7 +11,7 @@
  *     `drivingPlan`: it makes the date, or drives Fastest; useNowPage, `autoFollowOf`, source fast|exact|custom).
  *
  * ONE TIME per goal: once anything is followed (a press, an automatic follow, or one read back from online), and
- * after "Use the checked route" un-followed it on this device (`goneAt`), a new answer only ever asks ("This is a
+ * after "Use the planner's route" un-followed it on this device (`goneAt`), a new answer only ever asks ("This is a
  * better route than the one you're following…", BetterRoutePrompt.vue), never replaces it.
  *
  * Never while the saved routes are still being read (or couldn't be read on this load): a route followed on another

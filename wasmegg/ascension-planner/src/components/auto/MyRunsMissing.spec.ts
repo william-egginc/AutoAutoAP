@@ -45,7 +45,7 @@ describe('A run of yours isn’t here?', () => {
       'as “AltName” from another browser or site'
     );
     expect(textOf(await renderHtml(MyRunsMissing, { ...props, initialId: 'eeee3333' }))).toContain(
-      'Its gear differs from your save’s: it has T4E Necklace; your save has T4L Necklace.'
+      "Its gear differs from your save's: it has T4E Necklace; your save has T4L Necklace."
     );
   });
 

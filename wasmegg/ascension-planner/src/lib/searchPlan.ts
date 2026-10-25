@@ -474,7 +474,7 @@ export function betterRouteWords(
 ): string {
   const a = finishWords(goal, deadline, candidate, when);
   const b = finishWords(goal, deadline, followed, when);
-  return `This is a better route than the one you're following (${a} vs ${b}). Do you want to follow it?`;
+  return `This is a better route than the one you're following (this one: ${a}; yours: ${b}). Do you want to follow it?`;
 }
 
 /**
@@ -534,7 +534,7 @@ export function simulatedRouteWords(
   const a = finishWords(goal, deadline, candidate, when);
   const verb = goal === 'fastest' || deadline == null ? 'finishes' : 'gets';
   const b = followed && Number.isFinite(followed.end) ? ` (${finishWords(goal, deadline, followed, when)})` : '';
-  return `Your ${level} run, simulated on your account, ${verb} ${a}; the route you follow is the instant answer's estimate${b}. Do you want to follow it?`;
+  return `Your ${level} run, simulated on your account, ${verb} ${a}; the route you follow is the instant answer's estimate${b}. Do you want to follow the ${level} run's route?`;
 }
 
 /** A newer, better result for a goal with a followed route: what the prompt shows and what "Follow it" follows. */

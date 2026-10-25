@@ -17,7 +17,7 @@
               <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-slate-800 leading-none">
                 A{{ index + 1 }} of {{ total }}
                 <span v-if="index === 0" class="ml-1 sm:ml-2 text-[8px] sm:text-[10px] font-bold text-slate-400 capitalize opacity-70">
-                  — {{ summary.strategyLabel === 'Continue current' ? 'Continue current ascension' : 'Prestige Now' }}
+                  — {{ summary.strategyLabel === 'Continue current' ? 'Continue current ascension' : 'Prestige now' }}
                 </span>
               </h3>
               <span v-if="!isEditingEndTime" class="flex items-center gap-1">

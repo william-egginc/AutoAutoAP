@@ -181,7 +181,7 @@ function check(): void {
     case 'watching':
       if (m!.status === 'failed')
         show('The run stopped with an error; reopened it.', 'warn', 'Waiting for it to carry on by itself.');
-      else show('Watching.', 'ok', `Last heartbeat ${age} ago.`);
+      else show('Watching.', 'ok', `Last heard from the run ${age} ago.`);
       return;
     case 'reopen':
       reopen(m!.url);
@@ -203,7 +203,7 @@ function check(): void {
       show(
         m!.status === 'failed' ? 'The run stopped with an error again.' : 'The run has gone quiet again.',
         'warn',
-        `It was reopened 3 times in the last hour, so this tab won't reopen it again until ${clock12(nextReopenAllowedAt(m!.reopens, now))}.${m!.status === 'failed' ? '' : ` Last heartbeat ${age} ago.`}`
+        `It was reopened 3 times in the last hour, so this tab won't reopen it again until ${clock12(nextReopenAllowedAt(m!.reopens, now))}.${m!.status === 'failed' ? '' : ` Last heard from the run ${age} ago.`}`
       );
       return;
     case 'finished':

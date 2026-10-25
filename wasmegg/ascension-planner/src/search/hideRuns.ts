@@ -152,7 +152,7 @@ export async function fetchOwnCsv(opts: {
       cache: 'no-store',
     });
   } catch {
-    throw new Error("Couldn't reach the board. Check your connection and try again.");
+    throw new Error("Couldn't reach the leaderboard. Check your connection and try again.");
   }
   if (res.status === 404) throw new Error('This run has no CSV stored.');
   if (res.status === 403) throw new Error("The board didn't accept this browser's code for this run.");

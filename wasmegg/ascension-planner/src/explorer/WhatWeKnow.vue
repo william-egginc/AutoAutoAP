@@ -33,11 +33,12 @@
         What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
         ascensions pay off and where the stops land. How the planner itself works, and how its numbers were checked, is
         on
-        <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline">Science › How it works</a
-        ><template v-else>Science › How it works</template>.
+        <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline"
+          >{{ NAMES.science }} › {{ NAMES.how }}</a
+        ><template v-else>{{ NAMES.science }} › {{ NAMES.how }}</template>.
       </p>
       <p class="text-[10px] text-slate-500">
-        Findings checked {{ FINDINGS_CHECKED }}, on the simulator the site ran before 21 Oct 2026. They have not been
+        Findings checked {{ FINDINGS_CHECKED }}, on the simulator the site ran before Oct 21, 2026. They have not been
         checked again on the newer one yet.
       </p>
     </div>
@@ -64,8 +65,8 @@
     </div>
 
     <p class="text-[11px] text-slate-500 leading-relaxed">
-      Tap a finding to open it. The header counts are worked out from the board each time the page loads; the findings
-      were checked on the date above. The charts and tables further down are live too and show dates in your timezone.
+      Tap a finding to open it. The header counts are worked out from the board each time the page loads. The charts and
+      tables further down are live too and show dates in your timezone.
     </p>
 
     <div class="space-y-1.5 text-[12px] text-slate-700 leading-relaxed">
@@ -90,7 +91,7 @@
             use a Fast search for the final word. With your hours on it can be days out: in 4 checks on one account (24
             Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of
             them. {{ HOURS_NOTE }} When the answer is the fully maxed one adjusted to your gear's rate, each ascension is
-            about 1–2% off. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
+            about 1-2% off. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
             the full simulator, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
             within an hour) and every new run that week. For the accounts it has precomputed on their own gear (10 so
@@ -173,9 +174,9 @@
           </p>
           <p v-else-if="f.id === 'sale'">
             Every build ends at the Saturday 9:00 am (Pacific) sale. A third sale week pays on long jumps below about TE
-            300 (up to 33 days on the final leg from 225-270, up to 194 days from 120-150), but never on short jumps or
-            from about TE 300 up. Tier 13 is offered from TE 190. Starting a leg a few hours either side of the sale can
-            move it by days, which is why the best stops are so sharp.
+            300 (up to 33 days on the final ascension from 225-270, up to 194 days from 120-150), but never on short jumps or
+            from about TE 300 up. Tier 13 is offered from TE 190. Starting an ascension a few hours either side of the sale
+            can move it by days, which is why the best stops are so sharp.
           </p>
           <p v-else-if="f.id === 'buildup'">
             Finishing the build without buying anything more (Finish without buying, Joo's "Continue Asc.") keeps the farm's half-built
@@ -207,7 +208,7 @@
         </p>
         <p>
           <b>Egg Day "Highest TE by a date" runs:</b> 1-4 ascensions at every TE, 5 at ±3 TE around the instant answer's
-          route, 6 at ±2. They check the instant answer leg by leg and measure how often it misses.
+          route, 6 at ±2. They check the instant answer ascension by ascension and measure how often it misses.
         </p>
         <p>
           <b>The six gear sets on the Science tab</b> (epic earnings set, rare earnings set, rare/common delivery set,
@@ -229,11 +230,12 @@
 
 <script setup lang="ts">
 import { plural } from '@/lib/format';
+import { NAMES } from '@/lib/siteNav';
 import { HOURS_NOTE } from '@/lib/hoursNote';
 import type { KnowStats } from './knowStats';
 
 /** The date the analyst last checked the findings against the board. */
-const FINDINGS_CHECKED = '10 Oct 2026';
+const FINDINGS_CHECKED = 'Oct 10, 2026';
 
 defineProps<{
   /** Counted from the loaded runs; absent until the board has answered. */

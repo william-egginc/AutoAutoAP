@@ -344,7 +344,7 @@ export async function getFollowHistory(
 // ------------------------------------------------------------------------------------- the words
 
 /** Setup › Sharing's note when the saved routes couldn't be read on load. */
-export const UNREACHABLE_NOTE = "Couldn't reach the saved route right now.";
+export const UNREACHABLE_NOTE = "Couldn't read your routes saved online right now.";
 /** A save refused for the hour's limit. */
 export const LIMIT_WORDS = 'Too many changes this hour. Try again later.';
 
@@ -357,7 +357,7 @@ export function saveFailWords(why: CloudFail): string {
 }
 
 /** Right now's note when the followed route isn't saved online (stores/follow.ts `notSaved`), before "Save it online". */
-export const NOT_SAVED_WORDS = 'Not saved online yet: your other devices don’t see this route.';
+export const NOT_SAVED_WORDS = "Not saved online yet: your other devices don't see this route.";
 
 /** Right now's quiet note when a saved route was set with other hours or another simulator than the player's now. */
 export function setWithOtherWords(o: { hours: boolean; sim: boolean }): string {

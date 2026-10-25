@@ -134,7 +134,7 @@ export function hideStatus(result: HideResult, hidden: boolean, opts: { all?: bo
         tone: 'error',
       };
     case 'network':
-      return { text: "Couldn't reach the board. Check your connection and try again.", tone: 'error' };
+      return { text: "Couldn't reach the leaderboard. Check your connection and try again.", tone: 'error' };
     case 'http':
       return { text: `The board answered ${result.status}. Try again later.`, tone: 'error' };
   }

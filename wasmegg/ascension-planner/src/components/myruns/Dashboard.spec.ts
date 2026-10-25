@@ -49,7 +49,6 @@ describe('DashboardGaps', () => {
     });
     const { html, setup } = await render(DashboardGaps, '/DashboardGaps.vue', { state: state([s]), onAct });
     const t = textOf(html);
-    expect(t).toContain('Next steps');
     expect(t).toContain('Your save is 4 days old Every plan on this page starts from it.');
     const item = html.slice(html.indexOf('data-testid="my-runs-step-save"'));
     expect(item.match(/<button/g)?.length).toBe(1);

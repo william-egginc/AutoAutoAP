@@ -209,7 +209,7 @@ describe('Setup › Help improve the planner', () => {
     answerYes({ ...ALL_ON, checks: false }, 'name', 'Williamthe5thc');
     let t = textOf(await setup());
     expect(t).toMatch(
-      /You said yes on .+ for this account: runs shared · CSV only with a share · diagnostics on · checks not shared · credited as Williamthe5thc\./
+      /You said yes on .+ for this account: runs shared · CSV only with a share · diagnostics on · search results not shared · credited as Williamthe5thc\./
     );
     expect(t).toContain('Change');
     expect(t).toContain('Withdraw');
@@ -219,7 +219,7 @@ describe('Setup › Help improve the planner', () => {
     expect(t).toContain('runs not shared');
     // Unticked at Yes is off; turned on later (Setup's Change writes the same consent).
     setConsent('keepSharingChecks', true);
-    expect(textOf(await setup())).toContain('checks shared');
+    expect(textOf(await setup())).toContain('search results shared');
     expect(textOf(await setup())).not.toContain('not decided');
   });
 
@@ -237,7 +237,7 @@ describe('Setup › Help improve the planner', () => {
     answerNo();
     let t = textOf(await setup());
     expect(t).toContain(
-      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks not shared · anonymous.'
+      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · search results not shared · anonymous.'
     );
     expect(t).not.toContain('Nothing is shared unless');
     expect(t).toContain('Change');
@@ -246,7 +246,7 @@ describe('Setup › Help improve the planner', () => {
     setConsent('keepSharingChecks', true);
     t = textOf(await setup());
     expect(t).toContain(
-      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks shared'
+      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · search results shared'
     );
     expect(t).toContain('Withdraw');
     expect(t).toContain(WITHDRAW_LINE);
@@ -254,7 +254,7 @@ describe('Setup › Help improve the planner', () => {
     withdrawStudy();
     t = textOf(await setup());
     expect(t).toMatch(
-      /Withdrawn on [^.]+\. For this account right now: runs not shared · CSV only with a share · diagnostics off · checks not shared · anonymous\./
+      /Withdrawn on [^.]+\. For this account right now: runs not shared · CSV only with a share · diagnostics off · search results not shared · anonymous\./
     );
     expect(t).not.toContain('nothing is shared from this browser');
     expect(t).toContain('Change');

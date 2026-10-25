@@ -127,7 +127,7 @@ describe('each cause, with its "A run of yours isn’t here?" answer', () => {
   it('a row from a TE above the save’s: out, and the answer says to load a fresh save', () => {
     const r = pc(300, { backupTE: 195, currentTE: 195 });
     expect(mine(r, look())).toBe(false);
-    expect(why(r)).toContain('above your save’s 191');
+    expect(why(r)).toContain("above your save's 191");
     expect(why(r)).toContain('load a fresh save');
   });
 

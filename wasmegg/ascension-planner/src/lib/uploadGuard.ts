@@ -357,7 +357,7 @@ export function checkSave(d: unknown): void {
 
 /** The Explorer's diagnostics JSON: the fields `checkUpload` compares, in range. */
 export function checkDiagnostics(d: unknown): void {
-  need(isObj(d), "That JSON isn't a chain-search diagnostics file.");
+  need(isObj(d), "That JSON isn't a search diagnostics file.");
   const g = d as Obj;
   if (isObj(g.te)) {
     num((g.te as Obj).searchStartsFrom, 0, MAX_TE_TOTAL, 'The diagnostics start outside 0-490 TE.');

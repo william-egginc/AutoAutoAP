@@ -59,7 +59,7 @@
     </p>
     <p v-else-if="upcoming.length" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
       Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
-      nothing is sent. If the plan changes, add them again after a new check.
+      nothing is sent. If the plan changes, add them again after a new run.
     </p>
   </div>
 </template>

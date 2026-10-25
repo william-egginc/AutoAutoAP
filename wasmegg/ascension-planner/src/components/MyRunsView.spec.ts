@@ -107,7 +107,7 @@ describe('Next steps, folded under Your runs (17 Oct 2026; the six cards gone 24
     expect(html).not.toContain('data-testid="my-runs-cards"');
     expect(html).not.toContain('data-testid="my-runs-card-');
     const t = textOf(html);
-    expect(t).toContain('Next steps (0 to look at)');
+    expect(t).toContain('Next steps · nothing to look at');
     expect(t).not.toContain('Next steps · checking');
     expect(t).not.toContain('Six cards');
     expect(t).toContain('Nothing to change: keep following your route.');
@@ -289,7 +289,7 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     expect(t).not.toContain('Next steps · checking');
     // The six cards are gone (24 Oct 2026); Next steps stay, with nothing to wait for.
     expect(t).not.toContain('Six cards');
-    expect(t).toContain('Next steps (0 to look at)');
+    expect(t).toContain('Next steps · nothing to look at');
     expect(html).not.toContain('EI1234567890123456');
   });
 

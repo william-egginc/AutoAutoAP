@@ -24,6 +24,9 @@ export function nearTieOf(rowAscensions: number, bestAscensions: number, gapSeco
     const later = gapSeconds / 3600 < 0.75 ? 'only under an hour later' : `only ${gapWords(gapSeconds)} later`;
     return { kind: 'fewer', text: `${fewer}, ${later}` };
   }
-  if (rowAscensions > bestAscensions) return { kind: 'more', text: 'about the same: one more prestige for no gain' };
+  if (rowAscensions > bestAscensions) {
+    const n = rowAscensions - bestAscensions;
+    return { kind: 'more', text: `about the same: ${n === 1 ? 'one more prestige' : `${n} more prestiges`} for no gain` };
+  }
   return null;
 }

@@ -35,7 +35,7 @@ export function maxedWhatIfText(o: {
           ex !== null ? ` (instant answer; exact on your account: ${ex})` : ''
         }.`;
   }
-  if (maxed.end === null) return `With maxed gear: no route to ${o.final} in this search either.`;
+  if (maxed.end === null) return `With maxed gear: no route to ${o.final} in the instant answer either.`;
   if (mine.end === null) return `With maxed gear: ${o.final} on ${o.show(maxed.end)}.`;
   const days = (mine.end - maxed.end) / 86400;
   const exEnd = o.exact?.end;
@@ -43,7 +43,7 @@ export function maxedWhatIfText(o: {
     typeof exEnd === 'number' && Number.isFinite(exEnd) && o.show(exEnd) !== o.show(mine.end) ? o.show(exEnd) : null;
   const note = ex !== null ? ` (instant answer: ${o.show(mine.end)}; exact on your account: ${ex})` : '';
   return days > SAME_DAYS
-    ? `With maxed gear: ${o.final} on ${o.show(maxed.end)}, ${days.toFixed(1)} d sooner than your gear${note}.`
+    ? `With maxed gear: ${o.final} on ${o.show(maxed.end)}, ${days.toFixed(1)} days sooner than with your gear${note}.`
     : `With maxed gear: ${o.final} on ${o.show(maxed.end)}, about the same as your gear${note}.`;
 }
 

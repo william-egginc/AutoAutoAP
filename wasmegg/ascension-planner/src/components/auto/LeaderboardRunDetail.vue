@@ -109,14 +109,14 @@
           <span>Seed route</span>
           <span v-if="isRecheck" class="text-slate-400 text-right">none (priced again, not searched)</span>
           <span v-else-if="row.seed?.length" class="font-mono font-bold">{{ row.seed.join(' ') }}</span>
-          <span v-else class="text-slate-400">none (exhaustive)</span>
+          <span v-else class="text-slate-400">none (Custom: every route in its boxes)</span>
         </div>
         <div v-if="row.note" class="flex justify-between gap-3">
           <span>Note</span>
           <span class="text-right whitespace-pre-wrap break-words min-w-0">{{ row.note }}</span>
         </div>
         <div class="flex justify-between gap-3">
-          <span>{{ isRecheck ? 'Re-checked' : several ? 'First sent' : 'Submitted' }}</span>
+          <span>{{ isRecheck ? 'Re-checked' : several ? 'First sent' : 'Sent' }}</span>
           <span class="font-bold text-right" :title="utcTitle(firstSent)">{{ sentWhen(firstSent) }}</span>
         </div>
         <div class="flex justify-between gap-3">

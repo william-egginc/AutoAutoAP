@@ -190,7 +190,7 @@ const WORDS: Record<keyof StudyTicks, [string, string]> = {
   // Not "CSV on": the CSV only ever goes with a share (Jordan, 22 Oct 2026), so the line can't read as "we send it".
   csv: ['CSV only with a share', 'CSV off'],
   diag: ['diagnostics on', 'diagnostics off'],
-  checks: ['checks shared', 'checks not shared'],
+  checks: ['search results shared', 'search results not shared'],
 };
 /** Something Withdraw would turn off is on for this account now (whatever the browser's answer says). */
 const anySharing = computed(() => WITHDRAW_CONSENTS.some(id => consentAgreed(id)));

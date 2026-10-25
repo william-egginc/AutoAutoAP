@@ -39,7 +39,7 @@
         class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
         @click="save"
       >
-        {{ saving ? 'Saving...' : 'Save this run' }}
+        {{ saving ? 'Saving…' : 'Save this run' }}
       </button>
     </div>
 

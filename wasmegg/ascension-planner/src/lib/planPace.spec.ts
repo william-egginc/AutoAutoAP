@@ -217,7 +217,7 @@ describe('ahead, behind, on schedule', () => {
     const w = paceWords(s, T0 + 3.5 * H, ZONE);
     expect(w.text).toBe('3 hours ahead, as of 3:46 pm');
     expect(w.detail).toBe(
-      `Plan expected 187 TE by 3:46 pm; you had 189. Plan: ascension 1 of 2 by then · you: stop 0 of 2 reached. ${FORECAST_WORDS}`
+      `Plan expected 187 TE by 3:46 pm; you had 189. Plan: ascension 1 of 2 by then · you: ascension 0 of 2. ${FORECAST_WORDS}`
     );
   });
 
@@ -228,7 +228,7 @@ describe('ahead, behind, on schedule', () => {
     const w = paceWords(s, T0 + 11.1 * H, ZONE);
     expect(w).toMatchObject({ badge: '5 hours behind', asOf: 'as of 11:46 pm', tone: 'bad' });
     expect(w.detail).toContain('Plan expected 191 TE by 11:46 pm; you had 188.');
-    expect(w.detail).toContain('Plan: ascension 2 of 2 by then · you: stop 0 of 2 reached.');
+    expect(w.detail).toContain('Plan: ascension 2 of 2 by then · you: ascension 0 of 2.');
   });
 
   it('past the plan’s end and short of its goal: still behind, in days from 48 hours', () => {
@@ -262,7 +262,7 @@ describe('ahead, behind, on schedule', () => {
     expect(w.badge).toBe('6 hours ahead (estimate)');
     expect(w.text).toBe('6 hours ahead (estimate), as of 2:46 pm');
     expect(w.detail).toContain('Rough: compared ascension by ascension.');
-    expect(w.detail).toContain('The plan is an instant answer, not checked exactly.');
+    expect(w.detail).toContain('The plan is an instant answer, an estimate not simulated on your account.');
   });
 });
 

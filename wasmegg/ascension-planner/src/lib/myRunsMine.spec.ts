@@ -193,7 +193,7 @@ describe('"A run of yours isn\'t here?"', () => {
     expect(join(whyNotMine(egg(248, 'x', { artifacts: GEAR_OCT10 }), ctx))).toContain(
       'it has T4E Necklace; your save has T4L Necklace'
     );
-    expect(join(whyNotMine(egg(248, 'x', { backupTE: 200 }), ctx))).toContain('above your save’s 190');
+    expect(join(whyNotMine(egg(248, 'x', { backupTE: 200 }), ctx))).toContain("above your save's 190");
     expect(join(whyNotMine(egg(248, 'x', { artifacts: GEAR_OCT10 }), { ...ctx, saveKey: null }))).toContain(
       'Load your save'
     );

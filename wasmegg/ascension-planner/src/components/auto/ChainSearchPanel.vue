@@ -234,7 +234,7 @@
             </div>
             <p class="text-[11px] text-slate-500 leading-relaxed">
               Ascension count is the route length including your final target. It bounds Fast's check of the other
-              counts and the one-more-or-fewer step on Exact and Very high.
+              counts and Exact's one-more-or-fewer step.
               <span v-if="store.pin > 0" class="font-semibold text-slate-700">
                 Locking {{ store.pin }} holds {{ store.seedChain.slice(0, store.pin).join(' ') }} fixed, so the search
                 will not move {{ store.pin === 1 ? 'it' : 'them' }}.
@@ -526,8 +526,8 @@
             <span class="font-black uppercase tracking-wide">That's a single ascension.</span>
             {{ store.finalTE }} on its own goes straight to the target, so there are no stops for {{ NAMES.smart }} to
             look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }}, type
-            {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster route instead, give
-            Starting route some stops (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
+            {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster route instead, pick
+            Type a route… under Start from a different route and give it some stops (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
             >).
           </div>
         </template>
@@ -825,7 +825,7 @@
               resuming rather than restarting.
             </template>
             <template v-else>
-              Nothing was priced, so there is nothing to resume. If this repeats, pick a lower level to see whether a
+              Nothing was priced, so there is nothing to resume. If this repeats, pick Fast to see whether a
               shorter run gets through, and check the browser console for the worker's own error.
             </template>
           </RunErrorNotes>
@@ -1277,7 +1277,7 @@ const coverageNote = computed(() => {
     return `${label} starts from your route's ${word}, then gives ${countList(other)} ascensions one quick pass each (from the instant answer's route at that count when it has one), carries on outward while that keeps winning, and fine-tunes the best, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
   }
   if (!EFFORT[store.effort].countProbe) {
-    return `${label} keeps your starting route's ${word}; Exact and Very high also try one more and one fewer.`;
+    return `${label} keeps your starting route's ${word}; Exact also tries one more and one fewer.`;
   }
   return `${label} starts from your route's ${word} and also tries one more and one fewer, then again while that keeps helping, within your limits of ${store.minPrestiges} to ${store.maxPrestiges}.`;
 });
@@ -1309,7 +1309,7 @@ function startFromCount(n: number): string {
   store.seedOverride = plan.chain.slice(0, -1).join(' ');
   const set = `Starting route set to ${plan.chain.join(' ')}. Press Find to search from it`;
   return store.effort === 'quick'
-    ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a more exact search, pick a higher level above.`
+    ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a wider search, pick Exact above.`
     : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, above, is quicker.`;
 }
 /** "(from the instant answer)" beside the Limits inputs while they follow it. */
