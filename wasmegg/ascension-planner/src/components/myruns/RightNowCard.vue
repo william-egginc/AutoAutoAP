@@ -32,6 +32,10 @@
   route keeps the instant timeline and its pill ("from the instant answer", rounded, no calendar, "run Fast"); following
   this save's Fast, Exact or Custom result keeps that result's ("from your Fast run, on your account", exact times,
   calendar). Only a route that is neither says "not priced on this save yet".
+  A FOLLOWED ROUTE ALWAYS HAS A TIMELINE (24 Oct 2026, lib/followEstimate.ts): that route is then priced on the instant
+  answer's data (the same pricing the instant answer uses, in a route worker) and its steps shown "estimated from the
+  instant answer's data (times rounded to the hour)"; while it is worked out the Next step says so. Only when it can't be
+  (no instant answer of this save, a route past the data, a failure) does the old "Simulate it ›" line show.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
@@ -288,14 +292,29 @@
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
         <p v-else class="text-[13px] text-slate-700">Nothing left in this plan: work out a new one.</p>
+        <p v-if="card.plan.estimated" class="mt-0.5 text-[12px] text-slate-600" data-testid="now-next-estimated">
+          Your route's steps, {{ ESTIMATE_WORDS }}.
+        </p>
         <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
           {{ paceBadge }}.
           <button type="button" class="font-bold underline" @click="emit('recalc', recalcRequest)">Run Fast ›</button>
         </p>
       </template>
-      <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next">
-        No timeline for your route on this save yet: Simulate it › shows its times in Single run, or Run Fast › for a
-        result on your account.
+      <p
+        v-else-if="follow && (follow.estimating === 'working' || follow.estimating === 'waiting')"
+        class="text-[13px] text-slate-700"
+        role="status"
+        data-testid="now-follow-estimating"
+        :data-state="follow.estimating"
+      >
+        <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data…</template>
+        <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
+      </p>
+      <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next" :data-estimating="follow.estimating ?? ''">
+        <template v-if="follow.estimating === 'beyond'"
+          >Your route goes past what the instant answer covers, so it has no estimate:{{ ' ' }}</template
+        ><template v-else>No timeline for your route on this save yet:{{ ' ' }}</template>Simulate it › shows its times in
+        Single run, or Run Fast › for a result on your account.
       </p>
       <!-- By a date (Egg Day too): plans kept, none in time (lib/eggDayRule.ts): said plainly, the nearest shown, marked. -->
       <p v-else-if="selectedOption?.state === 'late'" class="text-[13px] text-slate-700" data-testid="now-no-route-in-time">
@@ -413,6 +432,7 @@ import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
 import { askGoal, recalcButton, recalcWords, type RecalcRequest } from '@/lib/recalc';
 import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
 import { NOT_SAVED_WORDS } from '@/lib/followCloud';
+import { ESTIMATE_WORDS } from '@/lib/followEstimate';
 import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
@@ -529,6 +549,7 @@ const followNote = computed(() => {
   const f = props.follow;
   if (!f) return '';
   if (f.price === 'none') return 'not priced on this save yet';
+  if (f.price === 'estimate') return "estimated from the instant answer's data";
   if (f.price === 'finish' && f.finish) {
     const lands = dateAt(f.finish.end, props.now, props.zone);
     return `checked ${dateAt(f.finish.at / 1000, props.now, props.zone)}: lands ${lands}, no timeline kept`;
@@ -649,7 +670,7 @@ const NO_LEGS_KEPT = "This plan was kept without each ascension's shifts (it was
 const howText = computed(() => {
   const p = props.card?.plan;
   if (!p) return '';
-  return p.from ? `${p.from.level} run` : p.exact ? 'simulator check' : 'instant answer';
+  return p.from ? `${p.from.level} run` : p.exact ? 'simulator check' : p.estimated ? "estimate from the instant answer's data" : 'instant answer';
 });
 const pill = computed(() => {
   const p = props.card?.plan;
@@ -661,6 +682,7 @@ const pill = computed(() => {
 const pillSub = computed(() => {
   const p = props.card?.plan;
   if (!p) return '';
+  if (p.estimated) return ESTIMATE_WORDS;
   if (!p.from) return 'worked out ahead of time; times rounded to the hour';
   const done = dateAt(p.from.at / 1000, props.now, props.zone);
   return `done ${done}, your save of ${planSaveWhen.value}${props.card?.pricedWith ? `, ${props.card.pricedWith}` : ''}`;

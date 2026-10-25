@@ -77,6 +77,9 @@ export interface NowPlan {
   /** A Fast, Exact or Custom result's plan (lib/searchPlan.ts): which level and when it was found (ms). Absent: the
    *  instant answer's (or an older snapshot's Check exactly). */
   from?: { level: FoundLevel; at: number };
+  /** A followed route priced on the instant answer's data on this page (lib/followEstimate.ts): the table's times,
+   *  rounded like the instant answer's own. Absent otherwise. */
+  estimated?: boolean;
   /** By a date: the instant answer's own TE for the date (Check exactly confirms it when equal). */
   instantTE: number | null;
   /** When it was worked out, ms. */
@@ -465,6 +468,14 @@ export function tableEvents(events: readonly PlanEvent[], max = 6): PlanEvent[] 
   const goal = events.find(e => e.kind === 'goal');
   if (goal && !shown.includes(goal)) shown.push(goal);
   return shown;
+}
+
+/** The plan's prestiges (each ascension's end, as `planEvents` has them: Fastest's last stop is the goal, not a
+ *  prestige), with the TE each prestiges at; from the exact legs, else the table's. Past ones included. */
+export function planPrestiges(plan: NowPlan): { at: number; te: number }[] {
+  return planEvents(plan, 0)
+    .filter(e => e.kind === 'prestige' && Number.isFinite(e.at))
+    .map(e => ({ at: e.at, te: e.te ?? 0 }));
 }
 
 /** How many shifts the plan makes after `afterSeconds` (from the exact legs); null without them. */

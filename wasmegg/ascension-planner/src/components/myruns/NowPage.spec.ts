@@ -382,6 +382,11 @@ describe('source checks', () => {
       const src = read(f);
       expect(src, f).not.toMatch(/new Worker|createChainSearchPool|RoutePool|findRoutes\(|startSearch|runExact/);
     }
+    // The one exception (24 Oct 2026): a followed route with no timeline, priced in one route worker, one route only.
+    const est = read('../../composables/useFollowEstimate.ts');
+    expect(est).toContain('new RoutePool(1,');
+    expect(est).toContain('.priceChain(');
+    expect(est).not.toMatch(/findRoutes\(|createChainSearchPool|startSearch|runExact/);
   });
 });
 

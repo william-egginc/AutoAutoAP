@@ -72,13 +72,10 @@ describe('the picks', () => {
 });
 
 describe('the summary, the line and the chart', () => {
-  it('the Egg Day and By a date cards and the Egg Day step split with splitOnTime; "misses the date" is gone', () => {
+  it('the summary\u2019s cards and Egg Day step are gone (24 Oct 2026); "misses the date" never came back', () => {
     const t = src('lib/myRunsDashboard.ts');
-    const cards = fn(t, 'buildCards');
-    expect(cards).toContain('const egg = cardLine(eggSplit.onTime, eggDayAt);');
-    expect(cards).toContain('const date = cardLine(dateSplit.onTime, eggDayAt);');
-    expect(cards.match(/splitOnTime\(/g)).toHaveLength(3);
-    expect(fn(t, 'buildSteps')).toContain('const hasEgg = eggLines.onTime.length > 0 || eggSaved.onTime.length > 0');
+    expect(t).not.toContain('function buildCards');
+    expect(fn(t, 'buildSteps')).not.toContain('No Egg Day');
     expect(t).not.toContain('misses the date');
   });
 
@@ -107,7 +104,8 @@ describe('the words and the follow suggestions', () => {
   it('My runs’ components use the helper’s words, not their own', () => {
     expect(src('components/myruns/RightNowCard.vue')).toContain('noRouteInTimeWords(lateKind.value, selectedOption.value?.late?.seconds ?? null)');
     expect(src('components/myruns/RightNowCard.vue')).not.toContain('lands after the date');
-    expect(src('components/myruns/SavedTile.vue')).toContain("noRouteInTimeWords('eggday', props.tile.late?.seconds ?? null)");
+    // Egg Day's tile, or another date's when that date is picked on Right now (24 Oct 2026).
+    expect(src('components/myruns/SavedTile.vue')).toContain("noRouteInTimeWords(props.open ? 'date' : 'eggday', props.tile.late?.seconds ?? null)");
     expect(src('components/auto/MyRunsList.vue')).toContain("lateMarker(l.kind === 'eggday' ? 'eggday' : 'date')");
     expect(src('components/auto/MyRunsList.vue')).not.toContain('misses the date');
   });

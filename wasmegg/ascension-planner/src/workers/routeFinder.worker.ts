@@ -15,7 +15,7 @@ import {
   type Table,
 } from '@/search/precomputedTable';
 import { fetchTable } from '@/search/tableFetch';
-import { expandArrivals, firstLegOptions, polishFound, tailOptionsOf } from '@/search/routeFinder';
+import { expandArrivals, firstLegOptions, polishFound, priceChain, tailOptionsOf } from '@/search/routeFinder';
 import { estimateProfile } from '@/search/prestigeBy';
 import { SweepCache } from '@/search/sweepCache';
 import type { RouteWorkerRequest, RouteWorkerResponse } from './routeFinder.protocol';
@@ -103,6 +103,9 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
       }
       case 'polish':
         reply({ kind: 'polish', id: m.id, found: polishFound(t.lookup, m.options, m.found) });
+        return;
+      case 'price-chain':
+        reply({ kind: 'price-chain', id: m.id, route: priceChain(t.lookup, m.options, m.chain) });
         return;
       case 'prestige-estimate':
         reply({ kind: 'prestige-estimate', id: m.id, outcomes: estimateProfile(t.lookup, m.request) });

@@ -14,6 +14,7 @@ import type {
   TailOptions,
   FoundRoutes,
   PolishOptions,
+  Route,
 } from '@/search/routeFinder';
 import type { EstimateRequest, Outcome } from '@/search/prestigeBy';
 import type { Availability } from '@/search/availability';
@@ -69,6 +70,16 @@ export interface PolishRequest {
   found: FoundRoutes;
 }
 
+/** One route priced on the table as the finder prices it (routeFinder.ts `priceChain`): a route the player follows,
+ *  on My runs' Right now (lib/followEstimate.ts). */
+export interface PriceChainRequest {
+  kind: 'price-chain';
+  id: number;
+  url: string;
+  options: PolishOptions;
+  chain: number[];
+}
+
 /** The experimental "Prestige by" estimate for a run of hours (search/prestigeBy.ts `estimateProfile`). */
 export interface PrestigeEstimateRequest {
   kind: 'prestige-estimate';
@@ -82,6 +93,7 @@ export type RouteWorkerRequest =
   | FirstLegsRequest
   | ExpandRequest
   | PolishRequest
+  | PriceChainRequest
   | PrestigeEstimateRequest;
 
 export type RouteWorkerResponse =
@@ -89,6 +101,7 @@ export type RouteWorkerResponse =
   | { kind: 'first-legs'; id: number; firstLegs: FirstLeg[] }
   | { kind: 'expand'; id: number; candidates: Candidate[] }
   | { kind: 'polish'; id: number; found: FoundRoutes }
+  | { kind: 'price-chain'; id: number; route: Route | null }
   | { kind: 'prestige-estimate'; id: number; outcomes: Outcome[] }
   | { kind: 'error'; id: number; message: string }
   /** Sent once when the worker's script has run (search/routePool.ts ROUTE_WORKER_START_MS). */

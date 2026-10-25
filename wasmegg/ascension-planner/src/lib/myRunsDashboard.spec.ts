@@ -1,30 +1,141 @@
+/**
+ * My runs' Next steps (lib/myRunsDashboard.ts, reworked 24 Oct 2026): only what changes what the player should do: a
+ * followed route a priced result beats by about a day or more, time off or a no-prestige day on its prestiges, a save
+ * over about 3 days old, results not sent. The old nags ("No Egg Day run yet", "priced by an older simulator", "priced
+ * with other hours / time off", "your save moved on", "only Fast so far", hidden runs) and the six cards are gone.
+ * Also the shared words and checks the saved-answer tiles still use (hoursDiffer, simulatorAge) and openFor.
+ */
 import { describe, expect, it } from 'vitest';
 import {
+  BEATS_SECONDS,
+  SAVE_OLD_SECONDS,
   SIM_STAMPED_FROM_MS,
-  STALE_AFTER_MS,
-  bestPerGoal,
-  buildCards,
+  beatsFollowed,
   buildSteps,
-  dashLines,
-  goalAhead,
   goalKey,
   hoursDiffer,
   openFor,
-  rerunAction,
   simulatorAge,
-  type DashInput,
+  type FollowedForSteps,
+  type StepsInput,
 } from './myRunsDashboard';
 import { eggDaySeconds } from './eggDay';
 import { SIM_VERSION } from '@/search/simVersion';
 import { describeAvailability, type Availability } from '@/search/availabilitySchedule';
 import type { BoardRow } from './leaderboardRank';
 
-const DAY = 86_400_000;
-const NOW = Date.UTC(2026, 9, 15, 19, 0); // 15 Oct 2026, 12 pm Pacific
+const DAY = 86_400;
+const NOW = Date.UTC(2026, 9, 24, 19, 0) / 1000; // 24 Oct 2026, 12 pm Pacific
 const ZONE = 'America/Los_Angeles';
 const EGG = eggDaySeconds(2027);
 const NOV1 = Date.UTC(2026, 10, 1, 16) / 1000;
 const HOURS: Availability = { days: [], fromHour: 9, toHour: 1, timezone: ZONE };
+
+function follow(over: Partial<FollowedForSteps> = {}): FollowedForSteps {
+  return {
+    goalKey: 'eggday-2027',
+    name: 'Egg Day 2027',
+    goal: 'date',
+    target: 490,
+    deadline: EGG,
+    eggDay: true,
+    chain: [225, 300],
+    finish: { end: EGG - 5 * 3600, endTE: 300 },
+    prestiges: [{ at: NOW + 2 * DAY, te: 225 }],
+    result: null,
+    ...over,
+  };
+}
+function input(over: Partial<StepsInput> = {}): StepsInput {
+  return { now: NOW, zone: ZONE, pending: 0, saveSeconds: NOW - 2 * 3600, follows: [], windows: [], ...over };
+}
+const ids = (i: StepsInput) => buildSteps(i).steps.map(s => s.id);
+
+describe('Next steps: only what changes what to do', () => {
+  it('nothing to change: a fresh save, a followed route nothing beats, no days on its prestiges, everything sent', () => {
+    expect(buildSteps(input({ follows: [follow()] })).steps).toEqual([]);
+    expect(buildSteps(input()).steps).toEqual([]);
+  });
+
+  it('a Fast run that reaches more TE by the date than the followed route: Show me, on Right now', () => {
+    const f = follow({ result: { level: 'Fast', chain: [227, 278, 310], end: EGG - 23 * 3600, endTE: 310 } });
+    const [s] = buildSteps(input({ follows: [f] })).steps;
+    expect(s).toMatchObject({ id: 'beaten:eggday-2027', kinds: ['beaten'], button: 'Show me', action: { to: 'right-now', goalKey: 'eggday-2027' } });
+    expect(s.text).toBe('Egg Day 2027: your Fast run beats the route you follow');
+    expect(s.reason).toBe('It reaches 310 TE by the date (227 278 310); the route you follow, 300 TE.');
+  });
+
+  it('a race: only when the result lands about a day or more sooner; the same route never', () => {
+    const base = { goalKey: 'fastest-490', name: 'Race to 490', goal: 'fastest' as const, deadline: null, eggDay: false, chain: [230, 490], finish: { end: NOW + 300 * DAY, endTE: 490 } };
+    const by = (h: number) => follow({ ...base, result: { level: 'Exact', chain: [229, 490], end: NOW + 300 * DAY - h * 3600, endTE: 490 } });
+    expect(ids(input({ follows: [by(19)] }))).toEqual([]);
+    const s = buildSteps(input({ follows: [by(30)] })).steps[0];
+    expect(s.id).toBe('beaten:fastest-490');
+    expect(s.text).toBe('Race to 490: your Exact run beats the route you follow');
+    expect(s.reason).toMatch(/^It gets there 30 h sooner \(229 490, .+\) than the route you follow\.$/);
+    const same = follow({ ...base, result: { level: 'Fast', chain: [230, 490], end: NOW, endTE: 490 } });
+    expect(ids(input({ follows: [same] }))).toEqual([]);
+    // No priced finish for the followed route: can't tell, so nothing said.
+    expect(ids(input({ follows: [{ ...by(48), finish: null }] }))).toEqual([]);
+  });
+
+  it('beatsFollowed: a date by TE first, then about a day sooner at the same TE', () => {
+    expect(BEATS_SECONDS).toBeGreaterThanOrEqual(18 * 3600);
+    expect(BEATS_SECONDS).toBeLessThanOrEqual(24 * 3600);
+    expect(beatsFollowed('date', { end: 100, endTE: 301 }, { end: 0, endTE: 300 })).toBe(true);
+    expect(beatsFollowed('date', { end: 0, endTE: 299 }, { end: 10 * DAY, endTE: 300 })).toBe(false);
+    expect(beatsFollowed('date', { end: 0, endTE: 300 }, { end: DAY, endTE: 300 })).toBe(true);
+    expect(beatsFollowed('date', { end: 0, endTE: 300 }, { end: 3 * 3600, endTE: 300 })).toBe(false);
+    expect(beatsFollowed('fastest', { end: 0, endTE: 490 }, { end: DAY, endTE: 490 })).toBe(true);
+  });
+
+  it('time off or a no-prestige day on a prestige of the followed route: Run Fast on its screen; days off the route say nothing', () => {
+    const off = { from: NOW + 1.5 * DAY, to: NOW + 2.5 * DAY, words: 'your time off Oct 26', kind: 'time off' as const };
+    const [s] = buildSteps(input({ follows: [follow()], windows: [off] })).steps;
+    expect(s).toMatchObject({ id: 'prestige:eggday-2027', kinds: ['prestige'], button: 'Run Fast', action: { to: 'by-date', deadline: EGG, eggDay: true, tab: 'nearby' } });
+    expect(s.text).toBe('Egg Day 2027: a prestige of your route lands in your time off');
+    expect(s.reason).toMatch(/^It prestiges at 225 TE .+ inside your time off Oct 26\. Run Fast for a route that works around it\.$/);
+    expect(s.reason).toMatch(/\d:\d\d [ap]m/);
+    const np = { ...off, words: 'your no-prestige days Oct 26', kind: 'no-prestige day' as const };
+    expect(buildSteps(input({ follows: [follow()], windows: [np] })).steps[0].text).toBe('Egg Day 2027: a prestige of your route lands on a no-prestige day');
+    // A race: Fast, Nearby routes.
+    const race = follow({ goalKey: 'fastest-490', name: 'Race to 490', goal: 'fastest', deadline: null, eggDay: false });
+    expect(buildSteps(input({ follows: [race], windows: [off] })).steps[0].action).toEqual({ to: 'fastest', target: 490, tab: 'nearby', level: 'quick' });
+    // The days miss every prestige, or the prestige is already past: nothing.
+    expect(ids(input({ follows: [follow()], windows: [{ ...off, from: NOW + 3 * DAY, to: NOW + 4 * DAY }] }))).toEqual([]);
+    expect(ids(input({ follows: [follow({ prestiges: [{ at: NOW - 3600, te: 225 }] })], windows: [{ ...off, from: NOW - DAY }] }))).toEqual([]);
+    // No priced times for the route: can't tell, nothing said.
+    expect(ids(input({ follows: [follow({ prestiges: [] })], windows: [off] }))).toEqual([]);
+  });
+
+  it('a save more than about 3 days old: Load a fresh one', () => {
+    expect(SAVE_OLD_SECONDS).toBe(3 * DAY);
+    expect(ids(input({ saveSeconds: NOW - 3 * DAY + 60 }))).toEqual([]);
+    const [s] = buildSteps(input({ saveSeconds: NOW - 4 * DAY - 60 })).steps;
+    expect(s).toMatchObject({ id: 'save', text: 'Your save is 4 days old', button: 'Load a fresh one', action: { to: 'fresh' } });
+    expect(ids(input({ saveSeconds: 0 }))).toEqual([]);
+  });
+
+  it('results not sent, last; the order: beaten, prestige, save, unsent', () => {
+    const off = { from: NOW + 1.5 * DAY, to: NOW + 2.5 * DAY, words: 'your time off', kind: 'time off' as const };
+    const f = follow({ result: { level: 'Fast', chain: [227, 278, 310], end: EGG - 23 * 3600, endTE: 310 } });
+    const all = input({ follows: [f], windows: [off], saveSeconds: NOW - 5 * DAY, pending: 3 });
+    expect(ids(all)).toEqual(['beaten:eggday-2027', 'prestige:eggday-2027', 'save', 'unsent']);
+    const u = buildSteps(all).steps[3];
+    expect(u).toMatchObject({ text: '3 results not sent', button: 'Show me', action: { to: 'unsent' } });
+    expect(buildSteps(input({ pending: 1 })).steps[0].text).toBe('1 result not sent');
+  });
+
+  it('never the removed nags, never the words players don\u2019t read', () => {
+    const off = { from: NOW + 1.5 * DAY, to: NOW + 2.5 * DAY, words: 'your time off', kind: 'time off' as const };
+    const f = follow({ result: { level: 'Fast', chain: [227, 278, 310], end: EGG - 23 * 3600, endTE: 310 } });
+    const text = JSON.stringify(buildSteps(input({ follows: [f], windows: [off], saveSeconds: NOW - 5 * DAY, pending: 3 })));
+    expect(text).not.toMatch(/older simulator|other time off|priced with|No Egg Day|never Exact|hidden from the public/);
+    expect(text).not.toMatch(/\btables?\b|\bchain\b|checkpoint|\bLight\b/);
+  });
+});
+
+// --------------------------------------------------------------------------- shared words and checks
 
 let n = 0;
 function race(over: Partial<BoardRow> = {}): BoardRow {
@@ -40,310 +151,36 @@ function race(over: Partial<BoardRow> = {}): BoardRow {
     window: describeAvailability(HOURS),
     effort: 'normal',
     simVersion: SIM_VERSION,
-    receivedAt: new Date(NOW - DAY).toISOString(),
+    receivedAt: new Date(NOW * 1000 - DAY * 1000).toISOString(),
     yours: true,
     ...over,
   };
 }
-function date(deadline: number, over: Partial<BoardRow> = {}): BoardRow {
-  return race({
-    chain: [200, 240, 251],
-    finalTE: 251,
-    deadline,
-    deadlineAscendAt: deadline - 2 * 86400,
-    effort: 'deadline',
-    mode: 'advanced',
-    ...over,
-  } as Partial<BoardRow>);
-}
-function input(rows: BoardRow[] | null, over: Partial<DashInput> = {}): DashInput {
-  return {
-    rows,
-    now: NOW,
-    eggDayAt: EGG,
-    eggDayYear: 2027,
-    zone: ZONE,
-    teNow: 180,
-    setup: { availability: HOURS, timeOff: [], rememberedAt: NOW - DAY },
-    local: { answers: [], runs: [], pending: [] },
-    ...over,
-  };
-}
-const ids = (i: DashInput) => buildSteps(i).steps.map(s => s.id);
-const kinds = (i: DashInput) => buildSteps(i).steps.flatMap(s => s.kinds);
 
-describe('goals and the best run per goal', () => {
+describe('the checks the saved-answer tiles still use', () => {
   it('keys a race by its target and a date by its moment', () => {
     expect(goalKey(race())).toBe('race:490');
-    expect(goalKey(date(EGG))).toBe(`date:${EGG}`);
-  });
-  it('folds copies of one result and marks look-alikes and hidden runs', () => {
-    const a = race({ id: 'a' });
-    const lines = dashLines([
-      a,
-      { ...a, id: 'b' },
-      race({ id: 'c', chain: [250, 490], yours: false }),
-      race({ id: 'd', chain: [300, 490], hidden: true }),
-    ]);
-    expect(lines).toHaveLength(3);
-    expect(lines.find(l => l.row.chain.length === 2 && l.row.chain[0] === 250)?.maybe).toBe(true);
-    expect(lines.find(l => l.row.chain[0] === 300)?.hidden).toBe(true);
-  });
-  it('the best per goal: the earliest finish for a race, the highest TE for a date', () => {
-    const slow = race({ durationDays: 120 });
-    const fast = race({ durationDays: 90, chain: [210, 490] });
-    const low = date(EGG, { finalTE: 240, chain: [240] });
-    const high = date(EGG);
-    const best = bestPerGoal(dashLines([slow, fast, low, high]), EGG);
-    expect(best.get('race:490')?.row).toBe(fast);
-    expect(best.get(`date:${EGG}`)?.row).toBe(high);
-  });
-  it('a goal is ahead until its date passes or the save reaches its target', () => {
-    expect(goalAhead(date(NOV1), NOW, 180)).toBe(true);
-    expect(goalAhead(date(NOW / 1000 - 60), NOW, 180)).toBe(false);
-    expect(goalAhead(race(), NOW, 489)).toBe(true);
-    expect(goalAhead(race(), NOW, 490)).toBe(false);
-    expect(goalAhead(race(), NOW, 0)).toBe(true);
-  });
-});
-
-describe('the cards', () => {
-  it('Egg Day, race, date, saved, last run and hours, in that order', () => {
-    const cards = buildCards(input([race(), date(EGG), date(NOV1, { finalTE: 247, chain: [200, 247] })]));
-    expect(cards.map(c => c.id)).toEqual(['eggday', 'race', 'date', 'saved', 'last', 'hours']);
-    const [egg, r, d, saved, last, hours] = cards;
-    expect(egg.title).toBe('Egg Day 2027');
-    expect(egg.main).toBe('251 TE');
-    expect(egg.lines).toEqual(['48.0 h spare', '200 240 251', 'sent Oct 14']);
-    expect(r.main).toBe('Jan 22, 2027');
-    expect(r.lines[0]).toBe('4 ascensions');
-    expect(d.title).toBe('By Nov 1');
-    expect(d.main).toBe('247 TE');
-    expect(saved.main).toBe('0 answers, 0 runs');
-    expect(last.main).toBe('Oct 14');
-    expect(last.lines).toEqual(['12:00 pm', 'sent']);
-    expect(hours.main).toBe('9 am to 1 am');
-    expect(hours.lines).toEqual(['no time off', 'remembered Oct 14']);
-  });
-  it('Egg Day falls back to a saved answer, then to an empty card with the Egg Day action', () => {
-    const saved = buildCards(
-      input([], {
-        local: {
-          answers: [{ savedAt: NOW, deadline: EGG, chain: [200, 248], spare: 3600 * 5 }],
-          runs: [],
-          pending: [],
-        },
-      })
-    )[0];
-    expect(saved.main).toBe('248 TE');
-    expect(saved.lines).toEqual(['5.0 h spare', '200 248', 'saved, not sent']);
-    const none = buildCards(input([]))[0];
-    expect(none.empty).toBe(true);
-    expect(none.action?.to).toEqual({ to: 'by-date', deadline: EGG, eggDay: true, tab: 'nearby' });
-    expect(buildCards(input(null))[0].main).toBe('Loading…');
-  });
-  it('a card from a look-alike run says so', () => {
-    const cards = buildCards(input([race({ yours: false })]));
-    expect(cards[1].maybe).toBe(true);
-    expect(cards[0].maybe).toBeUndefined();
-  });
-  it('the other date card shows the soonest date still ahead, not a passed one', () => {
-    const passed = date(NOW / 1000 - 86400, { finalTE: 300, chain: [300] });
-    const later = date(NOV1 + 30 * 86400, { finalTE: 260, chain: [260] });
-    const cards = buildCards(input([passed, date(NOV1), later]));
-    expect(cards[2].title).toBe('By Nov 1');
-  });
-  it('Last run is the newest of sent, saved and kept; Saved counts both lists', () => {
-    const cards = buildCards(
-      input([race()], {
-        local: {
-          answers: [{ savedAt: NOW - 2 * DAY, deadline: NOV1, chain: null, spare: null }],
-          runs: [{ savedAt: NOW - 3 * DAY }],
-          pending: [{ createdAt: NOW - 3600_000, deadline: null }],
-        },
-      })
-    );
-    expect(cards[3].main).toBe('1 answer, 1 run');
-    expect(cards[3].lines).toEqual(['1 result not sent']);
-    expect(cards[4].lines).toEqual(['11:00 am', 'not sent yet']);
-  });
-  it("Last run reads a result's newest copy, not the copy that stands for it (16 Oct: a re-send on Oct 15 read Oct 12)", () => {
-    // The same result sent twice: the older copy priced more routes, so it stands for the line.
-    const older = date(EGG, { id: 'old', chainsPriced: 900, receivedAt: new Date(NOW - 3 * DAY).toISOString() });
-    const newer = date(EGG, { id: 'new', chainsPriced: 10, receivedAt: new Date(NOW - 3600_000).toISOString() });
-    const lines = dashLines([older, newer]);
-    expect(lines).toHaveLength(1);
-    expect(lines[0].row.id).toBe('old');
-    expect(buildCards(input([older, newer]))[4].lines).toEqual(['11:00 am', 'sent']);
-  });
-  it('hours: any hour, and time off in the setup words', () => {
-    const c = buildCards(
-      input([], {
-        setup: { availability: null, timeOff: [{ from: '2026-10-20', to: '2026-10-22' }], rememberedAt: null },
-      })
-    )[5];
-    expect(c.main).toBe('Any hour');
-    expect(c.lines).toEqual(['time off Oct 20–22']);
-  });
-});
-
-describe('next steps', () => {
-  it('nothing to flag for current runs priced with these hours, at Exact, recently, Egg Day included', () => {
-    const s = buildSteps(input([race(), date(EGG)]));
-    expect(s.steps).toEqual([]);
-    expect(s.loading).toBe(false);
-    expect(s.noRuns).toBe(false);
-  });
-  it('1. no Egg Day run: none sent, saved or kept; any of those (a look-alike too) clears it', () => {
-    expect(ids(input([race()]))).toEqual(['eggday']);
-    const step = buildSteps(input([race()])).steps[0];
-    expect(step.button).toBe('Find my Egg Day answer');
-    expect(step.action).toEqual({ to: 'by-date', deadline: EGG, eggDay: true, tab: 'nearby' });
-    expect(ids(input([race(), date(EGG, { yours: false })]))).toEqual([]);
-    expect(
-      ids(
-        input([race()], {
-          local: { answers: [{ savedAt: NOW, deadline: EGG, chain: [250], spare: 1 }], runs: [], pending: [] },
-        })
-      )
-    ).toEqual([]);
-    expect(
-      ids(input([race()], { local: { answers: [], runs: [], pending: [{ createdAt: NOW, deadline: EGG }] } }))
-    ).toEqual(['unsent']);
-  });
-  it('no runs at all: the Egg Day step and noRuns; while the board loads, no board steps', () => {
-    const s = buildSteps(input([]));
-    expect(s.noRuns).toBe(true);
-    expect(s.steps.map(x => x.id)).toEqual(['eggday']);
-    const loading = buildSteps(input(null));
-    expect(loading.loading).toBe(true);
-    expect(loading.steps).toEqual([]);
-  });
-  it('2. other hours: any hour then, hours now (and the reverse, and other time off)', () => {
-    const anyHour = buildSteps(input([race({ window: null }), date(EGG)])).steps;
-    expect(anyHour).toHaveLength(1);
-    expect(anyHour[0].kinds).toEqual(['hours']);
-    expect(anyHour[0].text).toBe('Race to 490 was priced with any hour');
-    expect(anyHour[0].reason).toBe('Your setup has your hours 9 am to 1 am now.');
-    expect(anyHour[0].button).toBe('Rerun with my hours');
-    expect(anyHour[0].action).toEqual({ to: 'fastest', target: 490, tab: 'nearby', level: 'normal' });
-    const nowAny = input([race(), date(EGG)], { setup: { availability: null, timeOff: [], rememberedAt: null } });
-    expect(kinds(nowAny)).toEqual(['hours', 'hours']);
-    const off = input([race(), date(EGG)], {
-      setup: { availability: HOURS, timeOff: [{ from: '2026-10-20', to: '2026-10-22' }], rememberedAt: null },
-    });
-    expect(buildSteps(off).steps[0].text).toBe('Egg Day 2027 was priced with other time off');
+    expect(goalKey({ finalTE: 251, deadline: NOV1 } as BoardRow)).toBe(`date:${NOV1}`);
   });
   it('hours: a row from before `window` is not judged; time off that has ended is not compared', () => {
-    expect(hoursDiffer(race({ window: undefined }), { availability: null, timeOff: [] }, NOW, ZONE).hours).toBe(false);
+    const now = NOW * 1000;
+    expect(hoursDiffer(race({ window: null }), { availability: HOURS, timeOff: [] }, now, ZONE).hours).toBe(true);
+    expect(hoursDiffer(race({ window: undefined }), { availability: null, timeOff: [] }, now, ZONE).hours).toBe(false);
     const ended = race({ timeOff: [{ from: '2026-09-01', to: '2026-09-03' }] });
-    expect(hoursDiffer(ended, { availability: HOURS, timeOff: [] }, NOW, ZONE)).toEqual({
-      hours: false,
-      timeOff: false,
-    });
+    expect(hoursDiffer(ended, { availability: HOURS, timeOff: [] }, now, ZONE)).toEqual({ hours: false, timeOff: false });
+    expect(hoursDiffer(race(), { availability: HOURS, timeOff: [{ from: '2026-10-30', to: '2026-10-31' }] }, now, ZONE).timeOff).toBe(true);
   });
-  it('3. an older simulator: another stamp; no stamp before 13 Oct is "likely"; no stamp after is not judged', () => {
+  it('an older simulator: another stamp; no stamp before 13 Oct is "likely"; no stamp after is not judged', () => {
     expect(simulatorAge(race())).toBeNull();
     expect(simulatorAge(race({ simVersion: '2026-10-01-old' }))).toBe('older');
-    const early = new Date(SIM_STAMPED_FROM_MS - DAY).toISOString();
+    const early = new Date(SIM_STAMPED_FROM_MS - DAY * 1000).toISOString();
     expect(simulatorAge(race({ simVersion: undefined, receivedAt: early }))).toBe('likely');
     expect(simulatorAge(race({ simVersion: undefined }))).toBeNull();
-    const s = buildSteps(input([race({ simVersion: '2026-10-01-old' }), date(EGG)])).steps;
-    expect(s[0].text).toBe('Race to 490: priced by an older simulator');
-    expect(s[0].button).toBe('Run again');
-    const likely = buildSteps(
-      input([race({ simVersion: undefined, receivedAt: new Date(NOW - 3 * DAY).toISOString() }), date(EGG)], {
-        now: SIM_STAMPED_FROM_MS + DAY,
-      })
-    ).steps;
-    expect(likely[0].text).toBe('Race to 490: likely priced by an older simulator');
-  });
-  it('4. the save moved on: TE above the run’s, or sent over a week ago (by the injected now)', () => {
-    const te = buildSteps(input([race(), date(EGG)], { teNow: 195 })).steps;
-    expect(te.map(s => s.kinds)).toEqual([['moved'], ['moved']]);
-    expect(te[1].reason).toBe('Your TE went 180 → 195 since this run.');
-    const sent = new Date(NOW).toISOString();
-    expect(
-      ids(input([race({ receivedAt: sent }), date(EGG, { receivedAt: sent })], { now: NOW + STALE_AFTER_MS - 1 }))
-    ).toEqual([]);
-    const old = buildSteps(
-      input([race({ receivedAt: sent }), date(EGG, { receivedAt: sent })], { now: NOW + STALE_AFTER_MS + 2 * DAY })
-    ).steps;
-    expect(old.map(s => s.text)).toEqual(['Egg Day 2027: sent 9 days ago', 'Race to 490: sent 9 days ago']);
-  });
-  it('a goal no longer ahead raises nothing; several reasons on one goal make one item', () => {
-    expect(ids(input([race({ window: null }), date(EGG, { backupTE: 490 })], { teNow: 490 }))).toEqual([]);
-    const s = buildSteps(
-      input([race({ window: null, simVersion: 'x' }), date(EGG, { backupTE: 200 })], { teNow: 200 })
-    ).steps;
-    expect(s).toHaveLength(1);
-    expect(s[0].kinds).toEqual(['simulator', 'hours', 'moved']);
-    expect(s[0].button).toBe('Rerun with my hours');
-  });
-  it('look-alike rows never raise a step on their own, and a sure best is judged without them', () => {
-    const maybeOnly = input(
-      [race({ yours: false, window: null, simVersion: 'x', effort: 'quick' }), date(EGG, { backupTE: 300 })],
-      {
-        teNow: 300,
-      }
-    );
-    expect(ids(maybeOnly)).toEqual([]);
-    // A look-alike that beats the sure run is not "your best": the sure one is judged.
-    const sure = race({ durationDays: 120 });
-    const better = race({ durationDays: 80, chain: [250, 490], yours: false, window: null });
-    expect(ids(input([sure, better, date(EGG)]))).toEqual([]);
-  });
-  it('6. a race only ever at Fast: Run at Exact (Exact level, Nearby); a date only by Nearby routes: Try Exhaustive', () => {
-    const fast = input([race({ effort: 'quick' }), race({ effort: 'quick', chain: [250, 490] }), date(EGG)]);
-    const step = buildSteps(fast).steps[0];
-    expect(step.text).toBe('Race to 490: only Fast so far, never Exact');
-    expect(step.action).toEqual({ to: 'fastest', target: 490, tab: 'nearby', level: 'normal' });
-    expect(ids(input([race({ effort: 'quick' }), race({ effort: 'normal', chain: [250, 490] }), date(EGG)]))).toEqual(
-      []
-    );
-    expect(ids(input([race({ effort: 'quick', space: {} as BoardRow['space'] }), date(EGG)]))).toEqual([]);
-    const nearby = buildSteps(input([race(), date(EGG, { mode: 'simple' } as Partial<BoardRow>)])).steps[0];
-    expect(nearby.text).toBe('Egg Day 2027: Nearby routes only, never Exhaustive');
-    expect(nearby.action).toEqual({ to: 'by-date', deadline: EGG, eggDay: true, tab: 'exhaustive' });
-    // A date row that doesn't say how it was found is not judged.
-    expect(ids(input([race(), date(EGG, { mode: undefined } as Partial<BoardRow>)]))).toEqual([]);
-  });
-  it('7. unsent results and 8. hidden runs, last, the hidden one as information', () => {
-    const s = buildSteps(
-      input([race({ hidden: true }), date(EGG)], {
-        local: { answers: [], runs: [], pending: [{ createdAt: NOW, deadline: null }] },
-      })
-    ).steps;
-    expect(s.map(x => x.id)).toEqual(['unsent', 'hidden']);
-    expect(s[0].action).toEqual({ to: 'unsent' });
-    expect(s[0].text).toBe('1 result not sent');
-    expect(s[1].action).toEqual({ to: 'board' });
-    expect(s[1].info).toBe(true);
-    expect(s[1].text).toBe('1 run hidden from the public');
   });
 });
 
 describe('actions', () => {
-  it('rerun opens the goal where it was found, at its level', () => {
-    expect(rerunAction(race({ effort: 'thorough' }), EGG)).toEqual({
-      to: 'fastest',
-      target: 490,
-      tab: 'nearby',
-      level: 'thorough',
-    });
-    expect(rerunAction(race({ space: {} as BoardRow['space'] }), EGG)).toEqual({
-      to: 'fastest',
-      target: 490,
-      tab: 'exhaustive',
-    });
-    expect(rerunAction(date(NOV1, { mode: 'simple' } as Partial<BoardRow>), EGG)).toEqual({
-      to: 'by-date',
-      deadline: NOV1,
-      eggDay: false,
-      tab: 'nearby',
-    });
-  });
-  it('openFor: Fastest with its depth and target; By a date with Egg Day or the date in the planner’s zone', () => {
+  it('openFor: Fastest with its depth and target; By a date with Egg Day or the date in the planner\u2019s zone', () => {
     expect(openFor({ to: 'fastest', target: 490, tab: 'nearby', level: 'normal' }, ZONE)).toEqual({
       auto: 'fastest',
       depth: 'smart',

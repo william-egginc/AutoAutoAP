@@ -172,6 +172,8 @@ describe('the cold load, in the source', () => {
     const board = fs.readFileSync(path.resolve(__dirname, '../auto/LeaderboardPanel.vue'), 'utf8');
     expect(board).toContain('const myTE = computed(() => saveTEOf(initialState.rawBackup));');
     const view = fs.readFileSync(path.resolve(__dirname, '../MyRunsView.vue'), 'utf8');
-    expect(view).toContain('teNow: saveTEOf(initialState.rawBackup),');
+    // Next steps (reworked 24 Oct 2026) read no TE at all: the save's own time, as Right now reads it.
+    expect(view).toContain('saveSeconds: page.hasSave.value ? page.saveSeconds.value : 0,');
+    expect(view).not.toContain('teNow');
   });
 });
