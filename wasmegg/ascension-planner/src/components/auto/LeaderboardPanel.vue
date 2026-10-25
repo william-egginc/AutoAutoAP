@@ -97,6 +97,8 @@
       :view-zone="viewZone"
       :egg-day-at="eggDayAt"
       :egg-day-year="eggDayYear"
+      :player-id="playerId"
+      :main-target="store.finalTE || undefined"
       @use="c => emit('use', c)"
     />
     <MyRunsMissing

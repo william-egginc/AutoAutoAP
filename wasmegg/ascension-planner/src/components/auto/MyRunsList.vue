@@ -4,47 +4,43 @@
   it already knows are the viewer's, and provides "Hide from the public" (HIDE_CONTROL), which each
   opened run's details (LeaderboardRunDetail) offer as on Compare. Nothing is fetched here.
 
-  On a phone the filters fold under one "Filters (n active)" line; from sm up they sit inline. The
-  table scrolls sideways rather than break routes and dates.
+  Above it, from 4 runs, the chip buttons (RunsExploreBar.vue, lib/runsExplore.ts, 24 Oct 2026): goal, ascensions,
+  level, hours, when sent, sort and stops, each chip only for a value the runs have, remembered per account. They
+  replaced the selects that folded under "Filters (n active)" on a phone. The table scrolls
+  sideways inside its own box rather than break routes and dates.
 -->
 <template>
   <div class="space-y-3">
-    <details
-      class="sm:hidden rounded-lg border border-indigo-100 bg-white/60 px-3 py-2"
-      data-testid="my-runs-filters-fold"
-    >
-      <summary class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-indigo-700">
-        Filters<template v-if="active"> ({{ active }} active)</template>
-      </summary>
-      <MyRunsFilters v-model="filters" class="mt-2" :targets="targets" :egg-day-year="eggDayYear" />
-    </details>
-    <div class="hidden sm:block" data-testid="my-runs-filters-inline">
-      <MyRunsFilters v-model="filters" :targets="targets" :egg-day-year="eggDayYear" />
-    </div>
+    <!-- The chip buttons (components/myruns/RunsExploreBar.vue, lib/runsExplore.ts): only from 4 runs. -->
+    <RunsExploreBar
+      v-if="barShown"
+      :groups="groups"
+      :sort="sel.sort"
+      :stops="sel.stops"
+      :shown="shown.length"
+      :total="lines.length"
+      :active="active"
+      @toggle="(g, v) => (sel = toggleChip(sel, g, v))"
+      @sort="s => (sel = { ...sel, sort: s })"
+      @stops="t => (sel = { ...sel, stops: t })"
+      @clear="sel = clearExplore(sel)"
+    />
 
     <p v-if="!lines.length" class="text-[11px] text-indigo-900/60 py-4 text-center" data-testid="my-runs-none">
       None of the runs on the board are yours yet. Share a result from the Auto Planner and it shows up here.
     </p>
-    <div
+    <p
       v-else-if="!shown.length"
-      class="text-[11px] text-indigo-900/60 py-4 text-center"
+      class="text-[12px] text-indigo-900/70 py-4 text-center"
       data-testid="my-runs-none-shown"
     >
-      <p>
-        None of your {{ lines.length }} {{ lines.length === 1 ? 'run is' : 'runs are' }} in these categories<template
-          v-if="activeWords.length"
-          >: {{ activeWords.join(' · ') }}</template
-        >.
-      </p>
-      <button
+      No runs match:{{ ' ' }}<button
         type="button"
-        class="mt-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 underline hover:text-indigo-900"
+        class="min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900"
         data-testid="my-runs-clear"
-        @click="filters = { ...DEFAULT_MY_RUNS_FILTERS, sort: filters.sort }"
-      >
-        Show them all
-      </button>
-    </div>
+        @click="sel = clearExplore(sel)"
+      >Clear filters</button>
+    </p>
     <div v-else class="overflow-x-auto">
       <table class="w-full text-[11px] tabular-nums" data-testid="my-runs-table">
         <thead>
@@ -186,22 +182,25 @@ import {
   sentMs,
   type BoardRow,
 } from '@/lib/leaderboardRank';
+import { runKind, type RunKind } from '@/lib/myRuns';
 import {
-  DEFAULT_MY_RUNS_FILTERS,
-  activeFilterCount,
-  activeFilterWords,
-  inMyRunsFilters,
-  raceTargets,
-  runKind,
-  sortMyRuns,
-  type MyRunsFilters as Filters,
-  type RunKind,
-} from '@/lib/myRuns';
+  MIN_RUNS_FOR_BAR,
+  activeCount,
+  chipGroups,
+  clearExplore,
+  effectiveSelection,
+  inExplore,
+  sortExplore,
+  toggleChip,
+  type ExploreContext,
+  type RunsExplore,
+} from '@/lib/runsExplore';
+import { useRunsExplore } from '@/composables/useRunsExplore';
 import { hoursLabel, hoursTitle } from '@/lib/planFilters';
 import { HIDE_CONTROL } from '@/lib/hiddenRuns';
 import { onRowClick } from '@/lib/rowClick';
 import LeaderboardRunDetail from './LeaderboardRunDetail.vue';
-import MyRunsFilters from './MyRunsFilters.vue';
+import RunsExploreBar from '../myruns/RunsExploreBar.vue';
 import BaselineChip from '../myruns/BaselineChip.vue';
 import { useBaselines } from '@/composables/useBaselines';
 import { rowBackupTime, rowFoundLevel, rowGoalWords, rowRun } from '@/lib/instantBaseline';
@@ -215,18 +214,29 @@ const props = defineProps<{
   /** Egg Day's moment (unix seconds) and year: an answer to that date is Egg Day's, the rest By a date's. */
   eggDayAt: number;
   eggDayYear: number;
-  /** Filters to start from (specs; the page starts from the defaults: everything, best first). */
-  initialFilters?: Partial<Filters>;
+  /** The account (its selection is remembered per account, lib/runsExplore.ts); none: for the visit only. */
+  playerId?: string;
+  /** The planner's own Fastest target: its Goal chip comes first. */
+  mainTarget?: number;
+  /** "Now" for the Sent chips (ms; specs), else when the list was made. */
+  nowMs?: number;
+  /** A selection to start from (specs; the page starts from the account's remembered one, else everything). */
+  initialExplore?: Partial<RunsExplore>;
 }>();
 const emit = defineEmits<{ use: [chain: number[]] }>();
 
 /** "Hide from the public", from LeaderboardPanel: a hidden run's CSV is fetched with the code. */
 const hide = inject(HIDE_CONTROL, null);
 
-const filters = ref<Filters>({ ...DEFAULT_MY_RUNS_FILTERS, ...props.initialFilters });
-const active = computed(() => activeFilterCount(filters.value));
-const activeWords = computed(() => activeFilterWords(filters.value, props.eggDayYear));
-const targets = computed(() => raceTargets(props.rows));
+const { sel } = useRunsExplore({ playerId: () => props.playerId ?? '', initial: props.initialExplore });
+const madeAt = Date.now();
+const ctx = computed<ExploreContext>(() => ({
+  eggDayAt: props.eggDayAt,
+  eggDayYear: props.eggDayYear,
+  mainTarget: props.mainTarget ?? 490,
+  nowMs: props.nowMs ?? madeAt,
+  zone: props.viewZone,
+}));
 
 interface Line {
   key: string;
@@ -251,11 +261,19 @@ const lines = computed<Line[]>(() =>
   }))
 );
 
+const lineRows = computed(() => lines.value.map(l => l.row));
+/** The bar shows from `MIN_RUNS_FOR_BAR` runs; below that every run shows, best first. */
+const barShown = computed(() => lines.value.length >= MIN_RUNS_FOR_BAR);
+const groups = computed(() => chipGroups(lineRows.value, sel.value, ctx.value));
+/** What narrows the list: only picks a shown chip carries (a remembered one for runs gone is left out). */
+const applied = computed(() => effectiveSelection(lineRows.value, sel.value, ctx.value));
+const active = computed(() => activeCount(applied.value));
+
 const shown = computed(() =>
-  sortMyRuns(
-    lines.value.filter(l => inMyRunsFilters(l.row, filters.value, props.eggDayAt)),
+  sortExplore(
+    lines.value.filter(l => inExplore(l.row, applied.value, ctx.value)),
     l => l.row,
-    filters.value.sort,
+    applied.value.sort,
     props.eggDayAt
   )
 );
@@ -270,7 +288,6 @@ const countText = computed(() => {
   const sends = props.rows.length;
   const sent =
     sends !== runs ? ` ${sends} sends in all: a run sent more than once is one line (sent ×n), its copies inside.` : '';
-  if (active.value) return `Showing ${shown.value.length} of ${runs} ${runs === 1 ? 'run' : 'runs'}.${sent}`;
   return sent ? `${runs} ${runs === 1 ? 'run' : 'runs'}.${sent}` : '';
 });
 

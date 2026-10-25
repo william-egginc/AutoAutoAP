@@ -126,31 +126,19 @@ describe('MyRunsList (My runs › Your runs on the board)', () => {
     expect(t).toContain('Hidden from the public · Show again');
   });
 
-  it('on a phone the filters fold under "Filters (n active)"; from sm up they sit inline', async () => {
-    const html = await renderWith({});
-    expect(html).toMatch(/<details class="sm:hidden[^"]*"[^>]*data-testid="my-runs-filters-fold"/);
-    expect(html).toMatch(/class="hidden sm:block"[^>]*data-testid="my-runs-filters-inline"/);
-    expect(textOf(html)).toContain('Filters Kind');
-    expect(textOf(html)).not.toContain('active)');
-
-    const filtered = await renderWith({ initialFilters: { kind: 'race', hours: 'awake' } });
-    expect(textOf(filtered)).toContain('Filters (2 active)');
-    expect(filtered.match(/data-testid="my-runs-row"/g)).toHaveLength(1);
-    expect(textOf(filtered)).toContain('Showing 1 of 3 runs.');
-    // Race's target choice appears with the Race kind.
-    expect(filtered).toContain('data-testid="my-runs-target"');
+  it('with fewer than 4 runs there is no chip bar, and a remembered pick narrows nothing', async () => {
+    const html = await renderWith({ initialExplore: { asc: [12], stops: '200 250' } });
+    expect(html).not.toContain('data-testid="runs-explore"');
+    expect(html.match(/data-testid="my-runs-row"/g)).toHaveLength(3);
+    // The old selects are gone (no fold on a phone, no inline copy).
+    expect(html).not.toContain('my-runs-filters-fold');
+    expect(html).not.toContain('my-runs-filters-inline');
   });
 
-  it('the stops box finds routes with every stop typed', async () => {
-    const html = await renderWith({ initialFilters: { stops: '200 250' } });
-    expect(html.match(/data-testid="my-runs-row"/g)).toHaveLength(1);
-    expect(textOf(html)).toContain('200 250 320');
-  });
-
-  it('says so when nothing is in the chosen categories, and when there are no runs at all', async () => {
-    expect(await renderWith({ initialFilters: { ascensions: 12 } })).toContain('data-testid="my-runs-none-shown"');
+  it('says so when there are no runs at all', async () => {
     const none = await renderHtml(MyRunsList, { ...base, rows: [] });
     expect(none).toContain('data-testid="my-runs-none"');
+    expect(none).not.toContain('data-testid="runs-explore"');
   });
 });
 
@@ -190,18 +178,63 @@ describe('MyRunsList with a realistic mix (16 Oct: "Showing 0 of 25" under Kind 
     expect(myRunsCount(rows)).toBe(25);
   });
 
-  it('a filter that keeps nothing names itself and offers to show them all', async () => {
-    const html = await render({ ascensions: 7 });
+  const NOW = Date.parse('2026-10-12T18:00:00Z');
+  const renderX = (initialExplore?: Record<string, unknown>) =>
+    renderHtml(MyRunsList, { ...realistic, nowMs: NOW, ...(initialExplore ? { initialExplore } : {}) });
+
+  it('the chip bar shows every value the runs have, and "25 of 25 runs" with no Clear filters', async () => {
+    const html = await renderX();
     const t = textOf(html);
-    expect(html).toContain('data-testid="my-runs-none-shown"');
-    expect(t).toContain('None of your 25 runs are in these categories: 7 ascensions.');
-    expect(html).toContain('data-testid="my-runs-clear"');
-    expect(t).toContain('Show them all');
-    expect(t).toContain('Showing 0 of 25 runs.');
+    expect(html).toContain('data-testid="runs-explore"');
+    expect(t).toContain('25 of 25 runs');
+    expect(html).not.toContain('data-testid="runs-explore-clear"');
+    // Goal: the planner's 490 first, every other target as one chip, Egg Day, other dates; with how many runs each.
+    expect(t).toContain('Goal Fastest to 490 8 Other targets 6 Egg Day 2027 5 Other dates 6');
+    expect(t).toMatch(/Ascensions 2 6 3 19/);
+    expect(t).toMatch(/Hours My hours \d+ Any time \d+/);
+    // No level was sent on these rows: one value, so no Level chips.
+    expect(html).not.toContain('data-testid="runs-explore-level"');
   });
 
-  it('a filter that keeps some says "Showing n of m"', async () => {
-    const t = textOf(await render({ kind: 'eggday' }));
-    expect(t).toContain('Showing 5 of 25 runs.');
+  it('a chip narrows the list ("5 of 25 runs") and Clear filters appears', async () => {
+    const html = await renderX({ goal: ['eggday'] });
+    expect(html.match(/data-testid="my-runs-row"/g)).toHaveLength(5);
+    expect(textOf(html)).toContain('5 of 25 runs');
+    expect(html).toContain('data-testid="runs-explore-clear"');
+    expect(html).toMatch(/aria-pressed="true"[^>]*data-testid="runs-chip-goal-eggday"/);
+  });
+
+  it('two chips in a group are "or", two groups are "and"', async () => {
+    const either = await renderX({ goal: ['eggday', 'date'] });
+    expect(either.match(/data-testid="my-runs-row"/g)).toHaveLength(11);
+    const both = await renderX({ goal: ['eggday', 'date'], hours: ['mine'] });
+    expect(both.match(/data-testid="my-runs-row"/g)).toHaveLength(1);
+  });
+
+  it('nothing kept: "No runs match: Clear filters"', async () => {
+    const html = await renderX({ goal: ['eggday'], asc: [2] });
+    expect(html).toContain('data-testid="my-runs-none-shown"');
+    expect(textOf(html)).toContain('No runs match: Clear filters');
+    expect(textOf(html)).toContain('0 of 25 runs');
+    expect(html).toContain('data-testid="my-runs-clear"');
+  });
+
+  it('a remembered pick for a value no run has is not applied', async () => {
+    const html = await renderX({ asc: [7] });
+    expect(html.match(/data-testid="my-runs-row"/g)).toHaveLength(25);
+    expect(html).not.toContain('data-testid="runs-explore-clear"');
+  });
+
+  it('the stops box finds routes with every stop typed', async () => {
+    const html = await renderX({ stops: '250 490' });
+    expect(html.match(/data-testid="my-runs-row"/g)).toHaveLength(8);
+  });
+
+  it('Most TE sorts the highest first; Fewest ascensions the shortest routes first', async () => {
+    const te = textOf(await renderX({ sort: 'te' }));
+    expect(te.indexOf('Race to 490')).toBeLessThan(te.indexOf('Egg Day 2027 200'));
+    const few = await renderX({ sort: 'fewest' });
+    const first = few.split('data-testid="my-runs-row"')[1];
+    expect(textOf(first)).toMatch(/Race to 3\d0/);
   });
 });
