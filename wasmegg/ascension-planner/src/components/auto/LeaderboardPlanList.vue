@@ -116,13 +116,13 @@
                 <span
                   v-else-if="best && sameSave(p.row, best.row) && !sameBuild(p.row, best.row)"
                   class="text-slate-400"
-                  title="Planned from the same save, but priced by a different version of the planner, so part of the gap would be the planner. Press Use to price both again on this version."
+                  title="Planned from the same save, but priced by a different version of the planner, so part of the gap would be the planner. Press Use to open this route in Single run, then run it to price it on this version."
                   >other version</span
                 >
                 <span
                   v-else
                   class="text-slate-400"
-                  title="Planned from a different save, so the gap would mostly be the time between the two saves. Press Use to price it again from the save you loaded."
+                  title="Planned from a different save, so the gap would mostly be the time between the two saves. Press Use to open it in Single run, then run it to price it from the save you loaded."
                   >other save</span
                 >
               </td>
@@ -140,7 +140,7 @@
                 <button
                   type="button"
                   class="px-2 py-0.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                  :title="`Put ${p.row.chain.join(' ')} into the Auto Planner and price it on your account`"
+                  :title="`Open ${p.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
                   @click="emit('use', p.row.chain)"
                 >
                   Use

@@ -419,8 +419,9 @@
           </p>
           <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
             This search starts each fresh ascension the moment the last one ends, or with your hours set, as soon as you
-            are next available; the instant answer starts it on the next whole hour inside your hours, so
-            the same route's times here and there can differ by up to about an hour per fresh ascension.
+            are next available; the instant answer starts it on the next whole hour inside your hours. With your hours
+            set, that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). With hours
+            off, the two differ by up to about an hour per ascension.
           </p>
         </template>
 
@@ -810,8 +811,9 @@
         data-test="start-timing-note"
       >
         This search starts each fresh ascension the moment the last one ends, or with your hours set, as soon as you
-        are next available; the instant answer starts it on the next whole hour inside your hours, so the same route's
-        times can differ by up to about an hour per fresh ascension.
+        are next available; the instant answer starts it on the next whole hour inside your hours. With your hours set,
+        that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). With hours off, the
+        two differ by up to about an hour per ascension.
       </p>
       <!-- The best route on the edge of its box (the Full sweep's check, bandCheck.ts): a wider box may
            find better. -->

@@ -64,6 +64,26 @@ describe('About and privacy page', () => {
     expect(securityTxt()).toMatch(/Contact: https:\/\/github\.com\/.+\/issues/);
   });
 
+  it('says what goes without the leaderboard tick or without a press: a sweep upload, auto-follow, the version (25 Oct 2026)', () => {
+    expect(text).not.toContain('only when you press a button');
+    expect(text).toContain(
+      'One exception: Science › Submit a sweep sends a public row and its CSV when you press Submit this sweep'
+    );
+    expect(text).toContain('Submit this sweep , without that tick.');
+    // Science › Submit a sweep (explorer/SweepUpload.vue): the row to /submit, then its CSV, with no consent in between.
+    const upload = read('src/explorer/SweepUpload.vue');
+    expect(upload).toContain('res = await fetch(`${props.base}/submit`, {');
+    expect(upload).not.toMatch(/useConsent|consentAgreed/);
+    if (AUTO_FOLLOW_FIRST)
+      expect(text).toContain(
+        'Two things are sent without a press. The route you follow can be saved online by itself: the first answer for Fastest to 490 and for Egg Day 2027, when you follow nothing for that goal'
+      );
+    else expect(text).not.toContain('The route you follow can be saved online by itself');
+    expect(text).toContain(
+      'And each open copy of the page sends its version, at most once a day, unless your browser sends Global Privacy Control or Do Not Track'
+    );
+  });
+
   it('names the study record and what it holds, and says it is never sent (22 Oct 2026)', () => {
     expect(text).toContain(
       'This browser keeps your answer in a record called aap.study . It holds the answer (yes, no thanks or withdrawn), when you answered, the ticks, whether you chose a name or to stay anonymous, and a scrambled tag for each account that answered, made in this browser so it never shows the player ID. It holds no player ID and no name, and it is never sent.'

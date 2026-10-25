@@ -566,13 +566,13 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   needs.push({
     id: 'new-gear',
     title: "Any other gear the instant answer isn't built for yet",
-    why: "The instant answer is exact for gear that has its own precomputed simulations, and one run from a new gear is enough to build them: we take its artifacts and stones from the run, simulate every ascension once, and check the result against the run's own ascensions.",
+    why: "Today a few accounts have an instant answer built for their own gear with the current simulator. Everyone else gets the maxed answer moved to their gear (the adjusted answer). One run from a new gear is enough to build one for that gear: we take its artifacts and stones from the run, simulate every ascension once, and check the result against the run's own ascensions.",
     who: 'players at CTE 225 or more whose artifacts and stones are not one of the sets listed below',
     have: 0,
     want: 1,
     preset: 'F2',
     runs: 1,
-    note: `Instant answer built so far for: ${COVERED_GEAR.join('; ')}. Spare stones and junk artifacts don't matter, only what your best sets use.`,
+    note: `Instant answer built so far for: ${COVERED_GEAR.join('; ')}. Most of these were built with an older simulator and are not used until they are built again. Spare stones and junk artifacts don't matter, only what your best sets use.`,
     group: 'gear',
   });
 
