@@ -214,21 +214,42 @@
             />
             Works inside my hours
           </label>
-          <label class="flex items-center gap-2">
-            At most
-            <select
-              v-model="filters.maxAscensions"
-              class="min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-[11px] py-0.5 pl-2 pr-7"
+          <!-- The ascensions range (Jordan, 24 Oct 2026; was "At most N ascensions"): blank is no bound; an end set past
+               the other moves the other along (search/instantFilters.ts `setBound`). Set on change, not each key. -->
+          <span class="flex items-center gap-2" data-testid="instant-asc-range">
+            Ascensions from
+            <input
+              :value="filters.minAscensions ?? ''"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              :max="MAX_ASCENSIONS"
+              placeholder="any"
+              aria-label="Fewest ascensions (blank for any)"
+              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-[11px] py-0.5 px-2"
+              data-testid="instant-min-ascensions"
+              @change="setAscBound('min', $event)"
+            />
+            to
+            <input
+              :value="filters.maxAscensions ?? ''"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              :max="MAX_ASCENSIONS"
+              placeholder="any"
+              aria-label="Most ascensions (blank for any)"
+              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-[11px] py-0.5 px-2"
               data-testid="instant-max-ascensions"
-            >
-              <option :value="null">any number of</option>
-              <option v-for="n in MAX_ASCENSIONS" :key="n" :value="n">{{ n }}</option>
-            </select>
-            ascensions
-          </label>
+              @change="setAscBound('max', $event)"
+            />
+          </span>
         </div>
         <p v-if="useHours" class="text-[11px] text-slate-500">
           Each prestige waits for your hours (the times shown include the wait).
+        </p>
+        <p v-if="rangeText" class="text-[11px] text-slate-500" data-testid="instant-range-note">
+          Only routes with {{ rangeText }} ascensions: the box and the rows below leave the others out.
         </p>
         <!-- No prestige on these days (search/noPrestige.ts): held in every route here, hours ticked or not. -->
         <p v-if="noPrestigeOn" class="text-[11px] text-slate-500" data-testid="instant-no-prestige">
@@ -345,6 +366,19 @@
               :candidate="instantCandidate(dateBoxOf(result.byDate))"
             />
           </template>
+          <p v-else-if="result.outside?.date" class="text-[12px] text-amber-800" data-testid="instant-no-route">
+            No route in this range: the nearest is {{ plural(result.outside.date.ascensions, 'ascension') }},
+            {{ result.outside.date.endTE }} TE by {{ show(result.outside.date.end) }}
+            ({{ result.outside.date.chain.join(' → ') }}).{{ ' ' }}
+            <button
+              type="button"
+              class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline"
+              data-testid="instant-range-widen"
+              @click="widenTo(result.outside.date.ascensions)"
+            >
+              Include {{ result.outside.date.ascensions }}
+            </button>
+          </p>
           <p v-else class="text-[12px] text-amber-800" data-testid="instant-no-route">
             No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
           </p>
@@ -428,6 +462,7 @@
             :final="target"
             :max-ascensions="MAX_ASCENSIONS"
             :at-most="filters.maxAscensions"
+            :at-least="filters.minAscensions"
             :deadline="deadline"
           />
         </div>
@@ -500,6 +535,20 @@
             :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
           />
         </div>
+        <p v-else-if="result.outside?.fastest" class="text-[12px] text-amber-800" data-testid="instant-no-route">
+          No route in this range: the nearest is {{ plural(result.outside.fastest.ascensions, 'ascension') }}, reaching
+          {{ store.finalTE }} on {{ show(result.outside.fastest.end) }} ({{ result.outside.fastest.chain.join(' → ') }}).{{
+            ' '
+          }}
+          <button
+            type="button"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline"
+            data-testid="instant-range-widen"
+            @click="widenTo(result.outside.fastest.ascensions)"
+          >
+            Include {{ result.outside.fastest.ascensions }}
+          </button>
+        </p>
         <p v-else class="text-[12px] text-amber-800" data-testid="instant-no-route">
           No route reaches {{ store.finalTE }} from here in the instant answer{{
             filtering ? ' with these filters' : ''
@@ -601,6 +650,7 @@
             :final="target"
             :max-ascensions="MAX_ASCENSIONS"
             :at-most="filters.maxAscensions"
+            :at-least="filters.minAscensions"
           />
         </div>
       </template>
@@ -733,12 +783,17 @@ import {
 } from '@/search/routeFinder';
 import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from '@/search/instantGear';
 import {
-  atMostAscensions,
+  boundInput,
+  boundsAfter,
+  boundsText,
   describeGains,
+  filterBounds,
   polishGains,
   insideHoursFor,
   readFilters,
   readInsideHoursChoice,
+  setBound,
+  withinAscensions,
   writeFilters,
   writeInsideHoursChoice,
   type PolishGain,
@@ -875,9 +930,9 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   check: [chain: number[]];
-  /** By a date: the route for each number of ascensions, and the "At most N ascensions" filter (null
-   *  for any). */
-  routes: [byCount: Record<number, number[]>, maxAscensions: number | null];
+  /** By a date: the route for each number of ascensions, and the ascensions filter's upper and lower ends (null
+   *  for none). */
+  routes: [byCount: Record<number, number[]>, maxAscensions: number | null, minAscensions: number | null];
   /** Whether the answer is still being worked out, in, or settled with none (no instant answer for
    *  this TE, it failed, or it waits on a run), for By a date's Find (search/autoWiden.ts `awaitInstant`). */
   state: [state: InstantState];
@@ -894,7 +949,7 @@ function emitRoutes(found: { byDateByAscensions: (Route | null)[] }): void {
   found.byDateByAscensions.forEach((r, k) => {
     if (r) byCount[k] = [...r.chain];
   });
-  emit('routes', byCount, filters.value.maxAscensions);
+  emit('routes', byCount, filters.value.maxAscensions, filters.value.minAscensions);
 }
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
@@ -1022,7 +1077,7 @@ async function polishInBackground(
     const strong = await p.polish(url, { ...options, ...STRONG_POLISH }, JSON.parse(JSON.stringify(raw)));
     if (id !== runs) return false;
     if (import.meta.env.DEV) console.info(`instant answer: background polish ${Math.round(performance.now() - t)} ms`);
-    const better = atMostAscensions({ ...raw, ...strong }, filters.value.maxAscensions);
+    const better = withinAscensions({ ...raw, ...strong }, filterBounds(filters.value));
     const g = polishGains(shown, better, !!props.deadline);
     if (g.length) {
       result.value = better;
@@ -1103,10 +1158,9 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     siloSeconds: saveSiloSeconds(inputs),
     eggs: PRESTIGE_EGGS,
   });
-  // "At most N ascensions" counts the player's own first ascension too.
-  const maxAfter =
-    filters.value.maxAscensions === null ? null : filters.value.maxAscensions - (plan && !plan.fresh ? 1 : 0);
-  if (!plan || (maxAfter !== null && maxAfter < 1)) {
+  // The ascensions range counts the player's own first ascension too.
+  const boundsLater = boundsAfter(filterBounds(filters.value), plan && !plan.fresh ? 1 : 0);
+  if (!plan || (boundsLater.max !== null && boundsLater.max < 1)) {
     prestige.value = null;
     prestigeStatus.value = 'idle';
     return;
@@ -1163,7 +1217,7 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
         });
         if (stale()) throw new Error('superseded');
         const polished = await p.polish(url, base, JSON.parse(JSON.stringify(f)));
-        const both = atMostAscensions({ ...f, ...polished }, maxAfter);
+        const both = withinAscensions({ ...f, ...polished }, boundsLater);
         return { outcome: outcomeOf(both, mode, s.startTE), chains: candidatesOf(both, mode, true, false) };
       },
     });
@@ -1295,6 +1349,7 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
       final: target.value,
       maxAscensions: MAX_ASCENSIONS,
       atMost: filters.value.maxAscensions,
+      atLeast: filters.value.minAscensions,
       ...(props.deadline ? { deadline: props.deadline } : {}),
       hours,
       // Held as the answer on screen was (`instantTail`), so the two are priced alike.
@@ -1350,9 +1405,28 @@ const bracketText = computed(() => {
 
 /** No prestige on these days set in Your setup (the answer holds every prestige past them: `daysOf`). */
 const noPrestigeOn = computed(() => usableTimeOff(store.noPrestige).length > 0);
-/** "Works inside my hours" (only with "Let me pick my hours") and "At most N ascensions". */
+/** "Works inside my hours" (only with "Let me pick my hours") and the ascensions "From … to …". */
 const filters = ref(readFilters());
 watch(filters, f => writeFilters(f), { deep: true });
+/** One end of the ascensions range as typed (blank: no bound); the other end moves along when passed. */
+function setAscBound(end: 'min' | 'max', e: Event): void {
+  const el = e.target as HTMLInputElement;
+  const b = setBound(filterBounds(filters.value), end, boundInput(el.value, MAX_ASCENSIONS));
+  filters.value = { ...filters.value, minAscensions: b.min, maxAscensions: b.max };
+  // What was typed may have been clamped (or the value kept): the box shows what is in effect.
+  el.value = String((end === 'min' ? b.min : b.max) ?? '');
+}
+/** "Include N" under "No route in this range": the range widened just enough to take in `n`. */
+function widenTo(n: number): void {
+  const f = filters.value;
+  filters.value = {
+    ...f,
+    minAscensions: f.minAscensions !== null && n < f.minAscensions ? n : f.minAscensions,
+    maxAscensions: f.maxAscensions !== null && n > f.maxAscensions ? n : f.maxAscensions,
+  };
+}
+/** The range in words ("3 to 5"), '' without one. */
+const rangeText = computed(() => boundsText(filterBounds(filters.value)));
 const hoursOn = computed(() => store.scheduleEnabled && !!store.availability);
 const useHours = computed(() => hoursOn.value && filters.value.inHours);
 /** The held opening on the route shown (routeFinder.ts `heldOpeningOf`): a prestige that waits for a start where the
@@ -1385,7 +1459,9 @@ function setInsideHours(on: boolean): void {
   writeInsideHoursChoice(insideHoursChoice.value);
   filters.value = { ...filters.value, inHours: on };
 }
-const filtering = computed(() => useHours.value || filters.value.maxAscensions !== null);
+const filtering = computed(
+  () => useHours.value || filters.value.maxAscensions !== null || filters.value.minAscensions !== null
+);
 function fastestRowsOf(found: NonNullable<typeof result.value>): Route[] {
   const top = Math.max(10, (found.best?.legs.length ?? 0) + 2);
   return found.byAscensions.filter((r, k): r is Route => !!r && k <= top);
@@ -1843,7 +1919,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const polished = await p.polish(url, polishOptions, JSON.parse(JSON.stringify(found)));
     if (id !== runs) return;
     const raw = { ...found, ...polished };
-    const answer = atMostAscensions(raw, filters.value.maxAscensions);
+    const answer = withinAscensions(raw, filterBounds(filters.value));
     result.value = answer;
     // The last answer's "Prestige by" line goes with it.
     prestige.value = null;
@@ -2277,6 +2353,7 @@ function cacheKey(): string | null {
     firstAscension: inputs.firstAscension,
     useHours: useHours.value,
     maxAscensions: filters.value.maxAscensions,
+    minAscensions: filters.value.minAscensions,
   });
 }
 /**
@@ -2486,6 +2563,7 @@ watch(
       bonus.value,
       useHours.value ? availabilityKey(store.availability) : '',
       filters.value.maxAscensions,
+      filters.value.minAscensions,
       // Your setup, remembered per account, still loading (stores/chainSearch.ts `loadSetupFor`): wait for
       // it, so a reload doesn't work the answer out on the defaults first.
       store.setupLoaded,
@@ -2805,6 +2883,7 @@ function buildRecord(f: SearchFound): InstantRecord | null {
     settings: {
       firstAscension: store.firstAscension,
       maxAscensions: filters.value.maxAscensions,
+      minAscensions: filters.value.minAscensions,
       inHours: useHours.value,
       window: store.scheduleEnabled && store.availability ? describeAvailability(store.availability) : null,
       holdShifts: !!store.deferShifts,

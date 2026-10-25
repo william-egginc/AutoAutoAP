@@ -278,8 +278,8 @@
           <p v-if="simpleSpace">
             <template v-if="simpleFrom === 'instant'"
               >Around the instant answer's route for each number of ascensions from {{ nearbyRange.min }} to
-              {{ nearbyRange.max }}<template v-if="instantMax !== null">
-                (at most {{ instantMax }}, as its filter says)</template
+              {{ nearbyRange.max }}<template v-if="instantRangeText">
+                ({{ instantRangeText }}, as its filter says)</template
               >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
             >
             <!-- Still being worked out (InstantRoute `state` 'loading'; a held answer with hours set can take a while):
@@ -1105,7 +1105,7 @@ import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { ascendNeededFor, readAscendNeededChoice, writeAscendNeededChoice } from '@/search/instantFilters';
+import { ascendNeededFor, boundsText, readAscendNeededChoice, writeAscendNeededChoice } from '@/search/instantFilters';
 import { isConstrained } from '@/search/availability';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -1371,8 +1371,10 @@ const showControls = (k: ByDateKind) =>
  * Exhaustive (its estimate box is the one on the page); Nearby's own numbers are `aroundPlan`.
  */
 const simple = computed(() => readsAround(runState()));
-/** The instant answer's "At most N ascensions", null for any. */
+/** The instant answer's ascensions range ("From … to …"), each end null for none. */
 const instantMax = ref<number | null>(null);
+const instantMin = ref<number | null>(null);
+const instantRangeText = computed(() => boundsText({ min: instantMin.value, max: instantMax.value }));
 /** What a typical 8-core machine costs, for sizing Simple's boxes the same on every computer. */
 const TYPICAL_WORKERS = 8;
 /**
@@ -1421,12 +1423,13 @@ function followNearbyRange(): void {
   nearbyHi.value = null;
 }
 const inNearbyRange = (k: number) => k >= nearbyRange.value.min && k <= nearbyRange.value.max;
-/** The instant answer's route for each count it has (under its "At most N ascensions"), before the range. */
+/** The instant answer's route for each count it has (inside its ascensions "From … to …"), before the range. */
 const instantCentres = computed<Record<number, number[]>>(() => {
   const te = Math.floor(store.currentTE);
   const max = instantMax.value;
+  const min = instantMin.value;
   const fits = (k: number, r: number[] | undefined): r is number[] =>
-    !!r && r.length === k && (max === null || k <= max) && r[0] > te;
+    !!r && r.length === k && (max === null || k <= max) && (min === null || k >= min) && r[0] > te;
   const all: Record<number, number[]> = {};
   for (const [k, r] of Object.entries(instantByCount.value)) if (fits(Number(k), r)) all[Number(k)] = [...r];
   return all;
@@ -1446,7 +1449,7 @@ const simpleCentres = computed<{ from: 'instant' | 'suggested'; routes: Record<n
     return { from: 'instant', routes };
   }
   const routes: Record<number, number[]> = {};
-  for (let n = 1; n <= Math.min(5, max ?? 5); n++) {
+  for (let n = instantMin.value ?? 1; n <= Math.min(5, max ?? 5); n++) {
     if (!inNearbyRange(n)) continue;
     const base = suggestBase(n, te, {
       instant: null,
@@ -1749,9 +1752,14 @@ const instantByCount = ref<Record<number, number[]>>({});
  * A box typed by hand, set by a link or request, or restored from an unfinished run is left alone;
  * nothing changes while a run is going or being restored.
  */
-function onInstantRoutes(byCount: Record<number, number[]>, max: number | null = null): void {
+function onInstantRoutes(
+  byCount: Record<number, number[]>,
+  max: number | null = null,
+  min: number | null = null
+): void {
   instantByCount.value = byCount;
   instantMax.value = max;
+  instantMin.value = min;
   if (store.deadlineRunning || store.preparing) return;
   chains.value.forEach((row, k) => {
     // A row carried on from an unfinished run keeps its boxes.

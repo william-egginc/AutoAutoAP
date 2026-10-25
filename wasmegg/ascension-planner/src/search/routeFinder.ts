@@ -1231,6 +1231,17 @@ export interface FoundRoutes {
    *  deadline at the TE of that count's date route, in time. For the stronger polish. */
   alternatives?: Route[][];
   dateAlternatives?: Route[][];
+  /** Set by the instant answer's ascensions filter (instantFilters.ts `withinAscensions`) when no route is left in its
+   *  range: the nearest count outside it that has one, for Fastest and for By a date. */
+  outside?: { fastest?: OutsideRoute; date?: OutsideRoute };
+}
+
+/** A route outside the instant answer's ascensions range, as its "No route in this range" note names it. */
+export interface OutsideRoute {
+  ascensions: number;
+  chain: number[];
+  end: number;
+  endTE: number;
 }
 
 /** `chain` priced the way `findRoutes` prices a route: its first leg from `firstLegs` (or a fresh one),

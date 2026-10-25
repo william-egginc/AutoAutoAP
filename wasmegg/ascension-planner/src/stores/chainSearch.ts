@@ -9045,7 +9045,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * The Limits box follows the instant answer (Jordan, 14 Oct: Allan's Fast ran inside 5-8 while the
    * instant answer's best was 4): the fields the player has not set read 3 to one more than its count
    * (`limitsCount`: the route its box leads with under Prefer fewer, else the fastest, `suggestedCount`,
-   * which InstantRoute sets fastest first, by the exact check once in, under its "At most N ascensions";
+   * which InstantRoute sets fastest first, by the exact check once in, under its ascensions range ("From … to …");
    * Jordan, 22 Oct 2026, it was two either side). Only while nothing runs or is being carried on: a run keeps the
    * limits it started with, and the next idle moment catches up.
    */

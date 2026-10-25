@@ -232,6 +232,9 @@ export interface InstantKeyInput {
   /** "Works inside my hours" in effect. */
   useHours: boolean;
   maxAscensions: number | null;
+  /** The ascensions range's lower end (24 Oct 2026): keyed only when set, so every answer saved under "At most N"
+   *  keeps its key, and one worked out under other bounds is never put back. */
+  minAscensions?: number | null;
 }
 
 /** The first ascension as the boolean it was (true Continue Asc., false Fastest), so answers saved under those
@@ -268,7 +271,7 @@ export function instantKey(i: InstantKeyInput): string {
       keyFirst(i.firstAscension ?? 'auto'),
       ...(i.noPrestige?.length ? [{ noPrestige: i.noPrestige }] : []),
     ],
-    filters: [i.useHours, i.maxAscensions],
+    filters: [i.useHours, i.maxAscensions, ...(i.minAscensions != null ? [{ min: i.minAscensions }] : [])],
   };
   // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
   const text = JSON.stringify(parts);

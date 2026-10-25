@@ -139,7 +139,10 @@ function ctxOf(s: State): Record<string, unknown> {
     emit: () => {},
     errorText: 'The instant answer couldn’t run: something went wrong',
     filtering: s.hours,
-    filters: { inHours: s.hours, maxAscensions: s.hours ? 5 : null },
+    filters: { inHours: s.hours, maxAscensions: s.hours ? 5 : null, minAscensions: null },
+    rangeText: s.hours ? 'at most 5' : '',
+    setAscBound: () => {},
+    widenTo: () => {},
     followGoal: 'date',
     gainsText: '',
     gearDiffers: false,
@@ -307,6 +310,58 @@ describe('InstantRoute: every state draws something', () => {
     expect(html).toContain('314 TE');
     expect(html).toContain('data-testid="inside-hours"');
     expect(html).toContain('data-testid="saved-answer"');
+  });
+});
+
+describe('the ascensions From … to … (24 Oct 2026)', () => {
+  const done: State = {
+    answer: 'fastest',
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline: false,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  };
+  const near = { ascensions: 4, chain: [205, 248, 280, 300], end: 1_800_100_000, endTE: 300 };
+
+  it('both boxes, blank for no bound, and the range said in words when set', async () => {
+    const plain = await draw(done);
+    expect(plain).toMatch(/data-testid="instant-min-ascensions"/);
+    expect(plain).toMatch(/data-testid="instant-max-ascensions"/);
+    expect(plain).toContain('Ascensions from');
+    expect(plain).not.toContain('data-testid="instant-range-note"');
+    const set = await draw(done, { filters: { inHours: false, minAscensions: 2, maxAscensions: 3 }, rangeText: '2 to 3' });
+    expect(set).toContain('Only routes with 2 to 3 ascensions');
+    expect(set).toMatch(/data-testid="instant-min-ascensions"[^>]*value="2"|value="2"[^>]*data-testid="instant-min-ascensions"/);
+  });
+
+  it('Fastest, no route in the range: says so and names the nearest, with Include N', async () => {
+    const r = resultOf('fastest')!;
+    const html = await draw(done, {
+      result: { ...r, best: null, byAscensions: [], outside: { fastest: near } },
+      boxLead: null,
+      shownRows: [],
+      rangeText: 'at least 6',
+    });
+    expect(html).toContain('No route in this range: the nearest is 4 ascensions');
+    expect(html).toContain('205 → 248 → 280 → 300');
+    expect(html).toContain('Include 4');
+    expect(html).not.toContain('data-testid="instant-box"');
+  });
+
+  it('By a date, no route in the range: the nearest with its TE', async () => {
+    const r = resultOf('date')!;
+    const html = await draw(
+      { ...done, answer: 'date', deadline: true },
+      { result: { ...r, byDate: null, byDateByAscensions: [], outside: { date: near } }, dateRows: [], rangeText: '1 to 2' }
+    );
+    expect(html).toContain('No route in this range: the nearest is 4 ascensions, 300 TE by');
+    expect(html).toContain('Include 4');
   });
 });
 

@@ -48,6 +48,8 @@ const props = defineProps<{
   final: number;
   maxAscensions: number;
   atMost: number | null;
+  /** The ascensions range's lower end, or null. */
+  atLeast?: number | null;
   deadline?: number;
 }>();
 
@@ -99,6 +101,7 @@ async function run(): Promise<void> {
       final: props.final,
       maxAscensions: props.maxAscensions,
       atMost: props.atMost,
+      atLeast: props.atLeast ?? null,
       ...(props.deadline ? { deadline: props.deadline } : {}),
       hours: props.hours ? (JSON.parse(JSON.stringify(props.hours)) as Availability) : null,
       ...(props.tail ? { tail: { ...props.tail } } : {}),
@@ -132,7 +135,7 @@ async function loadLetters(): Promise<void> {
 // A new answer (another save, start, target or filter): forget the old comparison, and work it out
 // again straight away if the line is open.
 watch(
-  () => [props.legs, props.mine.end, props.mine.te, props.atMost, props.deadline, props.hours],
+  () => [props.legs, props.mine.end, props.mine.te, props.atMost, props.atLeast, props.deadline, props.hours],
   () => {
     runs++;
     maxed.value = null;

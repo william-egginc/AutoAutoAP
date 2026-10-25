@@ -54,6 +54,14 @@ describe('instantKey (the hash did not move)', () => {
     );
   });
 
+  it('keys the lower end only when set: an answer saved under "At most N" keeps its key (24 Oct 2026)', () => {
+    const atMost = { ...base, maxAscensions: 5 };
+    expect(instantKey({ ...atMost, minAscensions: null })).toBe(instantKey(atMost));
+    expect(instantKey({ ...atMost, minAscensions: undefined })).toBe(instantKey(atMost));
+    expect(instantKey({ ...atMost, minAscensions: 3 })).not.toBe(instantKey(atMost));
+    expect(instantKey({ ...atMost, minAscensions: 3 })).not.toBe(instantKey({ ...atMost, minAscensions: 2 }));
+  });
+
   it('lists the eggs in the simulator’s order', () => {
     expect([...KEY_EGG_ORDER]).toEqual(EGG_ORDER);
   });
