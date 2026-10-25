@@ -758,10 +758,13 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, type FunctionalComponent } from 'vue';
 import {
+  FIRST_LOAD_ROUTE,
+  LAST_ROUTE_KEY,
   NAMES,
   canonicalUrl,
   fastestName,
   hashFor,
+  openingRoute,
   routeFromLocation,
   type AutoView,
   type Depth,
@@ -966,6 +969,21 @@ const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';
  */
 const initialRoute = routeFromLocation(window.location.search, window.location.hash);
 const { autoView, fastestDepth, compareView, scienceView } = storeToRefs(uiStore);
+/** This browser's memory of the last tab (lib/siteNav.ts LAST_ROUTE_KEY): read once, written on every change. */
+function readLastRoute(): string | null {
+  try {
+    return localStorage.getItem(LAST_ROUTE_KEY);
+  } catch {
+    return null;
+  }
+}
+/**
+ * The tab the page opens on, and whether this is a new player (lib/siteNav.ts openingRoute): the address
+ * wins, then the last tab this browser remembers; a new player (neither, and no saved ID) is taken to
+ * FIRST_LOAD_ROUTE when their first save loads (submitPlayerId).
+ */
+const opening = openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: getSavedPlayerID() });
+let newPlayerLanding = opening.newPlayer;
 
 function currentRoute(): SiteRoute {
   const section: Section =
@@ -1007,6 +1025,9 @@ function applyRoute(r: SiteRoute): void {
 if (initialRoute) {
   applyRoute(initialRoute);
   window.history.replaceState(null, '', canonicalUrl(window.location.href, initialRoute));
+} else if (opening.route) {
+  applyRoute(opening.route);
+  window.history.replaceState(null, '', hashFor(opening.route));
 }
 
 // The address follows the tabs. Replaced, not pushed: Back leaves the site rather than stepping
@@ -1015,6 +1036,11 @@ watch(
   () => hashFor(currentRoute()),
   hash => {
     if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
+    try {
+      localStorage.setItem(LAST_ROUTE_KEY, hash);
+    } catch {
+      // a convenience, not a reason to fail
+    }
   }
 );
 // A link inside the page (or an edited address) to another tab. Plain `#anchors` are not routes.
@@ -1951,6 +1977,15 @@ async function submitPlayerId(id: string) {
     failLoad(id, SAVE_SET_UP_FAILED);
     console.error('Error setting up player data:', e);
     return;
+  }
+  // A new player's first save (lib/siteNav.ts openingRoute): straight to the instant answer, Highest TE by a
+  // date with Egg Day picked, rather than the Manual Planner. Once only; a returning player keeps their tab.
+  if (newPlayerLanding) {
+    newPlayerLanding = false;
+    if (plannerTab.value === 'manual') {
+      presetByDate({ eggDay: true });
+      applyRoute(FIRST_LOAD_ROUTE);
+    }
   }
   // A player id typed on a link into the Auto Planner: same set-up as the tab click.
   await initAutoOnce();

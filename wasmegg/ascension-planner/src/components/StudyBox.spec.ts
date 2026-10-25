@@ -350,3 +350,48 @@ describe('wiring', () => {
     expect(at).toBeLessThan(s.indexOf('data-testid="share-instant"'));
   });
 });
+
+describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing seen)', () => {
+  const strip = (html: string) => html.match(/<div[^>]*data-testid="study-box-strip"[^>]*>[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? '';
+  const formWrap = (html: string) => html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0] ?? '';
+
+  it('is closed by default: one line with the name, Choose… and No thanks, the form mounted but hidden', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const s = strip(html);
+    expect(textOf(s)).toBe('Help improve the planner Choose… No thanks');
+    const choose = s.match(/<button[^>]*data-testid="study-choose"[^>]*>/)?.[0] ?? '';
+    expect(choose).toContain('aria-expanded="false"');
+    expect(choose).toContain('aria-controls="study-box-form"');
+    expect(choose).toContain('min-h-[44px]');
+    const no = s.match(/<button[^>]*data-testid="study-strip-no-thanks"[^>]*>/)?.[0] ?? '';
+    expect(no).toContain('min-h-[44px]');
+    // Still mounted in the same place, just not shown.
+    expect(formWrap(html)).toContain('display:none');
+    expect(html).toContain('data-testid="study-form"');
+    // Slim: no big padded card.
+    const section = html.match(/<section[^>]*data-testid="study-box"[^>]*>/)?.[0] ?? '';
+    expect(section).toContain('py-2');
+    expect(section).not.toContain('p-4');
+  });
+
+  it('expanded: the full form shows in place, with Yes, Yes to all and No thanks; the strip says Hide', async () => {
+    await setConsentAccount(A);
+    const html = await renderHtml(StudyBox, { startOpen: true }, {}, [pinia]);
+    expect(formWrap(html)).not.toContain('display:none');
+    const s = strip(html);
+    expect(s).toContain('aria-expanded="true"');
+    expect(textOf(s)).toBe('Help improve the planner Hide');
+    expect(s).not.toContain('study-strip-no-thanks');
+    for (const id of ['study-yes', 'study-yes-all', 'study-no']) expect(html).toContain(`data-testid="${id}"`);
+    expect(html.indexOf('data-testid="study-box-strip"')).toBeLessThan(html.indexOf('data-testid="study-form"'));
+  });
+
+  it("the strip's No thanks answers no, as the form's does", async () => {
+    await setConsentAccount(A);
+    const src = readFileSync('src/components/StudyBox.vue', 'utf8');
+    expect(src).toMatch(/data-testid="study-strip-no-thanks"\s+@click="answerNo"/);
+    answerNo();
+    expect(textOf(await box())).toBe('');
+  });
+});

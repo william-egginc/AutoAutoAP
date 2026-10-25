@@ -2,7 +2,8 @@
   "Help improve the planner" (Q13, 21 Oct 2026), above the site tabs on every tab once an account is in
   (App.vue mounts it with a collector only). lib/study.ts says what it is.
 
-   - Never answered in this browser: the box (StudyForm.vue). Yes or No thanks hides it for good in this
+   - Never answered in this browser: a one-line strip, "Help improve the planner" with Choose… (opens the full
+     form, StudyForm.vue, in place) and No thanks. Yes or No thanks hides it for good in this
      browser; the choices then live in Setup › Help improve the planner (StudySetup.vue).
    - Yes pressed: one line for this visit, "Thank you ...", with OK.
    - Said yes in this browser, and another account is on screen: a one-line strip asking whether to use the
@@ -11,14 +12,42 @@
   Inline, not fixed, so it never sits over NewVersionBanner's fixed bar.
 -->
 <template>
+  <!-- A slim strip, closed by default (Jordan, 25 Oct 2026; the UX review's item 2/A), so the answer under the
+       tabs is the first thing seen: the name, "Choose…" (opens the full form here, in place) and "No thanks".
+       The form stays mounted (v-show), so what it does is unchanged; its own No thanks is there when open. -->
   <section
     v-if="step === 'ask-box'"
-    class="rounded-2xl border-2 border-indigo-200 bg-white shadow-sm p-4 sm:p-5 space-y-3 overflow-hidden"
+    class="rounded-xl border border-indigo-200 bg-white shadow-sm px-4 py-2 overflow-hidden"
     aria-labelledby="study-heading"
     data-testid="study-box"
   >
-    <h2 id="study-heading" class="text-base font-black text-slate-800">{{ NAMES.study }}</h2>
-    <StudyForm />
+    <div class="flex flex-col sm:flex-row sm:items-center gap-2" data-testid="study-box-strip">
+      <h2 id="study-heading" class="text-[13px] font-black text-slate-800 sm:flex-1 break-words">{{ NAMES.study }}</h2>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <button
+          type="button"
+          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700"
+          :aria-expanded="open"
+          aria-controls="study-box-form"
+          data-testid="study-choose"
+          @click="open = !open"
+        >
+          {{ open ? 'Hide' : 'Choose…' }}
+        </button>
+        <button
+          v-if="!open"
+          type="button"
+          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+          data-testid="study-strip-no-thanks"
+          @click="answerNo"
+        >
+          No thanks
+        </button>
+      </div>
+    </div>
+    <div v-show="open" id="study-box-form" class="pt-3 pb-2" data-testid="study-box-form">
+      <StudyForm />
+    </div>
   </section>
 
   <div
@@ -73,7 +102,24 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { NAMES } from '@/lib/siteNav';
-import { closeThanks, notThisAccount, studyState, studyStep as step, useForThisAccount } from '@/composables/useStudy';
+import {
+  answerNo,
+  closeThanks,
+  notThisAccount,
+  studyState,
+  studyStep as step,
+  useForThisAccount,
+} from '@/composables/useStudy';
 import StudyForm from './StudyForm.vue';
+
+const props = withDefaults(
+  defineProps<{ /** Open the full form at once (the specs; the page leaves it closed). */ startOpen?: boolean }>(),
+  {
+    startOpen: false,
+  }
+);
+/** The full form, opened from the strip's Choose…: closed on each page load. */
+const open = ref(props.startOpen);
 </script>
