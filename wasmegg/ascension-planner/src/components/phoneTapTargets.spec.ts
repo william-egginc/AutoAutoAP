@@ -36,7 +36,9 @@ describe('the instant card on a phone', () => {
     expect(tagWith(src, 'data-testid="instant-more-counts"')).toContain(TAP);
   });
   it('How this is worked out and What if you had maxed gear? summary rows', () => {
-    expect(tagWith(src, 'data-testid="instant-how-summary"')).toContain(SUMMARY);
+    // A PanelFold since 25 Oct (lib/panelFold.ts `howWorkedOut`): its summary row is PanelFold's, 44 px below sm.
+    expect(src).toMatch(/<PanelFold section="howWorkedOut"[^>]*testid="instant-how"/);
+    expect(tagWith(read('auto/PanelFold.vue'), ':data-testid="`${id}-summary`"')).toContain('min-h-[44px] sm:min-h-0');
     expect(tagWith(read('auto/MaxedWhatIf.vue'), 'data-testid="instant-maxed-what-if-summary"')).toContain(SUMMARY);
   });
   it('the ascensions From … to … boxes and "Include N"', () => {

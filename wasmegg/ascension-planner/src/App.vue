@@ -18,7 +18,7 @@
       <NewVersionBanner
         page-url="./"
         entry="index"
-        note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running picks up where it left off after the reload"
+        note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running stops at the reload, and Carry on from where it stopped then goes on from its last save point (Carry on by itself does not cover a reload)"
         class="mb-4"
       />
       <!-- Site storage blocked (lib/storageGuard.ts): the page runs on memory, so say nothing will be kept. -->

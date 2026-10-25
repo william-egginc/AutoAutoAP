@@ -227,86 +227,101 @@
     >
       <template v-if="true">
         <!-- Simple (batch 3): no chain editor. The routes it tries, in one line, and a way to see them as
-             boxes in Advanced (to widen them, say). -->
-        <div
-          class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 space-y-1.5 text-[11px] text-slate-700 leading-relaxed"
-          data-test="simple-summary"
+             boxes in Advanced (to widen them, say). Folded under "Settings" with that line in its summary
+             (lib/panelFold.ts `searchSettings`). -->
+        <PanelFold
+          section="searchSettings"
+          title="Settings"
+          :hint="simpleSummary"
+          :running="!!runKind"
+          class="rounded-xl border border-indigo-200 bg-indigo-50/50 px-3"
+          summary-class="text-[11px] uppercase tracking-widest text-slate-700"
         >
-          <p v-if="simpleSummary" class="font-bold text-slate-900">{{ simpleSummary }}</p>
-          <p v-else-if="nearbyRangeEmpty" class="font-semibold text-rose-700" data-test="nearby-range-empty">
-            The instant answer has no route with {{ nearbyRange.min }} to {{ nearbyRange.max }} ascensions: widen the
-            range below.
-          </p>
-          <p v-else class="font-semibold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
-          <!-- 3 to one more than the instant answer's count until set (lib/ascRange.ts; Jordan, 22 Oct 2026). -->
-          <div class="flex flex-wrap items-center gap-x-2 gap-y-1" data-test="nearby-range">
-            <span class="font-bold text-slate-800">Ascensions</span>
-            <input
-              v-model.number="nearbyMin"
-              type="number"
-              :min="DATE_RANGE_BOUNDS.floor"
-              :max="nearbyRange.max"
-              :disabled="store.busy"
-              aria-label="Fewest ascensions"
-              class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold sm:min-h-0"
-            />
-            <span class="text-slate-400">to</span>
-            <input
-              v-model.number="nearbyMax"
-              type="number"
-              :min="nearbyRange.min"
-              :max="DATE_RANGE_BOUNDS.ceil"
-              :disabled="store.busy"
-              aria-label="Most ascensions"
-              class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold sm:min-h-0"
-            />
-            <span v-if="nearbyRangeHint" class="text-[10px] text-slate-400" data-test="nearby-range-hint">{{
-              nearbyRangeHint
-            }}</span>
-            <button
-              v-if="canFollowNearbyRange"
-              type="button"
-              class="inline-flex min-h-[44px] items-center text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 sm:min-h-0"
-              :disabled="store.busy"
-              data-test="nearby-range-reset"
-              @click="followNearbyRange"
-            >
-              Use the instant answer's range
-            </button>
+          <template v-if="!simpleSummary" #extra
+            ><span class="normal-case tracking-normal font-semibold text-rose-700" data-test="settings-issue">{{
+              nearbyRangeEmpty ? 'no route in this range' : 'nothing to check yet'
+            }}</span></template
+          >
+          <div
+            class="pb-3 space-y-1.5 text-[11px] text-slate-700 leading-relaxed"
+            data-test="simple-summary"
+          >
+            <p v-if="simpleSummary" class="font-bold text-slate-900">{{ simpleSummary }}</p>
+            <p v-else-if="nearbyRangeEmpty" class="font-semibold text-rose-700" data-test="nearby-range-empty">
+              The instant answer has no route with {{ nearbyRange.min }} to {{ nearbyRange.max }} ascensions: widen the
+              range below.
+            </p>
+            <p v-else class="font-semibold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
+            <!-- 3 to one more than the instant answer's count until set (lib/ascRange.ts; Jordan, 22 Oct 2026). -->
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1" data-test="nearby-range">
+              <span class="font-bold text-slate-800">Ascensions</span>
+              <input
+                v-model.number="nearbyMin"
+                type="number"
+                :min="DATE_RANGE_BOUNDS.floor"
+                :max="nearbyRange.max"
+                :disabled="store.busy"
+                aria-label="Fewest ascensions"
+                class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold sm:min-h-0"
+              />
+              <span class="text-slate-400">to</span>
+              <input
+                v-model.number="nearbyMax"
+                type="number"
+                :min="nearbyRange.min"
+                :max="DATE_RANGE_BOUNDS.ceil"
+                :disabled="store.busy"
+                aria-label="Most ascensions"
+                class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold sm:min-h-0"
+              />
+              <span v-if="nearbyRangeHint" class="text-[10px] text-slate-400" data-test="nearby-range-hint">{{
+                nearbyRangeHint
+              }}</span>
+              <button
+                v-if="canFollowNearbyRange"
+                type="button"
+                class="inline-flex min-h-[44px] items-center text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 sm:min-h-0"
+                :disabled="store.busy"
+                data-test="nearby-range-reset"
+                @click="followNearbyRange"
+              >
+                Use the instant answer's range
+              </button>
+            </div>
+            <p v-if="simpleSpace">
+              <template v-if="simpleFrom === 'instant'"
+                >Around the instant answer's route for each number of ascensions from {{ nearbyRange.min }} to
+                {{ nearbyRange.max }}<template v-if="instantRangeText">
+                  ({{ instantRangeText }}, as its filter says)</template
+                >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
+              >
+              <!-- Still being worked out (InstantRoute `state` 'loading'; a held answer with hours set can take a while):
+                   Find waits for it up to INSTANT_SETTLE_MS, then goes on with suggested routes (search/autoWiden.ts). -->
+              <template v-else-if="instantLoad === 'loading'"
+                ><span class="font-bold" data-test="instant-still-working">The instant answer is still being worked out.</span>
+                Find waits up to {{ INSTANT_SETTLE_MS / 1000 }} seconds for it, then checks suggested routes for
+                {{ nearbyRange.min }}-{{ Math.min(5, nearbyRange.max) }} ascensions until it is ready:
+                {{ simpleWidthsText }}.</template
+              >
+              <template v-else
+                ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so this
+                checks suggested routes for {{ nearbyRange.min }}-{{ Math.min(5, nearbyRange.max) }} ascensions instead:
+                {{ simpleWidthsText }}. When the instant answer arrives, the routes follow it.</template
+              >
+            </p>
+            <p v-if="simpleSpace">
+              <button
+                type="button"
+                class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 sm:inline sm:min-h-0"
+                :disabled="store.busy"
+                data-test="open-in-advanced"
+                @click="openInAdvanced"
+              >
+                Open in Custom</button
+              ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
+            </p>
           </div>
-          <p v-if="simpleSpace">
-            <template v-if="simpleFrom === 'instant'"
-              >Around the instant answer's route for each number of ascensions from {{ nearbyRange.min }} to
-              {{ nearbyRange.max }}<template v-if="instantRangeText">
-                ({{ instantRangeText }}, as its filter says)</template
-              >: {{ simpleWidthsText }}, and its last stop found to the exact TE.</template
-            >
-            <!-- Still being worked out (InstantRoute `state` 'loading'; a held answer with hours set can take a while):
-                 Find waits for it up to INSTANT_SETTLE_MS, then goes on with suggested routes (search/autoWiden.ts). -->
-            <template v-else-if="instantLoad === 'loading'"
-              ><span class="font-bold" data-test="instant-still-working">The instant answer is still being worked out.</span>
-              Find waits up to {{ INSTANT_SETTLE_MS / 1000 }} seconds for it, then checks suggested routes for
-              {{ nearbyRange.min }}-{{ Math.min(5, nearbyRange.max) }} ascensions until it is ready:
-              {{ simpleWidthsText }}.</template
-            >
-            <template v-else
-              ><span class="font-bold">No instant answer yet</span> (none for your account, or it is still working), so this
-              checks suggested routes for {{ nearbyRange.min }}-{{ Math.min(5, nearbyRange.max) }} ascensions instead:
-              {{ simpleWidthsText }}. When the instant answer arrives, the routes follow it.</template
-            >
-          </p>
-          <p v-if="simpleSpace">
-            <button
-              type="button"
-              class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 sm:inline sm:min-h-0"
-              :disabled="store.busy"
-              data-test="open-in-advanced"
-              @click="openInAdvanced"
-            >
-              Open in Custom</button
-            ><span class="text-slate-500"> with these boxes filled in, to widen them or add your own.</span>
-          </p>
-        </div>
+        </PanelFold>
       </template>
       <!-- Nearby routes' own run controls and results (teleported in from below): always on the page, as a
            Teleport needs its target there before it moves in. -->
@@ -419,8 +434,9 @@
           </p>
           <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
             This search starts each fresh ascension the moment the last one ends, or with your hours set, as soon as you
-            are next available; the instant answer starts it on the next whole hour inside your hours, so
-            the same route's times here and there can differ by up to about an hour per fresh ascension.
+            are next available; the instant answer starts it on the next whole hour inside your hours. With your hours
+            set, that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). With hours
+            off, the two differ by up to about an hour per ascension.
           </p>
         </template>
 
@@ -810,8 +826,9 @@
         data-test="start-timing-note"
       >
         This search starts each fresh ascension the moment the last one ends, or with your hours set, as soon as you
-        are next available; the instant answer starts it on the next whole hour inside your hours, so the same route's
-        times can differ by up to about an hour per fresh ascension.
+        are next available; the instant answer starts it on the next whole hour inside your hours. With your hours set,
+        that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). With hours off, the
+        two differ by up to about an hour per ascension.
       </p>
       <!-- The best route on the edge of its box (the Full sweep's check, bandCheck.ts): a wider box may
            find better. -->
@@ -1111,6 +1128,7 @@ import { lastRunLine } from '@/lib/lastRunLine';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
+import PanelFold from './PanelFold.vue';
 import ExhaustivePromise from './ExhaustivePromise.vue';
 import {
   BY_DATE_KINDS as BY_DATE_KIND_LIST,

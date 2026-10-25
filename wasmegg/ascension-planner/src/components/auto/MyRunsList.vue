@@ -139,7 +139,7 @@
                 <button
                   type="button"
                   class="px-2 py-0.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                  :title="`Put ${l.row.chain.join(' ')} into the Auto Planner and price it on your account`"
+                  :title="`Open ${l.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
                   @click="emit('use', l.row.chain)"
                 >
                   Use

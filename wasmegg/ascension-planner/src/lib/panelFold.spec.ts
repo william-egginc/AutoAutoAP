@@ -1,0 +1,119 @@
+/**
+ * The search panel's open / folded split (lib/panelFold.ts; the UX review of 25 Oct 2026, item C).
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  FOLD_OPENS_WHEN,
+  PANEL_FOLD,
+  foldKey,
+  foldOpen,
+  readFoldToggle,
+  rememberFoldToggle,
+  scopeLine,
+  type FoldSection,
+} from './panelFold';
+
+const SECTIONS: FoldSection[] = [
+  'whatItDoes',
+  'promise',
+  'searchSettings',
+  'acknowledgement',
+  'steppingAway',
+  'countTable',
+  'howWorkedOut',
+];
+
+let mem: Map<string, string>;
+beforeEach(() => {
+  mem = new Map();
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => mem.get(k) ?? null,
+    setItem: (k: string, v: string) => void mem.set(k, v),
+    removeItem: (k: string) => void mem.delete(k),
+  });
+});
+afterEach(() => vi.unstubAllGlobals());
+
+describe('the default split (the review\'s proposal)', () => {
+  it('has every section, and every one starts folded', () => {
+    expect(Object.keys(PANEL_FOLD).sort()).toEqual([...SECTIONS].sort());
+    for (const s of SECTIONS) expect(PANEL_FOLD[s], s).toBe('folded');
+  });
+  it('only a run going opens anything by itself: Stepping away?', () => {
+    expect(FOLD_OPENS_WHEN).toEqual({ steppingAway: ['running'] });
+  });
+});
+
+describe('foldOpen', () => {
+  it('idle, nothing remembered: the table', () => {
+    for (const s of SECTIONS) expect(foldOpen(s), s).toBe(false);
+    for (const s of SECTIONS) expect(foldOpen(s, {}), s).toBe(PANEL_FOLD[s] === 'open');
+  });
+  it('a run going opens Stepping away? and nothing else', () => {
+    for (const s of SECTIONS) expect(foldOpen(s, { running: true }), s).toBe(s === 'steppingAway');
+  });
+  it('a run going wins over the player having closed Stepping away?', () => {
+    expect(foldOpen('steppingAway', { running: true, remembered: false })).toBe(true);
+  });
+  it('an unfinished run alone opens nothing', () => {
+    for (const s of SECTIONS) expect(foldOpen(s, { unfinished: true }), s).toBe(false);
+  });
+  it("the player's own toggle wins over the table, both ways", () => {
+    for (const s of SECTIONS) {
+      expect(foldOpen(s, { remembered: true }), s).toBe(true);
+      expect(foldOpen(s, { remembered: false }), s).toBe(false);
+      expect(foldOpen(s, { remembered: null }), s).toBe(PANEL_FOLD[s] === 'open');
+    }
+  });
+  it('follows the table: a section set to open starts open', () => {
+    const was = PANEL_FOLD.countTable;
+    try {
+      PANEL_FOLD.countTable = 'open';
+      expect(foldOpen('countTable')).toBe(true);
+      expect(foldOpen('countTable', { remembered: false })).toBe(false);
+    } finally {
+      PANEL_FOLD.countTable = was;
+    }
+  });
+});
+
+describe("the player's toggle, remembered per section", () => {
+  it('none until toggled; then per section', () => {
+    for (const s of SECTIONS) expect(readFoldToggle(s)).toBeNull();
+    rememberFoldToggle('promise', true);
+    rememberFoldToggle('countTable', false);
+    expect(mem.get(foldKey('promise'))).toBe('1');
+    expect(readFoldToggle('promise')).toBe(true);
+    expect(readFoldToggle('countTable')).toBe(false);
+    expect(readFoldToggle('whatItDoes')).toBeNull();
+  });
+  it('keeps what players chose under the two older keys', () => {
+    mem.set('aap-stronger-promise-closed', '0');
+    mem.set('aap.fastest.searchSettingsOpen', '1');
+    expect(readFoldToggle('promise')).toBe(true);
+    expect(readFoldToggle('searchSettings')).toBe(true);
+    mem.set('aap-stronger-promise-closed', '1');
+    expect(readFoldToggle('promise')).toBe(false);
+    rememberFoldToggle('promise', true);
+    expect(readFoldToggle('promise')).toBe(true);
+  });
+  it('never throws without storage', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+    });
+    expect(readFoldToggle('promise')).toBeNull();
+    expect(() => rememberFoldToggle('promise', true)).not.toThrow();
+  });
+});
+
+describe('scopeLine', () => {
+  it('joins the parts it has with a middle dot', () => {
+    expect(scopeLine(['Nearby routes', '', null, '±3', false, undefined, '25 min'])).toBe('Nearby routes · ±3 · 25 min');
+    expect(scopeLine([])).toBe('');
+  });
+});

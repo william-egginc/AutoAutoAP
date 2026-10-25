@@ -16,39 +16,28 @@
         >
       </p>
 
-      <!-- Collapsible so a repeat visitor can skip straight to the button. Open by default; a
-           collapsed form looks like an empty panel. -->
-      <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <button
-          type="button"
-          class="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
-          :aria-expanded="settingsOpen"
-          aria-controls="cs-settings"
-          @click="settingsOpen = !settingsOpen"
-        >
-          <svg
-            class="w-4 h-4 flex-shrink-0 text-slate-400 transition-transform duration-200"
-            :class="{ 'rotate-90': settingsOpen }"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-          <span class="text-[11px] font-black text-slate-700 uppercase tracking-widest">Search settings</span>
-          <span
-            v-if="!settingsOpen && !levelElsewhere"
-            class="text-[11px] font-bold text-slate-600 normal-case tracking-normal ml-auto"
-            data-testid="effort-summary"
-          >
-            Effort: {{ note.label }} · <span class="text-indigo-700 underline">change</span>
-          </span>
-          <span v-else class="text-[10px] font-bold text-slate-400 normal-case tracking-normal ml-auto">
-            {{ levelElsewhere ? 'starting route, limits, and what it simulates with' : 'effort, limits, and what it simulates with' }}
-          </span>
-        </button>
-
-        <div v-show="settingsOpen" id="cs-settings" class="px-4 pb-5 pt-1 space-y-8">
+      <!-- Search settings, the route it starts from and how many routes it may price, folded under "Settings" with
+           that scope in its summary (lib/panelFold.ts `searchSettings`; the player's toggle is remembered). -->
+      <PanelFold
+        section="searchSettings"
+        title="Settings"
+        :hint="settingsScope"
+        :running="store.isRunning && ownRun"
+        class="rounded-xl border border-slate-200 bg-white px-4"
+        summary-class="text-[11px] uppercase tracking-widest text-slate-700"
+      >
+        <div id="cs-settings" class="pb-5 pt-1 space-y-8">
+          <!-- In the Stronger check box: one line; the route to start from is in Start from a different route below. -->
+          <p v-if="embedded" class="text-[12px] text-slate-700 leading-relaxed" data-testid="start-line">
+            Starts from <span class="font-mono-premium font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
+              class="text-slate-500"
+              >({{ seedSource }})</span
+            > · up to ~{{ store.estimateForCurrentSettings.toLocaleString() }} routes<template
+              v-if="store.otherCountsPlan.chains"
+            >
+              (incl. ~{{ store.otherCountsPlan.chains }} checking {{ countList(store.otherCountsPlan.counts) }} ascensions)</template
+            >.
+          </p>
           <!-- Effort (picked in the chooser's level bar above when `levelElsewhere`) -->
           <div v-if="!levelElsewhere" class="space-y-3">
             <div class="flex items-center justify-between px-1">
@@ -246,7 +235,7 @@
             </p>
           </div>
         </div>
-      </div>
+      </PanelFold>
 
       <!-- The coarse scan's own log, verbatim, the way the CLI prints it -->
       <div
@@ -256,18 +245,8 @@
         <div v-for="(line, i) in store.coarseLog" :key="i" class="whitespace-pre">{{ line }}</div>
       </div>
 
-      <!-- In the Stronger check box: one line; the route to start from is in the settings above. -->
-      <p v-if="embedded" class="text-[12px] text-slate-700 leading-relaxed" data-testid="start-line">
-        Starts from <span class="font-mono-premium font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
-          class="text-slate-500"
-          >({{ seedSource }})</span
-        > · up to ~{{ store.estimateForCurrentSettings.toLocaleString() }} routes<template
-          v-if="store.otherCountsPlan.chains"
-        >
-          (incl. ~{{ store.otherCountsPlan.chains }} checking {{ countList(store.otherCountsPlan.counts) }} ascensions)</template
-        >.
-      </p>
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Outside the Stronger check box: the route, TE now, target and routes to price as four cards. -->
+      <div v-if="!embedded" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Editable. This was a read-only readout, so the only way to change the seed was to
              find the Target TE field in a different card - and a two-element seed cannot reach a
              7-prestige answer, because descent only MOVES checkpoints and the probe adds one. -->
@@ -1115,6 +1094,8 @@ import CsvCard from './CsvCard.vue';
 import RunResults from './RunResults.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
+import PanelFold from './PanelFold.vue';
+import { scopeLine } from '@/lib/panelFold';
 import { agreeThisVisit } from '@/composables/useConsent';
 
 const props = defineProps<{
@@ -1210,25 +1191,17 @@ const startPick = computed<string>({
  *  progress, answer, charts and share show only then (store `chainRunKind`). */
 const ownRun = computed(() => store.chainRunKind === 'smart');
 
-/** Open by default: a collapsed form on first load looks like the panel has nothing in it. */
-// Folded by default so Simple looks simple; the player's choice is remembered in this browser.
-const SETTINGS_OPEN_KEY = 'aap.fastest.searchSettingsOpen';
-const settingsOpen = ref(
-  (() => {
-    try {
-      return localStorage.getItem(SETTINGS_OPEN_KEY) === '1';
-    } catch {
-      return false;
-    }
-  })()
+/** "Settings" folded (PanelFold.vue): the search's scope in one line, e.g. "Effort: Fast · from the instant answer's
+ *  route · 3 to 10 ascensions · up to ~4,060 routes". */
+const settingsScope = computed(() =>
+  scopeLine([
+    !props.levelElsewhere && `Effort: ${note.value.label}`,
+    `from ${store.seedOverride.trim() ? 'your route' : seedSource.value}`,
+    `${store.minPrestiges} to ${store.maxPrestiges} ascensions`,
+    store.pin > 0 && `first ${store.pin} locked`,
+    `up to ~${store.estimateForCurrentSettings.toLocaleString()} routes`,
+  ])
 );
-watch(settingsOpen, v => {
-  try {
-    localStorage.setItem(SETTINGS_OPEN_KEY, v ? '1' : '0');
-  } catch {
-    /* remembered for this visit only */
-  }
-});
 
 const autoPlannerStore = useAutoPlannerStore();
 const plannerTzFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;

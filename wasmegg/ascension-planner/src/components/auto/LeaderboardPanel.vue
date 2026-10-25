@@ -44,7 +44,7 @@
       <p class="flex-1 min-w-[14rem] text-[11px] text-indigo-900/80 leading-relaxed">
         Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, Fastest to N TE for
         any target, and other dates, and the ones hidden from the public. Open one for its details, or press
-        <span class="font-semibold">Use</span> to price it on your account.
+        <span class="font-semibold">Use</span> to open its route in Single run, without running it. Single run doesn't use your awake hours.
       </p>
       <button
         type="button"
@@ -473,7 +473,7 @@
                         <button
                           type="button"
                           class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                          :title="`Put ${e.best.row.chain.join(' ')} into the Auto Planner and price it on your account`"
+                          :title="`Open ${e.best.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
                           @click="emit('use', e.best.row.chain)"
                         >
                           Use

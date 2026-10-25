@@ -39,11 +39,16 @@
         ><template v-else>{{ findLabel }}</template>
       </button>
       <div v-if="showSubmit && !running" class="flex flex-col items-center gap-1">
+        <!-- Never without the ticks. With the acknowledgement folded (lib/panelFold.ts), the button stays pressable
+             without them, looks greyed out, and a press opens the fold and goes to the box instead of starting. -->
         <button
           type="button"
           class="px-6 py-4 rounded-xl bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
-          :disabled="findDisabled || notReady || !optIn"
-          @click="emit('find', true)"
+          :class="!optIn ? 'opacity-40' : ''"
+          :disabled="findDisabled || notReady || (!optIn && !ACK_FOLDS)"
+          :aria-disabled="!optIn ? 'true' : undefined"
+          data-testid="find-and-submit"
+          @click="findAndSubmit"
         >
           Find and submit
         </button>
@@ -126,91 +131,107 @@
     <!-- The save is still settling (a Science link, the Auto Planner tab, a new player id): every
          search reads it, so Find waits rather than pricing one save and labelling it with another. -->
     <p v-if="notReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
-    <div
+    <!-- The acknowledgement, its ticks, the name and the note: folded under "Before you send" by default
+         (lib/panelFold.ts `acknowledgement`), "ticks needed" in amber until ticked. It opens by itself when
+         Send best so far asks, and when Find and submit is pressed without the ticks. -->
+    <PanelFold
       v-if="showSubmit"
-      class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2 text-[11px] text-indigo-900"
-      data-testid="share-box"
+      ref="ackFold"
+      section="acknowledgement"
+      title="Before you send"
+      :running="running"
+      class="rounded-xl border border-indigo-200 bg-indigo-50/60 px-3"
+      summary-class="text-[11px] text-indigo-900"
     >
-      <!-- The account's agreement (composables/useConsent.ts, ConsentBox.vue). Agreed before and remembered:
-           one line that says what goes with a run, and Change. Opened: the full text, the boxes, "Remember my
-           choice", Withdraw and Done (before a run and during one: the user, 14 Oct, once opened there was no
-           clear way to close it). Withdrawing stops what was armed on it at once (store `withdrawShareConsent`). -->
-      <ConsentBox
-        ref="consentBox"
-        v-model="optIn"
-        consent-id="leaderboard"
-        :force-open="asking"
-        :show-box="!running || asking"
-        summary-class="text-[11px] text-indigo-900"
-        withdrawn-text="Withdrawn: nothing more goes to the leaderboard from here until you agree again."
+      <!-- Only while the ticks are needed: before a run, or when Send best so far asks. -->
+      <template v-if="!optIn && (!running || asking)" #extra
+        ><span class="font-bold text-amber-700" data-testid="ticks-needed">ticks needed</span></template
       >
-        <template #summary>
-          <ConsentSummary :anonymous="anonymous" :nickname="nickname" :nickname-max="nicknameMax" />
-        </template>
-        <template #before>
-          <p v-if="(!running || asking) && !optIn" class="font-black text-indigo-800">
-            To use {{ running ? 'Send best so far' : 'Find and submit' }}, please read this and tick the box to
-            agree<template v-if="sendsOnTick"
-              >. Your best so far is sent as soon as you tick it, anonymously or under the name you choose below</template
-            >:
-          </p>
-          <!-- A run going and nothing asked: what still applies to the send at the end. -->
-          <p v-else-if="running && !asking" class="font-black text-indigo-800" data-testid="share-during-run">
-            {{
-              store.submitsWhenDone
-                ? 'Sent with the result when the run finishes (you can still change these):'
-                : 'Sent with the result if you share it (you can still change these):'
-            }}
-          </p>
-        </template>
-        <template #text>
-          <!-- The screen's own wording where it sends something else (Highest TE by a date sends a route
-             and its deadline, not a chain's CSV). -->
-          <slot v-if="$slots.consent" name="consent" />
-          <span v-else
-            >I acknowledge the following: I want to share my run on the leaderboard when the search finishes<template
-              v-if="consentNote"
-            >
-              ({{ consentNote }})</template
-            >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
-            local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
-            plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares
-            the best it found so far. Send best so far shares it while the run goes on, with the CSV so far and
-            diagnostics if ticked below; that row and its CSV are replaced when the run finishes.</span
-          >
-        </template>
-        <template #after>
-          <template v-if="!running || asking">
-            <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
-              It also sends your best three plans already on the board, re-priced from this save.
-            </p>
-            <!-- Asked for by "Send my progress every..." (Stepping away?): the yes, then it sends by itself. -->
-            <div v-if="asking && optIn && autoSendOn" class="ml-7">
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
-                data-testid="agree-auto-best-so-far"
-                @click="agreeAutoSend"
-              >
-                Agree, and send my progress by itself
-              </button>
-            </div>
+      <div
+        class="pb-3 space-y-2 text-[11px] text-indigo-900"
+        data-testid="share-box"
+      >
+        <!-- The account's agreement (composables/useConsent.ts, ConsentBox.vue). Agreed before and remembered:
+             one line that says what goes with a run, and Change. Opened: the full text, the boxes, "Remember my
+             choice", Withdraw and Done (before a run and during one: the user, 14 Oct, once opened there was no
+             clear way to close it). Withdrawing stops what was armed on it at once (store `withdrawShareConsent`). -->
+        <ConsentBox
+          ref="consentBox"
+          v-model="optIn"
+          consent-id="leaderboard"
+          :force-open="asking"
+          :show-box="!running || asking"
+          summary-class="text-[11px] text-indigo-900"
+          withdrawn-text="Withdrawn: nothing more goes to the leaderboard from here until you agree again."
+        >
+          <template #summary>
+            <ConsentSummary :anonymous="anonymous" :nickname="nickname" :nickname-max="nicknameMax" />
           </template>
-          <!-- The same two boxes as Share this result, on the same choices. -->
-          <div class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
-          <!-- Before the tick too while Send best so far asks: ticking sends, so the name is chosen first. -->
-          <ShareNameChoice
-            v-if="optIn || asking"
-            v-model:anonymous="anonymous"
-            v-model:nickname="nickname"
-            :nickname-max="nicknameMax"
-            @nickname-typed="emit('nicknameTyped')"
-          />
-          <!-- The note goes with the run as it starts; a run already going keeps the one it started with. -->
-          <RunNoteBox v-if="note !== undefined && !running" v-model="note" />
-        </template>
-      </ConsentBox>
-    </div>
+          <template #before>
+            <p v-if="(!running || asking) && !optIn" class="font-black text-indigo-800">
+              To use {{ running ? 'Send best so far' : 'Find and submit' }}, please read this and tick the box to
+              agree<template v-if="sendsOnTick"
+                >. Your best so far is sent as soon as you tick it, anonymously or under the name you choose below</template
+              >:
+            </p>
+            <!-- A run going and nothing asked: what still applies to the send at the end. -->
+            <p v-else-if="running && !asking" class="font-black text-indigo-800" data-testid="share-during-run">
+              {{
+                store.submitsWhenDone
+                  ? 'Sent with the result when the run finishes (you can still change these):'
+                  : 'Sent with the result if you share it (you can still change these):'
+              }}
+            </p>
+          </template>
+          <template #text>
+            <!-- The screen's own wording where it sends something else (Highest TE by a date sends a route
+               and its deadline, not a chain's CSV). -->
+            <slot v-if="$slots.consent" name="consent" />
+            <span v-else
+              >I acknowledge the following: I want to share my run on the leaderboard when the search finishes<template
+                v-if="consentNote"
+              >
+                ({{ consentNote }})</template
+              >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone,
+              local plan start and the random code this browser keeps for the account (not my player ID, and never shown),
+              plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares
+              the best it found so far. Send best so far shares it while the run goes on, with the CSV so far and
+              diagnostics if ticked below; that row and its CSV are replaced when the run finishes.</span
+            >
+          </template>
+          <template #after>
+            <template v-if="!running || asking">
+              <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
+                It also sends your best three plans already on the board, re-priced from this save.
+              </p>
+              <!-- Asked for by "Send my progress every..." (Stepping away?): the yes, then it sends by itself. -->
+              <div v-if="asking && optIn && autoSendOn" class="ml-7">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+                  data-testid="agree-auto-best-so-far"
+                  @click="agreeAutoSend"
+                >
+                  Agree, and send my progress by itself
+                </button>
+              </div>
+            </template>
+            <!-- The same two boxes as Share this result, on the same choices. -->
+            <div class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
+            <!-- Before the tick too while Send best so far asks: ticking sends, so the name is chosen first. -->
+            <ShareNameChoice
+              v-if="optIn || asking"
+              v-model:anonymous="anonymous"
+              v-model:nickname="nickname"
+              :nickname-max="nicknameMax"
+              @nickname-typed="emit('nicknameTyped')"
+            />
+            <!-- The note goes with the run as it starts; a run already going keeps the one it started with. -->
+            <RunNoteBox v-if="note !== undefined && !running" v-model="note" />
+          </template>
+        </ConsentBox>
+      </div>
+    </PanelFold>
   </div>
 </template>
 
@@ -224,6 +245,8 @@ import { STOPPING_NOTE } from '@/search/stopNote';
 import ShareExtras from './ShareExtras.vue';
 import ConsentSummary from './ConsentSummary.vue';
 import ConsentBox from './ConsentBox.vue';
+import PanelFold from './PanelFold.vue';
+import { PANEL_FOLD } from '@/lib/panelFold';
 import ShareNameChoice from './ShareNameChoice.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { stepAwayOptions } from '@/composables/useStepAway';
@@ -333,9 +356,30 @@ function agreeAutoSend(): void {
   store.autoTick();
 }
 
-/** The hint under Find and submit: bring the acknowledge box into view and put the focus on it. */
+/** The acknowledgement can fold (lib/panelFold.ts): Find and submit then stays pressable without the ticks. */
+const ACK_FOLDS = PANEL_FOLD.acknowledgement === 'folded';
+const ackFold = ref<InstanceType<typeof PanelFold> | null>(null);
+
+/** The hint under Find and submit: open the fold, bring the acknowledge box into view and put the focus on it. */
 const consentBox = ref<InstanceType<typeof ConsentBox> | null>(null);
-function showConsent(): void {
+async function showConsent(): Promise<void> {
+  await ackFold.value?.show(false);
   consentBox.value?.focusBox();
 }
+/** Find and submit: only with the ticks; without them, to the box. */
+function findAndSubmit(): void {
+  if (!optIn.value) {
+    void showConsent();
+    return;
+  }
+  emit('find', true);
+}
+// Send best so far asking for the yes (here or on the run bar): the box must be in sight.
+watch(
+  asking,
+  a => {
+    if (a) void ackFold.value?.show(false);
+  },
+  { immediate: true, flush: 'post' }
+);
 </script>

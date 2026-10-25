@@ -9,15 +9,22 @@
 <template>
   <section class="space-y-3" data-testid="stronger-box">
     <!-- The option picked (Fast or Exact), in three plain lines: what it does, how long, what it can and
-         can't find. -->
-    <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] leading-relaxed" data-testid="level-note">
-      <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it does</dt>
-      <dd class="text-slate-800">{{ current.does }}</dd>
-      <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">How long</dt>
-      <dd class="text-slate-800" data-testid="level-how-long">{{ estimates?.[level]?.line ?? current.time }}</dd>
-      <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it finds</dt>
-      <dd class="text-slate-800">{{ current.finds }}</dd>
-    </dl>
+         can't find. Folded under "What this does" by default (lib/panelFold.ts `whatItDoes`). -->
+    <PanelFold
+      section="whatItDoes"
+      title="What this does"
+      :running="running"
+      class="rounded-xl border border-slate-200 bg-white px-3"
+    >
+      <dl class="mt-1 mb-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px] leading-relaxed" data-testid="level-note">
+        <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it does</dt>
+        <dd class="text-slate-800">{{ current.does }}</dd>
+        <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">How long</dt>
+        <dd class="text-slate-800" data-testid="level-how-long">{{ estimates?.[level]?.line ?? current.time }}</dd>
+        <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it finds</dt>
+        <dd class="text-slate-800">{{ current.finds }}</dd>
+      </dl>
+    </PanelFold>
     <!-- Very high: a tick box inside Exact (lib/veryHigh.ts). Switched off, a pointer to Custom instead, and
          a run that used it (a stored or linked `thorough` run) says so. -->
     <template v-if="isExact">
@@ -50,22 +57,21 @@
       </p>
     </template>
     <slot name="summary" />
-    <!-- Closed until opened (remembered in this browser), amber like the other promise boxes. -->
-    <details
-      :open="promiseOpen"
+    <!-- Closed until opened (lib/panelFold.ts `promise`; the player's toggle remembered in this browser), amber
+         like the other promise boxes. -->
+    <PanelFold
+      section="promise"
+      title="What this does and does not promise"
+      :running="running"
+      testid="stronger-promise"
       class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900"
-      data-testid="stronger-promise"
-      @toggle="onPromiseToggle"
+      summary-class="uppercase tracking-wide text-amber-800"
     >
-      <!-- 44 px to tap on a phone (list-item kept for the marker); unchanged from sm up. -->
-      <summary class="cursor-pointer font-black uppercase tracking-wide text-amber-800 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0" data-testid="stronger-promise-summary">
-        What this does and does not promise
-      </summary>
       <!-- What the option picked promises, and only that (the user, 12 Oct: no lines that don't apply). -->
       <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed" data-testid="promise-lines">
         <li v-for="(line, k) in promises" :key="k">{{ line }}</li>
       </ul>
-    </details>
+    </PanelFold>
     <!-- The search of the routes near the instant answer's, its controls and results. -->
     <h4
       class="pt-2 border-t border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500"
@@ -78,7 +84,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
+import PanelFold from './PanelFold.vue';
 import { NAMES } from '@/lib/siteNav';
 import { EFFORT_NOTES } from '@/search/effort';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -208,23 +215,4 @@ const promises = computed<string[]>(() => {
   ];
 });
 const current = computed(() => levels.value.find(l => l.id === level.value) ?? levels.value[0]);
-
-/** "What this does and does not promise": closed unless the player opened it (this browser). */
-const PROMISE_KEY = 'aap-stronger-promise-closed';
-function readPromiseOpen(): boolean {
-  try {
-    return localStorage.getItem(PROMISE_KEY) === '0';
-  } catch {
-    return false;
-  }
-}
-const promiseOpen = ref(readPromiseOpen());
-function onPromiseToggle(e: Event): void {
-  promiseOpen.value = (e.target as HTMLDetailsElement).open;
-  try {
-    localStorage.setItem(PROMISE_KEY, promiseOpen.value ? '0' : '1');
-  } catch {
-    /* this visit only */
-  }
-}
 </script>

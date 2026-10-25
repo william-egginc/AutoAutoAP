@@ -78,6 +78,7 @@
       ref="stepAway"
       :kind="kind === 'by-date' ? 'deadline' : kind === 'full' ? 'sweep' : 'smart'"
       :player-id="playerId"
+      :running="running"
       :can-carry-on="canCarryOn"
       :countdown-elsewhere="countdownElsewhere"
       @carry-on="emit('carryOn')"

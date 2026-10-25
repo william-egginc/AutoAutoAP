@@ -76,8 +76,11 @@ describe('44 px tap targets below sm, desktop unchanged', () => {
     const tap = /min-h-\[44px\] pt-3\.5 sm:min-h-0 sm:pt-0/;
     const ex = await renderHtml(ExhaustivePromise, { goal: 'fastest' });
     expect(ex.match(/<summary[^>]*>/)?.[0]).toMatch(tap);
+    // Fast and Exact's folds are PanelFold rows (25 Oct): 44 px below sm, centred, from sm up as they were.
     const nb = await renderHtml(StrongerBox, { goal: 'fastest' });
-    expect(nb.match(/<summary[^>]*>/)?.[0]).toMatch(tap);
+    const rows = nb.match(/<summary[^>]*>/g) ?? [];
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    for (const r of rows) expect(r).toMatch(/items-center[^"]*min-h-\[44px\] sm:min-h-0/);
   });
   it("Custom's internals keep their own sizes", () => {
     expect(read('RoutesToTry.vue')).not.toContain('min-h-[44px] pt-3.5');

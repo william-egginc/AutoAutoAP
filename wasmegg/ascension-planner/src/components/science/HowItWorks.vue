@@ -183,21 +183,27 @@
           waiting after it is the simulator's own arithmetic, replayed exactly, so one start gives the time to every TE
           above it. A full set is about 90 hours of one processor core.
         </p>
-        <p><b>Whose gear.</b> There are three kinds:</p>
+        <p>
+          <b>Whose gear.</b> The page loads the instant answer built on maxed gear with the current simulator. A few
+          accounts also have one of their own. There are two kinds of answer:
+        </p>
         <ul class="hw-list">
           <li>
-            <b>Your own gear,</b> when one has been built for gear exactly like yours: the same artifacts and stones,
-            epic research and colleggtibles. The page checks this every time and says which one it used.
+            <b>Your own gear,</b> when your account has its own instant answer, built with the current simulator, and
+            your save still has the same gear: the same artifacts and stones, epic research and colleggtibles. The page
+            checks this every time and says which one it used.
           </li>
           <li>
-            <b>Fully maxed gear,</b> for everyone else, run at your own peak delivery rate (the best delivery set your
-            inventory can wear at full research), with your first ascension worked out from your own save.
-          </li>
-          <li>
-            <b>Nearby gear,</b> used as a bracket: on maxed gear the page also prices your route on the nearest stronger
-            and weaker gear and says your real date probably falls between them.
+            <b>The maxed answer moved to your gear</b> (the adjusted answer), for everyone else. Your weaker earnings
+            set, colleggtibles and lab upgrade count as a lower TE, and the waits run at your own delivery rate. Your
+            first ascension is worked out from your own save.
           </li>
         </ul>
+        <p>
+          Files built with an older simulator are not used. The page can also use a file built for a gear set exactly
+          like yours, and show a range between stronger and weaker gear, but only from files built with the current
+          simulator.
+        </p>
         <p>
           The files are named by a scrambled code made in your browser, so nobody can tell whose gear a file was built
           from, and fetching one sends no player ID. (Your player ID does go to the game's server, through a relay, to
