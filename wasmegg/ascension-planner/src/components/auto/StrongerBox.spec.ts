@@ -19,7 +19,7 @@ describe('StrongerBox', () => {
     expect(html).not.toContain('role="radiogroup"');
     expect(t).not.toContain('How hard to look');
     // Under the "What this does" fold (lib/panelFold.ts `whatItDoes`) since 25 Oct.
-    expect(t).toMatch(/^What this does › What it does Nearby routes\. Starting from the instant answer's route/);
+    expect(t).toMatch(/^What this does › What it does Fast and Exact\. Starting from the instant answer's route/);
     expect(t).toContain('What this does and does not promise');
     expect(t).toContain('proves the best only inside');
     expect(html).not.toContain('id="stronger-check-results"');

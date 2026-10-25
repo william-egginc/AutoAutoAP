@@ -1259,9 +1259,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       const tile = tileFor({ goal: 'fastest', target: sel.target, deadline: null });
       const a = tile.answer;
       const stand = raceStanding(o.boardRows.value, o.myRows.value, sel.target, nowMs, a ? a.end * 1000 : null);
-      return { goal: 'fastest', key: sel.key, name: null, tile, target: sel.target, stand, standingLabel: `Race to ${sel.target}` };
+      return { goal: 'fastest', key: sel.key, name: null, tile, target: sel.target, stand, standingLabel: `Fastest to ${sel.target} TE` };
     }
-    return { goal: 'fastest', key: sel?.key ?? null, name: null, tile: f.tile, target: f.target, stand: raceStand.value, standingLabel: `Race to ${f.target}` };
+    return { goal: 'fastest', key: sel?.key ?? null, name: null, tile: f.tile, target: f.target, stand: raceStand.value, standingLabel: `Fastest to ${f.target} TE` };
   });
 
   return {
