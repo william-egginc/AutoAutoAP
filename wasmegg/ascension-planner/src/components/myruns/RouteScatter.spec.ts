@@ -39,7 +39,7 @@ describe('Your routes at a glance', () => {
     expect(html).not.toMatch(/<details[^>]*data-testid="my-runs-scatter"[^>]*\sopen/);
     expect(t).toContain('Your routes at a glance (3 routes, 1 goal)');
     expect(t).toContain(
-      '3 routes for Race to 490. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 am. Across them: 2 to 3 ascensions, 11.0 to 13.0 days.'
+      '3 routes for Race to 490. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 AM. Across them: 2 to 3 ascensions, 11.0 to 13.0 days.'
     );
     expect(t).toContain('Race to 490 (3)');
     expect(t).toContain('Ascensions');

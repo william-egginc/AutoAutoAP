@@ -359,6 +359,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { thisDevice } from '@/search/device';
 import { confirmBigBox } from '@/composables/useBigBoxConfirm';
 import { plural } from '@/lib/format';
@@ -629,15 +630,11 @@ const leftLabel = computed(() => {
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 const finishDate = computed(() =>
   store.bestDays > 0
-    ? new Intl.DateTimeFormat(undefined, {
-        timeZone: zone.value,
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      }).format(new Date((store.planStart + store.bestDays * 86400) * 1000))
+    ? formatMoment((store.planStart + store.bestDays * 86400) * 1000, {
+        zone: zone.value,
+        weekday: true,
+        dateOnlyWhenFar: true,
+      })
     : ''
 );
 

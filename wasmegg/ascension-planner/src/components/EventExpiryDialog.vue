@@ -71,6 +71,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { useVirtueStore } from '@/stores/virtue';
 
 interface Props {
@@ -92,14 +93,7 @@ const virtueStore = useVirtueStore();
 function formatTime(timestamp: number): string {
   // `Math.round`, not a bare `new Date(...)` — see `secondsToDate`'s doc comment (lib/format.ts):
   // `timestamp` routinely lands a sub-microsecond residue short of a whole second.
-  return new Date(Math.round(timestamp * 1000)).toLocaleString(undefined, {
-    timeZone: virtueStore.ascensionTimezone,
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatMoment(Math.round(timestamp * 1000), { zone: virtueStore.ascensionTimezone, year: 'never' });
 }
 
 function formatDuration(seconds: number): string {

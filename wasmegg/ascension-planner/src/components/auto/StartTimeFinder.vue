@@ -111,6 +111,7 @@
 </template>
 
 <script setup lang="ts">
+import { calendarOf, formatMoment } from '@/lib/clock';
 import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -194,17 +195,10 @@ const grid = computed(() => {
   const bestFinish = best.value ? (best.value.finish as number) : null;
   const step = gridStep.value;
   for (const r of sweep.value?.results ?? []) {
-    const parts = new Intl.DateTimeFormat(undefined, {
-      timeZone: tz.value,
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      hourCycle: 'h23',
-    }).formatToParts(new Date(r.start * 1000));
-    const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
-    const label = `${get('weekday')} ${get('month')} ${get('day')}`;
-    const hour = Number(get('hour')) % 24;
+    const c = calendarOf(r.start * 1000, tz.value);
+    if (!c) continue;
+    const label = formatMoment(r.start * 1000, { zone: tz.value, weekday: true, year: 'never', dateOnly: true });
+    const hour = c.hour;
     const col = Math.floor(hour / step);
     if (!rows.has(label)) rows.set(label, { label, cells: Array.from({ length: hours.value.length }, () => null) });
     rows.get(label)!.cells[col] = {

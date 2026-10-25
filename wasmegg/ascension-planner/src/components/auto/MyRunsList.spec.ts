@@ -101,9 +101,9 @@ describe('MyRunsList (My runs › Your runs on the board)', () => {
     expect(t).toContain('Oct 10, 2026');
     expect(t).toContain('Oct 8, 2026');
     // Their tooltips.
-    expect(html).toContain('title="The highest TE this answer reaches by Jan 15, 2027 at 8:00 am"');
-    expect(html).toContain('title="Oct 21, 2026 at 12:00 am, UTC time"');
-    expect(html).toContain('title="Oct 10, 2026 at 12:00 am"');
+    expect(html).toContain('title="The highest TE this answer reaches by Jan 15, 2027 at 8:00 AM"');
+    expect(html).toContain('title="Oct 21, 2026 at 12:00 AM, UTC time"');
+    expect(html).toContain('title="Oct 10, 2026 at 12:00 AM"');
     // Never day first.
     expect(t).not.toMatch(/\b\d+ [A-Z][a-z]{2} 20\d\d\b/);
     expect(html).not.toMatch(/title="[^"]*\b\d+ [A-Z][a-z]{2} 20\d\d/);

@@ -171,7 +171,7 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     expect(text).not.toContain(NOT_PRICED);
     expect(text).not.toContain(NO_TIMELINE);
     // Next step with its (rounded) time, no calendar buttons, the "run Fast" link under the events.
-    expect(text).toMatch(/Next step .*at around \d+:\d\d [ap]m/);
+    expect(text).toMatch(/Next step .*at around \d+:\d\d [AP]M/);
     expect(html).not.toContain('data-testid="calendar-button"');
     expect(html).toContain('data-testid="now-run-fast"');
     // The follow line offers nothing more to price it (the events' own "run Fast" does).

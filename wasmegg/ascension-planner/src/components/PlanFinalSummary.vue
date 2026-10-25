@@ -213,6 +213,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed, ref } from 'vue';
 import { useActionsStore } from '@/stores/actions';
 import { PlanImportError, dropFileResults, parsePlanFile } from '@/stores/actions/io';
@@ -383,18 +384,7 @@ const teStatsList = computed(() => {
 
 function formatDateTime(date: Date): string {
   if (isNaN(date.getTime())) return 'N/A';
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  };
-  if (date.getFullYear() !== new Date().getFullYear()) {
-    options.year = 'numeric';
-  }
-  return date.toLocaleString('en-US', options);
+  return formatMoment(date.getTime(), { weekday: true, year: 'auto' });
 }
 
 // Import/Export Logic

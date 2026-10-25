@@ -159,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatClock, formatHourOfDay } from '@/lib/clock';
 import { ref, computed, watch } from 'vue';
 import { clampBox, showClamped } from '@/lib/showClamped';
 const inputEl = ref<HTMLInputElement | null>(null);
@@ -356,18 +357,15 @@ function formatSimTime(seconds: number) {
   // Use current time as fallback for Continue Ascension if store start time is missing
   const startTime = actionsStore.ascensionStartTime || (Date.now() / 1000);
   
-  if (isNaN(seconds) || seconds === 0) return 'Day 1, 12:00 AM';
+  if (isNaN(seconds) || seconds === 0) return `Day 1, ${formatHourOfDay(0)}`;
 
   const relativeSeconds = Math.max(0, seconds - startTime);
   const day = Math.floor(relativeSeconds / 86400) + 1;
   const hour = Math.floor((relativeSeconds % 86400) / 3600);
   const minute = Math.floor((relativeSeconds % 3600) / 60);
   
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 || 12;
-  const displayMinute = minute.toString().padStart(2, '0');
-  
-  return `Day ${day}, ${displayHour}:${displayMinute} ${period}`;
+  // The hour and minute on the player's own clock (lib/clock.ts).
+  return `Day ${day}, ${formatClock(Date.UTC(2020, 0, 1, hour, minute), 'UTC')}`;
 }
 
 // Initialization (in setup, not onMounted: it needs no DOM, and a server render sees the plan too)

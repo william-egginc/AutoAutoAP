@@ -121,6 +121,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed } from 'vue';
 import { formatNumber, formatDuration, plural } from '@/lib/format';
 import { iconURL } from 'lib';
@@ -147,14 +148,7 @@ const props = defineProps<{
 const formatTime = (ts: number) => {
   // `Math.round`, not a bare `new Date(...)` — see `secondsToDate`'s doc comment (lib/format.ts):
   // `ts` routinely lands a sub-microsecond residue short of a whole second.
-  return new Date(Math.round(ts * 1000)).toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatMoment(Math.round(ts * 1000), { weekday: true, year: 'never' });
 };
 
 const timeTooltipContent = computed(() => {

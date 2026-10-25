@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { ref, onMounted } from 'vue';
 import { loadLibraryPlans, type PlanData } from '@/lib/storage/db';
 import { usePersistence } from '@/composables/usePersistence';
@@ -69,7 +70,7 @@ const emit = defineEmits(['select', 'cancel']);
               </span>
             </div>
             <div class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">
-              {{ new Date(plan.timestamp).toLocaleDateString() }} at {{ new Date(plan.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }) }}
+              {{ formatMoment(plan.timestamp, { at: true }) }}
             </div>
           </button>
         </div>

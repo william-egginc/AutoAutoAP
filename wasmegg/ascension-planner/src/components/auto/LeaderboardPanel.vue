@@ -597,7 +597,7 @@
       <!-- ======================================================= EGG DAY, AND BY A DATE -->
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
         <p v-if="tab === 'eggday'" class="text-[11px] text-indigo-900/80 leading-relaxed">
-          The highest TE each player can reach by Egg Day {{ eggDayYear }} (14 July, 9 am Pacific), from the Auto
+          The highest TE each player can reach by Egg Day {{ eggDayYear }} (Jul 14, 9:00 am Pacific), from the Auto
           Planner's <span class="font-bold">{{ NAMES.byDate }}</span> search with the Egg Day preset. Players are ranked
           by the TE they reach, then by time to spare, using each player's best answer. Game events aren't simulated,
           including Egg Day's own.

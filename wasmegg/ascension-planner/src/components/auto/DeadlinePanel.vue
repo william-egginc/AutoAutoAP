@@ -63,7 +63,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Egg Day {{ eggDayYear }}</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >14 July {{ eggDayYear }}, 9:00 AM Pacific. Answers you send go on the {{ NAMES.compare }}'s Egg Day
+          >{{ eggDayWords(eggDayYear, plannerZone) }}. Answers you send go on the {{ NAMES.compare }}'s Egg Day
           {{ eggDayYear }} tab.</span
         >
       </button>
@@ -1165,7 +1165,7 @@ import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, typ
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
-import { eggDayYearOf } from '@/lib/eggDay';
+import { eggDayWords, eggDayYearOf } from '@/lib/eggDay';
 import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';

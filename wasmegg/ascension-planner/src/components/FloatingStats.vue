@@ -166,6 +166,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { ref, computed } from 'vue';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
@@ -318,20 +319,12 @@ const dates = computed(() => {
 });
 
 /**
- * Format date/time as: Feb 7, 9:14 PM
+ * Format date/time as: Sat, Feb 7, 9:14 PM in en-US (lib/clock.ts)
  */
 function formatDateTime(date: Date): string {
   // Past what a Date can hold (a wait priced at billions of days): no real end time.
   if (isNaN(date.getTime())) return 'Not reachable';
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  };
-  return date.toLocaleString('en-US', options);
+  return formatMoment(date.getTime(), { weekday: true, year: 'never' });
 }
 
 /**

@@ -14,6 +14,7 @@
  * where the run is from (sent from this browser, looks like yours, saved here). The goal's best is
  * ringed. At most `SCATTER_CAP` points, the best kept, with a note when capped.
  */
+import { formatMoment } from './clock';
 import {
   deadlineAscendMs,
   deadlineSpare,
@@ -125,25 +126,9 @@ function shortDate(ms: number, zone: string): string {
   }
 }
 
-/** "Oct 21 at 2:40 pm" (12-hour, am/pm). */
+/** "Oct 21 at 2:40 PM" in en-US: the browser's own format (lib/clock.ts). */
 export function whenText(ms: number, zone: string): string {
-  try {
-    const p = Object.fromEntries(
-      new Intl.DateTimeFormat('en-US', {
-        timeZone: zone,
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      })
-        .formatToParts(new Date(ms))
-        .map(x => [x.type, x.value])
-    ) as Record<string, string>;
-    return `${p.month} ${p.day} at ${p.hour}:${p.minute} ${(p.dayPeriod ?? '').toLowerCase()}`.trim();
-  } catch {
-    return shortDate(ms, zone);
-  }
+  return formatMoment(ms, { zone, year: 'never', at: true }) || shortDate(ms, zone);
 }
 
 export function goalOfRace(target: number): ScatterGoal {

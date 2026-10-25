@@ -243,7 +243,7 @@ describe('kept beyond the snapshot: Right now does not drop back to the instant 
 
 // ------------------------------------------------------------------------------------ the card (R1, R2)
 
-const NOW = Date.UTC(2026, 9, 22, 18, 3) / 1000; // Thu Oct 22, 11:03 am Pacific
+const NOW = Date.UTC(2026, 9, 22, 18, 3) / 1000; // Thu Oct 22, 11:03 AM Pacific
 const DEADLINE = eggDaySeconds(2027); // Egg Day 2027's start
 const snap = {
   at: NOW * 1000,
@@ -311,11 +311,11 @@ describe('the card', () => {
     const t = textOf(html);
     expect(t).toContain('from the instant answer worked out ahead of time; times rounded to the hour');
     expect(t).toContain('(instant answer)');
-    expect(t).toContain('Prestige at 197 TE Oct 28 at around 4:00 am');
-    expect(t).toContain('Wed, Oct 28 at around 4:00 am');
+    expect(t).toContain('Prestige at 197 TE Oct 28 at around 4:00 AM');
+    expect(t).toContain('Wed, Oct 28 at around 4:00 AM');
     expect(t).toContain('in 5 days');
     expect(t).toContain('Egg Day 2027 goal: 313 TE');
-    expect(t).toMatch(/Jul 14, 2027 at \d+:00 am/);
+    expect(t).toMatch(/Jul 14, 2027 at \d+:00 AM/);
     expect(t).toMatch(/\d+\.\d h spare \(instant\)/);
     expect(t).toContain('The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.');
     expect(t).toMatch(/From the instant answer, rounded to the hour. For exact times on your account, run Fast ?\./);
@@ -329,11 +329,11 @@ describe('the card', () => {
     const d = drivingPlan({ ...snap, search: fastFound } as never, 'date', DEADLINE);
     const html = await renderHtml(RightNowCard, cardFor(d));
     const t = textOf(html);
-    expect(t).toContain('from your Fast run, on your account done Oct 22 at 4:47 pm, your save of Oct 22 at 11:03 am');
+    expect(t).toContain('from your Fast run, on your account done Oct 22 at 4:47 PM, your save of Oct 22 at 11:03 AM');
     expect(t).toContain('(Fast run)');
     expect(t).toContain('Makes the date on your account, so it replaces the instant answer for the same goal: Go back to the instant answer');
-    expect(t).toContain('Shift to Humility tomorrow at 2:47 pm');
-    expect(t).toContain('Wed, Oct 28 at 4:12 am');
+    expect(t).toContain('Shift to Humility tomorrow at 2:47 PM');
+    expect(t).toContain('Wed, Oct 28 at 4:12 AM');
     expect(t).toContain('Add to calendar');
     expect(t).toContain('＋ Add');
     expect(t).toMatch(/goal: 312 TE .* h spare/);
@@ -345,7 +345,7 @@ describe('the card', () => {
     const back = textOf(
       await renderHtml(RightNowCard, cardFor(drivingPlan({ ...snap, search: fastFound } as never, 'date', DEADLINE, { back: fastFound.at })))
     );
-    expect(back).toContain('You went back from your Fast run (done Oct 22 at 4:47 pm). Use your Fast run');
+    expect(back).toContain('You went back from your Fast run (done Oct 22 at 4:47 PM). Use your Fast run');
     expect(back).toContain('from the instant answer');
     const late = { ...fastFound, end: DEADLINE + 3 * H };
     const kept = textOf(await renderHtml(RightNowCard, cardFor(drivingPlan({ ...snap, search: late } as never, 'date', DEADLINE))));

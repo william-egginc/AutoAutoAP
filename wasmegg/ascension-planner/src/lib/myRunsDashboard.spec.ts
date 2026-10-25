@@ -25,7 +25,7 @@ import { describeAvailability, type Availability } from '@/search/availabilitySc
 import type { BoardRow } from './leaderboardRank';
 
 const DAY = 86_400;
-const NOW = Date.UTC(2026, 9, 24, 19, 0) / 1000; // 24 Oct 2026, 12 pm Pacific
+const NOW = Date.UTC(2026, 9, 24, 19, 0) / 1000; // 24 Oct 2026, 12 PM Pacific
 const ZONE = 'America/Los_Angeles';
 const EGG = eggDaySeconds(2027);
 const NOV1 = Date.UTC(2026, 10, 1, 16) / 1000;
@@ -95,7 +95,7 @@ describe('Next steps: only what changes what to do', () => {
     expect(s).toMatchObject({ id: 'prestige:eggday-2027', kinds: ['prestige'], button: 'Run Fast', action: { to: 'by-date', deadline: EGG, eggDay: true, tab: 'nearby' } });
     expect(s.text).toBe('Egg Day 2027: a prestige of your route lands in your time off');
     expect(s.reason).toMatch(/^It prestiges at 225 TE .+ inside your time off Oct 26\. Run Fast for a route that works around it\.$/);
-    expect(s.reason).toMatch(/\d:\d\d [ap]m/);
+    expect(s.reason).toMatch(/\d:\d\d [AP]M/);
     const np = { ...off, words: 'your no-prestige days Oct 26', kind: 'no-prestige day' as const };
     expect(buildSteps(input({ follows: [follow()], windows: [np] })).steps[0].text).toBe('Egg Day 2027: a prestige of your route lands on a no-prestige day');
     // A race: Fast, Nearby routes.

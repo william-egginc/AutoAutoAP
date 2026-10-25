@@ -264,6 +264,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed } from 'vue';
 import { iconURL } from 'lib';
 import type {
@@ -487,15 +488,7 @@ const absoluteEndTime = computed(() => {
  */
 const timeToSaveTitle = computed(() => {
   const date = absoluteEndTime.value;
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatMoment(date.getTime(), { weekday: true });
 });
 
 const reconciliationStatus = computed(() => {

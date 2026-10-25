@@ -17,7 +17,7 @@ import {
 import { getThresholdForTE } from './truthEggs';
 
 const H = 3600;
-const T0 = 1_792_000_000; // the plan start: Oct 14, 2026 at 12:46 pm in Chicago
+const T0 = 1_792_000_000; // the plan start: Oct 14, 2026 at 12:46 PM in Chicago
 const ZONE = 'America/Chicago';
 const leg = (
   start: number,
@@ -196,8 +196,8 @@ describe('ahead, behind, on schedule', () => {
     expect(s.kind).toBe('on-schedule');
     expect(paceWords(s, T0 + 5 * H, ZONE)).toMatchObject({
       badge: 'On schedule (within an hour)',
-      asOf: 'as of 4:46 pm',
-      text: 'On schedule (within an hour), as of 4:46 pm',
+      asOf: 'as of 4:46 PM',
+      text: 'On schedule (within an hour), as of 4:46 PM',
       tone: 'ok',
       greyed: false,
     });
@@ -215,9 +215,9 @@ describe('ahead, behind, on schedule', () => {
     expect(s.kind).toBe('ahead');
     expect(hoursOf(s)).toBeCloseTo(3, 2);
     const w = paceWords(s, T0 + 3.5 * H, ZONE);
-    expect(w.text).toBe('3 hours ahead, as of 3:46 pm');
+    expect(w.text).toBe('3 hours ahead, as of 3:46 PM');
     expect(w.detail).toBe(
-      `Plan expected 187 TE by 3:46 pm; you had 189. Plan: ascension 1 of 2 by then · you: stop 0 of 2 reached. ${FORECAST_WORDS}`
+      `Plan expected 187 TE by 3:46 PM; you had 189. Plan: ascension 1 of 2 by then · you: stop 0 of 2 reached. ${FORECAST_WORDS}`
     );
   });
 
@@ -226,8 +226,8 @@ describe('ahead, behind, on schedule', () => {
     expect(s.kind).toBe('behind');
     expect(hoursOf(s)).toBeCloseTo(-5, 2);
     const w = paceWords(s, T0 + 11.1 * H, ZONE);
-    expect(w).toMatchObject({ badge: '5 hours behind', asOf: 'as of 11:46 pm', tone: 'bad' });
-    expect(w.detail).toContain('Plan expected 191 TE by 11:46 pm; you had 188.');
+    expect(w).toMatchObject({ badge: '5 hours behind', asOf: 'as of 11:46 PM', tone: 'bad' });
+    expect(w.detail).toContain('Plan expected 191 TE by 11:46 PM; you had 188.');
     expect(w.detail).toContain('Plan: ascension 2 of 2 by then · you: stop 0 of 2 reached.');
   });
 
@@ -236,21 +236,21 @@ describe('ahead, behind, on schedule', () => {
     expect(s.kind).toBe('behind');
     expect(hoursOf(s)).toBeCloseTo(-70, 2);
     const w = paceWords(s, T0 + 79 * H, ZONE);
-    expect(w.text).toBe('3 days behind, as of 6:46 pm');
+    expect(w.text).toBe('3 days behind, as of 6:46 PM');
   });
 
   it('the time names the day when it isn’t today, in the planner’s zone (12-hour)', () => {
     const s = planPace(shiftLine, at(T0 + 13 * H, 189));
-    expect(paceWords(s, T0 + 13 * H, ZONE).asOf).toBe('as of 1:46 am');
-    expect(paceWords(s, T0 + 40 * H, ZONE).asOf).toBe('as of Oct 15 at 1:46 am');
-    expect(paceWords(s, T0 + 13 * H, 'UTC').asOf).toBe('as of 6:46 am');
-    expect(clockWords(T0, T0, 'UTC')).toBe('5:46 pm');
+    expect(paceWords(s, T0 + 13 * H, ZONE).asOf).toBe('as of 1:46 AM');
+    expect(paceWords(s, T0 + 40 * H, ZONE).asOf).toBe('as of Oct 15 at 1:46 AM');
+    expect(paceWords(s, T0 + 13 * H, 'UTC').asOf).toBe('as of 6:46 AM');
+    expect(clockWords(T0, T0, 'UTC')).toBe('5:46 PM');
   });
 
   it('a plan set to start more than an hour after its save says so', () => {
     const line = paceLine({ legs, planStart: T0, startTEByEgg: teStart, planSave: T0 - 3 * H }) as PaceLine;
     const w = paceWords(planPace(line, at(T0 + 2 * H, 188.5)), T0 + 3 * H, ZONE);
-    expect(w.detail).toContain('This plan was set to start 12:46 pm.');
+    expect(w.detail).toContain('This plan was set to start 12:46 PM.');
     expect(paceWords(planPace(shiftLine, at(T0 + 2 * H, 188.5)), T0 + 3 * H, ZONE).detail).not.toContain(
       'set to start'
     );
@@ -260,7 +260,7 @@ describe('ahead, behind, on schedule', () => {
     const est = { ...roughLine, estimate: true };
     const w = paceWords(planPace(est, at(T0 + 2 * H, 189)), T0 + 3 * H, ZONE); // 186 → 190 over 10 h: 189 at +7.5 h
     expect(w.badge).toBe('6 hours ahead (estimate)');
-    expect(w.text).toBe('6 hours ahead (estimate), as of 2:46 pm');
+    expect(w.text).toBe('6 hours ahead (estimate), as of 2:46 PM');
     expect(w.detail).toContain('Rough: compared ascension by ascension.');
     expect(w.detail).toContain('The plan is an instant answer, not checked exactly.');
   });
@@ -282,10 +282,10 @@ describe('the words for every other case', () => {
   });
 
   it('before the plan starts: nothing to compare yet', () => {
-    const line = { ...shiftLine, start: T0 + 18 * H + 14 * 60 }; // Oct 15 at 7:00 am in Chicago
+    const line = { ...shiftLine, start: T0 + 18 * H + 14 * 60 }; // Oct 15 at 7:00 AM in Chicago
     const s = planPace(line, at(T0 + H, 187));
     expect(s.kind).toBe('cant');
-    expect(paceWords(s, T0 + H, ZONE).badge).toBe('Starts Oct 15 at 7:00 am: nothing to compare yet');
+    expect(paceWords(s, T0 + H, ZONE).badge).toBe('Starts Oct 15 at 7:00 AM: nothing to compare yet');
   });
 
   it('below where the plan starts: the badge hidden, the detail says why', () => {
@@ -301,7 +301,7 @@ describe('the words for every other case', () => {
   it('done: the last stop reached', () => {
     const s = planPace(shiftLine, at(T0 + 20 * H, 200.2));
     expect(s.kind).toBe('done');
-    expect(paceWords(s, T0 + 20 * H, ZONE).text).toBe('Done: you reached 200, as of 8:46 am');
+    expect(paceWords(s, T0 + 20 * H, ZONE).text).toBe('Done: you reached 200, as of 8:46 AM');
   });
 
   it('no timeline, no TE per egg', () => {
@@ -328,12 +328,12 @@ describe('the words for every other case', () => {
 });
 
 // My runs review, 22 Oct 2026 (bug 1): the alt save on Humility with 34 TE there, nearly at its 35th, and a plan
-// from that save whose first action is the shift to Curiosity at 8:03 pm. Curiosity then takes days per TE, so a
+// from that save whose first action is the shift to Curiosity at 8:03 PM. Curiosity then takes days per TE, so a
 // fraction counted on the save's side (and dropped by the plan when it leaves Humility) read "3 days ahead" for the
 // same save stamped 8 h later, and more with 20 h of laying added.
 describe('the review’s repro: a plan that leaves the save’s egg (whole TE, no fraction)', () => {
   const DENVER = 'America/Denver';
-  const S = Date.UTC(2026, 9, 19, 0, 33) / 1000; // the save: Oct 18, 2026 at 6:33 pm in Denver
+  const S = Date.UTC(2026, 9, 19, 0, 33) / 1000; // the save: Oct 18, 2026 at 6:33 PM in Denver
   const D = 24 * H;
   const start = [30, 28, 34, 26, 24]; // 142 TE: Curiosity, Integrity, Humility, Resilience, Kindness
   const plan = [
@@ -342,7 +342,7 @@ describe('the review’s repro: a plan that leaves the save’s egg (whole TE, n
       S + 50 * D,
       165,
       [
-        { at: S + 1.5 * H, egg: 'curiosity', fromEgg: 'humility', te: 34 }, // 8:03 pm
+        { at: S + 1.5 * H, egg: 'curiosity', fromEgg: 'humility', te: 34 }, // 8:03 PM
         { at: S + 20 * D, egg: 'integrity', fromEgg: 'curiosity', te: 36 },
         { at: S + 35 * D, egg: 'resilience', fromEgg: 'integrity', te: 35 },
         { at: S + 45 * D, egg: 'kindness', fromEgg: 'resilience', te: 32 },
@@ -362,7 +362,7 @@ describe('the review’s repro: a plan that leaves the save’s egg (whole TE, n
   });
   const fresh = (seconds: number, fraction = 0.9) => progressOf(save(fraction), seconds)!;
 
-  it('the plan has left Humility for Curiosity at 8:03 pm', () => {
+  it('the plan has left Humility for Curiosity at 8:03 PM', () => {
     expect(line.rough).toBe(false);
     expect(line.eggAt?.(S + H)).toBe('humility');
     expect(line.eggAt?.(S + 1.5 * H)).toBe('curiosity');
@@ -377,11 +377,11 @@ describe('the review’s repro: a plan that leaves the save’s egg (whole TE, n
     expect(w.badge).toBe("Can't compare right now: your save is on a different egg than the plan expects.");
     expect(w.text).toBe(OTHER_EGG_WORDS);
     expect(w.tone).toBe('warn');
-    expect(w.detail).toBe('Your save is on Humility; at 2:33 am the plan has you on Curiosity.');
+    expect(w.detail).toBe('Your save is on Humility; at 2:33 AM the plan has you on Curiosity.');
     // Without the egg (not known), whole TE against whole TE: 142 and 142, not ahead.
     const blind = planPace(line, { ...fresh(S + 8 * H), egg: null });
     expect(blind.kind).toBe('on-schedule');
-    expect(paceWords(blind, S + 9 * H, DENVER).detail).toContain('Plan expected 142 TE by 2:33 am; you had 142.');
+    expect(paceWords(blind, S + 9 * H, DENVER).detail).toContain('Plan expected 142 TE by 2:33 AM; you had 142.');
   });
 
   it('with 20 h of Humility laying added: not "5 days ahead" (nor any days ahead)', () => {

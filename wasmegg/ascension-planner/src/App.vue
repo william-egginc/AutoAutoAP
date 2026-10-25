@@ -757,6 +757,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, type FunctionalComponent } from 'vue';
 import {
   NAMES,
@@ -1367,14 +1368,7 @@ const lastBackupFormatted = computed(() => {
   if (approxTime == null) return 'Unknown';
   const date = new Date(approxTime * 1000);
 
-  return date.toLocaleTimeString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatMoment(date.getTime(), { weekday: true, year: 'never' });
 });
 
 const lastBackupAge = computed(() => {

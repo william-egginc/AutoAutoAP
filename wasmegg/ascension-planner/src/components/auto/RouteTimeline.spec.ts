@@ -18,7 +18,7 @@ const ResultTable = ResultTableSfc as unknown as Component;
 const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 const H = 3600;
 const ZONE = 'America/Chicago';
-// Nov 3 2:00 pm Chicago (CST from Nov 1 2026).
+// Nov 3 2:00 PM Chicago (CST from Nov 1 2026).
 const T0 = Date.parse('2026-11-03T20:00:00Z') / 1000;
 
 const legs: LegSummary[] = [
@@ -59,12 +59,12 @@ describe('RouteTimeline', () => {
     expect(t).toContain("Each egg's times weren't kept for the ascensions without an arrow");
   });
 
-  it('12-hour times with am/pm in the planner\'s zone ("Nov 3 at 4:00 pm")', () => {
-    expect(showWhen(T0 + 2 * H, ZONE, 'local', T0)).toBe('Nov 3 at 4:00 pm');
-    expect(showWhen(T0 + 2 * H, 'UTC', 'local', T0)).toBe('Nov 3 at 10:00 pm');
+  it('12-hour times with am/pm in the planner\'s zone ("Nov 3 at 4:00 PM")', () => {
+    expect(showWhen(T0 + 2 * H, ZONE, 'local', T0)).toBe('Nov 3 at 4:00 PM');
+    expect(showWhen(T0 + 2 * H, 'UTC', 'local', T0)).toBe('Nov 3 at 10:00 PM');
     // The year only when it isn't this year.
     // (Still daylight time in Chicago on Nov 3, 2027.)
-    expect(showWhen(T0 + 365 * 24 * H, ZONE, 'local', T0)).toBe('Nov 3, 2027 at 3:00 pm');
+    expect(showWhen(T0 + 365 * 24 * H, ZONE, 'local', T0)).toBe('Nov 3, 2027 at 3:00 PM');
     expect(showWhen(0, ZONE)).toBe('');
   });
 

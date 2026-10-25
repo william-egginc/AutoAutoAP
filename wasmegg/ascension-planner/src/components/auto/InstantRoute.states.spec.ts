@@ -198,6 +198,7 @@ function ctxOf(s: State): Record<string, unknown> {
     shareTo: '#search-share-by-date',
     shiftedTable: true,
     show: (unix: number) => `t${unix}`,
+    showFinish: (unix: number) => `t${unix}`,
     showMoreCounts: false,
     shownRows: result ? [result.best] : [],
     simNote: null,

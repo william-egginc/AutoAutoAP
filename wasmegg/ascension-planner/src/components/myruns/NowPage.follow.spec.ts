@@ -28,8 +28,8 @@ import type { BoardRow } from '@/lib/leaderboardRank';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 pm Denver
-const OLD = NOW - 30 * 3600; // Wed Oct 14, 8:40 am Denver
+const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 PM Denver
+const OLD = NOW - 30 * 3600; // Wed Oct 14, 8:40 AM Denver
 const H = 3600;
 
 beforeEach(() => {
@@ -145,7 +145,7 @@ describe('Right now with a followed route', () => {
     const c: CardPlan = { ...followedCard, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: OLD } }, followed: older };
     const t = textOf(await renderHtml(RightNowCard, props(c, older)));
     expect(t).toContain(
-      'Following your pick · priced on your save of Oct 14 at 8:40 am, may have drifted · Run Fast › · Simulate it › · Use the checked route ›'
+      'Following your pick · priced on your save of Oct 14 at 8:40 AM, may have drifted · Run Fast › · Simulate it › · Use the checked route ›'
     );
     // The card's own older-save box is not said twice.
     expect(t).not.toContain('This plan was worked out from your save of');
@@ -173,7 +173,7 @@ describe('Right now with a followed route', () => {
       finish: { end: NOW + 100 * H, endTE: 490, at: OLD * 1000 + 600_000 },
     };
     const t = textOf(await renderHtml(RightNowCard, props(null, fin)));
-    expect(t).toMatch(/Following your pick · checked Oct 14 at 8:50 am: lands Oct 19 at 6:40 pm, no timeline kept · Run Fast ›/);
+    expect(t).toMatch(/Following your pick · checked Oct 14 at 8:50 AM: lands Oct 19 at 6:40 PM, no timeline kept · Run Fast ›/);
   });
 
   it('"Run Fast ›" beside a route not priced asks Run Fast for the goal (no Check exactly since 23 Oct 2026)', async () => {

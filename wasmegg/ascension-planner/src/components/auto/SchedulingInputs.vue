@@ -84,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -97,20 +98,11 @@ const { startDate, startTime, timezone, startTimeOverride } = storeToRefs(useAut
 const initialStateStore = useInitialStateStore();
 const virtueStore = useVirtueStore();
 
-// The start held in the store, as a date and time in the plan's timezone (12-hour, from the locale).
+// The start held in the store, as a date and time in the plan's timezone (the browser's own format, lib/clock.ts).
 const startLabel = computed(() => {
   if (!startDate.value || !startTime.value) return 'Not set';
   const at = getLocalTimestampInTimezone(startDate.value, startTime.value, timezone.value);
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: timezone.value,
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  }).format(at * 1000);
+  return formatMoment(at * 1000, { zone: timezone.value, weekday: true, zoneName: true });
 });
 
 const startTimeInput = ref<HTMLInputElement | null>(null);
