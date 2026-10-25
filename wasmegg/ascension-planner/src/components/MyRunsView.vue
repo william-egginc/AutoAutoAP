@@ -1,7 +1,8 @@
 <!--
   My runs (#/myruns): where you are now, from what is already saved (spec "myruns-now" v3, agreed 15 Oct 2026;
   build plan aaap-tools/specialists/ui-nowpage-build.md). NOTHING is calculated on this page: no instant answer,
-  no search. Top to bottom, one column at every width:
+  no search (one exception since 24 Oct 2026: a followed route with no timeline is priced on the instant answer's data
+  in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:
 
     1. Save-age strip (SaveAgeStrip.vue): every time below comes from the save, so its age comes first.
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
@@ -27,12 +28,13 @@
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
         <template v-if="hasBoard">
           Where you are now, from your save and the answers already worked out, then your runs: the latest, the ones on
-          the board, the runs and answers saved on {{ thisDevice() }} and results not sent yet. Nothing is calculated on
-          this page.
+          the board, the runs and answers saved on {{ thisDevice() }} and results not sent yet. The only thing worked out
+          here is a quick estimate of a route you follow, from the instant answer's data.
         </template>
         <template v-else>
           Where you are now, from your save and the answers already worked out, then your runs: the latest, and the
-          runs and answers saved on {{ thisDevice() }}. Nothing is calculated on this page.
+          runs and answers saved on {{ thisDevice() }}. The only thing worked out here is a quick estimate of a route you
+          follow, from the instant answer's data.
         </template>
       </p>
     </div>

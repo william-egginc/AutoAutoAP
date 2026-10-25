@@ -834,6 +834,8 @@ import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { countsShown } from '@/search/instantCounts';
 import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
+import { readPricing, snapPricing, type SnapPricing } from '@/lib/followEstimate';
+import { MAX_BYTES as SNAP_MAX_BYTES } from '@/search/instantSnapshot';
 import MaxedWhatIf from './MaxedWhatIf.vue';
 import { accountOf } from '@/search/runSaves';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
@@ -1842,6 +1844,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     };
     const polished = await p.polish(url, polishOptions, JSON.parse(JSON.stringify(found)));
     if (id !== runs) return;
+    answerPricing = snapPricing(polishOptions, target.value);
     const raw = { ...found, ...polished };
     const answer = atMostAscensions(raw, filters.value.maxAscensions);
     result.value = answer;
@@ -2319,8 +2322,13 @@ interface InstantSnapshot {
    *  `tablesIdentity`): put back only while they are the same. Absent before 24 Oct 2026; null when tables.json
    *  couldn't be read. */
   tables?: string | null;
+  /** What its routes were priced with (lib/followEstimate.ts): My runs' Right now prices a followed route on them.
+   *  Absent before 24 Oct 2026, or null when too big to keep. */
+  pricing?: SnapPricing | null;
 }
 let snapKey: string | null = null;
+/** The answer on screen's pricing inputs (`InstantSnapshot.pricing`), kept with its snapshot. */
+let answerPricing: SnapPricing | null = null;
 /** The tables there were when this run started (`tablesIdentity`), saved with its answer. */
 let runTables: string | null = null;
 /** Reading tables.json before a saved answer is put back: loading, for the card's line and By a date's Find. */
@@ -2381,7 +2389,7 @@ function currentSnapshot(): InstantSnapshot | null {
   const slim: FoundRoutes = { ...JSON.parse(JSON.stringify(result.value)) };
   delete slim.alternatives;
   delete slim.dateAlternatives;
-  return JSON.parse(
+  const snap = JSON.parse(
     JSON.stringify({
       v: 1,
       at: Date.now(),
@@ -2403,8 +2411,12 @@ function currentSnapshot(): InstantSnapshot | null {
       whatIf: whatIfResult.value,
       search: newerSearch(keptSearch.value, searchFound.value),
       tables: runTables,
+      pricing: answerPricing,
     })
   ) as InstantSnapshot;
+  // Too big with the pricing inputs (lib/followEstimate.ts): kept without them rather than not at all.
+  if (snap.pricing && JSON.stringify(snap).length > SNAP_MAX_BYTES) snap.pricing = null;
+  return snap;
 }
 /** What My runs reads to find this answer again from a newer save (search/instantSnapshot.ts SnapMeta). */
 function snapMeta(): SnapMeta | undefined {
@@ -2459,6 +2471,7 @@ function applySnapshot(s: InstantSnapshot): void {
   prestige.value = s.prestige ?? null;
   whatIfResult.value = s.whatIf ?? null;
   keptSearch.value = readSearch(s.search);
+  answerPricing = readPricing(s.pricing);
   prestigeStatus.value = s.prestige ? 'done' : 'idle';
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';

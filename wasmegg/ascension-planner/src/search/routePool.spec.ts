@@ -182,3 +182,23 @@ describe('RoutePool when a worker never starts (Safari reload, 23 Oct 2026)', ()
     expect(tableLoadFailed('A route worker sent a reply the page could not read.')).toBe(true);
   });
 });
+
+describe('RoutePool priceChain (a followed route on My runs, lib/followEstimate.ts)', () => {
+  it('asks one worker for the route and gives back its answer', async () => {
+    const { p, made } = pool(1);
+    const route = { chain: [205, 238], legs: [], end: 100, seconds: 50 };
+    const priced = p.priceChain('t.bin', { startTE: 194, start: 50 }, [205, 238]);
+    const m = made[0].inbox.shift() as unknown as { id: number; kind: string; url: string; chain: number[] };
+    expect(m).toMatchObject({ kind: 'price-chain', url: 't.bin', chain: [205, 238], options: { startTE: 194, start: 50 } });
+    made[0].onmessage?.({ data: { kind: 'price-chain', id: m.id, route } } as MessageEvent);
+    await expect(priced).resolves.toEqual(route);
+  });
+
+  it("a worker's error is the request's", async () => {
+    const { p, made } = pool(1);
+    const priced = p.priceChain('t.bin', { startTE: 194, start: 50 }, [205]);
+    const m = made[0].inbox.shift()!;
+    made[0].onmessage?.({ data: { kind: 'error', id: m.id, message: 'no table' } } as MessageEvent);
+    await expect(priced).rejects.toThrow('no table');
+  });
+});

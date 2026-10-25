@@ -5,7 +5,7 @@
  * what comes back, which is light; the workers do the arithmetic.
  */
 import type { TableHeader } from './precomputedTable';
-import type { ArrivalItem, Candidate, ExpandSettings, FirstLeg, FoundRoutes, PolishOptions } from './routeFinder';
+import type { ArrivalItem, Candidate, ExpandSettings, FirstLeg, FoundRoutes, PolishOptions, Route } from './routeFinder';
 import type { FirstLegsRequest, RouteWorkerRequest, RouteWorkerResponse } from '@/workers/routeFinder.protocol';
 import { splitHours, type EstimateRequest, type Outcome } from './prestigeBy';
 
@@ -235,6 +235,14 @@ export class RoutePool {
     const m = await this.ask(0, { kind: 'polish', url, options, found });
     if (m.kind !== 'polish') throw new Error('unexpected reply');
     return m.found;
+  }
+
+  /** One route priced on the table as the finder prices it, in a worker (routeFinder.ts `priceChain`); null when a
+   *  stop can't be priced there (past the table, or not above the TE reached by then). */
+  async priceChain(url: string, options: PolishOptions, chain: number[]): Promise<Route | null> {
+    const m = await this.ask(0, { kind: 'price-chain', url, options, chain });
+    if (m.kind !== 'price-chain') throw new Error('unexpected reply');
+    return m.route;
   }
 
   async firstLegs(request: Omit<FirstLegsRequest, 'id' | 'kind'>): Promise<FirstLeg[]> {

@@ -77,6 +77,9 @@ export interface NowPlan {
   /** A Fast, Exact or Custom result's plan (lib/searchPlan.ts): which level and when it was found (ms). Absent: the
    *  instant answer's (or an older snapshot's Check exactly). */
   from?: { level: FoundLevel; at: number };
+  /** A followed route priced on the instant answer's data on this page (lib/followEstimate.ts): the table's times,
+   *  rounded like the instant answer's own. Absent otherwise. */
+  estimated?: boolean;
   /** By a date: the instant answer's own TE for the date (Check exactly confirms it when equal). */
   instantTE: number | null;
   /** When it was worked out, ms. */
