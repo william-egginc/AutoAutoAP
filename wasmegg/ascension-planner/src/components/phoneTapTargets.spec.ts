@@ -69,3 +69,97 @@ describe('Right now with no plan', () => {
     for (const t of tags) expect(t).toContain(TAP);
   });
 });
+
+/** Every opening tag that has `marker` in it (an attribute or a class run). */
+function tagsWith(src: string, marker: string): string[] {
+  const out: string[] = [];
+  for (let at = src.indexOf(marker); at > -1; at = src.indexOf(marker, at + 1)) {
+    const open = src.lastIndexOf('<', at);
+    out.push(src.slice(open, src.indexOf('>', at) + 1));
+  }
+  return out;
+}
+
+describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
+  it('Setup dock: − and + are 44 px squares on a phone, 24 px from sm up; Setup and Done are 44 px tall', () => {
+    const src = read('auto/SetupDock.vue');
+    // Their :disabled holds a "<" or ">", so each is taken from its "<button" to its label.
+    const steps = src.split('<button').filter(b => /^[^]*?aria-label="(?:Fewer|More) workers"/.test(b.split('</button>')[0]));
+    expect(steps).toHaveLength(2);
+    for (const t of steps) expect(t).toContain('w-11 h-11 sm:w-6 sm:h-6');
+    expect(tagWith(src, ':aria-expanded="ui.setupOpen"')).toContain('min-h-[44px] sm:min-h-0');
+    expect(tagWith(src, '@click="ui.setupOpen = false"')).toContain('min-h-[44px] sm:min-h-0');
+  });
+  it('the header chevron is 44 px tall on a phone (28 px from sm up)', () => {
+    const app = fs.readFileSync(path.resolve(__dirname, '../App.vue'), 'utf8');
+    expect(tagWith(app, ":aria-label=\"isHeaderCollapsed ? 'Open the top menu'")).toContain('h-11 sm:h-7');
+  });
+  it('the name pencil (in the shared PlayerIdForm) is 44 px square below sm, from this app’s stylesheet', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../styles/components.css'), 'utf8');
+    const rule = css.slice(css.indexOf('@media (max-width: 639.98px)'));
+    expect(rule).toContain('form:has(#playerId) button[aria-label="Edit name"]');
+    expect(rule).toContain('min-width: 44px;');
+    expect(rule).toContain('min-height: 44px;');
+    const form = fs.readFileSync(path.resolve(__dirname, '../../../../ui/components/PlayerIdForm.vue'), 'utf8');
+    expect(form).toContain('aria-label="Edit name"');
+  });
+  it('My runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, run Fast, Work out my plan)', () => {
+    expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-fresh"')).toContain(TAP);
+    const tile = read('myruns/SavedTile.vue');
+    expect(tagWith(tile, 'v-if="tile.sure.action"')).toContain(TAP);
+    expect(tagWith(tile, "@click=\"emit('open', screenOpen)\"")).toContain(TAP);
+    expect(tagWith(tile, "@click=\"emit('routes')\"")).toContain(TAP);
+    expect(tagWith(read('myruns/EventsTable.vue'), 'data-testid="now-run-fast"')).toContain(TAP);
+    const now = read('myruns/RightNowCard.vue');
+    expect(tagWith(now, 'data-testid="now-behind-run-fast"')).toContain(TAP);
+    expect(tagWith(now, 'data-testid="now-work-out-plan"')).toContain(TAP);
+    expect(tagWith(now, 'data-testid="now-follow-typed-summary"')).toContain(SUMMARY);
+    expect(tagWith(now, 'data-testid="now-timeline-summary"')).toContain(SUMMARY);
+  });
+  it('My runs: Try next chips, the Showing buttons, the section summaries and the Your runs chips', () => {
+    expect(tagWith(read('myruns/TryNext.vue'), ':data-testid="`now-try-${p.id}`"')).toContain('min-h-[44px] sm:min-h-0');
+    const view = read('MyRunsView.vue');
+    expect(tagWith(view, ':data-testid="`my-runs-show-${m.id}`"')).toContain('min-h-[44px] sm:min-h-0');
+    expect(view).toContain(`const SUMMARY = '${SUMMARY} `);
+    const bar = read('myruns/RunsExploreBar.vue');
+    expect(bar).toContain("const CHIP = 'min-h-[44px] sm:min-h-[32px] ");
+    expect(tagWith(bar, 'data-testid="runs-explore-summary"')).toContain('min-h-[44px]');
+    expect(tagWith(bar, 'data-testid="runs-explore-clear"')).toContain('min-h-[44px]');
+  });
+  it('Setup: Load latest save, Reset to defaults, the days, the device profiles, Make them wait too, time off', () => {
+    const src = read('auto/YourSetup.vue');
+    expect(tagWith(src, 'data-testid="setup-load-latest"')).toContain('min-h-[44px] sm:min-h-0');
+    const resets = tagsWith(src, 'data-testid="setup-reset"');
+    expect(resets).toHaveLength(2);
+    for (const t of resets) expect(t).toContain(TAP);
+    expect(tagWith(src, 'data-testid="setup-day"')).toContain('min-h-[44px] sm:min-h-0');
+    expect(tagWith(src, 'data-testid="setup-profile"')).toContain('min-h-[44px] sm:min-h-0');
+    expect(tagWith(src, '@click="store.deferShifts = true"')).toContain(TAP);
+    const off = read('auto/TimeOffEditor.vue');
+    expect(tagWith(off, ':data-testid="`${kind}-add`"')).toContain('min-h-[44px] sm:min-h-0');
+    expect(tagWith(off, 'data-testid="time-off-remove"')).toContain('min-h-[44px] sm:min-h-0');
+  });
+  it('the leaderboard view chips', () => {
+    expect(tagWith(read('auto/LeaderboardPanel.vue'), 'data-testid="board-view-tab"')).toContain('min-h-[44px] sm:min-h-0');
+  });
+});
+
+describe('nothing floating covers the end of the page on a phone', () => {
+  const app = fs.readFileSync(path.resolve(__dirname, '../App.vue'), 'utf8');
+  const rem = 16;
+  it('the Setup pill (1rem up, 44 px buttons in a py-1.5 pill) sits inside the room left under the page', () => {
+    const dock = read('auto/SetupDock.vue');
+    expect(dock).toContain("bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'");
+    expect(tagWith(dock, 'class="flex items-center gap-1 rounded-full bg-indigo-600')).toContain('py-1.5');
+    const pillTop = 1 * rem + 44 + 2 * 6; // from the bottom of the screen, on a phone
+    const room = Number(app.match(/SETUP_DOCK_CLEARANCE = 'calc\(env\(safe-area-inset-bottom, 0px\) \+ (\d+)rem\)'/)![1]) * rem;
+    expect(room).toBeGreaterThanOrEqual(pillTop + 16);
+  });
+  it('Manual: the notes and stats bubbles (7rem up below md, about 70 px tall) sit inside the 12rem under the page', () => {
+    for (const f of ['FloatingNotes.vue', 'FloatingStats.vue']) expect(read(f)).toContain('bottom-28 md:bottom-auto md:top-20');
+    expect(app).toContain("? 'pb-48 md:pb-8'");
+    expect(app).toContain(": 'pb-48 md:pb-24'");
+    const bubbleTop = 7 * rem + 6 + 16 + 4 + 36 + 6; // bottom-28, p-1.5, chevron, mb-1, 36 px icon, p-1.5
+    expect(48 * 4).toBeGreaterThanOrEqual(bubbleTop + 8);
+  });
+});

@@ -86,7 +86,7 @@
         shifts, time off, no-prestige days and first ascension. ·
         <button
           type="button"
-          class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
+          class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
           :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, hold shifts on, no time off, first ascension Fastest'"
           data-testid="setup-reset"
@@ -150,7 +150,7 @@
         shifts, time off, no-prestige days and first ascension. ·
         <button
           type="button"
-          class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
+          class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
           :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, hold shifts on, no time off, first ascension Fastest'"
           data-testid="setup-reset"
@@ -180,7 +180,8 @@
           <button
             type="button"
             :disabled="store.busy || ui.loading"
-            class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            class="min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            data-testid="setup-load-latest"
             @click="ui.backupRetryRequested++"
           >
             Load latest save
@@ -353,7 +354,8 @@
                 v-for="(label, day) in DAY_LABELS"
                 :key="day"
                 type="button"
-                class="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                data-testid="setup-day"
                 :class="
                   store.availableDays.includes(day)
                     ? 'bg-slate-800 text-white'
@@ -377,7 +379,7 @@
                  still be in that state; say so, with a way back. -->
             <p v-if="!store.deferShifts" class="text-[11px] font-semibold text-amber-700">
               This plan was saved with egg shifts not waiting for your hours.
-              <button type="button" class="underline font-bold" @click="store.deferShifts = true">
+              <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 underline font-bold" @click="store.deferShifts = true">
                 Make them wait too
               </button>
             </p>
@@ -426,7 +428,8 @@
                 :key="p.id"
                 type="button"
                 :disabled="store.isRunning"
-                class="px-2.5 py-1 rounded-md border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+                class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+                data-testid="setup-profile"
                 :class="
                   activeProfile === p.id
                     ? 'border-slate-800 bg-slate-800 text-white'

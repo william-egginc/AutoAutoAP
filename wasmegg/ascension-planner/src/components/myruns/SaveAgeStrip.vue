@@ -12,7 +12,7 @@
   >
     <template v-if="strip">{{ strip.text }}{{ ' ' }}</template>
     <template v-else>No save loaded: the page reads everything from your save.{{ ' ' }}</template>
-    <button type="button" class="font-bold underline disabled:opacity-50" :disabled="loading" @click="emit('fresh')">
+    <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline disabled:opacity-50" data-testid="now-save-fresh" :disabled="loading" @click="emit('fresh')">
       {{ loading ? 'Loading your save…' : strip ? strip.link : 'Load your save' }}<template v-if="!loading"> ›</template>
     </button>
   </div>

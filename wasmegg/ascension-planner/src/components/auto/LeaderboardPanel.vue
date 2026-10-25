@@ -224,7 +224,8 @@
           type="button"
           role="tab"
           :aria-selected="tab === t"
-          class="px-3 py-1.5 -mb-px rounded-t-lg text-[10px] font-black uppercase tracking-widest border border-b-0"
+          class="min-h-[44px] sm:min-h-0 px-3 py-1.5 -mb-px rounded-t-lg text-[10px] font-black uppercase tracking-widest border border-b-0"
+          data-testid="board-view-tab"
           :class="
             tab === t
               ? 'bg-white border-indigo-200 text-indigo-800'

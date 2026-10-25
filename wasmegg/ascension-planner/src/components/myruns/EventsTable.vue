@@ -54,7 +54,7 @@
     </div>
     <p v-if="rounded" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed" data-testid="now-events-rounded">
       From the instant answer, rounded to the hour. For exact times on your account,
-      <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-run-fast" @click="emit('runFast')">run Fast</button
+      <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-run-fast" @click="emit('runFast')">run Fast</button
       >.
     </p>
     <p v-else-if="upcoming.length" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed">

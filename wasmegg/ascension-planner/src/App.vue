@@ -1,13 +1,23 @@
 <template>
   <the-nav-bar active-entry-id="ascension-planner" />
 
-  <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, at most about 45 px tall with
-       My runs' summary line) the page ends 6rem plus the phone's safe area lower, so its last lines scroll clear of
-       the pill instead of under it (Jordan, 21 Oct 2026). -->
+  <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, 56 px tall on a phone with its
+       44 px buttons, about 45 px from sm up) the page ends 6rem plus the phone's safe area lower, so its last lines
+       scroll clear of the pill instead of under it (Jordan, 21 Oct 2026). On Manual below md the notes and stats
+       bubbles (FloatingNotes.vue, FloatingStats.vue: fixed 7rem up, about 70 px tall) sit over the page's sides, so
+       it ends 12rem lower there: anything, the Help improve the planner ticks too, scrolls clear of them. -->
   <div
     :class="[
       'min-h-screen bg-gray-100 transition-all duration-300',
-      setupDockShown ? '' : plannerTab === 'automatic' || isFooterCollapsed ? 'pb-8' : 'pb-24',
+      setupDockShown
+        ? ''
+        : plannerTab === 'manual'
+          ? isFooterCollapsed
+            ? 'pb-48 md:pb-8'
+            : 'pb-48 md:pb-24'
+          : plannerTab === 'automatic' || isFooterCollapsed
+            ? 'pb-8'
+            : 'pb-24',
     ]"
     :style="setupDockShown ? { paddingBottom: SETUP_DOCK_CLEARANCE } : undefined"
   >
@@ -117,7 +127,7 @@
            below the Auto Planner). -->
       <div v-if="playerId" class="flex justify-center mt-2" data-testid="header-toggle">
         <button
-          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider h-7 cursor-pointer"
+          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider h-11 sm:h-7 cursor-pointer"
           :aria-label="isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'"
           :aria-expanded="!isHeaderCollapsed"
           @click="isHeaderCollapsed = !isHeaderCollapsed"
@@ -957,7 +967,7 @@ const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = sto
 const setupDockShown = computed(
   () => (plannerTab.value === 'automatic' || plannerTab.value === 'myruns') && !!playerId.value && !loading.value
 );
-/** The pill's 1rem from the bottom, its height (45 px at most, with My runs' summary) and a margin, plus the safe area. */
+/** The pill's 1rem from the bottom, its height (56 px on a phone, about 45 px from sm up) and a margin, plus the safe area. */
 const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';
 
 /**
