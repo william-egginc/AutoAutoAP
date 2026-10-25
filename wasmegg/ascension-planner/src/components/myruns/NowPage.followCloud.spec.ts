@@ -431,5 +431,11 @@ describe('the prompt and Earlier versions on their own', () => {
     const view = read('../MyRunsView.vue');
     expect(view).toContain(':follow-not-saved="page.followNotSaved.value"');
     expect(view).toContain('@save-online="page.saveFollowOnline"');
+    // The routes saved online couldn't be read (25 Oct 2026): amber with Retry on Right now and in Earlier versions.
+    expect(card).toMatch(/text-amber-800" role="status" data-testid="now-follow-cloud-unreachable"/);
+    expect(card).toContain("@click=\"emit('retryCloud')\"");
+    expect(view).toContain('@retry-cloud="page.retryFollowCloud"');
+    expect(hist).toMatch(/text-amber-800" role="status" data-testid="follow-history-failed"/);
+    expect(hist).toContain('data-testid="follow-history-retry"');
   });
 });

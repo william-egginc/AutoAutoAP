@@ -1008,6 +1008,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** The followed route of the selected goal isn't saved online (stores/follow.ts `notSaved`): Right now says so, with
    *  "Save it online". */
   const followNotSaved = computed(() => !!followState.value && follows.notSaved(selectedGoal.value));
+  /** The account's routes saved online couldn't be read on this load (stores/follow.ts `cloudStatus`): Right now says
+   *  so in amber, with Retry, as following still works in this browser (UX review, 25 Oct 2026: not red). */
+  const followCloudUnreachable = computed(() => follows.online && follows.cloudStatus === 'unreachable');
+  /** Retry: read the saved routes again now, whatever the last read's age. */
+  function retryFollowCloud(): void {
+    void follows.loadCloud(true);
+  }
   /** "Save it online": the followed route of the selected goal saved now (a Follow press's save). */
   function saveFollowOnline(): void {
     const g = selectedGoal.value;
@@ -1283,6 +1290,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     followSaveWords,
     followNotSaved,
     saveFollowOnline,
+    followCloudUnreachable,
+    retryFollowCloud,
     goalChoices,
     selectedGoal,
     selectGoal,

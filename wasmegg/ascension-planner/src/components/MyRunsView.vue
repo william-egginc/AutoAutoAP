@@ -68,7 +68,9 @@
         :follow-set-with="page.followSetWith.value"
         :follow-save-words="page.followSaveWords.value"
         :follow-not-saved="page.followNotSaved.value"
+        :follow-cloud-unreachable="page.followCloudUnreachable.value"
         @save-online="page.saveFollowOnline"
+        @retry-cloud="page.retryFollowCloud"
         @open="to => emit('open', to)"
         @select="page.selectGoal"
         @start-times="openStartTimes"
@@ -129,7 +131,6 @@
     <section id="my-runs-your-runs" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3" data-testid="my-runs-your-runs">
       <div>
         <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Your runs</p>
-        <p class="text-[11px] text-slate-500">"Dig deeper into your plan ›" and "See the routes ›" land here.</p>
         <p class="text-[11px] text-slate-500" data-testid="my-runs-baseline-intro">
           Each run is compared with your <b>instant answer</b>: the one for your save on the day of the run.
         </p>

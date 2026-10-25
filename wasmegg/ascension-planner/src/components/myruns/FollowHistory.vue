@@ -11,7 +11,17 @@
       <span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>
     </summary>
     <p v-if="state === 'loading'" class="mt-1 text-slate-500">Loading…</p>
-    <p v-else-if="state === 'failed'" class="mt-1 text-slate-500" data-testid="follow-history-failed">Couldn't load the earlier versions right now.</p>
+    <p v-else-if="state === 'failed'" class="mt-1 text-amber-800" role="status" data-testid="follow-history-failed">
+      Couldn't load the earlier versions right now.{{ ' ' }}
+      <button
+        type="button"
+        class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="follow-history-retry"
+        @click="load"
+      >
+        Retry ›
+      </button>
+    </p>
     <p v-else-if="state === 'ready' && !versions.length" class="mt-1 text-slate-500" data-testid="follow-history-none">
       No earlier versions saved for this goal yet.
     </p>

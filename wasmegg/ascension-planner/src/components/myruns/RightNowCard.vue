@@ -159,6 +159,19 @@
         Save it online ›
       </button>
     </p>
+    <!-- The routes saved online couldn't be read on this load: amber with Retry, never red, as following still works in
+         this browser (UX review, 25 Oct 2026). -->
+    <p v-if="followCloudUnreachable" class="text-[12px] text-amber-800" role="status" data-testid="now-follow-cloud-unreachable">
+      {{ UNREACHABLE_NOTE }} Following still works in this browser.{{ ' ' }}
+      <button
+        type="button"
+        class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+        data-testid="now-follow-cloud-retry"
+        @click="emit('retryCloud')"
+      >
+        Retry ›
+      </button>
+    </p>
     <!-- A newer, better result for the goal while a route is followed: asked, never swapped in (lib/searchPlan.ts). -->
     <BetterRoutePrompt
       v-if="follow && betterRoute"
@@ -444,7 +457,7 @@ import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
 import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
 import { askGoal, recalcButton, recalcWords, type RecalcRequest } from '@/lib/recalc';
 import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
-import { NOT_SAVED_WORDS } from '@/lib/followCloud';
+import { NOT_SAVED_WORDS, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { ESTIMATE_WORDS } from '@/lib/followEstimate';
 import { deadlineKind } from '@/lib/eggDayRule';
 import { parseTypedRoute } from '@/lib/follow';
@@ -498,6 +511,8 @@ const props = defineProps<{
   followSaveWords?: string;
   /** The followed route isn't saved online (stores/follow.ts `notSaved`): said, with "Save it online". */
   followNotSaved?: boolean;
+  /** The routes saved online couldn't be read on this load (stores/follow.ts `cloudStatus` 'unreachable'). */
+  followCloudUnreachable?: boolean;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -512,9 +527,11 @@ const emit = defineEmits<{
   useSearch: [];
   /** A route typed in "Follow another route": follow it for this goal. */
   follow: [chain: number[]];
-  /** "Use the checked route ›": back to the planner's pick for this goal. */
+  /** "Use the planner's route ›": back to the planner's pick for this goal. */
   unfollow: [];
   saveOnline: [];
+  /** Retry reading the routes saved online (stores/follow.ts `loadCloud(true)`). */
+  retryCloud: [];
   /** "Simulate it ›": the followed route in Single run (search/simulateRoute.ts). */
   simulate: [chain: number[]];
 }>();
