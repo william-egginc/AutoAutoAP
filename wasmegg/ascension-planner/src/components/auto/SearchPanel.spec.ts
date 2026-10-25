@@ -155,7 +155,8 @@ describe('the card', () => {
   });
   it('"What this does and does not promise" once: one per option, in parts never shown together (source)', () => {
     const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
-    expect(read('StrongerBox.vue').match(/What this does and does not promise\s*<\/summary>/g)).toHaveLength(1);
+    // A PanelFold since 25 Oct (lib/panelFold.ts): its title is the summary.
+    expect(read('StrongerBox.vue').match(/title="What this does and does not promise"/g)).toHaveLength(1);
     expect(read('SearchPanel.vue')).not.toMatch(/does not promise\s*</);
     for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
       const s = read(f);

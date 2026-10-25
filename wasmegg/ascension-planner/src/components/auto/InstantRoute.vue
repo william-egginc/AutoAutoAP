@@ -395,8 +395,9 @@
         <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
              A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1). -->
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
-          <p class="text-[9px] font-black uppercase tracking-widest text-slate-500">Every number of ascensions</p>
           <PreferFewerControl v-model="preferMargin" goal="date" />
+          <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
+          <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-[11px] text-slate-600">
           <div class="overflow-x-auto" data-testid="counts-scroll">
             <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-[12px]" data-testid="counts-table">
               <thead>
@@ -453,6 +454,7 @@
               </tbody>
             </table>
           </div>
+          </PanelFold>
           <MaxedWhatIf
             v-if="whatIf"
             v-bind="whatIf"
@@ -563,8 +565,9 @@
         </p>
         <!-- Every number of ascensions, instant numbers only. A table from 30rem up; stacked rows below it. -->
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
-          <p class="text-[9px] font-black uppercase tracking-widest text-slate-500">Every number of ascensions</p>
           <PreferFewerControl v-model="preferMargin" goal="fastest" />
+          <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
+          <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-[11px] text-slate-600">
           <div class="overflow-x-auto" data-testid="counts-scroll">
             <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-[12px]" data-testid="counts-table">
               <thead>
@@ -641,6 +644,7 @@
             More ascensions don't help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
             extra stop only adds a prestige.
           </p>
+          </PanelFold>
           <MaxedWhatIf
             v-if="whatIf"
             v-bind="whatIf"
@@ -673,8 +677,8 @@
           Not in the instant answer's routes: your {{ leftOut.join(', ') }}. Fast, Exact and Custom include them.
         </p>
 
-        <details class="text-[11px] text-slate-500" data-testid="instant-how">
-          <summary class="cursor-pointer font-bold text-slate-600 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0" data-testid="instant-how-summary">How this is worked out</summary>
+        <!-- Folded (lib/panelFold.ts `howWorkedOut`). -->
+        <PanelFold section="howWorkedOut" title="How this is worked out" testid="instant-how" class="text-[11px] text-slate-500" summary-class="text-slate-600">
           <p class="mt-1 leading-relaxed">
             Every ascension {{ own ? 'your account can make, with the gear your save has now,' : 'a maxed account can make' }}
             was simulated ahead of time, from every TE at every hour of the week, so
@@ -717,7 +721,7 @@
             <a href="#/science/how" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.how }}</a
             >.
           </p>
-        </details>
+        </PanelFold>
       </template>
     </template>
   </section>
@@ -817,6 +821,7 @@ import {
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
 import GearCaveat from './GearCaveat.vue';
+import PanelFold from './PanelFold.vue';
 import { gearReadsMaxed, optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
