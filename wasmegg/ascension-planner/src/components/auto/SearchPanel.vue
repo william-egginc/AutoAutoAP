@@ -59,20 +59,20 @@
         :disabled="running && selected !== o.id"
         :data-testid="`search-option-${o.id}`"
         class="min-h-[44px] min-w-0 rounded-xl px-1.5 py-2 sm:px-3 text-center sm:text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-55"
-        :class="selected === o.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-500 hover:text-slate-800'"
+        :class="selected === o.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-600 hover:text-slate-800'"
         @click="choose(o.id)"
       >
         <span class="block text-[12px] font-black uppercase tracking-widest">{{ o.label }}</span>
         <span
           class="block mt-0.5 text-[10px] font-bold"
-          :class="selected === o.id ? 'text-indigo-500' : 'text-slate-400'"
+          :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
           :data-testid="`search-option-time-${o.id}`"
           >{{ o.time }}</span
         >
         <!-- What it is for, small, before the player clicks (the user, 15 Oct; kept, Jordan 22 Oct). -->
         <span
           class="block mt-0.5 text-[10px] font-semibold leading-tight"
-          :class="selected === o.id ? 'text-indigo-400' : 'text-slate-400'"
+          :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
           :data-testid="`search-option-for-${o.id}`"
           >{{ o.purpose }}</span
         >

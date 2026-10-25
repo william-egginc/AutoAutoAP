@@ -16,7 +16,7 @@
 <template>
   <div class="space-y-4">
     <div class="space-y-1">
-      <h2 class="text-2xl font-black text-slate-900">How it works, and how we checked it</h2>
+      <h1 class="text-2xl font-black text-slate-900">How it works, and how we checked it</h1>
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
         What the planner does to find a route, how each number is worked out, how far we've checked it against the full
         simulator, and what it doesn't cover yet. Updated {{ UPDATED }}.

@@ -24,7 +24,7 @@
 <template>
   <div class="space-y-3 pb-16" data-testid="my-runs">
     <div>
-      <h2 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h2>
+      <h1 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h1>
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
         <template v-if="hasBoard">
           Where you are now, from your save and the answers already worked out, then your runs: the latest, the ones on

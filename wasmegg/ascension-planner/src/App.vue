@@ -79,9 +79,10 @@
           :class="isHeaderCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'"
         >
           <div class="overflow-hidden">
-            <h1 class="mx-4 mt-8 mb-2 text-center heading-xl text-gradient">
+            <!-- The page's h1 until a screen shows its own title (`screenHasH1`); then the same words, not a heading. -->
+            <component :is="screenHasH1 ? 'p' : 'h1'" class="mx-4 mt-8 mb-2 text-center heading-xl text-gradient">
               {{ pageTitle }}
-            </h1>
+            </component>
             <div
               v-if="initialStateStore.hasData && lastBackupFormatted"
               class="text-center text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-4 -mt-1"
@@ -144,6 +145,14 @@
         </button>
       </div>
 
+      <!-- The screen itself (the UX review of 25 Oct 2026): one main landmark from here to the footer, and each screen's title
+           is its h1 (Manual's just below; the others' in their own components). -->
+      <main id="main-content">
+      <!-- A running search's progress, said to a screen reader at most every 10 s and at its end. -->
+      <RunAnnouncer />
+      <h1 v-if="plannerTab === 'manual' && playerId" class="mt-4 text-center text-2xl font-black text-slate-900">
+        {{ NAMES.manual }}
+      </h1>
       <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
            first), above every tab's own content, at the page level so it is the same place on every tab. Once an
            account is in and only with a collector. Inline, never over NewVersionBanner's fixed bar. Gone once answered. -->
@@ -347,7 +356,7 @@
                 :class="
                   autoView === v.id
                     ? 'border-indigo-600 text-indigo-700'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
                 "
                 @click="onAutoTab(v.id)"
               >
@@ -370,7 +379,7 @@
               <button
                 v-if="myRunsTabShown"
                 type="button"
-                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-400 hover:text-slate-700"
+                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-600 hover:text-slate-900"
                 data-testid="auto-tab-myruns"
                 @click="selectSection('myruns')"
               >
@@ -392,7 +401,7 @@
               :class="
                 scienceView === v.id
                   ? 'border-amber-600 text-amber-700'
-                  : 'border-transparent text-slate-400 hover:text-slate-700'
+                  : 'border-transparent text-slate-600 hover:text-slate-900'
               "
               @click="scienceView = v.id"
             >
@@ -582,6 +591,7 @@
           :inert="blockedBy && autoView !== 'fastest' ? true : undefined"
         >
           <template v-if="autoView === 'classic'">
+            <h1 class="max-w-4xl mx-auto text-2xl font-black text-slate-900">{{ NAMES.classic }}</h1>
             <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
               <span class="font-bold text-slate-900">{{ NAMES.classicFirst }}</span> is Joo's original planner: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
@@ -636,7 +646,7 @@
              too many boxes there). A result's "Check start times for this route" opens it on that route. -->
         <StartTimeCard v-else-if="scienceView === 'start'" />
         <div v-else>
-          <h2 class="text-2xl font-black text-slate-900">Help check the planner</h2>
+          <h1 class="text-2xl font-black text-slate-900">Help check the planner</h1>
           <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
             <template v-if="scienceView === 'check'">
               These are the runs the board still needs: Egg Day runs that check the instant answer ascension by
@@ -753,6 +763,8 @@
       <FloatingStats v-if="plannerTab === 'manual'" />
       <FloatingNotes v-if="plannerTab === 'manual'" />
 
+      </main>
+
       <!-- On every screen, at the end of the page (a plain link, so it shows on phones too). -->
       <footer class="pt-8 text-center text-[11px] text-slate-500" data-testid="site-footer">
         <a
@@ -826,6 +838,7 @@ import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
 import MyRunsView from '@/components/MyRunsView.vue';
 import SetupDock from '@/components/auto/SetupDock.vue';
+import RunAnnouncer from '@/components/auto/RunAnnouncer.vue';
 import { setupSummary } from '@/lib/nowWords';
 import SweepRunner from '@/components/science/SweepRunner.vue';
 import HowItWorks from '@/components/science/HowItWorks.vue';
@@ -966,6 +979,18 @@ const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = sto
 /** The floating Setup pill shows (the two SetupDock mounts below): the page keeps room under its content for it. */
 const setupDockShown = computed(
   () => (plannerTab.value === 'automatic' || plannerTab.value === 'myruns') && !!playerId.value && !loading.value
+);
+/**
+ * A screen shows its own h1 (its title): every Auto Planner screen once the save is in, My runs, Science's three
+ * pages, the Leaderboard, and Manual with an account. Until then the header's title is the page's h1.
+ */
+const screenHasH1 = computed(
+  () =>
+    (plannerTab.value === 'automatic' && !!playerId.value && !loading.value) ||
+    plannerTab.value === 'myruns' ||
+    plannerTab.value === 'science' ||
+    plannerTab.value === 'leaderboard' ||
+    (plannerTab.value === 'manual' && !!playerId.value)
 );
 /** The pill's 1rem from the bottom, its height (56 px on a phone, about 45 px from sm up) and a margin, plus the safe area. */
 const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';

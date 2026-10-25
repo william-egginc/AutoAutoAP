@@ -12,6 +12,9 @@
   send one. With the player's yes already given (Find and submit, or the screen's box) it sends from
   here; without it, it goes to the run's screen, where the box asks first and ticking it sends. Every
   outcome -- sent, too soon, refused, an error, or "tick the box" -- is said under the bar.
+
+  Not a live region itself (its figures change every second): RunAnnouncer.vue says the progress to a screen
+  reader at most every 10 s, and when the run ends.
 -->
 <template>
   <div
@@ -19,8 +22,6 @@
     data-run-bar
     class="sticky z-40 max-w-full overflow-hidden rounded-2xl bg-slate-900 text-white shadow-[0_12px_32px_rgba(0,0,0,0.35)] px-4 py-3 space-y-2"
     style="top: calc(env(safe-area-inset-top, 0px) + 0.5rem)"
-    role="status"
-    aria-live="polite"
   >
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <p class="flex-[1_1_18rem] min-w-0 text-[12px] font-bold leading-snug break-words">
