@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// The cell sweeps price real tables: slow when this machine is loaded (timed out at 20 s, passes alone).
+vi.setConfig({ testTimeout: 120_000 });
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { packTable, readTable, type TableHeader } from './precomputedTable';
