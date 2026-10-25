@@ -350,7 +350,7 @@ describe('Your latest run: one account at a time (Jordan, 16 Oct: another accoun
     const store = fs.readFileSync(path.join(__dirname, '../../stores/chainSearch.ts'), 'utf8');
     // Both Fastest starts and an opened saved run.
     expect(store.match(/tagChainResult\(playerId\);/g)?.length).toBe(2);
-    expect(store).toMatch(/chainResultAt\.value = summary\.savedAt \|\| 0;\s*chainOwnerSeq\+\+;\s*chainResultOwner\.value = owner;/);
+    expect(store).toMatch(/chainResultAt\.value = summary\.savedAt \|\| 0;\s*chainRunSaveAt\.value = [^;]*;\s*chainOwnerSeq\+\+;\s*chainResultOwner\.value = owner;/);
     // By a date: read back from IndexedDB, an opened saved answer, a run.
     expect(store).toMatch(/deadlineResult\.value = loadedResult;\s*deadlineResultOwner\.value = owner;/);
     expect(store).toContain('deadlineResultOwner.value = savedAnswersOwner;');
