@@ -29,7 +29,7 @@ describe('not on virtue yet: each goal from its saved plan', () => {
   it('"If you start <date>: …" per goal, and what has nothing saved', () => {
     const lines = startLines(
       [
-        { key: 'fastest-490', name: 'Race to 490', goal: 'fastest', target: 490, plan: p({}) },
+        { key: 'fastest-490', name: 'Fastest to 490 TE', goal: 'fastest', target: 490, plan: p({}) },
         {
           key: 'eggday-2027',
           name: 'Egg Day 2027',
@@ -42,14 +42,14 @@ describe('not on virtue yet: each goal from its saved plan', () => {
       NOW,
       ZONE
     ).map(l => l.text);
-    expect(lines[0]).toBe('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Race to 490, simulator check)');
+    expect(lines[0]).toBe('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Fastest to 490 TE, simulator check)');
     expect(lines[1]).toBe('If you start Oct 30 at 6:00 pm: Egg Day 2027 TE 313 (instant answer)');
     expect(lines[2]).toBe('By Mar 3, 2027: no start time is priced yet');
   });
 
   it('nothing saved at all: no lines (the card says no start time is priced yet)', () => {
     expect(
-      startLines([{ key: 'fastest-490', name: 'Race to 490', goal: 'fastest', target: 490, plan: null }], NOW, ZONE)
+      startLines([{ key: 'fastest-490', name: 'Fastest to 490 TE', goal: 'fastest', target: 490, plan: null }], NOW, ZONE)
     ).toEqual([]);
   });
 });

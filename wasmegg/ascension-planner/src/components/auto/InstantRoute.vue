@@ -695,18 +695,18 @@
           </p>
           <p v-else-if="own" class="mt-1 leading-relaxed">
             This instant answer was built on your own account: your earnings and delivery sets, epic research and
-            colleggtibles as your save has them now (Clothed TE bonus {{ header?.cteBonus }}). Each of its ascensions is
+            colleggtibles as your save has them now (Clothed TE {{ header?.cteBonus }}). Each of its ascensions is
             the simulator's own build, and the waiting after it is the simulator's own arithmetic, so a route here
             matches the full simulator on your account. Your first ascension is your own, simulated from your save the
-            way Your setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now). If your
+            way Setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now). If your
             gear changes, the page goes back to the instant answer for fully maxed gear until yours is made again.
           </p>
           <p v-else class="mt-1 leading-relaxed">
-            The instant answer was built on a maxed account: perfect delivery set, Clothed TE bonus
+            The instant answer was built on a maxed account: perfect delivery set, Clothed TE
             {{ header?.cteBonus }}, all epic research and colleggtibles. Each of its ascensions is the simulator's own
             build, and the waiting after it is the simulator's own arithmetic, so on that account a route here matches
             the full simulator to the second. For you: your first ascension is your own, simulated from your save the
-            way Your setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now); the
+            way Setup's first ascension says (Continue my build-up, Finish without buying, or Prestige now); the
             waits run at your own peak delivery rate ({{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of the instant
             answer's: the best set your inventory can wear at full research), and each ascension is read from the row
             for its own TE. The weekly sale is at a fixed Pacific time, so the hour of the week is what matters.

@@ -95,7 +95,7 @@ describe('checkBandText', () => {
     expect(issue.code).toBe('belowCurrent');
     expect(issue.message).toContain(`starts at your TE now (${cur})`);
     // It says what the First ascension setting actually is: Fastest unless told otherwise.
-    expect(issue.message).toContain('the First ascension setting in Your setup, which is Fastest');
+    expect(issue.message).toContain('the First ascension setting in Setup, which is Fastest');
     expect(issue.message).toContain(`Did you mean ${cur + 1}-${cur + 30}:1`);
     const text = `${cur}-${cur + 30}:1; 215-245:10`;
     expect(checkBandText(text, { ...ctx, firstAscension: 'continue' })[0].message).toContain(

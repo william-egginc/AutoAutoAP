@@ -83,13 +83,13 @@ export const NAMES = {
    *  the search that starts from the instant answer (was Simple: Fastest's Smart search, By a date's
    *  Simple routes) and the one over boxes you set (was Advanced: Fastest's Full sweep, By a date's
    *  chain editor). Batch 3 called them Simple and Advanced. */
-  smart: 'Nearby routes',
-  full: 'Exhaustive',
+  smart: 'Fast and Exact',
+  full: 'Custom',
   /** The older names, kept in brackets on first mention so regulars aren't lost. */
   smartWas: 'Simple',
   fullWas: 'Advanced',
-  smartFirst: 'Nearby routes (was Simple)',
-  fullFirst: 'Exhaustive (was Advanced)',
+  smartFirst: 'Fast and Exact',
+  fullFirst: 'Custom',
   /** The study box above the tabs (StudyBox.vue) and its section in Setup (StudySetup.vue), 21 Oct 2026. */
   study: 'Help improve the planner',
   /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner and My runs. */
@@ -107,7 +107,7 @@ export function simulateNote(button = 'Simulate this plan'): string {
 export const SIMULATE_TITLE = `Opens this route in ${NAMES.classic} (Joo's original planner) and simulates every shift on your save`;
 
 /** The exhaustive way's full title, as the chooser names it. */
-export const EXHAUSTIVE_TITLE = 'Exhaustive: every route in boxes you set';
+export const EXHAUSTIVE_TITLE = 'Custom: every route in boxes you set';
 
 /** Fastest's name at the Final target TE ("Fastest to 490 TE" by default; `NAMES.fastest` is that default). */
 export function fastestName(finalTE?: number): string {

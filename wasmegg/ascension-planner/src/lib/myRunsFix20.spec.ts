@@ -183,7 +183,7 @@ describe('the Egg Day and Fastest tiles prefer the newest answer for the loaded 
       standing: '',
       standingLabel: 'Egg Day',
     });
-    expect(textOf(html)).toContain('Exhaustive · from your board run sent from another browser');
+    expect(textOf(html)).toContain('Custom · from your board run sent from another browser');
     // This browser's own board run says so too, without "another browser".
     const own = buildTile({ ...base, goal: 'date', target: 490, deadline: EGG_DAY, board: [pc(309, { yours: true })], saved: [old] });
     expect(sourceWords(own.answer!)).toBe('from your board run');

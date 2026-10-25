@@ -27,8 +27,8 @@ beforeEach(() => {
 const race: GoalOption = {
   key: 'fastest-490',
   kind: 'race',
-  label: 'Race to 490',
-  name: 'Race to 490',
+  label: 'Fastest to 490 TE',
+  name: 'Fastest to 490 TE',
   deadline: null,
   state: 'plan',
   calculatedAt: (NOW - 3 * H) * 1000,

@@ -106,7 +106,7 @@ export function goalName(row: BoardRow, eggDayAt: number, eggDayYear: number, zo
   const kind = runKind(row, eggDayAt);
   if (kind === 'eggday') return `Egg Day ${eggDayYear}`;
   if (kind === 'dates') return `By ${dayText((row.deadline as number) * 1000, zone, now)}`;
-  return `Race to ${row.finalTE}`;
+  return `Fastest to ${row.finalTE} TE`;
 }
 
 /** A row's hours as Your setup words them: "your hours 9 am to 1 am", "any hour". Null: not said. */

@@ -385,7 +385,7 @@ export function quickEstimateIssue(o: {
   canStart: boolean;
   issue: string;
 }): string {
-  if (!o.setupLoaded) return 'Waiting for your setup to load…';
+  if (!o.setupLoaded) return 'Waiting for Setup to load…';
   if (o.busy) return 'Another search is running; this can start once it ends.';
   if (o.blocked) return 'Your save needs a look first (see the note above).';
   if (!o.canStart) return o.issue || 'Pick a date and time first.';
@@ -396,7 +396,7 @@ export function quickEstimateIssue(o: {
 export function quickEstimateNote(canWiden: boolean): string {
   return canWiden
     ? 'This is a quick estimate: Widen and run again looks further.'
-    : 'This is a quick estimate: Exhaustive looks further, in boxes you set.';
+    : 'This is a quick estimate: Custom looks further, in boxes you set.';
 }
 
 /** The plain note beside an answer the fallback found (`SavedDeadlineResult.fallback`). */

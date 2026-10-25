@@ -75,7 +75,7 @@
       <span class="text-slate-600">Colour is the ascension count, not an account</span>
       <span><span aria-hidden="true">●</span> a finished box at every TE</span>
       <span><span aria-hidden="true">○</span> a finished box that stepped over TEs</span>
-      <span><span aria-hidden="true">⊗</span> a Nearby routes search, or a box it did not finish</span>
+      <span><span aria-hidden="true">⊗</span> a Fast or Exact search, or a box it did not finish</span>
       <span><span aria-hidden="true">◆</span> priced again inside a later run (a re-check or a runner-up)</span>
       <span><span aria-hidden="true">——</span> the same plan, priced at different times</span>
       <span v-if="hasFaded"

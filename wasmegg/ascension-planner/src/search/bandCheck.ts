@@ -202,7 +202,7 @@ export function checkBandText(text: string, ctx: BandCheckContext): BandIssue[] 
           first === cur
             ? // A stop is an ascension still to come. Ascending straight away is the First ascension
               // setting (Your setup, or Classic's A1 dropdown), not a stop at TE now.
-              `${band(n)} starts at your TE now (${cur}). A stop is an ascension still to come, so your TE now isn't one. Whether to ascend straight away or finish this ascension first is the First ascension setting in Your setup, which is ${firstAscensionNow(ctx.firstAscension)}. Did you mean ${formatBand(inRange)}?`
+              `${band(n)} starts at your TE now (${cur}). A stop is an ascension still to come, so your TE now isn't one. Whether to ascend straight away or finish this ascension first is the First ascension setting in Setup, which is ${firstAscensionNow(ctx.firstAscension)}. Did you mean ${formatBand(inRange)}?`
             : `${band(n)} starts at ${first}, at or below the TE you're at now (${cur}). Those values can't be played. Did you mean ${formatBand(inRange)}?`,
         fix: withSegment(segs, i, formatBand(inRange)),
       });

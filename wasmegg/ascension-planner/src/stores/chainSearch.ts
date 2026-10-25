@@ -2725,7 +2725,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const { initPlanFuture } = await import('@/lib/modes/planFuture');
         await initPlanFuture(playerId, inputs.context.rawBackup);
       } catch (e) {
-        error.value = `This run's stored save could not be loaded (${describeRunError(e)}). Reload your save and start again.`;
+        error.value = `This run's stored save could not be loaded (${describeRunError(e)}). Reload your save and press Find again.`;
         return null;
       }
     }
@@ -2814,7 +2814,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!run) return 'no run is loaded';
     if (run.complete) return 'this run finished, so there is nothing left to price';
     if (!run.space) {
-      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same bands and start again, and anything it already priced will be replayed';
+      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same bands and press Find again, and anything it already priced will be replayed';
     }
     if (!currentPlayerId) return 'no player id, so there is no way to check the run is still valid';
     // With its own save stored, the run carries on with that save, not the current one; only the
@@ -4494,7 +4494,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
      *  left unsent), `message` says so with the code to quote, and `id` is that code. */
     quarantined?: boolean;
   }> {
-    if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    if (!submitUrl) return { ok: false, message: "the planner's server is not configured" };
     // The instant baseline, when the player shares it (never for a result sent from a file: another save's).
     if (!saved) payload = withBaseline(payload);
     // A payload whose start contradicts its own save is never sent, from any screen or the command
@@ -4657,7 +4657,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         }
         if (res.status === 429) return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter) };
         const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : '';
-        return { ok: false, message: `collector said ${res.status}${why}` };
+        return { ok: false, message: `the planner's server said ${res.status}${why}` };
       }
       reply = ((await res.json().catch(() => ({}))) ?? {}) as SubmitReply;
     } catch {
@@ -4669,7 +4669,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ok: false,
         message: ctrl.signal.aborted
           ? `the board didn't answer within ${Math.round(SUBMIT_TIMEOUT_MS / 1000)} seconds. Your results are still here; press it again in a while.`
-          : 'could not reach the collector (check your connection). Your results are still here. Press Submit again once you are back online, or use Save the file instead to keep a copy.',
+          : "could not reach the planner's server (check your connection). Your results are still here. Press Submit again once you are back online, or use Save the file instead to keep a copy.",
       };
     } finally {
       clearTimeout(answerTimer);
@@ -4716,7 +4716,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : '';
     const note =
       (flagged?.length
-        ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; the Route Explorer shows it to you as yours in this browser.`
+        ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; Insights shows it to you as yours in this browser.`
         : '') + replacedNote;
     // A copy the collector caught is said as a plain note, not an error and not a thank-you for
     // something that stored nothing (see `duplicateMessage`).
@@ -4742,7 +4742,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (duplicate === 'exact' && !uploadToken) return done(lead + note);
     if (!id) return done(`${lead} (no id came back, so the CSV was skipped)${note}`);
     // The collector only accepts a CSV carrying the token its /submit answer signed for this id.
-    if (!uploadToken) return done(`${lead} (the collector does not take CSVs, so it was skipped)${note}`);
+    if (!uploadToken) return done(`${lead} (the planner's server does not take CSVs, so it was skipped)${note}`);
     // A table's outcome is written to follow "sent". A result from another search IS a send, so it
     // reads on from that lead; for a result already on the board it is what happened to THAT row's
     // missing table ("its missing CSV was added"), never "nothing new stored - sent, with the CSV".
@@ -5409,7 +5409,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * so nobody can put their name on another player's run. Resolves to a message; never throws.
    */
   async function claimName(id: string, nickname: string): Promise<{ ok: boolean; message: string }> {
-    if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    if (!submitUrl) return { ok: false, message: "the planner's server is not configured" };
     const name = cleanName(nickname);
     if (!name) return { ok: false, message: 'type the name to put on it first.' };
     const partition = await accountPartition();
@@ -5418,7 +5418,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message:
-          'this browser has no code for the account, so it cannot show the collector the run is yours (it was sent from another browser, or site data was cleared).',
+          "this browser has no code for the account, so it cannot show the planner's server the run is yours (it was sent from another browser, or site data was cleared).",
       };
     }
     let res: Response;
@@ -5432,7 +5432,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message:
-          'could not reach the collector (check your connection). Nothing changed. Try again once you are back online.',
+          "could not reach the planner's server (check your connection). Nothing changed. Try again once you are back online.",
       };
     }
     if (res.ok) {
@@ -5472,12 +5472,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           message: 'the board has not caught up with that send yet. Nothing is lost. Try again in a minute.',
         };
       }
-      return { ok: false, message: 'the board does not have that run (or this collector cannot rename runs yet).' };
+      return { ok: false, message: "the board does not have that run (or the planner's server cannot rename runs yet)." };
     }
     if (res.status === 429)
       return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter).replace('press Submit', 'press it') };
     const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : detail.error ? `: ${detail.error}` : '';
-    return { ok: false, message: `collector said ${res.status}${why}` };
+    return { ok: false, message: `the planner's server said ${res.status}${why}` };
   }
 
   /**
@@ -6210,7 +6210,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (blocking.length || moved) {
       error.value = blocking.length
         ? blocking[0].message
-        : 'Your plan start or settings changed while the run was starting. Check them, then press Start again.';
+        : 'Your plan start or settings changed while the run was starting. Check them, then press Find.';
       errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
@@ -6506,7 +6506,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runLog.value.push(`--- a search worker stopped: ${e.message.slice(0, 160)}`);
     runNotes.value = [
       ...runNotes.value,
-      'A search worker stopped, so the search ended early with the best route it had found. Start the search again to carry on: the routes already priced are kept.',
+      'A search worker stopped, so the search ended early with the best route it had found. Press Find again to carry on: the routes already priced are kept.',
     ];
     refreshShortlist(true);
     runEnd = (await persist(liveCache, true, false)) ? 'stopped' : 'failed';
@@ -6915,7 +6915,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return;
     }
     if (!(spec.deadline > inputs.planStart)) {
-      error.value = 'The deadline is before the plan starts.';
+      error.value = 'The date is before the plan starts.';
       return;
     }
     const key = runSaveKey(inputs);
@@ -6971,7 +6971,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       const inputs = await loadRunInputs(partitionHash, cp.inputsKey);
       if (!inputs) {
-        error.value = `This search's save is no longer stored on ${thisDevice()}, so it can't carry on. Start it again.`;
+        error.value = `This search's save is no longer stored on ${thisDevice()}, so it can't carry on. Press Find again.`;
         return;
       }
       ready = [cp, inputs, (cp.account as AccountSnapshot | undefined) ?? accountFromStoredSave(inputs)];
@@ -7319,7 +7319,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // for their peak delivery, starts, shifts and leg-1 rival before anything is saved or sent.
       // A run stopped by hand wants its answer now: its top ten, not fifty.
       if (seedCount) {
-        deadlineProgress.value = { ...deadlineProgress.value!, stage: "filling in the best routes' legs" };
+        deadlineProgress.value = { ...deadlineProgress.value!, stage: "filling in the best routes' ascensions" };
         const top = out.routes.slice(0, out.stoppedEarly ? 10 : REPRICE_TOP_ROUTES);
         await repriceReplayedRoutes([...top, ...out.byStops.values()], chains =>
           workers.evaluate(chains, undefined, { spreadOut: true, memo }).then(r => {
@@ -8787,7 +8787,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       planner.timeOffCuts = null;
       if (usableTimeOff(timeOff.value).length && !legs.length) {
         applyNote.value =
-          "This route's leg detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Use one of the top routes, or re-run to price it again.";
+          "This route's ascension detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Use one of the top routes, or re-run to price it again.";
       }
     }
     // NO PRESTIGE ON THESE DAYS (search/noPrestige.ts): the search held these prestiges; the plan builder does not

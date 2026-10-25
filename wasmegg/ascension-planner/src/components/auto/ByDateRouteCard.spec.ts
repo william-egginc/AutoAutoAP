@@ -95,7 +95,7 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     expect(html).toMatch(/title="310\.00q eggs to go, after a shift to this egg, which starts the farm again from one chicken"/);
     // After the deadline: said so, and never as a TE the answer could have had (15 Oct 2026, Halceyx).
     expect(t).toMatch(
-      /Laying on after the last stop, your next TE \(Kindness, at the final rate of 3\.60q eggs an hour\) would come about .*2027.*, after the deadline, so it isn't counted\./
+      /Laying on after the last stop, your next TE \(Kindness, at the final rate of 3\.60q eggs an hour\) would come about .*2027.*, after the date, so it isn't counted\./
     );
   });
 

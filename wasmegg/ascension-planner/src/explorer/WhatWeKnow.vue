@@ -58,7 +58,7 @@
       </p>
       <p><b>Ascend at the time the plan shows,</b> and run the instant answer again after each ascension.</p>
       <p>
-        <b>Halfway through a build?</b> Leave the first ascension on Fastest (Your setup): it now weighs finishing the
+        <b>Halfway through a build?</b> Leave the first ascension on Fastest (Setup): it now weighs finishing the
         build against prestiging now.
       </p>
       <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>
@@ -94,7 +94,7 @@
             about 1-2% off. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
             the full simulator, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
-            within an hour) and every new run that week. For the accounts it has precomputed on their own gear (10 so
+            within an hour) and every new run that week. For the accounts it has an instant answer built for on their own gear (10 so
             far) it reproduces their submitted runs to a median of 0.15% or better. On maxed gear, for an account with
             weaker gear, it can be far off: a 21 Oct comparison of 84 board runs found it far too hopeful on 18 of them
             (Science › How it works, section 6).
@@ -161,10 +161,10 @@
             not because it priced them wrongly.
           </p>
           <p v-else-if="f.id === 'stall'">
-            Under roughly 218-225 CTE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
+            Under roughly 218-225 Clothed TE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
             more than a week, and the instant answer shows no routes for one. Every account on the board is above
             it<template v-if="stats && stats.lowestCte !== null"> (lowest {{ cteText(stats.lowestCte) }})</template>. A
-            full T4L earnings set with T4 Lunar stones adds +128.7 to CTE.
+            full T4L earnings set with T4 Lunar stones adds +128.7 to Clothed TE.
           </p>
           <p v-else-if="f.id === 'gear'">
             Waiting time scales with your delivery rate: a set at 94% of the best waits about 6% longer. The earnings

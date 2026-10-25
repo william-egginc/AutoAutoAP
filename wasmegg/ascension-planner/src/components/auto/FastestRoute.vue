@@ -14,7 +14,7 @@
     <div>
       <h2 class="text-2xl font-black text-slate-900">{{ fastestName(store.finalTE) }}</h2>
       <p class="text-sm text-slate-600">
-        Finds the stops that get you to {{ store.finalTE }} TE soonest, from your save and your setup. Plans
+        Finds the stops that get you to {{ store.finalTE }} TE soonest, from your save and Setup. Plans
         include the weekly Research Sale and the Monday 2× earnings boost, the same as {{ NAMES.classic }}; other game events aren't
         simulated.
       </p>
@@ -199,7 +199,7 @@ const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
 /** Custom's first line (it is the Exhaustive search, unchanged): what it is for and how long it takes. */
 const CUSTOM_INTRO =
-  "For proving an answer, not for finding a much better one: it tries every route in the boxes you set (Exhaustive), and nothing outside them, so its answer is proven for that space. In players' runs so far it found routes minutes to hours sooner, not days, at about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.";
+  "For proving an answer, not for finding a much better one: it tries every route in the boxes you set (Custom), and nothing outside them, so its answer is proven for that space. In players' runs so far it found routes minutes to hours sooner, not days, at about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.";
 
 /** The address and the tab: #/auto/fastest/full (a sweep link, an old ?insane=1 link, Check exactly)
  *  opens Exhaustive, and a tab picked by hand changes the address (@pick above). Opened on the plain

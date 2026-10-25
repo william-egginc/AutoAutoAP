@@ -57,7 +57,7 @@
             {{ preview?.clothedTE ?? '—' }}
           </div>
           <div class="text-slate-500">
-            final leg
+            final ascension
             {{
               check.rate
                 ? `${check.rate.measuredQph.toFixed(2)} of ~${check.rate.expectedQph.toFixed(2)} q/hr`

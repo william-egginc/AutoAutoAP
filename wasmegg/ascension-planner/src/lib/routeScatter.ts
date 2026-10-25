@@ -147,7 +147,7 @@ export function whenText(ms: number, zone: string): string {
 }
 
 export function goalOfRace(target: number): ScatterGoal {
-  return { key: `race:${target}`, kind: 'race', label: `Race to ${target}`, count: 0 };
+  return { key: `race:${target}`, kind: 'race', label: `Fastest to ${target} TE`, count: 0 };
 }
 export function goalOfDate(deadline: number, eggDayAt: number, eggDayYear: number, zone: string): ScatterGoal {
   return {

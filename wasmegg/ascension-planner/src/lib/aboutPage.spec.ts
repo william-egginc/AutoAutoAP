@@ -104,9 +104,9 @@ describe('About and privacy page', () => {
     expect(worker).toContain("const START_SOURCES = ['fresh', 'stored', 'file', 'draft', 'switch'];");
   });
 
-  it('says what the instant baseline and the private search results send (23 Oct 2026)', () => {
+  it('says what the instant answer and the private search results send (23 Oct 2026)', () => {
     expect(text).toContain(
-      'If you tick "Share my instant baseline with my runs" (on My runs), a row you send also has your instant baseline for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is shown on your public run so others can compare. Without that tick it is not sent.'
+      'If you tick "Share my instant answer with my runs" (on My runs), a row you send also has your instant answer for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is shown on your public run so others can compare. Without that tick it is not sent.'
     );
     expect(read('src/stores/chainSearch.ts')).toContain("if (payload.baseline || !consentAgreed('shareBaseline')) return payload;");
     expect(text).toContain(
@@ -153,15 +153,15 @@ describe('About and privacy page', () => {
     expect(text).toContain('Nothing else saves it.');
     // The first answer becoming the follow (lib/followPolicy.ts, 24 Oct 2026): there exactly while the constant is on.
     const auto =
-      'The first answer for Fastest to 490 and for Egg Day 2027 becomes the route you follow and is saved online, unless you already follow one.';
+      'The first answer for Fastest to 490 TE and for Egg Day 2027 becomes the route you follow and is saved online, unless you already follow one.';
     if (AUTO_FOLLOW_FIRST) {
       expect(text).toContain(auto);
       expect(text).toContain(
         'That is the instant answer as its box shows it, or a Fast, Exact or Custom run that becomes your route on My runs, Right now, whichever comes first.'
       );
-      expect(text).toContain('Every other goal (another By a date, a race target of your own) is saved only when you press Follow this route');
+      expect(text).toContain('Every other goal (another By a date, a Fastest to N TE target of your own) is saved only when you press Follow this route');
       expect(text).toContain('so a route you follow on another device is never replaced. After that, a better answer only asks you');
-    } else expect(text).not.toContain('The first answer for Fastest to 490');
+    } else expect(text).not.toContain('The first answer for Fastest to 490 TE');
     expect(text).not.toContain('When you are not following another route for a goal');
     const setup = read('src/components/auto/YourSetup.vue');
     expect(setup).toContain('It is saved when you press Follow this route,');

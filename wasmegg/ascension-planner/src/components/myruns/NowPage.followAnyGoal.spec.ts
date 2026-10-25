@@ -4,7 +4,7 @@
  * "From the instant answer · not priced on this save yet" and "No timeline for your route on this save yet", its pill
  * "no saved plan yet": the answer became the follow before its snapshot was kept (InstantRoute.vue `keptAnswer`, now
  * the follow waits for it), and without the snapshot Right now has no times. With it, Egg Day, another date and a
- * custom race target (Race to 312) each show "from the instant answer", rounded times, no calendar buttons; the goal
+ * custom race target (Fastest to 312 TE) each show "from the instant answer", rounded times, no calendar buttons; the goal
  * keys (date-<unix>, fastest-<te>) and the snapshot's key already agree. Through useNowPage with the synthetic save
  * (id EI0000000000000000, never printed), the card server-rendered.
  */
@@ -175,8 +175,8 @@ describe("Right now: a route followed from this save's instant answer keeps the 
     await expectInstantTimeline({ kind: 'date', deadline: eggDaySeconds(y), goalKey: `eggday-${y}` }, `Egg Day ${y}`);
   });
 
-  it('a custom race target (Race to 312): the same', async () => {
-    await expectInstantTimeline({ kind: 'race', target: 312, goalKey: 'fastest-312' }, 'Race to 312');
+  it('a custom race target (Fastest to 312 TE): the same', async () => {
+    await expectInstantTimeline({ kind: 'race', target: 312, goalKey: 'fastest-312' }, 'Fastest to 312 TE');
   });
 
   it('the symptom without the snapshot (the follow made before it was kept): not priced, no timeline, "no saved plan yet"', async () => {

@@ -46,7 +46,7 @@
             d="M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-1 3.4.9 2.4 2.4a1.7 1.7 0 001.1 2.6c1.8.4 1.8 3 0 3.4a1.7 1.7 0 00-1.1 2.6c1 1.5-.9 3.4-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5 1-3.4-.9-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 001.1-2.6c-1-1.5.9-3.4 2.4-2.4a1.7 1.7 0 002.6-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        Your setup
+        Setup
       </span>
       <span class="text-[12px] text-slate-600"
         >Plan starts <span class="font-bold text-slate-900">{{ startLabel }}</span></span
@@ -166,7 +166,7 @@
       >
         A search is running, so the plan start, your hours, no-prestige days and time off are locked: they change which route is fastest,
         and the routes already priced used the old ones. Stop the search (your best so far is kept), change them, and
-        start again. The computer settings still work.
+        press Find again. The computer settings still work.
       </p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -556,8 +556,8 @@
           <label class="flex items-start gap-3 cursor-pointer" data-testid="share-baseline">
             <input v-model="shareBaselineOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
             <span class="text-[11px] text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Share my instant baseline with my runs</span>
-              (public, with the run). Each run you send to the board also carries your instant baseline for it: the
+              <span class="font-bold text-slate-800">Share my instant answer with my runs</span>
+              (public, with the run). Each run you send to the board also carries your instant answer for it: the
               route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
               can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.
             </span>

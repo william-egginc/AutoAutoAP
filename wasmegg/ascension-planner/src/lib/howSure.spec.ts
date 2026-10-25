@@ -44,13 +44,13 @@ describe('how sure', () => {
     expect(howSure(date({ exactConfirmsTE: true, spareHours: 16.8, runnerUpHours: null })).level).toBe('medium');
   });
 
-  it('or a search that agrees, or a finished Exhaustive', () => {
+  it('or a search that agrees, or a finished Custom', () => {
     expect(howSure(date({ how: 'instant', agreeing: 'quick', spareHours: 10 }))).toEqual({
       level: 'high',
       reason: 'a Fast search agrees on 248 TE',
     });
     expect(howSure(fast({ how: 'search', level: 'exhaustive', exhaustiveComplete: true })).reason).toBe(
-      'Exhaustive checked every route in its boxes'
+      'Custom checked every route in its boxes'
     );
     expect(howSure(fast({ agreeing: 'normal', runnerUpHours: 30 })).level).toBe('high');
     expect(howSure(fast({ agreeing: 'normal', runnerUpHours: 20 })).level).toBe('medium');

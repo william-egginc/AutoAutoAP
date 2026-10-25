@@ -574,7 +574,7 @@ function evaluate(final = false): void {
     // Nothing to carry on from: a run first saves after its first batch, about a minute in.
     const early = !!mark && mark.beatAt - mark.startedAt < EARLY_CRASH_MS;
     autoNote.value = early
-      ? "The last run can't carry on by itself: it crashed before its first save point, about a minute in. Start it again."
+      ? "The last run can't carry on by itself: it crashed before its first save point, about a minute in. Press Find again."
       : "The last run can't carry on by itself, so it's waiting for you. See the unfinished run above.";
   } else if (v.why === 'guard') {
     stepAwayGiveUp('stuck');

@@ -104,7 +104,7 @@ describe('the Right now card', () => {
   it('the plan, its egg, the next step and the events with dates, times and distances', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     const t = textOf(html);
-    expect(t).toContain('Plan for Race to 490 calculated Oct 15 at 12:40 pm (2 h ago) (simulator check)');
+    expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 12:40 pm (2 h ago) (simulator check)');
     expect(t).toContain('Integrity');
     expect(t).toContain('ascension 1 of 2 · 186 TE so far');
     expect(t).toContain('Made from your latest save'); // R6: one wording with My runs' saved plans (lib/planPace.ts)
@@ -161,7 +161,7 @@ describe('the Right now card', () => {
     expect(off).toContain('No virtue farm in this save');
     expect(off).not.toContain('Next step');
     const changed = textOf(await renderHtml(RightNowCard, cardProps({ card: { ...card, state: 'setup-changed' } })));
-    expect(changed).toContain('Your setup changed since this plan. Get the instant answer for your setup ›');
+    expect(changed).toContain('Setup changed since this plan. Get the instant answer for your Setup ›');
     const older = await renderHtml(
       RightNowCard,
       cardProps({ card: { ...card, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: NOW - 30 * H } } } })
@@ -241,7 +241,7 @@ describe('a saved-answer tile', () => {
         now: NOW,
         zone: ZONE,
         standing: '',
-        standingLabel: 'Race to 490',
+        standingLabel: 'Fastest to 490 TE',
       })
     );
     expect(t).toContain('Not worked out for this save yet. Open Fastest');
@@ -345,7 +345,7 @@ describe('the page with a real save and a saved answer (nothing worked out)', ()
     const html = await renderHtml(MyRunsView, { playerId: 'EI0000000000000000' }, {}, [pinia]);
     const t = textOf(html);
     expect(html).toContain('data-testid="now-card"');
-    expect(t).toContain('Plan for Race to 490 calculated');
+    expect(t).toContain('Plan for Fastest to 490 TE calculated');
     expect(t).toMatch(/Shift to Humility (today|tomorrow) at/); // an hour from now: tomorrow after 11 pm
     expect(t).toContain('Fastest to 490 TE · saved answer');
     expect(t).toContain('Your eggs · from your save');

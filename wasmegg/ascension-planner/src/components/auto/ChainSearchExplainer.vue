@@ -90,8 +90,8 @@
             </table>
           </div>
           <p class="mt-3">
-            Scoring one route means simulating every leg of it: research purchases, hab and vehicle upgrades, twelve egg
-            switches, sale timing. That takes several seconds of one core. Even at one second each, the 2.09 × 10<sup
+            Scoring one route means simulating every ascension of it: research purchases, hab and vehicle upgrades, twelve egg
+            shifts, sale timing. That takes several seconds of one core. Even at one second each, the 2.09 × 10<sup
               >15</sup
             >
             routes would take <span class="font-bold text-slate-800">tens of millions of years</span>

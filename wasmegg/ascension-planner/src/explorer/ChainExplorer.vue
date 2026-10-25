@@ -24,9 +24,9 @@
            Science) the planner has its own. -->
       <template v-if="!embedded">
         <header class="space-y-1">
-          <h1 class="text-2xl font-black tracking-tight text-slate-900">Route Explorer</h1>
+          <h1 class="text-2xl font-black tracking-tight text-slate-900">Insights</h1>
           <p class="text-sm text-slate-500 max-w-3xl leading-relaxed">
-            Every run submitted to the collector, grouped by how many ascensions it takes. Pick a count to see where
+            Every run submitted to the planner's server, grouped by how many ascensions it takes. Pick a count to see where
             each ascension lands, how long each one runs, and whether the shape repeats across accounts.
           </p>
         </header>
@@ -49,9 +49,9 @@
       <!-- ------------------------------------------------------------------ source and loading -->
       <section v-if="part === 'insights'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div v-if="!base" class="space-y-2">
-          <p class="text-sm font-bold text-slate-700">No collector configured for this copy of the page.</p>
+          <p class="text-sm font-bold text-slate-700">No server configured for this copy of the page.</p>
           <p class="text-[12px] text-slate-500 leading-relaxed">
-            Paste the collector's base URL: the same Worker the planner's Submit button posts to, without the
+            Paste the planner's server base URL: the same Worker the planner's Submit button posts to, without the
             <code class="font-mono-premium">/submit</code>. It is remembered in this browser, and
             <code class="font-mono-premium">?collector=…</code> on this page's own URL does the same thing for a link
             you want to share.
@@ -138,7 +138,7 @@
               class="px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300"
               @click="forgetBase"
             >
-              Change collector
+              Change server
             </button>
           </div>
         </div>
@@ -150,7 +150,7 @@
         class="rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold"
         :class="base ? 'text-rose-700' : 'text-slate-600'"
       >
-        {{ base ? error : "No collector is set up for this copy of the site, so there's nothing to show here." }}
+        {{ base ? error : "No planner's server is set up for this copy of the site, so there's nothing to show here." }}
       </p>
 
       <!-- ------------------------------------------------------------------ what we know so far -->
@@ -271,7 +271,7 @@
               column, because gear decides totals. The rows are ordered by starting TE (or Clothed TE, or delivery
               score), so you can see whether the winning count moves with where an account is or with its gear. The
               border says how the run behind the cell searched: solid for a finished box at every TE, dashed for every
-              2nd-3rd TE, dotted for every 4th or coarser, striped for a Nearby routes search or a box it did
+              2nd-3rd TE, dotted for every 4th or coarser, striped for a Fast or Exact search or a box it did
               not finish. A dark cell with a dotted or striped edge is a best count found by a search that could have
               missed a better plan, so it is weaker than it looks. Hover or tap a cell for the route, its finish date,
               how it searched and whether the step from the next count down is bigger than the search could explain.
@@ -425,7 +425,7 @@
                 much of that same box at every TE the run did not price (the TEs between its steps, or the rest of a box
                 it stopped early) and how long pricing the rest would take on a 16-20 core machine. Runs that improved a
                 starting route instead of trying a fixed box have nothing to measure against. <b>can't check</b> marks a run
-                the delivery-set check could not look at (no delivery set or per-leg detail recorded, a last stop under
+                the delivery-set check could not look at (no delivery set or per-ascension detail recorded, a last stop under
                 190 TE, or a target other than 490): not flagged, and not cleared either.
               </p>
               <div class="flex flex-wrap items-center gap-1.5">
@@ -736,7 +736,7 @@
                             ? leftTitle(leftById.get(row.id)!)
                             : row.space
                               ? 'Its box could not be counted again from this row (the recount does not match what the run stored), so what is left is not shown.'
-                              : 'A Nearby routes search improved a starting route rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
+                              : 'A Fast or Exact search improved a starting route rather than trying a fixed box of TEs, so there is nothing to measure what is left against.'
                         "
                       >
                         <template v-if="leftById.get(row.id)">
@@ -796,7 +796,7 @@
               account still and vary the count. Each point is how many days after that account's earliest finish the
               best plan at that count finishes, so a line only touches 0 at the count that holds it. That earliest
               finish is taken from all of the account's runs that still stand, the same one the runs table names. A
-              solid line is one exhaustive run that timed several counts from one save; if that run no longer stands (a
+              solid line is one Custom run that timed several counts from one save; if that run no longer stands (a
               what-if, an old save), it is measured from its own best count instead, and its tooltip says so. A dashed
               line is the account's runs that still stand, the earliest finish at each count. Runs made on different
               days are compared by finish date, never by their totals: the same plan run a day later shows a day fewer.
@@ -1003,7 +1003,7 @@
               of them were priced from one save, so here, and only here, days compare directly: "vs best" is the gap
               between two plans and nothing else, and each finish date is this run's plan start plus that plan's days,
               in your timezone. Filter to plans with a stop at a TE (280) or in a range (275-285), or download the full
-              table with every leg.
+              table with every ascension.
             </p>
             <RunPlansTable
               :key="loadedRun.id"
@@ -1027,9 +1027,9 @@
           </summary>
           <div class="mt-3 space-y-4">
             <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-              <h2 class="text-lg font-black text-slate-900">Which sale plan wins each leg?</h2>
+              <h2 class="text-lg font-black text-slate-900">Which sale plan wins each ascension?</h2>
               <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
-                <b>How to read it:</b> Each mark is one leg of a winning plan: where it starts (across), how far it
+                <b>How to read it:</b> Each mark is one ascension of a winning plan: where it starts (across), how far it
                 climbs (up), and how many Research Sales the planner built through (colour).
               </p>
               <details>
@@ -1037,14 +1037,14 @@
                   How this is worked out
                 </summary>
                 <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-                  One mark per leg, from leg 2 on, of every plan whose finish still stands. Across is the TE the leg
+                  One mark per ascension, from ascension 2 on, of every plan whose finish still stands. Across is the TE the ascension
                   starts at, up is how much TE it climbs, and the colour and shape are the sale plan the planner picked
-                  for that leg (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Leg 1 is left
+                  for that ascension (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Ascension 1 is left
                   out: it is the rest of the ascension in progress, so where it starts depends on when the plan was
-                  made. A sale plan is a choice for one leg against a sale calendar everyone shares, so unlike a total
-                  it lines up across accounts by TE. A leg one account sent in several runs is one mark. Larger, ringed
-                  marks are legs that unlock research tier 13. The table under the chart names the commonest plan for
-                  each 20-TE start band and leg length. It shows which plan won each leg of the winning routes, not by
+                  made. A sale plan is a choice for one ascension against a sale calendar everyone shares, so unlike a total
+                  it lines up across accounts by TE. An ascension one account sent in several runs is one mark. Larger, ringed
+                  marks are ascensions that unlock research tier 13. The table under the chart names the commonest plan for
+                  each 20-TE start band and ascension length. It shows which plan won each ascension of the winning routes, not by
                   how much it won.
                 </p>
               </details>
@@ -1114,9 +1114,9 @@
               class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
             >
               <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checks</div>
-              <h2 class="text-lg font-black text-slate-900">Did each final leg reach its gear's rate? (to 490)</h2>
+              <h2 class="text-lg font-black text-slate-900">Did each final ascension reach its gear's rate? (to 490)</h2>
               <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
-                <b>How to read it:</b> Each point is one run. Near 100% means its last leg reached the delivery rate its
+                <b>How to read it:</b> Each point is one run. Near 100% means its last ascension reached the delivery rate its
                 gear should; below the 80% line the run is flagged and left out of the rest of the page.
               </p>
               <details>
@@ -1125,10 +1125,10 @@
                 </summary>
                 <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
                   One point per run to 490, whatever target is picked above. Across is the run's last stop; up is the
-                  peak delivery its final leg reached, as a percent of what its delivery set should reach from that
+                  peak delivery its final ascension reached, as a percent of what its delivery set should reach from that
                   stop. Below the 80% line the run is flagged for the old delivery-set bug (earnings researched with the
                   wrong set, so the farm never reached its real rate) and kept out of everything else on the page. Runs
-                  the check cannot judge (a last stop under 190 TE, no per-leg detail, or no delivery set recorded) are
+                  the check cannot judge (a last stop under 190 TE, no per-ascension detail, or no delivery set recorded) are
                   counted in the note under the chart but not drawn. What each set "should reach" was fitted on these
                   same runs, so clean runs sit near 100% by construction: this checks the runs, it does not measure the
                   game.
@@ -1138,7 +1138,7 @@
             </section>
             <!-- -------------------------------------------------- runs the planner cannot help yet -->
             <!-- Not "flagged": that word is the delivery-set check's, in the status line and the runs table,
-                 and it is a different set of runs. The collector's own name for this list is the flagged
+                 and it is a different set of runs. The server's own name for this list is the flagged
                  board (the id stays, for links already shared). Its own fetch, but it waits with the rest,
                  so nothing below the loading placeholder moves when the runs arrive. -->
             <section
@@ -1153,7 +1153,7 @@
                   for over an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from
                   everything above, because they are not routes to copy, and shown anonymously, except runs sent from
                   this browser, which show as yours. These are not the runs flagged for the delivery-set bug: those are
-                  counted at the top of the page and drawn in the final-leg check.
+                  counted at the top of the page and drawn in the final-ascension check.
                 </p>
               </div>
               <FlaggedBoard :base="base" />
@@ -1388,7 +1388,7 @@ const error = computed(
   () =>
     fetchError.value ||
     (answered.value && !loading.value && !loadedRows.value.length
-      ? 'The collector answered, but it is holding no runs yet.'
+      ? 'The planner\'s server answered, but it is holding no runs yet.'
       : '')
 );
 /** Every run is hidden by the toggle: say so (and how to see them), in place of "0 runs from 0 accounts". */
@@ -1481,8 +1481,8 @@ async function load(): Promise<void> {
     byDateRows.value = [];
     fetchError.value =
       errorKind(e) === 'network'
-        ? describeFetchError(e, 'the collector')
-        : `Check the URL, and that the collector allows this origin. (${plainError(e)})`;
+        ? describeFetchError(e, "the planner's server")
+        : `Check the URL, and that the planner's server allows this origin. (${plainError(e)})`;
   } finally {
     if (allController === controller) {
       loading.value = false;

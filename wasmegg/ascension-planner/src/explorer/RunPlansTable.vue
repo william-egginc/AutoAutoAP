@@ -94,7 +94,7 @@
       <a
         :href="href"
         class="font-bold text-indigo-700 underline hover:text-indigo-900"
-        title="The run's whole table as the collector stores it: one row per ascension of every plan, with each leg's strategy, dates and delivery. A .csv.gz file, which every operating system opens."
+        title="The run's whole table as the planner's server stores it: one row per ascension of every plan, with each ascension's strategy, dates and delivery. A .csv.gz file, which every operating system opens."
         >Download all {{ plansText(total) }} (.csv.gz) ↓</a
       >
     </p>

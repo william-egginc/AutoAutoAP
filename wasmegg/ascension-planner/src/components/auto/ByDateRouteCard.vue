@@ -94,7 +94,7 @@
         <p v-if="nextAfterDeadline" :class="CARD_NOTE" data-testid="by-date-next-te">
           Laying on after the last stop, your next TE ({{ VIRTUE_EGG_NAMES[nextAfterDeadline.egg] }}, at the final rate
           of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour) would come about {{ when(nextAfterDeadline.at) }},
-          after the deadline, so it isn't counted.
+          after the date, so it isn't counted.
         </p>
       </div>
       <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->

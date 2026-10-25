@@ -15,7 +15,7 @@
     <slot>
       <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="instant-none-fastest">
         The quick estimate is on {{ NAMES.byDate }}: pick a date there and press
-        <b>{{ QUICK_ESTIMATE_LABEL }}</b>. {{ NAMES.smart }} below still runs here, starting from a route spaced out
+        <b>{{ QUICK_ESTIMATE_LABEL }}</b>. The {{ NAMES.smart }} search below still runs here, starting from a route spaced out
         from your TE.
       </p>
       <button

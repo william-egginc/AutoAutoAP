@@ -50,7 +50,7 @@ export const GRADE_KEY: readonly { style: GradeStyle; text: string }[] = [
   { style: 'solid', text: 'a finished box at every TE' },
   { style: 'dashed', text: 'a finished box at every 2nd–3rd TE' },
   { style: 'dotted', text: 'a finished box at every 4th TE or coarser' },
-  { style: 'hatched', text: 'a Nearby routes search or a box it did not finish (nothing bounds what it missed)' },
+  { style: 'hatched', text: 'a Fast or Exact search or a box it did not finish (nothing bounds what it missed)' },
 ];
 
 /** How a run searched, in a phrase for the cell's tooltip. */
@@ -60,7 +60,7 @@ export function searchWords(grade: SearchGrade): string {
   if (grade.text === 'box not finished') return 'a box it did not finish, so nothing bounds what it missed';
   if (grade.text === 'uploaded, box not given') return 'an uploaded sweep that did not say its box';
   const staged = /^staged \((.*)\)$/.exec(grade.text);
-  return staged ? `a Nearby routes search (${staged[1]}), with no box to bound what it missed` : grade.text;
+  return staged ? `a Fast or Exact search (${staged[1]}), with no box to bound what it missed` : grade.text;
 }
 
 /**
@@ -387,7 +387,7 @@ export function cellTitle(row: BestCountRow, cell: BestCountCell, zone: string):
   if (cell.state === 'hidden') {
     const runs = cell.hiddenRuns === 1 ? 'its one run' : `its ${cell.hiddenRuns} runs`;
     return cell.noProof
-      ? `${row.label} has no finished box at ${count} ascensions at this target: ${runs} at this count ${cell.hiddenRuns === 1 ? 'is a Nearby routes search or a box it did not finish' : 'are Nearby routes searches or boxes they did not finish'}, which Proofs only hides.`
+      ? `${row.label} has no finished box at ${count} ascensions at this target: ${runs} at this count ${cell.hiddenRuns === 1 ? 'is a Fast or Exact search or a box it did not finish' : 'are Fast or Exact searches or boxes they did not finish'}, which Proofs only hides.`
       : `${row.label} tried ${count} ascensions at this target, but the filters above hide ${runs} at this count.`;
   }
   if (cell.state === 'untried') return `${row.label} did not try ${count} ascensions at this target.`;

@@ -62,7 +62,7 @@ describe('buildScatter', () => {
         dated(EGG_DAY, 260, [100, 200, 260], 3),
       ],
     });
-    expect(b.goals.map(g => g.label)).toEqual(['Egg Day 2027', 'By Jan 15', 'Race to 300', 'Race to 490']);
+    expect(b.goals.map(g => g.label)).toEqual(['Egg Day 2027', 'By Jan 15', 'Fastest to 300 TE', 'Fastest to 490 TE']);
     const p = b.points.find(x => x.te === 490)!;
     expect(p).toMatchObject({ from: 'yours', level: 'normal', asc: 3, days: 12.5, spareHours: null });
     expect(p.finish).toBe(Date.parse('2026-10-01T00:00:00Z') + 12.5 * 86_400_000);
@@ -177,7 +177,7 @@ describe('scatterView', () => {
   it('the race summary and the hover card, in plain words with 12-hour times', () => {
     const v = scatterView(b.goals, b.points, 'race:490', 'asc', 'te');
     expect(scatterSummary(v, ZONE)).toBe(
-      '4 routes for Race to 490. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 am. Across them: 2 to 4 ascensions, 11.0 to 13.0 days.'
+      '4 routes for Fastest to 490 TE. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 am. Across them: 2 to 4 ascensions, 11.0 to 13.0 days.'
     );
     expect(pointLines(v.best!, v.goal!, ZONE, true)).toEqual([
       'Best · 300 → 490',
@@ -202,7 +202,7 @@ describe('scatterView', () => {
       '100 → 250',
       '2 ascensions · TE 250 · 5.0 h to spare',
       'Last ascension Jan 15 at 3:00 am',
-      'Exhaustive · Sent from this browser',
+      'Custom · Sent from this browser',
     ]);
   });
 

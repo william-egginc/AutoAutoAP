@@ -13,12 +13,12 @@
       class="absolute w-[min(94vw,46rem)] max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
       :class="[opensUp ? 'bottom-full mb-2' : 'top-full mt-2', alignRight ? 'right-0' : 'left-0']"
       role="dialog"
-      aria-label="Your setup"
+      aria-label="Setup"
     >
       <div
         class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5"
       >
-        <span class="text-sm font-black text-indigo-900">Your setup</span>
+        <span class="text-sm font-black text-indigo-900">Setup</span>
         <button
           type="button"
           class="px-3 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
@@ -44,7 +44,7 @@
         type="button"
         class="relative flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:bg-white/15"
         :aria-expanded="ui.setupOpen"
-        :title="ui.setupOpen ? 'Close your setup' : 'Open your setup'"
+        :title="ui.setupOpen ? 'Close Setup' : 'Open Setup'"
         @click="ui.setupOpen = !ui.setupOpen"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

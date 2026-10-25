@@ -251,7 +251,7 @@ export function parseTypedRoute(
   const chain = nums.filter(n => n > te);
   if (!chain.length) return { error: `Every stop is at or below your ${te} TE now.` };
   if (o.target != null && chain[chain.length - 1] !== o.target)
-    return { error: `This race ends at ${o.target}: make that the last stop.` };
+    return { error: `Fastest to ${o.target} TE ends at ${o.target}: make that the last stop.` };
   return { chain };
 }
 

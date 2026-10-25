@@ -103,7 +103,7 @@ describe('filtering', () => {
     expect(o.hours.map(h => h.label)).toEqual(['Any hour', '7 am–11 pm', '9 am–1 am']);
     expect(o.day.map(d => d.label)).toEqual(['Mon', 'Sat']);
     expect(o.ascensions.map(a => a.value)).toEqual([3, 4]);
-    expect(o.goal.map(g => g.label)).toEqual(['Fastest to 490']);
+    expect(o.goal.map(g => g.label)).toEqual(['Fastest to 490 TE']);
     expect(o.timeOff.map(t => t.value)).toEqual(['without']);
   });
   it('treats a hidden dimension or a vanished value as All', () => {

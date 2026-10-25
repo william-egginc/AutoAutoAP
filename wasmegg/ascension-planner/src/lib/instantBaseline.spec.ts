@@ -77,7 +77,7 @@ describe('the words (wireframe B1)', () => {
     expect(baselineDiff({ goal: 'fastest', end: base.end + 22 * 60, endTE: 490 }, base)).toEqual({ words: '22 min later', tone: 'worse' });
     expect(baselineDiff({ goal: 'fastest', end: base.end + 20, endTE: 490 }, base).words).toBe('same finish');
     expect(baselineLine({ goal: 'fastest', end: base.end - 1.5 * D, endTE: 490 }, base, 'Exact', 'their')).toEqual({
-      lead: 'vs their instant baseline:',
+      lead: 'vs their instant answer:',
       words: '1.5 days sooner',
       tail: '(Exact)',
       tone: 'better',
@@ -118,7 +118,7 @@ describe('board rows', () => {
     expect(readRowBaseline({ chain: [], end: 1, endTE: 1 })).toBeNull();
   });
 
-  it('B2: Instant baseline, Fast, Exact (this run), Custom (not run); only rows of the same player, goal and baseline', () => {
+  it('B2: Instant answer, Fast, Exact (this run), Custom (not run); only rows of the same player, goal and baseline', () => {
     const exact = row();
     const fast = row({ level: 'quick', endUtc: '2028-02-08T17:10:00Z', submittedAt: '2026-10-19T05:00:00Z' });
     const slowerFast = row({ level: 'quick', endUtc: '2028-02-09T17:10:00Z' });
@@ -126,7 +126,7 @@ describe('board rows', () => {
     const otherBaseline = row({ level: 'exhaustive', baseline: { chain: [490], end: 1, endTE: 490 } });
     const lines = compareLines(exact, [exact, fast, slowerFast, otherPlayer, otherBaseline]);
     expect(lines.map(l => [l.label, l.thisRun, l.diff, l.end == null ? 'not run' : 'run'])).toEqual([
-      ['Instant baseline', false, '', 'run'],
+      ['Instant answer', false, '', 'run'],
       ['Fast', false, '1.2 days sooner', 'run'],
       ['Exact', true, '1.5 days sooner', 'run'],
       ['Custom', false, '', 'not run'],

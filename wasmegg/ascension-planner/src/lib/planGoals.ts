@@ -101,8 +101,8 @@ export function goalDefs(o: {
     target,
     deadline: null,
     kind: 'race',
-    label: `Race to ${target}`,
-    name: `Race to ${target}`,
+    label: `Fastest to ${target} TE`,
+    name: `Fastest to ${target} TE`,
     ...(optional ? { optional } : {}),
   });
   const list: PlanGoal[] = [race(o.ownTarget, false)];

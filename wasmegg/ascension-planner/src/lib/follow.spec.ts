@@ -141,7 +141,7 @@ describe('a typed route', () => {
     });
     expect(parseTypedRoute('197 222 500', { currentTE: 190, target: null })).toEqual({ error: 'The last stop can be 490 at most.' });
     expect(parseTypedRoute('197 222', { currentTE: 190, target: 490 })).toEqual({
-      error: 'This race ends at 490: make that the last stop.',
+      error: 'Fastest to 490 TE ends at 490: make that the last stop.',
     });
     expect(parseTypedRoute('150 180', { currentTE: 190, target: null })).toEqual({ error: 'Every stop is at or below your 190 TE now.' });
     expect(parseTypedRoute('197.5 222', { currentTE: 190, target: null })).toEqual({ error: 'Each stop is a whole number of TE.' });

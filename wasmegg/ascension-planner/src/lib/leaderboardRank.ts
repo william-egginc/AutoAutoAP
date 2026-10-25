@@ -2380,7 +2380,7 @@ export function settingTagTitle(tag: string): string {
   if (tag.startsWith('starts ')) {
     return (
       'When this plan starts. Another run of this route to this target, from the same save and with the same ' +
-      'settings, starts at a different time. A different start shifts every leg and the finish.'
+      'settings, starts at a different time. A different start shifts every ascension and the finish.'
     );
   }
   if (tag === 'finishes current run first' || tag === 'prestiges now') {
@@ -2408,9 +2408,9 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
         : r.mode === 'advanced' || r.simple === false
           ? NAME_EXHAUSTIVE
           : null;
-    // A Nearby routes answer that records its level (15 Oct 2026): "Nearby routes · Exact".
+    // A Fast or Exact answer that records its level (15 Oct 2026): "Exact".
     const tier = mode === NAME_AROUND && row.level ? TIER_NAMES[row.level] : undefined;
-    if (tier) return `${NAME_AROUND} · ${tier}`;
+    if (tier) return tier;
     return mode ?? (row.effort || 'unknown');
   }
   return effortText(row.effort);
@@ -2418,8 +2418,8 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
 
 /** The two ways to search as the board names them (decision A, 12 Oct 2026: they were Simple and
  *  Advanced). Short, for the Effort column. */
-const NAME_AROUND = 'Nearby routes';
-const NAME_EXHAUSTIVE = 'Exhaustive';
+const NAME_AROUND = 'Fast or Exact';
+const NAME_EXHAUSTIVE = 'Custom';
 /** What was the Stronger check's Light level (no longer named to players, 22 Oct 2026): the instant answer's
  *  routes priced at once and your earlier routes, after Check exactly. */
 const NAME_LIGHT = 'Checked at once';
@@ -2432,7 +2432,7 @@ const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', tho
 export function effortText(effort: string | undefined): string {
   if (!effort) return 'unknown';
   const name = TIER_NAMES[effort];
-  return name ? `${NAME_AROUND} · ${name}` : effort;
+  return name ?? effort;
 }
 
 /** Who sent a run, as All runs shows it: the name as typed minus invisible characters. */

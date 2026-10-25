@@ -415,6 +415,6 @@ export function howWords(a: TileAnswer): string {
   if (a.found) return a.found;
   if (a.how === 'instant') return 'instant answer';
   if (a.how === 'check') return a.level === 'light' ? 'Checked at once' : 'simulator check';
-  const w: Record<SearchLevel, string> = { light: 'Checked at once', quick: 'Fast', normal: 'Exact', thorough: 'Very high', exhaustive: 'Exhaustive' };
+  const w: Record<SearchLevel, string> = { light: 'Checked at once', quick: 'Fast', normal: 'Exact', thorough: 'Very high', exhaustive: 'Custom' };
   return a.level ? w[a.level] : 'a search';
 }

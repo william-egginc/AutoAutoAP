@@ -34,7 +34,7 @@ describe('By a date run summary', () => {
       lastLo: 278,
       bandSets: [[band(189, 215), band(211, 251).filter((_, i) => i % 10 === 0), [257, 267, 277, 287, 297]]],
     });
-    expect(s.line.startsWith('Took 1 h 2 min on 1 worker · searched 236 sets of early stops (Exhaustive, in your own boxes)')).toBe(true);
+    expect(s.line.startsWith('Took 1 h 2 min on 1 worker · searched 236 sets of early stops (Custom, in your own boxes)')).toBe(true);
     expect(s.chains).toEqual(['4 ascensions 189-215:1; 211-251:10; 257-297:10']);
     expect(s.lastStop).toBe('last stop 278-318');
   });

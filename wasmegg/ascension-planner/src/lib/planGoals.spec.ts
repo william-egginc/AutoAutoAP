@@ -71,8 +71,8 @@ describe('goal keys and the goal list', () => {
       dayWords: t => (t === FEB10 ? 'Feb 10, 2027' : 'Mar 3, 2027'),
     });
     expect(list.map(g => [g.key, g.label])).toEqual([
-      ['fastest-490', 'Race to 490'],
-      ['fastest-312', 'Race to 312'],
+      ['fastest-490', 'Fastest to 490 TE'],
+      ['fastest-312', 'Fastest to 312 TE'],
       ['eggday-2027', 'Egg Day 2027'],
       [`date-${FEB10}`, 'By Feb 10, 2027'],
       [`date-${MAR3}`, 'By Mar 3, 2027'],
@@ -87,14 +87,14 @@ describe('goal keys and the goal list', () => {
 
   it('Race to your own target first; Fastest to 490 beside it only when the target differs; other dates optional', () => {
     expect(goals.map(g => [g.key, g.label, g.name, !!g.optional])).toEqual([
-      ['fastest-490', 'Race to 490', 'Race to 490', false],
+      ['fastest-490', 'Fastest to 490 TE', 'Fastest to 490 TE', false],
       ['eggday-2027', 'Egg Day 2027', 'Egg Day 2027', false],
       [`date-${MAR3}`, 'By Mar 3, 2027', 'By Mar 3, 2027', true],
     ]);
     const mine = goalDefs({ ownTarget: 450, raceTarget: 490, eggDay: EGG_DAY, otherDates: [EGG_DAY.at], dayWords: String });
     expect(mine.map(g => [g.key, g.label, !!g.optional])).toEqual([
-      ['fastest-450', 'Race to 450', false],
-      ['fastest-490', 'Race to 490', true],
+      ['fastest-450', 'Fastest to 450 TE', false],
+      ['fastest-490', 'Fastest to 490 TE', true],
       ['eggday-2027', 'Egg Day 2027', false],
     ]);
   });

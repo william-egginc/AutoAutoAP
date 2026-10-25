@@ -175,7 +175,7 @@ export function goalLabel(v: GoalValue, eggDayYear: number): string {
   if (v === 'eggday') return `Egg Day ${eggDayYear}`;
   if (v === 'date') return 'Other dates';
   if (v === 'fastest:other') return 'Other targets';
-  return `Fastest to ${v.slice('fastest:'.length)}`;
+  return `Fastest to ${v.slice('fastest:'.length)} TE`;
 }
 
 export interface Chip {

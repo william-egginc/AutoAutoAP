@@ -66,12 +66,12 @@ describe('Next steps: only what changes what to do', () => {
   });
 
   it('a race: only when the result lands about a day or more sooner; the same route never', () => {
-    const base = { goalKey: 'fastest-490', name: 'Race to 490', goal: 'fastest' as const, deadline: null, eggDay: false, chain: [230, 490], finish: { end: NOW + 300 * DAY, endTE: 490 } };
+    const base = { goalKey: 'fastest-490', name: 'Fastest to 490 TE', goal: 'fastest' as const, deadline: null, eggDay: false, chain: [230, 490], finish: { end: NOW + 300 * DAY, endTE: 490 } };
     const by = (h: number) => follow({ ...base, result: { level: 'Exact', chain: [229, 490], end: NOW + 300 * DAY - h * 3600, endTE: 490 } });
     expect(ids(input({ follows: [by(19)] }))).toEqual([]);
     const s = buildSteps(input({ follows: [by(30)] })).steps[0];
     expect(s.id).toBe('beaten:fastest-490');
-    expect(s.text).toBe('Race to 490: your Exact run beats the route you follow');
+    expect(s.text).toBe('Fastest to 490 TE: your Exact run beats the route you follow');
     expect(s.reason).toMatch(/^It gets there 30 h sooner \(229 490, .+\) than the route you follow\.$/);
     const same = follow({ ...base, result: { level: 'Fast', chain: [230, 490], end: NOW, endTE: 490 } });
     expect(ids(input({ follows: [same] }))).toEqual([]);
@@ -99,7 +99,7 @@ describe('Next steps: only what changes what to do', () => {
     const np = { ...off, words: 'your no-prestige days Oct 26', kind: 'no-prestige day' as const };
     expect(buildSteps(input({ follows: [follow()], windows: [np] })).steps[0].text).toBe('Egg Day 2027: a prestige of your route lands on a no-prestige day');
     // A race: Fast, Nearby routes.
-    const race = follow({ goalKey: 'fastest-490', name: 'Race to 490', goal: 'fastest', deadline: null, eggDay: false });
+    const race = follow({ goalKey: 'fastest-490', name: 'Fastest to 490 TE', goal: 'fastest', deadline: null, eggDay: false });
     expect(buildSteps(input({ follows: [race], windows: [off] })).steps[0].action).toEqual({ to: 'fastest', target: 490, tab: 'nearby', level: 'quick' });
     // The days miss every prestige, or the prestige is already past: nothing.
     expect(ids(input({ follows: [follow()], windows: [{ ...off, from: NOW + 3 * DAY, to: NOW + 4 * DAY }] }))).toEqual([]);

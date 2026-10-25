@@ -51,7 +51,7 @@
       <p>
         <b>When you prestige matters near the weekly research sale.</b> Every build is timed to end with the sale, so a
         few hours either side of it can move a route by days, and in a bad case by up to a week. An experimental
-        "Prestige by…" line (turn it on in Your setup › Experimental) shows the last hour you can prestige and still
+        "Prestige by…" line (turn it on in Setup › Experimental) shows the last hour you can prestige and still
         keep your TE.
       </p>
       <p>
@@ -82,17 +82,17 @@
           by about 2.5% of the route, a couple of weeks. Near the end of a {{ NAMES.byDate }} route, one more TE is
           worth about two days at TE 240-340. And between TE 177 and 490 there are about 2 × 10<sup>15</sup> routes of 3
           to 9 ascensions. That's far too many to simulate, so each screen takes a shortcut. {{ NAMES.fastest }} and
-          {{ NAMES.byDate }} each come in two versions, {{ NAMES.smart }} and {{ NAMES.full }}:
+          {{ NAMES.byDate }} each offer {{ NAMES.smart }} (a search near the instant answer's route) and {{ NAMES.full }} (boxes you set):
         </p>
         <ul class="hw-list">
           <li>
-            <b>{{ NAMES.fastest }}, {{ NAMES.smartFirst }}:</b> starts from a route (the instant answer's fastest, or
+            <b>{{ NAMES.fastest }}, {{ NAMES.smartFirst }}:</b> the search starts from a route (the instant answer's fastest, or
             one you type) and improves it step by step. On Fast, the default, it fine-tunes the last stop and nudges
             each stop up to 8 TE either way until nothing moves. Then it checks every other number of ascensions inside
             your limits: each starts from the instant answer's route for that count, gets its last stop fine-tuned and,
             unless it is more than two days behind by then, one pass of nudges. It keeps the fastest. Exact also tries
-            each neighbouring pair of stops together, then one ascension more or fewer; Very high also tries groups of
-            three. You can stop it at any point and keep the best route so far. The result is a strong local best.
+            each neighbouring pair of stops together, then one ascension more or fewer; the retired Very high level also
+            tried groups of three. You can stop it at any point and keep the best route so far. The result is a strong local best.
             Nobody has proven it's the best overall.
           </li>
           <li>
@@ -117,16 +117,16 @@
           </li>
         </ul>
         <p>
-          Every search, {{ NAMES.smart }} or {{ NAMES.full }}, on {{ NAMES.fastest }} or {{ NAMES.byDate }}, has the
+          Every search, Fast, Exact or Custom, on {{ NAMES.fastest }} or {{ NAMES.byDate }}, has the
           same run controls in the same order: Find or Find and submit, Stop, the progress, Stepping away?, what was
-          sent, and any errors. It uses the number of workers Your setup shows (half your computer's cores, at most 12,
+          sent, and any errors. It uses the number of workers Setup shows (half your computer's cores, at most 12,
           until you pick a number), and Science's time estimates use that number too. On the one 20-thread PC we
           measured, 12 workers were as fast as 19, so more is not always faster.
         </p>
         <p>
           <b>How long, and what it finds</b> (from players' runs up to 13 Oct 2026, a small sample). On
           {{ NAMES.fastest }}, Fast takes about 5-10 minutes on an 8-core computer and a few minutes on 16; Exact about
-          20-30 minutes on 8 cores and 10-20 on 16 or more; Very high about 1.5-2.5 hours on 8 cores and 45 minutes to
+          20-30 minutes on 8 cores and 10-20 on 16 or more; the retired Very high level about 1.5-2.5 hours on 8 cores and 45 minutes to
           1.5 hours on 16. {{ NAMES.full }} runs about 70 routes a minute on 8 cores and about 120 on 16, so its time
           follows the size of your boxes. The Fast and Very high
           figures rest on very few runs, and the 8- and 16-core figures are estimates fitted from other machines. A tab
@@ -141,7 +141,7 @@
         </p>
         <p>
           <b>Under each search's answer</b> are two short lines: when
-          your first ascension switches eggs, from the simulation itself, and what one more TE above the last stop would
+          your first ascension shifts eggs, from the simulation itself, and what one more TE above the last stop would
           take. On {{ NAMES.byDate }} that comes from the run's own numbers (what its last TE cost over the one below);
           elsewhere it's when the next TE would come if you keep laying the same egg at the final rate (another egg needs a shift, which sets your chickens back to zero).
         </p>
@@ -154,10 +154,10 @@
           <b>On the hour or at once.</b> A search starts each new ascension the moment the last one reaches its TE. The
           instant answer starts it at the next whole hour, because that's where it was simulated (inside the weekly sale
           it can start at once, when that ends sooner). Most of the time that's a fraction of an hour, but a start just
-          before or after a sale deadline can move a single route by days. So ascend at the times the plan shows.
+          before or after the sale's end can move a single route by days. So ascend at the times the plan shows.
         </p>
         <p>
-          <b>Your hours.</b> With "Let me pick my hours" in Your setup, each prestige and egg switch waits for your
+          <b>Your hours.</b> With "Let me pick my hours" in Setup, each prestige and egg shift waits for your
           awake window, the farm keeps laying while it waits, and the wait counts in that ascension's time. With no
           hours set, nothing waits. <b>No prestige on these days</b> works the same way for prestiges only: you stay on
           virtue, a prestige that would land on one of those days waits for the next allowed time, and the farm lays
@@ -222,8 +222,8 @@
         <p>
           <b>Pricing a route.</b> Fast, Exact and Custom run each route they try through the full simulator on your
           save, ascending at once, on your hours. It takes about 10 to 40 seconds of one processor core a route.
-          That's the number to plan around. Searches start from the instant answer too: Nearby routes starts from its
-          route, and Exhaustive's suggested boxes are centred on it.
+          That's the number to plan around. Searches start from the instant answer too: Fast and Exact start from its
+          route, and Custom's suggested boxes are centred on it.
         </p>
         <p>
           <b>The Integrity check.</b> Some accounts don't earn enough yet to get through a fresh ascension's first
@@ -233,8 +233,8 @@
           Clothed TE against the roughly 225 that accounts get through at instead.
         </p>
         <p>
-          <b>Stronger check.</b> A box under the instant answer. Nothing in it runs by itself: you pick how hard to look: Fast or Exact run {{ NAMES.smart }}, a search of
-          the routes near the instant answer's (Exact a wider one), and Custom is {{ NAMES.full }}, every route in boxes
+          <b>Search.</b> A box under the instant answer. Nothing in it runs by itself: you pick how hard to look: Fast and Exact search
+          the routes near the instant answer's (Exact a wider set), and Custom runs every route in boxes
           you set. Each option says what it does, how long it should take on your computer, and what it can miss. Its result shows in the box, and the instant answer points to it ("Fast found … See it ↓").
         </p>
       </div>
@@ -316,7 +316,7 @@
             <b>Continue my build-up</b>: finishes the build from where your farm is. Each build step
             buys toward a goal (research maxed, every hab a Chicken Universe, every vehicle slot a full hyperloop,
             enough silos), so what your farm already owns isn't bought again. A step you can afford within half an hour
-            is done where you are, without switching eggs; otherwise it runs as a fresh build would. Then the sale-timed
+            is done where you are, without shifting eggs; otherwise it runs as a fresh build would. Then the sale-timed
             buying carries on as usual.
           </li>
           <li>
@@ -353,7 +353,7 @@
       <div class="hw-body">
         <p>
           <b>Nothing is sent unless you tick it.</b> A shared result sends the route, its dates and the target or
-          deadline, your artifact inventory, timezone and plan start, and a random code this browser keeps for your
+          date, your artifact inventory, timezone and plan start, and a random code this browser keeps for your
           account. Only a scrambled form of that code is stored. It lets you rename your rows and see your own plans.
           Your player ID and your save are never sent. You can send anonymously or under a name: the "Credit me as" name
           is one per account, kept in this browser, so a name typed on one screen is already there on the others.
@@ -413,11 +413,11 @@
             those are fragile, so re-run after each ascension.
           </li>
           <li>
-            <b>{{ NAMES.smartFirst }}</b> is a strong local best, not a proven one. {{ NAMES.fullFirst }} is proven only
+            The <b>{{ NAMES.smartFirst }}</b> search is a strong local best, not a proven one. {{ NAMES.fullFirst }} is proven only
             inside its boxes.
           </li>
           <li>
-            <b>"Prestige by…" (experimental, needs more data).</b> Turn it on in Your setup › Experimental (on the beta
+            <b>"Prestige by…" (experimental, needs more data).</b> Turn it on in Setup › Experimental (on the beta
             site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2 pm to keep 248 TE", then
             what you'd get after that. It prices your routes again from each later whole hour, up to 8 days ahead, with
             your farm laying while you wait (for as long as your silos hold), then confirms the hour it drops with the
@@ -456,7 +456,7 @@
     <details id="nearby-routes" class="hw rounded-xl border border-slate-200 bg-white">
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">7</span>
-        <span class="flex-1 text-sm font-black text-slate-900">How {{ NAMES.smart }} searches, in detail</span>
+        <span class="flex-1 text-sm font-black text-slate-900">How {{ NAMES.smart }} search, in detail</span>
         <span class="hw-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="px-4 pb-4">

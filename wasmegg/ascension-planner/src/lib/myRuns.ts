@@ -287,7 +287,7 @@ export function activeFilterWords(f: MyRunsFilters, eggDayYear: number): string[
   const out: string[] = [];
   if (f.kind === 'eggday') out.push(`Egg Day ${eggDayYear}`);
   else if (f.kind === 'dates') out.push('By a date');
-  else if (f.kind === 'race') out.push(f.target != null ? `Race to ${f.target}` : 'Races');
+  else if (f.kind === 'race') out.push(f.target != null ? `Fastest to ${f.target} TE` : 'Fastest to a target TE');
   if (f.hours === 'awake') out.push('planned around awake hours');
   else if (f.hours === 'any') out.push('any time of day');
   if (f.ascensions != null) out.push(`${f.ascensions} ${f.ascensions === 1 ? 'ascension' : 'ascensions'}`);

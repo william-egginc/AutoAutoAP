@@ -88,8 +88,8 @@ const plan: NowPlan = {
 const option: GoalOption = {
   key: 'fastest-490',
   kind: 'race',
-  label: 'Race to 490',
-  name: 'Race to 490',
+  label: 'Fastest to 490 TE',
+  name: 'Fastest to 490 TE',
   deadline: null,
   state: 'plan',
   calculatedAt: plan.calculatedAt,
@@ -123,14 +123,14 @@ const followedCard: CardPlan = {
   goal: { goal: 'fastest', target: 490, deadline: null },
   state: 'this-save',
   key: 'fastest-490',
-  name: 'Race to 490',
+  name: 'Fastest to 490 TE',
   followed: thisSave,
 };
 
 describe('Right now with a followed route', () => {
   it('priced on this save: the route line names it your pick, with the way back and no Price it', async () => {
     const t = textOf(await renderHtml(RightNowCard, props(followedCard, thisSave)));
-    expect(t).toContain('Following 222 → 490 (Race to 490 · your pick)');
+    expect(t).toContain('Following 222 → 490 (Fastest to 490 TE · your pick)');
     expect(t).toContain('Following your pick · Use the planner\'s route ›');
     expect(t).not.toContain('Price it');
     expect(t).not.toContain('may have drifted');
@@ -155,7 +155,7 @@ describe('Right now with a followed route', () => {
     const none: FollowCard = { chain: [222, 490], from: 'typed', price: 'none', source: null, pricedSave: null };
     const html = await renderHtml(RightNowCard, props(null, none));
     const t = textOf(html);
-    expect(t).toContain('Following 222 → 490 (Race to 490 · your pick)');
+    expect(t).toContain('Following 222 → 490 (Fastest to 490 TE · your pick)');
     expect(t).toContain('Following your pick · not priced on this save yet · Run Fast › · Simulate it › · Use the planner\'s route ›');
     expect(t).toContain('No timeline for your route on this save yet');
     expect(html).not.toContain('data-testid="now-events"');
@@ -215,7 +215,7 @@ describe('Right now with a followed route', () => {
     expect(onFollow).toHaveBeenCalledWith([230, 260, 490]);
     setup.typed = '230 260';
     (setup.followTyped as () => void)();
-    expect(setup.typedError).toBe('This race ends at 490: make that the last stop.');
+    expect(setup.typedError).toBe('Fastest to 490 TE ends at 490: make that the last stop.');
     const view = read('../MyRunsView.vue');
     expect(view).toContain('@follow="followTyped"');
     expect(view).toContain('@unfollow="unfollowGoal"');

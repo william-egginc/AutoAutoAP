@@ -20,7 +20,7 @@
     :data-testid="`search-panel-${screen}`"
   >
     <div class="flex flex-wrap items-center gap-2">
-      <h3 class="text-base font-black text-slate-900">Stronger check</h3>
+      <h3 class="text-base font-black text-slate-900">Search</h3>
       <!-- "Stopping" once Stop is pressed (23 Oct 2026): the run goes on until the workers finish the routes they
            have (search/stopNote.ts), which can be minutes, and "Running" then looked as if Stop had not worked. -->
       <span

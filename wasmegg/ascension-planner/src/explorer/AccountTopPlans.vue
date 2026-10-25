@@ -341,7 +341,7 @@ async function load(): Promise<void> {
     if (isAbort(e)) {
       if (result.value) result.value = { ...result.value, cancelled: true };
     } else {
-      error.value = describeFetchError(e, 'the collector');
+      error.value = describeFetchError(e, "the planner's server");
       if (result.value) result.value = { ...result.value, cancelled: true };
     }
   } finally {
