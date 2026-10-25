@@ -19,7 +19,7 @@
     @toggle="onToggle"
   >
     <summary
-      class="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-h-[44px] sm:min-h-0 cursor-pointer select-none"
+      class="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-1.5 min-h-[44px] sm:min-h-0 cursor-pointer select-none"
       :class="summaryClass"
       :data-testid="`${id}-summary`"
     >

@@ -191,6 +191,8 @@ describe('Find and submit still needs the ticks', () => {
     expect(html.indexOf('data-testid="share-box"')).toBeGreaterThan(html.indexOf('data-testid="fold-acknowledgement"'));
     expect(html).toContain('I acknowledge the following');
     expect(await render(FindBar, { ...base, optIn: true })).not.toContain('data-testid="ticks-needed"');
+    // A run going sends nothing more without Send best so far asking: no ticks are needed then.
+    expect(await render(FindBar, { ...base, running: true })).not.toContain('data-testid="ticks-needed"');
   });
 
   it('greyed out without the ticks; a press opens the fold and goes to the box, and never starts a run', async () => {

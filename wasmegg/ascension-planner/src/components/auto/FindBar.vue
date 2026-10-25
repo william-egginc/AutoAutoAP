@@ -143,7 +143,8 @@
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 px-3"
       summary-class="text-[11px] text-indigo-900"
     >
-      <template v-if="!optIn" #extra
+      <!-- Only while the ticks are needed: before a run, or when Send best so far asks. -->
+      <template v-if="!optIn && (!running || asking)" #extra
         ><span class="font-bold text-amber-700" data-testid="ticks-needed">ticks needed</span></template
       >
       <div
