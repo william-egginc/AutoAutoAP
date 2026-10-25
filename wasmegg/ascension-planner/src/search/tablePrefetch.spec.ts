@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SIM_VERSION } from './simVersion';
 import { gearCoverage, prefetchAllowed, prefetchFiles, prefetchPlan } from './tablePrefetch';
 import type { TableEntry } from './tableBracket';
 
@@ -97,9 +98,9 @@ describe('prefetchFiles', () => {
 
 describe('gearCoverage', () => {
   const entries = [
-    { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 100 },
-    { file: 'acct-aaa.bin', bonus: 128.71, k: 1, from: 100 },
-    { file: 'gear-old.bin', bonus: 120, k: 0.9, from: 100, aliases: ['gear-new.bin'] },
+    { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 100, simVersion: SIM_VERSION },
+    { file: 'acct-aaa.bin', bonus: 128.71, k: 1, from: 100, simVersion: SIM_VERSION },
+    { file: 'gear-old.bin', bonus: 120, k: 0.9, from: 100, aliases: ['gear-new.bin'], simVersion: SIM_VERSION },
   ];
   it('own table first, then a gear table by file or alias, else none', () => {
     expect(gearCoverage(entries, 'acct-aaa.bin', ['gear-x.bin'])).toBe('own');
@@ -108,16 +109,27 @@ describe('gearCoverage', () => {
     expect(gearCoverage(entries, null, ['gear-zzz.bin'])).toBe('none');
     expect(gearCoverage(entries, 'acct-bbb.bin', [])).toBe('none');
   });
+  it('a file stamped with another simulator, or not stamped, is not coverage: the instant answer would skip it', () => {
+    const old = entries.map(e => ({ ...e, simVersion: '2020-01-01-old' }));
+    expect(gearCoverage(old, 'acct-aaa.bin', ['gear-x.bin'])).toBe('none');
+    expect(gearCoverage(old, 'acct-bbb.bin', ['gear-new.bin'])).toBe('none');
+    const unstamped = entries.map(({ simVersion: _s, ...e }) => e);
+    void unstamped;
+    expect(gearCoverage(unstamped, 'acct-aaa.bin', [])).toBe('none');
+    // One current file among old ones still counts.
+    const mixed = [old[0], { ...entries[1] }];
+    expect(gearCoverage(mixed, 'acct-aaa.bin', [])).toBe('own');
+  });
 });
 
 describe('.v2 names (an own or gear table of version 2 beside the version 1 one older pages read)', () => {
   const both: TableEntry[] = [
-    { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120 },
-    { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138 },
-    { file: 'acct-own.v2.bin', bonus: 126.4, k: 0.94, from: 138 },
-    { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120, aliases: ['gear-canon.bin'] },
-    { file: 'gear-mine.v2.bin', bonus: 121.6, k: 0.94, from: 120, aliases: ['gear-canon.v2.bin'] },
-    { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120 },
+    { file: 'table-v2.bin', bonus: 128.71, k: 1, from: 120, simVersion: SIM_VERSION },
+    { file: 'acct-own.bin', bonus: 126.4, k: 0.94, from: 138, simVersion: SIM_VERSION },
+    { file: 'acct-own.v2.bin', bonus: 126.4, k: 0.94, from: 138, simVersion: SIM_VERSION },
+    { file: 'gear-mine.bin', bonus: 121.6, k: 0.94, from: 120, aliases: ['gear-canon.bin'], simVersion: SIM_VERSION },
+    { file: 'gear-mine.v2.bin', bonus: 121.6, k: 0.94, from: 120, aliases: ['gear-canon.v2.bin'], simVersion: SIM_VERSION },
+    { file: 'gear-weak.bin', bonus: 115.28, k: 0.71, from: 120, simVersion: SIM_VERSION },
   ];
   const own = ['acct-own.v2.bin', 'acct-own.bin'];
   const gear = ['gear-canon.v2.bin', 'gear-mine.v2.bin', 'gear-canon.bin', 'gear-mine.bin'];

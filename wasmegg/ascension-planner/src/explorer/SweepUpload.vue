@@ -145,7 +145,8 @@
       <details class="text-[11px] text-slate-500">
         <summary class="cursor-pointer font-bold">Exactly what gets sent</summary>
         <p class="mt-1">
-          This record, plus the CSV (compressed, player IDs removed). No player ID and no in-game name: those are in
+          This record, plus the CSV (compressed, player IDs removed), is sent as a <b>public</b> row on the leaderboard:
+          anyone can see it and download its CSV. No player ID and no in-game name: those are in
           neither. The artifact set and time zone do narrow down who you are among people who know each other.
         </p>
         <pre class="mt-1 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] text-slate-100">{{

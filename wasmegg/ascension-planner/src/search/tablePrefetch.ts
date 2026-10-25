@@ -7,6 +7,7 @@
  * connection or a 2G one; never an error: a file that fails is simply fetched when the panel opens.
  */
 import { isSmallDevice } from './device';
+import { tableSimMismatch } from './simVersion';
 import { MAXED_TABLE_FILE, isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket';
 
 /** The files to fetch for a player, in order: their own table if the site has one; else the table of
@@ -79,7 +80,10 @@ export async function prefetchFiles(
  *  'gear' (built on a board account with exactly their gear, under either of `gearTableNames`), or
  *  'none' (it estimates from the maxed table and its neighbours). The Science tab's gear cards say it. */
 export type GearCoverage = 'own' | 'gear' | 'none';
-export function gearCoverage(entries: TableEntry[], own: string | string[] | null, gear: string[]): GearCoverage {
+export function gearCoverage(all: TableEntry[], own: string | string[] | null, gear: string[]): GearCoverage {
+  // Only files the instant answer would use: one stamped with another simulator (or none) is skipped there
+  // (InstantRoute.vue `tableSimMismatch`), so it must not read as "has an instant answer" here.
+  const entries = all.filter(e => !tableSimMismatch(e));
   const owns = Array.isArray(own) ? own : own ? [own] : [];
   if (owns.some(f => entries.some(e => e.file === f))) return 'own';
   if (gear.some(f => entries.some(e => e.file === f || e.aliases?.includes(f)))) return 'gear';
