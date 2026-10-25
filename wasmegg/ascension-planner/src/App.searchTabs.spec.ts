@@ -38,11 +38,14 @@ describe("the progress bar's Jump to it / Show it", () => {
 
 describe('the handoffs into Custom (Exhaustive) switch parts first', () => {
   it("Fastest: Check exactly (the instant answer's, and a longer route's) selects Exhaustive before scrolling", () => {
-    const fn = between(fastest, 'function checkExactly', '\n}');
+    // Check exactly and Go further's "open in Custom" both go through openCustom (25 Oct 2026).
+    expect(between(fastest, 'function checkExactly', '\n}')).toContain('openCustom(');
+    const fn = between(fastest, 'function openCustom', '\n}');
     expect(fn.indexOf("selectSearchTab('fastest', 'exhaustive')")).toBeGreaterThan(0);
     expect(fn.indexOf("selectSearchTab('fastest', 'exhaustive')")).toBeLessThan(fn.indexOf("getElementById('exhaustive')"));
     expect(fastest).toContain('@check="checkExactly"');
     expect(fastest).toContain('@check-exactly="checkExactly"');
+    expect(fastest).toContain('@open-custom="openCustom"');
   });
   it('By a date: Open in Exhaustive, Check exactly and widen-and-run all go through showExhaustive, which selects the tab', () => {
     const fn = between(deadline, 'function showExhaustive', '\n}');
