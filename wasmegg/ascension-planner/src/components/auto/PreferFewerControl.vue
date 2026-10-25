@@ -81,7 +81,7 @@ import {
 const props = defineProps<{ goal: PreferGoal; modelValue: PreferMargin }>();
 const emit = defineEmits<{ 'update:modelValue': [PreferMargin] }>();
 
-const ON = 'border-emerald-600 bg-emerald-600 text-white';
+const ON = 'border-emerald-700 bg-emerald-700 text-white';
 const OFF = 'border-slate-300 bg-white text-slate-600 hover:border-emerald-400';
 
 const presets = computed(() => (props.goal === 'fastest' ? FASTEST_PRESETS : DATE_PRESETS));

@@ -182,7 +182,7 @@
 
     <!-- Follow another route: typed stops (lib/follow.ts parseTypedRoute). -->
     <details v-if="selectedOption && !notOnVirtue" class="text-[12px]" data-testid="now-follow-typed">
-      <summary class="cursor-pointer font-semibold text-indigo-700">Follow another route</summary>
+      <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer font-semibold text-indigo-700" data-testid="now-follow-typed-summary">Follow another route</summary>
       <form class="mt-1.5 flex flex-wrap items-center gap-2" @submit.prevent="followTyped">
         <label class="sr-only" for="now-follow-input">Stops of the route</label>
         <input
@@ -297,7 +297,7 @@
         </p>
         <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
           {{ paceBadge }}.
-          <button type="button" class="font-bold underline" @click="emit('recalc', recalcRequest)">Run Fast ›</button>
+          <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" data-testid="now-behind-run-fast" @click="emit('recalc', recalcRequest)">Run Fast ›</button>
         </p>
       </template>
       <p
@@ -352,7 +352,7 @@
       <p v-else class="text-[13px] text-slate-700" data-testid="now-no-plan">
         No plan with its times is saved for this save yet: the instant answer for a goal is kept for a day after its
         screen works it out.
-        <button type="button" class="font-bold text-indigo-700 underline" @click="emit('open', { auto: 'fastest', depth: 'smart', target: 490 })">
+        <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-out-plan" @click="emit('open', { auto: 'fastest', depth: 'smart', target: 490 })">
           Work out my plan ›
         </button>
       </p>
@@ -400,7 +400,7 @@
         @run-fast="emit('recalc', recalcRequest)"
       />
       <details class="mt-2" data-testid="now-timeline">
-        <summary class="cursor-pointer text-[13px] font-semibold text-indigo-700">
+        <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-[13px] font-semibold text-indigo-700" data-testid="now-timeline-summary">
           Full timeline (every ascension, each egg's first and last shift)
         </summary>
         <div class="mt-2">

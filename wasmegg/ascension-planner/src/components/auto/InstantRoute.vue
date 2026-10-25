@@ -25,6 +25,8 @@
 -->
 <template>
   <section v-if="!noTable" class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3">
+    <!-- Said to a screen reader (lib/liveStatus.ts): "Working out the instant answer", then "Instant answer ready". -->
+    <p class="sr-only" role="status" aria-live="polite" data-testid="instant-live">{{ instantLive }}</p>
     <div class="flex flex-wrap items-baseline justify-between gap-2">
       <h3 class="text-base font-black text-slate-900">
         Instant answer
@@ -38,7 +40,7 @@
           >your gear</span
         >
       </h3>
-      <span v-if="ms !== null" class="text-[10px] text-slate-400"
+      <span v-if="ms !== null" class="text-[10px] text-slate-500"
         >every route checked in {{ (ms / 1000).toFixed(1) }} s</span
       >
     </div>
@@ -271,7 +273,7 @@
         <p v-else-if="gainsText" class="text-[11px] text-emerald-800">
           Improved by the background polish: {{ gainsText }}.
         </p>
-        <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-400">
+        <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-500">
           Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
         </p>
         <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
@@ -404,7 +406,7 @@
           <div class="overflow-x-auto" data-testid="counts-scroll">
             <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-[12px]" data-testid="counts-table">
               <thead>
-                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
+                <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
                   <th class="py-1 pr-2">TE · spare</th>
                   <th class="py-1 pr-2">Reached</th>
@@ -576,7 +578,7 @@
           <div class="overflow-x-auto" data-testid="counts-scroll">
             <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-[12px]" data-testid="counts-table">
               <thead>
-                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400 align-bottom">
+                <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
                   <th class="py-1 pr-2">Reaches {{ store.finalTE }}</th>
                   <th class="py-1 pr-2">Behind</th>
@@ -937,6 +939,7 @@ import InstantPointer from './InstantPointer.vue';
 import { bracketHeadline, bracketLine, type BracketLineInput } from '@/lib/bracketLine';
 import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
+import { instantLiveText } from '@/lib/liveStatus';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
@@ -1014,6 +1017,8 @@ const below = ref<{ from: number; te: number } | null>(null);
 const loadingText = ref('');
 const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
+/** The instant answer's state, for the screen reader's status line. */
+const instantLive = computed(() => instantLiveText(status.value, !!result.value));
 const header = ref<TableHeader | null>(null);
 const ms = ref<number | null>(null);
 /** The background polish (the user, 6 Oct): running, and what it improved. */

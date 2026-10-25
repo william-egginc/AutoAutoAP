@@ -21,7 +21,7 @@
         <span class="text-sm font-black text-indigo-900">Setup</span>
         <button
           type="button"
-          class="px-3 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
+          class="min-h-[44px] sm:min-h-0 px-3 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
           @click="ui.setupOpen = false"
         >
           Done
@@ -42,7 +42,7 @@
       >
       <button
         type="button"
-        class="relative flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:bg-white/15"
+        class="relative flex items-center gap-1.5 min-h-[44px] sm:min-h-0 rounded-full px-2.5 py-1 hover:bg-white/15"
         :aria-expanded="ui.setupOpen"
         :title="ui.setupOpen ? 'Close Setup' : 'Open Setup'"
         @click="ui.setupOpen = !ui.setupOpen"
@@ -70,7 +70,7 @@
       <!-- Workers, adjustable folded: a running search resizes to it within about a minute. -->
       <button
         type="button"
-        class="w-6 h-6 rounded-full hover:bg-white/15 font-black disabled:opacity-40"
+        class="w-11 h-11 sm:w-6 sm:h-6 rounded-full hover:bg-white/15 font-black disabled:opacity-40"
         :disabled="store.workerBudget <= 1"
         aria-label="Fewer workers"
         @click="setWorkers(store.workerBudget - 1)"
@@ -82,7 +82,7 @@
       >
       <button
         type="button"
-        class="w-6 h-6 rounded-full hover:bg-white/15 font-black disabled:opacity-40"
+        class="w-11 h-11 sm:w-6 sm:h-6 rounded-full hover:bg-white/15 font-black disabled:opacity-40"
         :disabled="store.workerBudget >= store.machineThreads"
         aria-label="More workers"
         @click="setWorkers(store.workerBudget + 1)"

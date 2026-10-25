@@ -24,7 +24,7 @@
 <template>
   <div class="space-y-3 pb-16" data-testid="my-runs">
     <div>
-      <h2 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h2>
+      <h1 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h1>
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
         <template v-if="hasBoard">
           Where you are now, from your save and the answers already worked out, then your runs: the latest, the ones on
@@ -155,7 +155,7 @@
           v-for="m in modes"
           :key="m.id"
           type="button"
-          class="rounded-lg border px-3 py-1.5 text-[12px] font-bold"
+          class="min-h-[44px] sm:min-h-0 rounded-lg border px-3 py-1.5 text-[12px] font-bold"
           :class="showing === m.id ? 'border-indigo-400 bg-indigo-50 text-indigo-900' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'"
           :aria-pressed="showing === m.id"
           :data-testid="`my-runs-show-${m.id}`"
@@ -344,7 +344,7 @@ const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-const SUMMARY = 'cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-700';
+const SUMMARY = 'min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-700';
 const COUNT = 'ml-2 font-semibold normal-case tracking-normal text-slate-500';
 
 /** This build has a collector, so a board to read and send to. Without one the board's parts are one line and

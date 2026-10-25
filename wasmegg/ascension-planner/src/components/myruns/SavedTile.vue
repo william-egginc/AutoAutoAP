@@ -27,19 +27,19 @@
         <b>How sure: {{ LEVEL[tile.sure.level] }}</b>
         <span class="block">
           {{ cap(tile.sure.reason) }}.
-          <button v-if="tile.sure.action" type="button" class="font-bold underline" @click="emit('open', actionOpen)">
+          <button v-if="tile.sure.action" type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" @click="emit('open', actionOpen)">
             Run Fast ›
           </button>
         </span>
       </div>
       <p v-if="tile.olderSave" class="mt-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[12px] text-amber-900" data-testid="now-tile-older">
         Older save than the one you loaded.
-        <button type="button" class="font-bold underline" @click="emit('open', screenOpen)">Work it out again ›</button>
+        <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" @click="emit('open', screenOpen)">Work it out again ›</button>
       </p>
       <p v-if="standing" class="mt-1 border-t border-slate-100 pt-1.5 text-[13px] text-slate-700" data-testid="now-tile-standing">
         {{ standingLabel }}: <b>{{ standing }}</b>
       </p>
-      <button type="button" class="self-start mt-1 text-[13px] font-bold text-indigo-700 underline" @click="emit('routes')">
+      <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 self-start mt-1 text-[13px] font-bold text-indigo-700 underline" @click="emit('routes')">
         See the routes ›
       </button>
     </template>

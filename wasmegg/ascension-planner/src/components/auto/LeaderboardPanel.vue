@@ -196,7 +196,7 @@
     <div class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">{{ NAMES.compare }}</h3>
+          <h1 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">{{ NAMES.compare }}</h1>
         </div>
         <div v-if="boardView" class="flex items-end gap-2">
           <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">
@@ -224,11 +224,12 @@
           type="button"
           role="tab"
           :aria-selected="tab === t"
-          class="px-3 py-1.5 -mb-px rounded-t-lg text-[10px] font-black uppercase tracking-widest border border-b-0"
+          class="min-h-[44px] sm:min-h-0 px-3 py-1.5 -mb-px rounded-t-lg text-[10px] font-black uppercase tracking-widest border border-b-0"
+          data-testid="board-view-tab"
           :class="
             tab === t
               ? 'bg-white border-indigo-200 text-indigo-800'
-              : 'border-transparent text-indigo-700/60 hover:text-indigo-800'
+              : 'border-transparent text-indigo-700/90 hover:text-indigo-800'
           "
           @click="tab = t"
         >

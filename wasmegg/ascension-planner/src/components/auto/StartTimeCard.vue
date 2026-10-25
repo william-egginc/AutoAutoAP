@@ -13,7 +13,7 @@
 <template>
   <section id="start-times" class="space-y-4 scroll-mt-24" data-testid="start-times-card">
     <div class="space-y-1">
-      <h2 class="text-2xl font-black text-slate-900">{{ NAMES.start }}</h2>
+      <h1 class="text-2xl font-black text-slate-900">{{ NAMES.start }}</h1>
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
         For coming back after a break: one route priced as a fresh start at every hour of the next week, to see
         whether waiting for the weekly sales finishes sooner. It uses your save and Setup from the

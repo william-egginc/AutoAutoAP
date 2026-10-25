@@ -24,6 +24,7 @@ import { compileTemplate, parse } from '@vue/compiler-sfc';
 import ts from 'typescript';
 import { idleLine } from '@/search/instantDeferral';
 import { HOURS_NOTE } from '@/lib/hoursNote';
+import { instantLiveText } from '@/lib/liveStatus';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 
@@ -157,6 +158,7 @@ function ctxOf(s: State): Record<string, unknown> {
     instantCandidate: (r: unknown) => r,
     instantUrl: 'https://collector.example/instant',
     integrity: { kind: s.hold ? 'checking' : 'none' },
+    instantLive: instantLiveText(s.status, !!result),
     integrityHold: s.hold,
     keepSharing: false,
     lastEndTE: (r: Route) => r.legs[r.legs.length - 1]?.endTE ?? 0,
