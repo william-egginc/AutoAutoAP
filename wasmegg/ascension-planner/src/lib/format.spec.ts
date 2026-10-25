@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
-import { formatDuration } from './format';
+import { describe, expect, it, test } from 'vitest';
+import { formatDuration, roundedGap } from './format';
 
 describe('formatDuration', () => {
   test('rounds a value a sub-microsecond epsilon under a whole unit up to that unit', () => {
@@ -28,5 +28,23 @@ describe('formatDuration', () => {
   test('non-finite or negative input', () => {
     expect(formatDuration(Infinity)).toBe('∞');
     expect(formatDuration(-5)).toBe('∞');
+  });
+});
+
+describe('roundedGap: a dense table rounds (UX review, 25 Oct 2026)', () => {
+  const D = 86400;
+  it('minutes, hours, days, then years', () => {
+    expect(roundedGap(40 * 60, 'en-US')).toBe('40 min');
+    expect(roundedGap(10, 'en-US')).toBe('1 min');
+    expect(roundedGap(17.4 * 3600, 'en-US')).toBe('17 h');
+    expect(roundedGap(3.44 * D, 'en-US')).toBe('3.4 days');
+    expect(roundedGap(312.6 * D, 'en-US')).toBe('313 days');
+    expect(roundedGap(3302.72 * D, 'en-US')).toBe('9 years');
+    expect(roundedGap(548 * D, 'en-US')).toBe('1.5 years');
+    expect(roundedGap(366 * D, 'en-US')).toBe('1 year');
+    expect(roundedGap(-2 * 3600, 'en-US')).toBe('2 h');
+  });
+  it("follows the browser's number format", () => {
+    expect(roundedGap(3.44 * D, 'de-DE')).toBe('3,4 days');
   });
 });

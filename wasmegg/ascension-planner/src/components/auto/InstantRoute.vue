@@ -432,7 +432,7 @@
                   </td>
                   <td class="py-1.5 pr-2 font-bold text-slate-800 align-top" data-testid="counts-te">
                     <span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
-                    <span class="whitespace-nowrap">{{ days(deadline - r.end) }} spare</span>
+                    <span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>
                   </td>
                   <td class="py-1.5 pr-2 text-slate-600 whitespace-nowrap align-top">{{ show(r.end) }}</td>
                   <!-- The route, with its buttons beside it when the card has room and under it when not. -->
@@ -604,7 +604,9 @@
                   </td>
                   <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">{{ showFinish(r.end) }}</td>
                   <td class="py-1.5 pr-2 text-slate-500 align-top">
-                    <span class="whitespace-nowrap">{{ behind(r) }}</span>
+                    <span class="whitespace-nowrap" :title="behindExact(r)"
+                      >{{ behind(r) }}<span v-if="behind(r) !== 'fastest'" class="min-[30rem]:hidden"> behind</span></span
+                    >
                     <span
                       v-if="nearTie(r)"
                       class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] leading-snug"
@@ -762,7 +764,7 @@
 
 <script setup lang="ts">
 import { formatClock } from '@/lib/clock';
-import { plural } from '@/lib/format';
+import { plural, roundedGap } from '@/lib/format';
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
@@ -2099,11 +2101,17 @@ function nearTie(r: Route): NearTie | null {
   if (gap >= NEAR_TIE_SECONDS) return null;
   return nearTieOf(r.legs.length, t.legs.length, gap);
 }
-/** How far a row is behind the fastest, on the instant answer. */
+/** How far a row is behind the fastest, on the instant answer, rounded for the table ("+17 h", "+9 years"; UX review,
+ *  25 Oct 2026). On a phone the stacked row has no header, so it adds "behind". */
 function behind(r: Route): string {
   const t = result.value?.best;
   if (!t) return '';
-  return r === t ? 'fastest' : '+' + days(r.seconds - t.seconds);
+  return r === t ? 'fastest' : '+' + roundedGap(r.seconds - t.seconds);
+}
+/** The same to the hundredth of a day, for the cell's tooltip. */
+function behindExact(r: Route): string {
+  const t = result.value?.best;
+  return t && r !== t ? '+' + days(r.seconds - t.seconds) : '';
 }
 /**
  * Fastest route only: hand the searches this answer (chainSearch.ts `suggestedCount`/`suggestedRoute`
@@ -2726,6 +2734,10 @@ function showFinish(unix: number): string {
 }
 function days(seconds: number): string {
   return (seconds / 86400).toFixed(2) + ' days';
+}
+/** A table cell's gap, rounded (lib/format.ts `roundedGap`); a negative one keeps its sign. */
+function tableGap(seconds: number): string {
+  return (seconds < 0 ? '−' : '') + roundedGap(seconds);
 }
 
 /**

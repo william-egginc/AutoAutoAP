@@ -260,8 +260,11 @@
                   </td>
                   <td class="py-2 pr-3 font-bold text-slate-600">{{ row.prestiges }}</td>
                   <td class="py-2 pr-3 text-slate-600 whitespace-nowrap">{{ finishInstant(row.seconds) }}</td>
-                  <td class="py-2 pr-3 text-slate-500 whitespace-nowrap">
-                    {{ row.gapSeconds < 1 ? '—' : '+' + (row.gapSeconds / 86400).toFixed(2) + ' d' }}
+                  <td
+                    class="py-2 pr-3 text-slate-500 whitespace-nowrap"
+                    :title="row.gapSeconds < 1 ? undefined : '+' + (row.gapSeconds / 86400).toFixed(2) + ' days'"
+                  >
+                    {{ row.gapSeconds < 1 ? '—' : '+' + roundedGap(row.gapSeconds) }}
                   </td>
                   <!-- null, not 0: a replayed chain has no legs to count, and "0" would be a claim. -->
                   <td v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
@@ -404,6 +407,7 @@
 
 <script setup lang="ts">
 import { formatMoment } from '@/lib/clock';
+import { roundedGap } from '@/lib/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';

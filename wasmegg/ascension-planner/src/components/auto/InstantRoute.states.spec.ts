@@ -25,6 +25,7 @@ import ts from 'typescript';
 import { idleLine } from '@/search/instantDeferral';
 import { HOURS_NOTE } from '@/lib/hoursNote';
 import { instantLiveText } from '@/lib/liveStatus';
+import { roundedGap } from '@/lib/format';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 
@@ -122,6 +123,7 @@ function ctxOf(s: State): Record<string, unknown> {
     atTarget: s.atTarget,
     backgroundStatus: 'done',
     behind: () => 'fastest',
+    behindExact: () => '',
     below: s.below ? { from: 120, te: 80 } : null,
     bonusShort: 0,
     boxFollowable: true,
@@ -136,6 +138,7 @@ function ctxOf(s: State): Record<string, unknown> {
     dateRowLit: () => false,
     dateRows: result?.byDate ? [fewer, dateRoute] : [],
     days: (sec: number) => `${(sec / 86400).toFixed(2)} days`,
+    tableGap: (sec: number) => roundedGap(sec),
     deadline,
     deliveryScale: 1,
     emit: () => {},
@@ -492,5 +495,14 @@ describe('the hours note under each box', () => {
     expect(source).not.toContain('a prestige even a few minutes off');
     const line = fs.readFileSync(path.resolve(__dirname, 'PrestigeByLine.vue'), 'utf8');
     expect(line).toContain("import { HOURS_NOTE } from '@/lib/hoursNote';");
+  });
+});
+
+describe('Every number of ascensions: rounded gaps (UX review, 25 Oct 2026)', () => {
+  it('Behind and spare go through roundedGap, the exact figure in the tooltip, and a phone row says "behind"', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
+    expect(src).toContain("return r === t ? 'fastest' : '+' + roundedGap(r.seconds - t.seconds);");
+    expect(src).toContain('<span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>');
+    expect(src).toContain('<span v-if="behind(r) !== \'fastest\'" class="min-[30rem]:hidden"> behind</span>');
   });
 });

@@ -453,3 +453,19 @@ export function formatUnixToTimeInput(timestamp: number, tz: string): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n.toLocaleString()} ${n === 1 ? one : many}`;
 }
+
+/**
+ * A gap between two finishes, rounded for a dense table (UX review, 25 Oct 2026: "+3302.72 days" promised a
+ * precision the instant answer doesn't have): "40 min", "17 h", "3.4 days", "312 days", and from a year on, years:
+ * "9 years" (3,303 days), "1.5 years". Numbers use the browser's own separators.
+ */
+export function roundedGap(seconds: number, locale?: string): string {
+  const s = Math.abs(seconds);
+  const days = s / 86400;
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min`;
+  if (s < 48 * 3600) return `${Math.round(s / 3600)} h`;
+  if (days < 10) return `${(Math.round(days * 10) / 10).toLocaleString(locale)} days`;
+  if (days < 365) return `${Math.round(days).toLocaleString(locale)} days`;
+  const years = Math.round((days / 365.25) * 10) / 10;
+  return `${years.toLocaleString(locale)} year${years === 1 ? '' : 's'}`;
+}
