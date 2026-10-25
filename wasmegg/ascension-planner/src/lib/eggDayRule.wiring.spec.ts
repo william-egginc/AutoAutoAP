@@ -72,13 +72,10 @@ describe('the picks', () => {
 });
 
 describe('the summary, the line and the chart', () => {
-  it('the Egg Day and By a date cards and the Egg Day step split with splitOnTime; "misses the date" is gone', () => {
+  it('the summary\u2019s cards and Egg Day step are gone (24 Oct 2026); "misses the date" never came back', () => {
     const t = src('lib/myRunsDashboard.ts');
-    const cards = fn(t, 'buildCards');
-    expect(cards).toContain('const egg = cardLine(eggSplit.onTime, eggDayAt);');
-    expect(cards).toContain('const date = cardLine(dateSplit.onTime, eggDayAt);');
-    expect(cards.match(/splitOnTime\(/g)).toHaveLength(3);
-    expect(fn(t, 'buildSteps')).toContain('const hasEgg = eggLines.onTime.length > 0 || eggSaved.onTime.length > 0');
+    expect(t).not.toContain('function buildCards');
+    expect(fn(t, 'buildSteps')).not.toContain('No Egg Day');
     expect(t).not.toContain('misses the date');
   });
 

@@ -99,19 +99,18 @@ describe('MyRunsView', () => {
   });
 });
 
-describe('Next steps and the six cards, folded under Your runs (17 Oct 2026; were above the parts)', () => {
-  it('come after the three parts, folded; they wait for the board', async () => {
+describe('Next steps, folded under Your runs (17 Oct 2026; the six cards gone 24 Oct 2026)', () => {
+  it('come after the three parts, folded; no cards, nothing waits for the board', async () => {
     const html = await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [pinia]);
     const steps = html.indexOf('data-testid="my-runs-steps"');
-    const cards = html.indexOf('data-testid="my-runs-cards"');
     expect(steps).toBeGreaterThan(html.indexOf('data-testid="my-runs-part-unsent"'));
-    expect(steps).toBeLessThan(cards);
-    for (const id of ['eggday', 'race', 'date', 'saved', 'last', 'hours'])
-      expect(html).toContain(`data-testid="my-runs-card-${id}"`);
+    expect(html).not.toContain('data-testid="my-runs-cards"');
+    expect(html).not.toContain('data-testid="my-runs-card-');
     const t = textOf(html);
-    expect(t).toContain('Next steps · checking');
-    expect(t).toContain('Checking your runs on the board…');
-    expect(t).toContain('Your hours Any hour no time off');
+    expect(t).toContain('Next steps (0 to look at)');
+    expect(t).not.toContain('Next steps · checking');
+    expect(t).not.toContain('Six cards');
+    expect(t).toContain('Nothing to change: keep following your route.');
     expect(html).not.toContain('EI1234567890123456');
   });
 
@@ -125,10 +124,11 @@ describe('Next steps and the six cards, folded under Your runs (17 Oct 2026; wer
     );
   });
 
-  it('a step opens its part here (unsent, the board list) or asks App for its screen, set up', async () => {
+  it('a step opens its part here (unsent), Right now on its goal, a fresh save, or asks App for its screen, set up', async () => {
     let setup: Record<string, unknown> = {};
     const onOpen = vi.fn();
-    const app = createSSRApp({ render: () => h(MyRunsView, { playerId: 'P', onOpen }) });
+    const onFresh = vi.fn();
+    const app = createSSRApp({ render: () => h(MyRunsView, { playerId: 'P', onOpen, onFresh }) });
     app.use(pinia);
     app.mixin({
       created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
@@ -141,8 +141,9 @@ describe('Next steps and the six cards, folded under Your runs (17 Oct 2026; wer
     expect(open.unsent).toBe(false);
     act({ to: 'unsent' });
     expect(open.unsent).toBe(true);
-    act({ to: 'board' });
-    expect(open.board).toBe(true);
+    act({ to: 'fresh' });
+    expect(onFresh).toHaveBeenCalledTimes(1);
+    act({ to: 'right-now', goalKey: 'fastest-490' });
     expect(onOpen).not.toHaveBeenCalled();
     act({ to: 'by-date', deadline: 1, eggDay: true, tab: 'nearby' });
     expect(onOpen).toHaveBeenLastCalledWith({ auto: 'by-date', tab: 'nearby', byDate: { eggDay: true } });
@@ -286,7 +287,9 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     expect(t).not.toContain('· loading');
     expect(t).not.toContain('Checking your runs on the board');
     expect(t).not.toContain('Next steps · checking');
-    expect(t).toContain('Six cards (saved on this computer)');
+    // The six cards are gone (24 Oct 2026); Next steps stay, with nothing to wait for.
+    expect(t).not.toContain('Six cards');
+    expect(t).toContain('Next steps (0 to look at)');
     expect(html).not.toContain('EI1234567890123456');
   });
 

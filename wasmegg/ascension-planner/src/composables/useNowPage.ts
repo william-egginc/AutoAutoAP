@@ -60,6 +60,7 @@ import {
   onTrack,
   planEvents,
   planFromSnapshot,
+  planPrestiges,
   shiftsAfter,
   tableEvents,
   type NowPlan,
@@ -107,7 +108,9 @@ import {
   type PlanGoal,
 } from '@/lib/planGoals';
 import { whichSet } from '@/lib/gearMatch';
-import type { MyRunsOpen } from '@/lib/myRunsDashboard';
+import type { FollowedForSteps, MyRunsOpen, StepWindow } from '@/lib/myRunsDashboard';
+import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
+import { timeOffWords } from '@/lib/pricedWith';
 import { phaseNow } from '@/lib/nowPhase';
 import { startLines } from '@/lib/nowStart';
 import { useFollowStore } from '@/stores/follow';
@@ -595,8 +598,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * account and goal (this save's own key first, then the index's), each with the TE its routes start from, then
    * Check exactly's history. Nothing is worked out here (a route with no timeline is estimated below).
    */
-  const followPriced = computed(() => {
-    const sel = planGoals.value.find(p => p.goal.key === selectedGoal.value);
+  function followPricedFor(sel: ReturnType<typeof plansByGoal>[number] | undefined) {
     const f = sel ? follows.followed(sel.goal.key) : null;
     if (!sel || !f || !hasSave.value) return null;
     // A result kept with the snapshot or beyond it: the parsed copies are read again.
@@ -662,7 +664,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       prefer: (f.source ?? sourceOfFrom(f.from)) === 'instant' ? 'instant' : 'search',
     });
     return { sel, f, g, gi, price };
-  });
+  }
+  const followPriced = computed(() => followPricedFor(planGoals.value.find(p => p.goal.key === selectedGoal.value)));
 
   /**
    * A FOLLOWED ROUTE ALWAYS HAS A TIMELINE (24 Oct 2026, lib/followEstimate.ts): a route no kept result prices on this
@@ -773,6 +776,63 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       plan: null,
     };
   });
+  /**
+   * NEXT STEPS (lib/myRunsDashboard.ts `buildSteps`, 24 Oct 2026): each followed goal's route with its priced finish
+   * and prestiges (the selected goal's as Right now shows it, its estimate included; another goal's as priced from what
+   * is saved) and this save's Fast, Exact or Custom result for the goal when it is another route.
+   */
+  const followsForSteps = computed<FollowedForSteps[]>(() => {
+    if (!hasSave.value) return [];
+    const out: FollowedForSteps[] = [];
+    for (const pg of planGoals.value) {
+      const f = follows.followed(pg.goal.key);
+      if (!f) continue;
+      const selected = pg.goal.key === selectedGoal.value;
+      let plan: NowPlan | null = null;
+      let finish: { end: number; endTE: number } | null = null;
+      if (selected) {
+        const fs = followState.value;
+        plan = fs?.plan?.plan ?? null;
+        if (!plan && fs?.card.finish) finish = { end: fs.card.finish.end, endTE: fs.card.finish.endTE ?? f.chain[f.chain.length - 1] };
+      } else {
+        const fp = followPricedFor(pg);
+        if (fp?.price.priced === 'exact') plan = fp.price.plan;
+        else if (fp?.price.priced === 'finish') finish = { end: fp.price.end, endTE: fp.price.endTE ?? f.chain[f.chain.length - 1] };
+      }
+      if (plan) finish = { end: planFinish(plan), endTE: plan.endTE };
+      const pick = pg.pick;
+      const thisSave = pick?.state === 'this-save' ? pick.candidate : null;
+      const r = thisSave ? (thisSave.driving?.search ?? (thisSave.plan.from ? thisSave.plan : null)) : null;
+      const level = r?.from?.level;
+      out.push({
+        goalKey: pg.goal.key,
+        name: pg.goal.name,
+        goal: pg.goal.goal,
+        target: pg.goal.target,
+        deadline: pg.goal.deadline,
+        eggDay: pg.goal.kind === 'eggday',
+        chain: plan ? [...plan.chain] : followedFromNow(f.chain, teSoFar.value),
+        finish,
+        prestiges: plan ? planPrestiges(plan) : [],
+        result:
+          r && (level === 'Fast' || level === 'Exact' || level === 'Custom')
+            ? { level, chain: [...r.chain], end: planFinish(r), endTE: r.endTE }
+            : null,
+      });
+    }
+    return out;
+  });
+  /** Time off and no-prestige days as absolute stretches, with their words (Next steps' `prestige` item). */
+  const stepWindows = computed<StepWindow[]>(() => {
+    const z = zone.value;
+    const one = (list: TimeOffDates[] | null | undefined, kind: StepWindow['kind']): StepWindow[] =>
+      usableTimeOff(list ?? []).flatMap(d => {
+        const words = timeOffWords([d]).replace(/^time off/, kind === 'time off' ? 'your time off' : 'your no-prestige days');
+        return timeOffWindows([d], z).map(w => ({ from: w.from, to: w.to, words, kind }));
+      });
+    return [...one(store.timeOff, 'time off'), ...one(store.noPrestige, 'no-prestige day')];
+  });
+
   /**
    * THE FIRST ANSWER BECOMES THE FOLLOW (lib/followPolicy.ts, AUTO_FOLLOW_FIRST): each goal whose Fast, Exact or Custom
    * result of this save drives Right now while nothing was ever followed for it follows that result (and saves it
@@ -1195,5 +1255,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     raceStand,
     eggDayStand,
     shownTile,
+    followsForSteps,
+    stepWindows,
   };
 }

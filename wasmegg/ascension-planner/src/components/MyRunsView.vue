@@ -15,7 +15,7 @@
        Then "Your routes at a glance" (RouteScatter.vue, Q9): the rows of 6 as points, folded (closed on a phone).
     6. Your runs: ONE section, opening on the latest run (LatestRunView.vue, was "Your latest run"), switched
        to the latest By a date run or all your runs: the board (filters at the top of its list, LeaderboardPanel
-       mode="myruns"), saved on this device and not sent yet. Next steps and the six cards fold under it.
+       mode="myruns"), saved on this device and not sent yet. Next steps fold under it (the six cards went, 24 Oct 2026).
   Setup is the floating button in the corner (App.vue mounts SetupDock here too); there is no setup box.
 
   The data: composables/useNowPage.ts (reads only). "See the routes ›" on a tile and "Dig deeper into your
@@ -260,17 +260,13 @@
         </details>
       </div>
 
-      <!-- Next steps and the six cards, folded under the list (lib/myRunsDashboard.ts). -->
+      <!-- Next steps, folded under the list (lib/myRunsDashboard.ts): only what changes what to do. -->
       <div class="space-y-2" data-testid="my-runs-summary">
         <details :open="open.steps" class="rounded-xl border border-slate-200 p-3" @toggle="sync('steps', $event)">
           <summary :class="SUMMARY">
-            Next steps<span :class="COUNT">{{ steps.loading ? ' · checking' : ` (${steps.steps.length} to look at)` }}</span>
+            Next steps<span :class="COUNT"> ({{ steps.steps.length }} to look at)</span>
           </summary>
           <div class="mt-2"><DashboardGaps :state="steps" @act="act" /></div>
-        </details>
-        <details class="rounded-xl border border-slate-200 p-3">
-          <summary :class="SUMMARY">Six cards<span :class="COUNT"> ({{ hasBoard ? 'board, ' : '' }}saved on {{ thisDevice() }}{{ hasBoard ? ', not sent yet' : '' }})</span></summary>
-          <div class="mt-2"><DashboardCards :cards="cards" @act="act" /></div>
         </details>
       </div>
     </section>
@@ -283,17 +279,9 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { NAMES, fastestName } from '@/lib/siteNav';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { useInitialStateStore } from '@/stores/initialState';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import type { BoardReadKind } from '@/search/myBoardRows';
-import {
-  buildCards,
-  buildSteps,
-  openFor,
-  type DashAction,
-  type DashInput,
-  type MyRunsOpen,
-} from '@/lib/myRunsDashboard';
+import { buildSteps, openFor, type DashAction, type MyRunsOpen } from '@/lib/myRunsDashboard';
 import { standingWords } from '@/lib/standing';
 import { oneMoreLine, tryNextPills } from '@/lib/tryNext';
 import { takeYourRunsAsk } from '@/lib/myRunsFocus';
@@ -303,9 +291,7 @@ import { useStartTimesStore } from '@/stores/startTimes';
 import { useFollowStore } from '@/stores/follow';
 import { simulateRoute } from '@/search/simulateRoute';
 import type { RecalcRequest } from '@/lib/recalc';
-import { saveTEOf } from '@/lib/saveFreshness';
 import { markMyRunsSeen } from '@/composables/useMyRunsShown';
-import DashboardCards from './myruns/DashboardCards.vue';
 import DashboardGaps from './myruns/DashboardGaps.vue';
 import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
@@ -484,63 +470,52 @@ function sync(part: Part, e: Event): void {
   open[part] = (e.target as HTMLDetailsElement).open;
 }
 
-// ------------------------------------------------------------------ the summary (cards, Next steps)
+// ------------------------------------------------------------------------------- Next steps
 
-const initialState = useInitialStateStore();
-/** "Now" for the summary: when the page opened, and again whenever the rows arrive. */
-const now = ref(Date.now());
-watch(boardRows, () => (now.value = Date.now()));
-const eggDayYear = page.eggDayYear;
-const eggDayAt = page.eggDayAt;
-
-const dashInput = computed<DashInput>(() => ({
-  rows: boardRows.value,
-  now: now.value,
-  eggDayAt,
-  eggDayYear,
-  zone: zone.value,
-  // The save's own TE, never a restored Manual draft's (lib/saveFreshness.ts `saveTEOf`).
-  teNow: saveTEOf(initialState.rawBackup),
-  setup: {
-    availability: store.availability,
-    timeOff: store.timeOff,
-    rememberedAt: store.setupRemembered?.at || null,
-  },
-  local: {
-    answers: store.savedAnswers.map(a => ({
-      savedAt: a.savedAt,
-      deadline: a.result.deadline,
-      chain: a.result.routes[0]?.chain ?? null,
-      spare: a.result.routes[0]?.spare ?? null,
-    })),
-    runs: store.savedRuns.map(r => ({ savedAt: r.savedAt })),
-    pending: store.pendingSends.map(p => ({
-      createdAt: p.createdAt,
-      deadline: p.kind === 'deadline' && typeof p.payload?.deadline === 'number' ? p.payload.deadline : null,
-    })),
-  },
-}));
-const cards = computed(() => buildCards(dashInput.value));
-const steps = computed(() => buildSteps(dashInput.value));
+/**
+ * Next steps (lib/myRunsDashboard.ts `buildSteps`, reworked 24 Oct 2026): only what changes what to do: a followed
+ * route a priced result beats by about a day, time off or a no-prestige day on its prestiges, a save over about 3 days
+ * old, results not sent. The six cards that repeated Right now and the saved answers are gone.
+ */
+const steps = computed(() =>
+  buildSteps({
+    now: page.now.value,
+    zone: page.zone.value,
+    pending: store.pendingSends.length,
+    saveSeconds: page.hasSave.value ? page.saveSeconds.value : 0,
+    follows: page.followsForSteps.value,
+    windows: page.stepWindows.value,
+  })
+);
 watch(
-  () => steps.value.steps.some(s => s.kinds.includes('unsent')),
+  () => steps.value.steps.some(s => s.kinds.includes('unsent') || s.kinds.includes('beaten')),
   urgent => {
     if (urgent) open.steps = true;
   },
   { immediate: true }
 );
 
-/** A card's or a step's button: a part here (opened, then scrolled to), or a screen, set up. */
+/** A step's button: a part here (opened, then scrolled to), Right now on a goal, a fresh save, or a screen, set up. */
 function act(to: DashAction): void {
-  if (to.to === 'unsent' || to.to === 'board') {
+  if (to.to === 'unsent') {
     pickShowing('all');
-    open[to.to] = true;
+    open.unsent = true;
     void nextTick(() => {
       if (typeof document === 'undefined') return;
-      document
-        .querySelector(`[data-testid="my-runs-part-${to.to}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelector('[data-testid="my-runs-part-unsent"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+    return;
+  }
+  if (to.to === 'right-now') {
+    page.selectGoal(to.goalKey);
+    void nextTick(() => {
+      if (typeof document === 'undefined') return;
+      document.querySelector('[data-testid="now-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return;
+  }
+  if (to.to === 'fresh') {
+    emit('fresh');
     return;
   }
   emit('open', openFor(to, zone.value));

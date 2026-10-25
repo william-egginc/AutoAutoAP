@@ -470,6 +470,14 @@ export function tableEvents(events: readonly PlanEvent[], max = 6): PlanEvent[] 
   return shown;
 }
 
+/** The plan's prestiges (each ascension's end, as `planEvents` has them: Fastest's last stop is the goal, not a
+ *  prestige), with the TE each prestiges at; from the exact legs, else the table's. Past ones included. */
+export function planPrestiges(plan: NowPlan): { at: number; te: number }[] {
+  return planEvents(plan, 0)
+    .filter(e => e.kind === 'prestige' && Number.isFinite(e.at))
+    .map(e => ({ at: e.at, te: e.te ?? 0 }));
+}
+
 /** How many shifts the plan makes after `afterSeconds` (from the exact legs); null without them. */
 export function shiftsAfter(plan: NowPlan, afterSeconds: number): number | null {
   if (!plan.legs) return null;
