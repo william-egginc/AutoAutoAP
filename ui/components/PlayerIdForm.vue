@@ -1,7 +1,7 @@
 <template>
   <form class="mx-4 sm:mx-auto sm:max-w-xs sm:w-full mt-2 mb-4 space-y-1" @submit.prevent="submit">
     <div>
-      <label for="email" class="sr-only">Player ID</label>
+      <label for="playerId" class="sr-only">Player ID</label>
       <div class="flex items-center gap-2">
         <button
           v-if="activeEid"
