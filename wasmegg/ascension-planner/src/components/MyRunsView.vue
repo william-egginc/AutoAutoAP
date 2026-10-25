@@ -131,7 +131,7 @@
         <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Your runs</p>
         <p class="text-[11px] text-slate-500">"Dig deeper into your plan ›" and "See the routes ›" land here.</p>
         <p class="text-[11px] text-slate-500" data-testid="my-runs-baseline-intro">
-          Each run is compared with your <b>instant baseline</b>: the instant answer for your save on the day of the run.
+          Each run is compared with your <b>instant answer</b>: the one for your save on the day of the run.
         </p>
       </div>
       <!-- The baseline on the board (lib/instantBaseline.ts): a consent of its own, since the board is public and
@@ -143,7 +143,7 @@
       >
         <input v-model="shareBaseline.agreed.value" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-slate-300" />
         <span>
-          <b>Share my instant baseline with my runs</b>
+          <b>Share my instant answer with my runs</b>
           <span class="block text-[11px] text-slate-500"
             >Sends the instant answer's route and date beside each run you send, so the board can show how much a search
             gained. Same rules as sending a run: never your player ID, never your save.</span

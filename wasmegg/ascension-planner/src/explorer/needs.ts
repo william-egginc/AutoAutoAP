@@ -163,7 +163,7 @@ export interface ByDateAsk {
 const COVERED_GEAR = [
   'the maxed set',
   'T4E compass (rest T4L)',
-  'T4E metronome with a T3L ankh and earnings 2.3 CTE short',
+  'T4E metronome with a T3L ankh and earnings 2.3 Clothed TE short',
   'all T4L with a Demeters necklace as the 4th',
   'T4E gusset, metronome with 2 T4 stones, earnings 8.7 short',
   'T4E metronome and compass, earnings 2.3 short',
@@ -226,13 +226,13 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
       slots: EPIC_EARN,
       stones: [{ family: 'lunar', tier: 4, where: 'every slot' }],
       deliveryNote: 'any legendary set',
-      cte: 'About +104 earnings bonus. CTE 229 to 304 at TE 125 to 200.',
+      cte: 'About +104 earnings bonus. Clothed TE 229 to 304 at TE 125 to 200.',
     },
   },
   {
     id: 'gear-rare-earnings',
     title: 'Rare earnings set',
-    why: 'Its CTE straddles the line (about 225) where first ascensions start stalling on Integrity, so it measures where plans start stalling.',
+    why: 'Its Clothed TE straddles the line (about 225) where first ascensions start stalling on Integrity, so it measures where plans start stalling.',
     who: 'players with this earnings set and any legendary delivery set; one account under 140 TE and one over 170 is ideal',
     want: 2,
     note: 'If the planner warns the first ascension will wait on Integrity, run it anyway if it lets you start: that wait is part of what we are measuring.',
@@ -240,7 +240,7 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
       slots: RARE_EARN,
       stones: [{ family: 'lunar', tier: 4, where: 'one per artifact' }],
       deliveryNote: 'any legendary set',
-      cte: 'CTE 212 to 287 at TE 125 to 200.',
+      cte: 'Clothed TE 212 to 287 at TE 125 to 200.',
     },
   },
   {
@@ -256,7 +256,7 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
         { family: 'tachyon', tier: 4, where: 'every delivery slot' },
         { family: 'quantum', tier: 4, where: 'every delivery slot' },
       ],
-      cte: 'The maxed earnings set: CTE 241 or more, like the accounts already on the board.',
+      cte: 'The maxed earnings set: Clothed TE 241 or more, like the accounts already on the board.',
     },
   },
   {
@@ -268,7 +268,7 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
     gear: {
       slots: [...EPIC_EARN, ...deliver('E', 'E', 'E')],
       stones: EVERY(4),
-      cte: 'The epic earnings set: about +104 earnings bonus, CTE 229 to 304 at TE 125 to 200.',
+      cte: 'The epic earnings set: about +104 earnings bonus, Clothed TE 229 to 304 at TE 125 to 200.',
     },
   },
   {
@@ -284,7 +284,7 @@ const GEAR_ASKS: Omit<DataNeed, 'preset' | 'runs' | 'have' | 'group'>[] = [
         { family: 'tachyon', tier: 4, where: 'one per artifact' },
         { family: 'quantum', tier: 4, where: 'one per artifact' },
       ],
-      cte: 'The rare earnings set: CTE 212 to 287 at TE 125 to 200.',
+      cte: 'The rare earnings set: Clothed TE 212 to 287 at TE 125 to 200.',
     },
   },
   {
@@ -530,15 +530,15 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
   if (lowAccounts < 2) {
     needs.push({
       id: 'te-low',
-      title: `Accounts under ${LOW_TE} TE whose plans still work (CTE 225 or more)`,
-      why: "Below about 218 to 225 CTE (the planner's estimate) a first ascension can sit on Integrity saving up for habs. That estimate is from September 2026, before the 13 Oct and 21 Oct changes to how a low-TE build opens, and it has not been measured again. Runs from accounts like this show whether they want the same ascension targets as higher accounts.",
-      who: `players under ${LOW_TE} TE with CTE 225 or more`,
+      title: `Accounts under ${LOW_TE} TE whose plans still work (Clothed TE 225 or more)`,
+      why: "Below about 218 to 225 Clothed TE (the planner's estimate) a first ascension can sit on Integrity saving up for habs. That estimate is from September 2026, before the 13 Oct and 21 Oct changes to how a low-TE build opens, and it has not been measured again. Runs from accounts like this show whether they want the same ascension targets as higher accounts.",
+      who: `players under ${LOW_TE} TE with Clothed TE 225 or more`,
       have: lowAccounts,
       want: 2,
       preset: 'F2',
       runs: 1,
       group: 'gear',
-      note: 'For example a T4L Lunar totem plus two of T4L Demeters necklace, T4L Tungsten ankh and T4L Puzzle cube, all with 3 T4 Lunar stones: that adds about +108 TE to your CTE.',
+      note: 'For example a T4L Lunar totem plus two of T4L Demeters necklace, T4L Tungsten ankh and T4L Puzzle cube, all with 3 T4 Lunar stones: that adds about +108 TE to your Clothed TE.',
     });
   }
 
@@ -549,7 +549,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     needs.push({
       id: 'not-maxed',
       title: 'Accounts still missing colleggtibles or epic research',
-      why: 'Every run that recorded it had every colleggtible and all epic research maxed. CTE takes off whatever is missing, but nobody has checked that such an account plans like a maxed one with that much less TE, and some of them also help delivery, which CTE does not count.',
+      why: 'Every run that recorded it had every colleggtible and all epic research maxed. Clothed TE takes off whatever is missing, but nobody has checked that such an account plans like a maxed one with that much less TE, and some of them also help delivery, which Clothed TE does not count.',
       who: 'players with some colleggtibles below their top tier, or epic research not finished (Lab Upgrade in particular)',
       have: notMaxed,
       want: 2,
@@ -567,7 +567,7 @@ export function dataNeeds(rows: CollectorRow[]): DataNeed[] {
     id: 'new-gear',
     title: "Any other gear the instant answer isn't built for yet",
     why: "Today a few accounts have an instant answer built for their own gear with the current simulator. Everyone else gets the maxed answer moved to their gear (the adjusted answer). One run from a new gear is enough to build one for that gear: we take its artifacts and stones from the run, simulate every ascension once, and check the result against the run's own ascensions.",
-    who: 'players at CTE 225 or more whose artifacts and stones are not one of the sets listed below',
+    who: 'players at Clothed TE 225 or more whose artifacts and stones are not one of the sets listed below',
     have: 0,
     want: 1,
     preset: 'F2',

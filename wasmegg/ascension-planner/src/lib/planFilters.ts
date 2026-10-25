@@ -216,7 +216,7 @@ export function filterOptions(rows: readonly BoardRow[], zone: string, target?: 
       .map(g => ({
         value: g,
         label:
-          g === 'target' ? (target != null ? `Fastest to ${target}` : 'Fastest to a target') : 'Highest TE by a date',
+          g === 'target' ? (target != null ? `Fastest to ${target} TE` : 'Fastest to a target TE') : 'Highest TE by a date',
       })),
     timeOff: [
       ...(off.has(true) ? [{ value: 'with' as const, label: 'With time off' }] : []),

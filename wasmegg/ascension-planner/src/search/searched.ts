@@ -206,7 +206,7 @@ export function searchedWords(text: string | null | undefined): string {
     } else if ((m = /^grid step (\d+)$/.exec(token))) {
       rest.push(`early stops on a ${m[1]}-TE grid`);
     } else if ((m = /^around ([\d ]+)$/.exec(token))) {
-      rest.push(`Nearby routes around ${m[1].trim()}`);
+      rest.push(`Fast or Exact around ${m[1].trim()}`);
     } else if ((m = /^counts ([\d ]+)$/.exec(token))) {
       rest.push(`ascension counts tried ${m[1].trim().split(/\s+/).join(', ')}`);
     } else if ((m = /^plus (\d+) instant answer sets?$/.exec(token))) {

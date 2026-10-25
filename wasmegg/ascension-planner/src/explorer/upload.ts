@@ -410,13 +410,13 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
   }
   if (!diag.loadout?.delivery?.length)
     warnings.push('No delivery set in the diagnostics, so the delivery score and the bug check are skipped.');
-  if (!csv.best?.legs.length) warnings.push('The best route has no per-leg rows, so the graphs cannot place it.');
+  if (!csv.best?.legs.length) warnings.push('The best route has no per-ascension rows, so the graphs cannot place it.');
 
   const legs = (csv.best?.legs ?? []).map(l => ({ peakDeliveryQph: l.peakQph }));
   const rate = csv.best ? checkFinalLegRate(csv.best.chain, legs, diag.loadout?.delivery) : null;
   if (rate?.suspect) {
     warnings.push(
-      `The final leg peaks at ${rate.measuredQph.toFixed(2)} q/hr where this gear should reach about ${rate.expectedQph.toFixed(2)}. ` +
+      `The final ascension peaks at ${rate.measuredQph.toFixed(2)} q/hr where this gear should reach about ${rate.expectedQph.toFixed(2)}. ` +
         'That is the signature of the old "delivery set used for earnings research" bug. It will be stored, and flagged.'
     );
   }
@@ -432,7 +432,7 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
     );
     if (hit) {
       duplicateOf = hit.id;
-      errors.push(`This run is already in the collector (id ${hit.id}).`);
+      errors.push(`This run is already on the planner's server (id ${hit.id}).`);
     }
   }
   return { errors, warnings, rate, duplicateOf };

@@ -42,8 +42,8 @@
   <div v-if="myRunsMode" class="space-y-3" data-testid="my-runs-board">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <p class="flex-1 min-w-[14rem] text-[11px] text-indigo-900/80 leading-relaxed">
-        Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, races
-        to any target and other dates, and the ones hidden from the public. Open one for its details, or press
+        Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, Fastest to N TE for
+        any target, and other dates, and the ones hidden from the public. Open one for its details, or press
         <span class="font-semibold">Use</span> to open its route in Single run, without running it. Single run doesn't use your awake hours.
       </p>
       <button
@@ -188,7 +188,7 @@
       </div>
     </section>
     <p v-if="capped" class="text-[10px] text-amber-800">
-      The collector sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
+      The planner's server sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
     </p>
   </div>
 
@@ -301,7 +301,7 @@
       <!-- ================================================================== RACE -->
       <template v-else-if="tab === 'race'">
         <p v-if="target == null" class="text-[11px] text-indigo-900/70 py-4">
-          Pick a target TE above: a race needs one finish line.
+          Pick a target TE above: Fastest to N TE needs one finish line.
         </p>
         <template v-else>
           <p class="text-[11px] text-indigo-900/80 leading-relaxed">
@@ -561,10 +561,10 @@
 
           <p class="text-[10px] text-slate-500 leading-relaxed">
             Dates and days left are in your timezone ({{ viewZone }}); hover a finish for the player's own. Anonymous
-            runs are not in the race, so add a name to join. All runs lists every run.
+            runs are not ranked in Fastest to {{ target }} TE, so add a name to join. All runs lists every run.
           </p>
           <details class="text-[10px] text-slate-500 leading-relaxed">
-            <summary class="cursor-pointer font-semibold text-slate-600">How the race is judged</summary>
+            <summary class="cursor-pointer font-semibold text-slate-600">How Fastest to {{ target }} TE is judged</summary>
             <ul class="mt-1 ml-4 list-disc space-y-1">
               <li>A player's line is their earliest-finishing plan that still counts.</li>
               <li>
@@ -604,7 +604,7 @@
         </p>
         <p v-else class="text-[11px] text-indigo-900/80 leading-relaxed">
           The highest TE each player can reach by any other date, from the Auto Planner's
-          <span class="font-bold">{{ NAMES.byDate }}</span> search, one table per deadline. Dates are in your timezone
+          <span class="font-bold">{{ NAMES.byDate }}</span> search, one table per date. Dates are in your timezone
           ({{ viewZone }}). Players are ranked by the TE they reach, then by time to spare, using each player's best
           answer. Egg Day {{ eggDayYear }} has its own tab.
         </p>
@@ -765,7 +765,7 @@
             </table>
           </div>
           <p v-if="g.anonymous.length" class="text-[10px] text-slate-500">
-            Anonymous answers are listed but not ranked, as in the race.
+            Anonymous answers are listed but not ranked, as in Fastest to N TE.
           </p>
         </div>
       </template>
@@ -980,7 +980,7 @@
       </template>
 
       <p v-if="capped && boardView" class="text-[10px] text-amber-800">
-        The collector sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
+        The planner's server sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
       </p>
     </div>
   </div>
@@ -1207,7 +1207,7 @@ const raceEdges = scrollEdges();
 const runEdges = scrollEdges();
 
 function tabLabel(t: Tab): string {
-  if (t === 'race') return target.value == null ? 'Race' : `Race to ${target.value}`;
+  if (t === 'race') return target.value == null ? 'Fastest to a target TE' : `Fastest to ${target.value} TE`;
   if (t === 'dates') return 'By a date';
   if (t === 'eggday') return `Egg Day ${eggDayYear}`;
   if (t === 'insights') return NAMES.insights;
@@ -1709,7 +1709,7 @@ const shownColumns = computed(() => (narrow.value ? NARROW_ORDER.map(k => COLUMN
 
 const NO_CODE_TITLE =
   "Sent under this name since the board began stamping runs, but without the owner code the player's other runs carry. " +
-  "Anyone can send a run like this, so in the race it never sets the player's finish or place. It is listed on their " +
+  "Anyone can send a run like this, so in Fastest to N TE it never sets the player's finish or place. It is listed on their " +
   'line tagged "no code", or, if its timezone, artifacts or TE do not fit theirs, on a separate line marked (no code).';
 
 const runLines = computed<RunLine[]>(() => {

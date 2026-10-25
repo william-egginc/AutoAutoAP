@@ -37,7 +37,7 @@ describe('TabsToggle', () => {
     expect(t).toContain(NOTE);
     expect(t).toContain('Show the Leaderboard tab');
     expect(t).toContain('Show the Science tab');
-    expect(t).toContain('Everyone’s shared runs: Egg Day, the race to 490 and the charts.');
+    expect(t).toContain('Everyone’s shared runs: Egg Day, Fastest to 490 TE and the charts.');
     expect(t).toContain('How the planner works and how its answers were checked, and the sweeps still to run.');
     expect(t).not.toContain(NONE);
     for (const id of ['leaderboard', 'science']) {
@@ -75,7 +75,7 @@ describe('TabsToggle', () => {
     expect(src).toContain('h-5 w-5');
   });
 
-  it('sits in Your setup › How the site shows things, after the date style', () => {
+  it('sits in Setup › How the site shows things, after the date style', () => {
     const setup = read('YourSetup.vue');
     const block = setup.slice(setup.indexOf('How the site shows things</h3>'), setup.indexOf('</section>'));
     expect(block.indexOf('<DateStyleToggle />')).toBeGreaterThan(-1);

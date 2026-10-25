@@ -141,10 +141,10 @@ describe('default and remembered choice, per screen', () => {
 });
 
 describe('the card', () => {
-  it('one card: Stronger check, its intro, Light status, then Fast | Exact | Custom with time here and purpose lines', async () => {
+  it('one card: Search, its intro, Light status, then Fast | Exact | Custom with time here and purpose lines', async () => {
     const t = textOf(await render());
     expect(t).toMatch(
-      /^Stronger check How it works › Checks the instant answer harder, with the full simulator on your save\. Pick how hard to look; your choice is remembered\. Fast/
+      /^Search How it works › Checks the instant answer harder, with the full simulator on your save\. Pick how hard to look; your choice is remembered\. Fast/
     );
     expect(t).toContain(
       "Fast ~18 min here usually close to the best Exact ~1.7 h here a second opinion Custom you set the boxes to prove it in your boxes"

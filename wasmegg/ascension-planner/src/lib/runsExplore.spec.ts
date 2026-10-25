@@ -95,7 +95,7 @@ describe('chips only for values that occur', () => {
     const g = chipGroups(all, sel(), ctx);
     expect(g.map(x => x.id)).toEqual(['goal', 'asc', 'level', 'hours', 'when']);
     expect(g[0].chips.map(c => `${c.label} ${c.count}`)).toEqual([
-      'Fastest to 490 2',
+      'Fastest to 490 TE 2',
       'Other targets 1',
       'Egg Day 2027 1',
       'Other dates 1',
@@ -120,7 +120,7 @@ describe('chips only for values that occur', () => {
 
   it('the planner’s own target leads the goals, whatever it is; every other race is "Other targets"', () => {
     const g = chipGroups(all, sel(), { ...ctx, mainTarget: 350 });
-    expect(g[0].chips.map(c => `${c.label} ${c.count}`).slice(0, 2)).toEqual(['Fastest to 350 1', 'Other targets 2']);
+    expect(g[0].chips.map(c => `${c.label} ${c.count}`).slice(0, 2)).toEqual(['Fastest to 350 TE 1', 'Other targets 2']);
   });
 });
 

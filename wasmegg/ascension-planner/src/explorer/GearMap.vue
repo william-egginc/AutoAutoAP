@@ -43,7 +43,7 @@
           <span
             ><span aria-hidden="true" class="text-[#2a78d6]">○</span> worked out afterwards (assumes a Pro permit)</span
           >
-          <span><span aria-hidden="true" class="text-slate-400">- - -</span> CTE = TE + 100, 115, 129</span>
+          <span><span aria-hidden="true" class="text-slate-400">- - -</span> Clothed TE = TE + 100, 115, 129</span>
           <span class="inline-flex items-center gap-1">
             <span aria-hidden="true" class="inline-block h-2.5 w-4 rounded-sm" :style="{ background: STALL_FILL }" />
             first ascension stalls
@@ -61,7 +61,7 @@
           TE, so all {{ summary.accounts }} sit on one narrow diagonal: an account with more TE also has more Clothed
           TE, and these runs cannot yet say whether a plan follows the gear or the TE. And
           <template v-if="summary.atOrUnderStall === 0">
-            no account is at or under the stall band (the lowest is at CTE {{ Math.round(summary.cteMin) }}), so nothing
+            no account is at or under the stall band (the lowest is at Clothed TE {{ Math.round(summary.cteMin) }}), so nothing
             here shows how plans behave where a first ascension starts to stall.
           </template>
           <template v-else>

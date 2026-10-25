@@ -74,7 +74,7 @@ export function summariseByDate(r: SearchedSummary): ByDateSummary {
   const widths = simpleWidths(r.bandSets);
   const how = r.simple
     ? `around the instant answer's routes${widths ? `, ${widths} TE` : ''}`
-    : 'Exhaustive, in your own boxes';
+    : 'Custom, in your own boxes';
   parts.push(`${parts.length ? 'searched' : 'Searched'} ${sets} (${how})`);
   parts.push(`${r.priced.toLocaleString('en-US')} route${r.priced === 1 ? '' : 's'} priced`);
 

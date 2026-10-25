@@ -23,10 +23,10 @@
           <span class="font-bold">{{ store.deadlineUnfinished.spec.sets.toLocaleString() }}</span> sets of early stops,
         </template>
         <span class="font-bold">{{ store.deadlineUnfinished.priced.toLocaleString() }}</span> routes priced so far.
-        Started {{ startedLabel(store.deadlineUnfinished) }}. Deadline
+        Started {{ startedLabel(store.deadlineUnfinished) }}. Date
         {{ inPlannerZone(store.deadlineUnfinished.spec.deadline) }}, from {{ store.deadlineUnfinished.te }} TE.
         <template v-if="store.deadlineUnfinished.saveKept">
-          Carrying on replays the priced routes instantly, continues on the save it started with, and puts its deadline,
+          Carrying on replays the priced routes instantly, continues on the save it started with, and puts its date,
           boxes and sliders back below.</template
         >
         <template v-else> Its save wasn't kept on {{ thisDevice() }}, so it can't carry on.</template>
@@ -47,11 +47,11 @@
       </template>
     </CarryOnOffer>
 
-    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The deadline</h3>
+    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The date</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
          of your own. -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="The deadline">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="The date">
       <button
         type="button"
         role="radio"
@@ -518,7 +518,7 @@
               fine work only there. It's the same idea as {{ fastestName(store.finalTE) }} › {{ NAMES.smartFirst }}.
             </p>
             <p>
-              <span class="font-bold text-slate-800">The other way, Exhaustive,</span> tries every route in
+              <span class="font-bold text-slate-800">The other way, Custom,</span> tries every route in
               boxes you give, so its answer is proven for those boxes, but only as good as the boxes. This way covers far
               more ground for the time, but isn't proven: a narrow winner between first-look points could be missed if the
               zoom doesn't start near it.
@@ -600,7 +600,7 @@
               <div class="text-lg font-black text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
             </div>
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Legs to simulate</div>
+              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ascensions to simulate</div>
               <div class="text-lg font-black text-slate-900 tabular-nums">
                 ~{{ roundedRoutes(plannedLegs).toLocaleString() }}
               </div>
@@ -622,17 +622,17 @@
             <div>
               <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</div>
               <div class="text-lg font-black text-slate-900 tabular-nums">{{ costLabel }}</div>
-              <div class="text-[9px] text-slate-400">a leg</div>
+              <div class="text-[9px] text-slate-400">an ascension</div>
             </div>
           </div>
           <p class="pt-2 text-[10px] text-slate-500 leading-relaxed">
-            Counted in legs (one ascension each), not routes: a set's first route simulates its early legs, shared with the
-            sets that start the same way, and every later try at its last stop only the last leg. About
+            Counted in ascensions, not routes: a set's first route simulates its early ascensions, shared with the
+            sets that start the same way, and every later try at its last stop only the last ascension. About
             {{ plan.sets ? (plan.routes / plan.sets).toFixed(1) : 4 }} routes per set<template
               v-if="mode === 'space' && rememberedPerSet"
             >
               (what this machine's last run over a space this shape needed)</template
-            >: the last stop is narrowed down, not tried at every TE. During a run the time left is the legs left at the
+            >: the last stop is narrowed down, not tried at every TE. During a run the time left is the ascensions left at the
             rate of the last 12 minutes. The estimate uses
             <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last By a date search</template
             ><template v-else
@@ -752,7 +752,7 @@
           class="text-[10px] font-black uppercase tracking-widest text-slate-500"
           data-testid="exhaustive-results-heading"
         >
-          {{ result.simple ? `${NAMES.smart}: the best routes found near the instant answer's` : 'Exhaustive: the best routes in your boxes' }}
+          {{ result.simple ? `${NAMES.smart}: the best routes found near the instant answer's` : 'Custom: the best routes in your boxes' }}
         </h4>
         <ByDateRouteCard
           v-if="best"
@@ -840,7 +840,7 @@
         @widen="widenAndRun"
       >
         <template v-if="edgeWiden && result.simple">
-          This opens Exhaustive with the boxes Nearby routes used, that one widened to
+          This opens Custom with the boxes the search used, that one widened to
           <span class="font-mono-premium">{{ edgeWiden.text }}</span
           >, and runs it.
         </template>
@@ -944,8 +944,8 @@
           <template #intro>
             <p class="text-[11px] text-indigo-900/80 leading-relaxed">
               Sends the best route above to the {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab,
-              where answers for the same deadline are ranked by the highest TE reached, then the time to spare. It stays
-              out of the race to 490.
+              where answers for the same date are ranked by the highest TE reached, then the time to spare. It stays
+              out of Fastest to 490 TE.
             </p>
           </template>
           <template #opted>
@@ -1364,7 +1364,7 @@ const unfinishedChoice = computed<SearchChoice | null>(() => {
 });
 /** Custom's first line (it is the Exhaustive search, unchanged): what it is for and how long it takes. */
 const CUSTOM_INTRO =
-  "For proving an answer, not for finding a much better one: it tries every route in the boxes you set (Exhaustive), and nothing outside them, so its answer is proven for that space, and so far no search has beaten the instant answer's TE by a date. You set a band of TEs for each ascension, the last stop found to the exact TE. Big boxes take hours.";
+  "For proving an answer, not for finding a much better one: it tries every route in the boxes you set (Custom), and nothing outside them, so its answer is proven for that space, and so far no search has beaten the instant answer's TE by a date. You set a band of TEs for each ascension, the last stop found to the exact TE. Big boxes take hours.";
 /** The answer on screen, by box. */
 const resultKind = computed(() => kindOfSimple(result.value));
 /** The unfinished run, by box. */
@@ -1677,7 +1677,7 @@ const aroundPlan = computed(() =>
 /** Why Nearby routes' Find is greyed out, or ''. */
 const aroundIssue = computed(() => {
   if (!deadline.value) return '';
-  if (deadline.value <= store.planStart) return 'The deadline is before the plan starts.';
+  if (deadline.value <= store.planStart) return 'The date is before the plan starts.';
   if (!simpleBoxes.value.chains.length || !rangeOf(simpleBoxes.value.lastBox))
     return 'Nothing to check yet: the save has to load first.';
   if (!aroundPlan.value.sets) return 'No route in these boxes goes up from your TE to the last stop.';
@@ -2253,7 +2253,7 @@ const runEstimate = ref(0);
 
 const startIssue = computed(() => {
   if (!deadline.value) return '';
-  if (deadline.value <= store.planStart) return 'The deadline is before the plan starts.';
+  if (deadline.value <= store.planStart) return 'The date is before the plan starts.';
   if (simple.value && !activeChains.value.length) return 'Nothing to check yet: the save has to load first.';
   if (mode.value === 'space') {
     if (!simple.value && lastTooHigh.value) return LAST_TOO_HIGH;
@@ -2633,7 +2633,7 @@ const quickStatus = computed(
   () =>
     instantWait.value ||
     autoStatus.value ||
-    `${NAMES.smart} is checking the routes near your last answer. Stop keeps the best route so far…`
+    `The ${NAMES.smart} search is checking the routes near your last answer. Stop keeps the best route so far…`
 );
 /** The fallback's answer (`fallback` on the result), once it is done. */
 const quickBest = computed(() => {

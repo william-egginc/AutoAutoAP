@@ -55,7 +55,7 @@ const follows = (() => {
 const on = computed(() => !!follows?.isFollowed(props.goalKey, props.chain));
 const goalName = computed(() => {
   const k = props.goalKey;
-  if (k.startsWith('fastest-')) return `Race to ${k.slice(8)}`;
+  if (k.startsWith('fastest-')) return `Fastest to ${k.slice(8)} TE`;
   if (k.startsWith('eggday-')) return `Egg Day ${k.slice(7)}`;
   return 'this date';
 });

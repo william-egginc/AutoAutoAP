@@ -46,7 +46,7 @@ const legs = [
 const run = {
   id: 'r1',
   version: 2,
-  label: 'Race to 200',
+  label: 'Fastest to 200 TE',
   savedAt: (T0 - 600) * 1000,
   currentTE: 186,
   finalTE: 200,

@@ -98,7 +98,7 @@
       </button>
     </div>
     <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
-      No sweeps yet. An Exhaustive run (a box of TEs for each stop), or an upload tagged with a preset, shows up here.
+      No sweeps yet. A Custom run (a box of TEs for each stop), or an upload tagged with a preset, shows up here.
     </p>
 
     <div v-if="current" class="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -459,7 +459,7 @@ async function loadTables(): Promise<void> {
       stats.value = new Map(next);
     }
   } catch (e) {
-    error.value = describeFetchError(e, 'the collector');
+    error.value = describeFetchError(e, "the planner's server");
   } finally {
     loading.value = false;
   }

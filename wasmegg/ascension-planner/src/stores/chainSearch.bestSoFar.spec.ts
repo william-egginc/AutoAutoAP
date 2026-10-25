@@ -458,7 +458,7 @@ describe('Send best so far', () => {
       expect(await s.sendBestSoFar()).toMatchObject({ ok: false });
       expect(s.bestSoFarStatus).toEqual({
         ok: false,
-        text: 'Not sent: collector said 400: a best so far needs the owner code',
+        text: "Not sent: the planner's server said 400: a best so far needs the owner code",
       });
       vi.stubGlobal(
         'fetch',

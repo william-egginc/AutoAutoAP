@@ -147,7 +147,7 @@ export function perfectSetGaps(i: {
     const g = setGaps('equipped', SET_NAMES.equipped, i.equipped!);
     const m = i.match;
     if (m === 'earnings' || m === 'both') g.sameAs = 'Equipped now is your earnings set: the same gaps.';
-    else if (m === 'production') g.sameAs = 'Equipped now is your production set: the same gaps.';
+    else if (m === 'production') g.sameAs = 'Equipped now is your delivery set: the same gaps.';
     else if (!counted.length) counted.push(g);
     else if (m === 'mix') counted.push(g);
     sets.push(g);

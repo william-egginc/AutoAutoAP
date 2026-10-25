@@ -53,7 +53,7 @@ describe('submitting a result', () => {
     collector(new TypeError('Failed to fetch'));
     const res = await s.sendSubmission(PAYLOAD, 'rank,chain\n');
     expect(res.ok).toBe(false);
-    expect(res.message).toMatch(/could not reach the collector/);
+    expect(res.message).toMatch(/could not reach the planner's server/);
     expect(res.message).toMatch(/still here/);
     expect(s.pendingTable).toBeNull();
   });

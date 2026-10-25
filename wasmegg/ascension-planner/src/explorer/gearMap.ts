@@ -254,18 +254,18 @@ export function guideSegment(worth: number, d: MapDomain): [[number, number], [n
  * where to look instead.
  */
 export const GEAR_NEED_WHERE: Record<string, { where: string; region: boolean }> = {
-  'te-low': { where: 'Top left, shaded: under 125 TE with CTE 225 or more.', region: true },
+  'te-low': { where: 'Top left, shaded: under 125 TE with Clothed TE 225 or more.', region: true },
   // The gear cards (needs.ts GEAR_ASKS) are sets of artifacts, not a box on TE and CTE: the map can
   // only point at where their CTE falls. The rare earnings set straddles the ~225 stall line.
-  'gear-epic-earnings': { where: 'CTE 229 to 304 at TE 125 to 200.', region: false },
-  'gear-rare-earnings': { where: 'CTE 212 to 287 at TE 125 to 200, across the stall line.', region: false },
+  'gear-epic-earnings': { where: 'Clothed TE 229 to 304 at TE 125 to 200.', region: false },
+  'gear-rare-earnings': { where: 'Clothed TE 212 to 287 at TE 125 to 200, across the stall line.', region: false },
   'gear-rare-common-delivery': { where: 'Strong earnings, so high on the map; the delivery is what differs.', region: false },
-  'gear-epic-everything': { where: 'The epic earnings set: CTE 229 to 304 at TE 125 to 200.', region: false },
-  'gear-rare-everything': { where: 'The rare earnings set: CTE 212 to 287 at TE 125 to 200.', region: false },
+  'gear-epic-everything': { where: 'The epic earnings set: Clothed TE 229 to 304 at TE 125 to 200.', region: false },
+  'gear-rare-everything': { where: 'The rare earnings set: Clothed TE 212 to 287 at TE 125 to 200.', region: false },
   'gear-legendary-t3-stones': { where: 'A little below the maxed set: the stones are what differ.', region: false },
   'new-gear': { where: "Any gear the instant answer isn't built for yet.", region: false },
   'not-maxed': {
-    where: 'Anywhere: CTE already takes off what is missing, so the map cannot tell these accounts apart.',
+    where: 'Anywhere: Clothed TE already takes off what is missing, so the map cannot tell these accounts apart.',
     region: false,
   },
 };
@@ -315,7 +315,7 @@ export function needRegions(needs: readonly DataNeed[], d: MapDomain): NeedRegio
       id: 'te-low',
       x: [d.x[0], 125],
       y: [225, d.y[1]],
-      text: `wanted: under 125 TE, CTE 225+ (${tally('te-low')})`,
+      text: `wanted: under 125 TE, Clothed TE 225+ (${tally('te-low')})`,
       anchor: [d.x[0], d.y[1]],
       align: 'left',
       verticalAlign: 'top',

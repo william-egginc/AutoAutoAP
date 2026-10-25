@@ -211,8 +211,8 @@
     </p>
 
     <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-setup-changed">
-      Your setup changed since this plan.
-      <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Get the instant answer for your setup ›</button>
+      Setup changed since this plan.
+      <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Get the instant answer for your Setup ›</button>
     </p>
     <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
       This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
@@ -535,13 +535,13 @@ const eggPicture = computed(() => eggIconPath(props.currentEgg));
 const goalName = computed(() =>
   props.card?.goal.goal === 'date'
     ? (props.card.name ?? `Egg Day ${props.eggDayYear}`)
-    : `Fastest to ${props.card?.goal.target ?? 490}`
+    : `Fastest to ${props.card?.goal.target ?? 490} TE`
 );
 /** The goal in the route line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
 const followName = computed(() => {
   const name =
     props.card?.name ??
-    (props.card ? (props.card.goal.goal === 'fastest' ? `Race to ${props.card.goal.target}` : goalName.value) : (selectedOption.value?.name ?? ''));
+    (props.card ? (props.card.goal.goal === 'fastest' ? `Fastest to ${props.card.goal.target} TE` : goalName.value) : (selectedOption.value?.name ?? ''));
   return props.follow ? `${name} · ${props.follow.label ?? 'your pick'}` : name;
 });
 /** "Following your pick" (a Follow press), "From the instant answer" or "From your Fast run" (the first answer for the

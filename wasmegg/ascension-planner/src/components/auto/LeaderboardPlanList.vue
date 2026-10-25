@@ -318,7 +318,7 @@ function originTitle(tag: string): string {
       return (
         "Sent under this player's name since the board began stamping runs, but without the owner code their runs " +
         'carry. Its timezone, artifacts and TE fit theirs, so it is listed here and counted in "Tried". Anyone can send ' +
-        "a run like this, though, so it never sets this line's best finish or its place in the race, and it is never " +
+        "a run like this, though, so it never sets this line's best finish or its place in Fastest to N TE, and it is never " +
         'used to judge their plans.'
       );
     case 'before codes':

@@ -16,7 +16,7 @@
       <h2 class="text-2xl font-black text-slate-900">{{ NAMES.start }}</h2>
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
         For coming back after a break: one route priced as a fresh start at every hour of the next week, to see
-        whether waiting for the weekly sales finishes sooner. It uses your save and Your setup from the
+        whether waiting for the weekly sales finishes sooner. It uses your save and Setup from the
         {{ NAMES.auto }}.
       </p>
     </div>

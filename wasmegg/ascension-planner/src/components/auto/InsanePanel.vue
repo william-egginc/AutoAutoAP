@@ -53,7 +53,7 @@
             <template v-else>
               Taking time away from virtue, like Egg Day or a trip?
               <button type="button" class="font-bold text-indigo-700 underline" @click="ui.openSetupRequested++">
-                Add it in Your setup
+                Add it in Setup
               </button>
               and the sweep still prices every route around it.
             </template>
@@ -272,7 +272,7 @@
           </p>
           <p>
             <span class="font-bold text-slate-800">Each worker simulates ascensions and remembers them.</span> An ascension is a full
-            farm simulation: research purchases, hab and vehicle upgrades, twelve egg switches, sale timing. That is
+            farm simulation: research purchases, hab and vehicle upgrades, twelve egg shifts, sale timing. That is
             where the ~15 s goes. A route whose prefix the worker has already priced only pays for its new ascensions, which
             is why the real cost lands well under the estimate.
           </p>
@@ -603,7 +603,7 @@
 
             <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
               The winner will be the best <span class="font-semibold">of the bands you set</span>, not of everything
-              reachable. That's still a stronger claim than {{ NAMES.smartFirst }} makes, which homes in rather than
+              reachable. That's still a stronger claim than the {{ NAMES.smartFirst }} search makes, which homes in rather than
               trying everything.
             </p>
           </div>
@@ -1017,7 +1017,7 @@
             <CsvCard v-if="ownRun && (store.pricedCount || store.noFeasibleChain)" :csv="store.csvRows > 0" diagnostics>
               <template #csv>
                 <span class="text-[11px] text-slate-500">
-                  {{ countLabel(store.csvRows) }}, one row per leg. Safe to download mid-run.
+                  {{ countLabel(store.csvRows) }}, one row per ascension. Safe to download mid-run.
                 </span>
               </template>
             </CsvCard>
@@ -1041,12 +1041,12 @@
               :note="store.runNoteUsed ?? ''"
               @update:note="(v?: string) => (store.runNoteUsed = v ?? '')"
               :nickname-max="NICKNAME_MAX"
-              :csv-detail="`(${store.csvRows.toLocaleString()} routes, one row per leg; routes past the memory budget export with their per-leg cells blank)`"
+              :csv-detail="`(${store.csvRows.toLocaleString()} routes, one row per ascension; routes past the memory budget export with their per-ascension cells blank)`"
               @nickname-typed="nicknameTouched = true"
             >
               <template #intro>
                 <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-                  An exhaustive result is the most useful thing the board can get: the best of a stated grid rather than
+                  A Custom result is the most useful thing the board can get: the best of a stated grid rather than
                   a search result. It is sent with the space it covered and what it found there (the runners-up, the
                   best route at each ascension count, and the spread), so a reader can tell a real find from a flat
                   neighbourhood without downloading the CSV. A run opened from Saved runs above is sent without a run
@@ -1055,7 +1055,7 @@
                 <p class="text-[11px] text-indigo-900/80 leading-relaxed">
                   The board uses the random code so that a run landing on the flagged board shows to you as yours and to
                   everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
-                  you sent anonymously, and your own later runs can replace your older plans in the race (nobody else's
+                  you sent anonymously, and your own later runs can replace your older plans on the board (nobody else's
                   can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
                   to you. Your best three plans already on the board go named with a named send and anonymous with an
                   anonymous one, so a re-check never ties the two together.
@@ -1561,7 +1561,7 @@ const resultExplain = computed(() => {
   const sp = store.searchSpace;
   if (!sp || gridIsComplete(sp.bands, sp.range?.step)) return '';
   const step = gridStepLabel(sp.bands, sp.range?.step);
-  return `Every route on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Nearby routes can land on something faster in between.`;
+  return `Every route on the grid (${step}) was priced, and this is the fastest. Values between grid points were not tried, so Fast and Exact can land on something faster in between.`;
 });
 
 /** The ascension counts this click will try: chain 1 and each added chain that can run. */
@@ -2321,7 +2321,7 @@ const crashedQueueNote = computed(() => {
   const doneText = done ? ` ${done} finished ${done === 1 ? 'box is' : 'boxes are'} kept in the table.` : '';
   const rest = of - q.next - 1;
   const restText = rest ? `, then the ${rest === 1 ? 'last one' : `other ${rest}`}` : '';
-  const head = `An Exhaustive run of ${of} boxes stopped without finishing, at box ${q.record.at + 1} of ${of}.${doneText}`;
+  const head = `A Custom run of ${of} boxes stopped without finishing, at box ${q.record.at + 1} of ${of}.${doneText}`;
   return q.next === q.record.at
     ? `${head} Carrying on finishes box ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`
     : `${head} That box finished; carrying on starts box ${q.next + 1}${restText}${q.record.submit ? ', sending each as it finishes, as you asked' : ''}.`;

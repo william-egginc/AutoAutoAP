@@ -84,7 +84,7 @@ describe('MyRunsList (My runs › Your runs on the board)', () => {
     expect(html.match(/data-testid="my-runs-row"/g)).toHaveLength(3);
     const egg = t.indexOf('Egg Day 2027');
     const date = t.indexOf('By ');
-    const race = t.indexOf('Race to 490');
+    const race = t.indexOf('Fastest to 490 TE');
     expect(egg).toBeGreaterThan(-1);
     expect(egg).toBeLessThan(date);
     expect(date).toBeLessThan(race);
@@ -167,8 +167,8 @@ describe('MyRunsList with a realistic mix (16 Oct: "Showing 0 of 25" under Kind 
     expect(t).toContain('hidden');
     expect(t).toContain('maybe you');
     expect(t).toContain('Egg Day 2027');
-    expect(t).toContain('Race to 490');
-    expect(t).toContain('Race to 300');
+    expect(t).toContain('Fastest to 490 TE');
+    expect(t).toContain('Fastest to 300 TE');
     // Month first with the year (Jordan, 24 Oct 2026): "By Feb 10, 2027", never "By 10 Feb 2027".
     expect(t).toMatch(/By [A-Z][a-z]{2} \d+, 2027/);
     expect(t).not.toMatch(/\b\d+ [A-Z][a-z]{2} 20\d\d\b/);
@@ -189,7 +189,7 @@ describe('MyRunsList with a realistic mix (16 Oct: "Showing 0 of 25" under Kind 
     expect(t).toContain('25 of 25 runs');
     expect(html).not.toContain('data-testid="runs-explore-clear"');
     // Goal: the planner's 490 first, every other target as one chip, Egg Day, other dates; with how many runs each.
-    expect(t).toContain('Goal Fastest to 490 8 Other targets 6 Egg Day 2027 5 Other dates 6');
+    expect(t).toContain('Goal Fastest to 490 TE 8 Other targets 6 Egg Day 2027 5 Other dates 6');
     expect(t).toMatch(/Ascensions 2 6 3 19/);
     expect(t).toMatch(/Hours My hours \d+ Any time \d+/);
     // No level was sent on these rows: one value, so no Level chips.
@@ -232,9 +232,9 @@ describe('MyRunsList with a realistic mix (16 Oct: "Showing 0 of 25" under Kind 
 
   it('Most TE sorts the highest first; Fewest ascensions the shortest routes first', async () => {
     const te = textOf(await renderX({ sort: 'te' }));
-    expect(te.indexOf('Race to 490')).toBeLessThan(te.indexOf('Egg Day 2027 200'));
+    expect(te.indexOf('Fastest to 490 TE')).toBeLessThan(te.indexOf('Egg Day 2027 200'));
     const few = await renderX({ sort: 'fewest' });
     const first = few.split('data-testid="my-runs-row"')[1];
-    expect(textOf(first)).toMatch(/Race to 3\d0/);
+    expect(textOf(first)).toMatch(/Fastest to 3\d0 TE/);
   });
 });

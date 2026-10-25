@@ -315,7 +315,7 @@ function deadlineText(seconds: number): string {
 function kindText(l: Line): string {
   if (l.kind === 'eggday') return `Egg Day ${props.eggDayYear}`;
   if (l.kind === 'dates') return `By ${deadlineText(l.row.deadline as number)}`;
-  return `Race to ${l.row.finalTE}`;
+  return `Fastest to ${l.row.finalTE} TE`;
 }
 
 function spareText(seconds: number): string {

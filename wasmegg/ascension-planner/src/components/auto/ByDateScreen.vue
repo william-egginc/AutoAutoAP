@@ -13,7 +13,7 @@
     <div>
       <h2 class="text-2xl font-black text-slate-900">{{ NAMES.byDate }}</h2>
       <p class="text-sm text-slate-600">
-        Finds the highest TE you can reach by a date (Egg Day by default), from your save and your setup. Plans include
+        Finds the highest TE you can reach by a date (Egg Day by default), from your save and Setup. Plans include
         the weekly Research Sale and the Monday 2× earnings boost, the same as {{ NAMES.classic }}; other game events aren't
         simulated.
       </p>
@@ -24,10 +24,10 @@
         How {{ NAMES.byDate }} works
       </summary>
       <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-        Nearby routes picks the early stops for you: the
-        instant answer's route for each number of ascensions and a few TE either side of each stop. In Exhaustive you
+        Fast and Exact pick the early stops for you: the
+        instant answer's route for each number of ascensions and a few TE either side of each stop. In Custom you
         set the early stops and it tries every route in them. Either way the last stop is found to the exact TE. Like
-        any run, it uses the plan start, hours, time off and computer settings in Your setup.
+        any run, it uses the plan start, hours, time off and computer settings in Setup.
       </div>
     </details>
     <!-- The setup is the floating Setup button (SetupDock.vue); here only the save's problems, if any. -->

@@ -1,6 +1,6 @@
 /**
- * A run's details against its player's instant baseline (wireframe B2, lib/instantBaseline.ts): the line and the list
- * Instant baseline, Fast, Exact, Custom, only when the row carries `baseline` (the collector must keep that field).
+ * A run's details against its player's instant answer (wireframe B2, lib/instantBaseline.ts): the line and the list
+ * Instant answer, Fast, Exact, Custom, only when the row carries `baseline` (the collector must keep that field).
  */
 import { describe, expect, it } from 'vitest';
 import { ref, type Plugin } from 'vue';
@@ -30,39 +30,39 @@ const board = (rows: BoardRow[]): Plugin => ({ install: app => void app.provide(
 const render = async (r: BoardRow, rows: BoardRow[] = [r]) =>
   renderHtml(LeaderboardRunDetail, { row: r, csvRoot: 'https://collector.test/csv', viewZone: 'UTC' }, {}, [board(rows)]);
 
-describe('vs their instant baseline (B2)', () => {
+describe('vs their instant answer (B2)', () => {
   it("another player's run: their line and the list, this run marked, Custom not run", async () => {
     const html = await render(exact, [exact, fast]);
     const t = textOf(html);
-    expect(t).toContain('vs their instant baseline: 1.5 days sooner (Exact)');
-    expect(t).toContain('Compared with their instant baseline');
+    expect(t).toContain('vs their instant answer: 1.5 days sooner (Exact)');
+    expect(t).toContain('Compared with their instant answer');
     // Dates in the viewer's zone, in the runner's locale.
-    expect(t).toMatch(/Instant baseline \S+ \S+ 2028, 10:00 pm \(UTC\) · /i);
+    expect(t).toMatch(/Instant answer \S+ \S+ 2028, 10:00 pm \(UTC\) · /i);
     expect(t).toMatch(/Fast \S+ \S+ 2028, 0?5:10 pm \(UTC\) 1.2 days sooner/i);
     expect(t).toMatch(/Exact this run \S+ \S+ 2028, 10:00 am \(UTC\) 1.5 days sooner/i);
     expect(t).toMatch(/Custom not run ·/);
     expect(html).toContain('data-testid="run-baseline-exact"');
   });
   it('your own run says "your"', async () => {
-    expect(textOf(await render({ ...exact, yours: true }))).toContain('vs your instant baseline: 1.5 days sooner (Exact)');
+    expect(textOf(await render({ ...exact, yours: true }))).toContain('vs your instant answer: 1.5 days sooner (Exact)');
   });
   it('no baseline on the row: neither the line nor the list', async () => {
     const html = await render({ ...exact, baseline: undefined });
     expect(html).not.toContain('data-testid="run-baseline"');
-    expect(textOf(html)).not.toContain('instant baseline');
+    expect(textOf(html)).not.toContain('instant answer');
   });
 });
 
 describe('BaselineChip', () => {
   it('green when the run beats the baseline; nothing without one', async () => {
-    const html = await renderHtml(BaselineChip, { line: { lead: 'vs your instant baseline:', words: '1.2 days sooner', tail: '(Fast)', tone: 'better' } });
-    expect(textOf(html)).toBe('vs your instant baseline: 1.2 days sooner (Fast)');
+    const html = await renderHtml(BaselineChip, { line: { lead: 'vs your instant answer:', words: '1.2 days sooner', tail: '(Fast)', tone: 'better' } });
+    expect(textOf(html)).toBe('vs your instant answer: 1.2 days sooner (Fast)');
     expect(html).toContain('data-tone="better"');
     expect(await renderHtml(BaselineChip, { line: null })).not.toContain('baseline-chip');
   });
   it('a space before the level, in the HTML itself ("2.0 days later (Exact)", not "later(Exact)", 23 Oct 2026)', async () => {
     const html = await renderHtml(BaselineChip, {
-      line: { lead: 'vs their instant baseline:', words: '2.0 days later', tail: '(Exact)', tone: 'worse' },
+      line: { lead: 'vs their instant answer:', words: '2.0 days later', tail: '(Exact)', tone: 'worse' },
     });
     expect(html.replace(/<!--[\s\S]*?-->/g, '')).toContain('<b>2.0 days later</b> (Exact)</span>');
   });

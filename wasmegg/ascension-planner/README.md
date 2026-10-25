@@ -6,10 +6,10 @@ Ascension Planner** (the simulator) and the **wasmegg tools** by **Carpet**, and
 with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 248 286 327 490`.
 
 - **Instant answer**: the best routes for your save in seconds, looked up in ascensions priced ahead of time.
-- **Check exactly**: the shown routes run through the full simulator on your own save.
-- **Stronger check** (Fast / Exact / Custom): after Check exactly the page re-prices, by itself, the routes
-  you already have; Fast and Exact run **Nearby routes**, a search near the instant answer's route.
-- **Exhaustive** (the Custom option): every route in boxes you set, so the answer is proven inside those boxes.
+- **Search** (Fast / Exact / Custom): nothing runs by itself; you pick how hard to look. Fast and Exact search
+  near the instant answer's route, pricing each route through the full simulator on your own save. **Price this
+  route** (on the instant answer's longer-route note) puts that route in Custom's first box.
+- **Custom**: every route in boxes you set, so the answer is proven inside those boxes.
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
 - **Prefer fewer ascensions** and **Try waiting before each prestige**: two options on the instant answer.
 - **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
@@ -47,16 +47,16 @@ that choice.
 - **Auto Planner**
   - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
     Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
-  - **Fastest to 490 TE** (the name follows your final target): the instant answer and Check exactly
-    on top, then the Stronger check: **Fast**, **Exact** (Nearby routes) or **Custom** (Exhaustive).
+  - **Fastest to 490 TE** (the name follows your final target): the instant answer on top, then the
+    **Search** card: **Fast**, **Exact** or **Custom**.
     **Prefer fewer ascensions** (off by default; within 12 h, 1 day, 2 days or custom) leads the green box
-    with the fewest-ascensions route that close to the best. After Check exactly, **Try waiting before each
-    prestige** prices the route with waits of 1 to 24 hours, on Your setup's hours, and suggests a wait only
+    with the fewest-ascensions route that close to the best. Under a search result, **Try waiting before each
+    prestige** prices the route with waits of 1 to 24 hours, on Setup's hours, and suggests a wait only
     when it gains over half an hour and being 2 hours off costs under three times that.
   - **Highest TE by a date**: the same layout (Prefer fewer: same TE, within 1 or 2 TE). With no instant
-    answer for your TE, **Get a quick estimate** runs a quick scan and Nearby routes around it, about 15
-    minutes in all. A suggested Exhaustive box stays under 20,000 sets of early stops; a typed one is not capped.
-  - Exhaustive above 300,000 routes shows a note (about how many hours; the command line); Start asks first
+    answer for your TE, **Get a quick estimate** runs a quick scan and a Fast or Exact search around it, about 15
+    minutes in all. A suggested Custom box stays under 20,000 sets of early stops; a typed one is not capped.
+  - Custom above 300,000 routes shows a note (about how many hours; the command line); Start asks first
     above 100,000 routes, and again above 500,000 (Science sweeps too).
 - **Leaderboard** (was Compare, off until ticked in Setup): Egg Day, Race, All runs, By a date, and **Insights**
   (charts across everybody's runs; also the standalone `explorer.html`). Its Your latest run tab is one line
@@ -89,7 +89,7 @@ with [Getting started](https://github.com/william-egginc/AutoAutoAP/wiki/Getting
 [FAQ](https://github.com/william-egginc/AutoAutoAP/wiki/FAQ));
 [Releases](https://github.com/william-egginc/AutoAutoAP/wiki/Releases) lists what each release changed.
 Release 4, in short: Prefer fewer ascensions; Try waiting before each prestige; Get a quick estimate with
-no instant answer; big boxes ask first; faster searches, By a date's Nearby routes and Exhaustive most (a
+no instant answer; big boxes ask first; faster searches, By a date's Fast, Exact and Custom most (a
 leg's build up to C3 is now shared by every last stop tried from one start: 171 s to 49 s on one measured
 Egg Day run); no edge warning for an edge Widen and run again can't move; a stopping search says it is
 finishing the routes already started (up to about a minute); and the My runs chart.
@@ -103,7 +103,7 @@ from older simulators on the Leaderboard; Leaderboard and Science off until tick
 
 Single run (formerly Your plan, formerly Classic) is Joo's Auto Ascension Planner screen: the simulator
 (`src/auto`, `src/engine`), the shifts, the generator, the cards, the plan library, export and import are
-his. Our branch adds the shared **Your setup** dock; a plan start never before the save; **Finish without
+his. Our branch adds the shared **Setup** dock; a plan start never before the save; **Finish without
 buying** and **Prestige now** for the first ascension; **Time off** windows; **Simulate this plan** from
 the searches; and the opening switch (`lowTeOpening.ts`). Since 21 Oct 2026 the branch carries Joo's planner
 up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with I1 capped at 4 hours, and
@@ -169,14 +169,14 @@ pnpm search:build
 node dist-search/fastsearch.js --help        # every flag
 ```
 
-The flags still use the older names: `--effort` is **Nearby routes** (`fast`, `exact` or `thorough`,
-the site's Fast / Exact / Very high; there is no Light), `--bands`, `--suggest` and `--preset` are
-**Exhaustive**, and `--by-date` / `--egg-day` are **Highest TE by a date**.
+The flags still use the older names: `--effort` is the search behind Fast and Exact (`fast`, `exact` or
+`thorough`, the site's Fast / Exact / the retired Very high; there is no Light), `--bands`, `--suggest` and
+`--preset` are **Custom**, and `--by-date` / `--egg-day` are **Highest TE by a date**.
 
 ```bash
-# Nearby routes at Very high, finding its own starting route
+# The Fast / Exact search at thorough (the retired Very high), finding its own starting route
 node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed
-# Exhaustive: one band per stop before the last (3 bands = 4 ascensions), written low-high:step
+# Custom: one band per stop before the last (3 bands = 4 ascensions), written low-high:step
 node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10" --out run1
 # A Science sweep, fitted to the save's TE
 node dist-search/fastsearch.js --backup me.json --preset F4 --out f4
@@ -198,12 +198,12 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
 - Sending (`--submit`, or `submit --from`) is the same send the site makes, anonymous unless
   `--nickname`. To any collector not on your own machine it needs `--yes`, or nothing leaves.
   What-ifs (`--add-artifact`, `--mod`) are never sent.
-- Hours, time off and the first ascension match Your setup: `--available-from/--available-to`,
+- Hours, time off and the first ascension match Setup: `--available-from/--available-to`,
   `--time-off`, `--first-ascension auto|buildup|continue|fresh`.
 - Its own tools, not on the site: `--exhaustive --range`, `--stages`, `--grid`, `--direct`
   (`scripts/autoplan.py` is an older Python driver of `--stages`).
 
-#### Helping with a long run (an Exhaustive box for someone else's check)
+#### Helping with a long run (a Custom box for someone else's check)
 
 From a fresh clone, once (Node 24 and pnpm 11.11.0 as above):
 
@@ -234,7 +234,7 @@ Windows block above) again only if a `.proto` file changed, because the generate
 
 Then, with your save as `me.json` (Settings, Download backup) and the box you were given: each band
 is one stop before the last, `low-high:step`, and `--last` is where to look for the last stop. This
-is the Highest TE by a date screen's Exhaustive, by Egg Day, as an example:
+is the Highest TE by a date screen's Custom, by Egg Day, as an example:
 
 ```bash
 # How big it is, without running it (sets of early stops, routes, a time estimate)
@@ -351,7 +351,7 @@ Paths are relative to this folder. The full module map is on
 - `src/auto/`, `src/engine/`: Joo's simulator. Keep edits minimal and marked; any change can move
   results. Our hooks: `hold.ts` (your hours), `buildUp.ts`, `lowTeOpening.ts` (the opening switch: PR 717's
   rounds, our default, or Joo's v2 openings, when one C1/K1/I1 pass can't max the habs).
-- `src/search/`: our layer: the route finder, Check exactly, the searches (`driver.ts`, `effort.ts`,
+- `src/search/`: our layer: the route finder, route pricing, the searches (`driver.ts`, `effort.ts`,
   `exhaustive.ts`, `deadline.ts`), `preferFewer.ts`, `delays.ts` (waits), `bigBox.ts`, `autoWiden.ts`
   (the quick estimate), `searched.ts`, the CSV, sending and the sim-version guard.
 - `src/stores/chainSearch.ts`: the store behind every Auto Planner search. `src/workers/`: web workers.

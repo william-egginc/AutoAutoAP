@@ -82,7 +82,7 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     const html = await view();
     const t = textOf(html);
     expect(html).not.toContain('data-testid="latest-run-empty"');
-    expect(t).toContain(`From your Nearby routes run on`);
+    expect(t).toContain(`From your Fast and Exact run on`);
     expect(html).toContain('href="#/auto/fastest"');
     expect(html).toContain('data-testid="other-options"');
     expect(t).toContain('Other options worth considering');
@@ -99,7 +99,7 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     store.pricedCount = 1;
     store.searchSpace = { bands: [] } as never;
     const html = await view();
-    expect(textOf(html)).toContain('From your Exhaustive run on');
+    expect(textOf(html)).toContain('From your Custom run on');
     expect(html).toContain('href="#/auto/fastest/full"');
     expect(textOf(html)).not.toMatch(/Finished:|Nothing left to price:/);
   });
@@ -242,7 +242,7 @@ describe('Your latest run: By a date', () => {
     const t = textOf(html);
     expect(html).not.toContain('data-testid="latest-run-empty"');
     expect(html).toContain('data-testid="latest-run-from-date"');
-    expect(t).toContain('From your Highest TE by a date run (Nearby routes, by');
+    expect(t).toContain('From your Highest TE by a date run (Fast and Exact, by');
     expect(t).toContain('1,234 routes priced');
     expect(html).toContain('href="#/auto/by-date"');
     expect(t).toContain('Best for each stop count');
@@ -263,7 +263,7 @@ describe('Your latest run: By a date', () => {
     // Restored from IndexedDB, but found BEFORE the Fastest run: Fastest shows.
     store.deadlineResult = dateResult(Date.parse('2026-10-14T12:00:00Z')) as never;
     let html = await view();
-    expect(textOf(html)).toContain('From your Nearby routes run on');
+    expect(textOf(html)).toContain('From your Fast and Exact run on');
     expect(html).toContain('data-testid="latest-run-other"');
     expect(textOf(html)).toContain('Show your Highest TE by a date run instead');
     // Found after it: By a date shows.
@@ -279,7 +279,7 @@ describe('Your latest run: By a date', () => {
     store.isRunning = true;
     store.deadlineResult = dateResult(Date.now()) as never;
     const html = await view();
-    expect(textOf(html)).toContain('From your Nearby routes run on');
+    expect(textOf(html)).toContain('From your Fast and Exact run on');
   });
 
   it('source: the shortlist and By a date tables use RouteTimeline, and the eggBlocks copy is gone', () => {
@@ -325,7 +325,7 @@ describe('Your latest run: one account at a time (Jordan, 16 Oct: another accoun
     expect(textOf(onB)).toContain('From your Highest TE by a date run');
     expect(onB).not.toContain('data-testid="latest-run-other"');
     const onA = await view(A);
-    expect(textOf(onA)).toContain('From your Nearby routes run on');
+    expect(textOf(onA)).toContain('From your Fast and Exact run on');
     expect(onA).not.toContain('data-testid="latest-run-other"');
   });
 

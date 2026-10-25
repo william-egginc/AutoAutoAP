@@ -185,9 +185,11 @@ export async function fetchAll(base: string, signal?: AbortSignal): Promise<Coll
 /** `fetchAll`, and the By a date answers it leaves out, handed back separately. */
 export async function fetchAllRows(base: string, signal?: AbortSignal): Promise<AllRows> {
   const res = await (takeEarly(base, signal) ?? fetch(`${base}/all`, { signal }));
-  if (!res.ok) throw new Error(`The collector answered ${res.status} for /all.`);
+  if (!res.ok) throw new Error(`The planner's server answered ${res.status} for /all.`);
   const body = (await res.json()) as AllResponse;
-  if (!body || !Array.isArray(body.rows)) throw new Error('The collector answered something that is not a run list.');
+  if (!body || !Array.isArray(body.rows)) {
+    throw new Error("The planner's server answered something that is not a run list.");
+  }
   // A row without a chain cannot be placed on any chart here, and one bad record should not empty
   // the page. Same posture the Worker takes when a stored value will not parse.
   // Deadline answers (schema 8) too: they are ranked on the leaderboard's By a date tab, and a
@@ -216,10 +218,10 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
     const res = await fetch(`${base}/flagged`, { signal, headers: token ? { 'x-owner-token': token } : {} });
     if (res.status === 404) {
       throw new Error(
-        'This collector has no flagged board yet: it is running a Worker from before 2026-09-24 and needs redeploying.'
+        "The planner's server has no flagged board yet: it is running a Worker from before 2026-09-24 and needs redeploying."
       );
     }
-    if (!res.ok) throw new Error(`The collector answered ${res.status} for /flagged.`);
+    if (!res.ok) throw new Error(`The planner's server answered ${res.status} for /flagged.`);
     const body = (await res.json()) as AllResponse;
     return normalizeBoardRows<CollectorRow>(body?.rows);
   };
@@ -240,7 +242,7 @@ export async function fetchFlagged(base: string, tokens: string[] = [], signal?:
 export async function fetchRunCsv(base: string, id: string, signal?: AbortSignal): Promise<string> {
   const res = await fetch(`${base}/csv?id=${encodeURIComponent(id)}`, { signal });
   if (res.status === 404) throw new Error('That run has no route table stored.');
-  if (!res.ok) throw new Error(`The collector answered ${res.status} for that run's table.`);
+  if (!res.ok) throw new Error(`The planner's server answered ${res.status} for that run's table.`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   return inflateIfGzip(bytes);
 }

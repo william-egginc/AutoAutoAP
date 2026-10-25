@@ -38,7 +38,7 @@ export const LEVEL_WORDS: Record<SearchLevel, string> = {
   quick: 'Fast',
   normal: 'Exact',
   thorough: 'Very high',
-  exhaustive: 'Exhaustive',
+  exhaustive: 'Custom',
 };
 
 export interface SureInput {
@@ -111,8 +111,8 @@ export function howSure(i: SureInput): Sure {
   if (i.teMoved) return { level: 'low', reason: 'your TE has moved since' };
   // High.
   if (i.how === 'search' && i.level === 'exhaustive' && i.exhaustiveComplete)
-    return { level: 'high', reason: 'Exhaustive checked every route in its boxes' };
-  if (i.agreeing === 'exhaustive') return { level: 'high', reason: 'a finished Exhaustive run agrees' };
+    return { level: 'high', reason: 'Custom checked every route in its boxes' };
+  if (i.agreeing === 'exhaustive') return { level: 'high', reason: 'a finished Custom run agrees' };
   const runner = i.runnerUpHours;
   if (i.goal === 'date') {
     const spareOk = typeof i.spareHours === 'number' && i.spareHours >= HIGH_SPARE_HOURS;

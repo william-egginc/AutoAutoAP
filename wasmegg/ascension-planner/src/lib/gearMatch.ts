@@ -51,9 +51,9 @@ export function equippedName(m: SetMatch): string {
     case 'earnings':
       return 'Equipped now = your earnings set';
     case 'production':
-      return 'Equipped now = your production set';
+      return 'Equipped now = your delivery set';
     case 'both':
-      return 'Equipped now = your earnings and production set';
+      return 'Equipped now = your earnings and delivery set';
     case 'mix':
       return 'Equipped now = a mix';
     default:

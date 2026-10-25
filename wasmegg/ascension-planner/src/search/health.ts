@@ -77,7 +77,7 @@ export function reviewContext(ctx: {
       kind: 'no-backup',
       level: 'error',
       message:
-        'Your save had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Start again.',
+        'Your save had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Find.',
     });
     return issues;
   }
@@ -99,7 +99,7 @@ export function reviewContext(ctx: {
       kind: 'no-farm-state',
       level: 'error',
       message:
-        'Your current virtue farm had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Start again.',
+        'Your current virtue farm had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Find.',
     });
   }
   // Zero is the tell. A real account has levels here even if none are maxed, and an empty map makes
@@ -133,17 +133,17 @@ export function buildUpNote(leg: LegSummary): HealthIssue | null {
   const days = Number.isFinite(frozen) ? (frozen - build) / 86400 : Infinity;
   if (!(days >= BUILD_UP_NOTE_DAYS)) return null;
   const by = Number.isFinite(days) ? `${days.toFixed(1)} days` : 'a long way';
-  const pickIt = 'Pick "Continue my build-up" or "Fastest" in Your setup to use it.';
+  const pickIt = 'Pick "Continue my build-up" or "Fastest" in Setup to use it.';
   const fresh = ends?.fresh;
   const beatsFresh = fresh !== undefined && Number.isFinite(fresh) && (fresh - build) / 86400 >= BUILD_UP_NOTE_DAYS;
   const message =
     leg.key === 'continue'
-      ? `Your build isn't finished: carrying on your build-up would end leg 1 ${by} sooner than finishing without buying, which is what this plan does. ${pickIt}`
+      ? `Your build isn't finished: carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying, which is what this plan does. ${pickIt}`
       : leg.key === 'buildup'
-        ? `Leg 1 carries on your build-up: that ends it ${by} sooner than finishing your farm as it is, without buying anything more.`
+        ? `Ascension 1 carries on your build-up: that ends it ${by} sooner than finishing your farm as it is, without buying anything more.`
         : beatsFresh
-          ? `Carrying on your build-up would end leg 1 ${by} sooner than finishing without buying, and ${((fresh! - build) / 86400).toFixed(1)} days sooner than the fresh start this plan takes. ${pickIt}`
-          : `Carrying on your build-up would end leg 1 ${by} sooner than finishing without buying; prestiging now was faster still.`;
+          ? `Carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying, and ${((fresh! - build) / 86400).toFixed(1)} days sooner than the fresh start this plan takes. ${pickIt}`
+          : `Carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying; prestiging now was faster still.`;
   return { kind: 'build-up-sooner', level: 'warning', message };
 }
 
@@ -197,7 +197,7 @@ export function reviewLegs(legs: LegSummary[]): HealthIssue[] {
       issues.push({
         kind: 'slow-leg',
         level: 'warning',
-        message: `Leg ${i + 1} (to ${leg.endTE} TE) takes ${days.toFixed(0)} days on its own. That is long enough to be worth checking rather than trusting.`,
+        message: `Ascension ${i + 1} (to ${leg.endTE} TE) takes ${days.toFixed(0)} days on its own. That is long enough to be worth checking rather than trusting.`,
       });
     }
     if (i === 0) return;
@@ -207,7 +207,7 @@ export function reviewLegs(legs: LegSummary[]): HealthIssue[] {
       issues.push({
         kind: 'rate-collapse',
         level: 'error',
-        message: `Leg ${i + 1} (to ${leg.endTE} TE) peaks at ${here.toFixed(3)} q/hr, down from ${prev.toFixed(3)} on the leg before it. Delivery should not fall as TE rises. This usually means the state the simulator carried into this leg is wrong, and every duration after it is too.`,
+        message: `Ascension ${i + 1} (to ${leg.endTE} TE) peaks at ${here.toFixed(3)} q/hr, down from ${prev.toFixed(3)} on the ascension before it. Delivery should not fall as TE rises. This usually means the state the simulator carried into this ascension is wrong, and every duration after it is too.`,
       });
     }
   });

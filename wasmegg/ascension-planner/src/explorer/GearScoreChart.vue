@@ -121,7 +121,7 @@ const deliveryOption = computed<ChartOption>(() => ({
           const i = (raw as { dataIndex: number }).dataIndex;
           const b = bars.value[i];
           const peak =
-            b.gear.peakQph === null ? 'no run to 490 TE with leg detail' : `${b.gear.peakQph.toFixed(2)} q/hr`;
+            b.gear.peakQph === null ? 'no run to 490 TE with ascension detail' : `${b.gear.peakQph.toFixed(2)} q/hr`;
           return `<b>${esc(b.label)}</b><br/>delivery score ${esc(((b.gear.delivery ?? 0) * 100).toFixed(1))}%<br/>best peak on a run to 490 TE: ${esc(peak)}`;
         },
       },

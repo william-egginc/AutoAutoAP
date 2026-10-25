@@ -81,14 +81,14 @@ const card: CardPlan = {
   goal: { goal: 'fastest', target: 490, deadline: null },
   state: 'this-save',
   key: 'fastest-490',
-  name: 'Race to 490',
+  name: 'Fastest to 490 TE',
 };
 const options: GoalOption[] = [
   {
     key: 'fastest-490',
     kind: 'race',
-    label: 'Race to 490',
-    name: 'Race to 490',
+    label: 'Fastest to 490 TE',
+    name: 'Fastest to 490 TE',
     deadline: null,
     state: 'plan',
     calculatedAt: plan.calculatedAt,
@@ -140,7 +140,7 @@ const offProps = (o: Record<string, unknown> = {}) => {
     shownEvents: tableEvents(events),
     startInfo: startLines(
       [
-        { key: 'fastest-490', name: 'Race to 490', goal: 'fastest', target: 490, plan: freshPlan },
+        { key: 'fastest-490', name: 'Fastest to 490 TE', goal: 'fastest', target: 490, plan: freshPlan },
         { key: 'eggday-2027', name: 'Egg Day 2027', goal: 'date', target: 490, plan: null },
       ],
       NOW,
@@ -171,9 +171,9 @@ describe('not on virtue yet', () => {
   it('the future plan as exploration, from what each goal saved; the switch, the route and the timeline stay', async () => {
     const html = await renderHtml(RightNowCard, offProps());
     const t = textOf(html);
-    expect(t).toContain('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Race to 490, simulator check)');
+    expect(t).toContain('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Fastest to 490 TE, simulator check)');
     expect(t).toContain('Egg Day 2027: no start time is priced yet');
-    expect(t).toContain('If you start then: Following 198 → 490 (Race to 490)');
+    expect(t).toContain('If you start then: Following 198 → 490 (Fastest to 490 TE)');
     expect(html).toContain('data-testid="now-goal-switch"');
     expect(t).toContain('Full timeline');
   });
@@ -251,7 +251,7 @@ describe('the corner badge and the gear', () => {
         match,
       });
     expect(textOf(await g('earnings'))).toContain('Equipped now = your earnings set');
-    expect(textOf(await g('production'))).toContain('Equipped now = your production set');
+    expect(textOf(await g('production'))).toContain('Equipped now = your delivery set');
     expect(textOf(await g('mix'))).toContain('Equipped now = a mix');
     expect(textOf(await g(null))).toContain('Equipped now');
     expect(read('RightNowCard.vue')).toContain(':match="gear.match ?? null"');

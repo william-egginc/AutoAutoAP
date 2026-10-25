@@ -70,7 +70,7 @@ export function describeDuration(seconds: number): string {
 
 export function longContinueMessage(days: number): string {
   return (
-    `Leg 1 keeps your current ascension going for ${Math.round(days)} days, over three months on one farm. ` +
+    `Ascension 1 keeps your current ascension going for ${Math.round(days)} days, over three months on one farm. ` +
     `A fresh 1, 2 and 3-sale start were all checked and none was faster, so it stands. ` +
     `Who do you think you are, some SE-hungry alien thug?`
   );

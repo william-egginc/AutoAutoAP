@@ -21,7 +21,7 @@
   <div class="grid gap-4 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] text-[11px]">
     <div v-if="compare.length" style="grid-column: 1 / -1" class="space-y-1.5" data-testid="run-baseline">
       <BaselineChip :line="chip" />
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400">Compared with {{ whose }} instant baseline</h4>
+      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400">Compared with {{ whose }} instant answer</h4>
       <div class="overflow-x-auto">
         <table class="w-full text-[11px]" data-testid="run-baseline-list">
           <thead>
@@ -38,7 +38,7 @@
               :key="c.label"
               class="border-t border-slate-100"
               :class="c.thisRun ? 'bg-indigo-50' : ''"
-              :data-testid="`run-baseline-${c.label === 'Instant baseline' ? 'instant' : c.label.toLowerCase()}`"
+              :data-testid="`run-baseline-${c.label === 'Instant answer' ? 'instant' : c.label.toLowerCase()}`"
             >
               <td class="pr-3 py-1 font-bold text-slate-800">
                 {{ c.label
@@ -46,13 +46,13 @@
               </td>
               <td class="pr-3 py-1" :class="c.end == null ? 'text-slate-400' : ''">{{ compareFinish(c) }}</td>
               <td class="pr-3 py-1 font-bold" :class="c.tone === 'better' ? 'text-emerald-700' : 'text-slate-600'">{{ c.diff || '·' }}</td>
-              <td class="py-1 text-slate-500">{{ c.at ? whenText(c.at).main : c.label === 'Instant baseline' ? 'worked out ahead' : '' }}</td>
+              <td class="py-1 text-slate-500">{{ c.at ? whenText(c.at).main : c.label === 'Instant answer' ? 'worked out ahead' : '' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
       <p class="text-[10px] text-slate-500">
-        The baseline is the instant answer for this save when the run was sent, shared by the player. Every other row is
+        The instant answer row is the one for this save when the run was sent, shared by the player. Every other row is
         the full simulator on the same save and hours.
       </p>
     </div>

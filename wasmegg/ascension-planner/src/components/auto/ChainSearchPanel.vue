@@ -6,7 +6,7 @@
       <!-- What it does, in two lines; the problem, the algorithm and the worked example are on Science ›
            How it works (moved there 12 Oct 2026: too much for this page). -->
       <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="nearby-in-brief">
-        {{ NAMES.smart }} starts from the instant answer's route and moves its stops a few TE at a time, keeping any
+        The {{ NAMES.smart }} search starts from the instant answer's route and moves its stops a few TE at a time, keeping any
         change that finishes sooner, with the full simulator on your save. It runs on {{ thisDevice() }}'s workers; you can
         stop it any time and keep the best so far.
         <a
@@ -734,7 +734,7 @@
                     <tr v-if="expandedLeg === i && leg.shifts?.length" class="bg-slate-50">
                       <td :colspan="store.scheduleEnabled ? 9 : 7" class="px-3 py-3">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                          A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} switches
+                          A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} shifts
                           <span v-if="store.scheduleEnabled" class="text-amber-600"
                             >· amber falls outside your hours</span
                           >
@@ -765,8 +765,8 @@
                         <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
                           One row per egg, with when you start laying it and how long you stay. The
                           <span class="font-semibold text-emerald-700">first row is where the ascension begins</span>:
-                          no action needed, you are already on it. Every row after it is one manual switch, which is why
-                          twelve eggs means eleven switches. This matches Single run's own C1 / K1 / I1 list.
+                          no action needed, you are already on it. Every row after it is one manual shift, which is why
+                          twelve eggs means eleven shifts. This matches Single run's own C1 / K1 / I1 list.
                         </p>
                         <!-- Each egg's first and last shift and the TE it reaches (search/routeTimeline.ts). -->
                         <RouteTimeline
@@ -862,14 +862,14 @@
         >
           <p class="font-bold uppercase tracking-wide text-amber-700">No plan start is set</p>
           <p>
-            Your setup has no plan start date and time, so this plan is timed from
+            Setup has no plan start date and time, so this plan is timed from
             <span class="font-semibold">right now</span>, and "now" moves every time you reload.
           </p>
           <p>
             An unfinished run still carries on after a reload: it goes back to the start it was priced from. But
             <span class="font-semibold">day counts stop being comparable:</span> the same route reports a smaller number
             simply because the stopwatch started later, so compare <span class="font-semibold">finish dates</span>,
-            which do not move. Set a start date and time in Your setup to pin it.
+            which do not move. Set a start date and time in Setup to pin it.
           </p>
         </div>
 
@@ -1001,10 +1001,10 @@
               from your player ID). The code is never shown to anyone. The board uses it so a run that lands on the
               flagged board (a stalled first ascension, a plan past ten years) shows to you as yours and to everyone
               else anonymously; so the same result sent twice is stored once; so you can put your name on a run you sent
-              anonymously; and so your own later runs can replace your older plans in the race, which nobody else's can.
+              anonymously; and so your own later runs can replace your older plans on the board, which nobody else's can.
               A named run shows a short tag made from the code, so your runs read as one player; an anonymous run shows
               nothing that links it to you. If you have plans on the board already, it also carries
-              <span class="font-semibold">your best three of them re-priced from this save</span>, so the race can tell
+              <span class="font-semibold">your best three of them re-priced from this save</span>, so the board can tell
               whether they still hold: your named plans when this goes with your name, your anonymous ones when it goes
               without, so a re-check never ties the two together.
               <span v-if="includeCsv"
@@ -1029,8 +1029,8 @@
                 >{{ NAMES.compare }} › All runs</a
               >: one line per result (anonymous runs included), and every row opens to show the artifacts, stones and
               per-ascension timings it was simulated with. Read it as "what shapes are winning for people": a duration
-              depends on the account as much as on the route. The race to the target by finish date, one line per named
-              player, is <a href="#/compare/race" class="font-bold text-indigo-700 underline hover:text-indigo-900">Race</a>,
+              depends on the account as much as on the route. Fastest to the target by finish date, one line per named
+              player, is <a href="#/compare/race" class="font-bold text-indigo-700 underline hover:text-indigo-900">Fastest to {{ store.finalTE }} TE</a>,
               next to it.
             </p>
           </ShareResult>

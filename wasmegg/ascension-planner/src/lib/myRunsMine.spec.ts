@@ -80,7 +80,7 @@ describe('B1: Kind = All with the default filters lists every run', () => {
         { ...DEFAULT_MY_RUNS_FILTERS, kind: 'race', target: 490, hours: 'awake', stops: '200, 250' },
         2027
       )
-    ).toEqual(['Race to 490', 'planned around awake hours', 'stops 200 250']);
+    ).toEqual(['Fastest to 490 TE', 'planned around awake hours', 'stops 200 250']);
     expect(
       activeFilterWords({ ...DEFAULT_MY_RUNS_FILTERS, kind: 'eggday', hours: 'any', ascensions: 1 }, 2027)
     ).toEqual(['Egg Day 2027', 'any time of day', '1 ascension']);

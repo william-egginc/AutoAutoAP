@@ -31,7 +31,7 @@
       label="Accounts: click to hide or show"
     />
     <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
-      No run to 490 TE here carries both per-leg detail and a delivery set yet.
+      No run to 490 TE here carries both per-ascension detail and a delivery set yet.
     </p>
     <p v-if="unchecked.total" class="text-[10px] font-semibold text-slate-500 px-1">
       {{ unchecked.total }} run{{ unchecked.total === 1 ? '' : 's' }} to 490 TE
@@ -122,7 +122,7 @@ const unchecked = computed(() => {
   }
   const parts = [
     noSet && `${noSet} with no delivery set recorded`,
-    noLegs && `${noLegs} without per-leg detail`,
+    noLegs && `${noLegs} without per-ascension detail`,
     belowRamp && `${belowRamp} with a last stop under 190 TE, below where the expected rate was measured`,
     other && `${other} with no peak rate or stop to check`,
   ].filter(Boolean);
@@ -220,7 +220,7 @@ const option = computed<ChartOption>(() => {
         if (!Array.isArray(d) || d.length < 6) return '';
         const [x, pct, measured, expected, chain, suspect] = d;
         const verdict = suspect ? '<br/><b>Flagged</b>: looks like the delivery-set-for-earnings bug' : '';
-        return `<b>${esc(params.seriesName)}</b><br/>last stop ${esc(x)}: final leg peaks at ${esc(measured.toFixed(2))} q/hr<br/>this delivery set should reach about ${esc(expected.toFixed(2))} q/hr from there: ${esc(pct.toFixed(1))}%${verdict}<br/><span style="color:#94a3b8">${esc(chain)}</span>`;
+        return `<b>${esc(params.seriesName)}</b><br/>last stop ${esc(x)}: final ascension peaks at ${esc(measured.toFixed(2))} q/hr<br/>this delivery set should reach about ${esc(expected.toFixed(2))} q/hr from there: ${esc(pct.toFixed(1))}%${verdict}<br/><span style="color:#94a3b8">${esc(chain)}</span>`;
       },
     },
     xAxis: {
@@ -235,7 +235,7 @@ const option = computed<ChartOption>(() => {
     },
     yAxis: {
       type: 'value',
-      name: 'final-leg peak, % of expected',
+      name: 'final-ascension peak, % of expected',
       nameTextStyle: AXIS_LABEL,
       // 30-110% holds every run so far; a run outside it widens the axis rather than vanishing.
       min: (v: { min: number }) => Math.min(30, Math.floor(v.min / 10) * 10),

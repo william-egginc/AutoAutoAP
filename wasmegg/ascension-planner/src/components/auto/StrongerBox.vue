@@ -191,7 +191,7 @@ const promises = computed<string[]>(() => {
     return [
       PRICED,
       `For each number of ascensions the instant answer has, it tries every route with each early stop within ${w} TE of the answer's route. Long routes get fewer, and it narrows if the search would take too long. Each last stop is found to the exact TE.`,
-      `It can miss a route whose early stops are further away. Custom (${NAMES.full}) proves the best only inside the boxes you set.`,
+      `It can miss a route whose early stops are further away. ${NAMES.full} proves the best only inside the boxes you set.`,
       "No search up to 13 Oct beat the instant answer's TE by a date, but that rests on only 2 like-for-like runs from one save, so a long search will often confirm it. That sample is very small.",
       TIMING,
       STOP,
@@ -205,10 +205,10 @@ const promises = computed<string[]>(() => {
   // These took over the lines of the amber box that sat under the search's results (the user, 12 Oct: one
   // promise box, not two). Do not soften them.
   return [
-    `${PRICED} With "Let me pick my hours" (in Your setup), each prestige and each egg shift waits for your hours, and the CSV counts the waits per ascension.`,
+    `${PRICED} With "Let me pick my hours" (in Setup), each prestige and each egg shift waits for your hours, and the CSV counts the waits per ascension.`,
     miss,
     "It starts from the instant answer's route (or the one you picked) and never scans every route, so a poor start can leave it near a poor answer.",
-    `It is a strong nearby answer, never a proven best: Custom (${NAMES.full}) proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
+    `It is a strong nearby answer, never a proven best: Custom proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
     "In players' runs before 23 Oct, on about 5 accounts, a short search (Fast) often found a route at least a day sooner than the instant answer's. That is an upper bound from the old instant answer, not measured again since. Going bigger rarely added more. That sample is small.",
     TIMING,
     `${STOP} A refresh is safe: its progress is saved and carries on without re-simulating anything.`,
