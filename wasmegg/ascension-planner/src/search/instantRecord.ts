@@ -120,6 +120,8 @@ export interface InstantRecord {
   settings?: {
     firstAscension?: FirstAscension;
     maxAscensions?: number | null;
+    /** The ascensions range's lower end (24 Oct 2026). */
+    minAscensions?: number | null;
     inHours?: boolean;
     window?: string | null;
     holdShifts?: boolean;

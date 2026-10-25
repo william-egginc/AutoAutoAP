@@ -213,6 +213,7 @@ export function instantKeyFromStores(deadline: number | null, finalTE: number): 
         !!store.availability &&
         insideHoursFor(true, isConstrained(store.availability), readInsideHoursChoice(), filters.inHours),
       maxAscensions: filters.maxAscensions,
+      minAscensions: filters.minAscensions,
     });
   } catch {
     return null;

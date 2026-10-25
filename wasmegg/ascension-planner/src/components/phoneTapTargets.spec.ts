@@ -39,8 +39,10 @@ describe('the instant card on a phone', () => {
     expect(tagWith(src, 'data-testid="instant-how-summary"')).toContain(SUMMARY);
     expect(tagWith(read('auto/MaxedWhatIf.vue'), 'data-testid="instant-maxed-what-if-summary"')).toContain(SUMMARY);
   });
-  it('the At most … ascensions select', () => {
+  it('the ascensions From … to … boxes and "Include N"', () => {
+    expect(tagWith(src, 'data-testid="instant-min-ascensions"')).toContain('min-h-[44px] sm:min-h-0');
     expect(tagWith(src, 'data-testid="instant-max-ascensions"')).toContain('min-h-[44px] sm:min-h-0');
+    expect(tagWith(src, 'data-testid="instant-range-widen"')).toContain('min-h-[44px] sm:min-h-0');
   });
   it('Hide: a 44 px invisible area round the pill on a phone only, the pill itself unmoved', () => {
     const t = tagWith(read('auto/CollapsibleSection.vue'), ':data-testid="`hide-${id}`"');

@@ -13,7 +13,7 @@ import {
   type Route,
   type TailOptions,
 } from './routeFinder';
-import { atMostAscensions } from './instantFilters';
+import { withinAscensions } from './instantFilters';
 import type { Availability } from './availability';
 import type { FirstLegsRequest } from '@/workers/routeFinder.protocol';
 
@@ -31,8 +31,10 @@ export interface PriceOnTableOptions {
   /** The target TE (By a date: 490, every TE up to it). */
   final: number;
   maxAscensions: number;
-  /** "At most N ascensions", or null. */
+  /** The ascensions range's upper end ("At most N"), or null. */
   atMost: number | null;
+  /** Its lower end, or null (absent: none). */
+  atLeast?: number | null;
   deadline?: number;
   hours?: Availability | null;
   /** The instant answer's tail options (search/instantGear.ts `instantTail`): held shifts with the player's
@@ -64,7 +66,7 @@ export async function priceOnTable(pool: TablePricer, url: string, o: PriceOnTab
     ...(o.tail ?? {}),
     expand: (items, settings) => pool.expand(url, items, settings),
   });
-  const f = atMostAscensions(found, o.atMost);
+  const f = withinAscensions(found, { min: o.atLeast ?? null, max: o.atMost });
   const route = o.deadline ? f.byDate : f.best;
   return { route, end: route?.end ?? null, te: route ? route.legs[route.legs.length - 1].endTE : 0 };
 }

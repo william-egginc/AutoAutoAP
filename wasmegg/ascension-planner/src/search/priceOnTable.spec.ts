@@ -63,6 +63,13 @@ describe('priceOnTable', () => {
     expect(r.route?.legs.length).toBe(1);
   });
 
+  it('the lower end of the range applies too', async () => {
+    const all = await priceOnTable(pool, 'weak', o);
+    const k = all.route?.legs.length ?? 0;
+    const r = await priceOnTable(pool, 'weak', { ...o, atLeast: k + 1 });
+    expect(r.route === null || r.route.legs.length >= k + 1).toBe(true);
+  });
+
   it('passes the answer\'s tail options and hours to both calls, as the instant answer is priced (23 Oct 2026)', async () => {
     const seen: { first?: Record<string, unknown>; expand?: Record<string, unknown> } = {};
     const spy: TablePricer = {

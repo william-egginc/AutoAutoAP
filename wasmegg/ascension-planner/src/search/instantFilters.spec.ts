@@ -1,5 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { atMostAscensions, describeGains, polishGains, readFilters, writeFilters } from './instantFilters';
+import {
+  atMostAscensions,
+  boundInput,
+  boundsAfter,
+  boundsText,
+  describeGains,
+  polishGains,
+  readFilters,
+  setBound,
+  withinAscensions,
+  writeFilters,
+} from './instantFilters';
 import type { FoundRoutes, Route } from './routeFinder';
 
 const route = (k: number, end: number, endTE = 130): Route => ({
@@ -56,6 +67,89 @@ describe('atMostAscensions', () => {
   });
 });
 
+describe('withinAscensions (From … to …, 24 Oct 2026)', () => {
+  const r1 = route(1, 900, 120);
+  const r2 = route(2, 700, 126);
+  const r3 = route(3, 500, 130);
+  const r4 = route(4, 450, 131);
+  const found: FoundRoutes = {
+    best: r4,
+    byAscensions: [null, r1, r2, r3, r4],
+    byDate: r4,
+    byDateByAscensions: [null, r1, r2, r3, r4],
+    outOfHours: [1, 3],
+  };
+
+  it('keeps only the counts inside both ends, and picks the box from them', () => {
+    const f = withinAscensions(found, { min: 2, max: 3 });
+    expect(f.byAscensions).toEqual([null, null, r2, r3, null]);
+    expect(f.byDateByAscensions).toEqual([null, null, r2, r3, null]);
+    expect(f.best).toBe(r3);
+    expect(f.byDate).toBe(r3);
+    expect(f.outOfHours).toEqual([3]);
+    expect(f.outside).toBeUndefined();
+  });
+
+  it('a lower end alone never lets a route with fewer be the pick', () => {
+    const f = withinAscensions({ ...found, best: r1, byAscensions: [null, route(1, 100), r2, r3, null] }, { min: 2, max: null });
+    expect(f.best).toBe(r3); // the fastest of 2 and more, never the 1-ascension route that was sooner
+    expect(f.byAscensions[1]).toBeNull();
+  });
+
+  it('with nothing in the range, names the nearest count that has a route (a tie goes to fewer)', () => {
+    const gap: FoundRoutes = { ...found, byAscensions: [null, r1, null, null, r4], byDateByAscensions: [null, r1, null, null, r4] };
+    const f = withinAscensions(gap, { min: 2, max: 3 });
+    expect(f.best).toBeNull();
+    expect(f.byDate).toBeNull();
+    expect(f.outside?.fastest).toEqual({ ascensions: 1, chain: r1.chain, end: 900, endTE: 120 });
+    expect(f.outside?.date?.ascensions).toBe(1);
+    expect(withinAscensions(gap, { min: 3, max: 3 }).outside?.fastest?.ascensions).toBe(4);
+  });
+
+  it('says nothing about By a date when there was no date answer at all', () => {
+    const f = withinAscensions({ ...found, byDate: null }, { min: 6, max: null });
+    expect(f.outside?.fastest?.ascensions).toBe(4);
+    expect(f.outside?.date).toBeUndefined();
+  });
+
+  it('is the answer itself without bounds, and atMostAscensions is the upper end alone', () => {
+    expect(withinAscensions(found, { min: null, max: null })).toBe(found);
+    expect(atMostAscensions(found, 2)).toEqual(withinAscensions(found, { min: null, max: 2 }));
+  });
+});
+
+describe('the range’s ends', () => {
+  it('move the other end along when one passes it', () => {
+    expect(setBound({ min: 2, max: 4 }, 'min', 6)).toEqual({ min: 6, max: 6 });
+    expect(setBound({ min: 5, max: 8 }, 'max', 3)).toEqual({ min: 3, max: 3 });
+    expect(setBound({ min: 2, max: 4 }, 'max', null)).toEqual({ min: 2, max: null });
+    expect(setBound({ min: null, max: 4 }, 'min', 3)).toEqual({ min: 3, max: 4 });
+  });
+
+  it('read a typed value: blank or below 1 is no bound, above the top is the top', () => {
+    expect(boundInput('', 12)).toBeNull();
+    expect(boundInput('0', 12)).toBeNull();
+    expect(boundInput('abc', 12)).toBeNull();
+    expect(boundInput('3', 12)).toBe(3);
+    expect(boundInput('3.7', 12)).toBe(3);
+    expect(boundInput('40', 12)).toBe(12);
+  });
+
+  it('say the range in words', () => {
+    expect(boundsText({ min: 3, max: 5 })).toBe('3 to 5');
+    expect(boundsText({ min: 4, max: 4 })).toBe('exactly 4');
+    expect(boundsText({ min: 3, max: null })).toBe('at least 3');
+    expect(boundsText({ min: null, max: 5 })).toBe('at most 5');
+    expect(boundsText({ min: null, max: null })).toBe('');
+  });
+
+  it('shift past the player’s own first ascension (an end below 1 is no lower bound)', () => {
+    expect(boundsAfter({ min: 3, max: 5 }, 1)).toEqual({ min: 2, max: 4 });
+    expect(boundsAfter({ min: 1, max: 1 }, 1)).toEqual({ min: null, max: 0 });
+    expect(boundsAfter({ min: 2, max: null }, 0)).toEqual({ min: 2, max: null });
+  });
+});
+
 describe('the remembered filters', () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -68,8 +162,8 @@ describe('the remembered filters', () => {
         throw new Error('blocked');
       },
     });
-    expect(readFilters()).toEqual({ inHours: false, maxAscensions: null });
-    expect(() => writeFilters({ inHours: true, maxAscensions: 3 })).not.toThrow();
+    expect(readFilters()).toEqual({ inHours: false, maxAscensions: null, minAscensions: null });
+    expect(() => writeFilters({ inHours: true, maxAscensions: 3, minAscensions: null })).not.toThrow();
   });
 
   it('come back as written, and ignore a bad number', () => {
@@ -78,10 +172,22 @@ describe('the remembered filters', () => {
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => void store.set(k, v),
     });
-    writeFilters({ inHours: true, maxAscensions: 4 });
-    expect(readFilters()).toEqual({ inHours: true, maxAscensions: 4 });
-    store.set('aap-instant-filters', '{"inHours":"yes","maxAscensions":2.5}');
-    expect(readFilters()).toEqual({ inHours: false, maxAscensions: null });
+    writeFilters({ inHours: true, maxAscensions: 4, minAscensions: 2 });
+    expect(readFilters()).toEqual({ inHours: true, maxAscensions: 4, minAscensions: 2 });
+    store.set('aap-instant-filters', '{"inHours":"yes","maxAscensions":2.5,"minAscensions":0}');
+    expect(readFilters()).toEqual({ inHours: false, maxAscensions: null, minAscensions: null });
+  });
+
+  it('read an older single "At most N" as no lower bound and that upper one (24 Oct 2026)', () => {
+    const store = new Map<string, string>([['aap-instant-filters', '{"inHours":true,"maxAscensions":5}']]);
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    });
+    expect(readFilters()).toEqual({ inHours: true, maxAscensions: 5, minAscensions: null });
+    // A lower end above the upper one (only by hand): the upper one wins.
+    store.set('aap-instant-filters', '{"inHours":false,"maxAscensions":3,"minAscensions":6}');
+    expect(readFilters()).toEqual({ inHours: false, maxAscensions: 3, minAscensions: 3 });
   });
 });
 

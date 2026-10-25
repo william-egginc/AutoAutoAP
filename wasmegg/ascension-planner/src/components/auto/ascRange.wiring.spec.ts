@@ -56,7 +56,7 @@ describe('By a date: Nearby routes’ range', () => {
   it('only the counts in the range are searched, from the instant answer or the suggested routes', () => {
     expect(byDate).toContain('if (inNearbyRange(Number(k))) routes[Number(k)] = r;');
     expect(byDate).toMatch(
-      /for \(let n = 1; n <= Math\.min\(5, max \?\? 5\); n\+\+\) \{\s*if \(!inNearbyRange\(n\)\) continue;/
+      /for \(let n = instantMin\.value \?\? 1; n <= Math\.min\(5, max \?\? 5\); n\+\+\) \{\s*if \(!inNearbyRange\(n\)\) continue;/
     );
   });
   it('the inputs, the grey hint and the way back', () => {

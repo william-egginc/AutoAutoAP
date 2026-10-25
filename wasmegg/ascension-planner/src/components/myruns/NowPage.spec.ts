@@ -367,7 +367,7 @@ describe('source checks', () => {
       return [...body.matchAll(/^\s+(\w+)[,:]/gm)].map(m => m[1]).sort();
     };
     const route = fields(read('../auto/InstantRoute.vue'));
-    expect(route.length).toBe(15);
+    expect(route.length).toBe(16);
     expect(fields(read('../../composables/useNowPage.ts'))).toEqual(route);
   });
 
