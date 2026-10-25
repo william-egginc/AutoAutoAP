@@ -82,7 +82,7 @@ describe('InstantRoute shows the card in place of the old note', () => {
     const error = instantTemplate.indexOf('v-else-if="status === \'error\'"\n');
     expect(card).toBeGreaterThan(0);
     expect(card).toBeLessThan(error);
-    expect(instantTemplate).toContain('v-if="status !== \'loading\' && !atTarget && lowTeNote && !below"');
+    expect(instantTemplate).toContain('v-if="status !== \'loading\' && !atTarget && lowTeNote && !below && !boxShown"');
     // A new answer clears it.
     expect(instant).toMatch(/noTable\.value = false;\n {2}below\.value = null;/);
   });

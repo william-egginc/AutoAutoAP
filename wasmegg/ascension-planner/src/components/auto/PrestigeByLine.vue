@@ -27,15 +27,27 @@
         >tight</span
       >
     </p>
-    <p class="text-[10px] text-slate-500 leading-relaxed">
-      Worked out on the instant answer's prices, each later start on the whole hour, with your farm laying while you
-      wait for as long as its silos hold.<template v-if="line.spareSeconds !== null">
-        At the latest start it lands {{ hours(line.spareSeconds) }} before the date.</template
+    <!-- How it is worked out, the hours note and the evidence: folded under one "Why? ›" (Jordan, 25 Oct 2026; one line
+         per number, the rest behind Why, as under the answer itself: AnswerCaveatLine.vue). -->
+    <details data-testid="prestige-by-why">
+      <summary
+        class="cursor-pointer min-h-[44px] sm:min-h-0 py-2.5 sm:py-0 text-[11px] font-bold text-violet-800 underline decoration-dotted underline-offset-2"
+        data-testid="prestige-by-why-summary"
       >
-      Work it out again from your new save after you prestige.
-    </p>
-    <p v-if="hoursOn" class="text-[10px] text-slate-700" data-testid="prestige-by-hours">{{ HOURS_NOTE }}</p>
-    <p class="text-[10px] text-violet-800" data-testid="prestige-by-evidence">{{ EVIDENCE }}</p>
+        Why? ›
+      </summary>
+      <div class="mt-1 space-y-1">
+        <p class="text-[10px] text-slate-500 leading-relaxed">
+          Worked out on the instant answer's prices, each later start on the whole hour, with your farm laying while
+          you wait for as long as its silos hold.<template v-if="line.spareSeconds !== null">
+            At the latest start it lands {{ hours(line.spareSeconds) }} before the date.</template
+          >
+          Work it out again from your new save after you prestige.
+        </p>
+        <p v-if="hoursOn" class="text-[10px] text-slate-700" data-testid="prestige-by-hours">{{ HOURS_NOTE }}</p>
+        <p class="text-[10px] text-violet-800" data-testid="prestige-by-evidence">{{ EVIDENCE }}</p>
+      </div>
+    </details>
     <p v-if="mismatch" class="text-[10px] text-amber-800">{{ mismatch }}</p>
   </div>
   <!-- Beta only: hidden by the 7-day rule, but say it is there, so the line can be seen working. -->

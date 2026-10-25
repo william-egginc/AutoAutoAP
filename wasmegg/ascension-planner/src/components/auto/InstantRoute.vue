@@ -121,7 +121,7 @@
     <InstantIntegrity v-if="status !== 'loading' && !atTarget" :state="integrity" />
     <!-- LOW-TE OPENING (auto/lowTeOpening.ts): search/instantIntegrity.ts lowTeOpeningNote. -->
     <p
-      v-if="status !== 'loading' && !atTarget && lowTeNote && !below"
+      v-if="status !== 'loading' && !atTarget && lowTeNote && !below && !boxShown"
       class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900"
       data-testid="instant-lowte"
     >
@@ -274,7 +274,8 @@
         <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-400">
           Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
         </p>
-        <p v-else-if="bracketText" class="text-[11px] text-slate-700">{{ bracketText }}</p>
+        <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
+        <p v-else-if="bracketText && !boxShown" class="text-[11px] text-slate-700">{{ bracketText }}</p>
       </div>
 
       <!-- THE INSTANT CARD (wireframes/price-route-v2, Jordan 23 Oct 2026): the green box and the counts list show the
@@ -316,6 +317,8 @@
               Reached {{ show(dateBoxOf(result.byDate).end) }} ·
               {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
             </div>
+            <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
+            <AnswerCaveatLine :caveat="headCaveat" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the instant answer's highest-TE route, which the box always shows
@@ -487,6 +490,8 @@
           <div class="text-[12px] font-bold text-emerald-800">
             in {{ days(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
+          <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
+          <AnswerCaveatLine :caveat="headCaveat" />
           <div class="font-mono-premium text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
@@ -657,7 +662,8 @@
 
       <!-- What the answer above does not account for, on both screens, where it says more than the one line. -->
       <template v-if="result">
-        <!-- The gear caveat and "may be optimistic for your gear", one amber box (GearCaveat.vue). -->
+        <!-- The gear caveat and "may be optimistic for your gear", one amber box (GearCaveat.vue), when no answer box
+             carries it in its caveat line. -->
         <GearCaveat
           :gear-shift="shiftedTable"
           :gear-differs="gearDiffers"
@@ -665,6 +671,7 @@
           :bonus-short="bonusShort"
           :delivery-scale="deliveryScale"
           :full-research-te="FULL_RESEARCH_TE"
+          v-if="!boxShown"
         />
         <p
           v-if="leftOut.length"
@@ -817,7 +824,9 @@ import {
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
 import GearCaveat from './GearCaveat.vue';
-import { gearReadsMaxed, optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
+import AnswerCaveatLine from './AnswerCaveatLine.vue';
+import { answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
+import { OPTIMISTIC_TEXT, gearReadsMaxed, optimisticForGear, type AnswerTable } from '@/lib/optimisticAnswer';
 import InstantShareCheck from './InstantShareCheck.vue';
 import PrestigeByLine from './PrestigeByLine.vue';
 import { useStrongerStore } from '@/stores/stronger';
@@ -919,7 +928,7 @@ import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { INSTANT_ONE_LINE, pointerOf } from '@/lib/searchPointer';
 import { HOURS_NOTE } from '@/lib/hoursNote';
 import InstantPointer from './InstantPointer.vue';
-import { bracketLine } from '@/lib/bracketLine';
+import { bracketHeadline, bracketLine, type BracketLineInput } from '@/lib/bracketLine';
 import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
 
@@ -1384,15 +1393,15 @@ async function runBracket(bid: number, legs: FirstLegsBase, hours: Availability 
 }
 /** The bracket's two ends against the answer on screen (lib/bracketLine.ts): never sooner than a maxed answer,
  *  never contradicting one on the player's gear (the form G); '' when nothing true is left to say. */
-const bracketText = computed(() => {
+const bracketInput = computed<BracketLineInput | null>(() => {
   const b = bracket.value;
-  if (!b?.above?.end) return '';
+  if (!b?.above?.end) return null;
   const name = (s: BracketSide) =>
     s.entry.file === MAXED_TABLE_FILE ? 'the instant answer for fully maxed gear' : describeGear(s.entry);
   const side = (s: BracketSide | null) => (s ? { end: s.end, te: s.te, name: name(s) } : null);
   const r = result.value;
   const mine = props.deadline ? r?.byDate : r?.best;
-  return bracketLine({
+  return {
     goal: props.deadline ? 'date' : 'fastest',
     answer: {
       basis: shiftedTable.value ? 'yours' : 'maxed',
@@ -1402,8 +1411,9 @@ const bracketText = computed(() => {
     hi: side(b.above),
     lo: side(b.below?.end ? b.below : null),
     show,
-  });
+  };
 });
+const bracketText = computed(() => (bracketInput.value ? bracketLine(bracketInput.value) : ''));
 
 /** No prestige on these days set in Your setup (the answer holds every prestige past them: `daysOf`). */
 const noPrestigeOn = computed(() => usableTimeOff(store.noPrestige).length > 0);
@@ -2167,6 +2177,32 @@ const preferPicked = computed(() => preferChoice.value?.state === 'fewer' && !pr
 /** Fastest: the route the box shows. */
 const boxLead = computed<Route | null>(() =>
   preferPicked.value && fastestChoice.value ? fastestChoice.value.chosen.item : lead.value
+);
+/** The answer's green box is on screen (either goal): its caveats then sit in its one line (AnswerCaveatLine), not
+ *  in their own boxes around it (Jordan, 25 Oct 2026; the UX review's item 3). */
+const boxShown = computed(
+  () => !integrityHold.value && !!result.value && (props.deadline ? !!result.value.byDate : !!boxLead.value)
+);
+/** The one line under the answer and its "Why?" list (lib/answerCaveat.ts: gear, then the bound, then the low-TE
+ *  opening), each in the words it had on its own. */
+const headCaveat = computed(() =>
+  answerCaveat([
+    gearCaveat(
+      {
+        gearShift: shiftedTable.value,
+        gearDiffers: gearDiffers.value,
+        optimistic: optimistic.value,
+        bonusShort: bonusShort.value,
+        deliveryScale: deliveryScale.value,
+        fullResearchTe: FULL_RESEARCH_TE,
+      },
+      OPTIMISTIC_TEXT
+    ),
+    bracketText.value && bracketInput.value
+      ? { kind: 'bound', text: bracketText.value, line: bracketHeadline(bracketInput.value) }
+      : null,
+    lowTeCaveat(lowTeNote.value),
+  ])
 );
 /** By a date: the answer the box shows (the instant answer's best, or the one Prefer fewer picked). */
 function dateBoxOf(fallback: Route): DatePick {

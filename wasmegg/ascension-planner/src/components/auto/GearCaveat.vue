@@ -8,34 +8,25 @@
 -->
 <template>
   <p
-    v-if="gearShift || gearDiffers || optimistic"
+    v-if="parts.main || parts.optimistic"
     class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
     data-testid="gear-caveat"
   >
-    <!-- The form G's honest range (the math review's second check, 24 Oct 2026, finding 6): on main from TE 192 at three
+    <!-- The words are lib/answerCaveat.ts gearCaveatParts, so the one line under the answer's "Why?" says the same.
+         The form G's honest range (the math review's second check, 24 Oct 2026, finding 6): on main from TE 192 at three
          plan starts, the finish it told was 0.8 days later to 5.3 days sooner than its own route really takes there. The
          cap fix alone (buildPeak / k3.peak) would make that 4.7-6.6 days sooner, so the cap stays as it is for now. -->
-    <template v-if="gearShift"
-      >Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your
-      gear's rate (about 1–2% off per ascension). Over a whole route that adds up: in checks on one account, the route
-      it picked finished about 5 to 6 days later than shown. Fast gives your real date.</template
-    >
-    <template v-else-if="gearDiffers"
-      >Your gear isn't the gear the instant answer was built on (<template v-if="bonusShort > 0.05"
-        >earnings set {{ bonusShort.toFixed(2) }} Clothed TE short, </template
-      >delivery {{ ((deliveryScale ?? 1) * 100).toFixed(1) }}% of its rate at full research). Ascensions that start
-      below about TE {{ fullResearchTe }} can take a few percent more or less than these, and may need a longer build
-      (one more research sale) than shown: your earnings set, and how your delivery gear does before research is
-      complete, aren't fully taken off. From there up they match. A Fast search gives your own times.</template
-    ><template v-if="!gearShift && gearDiffers && optimistic">{{ ' ' }}</template
-    ><span v-if="!gearShift && optimistic" class="font-bold" data-testid="instant-optimistic">{{ OPTIMISTIC_TEXT }}</span>
+    {{ parts.main }}<template v-if="parts.main && parts.optimistic">{{ ' ' }}</template
+    ><span v-if="parts.optimistic" class="font-bold" data-testid="instant-optimistic">{{ parts.optimistic }}</span>
   </p>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { OPTIMISTIC_TEXT } from '@/lib/optimisticAnswer';
+import { gearCaveatParts } from '@/lib/answerCaveat';
 
-defineProps<{
+const props = defineProps<{
   /** The answer is the form G: the maxed table moved to the player's gear (InstantRoute `shiftedTable`). */
   gearShift?: boolean;
   /** The player's gear is not the instant answer's, below full research (InstantRoute `gearDiffers`). */
@@ -47,4 +38,5 @@ defineProps<{
   deliveryScale: number | null;
   fullResearchTe: number;
 }>();
+const parts = computed(() => gearCaveatParts(props, OPTIMISTIC_TEXT));
 </script>

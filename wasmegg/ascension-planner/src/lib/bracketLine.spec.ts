@@ -92,7 +92,8 @@ describe('InstantRoute wiring', () => {
   const src = fs.readFileSync(path.resolve(__dirname, '../components/auto/InstantRoute.vue'), 'utf8');
   it('the line comes from bracketLine with the answer on screen and what it was built on', () => {
     expect(src).toContain("basis: shiftedTable.value ? 'yours' : 'maxed',");
-    expect(src).toContain('return bracketLine({');
+    // The input is built once (`bracketInput`) for the full line and its one-sentence form (lib/answerCaveat.ts).
+    expect(src).toContain('const bracketText = computed(() => (bracketInput.value ? bracketLine(bracketInput.value) : \'\'));');
     expect(src).not.toContain("With your gear you'd likely finish between");
   });
   it('the bracket is priced as the answer (held tail), on tables of this simulator only', () => {

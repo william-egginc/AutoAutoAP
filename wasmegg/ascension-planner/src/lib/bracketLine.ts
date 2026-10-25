@@ -37,8 +37,12 @@ export interface BracketLineInput {
 const REAL_DATE = 'Fast, Exact or Custom below gives your real date.';
 const REAL_TE = 'Fast, Exact or Custom below gives your real TE.';
 
-/** The line's words, or '' when there is nothing true to say. */
-export function bracketLine(i: BracketLineInput): string {
+/** Which sides the line can say, after the ordering rules; null when nothing true is left. */
+type BracketCase =
+  | { basis: 'maxed'; hi: BracketSideIn | null; lo: BracketSideIn | null; withAnswer: boolean }
+  | { basis: 'yours'; hi: BracketSideIn; lo: BracketSideIn | null };
+
+function bracketCase(i: BracketLineInput): BracketCase | null {
   const has = (s: BracketSideIn | null): s is BracketSideIn => !!s && s.end !== null;
   let hi = has(i.hi) ? i.hi : null;
   let lo = has(i.lo) ? i.lo : null;
@@ -54,24 +58,37 @@ export function bracketLine(i: BracketLineInput): string {
       if (hi && beats(hi)) hi = null;
       if (lo && beats(lo)) lo = null;
     }
+    if (hi) return { basis: 'maxed', hi, lo, withAnswer: false };
+    if (lo && known) return { basis: 'maxed', hi: null, lo, withAnswer: true };
+    return null;
+  }
+  // The form G: the answer is already on the player's gear; the bracket is a second estimate of the same thing.
+  if (!hi || !known) return null;
+  if (behind(hi) || (lo && beats(lo))) return null;
+  return { basis: 'yours', hi, lo };
+}
+
+/** The line's words, or '' when there is nothing true to say. */
+export function bracketLine(i: BracketLineInput): string {
+  const c = bracketCase(i);
+  if (!c) return '';
+  const fastest = i.goal === 'fastest';
+  const a = i.answer;
+  if (c.basis === 'maxed') {
+    const { hi, lo } = c;
     const lead = fastest
       ? "The answer above is maxed gear's, at your delivery rate. With your gear you'd likely finish"
       : "The answer above is maxed gear's, at your delivery rate. With your gear you'd likely reach";
     if (fastest) {
       if (hi && lo) return `${lead} between ${i.show(hi.end!)} (on ${hi.name}) and ${i.show(lo.end!)} (on ${lo.name}); ${REAL_DATE}`;
       if (hi) return `${lead} no sooner than ${i.show(hi.end!)} (on ${hi.name}); ${REAL_DATE}`;
-      if (lo && known) return `${lead} between ${i.show(a.end!)} (the answer above) and ${i.show(lo.end!)} (on ${lo.name}); ${REAL_DATE}`;
-      return '';
+      return `${lead} between ${i.show(a.end!)} (the answer above) and ${i.show(lo!.end!)} (on ${lo!.name}); ${REAL_DATE}`;
     }
     if (hi && lo) return `${lead} between ${lo.te} TE (on ${lo.name}) and ${hi.te} TE (on ${hi.name}) by the date; ${REAL_TE}`;
     if (hi) return `${lead} at most ${hi.te} TE by the date (on ${hi.name}); ${REAL_TE}`;
-    if (lo && known) return `${lead} between ${lo.te} TE (on ${lo.name}) and ${a.te} TE (the answer above) by the date; ${REAL_TE}`;
-    return '';
+    return `${lead} between ${lo!.te} TE (on ${lo!.name}) and ${a.te} TE (the answer above) by the date; ${REAL_TE}`;
   }
-
-  // The form G: the answer is already on the player's gear; the bracket is a second estimate of the same thing.
-  if (!hi || !known) return '';
-  if (behind(hi) || (lo && beats(lo))) return '';
+  const { hi, lo } = c;
   const lead = 'Priced on the instant answers for the gear closest to yours on this site, your route would';
   if (fastest)
     return lo
@@ -80,4 +97,22 @@ export function bracketLine(i: BracketLineInput): string {
   return lo
     ? `${lead} reach between ${lo.te} TE (on ${lo.name}) and ${hi.te} TE (on ${hi.name}) by the date; ${REAL_TE}`
     : `${lead} reach at most ${hi.te} TE by the date (on ${hi.name}); ${REAL_TE}`;
+}
+
+/**
+ * The same bound as one short sentence, for the one line under the answer (lib/answerCaveat.ts): the dates or TE
+ * only, the gear names and what to run left to the full line under "Why?". '' exactly when `bracketLine` is.
+ */
+export function bracketHeadline(i: BracketLineInput): string {
+  const c = bracketCase(i);
+  if (!c) return '';
+  const { hi, lo } = c;
+  if (i.goal === 'fastest') {
+    if (hi && lo) return `With your gear, likely between ${i.show(hi.end!)} and ${i.show(lo.end!)}.`;
+    if (hi) return `With your gear, no sooner than ${i.show(hi.end!)}.`;
+    return `With your gear, likely between ${i.show(i.answer.end!)} and ${i.show(lo!.end!)}.`;
+  }
+  if (hi && lo) return `With your gear, likely between ${lo.te} TE and ${hi.te} TE by the date.`;
+  if (hi) return `With your gear, at most ${hi.te} TE by the date.`;
+  return `With your gear, likely between ${lo!.te} TE and ${i.answer.te} TE by the date.`;
 }

@@ -79,3 +79,22 @@ describe('PrestigeByLine', () => {
     expect(src).toMatch(/if \(!prestigeFlag\.enabled\.value \|\|/);
   });
 });
+
+describe('PrestigeByLine: one line, the notes behind "Why? ›" (Jordan, 25 Oct 2026)', () => {
+  it('shows the line and tag, with how it is worked out, the hours note and the evidence in a closed disclosure', async () => {
+    const html = await renderHtml(PrestigeByLine, { line: LINE, status: 'done', hoursOn: true });
+    const why = html.match(/<details[^>]*data-testid="prestige-by-why"[^>]*>[\s\S]*<\/details>/)?.[0] ?? '';
+    expect(why).not.toBe('');
+    expect(why).not.toMatch(/<details[^>]*\bopen\b/);
+    const t = textOf(why);
+    expect(t.startsWith('Why? ›')).toBe(true);
+    expect(t).toContain('Worked out on the instant answer');
+    expect(t).toContain('With your hours on');
+    expect(t).toContain('Treat it as a hint.');
+    // The line itself is outside it.
+    const outside = textOf(html.replace(why, ''));
+    expect(outside).toContain(LINE.text);
+    expect(outside).toContain('Experimental · needs more data');
+    expect(why).toContain('min-h-[44px]');
+  });
+});
