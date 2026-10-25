@@ -20,7 +20,9 @@ import type { TableEntry } from './tableBracket';
  * same tables (24 Oct 2026: the held opening waits for the player's hours and By a date counts a TE only once it can
  * be claimed, spec-heldfix), so answers saved under the old rules are worked out again once.
  */
-export const INSTANT_RULES = '2026-10-24-heldfix';
+// 24 Oct 2026 (pricing): answers saved before they kept their pricing settings (lib/followEstimate.ts) are worked out
+// again once, so My runs can price a followed route on them.
+export const INSTANT_RULES = '2026-10-24-pricing';
 
 /** One file as tables.json lists it: what changes when the file is rebuilt, restamped or replaced. */
 export function entryIdentity(e: TableEntry): string {

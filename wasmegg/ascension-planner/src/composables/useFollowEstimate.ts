@@ -71,8 +71,13 @@ export function useFollowEstimate(request: Ref<EstimateRequest | null>, busy: Re
       if (!pricer) throw new Error('no route worker');
       // Plain copies: they go to the worker.
       const route = await pricer.priceChain(req.url, JSON.parse(JSON.stringify(req.options)) as PolishOptions, [...req.chain]);
-      result = route && route.legs.length ? { key: req.key, status: 'done', route, at: Date.now() } : { key: req.key, status: 'failed' };
-    } catch {
+      if (route && route.legs.length) result = { key: req.key, status: 'done', route, at: Date.now() };
+      else {
+        console.warn(`My runs: the followed route ${req.chain.join(' ')} could not be priced on the instant answer's data (a stop it can't reach).`);
+        result = { key: req.key, status: 'failed' };
+      }
+    } catch (err) {
+      console.warn(`My runs: pricing the followed route ${req.chain.join(' ')} failed:`, err instanceof Error ? err.message : String(err));
       result = { key: req.key, status: 'failed' };
     }
     remember(result);

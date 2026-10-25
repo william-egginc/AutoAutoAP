@@ -202,7 +202,8 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     expect(page.cardPlan.value).toBeNull();
     const { html, text } = await render(page);
     expect(text).toContain(`Following your pick · ${NOT_PRICED}`);
-    expect(text).toContain(NO_TIMELINE);
+    // No pricing settings kept for this save (an answer from before 24 Oct 2026): said in plain words.
+    expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup");
     expect(html).toContain('data-testid="now-follow-price"');
     expect(html).not.toContain('data-testid="now-source-pill"');
     scope.stop();

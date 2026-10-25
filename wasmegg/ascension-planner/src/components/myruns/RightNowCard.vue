@@ -310,9 +310,22 @@
         <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data…</template>
         <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
       </p>
+      <p v-else-if="follow && follow.estimating === 'nosource'" class="text-[13px] text-slate-700" data-testid="now-follow-nosource">
+        No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is
+        nothing to estimate it from.{{ ' ' }}<button
+          type="button"
+          class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
+          data-testid="now-follow-open-screen"
+          @click="emit('open', goalOpen)"
+        >
+          Open {{ screenName }} once so the instant answer can price it ›
+        </button>
+      </p>
       <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next" :data-estimating="follow.estimating ?? ''">
         <template v-if="follow.estimating === 'beyond'"
           >Your route goes past what the instant answer covers, so it has no estimate:{{ ' ' }}</template
+        ><template v-else-if="follow.estimating === 'failed'"
+          >Your route couldn't be priced on the instant answer's data:{{ ' ' }}</template
         ><template v-else>No timeline for your route on this save yet:{{ ' ' }}</template>Simulate it › shows its times in
         Single run, or Run Fast › for a result on your account.
       </p>
@@ -420,7 +433,7 @@ import { type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { paceWords } from '@/lib/planPace';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { secondaryLine } from '@/lib/currentAnswer';
-import { NAMES } from '@/lib/siteNav';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { eggIconPath, virtueEggName } from '@/lib/virtueEggs';
 import type { CardPlan } from '@/composables/useNowPage';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
@@ -659,6 +672,8 @@ const recalcRequest = computed<RecalcRequest>(() => ({
   goal: askGoal(askFor.value),
 }));
 const recalcLine = computed(() => recalcWords(goalOpen.value));
+/** The screen that works the goal's instant answer out: "Highest TE by a date", "Fastest to 490 TE". */
+const screenName = computed(() => (askFor.value.goal === 'date' ? NAMES.byDate : fastestName(askFor.value.target)));
 const recalcLabel = computed(() => recalcButton(props.card?.plan.from?.level === 'Fast'));
 
 // ------------------------------------------------------------------- instant answer or search result

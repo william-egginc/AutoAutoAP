@@ -127,3 +127,93 @@ export function planFromEstimate(
     whatIf: null,
   };
 }
+
+// ------------------------------------------------------------------------- the pricing record
+
+/**
+ * THE PRICING RECORD (24 Oct 2026, the bug on Jordan's main account: a followed Egg Day route showed no estimate after
+ * "Work it out again"). The snapshot's `pricing` is only written once the background polish and "Prestige by" are done,
+ * an answer restored from before this build has none, and My runs only looked under the goal's own snapshot key. So the
+ * instant answer also keeps its pricing settings here, the moment its first answer is in, per account, save and setup
+ * (any goal: the settings price every route from this save), and My runs reads them by that, not by the goal's key.
+ * The newest `PRICING_RECORDS` are kept (each about 100 kB at most, `PRICING_MAX_BYTES` 200 kB).
+ */
+export const PRICING_RECORD_KEY = 'aap-follow-pricing';
+export const PRICING_RECORDS = 3;
+
+export interface PricingRecord {
+  /** search/runSaves.ts `accountOf`: a hash, never the player id. */
+  account: string;
+  /** The save's `lastBackupTime`, unix seconds. */
+  backupTime: number;
+  /** `pricingSetupKey` of the setup it was priced with. */
+  setup: string;
+  url: string;
+  tableTo: number | null;
+  /** When it was kept, ms. */
+  at: number;
+  pricing: SnapPricing;
+}
+
+/** What the pricing settings depend on beyond the save: the hours (and whether the answer works inside them), time
+ *  off, no-prestige days and the first ascension's rule. The same words from InstantRoute.vue and My runs. */
+export function pricingSetupKey(o: {
+  availability: unknown;
+  timeOff: unknown;
+  noPrestige: unknown;
+  useHours: boolean;
+  firstAscension: string | null | undefined;
+}): string {
+  const list = (x: unknown) => (Array.isArray(x) ? x : []);
+  return JSON.stringify([o.useHours ? (o.availability ?? null) : null, list(o.timeOff), list(o.noPrestige), o.firstAscension ?? null]);
+}
+
+type Store = Pick<Storage, 'getItem' | 'setItem'>;
+function storage(): Store | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** The records kept, newest first (none when unreadable). */
+export function readPricingRecords(st: Store | null = storage()): PricingRecord[] {
+  if (!st) return [];
+  try {
+    const v = JSON.parse(st.getItem(PRICING_RECORD_KEY) ?? '[]') as PricingRecord[];
+    return Array.isArray(v)
+      ? v.filter(r => r && typeof r.account === 'string' && typeof r.url === 'string' && typeof r.backupTime === 'number' && !!readPricing(r.pricing))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Keep a record (replacing one of the same account, save and setup). False when it could not be kept. */
+export function recordPricing(r: PricingRecord, st: Store | null = storage()): boolean {
+  if (!st || !r.account || !r.backupTime || !readPricing(r.pricing)) return false;
+  const same = (x: PricingRecord) => x.account === r.account && x.backupTime === r.backupTime && x.setup === r.setup;
+  let list = [r, ...readPricingRecords(st).filter(x => !same(x))].slice(0, PRICING_RECORDS);
+  // Full: fewer records rather than none.
+  while (list.length) {
+    try {
+      st.setItem(PRICING_RECORD_KEY, JSON.stringify(list));
+      return true;
+    } catch {
+      list = list.slice(0, list.length - 1);
+    }
+  }
+  return false;
+}
+
+/** This save's records with this setup, as pricing sources (never another save's or setup's). */
+export function recordSources(
+  records: readonly PricingRecord[],
+  o: { account: string | null; backupTime: number; setup: string; meta: SnapMeta | null }
+): PricingSource[] {
+  if (!o.account) return [];
+  return records
+    .filter(r => r.account === o.account && r.backupTime === o.backupTime && r.setup === o.setup)
+    .map(r => ({ url: r.url, pricing: r.pricing, tableTo: r.tableTo, ownGoal: false, at: r.at, meta: o.meta }));
+}

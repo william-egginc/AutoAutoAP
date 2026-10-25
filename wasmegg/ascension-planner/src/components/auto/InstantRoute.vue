@@ -889,7 +889,7 @@ import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { countsShown } from '@/search/instantCounts';
 import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
-import { readPricing, snapPricing, type SnapPricing } from '@/lib/followEstimate';
+import { pricingSetupKey, readPricing, recordPricing, snapPricing, type SnapPricing } from '@/lib/followEstimate';
 import { MAX_BYTES as SNAP_MAX_BYTES } from '@/search/instantSnapshot';
 import MaxedWhatIf from './MaxedWhatIf.vue';
 import { accountOf } from '@/search/runSaves';
@@ -1921,6 +1921,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const polished = await p.polish(url, polishOptions, JSON.parse(JSON.stringify(found)));
     if (id !== runs) return;
     answerPricing = snapPricing(polishOptions, target.value);
+    keepPricing();
     const raw = { ...found, ...polished };
     const answer = withinAscensions(raw, filterBounds(filters.value));
     result.value = answer;
@@ -2406,6 +2407,27 @@ interface InstantSnapshot {
 let snapKey: string | null = null;
 /** The answer on screen's pricing inputs (`InstantSnapshot.pricing`), kept with its snapshot. */
 let answerPricing: SnapPricing | null = null;
+/** The same inputs kept at once for My runs, by account, save and setup (lib/followEstimate.ts `recordPricing`): the
+ *  snapshot is only written when everything has finished, and My runs prices a followed route of any goal with them. */
+function keepPricing(): void {
+  const m = snapMeta();
+  if (!answerPricing || !m) return;
+  recordPricing({
+    account: m.account,
+    backupTime: m.backupTime,
+    setup: pricingSetupKey({
+      availability: store.availability,
+      timeOff: store.timeOff,
+      noPrestige: store.noPrestige,
+      useHours: useHours.value,
+      firstAscension: store.collectInputs().firstAscension,
+    }),
+    url: tableUrl.value,
+    tableTo: header.value?.to ?? null,
+    at: Date.now(),
+    pricing: answerPricing,
+  });
+}
 /** The tables there were when this run started (`tablesIdentity`), saved with its answer. */
 let runTables: string | null = null;
 /** Reading tables.json before a saved answer is put back: loading, for the card's line and By a date's Find. */
@@ -2549,6 +2571,8 @@ function applySnapshot(s: InstantSnapshot): void {
   whatIfResult.value = s.whatIf ?? null;
   keptSearch.value = readSearch(s.search);
   answerPricing = readPricing(s.pricing);
+  // A saved answer put back feeds My runs too (it is for this key: this save and setup).
+  keepPricing();
   prestigeStatus.value = s.prestige ? 'done' : 'idle';
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';

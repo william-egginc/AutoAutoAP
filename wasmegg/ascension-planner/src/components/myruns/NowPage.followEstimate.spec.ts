@@ -242,7 +242,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     scope.stop();
   });
 
-  it("(c) the worker fails or can't price it: the old 'Simulate it' line, nothing thrown", async () => {
+  it("(c) the worker fails or can't price it: said, the 'Simulate it' line, a console line, nothing thrown", async () => {
     for (const how of ['reject', 'null'] as const) {
       setActivePinia(createPinia());
       mem.clear();
@@ -251,11 +251,12 @@ describe("Right now: a followed route with no kept price is estimated on the ins
       await vi.waitFor(() => expect(calls).toHaveLength(1));
       if (how === 'reject') calls[0].reject(new Error('A route worker stopped'));
       else calls[0].resolve(null);
-      await vi.waitFor(() => expect(page.follow.value?.estimating).toBeUndefined());
+      await vi.waitFor(() => expect(page.follow.value?.estimating).toBe('failed'));
       expect(page.follow.value?.price, how).toBe('none');
       expect(page.cardPlan.value).toBeNull();
       const { text } = await render(page);
-      expect(text, how).toContain(`${NO_TIMELINE}: Simulate it ›`);
+      expect(text, how).toContain("Your route couldn't be priced on the instant answer's data: Simulate it ›");
+      expect(vi.mocked(console.warn).mock.calls.some(c => String(c[0]).includes('205 238')), how).toBe(true);
       scope.stop();
     }
   });
@@ -270,7 +271,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     scope.stop();
   });
 
-  it("(e) no instant answer of this save to price with (none kept, an older one's, another save's start): the old line", async () => {
+  it("(e) no instant answer of this save to price with (none kept, an older one's, another save's start): said, with what to do", async () => {
     for (const o of [{ pricing: false }, { startTE: 150 }]) {
       setActivePinia(createPinia());
       mem.clear();
@@ -278,9 +279,12 @@ describe("Right now: a followed route with no kept price is estimated on the ins
       const { page, scope } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, o);
       await nextTick();
       expect(calls, JSON.stringify(o)).toHaveLength(0);
-      expect(page.follow.value?.estimating).toBeUndefined();
-      const { text } = await render(page);
-      expect(text).toContain(`${NO_TIMELINE}: Simulate it ›`);
+      expect(page.follow.value?.estimating).toBe('nosource');
+      const { html, text } = await render(page);
+      expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is nothing to estimate it from.");
+      expect(text).toContain('Open Highest TE by a date once so the instant answer can price it ›');
+      expect(html).toContain('data-testid="now-follow-open-screen"');
+      expect(text).not.toContain(NO_TIMELINE);
       scope.stop();
     }
   });

@@ -186,7 +186,9 @@ describe("Right now: a route followed from this save's instant answer keeps the 
       expect(page.follow.value?.price).toBe('none');
       const { text } = await render(page);
       expect(text).toContain(`From the instant answer · ${NOT_PRICED}`);
-      expect(text).toContain(NO_TIMELINE);
+      // Nothing of this save to estimate it from: said, with the screen that works it out (24 Oct 2026).
+      expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup");
+      expect(text).toContain('Open Highest TE by a date once so the instant answer can price it ›');
       expect(text).toContain('By Feb 10, 2027 no saved plan yet');
     } finally {
       scope.stop();

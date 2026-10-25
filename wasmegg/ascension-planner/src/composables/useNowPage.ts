@@ -115,7 +115,17 @@ import { phaseNow } from '@/lib/nowPhase';
 import { startLines } from '@/lib/nowStart';
 import { useFollowStore } from '@/stores/follow';
 import { followPrice, type FollowResult, type FollowSnap } from '@/lib/followPrice';
-import { estimateKey, pickPricing, planFromEstimate, readPricing, type PickedPricing, type PricingSource } from '@/lib/followEstimate';
+import {
+  estimateKey,
+  pickPricing,
+  planFromEstimate,
+  pricingSetupKey,
+  readPricing,
+  readPricingRecords,
+  recordSources,
+  type PickedPricing,
+  type PricingSource,
+} from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
@@ -159,10 +169,10 @@ export interface FollowCard {
    *  'finish': only its finish, from Check exactly's history; 'estimate': priced on the instant answer's data on this
    *  page (lib/followEstimate.ts; the card's plan is it, rounded); 'none': not priced yet. */
   price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none';
-  /** No timeline yet: being estimated ('working'), waiting for a search to end ('waiting'), or the route goes past
-   *  the instant answer's data ('beyond'). Absent: not being estimated (no instant answer of this save to price it
-   *  with, or the estimate failed). */
-  estimating?: 'working' | 'waiting' | 'beyond';
+  /** No timeline yet: being estimated or about to be ('working'), waiting for a search to end ('waiting'), the route
+   *  goes past the instant answer's data ('beyond'), no instant answer of this save and setup to price it with yet
+   *  ('nosource'), or the estimate failed ('failed'). Absent: priced. */
+  estimating?: 'working' | 'waiting' | 'beyond' | 'nosource' | 'failed';
   source: 'this-save' | 'setup-changed' | 'older-save' | 'history' | null;
   /** The save it was priced from, unix seconds (an older save's, or the history entry's); null when not known. */
   pricedSave: number | null;
@@ -198,6 +208,18 @@ const goalOf = (d: PlanGoal): Goal =>
  * The instant answer's key for a goal, from the same store values InstantRoute.vue's `cacheKey` reads (its
  * filters as remembered in this browser): null without a save. Needs an active Pinia.
  */
+/** "Works inside my hours" as the instant answer's tick box has it (ticked by default with hours set). Needs an active
+ *  Pinia. */
+export function useHoursFromStores(): boolean {
+  const store = useChainSearchStore();
+  const filters = readFilters();
+  return (
+    store.scheduleEnabled &&
+    !!store.availability &&
+    insideHoursFor(true, isConstrained(store.availability), readInsideHoursChoice(), filters.inHours)
+  );
+}
+
 export function instantKeyFromStores(deadline: number | null, finalTE: number): string | null {
   const store = useChainSearchStore();
   const r = useInitialStateStore().rawBackup as { eiUserId?: string } | null;
@@ -221,10 +243,7 @@ export function instantKeyFromStores(deadline: number | null, finalTE: number): 
       milestones: store.milestones,
       firstAscension: inputs.firstAscension,
       // "Works inside my hours" as the instant answer's tick box has it (ticked by default with hours set).
-      useHours:
-        store.scheduleEnabled &&
-        !!store.availability &&
-        insideHoursFor(true, isConstrained(store.availability), readInsideHoursChoice(), filters.inHours),
+      useHours: useHoursFromStores(),
       maxAscensions: filters.maxAscensions,
       minAscensions: filters.minAscensions,
     });
@@ -693,6 +712,29 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         meta: s.meta ?? null,
       });
     });
+    // The settings the instant answer kept for this save and setup the moment its answer was in (any goal's: they
+    // price every route from this save), found by account, save and setup rather than by the goal's key.
+    let setup = '';
+    try {
+      setup = pricingSetupKey({
+        availability: store.availability,
+        timeOff: store.timeOff,
+        noPrestige: store.noPrestige,
+        useHours: useHoursFromStores(),
+        firstAscension: store.collectInputs().firstAscension,
+      });
+    } catch {
+      setup = '';
+    }
+    if (setup && storeReady.value)
+      sources.push(
+        ...recordSources(readPricingRecords(), {
+          account: account.value,
+          backupTime: saveSeconds.value,
+          setup,
+          meta: account.value ? { account: account.value, goal: '', backupTime: saveSeconds.value } : null,
+        })
+      );
     return pickPricing(sources, followedFromNow(fp.f.chain, teSoFar.value), teSoFar.value);
   });
   const estimateRequest = computed<EstimateRequest | null>(() => {
@@ -755,8 +797,16 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       };
     }
     /** While it is worked out, or why it can't be (Right now's Next step). */
-    const estimating: FollowCard['estimating'] =
-      est && (est.status === 'working' || est.status === 'waiting') ? est.status : pick && 'beyond' in pick ? 'beyond' : undefined;
+    // Asked and not answered yet counts as working, so "working it out" shows the whole time.
+    const estimating: FollowCard['estimating'] = req
+      ? est?.status === 'waiting'
+        ? 'waiting'
+        : est?.status === 'failed'
+          ? 'failed'
+          : 'working'
+      : pick && 'beyond' in pick
+        ? 'beyond'
+        : 'nosource';
     if (price.priced === 'finish')
       return {
         card: {
