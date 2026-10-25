@@ -142,6 +142,10 @@
         @apply input-premium text-center font-mono-premium text-lg tracking-wider font-bold text-brand-primary;
     }
 
+    form:has(#playerId) button[type="submit"] {
+        display: none;
+    }
+
     /* --- Custom Scrollbar --- */
     .custom-scrollbar::-webkit-scrollbar {
         width: 6px;

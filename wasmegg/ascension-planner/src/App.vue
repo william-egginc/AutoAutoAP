@@ -79,7 +79,7 @@
               Player Backup From: {{ lastBackupFormatted }}
             </div>
 
-            <the-player-id-form :player-id="playerId" load-on-paste @submit="submitPlayerId" />
+            <the-player-id-form :player-id="playerId" @submit="submitPlayerId" />
           </div>
         </div>
       </div>
