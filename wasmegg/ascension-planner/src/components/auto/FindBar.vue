@@ -147,6 +147,12 @@
       <template v-if="!optIn && (!running || asking)" #extra
         ><span class="font-bold text-amber-700" data-testid="ticks-needed">ticks needed</span></template
       >
+      <!-- Already said yes (Yes to all, the ticks, Setup): stays folded, one line, never opened by Find and submit. -->
+      <template v-else-if="optIn" #extra
+        ><span class="font-bold text-emerald-800" data-testid="sharing-on"
+          >Sharing: on, {{ anonymous || !nickname.trim() ? 'anonymous' : `as ${nickname.trim()}` }} · Change</span
+        ></template
+      >
       <div
         class="pb-3 space-y-2 text-[11px] text-indigo-900"
         data-testid="share-box"
@@ -378,7 +384,8 @@ function findAndSubmit(): void {
 watch(
   asking,
   a => {
-    if (a) void ackFold.value?.show(false);
+    // Only when the ticks are actually needed: a player who already said yes never has it popped open.
+    if (a && !optIn.value) void ackFold.value?.show(false);
   },
   { immediate: true, flush: 'post' }
 );
