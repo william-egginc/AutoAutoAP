@@ -6,7 +6,10 @@
  * stretch they make, a single day is one whole local day. The synthetic table of routeFinder.noPrestige.spec.ts,
  * moved to the player's dates.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Each case prices a real table: slow under the full suite's load (timed out at 20 s twice, passes alone).
+vi.setConfig({ testTimeout: 120_000 });
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
 import { findRoutes, priceChain, type BuildLookup, type Route } from './routeFinder';
 import { noPrestigeAt } from './noPrestige';
