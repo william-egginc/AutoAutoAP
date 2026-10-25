@@ -107,7 +107,8 @@ describe('the words and the follow suggestions', () => {
   it('My runs’ components use the helper’s words, not their own', () => {
     expect(src('components/myruns/RightNowCard.vue')).toContain('noRouteInTimeWords(lateKind.value, selectedOption.value?.late?.seconds ?? null)');
     expect(src('components/myruns/RightNowCard.vue')).not.toContain('lands after the date');
-    expect(src('components/myruns/SavedTile.vue')).toContain("noRouteInTimeWords('eggday', props.tile.late?.seconds ?? null)");
+    // Egg Day's tile, or another date's when that date is picked on Right now (24 Oct 2026).
+    expect(src('components/myruns/SavedTile.vue')).toContain("noRouteInTimeWords(props.open ? 'date' : 'eggday', props.tile.late?.seconds ?? null)");
     expect(src('components/auto/MyRunsList.vue')).toContain("lateMarker(l.kind === 'eggday' ? 'eggday' : 'date')");
     expect(src('components/auto/MyRunsList.vue')).not.toContain('misses the date');
   });

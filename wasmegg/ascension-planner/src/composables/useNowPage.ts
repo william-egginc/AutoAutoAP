@@ -98,6 +98,7 @@ import { dayWords as dayWordsIn } from '@/lib/eventWhen';
 import {
   defaultGoalKey,
   goalDefs,
+  goalOpen,
   goalKeyOf,
   goalOptions,
   plansByGoal,
@@ -106,6 +107,7 @@ import {
   type PlanGoal,
 } from '@/lib/planGoals';
 import { whichSet } from '@/lib/gearMatch';
+import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 import { phaseNow } from '@/lib/nowPhase';
 import { startLines } from '@/lib/nowStart';
 import { useFollowStore } from '@/stores/follow';
@@ -1114,6 +1116,43 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     );
   });
 
+  /**
+   * THE SAVED ANSWER SHOWN (24 Oct 2026, Jordan): only the goal picked on Right now's switch, never both; switching the
+   * pill switches the tile. Race to N: that race's tile (Fastest to 490's own when it is the one picked); Egg Day: its
+   * tile; another date: that date's.
+   */
+  const shownTile = computed<{
+    goal: 'fastest' | 'date';
+    key: GoalKey | null;
+    /** By a date: the pill's name ("Egg Day 2027", "By Feb 10, 2027"); Fastest: null (the view names the target). */
+    name: string | null;
+    tile: Tile;
+    target: number;
+    stand: Standing | null;
+    standingLabel: string;
+    /** Another date than Egg Day: its screen, and its own late words (SavedTile `open`, `dateKind`). */
+    open?: MyRunsOpen;
+  }>(() => {
+    const sel = planGoals.value.find(p => p.goal.key === selectedGoal.value)?.goal ?? null;
+    const nowMs = now.value * 1000;
+    if (sel?.goal === 'date' && sel.deadline) {
+      if (sel.deadline === eggDayAt)
+        return { goal: 'date', key: sel.key, name: sel.name, tile: eggDayTile.value, target: store.finalTE, stand: eggDayStand.value, standingLabel: 'Egg Day' };
+      const tile = tileFor({ goal: 'date', target: store.finalTE, deadline: sel.deadline });
+      const a = tile.answer;
+      const stand = dateStanding(o.boardRows.value, o.myRows.value, sel.deadline, nowMs, a ? { te: a.endTE, spareSeconds: (a.spareHours ?? 0) * 3600 } : null);
+      return { goal: 'date', key: sel.key, name: sel.name, tile, target: store.finalTE, stand, standingLabel: sel.name, open: goalOpen(sel, zone.value) };
+    }
+    const f = fastestTile.value;
+    if (sel?.goal === 'fastest' && sel.target !== f.target) {
+      const tile = tileFor({ goal: 'fastest', target: sel.target, deadline: null });
+      const a = tile.answer;
+      const stand = raceStanding(o.boardRows.value, o.myRows.value, sel.target, nowMs, a ? a.end * 1000 : null);
+      return { goal: 'fastest', key: sel.key, name: null, tile, target: sel.target, stand, standingLabel: `Race to ${sel.target}` };
+    }
+    return { goal: 'fastest', key: sel?.key ?? null, name: null, tile: f.tile, target: f.target, stand: raceStand.value, standingLabel: `Race to ${f.target}` };
+  });
+
   return {
     now,
     zone,
@@ -1155,5 +1194,6 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     eggDayTile,
     raceStand,
     eggDayStand,
+    shownTile,
   };
 }

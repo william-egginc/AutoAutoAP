@@ -9,8 +9,8 @@
        "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
        the same goal once one is better (lib/searchPlan.ts).
     3. Your eggs (YourEggs.vue): each egg's TE and the farm's facts, from the save.
-    4. Two saved-answer tiles (SavedTile.vue): Fastest to 490 and Egg Day, each with when it was calculated,
-       from which save, How sure and where it stands on the board.
+    4. The saved-answer tile (SavedTile.vue) of the goal picked on Right now's switch (Fastest to 490, Egg Day or
+       another date; was both, 24 Oct 2026): when it was calculated, from which save, How sure and where it stands.
     5. Try next (TryNext.vue): a few runs, each opening its screen set up.
        Then "Your routes at a glance" (RouteScatter.vue, Q9): the rows of 6 as points, folded (closed on a phone).
     6. Your runs: ONE section, opening on the latest run (LatestRunView.vue, was "Your latest run"), switched
@@ -93,30 +93,21 @@
         :save-seconds="page.saveSeconds.value"
       />
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3" data-testid="now-tiles">
+      <!-- The saved answer for the goal picked on Right now's switch only (24 Oct 2026): the pill switches it. -->
+      <div class="grid grid-cols-1 gap-3" data-testid="now-tiles" :data-goal="page.shownTile.value.key ?? ''">
         <SavedTile
-          goal="fastest"
-          :title="fastestName(page.fastestTile.value.target)"
-          :tile="page.fastestTile.value.tile"
-          :target="page.fastestTile.value.target"
+          :key="page.shownTile.value.key ?? page.shownTile.value.goal"
+          :goal="page.shownTile.value.goal"
+          :title="page.shownTile.value.name ?? fastestName(page.shownTile.value.target)"
+          :tile="page.shownTile.value.tile"
+          :target="page.shownTile.value.target"
           :now="page.now.value"
           :zone="page.zone.value"
-          :standing="standingWords(page.raceStand.value)"
-          :standing-label="`Race to ${page.fastestTile.value.target}`"
+          :standing="standingWords(page.shownTile.value.stand)"
+          :standing-label="page.shownTile.value.standingLabel"
+          :open="page.shownTile.value.open ?? null"
           @open="to => emit('open', to)"
-          @routes="showRuns('fastest')"
-        />
-        <SavedTile
-          goal="date"
-          :title="`Egg Day ${page.eggDayYear}`"
-          :tile="page.eggDayTile.value"
-          :target="store.finalTE"
-          :now="page.now.value"
-          :zone="page.zone.value"
-          :standing="standingWords(page.eggDayStand.value)"
-          standing-label="Egg Day"
-          @open="to => emit('open', to)"
-          @routes="showRuns('date')"
+          @routes="showRuns(page.shownTile.value.goal)"
         />
       </div>
 

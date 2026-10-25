@@ -59,7 +59,7 @@
         class="self-start mt-1 rounded-lg border border-indigo-300 px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
         @click="emit('open', screenOpen)"
       >
-        {{ goal === 'date' ? 'Open Egg Day' : `Open ${fastestName(target)}` }}
+        {{ goal === 'date' ? (open ? `Open ${NAMES.byDate}` : 'Open Egg Day') : `Open ${fastestName(target)}` }}
       </button>
     </template>
   </section>
@@ -71,7 +71,7 @@ import { dateAt, dayWords } from '@/lib/eventWhen';
 import { spareWords, whenAgo } from '@/lib/nowWords';
 import { howWords, saveGapWords, secondaryLabel, sourceWords, type Tile } from '@/lib/savedTiles';
 import { secondaryLine } from '@/lib/currentAnswer';
-import { fastestName } from '@/lib/siteNav';
+import { NAMES, fastestName } from '@/lib/siteNav';
 import { lateMarker, noRouteInTimeWords } from '@/lib/eggDayRule';
 import type { MyRunsOpen } from '@/lib/myRunsDashboard';
 import { fastOpen } from '@/lib/recalc';
@@ -87,6 +87,8 @@ const props = defineProps<{
   /** "3rd of 12 named players", '' for none. */
   standing: string;
   standingLabel: string;
+  /** Another date than Egg Day (the goal picked on Right now, 24 Oct 2026): its screen. Absent: Egg Day's. */
+  open?: MyRunsOpen | null;
 }>();
 const emit = defineEmits<{ open: [to: MyRunsOpen]; routes: [] }>();
 
@@ -99,9 +101,9 @@ const SURE = {
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const a = computed(() => props.tile.answer);
-/** This tile is Egg Day's (the By a date tile is only ever Egg Day on My runs). */
-const lateWords = computed(() => noRouteInTimeWords('eggday', props.tile.late?.seconds ?? null));
-const lateMark = lateMarker('eggday');
+/** Egg Day's tile, or another date's (`open`, picked on Right now's switch). */
+const lateWords = computed(() => noRouteInTimeWords(props.open ? 'date' : 'eggday', props.tile.late?.seconds ?? null));
+const lateMark = computed(() => lateMarker(props.open ? 'date' : 'eggday'));
 const headline = computed(() => {
   if (!a.value) return '';
   if (props.goal === 'date') return `${a.value.endTE} TE`;
@@ -126,7 +128,7 @@ const secondaryText = computed(() => {
   );
 });
 const screenOpen = computed<MyRunsOpen>(() =>
-  props.goal === 'date' ? { auto: 'by-date', byDate: { eggDay: true } } : { auto: 'fastest', depth: 'smart', target: props.target }
+  props.open ?? (props.goal === 'date' ? { auto: 'by-date', byDate: { eggDay: true } } : { auto: 'fastest', depth: 'smart', target: props.target })
 );
 const actionOpen = computed<MyRunsOpen>(() => fastOpen(screenOpen.value));
 </script>
