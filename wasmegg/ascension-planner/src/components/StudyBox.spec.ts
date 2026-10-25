@@ -355,9 +355,9 @@ describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing see
   const strip = (html: string) => html.match(/<div[^>]*data-testid="study-box-strip"[^>]*>[\s\S]*?<\/div>\s*<\/div>/)?.[0] ?? '';
   const formWrap = (html: string) => html.match(/<div[^>]*data-testid="study-box-form"[^>]*>/)?.[0] ?? '';
 
-  it('is closed by default: one line with the name, Choose… and No thanks, the form mounted but hidden', async () => {
+  it('folded (Hide): one line with the name, Choose… and No thanks, the form mounted but hidden', async () => {
     await setConsentAccount(A);
-    const html = await box();
+    const html = await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]);
     const s = strip(html);
     expect(textOf(s)).toBe('Help improve the planner Choose… No thanks');
     const choose = s.match(/<button[^>]*data-testid="study-choose"[^>]*>/)?.[0] ?? '';
@@ -375,9 +375,9 @@ describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing see
     expect(section).not.toContain('p-4');
   });
 
-  it('expanded: the full form shows in place, with Yes, Yes to all and No thanks; the strip says Hide', async () => {
+  it('open by default: the full form shows in place, with Yes, Yes to all and No thanks; the strip says Hide', async () => {
     await setConsentAccount(A);
-    const html = await renderHtml(StudyBox, { startOpen: true }, {}, [pinia]);
+    const html = await box();
     expect(formWrap(html)).not.toContain('display:none');
     const s = strip(html);
     expect(s).toContain('aria-expanded="true"');

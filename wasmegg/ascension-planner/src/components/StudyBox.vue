@@ -2,8 +2,8 @@
   "Help improve the planner" (Q13, 21 Oct 2026), above the site tabs on every tab once an account is in
   (App.vue mounts it with a collector only). lib/study.ts says what it is.
 
-   - Never answered in this browser: a one-line strip, "Help improve the planner" with Choose… (opens the full
-     form, StudyForm.vue, in place) and No thanks. Yes or No thanks hides it for good in this
+   - Never answered in this browser: "Help improve the planner" with the full form (StudyForm.vue) open, and
+     Hide to fold it to a one-line strip with Choose… and No thanks. Yes or No thanks hides it for good in this
      browser; the choices then live in Setup › Help improve the planner (StudySetup.vue).
    - Yes pressed: one line for this visit, "Thank you ...", with OK.
    - Said yes in this browser, and another account is on screen: a one-line strip asking whether to use the
@@ -12,8 +12,8 @@
   Inline, not fixed, so it never sits over NewVersionBanner's fixed bar.
 -->
 <template>
-  <!-- A slim strip, closed by default (Jordan, 25 Oct 2026; the UX review's item 2/A), so the answer under the
-       tabs is the first thing seen: the name, "Choose…" (opens the full form here, in place) and "No thanks".
+  <!-- Open by default (Jordan, 25 Oct 2026: the slim strip was too easy to miss); Hide folds it to a slim strip
+       with the name, "Choose…" (opens the full form here, in place) and "No thanks".
        The form stays mounted (v-show), so what it does is unchanged; its own No thanks is there when open. -->
   <section
     v-if="step === 'ask-box'"
@@ -115,11 +115,11 @@ import {
 import StudyForm from './StudyForm.vue';
 
 const props = withDefaults(
-  defineProps<{ /** Open the full form at once (the specs; the page leaves it closed). */ startOpen?: boolean }>(),
+  defineProps<{ /** Open the full form at once (the default; the specs pass false for the strip). */ startOpen?: boolean }>(),
   {
-    startOpen: false,
+    startOpen: true,
   }
 );
-/** The full form, opened from the strip's Choose…: closed on each page load. */
+/** The full form: open on each page load until Yes or No thanks; Hide and Choose… fold and unfold it. */
 const open = ref(props.startOpen);
 </script>
