@@ -307,7 +307,7 @@
         class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">Includes your time away from virtue (time off).</span>
-        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Build this plan or Simulate this plan
+        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Simulate this plan
         on the search again to put it back.
       </div>
       <div

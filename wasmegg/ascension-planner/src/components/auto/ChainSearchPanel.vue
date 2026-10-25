@@ -549,7 +549,7 @@
               can-save
               :saving="saving"
               :note="
-                applied ? `Sent ${applied} to ${NAMES.classic}${generated ? ' and started building the plan.' : '.'}` : ''
+                applied ? `Sent ${applied} to ${NAMES.classic}${generated ? ' and started simulating it.' : '.'}` : ''
               "
               @build="use(store.bestChain, true)"
               @fill="use(store.bestChain)"
@@ -589,19 +589,26 @@
                 :candidate="fastBetterCandidate"
                 :zone="autoPlannerStore.timezone || plannerTzFallback"
               />
-              <!-- The next level up, reusing this run's priced routes (the saved-run box that offered it hides
-                   while this result is on screen: the user, 12 Oct, found it clutter). -->
+              <!-- Go further: Fast offers Exact, reusing this run's priced routes (the saved-run box that offered it
+                   hides while this result is on screen: the user, 12 Oct, found it clutter). After Exact the next
+                   level was Very high, retired (glossary, 25 Oct 2026): Custom instead, its boxes filled from this
+                   run's best routes (search/goFurther.ts). -->
               <p v-if="goFurther" class="text-[11px] text-emerald-900/80" data-testid="go-further">
                 <button
                   type="button"
                   :disabled="store.busy"
-                  class="font-bold text-emerald-800 underline decoration-dotted underline-offset-2 hover:text-emerald-950 disabled:opacity-40"
+                  class="inline-flex min-h-[44px] items-center font-bold text-emerald-800 underline decoration-dotted underline-offset-2 hover:text-emerald-950 disabled:opacity-40 sm:inline sm:min-h-0"
                   data-testid="go-further-run"
-                  @click="runHigher"
+                  @click="goFurtherClick"
                 >
-                  Go further: run at {{ goFurther.label }}
+                  <template v-if="goFurther.kind === 'level'">Go further: run at {{ goFurther.label }}</template
+                  ><template v-else>Go further: open in Custom ›</template>
                 </button>
-                <span> (reuses {{ plural(goFurther.routes, 'route') }})</span>
+                <span v-if="goFurther.kind === 'level'"> (reuses {{ plural(goFurther.routes, 'route') }})</span>
+                <span v-else>
+                  with boxes from this run's {{ plural(goFurther.routes, 'best route') }}, to widen them or add your
+                  own</span
+                >
               </p>
               <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
               <LongerRouteHint
@@ -1064,6 +1071,7 @@ import { useStrongerStore } from '@/stores/stronger';
 import { browserHelp, detectBrowser } from '@/lib/browserHelp';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { EFFORT, EFFORT_NOTES, EFFORT_ORDER, NEAR_OPTIMAL_SHARE } from '@/search/effort';
+import { goFurtherBands } from '@/search/goFurther';
 import { formatDuration, plural } from '@/lib/format';
 import { isAvailable } from '@/search/availability';
 import HelpTip from './HelpTip.vue';
@@ -1108,14 +1116,15 @@ const props = defineProps<{
   embedded?: boolean;
 }>();
 /** The instant answer's route from "A longer route might win", to price exactly: the screen above moves to the Full sweep. */
-const emit = defineEmits<{ checkExactly: [chain: number[]] }>();
+const emit = defineEmits<{ checkExactly: [chain: number[]]; openCustom: [bands: string] }>();
 
 const store = useChainSearchStore();
-/** A finished saved run: the next level up, which reuses its priced routes (null at Very high). */
+/** A finished saved run: the next level up, which reuses its priced routes (null from Exact up: the level above,
+ *  Very high, is retired as a choice, glossary 25 Oct 2026). */
 const nextLevel = computed(() => {
   const i = EFFORT_ORDER.indexOf(store.effort);
   const tier = i >= 0 && i < EFFORT_ORDER.length - 1 ? EFFORT_ORDER[i + 1] : null;
-  return tier ? { tier, label: EFFORT_NOTES[tier].label } : null;
+  return tier && tier !== 'thorough' ? { tier, label: EFFORT_NOTES[tier].label } : null;
 });
 /** The saved finished run is the answer on screen (this panel's own run, same route): its saved-run box
  *  would only repeat it. After a reload, or once another result replaced it, the box comes back. */
@@ -1126,12 +1135,19 @@ const finishedOnScreen = computed(
     store.bestDays > 0 &&
     store.bestChain.join(',') === store.resumable.bestChain.join(',')
 );
-/** "Go further": the next level up with the routes it would reuse; only while the saved box is folded away. */
-const goFurther = computed(() =>
-  finishedOnScreen.value && !store.isRunning && nextLevel.value && store.resumable
-    ? { label: nextLevel.value.label, routes: store.resumable.durations.length }
-    : null
-);
+/** "Go further": the next level up with the routes it would reuse, or Custom with boxes from this run's best
+ *  routes when there is no level up to offer; only while the saved box is folded away. */
+const goFurther = computed(() => {
+  if (!finishedOnScreen.value || store.isRunning || !store.resumable) return null;
+  if (nextLevel.value) return { kind: 'level' as const, label: nextLevel.value.label, routes: store.resumable.durations.length };
+  const box = goFurtherBands(store.resumable.durations, store.bestChain);
+  return box ? { kind: 'custom' as const, bands: box.bands, routes: box.routes } : null;
+});
+function goFurtherClick(): void {
+  const g = goFurther.value;
+  if (g?.kind === 'custom') emit('openCustom', g.bands);
+  else runHigher();
+}
 function runHigher(): void {
   const n = nextLevel.value;
   if (!n) return;

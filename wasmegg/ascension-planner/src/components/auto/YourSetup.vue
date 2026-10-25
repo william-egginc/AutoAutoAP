@@ -404,8 +404,8 @@
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-            {{ NAMES.classic }} only plans around time off in a plan sent from a search (Build this plan on
-            {{ fastestName(store.finalTE) }}, or Simulate this plan on {{ NAMES.byDate }}). A route typed in here goes
+            {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
+            {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
           </p>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">

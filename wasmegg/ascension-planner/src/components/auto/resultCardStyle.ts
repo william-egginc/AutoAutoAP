@@ -4,7 +4,7 @@
  * egg-beta review 11 Oct). Classes only; each card keeps its own content.
  */
 /** 44 px to tap below sm (phones), unchanged from sm up (23 Oct 2026). */
-/** The card's main action: Build this plan (Fastest), Simulate this plan (By a date). */
+/** The card's main action: Simulate this plan (Fastest and By a date). */
 export const PRIMARY_BUTTON =
   'inline-flex items-center justify-center min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-800 disabled:opacity-40';
 /** The rest of the row: Share, CSV, Save. */

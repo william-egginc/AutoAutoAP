@@ -1,6 +1,8 @@
 <!--
   The answer, the same way on both depths of Fastest route (the unified layout, phase 3): the
-  route, how long it takes and when it lands, and the same row of things to do with it. Smart search
+  route, how long it takes and when it lands, and the same row of things to do with it. Its main
+  button is "Simulate this plan", the instant answer's name for the same action (glossary, 25 Oct 2026:
+  it was "Build this plan"; the fill-only button was "Just fill it in"). Smart search
   and the Full sweep each had their own card with its own buttons ("Use this chain and build the
   plan", "Build this plan in the Auto Planner") in different places on the page.
 
@@ -43,7 +45,7 @@
         :class="PRIMARY_BUTTON"
         @click="emit('build')"
       >
-        Build this plan
+        Simulate this plan
       </button>
       <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
       <FollowButton
@@ -64,7 +66,7 @@
         :class="SECONDARY_BUTTON"
         @click="emit('fill')"
       >
-        Just fill it in
+        Fill in Target TEs only
       </button>
       <button
         type="button"
@@ -91,7 +93,7 @@
       </button>
       <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
       <p class="w-full text-[10px] text-emerald-900/70" data-testid="build-plan-note">
-        {{ simulateNote('Build this plan') }}
+        {{ simulateNote() }}
       </p>
     </template>
   </ResultCardFrame>

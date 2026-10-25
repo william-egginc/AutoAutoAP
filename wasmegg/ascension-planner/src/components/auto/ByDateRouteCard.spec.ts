@@ -157,7 +157,7 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
     });
     const classOf = (h: string, text: string) => h.match(new RegExp(`class="([^"]*)"[^>]*>\\s*${text}`))?.[1];
     expect(classOf(html, 'Simulate this plan')).toContain('bg-emerald-700');
-    expect(classOf(html, 'Simulate this plan')).toBe(classOf(fast, 'Build this plan'));
+    expect(classOf(html, 'Simulate this plan')).toBe(classOf(fast, 'Simulate this plan'));
     expect(classOf(html, 'Share')).toContain('border-emerald-300');
     expect(classOf(html, 'Share')).toBe(classOf(fast, 'Share'));
   });
@@ -193,7 +193,7 @@ describe('RouteResultCard (Fastest): last run and the Build note', () => {
     );
     const live = textOf(await renderHtml(RouteResultCard, { ...base, running: false }));
     expect(live).toMatch(/^Fastest found/);
-    expect(live).toContain("Build this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives");
+    expect(live).toContain("Simulate this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives");
     // While running: still the best so far, never "Your last run".
     expect(textOf(await renderHtml(RouteResultCard, { ...base, running: true, lastRun: 'x' }))).toMatch(/^Best so far/);
   });
@@ -225,7 +225,7 @@ describe('Follow this route on the result cards (23 Oct 2026)', () => {
     const f = { goalKey: 'fastest-490', source: 'exact' as const, finish: 1_900_000_000, endTE: 490, planStart: 1_897_000_000 };
     const html = await renderHtml(RouteResultCard, { ...base, follow: f });
     expect(html).toMatch(/data-testid="follow-route" data-goal="fastest-490"/);
-    expect(textOf(html)).toMatch(/Build this plan Follow this route Share/);
+    expect(textOf(html)).toMatch(/Simulate this plan Follow this route Share/);
     expect(await renderHtml(RouteResultCard, { ...base, running: true, follow: f })).not.toContain('follow-route');
   });
 });

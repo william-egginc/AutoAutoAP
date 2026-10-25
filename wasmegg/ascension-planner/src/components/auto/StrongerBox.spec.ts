@@ -227,6 +227,23 @@ describe('a finished saved run (12 Oct)', () => {
   });
 });
 
+describe('Go further never offers Very high; after Exact it opens Custom (25 Oct 2026)', () => {
+  it('the next level stops at Exact, and the link opens Custom with boxes from the run', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+    expect(t).toContain("tier && tier !== 'thorough'");
+    expect(t).toContain('Go further: open in Custom ›');
+    expect(t).toContain("emit('openCustom', g.bands)");
+    const f = fs.readFileSync(path.join(__dirname, 'FastestRoute.vue'), 'utf8');
+    expect(f).toContain('@open-custom="openCustom"');
+  });
+  it('the result card says Simulate this plan, as the instant card does', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'RouteResultCard.vue'), 'utf8');
+    expect(t).toMatch(/>\s*Simulate this plan\s*</);
+    expect(t).not.toMatch(/>\s*Build this plan\s*</);
+    expect(t).not.toMatch(/>\s*Just fill it in\s*</);
+  });
+});
+
 describe('what each option is for, on its button (15 Oct; kept on Fast / Exact / Custom, 22 Oct)', () => {
   it('Fast usually close to the best (not "most likely best": effort.ts says occasionally days off), Exact a second opinion, Custom to prove it in your boxes, on both screens', () => {
     const t = fs.readFileSync(path.join(__dirname, 'SearchPanel.vue'), 'utf8');

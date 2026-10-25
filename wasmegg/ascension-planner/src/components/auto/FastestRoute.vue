@@ -69,6 +69,7 @@
               embedded
               level-elsewhere
               @check-exactly="checkExactly"
+              @open-custom="openCustom"
             />
           </StrongerBox>
         </template>
@@ -182,7 +183,13 @@ watch(
 /** The instant answer's Check exactly: the route's checkpoints as one-value bands in the exhaustive
  *  search below, which prices exactly that route with the full simulator; the page goes there. */
 function checkExactly(chain: number[]): void {
-  ui.fullSweepBands = chain.slice(0, -1).join('; ');
+  openCustom(chain.slice(0, -1).join('; '));
+}
+
+/** Custom with these boxes filled in (Check exactly, or a finished run's "Go further: open in Custom"):
+ *  nothing starts until the player presses Find. */
+function openCustom(bands: string): void {
+  ui.fullSweepBands = bands;
   emit('update:depth', 'full');
   // Custom (the Exhaustive tab) first: a hidden part has no place on the page to scroll to.
   selectSearchTab('fastest', 'exhaustive');
