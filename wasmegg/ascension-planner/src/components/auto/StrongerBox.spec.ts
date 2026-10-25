@@ -18,7 +18,8 @@ describe('StrongerBox', () => {
     const t = textOf(html);
     expect(html).not.toContain('role="radiogroup"');
     expect(t).not.toContain('How hard to look');
-    expect(t).toMatch(/^What it does Nearby routes\. Starting from the instant answer's route/);
+    // Under the "What this does" fold (lib/panelFold.ts `whatItDoes`) since 25 Oct.
+    expect(t).toMatch(/^What this does › What it does Nearby routes\. Starting from the instant answer's route/);
     expect(t).toContain('What this does and does not promise');
     expect(t).toContain('proves the best only inside');
     expect(html).not.toContain('id="stronger-check-results"');
@@ -157,8 +158,8 @@ describe('"What this does and does not promise" (12 Oct)', () => {
     expect(html).not.toMatch(/<details[^>]*open[^>]*data-testid="stronger-promise"|<details[^>]*data-testid="stronger-promise"[^>]*open/);
     expect(html).toMatch(/border-amber-200 bg-amber-50[^"]*"[^>]*data-testid="stronger-promise"/);
     const src = fs.readFileSync(path.join(__dirname, 'StrongerBox.vue'), 'utf8');
-    expect(src).toContain('@toggle="onPromiseToggle"');
-    expect(src).toContain("return localStorage.getItem(PROMISE_KEY) === '0';");
+    // Opened and remembered through PanelFold.vue (lib/panelFold.ts `promise`, which still reads the old key).
+    expect(src).toMatch(/<PanelFold\s+section="promise"/);
   });
 });
 
