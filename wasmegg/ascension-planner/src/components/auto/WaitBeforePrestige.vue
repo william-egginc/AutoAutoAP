@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatWeekday } from '@/lib/clock';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { showDateTime } from '@/lib/displayTime';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
@@ -81,15 +82,11 @@ let planStart = 0;
 
 const legs = computed(() => waitSearchLegs(props.chain.length));
 const lines = computed(() => (report.value ? waitLines(report.value, prestigeTime) : null));
-/** "Thu Oct 29, 2026, 10:34 PM": the weekday, then the date as the player reads dates. */
+/** "Thu Oct 29, 2026, 10:34 PM": the weekday, then the date as the player reads dates (lib/clock.ts). */
 function prestigeTime(t: number): string {
-  let day = '';
-  try {
-    day = new Intl.DateTimeFormat(undefined, { timeZone: props.zone, weekday: 'short' }).format(new Date(t * 1000)) + ' ';
-  } catch {
-    // An unknown zone: the date alone.
-  }
-  return day + showDateTime(t, props.zone);
+  // An unknown zone: the date alone.
+  const day = formatWeekday(t * 1000, props.zone);
+  return (day ? `${day} ` : '') + showDateTime(t, props.zone);
 }
 /** Whether the last run was priced with the player's hours, the shifts waiting for them (Setup). Without
  *  them, waits that win at any hour usually lose once the shifts wait (aaap-tools/notes/delay.md). */

@@ -18,6 +18,7 @@
  * Also here: the words and checks other My runs parts share (a board row's goal and hours, `hoursDiffer`,
  * `simulatorAge`) and opening a screen (`openFor`).
  */
+import { formatClock } from './clock';
 import { formatDate, isDeadlineRow, sentMs, type BoardRow } from './leaderboardRank';
 import { runKind } from './myRuns';
 import { parseWindow } from './planFilters';
@@ -96,9 +97,9 @@ export function dayText(ms: number, zone: string, now: number): string {
   return `${MONTH[m - 1] ?? ''} ${d}${sameYear ? '' : `, ${y}`}`;
 }
 
-/** "9:12 pm", 12-hour. */
+/** "9:12 PM" / "21:12": the browser's own clock (lib/clock.ts). */
 export function clockText(ms: number, zone: string): string {
-  return formatDate(ms, zone, { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+  return formatClock(ms, zone) || formatClock(ms, 'UTC');
 }
 
 /** "Race to 490", "Egg Day 2027", "By Nov 1". */

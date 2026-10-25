@@ -2,6 +2,7 @@
  * Formatting utility functions.
  * Pure functions for converting values to display strings.
  */
+import { formatMoment } from './clock';
 
 /**
  * Converts an absolute Unix timestamp in SECONDS into a `Date`, rounding to the nearest millisecond
@@ -230,7 +231,7 @@ export function formatDuration(seconds: number): string {
  * @returns Formatted absolute time string
  *
  * @example
- * formatAbsoluteTime(3600) // e.g., "Tue, Feb 24, 5:43 PM"
+ * formatAbsoluteTime(3600) // e.g., "Tue, Feb 24, 5:43 PM" (en-US)
  */
 export function formatAbsoluteTime(seconds: number, baseTimestamp?: number, timeZone?: string): string {
   if (!isFinite(seconds)) return '∞';
@@ -242,15 +243,8 @@ export function formatAbsoluteTime(seconds: number, baseTimestamp?: number, time
   const date = new Date(Math.round(start + seconds * 1000));
   // Finite but past what a Date can hold (a wait of billions of days): '∞', not 'Invalid Date'.
   if (isNaN(date.getTime())) return '∞';
-  return date.toLocaleString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone,
-  });
+  // The one clock (lib/clock.ts), in the browser's own format like every other panel.
+  return formatMoment(date.getTime(), { zone: timeZone, weekday: true, year: 'never' }) || '∞';
 }
 
 /**

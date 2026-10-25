@@ -177,11 +177,11 @@ describe('scatterView', () => {
   it('the race summary and the hover card, in plain words with 12-hour times', () => {
     const v = scatterView(b.goals, b.points, 'race:490', 'asc', 'te');
     expect(scatterSummary(v, ZONE)).toBe(
-      '4 routes for Fastest to 490 TE. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 am. Across them: 2 to 4 ascensions, 11.0 to 13.0 days.'
+      '4 routes for Fastest to 490 TE. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 AM. Across them: 2 to 4 ascensions, 11.0 to 13.0 days.'
     );
     expect(pointLines(v.best!, v.goal!, ZONE, true)).toEqual([
       'Best · 300 → 490',
-      '2 ascensions · 11.0 days · finishes Oct 12 at 12:00 am',
+      '2 ascensions · 11.0 days · finishes Oct 12 at 12:00 AM',
       'Level not recorded · Maybe you',
     ]);
     const saved = v.shown.find(p => p.from === 'saved')!;
@@ -201,7 +201,7 @@ describe('scatterView', () => {
     expect(pointLines(v.best!, v.goal!, ZONE)).toEqual([
       '100 → 250',
       '2 ascensions · TE 250 · 5.0 h to spare',
-      'Last ascension Jan 15 at 3:00 am',
+      'Last ascension Jan 15 at 3:00 AM',
       'Custom · Sent from this browser',
     ]);
   });
@@ -218,7 +218,7 @@ describe('axes', () => {
     expect(ascTicks(2, 5)).toEqual([2, 3, 4, 5]);
     const DAY = 86_400_000;
     expect(dateTicks(DAY * 10 + 5, DAY * 14)).toEqual([DAY * 11, DAY * 12, DAY * 13, DAY * 14]);
-    expect(whenText(Date.parse('2026-10-21T14:40:00Z'), ZONE)).toBe('Oct 21 at 2:40 pm');
+    expect(whenText(Date.parse('2026-10-21T14:40:00Z'), ZONE)).toBe('Oct 21 at 2:40 PM');
   });
 });
 

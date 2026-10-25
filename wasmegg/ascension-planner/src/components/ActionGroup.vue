@@ -163,6 +163,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { ref, computed, watch, nextTick } from 'vue';
 import { iconURL } from 'lib';
 import { useActionsStore } from '@/stores/actions';
@@ -291,19 +292,9 @@ const shiftReconciliationStatus = computed(() => {
 });
 
 /**
- * Format the period timestamp as "Mon Jan 5, 2:30 PM"
+ * Format the period timestamp as "Mon, Jan 5, 2:30 PM" in en-US (lib/clock.ts)
  */
-const formattedTimestamp = computed(() => {
-  const date = props.periodTimestamp;
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-});
+const formattedTimestamp = computed(() => formatMoment(props.periodTimestamp.getTime(), { weekday: true, year: 'never' }));
 
 /**
  * Format the time elapsed in a human-readable way.

@@ -486,7 +486,7 @@
             >
           </div>
           <div class="flex flex-wrap items-baseline gap-x-3">
-            <span class="text-2xl font-black text-slate-900">{{ show(boxLead.end) }}</span>
+            <span class="text-2xl font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
             <span class="text-[11px] font-bold text-slate-500" data-testid="box-instant">instant answer</span>
           </div>
           <div class="text-[12px] font-bold text-emerald-800">
@@ -544,7 +544,7 @@
         </div>
         <p v-else-if="result.outside?.fastest" class="text-[12px] text-amber-800" data-testid="instant-no-route">
           No route in this range: the nearest is {{ plural(result.outside.fastest.ascensions, 'ascension') }}, reaching
-          {{ store.finalTE }} on {{ show(result.outside.fastest.end) }} ({{ result.outside.fastest.chain.join(' → ') }}).{{
+          {{ store.finalTE }} on {{ showFinish(result.outside.fastest.end) }} ({{ result.outside.fastest.chain.join(' → ') }}).{{
             ' '
           }}
           <button
@@ -600,7 +600,7 @@
                       >shown above</span
                     >
                   </td>
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">{{ show(r.end) }}</td>
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">{{ showFinish(r.end) }}</td>
                   <td class="py-1.5 pr-2 text-slate-500 align-top">
                     <span class="whitespace-nowrap">{{ behind(r) }}</span>
                     <span
@@ -759,6 +759,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatClock } from '@/lib/clock';
 import { plural } from '@/lib/format';
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -2713,6 +2714,11 @@ const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOp
 function show(unix: number): string {
   return showDateTime(unix, zone.value);
 }
+/** A Fastest route's finish in the box, the counts table and the outside-your-limits line: the date alone
+ *  when it is over a year away ("Jun 7, 2032"), since an instant answer years out is not good to the minute. */
+function showFinish(unix: number): string {
+  return showDateTime(unix, zone.value, undefined, { dateOnlyWhenFar: true });
+}
 function days(seconds: number): string {
   return (seconds / 86400).toFixed(2) + ' days';
 }
@@ -2843,13 +2849,7 @@ watch(
 
 /** "11:02 am", in the plan's timezone. */
 function clock(ms: number): string {
-  try {
-    return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: zone.value })
-      .format(new Date(ms))
-      .replace(/\s?([AP])\.?M\.?$/i, (_m, x: string) => ` ${x.toLowerCase()}m`);
-  } catch {
-    return new Date(ms).toLocaleTimeString();
-  }
+  return formatClock(ms, zone.value) || formatClock(ms);
 }
 
 const shareText = computed(() => {

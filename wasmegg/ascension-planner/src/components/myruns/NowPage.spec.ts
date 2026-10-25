@@ -24,7 +24,7 @@ import type { Tile } from '@/lib/savedTiles';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 pm Denver
+const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 PM Denver
 const H = 3600;
 
 beforeEach(() => {
@@ -90,7 +90,7 @@ const cardProps = (o: Record<string, unknown> = {}) => {
 describe('the save-age strip', () => {
   it('green, amber, red, and none', async () => {
     const ok = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 3 * H, NOW, ZONE), loading: false });
-    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 am (3 hours ago). Load a fresh one ›');
+    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 AM (3 hours ago). Load a fresh one ›');
     expect(ok).toContain('data-tone="ok"');
     const bad = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 80 * H, NOW, ZONE), loading: false });
     expect(bad).toContain('data-tone="bad"');
@@ -104,17 +104,17 @@ describe('the Right now card', () => {
   it('the plan, its egg, the next step and the events with dates, times and distances', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     const t = textOf(html);
-    expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 12:40 pm (2 h ago) (simulator check)');
+    expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 12:40 PM (2 h ago) (simulator check)');
     expect(t).toContain('Integrity');
     expect(t).toContain('ascension 1 of 2 · 186 TE so far');
     expect(t).toContain('Made from your latest save'); // R6: one wording with My runs' saved plans (lib/planPace.ts)
-    expect(t).toContain('Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am');
+    expect(t).toContain('Shift to Humility today at 4:00 PM (in 1 h 20 m), then Kindness tomorrow at 9:15 AM');
     // The picture is named by the egg's name, as FloatingStats does (a numeric name did not load).
     expect(html).toContain('egginc/egg_integrity.png');
     // The table: the passed shift greyed, the next highlighted, the prestige, the goal.
     expect(html).toContain('data-testid="now-event-past"');
     expect(html).toContain('data-testid="now-event-next"');
-    expect(t).toContain('Thu, Oct 15 at 4:00 pm');
+    expect(t).toContain('Thu, Oct 15 at 4:00 PM');
     expect(t).toContain('today, in 1 h 20 m');
     expect(t).toContain('Prestige at 198 TE');
     expect(t).toContain('490 TE reached');
@@ -166,7 +166,7 @@ describe('the Right now card', () => {
       RightNowCard,
       cardProps({ card: { ...card, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: NOW - 30 * H } } } })
     );
-    expect(textOf(older)).toContain('This plan was worked out from your save of Oct 14 at 8:40 am');
+    expect(textOf(older)).toContain('This plan was worked out from your save of Oct 14 at 8:40 AM');
   });
 });
 
@@ -179,11 +179,11 @@ describe('the events table', () => {
       goalName: 'Fastest to 490',
       now: NOW + 40 * H,
       zone: ZONE,
-      saveWhen: 'Oct 15 at 11:40 am',
-      calculatedWhen: 'Oct 15 at 12:40 pm',
+      saveWhen: 'Oct 15 at 11:40 AM',
+      calculatedWhen: 'Oct 15 at 12:40 PM',
     });
     const t = textOf(html);
-    expect(t).toContain('The plan had you prestige Fri, Oct 16 at 8:40 pm: load a newer save.');
+    expect(t).toContain('The plan had you prestige Fri, Oct 16 at 8:40 PM: load a newer save.');
     expect(t).toContain('passed');
     // The goal alone is ahead: nothing to add.
     expect(html).not.toContain('data-testid="calendar-button"');
@@ -224,7 +224,7 @@ describe('a saved-answer tile', () => {
     expect(t).toContain('Egg Day 2027 · saved answer');
     expect(t).toContain('248 TE');
     expect(t).toContain('16.8 h spare · 161 198 218 248');
-    expect(t).toContain('Calculated Oct 10 at 2:40 pm (5 days ago) · from your save of Oct 10 at 2:20 pm · instant answer');
+    expect(t).toContain('Calculated Oct 10 at 2:40 PM (5 days ago) · from your save of Oct 10 at 2:20 PM · instant answer');
     expect(t).toContain('How sure: Medium Instant answer, 5 days old. Run Fast ›');
     expect(t).toContain('Older save than the one you loaded. Work it out again ›');
     expect(t).toContain('Egg Day: 3rd of 12 named players');
@@ -312,14 +312,14 @@ describe('your eggs and Try next', () => {
         clothedEarnings: 204,
         whatIf: { at: NOW * 1000, end: null, te: 252, mineEnd: null, mineTE: 248 },
         goal: 'date',
-        whatIfWhen: 'Oct 15 at 2:40 pm',
+        whatIfWhen: 'Oct 15 at 2:40 PM',
       })
     );
     expect(t).toContain('Equipped now');
     expect(t).toContain('Earnings set');
     expect(t).toContain('+6 Clothed TE vs equipped');
     expect(t).toContain('Production set');
-    expect(t).toContain('With maxed gear: +4 TE by the date (worked out Oct 15 at 2:40 pm).');
+    expect(t).toContain('With maxed gear: +4 TE by the date (worked out Oct 15 at 2:40 PM).');
   });
 });
 
@@ -346,7 +346,7 @@ describe('the page with a real save and a saved answer (nothing worked out)', ()
     const t = textOf(html);
     expect(html).toContain('data-testid="now-card"');
     expect(t).toContain('Plan for Fastest to 490 TE calculated');
-    expect(t).toMatch(/Shift to Humility (today|tomorrow) at/); // an hour from now: tomorrow after 11 pm
+    expect(t).toMatch(/Shift to Humility (today|tomorrow) at/); // an hour from now: tomorrow after 11 PM
     expect(t).toContain('Fastest to 490 TE · saved answer');
     expect(t).toContain('Your eggs · from your save');
     expect(html).not.toMatch(/EI\d{16}/);

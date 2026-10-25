@@ -177,9 +177,9 @@ describe('on track', () => {
 
   it('words the chip (planPace’s words, with the save’s time)', () => {
     const ahead = onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 38, 36, 37, 36] });
-    expect(trackWords(ahead, T0 + 3 * H, 'UTC')).toEqual({ tone: 'ok', text: '2 hours ahead, as of 7:46 pm' });
+    expect(trackWords(ahead, T0 + 3 * H, 'UTC')).toEqual({ tone: 'ok', text: '2 hours ahead, as of 7:46 PM' });
     const behind = onTrack(p, { seconds: T0 + 10 * H, teByEgg: [41, 38, 36, 37, 36] });
-    expect(trackWords(behind, T0 + 10 * H, 'UTC')).toEqual({ tone: 'bad', text: '4 hours behind, as of 3:46 am' });
+    expect(trackWords(behind, T0 + 10 * H, 'UTC')).toEqual({ tone: 'bad', text: '4 hours behind, as of 3:46 AM' });
     expect(trackWords({ kind: 'cant', why: 'no-timeline' }, T0, 'UTC').text).toBe("Can't tell: saved without its timeline");
     expect(trackWords({ kind: 'same-save' }, T0, 'UTC').text).toBe('Made from your latest save');
   });

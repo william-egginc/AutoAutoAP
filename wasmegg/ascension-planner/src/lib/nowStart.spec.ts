@@ -3,8 +3,8 @@ import { startLines } from './nowStart';
 import type { NowPlan } from './nowPlan';
 
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Oct 15, 2:40 pm Denver
-const START = Date.UTC(2026, 9, 31, 0, 0) / 1000; // Oct 30, 6:00 pm Denver
+const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Oct 15, 2:40 PM Denver
+const START = Date.UTC(2026, 9, 31, 0, 0) / 1000; // Oct 30, 6:00 PM Denver
 const H = 3600;
 const p = (o: Partial<NowPlan>): NowPlan => ({
   goal: 'fastest',
@@ -42,8 +42,8 @@ describe('not on virtue yet: each goal from its saved plan', () => {
       NOW,
       ZONE
     ).map(l => l.text);
-    expect(lines[0]).toBe('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Fastest to 490 TE, simulator check)');
-    expect(lines[1]).toBe('If you start Oct 30 at 6:00 pm: Egg Day 2027 TE 313 (instant answer)');
+    expect(lines[0]).toBe('If you start Oct 30 at 6:00 PM: 490 on Nov 20 at 1:00 PM (Fastest to 490 TE, simulator check)');
+    expect(lines[1]).toBe('If you start Oct 30 at 6:00 PM: Egg Day 2027 TE 313 (instant answer)');
     expect(lines[2]).toBe('By Mar 3, 2027: no start time is priced yet');
   });
 

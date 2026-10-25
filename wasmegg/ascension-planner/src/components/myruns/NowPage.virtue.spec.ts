@@ -25,8 +25,8 @@ import { useStartTimesStore } from '@/stores/startTimes';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 pm Denver
-const START = Date.UTC(2026, 9, 31, 0, 0) / 1000; // Oct 30, 6:00 pm Denver
+const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 PM Denver
+const START = Date.UTC(2026, 9, 31, 0, 0) / 1000; // Oct 30, 6:00 PM Denver
 const H = 3600;
 
 beforeEach(() => {
@@ -171,7 +171,7 @@ describe('not on virtue yet', () => {
   it('the future plan as exploration, from what each goal saved; the switch, the route and the timeline stay', async () => {
     const html = await renderHtml(RightNowCard, offProps());
     const t = textOf(html);
-    expect(t).toContain('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Fastest to 490 TE, simulator check)');
+    expect(t).toContain('If you start Oct 30 at 6:00 PM: 490 on Nov 20 at 1:00 PM (Fastest to 490 TE, simulator check)');
     expect(t).toContain('Egg Day 2027: no start time is priced yet');
     expect(t).toContain('If you start then: Following 198 → 490 (Fastest to 490 TE)');
     expect(html).toContain('data-testid="now-goal-switch"');

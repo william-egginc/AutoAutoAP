@@ -1,4 +1,5 @@
 /** By a date's route card (ByDateRouteCard.vue): the finished answer, and the best so far mid-run. */
+import { formatMoment } from '@/lib/clock';
 import { describe, expect, it } from 'vitest';
 import { h } from 'vue';
 import ByDateRouteCard from './ByDateRouteCard.vue';
@@ -89,7 +90,7 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     // The last leg ends 27.3 h before the deadline. The farm is on kindness: 2.3e17 eggs at 1e12 a second
     // (63.9 h), a date and time in the planner's zone, 12-hour. The other eggs need a shift first.
     const end = DEADLINE - 27.3 * 3600;
-    const at = (s: number) => new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(s * 1000));
+    const at = (s: number) => formatMoment(s * 1000, { zone: 'UTC' });
     expect(t).toContain('Curiosity 50 after a shift');
     expect(t).toMatch(new RegExp(`Kindness · laying 49 ${at(end + 2.3e5).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     expect(html).toMatch(/title="310\.00q eggs to go, after a shift to this egg, which starts the farm again from one chicken"/);

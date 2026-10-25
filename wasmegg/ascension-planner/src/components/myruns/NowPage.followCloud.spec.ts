@@ -347,7 +347,7 @@ describe('the prompt and Earlier versions on their own', () => {
     );
     follows.reset();
     const text = textOf(await renderHtml(BetterRoutePrompt, props, {}, [pinia]));
-    expect(text).toMatch(/^This is a better route than the one you're following \(this one: \w{3} \d+ at \d+:\d\d [ap]m; yours: \w{3} \d+ at \d+:\d\d [ap]m\)\. Do you want to follow it\? Follow it Keep mine$/);
+    expect(text).toMatch(/^This is a better route than the one you're following \(this one: \w{3} \d+ at \d+:\d\d [AP]M; yours: \w{3} \d+ at \d+:\d\d [AP]M\)\. Do you want to follow it\? Follow it Keep mine$/);
   });
 
   it('an instant answer never asks about a PRICED follow (a kept Fast result with its route, a fast source, Right now\'s priced finish); a typed one still asks; a Fast result asks about either', async () => {

@@ -2,7 +2,7 @@
  * My runs review, 22 Oct 2026 (bug 2): the shift due just after the save showed greyed as "passed" and Next step
  * skipped it while the save was still on the egg before it, so the plan's first action never showed. Done is now the
  * save's state (lib/nowPlan.ts `planEvents`): a step whose time has passed but whose effect the save doesn't show is
- * "Not done yet: shift to Curiosity (due 8:03 pm)", and Next step leads with it. Server-rendered.
+ * "Not done yet: shift to Curiosity (due 8:03 PM)", and Next step leads with it. Server-rendered.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,8 +19,8 @@ const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 const ZONE = 'America/Denver';
 const H = 3600;
 const D = 24 * H;
-const SAVE = Date.UTC(2026, 9, 19, 0, 33) / 1000; // Sun Oct 18, 2026 at 6:33 pm in Denver
-const NOW = SAVE + 2.5 * H; // 9:03 pm: an hour after the shift was due
+const SAVE = Date.UTC(2026, 9, 19, 0, 33) / 1000; // Sun Oct 18, 2026 at 6:33 PM in Denver
+const NOW = SAVE + 2.5 * H; // 9:03 PM: an hour after the shift was due
 
 beforeEach(() => {
   const mem = new Map<string, string>();
@@ -46,10 +46,10 @@ const leg = (start: number, end: number, endTE: number, shifts: LegSummary['shif
     shifts,
     endEgg: { egg: 'kindness', te: 30 },
   }) as LegSummary;
-// The review's plan from the alt save (Humility, 142 TE): the shift to Curiosity at 8:03 pm comes first.
-const CURIOSITY_AT = SAVE + 1.5 * H; // 8:03 pm
-const HUMILITY_AT = Date.UTC(2026, 9, 23, 22, 6) / 1000; // Fri Oct 23 at 4:06 pm
-const KINDNESS_AT = Date.UTC(2026, 9, 24, 18, 7) / 1000; // Sat Oct 24 at 12:07 pm
+// The review's plan from the alt save (Humility, 142 TE): the shift to Curiosity at 8:03 PM comes first.
+const CURIOSITY_AT = SAVE + 1.5 * H; // 8:03 PM
+const HUMILITY_AT = Date.UTC(2026, 9, 23, 22, 6) / 1000; // Fri Oct 23 at 4:06 PM
+const KINDNESS_AT = Date.UTC(2026, 9, 24, 18, 7) / 1000; // Sat Oct 24 at 12:07 PM
 const legs = [
   leg(SAVE, SAVE + 51 * D, 165, [
     { at: CURIOSITY_AT, egg: 'curiosity', fromEgg: 'humility', te: 34 },
@@ -97,22 +97,22 @@ const cardProps = (save: SaveDone | null, now = NOW) => {
 };
 const ON_HUMILITY: SaveDone = { egg: 'humility', te: 142 };
 const ON_CURIOSITY: SaveDone = { egg: 'curiosity', te: 142 };
-const NOT_DONE = 'Not done yet: shift to Curiosity (due 8:03 pm)';
+const NOT_DONE = 'Not done yet: shift to Curiosity (due 8:03 PM)';
 
 describe('a step due before now that the save hasn’t done', () => {
-  it('the save still on Humility after 8:03 pm: the shift to Curiosity is not done yet, and it is next', () => {
+  it('the save still on Humility after 8:03 PM: the shift to Curiosity is not done yet, and it is next', () => {
     const ev = eventsFor(ON_HUMILITY);
     expect(ev[0]).toMatchObject({ kind: 'shift', egg: 'curiosity', past: false, notDone: true, next: true });
     expect(ev[1]).toMatchObject({ egg: 'humility', past: false, next: false });
     expect(ev[1].notDone).toBeUndefined();
     expect(howFar(ev[0], NOW, ZONE)).toBe('not done yet, due 1 h ago');
-    expect(nextStepText(ev, 'fastest', NOW, ZONE)).toBe(`${NOT_DONE}, then Humility Oct 23 at 4:06 pm`);
+    expect(nextStepText(ev, 'fastest', NOW, ZONE)).toBe(`${NOT_DONE}, then Humility Oct 23 at 4:06 PM`);
   });
 
   it('Right now: Next step leads with it, the events show it in amber, not greyed "passed", with no calendar button', async () => {
     const html = await renderHtml(RightNowCard, cardProps(ON_HUMILITY));
     const t = textOf(html);
-    expect(t).toContain(`Next step ${NOT_DONE}, then Humility Oct 23 at 4:06 pm`);
+    expect(t).toContain(`Next step ${NOT_DONE}, then Humility Oct 23 at 4:06 PM`);
     expect(html).toContain('data-testid="now-event-notdone"');
     expect(html).not.toContain('data-testid="now-event-past"');
     expect(t).not.toContain('passed');
@@ -128,18 +128,18 @@ describe('a step due before now that the save hasn’t done', () => {
     expect(ev[1]).toMatchObject({ egg: 'humility', next: true });
     const html = await renderHtml(RightNowCard, cardProps(ON_CURIOSITY));
     const t = textOf(html);
-    expect(t).toContain('Next step Shift to Humility Oct 23 at 4:06 pm (in 4 days), then Kindness Oct 24 at 12:07 pm');
+    expect(t).toContain('Next step Shift to Humility Oct 23 at 4:06 PM (in 4 days), then Kindness Oct 24 at 12:07 PM');
     expect(t).not.toContain('Not done yet');
     expect(html).toContain('data-testid="now-event-past"');
     expect(t).toContain('passed');
   });
 
-  it('before 8:03 pm nothing is due: the shift is simply next', () => {
+  it('before 8:03 PM nothing is due: the shift is simply next', () => {
     const ev = eventsFor(ON_HUMILITY, SAVE + H);
     expect(ev[0]).toMatchObject({ egg: 'curiosity', past: false, next: true });
     expect(ev[0].notDone).toBeUndefined();
     expect(nextStepText(ev, 'fastest', SAVE + H, ZONE)).toBe(
-      'Shift to Curiosity today at 8:03 pm (in 30 min), then Humility Oct 23 at 4:06 pm'
+      'Shift to Curiosity today at 8:03 PM (in 30 min), then Humility Oct 23 at 4:06 PM'
     );
   });
 

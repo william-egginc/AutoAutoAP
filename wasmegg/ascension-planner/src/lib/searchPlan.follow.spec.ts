@@ -21,7 +21,7 @@ import {
 import { dateAt } from './eventWhen';
 
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 23, 18) / 1000; // Fri Oct 23, 12:00 pm Denver
+const NOW = Date.UTC(2026, 9, 23, 18) / 1000; // Fri Oct 23, 12:00 PM Denver
 const H = 3600;
 const D = 86400;
 const when = (t: number) => dateAt(t, NOW, ZONE);
@@ -81,7 +81,7 @@ describe('the prompt', () => {
   it('asks with both finishes in 12-hour times', () => {
     const p = followPrompt(base)!;
     expect(p.words).toBe(
-      "This is a better route than the one you're following (this one: Oct 25 at 12:00 pm; yours: Oct 26 at 12:00 pm). Do you want to follow it?"
+      "This is a better route than the one you're following (this one: Oct 25 at 12:00 PM; yours: Oct 26 at 12:00 PM). Do you want to follow it?"
     );
     expect(p.chain).toEqual([230, 490]);
     expect(p.source).toBe('fast');
@@ -170,18 +170,18 @@ describe('an instant answer never asks about a PRICED follow (Jordan, 23 Oct 202
  */
 describe('a simulated result against an instant-sourced follow', () => {
   const at = (iso: string) => Date.parse(iso) / 1000;
-  const estimate = at('2028-09-21T08:08:00Z'); // Sep 21 2028, 2:08 am Denver: the instant answer's estimate
-  const fastEnd = at('2028-09-21T14:22:00Z'); // Sep 21 2028, 8:22 am Denver: the Fast run, simulated
+  const estimate = at('2028-09-21T08:08:00Z'); // Sep 21 2028, 2:08 AM Denver: the instant answer's estimate
+  const fastEnd = at('2028-09-21T14:22:00Z'); // Sep 21 2028, 8:22 AM Denver: the Fast run, simulated
   const followed = { chain: [196, 221, 241, 260, 287, 328, 359, 490], at: NOW * 1000 - 60_000, finish: { end: estimate, endTE: 490 }, source: 'instant', priced: false };
   const candidate = { chain: [196, 221, 245, 260, 287, 328, 331, 490], end: fastEnd, endTE: 490, at: NOW * 1000, source: 'fast' as const, planStart: NOW };
   const base = { goalKey: 'fastest-490', goal: 'fastest' as const, deadline: null, followed, candidate, keptMine: [] as string[], when };
 
-  it('the verified case: Sep 21, 8:22 am (Fast) is offered over the Sep 21, 2:08 am estimate', () => {
+  it('the verified case: Sep 21, 8:22 AM (Fast) is offered over the Sep 21, 2:08 AM estimate', () => {
     expect(betterThanFollowed('fastest', null, candidate, followed.finish)).toBe(false);
     const p = followPrompt(base);
     expect(p?.chain).toEqual(candidate.chain);
     expect(p?.words).toBe(
-      "Your Fast run, simulated on your account, finishes Sep 21, 2028 at 8:22 am; the route you follow is the instant answer's estimate (Sep 21, 2028 at 2:08 am). Do you want to follow the Fast run's route?"
+      "Your Fast run, simulated on your account, finishes Sep 21, 2028 at 8:22 AM; the route you follow is the instant answer's estimate (Sep 21, 2028 at 2:08 AM). Do you want to follow the Fast run's route?"
     );
     expect(p?.words).not.toContain('better');
   });

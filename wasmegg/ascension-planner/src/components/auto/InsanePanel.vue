@@ -1108,6 +1108,7 @@
 </template>
 
 <script lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { plural } from '@/lib/format';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { ref as keptRef } from 'vue';
@@ -1844,15 +1845,7 @@ const pricedSoFar = computed(() => store.chainsDone + (store.isRunning ? store.b
 const endDate = computed(() => {
   if (!(store.bestDays > 0)) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: tz,
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date((store.planStart + store.bestDays * 86400) * 1000));
+  return formatMoment((store.planStart + store.bestDays * 86400) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
 });
 /**
  * The rate this machine is actually managing, once it has managed anything. The 15 s assumption is

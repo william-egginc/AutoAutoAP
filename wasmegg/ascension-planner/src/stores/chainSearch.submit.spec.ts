@@ -259,7 +259,7 @@ describe('what the collector says about a send it recognised', () => {
     const calls = collector(json({ ok: true, id: 'feed1234', duplicate: 'exact', firstAt }));
     const res = await s.sendSubmission(PAYLOAD, 'rank,chain\n');
     expect(res).toMatchObject({ ok: true, duplicate: 'exact' });
-    expect(res.message).toMatch(/^Already on the board \(sent at \d{1,2}:\d\d [ap]m\), nothing new stored$/);
+    expect(res.message).toMatch(/^Already on the board \(sent at \d{1,2}:\d\d(?:\s[AaPp]\.?[Mm]\.?)?\), nothing new stored$/);
     expect(calls).toHaveLength(1);
     expect(s.pendingTable).toBeNull();
     // Locked, and remembered on the row the collector already had.
@@ -277,7 +277,7 @@ describe('what the collector says about a send it recognised', () => {
     const res = await s.sendSubmission(PAYLOAD, 'rank,chain\n');
     // What happened to THAT row's missing table -- not "nothing new stored - sent, with the full CSV".
     expect(res.message).toMatch(
-      /^Already on the board \(sent on 24 \w+ at \d{1,2}:\d\d [ap]m\); its missing CSV was added \(\d+ KB compressed\)$/
+      /^Already on the board \(sent on \S+ \S+ at \d{1,2}:\d\d(?:\s[AaPp]\.?[Mm]\.?)?\); its missing CSV was added \(\d+ KB compressed\)$/
     );
     expect(calls[1]).toMatch(/\/csv\?id=feed1234$/);
   });

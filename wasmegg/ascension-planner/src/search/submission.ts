@@ -24,6 +24,7 @@
  *
  * The nickname is optional and free text; nothing is derived from the account.
  */
+import { formatClock, formatMoment } from '../lib/clock';
 import type { SubmissionFlag } from './rules';
 import type { InventoryCount, LoadoutSlot } from './csv';
 import type { ColleggtibleSummary, EpicResearchSummary } from './progression';
@@ -809,15 +810,15 @@ export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote =
   return text;
 }
 
-/** `at 7:46 pm` today, `on 24 Sep at 7:46 pm` before, in this browser's own zone; '' when unreadable. */
+/** `at 7:46 PM` today, `on Sep 24 at 7:46 PM` before (en-US), in this browser's own zone (lib/clock.ts); '' when
+ *  unreadable. */
 function sentAtText(iso: string | undefined, now: number): string {
   const t = iso ? Date.parse(iso) : NaN;
   if (!Number.isFinite(t)) return '';
   const day = (ms: number) =>
     new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms);
-  const time = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }).format(t);
-  if (day(t) === day(now)) return `at ${time}`;
-  return `on ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(t)} at ${time}`;
+  if (day(t) === day(now)) return `at ${formatClock(t)}`;
+  return `on ${formatMoment(t, { year: 'never', at: true })}`;
 }
 
 /** `2026-09-09 19:04` in `timezone`, or '' for a missing instant. Never `1970-01-01`. */

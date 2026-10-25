@@ -315,8 +315,8 @@
         class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
       >
         <span class="font-black uppercase tracking-wide">Time away from virtue left out.</span>
-        It was worked into this route for a plan starting {{ timeOffDroppedFor }}, and the start is now
-        {{ autoPlannerStore.startDate }} {{ autoPlannerStore.startTime }} (a newer save moves it up), so this plan farms
+        It was worked into this route for a plan starting {{ boxStart(timeOffDroppedFor) }}, and the start is now
+        {{ boxStart(`${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`) }} (a newer save moves it up), so this plan farms
         straight through it. Search again, or re-apply from the search, to put it back.
       </div>
       <div
@@ -386,6 +386,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import { routeText } from '@/search/simulateRoute';
 import { showDateTime } from '@/lib/displayTime';
+import { boxStartWords } from '@/lib/boxStartWords';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
 import { planStartOwner } from '@/composables/useBackupPlanStart';
@@ -560,6 +561,10 @@ const timeOffDroppedFor = computed(() => {
   if (!c || !c.start || c.targets !== plannerTargets.value) return '';
   return c.start !== `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}` ? c.start : '';
 });
+/** A start as the boxes hold it ("2026-10-24 14:30"), in words: "Oct 24, 2026, 2:30 pm" (lib/boxStartWords.ts). */
+function boxStart(box: string): string {
+  return boxStartWords(box, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+}
 const timeOffInPlan = computed(() => {
   const c = autoPlannerStore.timeOffCuts;
   if (!c || c.targets !== plannerTargets.value) return [];

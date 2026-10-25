@@ -403,6 +403,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -613,15 +614,7 @@ const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'war
 function finishInstant(seconds: number): string {
   if (!seconds) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: tz,
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date((store.planStart + seconds) * 1000));
+  return formatMoment((store.planStart + seconds) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
 }
 
 /** Why a runner-up is on the list, in words. A bare ranking invites "so why is #4 here?". */

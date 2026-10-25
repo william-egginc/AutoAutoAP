@@ -3,8 +3,11 @@
  * the calendar day, the clock time and how far away it is, all at once:
  *   "today at 2:40 pm, in 1 h 20 m" · "tomorrow at 9:00 am, in 18 h" · "Oct 20 at 4:00 pm, in 2 days" ·
  *   "Jul 14 at 11:25 pm, in 271 days" · "today at 11:05 am, 3 h ago".
- * Pure: `now` is a parameter, the zone is the planner's, the clock is 12-hour am/pm like the rest of the app.
+ * Pure: `now` is a parameter, the zone is the planner's; dates and clock times in the browser's own format, like
+ * the rest of the app (lib/clock.ts). The examples here are en-US's, which writes "2:40 PM".
  */
+
+import { calendarOf, formatClock, formatMoment } from './clock';
 
 const DAY = 86400;
 
@@ -20,41 +23,14 @@ export interface EventWhen {
 }
 
 interface Parts {
-  year: string;
-  month: string;
-  day: string;
-  hour: string;
-  minute: string;
-  period: string;
+  ms: number;
   ymd: string;
 }
 
 function partsOf(unixSeconds: number, zone: string): Parts {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: zone,
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    })
-      .formatToParts(new Date(unixSeconds * 1000))
-      .map(x => [x.type, x.value])
-  ) as Record<string, string>;
-  const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
-    new Date(unixSeconds * 1000)
-  );
-  return {
-    year: p.year,
-    month: p.month,
-    day: p.day,
-    hour: p.hour,
-    minute: p.minute,
-    period: (p.dayPeriod || '').toLowerCase(),
-    ymd,
-  };
+  const c = calendarOf(unixSeconds * 1000, zone);
+  if (!c) throw new RangeError(`unreadable moment in ${zone}`);
+  return { ms: unixSeconds * 1000, ymd: c.ymd };
 }
 
 /** The calendar-day distance between two moments in `zone` (0 = the same day). */
@@ -102,9 +78,9 @@ export function eventWhen(at: number | null | undefined, nowSeconds: number, zon
         ? 'tomorrow'
         : dd === -1
           ? 'yesterday'
-          : `${p.month} ${p.day}${p.year !== n.year ? `, ${p.year}` : ''}`;
+          : formatMoment(p.ms, { zone, dateOnly: true, year: 'auto', now: n.ms });
   const seconds = at - nowSeconds;
-  return { day, clock: `${p.hour}:${p.minute} ${p.period}`.trim(), relative: relativeWords(seconds), seconds };
+  return { day, clock: formatClock(p.ms, zone), relative: relativeWords(seconds), seconds };
 }
 
 /** "today at 2:40 pm, in 1 h 20 m". '' when unknown. */
@@ -121,12 +97,7 @@ export function eventWhenText(at: number | null | undefined, nowSeconds: number,
 export function dateAt(at: number | null | undefined, nowSeconds: number, zone: string, weekday = false): string {
   if (!at || !Number.isFinite(at)) return '';
   try {
-    const p = partsOf(at, zone);
-    const n = partsOf(nowSeconds, zone);
-    const wd = weekday
-      ? `${new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short' }).format(new Date(at * 1000))}, `
-      : '';
-    return `${wd}${p.month} ${p.day}${p.year !== n.year ? `, ${p.year}` : ''} at ${p.hour}:${p.minute} ${p.period}`;
+    return formatMoment(at * 1000, { zone, weekday, year: 'auto', now: nowSeconds * 1000, at: true });
   } catch {
     return '';
   }
@@ -139,8 +110,7 @@ export function dateAt(at: number | null | undefined, nowSeconds: number, zone: 
 export function dayWords(at: number | null | undefined, zone: string): string {
   if (!at || !Number.isFinite(at)) return '';
   try {
-    const p = partsOf(at, zone);
-    return `${p.month} ${p.day}, ${p.year}`;
+    return formatMoment(at * 1000, { zone, dateOnly: true });
   } catch {
     return '';
   }
@@ -150,8 +120,7 @@ export function dayWords(at: number | null | undefined, zone: string): string {
 export function dayClockWords(at: number | null | undefined, zone: string): string {
   if (!at || !Number.isFinite(at)) return '';
   try {
-    const p = partsOf(at, zone);
-    return `${p.month} ${p.day}, ${p.year} at ${p.hour}:${p.minute} ${p.period}`;
+    return formatMoment(at * 1000, { zone, at: true });
   } catch {
     return '';
   }
@@ -180,9 +149,7 @@ export function agoLong(seconds: number): string {
 export function dayClockShort(at: number | null | undefined, nowSeconds: number, zone: string): string {
   if (!at || !Number.isFinite(at)) return '';
   try {
-    const p = partsOf(at, zone);
-    const year = partsOf(nowSeconds, zone).year === p.year ? '' : `, ${p.year}`;
-    return `${p.month} ${p.day}${year} at ${p.hour}:${p.minute} ${p.period}`;
+    return formatMoment(at * 1000, { zone, year: 'auto', now: nowSeconds * 1000, at: true });
   } catch {
     return '';
   }

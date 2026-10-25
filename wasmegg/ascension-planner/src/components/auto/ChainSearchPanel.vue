@@ -1041,6 +1041,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import { sourceOfLevel } from '@/lib/followCloud';
 import type { ResultFollow } from '@/lib/follow';
@@ -1342,15 +1343,7 @@ const { downloadCsv } = useRunDownloads(store);
 function finishInstant(seconds: number): string {
   if (!seconds) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: tz,
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date((store.planStart + seconds) * 1000));
+  return formatMoment((store.planStart + seconds) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
 }
 
 const endDate = computed(() => finishInstant(store.bestDays * 86400));
@@ -1392,13 +1385,7 @@ const lastRunLabel = computed(() => {
 function stamp(unixSeconds: number | undefined): string {
   if (!unixSeconds) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: tz,
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(unixSeconds * 1000));
+  return formatMoment(unixSeconds * 1000, { zone: tz, year: 'never' });
 }
 
 /** Which leg's shift list is open. -1 for none; one at a time keeps the table readable. */

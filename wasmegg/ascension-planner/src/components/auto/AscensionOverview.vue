@@ -449,6 +449,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { formatNumber, formatDuration, formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -728,21 +729,11 @@ const formatTimeRange = (start: number, end: number) => {
   const s = new Date(Math.round(start * 1000));
   const e = new Date(Math.round(end * 1000));
 
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    // Without this, `toLocaleString` falls back to the browser's own local timezone rather than the
-    // plan's configured one (`props.timezone`, the same zone the Start Time form and the end-time
-    // editor both read/write through) — whenever those two differ, this display and the editor it
-    // opens would silently disagree by the zones' offset.
-    timeZone: props.timezone,
-  };
-
-  return `${s.toLocaleString('en-US', options)} — ${e.toLocaleString('en-US', options)}`;
+  // In the plan's configured zone (`props.timezone`, the same zone the Start Time form and the end-time
+  // editor both read/write through), not the browser's: whenever those two differ, this display and the
+  // editor it opens would otherwise silently disagree by the zones' offset.
+  const show = (d: Date) => formatMoment(d.getTime(), { zone: props.timezone, weekday: true });
+  return `${show(s)} — ${show(e)}`;
 };
 </script>
 

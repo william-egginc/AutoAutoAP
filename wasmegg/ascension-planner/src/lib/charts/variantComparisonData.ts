@@ -8,6 +8,7 @@
  * Kept out of the .vue files so the (non-trivial) math — phase segmentation, TE-threshold
  * subdivision, ray/crossing algebra — is unit-testable and readable without template noise.
  */
+import { formatMoment } from '../clock';
 import type { Action } from '@/types/actions/meta';
 import type { VirtueEgg } from '@/types/actions/virtue';
 import { VIRTUE_EGGS, VIRTUE_EGG_NAMES } from '@/types/actions/virtue';
@@ -116,14 +117,7 @@ function researchName(id: string): string {
 }
 
 export function formatChartTick(epochMs: number, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(new Date(epochMs));
+  return formatMoment(epochMs, { zone: timeZone, year: 'never' });
 }
 
 /** Date-only tick label ("Fri, Nov 14") — for a chart whose ticks land on day boundaries (the

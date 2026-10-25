@@ -9,8 +9,8 @@ import { planCalEvent } from './calendarEvents';
 import { virtueEggName } from './virtueEggs';
 
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 16, 20, 0) / 1000; // Fri Oct 16, 2:00 pm Denver
-const T = Date.UTC(2026, 9, 17, 10, 16) / 1000; // Sat Oct 17, 4:16 am Denver
+const NOW = Date.UTC(2026, 9, 16, 20, 0) / 1000; // Fri Oct 16, 2:00 PM Denver
+const T = Date.UTC(2026, 9, 17, 10, 16) / 1000; // Sat Oct 17, 4:16 AM Denver
 const ev = (kind: PlanEvent['kind'], at: number, egg?: string, te?: number): PlanEvent => ({
   kind,
   at,
@@ -45,7 +45,7 @@ describe('mergeSimultaneousShifts', () => {
 
   it('different minutes stay apart, also across a day boundary', () => {
     expect(mergeSimultaneousShifts([ev('shift', T, 'humility'), ev('shift', T + 60, 'kindness')], ZONE)).toHaveLength(2);
-    const midnight = Date.UTC(2026, 9, 18, 6, 0) / 1000; // Oct 18, 12:00 am Denver
+    const midnight = Date.UTC(2026, 9, 18, 6, 0) / 1000; // Oct 18, 12:00 AM Denver
     expect(mergeSimultaneousShifts([ev('shift', midnight - 10, 'humility'), ev('shift', midnight + 10, 'kindness')], ZONE)).toHaveLength(2);
     // The same minute just after midnight merges.
     expect(mergeSimultaneousShifts([ev('shift', midnight + 5, 'humility'), ev('shift', midnight + 50, 'kindness')], ZONE)).toHaveLength(1);
@@ -59,9 +59,9 @@ describe('mergeSimultaneousShifts', () => {
   it('Next step and the calendar event use the same words, one event for the pair', () => {
     const out = mergeSimultaneousShifts(flag([ev('shift', T, 'humility'), ev('shift', T, 'kindness'), ev('prestige', T + 9 * 3600, undefined, 197)]), ZONE);
     expect(nextStepText(out, 'fastest', NOW, ZONE)).toBe(
-      "Shift to Humility (Joo's H1 step: artifact swap), then straight to Kindness tomorrow at 4:16 am (in 14 h 16 m), then prestige at 197 TE tomorrow at 1:16 pm"
+      "Shift to Humility (Joo's H1 step: artifact swap), then straight to Kindness tomorrow at 4:16 AM (in 14 h 16 m), then prestige at 197 TE tomorrow at 1:16 PM"
     );
-    const cal = planCalEvent(out[0], { eggName: virtueEggName, saveWhen: 'Oct 16 at 1:00 pm', calculatedWhen: 'Oct 16 at 1:30 pm' });
+    const cal = planCalEvent(out[0], { eggName: virtueEggName, saveWhen: 'Oct 16 at 1:00 PM', calculatedWhen: 'Oct 16 at 1:30 PM' });
     expect(cal.title).toBe("Shift to Humility (Joo's H1 step: artifact swap), then straight to Kindness (Egg, Inc.)");
     expect(cal.at).toBe(T);
   });

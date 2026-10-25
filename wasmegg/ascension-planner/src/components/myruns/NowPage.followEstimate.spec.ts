@@ -217,7 +217,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     expect(page.cardPlan.value?.plan).toMatchObject({ chain: [205, 238], exact: false, estimated: true, end: eggDayAt - 3 * D });
     expect(page.events.value.length).toBeGreaterThan(0);
     r = await render(page);
-    expect(r.text).toMatch(/Next step .*at around \d+:\d\d [ap]m/);
+    expect(r.text).toMatch(/Next step .*at around \d+:\d\d [AP]M/);
     expect(r.text).toContain(`Your route's steps, ${ESTIMATE_WORDS}.`);
     expect(r.html).toContain('data-testid="now-next-estimated"');
     expect(r.text).toContain("Following your pick · estimated from the instant answer's data");

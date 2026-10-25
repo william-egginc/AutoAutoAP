@@ -112,13 +112,13 @@ describe('PaceBadge', () => {
   it('the pill and its time; the detail opens on a tap (aria-expanded)', async () => {
     const w = words(T0 + 11 * H, 188); // the plan had its 189th TE at +6 h
     const shut = await renderHtml(PaceBadge, { words: w });
-    expect(textOf(shut)).toBe('5 hours behind as of 11:46 pm');
+    expect(textOf(shut)).toBe('5 hours behind as of 11:46 PM');
     expect(shut).toContain('aria-expanded="false"');
     expect(shut).toContain('data-tone="bad"');
     expect(shut).toContain('min-h-[44px]');
     const opened = await renderHtml(PaceBadge, { words: w, startOpen: true });
     expect(opened).toContain('aria-expanded="true"');
-    expect(textOf(opened)).toContain('Plan expected 191 TE by 11:46 pm; you had 188.');
+    expect(textOf(opened)).toContain('Plan expected 191 TE by 11:46 PM; you had 188.');
   });
 
   it('greyed when another route is followed for its goal', async () => {
@@ -126,7 +126,7 @@ describe('PaceBadge', () => {
     expect(html).toContain('data-greyed="true"');
     expect(html).toContain('opacity-60');
     expect(html).toContain('data-tone="plain"');
-    expect(textOf(html)).toBe('5 hours behind as of 11:46 pm · not the route you follow');
+    expect(textOf(html)).toBe('5 hours behind as of 11:46 PM · not the route you follow');
   });
 
   it('no save, below the plan’s start, and nothing while loading', async () => {

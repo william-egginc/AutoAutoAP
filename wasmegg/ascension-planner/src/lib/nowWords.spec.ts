@@ -3,7 +3,7 @@ import type { PlanEvent } from './nowPlan';
 import { eventTitle, howFar, nextStepText, whenAgo } from './nowWords';
 
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 pm Denver
+const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 PM Denver
 const ev = (o: Partial<PlanEvent>): PlanEvent => ({ kind: 'shift', at: NOW, asc: 1, past: false, next: false, ...o });
 
 describe('the Right now card’s words', () => {
@@ -33,12 +33,12 @@ describe('the Right now card’s words', () => {
       NOW,
       ZONE
     );
-    expect(t).toBe('Shift to Humility today at 4:00 pm (in 1 h 20 m), then Kindness tomorrow at 9:15 am');
+    expect(t).toBe('Shift to Humility today at 4:00 PM (in 1 h 20 m), then Kindness tomorrow at 9:15 AM');
     expect(nextStepText([], 'fastest', NOW, ZONE)).toBe('');
   });
 
   it('calculated when, and how long ago', () => {
-    expect(whenAgo(NOW - 2 * 3600, NOW, ZONE)).toBe('Oct 15 at 12:40 pm (2 h ago)');
+    expect(whenAgo(NOW - 2 * 3600, NOW, ZONE)).toBe('Oct 15 at 12:40 PM (2 h ago)');
   });
 });
 
@@ -55,24 +55,24 @@ describe('the Setup button’s line', () => {
 describe('roundToHourIn: the instant answer times to the hour on the player clock (not UTC)', () => {
   const minutesIn = (at: number, zone: string) =>
     new Intl.DateTimeFormat('en-US', { timeZone: zone, minute: 'numeric', second: 'numeric' }).format(new Date(at * 1000));
-  it('a +5:30 zone (India): 2:47 pm local rounds to 3:00 pm local, not to UTC hour (which is :30 there)', async () => {
+  it('a +5:30 zone (India): 2:47 PM local rounds to 3:00 PM local, not to UTC hour (which is :30 there)', async () => {
     const { roundToHourIn } = await import('./nowWords');
-    const at = Date.UTC(2026, 9, 23, 9, 17) / 1000; // 2:47 pm in Asia/Kolkata
+    const at = Date.UTC(2026, 9, 23, 9, 17) / 1000; // 2:47 PM in Asia/Kolkata
     const r = roundToHourIn(at, 'Asia/Kolkata');
-    expect(r).toBe(Date.UTC(2026, 9, 23, 9, 30) / 1000); // 3:00 pm local
+    expect(r).toBe(Date.UTC(2026, 9, 23, 9, 30) / 1000); // 3:00 PM local
     expect(minutesIn(r, 'Asia/Kolkata')).toMatch(/^0?0:00$/);
-    // 2:12 pm local rounds down to 2:00 pm.
+    // 2:12 PM local rounds down to 2:00 PM.
     expect(roundToHourIn(Date.UTC(2026, 9, 23, 8, 42) / 1000, 'Asia/Kolkata')).toBe(Date.UTC(2026, 9, 23, 8, 30) / 1000);
   });
   it('a -3:30 zone (Newfoundland in January)', async () => {
     const { roundToHourIn } = await import('./nowWords');
-    const at = Date.UTC(2027, 0, 12, 13, 5) / 1000; // 9:35 am NST
+    const at = Date.UTC(2027, 0, 12, 13, 5) / 1000; // 9:35 AM NST
     const r = roundToHourIn(at, 'America/St_Johns');
-    expect(r).toBe(Date.UTC(2027, 0, 12, 13, 30) / 1000); // 10:00 am NST
+    expect(r).toBe(Date.UTC(2027, 0, 12, 13, 30) / 1000); // 10:00 AM NST
   });
-  it('across the autumn DST change: 1:40 am PDT rounds to the next hour on the clock', async () => {
+  it('across the autumn DST change: 1:40 AM PDT rounds to the next hour on the clock', async () => {
     const { roundToHourIn } = await import('./nowWords');
-    const at = Date.UTC(2026, 10, 1, 8, 40) / 1000; // Nov 1, 1:40 am PDT
+    const at = Date.UTC(2026, 10, 1, 8, 40) / 1000; // Nov 1, 1:40 AM PDT
     const r = roundToHourIn(at, 'America/Los_Angeles');
     expect(r).toBe(Date.UTC(2026, 10, 1, 9, 0) / 1000);
     expect(minutesIn(r, 'America/Los_Angeles')).toMatch(/^0?0:00$/);
