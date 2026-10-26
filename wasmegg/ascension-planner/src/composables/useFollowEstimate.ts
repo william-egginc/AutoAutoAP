@@ -11,6 +11,11 @@
  *     its old line ("Simulate it ›"). Never throws.
  *
  * Kept for the page load by key (a few), so switching goals back and forth doesn't price the same route again.
+ *
+ * EVERY FOLLOWED GOAL ON LOAD (25 Oct 2026, Jordan: the Fastest to 490 TE pill said "no saved plan yet" while its
+ * followed route sat unpriced until picked): `others` are the other followed goals' routes, priced one at a time in the
+ * background once the selected goal's is done (never while it is being worked out, never while a search runs), each in a
+ * worker of its own let go after it. Their states are `otherStates`, by key.
  */
 import { onScopeDispose, ref, watch, type Ref } from 'vue';
 import { RoutePool } from '@/search/routePool';
@@ -54,8 +59,15 @@ function remember(s: EstimateState): void {
   while (done.size > KEEP) done.delete(done.keys().next().value as string);
 }
 
-export function useFollowEstimate(request: Ref<EstimateRequest | null>, busy: Ref<boolean>) {
+export function useFollowEstimate(
+  request: Ref<EstimateRequest | null>,
+  busy: Ref<boolean>,
+  /** The other followed goals' routes (the selected goal's is `request`), in the order to price them. */
+  others: Ref<readonly EstimateRequest[]> = ref([])
+) {
   const state = ref<EstimateState | null>(null);
+  /** The others' states by key: done or failed (this page load's), being worked out, waiting for a search, or asked. */
+  const otherStates = ref<Record<string, EstimateState>>({});
   let pricer: ChainPricer | null = null;
   let asked = 0;
   function letGo(): void {
@@ -84,7 +96,61 @@ export function useFollowEstimate(request: Ref<EstimateRequest | null>, busy: Re
     if (id !== asked) return;
     state.value = result;
     letGo();
+    pumpOthers();
   }
+
+  // ------------------------------------------------------------------- the other followed goals
+  let otherRun = 0;
+  let otherKey: string | null = null;
+  let otherPricer: ChainPricer | null = null;
+  /** Stop the other route being worked out (a search started: it has the memory; the page closed). */
+  function dropOther(): void {
+    ++otherRun;
+    otherKey = null;
+    otherPricer?.terminate();
+    otherPricer = null;
+  }
+  /** The next other route to price, once the selected goal's is done and no search runs; their states said. */
+  function pumpOthers(): void {
+    if (busy.value && otherKey) dropOther();
+    const list = others.value.filter(r => r.key !== request.value?.key);
+    const next: Record<string, EstimateState> = {};
+    for (const r of list) {
+      const kept = done.get(r.key);
+      next[r.key] = kept ?? (r.key === otherKey ? { key: r.key, status: 'working' } : { key: r.key, status: busy.value ? 'waiting' : 'working' });
+    }
+    otherStates.value = next;
+    if (otherKey) return;
+    if (busy.value || state.value?.status === 'working') return;
+    const todo = list.find(r => !done.has(r.key));
+    if (todo) void runOther(todo);
+  }
+  async function runOther(req: EstimateRequest): Promise<void> {
+    const id = ++otherRun;
+    otherKey = req.key;
+    let result: EstimateState;
+    try {
+      const own = (otherPricer = makePricer());
+      if (!own) throw new Error('no route worker');
+      const route = await own.priceChain(req.url, JSON.parse(JSON.stringify(req.options)) as PolishOptions, [...req.chain]);
+      if (route && route.legs.length) result = { key: req.key, status: 'done', route, at: Date.now() };
+      else {
+        console.warn(`My runs: the followed route ${req.chain.join(' ')} could not be priced on the instant answer's data (a stop it can't reach).`);
+        result = { key: req.key, status: 'failed' };
+      }
+    } catch (err) {
+      console.warn(`My runs: pricing the followed route ${req.chain.join(' ')} failed:`, err instanceof Error ? err.message : String(err));
+      result = { key: req.key, status: 'failed' };
+    }
+    if (id !== otherRun) return;
+    otherPricer?.terminate();
+    otherPricer = null;
+    remember(result);
+    otherKey = null;
+    if (request.value?.key === req.key && state.value?.key === req.key && state.value.status === 'working') state.value = result;
+    pumpOthers();
+  }
+  watch([others, busy, () => state.value?.status], () => pumpOthers(), { immediate: true });
   watch(
     [request, busy],
     ([req, isBusy]) => {
@@ -101,6 +167,13 @@ export function useFollowEstimate(request: Ref<EstimateRequest | null>, busy: Re
         return;
       }
       if (state.value?.key === req.key && state.value.status === 'working') return;
+      if (otherKey === req.key && !isBusy) {
+        // Already being worked out in the background (another goal's a moment ago): its answer is this one's.
+        ++asked;
+        letGo();
+        state.value = { key: req.key, status: 'working' };
+        return;
+      }
       if (isBusy) {
         // A search has the memory: started when it ends (this watch runs again then).
         ++asked;
@@ -114,7 +187,8 @@ export function useFollowEstimate(request: Ref<EstimateRequest | null>, busy: Re
   );
   onScopeDispose(() => {
     ++asked;
+    dropOther();
     letGo();
   });
-  return { state };
+  return { state, otherStates };
 }

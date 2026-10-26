@@ -33,6 +33,7 @@ import {
   patchSnapshot,
   readSnapshot,
   snapshotUsable,
+  type SnapWhatIf,
 } from '@/search/instantSnapshot';
 import { insideHoursFor, readFilters, readInsideHoursChoice } from '@/search/instantFilters';
 import { isConstrained } from '@/search/availability';
@@ -101,6 +102,7 @@ import {
   goalDefs,
   goalOpen,
   goalKeyOf,
+  goalFollowOf,
   goalOptions,
   plansByGoal,
   type GoalAnswer,
@@ -609,8 +611,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   function selectGoal(key: GoalKey): void {
     chosenGoal.value = { scope: choiceScope.value, key };
   }
+  /** The pills; a followed goal's says how far its route's times are (`goalFollowOf`), never "no saved plan yet". */
   const goalChoices = computed(() =>
-    goalOptions(planGoals.value, zone.value).map(g => (followedKeys.value.has(g.key) ? { ...g, following: true } : g))
+    goalOptions(planGoals.value, zone.value).map(g => {
+      if (!followedKeys.value.has(g.key)) return g;
+      const fs = followStateOf(g.key);
+      return fs ? { ...g, following: true, follow: goalFollowOf(fs.card, fs.plan ? planFinish(fs.plan.plan) : null) } : { ...g, following: true };
+    })
   );
 
   /**
@@ -693,8 +700,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * (composables/useFollowEstimate.ts), with what this save's instant answer priced its own routes with: the selected
    * goal's own snapshot, else another goal's of the same save and setup.
    */
-  const estimatePick = computed<PickedPricing>(() => {
-    const fp = followPriced.value;
+  type FollowPriced = NonNullable<ReturnType<typeof followPricedFor>>;
+  function estimatePickFor(fp: FollowPriced | null): PickedPricing {
     if (!fp || (fp.price.priced !== 'none' && fp.price.priced !== 'finish')) return null;
     void kept.value;
     const sources: PricingSource[] = [];
@@ -736,18 +743,57 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         })
       );
     return pickPricing(sources, followedFromNow(fp.f.chain, teSoFar.value), teSoFar.value);
-  });
-  const estimateRequest = computed<EstimateRequest | null>(() => {
-    const p = estimatePick.value;
+  }
+  function estimateRequestOf(p: PickedPricing): EstimateRequest | null {
     if (!p || !('source' in p)) return null;
     return { key: estimateKey(saveSeconds.value, p.source, p.chain), url: p.source.url, options: p.source.pricing.options, chain: p.chain };
-  });
+  }
+  const estimatePick = computed<PickedPricing>(() => estimatePickFor(followPriced.value));
+  const estimateRequest = computed<EstimateRequest | null>(() => estimateRequestOf(estimatePick.value));
+  /** Every other followed goal's route as priced from what is saved, with its estimate's pick and request (priced in the
+   *  background on load, so its pill and Next steps have its times before it is picked: composables/useFollowEstimate.ts
+   *  `others`). */
+  const otherFollows = computed(() =>
+    hasSave.value
+      ? planGoals.value.flatMap(pg => {
+          if (pg.goal.key === selectedGoal.value || !follows.followed(pg.goal.key)) return [];
+          const fp = followPricedFor(pg);
+          if (!fp) return [];
+          const pick = estimatePickFor(fp);
+          return [{ fp, pick, req: estimateRequestOf(pick) }];
+        })
+      : []
+  );
+  const otherRequests = computed(() => otherFollows.value.flatMap(o => (o.req ? [o.req] : [])));
   const searchBusy = computed(() => store.isRunning || store.deadlineRunning || store.resultSending);
-  const { state: estimate } = useFollowEstimate(estimateRequest, searchBusy);
+  const { state: estimate, otherStates } = useFollowEstimate(estimateRequest, searchBusy, otherRequests);
 
   /** The selected goal's followed route and its plan: priced from what is saved, else estimated (above). */
   const followState = computed<{ card: FollowCard; plan: CardPlan | null } | null>(() => {
-    const fp = followPriced.value;
+    const req = estimateRequest.value;
+    return followStateFor(followPriced.value, estimatePick.value, req && estimate.value?.key === req.key ? estimate.value : null, !!req);
+  });
+  /** Another followed goal's, the same way (its estimate from the background). */
+  const otherFollowStates = computed(() => {
+    const out = new Map<GoalKey, { card: FollowCard; plan: CardPlan | null }>();
+    const states = otherStates.value;
+    for (const o of otherFollows.value) {
+      const st = followStateFor(o.fp, o.pick, o.req ? (states[o.req.key] ?? { key: o.req.key, status: 'working' }) : null, !!o.req);
+      if (st) out.set(o.fp.sel.goal.key, st);
+    }
+    return out;
+  });
+  /** Any followed goal's state: the selected one's, else the background's. */
+  function followStateOf(key: GoalKey) {
+    return key === selectedGoal.value ? followState.value : (otherFollowStates.value.get(key) ?? null);
+  }
+
+  function followStateFor(
+    fp: FollowPriced | null,
+    pick: PickedPricing,
+    est: import('./useFollowEstimate').EstimateState | null,
+    asked: boolean
+  ): { card: FollowCard; plan: CardPlan | null } | null {
     if (!fp) return null;
     const { sel, f, g, price } = fp;
     const sn = setupNow.value;
@@ -777,9 +823,6 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       };
     }
     // Estimated on the instant answer's data: its timeline, said to be an estimate (times rounded to the hour).
-    const req = estimateRequest.value;
-    const est = req && estimate.value?.key === req.key ? estimate.value : null;
-    const pick = estimatePick.value;
     if (est?.status === 'done' && pick && 'source' in pick) {
       const p = planFromEstimate(est.route, g, pick.source, est.at);
       const card: FollowCard = {
@@ -798,7 +841,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     }
     /** While it is worked out, or why it can't be (Right now's Next step). */
     // Asked and not answered yet counts as working, so "working it out" shows the whole time.
-    const estimating: FollowCard['estimating'] = req
+    const estimating: FollowCard['estimating'] = asked
       ? est?.status === 'waiting'
         ? 'waiting'
         : est?.status === 'failed'
@@ -826,11 +869,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       card: { chain: price.chain, from: f.from, label: followedLabel(f), price: 'none', source: null, pricedSave: null, ...(estimating ? { estimating } : {}) },
       plan: null,
     };
-  });
+  }
   /**
    * NEXT STEPS (lib/myRunsDashboard.ts `buildSteps`, 24 Oct 2026): each followed goal's route with its priced finish
-   * and prestiges (the selected goal's as Right now shows it, its estimate included; another goal's as priced from what
-   * is saved) and this save's Fast, Exact or Custom result for the goal when it is another route.
+   * and prestiges (as Right now shows it, its estimate included; another goal's estimate worked out in the background)
+   * and this save's Fast, Exact or Custom result for the goal when it is another route.
    */
   const followsForSteps = computed<FollowedForSteps[]>(() => {
     if (!hasSave.value) return [];
@@ -838,18 +881,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     for (const pg of planGoals.value) {
       const f = follows.followed(pg.goal.key);
       if (!f) continue;
-      const selected = pg.goal.key === selectedGoal.value;
-      let plan: NowPlan | null = null;
+      // Each goal as its pill and Right now show it: priced from what is saved, else its estimate (the selected goal's,
+      // or the background's for another: 25 Oct 2026).
+      const fs = followStateOf(pg.goal.key);
+      let plan: NowPlan | null = fs?.plan?.plan ?? null;
       let finish: { end: number; endTE: number } | null = null;
-      if (selected) {
-        const fs = followState.value;
-        plan = fs?.plan?.plan ?? null;
-        if (!plan && fs?.card.finish) finish = { end: fs.card.finish.end, endTE: fs.card.finish.endTE ?? f.chain[f.chain.length - 1] };
-      } else {
-        const fp = followPricedFor(pg);
-        if (fp?.price.priced === 'exact') plan = fp.price.plan;
-        else if (fp?.price.priced === 'finish') finish = { end: fp.price.end, endTE: fp.price.endTE ?? f.chain[f.chain.length - 1] };
-      }
+      if (!plan && fs?.card.finish) finish = { end: fs.card.finish.end, endTE: fs.card.finish.endTE ?? f.chain[f.chain.length - 1] };
       if (plan) finish = { end: planFinish(plan), endTE: plan.endTE };
       const pick = pg.pick;
       const thisSave = pick?.state === 'this-save' ? pick.candidate : null;
@@ -1120,8 +1157,16 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       match: setMatch.value,
       clothedEquipped: clothedOf(inv.equipped),
       clothedEarnings: clothedOf(inv.earnings),
-      whatIf: cardPlan.value?.state === 'this-save' ? cardPlan.value.plan.whatIf : null,
+      whatIf: selectedWhatIf.value ?? (cardPlan.value?.state === 'this-save' ? cardPlan.value.plan.whatIf : null),
     };
+  });
+  /** The maxed what-if kept with the selected goal's instant answer of THIS save and setup (its own snapshot key), so
+   *  a followed or estimated route still has it: the gear block's "With a perfect set" line (25 Oct 2026). */
+  const selectedWhatIf = computed<SnapWhatIf | null>(() => {
+    void kept.value;
+    const k = keys.value.find(x => x.d.key === selectedGoal.value);
+    const s = k ? (snapOf(instantSnapKey(k.key)) as { whatIf?: SnapWhatIf | null } | null) : null;
+    return s?.whatIf ?? null;
   });
 
   // -------------------------------------------------------------------------------- eggs and facts

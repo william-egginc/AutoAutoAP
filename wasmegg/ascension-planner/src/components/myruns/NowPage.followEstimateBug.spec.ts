@@ -245,7 +245,7 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     await vi.waitFor(() => expect(page.follow.value?.estimating).toBe('failed'));
     expect(vi.mocked(console.warn).mock.calls.some(c => String(c[0]).includes('225 300'))).toBe(true);
     const { text } = await render(page);
-    expect(text).toContain("Your route couldn't be priced on the instant answer's data: Simulate it ›");
+    expect(text).toContain("Your route couldn't be priced on the instant answer's data: a run from Try next, below, works out its times on your account.");
     scope.stop();
   });
 });

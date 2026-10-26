@@ -322,24 +322,36 @@ describe('your eggs and Try next', () => {
     expect(t).toContain('One more TE by Egg Day 2027 (249)');
   });
 
-  it('the gear: three rows, and the maxed what-if only when it was kept', async () => {
-    const t = textOf(
-      await renderHtml(GearBlock, {
-        equipped: [],
-        earnings: [],
-        production: [],
-        clothedEquipped: 198,
-        clothedEarnings: 204,
-        whatIf: { at: NOW * 1000, end: null, te: 252, mineEnd: null, mineTE: 248 },
-        goal: 'date',
-        whatIfWhen: 'Oct 15 at 2:40 PM',
-      })
-    );
+  it('the gear: three rows, and what the imperfect gear costs in time only when the what-if was kept', async () => {
+    const D = 86400;
+    const base = { equipped: [], earnings: [], production: [], clothedEquipped: 198, clothedEarnings: 204 };
+    const html = await renderHtml(GearBlock, {
+      ...base,
+      whatIf: { at: NOW * 1000, end: NOW + 40 * D, te: 252, mineEnd: NOW + 30 * D, mineTE: 248, sameEnd: NOW + 26 * D },
+      goal: 'date',
+    });
+    const t = textOf(html);
     expect(t).toContain('Equipped now');
     expect(t).toContain('Earnings set');
     expect(t).toContain('+6 Clothed TE vs equipped');
     expect(t).toContain('Production set');
-    expect(t).toContain('With maxed gear: +4 TE by the date (worked out Oct 15 at 2:40 PM).');
+    // By a date: the time to the same TE, not "+4 TE"; one line, after "Missing for a perfect set".
+    expect(t).toContain("With a perfect set you'd reach 248 TE about 4.0 days sooner (an estimate from the instant answer).");
+    expect(t).not.toContain('+4 TE');
+    expect(html.indexOf('data-testid="now-gear-perfect"')).toBeLessThan(html.indexOf('data-testid="now-gear-maxed"'));
+    expect(html.match(/data-testid="now-gear-maxed"/g)).toHaveLength(1);
+    // Fastest: the finish gap.
+    const f = textOf(await renderHtml(GearBlock, { ...base, whatIf: { at: 1, end: NOW + 10 * D, te: 490, mineEnd: NOW + 12 * D, mineTE: 490 }, goal: 'fastest' }));
+    expect(f).toContain("With a perfect set you'd reach 490 TE about 2.0 days sooner (an estimate from the instant answer).");
+    // Nothing kept, or an older By a date what-if without the same-TE time: no line, no placeholder.
+    for (const [whatIf, goal] of [
+      [null, 'fastest'],
+      [{ at: 1, end: NOW + 40 * D, te: 252, mineEnd: NOW + 30 * D, mineTE: 248 }, 'date'],
+    ] as const) {
+      const n = await renderHtml(GearBlock, { ...base, whatIf, goal });
+      expect(n).not.toContain('data-testid="now-gear-maxed"');
+      expect(textOf(n)).not.toContain('perfect set you');
+    }
   });
 });
 

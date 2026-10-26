@@ -189,7 +189,8 @@ describe("Right now: a route followed from this save's instant answer keeps the 
       // Nothing of this save to estimate it from: said, with the screen that works it out (24 Oct 2026).
       expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup");
       expect(text).toContain('Open Highest TE by a date once so the instant answer can price it ›');
-      expect(text).toContain('By Feb 10, 2027 no saved plan yet');
+      expect(text).toContain('By Feb 10, 2027 following · not priced on this save yet');
+      expect(text).not.toContain('By Feb 10, 2027 no saved plan yet');
     } finally {
       scope.stop();
     }

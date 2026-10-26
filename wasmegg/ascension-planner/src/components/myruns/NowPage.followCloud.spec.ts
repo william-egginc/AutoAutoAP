@@ -151,7 +151,7 @@ describe('Right now: a better result with and without a followed route', () => {
     expect(page.cardPlan.value?.plan.chain).toEqual(found.chain);
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
     expect(text).toContain('(Egg Day 2027 · from your Fast run)'.replace('2027', String(nextEggDayYear())));
-    expect(text).toContain('From your Fast run · Use the planner\'s route ›');
+    expect(text).toContain("From your Fast run Stop following: use the planner's route");
     expect(text).not.toContain('your pick');
     expect(text).not.toContain('This is a better route');
     // "Use the planner's route": not followed again for the same result.
@@ -179,7 +179,8 @@ describe('Right now: a better result with and without a followed route', () => {
     }
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
     expect(text).toContain(`(Egg Day ${nextEggDayYear()} · from the instant answer)`);
-    expect(text).toContain('From the instant answer · Use the planner\'s route ›');
+    expect(text).toContain('from the instant answer worked out ahead of time; times rounded to the hour From the instant answer ');
+    expect(text).toContain("Stop following: use the planner's route");
     expect(text).not.toContain('your pick');
     // Followed once already: the Fast result is offered, never followed on its own. Simulated against the instant
     // answer's estimate, so offered without calling it better (lib/searchPlan.ts simulatedOverEstimate).
@@ -419,8 +420,9 @@ describe('the prompt and Earlier versions on their own', () => {
     expect(read('./RightNowCard.vue')).toContain('<FollowHistory');
     // 44 px tap areas on a phone (desktop unchanged), and the failures in quiet amber, never red.
     const card = read('./RightNowCard.vue');
-    for (const t of ['now-follow-price', 'now-follow-simulate', 'now-follow-back'])
-      expect(card).toContain(`class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="${t}"`);
+    // One path per card (25 Oct 2026): Run Fast and Simulate it left the follow line; the way back is quiet, still 44 px.
+    for (const t of ['now-follow-price', 'now-follow-simulate']) expect(card).not.toContain(`data-testid="${t}"`);
+    expect(card).toContain('class="inline-flex min-h-[44px] items-center underline hover:text-slate-700 sm:min-h-0" data-testid="now-follow-back"');
     expect(hist).toContain('<span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>');
     expect(hist).toContain('<p v-if="message" class="mt-1 text-amber-800"');
     expect(hist).not.toMatch(/rose|red-/);
