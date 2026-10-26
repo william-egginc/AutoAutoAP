@@ -26,7 +26,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useShareNameStore } from '@/stores/shareName';
 import { accountHash } from '@/lib/accountHash';
 import { applySavedConsent, consentState } from '@/composables/useConsent';
-import { applySavedStudy, studyState } from '@/composables/useStudy';
+import { applySavedStudy, knownName, studyState } from '@/composables/useStudy';
 import {
   SYNCED_CONSENTS,
   buildConsentValue,
@@ -164,8 +164,15 @@ export const usePrefsStore = defineStore('prefs', () => {
     }
     const n = names();
     const anon = n?.anonymousFor(id);
-    const name = (n?.nameFor(id) ?? '').trim();
-    const credit: ConsentNow['credit'] = anon === true ? 'anonymous' : name ? 'name' : null;
+    // "Credit me as" is the name the send goes under: the one typed, else the header's (useStudy.ts `knownName`), as
+    // every Before you send shows it. Not picked yet (anonymous on every screen): no credit is saved.
+    let name = '';
+    try {
+      name = anon === false ? knownName(id) : '';
+    } catch {
+      name = (n?.nameFor(id) ?? '').trim();
+    }
+    const credit: ConsentNow['credit'] = anon === true ? 'anonymous' : anon === false && name ? 'name' : null;
     return { study, answeredAt: study ? rec.at : 0, ticks, credit, nickname: credit === 'name' ? name : '' };
   }
 

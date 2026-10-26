@@ -40,6 +40,12 @@ export interface ShareIdentity {
   /** The player typed in the name box: it stops following the account's name. Set it true after
    *  each keystroke (the boxes' `nicknameTyped`): what is in the box becomes the shared name. */
   nicknameTouched: WritableComputedRef<boolean>;
+  /** A run's own name for its own send (a carried-on run, or one that owes the board the row its best so far
+   *  started: '' for anonymous), on this screen only. It never changes the account's choice (it used to: a run
+   *  whose best so far went anonymously turned the account to Submit anonymously, Jordan 26 Oct 2026). The
+   *  player's own pick, or `dropCarried`, ends it. */
+  carryName(name: string): void;
+  dropCarried(): void;
 }
 
 /** The account's shared name (stores/shareName.ts): undefined until one is typed. */
@@ -66,9 +72,16 @@ export function createShareIdentity(
   optIn: Ref<boolean> = ref(false)
 ): ShareIdentity {
   const ownAnonymous = ref<boolean | undefined>(undefined);
+  /** A run's own name (`carryName`): this screen's, until the player picks or it is dropped. */
+  const carried = ref<string | null>(null);
   const anonymous = computed<boolean>({
-    get: () => (shared?.getAnonymous ? shared.getAnonymous() : ownAnonymous.value) ?? true,
-    set: v => (shared?.setAnonymous ? shared.setAnonymous(v) : (ownAnonymous.value = v)),
+    get: () =>
+      carried.value !== null ? !carried.value : ((shared?.getAnonymous ? shared.getAnonymous() : ownAnonymous.value) ?? true),
+    set: v => {
+      carried.value = null;
+      if (shared?.setAnonymous) shared.setAnonymous(v);
+      else ownAnonymous.value = v;
+    },
   });
   const own = ref<string | undefined>(undefined);
   const name: SharedName = shared ?? { get: () => own.value, set: v => (own.value = v) };
@@ -76,8 +89,9 @@ export function createShareIdentity(
   const local = ref<string | null>(null);
   const typed = ref(false);
   const nickname = computed<string>({
-    get: () => local.value ?? name.get() ?? accountName.value,
+    get: () => carried.value || (local.value ?? name.get() ?? accountName.value),
     set: v => {
+      carried.value = null;
       if (typed.value) {
         local.value = null;
         name.set(v);
@@ -94,7 +108,14 @@ export function createShareIdentity(
       }
     },
   });
-  return { optIn, anonymous, nickname, nicknameTouched };
+  return {
+    optIn,
+    anonymous,
+    nickname,
+    nicknameTouched,
+    carryName: n => (carried.value = n.trim()),
+    dropCarried: () => (carried.value = null),
+  };
 }
 
 /** The account's shared "Credit me as" name (stores/shareName.ts), loaded from this browser. */

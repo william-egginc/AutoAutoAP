@@ -14,7 +14,9 @@ import { usePrefsStore, PREFS_DEBOUNCE_MS } from '@/stores/prefs';
 import { hashID } from '@/lib/storage/db';
 import { localAtKey, prefsSig, buildSetupValue, type CloudSetup } from '@/lib/prefsCloud';
 import { consentAgreed, consentGivenThisVisit, consentRecord, resetConsents, setConsentAccount } from '@/composables/useConsent';
-import { answerYes, resetStudy, setStudyTick, studyState, studyStep } from '@/composables/useStudy';
+import { answerYes, defaultCredit, resetStudy, setStudyTick, studyState, studyStep } from '@/composables/useStudy';
+import { useShareIdentity } from '@/composables/useShareResult';
+import { useEidsStore } from 'lib';
 
 const ID = 'EI0000000000000000';
 /** sha256("aaap-follow-v1:EI0000000000000000") (node crypto). */
@@ -382,5 +384,71 @@ describe('two accounts', () => {
     expect(JSON.parse(mem.get(localAtKey(h1, 'setup'))!).sig).toContain('310');
     expect(JSON.parse(mem.get(localAtKey(h2, 'setup'))!).sig).toContain('420');
     expectNoId();
+  });
+});
+
+describe('"Credit me as": one setting with Before you send (Jordan, 26 Oct 2026)', () => {
+  const NAME = 'Williamthe5thc';
+
+  it('"Credit me as" the account\'s own name in the Help box is saved online as that name (it was saved as no credit)', async () => {
+    useEidsStore().eids.set(ID, { username: NAME });
+    await loadAccount();
+    calls = [];
+    answerYes({ share: true, csv: true, diag: true, checks: true }, 'name', NAME);
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(puts()).toHaveLength(1);
+    expect(body().value).toMatchObject({ credit: 'name', nickname: NAME });
+    // Then Submit anonymously under Run: saved too.
+    useShareIdentity(() => ID).anonymous.value = true;
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(puts()).toHaveLength(2);
+    expect(body(1).value.credit).toBe('anonymous');
+    expect(body(1).value.nickname).toBeUndefined();
+    expectNoId();
+  });
+
+  it('"Credit me as" picked under Run (the name following the header\'s) is saved online as that name', async () => {
+    useEidsStore().eids.set(ID, { username: NAME });
+    await loadAccount();
+    calls = [];
+    useShareIdentity(() => ID).anonymous.value = false;
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(body().value).toMatchObject({ credit: 'name', nickname: NAME });
+  });
+
+  it('a saved credit "name" + nickname is the Help box\'s and Before you send\'s, and the send\'s', async () => {
+    answer = cloudPrefs({ consent: entry({ at: AT - 60_000, answeredAt: AT - 60_000, study: 'yes', ticks: { leaderboard: true }, credit: 'name', nickname: NAME }) });
+    await loadAccount();
+    const who = useShareIdentity(() => ID);
+    expect(who.anonymous.value).toBe(false);
+    expect(who.nickname.value).toBe(NAME);
+    expect(defaultCredit(ID)).toBe('name');
+    expect(studyState.rec.credit).toBe('name');
+  });
+
+  it('a saved "anonymous" is both too, over this browser\'s older "Credit me as"', async () => {
+    const h = await hashID(ID);
+    mem.set(`aap-share-anon:${h}`, '0');
+    mem.set(`aap-share-name:${h}`, NAME);
+    answer = cloudPrefs({ consent: entry({ at: AT - 60_000, answeredAt: AT - 60_000, study: 'yes', ticks: { leaderboard: true }, credit: 'anonymous' }) });
+    await loadAccount();
+    expect(useShareIdentity(() => ID).anonymous.value).toBe(true);
+    expect(defaultCredit(ID)).toBe('anon');
+    expect(studyState.rec.credit).toBe('anon');
+  });
+
+  it('two accounts: one account\'s saved credit is never the other\'s', async () => {
+    answer = url =>
+      url.endsWith(KEY)
+        ? { status: 200, body: { prefs: { consent: entry({ at: AT - 60_000, study: 'yes', ticks: { leaderboard: true }, credit: 'name', nickname: NAME }) } } }
+        : { status: 200, body: { prefs: {} } };
+    const { prefs } = await loadAccount();
+    await setConsentAccount(ID2);
+    useInitialStateStore().rawBackup = { eiUserId: ID2 } as never;
+    await vi.waitFor(() => expect(gets()).toHaveLength(2));
+    await vi.waitFor(() => expect(prefs.following).toBe(true));
+    expect(useShareIdentity(() => ID2).anonymous.value).toBe(true);
+    expect(useShareNameStore().nameFor(ID2)).toBeUndefined();
+    expect(useShareIdentity(() => ID).nickname.value).toBe(NAME);
   });
 });

@@ -1341,6 +1341,8 @@ const {
   anonymous,
   nickname,
   nicknameTouched,
+  carryName,
+  dropCarried,
   includeCsv,
   diagnosticsGo,
   effectiveNickname,
@@ -1472,6 +1474,8 @@ const sentByRun = computed(() => autoSubmitted.value && submitOk.value && (submi
 /** Find (or carry on a run, `resume`); with `andSubmit`, the result is sent as Share this result
  *  would send it once the run finishes. */
 async function run(resume: boolean, andSubmit = false): Promise<void> {
+  // A fresh run goes under the account's own choice, not the last carried-on run's name.
+  if (!resume) dropCarried();
   const armed = andSubmit && optIn.value;
   autoSubmitted.value = false;
   store.lastAutoSend = null;
@@ -1495,10 +1499,8 @@ async function run(resume: boolean, andSubmit = false): Promise<void> {
   // name that went with it). Not once the player withdrew (`owedRow`).
   await store.bestSoFarSettled();
   const owed = store.owedRow('fastest');
-  if (!agreed && owed) {
-    anonymous.value = !owed.nickname;
-    if (owed.nickname) nickname.value = owed.nickname;
-  }
+  // Under the name its best so far went with, on this screen only (never the account's choice).
+  if (!agreed && owed) carryName(owed.nickname ?? '');
   // Stopped early it still sends: the best of what was priced is a real result, and the player asked
   // for it to be shared (the user, 30 Sept: "why does stopping early mean nothing is sent?").
   if (!(agreed || owed) || store.shareWithdrawn || store.error || store.bestDays <= 0) return;

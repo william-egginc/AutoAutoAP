@@ -2374,9 +2374,8 @@ async function resume(): Promise<void> {
   if (submit) {
     // The run's recorded yes, for this visit only.
     agreeThisVisit('leaderboard');
-    shareAnonymous.value = !submit.nickname;
-    // This screen's alone (composables/useShareResult.ts): the run's own name, not typed now.
-    if (submit.nickname) shareName.value = submit.nickname;
+    // This screen's alone (composables/useShareResult.ts `carryName`): the run's own name, never the account's choice.
+    carryShareName(submit.nickname ?? '');
     shareExtras.sendCsv.value = submit.sendCsv;
     shareExtras.sendDiagnostics.value = submit.sendDiagnostics;
   }
@@ -2418,10 +2417,8 @@ async function owesAnswer(): Promise<boolean> {
   await store.bestSoFarSettled();
   // Not once the player withdrew (store `owedRow`).
   const owed = store.owedRow('deadline');
-  if (!agreed && owed) {
-    shareAnonymous.value = !owed.nickname;
-    if (owed.nickname) shareName.value = owed.nickname;
-  }
+  // Under the name its best so far went with, on this screen only (never the account's choice).
+  if (!agreed && owed) carryShareName(owed.nickname ?? '');
   return agreed || !!owed;
 }
 
@@ -2477,6 +2474,8 @@ async function start(andSubmit: boolean, kind: ByDateKind, asked = false): Promi
   store.fitWorkersToRun(secondsAtDefault.value);
   autoShare.value = andSubmit && shareOptIn.value;
   autoShared.value = false;
+  // A fresh run goes under the account's own choice, not the last carried-on run's name.
+  dropCarriedName();
   store.lastAutoSend = null;
   // For the progress bar on other tabs: this run shares its answer when it finishes.
   store.submitsWhenDone = autoShare.value;
@@ -2760,6 +2759,8 @@ const {
   anonymous: shareAnonymous,
   nickname: shareName,
   nicknameTouched: shareNameTouched,
+  carryName: carryShareName,
+  dropCarried: dropCarriedName,
 } = shareIdentity;
 /** The send to Compare's Egg Day or By a date tab (useShareResult.ts `useByDateShare`). */
 const {
