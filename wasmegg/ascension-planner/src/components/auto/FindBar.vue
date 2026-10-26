@@ -153,8 +153,9 @@
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 px-3"
       summary-class="text-[11px] text-indigo-900"
     >
-      <!-- Only while the ticks are needed: before a run, or when Send best so far asks. -->
-      <template v-if="!optIn && (!running || asking)" #extra
+      <!-- Only while the ticks are needed: before a run with the send ticked, or when Send best so far asks. With the
+           send unticked a plain Run needs no ticks, so nothing shows (coordinator, 25 Oct 2026). -->
+      <template v-if="(!running && needsTicks) || (asking && !optIn)" #extra
         ><span class="font-bold text-amber-700" data-testid="ticks-needed">ticks needed</span></template
       >
       <!-- Already said yes (Yes to all, the ticks, Setup): stays folded, one line, never opened by Run. -->

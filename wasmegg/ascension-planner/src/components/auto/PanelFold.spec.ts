@@ -17,6 +17,7 @@ import StepAwayOptions from './StepAwayOptions.vue';
 import FindBar from './FindBar.vue';
 import { PANEL_FOLD, foldKey, type FoldSection } from '@/lib/panelFold';
 import { reloadRunSends } from '@/lib/runSends';
+import { useChainSearchStore } from '@/stores/chainSearch';
 
 const SECTIONS = Object.keys(PANEL_FOLD) as FoldSection[];
 
@@ -184,8 +185,11 @@ describe('Run with the send ticked still needs the ticks (Find and submit until 
   const base = { findDisabled: false, running: false, optIn: false, anonymous: true, nickname: '' };
   const runButton = (html: string) => html.match(/<button[^>]*data-testid="run-button"[^>]*>/)?.[0] ?? '';
 
-  it('the acknowledgement folds under "Before you send", with "ticks needed" in amber until ticked', async () => {
-    const html = await render(FindBar, base);
+  /** The send ticked by the player (sharing off): what the tick's change sets. */
+  const sendTicked = { file: 'FindBar.vue', run: (s: Record<string, unknown>) => void (s.ticked = true) };
+
+  it('the acknowledgement folds under "Before you send", with "ticks needed" in amber while the send is ticked without them', async () => {
+    const html = await render(FindBar, base, sendTicked);
     const tag = detailsTag(html, 'fold-acknowledgement');
     expect(isOpen(tag)).toBe(false);
     expect(html).toContain('Before you send');
@@ -194,8 +198,22 @@ describe('Run with the send ticked still needs the ticks (Find and submit until 
     expect(html.indexOf('data-testid="share-box"')).toBeGreaterThan(html.indexOf('data-testid="fold-acknowledgement"'));
     expect(html).toContain('I acknowledge the following');
     expect(await render(FindBar, { ...base, optIn: true })).not.toContain('data-testid="ticks-needed"');
+    // Sharing off and the send unticked (as it starts): a plain Run needs no ticks, so nothing shows there.
+    const plain = await render(FindBar, base);
+    expect(plain).not.toContain('data-testid="ticks-needed"');
+    expect(plain).not.toContain('data-testid="sharing-on"');
+    expect(isOpen(detailsTag(plain, 'fold-acknowledgement'))).toBe(false);
     // A run going sends nothing more without Send best so far asking: no ticks are needed then.
-    expect(await render(FindBar, { ...base, running: true })).not.toContain('data-testid="ticks-needed"');
+    expect(await render(FindBar, { ...base, running: true }, sendTicked)).not.toContain('data-testid="ticks-needed"');
+  });
+
+  it('Send best so far asking still shows "ticks needed", whatever the send tick says', async () => {
+    const store = useChainSearchStore();
+    store.beginBestSoFar('fastest', null);
+    store.askBestSoFar(true);
+    const html = await render(FindBar, { ...base, running: true, bestSoFarKind: 'fastest' });
+    expect(html).toContain('data-testid="ticks-needed"');
+    store.endBestSoFar();
   });
 
   it('never sends without the ticks: ticked with sharing off, greyed out, a press opens the fold and goes to the box, and never starts a run', async () => {
