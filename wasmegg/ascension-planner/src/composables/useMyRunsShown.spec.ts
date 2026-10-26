@@ -241,13 +241,13 @@ describe('a follow counts at once (QA 24 Oct 2026, Safari: Follow this route lef
 });
 
 describe('App.vue wiring', () => {
-  it('both tabs follow myRunsTabShown, which counts a running search', async () => {
+  it('the top tab follows myRunsTabShown, which counts a running search (no Auto Planner copy since 26 Oct 2026)', async () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const app = fs.readFileSync(path.resolve(__dirname, '../App.vue'), 'utf8');
     expect(app).toContain('const myRunsRunning = computed(() => searchActive.value || chainSearchStore.isRunning || chainSearchStore.deadlineRunning);');
     expect(app).toContain("myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown");
     expect(app).toContain('...(myRunsTabShown.value');
-    expect(app).toContain('v-if="myRunsTabShown"');
+    expect(app).not.toContain('data-testid="auto-tab-myruns"');
   });
 });

@@ -353,9 +353,11 @@
           <div class="flex justify-center">
             <!-- Below sm, one equal column per tab across the page, labels wrapping inside their
                  cell, so the underline stays on one line; from sm up, a centred row. Each at least
-                 44 px tall below sm (Jordan, 21 Oct 2026). -->
+                 44 px tall below sm (Jordan, 21 Oct 2026). Three tabs, Fastest, By a date, then Single run;
+                 My runs is a top tab only (Jordan, 26 Oct 2026: its copy here made the row jump when it
+                 appeared after the first answer). -->
             <div
-              class="grid grid-cols-2 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
+              class="grid grid-cols-3 w-full sm:flex sm:w-auto sm:flex-wrap sm:justify-center gap-1 border-b border-slate-200"
             >
               <button
                 v-for="v in autoTabs"
@@ -381,18 +383,6 @@
                   class="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-indigo-600 align-middle"
                   title="A search is running here"
                 ></span>
-              </button>
-              <!-- My runs here too (Jordan, 16 Oct 2026): the same page as the top tab (#/myruns), from
-                   where a player has just run something. Shown with the top tab: once the account has something there,
-                   or while a search runs (Jordan, 24 Oct 2026; lib/myRunsShown.ts). -->
-              <button
-                v-if="myRunsTabShown"
-                type="button"
-                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 border-transparent text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug text-slate-600 hover:text-slate-900"
-                data-testid="auto-tab-myruns"
-                @click="selectSection('myruns')"
-              >
-                {{ NAMES.myRuns }}
               </button>
             </div>
           </div>
@@ -1387,11 +1377,12 @@ const topTabs = computed(() => [
       ]
     : []),
 ]);
-/** "Fastest to 490 TE", following the Final target TE when it isn't 490. */
+/** "Fastest to 490 TE", following the Final target TE when it isn't 490. In this order (Jordan, 26 Oct 2026):
+ *  the two instant-answer screens first, Single run (Joo's planner) last. */
 const autoTabs = computed<{ id: AutoView; label: string; screen: SearchScreen | null }[]>(() => [
-  { id: 'classic', label: NAMES.classic, screen: null },
   { id: 'fastest', label: fastestName(chainSearchStore.finalTE), screen: null },
   { id: 'by-date', label: NAMES.byDate, screen: 'by-date' },
+  { id: 'classic', label: NAMES.classic, screen: null },
 ]);
 /**
  * TE straight from the loaded save, pending Truth Eggs included, the way the planner counts it when

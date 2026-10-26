@@ -212,15 +212,11 @@ describe('the My runs tab', () => {
     expect(tabs).toContain("{ 1: 'col-span-6', 2: 'col-span-3', 3: 'col-span-2' }");
   });
 
-  it("is also the Auto Planner's fourth sub-tab, opening the same page (#/myruns)", () => {
+  it('is a top tab only, not an Auto Planner sub-tab (Jordan, 26 Oct 2026: the sub-tabs jumped when it appeared)', () => {
     const nav = app.slice(app.indexOf('v-for="v in autoTabs"'), app.indexOf("v-else-if=\"plannerTab === 'science'\""));
-    expect(nav).toContain('data-testid="auto-tab-myruns"');
-    expect(nav).toContain("@click=\"selectSection('myruns')\"");
-    expect(nav).toContain('{{ NAMES.myRuns }}');
-    // With the top tab (myRunsTabShown); four tabs make two rows of two on a phone.
-    expect(nav).not.toContain('submitUrl');
-    expect(nav).toMatch(/v-if="myRunsTabShown"\s+type="button"\s+class="[^"]*"\s+data-testid="auto-tab-myruns"/);
-    expect(app).toContain('class="grid grid-cols-2 w-full sm:flex');
+    expect(nav).not.toContain('data-testid="auto-tab-myruns"');
+    expect(nav).not.toContain("@click=\"selectSection('myruns')\"");
+    expect(app).toContain('class="grid grid-cols-3 w-full sm:flex');
   });
 });
 
