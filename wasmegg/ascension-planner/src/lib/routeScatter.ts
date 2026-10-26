@@ -1,18 +1,16 @@
 /**
- * My runs' "Your routes at a glance" (RouteScatter.vue, Q9, 18 Oct 2026): the account's routes as points, from
- * what My runs already holds (the board rows LeaderboardPanel hands up: this browser's and the "maybe you" ones,
- * and the runs and answers saved on this device). Nothing is fetched or priced here. Pure.
+ * My runs' "Your routes at a glance" (RouteScatter.vue, Q9, 18 Oct 2026; a heat map since 26 Oct, binned by
+ * lib/heatBins.ts): the account's routes, from what My runs already holds (the board rows LeaderboardPanel hands
+ * up: this browser's and the "maybe you" ones, and the runs and answers saved on this device). Nothing is fetched
+ * or priced here. Pure.
  *
  * One goal at a time, because the rows carry different numbers per goal: a race row (Fastest) has its days to
  * the target and a finish; a By a date row has the TE it reaches and the time to spare before its date. Mixing
  * targets or dates on one picture would put a 12-day race to 490 beside a 3-day race to 300.
  *
- *   x  ascensions (the route's length), or the finish date (a race's finish, a date answer's last ascension)
- *   y  a race: days to the target (lower is sooner); a date: TE reached, or hours to spare
- *
- * Colour is the search level (ordinal: Light lightest, Exhaustive darkest; not recorded is grey), shape is
- * where the run is from (sent from this browser, looks like yours, saved here). The goal's best is
- * ringed. At most `SCATTER_CAP` points, the best kept, with a note when capped.
+ * The heat map counts the goal's routes by ascensions (across) and, up, a race's finish or a date answer's TE
+ * (`scatterView` with x = 'finish' for a race, so a run saved here without a finish is left out with a note).
+ * The search level (`level`) is the legend's filter; `from` says where the run came from, in the list.
  */
 import { formatMoment } from './clock';
 import {
@@ -320,13 +318,6 @@ export function yOf(p: ScatterPoint, y: ScatterY | 'days'): number | null {
   return p.spareHours;
 }
 
-export const X_NAMES: Record<ScatterX, string> = { asc: 'Ascensions', finish: 'Finish date' };
-export const Y_NAMES: Record<ScatterY | 'days', string> = {
-  days: 'Days to finish (lower is sooner)',
-  te: 'TE reached',
-  spare: 'Hours to spare',
-};
-
 const days1 = (d: number) => `${d.toFixed(1)} days`;
 const hours1 = (h: number) => `${h.toFixed(1)} h`;
 const asc = (n: number) => `${n} ${n === 1 ? 'ascension' : 'ascensions'}`;
@@ -396,61 +387,4 @@ export function scatterNotes(v: ScatterView, missed: number): string[] {
       `${missed} Highest TE by a date ${missed === 1 ? 'run misses its date' : 'runs miss their dates'}, so ${missed === 1 ? 'it is' : 'they are'} not shown.`
     );
   return out;
-}
-
-// ------------------------------------------------------------------------------------------- axes
-
-/** About `count` round ticks across [lo, hi]. */
-export function niceTicks(lo: number, hi: number, count = 5): number[] {
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [];
-  if (lo === hi) return [lo];
-  const raw = (hi - lo) / Math.max(1, count);
-  const mag = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) ?? raw;
-  const out: number[] = [];
-  for (let t = Math.ceil(lo / step) * step; t <= hi + step * 1e-9; t += step) out.push(Number(t.toFixed(10)));
-  return out;
-}
-
-/** Whole-number ticks for ascensions: every one up to 12 across, else a round step. */
-export function ascTicks(lo: number, hi: number): number[] {
-  if (hi - lo <= 12) return Array.from({ length: hi - lo + 1 }, (_, k) => lo + k);
-  return niceTicks(lo, hi).filter(t => Number.isInteger(t));
-}
-
-/** Day ticks for a finish date axis: midnights in `zone` (approximately: UTC days shifted by the zone's offset
- *  at `lo`), at most about six. */
-export function dateTicks(lo: number, hi: number): number[] {
-  const DAY = 86_400_000;
-  const span = Math.max(1, Math.ceil((hi - lo) / DAY));
-  const step = [1, 2, 3, 7, 14, 30].find(s => span / s <= 6) ?? 30;
-  const out: number[] = [];
-  for (let t = Math.ceil(lo / DAY) * DAY; t <= hi; t += step * DAY) out.push(t);
-  return out;
-}
-
-export function tickText(v: number, axis: ScatterX | ScatterY | 'days', zone: string): string {
-  if (axis === 'finish') return shortDate(v, zone);
-  if (axis === 'asc' || axis === 'te') return String(Math.round(v));
-  return Number.isInteger(v) ? String(v) : v.toFixed(1);
-}
-
-/** The point nearest a tap, by distance in the picture's own units, or null when none is within `maxDist`. A tie goes to
- *  the later point (the picture draws the best last, so it is the one on top). Overlapping hit areas can't mislead it. */
-export function nearestPoint<T extends { x: number; y: number }>(
-  pts: readonly T[],
-  x: number,
-  y: number,
-  maxDist: number
-): T | null {
-  let best: T | null = null;
-  let bestD = Infinity;
-  for (const q of pts) {
-    const d = Math.hypot(q.x - x, q.y - y);
-    if (d <= maxDist && d <= bestD) {
-      best = q;
-      bestD = d;
-    }
-  }
-  return best;
 }

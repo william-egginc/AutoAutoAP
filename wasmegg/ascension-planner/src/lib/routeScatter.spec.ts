@@ -4,12 +4,8 @@ import type { BoardRow } from './leaderboardRank';
 import {
   LEVEL_COLOURS,
   SCATTER_CAP,
-  ascTicks,
   buildScatter,
-  dateTicks,
   defaultGoal,
-  nearestPoint,
-  niceTicks,
   pointLines,
   scatterNotes,
   scatterSummary,
@@ -211,34 +207,8 @@ describe('scatterView', () => {
   });
 });
 
-describe('axes', () => {
-  it('round ticks, whole ascensions, day ticks', () => {
-    expect(niceTicks(0, 10, 5)).toEqual([0, 2, 4, 6, 8, 10]);
-    expect(niceTicks(244.2, 251.7, 5)).toEqual([246, 248, 250]);
-    expect(ascTicks(2, 5)).toEqual([2, 3, 4, 5]);
-    const DAY = 86_400_000;
-    expect(dateTicks(DAY * 10 + 5, DAY * 14)).toEqual([DAY * 11, DAY * 12, DAY * 13, DAY * 14]);
+describe('whenText', () => {
+  it('a moment in the browser\'s own format, 12-hour in en-US', () => {
     expect(whenText(Date.parse('2026-10-21T14:40:00Z'), ZONE)).toBe('Oct 21 at 2:40 PM');
-  });
-});
-
-describe('nearestPoint', () => {
-  const pts = [
-    { id: 'a', x: 100, y: 100 },
-    { id: 'b', x: 110, y: 100 },
-    { id: 'c', x: 300, y: 200 },
-  ];
-  it('picks the closest of overlapping points, whatever the order', () => {
-    expect(nearestPoint(pts, 108, 101, 22)?.id).toBe('b');
-    expect(nearestPoint(pts, 102, 99, 22)?.id).toBe('a');
-    expect(nearestPoint([...pts].reverse(), 102, 99, 22)?.id).toBe('a');
-  });
-  it('null when nothing is within reach, and on no points', () => {
-    expect(nearestPoint(pts, 200, 150, 22)).toBeNull();
-    expect(nearestPoint([], 1, 1, 22)).toBeNull();
-  });
-  it('reach is inclusive; a tie goes to the later (drawn on top) point', () => {
-    expect(nearestPoint(pts, 322, 200, 22)?.id).toBe('c');
-    expect(nearestPoint(pts, 105, 100, 22)?.id).toBe('b');
   });
 });
