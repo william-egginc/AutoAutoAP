@@ -36,10 +36,10 @@ afterEach(() => vi.useRealTimers());
 
 describe('the year on a timeline', () => {
   it('showWhen: the year only off this year, or always when asked', () => {
-    expect(showWhen(DEC8, ZONE, 'local', NOW / 1000)).toBe('Dec 8 at 7:43 PM');
-    expect(showWhen(DEC8, ZONE, 'local', NOW / 1000, true)).toBe('Dec 8, 2026 at 7:43 PM');
-    expect(showWhen(JAN3, ZONE, 'local', NOW / 1000)).toBe('Jan 3, 2027 at 3:00 PM');
-    expect(showWhen(JAN3, ZONE, 'local', NOW / 1000, true)).toBe('Jan 3, 2027 at 3:00 PM');
+    expect(showWhen(DEC8, ZONE, 'local', NOW / 1000)).toBe('Dec 8, 7:43 PM');
+    expect(showWhen(DEC8, ZONE, 'local', NOW / 1000, true)).toBe('Dec 8, 2026, 7:43 PM');
+    expect(showWhen(JAN3, ZONE, 'local', NOW / 1000)).toBe('Jan 3, 2027, 3:00 PM');
+    expect(showWhen(JAN3, ZONE, 'local', NOW / 1000, true)).toBe('Jan 3, 2027, 3:00 PM');
   });
 
   it('spansYears reads the planner zone (Dec 31 evening in Chicago is Jan 1 in UTC)', () => {
@@ -54,17 +54,17 @@ describe('the year on a timeline', () => {
     const legs = [leg(DEC8 - 40 * H, DEC8, 230), leg(DEC8, JAN3, 248)];
     expect(spansYears(timelineMoments(routeTimeline([230, 248], legs)), ZONE)).toBe(true);
     const t = textOf(await renderHtml(RouteTimeline, { chain: [230, 248], legs, zone: ZONE, open: true }));
-    expect(t).toContain('A1 → 230 TE · reached Dec 8, 2026 at 7:43 PM');
-    expect(t).toContain('A2 → 248 TE · reached Jan 3, 2027 at 3:00 PM');
+    expect(t).toContain('A1 → 230 TE · reached Dec 8, 2026, 7:43 PM');
+    expect(t).toContain('A2 → 248 TE · reached Jan 3, 2027, 3:00 PM');
     expect(t).not.toMatch(/Dec \d+ at/);
     const one = textOf(await renderHtml(RouteTimeline, { chain: [230, 248], legs, zone: ZONE, only: 0, open: true }));
-    expect(one).toContain('reached Dec 8, 2026 at 7:43 PM');
+    expect(one).toContain('reached Dec 8, 2026, 7:43 PM');
   });
 
   it('a route inside this year keeps the bare dates', async () => {
     const legs = [leg(DEC8 - 80 * H, DEC8 - 40 * H, 230), leg(DEC8 - 40 * H, DEC8, 248)];
     const t = textOf(await renderHtml(RouteTimeline, { chain: [230, 248], legs, zone: ZONE, open: true }));
-    expect(t).toContain('A2 → 248 TE · reached Dec 8 at 7:43 PM');
+    expect(t).toContain('A2 → 248 TE · reached Dec 8, 7:43 PM');
     expect(t).not.toContain('2026');
   });
 });
