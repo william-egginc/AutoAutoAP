@@ -1,6 +1,6 @@
 /**
  * My runs' save-age strip (spec "myruns-now" section 1): how old the loaded save is, because every time on the page
- * comes from it. Green under `SAVE_AMBER_HOURS`, amber to `SAVE_RED_HOURS`, red past it (Jordan, 15 Oct 2026: 6 h
+ * comes from it. Neutral (slate, not answer-green) under `SAVE_AMBER_HOURS`, amber to `SAVE_RED_HOURS`, red past it (Jordan, 15 Oct 2026: 6 h
  * and 24 h, "we will see what players think"). Pure: the clock is a parameter.
  */
 import { agoLong, dateAt } from './eventWhen';

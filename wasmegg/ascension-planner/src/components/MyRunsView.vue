@@ -25,17 +25,9 @@
   <div class="space-y-3 pb-16" data-testid="my-runs">
     <div>
       <h1 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h1>
-      <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
-        <template v-if="hasBoard">
-          Where you are now, from your save and the answers already worked out, then your runs: the latest, the ones on
-          the board, the runs and answers saved on {{ thisDevice() }} and results not sent yet. The only thing worked out
-          here is a quick estimate of a route you follow, from the instant answer's data.
-        </template>
-        <template v-else>
-          Where you are now, from your save and the answers already worked out, then your runs: the latest, and the
-          runs and answers saved on {{ thisDevice() }}. The only thing worked out here is a quick estimate of a route you
-          follow, from the instant answer's data.
-        </template>
+      <!-- One line (ux review 26 Oct, row 15): what the page holds is in its section headings below. -->
+      <p class="text-sm text-slate-600 leading-relaxed max-w-3xl" data-testid="my-runs-intro">
+        The only thing worked out here is a quick estimate of a route you follow, from the instant answer's data.
       </p>
     </div>
 
@@ -108,6 +100,7 @@
           :standing="standingWords(page.shownTile.value.stand)"
           :standing-label="page.shownTile.value.standingLabel"
           :open="page.shownTile.value.open ?? null"
+          :run-fast-above="runFastAbove"
           @open="to => emit('open', to)"
           @routes="showRuns(page.shownTile.value.goal)"
         />
@@ -389,7 +382,17 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
-const pills = computed(() => tryNextPills(page.fastestTile.value, page.eggDayTile.value));
+/**
+ * Right now's Run Fast button is showing (RightNowCard: a card, on virtue): the one Run Fast on My runs (ux review
+ * 26 Oct, row 15). The tile's How sure and Try next's "Egg Day, Fast" then don't repeat it for the same goal.
+ */
+const runFastAbove = computed(() => !!page.cardPlan.value && page.onVirtue.value !== false);
+const pills = computed(() => {
+  const all = tryNextPills(page.fastestTile.value, page.eggDayTile.value);
+  const g = page.cardPlan.value?.goal;
+  const eggDayAbove = runFastAbove.value && g?.goal === 'date' && g.deadline === page.eggDayAt;
+  return eggDayAbove ? all.filter(p => p.id !== 'eggday-fast') : all;
+});
 /** "One more TE by Egg Day … would come …, after Egg Day starts, so it isn’t counted.": saved legs only, the laid
  *  egg's next TE (lib/tryNext.ts `oneMoreLine`, from endEggsOf's `next`). */
 const oneMore = computed(() => {

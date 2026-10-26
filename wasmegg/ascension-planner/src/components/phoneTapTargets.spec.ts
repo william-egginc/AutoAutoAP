@@ -105,13 +105,12 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     const form = fs.readFileSync(path.resolve(__dirname, '../../../../ui/components/PlayerIdForm.vue'), 'utf8');
     expect(form).toContain('aria-label="Edit name"');
   });
-  it('My runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, run Fast, Work out my plan)', () => {
+  it('My runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, Work out my plan)', () => {
     expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-fresh"')).toContain(TAP);
     const tile = read('myruns/SavedTile.vue');
-    expect(tagWith(tile, 'v-if="tile.sure.action"')).toContain(TAP);
+    expect(tagWith(tile, 'v-if="tile.sure.action && !runFastAbove"')).toContain(TAP);
     expect(tagWith(tile, "@click=\"emit('open', screenOpen)\"")).toContain(TAP);
     expect(tagWith(tile, "@click=\"emit('routes')\"")).toContain(TAP);
-    expect(tagWith(read('myruns/EventsTable.vue'), 'data-testid="now-run-fast"')).toContain(TAP);
     const now = read('myruns/RightNowCard.vue');
     expect(tagWith(now, 'data-testid="now-behind-run-fast"')).toContain(TAP);
     expect(tagWith(now, 'data-testid="now-work-out-plan"')).toContain(TAP);

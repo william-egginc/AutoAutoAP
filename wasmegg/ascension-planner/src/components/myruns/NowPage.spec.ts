@@ -231,6 +231,24 @@ describe('a saved-answer tile', () => {
     expect(t).toContain('See the routes ›');
   });
 
+  it("Right now's Run Fast is on the page: How sure gives the reason, no second Run Fast (ux review 26 Oct, row 15)", async () => {
+    const t = textOf(
+      await renderHtml(SavedTile, {
+        tile: tile(),
+        goal: 'date',
+        title: 'Egg Day 2027',
+        target: 490,
+        now: NOW,
+        zone: ZONE,
+        standing: '',
+        standingLabel: 'Egg Day',
+        runFastAbove: true,
+      })
+    );
+    expect(t).toContain('How sure: Medium Instant answer, 5 days old.');
+    expect(t).not.toContain('Run Fast');
+  });
+
   it('nothing yet: says so, with its screen', async () => {
     const t = textOf(
       await renderHtml(SavedTile, {

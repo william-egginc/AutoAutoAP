@@ -18,6 +18,7 @@ import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold } from '@/l
 import { totalAwayTime } from '@/stores/silos';
 import type { CurrentFarmState, ResearchLevels, VehicleSlot } from '@/types';
 import { SAVE_EGG_ORDER } from './nowPlan';
+import { relativeWords } from './eventWhen';
 
 /** The farm fields of a save read here (ei.IBackup's, loosely). */
 interface RawFarm {
@@ -170,4 +171,22 @@ export function eggLines(
     const nextInSeconds = current && elr && elr > 0 && Number.isFinite(hi) ? (hi - d) / elr : null;
     return { egg, te, progress, current, nextInSeconds };
   });
+}
+
+/** Past this many days a next TE "at the save's rate" is no time to plan by (ux review 26 Oct, row 15: "next TE in
+ *  57308 days"): said as "not at this rate" instead. About 10 years. */
+export const NEXT_TE_CAP_DAYS = 3650;
+
+/**
+ * The line under an egg on Your eggs. Only the egg being laid gets a time; the others' next TE comes after a shift
+ * (never timed "at the final rate"). `nowSeconds - saveSeconds` has already passed since the save.
+ */
+export function nextTeLine(e: EggLine, nowSeconds: number, saveSeconds: number): string {
+  const pct = `${Math.round(e.progress * 100)}% to the next TE`;
+  if (!e.current) return `${pct} · after a shift`;
+  if (e.nextInSeconds == null) return pct;
+  const left = e.nextInSeconds - Math.max(0, nowSeconds - saveSeconds);
+  if (left <= 0) return 'next TE likely reached since your save';
+  if (left > NEXT_TE_CAP_DAYS * 86400) return 'next TE: not at this rate (over 10 years)';
+  return `next TE ${relativeWords(left)} at your save's rate`;
 }
