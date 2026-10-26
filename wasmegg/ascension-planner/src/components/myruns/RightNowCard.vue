@@ -468,7 +468,7 @@ import { showDateTime } from '@/lib/displayTime';
 import type { AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
-import { emptyGoalWords, followNoTimesWords, followOptionWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
+import { answerOptionWords, emptyGoalWords, followNoTimesWords, followOptionWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
 import { type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { paceWords } from '@/lib/planPace';
 import { planCalEvent } from '@/lib/calendarEvents';
@@ -675,6 +675,7 @@ function optionSub(g: GoalOption): string {
   // A followed route: what is true of it, never "no saved plan yet" (25 Oct 2026).
   if (g.follow) return followOptionWords(g.follow, t => dayWords(t, props.zone), lateMarker(g.kind === 'eggday' ? 'eggday' : 'date'));
   if (g.state === 'late') return 'no route in time';
+  if (g.answer) return answerOptionWords(g.answer, t => dayWords(t, props.zone));
   if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved plan with its times yet' : 'no saved plan yet';
   return g.calculatedAt ? `calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : 'saved plan';
 }

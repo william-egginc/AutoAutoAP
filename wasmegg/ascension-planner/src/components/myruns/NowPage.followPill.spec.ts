@@ -96,7 +96,7 @@ const TABLE = 'precompute/table-v2.bin';
  */
 async function setup(
   followed: Record<string, unknown>,
-  o: { fast?: boolean; final?: number; pricing?: boolean; startTE?: number; snapFor?: 'eggday' | 'race'; followKey?: string; select?: boolean; whatIf?: SnapWhatIf; tableTo?: number; record?: boolean } = {}
+  o: { fast?: boolean; final?: number; pricing?: boolean; startTE?: number; snapFor?: 'eggday' | 'race'; followKey?: string; select?: boolean; whatIf?: SnapWhatIf; tableTo?: number; record?: boolean; before?: (now: number) => void } = {}
 ) {
   loadAndSyncBackup(A_ID, save(), 'plan_next');
   rollUpPendingTE();
@@ -174,6 +174,7 @@ async function setup(
   mem.set(`${FOLLOW_PREFIX}${await hashID(A_ID)}`, JSON.stringify({ [goalKey]: followed }));
   const follows = useFollowStore();
   await vi.waitFor(() => expect(follows.partition).not.toBe(''));
+  o.before?.(now);
   const scope = effectScope();
   const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
   if (o.select !== false) {
@@ -512,6 +513,45 @@ describe("Jordan's continued ascension on Curiosity (26 Oct 2026: \"Building up 
     expect(t).toContain("Following your pick · the ascension you are in simulated on your save, the rest estimated from the instant answer's data");
     expect(t).toContain('The ascension you are in, simulated on your save; the rest of your route');
     scope.stop();
+  });
+});
+
+describe('an unfollowed goal with a saved answer: the pill agrees with the tile (26 Oct 2026, QA)', () => {
+  it("Fastest to 490 TE, nothing followed, its last checked answer kept: \"not followed · instant answer lands about …\", not \"no saved plan yet\"", async () => {
+    const { instantKeyFromStores } = await import('@/composables/useNowPage');
+    // Egg Day followed; Fastest to 490 TE not: only its last checked answer is kept (no snapshot with its times).
+    const fresh = await setup(
+      { chain: [205, 238], from: 'typed', at: at(), source: 'manual' },
+      {
+        select: false,
+        before: now =>
+          mem.set(instantKeyFromStores(null, 490)!, JSON.stringify({ at: Date.now() - 60_000, chain: [226, 277, 317, 490], end: now + 9 * D, endTE: 490 })),
+      }
+    );
+    const pill = () => fresh.page.goalChoices.value.find(g => g.key === 'fastest-490');
+    await vi.waitFor(() => expect(pill()?.answer).toBeTruthy());
+    expect(pill()?.following).toBeFalsy();
+    expect(fresh.page.shownTile.value).toBeTruthy();
+    const t = textOf(
+      await renderHtml(RightNowCard, { ...(await renderProps(fresh.page)), goals: fresh.page.goalChoices.value }, {}, [getActivePinia()!])
+    );
+    expect(t).toMatch(/Fastest to 490 TE not followed · (instant answer lands about|lands) [A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    expect(t).not.toContain('Fastest to 490 TE no saved plan yet');
+    fresh.scope.stop();
+  });
+
+  it('the words, and "no saved plan yet" only without an answer', async () => {
+    const { answerOptionWords } = await import('@/lib/planGoals');
+    const day = (t: number) => `day ${t}`;
+    expect(answerOptionWords({ end: 5, how: 'instant' }, day)).toBe('not followed · instant answer lands about day 5');
+    expect(answerOptionWords({ end: 5, how: 'search', found: 'Fast' }, day)).toBe('not followed · your Fast run lands day 5');
+    expect(answerOptionWords({ end: 5, how: 'check' }, day)).toBe('not followed · lands day 5');
+    const opt = { key: 'fastest-490', kind: 'race', label: 'Fastest to 490 TE', name: 'Fastest to 490 TE', deadline: null, calculatedAt: null, open: { auto: 'fastest', depth: 'smart', target: 490 } } as const;
+    const base = { card: null, onVirtue: true, currentEgg: 'curiosity', teSoFar: 195, ascNow: 0, track: null, events: [], shownEvents: [], gear: null, now: 1_800_000_000, zone: ZONE, saveSeconds: 1_800_000_000, eggDayYear: 2027, selectedGoal: 'fastest-490' };
+    const none = textOf(await renderHtml(RightNowCard, { ...base, goals: [{ ...opt, state: 'none' }] }));
+    expect(none).toContain('Fastest to 490 TE no saved plan yet');
+    const withAnswer = textOf(await renderHtml(RightNowCard, { ...base, goals: [{ ...opt, state: 'none', answer: { end: 1_800_500_000, how: 'instant' } }] }));
+    expect(withAnswer).toMatch(/Fastest to 490 TE not followed · instant answer lands about /);
   });
 });
 

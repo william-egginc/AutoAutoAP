@@ -70,7 +70,7 @@ import {
   type NowPlan,
   type SnapLike,
 } from '@/lib/nowPlan';
-import { buildTile, type SavedDateAnswer, type Tile } from '@/lib/savedTiles';
+import { answerFinish, buildTile, type SavedDateAnswer, type Tile } from '@/lib/savedTiles';
 import {
   drivingPlan,
   findKeptSearch,
@@ -623,7 +623,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** The pills; a followed goal's says how far its route's times are (`goalFollowOf`), never "no saved plan yet". */
   const goalChoices = computed(() =>
     goalOptions(planGoals.value, zone.value).map(g => {
-      if (!followedKeys.value.has(g.key)) return g;
+      if (!followedKeys.value.has(g.key)) {
+        // No plan with its times: the saved answer tile's answer for the goal, when it has one (the pill agrees).
+        if (g.state === 'plan' || g.state === 'late') return g;
+        const pg = planGoals.value.find(p => p.goal.key === g.key);
+        const a = pg ? tileFor(goalOf(pg.goal)).answer : null;
+        return a ? { ...g, answer: { end: answerFinish(a), how: a.how, found: a.found ?? null } } : g;
+      }
       const fs = followStateOf(g.key);
       return fs
         ? { ...g, following: true, follow: goalFollowOf(fs.card, fs.plan ? planFinish(fs.plan.plan) : null, g.key === selectedGoal.value ? currentChip.value : null) }

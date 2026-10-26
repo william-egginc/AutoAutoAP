@@ -220,6 +220,26 @@ export interface GoalOption {
   following?: boolean;
   /** With a followed route: how far its times are (the pill says it, never "no saved plan yet"). */
   follow?: GoalFollow;
+  /** Nothing followed and no plan with its times, but the saved answer tile has an answer for the goal (26 Oct 2026,
+   *  QA: the pill said "no saved plan yet" over a tile showing one): when it lands and what found it. */
+  answer?: GoalAnswerLine;
+}
+
+/** The saved answer tile's answer as the pill reads it (lib/savedTiles.ts TileAnswer). */
+export interface GoalAnswerLine {
+  /** When it lands (its last TE counts), unix seconds. */
+  end: number;
+  how: 'instant' | 'check' | 'search';
+  /** A search's name: Fast, Exact or Custom. */
+  found?: string | null;
+}
+
+/** An unfollowed goal's pill with a saved answer: "not followed · instant answer lands about Nov 4, 2026", "not
+ *  followed · your Fast run lands Nov 4, 2026", "not followed · lands Nov 4, 2026" (the followed pill's words). */
+export function answerOptionWords(a: GoalAnswerLine, dayWords: (unix: number) => string): string {
+  if (a.how === 'instant') return `not followed · instant answer lands about ${dayWords(a.end)}`;
+  if (a.how === 'search' && a.found) return `not followed · your ${a.found} run lands ${dayWords(a.end)}`;
+  return `not followed · lands ${dayWords(a.end)}`;
 }
 
 /**
