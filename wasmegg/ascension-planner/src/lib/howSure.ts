@@ -30,14 +30,15 @@ export const HIGH_RUNNER_UP_FASTEST_HOURS = 24;
 export const TIE_HOURS = 0.05;
 
 export type SureLevel = 'high' | 'medium' | 'low';
-/** A search's strength, weakest first ('quick' is Fast, 'normal' Exact, 'thorough' Very high). */
+/** A search's strength, weakest first ('quick' is Fast, 'normal' Exact, 'thorough' the retired Very high, said
+ *  "Exact (wider)": the glossary of 25 Oct 2026 retires "Very high" as a player word; old runs keep their own colour). */
 export type SearchLevel = 'light' | 'quick' | 'normal' | 'thorough' | 'exhaustive';
 const RANK: Record<SearchLevel, number> = { light: 0, quick: 1, normal: 2, thorough: 3, exhaustive: 4 };
 export const LEVEL_WORDS: Record<SearchLevel, string> = {
   light: 'Checked at once',
   quick: 'Fast',
   normal: 'Exact',
-  thorough: 'Very high',
+  thorough: 'Exact (wider)',
   exhaustive: 'Custom',
 };
 
@@ -129,7 +130,7 @@ export function howSure(i: SureInput): Sure {
   } else {
     const strong = atLeast(i.agreeing, 'normal') ? i.agreeing! : i.how === 'search' && atLeast(i.level, 'normal') ? i.level! : null;
     if (strong && runner != null && runner > HIGH_RUNNER_UP_FASTEST_HOURS)
-      return { level: 'high', reason: `${strong === 'thorough' ? 'a' : 'an'} ${LEVEL_WORDS[strong]} search agrees; the next route is ${hours(runner)} behind` };
+      return { level: 'high', reason: `${/^[AEIOU]/.test(LEVEL_WORDS[strong]) ? 'an' : 'a'} ${LEVEL_WORDS[strong]} search agrees; the next route is ${hours(runner)} behind` };
     if (strong)
       return {
         level: 'medium',

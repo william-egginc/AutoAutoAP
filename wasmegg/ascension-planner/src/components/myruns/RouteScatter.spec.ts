@@ -52,7 +52,7 @@ describe('Your routes at a glance', () => {
     for (const k of [
       'Fast',
       'Exact',
-      'Very high',
+      'Exact (wider)',
       'Sent from this browser',
       'Maybe you',
       'Saved on this computer',
@@ -63,7 +63,7 @@ describe('Your routes at a glance', () => {
     expect(t).toContain('Every run is also in Your runs below, with its filters.');
   });
 
-  it('the key lists Very high only when a run used it (an Exhaustive saved run is not Very high, 23 Oct 2026)', async () => {
+  it('the key lists Exact (wider), the retired Very high, only when a run used it (a Custom saved run is not, 23 Oct 2026)', async () => {
     const key = (html: string) => textOf(html.match(/data-testid="my-runs-scatter-key"[\s\S]*?<\/div>/)?.[0] ?? '');
     const none = key(
       await renderHtml(RouteScatter, {
@@ -78,11 +78,13 @@ describe('Your routes at a glance', () => {
     expect(none).toContain('Exact');
     expect(none).toContain('Fast');
     expect(none).toContain('Custom');
+    expect(none).not.toContain('Exact (wider)');
     expect(none).not.toContain('Very high');
     const used = key(
       await renderHtml(RouteScatter, { ...base, rows: [race(490, [300, 490], 11, { level: 'thorough' })] })
     );
-    expect(used).toContain('Very high');
+    expect(used).toContain('Exact (wider)');
+    expect(used).not.toContain('Very high');
   });
 
   it('loading and empty say so in one line', async () => {
