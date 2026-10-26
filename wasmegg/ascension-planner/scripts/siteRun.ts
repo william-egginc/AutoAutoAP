@@ -745,11 +745,14 @@ async function writeRunFiles(
   const payload = kind === 'chains' ? store.buildRunSubmission(nickname) : route ? store.buildDeadlineSubmission(route, nickname) : null;
   const csvFile = join(dir, CSV_FILE);
   if (o.out.csv) {
-    // run.csv.gz is what a send uploads (the collector's rule); the plain run.csv and run-full.csv.gz
-    // are the downloads: every route's legs, from the leg spill.
+    // run.csv.gz is what a send uploads (the collector's rule: legs for the top 20,000 routes); the plain
+    // run.csv and run-full.csv.gz are the downloads: every route's legs, from the leg spill.
     const fullKind = kind === 'chains' ? 'fastest' : 'deadline';
     if (kind === 'chains') {
-      await writeGzip(csvFile, store.exportCsvChunks());
+      // As a send uploads it: legs for the top routes, from the spill (store `fastestUploadCsv`).
+      const table = await store.fastestUploadCsv();
+      if ('gz' in table) writeFileSync(csvFile, new Uint8Array(table.gz));
+      else await writeGzip(csvFile, table);
     } else {
       const text = scrubIdentifiers(store.deadlineCsv());
       await writeGzip(csvFile, [text]);

@@ -73,7 +73,7 @@ export function breathe(): Promise<void> {
  * since nothing can sweep an opaque gzip stream afterwards (stores/chainSearch.ts `gzip`).
  */
 export async function gzipChunksCapped(
-  chunks: Iterable<string>,
+  chunks: Iterable<string> | AsyncIterable<string>,
   cap: number,
   scrub: (text: string) => string = t => t,
   /** Checked between chunks: true gives up, rejecting with `GzipStopped` (a timeout, the run's end). */
@@ -101,7 +101,7 @@ export async function gzipChunksCapped(
   const encoder = new TextEncoder();
   let gaveUp = false;
   try {
-    for (const chunk of chunks) {
+    for await (const chunk of chunks) {
       if (over) break;
       if (stopped()) {
         gaveUp = true;

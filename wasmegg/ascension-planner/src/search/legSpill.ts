@@ -34,6 +34,8 @@ export interface SpillBackend {
   append(bytes: Uint8Array): void | Promise<void>;
   /** `len` bytes from `at`. */
   read(at: number, len: number): Uint8Array | Promise<Uint8Array>;
+  /** Several spans at once ([at, len] each), for a backend where each read is a round trip (a worker). */
+  readMany?(spans: readonly (readonly [number, number])[]): Promise<Uint8Array[]>;
   /** Make what has been appended durable. */
   sync(): void | Promise<void>;
   /** Cut the file to `size` bytes. */
@@ -77,7 +79,8 @@ export class LegSpill implements LegTailSource {
 
   constructor(
     private readonly backend: SpillBackend,
-    private readonly tz: string
+    /** The timezone the leg cells are written in (the run's); a full CSV says this one. */
+    readonly timezone: string
   ) {}
 
   /** Routes with leg cells stored. */
@@ -106,7 +109,7 @@ export class LegSpill implements LegTailSource {
   put(key: string, legs: readonly LegSummary[]): void {
     if (this.stoppedText || !legs.length) return;
     if (this.index.has(key) && legs.some(l => l.replayed)) return;
-    const line = `${key}\t${legTails(legs, this.tz).map(clean).join(SEP)}\n`;
+    const line = `${key}\t${legTails(legs, this.timezone).map(clean).join(SEP)}\n`;
     const bytes = this.enc.encode(line);
     const n = this.records++;
     if (n >= this.at.length) {
@@ -175,17 +178,21 @@ export class LegSpill implements LegTailSource {
   async tails(keys: readonly string[]): Promise<(string[] | null)[]> {
     this.drain();
     await this.pending;
-    const out: (string[] | null)[] = [];
-    for (const key of keys) {
-      const n = this.index.get(key);
-      if (n === undefined) {
-        out.push(null);
-        continue;
-      }
-      const text = this.dec.decode(await this.backend.read(this.at[n], this.len[n]));
+    const parse = (bytes: Uint8Array): string[] | null => {
+      const text = this.dec.decode(bytes);
       const tab = text.indexOf('\t');
-      out.push(tab < 0 ? null : text.slice(tab + 1).replace(/\n$/, '').split(SEP));
+      return tab < 0 ? null : text.slice(tab + 1).replace(/\n$/, '').split(SEP);
+    };
+    const found = keys.map(k => this.index.get(k));
+    if (this.backend.readMany) {
+      const spans: [number, number][] = [];
+      for (const n of found) if (n !== undefined) spans.push([this.at[n], this.len[n]]);
+      const parts = spans.length ? await this.backend.readMany(spans) : [];
+      let i = 0;
+      return found.map(n => (n === undefined ? null : parse(parts[i++] ?? new Uint8Array(0))));
     }
+    const out: (string[] | null)[] = [];
+    for (const n of found) out.push(n === undefined ? null : parse(await this.backend.read(this.at[n], this.len[n])));
     return out;
   }
 

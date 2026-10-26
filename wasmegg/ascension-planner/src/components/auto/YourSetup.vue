@@ -522,6 +522,15 @@
                 <span class="font-bold text-slate-700">0 keeps everything</span>, which on a run of hundreds of
                 thousands of routes is how a tab gets killed overnight.
               </p>
+              <p v-if="store.legSpillInfo" class="text-[11px] text-slate-500 leading-relaxed" data-testid="leg-spill-note">
+                The downloaded CSV still has every route's detail: it is kept on {{ thisDevice() }}'s disk as the run
+                goes (<span class="font-bold text-slate-700">{{ store.legSpillInfo.routes.toLocaleString() }}</span>
+                routes, {{ mb(store.legSpillInfo.bytes) }}).
+                <span v-if="store.legSpillInfo.stopped" class="font-bold text-amber-700"
+                  >The disk filled up {{ store.legSpillInfo.stopped }}: routes priced after that have detail only if
+                  they are among the fastest above.</span
+                >
+              </p>
             </div>
           </details>
         </div>
@@ -658,7 +667,7 @@
 
 <script setup lang="ts">
 import { useConsent } from '@/composables/useConsent';
-import { ThisDevice } from '@/search/device';
+import { ThisDevice, thisDevice } from '@/search/device';
 import SaveFileBar from './SaveFileBar.vue';
 import TabsToggle from './TabsToggle.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
