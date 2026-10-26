@@ -69,25 +69,60 @@ export function setSimRunner(f: (() => Promise<SimRunner | null> | SimRunner | n
   failed.clear();
 }
 
+/**
+ * FRIENDLIER (26 Oct 2026, the coordinator: one simulation measured 36-199 s on the synthetic saves). It starts only once
+ * the page has been settled `delayMs` (nothing asked changed, no search: the table's estimate is on screen by then),
+ * and once it has run `slowMs` Right now adds "(can take a few minutes)". Leaving My runs lets it go; the next visit
+ * starts it again, or reads the record when it finished.
+ */
+const TIMING = { delayMs: 3000, slowMs: 20_000 };
+let timing = { ...TIMING };
+/** Specs: other delays (null: back to the defaults). */
+export function setSimTiming(t: Partial<typeof TIMING> | null): void {
+  timing = { ...TIMING, ...(t ?? {}) };
+}
+
 /** Keys that failed on this page load: not tried again until the save, route or setup changes. */
 const failed = new Set<string>();
 
 export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean>) {
   const state = ref<SimState | null>(null);
+  /** It has run `slowMs` without an answer. */
+  const slow = ref(false);
   let runner: SimRunner | null = null;
   let runningKey: string | null = null;
   let asked = 0;
+  let startTimer: ReturnType<typeof setTimeout> | null = null;
+  let slowTimer: ReturnType<typeof setTimeout> | null = null;
+  function clearTimers(): void {
+    if (startTimer) clearTimeout(startTimer);
+    if (slowTimer) clearTimeout(slowTimer);
+    startTimer = slowTimer = null;
+    slow.value = false;
+  }
   function letGo(): void {
     ++asked;
     runningKey = null;
+    clearTimers();
     runner?.terminate();
     runner = null;
   }
-  async function run(req: SimRequest): Promise<void> {
+  /** Said 'working' at once; started once nothing has changed for `delayMs`. */
+  function schedule(req: SimRequest): void {
     letGo();
     const id = asked;
     runningKey = req.key;
     state.value = { key: req.key, status: 'working' };
+    startTimer = setTimeout(() => {
+      startTimer = null;
+      if (id === asked) void run(req, id);
+    }, timing.delayMs);
+  }
+  async function run(req: SimRequest, id: number): Promise<void> {
+    slowTimer = setTimeout(() => {
+      slowTimer = null;
+      if (id === asked) slow.value = true;
+    }, timing.slowMs);
     const began = Date.now();
     let result: SimState;
     try {
@@ -114,6 +149,7 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
     runner?.terminate();
     runner = null;
     runningKey = null;
+    clearTimers();
     state.value = result;
   }
   watch(
@@ -143,10 +179,10 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
         return;
       }
       if (runningKey === req.key) return;
-      void run(req);
+      schedule(req);
     },
     { immediate: true }
   );
   onScopeDispose(letGo);
-  return { state };
+  return { state, slow };
 }

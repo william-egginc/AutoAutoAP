@@ -321,7 +321,7 @@
         </div>
         <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
         <p v-if="simWorking" class="mt-0.5 text-[12px] text-slate-600" role="status" data-testid="now-sim-working" :data-state="simWorking">
-          <template v-if="simWorking === 'working'">Working out your shifts…</template>
+          <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
         <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
@@ -527,6 +527,8 @@ const props = defineProps<{
   /** The ascension you are in is being simulated on your save ('working'), or waits for a search (useNowPage
    *  `simWorking`); null or absent: not. */
   simWorking?: 'working' | 'waiting' | null;
+  /** It has run over 20 s: "(can take a few minutes)". */
+  simSlow?: boolean;
   /** The next action from the simulated ascension (useNowPage `nextStep`); null or absent: the events' line. */
   nextStep?: NextAction | null;
   /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */

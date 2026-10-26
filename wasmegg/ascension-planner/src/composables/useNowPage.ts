@@ -1071,7 +1071,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       },
     };
   });
-  const { state: currentSim } = useCurrentSim(simRequest, searchBusy);
+  const { state: currentSim, slow: simSlow } = useCurrentSim(simRequest, searchBusy);
   /** 'working' while the current ascension is simulated (or 'waiting' for a search), else null. */
   const simWorking = computed(() => {
     const st = currentSim.value;
@@ -1499,6 +1499,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     shownEvents,
     ascensions,
     simWorking,
+    simSlow,
     nextStep,
     nextShiftLines,
     ascNow,

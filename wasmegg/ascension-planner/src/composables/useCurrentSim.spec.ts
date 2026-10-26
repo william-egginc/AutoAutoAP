@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, ref } from 'vue';
-import { setSimRunner, useCurrentSim, type SimRequest, type SimRunner } from './useCurrentSim';
+import { setSimRunner, setSimTiming, useCurrentSim, type SimRequest, type SimRunner } from './useCurrentSim';
 import { SIM_RECORD_KEY, readSimRecords, recordSim } from '@/lib/followSim';
 import type { LegSummary, SearchInputs } from '@/search/types';
 
@@ -24,6 +24,7 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   runs = [];
   terminated = 0;
+  setSimTiming({ delayMs: 0 });
   setSimRunner(
     (): SimRunner => ({
       run: (inputs, chain) => new Promise((resolve, reject) => runs.push({ inputs, chain, resolve, reject })),
@@ -32,6 +33,8 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  vi.useRealTimers();
+  setSimTiming(null);
   setSimRunner(null);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -54,7 +57,10 @@ function req(route = [226, 277, 490], backupTime = T0): SimRequest {
 const legOf = (end: number) =>
   ({ key: 'continue', endTE: 226, durationSeconds: end - T0, maxELR: 1, endTime: end, startTime: T0, tier13Unlocked: false, buildPhaseEndTime: T0, shifts: [{ at: T0 + 60, egg: 'humility' }] }) as LegSummary;
 const flush = async () => {
-  for (let i = 0; i < 5; i++) await nextTick();
+  for (let i = 0; i < 5; i++) {
+    await nextTick();
+    await new Promise(r => setTimeout(r, 0));
+  }
 };
 
 function mount(r: SimRequest | null, busy = false) {
@@ -62,8 +68,8 @@ function mount(r: SimRequest | null, busy = false) {
   const request = ref<SimRequest | null>(r);
   const isBusy = ref(busy);
   const scope = effectScope();
-  const { state } = scope.run(() => useCurrentSim(request, isBusy))!;
-  return { request, isBusy, scope, state };
+  const { state, slow } = scope.run(() => useCurrentSim(request, isBusy))!;
+  return { request, isBusy, scope, state, slow };
 }
 
 describe('useCurrentSim', () => {
@@ -175,5 +181,69 @@ describe('useCurrentSim', () => {
     const before = terminated;
     m.scope.stop();
     expect(terminated).toBe(before + 1);
+  });
+
+  it('starts only once the page has been settled 3 s; a new route in the meantime starts the wait again', async () => {
+    setSimTiming(null);
+    vi.useFakeTimers();
+    const m = mount(req([226, 490]));
+    expect(m.state.value).toMatchObject({ status: 'working' });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(runs).toHaveLength(0);
+    expect(built).toBe(0);
+    m.request.value = req([230, 490]);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(runs).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(runs.map(r => r.chain)).toEqual([[230]]);
+    expect(built).toBe(1);
+    m.scope.stop();
+  });
+
+  it('says it is slow after 20 s of running, and no longer once it is in', async () => {
+    setSimTiming(null);
+    vi.useFakeTimers();
+    const m = mount(req());
+    const r = m;
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(runs).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(19_000);
+    expect(r.slow.value).toBe(false);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(r.slow.value).toBe(true);
+    runs[0].resolve(legOf(T0 + 3600));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(m.state.value).toMatchObject({ status: 'done' });
+    expect(r.slow.value).toBe(false);
+    m.scope.stop();
+  });
+
+  it('leaving My runs while it waits or runs stops it; the next visit starts again, or reads the record once it finished', async () => {
+    setSimTiming(null);
+    vi.useFakeTimers();
+    const a = mount(req());
+    a.scope.stop();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(runs).toHaveLength(0);
+    const b = mount(req());
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(runs).toHaveLength(1);
+    const before = terminated;
+    b.scope.stop();
+    expect(terminated).toBe(before + 1);
+    runs[0].resolve(legOf(T0 + 3600));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(readSimRecords()).toHaveLength(0);
+    const c = mount(req());
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(runs).toHaveLength(2);
+    runs[1].resolve(legOf(T0 + 3600));
+    await vi.advanceTimersByTimeAsync(10);
+    c.scope.stop();
+    const d = mount(req());
+    expect(d.state.value).toMatchObject({ status: 'done' });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(runs).toHaveLength(2);
+    d.scope.stop();
   });
 });

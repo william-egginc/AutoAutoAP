@@ -26,7 +26,7 @@ import { FOLLOW_PREFIX } from '@/lib/follow';
 import { saveTEOf } from '@/lib/saveFreshness';
 import type { SnapPricing } from '@/lib/followEstimate';
 import { setChainPricer, type ChainPricer } from '@/composables/useFollowEstimate';
-import { setSimRunner, type SimRunner } from '@/composables/useCurrentSim';
+import { setSimRunner, setSimTiming, type SimRunner } from '@/composables/useCurrentSim';
 import { readSimRecords } from '@/lib/followSim';
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { BoardRow } from '@/lib/leaderboardRank';
@@ -62,10 +62,12 @@ beforeEach(() => {
   setActivePinia(createPinia());
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   stubPricer();
+  setSimTiming({ delayMs: 0 });
 });
 afterEach(() => {
   setChainPricer(null);
   setSimRunner(null);
+  setSimTiming(null);
 });
 
 const leg = (start: number, end: number, endTE: number) =>
@@ -364,6 +366,9 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     expect(page.simWorking.value).toBe('working');
     let r = await renderHtml(RightNowCard, { ...(await renderProps(page)), simWorking: page.simWorking.value }, {}, [getActivePinia()!]);
     expect(textOf(r)).toContain('Working out your shifts…');
+    expect(textOf(r)).not.toContain('(can take a few minutes)');
+    r = await renderHtml(RightNowCard, { ...(await renderProps(page)), simWorking: 'working', simSlow: true }, {}, [getActivePinia()!]);
+    expect(textOf(r)).toContain('Working out your shifts… (can take a few minutes)');
     sims[0].resolve(leg(now - H, now + 18 * H, 226));
     await vi.waitFor(() => expect(page.cardPlan.value?.plan.tableLegs?.[0].simulated).toBe(true));
     expect(page.simWorking.value).toBeNull();
