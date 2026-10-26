@@ -40,6 +40,8 @@ export interface SnapRoute {
      *  shifts are exact, and `buildEnd` is when its build phase ends. */
     simulated?: boolean;
     buildEnd?: number;
+    /** Its variant (LegSummary.key): 'continue' or 'buildup' carry on the farm in the save. */
+    variant?: string;
   }[];
   end: number;
   seconds?: number;

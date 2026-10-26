@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextAction, nextActionWords, nextShiftWords, nextShifts, type ActionLeg } from './nextAction';
+import { continuesFarm, nextAction, nextActionWords, nextShiftWords, nextShifts, type ActionLeg } from './nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import type { Availability } from '@/search/availability';
 
@@ -82,10 +82,9 @@ describe('nextShifts: the short list under the Next step', () => {
   const a2 = T0 + 41 * H;
   const legs = [fresh, table(a2, 277), table(a2 + 3 * D + H, 317)];
 
-  it('in the build-up: one building line, then the shifts; ends with a prestige once it holds 3', () => {
+  it('in the build-up the list starts at the first shift (the build-up ends there: never two lines at one time); ends with a prestige once it holds 3', () => {
     const l = nextShifts({ now: T0 + 60, legs });
     expect(l.map(x => [x.kind, x.egg ?? x.te ?? null, x.exact])).toEqual([
-      ['build', null, true],
       ['shift', 'kindness', true],
       ['shift', 'humility', true],
       ['shift', 'curiosity', true],
@@ -137,5 +136,54 @@ describe('nextShifts: the short list under the Next step', () => {
     expect(nextShiftWords({ kind: 'build', at: T0 + 5, exact: true }, when)).toBe('Building up until about x5');
     expect(nextShiftWords({ kind: 'prestige', at: T0 + 5, te: 277, exact: false }, when)).toBe('Prestige at 277 TE · about h5');
     expect(nextShiftWords({ kind: 'goal', at: T0 + 5, te: 490, exact: false }, when)).toBe('490 TE reached · about h5');
+  });
+});
+
+describe("the save's own farm, already laying (26 Oct 2026: a producing farm on Curiosity said \"Building up until …\" twice)", () => {
+  // Jordan's state: ascension 1 of 4 continued from the live save at 195 TE, the farm on Curiosity; the simulated leg's
+  // build phase ends at the very moment of its first shift, to Humility.
+  const H1 = T0 + 18 * 86400 + 23 * 60;
+  const live = (key: string): ActionLeg => ({
+    to: 226,
+    endTE: 226,
+    start: T0,
+    end: T0 + 40 * 86400,
+    buildEnd: H1,
+    simulated: true,
+    ...(continuesFarm(key) ? { live: true } : {}),
+    shifts: [
+      { at: H1, egg: 'humility' },
+      { at: H1 + 60, egg: 'kindness' },
+      { at: H1 + 5 * 86400, egg: 'integrity' },
+    ],
+  });
+  it("a 'continue' or 'buildup' leg never builds up: the Next step is the first shift", () => {
+    expect(continuesFarm('continue')).toBe(true);
+    expect(continuesFarm('buildup')).toBe(true);
+    expect(continuesFarm('2-sale')).toBe(false);
+    for (const key of ['continue', 'buildup']) expect(nextAction({ now: T0 + H, leg: live(key), last: false })).toEqual({ kind: 'shift', egg: 'humility', at: H1 });
+    // A fresh start in its build-up still says so.
+    expect(nextAction({ now: T0 + H, leg: live('2-sale'), last: false })).toEqual({ kind: 'build', until: H1 });
+  });
+  it('the list starts at the first shift, and no two lines share a time', () => {
+    for (const key of ['continue', '2-sale']) {
+      const l = nextShifts({ now: T0 + H, legs: [live(key)], more: true });
+      expect(l.map(x => [x.kind, x.egg ?? null])).toEqual([
+        ['shift', 'humility'],
+        ['shift', 'kindness'],
+        ['shift', 'integrity'],
+        ['prestige', null],
+      ]);
+      const minutes = l.map(x => Math.floor(x.at / 60));
+      expect(new Set(minutes).size).toBe(minutes.length);
+    }
+  });
+  it('the same shift twice at one minute is one line', () => {
+    const twice = { ...live('continue'), shifts: [{ at: H1, egg: 'humility' }, { at: H1 + 10, egg: 'humility' }] };
+    expect(nextShifts({ now: T0, legs: [twice], more: true }).filter(x => x.kind === 'shift')).toHaveLength(1);
+  });
+  it('a fresh leg with no shifts listed still has its building-up line', () => {
+    const bare = { ...live('2-sale'), shifts: [] };
+    expect(nextShifts({ now: T0 + H, legs: [bare], more: true }).map(x => x.kind)).toEqual(['build', 'prestige']);
   });
 });

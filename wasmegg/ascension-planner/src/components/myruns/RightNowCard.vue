@@ -327,7 +327,8 @@
         </p>
         <p v-else class="text-[13px] text-slate-700">Nothing left in this plan: work out a new one.</p>
         <p v-if="card.plan.estimated" class="mt-0.5 text-[12px] text-slate-600" data-testid="now-next-estimated">
-          Your route's steps, {{ ESTIMATE_WORDS }}.
+          <template v-if="simulatedNow">The ascension you are in, simulated on your save; the rest of your route's steps, {{ ESTIMATE_WORDS }}.</template>
+          <template v-else>Your route's steps, {{ ESTIMATE_WORDS }}.</template>
         </p>
         <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, always shown, not interactive. -->
         <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
@@ -622,7 +623,10 @@ const followNote = computed(() => {
           ? 'failed'
           : 'none'
     );
-  if (f.price === 'estimate') return "estimated from the instant answer's data";
+  if (f.price === 'estimate')
+    return simulatedNow.value
+      ? "the ascension you are in simulated on your save, the rest estimated from the instant answer's data"
+      : "estimated from the instant answer's data";
   if (f.price === 'finish' && f.finish) {
     const lands = dateAt(f.finish.end, props.now, props.zone);
     return `checked ${dateAt(f.finish.at / 1000, props.now, props.zone)}: lands ${lands}, no timeline kept`;
@@ -630,6 +634,8 @@ const followNote = computed(() => {
   if (f.source === 'older-save' && f.pricedSave) return `priced on your save of ${dateAt(f.pricedSave, props.now, props.zone)}, may have drifted`;
   return '';
 });
+/** The ascension you are in is the simulation's (lib/followSim.ts `withCurrentSim`), not the table's. */
+const simulatedNow = computed(() => !!props.card?.plan.tableLegs?.[0]?.simulated);
 /** The goal asked for: the card's, else the selected option's (a followed route with no plan yet). */
 const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: number | null }>(() => {
   if (props.card) return props.card.goal;

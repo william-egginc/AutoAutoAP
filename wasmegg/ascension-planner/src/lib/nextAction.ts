@@ -31,6 +31,14 @@ export interface ActionLeg {
   /** search/types.ts LegSummary.buildPhaseEndTime: when its build phase ends; at its start (or absent) for a leg
    *  that continues the ascension as it is. */
   buildEnd?: number;
+  /** It carries on the farm in the save ('continue' or 'buildup': the farm is already laying), never a fresh start:
+   *  never "Building up" (26 Oct 2026, a producing farm on Curiosity read "Building up until …"). */
+  live?: boolean;
+}
+
+/** A simulated leg's variant (search/types.ts LegSummary.key) carries on the farm in the save. */
+export function continuesFarm(key: string | null | undefined): boolean {
+  return key === 'continue' || key === 'buildup';
 }
 
 export type NextAction =
@@ -44,7 +52,7 @@ const ok = (x: unknown): x is number => typeof x === 'number' && Number.isFinite
 /** Whether the leg builds up (it has a build phase that ends after it starts) and when that stretch ends: its
  *  first shift (or the build phase's end when it lists none). Null without one. */
 function buildUntil(leg: ActionLeg): number | null {
-  if (!ok(leg.buildEnd) || !(leg.buildEnd > leg.start)) return null;
+  if (leg.live || !ok(leg.buildEnd) || !(leg.buildEnd > leg.start)) return null;
   const first = (leg.shifts ?? []).find(s => ok(s.at));
   return first ? first.at : leg.buildEnd;
 }
@@ -101,7 +109,15 @@ export interface NextShiftLine {
  * and with the goal when it gets there. Prestige times: the next ascension's start (the table's, held already), or for
  * the simulated one `prestigeAt` of its end.
  */
-export function nextShifts(o: {
+export function nextShifts(o: Parameters<typeof shiftLines>[0]): NextShiftLine[] {
+  // Never two lines in a row that say the same thing at the same minute.
+  return shiftLines(o).filter((l, i, all) => {
+    const p = all[i - 1];
+    return !p || !(p.kind === l.kind && p.egg === l.egg && Math.floor(p.at / 60) === Math.floor(l.at / 60));
+  });
+}
+
+function shiftLines(o: {
   now: number;
   legs: readonly ActionLeg[];
   prestigeAt?: (t: number) => number;
@@ -121,7 +137,9 @@ export function nextShifts(o: {
     const exact = !!leg.simulated;
     if (i === 0 && leg.simulated) {
       const until = buildUntil(leg);
-      if (until !== null && o.now < until) out.push({ kind: 'build', at: until, exact });
+      // Not when its first shift is at the same moment (the minute shown): two lines with one time.
+      const first = (leg.shifts ?? []).find(s => ok(s.at) && s.at > o.now);
+      if (until !== null && o.now < until && !(first && Math.abs(first.at - until) < 60)) out.push({ kind: 'build', at: until, exact });
     }
     for (const s of leg.shifts ?? []) {
       if (!ok(s.at) || s.at <= o.now) continue;

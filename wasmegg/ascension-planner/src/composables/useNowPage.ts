@@ -136,7 +136,7 @@ import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
-import { nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
+import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
@@ -1229,7 +1229,18 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const leg = simLeg.value;
     if (!p)
       return leg && simRequest.value
-        ? [{ to: simRequest.value.route[0], endTE: leg.endTE, start: leg.startTime, end: leg.endTime, shifts: leg.shifts, simulated: true, ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}) }]
+        ? [
+            {
+              to: simRequest.value.route[0],
+              endTE: leg.endTE,
+              start: leg.startTime,
+              end: leg.endTime,
+              shifts: leg.shifts,
+              simulated: true,
+              ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
+              ...(continuesFarm(leg.key) ? { live: true } : {}),
+            },
+          ]
         : [];
     if (p.legs) return [];
     return (p.tableLegs ?? []).slice(0, p.chain.length).map(l => ({
@@ -1240,6 +1251,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       ...(l.shifts ? { shifts: l.shifts } : {}),
       ...(l.simulated ? { simulated: true } : {}),
       ...(l.buildEnd !== undefined ? { buildEnd: l.buildEnd } : {}),
+      ...(continuesFarm(l.variant) ? { live: true } : {}),
     }));
   });
   /** The selected followed route's pill without a timeline: the ascension you are in being worked out, or its next

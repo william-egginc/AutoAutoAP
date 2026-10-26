@@ -482,6 +482,39 @@ describe('the ascension you are in without the table\'s estimate (26 Oct 2026)',
   });
 });
 
+describe("Jordan's continued ascension on Curiosity (26 Oct 2026: \"Building up until\" twice on a producing farm)", () => {
+  it('a continue leg whose build phase ends at its first shift: Next step is that shift, the list starts there, the follow line says simulated', async () => {
+    const sims: { resolve: (l: LegSummary | null) => void }[] = [];
+    setSimRunner((): SimRunner => ({ run: () => new Promise(resolve => sims.push({ resolve })), terminate: () => undefined }));
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    const h1 = now + 18 * H + 23 * 60;
+    sims[0].resolve({
+      ...leg(now - H, now + 30 * H, 226),
+      key: 'continue',
+      buildPhaseEndTime: h1,
+      shifts: [
+        { at: h1, egg: 'humility', fromEgg: 'curiosity' },
+        { at: h1, egg: 'kindness', fromEgg: 'humility' },
+        { at: h1 + 4 * H, egg: 'integrity', fromEgg: 'kindness' },
+      ],
+    });
+    await vi.waitFor(() => expect(page.nextStep.value).toEqual({ kind: 'shift', egg: 'humility', at: h1 }));
+    expect(page.cardPlan.value?.plan.tableLegs?.[0]).toMatchObject({ simulated: true, variant: 'continue' });
+    expect(page.nextShiftLines.value[0]).toMatchObject({ kind: 'shift', egg: 'humility' });
+    expect(page.nextShiftLines.value.some(l => l.kind === 'build')).toBe(false);
+    const t = textOf(
+      await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value, nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!])
+    );
+    expect(t).not.toContain('Building up');
+    expect(t).toContain("Following your pick · the ascension you are in simulated on your save, the rest estimated from the instant answer's data");
+    expect(t).toContain('The ascension you are in, simulated on your save; the rest of your route');
+    scope.stop();
+  });
+});
+
 describe('the crash lesson: the pricing setup key without collectInputs (26 Oct 2026)', () => {
   it('a throwing collectInputs does not take Right now down; the follow keeps its estimate', async () => {
     const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });

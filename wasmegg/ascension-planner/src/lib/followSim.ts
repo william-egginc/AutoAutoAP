@@ -179,6 +179,7 @@ export function withCurrentSim(plan: NowPlan, leg: SimLeg | null | undefined): N
         endTE: leg.endTE,
         shifts: leg.shifts.map(s => ({ ...s })),
         simulated: true,
+        variant: leg.key,
         ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
       },
       ...plan.tableLegs!.slice(1),
