@@ -234,6 +234,11 @@
               </span>
             </p>
           </div>
+          <!-- What this search tries, in ascension counts (was its own paragraph before Find: UX review 26 Oct 2026,
+               item 10, five explainers before Find). -->
+          <p v-if="coverageNote" class="text-[11px] text-slate-600 leading-relaxed" data-testid="coverage-note">
+            {{ coverageNote }}
+          </p>
         </div>
       </PanelFold>
 
@@ -449,9 +454,9 @@
       >
         {{ store.seedTidyNote }}
       </p>
-      <p v-if="coverageNote" class="text-[11px] text-slate-600 leading-relaxed">
-        {{ coverageNote }}
-        <span v-if="suggestedCountNote" class="font-semibold text-amber-800">{{ suggestedCountNote }}</span>
+      <!-- What it tries in counts is in Settings (UX review 26 Oct 2026, item 10); a suggested count stays out here. -->
+      <p v-if="coverageNote && suggestedCountNote" class="text-[11px] font-semibold text-amber-800 leading-relaxed" data-testid="suggested-count">
+        {{ suggestedCountNote }}
       </p>
 
       <!-- Workers, background speed, keep awake and date format: in Your setup at the top. -->

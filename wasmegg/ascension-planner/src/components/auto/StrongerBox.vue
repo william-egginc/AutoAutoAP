@@ -77,7 +77,7 @@
       class="pt-2 border-t border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500"
       data-testid="nearby-heading"
     >
-      {{ NAMES.smart }}: the best routes found near the instant answer's
+      {{ NAMES.smart }} look near the instant answer's route for a better one
     </h4>
     <slot :level="level" />
   </section>

@@ -752,7 +752,7 @@
           class="text-[10px] font-black uppercase tracking-widest text-slate-500"
           data-testid="exhaustive-results-heading"
         >
-          {{ result.simple ? `${NAMES.smart}: the best routes found near the instant answer's` : 'Custom: the best routes in your boxes' }}
+          {{ result.simple ? `${NAMES.smart}: the best routes found near the instant answer's route` : 'Custom: the best routes in your boxes' }}
         </h4>
         <ByDateRouteCard
           v-if="best"

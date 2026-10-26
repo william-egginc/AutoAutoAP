@@ -53,17 +53,19 @@
           Find and submit
         </button>
         <!-- Whenever consent is unticked, even with Find itself blocked (no save yet): the full wording is
-             in the box below, this only says where to look. -->
+             in the fold below, this only says where to look. -->
+        <!-- Names the fold the ticks are in, and opens it (UX review 26 Oct 2026, item 11: "tick the box below" sat
+             above a folded "Before you send"). Only while unticked: a player who said yes never has it popped open. -->
         <span v-if="!optIn" class="text-[10px] font-semibold text-slate-500 text-center" data-testid="acknowledge-hint"
-          >To use Find and submit, please tick
-          <!-- A link to the box, which can be a long way below on a phone. -->
+          >To use Find and submit, open{{ ' ' }}
+          <!-- A link to the fold, which can be a long way below on a phone. -->
           <button
             type="button"
             class="inline-flex items-center min-h-[44px] sm:min-h-0 underline decoration-dotted underline-offset-2 hover:text-indigo-700"
             data-testid="acknowledge-hint-link"
             @click="showConsent"
-          >the box below</button
-          >.</span
+          >Before you send</button
+          ></span
         >
       </div>
       <div v-if="bestSoFarHere" class="flex flex-col items-center gap-1">
