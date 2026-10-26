@@ -11,6 +11,7 @@ import { nextAvailable } from '@/search/availability';
 import { isConstrained, type Availability } from '@/search/availabilitySchedule';
 import { nextPrestigeAt, usableNoPrestige } from '@/search/noPrestige';
 import type { TimeOffWindow } from '@/search/types';
+import { buildUpLine, type BuildUpLeg } from './buildUpLine';
 
 export interface StepLeg {
   from: number;
@@ -90,22 +91,33 @@ export interface AscensionStep extends StepLine {
   shifts: { at: number; egg: string }[];
   /** The shifts are the current ascension's simulated on the live save (exact), not the table's (to the hour). */
   simulated: boolean;
+  /** "You do the build-up for 2 sales, then start producing at …" (lib/buildUpLine.ts): absent for continue, the
+   *  build-up of the save's farm, or a leg whose sale count is not known. */
+  buildUp?: string;
 }
 
 /**
  * EVERY ASCENSION AND ITS SHIFTS (26 Oct 2026, My runs' Full timeline for a route with no exact legs): `instantSteps`'
  * lines, each with the shifts its leg lists (the table's from H1 on, search/legShifts.ts; the current ascension's
- * from the simulation once it is in). A leg that lists none has an empty list.
+ * from the simulation once it is in). A leg that lists none has an empty list. Each fresh ascension also says what
+ * its build-up is (`buildUp`, from its variant and rate: lib/buildUpLine.ts), the opening the table's shifts leave out.
  */
 export function ascensionSteps(
-  legs: readonly (StepLeg & { shifts?: { at: number; egg: string }[]; simulated?: boolean })[] | null | undefined,
+  legs:
+    | readonly (StepLeg & { shifts?: { at: number; egg: string }[]; simulated?: boolean } & BuildUpLeg)[]
+    | null
+    | undefined,
   hours: Availability | null | undefined,
   noPrestige: readonly TimeOffWindow[] | null | undefined
 ): AscensionStep[] {
   const list = (legs ?? []).filter(l => l && Number.isFinite(l.start) && Number.isFinite(l.end));
-  return instantSteps(list, hours, noPrestige).map((line, i) => ({
-    ...line,
-    shifts: (list[i].shifts ?? []).filter(s => Number.isFinite(s.at)).map(s => ({ at: s.at, egg: s.egg })),
-    simulated: !!list[i].simulated,
-  }));
+  return instantSteps(list, hours, noPrestige).map((line, i) => {
+    const buildUp = buildUpLine(list[i]);
+    return {
+      ...line,
+      shifts: (list[i].shifts ?? []).filter(s => Number.isFinite(s.at)).map(s => ({ at: s.at, egg: s.egg })),
+      simulated: !!list[i].simulated,
+      ...(buildUp ? { buildUp } : {}),
+    };
+  });
 }

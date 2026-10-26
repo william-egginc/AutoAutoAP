@@ -92,9 +92,35 @@ describe('priceChain with `shifts`', () => {
     const withShifts = priceChain(lookup, { ...options, shifts: true }, [c.te + 5])!;
     expect(plain.legs[0].shifts).toBeUndefined();
     expect(withShifts.legs[0].shifts!.length).toBeGreaterThan(1);
-    const { shifts: _s, ...rest } = withShifts.legs[0];
+    const { shifts: _s, peakELR: _r, ...rest } = withShifts.legs[0];
     expect(rest).toEqual(plain.legs[0]);
     expect(withShifts.end).toBe(plain.end);
+  });
+
+  it('each table leg carries the rate its build produces at (the cell\'s peakELR, the rate priceLeg prices with)', () => {
+    const plain = priceChain(lookup, options, [c.te + 5])!;
+    const withShifts = priceChain(lookup, { ...options, shifts: true }, [c.te + 5])!;
+    expect(plain.legs[0].peakELR).toBeUndefined();
+    const p = priceLeg(lookup, c.te, start, canonicalDelivered(c.te), c.te + 5, 1, undefined, { holdShifts: true, heldOpening: false }, HOURS)!;
+    expect(withShifts.legs[0].peakELR).toBe(p.rate);
+    expect(withShifts.legs[0].peakELR).toBe(p.build.peakELR);
+    expect(withShifts.legs[0].peakELR).toBeGreaterThan(0);
+  });
+
+  it('a fresh first ascension from first legs carries its rate; continue does not', () => {
+    const first = (label: string) =>
+      priceChain(
+        lookup,
+        {
+          ...options,
+          shifts: true,
+          firstLegs: [{ to: c.te + 2, endTE: c.te + 2, end: start, delivered: canonicalDelivered(c.te + 2), label, rate: 2e12, peakELR: 3e12 }],
+        },
+        [c.te + 2]
+      )!.legs[0];
+    expect(first('2-sale').peakELR).toBe(2e12);
+    expect(first('continue').peakELR).toBeUndefined();
+    expect(first('buildup').peakELR).toBeUndefined();
   });
 
   it('a first ascension from the player\'s own first legs has none (the table does not hold it)', () => {

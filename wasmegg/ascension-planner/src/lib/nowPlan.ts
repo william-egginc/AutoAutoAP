@@ -42,6 +42,9 @@ export interface SnapRoute {
     buildEnd?: number;
     /** Its variant (LegSummary.key): 'continue' or 'buildup' carry on the farm in the save. */
     variant?: string;
+    /** The rate it produces at once its build-up is done, eggs per second: the table's (RouteLeg.peakELR, with the
+     *  shifts), or the simulated leg's peak (LegSummary.maxELR). For the Full timeline's build-up line. */
+    peakELR?: number;
   }[];
   end: number;
   seconds?: number;
@@ -491,16 +494,22 @@ export function shiftTitle(e: Pick<PlanEvent, 'egg' | 'eggs'>, eggName: (egg: st
  */
 export function withTableShifts(
   plan: NowPlan,
-  route: { legs: readonly { to: number; start: number; end: number; shifts?: { at: number; egg: string }[] }[] } | null | undefined
+  route:
+    | { legs: readonly { to: number; start: number; end: number; shifts?: { at: number; egg: string }[]; peakELR?: number }[] }
+    | null
+    | undefined
 ): NowPlan {
   if (!plan.tableLegs || plan.legs || !route?.legs?.length) return plan;
   let any = false;
   const tableLegs = plan.tableLegs.map((l, i) => {
     const r = route.legs[i];
-    if (l.shifts?.length || !r?.shifts?.length || r.to !== l.to || !(Math.abs(r.start - l.start) <= 600) || !(Math.abs(r.end - l.end) <= 600))
-      return l;
+    if (!r || r.to !== l.to || !(Math.abs(r.start - l.start) <= 600) || !(Math.abs(r.end - l.end) <= 600)) return l;
+    // Its shifts, and the rate its build produces at (the Full timeline's build-up line), where the leg has none yet.
+    const shifts = !l.shifts?.length && r.shifts?.length ? r.shifts.map(sh => ({ at: sh.at, egg: sh.egg })) : null;
+    const rate = l.peakELR === undefined && (r.peakELR ?? 0) > 0 ? r.peakELR : undefined;
+    if (!shifts && rate === undefined) return l;
     any = true;
-    return { ...l, shifts: r.shifts.map(sh => ({ at: sh.at, egg: sh.egg })) };
+    return { ...l, ...(shifts ? { shifts } : {}), ...(rate !== undefined ? { peakELR: rate } : {}) };
   });
   return any ? { ...plan, tableLegs } : plan;
 }

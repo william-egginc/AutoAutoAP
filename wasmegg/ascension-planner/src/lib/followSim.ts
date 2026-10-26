@@ -30,6 +30,9 @@ export interface SimLeg {
   buildPhaseEndTime: number | null;
   /** Each shift: when, and the egg switched TO. */
   shifts: { at: number; egg: string }[];
+  /** Its peak eggs per second after K3 (LegSummary.maxELR): the rate it produces at once built. Absent in records
+   *  kept before 26 Oct 2026 and when the simulation had none. */
+  maxELR?: number;
 }
 
 export interface SimRecord {
@@ -87,6 +90,7 @@ export function simLegOf(leg: LegSummary | null | undefined): SimLeg | null {
     endTE: leg.endTE,
     buildPhaseEndTime: finite(leg.buildPhaseEndTime) ? leg.buildPhaseEndTime : null,
     shifts: (leg.shifts ?? []).filter(s => finite(s.at) && typeof s.egg === 'string').map(s => ({ at: s.at, egg: s.egg })),
+    ...(finite(leg.maxELR) && leg.maxELR > 0 ? { maxELR: leg.maxELR } : {}),
   };
 }
 
@@ -168,18 +172,21 @@ export function withCurrentSim(plan: NowPlan, leg: SimLeg | null | undefined): N
   if (!leg || plan.legs || !first || first.to !== plan.chain[0] || !(leg.endTE >= first.to)) return plan;
   // A one-stop route ends with this ascension.
   const only = plan.chain.length === 1;
+  // The table's rate is its own variant's: the simulated leg's peak replaces it, or none.
+  const { peakELR: _tableRate, ...rest } = first;
   return {
     ...plan,
     ...(only ? { end: leg.endTime, endTE: leg.endTE } : {}),
     tableLegs: [
       {
-        ...first,
+        ...rest,
         start: leg.startTime,
         end: leg.endTime,
         endTE: leg.endTE,
         shifts: leg.shifts.map(s => ({ ...s })),
         simulated: true,
         variant: leg.key,
+        ...(finite(leg.maxELR) && leg.maxELR > 0 ? { peakELR: leg.maxELR } : {}),
         ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
       },
       ...plan.tableLegs!.slice(1),

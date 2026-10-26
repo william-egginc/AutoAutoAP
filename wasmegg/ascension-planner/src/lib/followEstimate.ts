@@ -137,6 +137,7 @@ export function planFromEstimate(
       ...(Array.isArray(l.shifts) && l.shifts.length ? { shifts: l.shifts.map(s => ({ at: s.at, egg: s.egg })) } : {}),
       ...(l.heldOpening ? { heldOpening: l.heldOpening } : {}),
       ...(l.wanted !== undefined ? { wanted: l.wanted } : {}),
+      ...((l.peakELR ?? 0) > 0 ? { peakELR: l.peakELR } : {}),
     })),
     exact: false,
     estimated: true,
