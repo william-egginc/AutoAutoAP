@@ -594,8 +594,8 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
 
   const firstLeg = firstLegLine(ranked[0]?.legs[0], tz, meta.firstAscension);
   if (firstLeg) note(firstLeg);
-  note('One row per leg. Blank per-leg cells mean the chain has no leg detail: it was replayed from a saved checkpoint');
-  note("or it is past the 'Keep per-ascension detail for N routes' limit (Setup > Memory). The total is still exact.");
+  note("One row per leg. Blank per-leg cells mean the chain's leg detail was not kept: it is past the 'Keep per-ascension");
+  note("detail for N routes' limit (Setup > Memory) or it was replayed from a saved checkpoint. The total is still exact.");
   note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
 
   lines.push(COLUMNS.join(','));
@@ -1006,11 +1006,11 @@ export async function* chainsCsvChunksFull(
   const all = !Number.isFinite(legRoutes) || legRoutes >= ranked.length;
   note(
     all
-      ? 'One row per leg, for every chain priced (the legs the run kept on disk as it went).'
+      ? 'One row per leg for every chain priced (the legs the run kept on disk as it went).'
       : `One row per leg for the fastest ${legRoutes} chains; every other chain has one row with blank per-leg cells.`
   );
   note('Blank per-leg cells otherwise mean the chain has no leg detail: it was replayed from a saved checkpoint. The total is still exact.');
-  if (spill.stopped) note(`Leg detail on disk stopped early: ${spill.stopped}.`);
+  if (spill.stopped) note(`Leg detail on disk stopped early: ${spill.stopped.replace(/,/g, '')}.`);
   note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
   lines.push(COLUMNS.join(','));
   let chars = 0;
@@ -1076,10 +1076,10 @@ export async function* deadlineCsvChunksFull(
   note('');
   lines.push(PRICED_LEGS_SECTION_LINE);
   note(
-    `Every route priced (${all.size}) with its legs, in the summary section's order (rank is the place in it). Each row starts with "${PRICED_LEG_ROW_TAG}", then the leg section's columns.`
+    `Every route priced (${all.size}) with its legs in the summary section's order (rank is the place in it). Each row starts with "${PRICED_LEG_ROW_TAG}" and then the leg section's columns.`
   );
-  note('A route with no leg detail (replayed from a saved checkpoint, or not priced) has one row with blank leg cells.');
-  if (spill.stopped) note(`Leg detail on disk stopped early: ${spill.stopped}.`);
+  note('A route with no leg detail (replayed from a saved checkpoint or not priced) has one row with blank leg cells.');
+  if (spill.stopped) note(`Leg detail on disk stopped early: ${spill.stopped.replace(/,/g, '')}.`);
   lines.push(['kind', ...DEADLINE_COLUMNS].map(cell).join(','));
   const order = pricedOrder(all, info.deadline);
   let earliest = Infinity;

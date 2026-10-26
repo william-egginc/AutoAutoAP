@@ -129,6 +129,12 @@ export class LegSpill implements LegTailSource {
     if (this.buffered >= DRAIN_BYTES) this.drain();
   }
 
+  /** Hand what is buffered to the backend now (not made durable: `commit` does that). Called on the run's
+   *  progress beat, so the file keeps up with the routes priced instead of a megabyte at a time. */
+  flush(): void {
+    this.drain();
+  }
+
   /** Hand the buffer to the backend. */
   private drain(): void {
     if (!this.buffered) return;

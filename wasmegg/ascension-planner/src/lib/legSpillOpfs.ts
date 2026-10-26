@@ -9,6 +9,16 @@
  */
 import { LegSpill, type SpillBackend } from '@/search/legSpill';
 import { LEG_SPILL_DIR, type LegSpillReply, type LegSpillRequest } from '@/workers/legSpill.protocol';
+import { DOWNLOAD_FILE_TTL_MS, spillOpenFailure, withBom, type SpillUnavailable } from './legSpillText';
+
+/** Why the last open failed (Setup > Memory says so); null after one that worked. */
+let lastFailure: SpillUnavailable | null = null;
+export function lastSpillOpenFailure(): SpillUnavailable | null {
+  return lastFailure;
+}
+/** The download's OPFS copy, deleted a while after each save and at the first spill opened per visit. */
+const DOWNLOAD_FILE = 'download.csv';
+let staleDownloadCleared = false;
 
 type Body<T> = T extends unknown ? Omit<T, 'id'> : never;
 
@@ -99,13 +109,23 @@ export async function openPageLegSpill(
   partitionHash: string,
   timezone: string
 ): Promise<LegSpill | null> {
-  if (typeof Worker === 'undefined' || typeof navigator === 'undefined' || !navigator.storage?.getDirectory) return null;
+  if (typeof Worker === 'undefined' || typeof navigator === 'undefined' || !navigator.storage?.getDirectory) {
+    lastFailure = 'no-opfs';
+    return null;
+  }
   try {
     const w = spillWorker();
     const name = legSpillName(kind, partitionHash);
     await w.ask({ op: 'open', name });
+    lastFailure = null;
+    // A download's copy an earlier visit left behind (a big run's is gigabytes).
+    if (!staleDownloadCleared) {
+      staleDownloadCleared = true;
+      void w.ask({ op: 'close', name: DOWNLOAD_FILE, remove: true }).catch(() => {});
+    }
     return new LegSpill(new OpfsSpillBackend(w, name), timezone);
   } catch (e) {
+    lastFailure = spillOpenFailure(e);
     console.warn('chain search: no leg spill (the files keep detail for the top routes only)', e);
     return null;
   }
@@ -118,11 +138,12 @@ export async function openPageLegSpill(
 export async function saveFullCsv(chunks: AsyncIterable<string>, filename: string): Promise<boolean> {
   if (typeof Worker === 'undefined' || !navigator.storage?.getDirectory) return false;
   const w = spillWorker();
-  const name = 'download.csv';
+  const name = DOWNLOAD_FILE;
   try {
     let start = true;
     let text = '';
-    for await (const c of chunks) {
+    // The BOM first, as every other CSV download has (utils/export.ts): Excel then reads it as UTF-8.
+    for await (const c of withBom(chunks)) {
       text += c;
       // About a megabyte a message: few round trips, no large string held for long.
       if (text.length >= 1 << 20) {
@@ -142,8 +163,12 @@ export async function saveFullCsv(chunks: AsyncIterable<string>, filename: strin
     document.body.appendChild(a);
     a.click();
     a.remove();
-    // The browser has the file by the time the click's download starts; let go of the URL a little later.
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    // The browser copies the file out as the click's download starts; the URL and the OPFS copy (as big
+    // as the CSV) go a while later, and any left by a closed tab at the next visit's first spill.
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      void w.ask({ op: 'close', name, remove: true }).catch(() => {});
+    }, DOWNLOAD_FILE_TTL_MS);
     return true;
   } catch (e) {
     console.warn('chain search: could not write the download through OPFS', e);

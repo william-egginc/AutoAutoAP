@@ -271,7 +271,8 @@ import {
 } from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
 import type { LegSpill } from '@/search/legSpill';
-import { openPageLegSpill } from '@/lib/legSpillOpfs';
+import { lastSpillOpenFailure, openPageLegSpill } from '@/lib/legSpillOpfs';
+import { browserStorage, readLegDetailBudget, staleDownloadReason, writeLegDetailBudget, type SpillInfo } from '@/lib/legSpillText';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
 import { reviewContext, reviewLegs, reviewSetup, TE_MISMATCH_TOLERANCE, type HealthIssue } from '@/search/health';
 import {
@@ -3521,7 +3522,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * still holding detail. The kept set is the FASTEST ones, which is what that table shows, so in
    * practice the loss lands on chains nobody was going to open.
    */
-  const legDetailBudget = ref(DEFAULT_LEG_DETAIL_BUDGET);
+  // Remembered per browser (QA 26 Oct: a reload put it back to the default, and a carried-on run ran with it).
+  const legDetailBudget = ref(readLegDetailBudget(browserStorage()) ?? DEFAULT_LEG_DETAIL_BUDGET);
+  watch(legDetailBudget, n => writeLegDetailBudget(browserStorage(), Number(n)));
 
   /**
    * EVERY ROUTE'S LEGS ON DISK (search/legSpill.ts; Jordan, 26 Oct 2026). With a spill the platform sets
@@ -3583,7 +3586,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }
   /** The last run's spill as Setup > Memory shows it (refreshed on the shortlist's beat and By a date's
    *  progress): routes on disk, bytes, and why storing stopped (disk full). Null: no spill. */
-  const legSpillInfo = ref<{ routes: number; bytes: number; stopped: string | null } | null>(null);
+  const legSpillInfo = ref<SpillInfo | null>(null);
   /** What each screen's spill holds, for Setup > Memory: routes, bytes, and why it stopped (disk full). */
   function legSpillStatus(kind: 'fastest' | 'deadline'): { routes: number; bytes: number; stopped: string | null } | null {
     const s = legSpills[kind];
@@ -3601,6 +3604,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       await legSpills[kind]?.close().catch(() => {});
       legSpills[kind] = await openLegSpill(kind, partitionHash, planTimezone()).catch(() => null);
       legSpillFor[kind] = partitionHash;
+      // No spill here: Setup > Memory says why (no OPFS, another tab holds the file).
+      if (!legSpills[kind]) legSpillInfo.value = { routes: 0, bytes: 0, stopped: null, unavailable: lastSpillOpenFailure() ?? 'error' };
     }
     const spill = legSpills[kind];
     if (!spill) return;
@@ -3629,7 +3634,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const entries = [...liveCache, ...coarseCache];
     // Every route's legs to disk first (when the run has a spill), so the budget drops only memory's copy.
     spillNew(entries);
-    if (legSpills.fastest) legSpillInfo.value = legSpillStatus('fastest');
+    if (legSpills.fastest) {
+      legSpills.fastest.flush();
+      legSpillInfo.value = legSpillStatus('fastest');
+    }
     const { held } = applyLegBudget(entries, legDetailBudget.value);
     legsHeld.value = held;
     legDetailBytes.value = estimateLegBytes(entries, held);
@@ -6030,6 +6038,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     opts: { legRoutes?: number; partial?: CsvMeta['partial'] } = {}
   ): AsyncGenerator<string> {
     if (kind === 'fastest') {
+      // A run just started has emptied its spill but priced nothing: the file would be the last run's
+      // checkpoint without its legs (QA 26 Oct). Say so instead.
+      const stale = staleDownloadReason({ ownRoutes: allEntries().length, running: isRunning.value });
+      if (stale) throw new Error(stale);
       const { entries, meta } = fastestCsvInput(opts);
       const spill = legSpills.fastest ?? (await reopenFastestSpill());
       if (!spill) {
@@ -7546,7 +7558,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           },
           onProgress: p => {
             deadlineProgress.value = p;
-            if (legSpills.deadline) legSpillInfo.value = legSpillStatus('deadline');
+            if (legSpills.deadline) {
+              legSpills.deadline.flush();
+              legSpillInfo.value = legSpillStatus('deadline');
+            }
             noteLegSample();
             noteLaterLegs();
           },

@@ -528,7 +528,16 @@ readWatcher();
 
 const countdown = ref(0);
 watch(countdown, n => emit('countdown', n));
+/** Said when another tab is running the run this tab would carry on. */
+const ELSEWHERE_NOTE = "The run is still going in another tab, so this tab won't start it again. You can close this tab.";
 const autoNote = ref('');
+// This tab starts its own run after saying another tab's run is going (QA 26 Oct): the note no longer fits.
+watch(
+  () => store.busy,
+  busy => {
+    if (busy && autoNote.value.startsWith(ELSEWHERE_NOTE)) autoNote.value = '';
+  }
+);
 let account = '';
 let lockHeld = false;
 let goAt = 0;
@@ -562,7 +571,7 @@ function evaluate(final = false): void {
   const mark = readRunMark();
   if (lockHeld && mark?.status === 'running' && mark.kind === props.kind) {
     settle();
-    autoNote.value = "The run is still going in another tab, so this tab won't start it again. You can close this tab.";
+    autoNote.value = ELSEWHERE_NOTE;
     return;
   }
   const v = autoCarryOnVerdict({
@@ -627,7 +636,7 @@ async function go(): Promise<void> {
   if (store.busy) return;
   if (await runLockHeld()) {
     if (store.busy) return;
-    autoNote.value = "The run is still going in another tab, so this tab won't start it again. You can close this tab.";
+    autoNote.value = ELSEWHERE_NOTE;
     return;
   }
   const startedBefore = Date.now();
