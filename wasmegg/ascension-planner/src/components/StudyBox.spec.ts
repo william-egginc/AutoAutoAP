@@ -234,32 +234,57 @@ describe('Setup › Help improve the planner', () => {
     expect(t).toContain('Use for this account');
   });
 
-  it('no thanks and withdrawn: the account’s real consents right now, and Change', async () => {
+  /** The no-thanks / withdrawn line, alone. */
+  const offLine = async () => textOf((await setup()).match(/<p[^>]*data-testid="study-setup-off"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '');
+
+  it('no thanks, nothing on: says so, without a default-on word (Jordan, 26 Oct 2026)', async () => {
     await setConsentAccount(A);
     answerNo();
-    let t = textOf(await setup());
-    expect(t).toContain(
-      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · search results not shared · anonymous.'
-    );
-    expect(t).not.toContain('Nothing is shared unless');
+    expect(await offLine()).toBe('You said no thanks. Nothing is shared from this account.');
+    const t = textOf(await setup());
+    // The CSV default (on until unticked) is no choice of the player's: never named here.
+    expect(t).not.toContain('CSV');
     expect(t).toContain('Change');
     expect(t).not.toContain('Withdraw');
-    // Agreed under a share button after No thanks: Setup says so, and offers Withdraw.
+  });
+
+  it('no thanks, then agreed under a share button: only what is on, as turned on by hand, and Withdraw', async () => {
+    await setConsentAccount(A);
+    answerNo();
     setConsent('keepSharingChecks', true);
-    t = textOf(await setup());
-    expect(t).toContain(
-      'You said no thanks. For this account right now: runs not shared · CSV only with a share · diagnostics off · search results shared'
+    expect(await offLine()).toBe('You said no thanks to the box; sharing you turned on by hand: search results shared.');
+    setConsent('leaderboard', true);
+    setConsent('shareBaseline', true);
+    expect(await offLine()).toBe(
+      'You said no thanks to the box; sharing you turned on by hand: runs shared · CSV only with a share · search results shared · instant answer shared with your runs · anonymous.'
     );
+    const t = textOf(await setup());
     expect(t).toContain('Withdraw');
     expect(t).toContain(WITHDRAW_LINE);
+  });
+
+  it('yes with every tick, and yes with some: the yes line, read from the same consents', async () => {
+    await setConsentAccount(A);
+    answerYes({ ...ALL_ON }, 'anon', '');
+    expect(textOf(await setup())).toMatch(
+      /You said yes on [^:]+ for this account: runs shared · CSV only with a share · diagnostics on · search results shared · anonymous\./
+    );
+    // Another account, yes with some ticks.
+    await setConsentAccount(B);
+    answerYes({ share: true, csv: true, diag: false, checks: false }, 'anon', '');
+    expect(textOf(await setup())).toMatch(
+      /You said yes on [^:]+ for this account: runs shared · CSV only with a share · diagnostics off · search results not shared · anonymous\./
+    );
+  });
+
+  it('withdrawn: nothing on, or what was turned on by hand since', async () => {
+    await setConsentAccount(A);
     answerYes({ ...ALL_ON }, 'anon', '');
     withdrawStudy();
-    t = textOf(await setup());
-    expect(t).toMatch(
-      /Withdrawn on [^.]+\. For this account right now: runs not shared · CSV only with a share · diagnostics off · search results not shared · anonymous\./
-    );
-    expect(t).not.toContain('nothing is shared from this browser');
-    expect(t).toContain('Change');
+    expect(await offLine()).toMatch(/^Withdrawn on [^.;]+\. Nothing is shared from this account\.$/);
+    setConsent('leaderboard', true);
+    expect(await offLine()).toMatch(/^Withdrawn on [^.;]+; sharing you turned on by hand: runs shared · CSV only with a share · anonymous\.$/);
+    expect(textOf(await setup())).toContain('Change');
   });
 
   it('the CSV item never reads as "we send your CSV": only with a share, or off', async () => {
