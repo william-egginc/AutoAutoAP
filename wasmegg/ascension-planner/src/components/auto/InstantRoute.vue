@@ -31,10 +31,6 @@
       <h3 class="text-base font-black text-slate-900">
         Instant answer
         <span
-          class="ml-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
-          >worked out ahead</span
-        >
-        <span
           v-if="own"
           class="ml-1 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[9px] font-black uppercase tracking-widest"
           >your gear</span
@@ -300,13 +296,16 @@
           <template v-if="result.byDate">
             <div class="flex flex-wrap items-baseline gap-x-3">
               <span class="text-2xl font-black text-slate-900">{{ dateBoxOf(result.byDate).endTE }} TE</span>
+              <!-- Tight under a day, or inside the gear caveat's window when it shows (lib/spareLine.ts). -->
               <span
                 class="text-lg font-black"
-                :class="spareOf(dateBoxOf(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'"
-                >{{ days(spareOf(dateBoxOf(result.byDate))) }} to spare</span
+                :class="dateSpare?.tight ? 'text-amber-700' : 'text-emerald-800'"
+                data-testid="box-spare"
+                >{{ dateSpare?.text }}</span
               >
               <span
-                v-if="spareOf(dateBoxOf(result.byDate)) < TIGHT_SECONDS"
+                v-if="dateSpare?.tight"
+                data-testid="box-tight"
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
                 >tight</span
               >
@@ -492,7 +491,7 @@
             <span class="text-[11px] font-bold text-slate-500" data-testid="box-instant">instant answer</span>
           </div>
           <div class="text-[12px] font-bold text-emerald-800">
-            in {{ days(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
+            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
           <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
           <AnswerCaveatLine :caveat="headCaveat" />
@@ -764,7 +763,8 @@
 
 <script setup lang="ts">
 import { formatClock } from '@/lib/clock';
-import { plural, roundedGap } from '@/lib/format';
+import { headlineGap, plural, roundedGap } from '@/lib/format';
+import { spareLine } from '@/lib/spareLine';
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
@@ -2016,8 +2016,6 @@ const lowTeNote = computed(() => lowTeOpeningNote(store.integrityLowTe));
 const simNote = computed(() => tableSimMismatch(header.value));
 
 
-/** Under a day to spare is tight: a slower ascension than planned, or a late start, misses the date. */
-const TIGHT_SECONDS = 86400;
 /** A By a date route as the box and the counts list read it: its stops, the TE it ends at and when. */
 interface DatePick {
   chain: number[];
@@ -2030,6 +2028,12 @@ function lastEndTE(r: Route): number {
 }
 const tableDate = (r: Route): DatePick => ({ chain: r.chain ?? [], endTE: lastEndTE(r), end: r.end });
 const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
+/** The box's "to spare" and whether it is tight: under a day, or inside the gear caveat's window when the form G's
+ *  caveat shows ("Up to about 5 days later than shown", lib/spareLine.ts; Jordan, 26 Oct 2026). */
+const dateSpare = computed(() => {
+  const b = result.value?.byDate;
+  return b ? spareLine(spareOf(dateBoxOf(b)), shiftedTable.value) : null;
+});
 /** The rows By a date shows: the table's best number of ascensions and up to two either side. */
 function dateRowsOf(found: NonNullable<typeof result.value>): Route[] {
   const best = found.byDate;

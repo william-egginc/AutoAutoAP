@@ -469,3 +469,25 @@ export function roundedGap(seconds: number, locale?: string): string {
   const years = Math.round((days / 365.25) * 10) / 10;
   return `${years.toLocaleString(locale)} year${years === 1 ? '' : 's'}`;
 }
+
+/**
+ * A span in the answer's headline ("5.5 days to spare", "in 1,858 days (5.1 years)"; the UX review of 26 Oct 2026,
+ * item 4: the headline showed "5.50 days" and "1857.95 days"). Under an hour minutes, under a day hours, under 10
+ * days one decimal ("1 day", "5.5 days"), then whole days, and from a year on the days with the years beside them.
+ * Rounded as `roundedGap` rounds the counts table; a negative span keeps its sign.
+ */
+export function headlineGap(seconds: number, locale?: string): string {
+  const sign = seconds < 0 ? '−' : '';
+  const s = Math.abs(seconds);
+  const days = s / 86400;
+  if (s < 3600) return `${sign}${Math.max(1, Math.round(s / 60))} min`;
+  if (s < 86400) return `${sign}${Math.round(s / 3600)} h`;
+  if (days < 10) {
+    const d = Math.round(days * 10) / 10;
+    return `${sign}${d.toLocaleString(locale)} ${d === 1 ? 'day' : 'days'}`;
+  }
+  const whole = `${sign}${Math.round(days).toLocaleString(locale)} days`;
+  if (days < 365) return whole;
+  const years = Math.round((days / 365.25) * 10) / 10;
+  return `${whole} (${years.toLocaleString(locale)} year${years === 1 ? '' : 's'})`;
+}

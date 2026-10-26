@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from 'vitest';
-import { formatDuration, roundedGap } from './format';
+import { formatDuration, headlineGap, roundedGap } from './format';
 
 describe('formatDuration', () => {
   test('rounds a value a sub-microsecond epsilon under a whole unit up to that unit', () => {
@@ -46,5 +46,21 @@ describe('roundedGap: a dense table rounds (UX review, 25 Oct 2026)', () => {
   });
   it("follows the browser's number format", () => {
     expect(roundedGap(3.44 * D, 'de-DE')).toBe('3,4 days');
+  });
+});
+
+describe('headlineGap: the answer\'s headline rounds (UX review, 26 Oct 2026, item 4)', () => {
+  const D = 86400;
+  it('no 2-decimal days: one decimal under 10 days, whole days over, years beside the days from a year on', () => {
+    expect(headlineGap(5.5 * D, 'en-US')).toBe('5.5 days');
+    expect(headlineGap(5.0 * D, 'en-US')).toBe('5 days');
+    expect(headlineGap(1.02 * D, 'en-US')).toBe('1 day');
+    expect(headlineGap(12.6 * D, 'en-US')).toBe('13 days');
+    expect(headlineGap(1857.95 * D, 'en-US')).toBe('1,858 days (5.1 years)');
+  });
+  it('under a day in hours, under an hour in minutes; a negative span keeps its sign', () => {
+    expect(headlineGap(17.4 * 3600, 'en-US')).toBe('17 h');
+    expect(headlineGap(40 * 60, 'en-US')).toBe('40 min');
+    expect(headlineGap(-2 * 3600, 'en-US')).toBe('−2 h');
   });
 });
