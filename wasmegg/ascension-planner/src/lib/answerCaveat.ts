@@ -2,7 +2,7 @@
  * ONE line of caveat under an answer, with the rest behind "Why? ›" (Jordan, 25 Oct 2026; the UX review's item 3).
  *
  * The instant answer's date had three qualifiers around it, each saying a different direction of error: the bracket
- * line above ("no sooner than Jun 4, 2029"), the gear note below ("about 5 to 6 days later than shown") and the
+ * line above ("no sooner than Jun 4, 2029"), the gear note below ("up to about 5 days later than shown") and the
  * low-TE note ("rough"). Now the answer carries one plain sentence, built from the strongest caveat in effect, and a
  * closed "Why? ›" that lists every caveat in full, in the words each had before (Words owns them).
  *
@@ -51,6 +51,10 @@ export function answerCaveat(caveats: ReadonlyArray<Caveat | null | undefined | 
   return { line, more };
 }
 
+/** How much later than shown a form G answer can finish, in days: the gear caveat's "up to about 5 days later" (words
+ *  review W1-12). By a date's box calls its spare tight inside this window when that caveat shows (`gearTightSeconds`). */
+export const GEAR_CAVEAT_DAYS = 5;
+
 /** What the instant answer's gear note says (GearCaveat.vue renders these; the "Why?" list joins them). */
 export interface GearCaveatInput {
   /** The answer is the form G: the maxed table moved to the player's gear. */
@@ -71,7 +75,7 @@ export function gearCaveatParts(p: GearCaveatInput, optimisticText: string): { m
       main:
         "Your gear isn't one the instant answers were built for, so this answer is the fully maxed one adjusted to your " +
         "gear's rate (about 1–2% off per ascension). Over a whole route that adds up: in checks on one account, the route " +
-        'it picked finished about 5 to 6 days later than shown. Fast gives your real date.',
+        `it picked finished up to about ${GEAR_CAVEAT_DAYS} days later than shown. Fast gives your real date.`,
       optimistic: '',
     };
   const main = p.gearDiffers
@@ -91,7 +95,7 @@ export function gearCaveat(p: GearCaveatInput, optimisticText: string): Caveat |
   const text = [main, optimistic].filter(Boolean).join(' ');
   if (!text) return null;
   const line = p.gearShift
-    ? "About 5 to 6 days later than shown: your gear isn't one the instant answers were built for."
+    ? `Up to about ${GEAR_CAVEAT_DAYS} days later than shown: your gear isn't one the instant answers were built for.`
     : p.gearDiffers
       ? `Ascensions below about TE ${p.fullResearchTe} can take a few percent more or less: your gear isn't the gear the instant answer was built on.`
       : optimistic;
