@@ -33,6 +33,7 @@ import {
   patchSnapshot,
   readSnapshot,
   snapshotUsable,
+  type SnapWhatIf,
 } from '@/search/instantSnapshot';
 import { insideHoursFor, readFilters, readInsideHoursChoice } from '@/search/instantFilters';
 import { isConstrained } from '@/search/availability';
@@ -1156,8 +1157,16 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       match: setMatch.value,
       clothedEquipped: clothedOf(inv.equipped),
       clothedEarnings: clothedOf(inv.earnings),
-      whatIf: cardPlan.value?.state === 'this-save' ? cardPlan.value.plan.whatIf : null,
+      whatIf: selectedWhatIf.value ?? (cardPlan.value?.state === 'this-save' ? cardPlan.value.plan.whatIf : null),
     };
+  });
+  /** The maxed what-if kept with the selected goal's instant answer of THIS save and setup (its own snapshot key), so
+   *  a followed or estimated route still has it: the gear block's "With a perfect set" line (25 Oct 2026). */
+  const selectedWhatIf = computed<SnapWhatIf | null>(() => {
+    void kept.value;
+    const k = keys.value.find(x => x.d.key === selectedGoal.value);
+    const s = k ? (snapOf(instantSnapKey(k.key)) as { whatIf?: SnapWhatIf | null } | null) : null;
+    return s?.whatIf ?? null;
   });
 
   // -------------------------------------------------------------------------------- eggs and facts

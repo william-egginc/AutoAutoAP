@@ -109,7 +109,34 @@ async function run(): Promise<void> {
     if (id !== runs) return;
     maxed.value = r;
     status.value = 'done';
-    emit('result', { at: Date.now(), end: r.end, te: r.te, mineEnd: props.mine.end, mineTE: props.mine.te });
+    // By a date, also when maxed gear reaches the player's own TE (fastest, no date): My runs says the gap in time
+    // (search/maxedWhatIf.ts `perfectSetGap`). A failure here only leaves it out.
+    let sameEnd: number | null | undefined;
+    if (props.deadline && props.mine.te > 0) {
+      try {
+        const same = await priceOnTable(pool, props.tableUrl, {
+          legs: JSON.parse(JSON.stringify(props.legs)) as FirstLegsBase,
+          final: props.mine.te,
+          maxAscensions: props.maxAscensions,
+          atMost: props.atMost,
+          atLeast: props.atLeast ?? null,
+          hours: props.hours ? (JSON.parse(JSON.stringify(props.hours)) as Availability) : null,
+          ...(props.tail ? { tail: { ...props.tail } } : {}),
+        });
+        sameEnd = same.end;
+      } catch {
+        sameEnd = undefined;
+      }
+      if (id !== runs) return;
+    }
+    emit('result', {
+      at: Date.now(),
+      end: r.end,
+      te: r.te,
+      mineEnd: props.mine.end,
+      mineTE: props.mine.te,
+      ...(sameEnd !== undefined ? { sameEnd } : {}),
+    });
   } catch {
     if (id === runs) status.value = 'error';
   } finally {

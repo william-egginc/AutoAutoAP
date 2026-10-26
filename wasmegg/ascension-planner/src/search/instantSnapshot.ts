@@ -61,6 +61,9 @@ export interface SnapWhatIf {
   /** The player's own instant answer it was compared with. */
   mineEnd: number | null;
   mineTE: number;
+  /** By a date: when maxed gear reaches the player's own TE (`mineTE`), the fastest route to it on the maxed table, unix
+   *  seconds; null when none. Absent before 25 Oct 2026 (My runs' "With a perfect set" line then says nothing). */
+  sameEnd?: number | null;
 }
 
 function readIndex(st: StorageLike): IndexEntry[] {

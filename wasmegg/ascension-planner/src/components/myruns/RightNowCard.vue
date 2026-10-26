@@ -374,7 +374,6 @@
       :clothed-equipped="gear.clothedEquipped"
       :clothed-earnings="gear.clothedEarnings"
       :what-if="gear.whatIf"
-      :what-if-when="gear.whatIf ? dateAt(gear.whatIf.at / 1000, now, zone) : ''"
       :goal="card?.goal.goal ?? 'fastest'"
       :match="gear.match ?? null"
     />

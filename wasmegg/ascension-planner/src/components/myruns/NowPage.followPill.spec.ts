@@ -11,7 +11,7 @@ import { createPinia, getActivePinia, setActivePinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary } from '@/search/types';
-import { instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { instantSnapKey, writeSnapshot, type SnapWhatIf } from '@/search/instantSnapshot';
 import type { SnapSearch } from '@/lib/searchPlan';
 import { followOptionWords, goalFollowOf } from '@/lib/planGoals';
 import { syntheticBackup } from '@/test/syntheticSave';
@@ -87,7 +87,7 @@ const TABLE = 'precompute/table-v2.bin';
  */
 async function setup(
   followed: Record<string, unknown>,
-  o: { fast?: boolean; final?: number; pricing?: boolean; startTE?: number; snapFor?: 'eggday' | 'race'; followKey?: string; select?: boolean } = {}
+  o: { fast?: boolean; final?: number; pricing?: boolean; startTE?: number; snapFor?: 'eggday' | 'race'; followKey?: string; select?: boolean; whatIf?: SnapWhatIf } = {}
 ) {
   loadAndSyncBackup(A_ID, save(), 'plan_next');
   rollUpPendingTE();
@@ -143,6 +143,7 @@ async function setup(
     answerStart: now - H,
     ...(o.fast ? { search: found } : {}),
     ...(o.pricing === false ? {} : { pricing }),
+    ...(o.whatIf ? { whatIf: o.whatIf } : {}),
   } as never);
   mem.set(`${FOLLOW_PREFIX}${await hashID(A_ID)}`, JSON.stringify({ [goalKey]: followed }));
   const follows = useFollowStore();
@@ -287,5 +288,34 @@ describe('the pill words (lib/planGoals.ts)', () => {
     expect(goalFollowOf({ price: 'finish', finish: { end: 7 } }, null)).toEqual({ times: 'finish', end: 7 });
     expect(goalFollowOf({ price: 'none', estimating: 'working' }, null)).toEqual({ times: 'working', end: null });
     for (const e of ['nosource', 'beyond', 'failed', undefined]) expect(goalFollowOf({ price: 'none', estimating: e }, null).times).toBe('none');
+  });
+});
+
+describe("the gear block's perfect-set line reads the goal's own instant answer, followed or not (25 Oct 2026)", () => {
+  it('a followed Egg Day route priced as an estimate (its plan has no what-if) still gets the what-if kept with the instant answer', async () => {
+    const whatIf: SnapWhatIf = { at: Date.now(), end: 1, te: 252, mineEnd: 2_000_000, mineTE: 248, sameEnd: 2_000_000 - 3 * D };
+    const { page, scope, now, eggDayAt } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, { whatIf });
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    calls[0].resolve({
+      chain: [205, 238],
+      end: eggDayAt - 3 * D,
+      seconds: eggDayAt - 3 * D - now,
+      legs: [
+        { from: 194, to: 205, endTE: 205, start: now - H, end: now + 20 * H, sales: 0, tier13: false, label: 'continue' },
+        { from: 205, to: 238, endTE: 238, start: now + 21 * H, end: eggDayAt - 3 * D, sales: 1, tier13: false, label: '1-sale' },
+      ],
+    });
+    await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
+    expect(page.cardPlan.value?.plan.whatIf).toBeNull();
+    await vi.waitFor(() => expect(page.gear.value).not.toBeNull());
+    expect(page.gear.value?.whatIf).toEqual(whatIf);
+    scope.stop();
+  });
+
+  it('no what-if kept: none', async () => {
+    const { page, scope } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(page.gear.value).not.toBeNull());
+    expect(page.gear.value?.whatIf).toBeNull();
+    scope.stop();
   });
 });
