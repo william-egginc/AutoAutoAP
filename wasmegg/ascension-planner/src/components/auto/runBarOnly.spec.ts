@@ -48,7 +48,7 @@ describe('the run bar is the only progress', () => {
 });
 
 describe('the result names its hours and time off (item 10)', () => {
-  const line = 'Priced with your hours 9 am to 1 am, no time off';
+  const line = 'Priced with awake hours 9 am to 1 am, no time off';
 
   it("Fastest's card says it once finished, not while running", async () => {
     const base = { chain: [212, 280, 490], days: 760.5, finalTE: 490, endLabel: 'Feb 15, 2029', pricedWith: line };

@@ -34,7 +34,7 @@
           </p>
           <h3 class="text-sm font-black text-slate-900">{{ sweepRequest.label }}</h3>
           <p class="text-[11px] text-slate-600">
-            Bands <code class="rounded bg-white px-1 text-[10px]">{{ bandsText }}</code
+            Ranges <code class="rounded bg-white px-1 text-[10px]">{{ bandsText }}</code
             >, minimum gap {{ minGap
             }}<template v-if="sweepRequest.firstAscension !== null"
               >, {{ describeFirstAscension(sweepRequest.firstAscension) }}</template
@@ -46,12 +46,12 @@
           </p>
           <p class="text-[11px] text-slate-600">
             <template v-if="timeOffText">
-              Planned around time off from virtue: <b>{{ timeOffText }}</b
-              >. It still prices every route, but the result goes on the board with the time-off runs and won't fill
+              Planned around time off: <b>{{ timeOffText }}</b
+              >. It still prices every route, but the result goes on the Leaderboard with the time-off runs and won't fill
               this gap.
             </template>
             <template v-else>
-              Taking time away from virtue, like Egg Day or a trip?
+              Taking time off, like Egg Day or a trip?
               <button type="button" class="font-bold text-indigo-700 underline" @click="ui.openSetupRequested++">
                 Add it in Setup
               </button>
@@ -246,13 +246,13 @@
         </summary>
         <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed space-y-2">
           <p>
-            This prices <span class="font-bold">every</span> route in the bands you describe, with no descent, stages or
+            This prices <span class="font-bold">every</span> route in the ranges you describe, with no descent, stages or
             pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
-            of hand fastest: the bands multiply, so halving the step in each does far more than double the work.
+            of hand fastest: the ranges multiply, so halving the step in each does far more than double the work.
           </p>
           <p>
-            Nothing here is capped. Above 100,000 routes, Find asks you to confirm first; above 500,000 it asks twice.
-            The count and estimate below update as you type, so check them before you press Find.
+            Nothing here is capped. Above 100,000 routes, Run Custom asks you to confirm first; above 500,000 it asks twice.
+            The count and estimate below update as you type, so check them before you press Run Custom.
           </p>
           <!-- How the work is split: explanation, so it sits here with the rest (it was between the
                estimate and Find). -->
@@ -364,7 +364,7 @@
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
                 <HelpTip
                   >The TE every route ends at. It's added to the end of each route automatically, so it never goes in
-                  the bands below.</HelpTip
+                  the ranges below.</HelpTip
                 >
               </span>
               <input
@@ -379,7 +379,7 @@
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Your TE now</span>
                 <HelpTip
-                  >Read from your backup, not editable here. It is the floor for every stop in the bands.</HelpTip
+                  >Read from your backup, not editable here. It is the floor for every stop in the ranges.</HelpTip
                 >
               </span>
               <input
@@ -399,12 +399,12 @@
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Bands, one per stop
+                  Ranges, one per stop
                 </span>
                 <HelpTip>
                   Semicolon separated, each `lo-hi` with an optional `:step`. `185-200:5; 210-240:10; 250-290:20` means
                   the first ascension lands between 185 and 200, the second between 210 and 240, the third between 250
-                  and 290, then the target. Bands may overlap; routes still have to increase.
+                  and 290, then the target. Ranges may overlap; routes still have to increase.
                 </HelpTip>
               </span>
               <input
@@ -454,7 +454,7 @@
                   ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
                   no measurement is involved. Above that, it uses where near-best routes have actually landed across
                   this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
-                  the bands. It also adds a box for one ascension fewer and one more, at half the size, so a sweep
+                  the ranges. It also adds a box for one ascension fewer and one more, at half the size, so a sweep
                   covers three counts; remove them under Box 2 and 3 if you only want one. Either way it's a starting
                   point you can edit.
                 </HelpTip>
@@ -494,7 +494,7 @@
 
               <span class="block text-[10px] text-slate-400">
                 <template v-if="bands.length">
-                  {{ plural(bands.length, 'band') }} → {{ plural(bands.length + 1, 'ascension') }} ·
+                  {{ plural(bands.length, 'range') }} → {{ plural(bands.length + 1, 'ascension') }} ·
                   {{ bands.map(b => b.length).join(' × ') }} values
                 </template>
                 <template v-else>Nothing readable yet.</template>
@@ -520,7 +520,7 @@
                 v-if="ascMismatch"
                 class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
               >
-                Your bands make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the
+                Your ranges make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the
                 Ascensions box says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest
                 a space to switch to {{ plural(suggestAsc, 'ascension') }}, or set the box back to
                 {{ bands.length + 1 }}.
@@ -568,7 +568,7 @@
               <template #footer>
                 <span v-if="extraChains.length" class="text-[11px] text-slate-500">
                   One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} boxes, one
-                  after another. Each finished one is saved under Saved runs.
+                  after another. Each finished one is saved under Saved for later.
                 </span>
               </template>
             </RoutesToTry>
@@ -602,14 +602,14 @@
             </label>
 
             <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
-              The winner will be the best <span class="font-semibold">of the bands you set</span>, not of everything
+              The winner will be the best <span class="font-semibold">of the ranges you set</span>, not of everything
               reachable. That's still a stronger claim than the {{ NAMES.smartFirst }} search makes, which homes in rather than
               trying everything.
             </p>
           </div>
 
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            The ascension count includes the final target, so 4 bands is 5 ascensions. Values at or below your current
+            The ascension count includes the final target, so 4 ranges is 5 ascensions. Values at or below your current
             TE, and at or above the target, are dropped: neither is an ascension you can perform.
           </p>
         </div>
@@ -624,7 +624,7 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Values tried</span>
                 <HelpTip
-                  >Stop values across all the bands, after anything outside (your TE, target) is dropped.</HelpTip
+                  >Stop values across all the ranges, after anything outside (your TE, target) is dropped.</HelpTip
                 >
               </div>
               <div class="text-lg font-black text-slate-900 tabular-nums">{{ poolSize }}</div>
@@ -633,7 +633,7 @@
               <div class="flex items-center justify-center gap-1.5">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Routes it will run</span>
                 <HelpTip
-                  >Every route through the bands that can actually be played: each stop above the one before it (and at
+                  >Every route through the ranges that can actually be played: each stop above the one before it (and at
                   least the minimum gap above it), with the target added at the end. Combinations that go down, stand
                   still, or fall outside your TE and the target can't be played, so they aren't counted or run. It's
                   counted, never built as a list: at small steps the list wouldn't fit in memory, and this number warns
@@ -650,7 +650,7 @@
                 v-else-if="!runLeft && unplayable > 0 && totalChains === chainCount"
                 class="text-[10px] text-slate-500 leading-snug"
               >
-                playable, of {{ combinations.toLocaleString() }} the bands could make
+                playable, of {{ combinations.toLocaleString() }} the ranges could make
               </div>
             </div>
             <div>
@@ -717,10 +717,10 @@
           </p>
           <p class="text-[11px] leading-relaxed" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
             <template v-if="!poolSize">
-              The bands are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
+              The ranges are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
             </template>
             <template v-else-if="!chainCount">
-              No routes: no way through these bands goes up at every stop{{
+              No routes: no way through these ranges goes up at every stop{{
                 minGap > 0 ? ` by at least ${minGap} TE` : ''
               }}.
             </template>
@@ -869,7 +869,7 @@
                 </template>
               </ResultTable>
               <p class="text-[10px] text-slate-500">
-                Each is saved under Saved runs, so you can open any of them again. Compare them by finish date.
+                Each is saved under Saved for later, so you can open any of them again. Compare them by finish date.
               </p>
             </div>
           </template>
@@ -984,7 +984,7 @@
                 You stopped it early, so this is the best of what was priced, not the optimum of the space.
               </p>
               <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
-                Your time away from virtue goes into the plan too: the ascension it interrupts ends when the time off starts
+                Your time off goes into the plan too: the ascension it interrupts ends when the time off starts
                 (going to the home farm is a prestige), and a rebuild starts after it.
               </p>
             </RouteResultCard>
@@ -1046,18 +1046,18 @@
             >
               <template #intro>
                 <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-                  A Custom result is the most useful thing the board can get: the best of a stated grid rather than
+                  A Custom result is the most useful thing the Leaderboard can get: the best of a stated grid rather than
                   a search result. It is sent with the space it covered and what it found there (the runners-up, the
                   best route at each ascension count, and the spread), so a reader can tell a real find from a flat
-                  neighbourhood without downloading the CSV. A run opened from Saved runs above is sent without a run
+                  neighbourhood without downloading the CSV. A run opened from Saved for later above is sent without a run
                   cost, because the time it took wasn't this machine's.
                 </p>
                 <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-                  The board uses the random code so that a run landing on the flagged board shows to you as yours and to
+                  The Leaderboard uses the random code so that a run landing on the flagged Leaderboard shows to you as yours and to
                   everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
-                  you sent anonymously, and your own later runs can replace your older plans on the board (nobody else's
+                  you sent anonymously, and your own later runs can replace your older plans on the Leaderboard (nobody else's
                   can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
-                  to you. Your best three plans already on the board go named with a named send and anonymous with an
+                  to you. Your best three plans already on the Leaderboard go named with a named send and anonymous with an
                   anonymous one, so a re-check never ties the two together.
                 </p>
               </template>
@@ -1070,9 +1070,9 @@
                     class="mt-0.5 rounded border-indigo-300 text-indigo-600 disabled:opacity-40"
                   />
                   <span>
-                    <span class="font-bold">Add the time to the name.</span> Optional. The board already keeps each
+                    <span class="font-bold">Add the time to the name.</span> Optional. The Leaderboard already keeps each
                     space you prove as its own row, so nothing is lost without it. It just makes your own runs easier to
-                    tell apart at a glance when several are on the board.
+                    tell apart at a glance when several are on the Leaderboard.
                   </span>
                 </label>
                 <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
@@ -1699,8 +1699,8 @@ function extraProblem(k: number): string {
   if (!row || row.asc <= 1) return '';
   const b = extraBands(k);
   if (!b.length) return 'Nothing readable yet: press Suggest a space or type bands.';
-  if (b.length !== row.asc - 1) return `These bands make ${b.length + 1} ascensions, not ${row.asc}.`;
-  return extraCount(k) ? '' : 'No route in these bands goes up to the target.';
+  if (b.length !== row.asc - 1) return `These ranges make ${b.length + 1} ascensions, not ${row.asc}.`;
+  return extraCount(k) ? '' : 'No route in these ranges goes up to the target.';
 }
 function extraSummary(k: number): string {
   const row = extraChains.value[k];
@@ -1786,11 +1786,11 @@ function addChain(): void {
 function addChainOfCount(n: number): string {
   const suggested = spaceFor(n, suggestBudget)?.text ?? '';
   const queued = extraChains.value.findIndex(r => r.asc === n && r.text.trim() === suggested);
-  if (queued >= 0) return `Box ${queued + 2} already has ${n} ascensions. Press Find to run it.`;
+  if (queued >= 0) return `Box ${queued + 2} already has ${n} ascensions. Press Run Custom to run it.`;
   extraChains.value.push({ asc: n, text: '' });
   const k = extraChains.value.length - 1;
   suggestExtra(k);
-  return `Added Box ${k + 2} with ${n} ascensions under The space to search. Press Find to run it.`;
+  return `Added Box ${k + 2} with ${n} ascensions under The space to search. Press Run Custom to run it.`;
 }
 /** The instant answer's route, handed to the Full sweep as one-value bands (taken by the watch on `ui.fullSweepBands`). */
 function checkRouteExactly(chain: number[]): void {

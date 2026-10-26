@@ -790,7 +790,7 @@ export interface DuplicateNote {
 export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote = {}, now = Date.now()): string {
   if (kind === 'result') return 'sent (the same answer as your earlier run, from another search)';
   const when = sentAtText(note.firstAt, now);
-  const lead = `Already on the board${when ? ` (sent ${when})` : ''}`;
+  const lead = `Already on the Leaderboard${when ? ` (sent ${when})` : ''}`;
   const clauses: string[] = [];
   if (note.renamed) clauses.push(`your name is on it now (${note.renamed})`);
   if (note.table?.landed === 'new') {
@@ -804,8 +804,8 @@ export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote =
   const sent = note.sent?.trim() ?? '';
   if (sent && !note.renamed && note.stored !== sent) {
     if (note.stored === undefined) text += '; the name on it was not changed';
-    else if (note.stored) text += `. It is on the board as ${note.stored}: press Put my name on it to make it ${sent}`;
-    else text += `. It is on the board without a name: press Put my name on it to add ${sent}`;
+    else if (note.stored) text += `. It is on the Leaderboard as ${note.stored}: press Put my name on it to make it ${sent}`;
+    else text += `. It is on the Leaderboard without a name: press Put my name on it to add ${sent}`;
   }
   return text;
 }

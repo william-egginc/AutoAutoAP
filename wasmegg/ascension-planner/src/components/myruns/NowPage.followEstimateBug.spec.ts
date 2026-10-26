@@ -186,7 +186,7 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     await nextTick();
     expect(calls).toHaveLength(0);
     const { text } = await render(page);
-    expect(text).toContain('This route was set with a different hours window.');
+    expect(text).toContain('This route was set with different awake hours.');
     expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup");
     expect(text).toContain('Open Highest TE by a date once so the instant answer can price it ›');
     expect(text).not.toContain('No timeline for your route on this save yet');
@@ -202,7 +202,7 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     expect(page.follow.value?.estimating).toBe('working');
     let r = await render(page);
     expect(r.text).toContain("Working out your route's times from the instant answer's data…");
-    expect(r.text).toContain('This route was set with a different hours window.');
+    expect(r.text).toContain('This route was set with different awake hours.');
     calls[0].resolve(route(now, eggDayAt - 4.5 * H));
     await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
     expect(page.cardPlan.value?.plan).toMatchObject({ chain: [225, 300], estimated: true, endTE: 300 });

@@ -491,7 +491,7 @@ describe('the hours note under each box', () => {
   }
   it('the words are the Prestige by line\'s own constant, not a copy', () => {
     expect(HOURS_NOTE).toBe(
-      'With your hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.'
+      'With awake hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.'
     );
     expect(source).toContain("import { HOURS_NOTE } from '@/lib/hoursNote';");
     expect(source.match(/\{\{ HOURS_NOTE \}\}/g)).toHaveLength(2);

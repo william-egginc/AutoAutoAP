@@ -27,7 +27,7 @@
       <h1 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h1>
       <!-- One line (ux review 26 Oct, row 15): what the page holds is in its section headings below. -->
       <p class="text-sm text-slate-600 leading-relaxed max-w-3xl" data-testid="my-runs-intro">
-        The only thing worked out here is a quick estimate of a route you follow, from the instant answer's data.
+        The only thing worked out here is an estimate from the instant answer of a route you follow.
       </p>
     </div>
 
@@ -139,7 +139,7 @@
         <span>
           <b>Share my instant answer with my runs</b>
           <span class="block text-[11px] text-slate-500"
-            >Sends the instant answer's route and date beside each run you send, so the board can show how much a search
+            >Sends the instant answer's route and date beside each run you send, so the Leaderboard can show how much a search
             gained. Same rules as sending a run: never your player ID, never your save.</span
           >
         </span>
@@ -185,7 +185,7 @@
           @toggle="sync('board', $event)"
         >
           <summary :class="SUMMARY">
-            Your runs on the board<span :class="COUNT" data-testid="board-count">{{ boardCountText }}</span>
+            Your runs on the Leaderboard<span :class="COUNT" data-testid="board-count">{{ boardCountText }}</span>
           </summary>
           <div class="mt-3">
             <LeaderboardPanel
@@ -243,7 +243,7 @@
           </summary>
           <div class="mt-3 space-y-2">
             <p class="text-[11px] text-slate-500 leading-relaxed">
-              Finished results this browser kept because they didn't reach the board (the page closed first, or nothing sent
+              Finished results this browser kept because they didn't reach the Leaderboard (the page closed first, or nothing sent
               them). Each goes with its own route and CSV, whatever save is loaded now.
             </p>
             <p v-if="store.isRunning || store.deadlineRunning" class="text-[11px] text-slate-500">

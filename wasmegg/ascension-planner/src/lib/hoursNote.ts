@@ -7,4 +7,4 @@
  * check, 24 Oct 2026: 6.3 days on one route, and the instant route at its own times landed up to 154 h late).
  */
 export const HOURS_NOTE =
-  'With your hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.';
+  'With awake hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.';

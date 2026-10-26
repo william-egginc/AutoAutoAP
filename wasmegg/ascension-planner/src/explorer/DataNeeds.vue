@@ -110,7 +110,7 @@
               {{ need.byDate.summary }} {{ need.bd?.wider }}
             </p>
             <p v-if="need.bd?.fitted.length">
-              The longest route's boxes, one per stop, from {{ teNow }} TE (shorter routes use the first ones):
+              The longest route's ranges, one per stop, from {{ teNow }} TE (shorter routes use the first ones):
               <span v-for="(f, i) in need.bd.fitted" :key="i" class="font-mono-premium font-bold"
                 >{{ i ? ' · ' : '' }}{{ f }}</span
               >.
@@ -179,7 +179,7 @@
               <span class="text-[10px] text-slate-400">
                 {{
                   need.byDate
-                    ? `Switches to ${NAMES.byDate} with this filled in; nothing starts until you press Find.`
+                    ? `Switches to ${NAMES.byDate} with this filled in; nothing starts until you press Run.`
                     : `Shows how many routes and about how long on ${thisDevice()} before anything starts.`
                 }}
               </span>
@@ -386,13 +386,13 @@ const GROUPS: { id: 'gear' | 'bydate'; title: string; intro: string }[] = [
     id: 'bydate',
     title: "Checking the instant answer: Egg Day runs",
     intro:
-      `${NAMES.byDate} runs now save every ascension, so each one checks the instant answer, and the best route for each number of ascensions checks how it picks routes. These open ${NAMES.byDate} on Egg Day with the stops filled in; nothing starts until you press Find. Each is sized to start in the morning and finish by night on a desktop.`,
+      `${NAMES.byDate} runs now save every ascension, so each one checks the instant answer, and the best route for each number of ascensions checks how it picks routes. These open ${NAMES.byDate} on Egg Day with the stops filled in; nothing starts until you press Run. Each is sized to start in the morning and finish by night on a desktop.`,
   },
   {
     id: 'gear',
     title: "Accounts and gear we haven't seen yet",
     intro:
-      "Every account on the board has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build the instant answer for, in the order we want them. An account counts towards a card once one of its runs wore that set; a card with enough accounts moves to the end until its instant answer is built.",
+      "Every account on the Leaderboard has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build the instant answer for, in the order we want them. An account counts towards a card once one of its runs wore that set; a card with enough accounts moves to the end until its instant answer is built.",
   },
 ];
 

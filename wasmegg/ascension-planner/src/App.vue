@@ -648,7 +648,7 @@
           <h1 class="text-2xl font-black text-slate-900">Help check the planner</h1>
           <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
             <template v-if="scienceView === 'check'">
-              These are the runs the board still needs. Run one on your account and it fills a gap.
+              These are the runs the Leaderboard still needs. Run one on your account and it fills a gap.
             </template>
             <template v-else>A sweep sent in here fills a gap listed under {{ NAMES.check }}, the same as a run started there.</template>
             How the planner works is under {{ NAMES.how }}; what everybody's shared runs show is on

@@ -27,7 +27,7 @@
             ></template
           >
         </span>
-        <span v-else class="text-[10px] font-bold text-slate-400">Counting the board…</span>
+        <span v-else class="text-[10px] font-bold text-slate-400">Counting the Leaderboard…</span>
       </div>
       <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
         What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
@@ -65,7 +65,7 @@
     </div>
 
     <p class="text-[11px] text-slate-500 leading-relaxed">
-      Tap a finding to open it. The header counts are worked out from the board each time the page loads. The charts and
+      Tap a finding to open it. The header counts are worked out from the Leaderboard each time the page loads. The charts and
       tables further down are live too and show dates in your timezone.
     </p>
 
@@ -86,9 +86,9 @@
                played at the instant answer's own times landed +134.6, +24.8, +153.9 and +0.3 h from it. The form G's
                per-ascension figure is GearCaveat.vue's. -->
           <p v-if="f.id === 'match'">
-            With your hours off, each ascension lands within about an hour of the full simulator; a whole route can move
+            With awake hours off, each ascension lands within about an hour of the full simulator; a whole route can move
             by a day or two if an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so
-            use a Fast search for the final word. With your hours on it can be days out: in 4 checks on one account (24
+            use a Fast search for the final word. With awake hours on it can be days out: in 4 checks on one account (24
             Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of
             them. {{ HOURS_NOTE }} When the answer is the fully maxed one adjusted to your gear's rate, each ascension is
             about 1-2% off. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
@@ -96,7 +96,7 @@
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
             within an hour) and every new run that week. For the accounts it has an instant answer built for on their own gear (10 so
             far) it reproduces their submitted runs to a median of 0.15% or better. On maxed gear, for an account with
-            weaker gear, it can be far off: a 21 Oct comparison of 84 board runs found it far too hopeful on 18 of them
+            weaker gear, it can be far off: a 21 Oct comparison of 84 Leaderboard runs found it far too hopeful on 18 of them
             (Science › How it works, section 6).
           </p>
           <p v-else-if="f.id === 'wider'">
@@ -132,7 +132,7 @@
               </table>
             </div>
             <p>
-              The board's runs agree. The last stop before 490 sits around 280 with 2-3 ascensions and 285-335 with 5-7.
+              The Leaderboard's runs agree. The last stop before 490 sits around 280 with 2-3 ascensions and 285-335 with 5-7.
             </p>
           </template>
           <template v-else-if="f.id === 'eggday'">
@@ -162,7 +162,7 @@
           </p>
           <p v-else-if="f.id === 'stall'">
             Under roughly 218-225 Clothed TE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
-            more than a week, and the instant answer shows no routes for one. Every account on the board is above
+            more than a week, and the instant answer shows no routes for one. Every account on the Leaderboard is above
             it<template v-if="stats && stats.lowestCte !== null"> (lowest {{ cteText(stats.lowestCte) }})</template>. A
             full T4L earnings set with T4 Lunar stones adds +128.7 to Clothed TE.
           </p>
@@ -212,7 +212,7 @@
         </p>
         <p>
           <b>The six gear sets on the Science tab</b> (epic earnings set, rare earnings set, rare/common delivery set,
-          epic everything, rare everything, legendary set on T3 stones). Nothing on the board covers earnings bonuses
+          epic everything, rare everything, legendary set on T3 stones). Nothing on the Leaderboard covers earnings bonuses
           between 63 and 115, or weak delivery with a full earnings set. Every account so far has a T4L Lunar totem and
           a T4L Demeters necklace.
         </p>
@@ -249,7 +249,7 @@ defineProps<{
 const findings = [
   {
     id: 'match',
-    headline: 'With your hours off, the instant answer lands within about an hour of the full simulator on each ascension.',
+    headline: 'With awake hours off, the instant answer lands within about an hour of the full simulator on each ascension.',
   },
   { id: 'wider', headline: 'Wider searches would have found faster routes.' },
   { id: 'misses', headline: 'The instant answer rarely misses, but it can.' },

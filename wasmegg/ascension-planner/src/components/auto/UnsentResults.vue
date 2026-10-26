@@ -136,7 +136,7 @@
               <span
                 ><span class="font-bold">Also send diagnostics</span>: memory readings, how many workers ran, any crash
                 or carry-on, the run's size and time, the app version, and your browser and system. Sent privately to
-                the planner's maintainer, never shown on the board; no player ID and no save.</span
+                the planner's maintainer, never shown on the Leaderboard; no player ID and no save.</span
               >
             </label>
           </div>

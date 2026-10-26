@@ -748,7 +748,7 @@
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
                           A{{ i + 1 }}: {{ eggBlocks(leg).length }} eggs, {{ leg.shifts.length }} shifts
                           <span v-if="store.scheduleEnabled" class="text-amber-600"
-                            >· amber falls outside your hours</span
+                            >· amber falls outside your awake hours</span
                           >
                         </p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
@@ -850,7 +850,7 @@
             The built plan will show slightly earlier dates than this search
           </p>
           <p>
-            Only this search knows about your available hours; {{ NAMES.classic }} does not. It will lay the plan out
+            Only this search knows about your awake hours; {{ NAMES.classic }} does not. It will lay the plan out
             assuming you prestige the instant each target is hit, so its dates omit the
             <span class="font-semibold">{{ totalPrestigeWait }}</span> of waiting the search charged. The stops and
             strategies are the same; only the clock differs, and
@@ -1007,16 +1007,16 @@
               <em>is</em> in it and is still identifying: <span class="font-semibold">your artifact inventory</span>,
               which with exact counts is close to a fingerprint among people who know you; your
               <span class="font-semibold">timezone</span> and local plan start; and your
-              <span class="font-semibold">available hours</span>. The inventory is included because a duration means
+              <span class="font-semibold">awake hours</span>. The inventory is included because a duration means
               nothing without knowing what it was simulated with: the same plan on commons is a different claim. It also
               carries a <span class="font-semibold">random code this browser keeps for the account</span> (not derived
-              from your player ID). The code is never shown to anyone. The board uses it so a run that lands on the
-              flagged board (a stalled first ascension, a plan past ten years) shows to you as yours and to everyone
+              from your player ID). The code is never shown to anyone. The Leaderboard uses it so a run that lands on the
+              flagged Leaderboard (a stalled first ascension, a plan past ten years) shows to you as yours and to everyone
               else anonymously; so the same result sent twice is stored once; so you can put your name on a run you sent
-              anonymously; and so your own later runs can replace your older plans on the board, which nobody else's can.
+              anonymously; and so your own later runs can replace your older plans on the Leaderboard, which nobody else's can.
               A named run shows a short tag made from the code, so your runs read as one player; an anonymous run shows
-              nothing that links it to you. If you have plans on the board already, it also carries
-              <span class="font-semibold">your best three of them re-priced from this save</span>, so the board can tell
+              nothing that links it to you. If you have plans on the Leaderboard already, it also carries
+              <span class="font-semibold">your best three of them re-priced from this save</span>, so the Leaderboard can tell
               whether they still hold: your named plans when this goes with your name, your anonymous ones when it goes
               without, so a re-check never ties the two together.
               <span v-if="includeCsv"
@@ -1026,7 +1026,7 @@
               >
               <span v-if="diagnosticsGo"
                 >Your <span class="font-semibold">diagnostics go too</span> ("Also send diagnostics"): sent privately to
-                the planner's maintainer, never shown on the board. It holds memory readings, the worker count, any
+                the planner's maintainer, never shown on the Leaderboard. It holds memory readings, the worker count, any
                 crash or carry-on, the run's size and time, the app version, and your browser and system. No player ID
                 and no save.</span
               >
@@ -1302,7 +1302,7 @@ function startFromCount(n: number): string {
   store.setLimits(plan.minPrestiges, plan.maxPrestiges);
   store.findSeedFirst = false;
   store.seedOverride = plan.chain.slice(0, -1).join(' ');
-  const set = `Starting route set to ${plan.chain.join(' ')}. Press Find to search from it`;
+  const set = `Starting route set to ${plan.chain.join(' ')}. Press Run to search from it`;
   return store.effort === 'quick'
     ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a wider search, pick Exact above.`
     : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, above, is quicker.`;

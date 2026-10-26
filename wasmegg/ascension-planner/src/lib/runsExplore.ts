@@ -68,7 +68,7 @@ export const GROUP_LABELS: Record<ExploreGroup, string> = {
   goal: 'Goal',
   asc: 'Ascensions',
   level: 'Level',
-  hours: 'Hours',
+  hours: 'Awake hours',
   when: 'Sent',
 };
 
@@ -81,7 +81,7 @@ const LEVEL_LABELS: Record<LevelValue, string> = {
   unknown: 'Not recorded',
 };
 const HOURS_ORDER: HoursValue[] = ['mine', 'any'];
-const HOURS_LABELS: Record<HoursValue, string> = { mine: 'My hours', any: 'Any time' };
+const HOURS_LABELS: Record<HoursValue, string> = { mine: 'My awake hours', any: 'Any time' };
 const WHEN_ORDER: WhenValue[] = ['today', 'week', 'month', 'older'];
 const WHEN_LABELS: Record<WhenValue, string> = {
   today: 'Today',

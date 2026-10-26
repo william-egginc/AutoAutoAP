@@ -295,7 +295,7 @@
         Each run against its own best, inside its own table (one save), so these days are exact; they never compare one
         run's total with another's. A range with a count after it is a saw: some TEs inside it fall further behind
         (hover for which). "Box edge" means the range runs into the end of what the run tried, so it may go further. The
-        coarser steps take the best plan the table holds on that grid, anchored at the low end of each band the way the
+        coarser steps take the best plan the table holds on that grid, anchored at the low end of each range the way the
         presets are; a dash means the run's box did not try every TE there, so the coarser grid cannot be read from it.
       </p>
     </div>
@@ -736,7 +736,7 @@ function coarseCell(c: CoarseCost, s: SweepRunStats, where: string) {
   if (!c.ok) return { step: c.step, ok: false, none: false, text: '—', title: c.why };
   const none = c.lost < SAME_FINISH_DAYS;
   const grid = scope.value === 'all' || checkpoints.value.length <= 1 ? 'at every stop' : `at the ${where}`;
-  const title = `Trying only every ${ordinalText(c.step)} TE ${grid}, from the low end of the band as the presets do: ${c.tried.toLocaleString('en-US')} of the ${s.plans.toLocaleString('en-US')} plans in this table. ${
+  const title = `Trying only every ${ordinalText(c.step)} TE ${grid}, from the low end of the range as the presets do: ${c.tried.toLocaleString('en-US')} of the ${s.plans.toLocaleString('en-US')} plans in this table. ${
     none
       ? `Its best plan, ${c.chain.join(' ')}, is this run's best: the grid happens to hold it.`
       : `Its best plan, ${c.chain.join(' ')}, finishes ${c.lost.toFixed(2)} days after this run's best.`

@@ -49,7 +49,7 @@ describe('StrongerBox promise lines (12 Oct: one promise box)', () => {
   it('Fast on Fastest: a refresh is safe, your hours, the picked start, and where the accuracy figures come from', async () => {
     const all = (await lines('quick')).join('\n');
     expect(all).toContain('A refresh is safe');
-    expect(all).toContain('Let me pick my hours');
+    expect(all).toContain('awake hours');
     expect(all).toContain('or the one you picked');
     expect(all).toContain('3 accounts');
   });

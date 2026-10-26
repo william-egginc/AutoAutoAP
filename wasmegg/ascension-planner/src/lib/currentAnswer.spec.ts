@@ -107,15 +107,15 @@ describe('the priced-with check', () => {
   });
 
   it('labels: the hours it WAS priced with, or "with other hours" when not recorded', () => {
-    expect(otherSetupLabel(setupCheck(ANY, MINE, TODAY))).toBe('with any hour (before your hours changed)');
-    expect(otherSetupLabel(setupCheck(NINE, MINE, TODAY))).toBe('with 9 am–1 am (before your hours changed)');
-    expect(otherSetupLabel(setupCheck(null, MINE, TODAY))).toBe('with other hours');
+    expect(otherSetupLabel(setupCheck(ANY, MINE, TODAY))).toBe('with any hour (before your awake hours changed)');
+    expect(otherSetupLabel(setupCheck(NINE, MINE, TODAY))).toBe('with 9 am–1 am (before your awake hours changed)');
+    expect(otherSetupLabel(setupCheck(null, MINE, TODAY))).toBe('with other awake hours');
     expect(otherSetupLabel(setupCheck(MINE, { ...MINE, timeOff: [{ from: '2026-10-20', to: '2026-10-22' }] }, TODAY))).toBe(
       'with no time off (before your time off changed)'
     );
     expect(otherSetupLabel(currentSetup(MINE))).toBe('');
-    expect(pricedWithWords(currentSetup(MINE))).toBe('priced with your hours 7 am to 1 am, no time off');
-    expect(pricedWithWords(setupCheck(null, MINE, TODAY))).toBe('priced with other hours');
+    expect(pricedWithWords(currentSetup(MINE))).toBe('priced with awake hours 7 am to 1 am, no time off');
+    expect(pricedWithWords(setupCheck(null, MINE, TODAY))).toBe('priced with other awake hours');
   });
 
   it("a board row's window read back (none recorded: unknown)", () => {
@@ -150,19 +150,19 @@ describe('the ranking', () => {
 });
 
 describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () => {
-  it('setup now 7 am to 1 am: both lead with 11:59 pm; 11:51 pm is secondary "with any hour (before your hours changed)"', () => {
+  it('setup now 7 am to 1 am: both lead with 11:59 pm; 11:51 pm is secondary "with any hour (before your awake hours changed)"', () => {
     const card = cardPick(MINE, B, A, ANY);
     expect(card.candidate.plan).toBe(B);
     expect(card.state).toBe('this-save');
     expect(card.secondary?.plan).toBe(A);
-    expect(otherSetupLabel(card.secondary!.check)).toBe('with any hour (before your hours changed)');
+    expect(otherSetupLabel(card.secondary!.check)).toBe('with any hour (before your awake hours changed)');
     const tile = buildTile(tileInput(MINE, B, A, ANY));
     expect(tile.answer?.chain).toEqual(B.chain);
     expect(tile.answer?.calculatedAt).toBe(B.calculatedAt);
     // The lead is the very snapshot Right now shows, not the history entry of the same check.
     expect(tile.answer?.source).toBe('snapshot');
     expect(tile.secondary?.chain).toEqual(A.chain);
-    expect(secondaryLabel(tile.secondary!)).toBe('with any hour (before your hours changed)');
+    expect(secondaryLabel(tile.secondary!)).toBe('with any hour (before your awake hours changed)');
     // Priced with the current setup: How sure doesn't call it "before your hours changed".
     expect(tile.sure?.reason).not.toContain('hours changed');
   });
@@ -179,10 +179,10 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
   it('hours not recorded on the other answer: secondary "with other hours"', () => {
     const card = cardPick(MINE, B, A, null);
     expect(card.candidate.plan).toBe(B);
-    expect(otherSetupLabel(card.secondary!.check)).toBe('with other hours');
+    expect(otherSetupLabel(card.secondary!.check)).toBe('with other awake hours');
     const tile = buildTile(tileInput(MINE, B, A, null));
     expect(tile.answer?.chain).toEqual(B.chain);
-    expect(secondaryLabel(tile.secondary!)).toBe('with other hours');
+    expect(secondaryLabel(tile.secondary!)).toBe('with other awake hours');
   });
 
   it('only the other-hours plan kept: Right now shows it as "setup changed", and the tile leads with it too', () => {
@@ -192,7 +192,7 @@ describe('Right now and the Fastest tile name the same plan (beta, 16 Oct)', () 
     expect(card.state).toBe('setup-changed');
     const tile = buildTile({ ...tileInput(MINE, B, A, ANY), snapshot: null, history: [entry(A, ANY)] });
     expect(tile.answer?.chain).toEqual(A.chain);
-    expect(tile.sure?.reason).toBe('priced before your hours changed');
+    expect(tile.sure?.reason).toBe('priced before your awake hours changed');
   });
 
   it('across goals the setup still comes first: a current-setup Egg Day plan leads an other-hours Fastest one', () => {

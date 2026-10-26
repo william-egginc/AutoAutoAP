@@ -35,7 +35,7 @@ export function recalcButton(fastDrives: boolean): string {
 /** The short line beside the button. */
 export function recalcWords(open: MyRunsOpen): string {
   const screen = open.auto === 'by-date' ? NAMES.byDate : fastestName(open.target);
-  return `Opens ${screen} with your save and Fast selected; it starts when you press Find`;
+  return `Opens ${screen} with your save and Fast selected; it starts when you press Run`;
 }
 
 /** Load a fresh save first: the loaded one is 6 hours old or more (or its time isn't known). */

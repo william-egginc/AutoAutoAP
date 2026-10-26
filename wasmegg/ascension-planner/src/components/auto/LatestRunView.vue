@@ -222,15 +222,15 @@
                 <th class="py-2 pr-3">Finishes</th>
                 <th class="py-2 pr-3">Behind</th>
                 <th v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
-                  {{ store.deferShifts ? 'Cost of your hours' : 'Night shifts' }}
+                  {{ store.deferShifts ? 'Cost of awake hours' : 'Night shifts' }}
                   <HelpTip v-if="store.deferShifts">
                     How much of this option's length is waiting for you: prestiges plus the twelve shifts per
-                    ascension, all held until you are available. It is the part of the finish date your schedule is
+                    ascension, all held until your awake hours. It is the part of the finish date your schedule is
                     responsible for, and the number that actually differs between these options. The night-shift count
                     cannot differ, because holding the shifts drives it to zero for every row.
                   </HelpTip>
                   <HelpTip v-else>
-                    Shifts landing outside your hours. You are not holding them, so they are reported and free. This
+                    Shifts landing outside your awake hours. You are not holding them, so they are reported and free. This
                     is the count you would have to get up for.
                   </HelpTip>
                 </th>
@@ -340,7 +340,7 @@
                       Open an ascension for its eggs: when the farm first moves onto each, and the TE it has when it
                       last moves off it.
                       <template v-if="store.scheduleEnabled && store.deferShifts">
-                        Every shift has already been moved into your hours, which is what this option's
+                        Every shift has already been moved into your awake hours, which is what this option's
                         <span class="font-semibold">cost</span> above paid for.
                       </template>
                     </p>

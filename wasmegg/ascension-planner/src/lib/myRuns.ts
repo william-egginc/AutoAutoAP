@@ -179,7 +179,7 @@ export function whyNotMine(
       ];
   if (!row)
     return [
-      'No run on the public board has that id. A run hidden from the public is listed only for the browser that sent it.',
+      'No run on the public Leaderboard has that id. A run hidden from the public is listed only for the browser that sent it.',
     ];
   if (row.yours) return ['It is listed: this browser sent it with its code.'];
   const reasons = missReasons(row, l);
@@ -286,7 +286,7 @@ export function inMyRunsFilters(row: BoardRow, f: MyRunsFilters, eggDayAt: numbe
 export function activeFilterWords(f: MyRunsFilters, eggDayYear: number): string[] {
   const out: string[] = [];
   if (f.kind === 'eggday') out.push(`Egg Day ${eggDayYear}`);
-  else if (f.kind === 'dates') out.push('By a date');
+  else if (f.kind === 'dates') out.push('Other dates');
   else if (f.kind === 'race') out.push(f.target != null ? `Fastest to ${f.target} TE` : 'Fastest to a target TE');
   if (f.hours === 'awake') out.push('planned around awake hours');
   else if (f.hours === 'any') out.push('any time of day');

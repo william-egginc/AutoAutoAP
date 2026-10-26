@@ -413,7 +413,7 @@ async function postTable(): Promise<void> {
     sendOk.value = true;
     sendMessage.value = res.ok
       ? table.existing
-        ? `Already on the board as ${table.id}; its missing CSV was added.`
+        ? `Already on the Leaderboard as ${table.id}; its missing CSV was added.`
         : `Sent as row ${table.id}, with its CSV.`
       : `Sent as row ${table.id}; the CSV was already there.`;
     return;

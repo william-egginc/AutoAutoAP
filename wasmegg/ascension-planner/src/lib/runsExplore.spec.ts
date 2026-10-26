@@ -102,7 +102,7 @@ describe('chips only for values that occur', () => {
     ]);
     expect(g[1].chips.map(c => c.label)).toEqual(['1', '2', '3']);
     expect(g[2].chips.map(c => c.label)).toEqual(['Instant answer', 'Fast', 'Exact', 'Custom']);
-    expect(g[3].chips.map(c => c.label)).toEqual(['My hours', 'Any time']);
+    expect(g[3].chips.map(c => c.label)).toEqual(['My awake hours', 'Any time']);
     expect(g[4].chips.map(c => c.label)).toEqual(['Today', '1–6 days ago', '1–4 weeks ago', 'Older']);
   });
 

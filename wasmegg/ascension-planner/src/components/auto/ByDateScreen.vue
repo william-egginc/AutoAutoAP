@@ -27,7 +27,7 @@
         Fast and Exact pick the early stops for you: the
         instant answer's route for each number of ascensions and a few TE either side of each stop. In Custom you
         set the early stops and it tries every route in them. Either way the last stop is found to the exact TE. Like
-        any run, it uses the plan start, hours, time off and computer settings in Setup.
+        any run, it uses the plan start, awake hours, time off and computer settings in Setup.
       </div>
     </details>
     <!-- The setup is the floating Setup button (SetupDock.vue); here only the save's problems, if any. -->

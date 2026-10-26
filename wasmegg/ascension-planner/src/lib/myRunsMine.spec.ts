@@ -181,7 +181,7 @@ describe('"A run of yours isn\'t here?"', () => {
   });
 
   it('says why each kind of row is or is not listed', () => {
-    expect(join(whyNotMine(null, ctx))).toContain('No run on the public board has that id');
+    expect(join(whyNotMine(null, ctx))).toContain('No run on the public Leaderboard has that id');
     expect(join(whyNotMine({ ...egg(248, 'x'), yours: true }, ctx))).toContain('this browser sent it');
     expect(join(whyNotMine(egg(248, 'x'), ctx))).toContain('maybe you');
     expect(join(whyNotMine(egg(248, 'x', { nickname: 'AltName', acct: 'pc0000000001' }), ctx))).toContain(

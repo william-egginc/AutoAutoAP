@@ -75,16 +75,16 @@ const rows = computed<TimeOffDates[]>(() => (props.kind === 'noPrestige' ? store
 /** The player's words for each kind: the three kinds of "not now" must read as different things. */
 const WORDS = {
   timeOff: {
-    title: 'Away from virtue (time off)',
+    title: 'Time off',
     add: 'Add time off',
     explain:
-      "Days you will be off the virtue farm, on the home farm, in the plan's timezone. Going to the home farm is a prestige: the ascension you are in ends when the time off starts and keeps the TE it has, and when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.",
+      "Days you will be off the virtue farm, on the home farm, in the plan's timezone. Nothing is earned on the virtue farm while you are away. Going to the home farm is a prestige: the ascension you are in ends when the time off starts and keeps the TE it has, and when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.",
   },
   noPrestige: {
-    title: 'No prestige on these days',
+    title: 'No prestige days',
     add: 'Add days',
     explain:
-      "Days you stay on the virtue farm but won't prestige, in the plan's timezone. A prestige that would land on one waits for the next allowed time (inside your hours, if you picked them), and the farm keeps laying while it waits, until its silos are full. Egg shifts still happen on these days.",
+      "Days you stay on the virtue farm but won't prestige, in the plan's timezone. A prestige that would land on one waits for the next allowed time (inside your awake hours, if you picked them), and the farm keeps laying while it waits, until its silos are full. Egg shifts still happen on these days.",
   },
 } as const;
 const words = computed(() => WORDS[props.kind]);

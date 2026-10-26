@@ -878,7 +878,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const z = zone.value;
     const one = (list: TimeOffDates[] | null | undefined, kind: StepWindow['kind']): StepWindow[] =>
       usableTimeOff(list ?? []).flatMap(d => {
-        const words = timeOffWords([d]).replace(/^time off/, kind === 'time off' ? 'your time off' : 'your no-prestige days');
+        const words = timeOffWords([d]).replace(/^time off/, kind === 'time off' ? 'your time off' : 'your no prestige days');
         return timeOffWindows([d], z).map(w => ({ from: w.from, to: w.to, words, kind }));
       });
     return [...one(store.timeOff, 'time off'), ...one(store.noPrestige, 'no-prestige day')];

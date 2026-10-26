@@ -133,7 +133,7 @@ describe('earlierRoutes', () => {
   it('labels say where each came from', () => {
     const show = (t: number) => `T${t}`;
     expect(sourceLabel({ chain: [], source: 'last-search' }, show)).toBe('your last search here');
-    expect(sourceLabel({ chain: [], source: 'board', at: 7 }, show)).toBe('your board run, sent T7');
+    expect(sourceLabel({ chain: [], source: 'board', at: 7 }, show)).toBe('your Leaderboard run, sent T7');
     expect(sourceLabel({ chain: [], source: 'check' }, show)).toBe('your earlier check');
   });
 });

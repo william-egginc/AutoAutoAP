@@ -141,7 +141,7 @@
       <!-- ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
            maintainer" here to it. -->
       <p class="text-slate-500">
-        A hidden run leaves the public board but stays here for you. Only you and the planner's maintainer will see it.
+        A hidden run leaves the public Leaderboard but stays here for you. Only you and the planner's maintainer will see it.
         Nothing is deleted, and you can show it again any time.
       </p>
       <div v-if="myHidden.length">
@@ -576,7 +576,7 @@
                 from a higher TE than the save or a later run shows), or when it is older than 30 days.
               </li>
               <li>
-                Only the player's own runs can do that: runs sent from the same browser (the board matches a private
+                Only the player's own runs can do that: runs sent from the same browser (the Leaderboard matches a private
                 code that is never shown) or, for runs sent before codes existed, runs with the same name or the same
                 timezone and artifacts. Nobody can knock a plan out by sending runs under someone else's name.
               </li>
@@ -630,7 +630,7 @@
             </select>
           </label>
           <label class="block">
-            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Away from virtue</span>
+            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Time off</span>
             <select v-model="dateOff" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
               <option :value="null">either</option>
               <option value="with">with time off</option>
@@ -774,7 +774,7 @@
       <!-- ================================================================== ALL RUNS -->
       <template v-else>
         <p class="text-[11px] text-indigo-900/80 leading-relaxed">
-          Every run on the board. A result sent more than once shows once, with how many times it was sent; open it to
+          Every run on the Leaderboard. A result sent more than once shows once, with how many times it was sent; open it to
           see each copy and its CSV. Look-alike runs (same route and save) are tagged with how they differ. A run sent
           under a player's name without their code since codes began is tagged
           <span class="font-semibold">no code</span>. Plan length counts from each run's own start, so it shrinks every
@@ -1209,7 +1209,7 @@ const runEdges = scrollEdges();
 
 function tabLabel(t: Tab): string {
   if (t === 'race') return target.value == null ? 'Fastest to a target TE' : `Fastest to ${target.value} TE`;
-  if (t === 'dates') return 'By a date';
+  if (t === 'dates') return 'Other dates';
   if (t === 'eggday') return `Egg Day ${eggDayYear}`;
   if (t === 'insights') return NAMES.insights;
   if (t === 'latest') return NAMES.latest;
@@ -1709,7 +1709,7 @@ const NARROW_ORDER: SortKey[] = [
 const shownColumns = computed(() => (narrow.value ? NARROW_ORDER.map(k => COLUMNS.find(c => c.key === k)!) : COLUMNS));
 
 const NO_CODE_TITLE =
-  "Sent under this name since the board began stamping runs, but without the owner code the player's other runs carry. " +
+  "Sent under this name since the Leaderboard began stamping runs, but without the owner code the player's other runs carry. " +
   "Anyone can send a run like this, so in Fastest to N TE it never sets the player's finish or place. It is listed on their " +
   'line tagged "no code", or, if its timezone, artifacts or TE do not fit theirs, on a separate line marked (no code).';
 
@@ -1750,7 +1750,7 @@ const runLines = computed<RunLine[]>(() => {
             {
               text: `by ${deadlineText(f.row.deadline as number)}`,
               title:
-                'A "highest TE by a date" answer: Egg Day answers are on the Egg Day tab, other dates on By a date.',
+                'A "highest TE by a date" answer: Egg Day answers are on the Egg Day tab, the rest on Other dates.',
               cls: 'bg-rose-100 text-rose-800',
             },
           ]

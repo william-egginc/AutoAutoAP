@@ -308,7 +308,7 @@ describe('time off in the CSV', () => {
     const csv = buildChainsCsv(entries, { ...META, timeOff: [{ from: '2026-11-20', to: '2026-11-26' }] });
     const off = (row: number) => column(csv, row, 'time_off');
     expect([off(0), off(1), off(2)]).toEqual(['stopped', 'restarted', '']);
-    expect(csv).toContain('time off from virtue: 2026-11-20 to 2026-11-26');
+    expect(csv).toContain('time off: 2026-11-20 to 2026-11-26');
   });
 });
 

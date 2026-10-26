@@ -268,7 +268,7 @@ describe('Right now: a better result with and without a followed route', () => {
       cloud: true,
     });
     await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
-    expect(page.followSetWith.value).toBe('This route was set with a different hours window.');
+    expect(page.followSetWith.value).toBe('This route was set with different awake hours.');
     scope.stop();
   });
 });

@@ -205,7 +205,7 @@ const promises = computed<string[]>(() => {
   // These took over the lines of the amber box that sat under the search's results (the user, 12 Oct: one
   // promise box, not two). Do not soften them.
   return [
-    `${PRICED} With "Let me pick my hours" (in Setup), each prestige and each egg shift waits for your hours, and the CSV counts the waits per ascension.`,
+    `${PRICED} With awake hours set (in Setup), each prestige and each egg shift waits for your awake hours, and the CSV counts the waits per ascension.`,
     miss,
     "It starts from the instant answer's route (or the one you picked) and never scans every route, so a poor start can leave it near a poor answer.",
     `It is a strong nearby answer, never a proven best: Custom proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,

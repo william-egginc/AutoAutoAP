@@ -27,7 +27,7 @@
     />
 
     <p v-if="!lines.length" class="text-[11px] text-indigo-900/60 py-4 text-center" data-testid="my-runs-none">
-      None of the runs on the board are yours yet. Share a result from the Auto Planner and it shows up here.
+      None of the runs on the Leaderboard are yours yet. Share a result from the Auto Planner and it shows up here.
     </p>
     <p
       v-else-if="!shown.length"
@@ -50,7 +50,7 @@
             <th class="pr-3 py-1">Route</th>
             <th class="pr-3 py-1">Result</th>
             <th class="pr-3 py-1 text-right" title="Ascensions in the route">Asc</th>
-            <th class="pr-3 py-1">Hours</th>
+            <th class="pr-3 py-1">Awake hours</th>
             <th class="pr-3 py-1">Sent</th>
             <th class="pr-3 py-1">CSV</th>
             <th class="py-1"></th>

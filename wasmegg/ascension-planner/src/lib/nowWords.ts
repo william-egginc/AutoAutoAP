@@ -164,6 +164,6 @@ export function whenAgo(atSeconds: number, nowSeconds: number, zone: string): st
 
 /** The Setup button's line on My runs: "7 am–11 pm · no time off", "any hour · time off Oct 20–22". */
 export function setupSummary(availability: Availability | null | undefined, timeOff: TimeOffDates[] | null | undefined): string {
-  const hours = hoursWords(availability).replace(/^your hours /, '').replace(/^(\d+ [ap]m) to (\d+ [ap]m)/, '$1–$2');
+  const hours = hoursWords(availability).replace(/^awake hours /, '').replace(/^(\d+ [ap]m) to (\d+ [ap]m)/, '$1–$2');
   return `${hours} · ${timeOffWords(timeOff)}`;
 }

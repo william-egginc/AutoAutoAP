@@ -407,7 +407,7 @@ export function saveGapWords(gapSeconds: number): string {
  *  guessed from another browser ("looks like yours"). */
 export function sourceWords(a: TileAnswer): string {
   if (a.source !== 'board') return '';
-  return a.otherBrowser ? 'from your board run sent from another browser' : 'from your board run';
+  return a.otherBrowser ? 'from your Leaderboard run sent from another browser' : 'from your Leaderboard run';
 }
 
 /** "Snapshot" etc. in player words, for the tile's calculated line: "(Check exactly)", "(Exhaustive)". */

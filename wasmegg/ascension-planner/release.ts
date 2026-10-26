@@ -35,12 +35,12 @@
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
   { at: '2026-10-23T00:30:00Z', note: 'Joo’s latest planner with an artifact and stone editor; one Search panel (Fast, Exact, Custom); Egg Day picks finish before Egg Day; hours ahead or behind on My runs', level: 'big' },
   { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4 pm Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
-  { at: '2026-10-20T00:37:44Z', note: 'prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster By a date searches, a My runs route chart', level: 'big' },
-  { at: '2026-10-16T21:26:50Z', note: 'My runs: switch between Race to 490 and Egg Day, follow any route you like, a Producing or Building badge with your rate, and Recalculate; with your hours on, checks now try the next-best route too' },
+  { at: '2026-10-20T00:37:44Z', note: 'prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster Highest TE by a date searches, a My runs route chart', level: 'big' },
+  { at: '2026-10-16T21:26:50Z', note: 'My runs: switch between Race to 490 and Egg Day, follow any route you like, a Producing or Building badge with your rate, and Recalculate; with awake hours on, checks now try the next-best route too' },
   { at: '2026-10-16T15:15:49Z', note: 'New on My runs: where you are now, your next shifts with dates and calendar reminders, your saved answers with how sure they are, and each ascension step by step like Single run', level: 'big' },
   { at: '2026-10-16T02:31:45Z', note: 'New: My runs tab; Compare is now Leaderboard; arrows show when each stop and egg shift happens; maxed-gear what-if; Light results can be shared; your setup and choices are remembered', level: 'big' },
   { at: '2026-10-15T04:52:00Z', note: 'Your name choice is remembered; the running notice sits in the run bar; other options and charts moved to Compare, Your latest run; tags on the level buttons' },
-  { at: '2026-10-15T00:42:15Z', note: 'New: Hide from the public on your own runs; About and privacy page; Light prices the instant routes at once on your hours; your hours no longer make the instant answer worse; limits follow the answer', level: 'big' },
+  { at: '2026-10-15T00:42:15Z', note: 'New: Hide from the public on your own runs; About and privacy page; Light prices the instant routes at once on awake hours; awake hours no longer worsen the instant answer; limits follow the answer', level: 'big' },
 ];
 
 export default {

@@ -44,7 +44,7 @@ export async function sendRunResult(
   if (store.alreadySubmitted) {
     const rec = store.sentRecord;
     if (rec?.quarantined) return { ok: false, text: quarantineMessage(rec.id ?? '') };
-    return { ok: true, text: 'Already on the board: this result was sent from here before.' };
+    return { ok: true, text: 'Already on the Leaderboard: this result was sent from here before.' };
   }
   onStage('Preparing your result...');
   try {

@@ -77,7 +77,7 @@ export function reviewContext(ctx: {
       kind: 'no-backup',
       level: 'error',
       message:
-        'Your save had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Find.',
+        'Your save had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Run.',
     });
     return issues;
   }
@@ -99,7 +99,7 @@ export function reviewContext(ctx: {
       kind: 'no-farm-state',
       level: 'error',
       message:
-        'Your current virtue farm had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Find.',
+        'Your current virtue farm had not finished loading when this run tried to start. Give it a few seconds after the player loads, then press Run.',
     });
   }
   // Zero is the tell. A real account has levels here even if none are maxed, and an empty map makes

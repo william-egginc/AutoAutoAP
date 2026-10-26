@@ -55,13 +55,13 @@
         >First ascension <span class="font-bold text-slate-900">{{ firstLabel }}</span></span
       >
       <span class="text-[12px] text-slate-600"
-        >Awake <span class="font-bold text-slate-900">{{ awakeLabel }}</span></span
+        >Awake hours <span class="font-bold text-slate-900">{{ awakeLabel }}</span></span
       >
       <span class="text-[12px] text-slate-600"
-        >Away from virtue <span class="font-bold text-slate-900">{{ timeOffCount || 'none' }}</span></span
+        >Time off <span class="font-bold text-slate-900">{{ timeOffCount || 'none' }}</span></span
       >
       <span v-if="noPrestigeCount" class="text-[12px] text-slate-600" data-testid="setup-no-prestige"
-        >No prestige <span class="font-bold text-slate-900">{{ noPrestigeCount }}</span></span
+        >No prestige days <span class="font-bold text-slate-900">{{ noPrestigeCount }}</span></span
       >
       <span class="text-[12px] text-slate-600"
         ><span class="font-bold text-slate-900">{{ store.workerBudget }} of {{ store.machineThreads }}</span>
@@ -82,13 +82,13 @@
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours (and
-        whether shifts wait for them), time off, no-prestige days and first ascension. ·
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your awake hours (and
+        whether shifts wait for them), time off, no prestige days and first ascension. ·
         <button
           type="button"
           class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no-prestige days, first ascension Soonest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no prestige days, first ascension Soonest'"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -129,13 +129,13 @@
 
       <!-- The three kinds of "not now" (Jordan, 24 Oct 2026), side by side so none is read as another. -->
       <ul class="text-[11px] text-slate-500 leading-relaxed list-disc pl-5" data-testid="setup-not-now">
-        <li><span class="font-bold text-slate-700">Awake hours:</span> no shifts outside them, and prestiges wait for them.</li>
+        <li><span class="font-bold text-slate-700">Awake hours:</span> on the virtue farm, but shifts and prestiges wait for them; the farm keeps laying while they wait.</li>
         <li>
-          <span class="font-bold text-slate-700">No prestige on these days:</span> stay on virtue; a prestige waits for the
-          next allowed time.
+          <span class="font-bold text-slate-700">No prestige days:</span> stay on virtue; a prestige waits for the
+          next allowed time; shifts still happen.
         </li>
         <li>
-          <span class="font-bold text-slate-700">Away from virtue (time off):</span> go to the home farm, and rebuild when
+          <span class="font-bold text-slate-700">Time off:</span> off the virtue farm, on the home farm, nothing earned on virtue; rebuild when
           you return.
         </li>
       </ul>
@@ -146,13 +146,13 @@
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours (and
-        whether shifts wait for them), time off, no-prestige days and first ascension. ·
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your awake hours (and
+        whether shifts wait for them), time off, no prestige days and first ascension. ·
         <button
           type="button"
           class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no-prestige days, first ascension Soonest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no prestige days, first ascension Soonest'"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -164,9 +164,9 @@
         v-if="locked"
         class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold text-amber-800 leading-relaxed"
       >
-        A search is running, so the plan start, your hours, no-prestige days and time off are locked: they change which route is fastest,
+        A search is running, so the plan start, your awake hours, no prestige days and time off are locked: they change which route is fastest,
         and the routes already priced used the old ones. Stop the search (your best so far is kept), change them, and
-        press Find again. The computer settings still work.
+        press Run again. The computer settings still work.
       </p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -276,12 +276,12 @@
           class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
           :class="screen === 'classic' ? 'opacity-60' : ''"
         >
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When you can play</h3>
+          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Awake hours</h3>
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
             {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
           </p>
           <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
-          <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="When you can prestige">
+          <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Awake hours">
             <label
               class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer"
               :class="!store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
@@ -298,9 +298,9 @@
             >
               <input v-model="store.scheduleEnabled" type="radio" :value="true" class="mt-0.5 text-indigo-600" />
               <span class="text-[11px] text-slate-600 leading-relaxed">
-                <span class="block font-bold text-slate-800">Let me pick my hours</span>
-                Prestiges and egg shifts wait for your next hour. You are still on the virtue farm while you wait, so TE
-                keeps collecting.
+                <span class="block font-bold text-slate-800">Awake hours</span>
+                Prestiges and egg shifts wait for your next awake hour. You are still on the virtue farm while you wait, and
+                the farm keeps laying.
               </span>
             </label>
           </div>
@@ -335,7 +335,7 @@
                   :key="h - 1"
                   class="h-3 flex-1 rounded-sm"
                   :class="hourAwake(h - 1) ? 'bg-indigo-500' : 'bg-slate-200'"
-                  :title="showHour(h - 1) + (hourAwake(h - 1) ? ': you play' : ': asleep')"
+                  :title="showHour(h - 1) + (hourAwake(h - 1) ? ': awake' : ': asleep')"
                 ></span>
               </div>
               <div class="flex justify-between text-[9px] text-slate-400 mt-0.5">
@@ -346,7 +346,7 @@
                 ><span>{{ showHour(23) }}</span>
               </div>
               <p class="text-[10px] text-slate-500 mt-1">
-                Hours are in the plan's timezone ({{ zone }}). Blue is when you play: shifts and prestiges happen only then. Days you can play:
+                Hours are in the plan's timezone ({{ zone }}). Blue is your awake hours: shifts and prestiges happen only then. Days you are awake:
               </p>
             </div>
             <div class="flex flex-wrap gap-1">
@@ -378,7 +378,7 @@
                  the old "Hold egg shifts for my hours too" box is gone. Only a run or link saved with it off can
                  still be in that state; say so, with a way back. -->
             <p v-if="!store.deferShifts" class="text-[11px] font-semibold text-amber-700">
-              This plan was saved with egg shifts not waiting for your hours.
+              This plan was saved with egg shifts not waiting for your awake hours.
               <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 underline font-bold" @click="store.deferShifts = true">
                 Make them wait too
               </button>
@@ -395,7 +395,7 @@
         >
           <TimeOffEditor kind="noPrestige" />
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-            {{ NAMES.classic }} doesn't plan around no-prestige days yet. The searches do.
+            {{ NAMES.classic }} doesn't plan around no prestige days yet. The searches do.
           </p>
         </fieldset>
 
@@ -409,7 +409,7 @@
             straight through it for now.
           </p>
           <p v-else class="text-[11px] text-slate-500 leading-relaxed">
-            The searches price every route with the time away from virtue in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
+            The searches price every route with the time off in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
             {{ NAMES.insights }} keeps runs with time off apart from the rest, since they answer a different
             question.
           </p>
@@ -550,7 +550,7 @@
               settings, where your save was loaded from (its claimed and pending TE, eggs and a short code for the
               save), and the app version. It goes
               with this browser's anonymous code for your account, never your player ID or your save. Kept privately by
-              the planner's maintainer for 6 months, never shown on the board. The same box is under a search's result,
+              the planner's maintainer for 6 months, never shown on the Leaderboard. The same box is under a search's result,
               with "Share this result" for just one.
             </span>
           </label>
@@ -560,7 +560,7 @@
             <input v-model="shareBaselineOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
             <span class="text-[11px] text-slate-600 leading-relaxed">
               <span class="font-bold text-slate-800">Share my instant answer with my runs</span>
-              (public, with the run). Each run you send to the board also carries your instant answer for it: the
+              (public, with the run). Each run you send to the Leaderboard also carries your instant answer for it: the
               route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
               can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.
             </span>
@@ -570,13 +570,13 @@
           <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="follow-online">
             <span class="font-bold text-slate-800">The route you follow is saved online</span> under a code made from
             your player ID, so another device shows your route when you enter your ID there. Anyone who knows your player
-            ID can see it. It holds the route, the goal, when you set it, the hours window you used, the time of your save
+            ID can see it. It holds the route, the goal, when you set it, the awake hours window you used, the time of your save
             and the simulator version: never your player ID or a name. It is saved when you press Follow this route,
             Follow it or Restore.<!-- AUTO_FOLLOW_FIRST (lib/followPolicy.ts): this part goes with the constant. --><span
               v-if="AUTO_FOLLOW_FIRST"
               data-testid="follow-online-auto"
             >
-              The first answer for {{ NAMES.fastest }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online,
+              The first answer for {{ fastestName(store.finalTE) }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online,
               unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.</span
             >
             The last 5 versions for each goal are kept: open Earlier versions under the route on My runs, Right now, and
@@ -593,7 +593,7 @@
             Not Track turns it off.
           </p>
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            Sending a result to the board, its CSV and diagnostics are separate choices, under Find and submit.
+            Sending a result to the Leaderboard, its CSV and diagnostics are separate choices, under Find and submit.
           </p>
         </div>
 

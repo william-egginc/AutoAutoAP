@@ -61,7 +61,7 @@ describe('how sure', () => {
   it('Low first: older simulator, other hours, little spare, old, TE moved', () => {
     const high = { exactConfirmsTE: true, spareHours: 16.8, runnerUpHours: 3 };
     expect(howSure(date({ ...high, olderSimulator: true })).reason).toBe('priced by an older simulator');
-    expect(howSure(date({ ...high, hoursChanged: true })).reason).toBe('priced before your hours changed');
+    expect(howSure(date({ ...high, hoursChanged: true })).reason).toBe('priced before your awake hours changed');
     expect(howSure(date({ ...high, spareHours: 1.2 })).reason).toBe('only 1.2 h to spare');
     expect(howSure(date({ ...high, ageDays: 20 })).reason).toBe('simulator check, 20 days old');
     expect(howSure(date({ ...high, teMoved: true })).reason).toBe('your TE has moved since');

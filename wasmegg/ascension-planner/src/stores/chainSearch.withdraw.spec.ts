@@ -120,7 +120,7 @@ describe('withdrawing the agreement mid-run', () => {
     const bodies = collector();
     consent.setConsent('leaderboard', false);
     const res = await s.sendBestSoFar();
-    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box under Find to agree first.' });
+    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box under Run to agree first.' });
     expect(bodies).toHaveLength(0);
     s.endBestSoFar();
   });

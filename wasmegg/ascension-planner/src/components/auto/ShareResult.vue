@@ -15,7 +15,7 @@
     <slot name="intro" />
     <!-- The run sent a best so far (Send best so far): this send takes its place on the board. -->
     <p v-if="replacesBestSoFar" class="text-[11px] font-semibold text-indigo-900" data-testid="share-replaces">
-      Your best so far from this run is on the board as "in progress". Sending this result replaces it.
+      Your best so far from this run is on the Leaderboard as "in progress". Sending this result replaces it.
     </p>
     <!-- Compact (the user, 12 Oct: the same consent twice): not agreed yet, the screen's one button, which
          opens the consent (nothing is sent by that press); agreed (remembered for the account), the one-line

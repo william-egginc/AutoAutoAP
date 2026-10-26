@@ -96,9 +96,9 @@
             Nobody has proven it's the best overall.
           </li>
           <li>
-            <b>{{ NAMES.fastest }}, {{ NAMES.fullFirst }}:</b> you give each stop a range, called a box (for example
-            every 5th TE from 185 to 200 for the first stop). It simulates <i>every</i> route that fits in the boxes, so
-            its winner is the best route in them. If the winner sits on the edge of a box, it says so and offers to
+            <b>{{ NAMES.fastest }}, {{ NAMES.fullFirst }}:</b> you give each stop a range (for example
+            every 5th TE from 185 to 200 for the first stop); the ranges together make a box. It simulates <i>every</i> route that fits in the box, so
+            its winner is the best route in it. If the winner sits on the edge of a box, it says so and offers to
             widen that box. If your setup hasn't changed, routes it has already simulated are reused, so only the new
             ones take time. The boxes it suggests also cover one ascension fewer and one more, at half the size; you can
             remove those.
@@ -106,7 +106,7 @@
           <li>
             <b>{{ NAMES.byDate }}:</b> both versions try every set of early stops in their boxes, and for each one find
             the highest last stop that still makes the date (step up, step down, then halve the gap). The last stop
-            isn't held to a box. In <b>{{ NAMES.smart }}</b> you pick the date and press Find: it builds the boxes for
+            isn't held to a box. In <b>{{ NAMES.smart }}</b> you pick the date and press Run: it builds the boxes for
             you around the instant answer's route for each number of ascensions, each early stop a few TE either side at
             every TE, sized to stay under about 25 minutes (a cap, not a measurement). In <b>{{ NAMES.full }}</b> you
             set the boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785 routes, every route in
@@ -118,7 +118,7 @@
         </ul>
         <p>
           Every search, Fast, Exact or Custom, on {{ NAMES.fastest }} or {{ NAMES.byDate }}, has the
-          same run controls in the same order: Find or Find and submit, Stop, the progress, Stepping away?, what was
+          same run controls in the same order: Run or Find and submit, Stop, the progress, Stepping away?, what was
           sent, and any errors. It uses the number of workers Setup shows (half your computer's cores, at most 12,
           until you pick a number), and Science's time estimates use that number too. On the one 20-thread PC we
           measured, 12 workers were as fast as 19, so more is not always faster.
@@ -157,12 +157,12 @@
           before or after the sale's end can move a single route by days. So ascend at the times the plan shows.
         </p>
         <p>
-          <b>Your hours.</b> With "Let me pick my hours" in Setup, each prestige and egg shift waits for your
+          <b>Awake hours.</b> With awake hours picked in Setup, each prestige and egg shift waits for your
           awake window, the farm keeps laying while it waits, and the wait counts in that ascension's time. With no
-          hours set, nothing waits. <b>No prestige on these days</b> works the same way for prestiges only: you stay on
+          awake hours set, nothing waits. <b>No prestige days</b> works the same way for prestiges only: you stay on
           virtue, a prestige that would land on one of those days waits for the next allowed time, and the farm lays
-          until its silos are full; shifts still happen. <b>Away from virtue (time off)</b> is different: going to the
-          home farm is a prestige, so the ascension ends when it starts, and you rebuild when you return.
+          until its silos are full; shifts still happen. <b>Time off</b> is different: going to the
+          home farm is a prestige, so the ascension ends when it starts, nothing is earned on virtue while you are away, and you rebuild when you return.
         </p>
       </div>
     </details>
@@ -227,7 +227,7 @@
         </p>
         <p>
           <b>Pricing a route.</b> Fast, Exact and Custom run each route they try through the full simulator on your
-          save, ascending at once, on your hours. It takes about 10 to 40 seconds of one processor core a route.
+          save, ascending at once, on your awake hours. It takes about 10 to 40 seconds of one processor core a route.
           That's the number to plan around. Searches start from the instant answer too: Fast and Exact start from its
           route, and Custom's suggested boxes are centred on it.
         </p>
@@ -379,7 +379,7 @@
           </li>
           <li>
             <b>Share this result</b> (optional, under a Fast, Exact or Custom result): that result's route and times
-            beside the instant answer's, to measure how accurate the instant answer is. Private, never on the board, at
+            beside the instant answer's, to measure how accurate the instant answer is. Private, never on the Leaderboard, at
             most once an hour per save.
           </li>
           <li>
@@ -389,7 +389,7 @@
           </li>
         </ul>
         <p>
-          <b>How the board judges.</b> Plans are compared by the date they finish, not their length, since a length
+          <b>How the Leaderboard judges.</b> Plans are compared by the date they finish, not their length, since a length
           counts from the plan's own start. What-ifs are kept but don't race. A newer save's price of the same plan
           replaces the old one, better or worse, so re-running can't fish for a lucky number. {{ NAMES.insights }} reads
           only the public rows; it can't see accounts, so it guesses them from timezone and artifacts.
@@ -408,8 +408,8 @@
         <ul class="hw-list">
           <li>
             <b>On maxed gear, for an account with weaker gear</b> (used when no instant answer was built for gear like
-            yours), the instant answer can be far too hopeful. On 18 of 84 board runs sent 14-21 Oct, a run's own route
-            priced on the maxed instant answer came out 91 to 4,448 hours sooner than the simulator, and by a date the
+            yours), the instant answer can be far too hopeful. On 18 of 84 Leaderboard runs sent 14-21 Oct, a run's own route
+            priced on the maxed instant answer came out 91 to 4,448 hours sooner than the simulator, and on Highest TE by a date runs the
             instant answer claimed 3 to 19 TE more than the run's search reached. The lower the account's delivery
             rate against maxed gear, the bigger the gap. That comparison (21 Oct) used the simulator from before 21 Oct. Run a Fast search for your own times.
           </li>
@@ -427,10 +427,10 @@
             site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2 pm to keep 248 TE", then
             what you'd get after that. It prices your routes again from each later whole hour, up to 8 days ahead, with
             your farm laying while you wait (for as long as your silos hold), then confirms the hour it drops with the
-            route finder. In five test cases from one account, with hours off and an older model where the farm stopped
+            route finder. In five test cases from one account, with awake hours off and an older model where the farm stopped
             laying while you waited, its cutoff matched the full simulator to within an hour in four, and was two hours
-            early in the fifth. It has not been checked with hours on. That's too few to trust yet, so treat it as a
-            hint. With your hours on, a prestige even a few minutes off the time shown can move your finish by days, so
+            early in the fifth. It has not been checked with awake hours on. That's too few to trust yet, so treat it as a
+            hint. With awake hours on, a prestige even a few minutes off the time shown can move your finish by days, so
             prestige at the time shown. Work it out again after you prestige.
           </li>
           <li>
@@ -449,7 +449,7 @@
           The open questions players can help with are on
           <a href="#/science/check" class="font-bold text-indigo-700 underline"
             >{{ NAMES.science }} › {{ NAMES.check }}</a
-          >, and what the board's runs have shown so far is on
+          >, and what the Leaderboard's runs have shown so far is on
           <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
             >{{ NAMES.compare }} › {{ NAMES.insights }}</a
           >.
@@ -500,22 +500,22 @@ const CHECKS: { what: string; result: string; how: string }[] = [
     how: 'routes of 1 to 10 ascensions, priced both ways (1 Oct).',
   },
   {
-    what: 'Real ascensions from the board, from TE 300 up',
+    what: 'Real ascensions from the Leaderboard, from TE 300 up',
     result:
-      'Median error 0.00%, 99 in 100 within 0.69%, worst 1.13% (4,367 ascensions). From TE 340 up, every account the board could measure: median 0.00%, 9 in 10 within 0.02%.',
+      'Median error 0.00%, 99 in 100 within 0.69%, worst 1.13% (4,367 ascensions). From TE 340 up, every account the Leaderboard could measure: median 0.00%, 9 in 10 within 0.02%.',
     how: "each submitted ascension priced the way the site does it, from the run's own start and eggs (1 Oct).",
   },
   {
     what: 'Real ascensions on gear matched to the player',
     result:
-      "Median within 0.15% in every TE band, for ten accounts' instant answers. For Fliris, 32 of 34 ascensions within half an hour.",
-    how: "the accounts' own submitted runs, leaving out first ascensions, which start from eggs the board doesn't have (2-7 Oct).",
+      "Median within 0.15% in every TE range, for ten accounts' instant answers. For Fliris, 32 of 34 ascensions within half an hour.",
+    how: "the accounts' own submitted runs, leaving out first ascensions, which start from eggs the Leaderboard doesn't have (2-7 Oct).",
   },
   {
     what: 'Real ascensions on maxed gear, all TEs',
     result:
       'For the account whose gear the maxed answer was built on: median 0.00%, 99 in 100 within 1.74% (29,491 ascensions). On slightly weaker gear, a median 0.48% off at TE 200-299 and 0.97% at 120-199 (see section 2).',
-    how: 'the same method, by TE band (1 Oct).',
+    how: 'the same method, by TE range (1 Oct).',
   },
   {
     what: 'The instant answer against the full simulator, same save',

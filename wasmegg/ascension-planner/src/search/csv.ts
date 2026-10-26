@@ -512,7 +512,7 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   if (meta.workers) note(`workers: ${meta.workers}`);
   if (meta.timeOff?.length)
     note(
-      `time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
+      `time off: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
     );
   if (meta.seedChain.length) note(`seed chain ${meta.seedChain.join(' ')}`);
   if (meta.countsProbed?.length)

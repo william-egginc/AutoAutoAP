@@ -132,7 +132,7 @@ describe('which plan drives Right now (lib/searchPlan.ts)', () => {
     expect(d.plan?.chain).toEqual([196, 221, 245, 260, 287, 328, 331, 490]);
     expect(fastEnd).toBeLessThan(reallySimulates);
     expect(replaceWords(d.takeover!, d.search!, d.instant)).toBe(
-      "Simulated on your account with your hours, time off and dates, so it replaces the instant answer's estimate for the same goal:"
+      "Simulated on your account with your awake hours, time off and dates, so it replaces the instant answer's estimate for the same goal:"
     );
     // Nothing says "later than the instant answer".
     expect(keepWords(d.takeover!, 'Fast', d.search!, d.instant, 'date')).toBe('');

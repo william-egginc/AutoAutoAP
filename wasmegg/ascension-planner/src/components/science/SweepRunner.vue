@@ -174,8 +174,8 @@
         </label>
 
         <p v-if="timeOffText" class="text-[11px] text-slate-600">
-          Planned around your time off from virtue (<b>{{ timeOffText }}</b
-          >). It still prices every route, but the result goes on the board with the time-off runs and won’t fill this
+          Planned around your time off (<b>{{ timeOffText }}</b
+          >). It still prices every route, but the result goes on the Leaderboard with the time-off runs and won’t fill this
           gap.
         </p>
 
@@ -191,13 +191,13 @@
             withdrawn-text="Withdrawn: this sweep’s result will not be sent."
           >
             <template #summary>
-              <span>You agreed the sweep is sent to the board automatically when it finishes</span>
+              <span>You agreed the sweep is sent to the Leaderboard automatically when it finishes</span>
             </template>
             <template #text>
               <span>
               I understand it takes about <b>{{ roughly(hours) }}</b
               >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
-              <b>sent to the board automatically</b>, tagged {{ request.preset }}.
+              <b>sent to the Leaderboard automatically</b>, tagged {{ request.preset }}.
               <button type="button" class="font-bold text-indigo-700 underline" @click="showWhat = !showWhat">
                 What gets sent?
               </button>
@@ -209,7 +209,7 @@
             random code this browser keeps for the account (never your player ID, and never shown). The code folds
             repeated sends together, lets you put your name on a run sent anonymously, and lets your own later runs
             replace your older plans. In its last few seconds the sweep also re-prices your best three plans already on
-            the board from this save, and those are sent too.
+            the Leaderboard from this save, and those are sent too.
           </p>
           <div class="flex flex-wrap items-center gap-x-4 gap-y-2 pl-6 text-[11px] font-bold text-slate-700">
             <label class="flex items-center gap-2 cursor-pointer">

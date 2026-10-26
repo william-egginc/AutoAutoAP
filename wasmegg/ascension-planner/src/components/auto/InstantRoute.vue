@@ -210,7 +210,7 @@
               data-testid="inside-hours"
               @change="setInsideHours(($event.target as HTMLInputElement).checked)"
             />
-            Works inside my hours
+            Works inside my awake hours
           </label>
           <!-- The ascensions range (Jordan, 24 Oct 2026; was "At most N ascensions"): blank is no bound; an end set past
                the other moves the other along (search/instantFilters.ts `setBound`). Set on change, not each key. -->
@@ -244,7 +244,7 @@
           </span>
         </div>
         <p v-if="useHours" class="text-[11px] text-slate-500">
-          Each prestige waits for your hours (the times shown include the wait).
+          Each prestige waits for your awake hours (the times shown include the wait).
         </p>
         <p v-if="rangeText" class="text-[11px] text-slate-500" data-testid="instant-range-note">
           Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
@@ -256,11 +256,11 @@
         </p>
         <p v-if="useHours && openingNote === 'morning'" class="text-[11px] text-slate-500" data-testid="held-opening">
           A stop reached late in your day waits for the next morning to prestige: an ascension's first shifts come in
-          its first hours, and started that late some would fall after your hours end, which the instant answer can't
+          its first hours, and started that late some would fall after your awake hours end, which the instant answer can't
           time.
         </p>
         <p v-else-if="useHours && openingNote === 'uncertain'" class="text-[11px] text-amber-800" data-testid="held-opening">
-          Less certain with these hours: an ascension's first shifts take longer than your hours last, so some of them
+          Less certain with these awake hours: an ascension's first shifts take longer than your awake hours last, so some of them
           will wait for you in ways the instant answer can't time. A search below simulates them.
         </p>
         <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
@@ -1529,7 +1529,7 @@ const USEFUL_STOP_NOTE = 340;
  *  line under the answer (`INSTANT_ONE_LINE`), so only these are named here. */
 const leftOut = computed(() => {
   const out: string[] = [];
-  if (store.timeOff.length) out.push('time away from virtue (time off)');
+  if (store.timeOff.length) out.push('time off');
   if (store.milestones.length) out.push('dates to hit');
   return out;
 });
@@ -2847,7 +2847,7 @@ const SHARE_WHAT =
   "Sends this search result's route and times, the instant answer's for the same goal, your TE and Clothed TE, a summary " +
   'of your gear, your plan start, timezone, save time and settings, where your save was loaded from (its claimed and ' +
   'pending TE, eggs and a short code for the save), with an anonymous code for your account. Never your player ID or ' +
-  'your save; never shown on the board.';
+  'your save; never shown on the Leaderboard.';
 /** The gear stamp's hash (the 24 hex of `legacyGearTableName`), worked out with the instant answer. */
 const stampHash = ref('');
 /** Share the result on screen. Ticked for a result found in this visit with "Share my search results" on. */

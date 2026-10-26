@@ -130,7 +130,7 @@
       ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template
       ><template v-if="offerPrice"
         >{{ ' ' }}·
-        <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-price" title="Opens the goal's screen with Fast selected; it starts when you press Find" @click="priceIt">
+        <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-price" title="Opens the goal's screen with Fast selected; it starts when you press Run" @click="priceIt">
           Run Fast ›
         </button>
         ·
@@ -551,7 +551,7 @@ const eggPicture = computed(() => eggIconPath(props.currentEgg));
 const goalName = computed(() =>
   props.card?.goal.goal === 'date'
     ? (props.card.name ?? `Egg Day ${props.eggDayYear}`)
-    : `Fastest to ${props.card?.goal.target ?? 490} TE`
+    : fastestName(props.card?.goal.target)
 );
 /** The goal in the route line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
 const followName = computed(() => {

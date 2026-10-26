@@ -316,14 +316,14 @@ function originTitle(tag: string): string {
   switch (tag) {
     case 'no code':
       return (
-        "Sent under this player's name since the board began stamping runs, but without the owner code their runs " +
+        "Sent under this player's name since the Leaderboard began stamping runs, but without the owner code their runs " +
         'carry. Its timezone, artifacts and TE fit theirs, so it is listed here and counted in "Tried". Anyone can send ' +
         "a run like this, though, so it never sets this line's best finish or its place in Fastest to N TE, and it is never " +
         'used to judge their plans.'
       );
     case 'before codes':
       return (
-        "Sent before the board had owner codes, under this player's name, so it is filed as theirs. It is judged " +
+        "Sent before the Leaderboard had owner codes, under this player's name, so it is filed as theirs. It is judged " +
         'only by other runs from before codes.'
       );
     case 'no name':
