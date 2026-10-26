@@ -19,6 +19,7 @@ import type { InjectionKey, Ref } from 'vue';
 import type { StorageLike } from '@/search/instantSnapshot';
 import type { BoardRow } from './leaderboardRank';
 import { gapWords } from './searchPlan';
+import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
 import type { FoundLevel } from './searchPointer';
 
 export const BASELINE_KEY = 'aap-instant-baselines';
@@ -40,6 +41,12 @@ export interface BaselineEntry {
   /** Fastest: when the target is reached; By a date: the last stop. Unix seconds. */
   end: number;
   endTE: number;
+  /**
+   * The instant answer's own best (Fastest the fastest, By a date the highest TE) when the box showed another route
+   * (Prefer fewer's pick, 26 Oct 2026): what is SENT with a board row (`rowBaselineOf`), so the collector's baseline
+   * keeps its meaning. Absent when the box showed the best (then `chain`/`end`/`endTE` are it).
+   */
+  sent?: { chain: number[]; end: number; endTE: number };
 }
 
 /** What a board row carries when the player shares the baseline (`Submission.baseline`; the collector must keep it). */
@@ -68,7 +75,10 @@ const valid = (e: BaselineEntry | null | undefined): e is BaselineEntry =>
   Array.isArray(e.chain) &&
   e.chain.length > 0 &&
   Number.isFinite(e.end) &&
-  Number.isFinite(e.endTE);
+  Number.isFinite(e.endTE) &&
+  (e.sent === undefined || validSent(e.sent));
+const validSent = (x: BaselineEntry['sent']): boolean =>
+  !!x && Array.isArray(x.chain) && x.chain.length > 0 && Number.isFinite(x.end) && Number.isFinite(x.endTE);
 
 export function readBaselines(st: StorageLike | null = defaultStorage()): BaselineEntry[] {
   if (!st) return [];
@@ -87,7 +97,16 @@ export function recordBaseline(e: BaselineEntry, st: StorageLike | null = defaul
     const list = readBaselines(st).filter(
       x => !(x.account === e.account && x.goal === e.goal && Math.abs(x.backupTime - e.backupTime) <= BASELINE_SAVE_SECONDS)
     );
-    list.push({ account: e.account, goal: e.goal, backupTime: e.backupTime, at: e.at, chain: [...e.chain], end: e.end, endTE: e.endTE });
+    list.push({
+      account: e.account,
+      goal: e.goal,
+      backupTime: e.backupTime,
+      at: e.at,
+      chain: [...e.chain],
+      end: e.end,
+      endTE: e.endTE,
+      ...(e.sent ? { sent: { chain: [...e.sent.chain], end: e.sent.end, endTE: e.sent.endTE } } : {}),
+    });
     list.sort((a, b) => a.at - b.at);
     while (list.length > MAX_BASELINES) list.shift();
     st.setItem(BASELINE_KEY, JSON.stringify(list));
@@ -110,32 +129,62 @@ export function findBaseline(
   return best;
 }
 
+type SnapRow = { chain: number[]; end: number; legs?: { endTE?: number; to?: number }[] };
+
 /**
- * A snapshot's instant answer as a baseline (InstantRoute's snapshot, search/instantSnapshot.ts): Fastest its `best`,
- * By a date its `byDate`; null without its `meta` or a route.
+ * A snapshot's instant answer as a baseline (InstantRoute's snapshot, search/instantSnapshot.ts): the route its green
+ * box shows (Jordan, 26 Oct 2026): Fastest its `best`, By a date its `byDate`, or Prefer fewer's pick among the rows
+ * per count under `margin` (by default the one stored for the screen), shown on screen. When that is not the best,
+ * the best goes along as `sent`, for a board row (the collector's baseline keeps its meaning). Null without its
+ * `meta` or a route.
  */
-export function baselineOfSnapshot(s: {
-  at: number;
-  meta?: { account: string; goal: string; backupTime: number } | null;
-  result?: {
-    best?: { chain: number[]; end: number; legs?: { endTE?: number; to?: number }[] } | null;
-    byDate?: { chain: number[]; end: number; legs?: { endTE?: number; to?: number }[] } | null;
-  } | null;
-}): BaselineEntry | null {
+export function baselineOfSnapshot(
+  s: {
+    at: number;
+    meta?: { account: string; goal: string; backupTime: number } | null;
+    result?: {
+      best?: SnapRow | null;
+      byDate?: SnapRow | null;
+      byAscensions?: (SnapRow | null)[] | null;
+      byDateByAscensions?: (SnapRow | null)[] | null;
+    } | null;
+  },
+  margin?: PreferMargin
+): BaselineEntry | null {
   const m = s.meta;
   if (!m || !s.result) return null;
   const date = /^date \d+$/.test(m.goal);
-  const r = date ? s.result.byDate : s.result.best;
+  const goal = date ? 'date' : 'fastest';
+  const best = date ? s.result.byDate : s.result.best;
+  const r = date
+    ? boxRouteOf(goal, best, s.result.byDateByAscensions, margin ?? readPreferFewer()[goal], Number(m.goal.slice(5)))
+    : boxRouteOf(goal, best, s.result.byAscensions, margin ?? readPreferFewer()[goal]);
   if (!r || !Array.isArray(r.chain) || !r.chain.length) return null;
-  const last = r.legs?.[r.legs.length - 1];
-  const endTE = last?.endTE ?? last?.to ?? r.chain[r.chain.length - 1];
-  const e: BaselineEntry = { account: m.account, goal: m.goal, backupTime: m.backupTime, at: s.at, chain: [...r.chain], end: r.end, endTE };
+  const teOf = (x: SnapRow) => {
+    const last = x.legs?.[x.legs.length - 1];
+    return last?.endTE ?? last?.to ?? x.chain[x.chain.length - 1];
+  };
+  const sent = best && r !== best ? { chain: [...best.chain], end: best.end, endTE: teOf(best) } : null;
+  const e: BaselineEntry = {
+    account: m.account,
+    goal: m.goal,
+    backupTime: m.backupTime,
+    at: s.at,
+    chain: [...r.chain],
+    end: r.end,
+    endTE: teOf(r),
+    ...(sent && validSent(sent) ? { sent } : {}),
+  };
   return valid(e) ? e : null;
 }
 
-/** For a board row (`Submission.baseline`). */
+/**
+ * For a board row (`Submission.baseline`): always the instant answer's best (`sent` when the box showed Prefer
+ * fewer's pick), never the pick, so what the collector keeps means what it meant before 26 Oct 2026.
+ */
 export function rowBaselineOf(e: BaselineEntry): RowBaseline {
-  return { chain: [...e.chain], end: Math.round(e.end), endTE: Math.floor(e.endTE), at: e.at };
+  const b = e.sent ?? e;
+  return { chain: [...b.chain], end: Math.round(b.end), endTE: Math.floor(b.endTE), at: e.at };
 }
 
 /** A board row's own baseline, when it carries a readable one. */

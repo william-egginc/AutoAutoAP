@@ -327,28 +327,19 @@
             <AnswerCaveatLine :caveat="headCaveat" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
-            <!-- "Prestige by" is worked out on the instant answer's highest-TE route, which the box always shows
-                 unless Prefer fewer picked another. -->
+            <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). -->
             <PrestigeByLine
-              v-if="prestigeFlag.enabled.value && !preferPicked"
-              :line="prestige?.line ?? null"
+              v-if="prestigeFlag.enabled.value"
+              :line="boxPrestige?.line ?? null"
               :status="prestigeStatus"
               mismatch=""
               :beta="prestigeFlag.beta"
               :hours-on="hoursLimited"
               dated
             />
-            <!-- Prefer fewer is on by default (26 Oct 2026): when it picked another route, say where the line went. -->
-            <p
-              v-if="prestigeFlag.enabled.value && preferPicked && prestigeStatus !== 'idle'"
-              class="text-[11px] text-slate-500"
-              data-testid="prestige-by-other-route"
-            >
-              The “Prestige by” line is worked out on the highest TE route: “Show the highest TE instead” shows it.
-            </p>
             <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
             <p
-              v-if="prestigeFlag.enabled.value && !preferPicked && noPrestigeOn && prestigeStatus !== 'idle'"
+              v-if="prestigeFlag.enabled.value && noPrestigeOn && prestigeStatus !== 'idle'"
               class="text-[11px] text-amber-800"
               data-testid="prestige-by-no-days"
             >
@@ -518,27 +509,18 @@
           <div class="font-mono-premium text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
-          <!-- "Prestige by" is worked out on the instant answer's fastest route, which the box always shows unless
-               Prefer fewer picked another. -->
+          <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). -->
           <PrestigeByLine
-            v-if="prestigeFlag.enabled.value && !preferPicked"
-            :line="prestige?.line ?? null"
+            v-if="prestigeFlag.enabled.value"
+            :line="boxPrestige?.line ?? null"
             :status="prestigeStatus"
             mismatch=""
             :beta="prestigeFlag.beta"
             :hours-on="hoursLimited"
           />
-          <!-- Prefer fewer is on by default (26 Oct 2026): when it picked another route, say where the line went. -->
-          <p
-            v-if="prestigeFlag.enabled.value && preferPicked && prestigeStatus !== 'idle'"
-            class="text-[11px] text-slate-500"
-            data-testid="prestige-by-other-route"
-          >
-            The “Prestige by” line is worked out on the fastest route: “Show the fastest instead” shows it.
-          </p>
           <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
           <p
-            v-if="prestigeFlag.enabled.value && !preferPicked && noPrestigeOn && prestigeStatus !== 'idle'"
+            v-if="prestigeFlag.enabled.value && noPrestigeOn && prestigeStatus !== 'idle'"
             class="text-[11px] text-amber-800"
             data-testid="prestige-by-no-days"
           >
@@ -1167,8 +1149,25 @@ let polishCut = false;
  * in, how long its next prestige can wait before the answer gets worse, worked out on the route
  * workers (the estimate profile, then 2-4 route finder lookups), and said in one line under it.
  */
+/** A worked-out line, and the route it is for (the box's, `key` of its stops). */
+interface PrestigeResult {
+  line: PrestigeLine;
+  cutoff: Cutoff;
+  record: PrestigeByRecord;
+  route: string;
+}
 const prestigeFlag = usePrestigeBy();
-const prestige = ref<{ line: PrestigeLine; cutoff: Cutoff; record: PrestigeByRecord } | null>(null);
+const prestige = ref<PrestigeResult | null>(null);
+/**
+ * Each answer's lines by the route they were worked out on (`PrestigeResult.route`), so going back to a route the box
+ * showed before puts its line back without working it out again. A new answer (or the polish's) starts afresh.
+ */
+const prestigeCache = new WeakMap<FoundRoutes, Map<string, PrestigeResult>>();
+function cachePrestige(found: FoundRoutes, p: PrestigeResult): void {
+  let m = prestigeCache.get(found);
+  if (!m) prestigeCache.set(found, (m = new Map()));
+  m.set(p.route, p);
+}
 const prestigeStatus = ref<'idle' | 'running' | 'done' | 'error'>('idle');
 /** Bumped by each new answer (and a search starting), so a line for an older one is dropped. */
 let prestigeRuns = 0;
@@ -1199,6 +1198,11 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
   if (!prestigeFlag.enabled.value || !ctx || ctx.id !== id || !found) return;
   const pid = ++prestigeRuns;
   const mode = props.deadline ? ('date' as const) : ('fastest' as const);
+  // The route the box shows (Jordan, 26 Oct 2026): Prefer fewer's pick when it made one, else the best, as before.
+  const shown = boxRoute.value;
+  const picked = preferPicked.value ? shown : null;
+  const routeKey = shown ? key(shown.chain) : '';
+  prestigeRoute = routeKey;
   const inputs = store.collectInputs();
   let farm: ReturnType<typeof farmLaying>;
   try {
@@ -1216,9 +1220,15 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     farm,
     siloSeconds: saveSiloSeconds(inputs),
     eggs: PRESTIGE_EGGS,
+    boxRoute: picked,
   });
-  // The ascensions range counts the player's own first ascension too.
-  const boundsLater = boundsAfter(filterBounds(filters.value), plan && !plan.fresh ? 1 : 0);
+  // The ascensions range counts the player's own first ascension too. With Prefer fewer's pick in the box, the lookups
+  // look no further than its count (a later prestige that keeps it only on a longer route would undo the pick).
+  const bounds = filterBounds(filters.value);
+  const capped = picked
+    ? { ...bounds, max: bounds.max === null ? picked.legs.length : Math.min(bounds.max, picked.legs.length) }
+    : bounds;
+  const boundsLater = boundsAfter(capped, plan && !plan.fresh ? 1 : 0);
   if (!plan || (boundsLater.max !== null && boundsLater.max < 1)) {
     prestige.value = null;
     prestigeStatus.value = 'idle';
@@ -1292,7 +1302,8 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
       // On the hour, as the hour alone ("Feb 23, 2027, 7 PM"; UX review 26 Oct 2026, item 8).
       show: (unix: number) => showDateTime(unix, zone.value, undefined, { shortTime: true }),
     });
-    prestige.value = { line, cutoff: cut, record: recordOfCutoff(cut, line, plan, PRESTIGE_EGGS) };
+    prestige.value = { line, cutoff: cut, record: recordOfCutoff(cut, line, plan, PRESTIGE_EGGS), route: routeKey };
+    cachePrestige(found, prestige.value);
     prestigeStatus.value = 'done';
     if (import.meta.env.DEV)
       console.info(`instant answer: prestige by ${Math.round(performance.now() - t0)} ms, ${cut.lookups} lookups`);
@@ -1302,6 +1313,13 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
     if (pid === prestigeRuns) prestigeStatus.value = 'error';
   }
 }
+/** The route the line running now (or last run) is for (`PrestigeResult.route`). */
+let prestigeRoute = '';
+/** The line shown: only the one for the route the box shows. */
+const boxPrestige = computed(() => {
+  const p = prestige.value;
+  return p && boxRoute.value && p.route === key(boxRoute.value.chain) ? p : null;
+});
 // The box ticked in Your setup with an answer on screen: worked out now.
 watch(
   () => prestigeFlag.enabled.value,
@@ -2173,7 +2191,7 @@ const lead = computed(() => result.value?.best ?? null);
  * PREFER FEWER ASCENSIONS (Q6, Wolfcry1993; search/preferFewer.ts). The green box may lead with the route with the
  * fewest ascensions inside the player's margin of the best (Fastest: in time; By a date: in TE). ONLY the box:
  * `lead` and the date answer stay the best for everything else (the summary for the result cards, the searches'
- * suggestions, Prestige by, the share). Right now follows the chosen route only through the box's own Follow this
+ * suggestions, the share). Prestige by follows the box (`boxRoute`; Jordan, 26 Oct 2026). Right now follows the chosen route only through the box's own Follow this
  * route button. Remembered per browser, one value per screen; "Show the fastest instead ›" shows the best for now.
  * The numbers are the instant answer's (no shifts: none are said).
  * On by default (Jordan, 26 Oct 2026, item 7; preferFewer.ts PREFER_DEFAULTS): Fastest within 12 h, By a date (Egg
@@ -2278,6 +2296,56 @@ const dateBoxLegs = computed(() => {
   const same = [found.byDate, ...dateRowsOf(found)].find(r => key(r.chain) === want);
   return same?.legs ?? [];
 });
+/** The route the box shows, either goal (Prefer fewer's pick or the best): the "Prestige by" line is worked out on it. */
+const boxRoute = computed<Route | null>(() => {
+  const found = result.value;
+  if (!found) return null;
+  if (!props.deadline) return boxLead.value;
+  if (!found.byDate) return null;
+  const want = key(dateBoxOf(found.byDate).chain);
+  return [found.byDate, ...dateRowsOf(found)].find(r => key(r.chain) === want) ?? null;
+});
+/**
+ * THE BOX'S ROUTE CHANGED (Prefer fewer's pick, "Show the fastest instead", or the margin): its line again, from this
+ * answer's lines when it had one, else worked out after a short wait (a few clicks on the chips run it once), for
+ * the route in the box only. A saved answer put back can't work one out (its inputs aren't kept): no line then.
+ */
+const PRESTIGE_DEBOUNCE_MS = 400;
+let prestigeTimer: ReturnType<typeof setTimeout> | null = null;
+watch(
+  () => (boxRoute.value ? key(boxRoute.value.chain) : null),
+  k => {
+    if (prestigeTimer) clearTimeout(prestigeTimer);
+    prestigeTimer = null;
+    const found = result.value;
+    if (!k || !found || !prestigeFlag.enabled.value || prestige.value?.route === k) return;
+    const hit = prestigeCache.get(found)?.get(k);
+    if (hit) {
+      ++prestigeRuns;
+      prestige.value = hit;
+      prestigeStatus.value = 'done';
+      return;
+    }
+    // Being worked out for this route already (the polish's own run, say).
+    if (prestigeStatus.value === 'running' && prestigeRoute === k) return;
+    const ctx = prestigeInputs;
+    if (!ctx || status.value !== 'done' || backgroundStatus.value === 'running') {
+      if (!ctx && prestigeStatus.value !== 'running') prestigeStatus.value = 'idle';
+      return;
+    }
+    if (runBusy.value && !runsAlongside()) {
+      prestigeStatus.value = 'idle';
+      prestigeLater = true;
+      return;
+    }
+    // Shown as working while it waits; an older route's run is dropped when this one starts.
+    prestigeStatus.value = 'running';
+    prestigeTimer = setTimeout(() => {
+      prestigeTimer = null;
+      if (ctx === prestigeInputs && result.value === found) void runPrestigeBy(ctx.id, getPool(), ctx.url);
+    }, PRESTIGE_DEBOUNCE_MS);
+  }
+);
 /** By a date's counts row lit as the box's. */
 function dateRowLit(r: Route): boolean {
   const found = result.value;
@@ -2484,8 +2552,9 @@ interface InstantSnapshot {
   exactMs: number | null;
   gains: PolishGain[];
   bracket: { above: BracketSide | null; below: BracketSide | null } | null;
-  /** The experimental "Prestige by" line, when it was worked out. */
-  prestige?: { line: PrestigeLine; cutoff: Cutoff; record: PrestigeByRecord } | null;
+  /** The experimental "Prestige by" line, when it was worked out, with the route the box showed (`route`; absent
+   *  before 26 Oct 2026, when it was always the best: such a line is not put back). */
+  prestige?: PrestigeResult | null;
   /** Which account, goal and save it is for (17 Oct 2026, for My runs; absent before). */
   meta?: SnapMeta;
   /** "What if you had maxed gear?", once worked out for this answer (MaxedWhatIf `result`). */
@@ -2664,13 +2733,15 @@ function applySnapshot(s: InstantSnapshot): void {
   answerStart.value = typeof s.answerStart === 'number' ? s.answerStart : 0;
   gains.value = Array.isArray(s.gains) ? s.gains : [];
   bracket.value = s.bracket ?? null;
-  prestige.value = s.prestige ?? null;
+  // Only a line that says which route it was for (26 Oct 2026); shown while that route is in the box (`boxPrestige`).
+  prestige.value = s.prestige && typeof s.prestige.route === 'string' ? s.prestige : null;
+  if (prestige.value) cachePrestige(s.result, prestige.value);
   whatIfResult.value = s.whatIf ?? null;
   keptSearch.value = readSearch(s.search);
   answerPricing = readPricing(s.pricing);
   // A saved answer put back feeds My runs too (it is for this key: this save and setup).
   keepPricing();
-  prestigeStatus.value = s.prestige ? 'done' : 'idle';
+  prestigeStatus.value = prestige.value ? 'done' : 'idle';
   bracketStatus.value = 'done';
   backgroundStatus.value = 'done';
   status.value = 'done';
@@ -3083,7 +3154,12 @@ async function withPrestigeBy(record: InstantRecord): Promise<InstantRecord> {
   if (!recordsPrestigeBy(flag, true)) return record;
   if (prestigeStatus.value === 'running' && prestigeDone)
     await Promise.race([prestigeDone, new Promise(r => setTimeout(r, 60000))]);
-  return prestige.value ? { ...record, prestigeBy: prestige.value.record } : record;
+  // What is SENT keeps its meaning (26 Oct 2026): the line worked out on the answer's own best (fastest / highest TE),
+  // never the one for Prefer fewer's pick; nothing when only the pick's line was worked out.
+  const found = result.value;
+  const best = found ? (props.deadline ? found.byDate : found.best) : null;
+  const sent = found && best ? (prestigeCache.get(found)?.get(key(best.chain)) ?? null) : null;
+  return sent ? { ...record, prestigeBy: sent.record } : record;
 }
 
 /** Send the result `k` (the one on screen) with the instant answer. Never throws; tried once per result. */

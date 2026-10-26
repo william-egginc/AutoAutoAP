@@ -263,7 +263,7 @@ describe('the pricing record and the saved answers from before it', () => {
   });
 
   it('an answer saved before this build (older INSTANT_RULES) is worked out again, so it is saved with its pricing', () => {
-    expect(INSTANT_RULES).toBe('2026-10-24-pricing');
+    expect(INSTANT_RULES).toBe('2026-10-26-boxprestige');
     const now = tablesIdentity([], ['table-v2.bin']);
     const before = now!.replace(`rules=${INSTANT_RULES}`, 'rules=2026-10-24-heldfix');
     expect(savedAnswerFits({ tables: before }, 1, now)).toBe(false);

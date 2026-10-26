@@ -604,6 +604,37 @@ describe('prestigePlan (the prestige the line is about)', () => {
     expect(plan.keep).toEqual({ te: 490, end: T0 + 9e6 });
   });
 
+  it('the box’s route (Prefer fewer picked it, 26 Oct 2026): its outcome is kept, longer routes are not priced', () => {
+    // Fastest: 3 ascensions the fastest, 2 ascensions 10 h later (the box under within 12 h).
+    const r3 = routeOf([leg(170, '2-sale', T0, T0 + 9e5), leg(300, '2-sale', T0 + 9e5, T0 + 5e6), leg(490, '2-sale', T0 + 5e6, T0 + 9e6)]);
+    const r2 = routeOf([leg(200, '2-sale', T0, T0 + 2e6), leg(490, '2-sale', T0 + 2e6, T0 + 9e6 + 36000)]);
+    const found: FoundRoutes = { best: r3, byAscensions: [null, null, r2, r3], byDate: null, byDateByAscensions: [] };
+    const base = { mode: 'fastest' as const, found, firstLegs: [], planStart: T0, startTE: 141, saveDelivered: save, farm, siloSeconds: 3600 };
+    const plain = prestigePlan(base)!;
+    expect(plain.keep).toEqual({ te: 490, end: T0 + 9e6 });
+    expect(plain.candidates).toEqual([[170, 300, 490], [200, 490]]);
+    const boxed = prestigePlan({ ...base, boxRoute: r2 })!;
+    expect(boxed.keep).toEqual({ te: 490, end: T0 + 9e6 + 36000 });
+    expect(boxed.candidates).toEqual([[200, 490]]);
+    expect(boxed.firstStop).toBe(200);
+    // By a date, same TE: the box's 2-ascension route, kept at its own TE and end.
+    const d3 = routeOf([leg(170, '2-sale', T0, T0 + 9e5), leg(200, '2-sale', T0 + 9e5, T0 + 5e6), leg(248, '2-sale', T0 + 5e6, DEADLINE - 9e5)]);
+    const d2 = routeOf([leg(190, '2-sale', T0, T0 + 2e6), leg(248, '2-sale', T0 + 2e6, DEADLINE - 9e4)]);
+    const df: FoundRoutes = { best: null, byAscensions: [], byDate: d3, byDateByAscensions: [null, null, d2, d3] };
+    const dated = prestigePlan({ ...base, mode: 'date', found: df, boxRoute: d2 })!;
+    expect(dated.keep).toEqual({ te: 248, end: DEADLINE - 9e4 });
+    expect(dated.candidates).toEqual([[190, 248]]);
+    expect(prestigePlan({ ...base, mode: 'date', found: df })!.keep).toEqual({ te: 248, end: DEADLINE - 9e5 });
+  });
+
+  it('candidatesOf with a cap: only routes with at most that many ascensions', () => {
+    const r3 = routeOf([leg(170, 'a', T0, T0 + 1), leg(300, 'a', T0 + 1, T0 + 2), leg(490, 'a', T0 + 2, T0 + 3)]);
+    const r2 = routeOf([leg(200, 'a', T0, T0 + 1), leg(490, 'a', T0 + 1, T0 + 4)]);
+    const found: FoundRoutes = { best: r3, byAscensions: [null, null, r2, r3], byDate: null, byDateByAscensions: [] };
+    expect(candidatesOf(found, 'fastest', true, true, 2)).toEqual([[200, 490]]);
+    expect(candidatesOf(found, 'fastest', false, true, 3)).toEqual([[300, 490], [490]]);
+  });
+
   it('no route: no plan', () => {
     const found: FoundRoutes = { best: null, byAscensions: [], byDate: null, byDateByAscensions: [] };
     expect(

@@ -303,8 +303,8 @@ describe('the setting, per browser', () => {
     });
     expect(readPreferFewer()).toEqual(DEF);
     writePreferFewer({ fastest: within(D), date: te(0) });
-    expect(PREFER_KEY).toBe('aap-prefer-fewer');
-    expect(store.has('aap-prefer-fewer')).toBe(true);
+    expect(PREFER_KEY).toBe('aap-prefer-fewer-v2');
+    expect(store.has('aap-prefer-fewer-v2')).toBe(true);
     expect(readPreferFewer()).toEqual({ fastest: within(D), date: te(0) });
     store.set(PREFER_KEY, '{"fastest":{"kind":"te","te":1},"date":{"kind":"te","te":-2}}');
     expect(readPreferFewer()).toEqual(DEF);
@@ -336,6 +336,54 @@ describe('the setting, per browser', () => {
     rememberPreferFewer('date', te(2));
     expect(readPreferPicked()).toEqual({ fastest: PREFER_OFF, date: te(2) });
     expect(JSON.parse(store.get(PREFER_KEY)!)).toEqual({ fastest: PREFER_OFF, date: te(2) });
+  });
+});
+
+describe('the one-time reset to the defaults (26 Oct 2026)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const DEF = { fastest: within(12 * H), date: te(0) };
+  const memory = () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    return store;
+  };
+
+  it('the old Off for both screens is ignored and cleared once: everyone starts on the defaults', () => {
+    const store = memory();
+    store.set('aap-prefer-fewer', JSON.stringify({ fastest: PREFER_OFF, date: PREFER_OFF }));
+    expect(readPreferFewer()).toEqual(DEF);
+    expect(store.has('aap-prefer-fewer')).toBe(false);
+    // Any old pick, not just Off: discarded once.
+    store.set('aap-prefer-fewer', JSON.stringify({ fastest: within(2 * D) }));
+    expect(readPreferFewer()).toEqual(DEF);
+  });
+
+  it('a pick made after the change persists across reloads (the old key never comes back)', () => {
+    const store = memory();
+    store.set('aap-prefer-fewer', JSON.stringify({ fastest: within(D), date: te(1) }));
+    rememberPreferFewer('fastest', PREFER_OFF);
+    expect(store.has('aap-prefer-fewer')).toBe(false);
+    // A reload: only storage is left.
+    expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: te(0) });
+    rememberPreferFewer('date', te(2));
+    expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: te(2) });
+    expect(JSON.parse(store.get(PREFER_KEY)!)).toEqual({ fastest: PREFER_OFF, date: te(2) });
+  });
+
+  it('a corrupt value under the new key falls to the default; storage without removeItem never throws', () => {
+    const store = memory();
+    store.set(PREFER_KEY, '{"fastest":');
+    expect(readPreferFewer()).toEqual(DEF);
+    store.set(PREFER_KEY, JSON.stringify({ fastest: { kind: 'time', seconds: 'x' }, date: { kind: 'zz' } }));
+    expect(readPreferFewer()).toEqual(DEF);
+    const plain = new Map<string, string>([['aap-prefer-fewer', '{}']]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => plain.get(k) ?? null, setItem: () => {} });
+    expect(() => readPreferFewer()).not.toThrow();
+    expect(readPreferFewer()).toEqual(DEF);
   });
 });
 

@@ -200,7 +200,7 @@ export interface PreferCopy {
   what: string;
   /** Under the box's numbers, cost first, then the saving. */
   line: string;
-  /** "No route with fewer ascensions is within 1 day." */
+  /** "No route with fewer ascensions is within 1 day." Not shown since 26 Oct 2026 (PreferFewerNote.vue). */
   muted: string;
 }
 
@@ -256,12 +256,72 @@ export function preferFewerCopy<T>(
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/** A saved route as the snapshot keeps it (search/routeFinder.ts Route), as far as `boxRouteOf` reads it. */
+export interface BoxRouteLike {
+  chain: number[];
+  end: number;
+  legs?: { endTE?: number; to?: number }[] | null;
+}
+
+/**
+ * The route the green box shows, from a saved answer's routes (Jordan, 26 Oct 2026: My runs' Right now and the
+ * instant baseline follow the box, not the best): `best` (Fastest `result.best`, By a date `result.byDate`) and the
+ * rows per count (`byAscensions` / `byDateByAscensions`), chosen with `margin` as InstantRoute's box does (By a date
+ * the spare is to `deadline`). The best with the margin Off, when nothing fits, or without a best.
+ */
+export function boxRouteOf<R extends BoxRouteLike>(
+  goal: PreferGoal,
+  best: R | null | undefined,
+  rows: readonly (R | null | undefined)[] | null | undefined,
+  margin: PreferMargin,
+  deadline: number | null = null
+): R | null {
+  if (!best || !Array.isArray(best.chain) || !best.chain.length) return best ?? null;
+  if (margin.kind === 'off') return best;
+  const endTE = (r: R) => {
+    const last = Array.isArray(r.legs) ? r.legs[r.legs.length - 1] : undefined;
+    return last?.endTE ?? last?.to ?? r.chain[r.chain.length - 1];
+  };
+  const rowOf = (r: R): PreferRow<R> => ({
+    item: r,
+    ascensions: r.chain.length,
+    finish: r.end,
+    ...(goal === 'date' ? { endTE: endTE(r), ...(deadline !== null ? { spare: deadline - r.end } : {}) } : {}),
+    shifts: null,
+  });
+  const k = best.chain.join(',');
+  const others = (rows ?? []).filter(
+    (r): r is R => !!r && Array.isArray(r.chain) && r.chain.length > 0 && Number.isFinite(r.end) && r.chain.join(',') !== k
+  );
+  const top = rowOf(best);
+  const choice = choosePreferFewer(goal, [top, ...others.map(rowOf)], margin, top);
+  return choice?.state === 'fewer' ? choice.chosen.item : best;
+}
+
 /** Remembered per browser, one value per screen. */
 export interface PreferSetting {
   fastest: PreferMargin;
   date: PreferMargin;
 }
-export const PREFER_KEY = 'aap-prefer-fewer';
+/**
+ * A new key (Jordan, 26 Oct 2026): before the defaults, picking on one screen saved Off for the other too, so a player
+ * who ever touched a chip had Off stored for both, which can't be told apart from a real Off. Everyone starts on the
+ * defaults once: the old key is never read and is removed (`dropOldPreferKeys`); a pick made from now on is kept here.
+ */
+export const PREFER_KEY = 'aap-prefer-fewer-v2';
+/** Keys of earlier builds, discarded once. */
+export const PREFER_OLD_KEYS: readonly string[] = ['aap-prefer-fewer'];
+
+/** Removes the earlier builds' picks. Never throws (blocked storage, or one without removeItem). */
+export function dropOldPreferKeys(): void {
+  for (const k of PREFER_OLD_KEYS) {
+    try {
+      if (localStorage.getItem(k) !== null) localStorage.removeItem(k);
+    } catch {
+      // Nothing to do: the old key is never read anyway.
+    }
+  }
+}
 /**
  * Jordan's defaults (26 Oct 2026, item 7), for a screen the player has never set: Fastest to 490 (and every other race
  * target) within 12 h of the fastest; By a date (Egg Day too) the same TE. A choice the player made always wins.
@@ -285,6 +345,7 @@ function validMargin(v: unknown, kind: 'time' | 'te'): PreferMargin | undefined 
 
 /** Only what the player picked, per screen (a screen never set is absent). Never throws. */
 export function readPreferPicked(): Partial<PreferSetting> {
+  dropOldPreferKeys();
   try {
     const v = JSON.parse(localStorage.getItem(PREFER_KEY) ?? 'null') as Partial<PreferSetting> | null;
     if (!v || typeof v !== 'object') return {};
