@@ -198,14 +198,16 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     }
   });
 
-  it("(c) a typed route that is neither: Following your pick · not priced on this save yet, no timeline", async () => {
+  it("(c) a typed route that is neither: no timeline yet, the instant answer for the setup being worked out", async () => {
     const { page, scope } = await eggDay({ chain: [205, 238], from: 'typed', at: now(), source: 'manual' });
     expect(page.follow.value?.price).toBe('none');
     expect(page.cardPlan.value).toBeNull();
     const { html, text } = await render(page);
-    expect(text).toContain(`Following your pick · ${NOT_PRICED}`);
-    // No pricing settings kept for this save (an answer from before 24 Oct 2026): said in plain words.
-    expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup");
+    // No pricing settings kept for this save (an answer from before 24 Oct 2026): My runs works them out itself (26 Oct
+    // 2026), said while it does.
+    expect(text).toContain('Following your pick · working out its times');
+    expect(text).toContain('Working out the instant answer for your setup…');
+    expect(text).not.toContain(NOT_PRICED);
     expect(html).not.toContain('data-testid="now-follow-price"');
     expect(html).not.toContain('data-testid="now-source-pill"');
     scope.stop();

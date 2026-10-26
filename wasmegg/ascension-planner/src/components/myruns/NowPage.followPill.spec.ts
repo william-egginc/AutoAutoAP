@@ -24,7 +24,7 @@ import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import { hashID } from '@/lib/storage/db';
 import { FOLLOW_PREFIX } from '@/lib/follow';
 import { saveTEOf } from '@/lib/saveFreshness';
-import { pricingSetupKey, recordPricing, type SnapPricing } from '@/lib/followEstimate';
+import { recordPricing, type SnapPricing } from '@/lib/followEstimate';
 import { accountOf } from '@/search/runSaves';
 import { backupSecondsOf } from '@/lib/saveFreshness';
 import { setChainPricer, type ChainPricer } from '@/composables/useFollowEstimate';
@@ -103,7 +103,7 @@ async function setup(
 ) {
   loadAndSyncBackup(A_ID, save(), 'plan_next');
   rollUpPendingTE();
-  const { instantKeyFromStores, resetGoalChoice, useNowPage, useHoursFromStores } = await import('@/composables/useNowPage');
+  const { instantKeyFromStores, pricingSetupFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
   const saveSecondsOf = () => backupSecondsOf(useInitialStateStore().rawBackup);
   resetGoalChoice();
   const store = useChainSearchStore();
@@ -162,13 +162,7 @@ async function setup(
     recordPricing({
       account: accountOf(useInitialStateStore().rawBackup)!,
       backupTime: saveSecondsOf(),
-      setup: pricingSetupKey({
-        availability: store.availability,
-        timeOff: store.timeOff,
-        noPrestige: store.noPrestige,
-        useHours: useHoursFromStores(),
-        firstAscension: store.firstAscensionFor(),
-      }),
+      setup: pricingSetupFromStores(),
       url: TABLE,
       tableTo: o.tableTo ?? 490,
       at: Date.now() - 30_000,

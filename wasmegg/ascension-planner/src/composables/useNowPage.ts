@@ -122,7 +122,9 @@ import { useFollowStore } from '@/stores/follow';
 import { followPrice, type FollowResult, type FollowSnap } from '@/lib/followPrice';
 import {
   estimateKey,
+  needsPricingRecord,
   pickPricing,
+  recordFinalFor,
   planFromEstimate,
   pricingSetupKey,
   readPricing,
@@ -132,6 +134,7 @@ import {
   type PricingSource,
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
+import { useInstantCompute, type InstantComputeRequest } from './useInstantCompute';
 import { useBoardRunLegs, type BoardRunWant, type RunCsvFetch } from './useBoardRunLegs';
 import { fetchRunCsv } from '@/explorer/collector';
 import { readKept } from '@/search/instantScale';
@@ -184,8 +187,12 @@ export interface FollowCard {
   price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none';
   /** No timeline yet: being estimated or about to be ('working'), waiting for a search to end ('waiting'), the route
    *  goes past the instant answer's data ('beyond'), no instant answer of this save and setup to price it with yet
-   *  ('nosource'), or the estimate failed ('failed'). Absent: priced. */
-  estimating?: 'working' | 'waiting' | 'beyond' | 'nosource' | 'failed';
+   *  ('nosource': only when working it out here failed, `instantFailure`), or the estimate failed ('failed'). With no
+   *  record yet, My runs works the instant answer's pricing out itself (composables/useInstantCompute.ts): 'instant'
+   *  while it does, 'instantwait' while a search runs. Absent: priced. */
+  estimating?: 'working' | 'waiting' | 'beyond' | 'nosource' | 'failed' | 'instant' | 'instantwait';
+  /** 'nosource': why the instant answer for this setup couldn't be worked out here (short, no IDs). */
+  instantFailure?: string;
   source: 'this-save' | 'setup-changed' | 'older-save' | 'history' | null;
   /** The save it was priced from, unix seconds (an older save's, or the history entry's); null when not known. */
   pricedSave: number | null;
@@ -231,6 +238,22 @@ export function useHoursFromStores(): boolean {
     !!store.availability &&
     insideHoursFor(true, isConstrained(store.availability), readInsideHoursChoice(), filters.inHours)
   );
+}
+
+/** The pricing record's setup key (lib/followEstimate.ts `pricingSetupKey`) from the stores, as InstantRoute.vue keeps it
+ *  (its first ascension is the store's `firstAscensionFor()`, the value `collectInputs` puts there; the zone the plan's). */
+export function pricingSetupFromStores(): string {
+  const store = useChainSearchStore();
+  return pricingSetupKey({
+    availability: store.availability,
+    timeOff: store.timeOff,
+    noPrestige: store.noPrestige,
+    useHours: useHoursFromStores(),
+    firstAscension: store.firstAscensionFor(),
+    zone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    deferShifts: !!store.deferShifts,
+    target: store.finalTE,
+  });
 }
 
 export function instantKeyFromStores(deadline: number | null, finalTE: number): string | null {
@@ -761,16 +784,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * re-reads it once), and a reading that throws keeps the last good key with a console line.
    */
   const pricingSetupLast = { value: '' };
+  /** Bumped when My runs keeps a pricing record itself (`instantNeed`): the records are read again. */
+  const recordsRead = ref(0);
   const pricingSetup = computed(() =>
     readKept(
-      () =>
-        pricingSetupKey({
-          availability: store.availability,
-          timeOff: store.timeOff,
-          noPrestige: store.noPrestige,
-          useHours: useHoursFromStores(),
-          firstAscension: store.firstAscensionFor(),
-        }),
+      () => pricingSetupFromStores(),
       pricingSetupLast,
       err => console.warn('My runs: reading the setup for the follow estimate failed:', err instanceof Error ? err.message : String(err))
     )
@@ -783,6 +801,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** What this save's instant answer priced its routes with (`goalKey`'s own snapshot ranked first). */
   function pricingSourcesFor(goalKey: GoalKey): PricingSource[] {
     void kept.value;
+    // A record My runs kept itself (`instantNeed` below) is read again.
+    void recordsRead.value;
     const sources: PricingSource[] = [];
     keys.value.forEach(({ d, key }) => {
       const s = snapOf(instantSnapKey(key)) as (SnapLike & { pricing?: unknown; tableUrl?: unknown; header?: { to?: unknown } | null }) | null;
@@ -843,6 +863,53 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const otherRequests = computed(() => [...otherFollows.value.flatMap(o => (o.req ? [o.req] : [])), ...shiftRequests.value]);
   const searchBusy = computed(() => store.isRunning || store.deadlineRunning || store.resultSending);
   const { state: estimate, otherStates } = useFollowEstimate(estimateRequest, searchBusy, otherRequests);
+
+  /**
+   * MY RUNS NEVER WAITS FOR ANOTHER TAB (26 Oct 2026, composables/useInstantCompute.ts): a followed goal with no
+   * timeline whose route no pricing record of this save and setup reaches (a fresh browser, a Setup change) gets one
+   * worked out here, the instant answer's own way, in the background. One record prices every followed goal, so one
+   * request: up to the highest TE any of them needs. The TE a goal needs, or null when it needs none.
+   */
+  function recordNeedFor(fp: FollowPriced | null): number | null {
+    if (!fp || (fp.price.priced !== 'none' && fp.price.priced !== 'finish')) return null;
+    const chain = followedFromNow(fp.f.chain, teSoFar.value);
+    if (!needsPricingRecord(pricingSourcesFor(fp.sel.goal.key), chain, teSoFar.value)) return null;
+    return recordFinalFor(fp.g, chain);
+  }
+  /** The followed goals that need it, by goal key, with the TE each needs. */
+  const recordNeeds = computed(() => {
+    const out = new Map<GoalKey, number>();
+    if (!hasSave.value || !storeReady.value) return out;
+    const sel = recordNeedFor(followPriced.value);
+    if (sel != null && selectedGoal.value) out.set(selectedGoal.value, sel);
+    for (const o of otherFollows.value) {
+      const n = recordNeedFor(o.fp);
+      if (n != null) out.set(o.fp.sel.goal.key, n);
+    }
+    return out;
+  });
+  const instantNeed = computed<InstantComputeRequest | null>(() => {
+    const needs = [...recordNeeds.value.values()];
+    const acct = account.value;
+    const setup = pricingSetup.value;
+    // Only on the save as the Auto Planner sets it up, with Setup loaded (as the instant answer waits for them).
+    if (!needs.length || !acct || !setup || store.startWait || !store.setupLoaded) return null;
+    const final = Math.max(...needs);
+    if (!(final > Math.floor(teSoFar.value))) return null;
+    const backupTime = saveSeconds.value;
+    return { key: `${acct}|${backupTime}|${setup}|${final}`, account: acct, backupTime, setup, final, useHours: useHoursFromStores() };
+  });
+  const { state: instantCompute } = useInstantCompute(instantNeed, searchBusy, () => recordsRead.value++);
+  /** A goal's state while its record is worked out here, or why it couldn't be. */
+  function instantStateFor(goalKey: GoalKey): Pick<FollowCard, 'estimating' | 'instantFailure'> | null {
+    const st = instantCompute.value;
+    const req = instantNeed.value;
+    if (!st || !req || st.key !== req.key || !recordNeeds.value.has(goalKey)) return null;
+    if (st.status === 'working') return { estimating: 'instant' };
+    if (st.status === 'waiting') return { estimating: 'instantwait' };
+    if (st.status === 'failed') return { estimating: 'nosource', instantFailure: st.reason };
+    return null;
+  }
 
   /** The selected goal's followed route and its plan: priced from what is saved, else estimated (above). */
   const followState = computed<{ card: FollowCard; plan: CardPlan | null } | null>(() => {
@@ -917,15 +984,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     }
     /** While it is worked out, or why it can't be (Right now's Next step). */
     // Asked and not answered yet counts as working, so "working it out" shows the whole time.
+    const inst = asked ? null : instantStateFor(sel.goal.key);
     const estimating: FollowCard['estimating'] = asked
       ? est?.status === 'waiting'
         ? 'waiting'
         : est?.status === 'failed'
           ? 'failed'
           : 'working'
-      : pick && 'beyond' in pick
-        ? 'beyond'
-        : 'nosource';
+      : inst
+        ? inst.estimating
+        : pick && 'beyond' in pick
+          ? 'beyond'
+          : 'nosource';
+    const failure = inst?.instantFailure ? { instantFailure: inst.instantFailure } : {};
     if (price.priced === 'finish')
       return {
         card: {
@@ -938,11 +1009,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           finish: { end: price.end, endTE: price.endTE, at: price.at },
           ...(g.deadline && !finishesBefore(price.end, g.deadline) ? { missesDate: true } : {}),
           ...(estimating ? { estimating } : {}),
+          ...failure,
         },
         plan: null,
       };
     return {
-      card: { chain: price.chain, from: f.from, label: followedLabel(f), price: 'none', source: null, pricedSave: null, ...(estimating ? { estimating } : {}) },
+      card: { chain: price.chain, from: f.from, label: followedLabel(f), price: 'none', source: null, pricedSave: null, ...(estimating ? { estimating } : {}), ...failure },
       plan: null,
     };
   }

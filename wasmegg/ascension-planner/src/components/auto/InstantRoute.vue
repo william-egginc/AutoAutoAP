@@ -781,17 +781,21 @@ import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { showDateTime } from '@/lib/displayTime';
-import { continueTailParams, farmLaying, instantDeliveryScale, saveSiloSeconds } from '@/search/leg';
+import { continueTailParams, farmLaying, saveSiloSeconds } from '@/search/leg';
 import { cardDeliveryScale, readKept } from '@/search/instantScale';
 import { getSimulationContext } from '@/engine/adapter';
 import type { SearchInputs, TimeOffWindow } from '@/search/types';
-import { instantFirstLegsBase } from '@/search/instantFirstLegs';
+import {
+  chooseInstantTable,
+  GEAR_TABLE_TO,
+  instantDays,
+  instantFirstLegs,
+  instantPricingOptions,
+} from '@/search/instantCompute';
 import { noInstantHeading, type InstantState } from '@/search/autoWiden';
 import {
   TABLE_LOAD_FAILED,
   TABLE_OLDER_PAGE,
-  isTableStall,
-  probeFirst,
   tableLoadFailed,
   tableNewerThanPage,
 } from '@/search/tableFetch';
@@ -807,7 +811,7 @@ import {
   type PolishOptions,
   type Route,
 } from '@/search/routeFinder';
-import { gearShiftKey, instantGearShift, instantTail, nearMaxedGear } from '@/search/instantGear';
+import { instantTail } from '@/search/instantGear';
 import {
   boundInput,
   boundsAfter,
@@ -906,8 +910,8 @@ import InstantSteps from './InstantSteps.vue';
 import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
 import NoInstantAnswer from './NoInstantAnswer.vue';
 import { followedCount } from '@/lib/ascRange';
-import { GEAR_RULE, gearChanges, gearStamp, gearTableFiles, legacyGearTableName, ownTableNames } from '@/search/tableGear';
-import { compositeUrl, gearShiftUrl, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
+import { GEAR_RULE, gearStamp, gearTableFiles, legacyGearTableName, ownTableNames } from '@/search/tableGear';
+import { compositeUrl, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
@@ -1000,9 +1004,6 @@ const own = computed(() => tableUrl.value !== TABLE_URL && !shiftedTable.value);
 const shiftedTable = computed(() => !!parseGearShiftUrl(tableUrl.value));
 /** A gear combination's table below GEAR_TABLE_TO, the maxed one from it. */
 const gearTable = computed(() => !!parseCompositeUrl(tableUrl.value));
-/** Where gear tables end and the maxed table takes over: from there it is exact for any gear on the
- *  board (the collector analyst, 1 Oct, B2). */
-const GEAR_TABLE_TO = 340;
 /** What changed since the player's own table was made, when it no longer fits their save. */
 const ownChanged = ref('');
 
@@ -1358,7 +1359,7 @@ let bracketLater: (() => void) | null = null;
 /** No prestige on these days for the instant answer (routeFinder.ts `TailOptions.noPrestige`, with the save's silo
  *  seconds for the laying while one holds a prestige), from the inputs; null without them. */
 function daysOf(inputs: SearchInputs): { noPrestige: TimeOffWindow[]; siloSeconds: number } | null {
-  return inputs.noPrestige?.length ? { noPrestige: inputs.noPrestige, siloSeconds: saveSiloSeconds(inputs) } : null;
+  return instantDays(inputs);
 }
 /** The days the answer on screen was worked out with (`daysOf`), for its maxed what-if and bracket. */
 let answerDays: ReturnType<typeof daysOf> = null;
@@ -1854,72 +1855,19 @@ async function run(force = false, goAhead = false): Promise<void> {
     const p = getPool();
     // The first answer on every route worker again (Safari keeps two for the polish after it); once idle.
     if (SAFARI) p.limitWorkers(p.size);
-    // The player's own table when there is one built on the gear their save has now; else the maxed one.
-    let url = TABLE_URL;
-    let h: TableHeader | null = null;
-    let mismatch = '';
+    // The player's own table when there is one built on the gear their save has now; else a gear table, the form G or
+    // the maxed one (search/instantCompute.ts `chooseInstantTable`, the same choice My runs makes).
     stampHash.value = '';
-    // Under its `.v2` name, else the plain one: one this page can't read is none (tableFetch.ts probeFirst).
-    // No table of their own (the usual case): the maxed one. A stall stops here.
-    const ownHit = await probeFirst(await ownTableUrls().catch(() => []), u => p.header(u));
-    const mine = ownHit?.url ?? null;
-    const oh = ownHit?.header ?? null;
-    if (oh?.gear && mine) {
-      const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, oh.gear.research);
-      const changes = stamp ? gearChanges(oh.gear, stamp) : ['gear'];
-      // INSTANT ANSWER V2: only a table made by this simulator; an older one gives way to the form G below.
-      if (!changes.length) {
-        if (!tableSimMismatch(oh)) {
-          url = mine;
-          h = oh;
-        }
-      } else mismatch = changes.join(', ');
-    }
-    h ??= await p.header(TABLE_URL);
-    // No table of their own: one built on a board gear combination exactly like theirs, if there is
-    // one (search/tableGear.ts gearTableName), below GEAR_TABLE_TO; the maxed one from there.
-    if (url === TABLE_URL && h.k3) {
-      const stamp = gearStamp(store.collectInputs(), store.readInventory().earnings, h.k3.research);
-      if (stamp) {
-        // The gear stamp's hash, for an instant answer record: the legacy name's, which analysis
-        // matches to the deployed files (tableGear.ts legacyGearTableName).
-        stampHash.value = (await legacyGearTableName(stamp)).replace(/^gear-|\.bin$/g, '');
-        const scale = instantDeliveryScale(store.collectInputs(), h.k3);
-        // The canonical name first (the same gear however it is worn), then the legacy one; each `.v2` name
-        // before any plain one (tableGear.ts gearTableFiles).
-        let found = false;
-        for (const gearName of await gearTableFiles(stamp)) {
-          const gearUrl = `${import.meta.env.BASE_URL}precompute/${gearName}`;
-          const both = compositeUrl(gearUrl, TABLE_URL, GEAR_TABLE_TO, scale);
-          try {
-            const gh = await p.header(both);
-            // INSTANT ANSWER V2: a gear table made by an older simulator gives way to the form G below.
-            if (tableSimMismatch(gh)) break;
-            h = gh;
-            url = both;
-            found = true;
-            break;
-          } catch (e) {
-            // Not under this name. Stalled: no other name either (the maxed one is already in).
-            if (isTableStall(e)) break;
-          }
-        }
-        // No table for this gear (the usual case): the maxed one.
-        if (!found) h = await p.header(TABLE_URL);
-      }
-    }
-    // INSTANT ANSWER V2: no own or gear table of this simulator: the maxed table moved to the player's
-    // gear (search/instantGear.ts, the form G), unless they are as good as maxed.
-    let gearShifted = false;
-    if (url === TABLE_URL) {
-      const shift = instantGearShift(store.collectInputs(), h);
-      if (shift && !nearMaxedGear(shift)) {
-        const shiftedUrl = gearShiftUrl(TABLE_URL, gearShiftKey(shift));
-        h = await p.header(shiftedUrl);
-        url = shiftedUrl;
-        gearShifted = true;
-      }
-    }
+    const choice = await chooseInstantTable({
+      pool: p,
+      maxedUrl: TABLE_URL,
+      base: `${import.meta.env.BASE_URL}precompute/`,
+      ownTableUrls,
+      inputs: () => store.collectInputs(),
+      earnings: () => store.readInventory().earnings,
+    });
+    const { url, header: h, mismatch, gearShifted } = choice;
+    stampHash.value = choice.stampHash;
     if (id !== runs) return;
     header.value = h;
     tableUrl.value = url;
@@ -1936,36 +1884,35 @@ async function run(force = false, goAhead = false): Promise<void> {
     // The form G is at the player's delivery already.
     const scale = gearShifted ? 1 : (deliveryScale.value ?? 1);
     const t0 = performance.now();
-    // The first-legs request, Continue my build-up included (search/instantFirstLegs.ts): the standard
-    // build carried on from the farm in the save, simulated on a background worker (a few seconds).
-    const legsRequest: FirstLegsBase = await instantFirstLegsBase(inputs, {
-      startTE: te,
+    // A plain copy: it goes to the workers.
+    const hours =
+      useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
+    // The first ascension to every stop, held for the hours and the no-prestige days (search/instantCompute.ts
+    // `instantFirstLegs`, the same request My runs makes).
+    const legs = await instantFirstLegs({
+      pool: p,
+      url,
+      header: h,
+      inputs,
+      te,
       final: target.value,
-      // Above the table's top it has no row for the player: their one ascension to the target is
-      // simulated live instead (search/liveCell.ts), a few seconds on a background worker.
-      ...(te > h.to
-        ? {
-            liveFresh: (t: number, at: number) => {
-              loadingText.value = 'Working out your one ascension to the target (your TE is past the top of the instant answer)…';
-              return store.liveFreshBuilds(t, at);
-            },
-          }
-        : {}),
+      scale,
+      hours,
+      deferShifts: store.deferShifts,
+      liveFresh: (t: number, at: number) => {
+        loadingText.value = 'Working out your one ascension to the target (your TE is past the top of the instant answer)…';
+        return store.liveFreshBuilds(t, at);
+      },
       buildUpTails: () => {
         loadingText.value = 'Working out your build-up from your farm as it is…';
         return store.buildUpTails();
       },
+      alive: () => id === runs,
     });
+    if (!legs) return;
     if (id !== runs) return;
-    // A plain copy: it goes to the workers.
-    const hours =
-      useHours.value && store.availability ? (JSON.parse(JSON.stringify(store.availability)) as Availability) : null;
-    // INSTANT ANSWER V2: the table's legs (and the first) held for the player's hours as Check exactly holds them.
-    // No prestige on these days (search/noPrestige.ts): every prestige waits past them, hours ticked or not.
-    answerDays = daysOf(inputs);
-    const tail = instantTail(hours, store.deferShifts, parseGearShiftUrl(url)?.g, answerDays);
-    const firstLegs = await p.firstLegs({ url, deliveryScale: scale, ...legsRequest, ...tail, hours });
-    if (id !== runs) return;
+    const { legsRequest, tail, firstLegs } = legs;
+    answerDays = legs.days;
     prestigeInputs = { id, url, firstLegs, scale, planStart: inputs.planStart, te, delivered: legsRequest.delivered };
     whatIfInputs.value = { legs: legsRequest, hours };
     const found = await findRoutes({
@@ -1987,15 +1934,15 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (id !== runs) return;
     // Each answer moved a stop or two on the table where that ends sooner: the search can prune a
     // route whose later, better-aligned start makes it faster (routeFinder.ts `polishFound`).
-    const polishOptions: PolishOptions = {
-      startTE: te,
+    const polishOptions: PolishOptions = instantPricingOptions({
+      te,
       start: inputs.planStart,
       firstLegs,
-      deliveryScale: scale,
+      scale,
       ...(props.deadline ? { deadline: props.deadline } : {}),
-      ...(hours ? { hours } : {}),
-      ...tail,
-    };
+      hours,
+      tail,
+    });
     const polished = await p.polish(url, polishOptions, JSON.parse(JSON.stringify(found)));
     if (id !== runs) return;
     answerPricing = snapPricing(polishOptions, target.value);
@@ -2588,6 +2535,9 @@ function keepPricing(): void {
       noPrestige: store.noPrestige,
       useHours: useHours.value,
       firstAscension: store.collectInputs().firstAscension,
+      zone: zone.value,
+      deferShifts: store.deferShifts,
+      target: store.finalTE,
     }),
     url: tableUrl.value,
     tableTo: header.value?.to ?? null,

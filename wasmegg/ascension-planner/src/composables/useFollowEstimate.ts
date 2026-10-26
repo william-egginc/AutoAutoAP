@@ -122,6 +122,10 @@ export function useFollowEstimate(
     otherStates.value = next;
     if (otherKey) return;
     if (busy.value || state.value?.status === 'working') return;
+    // The selected goal's route first, even in the moment before its run says 'working' (a pricing record kept by My
+    // runs makes both askable at once: composables/useInstantCompute.ts): one worker at a time.
+    const sel = request.value;
+    if (sel && !done.has(sel.key) && sel.key !== otherKey) return;
     const todo = list.find(r => !done.has(r.key));
     if (todo) void runOther(todo);
   }

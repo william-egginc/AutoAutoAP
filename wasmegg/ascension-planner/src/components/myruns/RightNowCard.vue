@@ -365,9 +365,24 @@
         <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data…</template>
         <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
       </p>
+      <!-- My runs works the instant answer for this setup out itself (composables/useInstantCompute.ts). -->
+      <p
+        v-else-if="follow && (follow.estimating === 'instant' || follow.estimating === 'instantwait')"
+        class="text-[13px] text-slate-700"
+        role="status"
+        data-testid="now-follow-instant"
+        :data-state="follow.estimating"
+      >
+        <template v-if="follow.estimating === 'instant'">Working out the instant answer for your setup…</template>
+        <template v-else>The instant answer for your setup is worked out once the search running now ends.</template>
+      </p>
       <p v-else-if="follow && follow.estimating === 'nosource'" class="text-[13px] text-slate-700" data-testid="now-follow-nosource">
-        No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is
-        nothing to estimate it from.{{ ' ' }}<button
+        <template v-if="follow.instantFailure"
+          >No timeline for your route yet: the instant answer for your setup couldn't be worked out here ({{ follow.instantFailure }}).</template
+        ><template v-else
+          >No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is
+          nothing to estimate it from.</template
+        >{{ ' ' }}<button
           type="button"
           class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
           data-testid="now-follow-open-screen"
@@ -630,9 +645,13 @@ const followNote = computed(() => {
     return followNoTimesWords(
       f.estimating === 'working' || f.estimating === 'waiting'
         ? f.estimating
-        : f.estimating === 'beyond' || f.estimating === 'failed'
-          ? 'failed'
-          : 'none'
+        : f.estimating === 'instant' || f.estimating === 'instantwait'
+          ? f.estimating === 'instant'
+            ? 'working'
+            : 'waiting'
+          : f.estimating === 'beyond' || f.estimating === 'failed' || (f.estimating === 'nosource' && f.instantFailure)
+            ? 'failed'
+            : 'none'
     );
   if (f.price === 'estimate')
     return simulatedNow.value

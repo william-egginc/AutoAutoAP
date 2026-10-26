@@ -179,18 +179,19 @@ describe("Right now: a route followed from this save's instant answer keeps the 
     await expectInstantTimeline({ kind: 'race', target: 312, goalKey: 'fastest-312' }, 'Fastest to 312 TE');
   });
 
-  it('the symptom without the snapshot (the follow made before it was kept): not priced, no timeline, "no saved plan yet"', async () => {
+  it('the symptom without the snapshot (the follow made before it was kept): its instant answer worked out here, never "no saved plan yet"', async () => {
     const goal: Goal = { kind: 'date', deadline: FEB10, goalKey: `date-${FEB10}` };
     const { page, scope } = await setUp(goal, fromInstant(), false);
     try {
       expect(page.follow.value?.price).toBe('none');
       const { text } = await render(page);
-      expect(text).toContain(`From the instant answer · ${NOT_PRICED}`);
-      // Nothing of this save to estimate it from: said, with the screen that works it out (24 Oct 2026).
-      expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup");
-      expect(text).toContain('Open Highest TE by a date once so the instant answer can price it ›');
-      // The pill: the ascension you are in is being worked out on the save (26 Oct 2026), never "no saved plan yet".
-      expect(text).toContain('By Feb 10, 2027 following · working out the first ascension');
+      // Nothing of this save to estimate it from: My runs works the instant answer for this setup out itself (26 Oct
+      // 2026), never "Open … once" and never "not priced on this save yet".
+      expect(text).toContain('From the instant answer · working out its times');
+      expect(text).toContain('Working out the instant answer for your setup…');
+      expect(text).not.toContain(NOT_PRICED);
+      expect(text).not.toContain('Open Highest TE by a date once');
+      expect(text).toContain('By Feb 10, 2027 following · working out its times');
       expect(text).not.toContain('By Feb 10, 2027 no saved plan yet');
     } finally {
       scope.stop();

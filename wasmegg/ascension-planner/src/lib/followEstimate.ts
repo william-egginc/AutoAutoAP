@@ -100,6 +100,21 @@ export function pickPricing(sources: readonly PricingSource[], chain: readonly n
   return ok.length ? { source: ok[0], chain: [...chain] } : { beyond: true, chain: [...chain] };
 }
 
+/**
+ * No source of this save reaches the route's first stop: its first ascensions stop below it (`final`), or there is no
+ * source at all. My runs then works the pricing record out itself (composables/useInstantCompute.ts) rather than
+ * saying "not priced". A route past the table's rows stays 'beyond' (`pickPricing`): a new record wouldn't help.
+ */
+export function needsPricingRecord(sources: readonly PricingSource[], chain: readonly number[], currentTE: number): boolean {
+  if (!chain.length || chain[0] > MAX_TE) return false;
+  return !sources.some(s => s.pricing.options.startTE === Math.floor(currentTE) && !!s.url && chain[0] <= s.pricing.final);
+}
+
+/** The TE a record for a goal must reach: a date's every TE (490), else the goal's target; at least the first stop. */
+export function recordFinalFor(goal: { deadline: number | null; target: number }, chain: readonly number[]): number {
+  return Math.min(MAX_TE, Math.max(goal.deadline ? MAX_TE : goal.target, chain[0] ?? 0));
+}
+
 /** The estimate's key: the save, the source snapshot (its table and when it was saved) and the route. A new save or a
  *  new instant answer makes another key, so an estimate for one never shows for another. */
 export function estimateKey(saveSeconds: number, source: PricingSource, chain: readonly number[]): string {
@@ -180,16 +195,35 @@ export interface PricingRecord {
 }
 
 /** What the pricing settings depend on beyond the save: the hours (and whether the answer works inside them), time
- *  off, no-prestige days and the first ascension's rule. The same words from InstantRoute.vue and My runs. */
+ *  off, no-prestige days and the first ascension's rule. The same words from InstantRoute.vue and My runs.
+ *
+ *  Since 26 Oct 2026 (My runs works the record out itself on a Setup change, composables/useInstantCompute.ts) also
+ *  the plan's time zone (the no-prestige days are whole local dates read in it), "hold my shifts for my hours" (only
+ *  with the hours: it holds nothing without them) and the target; records kept before read as another setup and are
+ *  worked out again once. */
 export function pricingSetupKey(o: {
   availability: unknown;
   timeOff: unknown;
   noPrestige: unknown;
   useHours: boolean;
   firstAscension: string | null | undefined;
+  /** The plan's IANA time zone (the store's `planTimezone`). */
+  zone: string;
+  /** Setup's "hold my shifts for my hours" (the store's `deferShifts`). */
+  deferShifts: boolean;
+  /** The planner's target TE (the store's `finalTE`). */
+  target: number;
 }): string {
   const list = (x: unknown) => (Array.isArray(x) ? x : []);
-  return JSON.stringify([o.useHours ? (o.availability ?? null) : null, list(o.timeOff), list(o.noPrestige), o.firstAscension ?? null]);
+  return JSON.stringify([
+    o.useHours ? (o.availability ?? null) : null,
+    list(o.timeOff),
+    list(o.noPrestige),
+    o.firstAscension ?? null,
+    o.zone,
+    o.useHours ? !!o.deferShifts : null,
+    o.target,
+  ]);
 }
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;

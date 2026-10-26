@@ -27,6 +27,7 @@ import { FOLLOW_PREFIX } from '@/lib/follow';
 import { saveTEOf } from '@/lib/saveFreshness';
 import { ESTIMATE_WORDS, type SnapPricing } from '@/lib/followEstimate';
 import { setChainPricer, useFollowEstimate, type ChainPricer, type EstimateRequest } from '@/composables/useFollowEstimate';
+import { setInstantComputeTiming, setInstantComputer } from '@/composables/useInstantCompute';
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
@@ -62,7 +63,11 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   stubPricer();
 });
-afterEach(() => setChainPricer(null));
+afterEach(() => {
+  setChainPricer(null);
+  setInstantComputer(null);
+  setInstantComputeTiming(null);
+});
 
 const leg = (start: number, end: number, endTE: number) =>
   ({ key: 'continue', endTE, durationSeconds: end - start, maxELR: 0, endTime: end, tier13Unlocked: false, startTime: start, shifts: [], endEgg: { egg: 'kindness', te: 40 } }) as LegSummary;
@@ -261,31 +266,37 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     }
   });
 
-  it("(d) a route whose first stop is past the instant answer's first ascensions: said, never sent to the worker", async () => {
+  it("(d) a route whose first stop is past the instant answer's first ascensions: My runs works the instant answer out again up to it (26 Oct 2026), never sent to the pricing worker", async () => {
     const { page, scope } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, { final: 200 });
-    expect(page.follow.value).toMatchObject({ price: 'none', estimating: 'beyond' });
+    expect(page.follow.value).toMatchObject({ price: 'none', estimating: 'instant' });
     await nextTick();
     expect(calls).toHaveLength(0);
-    const { text } = await render(page);
-    expect(text).toContain('Your route goes past what the instant answer covers, so it has no estimate: a run from Try next, below, works out its times on your account.');
+    const { text, html } = await render(page);
+    expect(text).toContain('Working out the instant answer for your setup…');
+    expect(html).toMatch(/role="status"[^>]*data-testid="now-follow-instant"/);
     scope.stop();
   });
 
-  it("(e) no instant answer of this save to price with (none kept, an older one's, another save's start): said, with what to do", async () => {
+  it("(e) no instant answer of this save to price with (none kept, an older one's, another save's start): worked out here; only when that fails, said with the reason and what to do", async () => {
     for (const o of [{ pricing: false }, { startTE: 150 }]) {
       setActivePinia(createPinia());
       mem.clear();
       stubPricer();
+      setInstantComputer(null);
+      setInstantComputeTiming({ delayMs: 0 });
       const { page, scope } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, o);
-      await nextTick();
+      expect(page.follow.value?.estimating, JSON.stringify(o)).toBe('instant');
+      // No route worker in this test's browser: the real failure line, with its reason.
+      await vi.waitFor(() => expect(page.follow.value?.estimating).toBe('nosource'));
       expect(calls, JSON.stringify(o)).toHaveLength(0);
-      expect(page.follow.value?.estimating).toBe('nosource');
+      expect(page.follow.value?.instantFailure).toBe('this browser has no background workers');
       const { html, text } = await render(page);
-      expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is nothing to estimate it from.");
+      expect(text).toContain("No timeline for your route yet: the instant answer for your setup couldn't be worked out here (this browser has no background workers).");
       expect(text).toContain('Open Highest TE by a date once so the instant answer can price it ›');
       expect(html).toContain('data-testid="now-follow-open-screen"');
       expect(text).not.toContain(NO_TIMELINE);
       scope.stop();
+      setInstantComputeTiming(null);
     }
   });
 

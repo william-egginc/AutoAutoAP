@@ -262,7 +262,7 @@ export interface GoalFollow {
 
 /** A followed route's state from Right now's follow card (useNowPage `FollowCard`) and its plan's finish. */
 export function goalFollowOf(
-  card: { price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none'; estimating?: string; finish?: { end: number }; missesDate?: boolean },
+  card: { price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none'; estimating?: string; instantFailure?: string; finish?: { end: number }; missesDate?: boolean },
   planEnd: number | null,
   /** With no timeline: the ascension you are in, simulated on the save (lib/followSim.ts): being worked out, or its next
    *  prestige (26 Oct 2026). */
@@ -273,9 +273,13 @@ export function goalFollowOf(
   if (card.price === 'estimate') return { times: 'estimate', end: planEnd, ...late };
   if (card.price === 'finish') return { times: 'finish', end: card.finish?.end ?? null, ...late };
   if (card.estimating === 'working' || card.estimating === 'waiting') return { times: card.estimating, end: null };
+  // The instant answer for this setup being worked out on My runs (composables/useInstantCompute.ts): its times next.
+  if (card.estimating === 'instant') return { times: 'working', end: null };
+  if (card.estimating === 'instantwait') return { times: 'waiting', end: null };
   if (current?.prestigeAt != null) return { times: 'current', end: current.prestigeAt };
   if (current?.working) return { times: 'first', end: null };
   if (card.estimating === 'beyond' || card.estimating === 'failed') return { times: 'failed', end: null };
+  if (card.estimating === 'nosource' && card.instantFailure) return { times: 'failed', end: null };
   return { times: 'none', end: null };
 }
 
