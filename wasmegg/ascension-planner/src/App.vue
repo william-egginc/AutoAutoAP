@@ -1372,7 +1372,7 @@ const topTabs = computed(() => [
           id: 'myruns' as const,
           tab: 'myruns',
           label: NAMES.myRuns,
-          on: 'bg-sky-600 text-white shadow-lg shadow-sky-100',
+          on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100',
         },
       ]
     : []),

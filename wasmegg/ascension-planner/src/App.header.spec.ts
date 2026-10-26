@@ -1,5 +1,6 @@
 /**
- * The page header in App.vue (UX review 26 Oct 2026): the title with the save's name on its own line (#13).
+ * The page header in App.vue (UX review 26 Oct 2026): the title with the save's name on its own line (#13), the nav
+ * bar's 44 px tap areas on phones (#12) and the active My runs tab's colour (#15).
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -47,5 +48,17 @@ describe('the nav bar icons on a phone (#12)', () => {
     // In an unscoped block (the bar is another component's markup).
     const block = app.slice(app.lastIndexOf('<style', app.indexOf('.aap-navbar nav')), app.indexOf('.aap-navbar nav'));
     expect(block.startsWith('<style>')).toBe(true);
+  });
+});
+
+describe('the top tabs (#15)', () => {
+  it('My runs, when on, is indigo like the Auto Planner (it was sky blue)', () => {
+    const tab = (id: string) => {
+      const at = app.indexOf(`id: '${id}' as const`);
+      return app.slice(at, app.indexOf('}', at));
+    };
+    expect(tab('auto')).toContain("on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'");
+    expect(tab('myruns')).toContain("on: 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'");
+    expect(app).not.toContain('bg-sky-600');
   });
 });
