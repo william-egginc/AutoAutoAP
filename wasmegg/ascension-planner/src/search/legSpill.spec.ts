@@ -165,3 +165,28 @@ describe('the full By a date CSV', () => {
     expect(rows[0].endsWith(legTails(priced[1].legs, TZ)[0])).toBe(true);
   });
 });
+
+describe('QA 7 (QA\'s 6): the file keeps up with the routes priced', () => {
+  it('flush hands the buffer to the backend before a megabyte has gathered', () => {
+    const backend = new MemorySpillBackend();
+    const spill = new LegSpill(backend, TZ);
+    const r = route([200, 490], 5e7);
+    spill.put(r.key, r.legs);
+    expect(backend.size()).toBe(0);
+    spill.flush();
+    expect(backend.size()).toBe(spill.bytes);
+    expect(backend.size()).toBeGreaterThan(0);
+  });
+});
+
+describe('the full files keep the header rule', () => {
+  it('no comment line has a comma (readers split the header on them), a full disk note included', async () => {
+    const spill = new LegSpill(new MemorySpillBackend(1500), TZ);
+    const routes = Array.from({ length: 1200 }, (_, i) => route([200 + (i % 50), 300 + i], 5e7 + i));
+    for (const r of routes) spill.put(r.key, r.legs);
+    await spill.commit();
+    const out = await collect(chainsCsvChunksFull(routes.map(r => ({ ...r, legs: [] as LegSummary[] })), meta, spill));
+    expect(out).toContain('Leg detail on disk stopped early');
+    for (const line of out.split('\n')) if (line.startsWith('#')) expect(line, line).not.toContain(',');
+  });
+});
