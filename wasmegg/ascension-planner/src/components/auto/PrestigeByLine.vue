@@ -52,8 +52,9 @@
     </details>
     <p v-if="mismatch" class="text-[10px] text-amber-800">{{ mismatch }}</p>
   </div>
-  <!-- Beta only: hidden by the 7-day rule, but say it is there, so the line can be seen working. -->
-  <p v-else-if="beta && status === 'done' && line?.farOff" class="text-[11px] text-slate-400" data-testid="prestige-by-far">
+  <!-- Beta only: hidden by the 7-day rule, but say it is there, so the line can be seen working. Not on By a date
+       (UX review 26 Oct 2026, item 8): nothing there until it is closer. -->
+  <p v-else-if="beta && !dated && status === 'done' && line?.farOff" class="text-[11px] text-slate-400" data-testid="prestige-by-far">
     Prestige by: your next prestige is more than 7 days away (the cutoff is about {{ line.farOff }}). This line
     shows when it's closer.
   </p>
@@ -74,6 +75,8 @@ const props = defineProps<{
   beta?: boolean;
   /** The player's hours are set (Let me pick my hours, a window that isn't any hour). */
   hoursOn?: boolean;
+  /** Under By a date's box: no far-off note, nothing until the next prestige is closer. */
+  dated?: boolean;
 }>();
 
 /** How long "Working out…" shows before it gives way to nothing (the line still shows if it comes later). */

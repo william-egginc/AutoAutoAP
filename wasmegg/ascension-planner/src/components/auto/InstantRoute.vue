@@ -336,6 +336,7 @@
               mismatch=""
               :beta="prestigeFlag.beta"
               :hours-on="hoursLimited"
+              dated
             />
             <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
             <p
@@ -1272,7 +1273,8 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
       now: Math.floor(Date.now() / 1000),
       ...(deadline ? { deadline } : {}),
       final: target.value,
-      show,
+      // On the hour, as the hour alone ("Feb 23, 2027, 7 PM"; UX review 26 Oct 2026, item 8).
+      show: (unix: number) => showDateTime(unix, zone.value, undefined, { shortTime: true }),
     });
     prestige.value = { line, cutoff: cut, record: recordOfCutoff(cut, line, plan, PRESTIGE_EGGS) };
     prestigeStatus.value = 'done';

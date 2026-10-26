@@ -29,6 +29,7 @@
  * the line says "on the hour" instead.
  */
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { roundedGap } from '@/lib/format';
 import { isAvailable, nextAvailable, type Availability } from './availability';
 import { pacificHourOfWeek, rebase, type BuildParams } from './precomputedLeg';
 import {
@@ -626,12 +627,6 @@ export interface PrestigeLine {
   farOff?: string;
 }
 
-function span(seconds: number): string {
-  const h = Math.round(seconds / 3600);
-  if (h < 48) return `${h} h`;
-  return `${(seconds / 86400).toFixed(1)} days`;
-}
-
 /**
  * THE DISPLAY RULES. Shown only when the next prestige is within ~7 days or the window to keep the
  * answer is under ~48 h (a far-off prestige with days of room has nothing to say yet), and only for a
@@ -652,30 +647,31 @@ export function describeCutoff(c: Cutoff, ctx: LineContext): PrestigeLine {
   const narrow = latestHour - ctx.prestigeAt < SHOW_WINDOW_SECONDS;
   if (!soon && !narrow) return { ...none, farOff: ctx.show(byHour) };
   const right = byHour < ctx.prestigeAt;
+  // THE WORDS (UX review 26 Oct 2026, item 8): one short sentence on when, one on what waiting costs. The numbers are
+  // the same as before; the long "(… at the latest, on the hour). After that: …" form is gone.
+  // "Next: prestige at 205 TE around Feb 23, 2027, 7 PM. Waiting longer costs about 17 days."
+  const latest = ctx.show(latestHour);
   const lead = right
     ? ctx.fresh
-      ? 'Prestige now'
-      : `Prestige as soon as you reach ${ctx.firstStop} TE`
-    : `Prestige by ${ctx.show(byHour)}`;
-  const latest = `${ctx.show(latestHour)} at the latest, on the hour`;
+      ? `Next: prestige now, by ${latest} at the latest`
+      : `Next: prestige at ${ctx.firstStop} TE around ${latest}`
+    : `Next: prestige by ${ctx.show(byHour)}`;
   let text: string;
+  const d = c.dropOutcome;
   if (ctx.mode === 'date') {
-    text = `${lead} to ${c.kind === 'unsure' ? 'be sure of' : 'keep'} ${c.keep.te} TE (${latest}).`;
-    const d = c.dropOutcome;
+    text = `${lead} to ${c.kind === 'unsure' ? 'be sure of' : 'keep'} ${c.keep.te} TE.`;
     if (c.kind === 'drop' && d) {
-      text += ` After that: ${d.te}`;
+      text += ` Waiting longer: ${d.te} TE`;
       if (c.next && c.next.until > (c.drop ?? 0))
-        text += ` (until about ${ctx.show(hourOf(ctx.prestigeAt, c.next.until))}), then ${c.next.then.te}`;
-      else if (c.next) text += `, then ${c.next.then.te}`;
+        text += `, ${c.next.then.te} TE after about ${ctx.show(hourOf(ctx.prestigeAt, c.next.until))}`;
+      else if (c.next) text += `, then ${c.next.then.te} TE`;
       text += '.';
     }
   } else {
-    const on = c.keep.end !== null ? ` on ${ctx.show(c.keep.end)}` : '';
-    text = `${lead} to ${c.kind === 'unsure' ? 'be sure to reach' : 'still reach'} ${ctx.final} TE${on} (${latest}).`;
-    const d = c.dropOutcome;
+    text = c.kind === 'unsure' ? `${lead} to be sure of reaching ${ctx.final} TE on time.` : `${lead}.`;
     if (c.kind === 'drop' && d?.end != null && c.keep.end !== null)
-      text += ` After that: ${ctx.show(d.end)} (${span(d.end - c.keep.end)} later).`;
-    else if (c.kind === 'drop' && d && d.end === null) text += ` After that it doesn't reach ${ctx.final}.`;
+      text += ` Waiting longer costs about ${roundedGap(d.end - c.keep.end)}.`;
+    else if (c.kind === 'drop' && d && d.end === null) text += ` Waiting longer doesn't reach ${ctx.final} TE.`;
   }
   return { show: true, text, tight, byHour, latestHour, spareSeconds };
 }

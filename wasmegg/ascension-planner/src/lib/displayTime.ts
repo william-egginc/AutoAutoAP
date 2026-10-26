@@ -35,13 +35,13 @@ watch(dateStyle, v => {
 /**
  * A moment, in `timezone`: "Mar 18, 2027, 11:15 AM" (en-US), or ISO. '' when unknown. `dateOnlyWhenFar` leaves the
  * time off a moment more than a year away ("Jun 7, 2032"): for a route's finish in a summary or a list only,
- * never a deadline, a stop or a prestige time (lib/clock.ts).
+ * never a deadline, a stop or a prestige time (lib/clock.ts). `shortTime`: the hour alone when on the hour ("7 PM").
  */
 export function showDateTime(
   unixSeconds: number | undefined,
   timezone: string,
   style = dateStyle.value,
-  opts: { dateOnlyWhenFar?: boolean } = {}
+  opts: { dateOnlyWhenFar?: boolean; shortTime?: boolean } = {}
 ): string {
   if (!unixSeconds || !Number.isFinite(unixSeconds)) return '';
   if (style === 'iso') return formatInZone(unixSeconds, timezone);
