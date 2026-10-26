@@ -6,7 +6,9 @@
        44 px buttons, about 45 px from sm up, about 65 px in two rows from xl) the page ends 6rem plus the phone's safe area lower, so its last lines
        scroll clear of the pill instead of under it (Jordan, 21 Oct 2026). On Manual below md the notes and stats
        bubbles (FloatingNotes.vue, FloatingStats.vue: fixed 7rem up, about 70 px tall) sit over the page's sides, so
-       it ends 12rem lower there: anything, the Help improve the planner ticks too, scrolls clear of them. -->
+       it ends 12rem lower there: anything, the Help improve the planner ticks too, scrolls clear of them. On My runs
+       the pill is the full one-row pill (up to 27rem wide from xl) and the page keeps its full width: the pill floats
+       over the bottom right like any floating button, draggable, and this bottom room lets the last lines clear it. -->
   <div
     :class="[
       'min-h-screen bg-gray-100 transition-all duration-300',
@@ -666,7 +668,7 @@
       <SetupDock
         v-else-if="plannerTab === 'myruns' && playerId && !loading"
         screen="fastest"
-        :summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff)"
+        :summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff, chainSearchStore.noPrestige)"
       />
 
       <!-- Undo Confirmation Dialog -->

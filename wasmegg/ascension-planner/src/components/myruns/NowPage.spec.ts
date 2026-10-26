@@ -406,7 +406,7 @@ describe('source checks', () => {
   it('App mounts the floating Setup on My runs, with its hours under it', () => {
     const app = read('../../App.vue');
     expect(app).toMatch(/<SetupDock\s+v-else-if="plannerTab === 'myruns' && playerId && !loading"\s+screen="fastest"/);
-    expect(app).toContain(':summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff)"');
+    expect(app).toContain(':summary="setupSummary(chainSearchStore.availability, chainSearchStore.timeOff, chainSearchStore.noPrestige)"');
   });
 
   it('nothing on the page starts a search, a check or a worker', () => {

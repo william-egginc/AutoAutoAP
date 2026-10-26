@@ -32,11 +32,12 @@
 
     <!-- From xl (1280 px) the pill stacks Setup over the workers, 10rem wide, so it sits in the margin right of the
          Auto Planner's 56rem column instead of over its right edge (UX review 26 Oct, #18: it covered "Every number
-         of ascensions ›"). On My runs (a wider page with no margin for it) from xl it is a small round Setup button:
-         no label, summary line or workers; still draggable, its place remembered (the Setup panel has the summary). -->
+         of ascensions ›"). On My runs it stays the full one-row pill at every width (Jordan, 26 Oct 2026: players turn
+         the workers down mid-run): from xl its summary wraps at 13rem and the pill is at most 27rem wide. My runs keeps
+         its full width and the pill floats over it (draggable); App.vue's bottom room lets the last lines clear it. -->
     <div
       class="flex items-center gap-1 rounded-full bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5"
-      :class="stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : ''"
+      :class="stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:max-w-[27rem] xl:rounded-2xl'"
       data-testid="setup-dock-pill"
     >
       <!-- Drag it anywhere (the user, 30 Sept); where it was left is remembered. Double-click puts it back. -->
@@ -64,10 +65,10 @@
             d="M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-1 3.4.9 2.4 2.4a1.7 1.7 0 001.1 2.6c1.8.4 1.8 3 0 3.4a1.7 1.7 0 00-1.1 2.6c1 1.5-.9 3.4-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5 1-3.4-.9-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 001.1-2.6c-1-1.5.9-3.4 2.4-2.4a1.7 1.7 0 002.6-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        <span class="flex flex-col items-start leading-tight" :class="!stacked ? 'xl:hidden' : ''">
+        <span class="flex flex-col items-start leading-tight">
           <span class="text-[10px] font-black uppercase tracking-widest">Setup</span>
           <!-- My runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
-          <span v-if="summary" class="text-[10px] font-normal text-white/85" data-testid="setup-dock-summary">{{ summary }}</span>
+          <span v-if="summary" class="text-[10px] font-normal text-white/85 text-left xl:max-w-[13rem]" data-testid="setup-dock-summary">{{ summary }}</span>
         </span>
         <span
           v-if="errors"
@@ -75,26 +76,24 @@
           :title="`${errors} problem${errors > 1 ? 's' : ''} with your save`"
         ></span>
       </button>
-      <span class="w-px h-5 bg-white/30" :class="'xl:hidden'" aria-hidden="true"></span>
+      <span class="w-px h-5 bg-white/30" :class="stacked ? 'xl:hidden' : ''" aria-hidden="true"></span>
       <span v-if="stacked" class="hidden xl:block basis-full h-0" aria-hidden="true"></span>
       <!-- Workers, adjustable folded: a running search resizes to it within about a minute. -->
       <button
         type="button"
         class="w-11 h-11 sm:w-6 sm:h-6 rounded-full hover:bg-white/15 font-black disabled:opacity-40"
-        :class="!stacked ? 'xl:hidden' : ''"
         :disabled="store.workerBudget <= 1"
         aria-label="Fewer workers"
         @click="setWorkers(store.workerBudget - 1)"
       >
         −
       </button>
-      <span class="text-[11px] font-bold tabular-nums" :class="!stacked ? 'xl:hidden' : ''" :title="`Workers ${thisDevice()} gives the searches`"
+      <span class="text-[11px] font-bold tabular-nums whitespace-nowrap" :title="`Workers ${thisDevice()} gives the searches`"
         >{{ store.workerBudget }}/{{ store.machineThreads }} workers</span
       >
       <button
         type="button"
         class="w-11 h-11 sm:w-6 sm:h-6 rounded-full hover:bg-white/15 font-black disabled:opacity-40"
-        :class="!stacked ? 'xl:hidden' : ''"
         :disabled="store.workerBudget >= store.machineThreads"
         aria-label="More workers"
         @click="setWorkers(store.workerBudget + 1)"
@@ -115,7 +114,8 @@ import YourSetup from './YourSetup.vue';
 
 const props = defineProps<{
   screen: AutoView;
-  /** A short line under "Setup" ("7 am–11 pm · no time off"), on My runs, which has no setup box of its own. */
+  /** A short line under "Setup" ("7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27"), on My runs, which has no
+   *  setup box of its own. */
   summary?: string;
 }>();
 /** Stacked in two rows from xl (see the pill): every screen but My runs (its summary needs the width). */
