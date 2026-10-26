@@ -1,6 +1,7 @@
 <!--
   My runs' "Your eggs" (spec myruns-now v3, section 3), from the loaded save: each virtue egg's TE and how far to
-  its next (the egg being laid: when, at the save's rate), and the farm's facts. "All planned shifts" counts the
+  its next (the egg being laid: when, at the save's rate), and the farm's facts. The silos are estimated to now
+  (lib/farmNow.ts): time left, or empty since when. "All planned shifts" counts the
   saved plan's shifts after the save and prices them with the shift-cost formula at today's soul eggs
   (lib/shiftCost.ts); without a saved timeline it can't tell.
 -->
@@ -34,6 +35,7 @@ import { formatNumber } from '@/lib/format';
 import { virtueEggName } from '@/lib/virtueEggs';
 import { formatSiloTime } from '@/stores/silos';
 import { nextTeLine, type EggLine, type FarmFacts } from '@/lib/farmFacts';
+import { siloNow, siloNowWords } from '@/lib/farmNow';
 
 const props = defineProps<{
   eggs: EggLine[];
@@ -45,12 +47,27 @@ const props = defineProps<{
   clothedEarnings: number | null;
   now: number;
   saveSeconds: number;
+  /** The planner's time zone, for "empty since" (the browser's when not given). */
+  zone?: string;
 }>();
 
 /** lib/farmFacts.ts `nextTeLine`: capped at about 10 years ("not at this rate"). */
 function nextLine(e: EggLine): string {
   return nextTeLine(e, props.now, props.saveSeconds);
 }
+
+/**
+ * The silos estimated to now (lib/farmNow.ts, item 6): how much time away is left, or since when they are empty, from
+ * the save's farm and the time since. The same silo model as the catch-up (lib/saveAge.ts `siloSeconds`). No hab fill.
+ */
+const silosTile = computed(() => {
+  const f = props.facts;
+  if (!f) return { id: 'silos', label: 'Silos', value: '—', note: 'no virtue farm in this save' };
+  const s = siloNow({ siloSeconds: f.siloMinutes * 60, saveSeconds: props.saveSeconds, stepSeconds: f.stepSeconds, nowSeconds: props.now });
+  if (!s) return { id: 'silos', label: 'Silos', value: `${formatSiloTime(f.siloMinutes)} away`, note: '' };
+  const w = siloNowWords(s, props.saveSeconds, props.now, props.zone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return { id: 'silos', label: 'Silos', value: w.value, note: w.note };
+});
 
 const se = (n: number) => `${formatNumber(n, 1)} soul eggs`;
 const tiles = computed(() => [
@@ -64,12 +81,7 @@ const tiles = computed(() => [
         note: "at today's soul eggs",
       }
     : { id: 'planned', label: 'All planned shifts', value: "Can't tell", note: 'no saved plan with its timeline' },
-  {
-    id: 'silos',
-    label: 'Silos',
-    value: props.facts ? `${formatSiloTime(props.facts.siloMinutes)} away` : '—',
-    note: props.facts ? '' : 'no virtue farm in this save',
-  },
+  silosTile.value,
   { id: 'habs', label: 'Habs', value: props.facts ? `${Math.round(props.facts.habFull * 100)}% full` : '—', note: '' },
   {
     id: 'clothed',

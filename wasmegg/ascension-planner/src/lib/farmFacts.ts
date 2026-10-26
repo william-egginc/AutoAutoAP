@@ -101,6 +101,8 @@ export interface FarmFacts {
   elr: number;
   /** Minutes of time away the silos hold. */
   siloMinutes: number;
+  /** The farm's last step in the save (unix seconds; the silos were full then), 0 without one. lib/farmNow.ts. */
+  stepSeconds?: number;
 }
 
 /** Null without a virtue farm in the save. */
@@ -138,6 +140,7 @@ export function farmFacts(i: FarmInput): FarmFacts | null {
     habFull: cap > 0 ? Math.min(1, farm.population / cap) : 0,
     elr: elr.effectiveLayRate,
     siloMinutes: totalAwayTime(Math.max(1, farm.numSilos || 1), i.epic['silo_capacity'] || 0),
+    stepSeconds: farm.lastStepTime || 0,
   };
 }
 

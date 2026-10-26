@@ -85,6 +85,7 @@
         :clothed-earnings="page.gear.value?.clothedEarnings ?? null"
         :now="page.now.value"
         :save-seconds="page.saveSeconds.value"
+        :zone="page.zone.value"
       />
 
       <!-- The saved answer for the goal picked on Right now's switch only (24 Oct 2026): the pill switches it. -->

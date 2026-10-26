@@ -282,6 +282,7 @@ describe('your eggs and Try next', () => {
         clothedEarnings: 212,
         now: NOW,
         saveSeconds: NOW - 3 * H,
+        zone: ZONE,
       })
     );
     expect(t).toContain('Curiosity 41 TE');
@@ -290,7 +291,8 @@ describe('your eggs and Try next', () => {
     expect(t).toContain('60% to the next TE · after a shift');
     expect(t).toContain('Shifts done 214');
     expect(t).toContain("All planned shifts Can't tell");
-    expect(t).toContain('Silos 17h 20m away');
+    // Estimated to now (lib/farmNow.ts): 3 h since the save, 17h 20m held.
+    expect(t).toContain('Silos about 14 h left of 17h 20m · estimated from your save of Oct 15 at 11:40 AM');
     expect(t).toContain('Habs 72% full');
     expect(t).toContain('Clothed TE 212 (equipped 198)');
   });
