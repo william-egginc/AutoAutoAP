@@ -132,6 +132,8 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
   it('Setup: Load latest save, Reset to defaults, the days, the device profiles, Make them wait too, time off', () => {
     const src = read('auto/YourSetup.vue');
     expect(tagWith(src, 'data-testid="setup-load-latest"')).toContain('min-h-[44px] sm:min-h-0');
+    // Load a save file: a button now, not a heading-looking label (ux review 26 Oct, row 19).
+    expect(tagWith(read('auto/SaveFileBar.vue'), 'data-testid="save-file-load"')).toContain('min-h-[44px] sm:min-h-0');
     const resets = tagsWith(src, 'data-testid="setup-reset"');
     expect(resets).toHaveLength(2);
     for (const t of resets) expect(t).toContain(TAP);

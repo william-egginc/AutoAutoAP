@@ -90,7 +90,7 @@ const cardProps = (o: Record<string, unknown> = {}) => {
 describe('the save-age strip', () => {
   it('green, amber, red, and none', async () => {
     const ok = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 3 * H, NOW, ZONE), loading: false });
-    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 AM (3 hours ago). Load a fresh one ›');
+    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 AM (3 h ago). Load a fresh one ›');
     expect(ok).toContain('data-tone="ok"');
     const bad = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 80 * H, NOW, ZONE), loading: false });
     expect(bad).toContain('data-tone="bad"');

@@ -343,7 +343,7 @@ describe('copies', () => {
     // The two lines would read the same, so each says which one it is.
     const lone = row({ ...base, id: 'lone', chain: [300, 490], forceContinue: true });
     const tags = settingTags([off, on, lone]);
-    expect(tags.get(off)).toEqual(['Fastest']);
+    expect(tags.get(off)).toEqual(['Soonest']);
     expect(tags.get(on)).toEqual(['Continue Asc.']);
     expect(tags.has(lone)).toBe(false);
   });
@@ -390,7 +390,7 @@ describe('copies', () => {
     const tags = settingTags([cont, auto, fresh]);
     expect([tags.get(cont), tags.get(auto), tags.get(fresh)]).toEqual([
       ['Continue Asc.'],
-      ['Fastest'],
+      ['Soonest'],
       ['Prestige Now'],
     ]);
   });
@@ -1588,15 +1588,15 @@ describe('look-alike tags', () => {
 
   it('groups plans of one route by save, not by the exact start minute', () => {
     const tags = settingTags([a, c]);
-    expect([tags.get(a), tags.get(c)]).toEqual([['Continue Asc.'], ['Fastest']]);
+    expect([tags.get(a), tags.get(c)]).toEqual([['Continue Asc.'], ['Soonest']]);
   });
 
   it('says when each starts where the settings alone do not tell them apart, on the calendar asked for', () => {
     const tags = settingTags([a, b, c], 'America/Denver');
     expect([tags.get(a), tags.get(b), tags.get(c)]).toEqual([
       ['Continue Asc.'],
-      ['Fastest', 'starts 5:14 pm'],
-      ['Fastest', 'starts 5:18 pm'],
+      ['Soonest', 'starts 5:14 pm'],
+      ['Soonest', 'starts 5:18 pm'],
     ]);
     expect(settingTags([b, c]).get(b)).toEqual(['starts 4:14 pm']);
   });
