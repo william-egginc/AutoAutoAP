@@ -261,8 +261,8 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     }
   });
 
-  it('(d) a route longer than the instant answer covers: said, never sent to the worker', async () => {
-    const { page, scope } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, { final: 230 });
+  it("(d) a route whose first stop is past the instant answer's first ascensions: said, never sent to the worker", async () => {
+    const { page, scope } = await setup({ chain: [205, 238], from: 'typed', at: at(), source: 'manual' }, { final: 200 });
     expect(page.follow.value).toMatchObject({ price: 'none', estimating: 'beyond' });
     await nextTick();
     expect(calls).toHaveLength(0);

@@ -24,7 +24,9 @@ import { eggDaySeconds, nextEggDayYear } from '@/lib/eggDay';
 import { hashID } from '@/lib/storage/db';
 import { FOLLOW_PREFIX } from '@/lib/follow';
 import { saveTEOf } from '@/lib/saveFreshness';
-import type { SnapPricing } from '@/lib/followEstimate';
+import { pricingSetupKey, recordPricing, type SnapPricing } from '@/lib/followEstimate';
+import { accountOf } from '@/search/runSaves';
+import { backupSecondsOf } from '@/lib/saveFreshness';
 import { setChainPricer, type ChainPricer } from '@/composables/useFollowEstimate';
 import { setSimRunner, setSimTiming, type SimRunner } from '@/composables/useCurrentSim';
 import { readSimRecords } from '@/lib/followSim';
@@ -94,11 +96,12 @@ const TABLE = 'precompute/table-v2.bin';
  */
 async function setup(
   followed: Record<string, unknown>,
-  o: { fast?: boolean; final?: number; pricing?: boolean; startTE?: number; snapFor?: 'eggday' | 'race'; followKey?: string; select?: boolean; whatIf?: SnapWhatIf } = {}
+  o: { fast?: boolean; final?: number; pricing?: boolean; startTE?: number; snapFor?: 'eggday' | 'race'; followKey?: string; select?: boolean; whatIf?: SnapWhatIf; tableTo?: number; record?: boolean } = {}
 ) {
   loadAndSyncBackup(A_ID, save(), 'plan_next');
   rollUpPendingTE();
-  const { instantKeyFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
+  const { instantKeyFromStores, resetGoalChoice, useNowPage, useHoursFromStores } = await import('@/composables/useNowPage');
+  const saveSecondsOf = () => backupSecondsOf(useInitialStateStore().rawBackup);
   resetGoalChoice();
   const store = useChainSearchStore();
   const te = saveTEOf(useInitialStateStore().rawBackup);
@@ -131,7 +134,7 @@ async function setup(
   };
   writeSnapshot(key, {
     at: Date.now() - 60_000,
-    header: { from: 100, to: 490 },
+    header: { from: 100, to: o.tableTo ?? 490 },
     tableUrl: TABLE,
     result: {
       best: null,
@@ -152,6 +155,22 @@ async function setup(
     ...(o.pricing === false ? {} : { pricing }),
     ...(o.whatIf ? { whatIf: o.whatIf } : {}),
   } as never);
+  if (o.record)
+    recordPricing({
+      account: accountOf(useInitialStateStore().rawBackup)!,
+      backupTime: saveSecondsOf(),
+      setup: pricingSetupKey({
+        availability: store.availability,
+        timeOff: store.timeOff,
+        noPrestige: store.noPrestige,
+        useHours: useHoursFromStores(),
+        firstAscension: store.firstAscensionFor(),
+      }),
+      url: TABLE,
+      tableTo: o.tableTo ?? 490,
+      at: Date.now() - 30_000,
+      pricing,
+    });
   mem.set(`${FOLLOW_PREFIX}${await hashID(A_ID)}`, JSON.stringify({ [goalKey]: followed }));
   const follows = useFollowStore();
   await vi.waitFor(() => expect(follows.partition).not.toBe(''));
@@ -402,6 +421,25 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     const withList = await renderHtml(RightNowCard, { ...(await renderProps(page)), nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!]);
     expect(withList).toContain('data-testid="now-next-shifts"');
     expect(textOf(withList)).toMatch(/Next shifts Shift to Humility · about [A-Z][a-z]{2} \d{1,2}, \d{4}, [^·]* Prestige at 226 TE · about/);
+    scope.stop();
+  });
+});
+
+describe("Jordan's Fastest to 490 TE route on a table whose rows end at 489 (26 Oct 2026: it said \"goes past what the instant answer covers\")", () => {
+  it("priced from Egg Day's answer of this save (its snapshot), no Fastest to 490 answer at all", async () => {
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490', tableTo: 489 });
+    expect(page.follow.value?.estimating).not.toBe('beyond');
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    expect(followCalls()[0].chain).toEqual([226, 277, 317, 490]);
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
+    scope.stop();
+  });
+
+  it('priced from the pricing record alone (no snapshot keeps pricing)', async () => {
+    const { page, scope } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490', tableTo: 489, pricing: false, record: true });
+    expect(page.follow.value?.estimating).toBe('working');
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
     scope.stop();
   });
 });

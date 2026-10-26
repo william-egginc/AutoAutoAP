@@ -113,12 +113,24 @@ describe('followEstimate: which snapshot prices the route', () => {
     expect(pickPricing([source()], [], 194)).toBeNull();
   });
 
-  it('a route longer than the instant answer covers is `beyond`, never priced', () => {
-    expect(pickPricing([source({ final: 300 })], [225, 310], 194)).toEqual({ beyond: true, chain: [225, 310] });
-    expect(pickPricing([source({ tableTo: 300 })], [225, 310], 194)).toEqual({ beyond: true, chain: [225, 310] });
+  it('a route the instant answer\'s data does not cover is `beyond`, never priced', () => {
+    // The first stop past the record's own first ascensions (its target).
+    expect(pickPricing([source({ final: 220 })], [225, 310], 194)).toEqual({ beyond: true, chain: [225, 310] });
+    // An ascension starting past the table's rows.
+    expect(pickPricing([source({ tableTo: 300 })], [225, 310, 400], 194)).toEqual({ beyond: true, chain: [225, 310, 400] });
     // One that covers it wins over one that doesn't.
     const ok = source({ at: 0 });
-    expect(pickPricing([source({ final: 300, ownGoal: true }), ok], [225, 310], 194)).toEqual({ source: ok, chain: [225, 310] });
+    expect(pickPricing([source({ final: 220, ownGoal: true }), ok], [225, 310], 194)).toEqual({ source: ok, chain: [225, 310] });
+  });
+
+  it("covers a route to 490 on a table whose rows end at 489, and a Fastest route from a date answer's record (26 Oct 2026)", () => {
+    // Jordan's Fastest to 490 TE route on a table of start TEs 55-489: the last stop is reached, never started from.
+    const table489 = source({ tableTo: 489 });
+    expect(pickPricing([table489], [226, 277, 317, 490], 194)).toEqual({ source: table489, chain: [226, 277, 317, 490] });
+    // A record whose own target is lower (a date's answer to 300): its first ascensions reach 226, the rest is the table.
+    const dateRecord = source({ final: 300, tableTo: 489 });
+    expect(pickPricing([dateRecord], [226, 277, 317, 490], 194)).toEqual({ source: dateRecord, chain: [226, 277, 317, 490] });
+    expect(pickPricing([table489], [226, 277, 491], 194)).toEqual({ beyond: true, chain: [226, 277, 491] });
   });
 
   it('keys by save, snapshot and route: a new save or a new instant answer is another estimate', () => {

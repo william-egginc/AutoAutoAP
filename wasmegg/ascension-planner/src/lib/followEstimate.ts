@@ -17,6 +17,9 @@ import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { SnapMeta } from '@/search/instantSnapshot';
 import type { NowPlan } from './nowPlan';
 
+/** The game's highest TE: a route's last stop can't be above it. */
+const MAX_TE = 490;
+
 /** Right now's words for an estimated route (the Next step and the source line). */
 export const ESTIMATE_WORDS = "estimated from the instant answer's data (times rounded to the hour)";
 
@@ -83,8 +86,16 @@ export function pickPricing(sources: readonly PricingSource[], chain: readonly n
   if (!chain.length) return null;
   const mine = sources.filter(s => s.pricing.options.startTE === Math.floor(currentTE) && !!s.url);
   if (!mine.length) return null;
+  // WHAT THE DATA COVERS (26 Oct 2026, Jordan's Fastest to 490 TE route 226 → 277 → 317 → 490 said "goes past what
+  // the instant answer covers"): the record's first ascensions reach its own target (`final`), so only the FIRST stop
+  // must be within it; each later ascension is a table row looked up by the TE it STARTS at, so the stops it starts
+  // from (all but the last) must be within the table's rows (`tableTo`, 489 for the tables) and the last stop only
+  // within the game's 490. The old test held the LAST stop to both, so every route to 490 was "beyond" a 489 table and
+  // a Fastest route was "beyond" a date answer's record whose own target was lower.
   const last = chain[chain.length - 1];
-  const covers = (s: PricingSource) => last <= s.pricing.final && (s.tableTo == null || last <= s.tableTo);
+  const starts = chain.slice(0, -1);
+  const covers = (s: PricingSource) =>
+    chain[0] <= s.pricing.final && last <= MAX_TE && (s.tableTo == null || starts.every(t => t <= s.tableTo!));
   const ok = mine.filter(covers).sort((a, b) => Number(b.ownGoal) - Number(a.ownGoal) || b.at - a.at);
   return ok.length ? { source: ok[0], chain: [...chain] } : { beyond: true, chain: [...chain] };
 }
