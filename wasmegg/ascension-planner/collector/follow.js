@@ -26,27 +26,27 @@ export const FOLLOW_VERSIONS = 5;
 export const FOLLOW_WRITES_PER_HOUR = 30;
 export const FOLLOW_MAX_GOALS = 8;
 export const FOLLOW_MAX_KEYS = 20000;
-const HOUR_MS = 3_600_000;
-const UNIX_FROM = 1577836800;
-const UNIX_TO = 4102444800;
+export const HOUR_MS = 3_600_000;
+export const UNIX_FROM = 1577836800;
+export const UNIX_TO = 4102444800;
 const SOURCES = ['instant', 'fast', 'exact', 'custom', 'manual'];
 /** A version or build stamp: the app's build is an ISO time (colons), a simulator version has none. */
 const STAMP = /^[0-9A-Za-z._:-]{1,40}$/;
-const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
-const PLAYER_ID = /EI\d{16}/i;
+export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+export const PLAYER_ID = /EI\d{16}/i;
 
 const HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
   'cache-control': 'no-store',
 };
-const reply = (body, status = 200, extra = {}) =>
+export const reply = (body, status = 200, extra = {}) =>
   new Response(JSON.stringify(body), { status, headers: { ...HEADERS, ...extra } });
-const retry = (seconds, error, status = 429) =>
+export const retry = (seconds, error, status = 429) =>
   reply({ error, retryAfter: seconds }, status, { 'retry-after': String(seconds), 'access-control-expose-headers': 'retry-after' });
 
 export const isFollowRequest = url => url.pathname === '/follow' || url.pathname === '/follow/history';
-const isKey = k => typeof k === 'string' && /^[0-9a-f]{64}$/.test(k);
+export const isKey = k => typeof k === 'string' && /^[0-9a-f]{64}$/.test(k);
 
 /** A goal's text, or null: race490, eggday2027, bydate:<unix seconds>, target:<te 1-490>. */
 export function readGoal(g) {
@@ -59,7 +59,7 @@ export function readGoal(g) {
   return null;
 }
 
-const whole = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+export const whole = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 
 /**
  * A value checked: `{ value }` (the whitelisted copy) or `{ problems }`. Required: chain, planStart, source, at.
@@ -119,7 +119,7 @@ export function readValue(v) {
   return { value: out, text };
 }
 
-async function overLimit(env, request, kind) {
+export async function overLimit(env, request, kind) {
   if (!env.FOLLOW_LIMIT || typeof env.FOLLOW_LIMIT.limit !== 'function') return null;
   const ip = request.headers.get('cf-connecting-ip') || 'unknown';
   try {
@@ -131,7 +131,7 @@ async function overLimit(env, request, kind) {
   return retry(60, 'too many requests from this address');
 }
 
-const parse = text => {
+export const parse = text => {
   try {
     return JSON.parse(text);
   } catch {

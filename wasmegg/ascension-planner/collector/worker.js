@@ -65,6 +65,7 @@
 
 import { handleWatch, isWatchRequest, watchCron } from './watch.js';
 import { handleFollow, isFollowRequest } from './follow.js';
+import { handlePrefs, isPrefsRequest } from './prefs.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
@@ -3202,6 +3203,8 @@ export default {
     if (isWatchRequest(url)) return handleWatch(request, env);
     // "Follow in the cloud" (follow.js): D1 too, none of it touches SUBMISSIONS.
     if (isFollowRequest(url)) return handleFollow(request, env);
+    // Consent and Setup saved online (prefs.js): D1 as well, a separate endpoint so /follow stays as it was.
+    if (isPrefsRequest(url)) return handlePrefs(request, env);
     // "Which build is in use" (buildcount.js): a daily count per page build in D1, nothing else.
     if (isBuildCountRequest(url)) return handleBuildCount(request, env);
 
