@@ -220,6 +220,7 @@ function ctxOf(s: State): Record<string, unknown> {
     target: s.deadline ? 490 : 300,
     useHours: s.hours,
     noPrestigeOn: false,
+    siloWords: 'until its silos run out',
     stepHours: null,
     stepDays: [],
     dateBoxLegs: [],

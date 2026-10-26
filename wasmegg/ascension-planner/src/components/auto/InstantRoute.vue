@@ -252,7 +252,7 @@
         <!-- No prestige on these days (search/noPrestige.ts): held in every route here, hours ticked or not. -->
         <p v-if="noPrestigeOn" class="text-[11px] text-slate-500" data-testid="instant-no-prestige">
           Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time, and
-          the farm keeps laying until its silos are full (the times shown include the wait).
+          the farm keeps laying while it waits, {{ siloWords }} (the times shown include the wait).
         </p>
         <p v-if="useHours && openingNote === 'morning'" class="text-[11px] text-slate-500" data-testid="held-opening">
           A stop reached late in your day waits for the next morning to prestige: an ascension's first shifts come in
@@ -910,6 +910,7 @@ import { GEAR_RULE, gearChanges, gearStamp, gearTableFiles, legacyGearTableName,
 import { compositeUrl, gearShiftUrl, parseCompositeUrl, parseGearShiftUrl } from '@/search/precomputedTable';
 import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
+import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
 import { autoFollowsGoal, instantAutoFollowOf } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
@@ -2931,6 +2932,10 @@ const share = useInstantShare();
 /** "Share my search results": the account's consent itself (composables/useConsent.ts). */
 const keepSharing = share.on;
 const initialState = useInitialStateStore();
+/** How long a farm waiting out a no-prestige day lays (lib/siloWords.ts): until its silos run out, about how long with the save's. */
+const siloWords = computed(() =>
+  siloRunOutWords(knownSiloSeconds(initialState.currentFarmState, initialState.epicResearchLevels?.['silo_capacity']))
+);
 const instantUrl = instantUrlOf(store.submitUrl);
 const SHARE_WHAT =
   "Sends this search result's route and times, the instant answer's for the same goal, your TE and Clothed TE, a summary " +

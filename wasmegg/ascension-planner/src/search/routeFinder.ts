@@ -207,7 +207,7 @@ function teOfCounts(eggs: number[]): number {
  * from `time` until the player is back, and the next ascension starts from those counts, as Check
  * exactly carries them (search/chain.ts). The counts and TE unchanged when nothing waits. With
  * no-prestige days (`days.noPrestige`) the prestige may wait longer, and the part they add lays only
- * until the silos are full (`days.siloSeconds`; search/noPrestige.ts `creditedWaitSeconds`), as Check
+ * until the silos run out (`days.siloSeconds`; search/noPrestige.ts `creditedWaitSeconds`), as Check
  * exactly has it.
  */
 export function creditWait(
@@ -252,6 +252,11 @@ export interface RouteLeg {
    *  (search/legShifts.ts): when, and the egg switched TO. The opening's (fresh start to C3) are not in the table.
    *  Absent on a first ascension from `firstLegs` and on routes priced without asking. */
   shifts?: { at: number; egg: string }[];
+  /** With `PolishOptions.shifts` (priceChain): the rate the build produces at once its build-up is done, eggs per
+   *  second (the table cell's `BuildParams.peakELR`, the rate every wait of the leg is priced at; for a fresh first
+   *  ascension from `firstLegs`, its `rate`). For My runs' Full timeline "then start producing at" (lib/buildUpLine.ts).
+   *  Absent on continue / build-up first legs and on routes priced without asking. */
+  peakELR?: number;
 }
 
 export interface Route {
@@ -1303,6 +1308,8 @@ export function priceChain(
         tier13: false,
         label: f.label ?? 'first',
         ...heldOf(f),
+        // A fresh first ascension's build rate (continue and the build-up carry on the save's farm: no build-up).
+        ...(o.shifts && /^\d+-sale/.test(f.label ?? '') && (f.rate ?? 0) > 0 ? { peakELR: f.rate } : {}),
       });
       t = f.end;
       te = f.endTE;
@@ -1344,6 +1351,7 @@ export function priceChain(
       ...(p.heldOpening ? { heldOpening: p.heldOpening } : {}),
       ...(p.wanted !== undefined ? { wanted: p.wanted } : {}),
       ...(shifts ? { shifts } : {}),
+      ...(o.shifts && p.rate > 0 ? { peakELR: p.rate } : {}),
     });
     t = p.end;
     te = p.endTE;

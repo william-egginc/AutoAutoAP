@@ -14,8 +14,7 @@
 
 /** Every part of the panel that can fold. */
 export type FoldSection =
-  | 'whatItDoes' // WHAT IT DOES / HOW LONG / WHAT IT FINDS (StrongerBox.vue)
-  | 'promise' // "What this does and does not promise" (StrongerBox.vue)
+  | 'whatItDoes' // WHAT IT DOES / HOW LONG / WHAT IT FINDS and what it promises (StrongerBox.vue; one fold since 26 Oct 2026)
   | 'searchSettings' // Search settings, "Starts from…" and the scope line (ChainSearchPanel.vue; By a date's routes box)
   | 'acknowledgement' // the Find and submit acknowledgement, its ticks, the name and the note (FindBar.vue)
   | 'steppingAway' // Stepping away? (StepAwayOptions.vue)
@@ -31,7 +30,6 @@ export type FoldDefault = 'open' | 'folded';
  */
 export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   whatItDoes: 'folded',
-  promise: 'folded',
   searchSettings: 'folded',
   acknowledgement: 'folded',
   steppingAway: 'open',
@@ -63,9 +61,12 @@ export function foldOpen(section: FoldSection, state: FoldState = {}): boolean {
 
 /** Where a player's toggle is remembered. */
 export const foldKey = (section: FoldSection): string => `aap.fold.${section}`;
-/** The keys two of these used before they shared one wrapper, and what each stored for "open". */
+/**
+ * The keys these used before they shared one wrapper, and what each stored for "open". "What this does and does not
+ * promise" (`promise`) merged into `whatItDoes` (26 Oct 2026): its old keys (`aap.fold.promise`,
+ * `aap-stronger-promise-closed`) are no longer read, so a toggle left there does nothing.
+ */
 const LEGACY: Partial<Record<FoldSection, { key: string; open: string }>> = {
-  promise: { key: 'aap-stronger-promise-closed', open: '0' },
   searchSettings: { key: 'aap.fastest.searchSettingsOpen', open: '1' },
 };
 

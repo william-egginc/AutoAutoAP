@@ -1,7 +1,7 @@
 /**
  * No prestige on these days in the searches (search/noPrestige.ts, search/chain.ts): a prestige that would land on a
  * no-prestige day waits for the next allowed time inside the hours, the farm keeps laying meanwhile but only until
- * its silos are full, the leg itself (and so its shifts) is simulated exactly as without the days, a plan start on
+ * its silos run out, the leg itself (and so its shifts) is simulated exactly as without the days, a plan start on
  * such a day may still continue, and nothing changes without them.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';

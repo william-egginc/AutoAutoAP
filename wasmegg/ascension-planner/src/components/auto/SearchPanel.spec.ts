@@ -153,10 +153,13 @@ describe('the card', () => {
     expect(t).toContain('CUSTOM BODY');
     expect(t).not.toMatch(/\bLight\b/);
   });
-  it('"What this does and does not promise" once: one per option, in parts never shown together (source)', () => {
+  it('the promise once: one per option, in parts never shown together (source)', () => {
     const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
-    // A PanelFold since 25 Oct (lib/panelFold.ts): its title is the summary.
-    expect(read('StrongerBox.vue').match(/title="What this does and does not promise"/g)).toHaveLength(1);
+    // Fast and Exact's is the amber part of their one "What this does" fold since 26 Oct 2026 (lib/panelFold.ts).
+    const box = read('StrongerBox.vue');
+    expect(box).not.toContain('What this does and does not promise');
+    expect(box.match(/title="What this does"/g)).toHaveLength(1);
+    expect(box.match(/data-testid="stronger-promise"/g)).toHaveLength(1);
     expect(read('SearchPanel.vue')).not.toMatch(/does not promise\s*</);
     for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
       const s = read(f);

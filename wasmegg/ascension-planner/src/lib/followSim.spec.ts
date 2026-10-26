@@ -98,9 +98,9 @@ describe('keys and the leg', () => {
     expect(simKey({ account: 'a', backupTime: 5, route: [1, 2], setup: 's' })).toBe('a|5|1,2|s');
   });
 
-  it('simLegOf keeps the times and shifts, and refuses a leg without times', () => {
+  it('simLegOf keeps the times, shifts and peak rate, and refuses a leg without times', () => {
     const l = { key: '1-sale', endTE: 226, durationSeconds: 10 * H, maxELR: 1, endTime: T0 + 10 * H, tier13Unlocked: false, buildPhaseEndTime: T0 + 2 * H, shifts: [{ at: T0 + H, egg: 'kindness', fromEgg: 'curiosity', te: 3 }] } as LegSummary;
-    expect(simLegOf(l)).toEqual({ key: '1-sale', startTime: T0, endTime: T0 + 10 * H, endTE: 226, buildPhaseEndTime: T0 + 2 * H, shifts: [{ at: T0 + H, egg: 'kindness' }] });
+    expect(simLegOf(l)).toEqual({ key: '1-sale', startTime: T0, endTime: T0 + 10 * H, endTE: 226, buildPhaseEndTime: T0 + 2 * H, shifts: [{ at: T0 + H, egg: 'kindness' }], maxELR: 1 });
     expect(simLegOf({ ...l, endTime: NaN })).toBeNull();
     expect(simLegOf(null)).toBeNull();
   });
