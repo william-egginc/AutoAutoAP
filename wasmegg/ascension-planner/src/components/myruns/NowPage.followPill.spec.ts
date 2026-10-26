@@ -374,6 +374,26 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     expect(textOf(r)).not.toContain('Working out your shifts…');
     scope.stop();
   });
+
+  it('the Next step is the next action from the simulation: before it is in, the line from the table', async () => {
+    const sims: { resolve: (l: LegSummary | null) => void }[] = [];
+    setSimRunner((): SimRunner => ({ run: () => new Promise(resolve => sims.push({ resolve })), terminate: () => undefined }));
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    expect(page.nextStep.value).toBeNull();
+    let t = textOf(await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value }, {}, [getActivePinia()!]));
+    expect(t).toContain('Prestige at 226 TE');
+    // A continuing leg with a shift two hours from now.
+    const l = leg(now - H, now + 18 * H, 226);
+    sims[0].resolve({ ...l, buildPhaseEndTime: now - H, shifts: [{ at: now + 2 * H, egg: 'humility' }] });
+    await vi.waitFor(() => expect(page.nextStep.value).toEqual({ kind: 'shift', egg: 'humility', at: now + 2 * H }));
+    const html = await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value }, {}, [getActivePinia()!]);
+    expect(html).toContain('data-testid="now-next-action"');
+    expect(textOf(html)).toMatch(/Next step Shift to Humility at [A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    scope.stop();
+  });
 });
 
 describe('the pill words (lib/planGoals.ts)', () => {

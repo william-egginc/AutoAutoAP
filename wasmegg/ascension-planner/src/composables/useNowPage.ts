@@ -135,6 +135,8 @@ import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
+import { nextAction, type ActionLeg, type NextAction } from '@/lib/nextAction';
+import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -1195,6 +1197,29 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       stepNoPrestige.value
     );
   });
+  /** The plan's ascensions as lib/nextAction.ts reads them (the first simulated once it is in). */
+  const actionLegs = computed<ActionLeg[]>(() => {
+    const p = cardPlan.value?.plan;
+    if (!p || p.legs) return [];
+    return (p.tableLegs ?? []).slice(0, p.chain.length).map(l => ({
+      to: l.to,
+      endTE: l.endTE,
+      start: l.start,
+      end: l.end,
+      ...(l.shifts ? { shifts: l.shifts } : {}),
+      ...(l.simulated ? { simulated: true } : {}),
+      ...(l.buildEnd !== undefined ? { buildEnd: l.buildEnd } : {}),
+    }));
+  });
+  /** When a prestige may happen from a moment: the hours and the no-prestige days (search/noPrestige.ts). */
+  const prestigeAtFrom = (t: number) => nextPrestigeAt(t, stepHours.value, stepNoPrestige.value);
+  /** THE NEXT ACTION (26 Oct 2026, lib/nextAction.ts): from the ascension you are in as simulated on the save; null
+   *  until the simulation is in (Right now keeps its line from the table). */
+  const nextStep = computed<NextAction | null>(() => {
+    const first = actionLegs.value[0];
+    if (!first?.simulated) return null;
+    return nextAction({ now: now.value, leg: first, last: actionLegs.value.length === 1, prestigeAt: prestigeAtFrom });
+  });
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
    *  planned-shift total reads the legs, so it still counts both. A prestige that waits for the hours or past a
    *  no-prestige day says so (nowPlan `markPrestigeWaits`). */
@@ -1457,6 +1482,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     shownEvents,
     ascensions,
     simWorking,
+    nextStep,
     ascNow,
     track,
     gear,

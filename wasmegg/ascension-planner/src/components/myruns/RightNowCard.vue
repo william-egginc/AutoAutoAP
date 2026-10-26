@@ -299,7 +299,12 @@
     <div v-else class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
       <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next step</p>
       <template v-if="card">
-        <p v-if="nextText" class="text-[13px] text-slate-800">
+        <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
+             line from the plan's events. -->
+        <p v-if="actionText" class="text-[13px] text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
+          <b>{{ actionText }}</b>
+        </p>
+        <p v-else-if="nextText" class="text-[13px] text-slate-800">
           <b>{{ nextText }}</b>
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
@@ -432,6 +437,8 @@ import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
+import { nextActionWords, type NextAction } from '@/lib/nextAction';
+import { showDateTime } from '@/lib/displayTime';
 import type { AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
@@ -512,6 +519,8 @@ const props = defineProps<{
   /** The ascension you are in is being simulated on your save ('working'), or waits for a search (useNowPage
    *  `simWorking`); null or absent: not. */
   simWorking?: 'working' | 'waiting' | null;
+  /** The next action from the simulated ascension (useNowPage `nextStep`); null or absent: the events' line. */
+  nextStep?: NextAction | null;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -656,6 +665,8 @@ const paceBadge = computed(() => pace.value?.badge ?? '');
 const nextText = computed(() =>
   props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value) : ''
 );
+/** "Shift to Humility at …", "Building up until about …", "Prestige at …" (lib/nextAction.ts). */
+const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, t => showDateTime(t, props.zone)) : ''));
 /** The calendar button's event: the first one ahead (a step not done yet is already due: nothing to add). */
 const nextEvent = computed(() => props.events.find(e => !e.past && !e.notDone && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>

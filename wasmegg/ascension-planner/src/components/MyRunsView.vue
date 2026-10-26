@@ -48,6 +48,7 @@
         :shown-events="page.shownEvents.value"
         :ascensions="page.ascensions.value"
         :sim-working="page.simWorking.value"
+        :next-step="page.nextStep.value"
         :gear="page.gear.value"
         :now="page.now.value"
         :zone="page.zone.value"
