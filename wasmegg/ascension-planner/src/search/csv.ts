@@ -594,8 +594,8 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
 
   const firstLeg = firstLegLine(ranked[0]?.legs[0], tz, meta.firstAscension);
   if (firstLeg) note(firstLeg);
-  note('One row per leg. Blank per-leg cells mean the chain was replayed from a saved checkpoint:');
-  note('it keeps per-leg detail for the best chain only — the total is still exact.');
+  note('One row per leg. Blank per-leg cells mean the chain has no leg detail: it was replayed from a saved checkpoint');
+  note("or it is past the 'Keep per-ascension detail for N routes' limit (Setup > Memory). The total is still exact.");
   note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
 
   lines.push(COLUMNS.join(','));
@@ -803,7 +803,7 @@ export function* deadlineCsvChunks(
     );
   } else {
     note(
-      'Blank leg cells mean the route came back from a saved checkpoint without its legs; the arrival is still exact.'
+      'Blank leg cells mean the route came back from a saved checkpoint without its legs or is past the per-ascension detail limit; the arrival is still exact.'
     );
   }
   lines.push(DEADLINE_COLUMNS.join(','));
