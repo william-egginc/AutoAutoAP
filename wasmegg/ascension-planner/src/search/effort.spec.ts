@@ -44,8 +44,8 @@ describe('effort tiers', () => {
   });
 
   it("names the at-once check (was Light; no longer named so, 22 Oct), and a Fast or Exact answer's level, once rows record them (15 Oct)", () => {
-    expect(foundByText({ effort: 'light' } as never)).toBe('Checked at once');
-    expect(foundByText({ effort: 'deadline', deadline: 1, level: 'light' } as never)).toBe('Checked at once');
+    expect(foundByText({ effort: 'light' } as never)).toBe('Instant answer');
+    expect(foundByText({ effort: 'deadline', deadline: 1, level: 'light' } as never)).toBe('Instant answer');
     expect(foundByText({ effort: 'deadline', deadline: 1, mode: 'simple', level: 'normal' } as never)).toBe(
       'Exact'
     );

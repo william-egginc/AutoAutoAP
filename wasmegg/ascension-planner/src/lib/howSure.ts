@@ -35,12 +35,15 @@ export type SureLevel = 'high' | 'medium' | 'low';
 export type SearchLevel = 'light' | 'quick' | 'normal' | 'thorough' | 'exhaustive';
 const RANK: Record<SearchLevel, number> = { light: 0, quick: 1, normal: 2, thorough: 3, exhaustive: 4 };
 export const LEVEL_WORDS: Record<SearchLevel, string> = {
-  light: 'Checked at once',
+  light: 'Instant answer',
   quick: 'Fast',
   normal: 'Exact',
   thorough: 'Exact (wider)',
   exhaustive: 'Custom',
 };
+
+/** "a Fast", "an Exact", "an Instant answer": the article for a level word. */
+const aOrAn = (w: string) => `${/^[AEIOU]/i.test(w) ? 'an' : 'a'} ${w}`;
 
 export interface SureInput {
   goal: 'fastest' | 'date';
@@ -126,11 +129,11 @@ export function howSure(i: SureInput): Sure {
         }`,
       };
     if (atLeast(i.agreeing, 'quick') || (i.how === 'search' && atLeast(i.level, 'quick')))
-      return { level: 'high', reason: `a ${LEVEL_WORDS[(i.agreeing ?? i.level)!]} search agrees on ${i.te ?? 'the'} TE` };
+      return { level: 'high', reason: `${aOrAn(LEVEL_WORDS[(i.agreeing ?? i.level)!])} search agrees on ${i.te ?? 'the'} TE` };
   } else {
     const strong = atLeast(i.agreeing, 'normal') ? i.agreeing! : i.how === 'search' && atLeast(i.level, 'normal') ? i.level! : null;
     if (strong && runner != null && runner > HIGH_RUNNER_UP_FASTEST_HOURS)
-      return { level: 'high', reason: `${/^[AEIOU]/.test(LEVEL_WORDS[strong]) ? 'an' : 'a'} ${LEVEL_WORDS[strong]} search agrees; the next route is ${hours(runner)} behind` };
+      return { level: 'high', reason: `${aOrAn(LEVEL_WORDS[strong])} search agrees; the next route is ${hours(runner)} behind` };
     if (strong)
       return {
         level: 'medium',

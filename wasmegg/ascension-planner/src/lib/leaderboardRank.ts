@@ -2422,7 +2422,7 @@ const NAME_AROUND = 'Fast or Exact';
 const NAME_EXHAUSTIVE = 'Custom';
 /** What was the Stronger check's Light level (no longer named to players, 22 Oct 2026): the instant answer's
  *  routes priced at once and your earlier routes, after Check exactly. */
-const NAME_LIGHT = 'Checked at once';
+const NAME_LIGHT = 'Instant answer';
 
 /** A sent effort tier's name on the planner's slider. */
 const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Exact (wider)', balanced: 'Balanced (retired)' };

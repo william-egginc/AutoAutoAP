@@ -99,7 +99,8 @@ describe('Your routes at a glance: the heat map', () => {
 
   it('a picked cell: its count, where it sits and its best route under the map, with a 44 px clear button', async () => {
     const t = textOf(await renderHtml(RouteScatter, { ...fixtureBase, rows: FIXTURE_ROWS, startOnBest: true }));
-    expect(t).toMatch(/\d+ routes? · \d+ ascensions?, finishing [^.]+\. Best in this cell: Best · \d+( → \d+)+ /);
+    expect(t).toMatch(/\d+ routes? · \d+ ascensions?, finishing [^.]+\. ★ Best route\. Best in this cell: \d+( → \d+)+ /);
+    expect(t).not.toContain('Best · ');
     expect(t).toContain('10.5 days');
     const html = await renderHtml(RouteScatter, { ...fixtureBase, rows: FIXTURE_ROWS, startOnBest: true });
     expect(html).toMatch(/data-testid="my-runs-heat-clear"/);

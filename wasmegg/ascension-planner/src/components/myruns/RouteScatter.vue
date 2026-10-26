@@ -434,9 +434,10 @@ const selLine = computed(() => {
   const g = goal.value;
   const c = s ? heat.value.cells[s.row]?.[s.col] : null;
   if (!c || !c.best || !g) return null;
-  const lines = pointLines(c.best, g, props.zone, isBest(c));
+  // The overall best is said once, as the legend's "★ Best route", not again before the route.
+  const lines = pointLines(c.best, g, props.zone);
   return {
-    head: `${c.count} ${c.count === 1 ? 'route' : 'routes'} · ${cellPlace(c)}. Best in this cell:`,
+    head: `${c.count} ${c.count === 1 ? 'route' : 'routes'} · ${cellPlace(c)}.${isBest(c) ? ' ★ Best route.' : ''} Best in this cell:`,
     route: lines[0],
     more: lines.slice(1),
   };
