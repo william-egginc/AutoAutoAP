@@ -1,5 +1,6 @@
 <template>
-  <the-nav-bar active-entry-id="ascension-planner" />
+  <!-- The shared bar's home and menu icons are 20 px; on a phone the wrapper's rule below gives each a 44 px tap area. -->
+  <div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" /></div>
 
   <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, 56 px tall on a phone with its
        44 px buttons, about 45 px from sm up) the page ends 6rem plus the phone's safe area lower, so its last lines
@@ -2229,5 +2230,27 @@ ChevronIcon.props = { expanded: Boolean };
 }
 .btn-ghost {
   @apply bg-transparent hover:bg-slate-50 border border-slate-100;
+}
+</style>
+
+<style>
+/* The shared nav bar's home and menu icons (ui/components/NavBar.vue, 20 x 20 px in a bar with 12 px padding): on a
+   phone each gets a 44 x 44 px tap area (UX review 26 Oct 2026, #12), drawn by an invisible ::before 12 px round the
+   icon, so the icons, the bar's height and the menu's green dot stay as they are. The menu moves 12 px further right
+   so the two areas never overlap. Not scoped: the bar is another component's markup. */
+@media (max-width: 639.98px) {
+  .aap-navbar nav > div > a,
+  .aap-navbar nav > div > button {
+    position: relative;
+  }
+  .aap-navbar nav > div > a::before,
+  .aap-navbar nav > div > button::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+  }
+  .aap-navbar nav > div > a + button {
+    margin-left: 1.5rem !important;
+  }
 }
 </style>
