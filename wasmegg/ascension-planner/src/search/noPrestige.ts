@@ -77,7 +77,7 @@ export function prestigeHoldOf(
  * How many seconds of a prestige wait from `from` to `to` the farm's laying is credited for. A wait for the hours
  * alone (`hoursEnd`, where the hours on their own would have let the player prestige) is credited in full, as
  * before: the player is asleep, back in the morning. A wait that a no-prestige day made longer may be a day or more
- * with the player away, so the farm lays only until its silos are full (`silo` seconds, saveAge.ts `siloSeconds`),
+ * with the player away, so the farm lays only until its silos run out (`silo` seconds, saveAge.ts `siloSeconds`),
  * and never less than the hours' own part. With no silo figure (not finite), the whole wait.
  */
 export function creditedWaitSeconds(

@@ -161,7 +161,7 @@
           awake window, the farm keeps laying while it waits, and the wait counts in that ascension's time. With no
           awake hours set, nothing waits. <b>No prestige days</b> works the same way for prestiges only: you stay on
           virtue, a prestige that would land on one of those days waits for the next allowed time, and the farm lays
-          until its silos are full; shifts still happen. <b>Time off</b> is different: going to the
+          until its silos run out; shifts still happen. <b>Time off</b> is different: going to the
           home farm is a prestige, so the ascension ends when it starts, nothing is earned on virtue while you are away, and you rebuild when you return.
         </p>
       </div>

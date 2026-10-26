@@ -443,7 +443,7 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
           // laying the egg the leg ended on, at the leg's peak rate, and those eggs and any TE they
           // pass carry into the next ascension. Not after time off (they left the farm) and not
           // after the final leg (nothing follows it). A wait a no-prestige day made longer lays only
-          // until the silos are full (`creditedWaitSeconds`): the player may be away all day.
+          // until the silos run out (`creditedWaitSeconds`): the player may be away all day.
           if (handoff > rawEnd && !stopped && !isFinalLeg) {
             const egg = leg.lastEgg as keyof EngineState['eggsDelivered'];
             const before = state.eggsDelivered[egg] || 0;

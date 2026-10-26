@@ -64,6 +64,8 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { nextDate, type TimeOffDates } from '@/search/timeOff';
 import { formatInZone } from '@/search/csv';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
+import { useInitialStateStore } from '@/stores/initialState';
+import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 
 const props = withDefaults(defineProps<{ kind?: 'timeOff' | 'noPrestige' }>(), { kind: 'timeOff' });
 
@@ -71,6 +73,13 @@ const store = useChainSearchStore();
 
 /** The store's list this editor changes (the same shape for both kinds). */
 const rows = computed<TimeOffDates[]>(() => (props.kind === 'noPrestige' ? store.noPrestige : store.timeOff));
+
+const initialState = useInitialStateStore();
+
+/** How long the waiting farm lays: until its silos run out, with the save's silo time when there is one. */
+const siloWords = computed(() =>
+  siloRunOutWords(knownSiloSeconds(initialState.currentFarmState, initialState.epicResearchLevels?.['silo_capacity']))
+);
 
 /** The player's words for each kind: the three kinds of "not now" must read as different things. */
 const WORDS = {
@@ -84,10 +93,13 @@ const WORDS = {
     title: 'No prestige days',
     add: 'Add days',
     explain:
-      "Days you stay on the virtue farm but won't prestige, in the plan's timezone. A prestige that would land on one waits for the next allowed time (inside your awake hours, if you picked them), and the farm keeps laying while it waits, until its silos are full. Egg shifts still happen on these days.",
+      "Days you stay on the virtue farm but won't prestige, in the plan's timezone. A prestige that would land on one waits for the next allowed time (inside your awake hours, if you picked them), and the farm keeps laying while it waits, {silos}. Egg shifts still happen on these days.",
   },
 } as const;
-const words = computed(() => WORDS[props.kind]);
+const words = computed(() => {
+  const w = WORDS[props.kind];
+  return { ...w, explain: w.explain.replace('{silos}', siloWords.value) };
+});
 
 /** The plan's timezone (the store's own rule): the days are read there. */
 function planZone(): string {

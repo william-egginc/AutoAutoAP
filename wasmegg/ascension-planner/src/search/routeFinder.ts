@@ -207,7 +207,7 @@ function teOfCounts(eggs: number[]): number {
  * from `time` until the player is back, and the next ascension starts from those counts, as Check
  * exactly carries them (search/chain.ts). The counts and TE unchanged when nothing waits. With
  * no-prestige days (`days.noPrestige`) the prestige may wait longer, and the part they add lays only
- * until the silos are full (`days.siloSeconds`; search/noPrestige.ts `creditedWaitSeconds`), as Check
+ * until the silos run out (`days.siloSeconds`; search/noPrestige.ts `creditedWaitSeconds`), as Check
  * exactly has it.
  */
 export function creditWait(
