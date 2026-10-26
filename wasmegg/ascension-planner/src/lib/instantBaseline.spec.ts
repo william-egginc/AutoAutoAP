@@ -89,6 +89,40 @@ describe('the baseline log (this browser)', () => {
     expect(baselineOfSnapshot(d, { kind: 'te', te: 0 })).toMatchObject({ chain: [250, 313], endTE: 313 });
     expect(baselineOfSnapshot(d, PREFER_OFF)?.chain).toEqual([197, 250, 313]);
   });
+
+  it('what is SENT with a board row stays the best (fastest / highest TE), even with a 12 h margin in effect', () => {
+    const meta = { account: 'acct-hash', goal: 'target 490', backupTime: SAVE };
+    const r = (chain: number[], end: number) => ({ chain, end, legs: chain.map(to => ({ endTE: to })) });
+    const best = r([197, 300, 490], SAVE + 400 * D);
+    const two = r([300, 490], SAVE + 400 * D + 10 * 3600);
+    const shown = baselineOfSnapshot({ at: 5, meta, result: { best, byAscensions: [null, null, two, best] } }, {
+      kind: 'time',
+      seconds: 12 * 3600,
+    })!;
+    // Shown: the box's pick. Sent: the fastest.
+    expect(shown.chain).toEqual([300, 490]);
+    expect(shown.sent).toEqual({ chain: [197, 300, 490], end: SAVE + 400 * D, endTE: 490 });
+    expect(rowBaselineOf(shown)).toEqual({ chain: [197, 300, 490], end: SAVE + 400 * D, endTE: 490, at: 5 });
+    // Logged and read back: the sent route survives the log; with the best in the box nothing extra is kept.
+    const st = mem();
+    expect(recordBaseline(shown, st)).toBe(true);
+    const back = findBaseline(readBaselines(st), { account: 'acct-hash', goal: 'target 490', backupTime: SAVE })!;
+    expect(back.chain).toEqual([300, 490]);
+    expect(rowBaselineOf(back).chain).toEqual([197, 300, 490]);
+    const off = baselineOfSnapshot({ at: 5, meta, result: { best, byAscensions: [null, null, two, best] } }, PREFER_OFF)!;
+    expect(off.sent).toBeUndefined();
+    expect(rowBaselineOf(off).chain).toEqual([197, 300, 490]);
+    // By a date, same TE: sent is the highest-TE route.
+    const deadline = SAVE + 300 * D;
+    const top = r([197, 250, 313], SAVE + 260 * D);
+    const fewer = r([250, 313], SAVE + 280 * D);
+    const d = baselineOfSnapshot(
+      { at: 5, meta: { ...meta, goal: `date ${deadline}` }, result: { byDate: top, byDateByAscensions: [null, null, fewer, top] } },
+      { kind: 'te', te: 0 }
+    )!;
+    expect(d.chain).toEqual([250, 313]);
+    expect(rowBaselineOf(d).chain).toEqual([197, 250, 313]);
+  });
 });
 
 describe('the words (wireframe B1)', () => {

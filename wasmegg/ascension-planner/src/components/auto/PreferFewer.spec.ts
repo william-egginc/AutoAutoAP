@@ -165,8 +165,13 @@ describe('InstantRoute wiring', () => {
     // Again when the box's route changes: once per route (not per margin), after a short wait.
     expect(route).toMatch(/watch\(\s+\(\) => \(boxRoute\.value \? key\(boxRoute\.value\.chain\) : null\),/);
     expect(route).toContain('}, PRESTIGE_DEBOUNCE_MS);');
-    // The shared record carries the line for the box's route.
-    expect(route).toContain('return boxPrestige.value ? { ...record, prestigeBy: boxPrestige.value.record } : record;');
+    // The shared record keeps its meaning: the line for the answer's own best route only, else nothing.
+    const send = route.slice(route.indexOf('async function withPrestigeBy('));
+    const body = send.slice(0, send.indexOf('\n}'));
+    expect(body).toContain('const best = found ? (props.deadline ? found.byDate : found.best) : null;');
+    expect(body).toContain('prestigeCache.get(found)?.get(key(best.chain))');
+    expect(body).toContain('return sent ? { ...record, prestigeBy: sent.record } : record;');
+    expect(body).not.toContain('boxPrestige');
   });
 
   it('numbers: the instant answer’s, with no shifts (none are said)', () => {

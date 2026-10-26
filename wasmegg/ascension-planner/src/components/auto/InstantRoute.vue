@@ -3154,7 +3154,12 @@ async function withPrestigeBy(record: InstantRecord): Promise<InstantRecord> {
   if (!recordsPrestigeBy(flag, true)) return record;
   if (prestigeStatus.value === 'running' && prestigeDone)
     await Promise.race([prestigeDone, new Promise(r => setTimeout(r, 60000))]);
-  return boxPrestige.value ? { ...record, prestigeBy: boxPrestige.value.record } : record;
+  // What is SENT keeps its meaning (26 Oct 2026): the line worked out on the answer's own best (fastest / highest TE),
+  // never the one for Prefer fewer's pick; nothing when only the pick's line was worked out.
+  const found = result.value;
+  const best = found ? (props.deadline ? found.byDate : found.best) : null;
+  const sent = found && best ? (prestigeCache.get(found)?.get(key(best.chain)) ?? null) : null;
+  return sent ? { ...record, prestigeBy: sent.record } : record;
 }
 
 /** Send the result `k` (the one on screen) with the instant answer. Never throws; tried once per result. */
