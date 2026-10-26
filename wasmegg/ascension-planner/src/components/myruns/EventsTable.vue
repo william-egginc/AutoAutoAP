@@ -30,7 +30,13 @@
         >
           <td class="py-2 pr-1" aria-hidden="true">{{ e.kind === 'shift' ? '⇄' : e.kind === 'prestige' ? '↑' : '⚑' }}</td>
           <td class="py-2 pr-2">
-            <span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
+            <span v-if="e.kind === 'prestige'" class="text-slate-500" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
+            ><span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
+            <!-- Every ascension's prestige is listed (26 Oct 2026); one that waits says why and when it happens. -->
+            <p v-if="e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past" class="text-[11px] text-amber-800" data-testid="now-event-wait">
+              {{ e.wait === 'days' ? 'Waits past your no-prestige days' : 'Waits for your hours' }}: prestige
+              {{ whenAt(e.prestigeAt) }}
+            </p>
             <p v-if="e.past && e.kind === 'prestige'" class="text-[11px] text-amber-800">
               The plan had you prestige {{ dateAt(e.at, now, zone, true) }}: load a newer save.
             </p>
@@ -89,6 +95,8 @@ const props = defineProps<{
 }>();
 const when = (e: PlanEvent) => whenWords(e, props.goal, props.now, props.zone, !!props.rounded);
 const far = (e: PlanEvent) => howFar(e, props.now, props.zone, !!props.rounded, props.goal);
+/** When a waiting prestige happens, in the row's own words (rounded like the row). */
+const whenAt = (at: number) => whenWords({ at, kind: 'prestige' }, props.goal, props.now, props.zone, !!props.rounded);
 
 const device = thisDevice();
 const title = (e: PlanEvent) =>

@@ -46,6 +46,7 @@
         :track="page.track.value"
         :events="page.events.value"
         :shown-events="page.shownEvents.value"
+        :ascensions="page.ascensions.value"
         :gear="page.gear.value"
         :now="page.now.value"
         :zone="page.zone.value"

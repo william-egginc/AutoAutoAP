@@ -33,6 +33,9 @@
   route keeps the instant timeline and its pill ("from the instant answer", rounded, no calendar, "run Fast"); following
   this save's Fast, Exact or Custom result keeps that result's ("from your Fast run, on your account", exact times,
   calendar). Only a route that is neither says "not priced on this save yet".
+  EVERY ASCENSION (26 Oct 2026): the table lists each ascension's prestige (one that waits for the hours or past a
+  no-prestige day says so), and the Full timeline of a plan with no exact legs lists A1..An with each one's shifts from
+  the instant answer (AscensionList.vue).
   A FOLLOWED ROUTE ALWAYS HAS A TIMELINE (24 Oct 2026, lib/followEstimate.ts): that route is then priced on the instant
   answer's data (the same pricing the instant answer uses, in a route worker) and its steps shown "estimated from the
   instant answer's data (times rounded to the hour)"; while it is worked out the Next step says so. Only when it can't be
@@ -397,7 +400,10 @@
           Full timeline (every ascension, each egg's first and last shift)
         </summary>
         <div class="mt-2">
+          <!-- No exact legs: every ascension with the instant answer's shifts (lib/instantSteps.ts `ascensionSteps`). -->
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" />
           <RouteTimeline
+            v-else
             :chain="card.plan.chain"
             :legs="card.plan.legs"
             :zone="zone"
@@ -419,6 +425,8 @@ import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
+import AscensionList from './AscensionList.vue';
+import type { AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
 import { emptyGoalWords, followNoTimesWords, followOptionWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
@@ -493,6 +501,8 @@ const props = defineProps<{
   followNotSaved?: boolean;
   /** The routes saved online couldn't be read on this load (stores/follow.ts `cloudStatus` 'unreachable'). */
   followCloudUnreachable?: boolean;
+  /** Every ascension and its shifts (useNowPage `ascensions`), for the Full timeline when the plan has no exact legs. */
+  ascensions?: AscensionStep[];
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];

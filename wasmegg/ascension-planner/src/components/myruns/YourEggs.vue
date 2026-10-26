@@ -3,7 +3,8 @@
   its next (the egg being laid: when, at the save's rate), and the farm's facts. The silos are estimated to now
   (lib/farmNow.ts): time left, or empty since when. "All planned shifts" counts the
   saved plan's shifts after the save and prices them with the shift-cost formula at today's soul eggs
-  (lib/shiftCost.ts); without a saved timeline it can't tell.
+  (lib/shiftCost.ts); without a saved timeline it can't tell. With the instant answer's shifts only (26 Oct 2026) it
+  counts the shifts listed and says the first hours of each new ascension are left out.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4" data-testid="now-eggs">
@@ -42,7 +43,8 @@ const props = defineProps<{
   facts: FarmFacts | null;
   shiftsDone: number;
   nextShiftCost: number | null;
-  plannedShifts: { count: number; cost: number } | null;
+  /** `partial`: counted from the instant answer's shifts, which leave out each fresh ascension's first hours. */
+  plannedShifts: { count: number; cost: number; partial?: boolean } | null;
   clothedEquipped: number | null;
   clothedEarnings: number | null;
   now: number;
@@ -78,7 +80,9 @@ const tiles = computed(() => [
         id: 'planned',
         label: 'All planned shifts',
         value: `${props.plannedShifts.count} shift${props.plannedShifts.count === 1 ? '' : 's'} · about ${se(props.plannedShifts.cost)}`,
-        note: "at today's soul eggs",
+        note: props.plannedShifts.partial
+          ? "at today's soul eggs · the shifts listed, without each new ascension's first hours"
+          : "at today's soul eggs",
       }
     : { id: 'planned', label: 'All planned shifts', value: "Can't tell", note: 'no saved plan with its timeline' },
   silosTile.value,

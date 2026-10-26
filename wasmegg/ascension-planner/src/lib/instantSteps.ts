@@ -5,6 +5,7 @@
  * reached, and whether the prestige WAITED, for the hours or for a no-prestige day. The instant answer's legs keep
  * no egg shift times (the table has none; tableV2 holds the opening's shifts inside the hours without recording
  * when), so the shifts are not listed here: Simulate this plan gives every one. Pure.
+ * My runs' Full timeline (26 Oct 2026) adds each ascension's shifts where its legs carry them (`ascensionSteps`).
  */
 import { nextAvailable } from '@/search/availability';
 import { isConstrained, type Availability } from '@/search/availabilitySchedule';
@@ -82,4 +83,29 @@ export function instantSteps(
       reachedAt: l.end,
     };
   });
+}
+
+/** One ascension's line (`instantSteps`) with its shifts in order: when, and the egg switched TO. */
+export interface AscensionStep extends StepLine {
+  shifts: { at: number; egg: string }[];
+  /** The shifts are the current ascension's simulated on the live save (exact), not the table's (to the hour). */
+  simulated: boolean;
+}
+
+/**
+ * EVERY ASCENSION AND ITS SHIFTS (26 Oct 2026, My runs' Full timeline for a route with no exact legs): `instantSteps`'
+ * lines, each with the shifts its leg lists (the table's from H1 on, search/legShifts.ts; the current ascension's
+ * from the simulation once it is in). A leg that lists none has an empty list.
+ */
+export function ascensionSteps(
+  legs: readonly (StepLeg & { shifts?: { at: number; egg: string }[]; simulated?: boolean })[] | null | undefined,
+  hours: Availability | null | undefined,
+  noPrestige: readonly TimeOffWindow[] | null | undefined
+): AscensionStep[] {
+  const list = (legs ?? []).filter(l => l && Number.isFinite(l.start) && Number.isFinite(l.end));
+  return instantSteps(list, hours, noPrestige).map((line, i) => ({
+    ...line,
+    shifts: (list[i].shifts ?? []).filter(s => Number.isFinite(s.at)).map(s => ({ at: s.at, egg: s.egg })),
+    simulated: !!list[i].simulated,
+  }));
 }

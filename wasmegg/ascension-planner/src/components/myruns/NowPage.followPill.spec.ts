@@ -202,6 +202,9 @@ function route490(now: number, end: number): Route {
   };
 }
 const FOLLOWED = { chain: [226, 277, 317, 490], from: 'typed', source: 'manual' };
+/** The followed routes' requests: Egg Day's own instant route (200 → 238) is also priced again, for its shifts only
+ *  (useNowPage `shiftRequest`, 26 Oct 2026). */
+const followCalls = () => calls.filter(c => c.chain.join(',') !== '200,238');
 const pillOf = (page: Awaited<ReturnType<typeof setup>>['page'], key: string) => page.goalChoices.value.find(g => g.key === key);
 
 describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jordan's Fastest to 490 TE)", () => {
@@ -233,28 +236,28 @@ describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jo
   it('priced on load even when another goal is picked: the Fastest to 490 TE pill has its estimate before it is picked, and once picked nothing is asked again', async () => {
     const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490', select: false });
     page.selectGoal(`eggday-${nextEggDayYear()}`);
-    await vi.waitFor(() => expect(calls).toHaveLength(1));
-    expect(calls[0].chain).toEqual([226, 277, 317, 490]);
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    expect(followCalls()[0].chain).toEqual([226, 277, 317, 490]);
     expect(pillOf(page, 'fastest-490')?.follow?.times).toBe('working');
-    calls[0].resolve(route490(now, now + 9 * D));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
     await vi.waitFor(() => expect(pillOf(page, 'fastest-490')?.follow?.times).toBe('estimate'));
     // Next steps have its finish too (was only the selected goal's).
     expect(page.followsForSteps.value.find(s => s.goalKey === 'fastest-490')?.finish?.end).toBe(now + 9 * D);
     page.selectGoal('fastest-490');
     await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
-    expect(calls).toHaveLength(1);
+    expect(followCalls()).toHaveLength(1);
     scope.stop();
   });
 
   it('picked while its background estimate is still out: one request, its answer used', async () => {
     const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490', select: false });
     page.selectGoal(`eggday-${nextEggDayYear()}`);
-    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
     page.selectGoal('fastest-490');
     await vi.waitFor(() => expect(page.follow.value?.estimating).toBe('working'));
-    calls[0].resolve(route490(now, now + 9 * D));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
     await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
-    expect(calls).toHaveLength(1);
+    expect(followCalls()).toHaveLength(1);
     scope.stop();
   });
 
@@ -267,7 +270,55 @@ describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jo
     await vi.waitFor(() => expect(pillOf(page, 'fastest-490')?.follow?.times).toBe('waiting'));
     expect(calls).toHaveLength(0);
     store.isRunning = false;
-    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    scope.stop();
+  });
+});
+
+describe("each ascension's shifts (26 Oct 2026)", () => {
+  it('a followed route is priced with its shifts asked for', async () => {
+    const { scope } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    expect(followCalls()[0].options.shifts).toBe(true);
+    scope.stop();
+  });
+
+  it("the instant answer's own route of this save is priced again in the background, and its shifts land on its legs", async () => {
+    const { page, scope, now, eggDayAt } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490', select: false });
+    page.selectGoal(`eggday-${nextEggDayYear()}`);
+    expect(page.cardPlan.value?.plan.chain).toEqual([200, 238]);
+    // The followed goal's estimate first, then the shifts of Egg Day's route.
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(calls.find(c => c.chain.join(',') === '200,238')).toBeTruthy());
+    const req = calls.find(c => c.chain.join(',') === '200,238')!;
+    expect(req.options.shifts).toBe(true);
+    req.resolve({
+      chain: [200, 238],
+      end: eggDayAt - 2 * D,
+      seconds: eggDayAt - 2 * D - (now - H),
+      legs: [
+        { from: 194, to: 200, endTE: 200, start: now - H, end: now + 30 * H, sales: 0, tier13: false, label: 'continue' },
+        {
+          from: 200,
+          to: 238,
+          endTE: 238,
+          start: now + 30 * H,
+          end: eggDayAt - 2 * D,
+          sales: 1,
+          tier13: false,
+          label: '1-sale',
+          shifts: [
+            { at: now + 60 * H, egg: 'humility' },
+            { at: now + 61 * H, egg: 'kindness' },
+          ],
+        },
+      ],
+    });
+    await vi.waitFor(() => expect(page.cardPlan.value?.plan.tableLegs?.[1].shifts).toHaveLength(2));
+    expect(page.events.value.filter(e => e.kind === 'shift').map(e => e.eggs ?? [e.egg])).toEqual([['humility'], ['kindness']]);
+    expect(page.plannedShifts.value).toMatchObject({ count: 2, partial: true });
+    expect(page.ascensions.value.map(l => l.shifts.length)).toEqual([0, 2]);
     scope.stop();
   });
 });

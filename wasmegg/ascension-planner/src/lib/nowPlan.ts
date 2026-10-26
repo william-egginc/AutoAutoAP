@@ -15,12 +15,26 @@
 import type { LegSummary } from '@/search/types';
 import type { SnapMeta, SnapWhatIf } from '@/search/instantSnapshot';
 import type { FoundLevel } from './searchPointer';
+import type { StepLeg, StepLine } from './instantSteps';
 import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './planPace';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
 export interface SnapRoute {
   chain: number[];
-  legs: { from?: number; to: number; endTE: number; start: number; end: number; label?: string }[];
+  legs: {
+    from?: number;
+    to: number;
+    endTE: number;
+    start: number;
+    end: number;
+    label?: string;
+    /** Each shift after the build-up from the table's replay (search/legShifts.ts, RouteLeg.shifts): My runs'
+     *  estimate asks for them; a snapshot's own routes have none. */
+    shifts?: { at: number; egg: string }[];
+    /** routeFinder.ts RouteLeg's held opening: the prestige into it waited for a morning where its opening fits. */
+    heldOpening?: 'morning' | 'uncertain';
+    wanted?: number;
+  }[];
   end: number;
   seconds?: number;
 }
@@ -305,6 +319,10 @@ export interface PlanEvent {
   eggs?: string[];
   /** Prestige: the TE it prestiges at. Goal: the goal's TE. */
   te?: number;
+  /** Prestige: it waits for the player's hours ('hours') or past a no-prestige day ('days'), and happens at
+   *  `prestigeAt` rather than when the stop is reached (`at`): lib/instantSteps.ts, `markPrestigeWaits`. */
+  wait?: 'hours' | 'days';
+  prestigeAt?: number;
   /** Goal (By a date): hours to spare. */
   spareHours?: number | null;
   past: boolean;
@@ -345,6 +363,8 @@ export function planEvents(plan: NowPlan, nowSeconds: number, save: SaveDone | n
     });
   } else if (plan.tableLegs) {
     plan.tableLegs.slice(0, n).forEach((leg, i) => {
+      // The table's shifts when the estimate carried them (each after the build-up, to the hour).
+      for (const sh of leg.shifts ?? []) if (Number.isFinite(sh.at)) out.push({ kind: 'shift', at: sh.at, asc: i + 1, egg: sh.egg });
       if (!Number.isFinite(leg.end)) return;
       const te = leg.endTE ?? leg.to;
       if (i === n - 1 && plan.goal === 'fastest') out.push({ kind: 'goal', at: leg.end, asc: i + 1, te });
@@ -441,6 +461,59 @@ export function shiftTitle(e: Pick<PlanEvent, 'egg' | 'eggs'>, eggName: (egg: st
   return [head, ...rest.map(x => `straight to ${eggName(x)}`)].join(', then ');
 }
 
+/**
+ * The table's shifts of `route` (the same route priced again with its shifts, search/legShifts.ts) put on the plan's
+ * table legs, each only where that leg is the same one (same stop, start and end within ten minutes). The plan as it
+ * was when none fits, it has exact legs, or its legs already list shifts.
+ */
+export function withTableShifts(
+  plan: NowPlan,
+  route: { legs: readonly { to: number; start: number; end: number; shifts?: { at: number; egg: string }[] }[] } | null | undefined
+): NowPlan {
+  if (!plan.tableLegs || plan.legs || !route?.legs?.length) return plan;
+  let any = false;
+  const tableLegs = plan.tableLegs.map((l, i) => {
+    const r = route.legs[i];
+    if (l.shifts?.length || !r?.shifts?.length || r.to !== l.to || !(Math.abs(r.start - l.start) <= 600) || !(Math.abs(r.end - l.end) <= 600))
+      return l;
+    any = true;
+    return { ...l, shifts: r.shifts.map(sh => ({ at: sh.at, egg: sh.egg })) };
+  });
+  return any ? { ...plan, tableLegs } : plan;
+}
+
+/** The plan's ascensions as lib/instantSteps.ts reads them: the exact legs, else the table's. */
+export function stepLegsOf(plan: NowPlan): StepLeg[] {
+  const n = plan.chain.length;
+  if (plan.legs)
+    return plan.legs.slice(0, n).flatMap((l, i) => {
+      const start = l.startTime ?? l.endTime - l.durationSeconds;
+      const prev = plan.legs![i - 1];
+      return Number.isFinite(start) && Number.isFinite(l.endTime)
+        ? [{ from: prev ? prev.endTE : 0, to: plan.chain[i], endTE: l.endTE, start, end: l.endTime }]
+        : [];
+    });
+  return (plan.tableLegs ?? []).slice(0, n).map(l => ({
+    from: l.from ?? 0,
+    to: l.to,
+    endTE: l.endTE ?? l.to,
+    start: l.start,
+    end: l.end,
+    ...(l.heldOpening ? { heldOpening: l.heldOpening } : {}),
+    ...(l.wanted !== undefined ? { wanted: l.wanted } : {}),
+  }));
+}
+
+/** Each prestige that waits (lib/instantSteps.ts: the line of the ascension it starts) marked with why and when it
+ *  happens. The prestige ending ascension `asc` starts ascension `asc + 1`. */
+export function markPrestigeWaits(events: readonly PlanEvent[], lines: readonly StepLine[]): PlanEvent[] {
+  return events.map(e => {
+    if (e.kind !== 'prestige') return e;
+    const l = lines.find(x => x.asc === e.asc + 1);
+    return l?.wait ? { ...e, wait: l.wait, prestigeAt: l.prestigeAt } : e;
+  });
+}
+
 /** The plan's ascension the clock is in (1-based), 0 before the plan starts, the last one after it ends. */
 export function ascensionAt(plan: NowPlan, nowSeconds: number): number {
   const ends = plan.legs
@@ -454,7 +527,9 @@ export function ascensionAt(plan: NowPlan, nowSeconds: number): number {
 
 /**
  * The events the card's table shows: the last one passed (greyed), then what is ahead up to and including the
- * next prestige (or the goal), at most `max` ahead, then the goal row when it is not among them.
+ * next prestige (or the goal), at most `max` ahead, then EVERY later ascension's prestige (26 Oct 2026, Jordan: the
+ * table showed only the next prestige and the goal, two rows; their shifts are in the Full timeline), then the goal
+ * row when it is not among them.
  */
 export function tableEvents(events: readonly PlanEvent[], max = 6): PlanEvent[] {
   const past = events.filter(e => e.past && e.kind !== 'goal');
@@ -465,6 +540,8 @@ export function tableEvents(events: readonly PlanEvent[], max = 6): PlanEvent[] 
     shown.push(e);
     if (e.kind === 'prestige' || shown.length - (past.length ? 1 : 0) >= max) break;
   }
+  const last = shown[shown.length - 1];
+  for (const e of ahead) if (e.kind === 'prestige' && !shown.includes(e) && (!last || e.at >= last.at)) shown.push(e);
   const goal = events.find(e => e.kind === 'goal');
   if (goal && !shown.includes(goal)) shown.push(goal);
   return shown;
@@ -478,11 +555,13 @@ export function planPrestiges(plan: NowPlan): { at: number; te: number }[] {
     .map(e => ({ at: e.at, te: e.te ?? 0 }));
 }
 
-/** How many shifts the plan makes after `afterSeconds` (from the exact legs); null without them. */
+/** How many shifts the plan makes after `afterSeconds`: from the exact legs, else the shifts the table's legs list
+ *  (search/legShifts.ts: each after the build-up, so the openings' are not counted); null when neither lists any. */
 export function shiftsAfter(plan: NowPlan, afterSeconds: number): number | null {
-  if (!plan.legs) return null;
+  const legs = plan.legs ?? (plan.tableLegs?.some(l => Array.isArray(l.shifts) && l.shifts.length) ? plan.tableLegs : null);
+  if (!legs) return null;
   let n = 0;
-  for (const leg of plan.legs.slice(0, plan.chain.length)) for (const sh of leg.shifts ?? []) if (sh.at > afterSeconds) n++;
+  for (const leg of legs.slice(0, plan.chain.length)) for (const sh of leg.shifts ?? []) if (sh.at > afterSeconds) n++;
   return n;
 }
 

@@ -44,6 +44,7 @@ import type { TimeOffWindow } from './types';
 import type { FirstAscension } from './firstAscension';
 import { replayContinue, sweepReplay, type BuildWithExtras, type ReplaySweep } from './tableV2';
 import { openingSpan } from './openingSpan';
+import { legShifts } from './legShifts';
 
 /** The table as the finder reads it: the builds for a start TE at a Pacific hour of the week. A
  *  version 2 table's builds carry their `extras` (precomputedTable.ts `withExtras`), which the held
@@ -247,6 +248,10 @@ export interface RouteLeg {
    *  table has it and its shifts before C3's end may wait for the player. */
   heldOpening?: 'morning' | 'uncertain';
   wanted?: number;
+  /** With `PolishOptions.shifts` (priceChain): each shift after the build-up, from the table's replay of this leg
+   *  (search/legShifts.ts): when, and the egg switched TO. The opening's (fresh start to C3) are not in the table.
+   *  Absent on a first ascension from `firstLegs` and on routes priced without asking. */
+  shifts?: { at: number; egg: string }[];
 }
 
 export interface Route {
@@ -491,6 +496,8 @@ export function priceLeg(
   /** RouteLeg.heldOpening and wanted. */
   heldOpening?: 'morning' | 'uncertain';
   wanted?: number;
+  /** Seconds into its table hour it starts (non-zero only at once inside the sale): for its shifts' replay. */
+  lateBy: number;
 } | null {
   const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
   // Back from outside the hours, the player prestiges at once inside the sale (as Check exactly does
@@ -543,6 +550,7 @@ export function priceLeg(
         lastEgg: endEggOf(sw, b, i, eggs),
         rate: b.peakELR,
         ...held,
+        lateBy: o.lateBy,
       };
     }
   }
@@ -1219,6 +1227,9 @@ export interface PolishOptions extends TailOptions {
   wideAll?: boolean;
   /** Polish this many of the finder's kept routes for each count, not only its best (default 1). */
   candidates?: number;
+  /** `priceChain`: each table leg also carries its shifts (RouteLeg.shifts, search/legShifts.ts). My runs' estimate
+   *  of a followed route asks; the finder and the polish do not (default off). */
+  shifts?: boolean;
 }
 
 export interface FoundRoutes {
@@ -1311,6 +1322,16 @@ export function priceChain(
     const shiftHours = o.holdForHours !== false ? o.hours : undefined;
     const p = priceLeg(table, te, t, eggs, target, scale, hours, tailOptionsOf(o), shiftHours);
     if (!p) return (remember(i, false), null);
+    // Its shifts, replayed as the sweep priced it (the same hold and order); kept only when the replay is this leg.
+    const sh = o.shifts
+      ? legShifts(p.build, target, {
+          start: p.start,
+          lateBy: p.lateBy,
+          holdUntil: o.holdShifts ? holdUntilFor(shiftHours) : undefined,
+          order: o.order === 'table' ? 'table' : 'simulator',
+        })
+      : null;
+    const shifts = sh && Math.abs(p.start + sh.seconds - p.end) < 1 ? sh.shifts : null;
     legs.push({
       from: te,
       to: target,
@@ -1322,6 +1343,7 @@ export function priceChain(
       label: `${p.build.sales}-sale${p.build.tier13 ? '-tier13' : ''}`,
       ...(p.heldOpening ? { heldOpening: p.heldOpening } : {}),
       ...(p.wanted !== undefined ? { wanted: p.wanted } : {}),
+      ...(shifts ? { shifts } : {}),
     });
     t = p.end;
     te = p.endTE;

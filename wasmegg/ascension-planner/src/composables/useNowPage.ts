@@ -57,13 +57,16 @@ import { progressOf } from '@/lib/planPace';
 import {
   SAVE_EGG_ORDER,
   ascensionAt,
+  markPrestigeWaits,
   mergeSimultaneousShifts,
   onTrack,
   planEvents,
   planFromSnapshot,
   planPrestiges,
   shiftsAfter,
+  stepLegsOf,
   tableEvents,
+  withTableShifts,
   type NowPlan,
   type SnapLike,
 } from '@/lib/nowPlan';
@@ -129,6 +132,7 @@ import {
   type PricingSource,
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
+import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -703,6 +707,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   type FollowPriced = NonNullable<ReturnType<typeof followPricedFor>>;
   function estimatePickFor(fp: FollowPriced | null): PickedPricing {
     if (!fp || (fp.price.priced !== 'none' && fp.price.priced !== 'finish')) return null;
+    return pickPricing(pricingSourcesFor(fp.sel.goal.key), followedFromNow(fp.f.chain, teSoFar.value), teSoFar.value);
+  }
+  /** What this save's instant answer priced its routes with (`goalKey`'s own snapshot ranked first). */
+  function pricingSourcesFor(goalKey: GoalKey): PricingSource[] {
     void kept.value;
     const sources: PricingSource[] = [];
     keys.value.forEach(({ d, key }) => {
@@ -714,7 +722,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         url: s.tableUrl,
         pricing,
         tableTo: typeof to === 'number' ? to : null,
-        ownGoal: d.key === fp.sel.goal.key,
+        ownGoal: d.key === goalKey,
         at: s.at,
         meta: s.meta ?? null,
       });
@@ -742,11 +750,17 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           meta: account.value ? { account: account.value, goal: '', backupTime: saveSeconds.value } : null,
         })
       );
-    return pickPricing(sources, followedFromNow(fp.f.chain, teSoFar.value), teSoFar.value);
+    return sources;
   }
   function estimateRequestOf(p: PickedPricing): EstimateRequest | null {
     if (!p || !('source' in p)) return null;
-    return { key: estimateKey(saveSeconds.value, p.source, p.chain), url: p.source.url, options: p.source.pricing.options, chain: p.chain };
+    // `shifts`: each table leg's shifts too (search/legShifts.ts), for Right now's table and Full timeline.
+    return {
+      key: estimateKey(saveSeconds.value, p.source, p.chain),
+      url: p.source.url,
+      options: { ...p.source.pricing.options, shifts: true },
+      chain: p.chain,
+    };
   }
   const estimatePick = computed<PickedPricing>(() => estimatePickFor(followPriced.value));
   const estimateRequest = computed<EstimateRequest | null>(() => estimateRequestOf(estimatePick.value));
@@ -764,7 +778,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         })
       : []
   );
-  const otherRequests = computed(() => otherFollows.value.flatMap(o => (o.req ? [o.req] : [])));
+  /** The instant answer's own route priced again for its shifts (`shiftRequest`, below), in the background. */
+  const shiftRequests = shallowRef<EstimateRequest[]>([]);
+  const otherRequests = computed(() => [...otherFollows.value.flatMap(o => (o.req ? [o.req] : [])), ...shiftRequests.value]);
   const searchBusy = computed(() => store.isRunning || store.deadlineRunning || store.resultSending);
   const { state: estimate, otherStates } = useFollowEstimate(estimateRequest, searchBusy, otherRequests);
 
@@ -959,7 +975,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const follow = computed<FollowCard | null>(() => followState.value?.card ?? null);
 
   /** Right now's plan: the selected goal's (the table, Next step, the timeline and the calendar all follow it). */
-  const cardPlan = computed<CardPlan | null>(() => {
+  const basePlan = computed<CardPlan | null>(() => {
     // A route the player follows replaces the planner's pick (priced from a save, or nothing to show yet). A newer,
     // better result never replaces it: it is offered (`betterRoute`, lib/searchPlan.ts the 'prompt' path).
     if (followState.value) return followState.value.plan;
@@ -982,6 +998,34 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       name: sel.goal.name,
       ...(c.driving ? { driving: c.driving } : {}),
     };
+  });
+  /**
+   * EACH ASCENSION'S SHIFTS FOR THE INSTANT ANSWER'S OWN ROUTE (26 Oct 2026): a plan of this save with the table's
+   * times and no shifts listed (the instant answer's snapshot keeps none) is priced again with the same settings in
+   * the background (composables/useFollowEstimate.ts `others`), for the shifts only (nowPlan `withTableShifts`).
+   */
+  const shiftRequest = computed<EstimateRequest | null>(() => {
+    const c = basePlan.value;
+    const p = c?.plan;
+    if (!c?.key || !p || p.legs || p.exact || p.estimated || c.state !== 'this-save' || !p.tableLegs?.length) return null;
+    if (p.tableLegs.some(l => l.shifts?.length)) return null;
+    const chain = followedFromNow(p.chain, teSoFar.value);
+    if (chain.join(',') !== p.chain.join(',')) return null;
+    const r = estimateRequestOf(pickPricing(pricingSourcesFor(c.key), chain, teSoFar.value));
+    return r ? { ...r, key: `shifts|${r.key}` } : null;
+  });
+  watch(
+    shiftRequest,
+    r => {
+      if ((shiftRequests.value[0]?.key ?? null) !== (r?.key ?? null)) shiftRequests.value = r ? [r] : [];
+    },
+    { immediate: true }
+  );
+  const cardPlan = computed<CardPlan | null>(() => {
+    const c = basePlan.value;
+    const r = shiftRequest.value;
+    const st = r ? otherStates.value[r.key] : null;
+    return c && st?.status === 'done' ? { ...c, plan: withTableShifts(c.plan, st.route) } : c;
   });
   /**
    * With a followed route for the selected goal: the planner's pick for this save as the new result the prompt
@@ -1084,17 +1128,33 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     kept.value++;
   }
 
+  /** The player's hours as the answers were priced with them ("Works inside my hours"), and the no-prestige days as
+   *  absolute stretches (the store's `collectInputs` makes the same), for the prestiges that wait (lib/instantSteps.ts). */
+  const stepHours = computed(() => {
+    void storeReady.value;
+    return useHoursFromStores() ? (store.availability ?? null) : null;
+  });
+  const stepNoPrestige = computed(() => timeOffWindows(usableTimeOff(store.noPrestige ?? []), zone.value));
+  /** Every ascension of the plan and its shifts (Right now's Full timeline when the plan has no exact legs). */
+  const ascensions = computed(() => {
+    const p = cardPlan.value?.plan;
+    if (!p || p.legs) return [];
+    return ascensionSteps(
+      stepLegsOf(p).map((l, i) => ({ ...l, ...(p.tableLegs?.[i]?.shifts ? { shifts: p.tableLegs[i].shifts } : {}) })),
+      stepHours.value,
+      stepNoPrestige.value
+    );
+  });
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
-   *  planned-shift total reads the legs, so it still counts both. */
-  const events = computed(() =>
-    cardPlan.value
-      ? mergeSimultaneousShifts(
-          // Done by the save's state, not the clock alone: the egg it is on and its TE (nowPlan `planEvents`).
-          planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null),
-          zone.value
-        )
-      : []
-  );
+   *  planned-shift total reads the legs, so it still counts both. A prestige that waits for the hours or past a
+   *  no-prestige day says so (nowPlan `markPrestigeWaits`). */
+  const events = computed(() => {
+    if (!cardPlan.value) return [];
+    // Done by the save's state, not the clock alone: the egg it is on and its TE (nowPlan `planEvents`).
+    const list = planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null);
+    const lines = instantSteps(stepLegsOf(cardPlan.value.plan), stepHours.value, stepNoPrestige.value);
+    return mergeSimultaneousShifts(markPrestigeWaits(list, lines), zone.value);
+  });
   const shownEvents = computed(() => tableEvents(events.value));
   const ascNow = computed(() => (cardPlan.value ? ascensionAt(cardPlan.value.plan, now.value) : 0));
   const track = computed(() => {
@@ -1217,12 +1277,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
-  /** The plan's shifts after the save and their cost at today's soul eggs; null: can't tell (no timeline). */
+  /** The plan's shifts after the save and their cost at today's soul eggs; null: can't tell (no shift listed).
+   *  `partial`: counted from the table's shifts, which leave out each fresh ascension's opening. */
   const plannedShifts = computed(() => {
     const p = cardPlan.value?.plan;
     const n = p ? shiftsAfter(p, saveSeconds.value) : null;
     if (n == null) return null;
-    return { count: n, cost: plannedShiftsCost(soulEggs.value, shiftsDone.value, n) };
+    return { count: n, cost: plannedShiftsCost(soulEggs.value, shiftsDone.value, n), ...(p && !p.legs ? { partial: true } : {}) };
   });
 
   // -------------------------------------------------------------------------------------- the tiles
@@ -1344,6 +1405,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     useSearchResult,
     events,
     shownEvents,
+    ascensions,
     ascNow,
     track,
     gear,

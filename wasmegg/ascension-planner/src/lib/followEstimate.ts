@@ -114,7 +114,19 @@ export function planFromEstimate(
     end: route.end,
     endTE,
     legs: null,
-    tableLegs: route.legs.map(l => ({ from: l.from, to: l.to, endTE: l.endTE, start: l.start, end: l.end, label: l.label })),
+    // Each leg's shifts when the estimate asked for them (RouteLeg.shifts; an estimate without them still works), and
+    // its held opening, for the waits Right now marks (lib/instantSteps.ts).
+    tableLegs: route.legs.map(l => ({
+      from: l.from,
+      to: l.to,
+      endTE: l.endTE,
+      start: l.start,
+      end: l.end,
+      label: l.label,
+      ...(Array.isArray(l.shifts) && l.shifts.length ? { shifts: l.shifts.map(s => ({ at: s.at, egg: s.egg })) } : {}),
+      ...(l.heldOpening ? { heldOpening: l.heldOpening } : {}),
+      ...(l.wanted !== undefined ? { wanted: l.wanted } : {}),
+    })),
     exact: false,
     estimated: true,
     instantTE: goal.goal === 'date' ? endTE : null,
