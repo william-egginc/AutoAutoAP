@@ -169,9 +169,12 @@
         press Run again. The computer settings still work.
       </p>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- The six cards flow in two balanced columns from md up (CSS columns, each card kept whole), so a card
+           opened tall ("Memory · detail kept" in This computer) doesn't leave a blank beside it, as a grid row
+           did (26 Oct 2026). One column on a phone, in the same order. The full-width cards follow in a grid. -->
+      <div class="-mb-4 md:columns-2 md:gap-4" data-testid="setup-columns">
         <!-- Your save -->
-        <div class="rounded-xl border border-slate-200 p-4 space-y-2">
+        <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Your save</h3>
           <p class="text-sm font-bold text-slate-800">
             {{ initialState.nickname || 'Your account' }} · TE {{ store.currentTE }}
@@ -234,7 +237,7 @@
         </div>
 
         <!-- When the plan starts -->
-        <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
+        <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When the plan starts</h3>
           <SchedulingInputs />
           <!-- An unset start means "now", which moves on every reload, and plan start is part of the
@@ -273,7 +276,7 @@
         <!-- When you can play -->
         <fieldset
           :disabled="locked"
-          class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
+          class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
           :class="screen === 'classic' ? 'opacity-60' : ''"
         >
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Awake hours</h3>
@@ -389,7 +392,7 @@
         <!-- No prestige on these days (search/noPrestige.ts): the second kind of "not now". -->
         <fieldset
           :disabled="locked"
-          class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0"
+          class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2 min-w-0"
           :class="screen === 'classic' ? 'opacity-60' : ''"
           data-testid="setup-no-prestige-days"
         >
@@ -400,7 +403,7 @@
         </fieldset>
 
         <!-- Time off -->
-        <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
+        <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
           <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
@@ -417,8 +420,9 @@
 
         <!-- This computer -->
         <div
-          class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
+          class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
           :class="screen === 'classic' ? 'opacity-60' : ''"
+          data-testid="setup-this-computer"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
             <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ ThisDevice() }}</h3>
@@ -521,7 +525,9 @@
             </div>
           </details>
         </div>
+      </div>
 
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- What artifacts it will use: the same on every screen. -->
         <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2">
           <SimulationSetup />
