@@ -19,6 +19,7 @@ import type { InjectionKey, Ref } from 'vue';
 import type { StorageLike } from '@/search/instantSnapshot';
 import type { BoardRow } from './leaderboardRank';
 import { gapWords } from './searchPlan';
+import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
 import type { FoundLevel } from './searchPointer';
 
 export const BASELINE_KEY = 'aap-instant-baselines';
@@ -110,22 +111,33 @@ export function findBaseline(
   return best;
 }
 
+type SnapRow = { chain: number[]; end: number; legs?: { endTE?: number; to?: number }[] };
+
 /**
- * A snapshot's instant answer as a baseline (InstantRoute's snapshot, search/instantSnapshot.ts): Fastest its `best`,
- * By a date its `byDate`; null without its `meta` or a route.
+ * A snapshot's instant answer as a baseline (InstantRoute's snapshot, search/instantSnapshot.ts): the route its green
+ * box shows (Jordan, 26 Oct 2026): Fastest its `best`, By a date its `byDate`, or Prefer fewer's pick among the rows
+ * per count under `margin` (by default the one stored for the screen). Null without its `meta` or a route.
  */
-export function baselineOfSnapshot(s: {
-  at: number;
-  meta?: { account: string; goal: string; backupTime: number } | null;
-  result?: {
-    best?: { chain: number[]; end: number; legs?: { endTE?: number; to?: number }[] } | null;
-    byDate?: { chain: number[]; end: number; legs?: { endTE?: number; to?: number }[] } | null;
-  } | null;
-}): BaselineEntry | null {
+export function baselineOfSnapshot(
+  s: {
+    at: number;
+    meta?: { account: string; goal: string; backupTime: number } | null;
+    result?: {
+      best?: SnapRow | null;
+      byDate?: SnapRow | null;
+      byAscensions?: (SnapRow | null)[] | null;
+      byDateByAscensions?: (SnapRow | null)[] | null;
+    } | null;
+  },
+  margin?: PreferMargin
+): BaselineEntry | null {
   const m = s.meta;
   if (!m || !s.result) return null;
   const date = /^date \d+$/.test(m.goal);
-  const r = date ? s.result.byDate : s.result.best;
+  const goal = date ? 'date' : 'fastest';
+  const r = date
+    ? boxRouteOf(goal, s.result.byDate, s.result.byDateByAscensions, margin ?? readPreferFewer()[goal], Number(m.goal.slice(5)))
+    : boxRouteOf(goal, s.result.best, s.result.byAscensions, margin ?? readPreferFewer()[goal]);
   if (!r || !Array.isArray(r.chain) || !r.chain.length) return null;
   const last = r.legs?.[r.legs.length - 1];
   const endTE = last?.endTE ?? last?.to ?? r.chain[r.chain.length - 1];

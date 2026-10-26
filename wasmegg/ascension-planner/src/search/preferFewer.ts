@@ -256,6 +256,48 @@ export function preferFewerCopy<T>(
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/** A saved route as the snapshot keeps it (search/routeFinder.ts Route), as far as `boxRouteOf` reads it. */
+export interface BoxRouteLike {
+  chain: number[];
+  end: number;
+  legs?: { endTE?: number; to?: number }[] | null;
+}
+
+/**
+ * The route the green box shows, from a saved answer's routes (Jordan, 26 Oct 2026: My runs' Right now and the
+ * instant baseline follow the box, not the best): `best` (Fastest `result.best`, By a date `result.byDate`) and the
+ * rows per count (`byAscensions` / `byDateByAscensions`), chosen with `margin` as InstantRoute's box does (By a date
+ * the spare is to `deadline`). The best with the margin Off, when nothing fits, or without a best.
+ */
+export function boxRouteOf<R extends BoxRouteLike>(
+  goal: PreferGoal,
+  best: R | null | undefined,
+  rows: readonly (R | null | undefined)[] | null | undefined,
+  margin: PreferMargin,
+  deadline: number | null = null
+): R | null {
+  if (!best || !Array.isArray(best.chain) || !best.chain.length) return best ?? null;
+  if (margin.kind === 'off') return best;
+  const endTE = (r: R) => {
+    const last = Array.isArray(r.legs) ? r.legs[r.legs.length - 1] : undefined;
+    return last?.endTE ?? last?.to ?? r.chain[r.chain.length - 1];
+  };
+  const rowOf = (r: R): PreferRow<R> => ({
+    item: r,
+    ascensions: r.chain.length,
+    finish: r.end,
+    ...(goal === 'date' ? { endTE: endTE(r), ...(deadline !== null ? { spare: deadline - r.end } : {}) } : {}),
+    shifts: null,
+  });
+  const k = best.chain.join(',');
+  const others = (rows ?? []).filter(
+    (r): r is R => !!r && Array.isArray(r.chain) && r.chain.length > 0 && Number.isFinite(r.end) && r.chain.join(',') !== k
+  );
+  const top = rowOf(best);
+  const choice = choosePreferFewer(goal, [top, ...others.map(rowOf)], margin, top);
+  return choice?.state === 'fewer' ? choice.chosen.item : best;
+}
+
 /** Remembered per browser, one value per screen. */
 export interface PreferSetting {
   fastest: PreferMargin;

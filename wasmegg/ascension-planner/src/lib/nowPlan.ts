@@ -10,12 +10,14 @@
  *   onTrack           a newer save against where the plan (made from an older one) expected it (lib/planPace.ts).
  *   shiftsAfter       how many shifts the plan has after a moment (the "all planned shifts" tile).
  *
- * Pure: no Vue, no stores; `now` is always a parameter.
+ * Pure: no Vue, no stores; `now` is always a parameter. The one read: `planFromSnapshot`'s Prefer fewer margin, by
+ * default the one stored for the screen (search/preferFewer.ts, guarded), when the caller does not pass it.
  */
 import type { LegSummary } from '@/search/types';
 import type { SnapMeta, SnapWhatIf } from '@/search/instantSnapshot';
 import type { FoundLevel } from './searchPointer';
 import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './planPace';
+import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
 export interface SnapRoute {
@@ -104,8 +106,18 @@ export interface NowPlan {
 const key = (chain: readonly number[]) => chain.join(',');
 const lastTE = (r: SnapRoute) => r.legs[r.legs.length - 1]?.endTE ?? r.chain[r.chain.length - 1] ?? 0;
 
-/** The lead route of a saved answer, or null when it has none. */
-export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date', deadline: number | null = null): NowPlan | null {
+/**
+ * The lead route of a saved answer, or null when it has none. From the instant answer: the route its green box shows
+ * (Jordan, 26 Oct 2026), Prefer fewer's pick under `margin` (by default the one stored for the screen), with no
+ * runner-up when that is not the best (a choice, not the planner's ranking). Check exactly's prices, on answers saved
+ * before 23 Oct 2026, keep their own soonest / highest TE.
+ */
+export function planFromSnapshot(
+  snap: SnapLike | null,
+  goal: 'fastest' | 'date',
+  deadline: number | null = null,
+  margin: PreferMargin = readPreferFewer()[goal]
+): NowPlan | null {
   if (!snap?.result) return null;
   const exactOf = (chain: readonly number[]) => snap.exact?.[key(chain)] ?? null;
   const common = {
@@ -138,9 +150,11 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
         ...common,
       };
     }
-    const best = snap.result.best;
+    const top = snap.result.best;
+    const best = boxRouteOf('fastest', top, routes, margin);
     if (!best) return null;
-    const others = routes.filter(r => key(r.chain) !== key(best.chain)).sort((a, b) => a.end - b.end);
+    const picked = best !== top;
+    const others = picked ? [] : routes.filter(r => key(r.chain) !== key(best.chain)).sort((a, b) => a.end - b.end);
     return {
       goal,
       deadline: null,
@@ -186,30 +200,33 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
     };
   }
   if (!table) return null;
-  const others = (snap.result.byDateByAscensions ?? []).filter(
-    (r): r is SnapRoute => !!r && key(r.chain) !== key(table.chain)
-  );
-  const sameTE = others.filter(r => lastTE(r) >= lastTE(table)).sort((a, b) => a.end - b.end);
+  // The route the box shows (Prefer fewer's pick under `margin`); no runner-up when it is not the best.
+  const box = boxRouteOf('date', table, snap.result.byDateByAscensions, margin, deadline) ?? table;
+  const others =
+    box !== table
+      ? []
+      : (snap.result.byDateByAscensions ?? []).filter((r): r is SnapRoute => !!r && key(r.chain) !== key(table.chain));
+  const sameTE = others.filter(r => lastTE(r) >= lastTE(box)).sort((a, b) => a.end - b.end);
   // Check exactly ran (a row per count) and every count missed the date (null): the table's route is late on the
   // account, at its own exact price when it has one.
   const byK = Object.values(snap.dateExactByK ?? {});
   const missed = byK.length > 0 && byK.every(d => d == null);
-  const priced = exactOf(table.chain);
+  const priced = exactOf(box.chain);
   const timed = priced && Number.isFinite(priced.end) && deadline != null && priced.end > deadline;
   const accountEnd = missed ? (timed ? priced.end : Infinity) : undefined;
   return {
     goal,
     deadline,
-    chain: [...table.chain],
-    end: table.end,
-    endTE: lastTE(table),
+    chain: [...box.chain],
+    end: box.end,
+    endTE: lastTE(box),
     legs: null,
-    tableLegs: table.legs ?? null,
+    tableLegs: box.legs ?? null,
     exact: false,
-    instantTE: lastTE(table),
-    spareHours: spare(table.end),
+    instantTE: lastTE(box),
+    spareHours: spare(box.end),
     ...(accountEnd !== undefined ? { accountEnd } : {}),
-    runnerUpHours: sameTE.length ? Math.max(0, (sameTE[0].end - table.end) / 3600) : others.length ? Infinity : null,
+    runnerUpHours: sameTE.length ? Math.max(0, (sameTE[0].end - box.end) / 3600) : others.length ? Infinity : null,
     runnerUp: sameTE.length ? { chain: [...sameTE[0].chain], end: sameTE[0].end, endTE: lastTE(sameTE[0]) } : null,
     ...common,
   };

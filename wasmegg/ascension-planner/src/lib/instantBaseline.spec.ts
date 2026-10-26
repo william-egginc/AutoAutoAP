@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { PREFER_OFF } from '@/search/preferFewer';
 import {
   BASELINE_KEY,
   MAX_BASELINES,
@@ -67,6 +68,26 @@ describe('the baseline log (this browser)', () => {
     expect(baselineOfSnapshot({ at: 5, meta: dmeta, result: { best, byDate } })?.endTE).toBe(313.4);
     expect(baselineOfSnapshot({ at: 5, result: { best } })).toBeNull();
     expect(rowBaselineOf(entry({ endTE: 313.4 }))).toEqual({ chain: entry().chain, end: entry().end, endTE: 313, at: entry().at });
+  });
+
+  it('carries the route the green box shows (Prefer fewer, 26 Oct 2026): within 12 h, same TE; Off the best', () => {
+    const meta = { account: 'acct-hash', goal: 'target 490', backupTime: SAVE };
+    const r = (chain: number[], end: number) => ({ chain, end, legs: chain.map(to => ({ endTE: to })) });
+    const best = r([197, 300, 490], SAVE + 400 * D);
+    const two = r([300, 490], SAVE + 400 * D + 10 * 3600);
+    const s = { at: 5, meta, result: { best, byAscensions: [null, null, two, best] } };
+    expect(baselineOfSnapshot(s, { kind: 'time', seconds: 12 * 3600 })?.chain).toEqual([300, 490]);
+    expect(baselineOfSnapshot(s, PREFER_OFF)?.chain).toEqual([197, 300, 490]);
+    // No storage in this test: the default margin (within 12 h).
+    expect(baselineOfSnapshot(s)?.chain).toEqual([300, 490]);
+    const deadline = SAVE + 300 * D;
+    const dmeta = { ...meta, goal: `date ${deadline}` };
+    const top = r([197, 250, 313], SAVE + 260 * D);
+    const fewer = r([250, 313], SAVE + 280 * D);
+    const late = r([313], deadline + 1);
+    const d = { at: 5, meta: dmeta, result: { byDate: top, byDateByAscensions: [null, late, fewer, top] } };
+    expect(baselineOfSnapshot(d, { kind: 'te', te: 0 })).toMatchObject({ chain: [250, 313], endTE: 313 });
+    expect(baselineOfSnapshot(d, PREFER_OFF)?.chain).toEqual([197, 250, 313]);
   });
 });
 
