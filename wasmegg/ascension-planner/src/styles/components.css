@@ -246,3 +246,19 @@
         min-height: 44px;
     }
 }
+
+/* Form fields at 16 px below sm: iOS Safari zooms the page when a field under 16 px gets the cursor
+   (type review, 26 Oct 2026: the Auto Planner's selects and number boxes were 11 px, Setup's 11 and 14 px).
+   The selector sits outside @layer and starts with :root plus attribute :not()s, so it outranks any one
+   text-* utility (one class) and a scoped style (class + data-v attribute) without !important.
+   Checkboxes, radios, ranges, colour pickers and the button-type inputs keep their own size. From sm up
+   every field keeps its utility size. */
+@media (max-width: 639.98px) {
+    :root :is(
+        input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]):not([type="hidden"]),
+        select,
+        textarea
+    ) {
+        font-size: 16px;
+    }
+}

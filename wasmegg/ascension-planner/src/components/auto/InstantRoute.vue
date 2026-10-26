@@ -224,7 +224,7 @@
               :max="MAX_ASCENSIONS"
               placeholder="any"
               aria-label="Fewest ascensions (blank for any)"
-              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-[11px] py-0.5 px-2"
+              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-[11px] py-0.5 px-2"
               data-testid="instant-min-ascensions"
               @change="setAscBound('min', $event)"
             />
@@ -237,7 +237,7 @@
               :max="MAX_ASCENSIONS"
               placeholder="any"
               aria-label="Most ascensions (blank for any)"
-              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-[11px] py-0.5 px-2"
+              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-[11px] py-0.5 px-2"
               data-testid="instant-max-ascensions"
               @change="setAscBound('max', $event)"
             />

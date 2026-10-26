@@ -40,14 +40,14 @@
           :value="startDate"
           type="date"
           :min="formatUnixToDateInput(Date.now() / 1000 - 86400 * 7, timezone)"
-          class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+          class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           @input="handleStartDateInput"
         />
         <input
           ref="startTimeInput"
           :value="startTime"
           type="time"
-          class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+          class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           @input="handleStartTimeInput"
         />
       </div>
@@ -65,7 +65,7 @@
           <select
             ref="timezoneSelect"
             v-model="timezone"
-            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-5 pr-10 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-5 pr-10 py-2.5 text-base sm:text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           >
             <option v-for="tz in allTimezones" :key="tz.value" :value="tz.value">
               {{ tz.label }}

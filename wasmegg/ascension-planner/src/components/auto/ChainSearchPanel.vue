@@ -108,7 +108,7 @@
             <select
               v-model="startPick"
               :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-[12px] font-bold text-slate-800 disabled:opacity-50"
+              class="w-full rounded-lg border-slate-300 text-base sm:text-[12px] font-bold text-slate-800 disabled:opacity-50"
               data-testid="start-from-pick"
             >
               <option v-for="o in startOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
