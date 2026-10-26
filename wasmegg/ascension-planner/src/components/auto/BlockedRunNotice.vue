@@ -6,7 +6,7 @@
 <template>
   <div v-if="blocked" class="rounded-xl border border-slate-300 bg-slate-50 p-4 space-y-2" data-testid="blocked-run">
     <h3 class="text-slate-700 label">Unfinished run can't continue</h3>
-    <p class="text-body text-slate-700">
+    <p class="text-body text-slate-700 max-w-prose">
       A run on this machine stopped after pricing
       <span class="font-bold">{{ plural(blocked.record.durations.length, 'route') }}</span>
       ({{ ago(blocked.record.updatedAt) }}), but <span class="font-bold">{{ blocked.changes.join('; ') }}</span

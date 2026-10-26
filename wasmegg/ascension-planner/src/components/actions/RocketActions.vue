@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <p class="text-body text-gray-500">
+    <p class="text-body text-gray-500 max-w-prose">
       Plan rocket missions. Choose how many of each ship to send — fuel is drawn from your tank.
     </p>
 

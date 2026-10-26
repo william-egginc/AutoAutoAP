@@ -172,7 +172,7 @@
           </div>
 
           <div class="p-6">
-            <p class="text-body font-normal text-slate-600 mb-6">
+            <p class="text-body font-normal text-slate-600 mb-6 max-w-prose">
               If you find this tool helpful, you're welcome to buy me a coffee! No obligation at all, but it is deeply appreciated.
             </p>
             

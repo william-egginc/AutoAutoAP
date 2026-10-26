@@ -113,7 +113,7 @@
     </template>
 
     <template v-else>
-      <p class="text-body text-slate-600 break-words" data-testid="study-setup-off">
+      <p class="text-body text-slate-600 break-words max-w-prose" data-testid="study-setup-off">
         <template v-if="byHand.length">
           <template v-if="state === 'no'">You said no thanks to the box; sharing</template>
           <template v-else>Withdrawn on {{ answeredOn }}; sharing</template>
@@ -136,7 +136,7 @@
 
     <p
       v-if="state === 'yes' || state === 'other-account' || (state !== 'unanswered' && anySharing)"
-      class="text-body text-slate-500"
+      class="text-body text-slate-500 max-w-prose"
       data-testid="study-setup-withdraw-note"
     >
       Withdraw turns off sharing for every account in this browser that said yes here: this one now, the others as each

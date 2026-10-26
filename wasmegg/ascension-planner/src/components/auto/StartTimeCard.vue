@@ -30,11 +30,11 @@
       You're already ascending, so there's no start to pick.
     </p>
     <div v-else class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-      <p v-if="!(store.currentTE > 0)" class="text-body font-bold text-amber-700" data-testid="start-times-no-save">
+      <p v-if="!(store.currentTE > 0)" class="text-body font-bold text-amber-700 max-w-prose" data-testid="start-times-no-save">
         Load your save first: open {{ fastestName(store.finalTE) }} in the {{ NAMES.auto }}, then come back here.
       </p>
       <p v-else-if="store.saveNotReady" class="text-body font-bold text-amber-700">{{ store.saveNotReady }}</p>
-      <p v-if="!choices.length" class="text-body text-slate-500" data-testid="start-times-empty">
+      <p v-if="!choices.length" class="text-body text-slate-500 max-w-prose" data-testid="start-times-empty">
         It prices the instant answer's best route. Open {{ fastestName(store.finalTE) }} once so the instant answer
         loads, or use "Check start times for this route" under a search's result.
       </p>

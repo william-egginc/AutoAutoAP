@@ -80,7 +80,7 @@
       {{ filterError }} Showing every plan until then.
     </p>
 
-    <p class="text-body text-slate-600">
+    <p class="text-body text-slate-600 max-w-prose">
       This table holds <b>{{ plansText(total) }}</b
       ><template v-if="counts.length === 1"> at {{ plural(counts[0], 'ascension') }}</template>.
       <template v-if="truncated"

@@ -239,10 +239,10 @@
       <div class="min-w-0">
         <div class="flex flex-wrap items-start gap-x-2.5 gap-y-1">
           <p v-if="onVirtue" class="text-title font-bold text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
-          <p v-else-if="notOnVirtue" class="text-body font-bold text-slate-800" data-testid="now-not-virtue">
+          <p v-else-if="notOnVirtue" class="text-body font-bold text-slate-800 max-w-prose" data-testid="now-not-virtue">
             No virtue farm in this save, so nothing to do on a farm yet.
           </p>
-          <p v-else class="text-body font-bold text-slate-800" data-testid="now-not-virtue">
+          <p v-else class="text-body font-bold text-slate-800 max-w-prose" data-testid="now-not-virtue">
             No virtue farm in this save<template v-if="card?.plan.planStart">: the plan starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
           </p>
           <!-- The state, as a badge on the egg's own line (lib/nowPhase.ts), its rate smaller underneath. -->
@@ -290,7 +290,7 @@
       >
         When should I start? ›
       </button>
-      <span class="block mt-1 text-body text-slate-500"
+      <span class="block mt-1 text-body text-slate-500 max-w-prose"
         >Prices a route at every hour of the next week for this save ({{ NAMES.science }} › {{ NAMES.start }}).</span
       >
     </div>
@@ -310,7 +310,7 @@
             <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
           </ul>
         </div>
-        <p v-if="simWorking" class="mt-0.5 text-body text-slate-600" role="status" data-testid="now-sim-working" :data-state="simWorking">
+        <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
           <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
@@ -326,7 +326,7 @@
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
         <p v-else class="text-body text-slate-700">Nothing left in this plan: work out a new one.</p>
-        <p v-if="card.plan.estimated" class="mt-0.5 text-body text-slate-600" data-testid="now-next-estimated">
+        <p v-if="card.plan.estimated" class="mt-0.5 text-body text-slate-600 max-w-prose" data-testid="now-next-estimated">
           <template v-if="simulatedNow">The ascension you are in, simulated on your save; the rest of your route's steps, {{ ESTIMATE_WORDS }}.</template>
           <template v-else>Your route's steps, {{ ESTIMATE_WORDS }}.</template>
         </p>
@@ -338,7 +338,7 @@
           </ul>
         </div>
         <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
-        <p v-if="simWorking" class="mt-0.5 text-body text-slate-600" role="status" data-testid="now-sim-working" :data-state="simWorking">
+        <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
           <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
@@ -349,7 +349,7 @@
       </template>
       <p
         v-else-if="follow && (follow.estimating === 'working' || follow.estimating === 'waiting')"
-        class="text-body text-slate-700"
+        class="text-body text-slate-700 max-w-prose"
         role="status"
         data-testid="now-follow-estimating"
         :data-state="follow.estimating"
@@ -357,7 +357,7 @@
         <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data…</template>
         <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
       </p>
-      <p v-else-if="follow && follow.estimating === 'nosource'" class="text-body text-slate-700" data-testid="now-follow-nosource">
+      <p v-else-if="follow && follow.estimating === 'nosource'" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-nosource">
         No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is
         nothing to estimate it from.{{ ' ' }}<button
           type="button"
@@ -368,7 +368,7 @@
           Open {{ screenName }} once so the instant answer can price it ›
         </button>
       </p>
-      <p v-else-if="follow" class="text-body text-slate-700" data-testid="now-follow-next" :data-estimating="follow.estimating ?? ''">
+      <p v-else-if="follow" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-next" :data-estimating="follow.estimating ?? ''">
         <template v-if="follow.estimating === 'beyond'"
           >Your route goes past what the instant answer covers, so it has no estimate:{{ ' ' }}</template
         ><template v-else-if="follow.estimating === 'failed'"
@@ -386,17 +386,17 @@
           Work it out ›
         </button>
       </p>
-      <p v-else-if="selectedOption" class="text-body text-slate-700" data-testid="now-no-plan">
+      <p v-else-if="selectedOption" class="text-body text-slate-700 max-w-prose" data-testid="now-no-plan">
         {{ selectedOption.label }}: {{ emptyGoalWords(selectedOption.state) }} ·
         <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
           Work it out ›
         </button>
-        <span class="block mt-0.5 text-body text-slate-500"
+        <span class="block mt-0.5 text-body text-slate-500 max-w-prose"
           >The instant answer for a goal is kept for a day after its screen works it out; a Fast, Exact or Custom result
           for it takes over when it is better.</span
         >
       </p>
-      <p v-else class="text-body text-slate-700" data-testid="now-no-plan">
+      <p v-else class="text-body text-slate-700 max-w-prose" data-testid="now-no-plan">
         No plan with its times is saved for this save yet: the instant answer for a goal is kept for a day after its
         screen works it out.
         <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-out-plan" @click="emit('open', { auto: 'fastest', depth: 'smart', target: 490 })">

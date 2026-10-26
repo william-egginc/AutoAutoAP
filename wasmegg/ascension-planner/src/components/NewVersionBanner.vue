@@ -20,7 +20,7 @@
     role="status"
     data-testid="update-banner-small"
   >
-    <p class="text-body">
+    <p class="text-body max-w-prose">
       <span class="font-bold text-slate-900">Small update available</span>.{{ ' '
       }}<template v-if="hasNotes">New:</template
       ><template v-else
@@ -33,7 +33,7 @@
       <li v-for="(n, i) in shown" :key="i">{{ n }}</li>
       <li v-if="more > 0" class="list-none -ml-4 text-slate-500">+{{ more }} more</li>
     </ul>
-    <p v-if="hasNotes" class="mt-1 text-body">
+    <p v-if="hasNotes" class="mt-1 text-body max-w-prose">
       No need to reload now; you will get it next time you open the page.<template v-if="note"
         >{{ ' ' }}If you reload anyway, {{ note }}.</template
       >

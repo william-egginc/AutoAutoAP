@@ -14,7 +14,7 @@
     <h3 class="text-indigo-800 label">{{ heading }}</h3>
     <slot name="intro" />
     <!-- The run sent a best so far (Send best so far): this send takes its place on the board. -->
-    <p v-if="replacesBestSoFar" class="text-body font-bold text-indigo-900" data-testid="share-replaces">
+    <p v-if="replacesBestSoFar" class="text-body font-bold text-indigo-900 max-w-prose" data-testid="share-replaces">
       Your best so far from this run is on the Leaderboard as "in progress". Sending this result replaces it.
     </p>
     <!-- Compact (the user, 12 Oct: the same consent twice): not agreed yet, the screen's one button, which

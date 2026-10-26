@@ -59,7 +59,7 @@
     <p v-else class="px-4 py-8 text-center text-body text-slate-400">
       No run here at {{ finalTE }} TE has a plan start to place.
     </p>
-    <p v-if="current && !current.repricedPlans" class="px-1 text-body text-slate-500">
+    <p v-if="current && !current.repricedPlans" class="px-1 text-body text-slate-500 max-w-prose">
       None of {{ current.label }}'s plans has been priced twice yet, so there is no line to draw: each mark is one plan
       at the date it was made.
     </p>

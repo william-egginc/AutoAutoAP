@@ -181,7 +181,7 @@
       v-if="teToGain > 0 && eggsToLay > 0 && !isTEWaitReachable(timeToLaySeconds)"
       class="bg-amber-50 border border-amber-100 rounded-2xl p-4"
     >
-      <p class="text-body font-bold text-amber-700">
+      <p class="text-body font-bold text-amber-700 max-w-prose">
         TE #{{ targetTENumber }} is not reachable: it would take over a year at this farm's current delivery
         rate. Build up the farm first.
       </p>

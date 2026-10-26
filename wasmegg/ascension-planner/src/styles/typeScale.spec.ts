@@ -198,3 +198,19 @@ describe('the scale everywhere (the codemod, steps 2 and 3)', () => {
     expect(bad).toEqual([]);
   });
 });
+
+describe('line length (step 4): reading paragraphs stop at about 65 characters (max-w-prose)', () => {
+  it('the screen intros, the Help box intro, My runs and Setup paragraphs', () => {
+    expect(read('components/auto/ByDateScreen.vue')).toContain('<p class="text-body text-slate-600 max-w-prose">');
+    expect(read('components/auto/FastestRoute.vue')).toContain('<p class="text-body text-slate-600 max-w-prose">');
+    expect(read('components/StudyForm.vue')).toContain('class="text-body text-slate-600 break-words max-w-prose" data-testid="study-intro"');
+    expect(read('components/MyRunsView.vue')).toContain('<span class="block max-w-prose text-body text-slate-500"');
+    expect(read('components/auto/YourSetup.vue').match(/max-w-prose/g)!.length).toBeGreaterThanOrEqual(10);
+    expect(read('components/auto/InstantRoute.vue').match(/max-w-prose/g)!.length).toBeGreaterThanOrEqual(8);
+  });
+  it('about 130 reading paragraphs carry it; no table, cell or button does', () => {
+    const n = FILES.reduce((s, f) => s + (f.src.match(/max-w-prose/g) ?? []).length, 0);
+    expect(n).toBeGreaterThanOrEqual(130);
+    expect(hits(/<(?:table|td|th|button)\b[^>]*max-w-prose/)).toEqual([]);
+  });
+});

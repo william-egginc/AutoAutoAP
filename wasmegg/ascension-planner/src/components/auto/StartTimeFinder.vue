@@ -7,7 +7,7 @@
 <template>
   <div :class="bare ? 'space-y-3' : 'rounded-xl border border-slate-200 bg-white p-4 space-y-3'">
     <h3 v-if="!bare" class="text-slate-500 label">{{ NAMES.start }}</h3>
-    <p class="text-body text-slate-600">
+    <p class="text-body text-slate-600 max-w-prose">
       Prices <span class="font-bold">{{ chain.join(' ') }}</span> as a fresh start at every
       {{ stepMinutes === 60 ? 'hour' : `${stepMinutes / 60} hours` }} of the next week<template
         v-if="store.scheduleEnabled"
@@ -61,7 +61,7 @@
       <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-1">
         <p class="text-small font-bold text-emerald-800">Best start in the next week</p>
         <p class="text-body font-bold text-emerald-900">{{ show(best.start) }}</p>
-        <p class="text-body text-emerald-900">
+        <p class="text-body text-emerald-900 max-w-prose">
           Reaches the end of the route {{ show(best.finish as number)
           }}<template v-if="soonest && soonest !== best"
             >, {{ gainLabel }} than starting at the first time tried ({{ show(soonest.start) }}, done
@@ -70,7 +70,7 @@
         </p>
         <!-- The run's own length, not counting the wait to start: the hour's own effect (the squares below are
              coloured by finish instead, which is what the best start is picked on; Allan, Discord, 12 Oct). -->
-        <p v-if="quickest" class="text-body text-emerald-900" data-testid="start-quickest">
+        <p v-if="quickest" class="text-body text-emerald-900 max-w-prose" data-testid="start-quickest">
           <span class="font-bold">Quickest run, not counting the wait to start:</span> starting
           {{ show(quickest.start) }} takes {{ daysOf(quickest) }} days; the slowest start in the week takes
           {{ daysOf(slowest!) }} days, so the hour alone can change the run's length by {{ spreadLabel }}. A later start

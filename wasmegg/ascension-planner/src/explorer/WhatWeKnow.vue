@@ -64,7 +64,7 @@
       <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>
     </div>
 
-    <p class="text-body text-slate-500">
+    <p class="text-body text-slate-500 max-w-prose">
       Tap a finding to open it. The header counts are worked out from the Leaderboard each time the page loads. The charts and
       tables further down are live too and show dates in your timezone.
     </p>

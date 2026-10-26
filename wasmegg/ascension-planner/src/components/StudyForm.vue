@@ -15,7 +15,7 @@
   <div class="space-y-3 text-left" data-testid="study-form">
     <!-- Short on purpose (about 5 lines at 390 px, 21 Oct 2026): the full list is behind "What exactly is sent"
          (about.html#sent), and each tick says public or private itself. -->
-    <p class="text-body text-slate-600 break-words" data-testid="study-intro">
+    <p class="text-body text-slate-600 break-words max-w-prose" data-testid="study-intro">
       Help make the planner’s answers better.{{ ' ' }}<span :class="phoneOnly"
         >Your runs go public only when you press share. The last tick sends a private, anonymous record of the best
         result of a Fast, Exact or Custom search.{{ ' ' }}</span

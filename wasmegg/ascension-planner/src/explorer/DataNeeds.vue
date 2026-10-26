@@ -131,7 +131,7 @@
             </div>
           </div>
           <!-- Only when there is something to run: with no chains there are no buttons to press. -->
-          <p v-if="!need.byDate && need.chains > 0" class="text-body text-slate-700">
+          <p v-if="!need.byDate && need.chains > 0" class="text-body text-slate-700 max-w-prose">
             {{
               need.links.length > 1 ? 'Press both buttons below, one after the other.' : 'Press Run this sweep below.'
             }}

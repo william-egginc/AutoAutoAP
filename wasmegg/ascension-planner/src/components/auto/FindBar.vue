@@ -124,7 +124,7 @@
     <!-- Greyed out because the other search on this screen is going (the user, 12 Oct: it said nothing). -->
     <p
       v-if="blockedBy && !running"
-      class="text-body font-bold text-slate-600"
+      class="text-body font-bold text-slate-600 max-w-prose"
       data-testid="find-blocked"
     >
       {{ blockedBy }} is running, and one search runs at a time: {{ runLabel }} comes back when it finishes or you stop it.

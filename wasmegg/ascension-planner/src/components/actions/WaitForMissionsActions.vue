@@ -14,7 +14,7 @@
             />
           </svg>
         </div>
-        <p class="text-body font-normal text-blue-700">
+        <p class="text-body font-normal text-blue-700 max-w-prose">
           <span class="label block mb-1">Info:</span>
           This shows missions that were in flight in your last save. Press Wait on one to add its remaining time to your
           plan.

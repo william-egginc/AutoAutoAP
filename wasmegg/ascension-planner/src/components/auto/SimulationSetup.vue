@@ -24,7 +24,7 @@
     </button>
 
     <div v-if="open && inventory" class="space-y-4">
-      <p class="text-body text-slate-500">
+      <p class="text-body text-slate-500 max-w-prose">
         The searches don't wear a fixed set, or what you have equipped. They re-solve the best loadout inside
         <span class="font-bold">every ascension</span> from your virtue inventory, and swap between two: the
         <span class="font-bold">delivery</span> set while they build the farm, and the
@@ -45,12 +45,12 @@
         </button>
       </div>
       <LoadoutDisplay :loadout="setTab === 'elr' ? inventory.elr : inventory.earnings" />
-      <p v-if="setTab === 'elr'" class="text-body text-slate-500">
+      <p v-if="setTab === 'elr'" class="text-body text-slate-500 max-w-prose">
         Solved against your research <span class="font-bold">as it is today</span>, so this is the set the first
         ascension runs with. Every later ascension re-solves against its own research and will pick something
         different.
       </p>
-      <p v-else class="text-body text-slate-500">
+      <p v-else class="text-body text-slate-500 max-w-prose">
         The best earnings set your inventory can build. It doesn't depend on research, so it's the
         same in every ascension.
       </p>
@@ -87,7 +87,7 @@
               <span v-if="st.count > 1" class="text-indigo-400">{{ st.count }}&#215; </span>{{ st.label }}
             </span>
           </div>
-          <p class="text-body text-slate-400">
+          <p class="text-body text-slate-400 max-w-prose">
             Most of these never get worn. The solver picks from the whole pile, so the pile is its input, but only the
             two sets above are what any ascension runs with.
           </p>

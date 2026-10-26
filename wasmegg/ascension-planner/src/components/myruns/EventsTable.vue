@@ -58,11 +58,11 @@
     <div v-if="upcoming.length > 1" class="mt-2">
       <CalendarButton :events="upcoming.map(calOf)" :label="`Add all ${upcoming.length} upcoming to calendar`" primary />
     </div>
-    <p v-if="rounded" class="mt-1.5 text-body text-slate-500" data-testid="now-events-rounded">
+    <p v-if="rounded" class="mt-1.5 text-body text-slate-500 max-w-prose" data-testid="now-events-rounded">
       <!-- Plain words, no link (ux review 26 Oct, row 15; 25 Oct 2026: the card's Run Fast went, Try next has the runs). -->
       From the instant answer, rounded to the hour. For exact times on your account, use a run from Try next below.
     </p>
-    <p v-else-if="upcoming.length" class="mt-1.5 text-body text-slate-500">
+    <p v-else-if="upcoming.length" class="mt-1.5 text-body text-slate-500 max-w-prose">
       Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
       nothing is sent. If the plan changes, add them again after a new run.
     </p>

@@ -25,7 +25,7 @@
         </div>
 
         <div class="p-6">
-          <p class="text-body font-normal text-slate-600">
+          <p class="text-body font-normal text-slate-600 max-w-prose">
             A plan named <strong class="text-slate-900">"{{ planName }}"</strong> already exists in your library. How
             would you like to proceed?
           </p>

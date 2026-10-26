@@ -19,7 +19,7 @@
       <h3 class="text-slate-500 label">Saved runs</h3>
       <span class="text-small font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
-    <p v-if="!listOnly" class="text-body text-slate-500">
+    <p v-if="!listOnly" class="text-body text-slate-500 max-w-prose">
       Kept in this browser, per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with
       the save it started with while that save is kept here, and puts its target, schedule, time off and plan start
       back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped. Each run also

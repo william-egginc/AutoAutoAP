@@ -27,23 +27,23 @@
 <template>
   <div class="space-y-4" data-testid="latest-run">
     <div v-if="shown === 'none'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-1.5" data-testid="latest-run-empty">
-      <p v-if="store.isRunning && fastestMine && want !== 'date'" class="text-body text-slate-700">
+      <p v-if="store.isRunning && fastestMine && want !== 'date'" class="text-body text-slate-700 max-w-prose">
         Your run on {{ fastestName(store.finalTE) }} has started: its other options and charts show here as its
         routes are priced.
       </p>
       <p v-else-if="store.deadlineRunning && dateMine && want !== 'fastest'" class="text-body text-slate-700">
         Your {{ NAMES.byDate }} run has started: its routes show here when it finishes.
       </p>
-      <p v-else-if="want === 'date'" class="text-body text-slate-700" data-testid="latest-run-none-date">
+      <p v-else-if="want === 'date'" class="text-body text-slate-700 max-w-prose" data-testid="latest-run-none-date">
         No {{ NAMES.byDate }} run yet on this account: run one on
         <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
         and its routes show here.
       </p>
-      <p v-else-if="want === 'fastest'" class="text-body text-slate-700" data-testid="latest-run-none-fastest">
+      <p v-else-if="want === 'fastest'" class="text-body text-slate-700 max-w-prose" data-testid="latest-run-none-fastest">
         No {{ fastestName(store.finalTE) }} run yet on this account: run Fast, Exact or Custom on it and its routes
         show here.
       </p>
-      <p v-else class="text-body text-slate-700">
+      <p v-else class="text-body text-slate-700 max-w-prose">
         Run a search on {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }} and its routes show here, each with
         when every stop and egg happens.
       </p>
@@ -54,7 +54,7 @@
 
     <!-- By a date's run going now: its top routes so far (moved off By a date's progress, 16 Oct 2026). -->
     <template v-else-if="shown === 'date' && !dateResult">
-      <p class="text-body text-slate-600" data-testid="latest-run-date-running">
+      <p class="text-body text-slate-600 max-w-prose" data-testid="latest-run-date-running">
         Your
         <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
         run is going<template v-if="store.deadlineProgress"
@@ -90,7 +90,7 @@
 
     <!-- By a date's run: its best route for each stop count and its top 50, each with its arrow. -->
     <template v-else-if="shown === 'date' && dateResult">
-      <p class="text-body text-slate-600" data-testid="latest-run-from-date">
+      <p class="text-body text-slate-600 max-w-prose" data-testid="latest-run-from-date">
         From your
         <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
         run ({{ dateResult.simple ? NAMES.smart : NAMES.full }}, by {{ when(dateResult.deadline) }})<template
@@ -105,7 +105,7 @@
         ><template v-else-if="dateResult.stoppedEarly">, stopped early</template>.
       </p>
       <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4" data-testid="latest-run-by-date">
-        <p class="text-body text-slate-500">
+        <p class="text-body text-slate-500 max-w-prose">
           Open a route's arrow for when each stop is reached, then an ascension's for when each egg is shifted and the TE
           it reaches.
         </p>
@@ -147,7 +147,7 @@
     </template>
 
     <template v-else>
-      <p class="text-body text-slate-600" data-testid="latest-run-from">
+      <p class="text-body text-slate-600 max-w-prose" data-testid="latest-run-from">
         From your {{ runName }} run on
         <a :href="backHash" class="font-bold text-indigo-700 underline hover:text-indigo-900"
           >{{ fastestName(store.finalTE) }}</a
@@ -173,7 +173,7 @@
           </button>
         </div>
 
-        <p class="text-body text-slate-500">
+        <p class="text-body text-slate-500 max-w-prose">
           Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
           half a day slower for one fewer ascension may well be the trade you want. Pick on the
           <span class="font-bold">finish date</span>, not the day count: durations from different plan starts are

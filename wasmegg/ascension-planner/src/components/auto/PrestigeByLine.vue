@@ -54,7 +54,7 @@
   </div>
   <!-- Beta only: hidden by the 7-day rule, but say it is there, so the line can be seen working. Not on By a date
        (UX review 26 Oct 2026, item 8): nothing there until it is closer. -->
-  <p v-else-if="beta && !dated && status === 'done' && line?.farOff" class="text-body text-slate-400" data-testid="prestige-by-far">
+  <p v-else-if="beta && !dated && status === 'done' && line?.farOff" class="text-body text-slate-400 max-w-prose" data-testid="prestige-by-far">
     Prestige by: your next prestige is more than 7 days away (the cutoff is about {{ line.farOff }}). This line
     shows when it's closer.
   </p>

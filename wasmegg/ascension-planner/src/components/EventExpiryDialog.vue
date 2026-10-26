@@ -30,12 +30,12 @@
               The active <span class="text-rose-600 font-bold">{{ eventName }}</span> is scheduled to end at
               <span class="text-slate-900 font-bold">{{ formatTime(endTime) }}</span>.
             </p>
-            <p class="text-body font-normal text-slate-600">
+            <p class="text-body font-normal text-slate-600 max-w-prose">
               This action (or sequence of actions) is estimated to complete at 
               <span class="text-slate-900 font-bold">{{ formatTime(completionTime) }}</span>, 
               which is <span class="text-rose-600 font-bold">{{ formatDuration(completionTime - endTime) }}</span> after the event expiry.
             </p>
-            <p class="text-body text-slate-500 italic">
+            <p class="text-body text-slate-500 italic max-w-prose">
               Deactivate and Continue turns the event off first, then adds the action(s) at normal rates. Deactivate and Cancel turns it off and adds nothing. Cancel leaves the event on and adds nothing.
             </p>
           </div>

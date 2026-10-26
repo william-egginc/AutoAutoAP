@@ -303,7 +303,7 @@
     </section>
 
     <!-- The ask for runs is the Science tab now; one line points there. -->
-    <p class="px-1 text-body text-slate-500">
+    <p class="px-1 text-body text-slate-500 max-w-prose">
       Want to help work out the rules? The sweeps we still need, one per open question, are on
       <a href="#/science/check" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.check }}</a>.
     </p>

@@ -33,18 +33,18 @@
             Sweep request from {{ NAMES.science }}
           </p>
           <h3 class="text-body font-bold text-slate-900">{{ sweepRequest.label }}</h3>
-          <p class="text-body text-slate-600">
+          <p class="text-body text-slate-600 max-w-prose">
             Ranges <code class="rounded bg-white px-1 text-small">{{ bandsText }}</code
             >, minimum gap {{ minGap
             }}<template v-if="sweepRequest.firstAscension !== null"
               >, {{ describeFirstAscension(sweepRequest.firstAscension) }}</template
             >. These are already filled in below.
           </p>
-          <p class="text-body text-slate-600">
+          <p class="text-body text-slate-600 max-w-prose">
             This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use
             {{ NAMES.smartFirst }} or the instant answer for that.
           </p>
-          <p class="text-body text-slate-600">
+          <p class="text-body text-slate-600 max-w-prose">
             <template v-if="timeOffText">
               Planned around time off: <b>{{ timeOffText }}</b
               >. It still prices every route, but the result goes on the Leaderboard with the time-off runs and won't fill
@@ -209,7 +209,7 @@
         >
           <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
         </p>
-        <p v-else-if="store.isRunning" class="text-body font-bold text-indigo-700">
+        <p v-else-if="store.isRunning" class="text-body font-bold text-indigo-700 max-w-prose">
           Running: progress is shown further down. Leave this tab open<template v-if="autoSubmitArmed"
             >; the result is submitted automatically when it finishes</template
           >.
@@ -608,7 +608,7 @@
             </p>
           </div>
 
-          <p class="text-body text-slate-500">
+          <p class="text-body text-slate-500 max-w-prose">
             The ascension count includes the final target, so 4 ranges is 5 ascensions. Values at or below your current
             TE, and at or above the target, are dropped: neither is an ascension you can perform.
           </p>
@@ -896,11 +896,11 @@
               <p class="text-small font-bold text-rose-800">
                 No route in this space finishes
               </p>
-              <p class="text-body text-rose-900/90">
+              <p class="text-body text-rose-900/90 max-w-prose">
                 Every route was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can
                 put a date on. That is a result, not a crash, so there is nothing to save or submit.
               </p>
-              <p class="text-body text-rose-900/90">
+              <p class="text-body text-rose-900/90 max-w-prose">
                 The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs
                 and vehicles the plan is waiting on, so the very first ascension stalls and every ascension after it inherits the
                 stall. A different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
@@ -981,10 +981,10 @@
                 {{ store.continueWarning }}
               </p>
               <ResultHealth class="mt-2" :issues="store.resultContradictions" />
-              <p v-if="store.stoppedEarly" class="text-body text-emerald-900/70 pt-1">
+              <p v-if="store.stoppedEarly" class="text-body text-emerald-900/70 pt-1 max-w-prose">
                 You stopped it early, so this is the best of what was priced, not the optimum of the space.
               </p>
-              <p v-if="store.timeOff.length && !store.isRunning" class="text-body text-emerald-900/80">
+              <p v-if="store.timeOff.length && !store.isRunning" class="text-body text-emerald-900/80 max-w-prose">
                 Your time off goes into the plan too: the ascension it interrupts ends when the time off starts
                 (going to the home farm is a prestige), and a rebuild starts after it.
               </p>
@@ -1046,14 +1046,14 @@
               @nickname-typed="nicknameTouched = true"
             >
               <template #intro>
-                <p class="text-body text-indigo-900/80">
+                <p class="text-body text-indigo-900/80 max-w-prose">
                   A Custom result is the most useful thing the Leaderboard can get: the best of a stated grid rather than
                   a search result. It is sent with the space it covered and what it found there (the runners-up, the
                   best route at each ascension count, and the spread), so a reader can tell a real find from a flat
                   neighbourhood without downloading the CSV. A run opened from Saved for later above is sent without a run
                   cost, because the time it took wasn't this machine's.
                 </p>
-                <p class="text-body text-indigo-900/80">
+                <p class="text-body text-indigo-900/80 max-w-prose">
                   The Leaderboard uses the random code so that a run landing on the flagged Leaderboard shows to you as yours and to
                   everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
                   you sent anonymously, and your own later runs can replace your older plans on the Leaderboard (nobody else's

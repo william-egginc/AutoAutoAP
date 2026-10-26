@@ -305,7 +305,7 @@
           Pick a target TE above: Fastest to N TE needs one finish line.
         </p>
         <template v-else>
-          <p class="text-body text-indigo-900/80">
+          <p class="text-body text-indigo-900/80 max-w-prose">
             Players ranked by when their current best plan reaches {{ target }}. How far along they already are counts,
             so this shows who gets there first, not whose plan is best. To compare a route with yours, press
             <span class="font-bold">Use</span>.
@@ -597,13 +597,13 @@
 
       <!-- ======================================================= EGG DAY, AND BY A DATE -->
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
-        <p v-if="tab === 'eggday'" class="text-body text-indigo-900/80">
+        <p v-if="tab === 'eggday'" class="text-body text-indigo-900/80 max-w-prose">
           The highest TE each player can reach by Egg Day {{ eggDayYear }} (Jul 14, 9:00 am Pacific), from the Auto
           Planner's <span class="font-bold">{{ NAMES.byDate }}</span> search with the Egg Day preset. Players are ranked
           by the TE they reach, then by time to spare, using each player's best answer. Game events aren't simulated,
           including Egg Day's own.
         </p>
-        <p v-else class="text-body text-indigo-900/80">
+        <p v-else class="text-body text-indigo-900/80 max-w-prose">
           The highest TE each player can reach by any other date, from the Auto Planner's
           <span class="font-bold">{{ NAMES.byDate }}</span> search, one table per date. Dates are in your timezone
           ({{ viewZone }}). Players are ranked by the TE they reach, then by time to spare, using each player's best
@@ -773,7 +773,7 @@
 
       <!-- ================================================================== ALL RUNS -->
       <template v-else>
-        <p class="text-body text-indigo-900/80">
+        <p class="text-body text-indigo-900/80 max-w-prose">
           Every run on the Leaderboard. A result sent more than once shows once, with how many times it was sent; open it to
           see each copy and its CSV. Look-alike runs (same route and save) are tagged with how they differ. A run sent
           under a player's name without their code since codes began is tagged

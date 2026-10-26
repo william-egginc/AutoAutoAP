@@ -13,7 +13,7 @@
     <p class="text-body font-bold text-slate-900" data-testid="instant-none-heading">{{ heading }}</p>
     <p v-if="sub" class="text-body text-slate-600">{{ sub }}</p>
     <slot>
-      <p class="text-body text-slate-700" data-testid="instant-none-fastest">
+      <p class="text-body text-slate-700 max-w-prose" data-testid="instant-none-fastest">
         The quick estimate is on {{ NAMES.byDate }}: pick a date there and press
         <b>{{ QUICK_ESTIMATE_LABEL }}</b>. The {{ NAMES.smart }} search below still runs here, starting from a route spaced out
         from your TE.

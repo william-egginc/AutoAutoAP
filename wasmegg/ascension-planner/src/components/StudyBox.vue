@@ -68,7 +68,7 @@
     :aria-label="NAMES.study"
     data-testid="study-strip"
   >
-    <p class="text-body font-bold text-indigo-900 sm:flex-1 break-words">
+    <p class="text-body font-bold text-indigo-900 sm:flex-1 break-words max-w-prose">
       You agreed to help improve the planner in this browser. Use the same choices for this account?
     </p>
     <div class="flex flex-col sm:flex-row gap-2">
@@ -97,7 +97,7 @@
     role="status"
     data-testid="study-thanks"
   >
-    <p class="text-body font-bold text-emerald-900 sm:flex-1 break-words">
+    <p class="text-body font-bold text-emerald-900 sm:flex-1 break-words max-w-prose">
       Thank you. Your choices are on for this account. Change them any time in {{ NAMES.setup }} ›
       {{ NAMES.study }} (the {{ NAMES.setup }} button on the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
     </p>

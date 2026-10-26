@@ -109,7 +109,7 @@
         </select>
       </label>
     </div>
-    <p class="text-body text-slate-500">
+    <p class="text-body text-slate-500 max-w-prose">
       <!-- The planner's time only when it reads differently from the zone the date was given in (Egg Day: Pacific);
            otherwise it was a third copy of the same date (UX review 26 Oct 2026, item 14). -->
       <template v-if="deadline && !sameClock(deadline, plannerZone, zone)"
@@ -176,7 +176,7 @@
               <p v-if="stopAsked" class="text-body text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
             </template>
             <template v-else>
-              <p v-if="!quickBest" class="text-body text-slate-700">
+              <p v-if="!quickBest" class="text-body text-slate-700 max-w-prose">
                 A quick scan of 1 to 5 ascensions, then {{ NAMES.smart }} near its best, held to about
                 {{ Math.round(FALLBACK_BUDGET_SECONDS / 60) }} min on {{ thisDevice() }}. Stop keeps the best route so far.
               </p>
@@ -429,7 +429,7 @@
               </span>
             </template>
           </RoutesToTry>
-          <p class="text-body text-slate-500">
+          <p class="text-body text-slate-500 max-w-prose">
             Each box is one range of TEs per ascension before the last, like {{ fastestName(store.finalTE) }} ›
             {{ NAMES.fullFirst }}'s, separated by <span class="tabular-nums">;</span>. A range is
             <span class="tabular-nums">lo-hi:step</span>, a single value, or several values with commas. Boxes with
@@ -818,7 +818,7 @@
             again.</template
           >
         </ByDateRouteCard>
-        <p v-else class="text-body font-bold text-rose-700">
+        <p v-else class="text-body font-bold text-rose-700 max-w-prose">
           No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
         </p>
         <!-- Its top routes with when each stop and egg happens, on My runs › Your latest run (LatestRunView.vue). -->
@@ -922,7 +922,7 @@
         <!-- CSV and a quick save are on the card (as on Fastest's); here, a save under a name of your own. -->
         <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
           <p v-if="downloadError" class="text-body font-bold text-red-700">{{ downloadError }}</p>
-          <p class="text-body text-slate-500">
+          <p class="text-body text-slate-500 max-w-prose">
             Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
               >, on your save from {{ inPlannerZone(result.backupAt) }}</template
             >.<template v-if="resultPricedWith">{{ ' ' }}{{ resultPricedWith }}.</template> A route that reaches one more TE
@@ -947,7 +947,7 @@
           @nickname-typed="shareNameTouched = true"
         >
           <template #intro>
-            <p class="text-body text-indigo-900/80">
+            <p class="text-body text-indigo-900/80 max-w-prose">
               Sends the best route above to the {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab,
               where answers for the same date are ranked by the highest TE reached, then the time to spare. It stays
               out of Fastest to 490 TE.

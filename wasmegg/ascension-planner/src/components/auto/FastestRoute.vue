@@ -13,7 +13,7 @@
   <div class="max-w-4xl mx-auto space-y-4">
     <div>
       <h1 class="text-headline font-black text-slate-900">{{ fastestName(store.finalTE) }}</h1>
-      <p class="text-body text-slate-600">
+      <p class="text-body text-slate-600 max-w-prose">
         Finds the stops that get you to {{ store.finalTE }} TE soonest, from your save and Setup. Plans
         include the weekly Research Sale and the Monday 2× earnings boost, the same as {{ NAMES.classic }}; other game events aren't
         simulated.

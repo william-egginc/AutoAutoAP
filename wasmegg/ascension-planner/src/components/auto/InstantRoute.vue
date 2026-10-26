@@ -243,23 +243,23 @@
             />
           </span>
         </div>
-        <p v-if="useHours" class="text-body text-slate-500">
+        <p v-if="useHours" class="text-body text-slate-500 max-w-prose">
           Each prestige waits for your awake hours (the times shown include the wait).
         </p>
-        <p v-if="rangeText" class="text-body text-slate-500" data-testid="instant-range-note">
+        <p v-if="rangeText" class="text-body text-slate-500 max-w-prose" data-testid="instant-range-note">
           Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
         </p>
         <!-- No prestige on these days (search/noPrestige.ts): held in every route here, hours ticked or not. -->
-        <p v-if="noPrestigeOn" class="text-body text-slate-500" data-testid="instant-no-prestige">
+        <p v-if="noPrestigeOn" class="text-body text-slate-500 max-w-prose" data-testid="instant-no-prestige">
           Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time, and
           the farm keeps laying while it waits, {{ siloWords }} (the times shown include the wait).
         </p>
-        <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-500" data-testid="held-opening">
+        <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-500 max-w-prose" data-testid="held-opening">
           A stop reached late in your day waits for the next morning to prestige: an ascension's first shifts come in
           its first hours, and started that late some would fall after your awake hours end, which the instant answer can't
           time.
         </p>
-        <p v-else-if="useHours && openingNote === 'uncertain'" class="text-body text-amber-800" data-testid="held-opening">
+        <p v-else-if="useHours && openingNote === 'uncertain'" class="text-body text-amber-800 max-w-prose" data-testid="held-opening">
           Less certain with these awake hours: an ascension's first shifts take longer than your awake hours last, so some of them
           will wait for you in ways the instant answer can't time. A search below simulates them.
         </p>
@@ -268,7 +268,7 @@
         </p>
         <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
              the box's one caveat line): no "Pricing…" line that ends in nothing (UX review 26 Oct 2026, item 7). -->
-        <p v-if="bracketStatus === 'running' && !boxShown" class="text-body text-slate-500" data-testid="instant-bracket-running">
+        <p v-if="bracketStatus === 'running' && !boxShown" class="text-body text-slate-500 max-w-prose" data-testid="instant-bracket-running">
           Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
         </p>
         <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
@@ -340,7 +340,7 @@
             <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
             <p
               v-if="prestigeFlag.enabled.value && noPrestigeOn && prestigeStatus !== 'idle'"
-              class="text-body text-amber-800"
+              class="text-body text-amber-800 max-w-prose"
               data-testid="prestige-by-no-days"
             >
               The “Prestige by” line doesn't know your no-prestige days; Fast, Exact or Custom do.
@@ -375,7 +375,7 @@
               :candidate="instantCandidate(dateBoxOf(result.byDate))"
             />
           </template>
-          <p v-else-if="result.outside?.date" class="text-body text-amber-800" data-testid="instant-no-route">
+          <p v-else-if="result.outside?.date" class="text-body text-amber-800 max-w-prose" data-testid="instant-no-route">
             No route in this range: the nearest is {{ plural(result.outside.date.ascensions, 'ascension') }},
             {{ result.outside.date.endTE }} TE by {{ show(result.outside.date.end) }}
             ({{ result.outside.date.chain.join(' → ') }}).{{ ' ' }}
@@ -521,7 +521,7 @@
           <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
           <p
             v-if="prestigeFlag.enabled.value && noPrestigeOn && prestigeStatus !== 'idle'"
-            class="text-body text-amber-800"
+            class="text-body text-amber-800 max-w-prose"
             data-testid="prestige-by-no-days"
           >
             The “Prestige by” line doesn't know your no-prestige days; Fast, Exact or Custom do.
@@ -553,7 +553,7 @@
             :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
           />
         </div>
-        <p v-else-if="result.outside?.fastest" class="text-body text-amber-800" data-testid="instant-no-route">
+        <p v-else-if="result.outside?.fastest" class="text-body text-amber-800 max-w-prose" data-testid="instant-no-route">
           No route in this range: the nearest is {{ plural(result.outside.fastest.ascensions, 'ascension') }}, reaching
           {{ store.finalTE }} on {{ showFinish(result.outside.fastest.end) }} ({{ result.outside.fastest.chain.join(' → ') }}).{{
             ' '

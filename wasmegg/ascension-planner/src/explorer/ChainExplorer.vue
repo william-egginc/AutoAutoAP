@@ -50,7 +50,7 @@
       <section v-if="part === 'insights'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div v-if="!base" class="space-y-2">
           <p class="text-body font-bold text-slate-700">No server configured for this copy of the page.</p>
-          <p class="text-body text-slate-500">
+          <p class="text-body text-slate-500 max-w-prose">
             Paste the planner's server base URL: the same Worker the planner's Submit button posts to, without the
             <code class="tabular-nums">/submit</code>. It is remembered in this browser, and
             <code class="tabular-nums">?collector=…</code> on this page's own URL does the same thing for a link
@@ -89,7 +89,7 @@
                 ></template
               >
             </p>
-            <p v-if="!embedded && !loading && computeTotal.runs" class="text-body text-slate-500">
+            <p v-if="!embedded && !loading && computeTotal.runs" class="text-body text-slate-500 max-w-prose">
               Worker time from the {{ computeTotal.runs }} run{{ computeTotal.runs === 1 ? '' : 's' }} that recorded it
               (minutes x workers); runs from older versions and from uploads did not.
             </p>
@@ -243,7 +243,7 @@
               Proofs only
             </label>
           </div>
-          <p class="text-body text-slate-500">
+          <p class="text-body text-slate-500 max-w-prose">
             One target at a time, because a 300 route and a 490 route are different problems and their stops do not sit
             in the same places.
             <template v-if="exhaustiveOnly">
@@ -395,7 +395,7 @@
               </div>
             </details>
           </template>
-          <p v-else class="text-body text-slate-500">
+          <p v-else class="text-body text-slate-500 max-w-prose">
             Pick one count to see where its stops land and how each ascension goes: the third ascension of a 4-ascension
             plan and of a 7-ascension plan are not the same thing, so those charts only work one count at a time.
           </p>
@@ -952,7 +952,7 @@
                 within {{ t.label }}
               </button>
             </div>
-            <p class="text-body text-slate-600">
+            <p class="text-body text-slate-600 max-w-prose">
               <b>{{ plateau.near.toLocaleString() }}</b> of {{ plural(plateau.total, 'route') }} at
               {{ plural(loadedRun.ascensions, 'ascension') }} came within {{ toleranceText }} of this run's best ({{
                 plateau.bestDays.toFixed(2)

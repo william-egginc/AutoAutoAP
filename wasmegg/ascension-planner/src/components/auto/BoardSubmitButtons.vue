@@ -73,7 +73,7 @@
       >{{ preview() }}</pre
     >
 
-    <p v-if="!submitUrl" class="text-body text-indigo-900/70">
+    <p v-if="!submitUrl" class="text-body text-indigo-900/70 max-w-prose">
       No collector is configured in this build, so there is nowhere to submit to and the button is not shown.
       <span class="font-bold">Save the file</span> and share it however you like. Self-hosting: set
       <span class="tabular-nums">VITE_SUBMIT_URL</span> at build time.

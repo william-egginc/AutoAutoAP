@@ -122,7 +122,7 @@
     </div>
 
     <div v-if="docked" class="p-4 space-y-4">
-      <p class="text-body text-slate-500">
+      <p class="text-body text-slate-500 max-w-prose">
         One setup for all three Auto Planner screens: change it here and {{ NAMES.classic }}, {{ fastestName(store.finalTE) }} and
         {{ NAMES.byDate }} all use it.
       </p>
@@ -242,7 +242,7 @@
           <SchedulingInputs />
           <!-- An unset start means "now", which moves on every reload, and plan start is part of the
                run fingerprint: a checkpoint saved before a refresh stops matching. -->
-          <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700">
+          <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700 max-w-prose">
             No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
             before a long run.
           </p>
@@ -262,11 +262,11 @@
                 {{ c.blurb }}
               </span>
             </label>
-            <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-500">
+            <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-500 max-w-prose">
               Set from A1's dropdown in {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
               Choosing here changes it there too.
             </p>
-            <p v-if="startTooFar" class="text-body font-bold text-amber-700">
+            <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
               The plan starts more than an hour from now, so there's no current ascension to continue then: the first
               ascension starts fresh, as in {{ NAMES.classic }}.
             </p>
@@ -370,7 +370,7 @@
               </button>
             </div>
             <!-- Ticked but describing no restriction at all reads as a constraint and isn't one. -->
-            <p v-if="store.scheduleIsEmpty" class="text-body font-bold text-amber-700">
+            <p v-if="store.scheduleIsEmpty" class="text-body font-bold text-amber-700 max-w-prose">
               Every day, all hours: that's no restriction at all, and it's recorded as no schedule.
             </p>
             <p v-else-if="!store.availableDays.length" class="text-body font-bold text-amber-700">
@@ -380,7 +380,7 @@
             <!-- Picking hours means the shifts wait for them too (the user, 5 Oct: the hours should be obvious), so
                  the old "Hold egg shifts for my hours too" box is gone. Only a run or link saved with it off can
                  still be in that state; say so, with a way back. -->
-            <p v-if="!store.deferShifts" class="text-body font-bold text-amber-700">
+            <p v-if="!store.deferShifts" class="text-body font-bold text-amber-700 max-w-prose">
               This plan was saved with egg shifts not waiting for your awake hours.
               <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 underline font-bold" @click="store.deferShifts = true">
                 Make them wait too
@@ -406,12 +406,12 @@
         <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
-          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700 max-w-prose">
             {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
             {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
           </p>
-          <p v-else class="text-body text-slate-500">
+          <p v-else class="text-body text-slate-500 max-w-prose">
             The searches price every route with the time off in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
             {{ NAMES.insights }} keeps runs with time off apart from the rest, since they answer a different
             question.
@@ -494,7 +494,7 @@
                   <dd class="font-bold text-slate-700">{{ heapUsedMb || 'not reported' }}</dd>
                 </div>
               </dl>
-              <p class="text-body text-slate-500">
+              <p class="text-body text-slate-500 max-w-prose">
                 Cores is the only hardware figure a web page gets accurately. Reported RAM is rounded and capped by the
                 browser on purpose, which is why the worker count is yours to choose rather than detected.
               </p>
@@ -513,7 +513,7 @@
                   <span class="text-small font-bold text-slate-500">fastest routes</span>
                 </span>
               </label>
-              <p class="text-body text-slate-500">
+              <p class="text-body text-slate-500 max-w-prose">
                 Holding detail for
                 <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> routes ({{
                   heldMb
@@ -573,7 +573,7 @@
           </label>
           <!-- The followed route saved online (lib/followCloud.ts, stores/follow.ts): no choice here, it is how Follow
                works (Jordan, 23 Oct 2026); about.html says the same. -->
-          <p class="text-body text-slate-600" data-testid="follow-online">
+          <p class="text-body text-slate-600 max-w-prose" data-testid="follow-online">
             <span class="font-bold text-slate-800">The route you follow is saved online</span> under a code made from
             your player ID, so another device shows your route when you enter your ID there. Anyone who knows your player
             ID can see it. It holds the route, the goal, when you set it, the awake hours window you used, the time of your save
@@ -592,7 +592,7 @@
             }}</span>
           </p>
           <!-- Your choices and Setup saved online (lib/prefsCloud.ts, stores/prefs.ts); about.html says the same. -->
-          <p class="text-body text-slate-600" data-testid="prefs-online">
+          <p class="text-body text-slate-600 max-w-prose" data-testid="prefs-online">
             <span class="font-bold text-slate-800">Your choices and Setup are saved online</span>: your consent choices and
             your Setup (awake hours, time off, no prestige days, target TE and time zone) are saved under the same code as
             the route you follow, made from your player ID. Anyone who knows your player ID can read and change them. Never
@@ -601,12 +601,12 @@
           </p>
           <!-- "Which build is in use" (lib/buildCount.ts): no choice here; Global Privacy Control or Do Not Track turns
                it off. about.html says the same. -->
-          <p class="text-body text-slate-600" data-testid="build-count">
+          <p class="text-body text-slate-600 max-w-prose" data-testid="build-count">
             <span class="font-bold text-slate-800">The page's version</span> is sent to the planner's server at most once a day:
             just the version, nothing else, so the maintainer knows when old versions are still in use. Global Privacy Control or Do
             Not Track turns it off.
           </p>
-          <p class="text-body text-slate-500">
+          <p class="text-body text-slate-500 max-w-prose">
             Sending a result to the Leaderboard, its CSV and diagnostics are separate choices, in Before you send under Run.
           </p>
         </div>

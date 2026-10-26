@@ -5,7 +5,7 @@
     <div class="relative z-10 space-y-8">
       <!-- What it does, in two lines; the problem, the algorithm and the worked example are on Science ›
            How it works (moved there 12 Oct 2026: too much for this page). -->
-      <p class="text-body text-slate-700" data-testid="nearby-in-brief">
+      <p class="text-body text-slate-700 max-w-prose" data-testid="nearby-in-brief">
         The {{ NAMES.smart }} search starts from the instant answer's route and moves its stops a few TE at a time, keeping any
         change that finishes sooner, with the full simulator on your save. It runs on {{ thisDevice() }}'s workers; you can
         stop it any time and keep the best so far.
@@ -28,7 +28,7 @@
       >
         <div id="cs-settings" class="pb-5 pt-1 space-y-8">
           <!-- In the Stronger check box: one line; the route to start from is in Start from a different route below. -->
-          <p v-if="embedded" class="text-body text-slate-700" data-testid="start-line">
+          <p v-if="embedded" class="text-body text-slate-700 max-w-prose" data-testid="start-line">
             Starts from <span class="tabular-nums font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
               class="text-slate-500"
               >({{ seedSource }})</span
@@ -85,7 +85,7 @@
                 Measured on at most three players' accounts, against the best answer found (only one account has a
                 proven best), so there's no confidence percentage: that few cannot honestly be turned into one.
               </p>
-              <p class="text-body text-slate-500">
+              <p class="text-body text-slate-500 max-w-prose">
                 <span class="label text-slate-400">Reference time:</span>
                 {{ note.typicalTime }} These come from players' runs (few of them for Fast and Exact (wider); the 8- and
                 16-core figures are estimates). Your machine has {{ store.workersInPool + 1 }} logical cores, so expect
@@ -123,7 +123,7 @@
               aria-label="Your starting route"
               class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
             />
-            <p class="text-body text-slate-500">
+            <p class="text-body text-slate-500 max-w-prose">
               The search moves the stops of the route it starts from and adds at most one, so a route with too few
               stops can't reach a longer answer. Leave the final target off a typed route; it is added for you.
             </p>
@@ -221,7 +221,7 @@
                 />
               </div>
             </div>
-            <p class="text-body text-slate-500">
+            <p class="text-body text-slate-500 max-w-prose">
               Ascension count is the route length including your final target. It bounds Fast's check of the other
               counts and Exact's one-more-or-fewer step.
               <span v-if="store.pin > 0" class="font-bold text-slate-700">
@@ -562,7 +562,7 @@
               @csv="downloadCsv"
               @save="save"
             >
-              <p v-if="!store.searchSpace" class="text-body text-emerald-800">
+              <p v-if="!store.searchSpace" class="text-body text-emerald-800 max-w-prose">
                 The stages are nested (each one starts from the answer the previous one produced), so stopping is safe:
                 you keep this route, and it is exactly what the stages that already finished ({{
                   store.lastCompletedStage
@@ -599,7 +599,7 @@
                    hides while this result is on screen: the user, 12 Oct, found it clutter). After Exact the next
                    level was Very high, retired (glossary, 25 Oct 2026): Custom instead, its boxes filled from this
                    run's best routes (search/goFurther.ts). -->
-              <p v-if="goFurther" class="text-body text-emerald-900/80" data-testid="go-further">
+              <p v-if="goFurther" class="text-body text-emerald-900/80 max-w-prose" data-testid="go-further">
                 <button
                   type="button"
                   :disabled="store.busy"
@@ -969,7 +969,7 @@
             @nickname-typed="nicknameTouched = true"
           >
             <template #intro>
-              <p class="text-body text-indigo-900/80">
+              <p class="text-body text-indigo-900/80 max-w-prose">
                 <span class="font-bold">Share your result with the virtue track and the leaderboards.</span>
                 Pooling results across accounts is the only way to answer questions one account cannot: whether the
                 effort tiers behave the same everywhere, whether
@@ -1036,7 +1036,7 @@
 
             <!-- Where a submission ends up. A board nobody can find is not a shared repository of
                  anything, and "it was sent somewhere" is a poor answer to "sent where?". -->
-            <p v-if="store.submitUrl" class="text-body text-indigo-900/70">
+            <p v-if="store.submitUrl" class="text-body text-indigo-900/70 max-w-prose">
               Submissions land on
               <a href="#/compare/all" class="font-bold text-indigo-700 underline hover:text-indigo-900"
                 >{{ NAMES.compare }} › All runs</a

@@ -149,7 +149,7 @@
         v-if="totalTEToGain > 0 && !allReachable"
         class="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-4"
       >
-        <p class="text-body font-bold text-amber-700">
+        <p class="text-body font-bold text-amber-700 max-w-prose">
           Can't apply: at least one egg's wait would take over a year at this farm's current delivery rate
           ({{ unreachableEggNames }}). Lower the number or build up the farm first.
         </p>

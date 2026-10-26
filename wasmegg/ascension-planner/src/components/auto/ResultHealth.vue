@@ -26,7 +26,7 @@
     >
       {{ issue.message }}
     </p>
-    <p v-if="hasError" class="text-body text-rose-900/80">
+    <p v-if="hasError" class="text-body text-rose-900/80 max-w-prose">
       Reload your backup and run it again before trusting these dates, and compare leg 1 against the official
       planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between legs.
     </p>

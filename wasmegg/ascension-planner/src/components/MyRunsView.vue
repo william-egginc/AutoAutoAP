@@ -128,7 +128,7 @@
     <section id="my-runs-your-runs" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3" data-testid="my-runs-your-runs">
       <div>
         <p class="label text-slate-500">Your runs</p>
-        <p class="text-body text-slate-500" data-testid="my-runs-baseline-intro">
+        <p class="text-body text-slate-500 max-w-prose" data-testid="my-runs-baseline-intro">
           Each run is compared with your <b>instant answer</b>: the one for your save on the day of the run.
         </p>
       </div>
@@ -142,7 +142,7 @@
         <input v-model="shareBaseline.agreed.value" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-slate-300" />
         <span>
           <b>Share my instant answer with my runs</b>
-          <span class="block text-body text-slate-500"
+          <span class="block max-w-prose text-body text-slate-500"
             >Sends the instant answer's route and date beside each run you send, so the Leaderboard can show how much a search
             gained. Same rules as sending a run: never your player ID, never your save.</span
           >
@@ -214,7 +214,7 @@
             Saved on {{ thisDevice() }}<span :class="COUNT">{{ countText(savedCount) }}</span>
           </summary>
           <div class="mt-3 space-y-3">
-            <p class="text-body text-slate-500">
+            <p class="text-body text-slate-500 max-w-prose">
               Kept in this browser for this account. Open puts one back on its screen in the {{ NAMES.auto }}: runs on
               {{ fastestName(store.finalTE) }}, answers on {{ NAMES.byDate }}.
             </p>
@@ -246,7 +246,7 @@
             Not sent yet<span :class="COUNT">{{ countText(unsentCount) }}</span>
           </summary>
           <div class="mt-3 space-y-2">
-            <p class="text-body text-slate-500">
+            <p class="text-body text-slate-500 max-w-prose">
               Finished results this browser kept because they didn't reach the Leaderboard (the page closed first, or nothing sent
               them). Each goes with its own route and CSV, whatever save is loaded now.
             </p>

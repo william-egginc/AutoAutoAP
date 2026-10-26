@@ -73,7 +73,7 @@
 
       <!-- 1. Getting ready -->
       <template v-else-if="phase === 'confirm'">
-        <p class="text-body text-slate-700">
+        <p class="text-body text-slate-700 max-w-prose">
           To work out the figures, this loads your latest save and sets the planner up from it, the same as opening the
           {{ NAMES.auto }} does. That clears the plan in the planner now
           <b>({{ planSteps }} step{{ planSteps === 1 ? '' : 's' }})</b>.
@@ -173,7 +173,7 @@
           </span>
         </label>
 
-        <p v-if="timeOffText" class="text-body text-slate-600">
+        <p v-if="timeOffText" class="text-body text-slate-600 max-w-prose">
           Planned around your time off (<b>{{ timeOffText }}</b
           >). It still prices every route, but the result goes on the Leaderboard with the time-off runs and won’t fill this
           gap.
@@ -204,7 +204,7 @@
             </span>
             </template>
           </ConsentBox>
-          <p v-if="showWhat" class="pl-6 text-body text-slate-500">
+          <p v-if="showWhat" class="pl-6 text-body text-slate-500 max-w-prose">
             The route, its timings and the full CSV, with your artifact inventory, time zone and local plan start, plus a
             random code this browser keeps for the account (never your player ID, and never shown). The code folds
             repeated sends together, lets you put your name on a run sent anonymously, and lets your own later runs
@@ -311,7 +311,7 @@
         </div>
 
         <div v-else class="space-y-3">
-          <p v-if="store.bestDays > 0" class="text-body text-slate-800">
+          <p v-if="store.bestDays > 0" class="text-body text-slate-800 max-w-prose">
             <template v-if="store.stoppedEarly"
               >Stopped early, after {{ plural(store.chainsDone, 'route') }}.
             </template>

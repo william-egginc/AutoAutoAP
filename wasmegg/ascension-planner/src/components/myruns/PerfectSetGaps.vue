@@ -13,7 +13,7 @@
     <div class="mt-2 space-y-3 max-w-xl">
       <p v-if="!gaps" class="text-body text-slate-600">{{ headline }}</p>
       <template v-else>
-        <p class="text-body text-slate-500">
+        <p class="text-body text-slate-500 max-w-prose">
           Perfect here is the maxed instant answer's bar: every artifact T4 Legendary, every stone slot filled at tier
           4. Only rarity, tier and stones are compared, not which artifacts or stone types suit each set.
         </p>

@@ -38,7 +38,7 @@
         <p v-else class="ml-4 text-body text-slate-500" data-testid="now-ascension-no-shifts">{{ noShifts(l) }}</p>
       </li>
     </ol>
-    <p class="mt-1.5 text-body text-slate-500" data-testid="now-ascensions-note">
+    <p class="mt-1.5 text-body text-slate-500 max-w-prose" data-testid="now-ascensions-note">
       Times from the instant answer are to the hour. Its shifts start at each ascension's swap to Humility (H1): the
       first hours' shifts of a fresh ascension are not in it yet. For every shift on your account, use a run from Try
       next below.

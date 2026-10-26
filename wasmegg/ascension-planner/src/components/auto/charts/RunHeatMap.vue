@@ -86,7 +86,7 @@
     <p v-else class="px-4 py-10 text-center text-small font-bold text-slate-400">
       Nothing priced yet. This fills in as the search reports batches.
     </p>
-    <p class="text-body text-slate-500 px-1 min-h-[1.25rem]">
+    <p class="text-body text-slate-500 px-1 min-h-[1.25rem] max-w-prose">
       <template v-if="hover">
         Last stop {{ hover.xLo === hover.xHi ? hover.xLo : `${hover.xLo}–${hover.xHi}` }} TE, {{ hover.yLo.toFixed(1) }}–{{ hover.yHi.toFixed(1) }} days:
         <span class="font-bold text-slate-700">{{ chainCount(hover.count) }}</span>

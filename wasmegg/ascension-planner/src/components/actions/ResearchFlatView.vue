@@ -78,7 +78,7 @@
     <div v-if="sortedResearches.length === 0" class="px-4 py-8 text-center text-gray-500 italic bg-gray-50">
       <div v-if="isMissingRealisticData" class="max-w-xs mx-auto">
         <p class="text-gray-900 font-bold not-italic mb-1 text-body">Artifact Data Required</p>
-        <p class="text-body mb-4 not-italic">
+        <p class="text-body mb-4 not-italic max-w-prose">
           Realistic predictions need your artifact inventory, and this plan doesn't have it (it is an older plan, or the
           save couldn't be fetched). Refresh to load it for this session.
         </p>

@@ -64,7 +64,7 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p class="text-body font-bold text-amber-900/80">
+                  <p class="text-body font-bold text-amber-900/80 max-w-prose">
                     Ascension plans must always result in a <span class="text-amber-700">positive gain</span> of Truth Eggs. You cannot target a value lower than or equal to what you have already earned.
                   </p>
                 </div>
