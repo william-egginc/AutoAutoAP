@@ -135,11 +135,21 @@ describe('the box keeps both buttons, and the panel opens on Fast', () => {
       expect(a).toContain('<FollowButton');
     }
   });
-  it('Fast is the default option, with Find as its main button', () => {
+  it('Fast is the default option, with Run Fast as its main button (Find until 25 Oct 2026)', () => {
     expect(DEFAULT_SEARCH_OPTION).toBe('fast');
     expect(readChoice('fastest').option).toBe('fast');
     expect(readChoice('by-date').option).toBe('fast');
-    expect(fs.readFileSync(path.join(__dirname, 'FindBar.vue'), 'utf8')).toContain("findLabel: 'Find'");
-    expect(fs.readFileSync(path.join(__dirname, 'RunControls.vue'), 'utf8')).toContain("findLabel: 'Find'");
+    const bar = fs.readFileSync(path.join(__dirname, 'FindBar.vue'), 'utf8');
+    expect(bar).toContain("props.findLabel || (props.option ? `Run ${OPTION_WORD[props.option]}` : 'Run')");
+    expect(bar).toContain("fast: 'Fast'");
+    expect(fs.readFileSync(path.join(__dirname, 'RunControls.vue'), 'utf8')).toContain(':option="option"');
+    // Each screen names the strength it will run: Fastest's Fast / Exact by its effort, Custom by its box.
+    expect(fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8')).toContain(
+      ':option="choiceForEffort(store.effort).option"'
+    );
+    expect(fs.readFileSync(path.join(__dirname, 'InsanePanel.vue'), 'utf8')).toContain('option="custom"');
+    expect(fs.readFileSync(path.join(__dirname, 'DeadlinePanel.vue'), 'utf8')).toContain(
+      `:option="k === 'boxes' ? 'custom' : choiceForEffort(stronger.level).option"`
+    );
   });
 });

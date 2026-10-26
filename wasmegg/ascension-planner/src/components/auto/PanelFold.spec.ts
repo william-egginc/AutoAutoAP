@@ -1,7 +1,7 @@
 /**
  * The search panel's folds (PanelFold.vue, lib/panelFold.ts; the UX review of 25 Oct 2026, item C): every
  * foldable part renders through the one wrapper, the wrapper starts where lib/panelFold.ts says, remembers
- * the player's own toggle, has a 44 px summary on a phone, and Find and submit still needs the ticks.
+ * the player's own toggle, has a 44 px summary on a phone, and Run with the send ticked still needs the ticks.
  * Rendered on the server like the other component specs (no DOM): a "toggle" is the wrapper's own handler
  * called with its <details> standing in.
  */
@@ -16,6 +16,8 @@ import StrongerBox from './StrongerBox.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
 import FindBar from './FindBar.vue';
 import { PANEL_FOLD, foldKey, type FoldSection } from '@/lib/panelFold';
+import { reloadRunSends } from '@/lib/runSends';
+import { useChainSearchStore } from '@/stores/chainSearch';
 
 const SECTIONS = Object.keys(PANEL_FOLD) as FoldSection[];
 
@@ -34,6 +36,7 @@ beforeEach(() => {
   });
   pinia = createPinia();
   setActivePinia(pinia);
+  reloadRunSends();
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -114,7 +117,7 @@ describe('PanelFold', () => {
       },
     });
     expect(mem.get(foldKey('countTable'))).toBe('0');
-    // The page opened it (a run, Find and submit): the toggle agrees with what the page set, nothing is kept.
+    // The page opened it (a run, the send ticked without the ticks): the toggle agrees with what the page set, nothing is kept.
     await render(PanelFold, { section: 'howWorkedOut', title: 'T' }, {
       file: 'PanelFold.vue',
       run: s => {
@@ -191,11 +194,15 @@ describe('every foldable part reads lib/panelFold.ts', () => {
   });
 });
 
-describe('Find and submit still needs the ticks', () => {
+describe('Run with the send ticked still needs the ticks (Find and submit until 25 Oct 2026)', () => {
   const base = { findDisabled: false, running: false, optIn: false, anonymous: true, nickname: '' };
+  const runButton = (html: string) => html.match(/<button[^>]*data-testid="run-button"[^>]*>/)?.[0] ?? '';
 
-  it('the acknowledgement folds under "Before you send", with "ticks needed" in amber until ticked', async () => {
-    const html = await render(FindBar, base);
+  /** The send ticked by the player (sharing off): what the tick's change sets. */
+  const sendTicked = { file: 'FindBar.vue', run: (s: Record<string, unknown>) => void (s.ticked = true) };
+
+  it('the acknowledgement folds under "Before you send", with "ticks needed" in amber while the send is ticked without them', async () => {
+    const html = await render(FindBar, base, sendTicked);
     const tag = detailsTag(html, 'fold-acknowledgement');
     expect(isOpen(tag)).toBe(false);
     expect(html).toContain('Before you send');
@@ -204,28 +211,73 @@ describe('Find and submit still needs the ticks', () => {
     expect(html.indexOf('data-testid="share-box"')).toBeGreaterThan(html.indexOf('data-testid="fold-acknowledgement"'));
     expect(html).toContain('I acknowledge the following');
     expect(await render(FindBar, { ...base, optIn: true })).not.toContain('data-testid="ticks-needed"');
+    // Sharing off and the send unticked (as it starts): a plain Run needs no ticks, so nothing shows there.
+    const plain = await render(FindBar, base);
+    expect(plain).not.toContain('data-testid="ticks-needed"');
+    expect(plain).not.toContain('data-testid="sharing-on"');
+    expect(isOpen(detailsTag(plain, 'fold-acknowledgement'))).toBe(false);
     // A run going sends nothing more without Send best so far asking: no ticks are needed then.
-    expect(await render(FindBar, { ...base, running: true })).not.toContain('data-testid="ticks-needed"');
+    expect(await render(FindBar, { ...base, running: true }, sendTicked)).not.toContain('data-testid="ticks-needed"');
   });
 
-  it('greyed out without the ticks; a press opens the fold and goes to the box, and never starts a run', async () => {
+  it('Send best so far asking still shows "ticks needed", whatever the send tick says', async () => {
+    const store = useChainSearchStore();
+    store.beginBestSoFar('fastest', null);
+    store.askBestSoFar(true);
+    const html = await render(FindBar, { ...base, running: true, bestSoFarKind: 'fastest' });
+    expect(html).toContain('data-testid="ticks-needed"');
+    store.endBestSoFar();
+  });
+
+  it('never sends without the ticks: ticked with sharing off, greyed out, a press opens the fold and goes to the box, and never starts a run', async () => {
     const onFind = vi.fn();
     const show = vi.fn(async () => {});
     const html = await render(FindBar, { ...base, onFind }, {
       file: 'FindBar.vue',
       run: s => {
         s.ackFold = { show };
-        (s.findAndSubmit as () => void)();
+        s.ticked = true;
+        (s.run as () => void)();
       },
     });
-    const button = html.match(/<button[^>]*data-testid="find-and-submit"[^>]*>/)?.[0] ?? '';
+    const button = runButton(html);
     expect(button).toContain('aria-disabled="true"');
     expect(button).toContain('opacity-40');
     expect(show).toHaveBeenCalledWith(false);
     expect(onFind).not.toHaveBeenCalled();
   });
 
-  it('already said yes: stays folded with one line "Sharing: on, anonymous · Change", never popped open by Find and submit', async () => {
+  it('ticking the send with sharing off opens the fold and goes to the box, and starts nothing', async () => {
+    const onFind = vi.fn();
+    const show = vi.fn(async () => {});
+    await render(FindBar, { ...base, onFind }, {
+      file: 'FindBar.vue',
+      run: s => {
+        s.ackFold = { show };
+        (s.onTick as (on: boolean) => void)(true);
+      },
+    });
+    expect(show).toHaveBeenCalledWith(false);
+    expect(onFind).not.toHaveBeenCalled();
+  });
+
+  it('sharing off and the send unticked (as it starts): Run just finds, nothing pops open, nothing is greyed out', async () => {
+    const onFind = vi.fn();
+    const show = vi.fn(async () => {});
+    const html = await render(FindBar, { ...base, onFind }, {
+      file: 'FindBar.vue',
+      run: s => {
+        s.ackFold = { show };
+        (s.run as () => void)();
+      },
+    });
+    expect(onFind).toHaveBeenCalledWith(false);
+    expect(show).not.toHaveBeenCalled();
+    expect(runButton(html)).not.toContain('aria-disabled');
+    expect(html).not.toContain('data-testid="acknowledge-hint"');
+  });
+
+  it('already said yes: stays folded with one line "Sharing: on, anonymous · Change", never popped open by Run', async () => {
     const html = await render(FindBar, { ...base, optIn: true });
     expect(html).toMatch(/data-testid="sharing-on">Sharing: on, anonymous · Change</);
     expect(html).not.toContain('data-testid="ticks-needed"');
@@ -237,20 +289,39 @@ describe('Find and submit still needs the ticks', () => {
     expect(src).toContain('if (a && !optIn.value) void ackFold.value?.show(false);');
   });
 
-  it('with the ticks it starts Find and submit', async () => {
+  it('with the ticks and the send ticked, Run starts and sends (what Find and submit did)', async () => {
     const onFind = vi.fn();
+    const show = vi.fn(async () => {});
     const html = await render(FindBar, { ...base, optIn: true, onFind }, {
       file: 'FindBar.vue',
-      run: s => (s.findAndSubmit as () => void)(),
+      run: s => {
+        s.ackFold = { show };
+        (s.run as () => void)();
+      },
     });
     expect(onFind).toHaveBeenCalledWith(true);
-    expect(html.match(/<button[^>]*data-testid="find-and-submit"[^>]*>/)?.[0]).not.toContain('aria-disabled');
+    expect(show).not.toHaveBeenCalled();
+    expect(runButton(html)).not.toContain('aria-disabled');
   });
 
-  it('with the acknowledgement set to open, the button is plainly disabled without the ticks, as before', () => {
+  it('with the ticks and the send unticked, Run only finds (what Find did)', async () => {
+    const onFind = vi.fn();
+    await render(FindBar, { ...base, optIn: true, onFind }, {
+      file: 'FindBar.vue',
+      run: s => {
+        s.ticked = false;
+        (s.run as () => void)();
+      },
+    });
+    expect(onFind).toHaveBeenCalledWith(false);
+  });
+
+  it('with the acknowledgement set to open, the button is plainly disabled when the send needs the ticks, as before', () => {
     const src = fs.readFileSync(path.join(__dirname, 'FindBar.vue'), 'utf8');
-    expect(src).toContain(`:disabled="findDisabled || notReady || (!optIn && !ACK_FOLDS)"`);
+    expect(src).toContain(`:disabled="findDisabled || notReady || running || (needsTicks && !ACK_FOLDS)"`);
     expect(src).toContain("const ACK_FOLDS = PANEL_FOLD.acknowledgement === 'folded';");
-    expect(src).toMatch(/function findAndSubmit\(\): void \{\s*if \(!optIn\.value\) \{\s*void showConsent\(\);\s*return;\s*\}\s*emit\('find', true\);/);
+    expect(src).toContain('const needsTicks = computed(() => props.showSubmit && ticked.value && !optIn.value);');
+    expect(src).toMatch(/function run\(\): void \{\s*if \(needsTicks\.value\) \{\s*void showConsent\(\);\s*return;\s*\}\s*emit\('find', props\.showSubmit && ticked\.value && optIn\.value\);/);
   });
 });
+

@@ -3,9 +3,9 @@
   Advanced, Highest TE by a date's Simple and Advanced), under the screen's own set-up:
 
     the notices (SafariNotice, RunSaveNotice, IntegrityNotice)
-    anything the screen must say right above Find (`above-find`)
-    Find / Find and submit / Send best so far / Stop & keep best, the acknowledge box, the name, the
-      CSV and diagnostics boxes and the run note (FindBar.vue)
+    anything the screen must say right above Run (`above-find`)
+    Run Fast / Exact / Custom and its send tick / Send best so far / Stop & keep best, the acknowledge box,
+      the name, the CSV and diagnostics boxes and the run note (FindBar.vue)
     how the automatic send went (RunSendReport.vue)
     results kept until sent (UnsentResults.vue)
     Stepping away? (StepAwayOptions.vue)
@@ -41,6 +41,7 @@
       :find-disabled="findDisabled"
       :running="running"
       :stopping="stopping"
+      :option="option"
       :find-label="findLabel"
       :running-label="runningLabel"
       :show-submit="showSubmit"
@@ -86,7 +87,7 @@
     />
 
     <!-- The run's progress, and on Fastest its answer so far, after the acknowledge box and Stepping away?
-         (the user, 12 Oct: controls, Find, acknowledge, stepping away, then progress and results). -->
+         (the user, 12 Oct: controls, Run, acknowledge, stepping away, then progress and results). -->
     <slot name="progress" />
     <slot name="after" />
   </div>
@@ -97,6 +98,7 @@ import { MANY_WORKERS, MANY_WORKERS_TEXT } from '@/search/batch';
 import { isPhone, PHONE_NOTE } from '@/search/device';
 import { computed, ref } from 'vue';
 import { NAMES } from '@/lib/siteNav';
+import type { SearchOption } from '@/lib/searchOption';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import FindBar from './FindBar.vue';
 import IntegrityNotice from './IntegrityNotice.vue';
@@ -124,14 +126,17 @@ const props = withDefaults(
     /** Which screen: Smart search, the Full sweep, or By a date (both of its modes). */
     kind: 'smart' | 'full' | 'by-date';
     playerId: string;
-    /** Find can't start (the screen's own checks). Find and submit also needs the opt-in. */
+    /** Run can't start (the screen's own checks). Sending also needs the opt-in. */
     findDisabled: boolean;
     running: boolean;
     stopping?: boolean;
+    /** The strength picked (Fast, Exact or Custom): the button reads "Run Fast" (FindBar.vue). */
+    option?: SearchOption;
+    /** The button's words where they aren't "Run <strength>" (a sweep link's "Start this sweep"). */
     findLabel?: string;
     /** What the run does while it goes: "Searching", "Pricing every chain". */
     runningWord?: string;
-    /** Find and submit is offered (a collector is configured, and the run doesn't send itself anyway). */
+    /** The send tick is offered (a collector is configured, and the run doesn't send itself anyway). */
     showSubmit: boolean;
     consentNote?: string;
     canCarryOn: boolean;
@@ -147,7 +152,8 @@ const props = withDefaults(
   }>(),
   {
     stopping: false,
-    findLabel: 'Find',
+    option: undefined,
+    findLabel: '',
     runningWord: 'Searching',
     consentNote: '',
     countdownElsewhere: false,
@@ -175,11 +181,11 @@ const store = useChainSearchStore();
 const phone = isPhone();
 const manyWorkers = computed(() => !!props.longRun && !props.running && store.workerBudget > MANY_WORKERS);
 /** "Searching, then submitting..." for a run that sends itself when it finishes (store `submitsWhenDone`,
- *  set by every screen for the length of a Find and submit run, and by a sweep link). */
+ *  set by every screen for the length of a run started with the send ticked, and by a sweep link). */
 const runningLabel = computed(() => `${props.runningWord}${store.submitsWhenDone ? ', then submitting' : ''}...`);
 
 /** Fastest's other search (Nearby routes or Exhaustive), while it runs and this one isn't: both are on one
- *  screen and one search runs at a time, so this Find is greyed out for it and says so. */
+ *  screen and one search runs at a time, so this Run is greyed out for it and says so. */
 const otherRun = computed<{ name: string; kind: 'smart' | 'full' } | null>(() => {
   if (props.running || props.kind === 'by-date') return null;
   const k = store.runProgress?.kind;

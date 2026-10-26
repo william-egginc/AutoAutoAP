@@ -250,7 +250,7 @@ describe('every consent box is a ConsentBox, with its words unchanged', () => {
     expect(read('InsanePanel.vue')).not.toContain('const sweepConsent = ref(false);');
   });
 
-  it('the acknowledgement of Find and submit, byte for byte', () => {
+  it('the acknowledgement of Run with the send ticked (Find and submit until 25 Oct), byte for byte', () => {
     expect(flat(read('FindBar.vue'))).toContain(
       'I acknowledge the following: I want to share my run on the leaderboard when the search finishes<template v-if="consentNote" > ({{ consentNote }})</template >. I understand it sends the route, its dates and the {{ goalWord }}, with my artifact inventory, timezone, local plan start and the random code this browser keeps for the account (not my player ID, and never shown), plus my CSV if ticked below and, if ticked, private diagnostics (never shown). Stop it early and it shares the best it found so far. Send best so far shares it while the run goes on, with the CSV so far and diagnostics if ticked below; that row and its CSV are replaced when the run finishes.</span'
     );

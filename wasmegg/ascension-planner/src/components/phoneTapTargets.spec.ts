@@ -66,8 +66,9 @@ describe('the Stronger check and the run controls on a phone', () => {
   it("the result cards' buttons (Build or Simulate this plan, Share, CSV, Save)", () => {
     for (const c of [PRIMARY_BUTTON, SECONDARY_BUTTON]) expect(c).toContain('inline-flex items-center justify-center min-h-[44px] sm:min-h-0');
   });
-  it('the acknowledge link and the auto-send-every select', () => {
+  it('the acknowledge link, the send tick under Run, and the auto-send-every select', () => {
     expect(tagWith(read('auto/FindBar.vue'), 'data-testid="acknowledge-hint-link"')).toContain(TAP);
+    expect(tagWith(read('auto/FindBar.vue'), 'data-testid="run-sends"')).toContain(TAP);
     expect(tagWith(read('auto/StepAwayOptions.vue'), 'data-testid="auto-send-every"')).toContain('min-h-[44px] sm:min-h-0');
   });
 });

@@ -103,7 +103,7 @@ watch(
 function check(chain: number[]): void {
   emit('check', chain);
   if (props.mode === 'chain')
-    checked.value = 'Set the first box to this route. Press Find to price it with the full simulator.';
+    checked.value = 'Set the first box to this route. Press Run Custom to price it with the full simulator.';
 }
 
 function add(count: number): void {

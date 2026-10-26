@@ -166,7 +166,7 @@
       >
         A search is running, so the plan start, your hours, no-prestige days and time off are locked: they change which route is fastest,
         and the routes already priced used the old ones. Stop the search (your best so far is kept), change them, and
-        press Find again. The computer settings still work.
+        press Run again. The computer settings still work.
       </p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -593,7 +593,7 @@
             Not Track turns it off.
           </p>
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            Sending a result to the board, its CSV and diagnostics are separate choices, under Find and submit.
+            Sending a result to the board, its CSV and diagnostics are separate choices, in Before you send under Run.
           </p>
         </div>
 
