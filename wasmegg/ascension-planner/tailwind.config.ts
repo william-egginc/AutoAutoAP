@@ -11,6 +11,22 @@ export default {
       fontFamily: {
         mono: ['inherit'],
       },
+      // The type scale (type review batch 2, Jordan 26 Oct 2026): five sizes, shared by phone and desktop.
+      // small: notes, captions, table cells, badges. body: explanations, buttons (sentence case), fields (16 px on a
+      // phone, components.css). title: card titles and sub-headings. headline: the answer and screen titles.
+      // page: the page title (components.css `.heading-xl`, 28 px on a phone). Caps labels are `.label`
+      // (components.css), not a size here. Tracking: 0, 0.08em (label) and -0.02em (headline, page) only.
+      fontSize: {
+        small: ['0.75rem', { lineHeight: '17px' }],
+        body: ['0.875rem', { lineHeight: '21px' }],
+        title: ['1.125rem', { lineHeight: '26px' }],
+        headline: ['1.5rem', { lineHeight: '30px', letterSpacing: '-0.02em' }],
+        page: ['2rem', { lineHeight: '36px', letterSpacing: '-0.02em' }],
+      },
+      letterSpacing: {
+        label: '0.08em',
+        headline: '-0.02em',
+      },
       colors: {
         green: colors.emerald,
         yellow: colors.amber,

@@ -63,7 +63,7 @@
         <div class="overflow-x-auto">
           <table class="text-[11px] tabular-nums whitespace-nowrap">
             <thead>
-              <tr class="text-left text-[9px] font-black uppercase tracking-widest text-emerald-700">
+              <tr :class="LEG_HEAD">
                 <th class="pr-4 py-1">TE per egg</th>
                 <th class="pr-4 py-1">TE</th>
                 <th class="pr-4 py-1" :title="NEXT_TE_TITLE">Next TE</th>

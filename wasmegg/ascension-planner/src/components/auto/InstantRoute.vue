@@ -352,7 +352,7 @@
             <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
               <button
                 type="button"
-                class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+                :class="SECONDARY_BUTTON"
                 :title="SIMULATE_TITLE"
                 data-testid="box-simulate"
                 @click="openPlan(dateBoxOf(result.byDate).chain)"
@@ -445,7 +445,7 @@
                       <span class="tabular-nums text-slate-800">{{ r.chain.join(' ') }}</span>
                       <button
                         type="button"
-                        class="inline-flex items-center min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
+                        :class="[SECONDARY_BUTTON, 'whitespace-nowrap']"
                         :title="SIMULATE_TITLE"
                         @click="openPlan(r.chain)"
                       >
@@ -531,7 +531,7 @@
           <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">
             <button
               type="button"
-              class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50"
+              :class="SECONDARY_BUTTON"
               :title="SIMULATE_TITLE"
               data-testid="box-simulate"
               @click="openPlan(boxLead.chain)"
@@ -630,7 +630,7 @@
                       <span class="tabular-nums text-slate-800">{{ r.chain.join(' ') }}</span>
                       <button
                         type="button"
-                        class="inline-flex items-center min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
+                        :class="[SECONDARY_BUTTON, 'whitespace-nowrap']"
                         :disabled="r.chain.length < 2"
                         :title="SIMULATE_TITLE"
                         @click="openPlan(r.chain)"
@@ -772,6 +772,7 @@
 </template>
 
 <script setup lang="ts">
+import { SECONDARY_BUTTON } from './resultCardStyle';
 import { formatClock } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { spareLine } from '@/lib/spareLine';

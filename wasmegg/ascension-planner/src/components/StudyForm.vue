@@ -122,8 +122,8 @@
     <div :class="compact ? 'grid grid-cols-2 sm:flex sm:flex-row gap-2' : 'flex flex-col sm:flex-row gap-2'">
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
-        :class="compact ? ['col-span-2', folded ? 'hidden sm:inline-block' : ''] : ''"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+        :class="[BUTTON_TEXT, compact ? ['col-span-2', folded ? 'hidden sm:inline-block' : ''] : '']"
         data-testid="study-yes"
         :disabled="!canSayYes"
         :aria-describedby="canSayYes ? undefined : 'study-yes-why'"
@@ -135,12 +135,13 @@
            one press (useStudy.ts `yesToAll`; the credit stays as shown). Always on: it ticks first. -->
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border text-[11px] font-black uppercase tracking-widest"
-        :class="
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border"
+        :class="[
+          BUTTON_TEXT,
           compact
             ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 sm:border-indigo-300 sm:bg-indigo-50 sm:text-indigo-800 sm:hover:bg-indigo-100'
-            : 'border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
-        "
+            : 'border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100',
+        ]"
         data-testid="study-yes-all"
         @click="yesAll"
       >
@@ -148,7 +149,8 @@
       </button>
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-[11px] font-black uppercase tracking-widest hover:bg-slate-50"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+        :class="BUTTON_TEXT"
         data-testid="study-no"
         @click="no"
       >
@@ -171,6 +173,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
+import { BUTTON_TEXT } from './auto/resultCardStyle';
 import { DEFAULT_TICKS, TICK_WORDS, anyTick, capName, type StudyCredit } from '@/lib/study';
 import { consentState } from '@/composables/useConsent';
 import { STUDY_NAME_MAX, answerNo, answerYes, defaultCredit, knownName, yesToAll } from '@/composables/useStudy';

@@ -637,9 +637,9 @@
             <!-- Per-leg breakdown of the current best. Each row expands to the twelve shift
                instants, because "4 night shifts" tells you there is a problem and not when. -->
             <div v-if="store.bestLegs.length" class="overflow-x-auto">
-              <table class="w-full text-xs">
+              <table :class="LEG_TABLE">
                 <thead>
-                  <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
+                  <tr :class="LEG_HEAD">
                     <th class="py-2 pr-3">Ascension</th>
                     <th class="py-2 pr-3">
                       → TE
@@ -693,7 +693,7 @@
                 </thead>
                 <tbody>
                   <template v-for="(leg, i) in store.bestLegs" :key="i">
-                    <tr class="border-t border-slate-100">
+                    <tr :class="LEG_ROW">
                       <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">
                         <button
                           v-if="leg.shifts?.length"
@@ -1054,6 +1054,7 @@
 </template>
 
 <script setup lang="ts">
+import { LEG_HEAD, LEG_ROW, LEG_TABLE } from './resultCardStyle';
 import { formatMoment } from '@/lib/clock';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import { sourceOfLevel } from '@/lib/followCloud';

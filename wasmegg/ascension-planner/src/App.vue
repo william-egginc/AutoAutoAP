@@ -2217,9 +2217,6 @@ ChevronIcon.props = { expanded: Boolean };
 </script>
 
 <style scoped>
-.heading-xl {
-  @apply text-3xl md:text-4xl font-black uppercase tracking-tighter;
-}
 .text-gradient {
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   -webkit-background-clip: text;
@@ -2229,7 +2226,7 @@ ChevronIcon.props = { expanded: Boolean };
   @apply bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500;
 }
 .btn-premium {
-  @apply rounded-xl font-black uppercase tracking-widest text-[10px] transition-all duration-300 flex items-center justify-center gap-2;
+  @apply rounded-xl font-bold text-body transition-all duration-300 flex items-center justify-center gap-2;
 }
 .btn-primary {
   @apply bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 active:scale-95;
