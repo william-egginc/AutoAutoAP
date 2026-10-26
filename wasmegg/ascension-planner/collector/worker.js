@@ -66,6 +66,7 @@
 import { handleWatch, isWatchRequest, watchCron } from './watch.js';
 import { handleFollow, isFollowRequest } from './follow.js';
 import { handlePrefs, isPrefsRequest } from './prefs.js';
+import { handleBigCsv, isBigCsvRequest } from './bigcsv.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
@@ -914,7 +915,7 @@ function pickSubmission(s) {
 
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,POST,PUT,OPTIONS',
+  'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
   'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token,x-delta-token',
 };
 
@@ -2355,6 +2356,17 @@ async function rowPlace(env, ctx, id, boards = {}) {
   return null;
 }
 
+/** A board row's stored record by id (for the big-CSV checks): one snapshot read and one row read, or null. */
+async function bigCsvRow(env, ctx, id) {
+  const place = await rowPlace(env, ctx, id);
+  if (!place) return null;
+  try {
+    return JSON.parse((await env.SUBMISSIONS.get(place.key)) || 'null');
+  } catch {
+    return null;
+  }
+}
+
 // ------------------------------------------------------------------ the CSV in parts
 //
 // A big run's gzipped CSV can pass the 8 MB a request (MAX.CSV_BYTES): an overnight 154k-route run's
@@ -3205,6 +3217,8 @@ export default {
     if (isFollowRequest(url)) return handleFollow(request, env);
     // Consent and Setup saved online (prefs.js): D1 as well, a separate endpoint so /follow stays as it was.
     if (isPrefsRequest(url)) return handlePrefs(request, env);
+    // The full-detail CSV of a very large run, to R2 (bigcsv.js): D1 and R2, none of it touches SUBMISSIONS writes.
+    if (isBigCsvRequest(url)) return handleBigCsv(request, env, ctx, { uploadToken, sameToken, findRow: bigCsvRow });
     // "Which build is in use" (buildcount.js): a daily count per page build in D1, nothing else.
     if (isBuildCountRequest(url)) return handleBuildCount(request, env);
 
