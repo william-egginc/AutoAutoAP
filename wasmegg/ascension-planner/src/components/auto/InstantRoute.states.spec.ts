@@ -185,7 +185,7 @@ function ctxOf(s: State): Record<string, unknown> {
     ownChanged: '',
     plural: (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`,
     pointer: null,
-    preferCopy: { chip: '', line: '', muted: '' },
+    preferCopy: { chip: '', what: '', line: '', muted: '' },
     preferMargin: { kind: 'off' },
     preferPicked: false,
     preferShowBest: false,

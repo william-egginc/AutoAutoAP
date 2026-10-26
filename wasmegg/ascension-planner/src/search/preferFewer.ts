@@ -192,6 +192,12 @@ const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? on
 export interface PreferCopy {
   /** On the box's header when it leads with a different route: "Fewest ascensions within 1 day". */
   chip: string;
+  /**
+   * One plain sentence first in the note under the box, saying what the box shows while Prefer fewer picked another
+   * route: "The box shows the route with the fewest ascensions that finishes within 12 h of the fastest." (Jordan's
+   * defaults, 26 Oct 2026: with a margin on by default, a player who never set it is told why.)
+   */
+  what: string;
   /** Under the box's numbers, cost first, then the saving. */
   line: string;
   /** "No route with fewer ascensions is within 1 day." */
@@ -208,7 +214,7 @@ export function preferFewerCopy<T>(
   margin: PreferMargin,
   show: (unix: number) => string
 ): PreferCopy {
-  const none: PreferCopy = { chip: '', line: '', muted: '' };
+  const none: PreferCopy = { chip: '', what: '', line: '', muted: '' };
   if (!choice || margin.kind === 'off') return none;
   const m = marginWords(margin);
   const same = margin.kind === 'te' && margin.te === 0;
@@ -225,6 +231,12 @@ export function preferFewerCopy<T>(
   if (goal === 'fastest') parts.push(count(choice.prestigesFewer, 'fewer prestige', 'fewer prestiges'));
   const saving = parts.length ? `${fewer}: ${parts.join(', ')}` : fewer;
   const chip = same ? 'Fewest ascensions, same TE' : `Fewest ascensions within ${m}`;
+  const what =
+    goal === 'fastest'
+      ? `The box shows the route with the fewest ascensions that finishes within ${m} of the fastest.`
+      : same
+        ? 'The box shows the route with the fewest ascensions that reaches the same TE.'
+        : `The box shows the route with the fewest ascensions that ends within ${m} of the highest TE.`;
   let line: string;
   if (goal === 'fastest') {
     const when = show(choice.best.finish);
@@ -239,7 +251,7 @@ export function preferFewerCopy<T>(
         ? `${trim(choice.costTE)} TE below the highest (${te}, ${count(choice.best.ascensions, 'ascension')}), and ${saving}.`
         : `Same TE as the highest (${te}), with ${saving}.`;
   }
-  return { chip, line, muted: '' };
+  return { chip, what, line, muted: '' };
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -250,32 +262,61 @@ export interface PreferSetting {
   date: PreferMargin;
 }
 export const PREFER_KEY = 'aap-prefer-fewer';
-const DEFAULTS: PreferSetting = { fastest: PREFER_OFF, date: PREFER_OFF };
+/**
+ * Jordan's defaults (26 Oct 2026, item 7), for a screen the player has never set: Fastest to 490 (and every other race
+ * target) within 12 h of the fastest; By a date (Egg Day too) the same TE. A choice the player made always wins.
+ */
+export const PREFER_DEFAULTS: PreferSetting = {
+  fastest: { kind: 'time', seconds: 12 * 3600 },
+  date: { kind: 'te', te: 0 },
+};
 
-function validMargin(v: unknown, kind: 'time' | 'te'): PreferMargin {
+/** A stored margin for that screen, Off included; undefined for one never set or not readable (the default then). */
+function validMargin(v: unknown, kind: 'time' | 'te'): PreferMargin | undefined {
   const m = v as Partial<{ kind: string; seconds: number; te: number }> | null;
-  if (!m || typeof m !== 'object') return PREFER_OFF;
+  if (!m || typeof m !== 'object') return undefined;
+  if (m.kind === 'off') return PREFER_OFF;
   if (kind === 'time' && m.kind === 'time' && typeof m.seconds === 'number' && Number.isFinite(m.seconds) && m.seconds > 0)
     return { kind: 'time', seconds: m.seconds };
   if (kind === 'te' && m.kind === 'te' && typeof m.te === 'number' && Number.isFinite(m.te) && m.te >= 0)
     return { kind: 'te', te: m.te };
-  return PREFER_OFF;
+  return undefined;
 }
 
-export function readPreferFewer(): PreferSetting {
+/** Only what the player picked, per screen (a screen never set is absent). Never throws. */
+export function readPreferPicked(): Partial<PreferSetting> {
   try {
     const v = JSON.parse(localStorage.getItem(PREFER_KEY) ?? 'null') as Partial<PreferSetting> | null;
-    if (!v || typeof v !== 'object') return { ...DEFAULTS };
-    return { fastest: validMargin(v.fastest, 'time'), date: validMargin(v.date, 'te') };
+    if (!v || typeof v !== 'object') return {};
+    const out: Partial<PreferSetting> = {};
+    const fastest = validMargin(v.fastest, 'time');
+    const date = validMargin(v.date, 'te');
+    if (fastest) out.fastest = fastest;
+    if (date) out.date = date;
+    return out;
   } catch {
-    return { ...DEFAULTS };
+    return {};
   }
 }
 
-export function writePreferFewer(s: PreferSetting): void {
+/** The setting each screen uses: the player's pick, else the default. */
+export function readPreferFewer(): PreferSetting {
+  return { ...PREFER_DEFAULTS, ...readPreferPicked() };
+}
+
+/** Writes what is given as is (only the screens in it are remembered). */
+export function writePreferFewer(s: Partial<PreferSetting>): void {
   try {
     localStorage.setItem(PREFER_KEY, JSON.stringify(s));
   } catch {
     // Private windows and blocked storage: the setting lasts for this visit only.
   }
+}
+
+/**
+ * The player picked `margin` on one screen: remember that screen only, so the other keeps following its default
+ * until it is picked there too.
+ */
+export function rememberPreferFewer(goal: PreferGoal, margin: PreferMargin): void {
+  writePreferFewer({ ...readPreferPicked(), [goal]: margin });
 }

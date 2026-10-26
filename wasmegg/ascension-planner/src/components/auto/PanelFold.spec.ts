@@ -97,14 +97,23 @@ describe('PanelFold', () => {
 
   it("remembers the player's toggle, and not one the page made", async () => {
     // The player opens it: the browser's toggle with the <details> open while the page had it closed.
-    await render(PanelFold, { section: 'countTable', title: 'T' }, {
+    await render(PanelFold, { section: 'whatItDoes', title: 'T' }, {
       file: 'PanelFold.vue',
       run: s => {
         s.el = { open: true };
         (s.onToggle as () => void)();
       },
     });
-    expect(mem.get(foldKey('countTable'))).toBe('1');
+    expect(mem.get(foldKey('whatItDoes'))).toBe('1');
+    // Closing one that starts open (Every number of ascensions, 26 Oct 2026) is kept too.
+    await render(PanelFold, { section: 'countTable', title: 'T' }, {
+      file: 'PanelFold.vue',
+      run: s => {
+        s.el = { open: false };
+        (s.onToggle as () => void)();
+      },
+    });
+    expect(mem.get(foldKey('countTable'))).toBe('0');
     // The page opened it (a run, Find and submit): the toggle agrees with what the page set, nothing is kept.
     await render(PanelFold, { section: 'howWorkedOut', title: 'T' }, {
       file: 'PanelFold.vue',
@@ -137,10 +146,14 @@ describe('every foldable part reads lib/panelFold.ts', () => {
     expect(isOpen(detailsTag(opened, 'stronger-promise'))).toBe(true);
   });
 
-  it('Stepping away?: one row, closed unless a run is going; the crash countdown stays outside it', async () => {
+  it('Stepping away?: one row, open by default (26 Oct 2026), closed only by the player and open again while a run is going; the crash countdown stays outside it', async () => {
     const props = { kind: 'smart', playerId: '', canCarryOn: false };
     const idle = await render(StepAwayOptions, props);
-    expect(isOpen(detailsTag(idle, 'fold-steppingAway'))).toBe(false);
+    expect(isOpen(detailsTag(idle, 'fold-steppingAway'))).toBe(true);
+    mem.set(foldKey('steppingAway'), '0');
+    expect(isOpen(detailsTag(await render(StepAwayOptions, props), 'fold-steppingAway'))).toBe(false);
+    expect(isOpen(detailsTag(await withTable('steppingAway', 'folded', () => render(StepAwayOptions, { ...props, running: true })), 'fold-steppingAway'))).toBe(true);
+    mem.delete(foldKey('steppingAway'));
     expect(idle).toContain('Stepping away?');
     expect(idle).toContain('Crash recovery, phone watch, progress uploads');
     expect(isOpen(detailsTag(await render(StepAwayOptions, { ...props, running: true }), 'fold-steppingAway'))).toBe(true);

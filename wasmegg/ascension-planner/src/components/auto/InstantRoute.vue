@@ -338,6 +338,14 @@
               :hours-on="hoursLimited"
               dated
             />
+            <!-- Prefer fewer is on by default (26 Oct 2026): when it picked another route, say where the line went. -->
+            <p
+              v-if="prestigeFlag.enabled.value && preferPicked && prestigeStatus !== 'idle'"
+              class="text-[11px] text-slate-500"
+              data-testid="prestige-by-other-route"
+            >
+              The “Prestige by” line is worked out on the highest TE route: “Show the highest TE instead” shows it.
+            </p>
             <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
             <p
               v-if="prestigeFlag.enabled.value && !preferPicked && noPrestigeOn && prestigeStatus !== 'idle'"
@@ -520,6 +528,14 @@
             :beta="prestigeFlag.beta"
             :hours-on="hoursLimited"
           />
+          <!-- Prefer fewer is on by default (26 Oct 2026): when it picked another route, say where the line went. -->
+          <p
+            v-if="prestigeFlag.enabled.value && preferPicked && prestigeStatus !== 'idle'"
+            class="text-[11px] text-slate-500"
+            data-testid="prestige-by-other-route"
+          >
+            The “Prestige by” line is worked out on the fastest route: “Show the fastest instead” shows it.
+          </p>
           <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
           <p
             v-if="prestigeFlag.enabled.value && !preferPicked && noPrestigeOn && prestigeStatus !== 'idle'"
@@ -878,7 +894,7 @@ import {
   choosePreferFewer,
   preferFewerCopy,
   readPreferFewer,
-  writePreferFewer,
+  rememberPreferFewer,
   type PreferChoice,
   type PreferCopy,
   type PreferGoal,
@@ -2160,14 +2176,16 @@ const lead = computed(() => result.value?.best ?? null);
  * suggestions, Prestige by, the share). Right now follows the chosen route only through the box's own Follow this
  * route button. Remembered per browser, one value per screen; "Show the fastest instead ›" shows the best for now.
  * The numbers are the instant answer's (no shifts: none are said).
+ * On by default (Jordan, 26 Oct 2026, item 7; preferFewer.ts PREFER_DEFAULTS): Fastest within 12 h, By a date (Egg
+ * Day too) the same TE. Only the screen the player picks on is remembered, so the other keeps its default.
  */
 const preferSetting = ref<PreferSetting>(readPreferFewer());
-watch(preferSetting, s => writePreferFewer(s), { deep: true });
 const preferGoal = computed<PreferGoal>(() => (props.deadline ? 'date' : 'fastest'));
 const preferMargin = computed<PreferMargin>({
   get: () => preferSetting.value[preferGoal.value],
   set: m => {
     preferSetting.value = { ...preferSetting.value, [preferGoal.value]: m };
+    rememberPreferFewer(preferGoal.value, m);
   },
 });
 const preferShowBest = ref(false);
