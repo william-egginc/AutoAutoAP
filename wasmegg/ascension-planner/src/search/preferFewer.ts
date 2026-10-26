@@ -261,7 +261,25 @@ export interface PreferSetting {
   fastest: PreferMargin;
   date: PreferMargin;
 }
-export const PREFER_KEY = 'aap-prefer-fewer';
+/**
+ * A new key (Jordan, 26 Oct 2026): before the defaults, picking on one screen saved Off for the other too, so a player
+ * who ever touched a chip had Off stored for both, which can't be told apart from a real Off. Everyone starts on the
+ * defaults once: the old key is never read and is removed (`dropOldPreferKeys`); a pick made from now on is kept here.
+ */
+export const PREFER_KEY = 'aap-prefer-fewer-v2';
+/** Keys of earlier builds, discarded once. */
+export const PREFER_OLD_KEYS: readonly string[] = ['aap-prefer-fewer'];
+
+/** Removes the earlier builds' picks. Never throws (blocked storage, or one without removeItem). */
+export function dropOldPreferKeys(): void {
+  for (const k of PREFER_OLD_KEYS) {
+    try {
+      if (localStorage.getItem(k) !== null) localStorage.removeItem(k);
+    } catch {
+      // Nothing to do: the old key is never read anyway.
+    }
+  }
+}
 /**
  * Jordan's defaults (26 Oct 2026, item 7), for a screen the player has never set: Fastest to 490 (and every other race
  * target) within 12 h of the fastest; By a date (Egg Day too) the same TE. A choice the player made always wins.
@@ -285,6 +303,7 @@ function validMargin(v: unknown, kind: 'time' | 'te'): PreferMargin | undefined 
 
 /** Only what the player picked, per screen (a screen never set is absent). Never throws. */
 export function readPreferPicked(): Partial<PreferSetting> {
+  dropOldPreferKeys();
   try {
     const v = JSON.parse(localStorage.getItem(PREFER_KEY) ?? 'null') as Partial<PreferSetting> | null;
     if (!v || typeof v !== 'object') return {};
