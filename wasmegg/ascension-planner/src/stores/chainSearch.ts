@@ -93,7 +93,9 @@ import {
   buildChainsCsv,
   buildDeadlineCsv,
   chainsCsvChunks,
+  chainsCsvChunksFull,
   deadlineCsvChunks,
+  deadlineCsvChunksFull,
   pricedDeltaChunks,
   DEADLINE_LEG_ROUTES,
   type CsvMeta,
@@ -267,6 +269,7 @@ import {
   type SetsLearned,
 } from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
+import type { LegSpill } from '@/search/legSpill';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
 import { reviewContext, reviewLegs, reviewSetup, TE_MISMATCH_TOLERANCE, type HealthIssue } from '@/search/health';
 import {
@@ -3456,6 +3459,43 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const legDetailBudget = ref(DEFAULT_LEG_DETAIL_BUDGET);
 
+  /**
+   * EVERY ROUTE'S LEGS ON DISK (search/legSpill.ts; Jordan, 26 Oct 2026). With a spill the platform sets
+   * (the CLI's file; the page's later), each priced route's legs are written to it before the budget
+   * above drops them, and the DOWNLOADED file (`streamFullCsv`) has every route's detail. Uploads keep
+   * their rule: legs for the top DEADLINE_LEG_ROUTES. Null: no spill, every file as before.
+   */
+  let legSpill: LegSpill | null = null;
+  /** Entries already written to the spill (a re-priced route is a new entry, written again). */
+  let spilled = new WeakSet<CacheEntry>();
+  function setLegSpill(s: LegSpill | null): void {
+    legSpill = s;
+    spilled = new WeakSet();
+  }
+  function spillNew(entries: readonly CacheEntry[]): void {
+    if (!legSpill) return;
+    for (const e of entries)
+      if (e.legs.length && !spilled.has(e)) {
+        legSpill.put(e.key, e.legs);
+        spilled.add(e);
+      }
+  }
+  /** A run's start: the spill cut back to its checkpoint's length (0: a fresh run) and its index rebuilt. */
+  /** Write what is new and make the spill durable; its length, for the checkpoint. */
+  async function commitSpill(entries: readonly CacheEntry[]): Promise<number> {
+    spillNew(entries);
+    return legSpill ? legSpill.commit() : 0;
+  }
+  async function restoreLegSpill(bytes: number | undefined): Promise<void> {
+    if (!legSpill) return;
+    spilled = new WeakSet();
+    try {
+      await legSpill.restore(bytes ?? 0);
+    } catch (e) {
+      console.warn('chain search: could not reopen the leg spill', e);
+    }
+  }
+
   /** Chains currently holding per-leg detail, and a measured estimate of what that costs. */
   const legsHeld = ref(0);
   const legDetailBytes = ref(0);
@@ -3472,6 +3512,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   function pruneLegDetail(): void {
     const entries = [...liveCache, ...coarseCache];
+    // Every route's legs to disk first (when the run has a spill), so the budget drops only memory's copy.
+    spillNew(entries);
     const { held } = applyLegBudget(entries, legDetailBudget.value);
     legsHeld.value = held;
     legDetailBytes.value = estimateLegBytes(entries, held);
@@ -5809,6 +5851,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * through one giant string.
    */
   function* exportCsvChunks(opts: { partial?: CsvMeta['partial'] } = {}): Generator<string> {
+    const { entries, meta } = fastestCsvInput(opts);
+    yield* chainsCsvChunks(entries, meta);
+  }
+
+  /** What the chain-search CSV is written from: the run's entries and the meta block (one source for
+   *  every way the file is written). */
+  function fastestCsvInput(opts: { partial?: CsvMeta['partial'] } = {}): { entries: CacheEntry[]; meta: CsvMeta } {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
     // The entries' own start: the stored checkpoint's when they are its.
@@ -5820,7 +5869,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       | ReturnType<typeof getSimulationContext>['rawBackup']
       | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
-    yield* chainsCsvChunks(entries, {
+    const meta: CsvMeta = {
       ...(opts.partial ? { partial: opts.partial } : {}),
       planStart: csvStart,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -5843,7 +5892,53 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         { label: 'equipped in the backup', loadout: equipped },
         { label: 'best earnings set available', loadout: raw ? getOptimalEarningsSet(raw) : null },
       ],
-    });
+    };
+    return { entries, meta };
+  }
+
+  /**
+   * THE FULL CSV, streamed: the one function a full-detail download or a later uploader to other storage
+   * reads (Jordan, 26 Oct 2026). With the run's leg spill, every route's legs (`legRoutes`: only the top
+   * that many, for an upload to our collector, which keeps that rule); without one, the file as before.
+   * `kind`: the last Fastest run, or the last By a date run (then `legRoutes` caps only its kept routes'
+   * section; the every-route section is the full file's, so a By a date upload keeps
+   * `deadlineCsvChunksNow`). Text chunks; the caller gzips them
+   * (CompressionStream on the page, zlib in the CLI).
+   */
+  async function* streamFullCsv(
+    kind: 'fastest' | 'deadline',
+    opts: { legRoutes?: number; partial?: CsvMeta['partial'] } = {}
+  ): AsyncGenerator<string> {
+    if (kind === 'fastest') {
+      const { entries, meta } = fastestCsvInput(opts);
+      if (!legSpill) {
+        yield* chainsCsvChunks(entries, meta);
+        return;
+      }
+      spillNew(entries);
+      yield* chainsCsvChunksFull(entries, meta, legSpill, opts.legRoutes ?? Infinity);
+      return;
+    }
+    const r = deadlineResult.value;
+    if (!r) return;
+    if (!legSpill || !deadlineAll.length || !deadlineAllPriced) {
+      yield* deadlineCsvChunksNow(opts.legRoutes !== undefined ? { legRoutes: opts.legRoutes } : {});
+      return;
+    }
+    yield* deadlineCsvChunksFull(
+      deadlineAll,
+      deadlineCsvMeta(r, r.ceiling ?? r.lastHi),
+      {
+        deadline: r.deadline,
+        priced: r.priced,
+        stoppedEarly: r.stoppedEarly,
+        ascendNeeded: r.ascendNeeded,
+        all: deadlineAllPriced,
+        ...(deadlineKept ? { kept: deadlineKept } : {}),
+      },
+      legSpill,
+      opts.legRoutes ?? DEADLINE_LEG_ROUTES
+    );
   }
 
   /** Suggested filename, so two exports from different runs do not collide in Downloads. */
@@ -5907,6 +6002,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           queue: searchSpace.value ? queueRecord(false) : null,
           // A staged run's limits, so a carry-on searches under them (they follow the instant answer).
           limits: searchSpace.value ? null : { min: runLimits.min, max: runLimits.max },
+          // The spill made durable first, so the checkpoint never claims more than is on disk.
+          ...(legSpill ? { spillBytes: await commitSpill(entries) } : {}),
         })
       );
       return true;
@@ -6168,9 +6265,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       partitionHash = await hashID(playerId);
       const saved = await loadCheckpoint(partitionHash, runFingerprint);
-      if (saved && (!saved.inputsKey || saved.inputsKey === startKey)) {
-        for (const e of restoreEntries(saved)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
+      const carry = !!saved && (!saved.inputsKey || saved.inputsKey === startKey);
+      if (carry) {
+        for (const e of restoreEntries(saved!)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
       }
+      await restoreLegSpill(carry ? saved!.spillBytes : 0);
     } catch (e) {
       console.warn('chain search: could not prepare storage', e);
     }
@@ -7024,7 +7123,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** A carry-on's checkpoint: its routes are replayed, and its parts appended to. Null: a fresh run. */
     seed: Pick<
       DeadlineCheckpoint,
-      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta'
+      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta' | 'spillBytes'
     > | null,
     /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
     accountIn?: AccountSnapshot,
@@ -7038,6 +7137,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunStartedAt = spec.startedAt ?? Date.now();
     deadlineRunCarryOns = seed ? (seed.carryOns ?? 0) + 1 : 0;
     deadlineCheckpointSize = { routes: seedCount, bytes: seed?.bytes ?? 0 };
+    // The leg spill cut back to the checkpoint's length (a fresh run: emptied).
+    await restoreLegSpill(seed ? seed.spillBytes : 0);
     // Until its result is saved, a run that ends is a run that failed (search/stepAway.ts `failed`).
     runEnd = 'failed';
     deadlineRunning.value = true;
@@ -7199,7 +7300,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       written = written.then(async () => {
         if (closed) return;
         try {
-          await appendDeadlineCheckpoint(partitionHash, writer, header, part);
+          // The spill made durable first, so the checkpoint never claims more than is on disk.
+          const spillBytes = legSpill ? await legSpill.commit() : undefined;
+          await appendDeadlineCheckpoint(
+            partitionHash,
+            writer,
+            spillBytes === undefined ? header : { ...header, spillBytes },
+            part
+          );
           deadlineCheckpointSize = { routes: header.count, bytes };
         } catch (e) {
           // Kept for the next write rather than lost.
@@ -7312,6 +7420,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           pricedSoFar: all => {
             if (deadlineRunCsv) deadlineRunCsv.all = all;
           },
+          // ...and its legs to the spill, for the full download (search/legSpill.ts).
+          onPriced: (k, legs) => legSpill?.put(k, legs),
         }
       );
       // A carry-on's routes replayed from the checkpoint came back with four numbers a leg: the ones
@@ -8451,8 +8561,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // replayed chains (durations only - a checkpoint keeps legs for the best chain alone).
         liveCache = [...restoredCache];
         csvRows.value = liveCache.length;
+        await restoreLegSpill(resumeFrom.spillBytes);
         refreshShortlist(true);
-      }
+      } else await restoreLegSpill(0);
     } catch (e) {
       console.warn('chain search: could not prepare storage', e);
     }
@@ -9360,6 +9471,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     legDetailBytes,
     exportCsv,
     exportCsvChunks,
+    streamFullCsv,
+    setLegSpill,
     buildRunSubmission,
     buildDeadlineSubmission,
     startSweep,

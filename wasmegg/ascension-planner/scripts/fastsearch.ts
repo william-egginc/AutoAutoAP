@@ -547,13 +547,17 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
                             the Full sweep replaying every chain it priced, By a date from its saved
                             routes. The first run pins its plan start in DIR, so the run is the same
                             one; a different command in the same DIR is refused.
+                            Also DIR/run-full.csv.gz: every route's per-ascension detail (run.csv.gz
+                            keeps the site's rule, detail for the top routes only). The detail is
+                            kept on disk as the run goes, in DIR/legs.spill (about the size of the
+                            plain CSV); delete it once the files are written if you need the room.
   --fresh                   With --out: throw away DIR's checkpoint and start again.
   --dry-run                 Say what would run (spaces, chain counts, about how long) and stop.
   --yes                     Start a box above 100,000 routes without asking. Without it a real run
                             asks "Continue? [y/N]" first (a second time above 500,000 routes), once,
                             on the whole run's box; with input that is not a terminal it stops and
                             says to add --yes. --dry-run never asks.
-  --plain-csv               With --out: also write run.csv, uncompressed.
+  --plain-csv               With --out: also write run.csv, uncompressed (every route's detail).
   --no-submit-csv           With --out/--submit: leave the table out of the send.
   --jobs N                  Worker threads. Default: your cores minus one, at most 12 (see the
                             line printed at the start). Each worker holds roughly 0.1-0.25 GB of
@@ -635,7 +639,8 @@ WHEN THE PLAN STARTS
 OUTPUT
   --jobs N                  Worker threads (site searches; default cores-1) or processes (this
                             script's tools; default 1).
-  --csv FILE                Where the plain CSV of every route priced goes. Defaults to
+  --csv FILE                Where the plain CSV of every route priced goes, with every route's
+                            per-ascension detail. Defaults to
                             fastsearch-<timestamp>.csv (without --out); --no-csv writes none. For the
                             tools, --out FILE is the same thing.
   --top N                   Runners-up to print.                      (default 10)
