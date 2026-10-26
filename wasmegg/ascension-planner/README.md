@@ -6,12 +6,13 @@ Ascension Planner** (the simulator) and the **wasmegg tools** by **Carpet**, and
 with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 248 286 327 490`.
 
 - **Instant answer**: the best routes for your save in seconds, looked up in ascensions priced ahead of time.
-- **Search** (Fast / Exact / Custom): nothing runs by itself; you pick how hard to look. Fast and Exact search
+- **Search** (Fast / Exact / Custom): nothing runs by itself; you pick how hard to look and press Run (the button
+  reads Run Fast, Run Exact or Run Custom). Fast and Exact search
   near the instant answer's route, pricing each route through the full simulator on your own save. **Price this
   route** (on the instant answer's longer-route note) puts that route in Custom's first box.
 - **Custom**: every route in boxes you set, so the answer is proven inside those boxes.
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
-- **Prefer fewer ascensions** and **Try waiting before each prestige**: two options on the instant answer.
+- **Prefer fewer ascensions** (on the instant answer) and **Try waiting before each prestige** (under a search result).
 - **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
   Both are off until you tick them in Setup.
 
@@ -34,7 +35,7 @@ opens it, for that visit. Both need the collector: a build without one never sho
 
 Above the tabs, once a save is loaded (and only in a build with a collector), the **Help improve the
 planner** box asks once per browser whether to turn on the site's sharing choices (share runs on the
-leaderboard, the CSV, private diagnostics, keep sharing checks). All four start unticked, and Yes stays off
+leaderboard, the CSV, private diagnostics, share search results). All four start unticked, and Yes stays off
 until one is ticked (No thanks is always available). The answer is kept in this browser (`aap.study`, no
 player ID and no name) across tabs, reloads and restarts; Yes or No thanks hides the box, and the choices
 change later in Setup › Help improve the planner. Yes applies to the account on screen only; another
@@ -51,14 +52,14 @@ that choice.
     **Search** card: **Fast**, **Exact** or **Custom**.
     **Prefer fewer ascensions** (off by default; within 12 h, 1 day, 2 days or custom) leads the green box
     with the fewest-ascensions route that close to the best. Under a search result, **Try waiting before each
-    prestige** prices the route with waits of 1 to 24 hours, on Setup's hours, and suggests a wait only
+    prestige** prices the route with waits of 1 to 24 hours, on Setup's Awake hours, and suggests a wait only
     when it gains over half an hour and being 2 hours off costs under three times that.
   - **Highest TE by a date**: the same layout (Prefer fewer: same TE, within 1 or 2 TE). With no instant
     answer for your TE, **Get a quick estimate** runs a quick scan and a Fast or Exact search around it, about 15
     minutes in all. A suggested Custom box stays under 20,000 sets of early stops; a typed one is not capped.
-  - Custom above 300,000 routes shows a note (about how many hours; the command line); Start asks first
+  - Custom above 300,000 routes shows a note (about how many hours; the command line); Run Custom asks first
     above 100,000 routes, and again above 500,000 (Science sweeps too).
-- **Leaderboard** (was Compare, off until ticked in Setup): Egg Day, Race, All runs, By a date, and **Insights**
+- **Leaderboard** (was Compare, off until ticked in Setup): Egg Day, Fastest to 490 TE, All runs, Other dates, and **Insights**
   (charts across everybody's runs; also the standalone `explorer.html`). Its Your latest run tab is one line
   pointing to My runs now. A **sim** chip beside each run says which simulator priced it, since finish times
   from two simulators do not compare exactly. **Show runs from older simulators** (on by default, kept in this
@@ -68,7 +69,7 @@ that choice.
   Google link, with a 10-minute alert; its gear rows fold out **Missing for a perfect set**, slot by slot against
   T4 Legendary with tier-4 stones); **Your eggs**; your saved answers as tiles with **How sure** (High, Medium or
   Low); **Try next**; **Your routes at a glance** (your routes as points, one goal at a time, folded); then **Your
-  runs** (Latest or All, with filters): runs on the board that are yours or look like yours, the hidden ones too,
+  runs** (Latest or All, with filters): runs on the Leaderboard that are yours or look like yours, the hidden ones too,
   runs saved on this computer or phone, and results not sent yet. Each run's details say **What was searched**.
   Saved runs, saved answers and Right now's chip say how many hours ahead of or behind the plan your latest
   save is: "On schedule (within an hour)", or "5 hours behind, as of 3:42 pm" (days from 48 hours).
@@ -89,8 +90,8 @@ with [Getting started](https://github.com/william-egginc/AutoAutoAP/wiki/Getting
 [FAQ](https://github.com/william-egginc/AutoAutoAP/wiki/FAQ));
 [Releases](https://github.com/william-egginc/AutoAutoAP/wiki/Releases) lists what each release changed.
 Release 4, in short: Prefer fewer ascensions; Try waiting before each prestige; Get a quick estimate with
-no instant answer; big boxes ask first; faster searches, By a date's Fast, Exact and Custom most (a
-leg's build up to C3 is now shared by every last stop tried from one start: 171 s to 49 s on one measured
+no instant answer; big boxes ask first; faster searches, most of all Highest TE by a date's Fast, Exact and
+Custom (a leg's build up to C3 is now shared by every last stop tried from one start: 171 s to 49 s on one measured
 Egg Day run); no edge warning for an edge Widen and run again can't move; a stopping search says it is
 finishing the routes already started (up to about a minute); and the My runs chart.
 Release 5, in short: Joo's latest planner (his artifact and stone editor, the opening switch, fewer empty
@@ -110,7 +111,7 @@ up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with 
 when that pass can't max the habs, the build takes the C1/K1/I1 rounds from his PR 717 (our default,
 `DEFAULT_OPENING_FALLBACK = 'rounds'`) or his v2 openings (`'v2'`), at any TE. This replaced our earlier
 rule, which used the rounds only below TE 120. Joo's Chain Finder and Table Builder tabs were left out of
-this merge, so this site does not have them. It does **not** plan around awake hours (the player's hours are used only by the searches, via
+this merge, so this site does not have them. It does **not** plan around Awake hours (they are used only by the searches, via
 `search/leg.ts`) or Continue my
 build-up, and does not find stops for you. Full list:
 [Single run vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
@@ -176,7 +177,7 @@ The flags still use the older names: `--effort` is the search behind Fast and Ex
 ```bash
 # The Fast / Exact search at thorough (the retired Very high), finding its own starting route
 node dist-search/fastsearch.js --backup me.json --effort thorough --find-seed
-# Custom: one band per stop before the last (3 bands = 4 ascensions), written low-high:step
+# Custom: one range per stop before the last (3 ranges = 4 ascensions), written low-high:step
 node dist-search/fastsearch.js --backup me.json --bands "185-200:5; 215-245:10; 260-300:10" --out run1
 # A Science sweep, fitted to the save's TE
 node dist-search/fastsearch.js --backup me.json --preset F4 --out f4
@@ -193,12 +194,12 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
   routes asks `Continue? [y/N]` before it runs (again above 500,000); `--yes` skips that, and without a
   terminal to answer it stops and says to add `--yes`. `--dry-run` never asks.
 - `--try-delays` is Try waiting before each prestige for one route: `--stages "197;222;247;285" --final 313`
-  (one value per stop), with your hours (`--sleep-from 23 --sleep-until 7`, else it warns). `--delay-max`,
+  (one value per stop), with your Awake hours (`--sleep-from 23 --sleep-until 7`, else it warns). `--delay-max`,
   `--delay-near`, `--delay-passes`, `--singles-only`; `--handoff hour` prestiges on the hour as the site does.
 - Sending (`--submit`, or `submit --from`) is the same send the site makes, anonymous unless
   `--nickname`. To any collector not on your own machine it needs `--yes`, or nothing leaves.
   What-ifs (`--add-artifact`, `--mod`) are never sent.
-- Hours, time off and the first ascension match Setup: `--available-from/--available-to`,
+- Awake hours, Time off and the first ascension match Setup: `--available-from/--available-to`,
   `--time-off`, `--first-ascension auto|buildup|continue|fresh`.
 - Its own tools, not on the site: `--exhaustive --range`, `--stages`, `--grid`, `--direct`
   (`scripts/autoplan.py` is an older Python driver of `--stages`).
@@ -232,7 +233,7 @@ Already cloned? Update and rebuild: `git pull` on the `ascension-chain-search` b
 root, then `pnpm search:build` in `wasmegg/ascension-planner`. Run the generation steps (`make -C lib`, or the
 Windows block above) again only if a `.proto` file changed, because the generated files are not in git.
 
-Then, with your save as `me.json` (Settings, Download backup) and the box you were given: each band
+Then, with your save as `me.json` (Settings, Download backup) and the box you were given: each range
 is one stop before the last, `low-high:step`, and `--last` is where to look for the last stop. This
 is the Highest TE by a date screen's Custom, by Egg Day, as an example:
 
@@ -240,7 +241,7 @@ is the Highest TE by a date screen's Custom, by Egg Day, as an example:
 # How big it is, without running it (sets of early stops, routes, a time estimate)
 node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Denver \
   --start-date 2026-10-15 --start-time 19:00 --chain "229-239:1; 256-266:1; 286-296:1" --last 337-339 --dry-run
-# Run it, keeping a checkpoint in run1/, and send it to the board with your name when it finishes
+# Run it, keeping a checkpoint in run1/, and send it to the Leaderboard with your name when it finishes
 node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Denver \
   --start-date 2026-10-15 --start-time 19:00 --chain "229-239:1; 256-266:1; 286-296:1" --last 337-339 \
   --out run1 --submit --nickname YourName --yes
@@ -248,7 +249,7 @@ node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Den
 
 - Killed or restarted? Run the same command again: it carries on from `run1/` (an empty checkpoint
   just starts afresh).
-- `--submit` sends to the public board, the same one the site uses, even from a fresh clone with no
+- `--submit` sends to the public Leaderboard, the same one the site uses, even from a fresh clone with no
   `.env.local` (the run prints the address; `--collector URL` changes it). It needs `--yes`: without
   it the run stops with an error and exit code 1 before it searches or makes `run1/`. Rather send it
   yourself later? Leave out `--submit` (keep `--out run1`) and when it has finished run
@@ -259,7 +260,7 @@ node dist-search/fastsearch.js --backup me.json --egg-day --timezone America/Den
 - Each progress line shows `rss`, `heap X of Y MB` (the main thread against Node's limit) and the
   machine's free memory; with `--out`, `run1/last-progress.txt` keeps the last one and its time. A worker
   that ends mid-run is reported as a fault, and a run left with nothing running says so and exits 1.
-- Your playing hours: `--available-from 7 --available-to 23` (with `--timezone`); without them, any hour.
+- Awake hours: `--available-from 7 --available-to 23` (with `--timezone`); without them, any hour.
 - At 80% of Node's heap limit the run stops as Ctrl+C does (best so far and checkpoint kept) and says
   "this process's memory is near Node's limit". Then, or after a heap or "fatal error" crash, run the same
   command again (no `--fresh`) with `NODE_OPTIONS=--max-old-space-size=16384` in front of it (Git Bash,
@@ -275,15 +276,15 @@ and [Searches in detail](https://github.com/william-egginc/AutoAutoAP/wiki/Searc
 
 **Download CSV**, the `run.csv.gz` that `--out` writes and the table a send uploads have one row per leg
 of every route a run priced. It starts with `#` comment lines: plan start, TE and target, effort, first
-ascension, hours, time off, your note, the artifacts and stones; `# searched:` (the boxes, in the command
-line's notation) and `# ascensions:` (the count range and the minimum gap); and, By a date, `# workers:`
+ascension, Awake hours, Time off, your note, the artifacts and stones; `# searched:` (the boxes, in the command
+line's notation) and `# ascensions:` (the count range and the minimum gap); and, for Highest TE by a date, `# workers:`
 (the run's workers over its life). The header's own words have no commas, since Numbers and Excel split
 comment lines at commas too; only lines with your data (a note, a weekday list, uneven boxes) can.
 
 The columns: `rank`, `chain`, `prestiges`, `total_days`, `gap_days` (the route), then per leg `leg`,
 `target_te`, `strategy`, `sales`, `tier13`, `leg_start_local`, `build_phase_end_local`, `leg_end_local`,
-`leg_days`, `peak_delivery_q_per_hr`, `night_shifts` (shifts still in your away hours),
-`prestige_delay_hours`, `shift_hold_hours` (waits for your hours), `starts_on_egg`, `shift_times_local`
+`leg_days`, `peak_delivery_q_per_hr`, `night_shifts` (shifts still outside your Awake hours),
+`prestige_delay_hours`, `shift_hold_hours` (waits for Awake hours), `starts_on_egg`, `shift_times_local`
 and `time_off`; leg 1 has a few more (which way it went, and what the other way would have given). A
 route restored after a refresh keeps its total but not its per-leg cells. Details:
 [Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard).
@@ -349,7 +350,7 @@ Paths are relative to this folder. The full module map is on
 [Architecture](https://github.com/william-egginc/AutoAutoAP/wiki/Architecture).
 
 - `src/auto/`, `src/engine/`: Joo's simulator. Keep edits minimal and marked; any change can move
-  results. Our hooks: `hold.ts` (your hours), `buildUp.ts`, `lowTeOpening.ts` (the opening switch: PR 717's
+  results. Our hooks: `hold.ts` (Awake hours), `buildUp.ts`, `lowTeOpening.ts` (the opening switch: PR 717's
   rounds, our default, or Joo's v2 openings, when one C1/K1/I1 pass can't max the habs).
 - `src/search/`: our layer: the route finder, route pricing, the searches (`driver.ts`, `effort.ts`,
   `exhaustive.ts`, `deadline.ts`), `preferFewer.ts`, `delays.ts` (waits), `bigBox.ts`, `autoWiden.ts`
