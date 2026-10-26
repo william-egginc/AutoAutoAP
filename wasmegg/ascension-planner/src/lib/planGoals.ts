@@ -218,6 +218,53 @@ export interface GoalOption {
   open: MyRunsOpen;
   /** The player follows a route of their own for this goal (lib/follow.ts). */
   following?: boolean;
+  /** With a followed route: how far its times are (the pill says it, never "no saved plan yet"). */
+  follow?: GoalFollow;
+}
+
+/**
+ * A FOLLOWED GOAL'S PILL (25 Oct 2026, Jordan: the Fastest to 490 TE pill said "no saved plan yet" while the line under
+ * it said "Following 226 → 277 → 317 → 490 … not priced on this save yet"): with a followed route the pill says what is
+ * true of that route, in the follow line's words.
+ *   'timeline': priced from a kept result or the instant answer's own route; 'estimate': estimated from the instant
+ *   answer's data; 'finish': only its finish kept; 'working' / 'waiting': being estimated / once the search ends;
+ *   'none': no times on this save (nothing to estimate from, past the data, or the estimate failed).
+ */
+export interface GoalFollow {
+  times: 'timeline' | 'estimate' | 'finish' | 'working' | 'waiting' | 'none';
+  /** When the route lands (its last stop), unix seconds; null without times. */
+  end: number | null;
+  /** By a date: it lands after the date. */
+  late?: boolean;
+}
+
+/** A followed route's state from Right now's follow card (useNowPage `FollowCard`) and its plan's finish. */
+export function goalFollowOf(
+  card: { price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none'; estimating?: string; finish?: { end: number }; missesDate?: boolean },
+  planEnd: number | null
+): GoalFollow {
+  const late = card.missesDate ? { late: true } : {};
+  if (card.price === 'exact' || card.price === 'instant') return { times: 'timeline', end: planEnd, ...late };
+  if (card.price === 'estimate') return { times: 'estimate', end: planEnd, ...late };
+  if (card.price === 'finish') return { times: 'finish', end: card.finish?.end ?? null, ...late };
+  if (card.estimating === 'working' || card.estimating === 'waiting') return { times: card.estimating, end: null };
+  return { times: 'none', end: null };
+}
+
+/** A followed route with no times yet, in words: the follow line's note and the pill's (they agree). */
+export function followNoTimesWords(times: 'working' | 'waiting' | 'none'): string {
+  if (times === 'working') return 'working out its times';
+  if (times === 'waiting') return 'its times once the search running now ends';
+  return 'not priced on this save yet';
+}
+
+/** Under a followed goal's pill: "following · lands about Nov 4, 2026", "following · working out its times",
+ *  "following · not priced on this save yet". `late` words: lib/eggDayRule.ts `lateMarker`. */
+export function followOptionWords(f: GoalFollow, dayWords: (unix: number) => string, lateWords: string): string {
+  if (f.times === 'working' || f.times === 'waiting' || f.times === 'none' || f.end == null)
+    return `following · ${followNoTimesWords(f.times === 'working' || f.times === 'waiting' ? f.times : 'none')}`;
+  const when = `lands ${f.times === 'estimate' ? 'about ' : ''}${dayWords(f.end)}`;
+  return `following · ${when}${f.late ? `, ${lateWords}` : ''}`;
 }
 
 export function goalOptions(list: readonly GoalPlans[], zone: string): GoalOption[] {

@@ -75,7 +75,7 @@
         @click="emit('select', g.key)"
       >
         <span class="block text-[13px] font-bold">{{ g.label }}</span>
-        <span class="block text-[11px]" :class="g.state === 'plan' ? 'text-slate-500' : 'text-slate-400'">{{ optionSub(g) }}</span>
+        <span class="block text-[11px]" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times">{{ optionSub(g) }}</span>
       </button>
     </div>
 
@@ -440,7 +440,7 @@ import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
-import { emptyGoalWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
+import { emptyGoalWords, followNoTimesWords, followOptionWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
 import { type PlanEvent, type TrackState } from '@/lib/nowPlan';
 import { paceWords } from '@/lib/planPace';
 import { planCalEvent } from '@/lib/calendarEvents';
@@ -577,7 +577,9 @@ const following = computed(() => followingLine(props.card?.plan.chain ?? [], fol
 const followNote = computed(() => {
   const f = props.follow;
   if (!f) return '';
-  if (f.price === 'none') return 'not priced on this save yet';
+  // The same words as its pill (lib/planGoals.ts `followNoTimesWords`): being worked out, or not priced.
+  if (f.price === 'none')
+    return followNoTimesWords(f.estimating === 'working' || f.estimating === 'waiting' ? f.estimating : 'none');
   if (f.price === 'estimate') return "estimated from the instant answer's data";
   if (f.price === 'finish' && f.finish) {
     const lands = dateAt(f.finish.end, props.now, props.zone);
@@ -632,6 +634,8 @@ const radios = ref<(HTMLButtonElement | null)[]>([]);
 /** Under the pill's name: the plan's state. (A By a date pill's date is its name now, "By Feb 10, 2027", so the
  *  line no longer starts with it.) */
 function optionSub(g: GoalOption): string {
+  // A followed route: what is true of it, never "no saved plan yet" (25 Oct 2026).
+  if (g.follow) return followOptionWords(g.follow, t => dayWords(t, props.zone), lateMarker(g.kind === 'eggday' ? 'eggday' : 'date'));
   if (g.state === 'late') return 'no route in time';
   if (g.state !== 'plan') return g.state === 'answer-only' ? 'no saved plan with its times yet' : 'no saved plan yet';
   return g.calculatedAt ? `calculated ${relativeWords(g.calculatedAt / 1000 - props.now)}` : 'saved plan';
