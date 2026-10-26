@@ -31,7 +31,7 @@
       </p>
     </div>
 
-    <SaveAgeStrip :strip="page.strip.value" :loading="loading" @fresh="emit('fresh')" />
+    <SaveAgeStrip :strip="page.strip.value" :server="serverSave" :now="page.now.value" :loading="loading" @fresh="emit('fresh')" />
     <p v-if="page.saveWaiting.value" class="text-[12px] text-slate-500" data-testid="now-save-waiting">
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>
@@ -286,6 +286,7 @@ import { useFollowStore } from '@/stores/follow';
 import { simulateRoute } from '@/search/simulateRoute';
 import type { RecalcRequest } from '@/lib/recalc';
 import { markMyRunsSeen } from '@/composables/useMyRunsShown';
+import { useServerSave } from '@/composables/useServerSave';
 import DashboardGaps from './myruns/DashboardGaps.vue';
 import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
@@ -382,6 +383,13 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
+/** The save on the server versus the one loaded here: asked quietly once per page load (lib/serverSave.ts). */
+const serverSave = useServerSave({
+  playerId: computed(() => props.playerId),
+  loadedSeconds: page.saveSeconds,
+  ready: computed(() => page.hasSave.value && !props.loading),
+  now: page.now,
+});
 /**
  * Right now's Run Fast button is showing (RightNowCard: a card, on virtue): the one Run Fast on My runs (ux review
  * 26 Oct, row 15). The tile's How sure and Try next's "Egg Day, Fast" then don't repeat it for the same goal.

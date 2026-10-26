@@ -797,6 +797,7 @@ import {
 import { storeToRefs } from 'pinia';
 import TheNavBar from 'ui/components/NavBar.vue';
 import { getSavedPlayerID, savePlayerID, resolveColleggtibleContracts } from 'lib';
+import { noteServerSave } from '@/lib/serverSave';
 import { errorAfterSaveLoaded, LATEST_SAVE_FAILED, requestSave, SaveLoadError, SAVE_UNREACHABLE } from '@/lib/saveLoad';
 import { isRawError, plainError } from '@/lib/plainError';
 import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
@@ -1981,6 +1982,8 @@ async function submitPlayerId(id: string) {
 
     try {
       const pHash = await hashID(id);
+      // The server's save time is this save's now (lib/serverSave.ts: My runs' strip, no quiet check needed).
+      noteServerSave(pHash, backup);
       await saveMetadata(pHash, 'rawBackup', backup);
     } catch (dbErr) {
       console.error('Failed to save raw backup to DB', dbErr);

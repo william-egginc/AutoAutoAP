@@ -116,6 +116,7 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
   });
   it('My runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, Work out my plan)', () => {
     expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-fresh"')).toContain(TAP);
+    expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-why-summary"')).toContain(SUMMARY);
     const tile = read('myruns/SavedTile.vue');
     expect(tagWith(tile, 'v-if="tile.sure.action && !runFastAbove"')).toContain(TAP);
     expect(tagWith(tile, "@click=\"emit('open', screenOpen)\"")).toContain(TAP);
