@@ -145,7 +145,8 @@ describe('names and result headings (12 Oct)', () => {
   it('the search is "Fast and Exact", with its results heading', async () => {
     useStrongerStore().level = 'quick';
     const fast = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
-    expect(fast).toContain("Fast and Exact: the best routes found near the instant answer's");
+    // One clear sentence (UX review 26 Oct 2026, item 10: the old heading read cut off).
+    expect(fast).toContain("Fast and Exact look near the instant answer's route for a better one");
     expect(fast).toContain('What it does Fast and Exact.');
     const { NAMES } = await import('@/lib/siteNav');
     expect(NAMES.smart).toBe('Fast and Exact');
@@ -266,5 +267,17 @@ describe('the "is running" notice floats in the run bar (15 Oct)', () => {
     expect(app).toContain(":elsewhere=\"blockedBy && plannerTab === 'automatic' ? { running: blockedBy, here: hereLabel } : null\"");
     expect(fs.existsSync(path.join(__dirname, 'RunningElsewhere.vue'))).toBe(false);
     expect(fs.readFileSync(path.join(__dirname, 'FastestRoute.vue'), 'utf8')).not.toContain('RunningElsewhere');
+  });
+});
+
+describe('fewer explainers before Find (UX review 26 Oct 2026, item 10)', () => {
+  it('"Fast starts from your route\'s N ascensions…" is inside the Settings fold, not its own paragraph before Find', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+    const open = t.indexOf('section="searchSettings"');
+    const close = t.indexOf('</PanelFold>', open);
+    const note = t.indexOf('data-testid="coverage-note"');
+    expect(t.match(/\{\{ coverageNote \}\}/g)).toHaveLength(1);
+    expect(note).toBeGreaterThan(open);
+    expect(note).toBeLessThan(close);
   });
 });

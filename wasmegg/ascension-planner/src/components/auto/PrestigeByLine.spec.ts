@@ -9,7 +9,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 
 const LINE: PrestigeLine = {
   show: true,
-  text: 'Prestige by Fri Nov 27, 2 pm to keep 248 TE (Fri Nov 27, 3 pm at the latest, on the hour). After that: 247 (until about Sun Nov 29, 3 pm), then 246.',
+  text: 'Next: prestige by Fri, Nov 27, 2 PM to keep 248 TE. Waiting longer: 247 TE, 246 TE after about Sun, Nov 29, 3 PM.',
   tight: true,
   byHour: 0,
   latestHour: 3600,
@@ -55,6 +55,8 @@ describe('PrestigeByLine', () => {
     expect(t).toContain('Prestige by: your next prestige is more than 7 days away (the cutoff is about Fri, Nov 27 at 2 PM).');
     expect(textOf(await renderHtml(PrestigeByLine, { line: far, status: 'done' }))).toBe('');
     expect(textOf(await renderHtml(PrestigeByLine, { line: { ...LINE, show: false }, status: 'done', beta: true }))).toBe('');
+    // By a date: nothing until it is closer (UX review 26 Oct 2026, item 8).
+    expect(textOf(await renderHtml(PrestigeByLine, { line: far, status: 'done', beta: true, dated: true }))).toBe('');
   });
 
   it('says when the exact check disagrees with the answer it was worked out on', async () => {
@@ -67,6 +69,9 @@ describe('PrestigeByLine', () => {
     const template = src.slice(0, src.indexOf('<script'));
     const uses = template.match(/<PrestigeByLine[\s\S]*?\/>/g) ?? [];
     expect(uses).toHaveLength(2);
+    // The far-off note: Fastest's only (By a date's box passes `dated`).
+    expect(uses.filter(u => /\n\s*dated\n/.test(u))).toHaveLength(1);
+    expect(template.indexOf('dated\n')).toBeLessThan(template.indexOf('Fastest to {{ store.finalTE }} TE'));
     for (const u of uses) {
       // Not over a route Prefer fewer ascensions picked instead of the best (Q6): it is worked out on the best. The box
       // always shows the instant route otherwise (no Check exactly since 23 Oct 2026), so the line is always there.
@@ -96,5 +101,14 @@ describe('PrestigeByLine: one line, the notes behind "Why? ›" (Jordan, 25 Oct 
     expect(outside).toContain(LINE.text);
     expect(outside).toContain('Experimental · needs more data');
     expect(why).toContain('min-h-[44px]');
+  });
+});
+
+describe('PrestigeByLine: "Working out…" for at most ~20 s (UX review 26 Oct 2026, item 7)', () => {
+  it('goes through useStillWorking with 20 s', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'PrestigeByLine.vue'), 'utf8');
+    expect(src).toContain('const STILL_WORKING_MS = 20_000;');
+    expect(src).toContain('useStillWorking(() => props.status, STILL_WORKING_MS)');
+    expect(src).toContain(`v-if="status === 'running' && working"`);
   });
 });

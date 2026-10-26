@@ -46,10 +46,19 @@ describe('the instant card on a phone', () => {
     expect(tagWith(src, 'data-testid="instant-max-ascensions"')).toContain('min-h-[44px] sm:min-h-0');
     expect(tagWith(src, 'data-testid="instant-range-widen"')).toContain('min-h-[44px] sm:min-h-0');
   });
-  it('Hide: a 44 px invisible area round the pill on a phone only, the pill itself unmoved', () => {
-    const t = tagWith(read('auto/CollapsibleSection.vue'), ':data-testid="`hide-${id}`"');
-    expect(t).toContain('absolute -top-2.5 right-4');
-    expect(t).toContain("before:absolute before:-inset-x-2 before:-inset-y-3.5 before:content-[''] sm:before:hidden");
+  it('Hide: the button is 44 px round the pill on a phone, centred where the pill was; the pill alone from sm up (26 Oct)', () => {
+    const src = read('auto/CollapsibleSection.vue');
+    const t = tagWith(src, ':data-testid="`hide-${id}`"');
+    // 44 px tall, its top 22 px up: the pill's centre stays on the section's edge, as with -top-2.5 on a 20 px pill.
+    expect(t).toContain('absolute -top-[22px] right-2 z-20 inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-2');
+    expect(t).toContain('sm:-top-2.5 sm:right-4 sm:min-h-0 sm:min-w-0 sm:px-0');
+    expect(src).toMatch(/<span\s+class="px-2 py-0\.5 rounded-full border border-slate-200 bg-white[^"]*"\s*>Hide<\/span/);
+  });
+  it('the "?" info icons (HelpTip): 14 px as before, with a 44 px invisible area round them on a phone (26 Oct)', () => {
+    const t = tagWith(read('auto/HelpTip.vue'), 'aria-label="What does this mean?"');
+    expect(t).toContain('w-3.5 h-3.5');
+    expect(t).toContain("relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden");
+    expect(14 + 2 * 15).toBe(44);
   });
 });
 

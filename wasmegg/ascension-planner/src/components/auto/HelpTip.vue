@@ -13,11 +13,13 @@
   panel explains ("2-sale-tier13", "peak delivery", "prestige wait") are sentences.
 -->
 <template>
+  <!-- The "?" is 14 px; on a phone an invisible area round it (before:, 15 px each way) makes it 44 px to tap with the
+       same look (UX review 26 Oct 2026, item 12). Unchanged from sm up. -->
   <span class="relative inline-flex align-middle">
     <button
       ref="trigger"
       type="button"
-      class="w-3.5 h-3.5 rounded-full border border-slate-300 text-slate-400 text-[9px] font-black leading-none flex items-center justify-center hover:border-slate-500 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+      class="relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden w-3.5 h-3.5 rounded-full border border-slate-300 text-slate-400 text-[9px] font-black leading-none flex items-center justify-center hover:border-slate-500 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"
       :aria-describedby="open ? id : undefined"
       aria-label="What does this mean?"
       @mouseenter="show"

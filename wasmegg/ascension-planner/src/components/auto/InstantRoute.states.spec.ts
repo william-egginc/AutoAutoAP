@@ -25,7 +25,8 @@ import ts from 'typescript';
 import { idleLine } from '@/search/instantDeferral';
 import { HOURS_NOTE } from '@/lib/hoursNote';
 import { instantLiveText } from '@/lib/liveStatus';
-import { roundedGap } from '@/lib/format';
+import { headlineGap, roundedGap } from '@/lib/format';
+import { spareLine } from '@/lib/spareLine';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 
@@ -138,6 +139,8 @@ function ctxOf(s: State): Record<string, unknown> {
     dateRowLit: () => false,
     dateRows: result?.byDate ? [fewer, dateRoute] : [],
     days: (sec: number) => `${(sec / 86400).toFixed(2)} days`,
+    headlineGap: (sec: number) => headlineGap(sec, 'en-US'),
+    dateSpare: result?.byDate ? spareLine((deadline ?? 0) - result.byDate.end, false, 'en-US') : null,
     tableGap: (sec: number) => roundedGap(sec),
     deadline,
     deliveryScale: 1,
@@ -149,7 +152,7 @@ function ctxOf(s: State): Record<string, unknown> {
     setAscBound: () => {},
     widenTo: () => {},
     followGoal: 'date',
-    gainsText: '',
+    boxGain: '',
     headCaveat: null,
     gearDiffers: false,
     gearTable: false,
@@ -504,5 +507,77 @@ describe('Every number of ascensions: rounded gaps (UX review, 25 Oct 2026)', ()
     expect(src).toContain("return r === t ? 'fastest' : '+' + roundedGap(r.seconds - t.seconds);");
     expect(src).toContain('<span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>');
     expect(src).toContain('<span v-if="behind(r) !== \'fastest\'" class="min-[30rem]:hidden"> behind</span>');
+  });
+});
+
+describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', () => {
+  const at = (answer: Answer, deadline: boolean): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+  const D = 86400;
+
+  it('By a date: the spare rounded, amber with "tight" only when spareLine says so', async () => {
+    const plain = await draw(at('date', true), { dateSpare: spareLine(8 * D, true, 'en-US') });
+    expect(plain).toContain('8 days to spare');
+    expect(plain).not.toContain('data-testid="box-tight"');
+    const caveat = await draw(at('date', true), { dateSpare: spareLine(3 * D, true, 'en-US') });
+    expect(caveat).toContain('3 days to spare, maybe none on your gear');
+    expect(caveat).toContain('data-testid="box-tight"');
+    expect(caveat).toMatch(/text-amber-700[^>]*data-testid="box-spare"|data-testid="box-spare"[^>]*text-amber-700/);
+    const none = await draw(at('date', true), { dateSpare: spareLine(3 * D, false, 'en-US') });
+    expect(none).not.toContain('data-testid="box-tight"');
+  });
+
+  it('Fastest: "in N days" without two decimals; no "worked out ahead" badge, the "instant answer" tag stays', async () => {
+    const html = await draw(at('fastest', false), {
+      boxLead: { chain: [210, 260, 300], legs: [{ endTE: 210 }, { endTE: 260 }, { endTE: 300 }], end: 1, seconds: 1857.95 * D },
+    });
+    expect(html).toContain('in 1,858 days (5.1 years)');
+    expect(html.toLowerCase()).not.toContain('worked out ahead</span');
+    expect(html).toContain('data-testid="box-instant"');
+  });
+});
+
+describe('lines that come and go (UX review, 26 Oct 2026, items 3 and 7)', () => {
+  const at = (answer: Answer, deadline: boolean): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+
+  it('the polish: a small "polished" tag and what it did for the route in the box, inside the box; never "the background polish"', async () => {
+    for (const [answer, deadline] of [['date', true], ['fastest', false]] as const) {
+      const html = await draw(at(answer, deadline), { boxGain: 'this route 6 h sooner' });
+      const box = html.slice(html.indexOf('data-testid="instant-box"'));
+      expect(box).toContain('data-testid="box-polished"');
+      expect(box).toMatch(/>polished<\/span\s*>this route 6 h sooner/);
+      expect(html).not.toContain('background polish');
+      expect(await draw(at(answer, deadline))).not.toContain('data-testid="box-polished"');
+    }
+  });
+
+  it('"Pricing your route on the instant answers for the closest…" only when its line can show (no box on screen)', async () => {
+    const withBox = await draw(at('date', true), { bracketStatus: 'running' });
+    expect(withBox).not.toContain('Pricing your route');
+    const noBox = await draw(at('date', true), { bracketStatus: 'running', boxShown: false });
+    expect(noBox).toContain('Pricing your route');
   });
 });

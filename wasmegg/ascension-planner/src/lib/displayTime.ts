@@ -35,13 +35,13 @@ watch(dateStyle, v => {
 /**
  * A moment, in `timezone`: "Mar 18, 2027, 11:15 AM" (en-US), or ISO. '' when unknown. `dateOnlyWhenFar` leaves the
  * time off a moment more than a year away ("Jun 7, 2032"): for a route's finish in a summary or a list only,
- * never a deadline, a stop or a prestige time (lib/clock.ts).
+ * never a deadline, a stop or a prestige time (lib/clock.ts). `shortTime`: the hour alone when on the hour ("7 PM").
  */
 export function showDateTime(
   unixSeconds: number | undefined,
   timezone: string,
   style = dateStyle.value,
-  opts: { dateOnlyWhenFar?: boolean } = {}
+  opts: { dateOnlyWhenFar?: boolean; shortTime?: boolean } = {}
 ): string {
   if (!unixSeconds || !Number.isFinite(unixSeconds)) return '';
   if (style === 'iso') return formatInZone(unixSeconds, timezone);
@@ -78,12 +78,6 @@ export function showDay(ymd: string, style = dateStyle.value): string {
 }
 
 /**
- * A moment in a sentence, in `timezone`, on the 12-hour clock: "Nov 5 at 4:00 pm", with the year only
- * when it isn't this year ("Jan 3, 2028 at 9:00 am"), or always with `withYear` (a timeline that spans
- * two calendar years gives every date its year, `spansYears`). The ISO style gives its fixed
- * `2027-03-18 11:15`. '' when unknown. Each egg's moment under a route's arrow (RouteTimeline.vue).
- */
-/**
  * True when these moments fall in more than one calendar year in `timezone` (Dec 8 and Jan 3): one
  * timeline decides once, so "Dec 8" never sits beside "Jan 3, 2027" (18 Oct 2026). Unknowns skipped.
  */
@@ -99,6 +93,13 @@ export function spansYears(unixSeconds: readonly (number | null | undefined)[], 
   return years.size > 1;
 }
 
+/**
+ * A moment in a sentence or a list, in `timezone`, by the player's clock: "Nov 5, 4:00 PM", with the year only
+ * when it isn't this year ("Jan 3, 2028, 9:00 AM"), or always with `withYear` (a timeline that spans
+ * two calendar years gives every date its year, `spansYears`). The same comma as `showDateTime`: one shape
+ * for a date and time on every panel (UX review 26 Oct 2026, item 16; was "Nov 5 at 4:00 PM"). The ISO style
+ * gives its fixed `2027-03-18 11:15`. '' when unknown. Each egg's moment under a route's arrow (RouteTimeline.vue).
+ */
 export function showWhen(
   unixSeconds: number | null | undefined,
   timezone: string,
@@ -109,7 +110,7 @@ export function showWhen(
   if (!unixSeconds || !Number.isFinite(unixSeconds)) return '';
   if (style === 'iso') return formatInZone(unixSeconds, timezone);
   return (
-    formatMoment(unixSeconds * 1000, { zone: timezone, at: true, year: withYear ? 'always' : 'auto', now: nowSeconds * 1000 }) ||
+    formatMoment(unixSeconds * 1000, { zone: timezone, year: withYear ? 'always' : 'auto', now: nowSeconds * 1000 }) ||
     formatInZone(unixSeconds, timezone)
   );
 }

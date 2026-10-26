@@ -218,8 +218,8 @@ describe('describeCutoff (the display rules)', () => {
     expect(line.latestHour).toBe(Date.parse('2026-11-27T22:00:00Z') / 1000); // 3 pm MST
     expect(line.byHour).toBe(line.latestHour - HOUR);
     expect(line.text).toBe(
-      `Prestige by ${show(line.byHour)} to keep 248 TE (${show(line.latestHour)} at the latest, on the hour). ` +
-        `After that: 247 (until about ${show(hourOf(P, 60))}), then 246.`
+      `Next: prestige by ${show(line.byHour)} to keep 248 TE. ` +
+        `Waiting longer: 247 TE, 246 TE after about ${show(hourOf(P, 60))}.`
     );
   });
 
@@ -262,9 +262,9 @@ describe('describeCutoff (the display rules)', () => {
 
   it('says prestige right away when even the next hour is the last that keeps it', () => {
     const line = describeCutoff(drop(0, 15), base);
-    expect(line.text.startsWith('Prestige as soon as you reach 161 TE to keep 248 TE')).toBe(true);
+    expect(line.text).toBe(`Next: prestige at 161 TE around ${show(line.latestHour)} to keep 248 TE. Waiting longer: 247 TE.`);
     const fresh = describeCutoff(drop(0, 15), { ...base, fresh: true });
-    expect(fresh.text.startsWith('Prestige now to keep 248 TE')).toBe(true);
+    expect(fresh.text.startsWith(`Next: prestige now, by ${show(fresh.latestHour)} at the latest to keep 248 TE.`)).toBe(true);
   });
 
   it('says "to be sure of" when the lookups ran out', () => {
@@ -272,7 +272,7 @@ describe('describeCutoff (the display rules)', () => {
     const line = describeCutoff(unsure, base);
     expect(line.show).toBe(true);
     expect(line.text).toContain('to be sure of 248 TE');
-    expect(line.text).not.toContain('After that');
+    expect(line.text).not.toContain('Waiting longer');
   });
 
   it('Fastest: the date it still reaches, and how much later after that', () => {
@@ -285,10 +285,23 @@ describe('describeCutoff (the display rules)', () => {
     };
     const line = describeCutoff(c, { ...base, mode: 'fastest', deadline: undefined });
     expect(line.text).toBe(
-      `Prestige by ${show(hourOf(P, 5) - HOUR)} to still reach 490 TE on ${show(E)} (${show(hourOf(P, 5))} at the latest, on the hour). ` +
-        `After that: ${show(E + 7 * 86400)} (7.0 days later).`
+      `Next: prestige by ${show(hourOf(P, 5) - HOUR)}. Waiting longer costs about 7 days.`
     );
     expect(line.tight).toBe(false);
+  });
+
+  it("the review's example: right away at the first stop, 17.4 days later after that (UX review 26 Oct 2026, item 8)", () => {
+    const E = DEADLINE;
+    const c: Cutoff = {
+      ...drop(0, 0),
+      keep: { te: 490, end: E },
+      lastKeepOutcome: { te: 490, end: E },
+      dropOutcome: { te: 490, end: E + 17.4 * 86400 },
+    };
+    const line = describeCutoff(c, { ...base, firstStop: 205, mode: 'fastest', deadline: undefined, show: () => 'Feb 23, 2027, 7 PM' });
+    expect(line.text).toBe('Next: prestige at 205 TE around Feb 23, 2027, 7 PM. Waiting longer costs about 17 days.');
+    const never = describeCutoff({ ...c, dropOutcome: { te: 489, end: null } }, { ...base, mode: 'fastest', deadline: undefined });
+    expect(never.text).toContain("Waiting longer doesn't reach 490 TE.");
   });
 
   it('keeps a prediction record that matches the line', () => {

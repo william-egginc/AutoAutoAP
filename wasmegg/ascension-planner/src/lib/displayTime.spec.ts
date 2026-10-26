@@ -16,6 +16,14 @@ describe('dates and hours as the player reads them', () => {
       formatMoment(Date.UTC(2040, 0, 1), { zone: 'UTC', dateOnly: true })
     );
   });
+  it('shortTime: the hour alone when on the hour (the Prestige-by line, UX review 26 Oct 2026, item 8)', () => {
+    const seven = Date.UTC(2027, 1, 24, 3) / 1000; // 7 PM in Los Angeles
+    expect(showDateTime(seven, 'America/Los_Angeles', 'local', { shortTime: true })).toBe(
+      formatMoment(seven * 1000, { zone: 'America/Los_Angeles', shortTime: true })
+    );
+    expect(showDateTime(seven, 'America/Los_Angeles', 'local', { shortTime: true })).not.toMatch(/:00/);
+    expect(showDateTime(t, 'America/Denver', 'local', { shortTime: true })).toMatch(/:15/);
+  });
   it('says when the hours run past midnight', () => {
     expect(showSchedule({ days: [], fromHour: 9, toHour: 1, timezone: 'America/Denver' }, 'iso')).toBe(
       'every day, 09:00 to 01:00 (next day) (America/Denver)'

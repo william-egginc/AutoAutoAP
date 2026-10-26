@@ -25,6 +25,15 @@ export function eggDayYearOf(seconds: number): number | null {
   return eggDaySeconds(y) === seconds ? y : null;
 }
 
+/** `seconds` reads the same on both zones' clocks (same day, same time): the planner's time beside Pacific's would
+ *  say the date twice (UX review 26 Oct 2026, item 14). An unknown zone reads as different. */
+export function sameClock(seconds: number, zone: string, other: string = EGG_DAY_ZONE): boolean {
+  const at = seconds * 1000;
+  const a = calendarOf(at, zone);
+  const b = calendarOf(at, other);
+  return !!a && !!b && a.ymd === b.ymd && formatClock(at, zone) === formatClock(at, other);
+}
+
 /**
  * Egg Day in words, the planner's clock beside Pacific's, one format for both (lib/clock.ts): in en-US
  * "Jul 14, 2027, 9:00 AM Pacific (10:00 AM your time)", "… (Jul 15, 1:00 AM your time)" when it is already the

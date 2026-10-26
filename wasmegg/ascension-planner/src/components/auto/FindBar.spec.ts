@@ -4,6 +4,8 @@
  * though they apply to the send at the end; a Send best so far press left no clear next step; and the
  * hint under Find and submit said only "Please tick the box below".
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSSRApp, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
@@ -65,11 +67,14 @@ const render = async (props: Record<string, unknown>) =>
 describe('FindBar', () => {
   it('says how to use Find and submit until the box is ticked', async () => {
     const t = await render({});
-    // The box is a link (it scrolls to the box), so the text extractor puts a space before the stop.
-    expect(t).toMatch(/To use Find and submit, please tick the box below ?\./);
-    expect(t).not.toMatch(/(^|[^,] )Please tick the box below/);
+    // Names the fold the ticks are in, as a link that opens it (UX review 26 Oct 2026, item 11).
+    expect(t).toContain('To use Find and submit, open Before you send');
+    expect(t).not.toMatch(/tick the box below/i);
     expect(t).toContain('I acknowledge the following');
-    expect(await render({ optIn: true })).not.toMatch(/please tick the box below/);
+    expect(await render({ optIn: true })).not.toContain('To use Find and submit');
+    const src = fs.readFileSync(path.join(__dirname, 'FindBar.vue'), 'utf8');
+    expect(src).toMatch(/data-testid="acknowledge-hint-link"\s*@click="showConsent"\s*>Before you send<\/button/);
+    expect(src).toContain('await ackFold.value?.show(false);');
   });
 
   for (const goalWord of ['target', 'deadline'] as const) {

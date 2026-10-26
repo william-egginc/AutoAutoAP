@@ -31,10 +31,6 @@
       <h3 class="text-base font-black text-slate-900">
         Instant answer
         <span
-          class="ml-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
-          >worked out ahead</span
-        >
-        <span
           v-if="own"
           class="ml-1 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[9px] font-black uppercase tracking-widest"
           >your gear</span
@@ -270,10 +266,9 @@
         <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
           Polishing the routes in the background…
         </p>
-        <p v-else-if="gainsText" class="text-[11px] text-emerald-800">
-          Improved by the background polish: {{ gainsText }}.
-        </p>
-        <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-500">
+        <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
+             the box's one caveat line): no "Pricing…" line that ends in nothing (UX review 26 Oct 2026, item 7). -->
+        <p v-if="bracketStatus === 'running' && !boxShown" class="text-[11px] text-slate-500" data-testid="instant-bracket-running">
           Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
         </p>
         <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
@@ -300,13 +295,16 @@
           <template v-if="result.byDate">
             <div class="flex flex-wrap items-baseline gap-x-3">
               <span class="text-2xl font-black text-slate-900">{{ dateBoxOf(result.byDate).endTE }} TE</span>
+              <!-- Tight under a day, or inside the gear caveat's window when it shows (lib/spareLine.ts). -->
               <span
                 class="text-lg font-black"
-                :class="spareOf(dateBoxOf(result.byDate)) < TIGHT_SECONDS ? 'text-amber-700' : 'text-emerald-800'"
-                >{{ days(spareOf(dateBoxOf(result.byDate))) }} to spare</span
+                :class="dateSpare?.tight ? 'text-amber-700' : 'text-emerald-800'"
+                data-testid="box-spare"
+                >{{ dateSpare?.text }}</span
               >
               <span
-                v-if="spareOf(dateBoxOf(result.byDate)) < TIGHT_SECONDS"
+                v-if="dateSpare?.tight"
+                data-testid="box-tight"
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
                 >tight</span
               >
@@ -319,6 +317,12 @@
               Reached {{ show(dateBoxOf(result.byDate).end) }} ·
               {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
             </div>
+            <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
+            <p v-if="boxGain" class="text-[11px] text-emerald-800" data-testid="box-polished">
+              <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
+                >polished</span
+              >{{ boxGain }}
+            </p>
             <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
             <AnswerCaveatLine :caveat="headCaveat" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
@@ -332,6 +336,7 @@
               mismatch=""
               :beta="prestigeFlag.beta"
               :hours-on="hoursLimited"
+              dated
             />
             <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
             <p
@@ -492,8 +497,14 @@
             <span class="text-[11px] font-bold text-slate-500" data-testid="box-instant">instant answer</span>
           </div>
           <div class="text-[12px] font-bold text-emerald-800">
-            in {{ days(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
+            in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
+          <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
+          <p v-if="boxGain" class="text-[11px] text-emerald-800" data-testid="box-polished">
+            <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
+              >polished</span
+            >{{ boxGain }}
+          </p>
           <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
           <AnswerCaveatLine :caveat="headCaveat" />
           <div class="font-mono-premium text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
@@ -764,7 +775,8 @@
 
 <script setup lang="ts">
 import { formatClock } from '@/lib/clock';
-import { plural, roundedGap } from '@/lib/format';
+import { headlineGap, plural, roundedGap } from '@/lib/format';
+import { spareLine } from '@/lib/spareLine';
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
@@ -802,7 +814,7 @@ import {
   boundInput,
   boundsAfter,
   boundsText,
-  describeGains,
+  describeBoxGain,
   filterBounds,
   polishGains,
   insideHoursFor,
@@ -1026,7 +1038,14 @@ const ms = ref<number | null>(null);
 /** The background polish (the user, 6 Oct): running, and what it improved. */
 const backgroundStatus = ref<'idle' | 'running' | 'done'>('idle');
 const gains = ref<PolishGain[]>([]);
-const gainsText = computed(() => describeGains(gains.value, !!props.deadline));
+/** What the polish did for the route the box shows ('' when it improved other counts only: instantFilters.ts
+ *  `describeBoxGain`, UX review 26 Oct 2026, item 3). */
+const boxGain = computed(() => {
+  const r = result.value;
+  if (!r) return '';
+  const k = props.deadline ? (r.byDate ? dateBoxOf(r.byDate).chain.length : 0) : (boxLead.value?.legs.length ?? 0);
+  return k ? describeBoxGain(gains.value, k, !!props.deadline) : '';
+});
 
 /** The player's earnings set's Clothed TE bonus (read from the save the planner loaded). A reading that throws keeps
  *  the last good one (search/instantScale.ts `readKept`): never the reason the card can't be drawn. */
@@ -1254,7 +1273,8 @@ async function prestigeWork(id: number, p: RoutePool, url: string): Promise<void
       now: Math.floor(Date.now() / 1000),
       ...(deadline ? { deadline } : {}),
       final: target.value,
-      show,
+      // On the hour, as the hour alone ("Feb 23, 2027, 7 PM"; UX review 26 Oct 2026, item 8).
+      show: (unix: number) => showDateTime(unix, zone.value, undefined, { shortTime: true }),
     });
     prestige.value = { line, cutoff: cut, record: recordOfCutoff(cut, line, plan, PRESTIGE_EGGS) };
     prestigeStatus.value = 'done';
@@ -2016,8 +2036,6 @@ const lowTeNote = computed(() => lowTeOpeningNote(store.integrityLowTe));
 const simNote = computed(() => tableSimMismatch(header.value));
 
 
-/** Under a day to spare is tight: a slower ascension than planned, or a late start, misses the date. */
-const TIGHT_SECONDS = 86400;
 /** A By a date route as the box and the counts list read it: its stops, the TE it ends at and when. */
 interface DatePick {
   chain: number[];
@@ -2030,6 +2048,12 @@ function lastEndTE(r: Route): number {
 }
 const tableDate = (r: Route): DatePick => ({ chain: r.chain ?? [], endTE: lastEndTE(r), end: r.end });
 const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
+/** The box's "to spare" and whether it is tight: under a day, or inside the gear caveat's window when the form G's
+ *  caveat shows ("Up to about 5 days later than shown", lib/spareLine.ts; Jordan, 26 Oct 2026). */
+const dateSpare = computed(() => {
+  const b = result.value?.byDate;
+  return b ? spareLine(spareOf(dateBoxOf(b)), shiftedTable.value) : null;
+});
 /** The rows By a date shows: the table's best number of ascensions and up to two either side. */
 function dateRowsOf(found: NonNullable<typeof result.value>): Route[] {
   const best = found.byDate;
