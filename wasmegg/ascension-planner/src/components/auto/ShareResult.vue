@@ -11,10 +11,10 @@
 -->
 <template>
   <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4">
-    <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">{{ heading }}</h3>
+    <h3 class="text-indigo-800 label">{{ heading }}</h3>
     <slot name="intro" />
     <!-- The run sent a best so far (Send best so far): this send takes its place on the board. -->
-    <p v-if="replacesBestSoFar" class="text-body font-semibold text-indigo-900" data-testid="share-replaces">
+    <p v-if="replacesBestSoFar" class="text-body font-bold text-indigo-900" data-testid="share-replaces">
       Your best so far from this run is on the Leaderboard as "in progress". Sending this result replaces it.
     </p>
     <!-- Compact (the user, 12 Oct: the same consent twice): not agreed yet, the screen's one button, which
@@ -23,7 +23,7 @@
     <template v-if="compact && !optIn && sendLabel && !asking">
       <button
         type="button"
-        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800"
         data-testid="share-ask"
         @click="asking = true"
       >

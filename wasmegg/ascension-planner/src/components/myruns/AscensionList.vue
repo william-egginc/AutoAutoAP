@@ -11,7 +11,7 @@
   <div class="text-body text-slate-700" data-testid="now-ascensions">
     <ol class="space-y-1.5 list-none pl-0">
       <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="now-ascension" :data-asc="l.asc">
-        <span class="font-black text-slate-800">A{{ l.asc }}</span>
+        <span class="font-bold text-slate-800">A{{ l.asc }}</span>
         <template v-if="l.now">{{ ' ' }}· now, in the ascension you are in</template>
         <template v-else>
           {{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ about(l.prestigeAt) }}</span>

@@ -20,7 +20,7 @@
     </div>
     <!-- Folded under the title, like Fastest's explainer (the user, 12 Oct: it sat in the middle of the page). -->
     <details class="rounded-xl border border-slate-200 bg-white" data-testid="by-date-how">
-      <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+      <summary class="cursor-pointer px-4 py-3 text-body font-bold text-slate-500">
         How {{ NAMES.byDate }} works
       </summary>
       <div class="px-4 pb-4 text-body text-slate-600">

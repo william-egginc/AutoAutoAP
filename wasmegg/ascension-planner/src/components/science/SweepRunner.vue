@@ -36,8 +36,8 @@
     >
       <div class="flex items-start justify-between gap-3">
         <div class="space-y-0.5">
-          <p class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Run a sweep</p>
-          <h2 id="sweep-runner-title" class="text-title font-black text-slate-900">{{ request.label }}</h2>
+          <p class="text-indigo-500 label">Run a sweep</p>
+          <h2 id="sweep-runner-title" class="text-title font-bold text-slate-900">{{ request.label }}</h2>
           <p class="text-body text-slate-500">
             {{ bandsInWords
             }}<template v-if="request.minGap > 0"> · targets at least {{ request.minGap }} TE apart</template
@@ -81,14 +81,14 @@
         <div class="flex flex-wrap gap-2">
           <button
             type="button"
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500"
+            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500"
             @click="getReady"
           >
             Load my save and continue
           </button>
           <button
             type="button"
-            class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+            class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-body font-bold hover:bg-slate-50"
             @click="close"
           >
             Cancel
@@ -106,7 +106,7 @@
         <p>{{ notReadyText }}</p>
         <button
           type="button"
-          class="px-3 py-1.5 rounded-md bg-white border border-red-200 text-[10px] font-black uppercase tracking-widest hover:bg-red-100"
+          class="px-3 py-1.5 rounded-md bg-white border border-red-200 text-body font-bold hover:bg-red-100"
           @click="getReady"
         >
           Try again
@@ -117,20 +117,20 @@
       <template v-else-if="phase === 'ready'">
         <div class="grid gap-2 grid-cols-2 sm:grid-cols-4 text-body">
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
+            <div class="label text-slate-400">Routes</div>
             <div class="font-bold text-slate-800">{{ chainCount.toLocaleString() }}</div>
           </div>
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Ascensions</div>
+            <div class="label text-slate-400">Ascensions</div>
             <div class="font-bold text-slate-800">{{ ascensions }}</div>
           </div>
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">From → to</div>
+            <div class="label text-slate-400">From → to</div>
             <div class="font-bold text-slate-800">TE {{ Math.floor(store.currentTE) }} → {{ store.finalTE }}</div>
           </div>
           <div class="rounded-lg bg-indigo-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-indigo-400">About how long</div>
-            <div class="font-black text-indigo-900">{{ chainCount ? roughly(hours) : '—' }}</div>
+            <div class="label text-indigo-400">About how long</div>
+            <div class="font-bold text-indigo-900">{{ chainCount ? roughly(hours) : '—' }}</div>
           </div>
         </div>
         <p class="text-small text-slate-400 -mt-2">
@@ -140,14 +140,14 @@
 
         <p
           v-if="!chainCount"
-          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body font-semibold text-amber-800"
+          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body font-bold text-amber-800"
         >
           {{ NO_FIT_TEXT }} From TE {{ Math.floor(store.currentTE) }} its ascension ranges leave no room above where
           your save is.
         </p>
         <p
           v-else-if="tooBig"
-          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body font-semibold text-amber-800"
+          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body font-bold text-amber-800"
         >
           That is longer than most people will leave a tab open. It can still be run, and stopping it early sends what
           it has, marked partial.
@@ -239,13 +239,13 @@
           <button
             type="button"
             :disabled="!canStart"
-            class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
+            class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500 disabled:opacity-40"
             @click="start"
           >
             Start and submit when done
           </button>
           <span v-if="!consent && chainCount" class="text-small text-slate-500">Tick “I understand” first.</span>
-          <span v-if="store.saveNotReady" class="text-small font-semibold text-amber-700">{{
+          <span v-if="store.saveNotReady" class="text-small font-bold text-amber-700">{{
             store.saveNotReady
           }}</span>
         </div>
@@ -299,7 +299,7 @@
             <button
               type="button"
               :disabled="stopping"
-              class="px-4 py-2 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-50"
+              class="px-4 py-2 rounded-lg bg-slate-900 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-50"
               @click="stop"
             >
               <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop and send what it has</template>
@@ -335,14 +335,14 @@
           <div class="flex flex-wrap gap-2">
             <button
               type="button"
-              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500"
+              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500"
               @click="emit('show-result')"
             >
               See it in {{ NAMES.full }}
             </button>
             <button
               type="button"
-              class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+              class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-body font-bold hover:bg-slate-50"
               @click="dismiss"
             >
               Close

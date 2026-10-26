@@ -86,7 +86,7 @@
         <template v-else>
           <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center">
             <div class="flex flex-col">
-              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1"
+              <span class="text-gray-400 label leading-none mb-1"
                 >Simple Path</span
               >
               <span
@@ -97,7 +97,7 @@
               </span>
             </div>
             <div class="flex flex-col">
-              <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1"
+              <span class="text-gray-400 label leading-none mb-1"
                 >Payback First</span
               >
               <span
@@ -108,7 +108,7 @@
               </span>
             </div>
             <div class="flex flex-col border-l border-gray-200 pl-6">
-              <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
+              <span class="text-gray-500 label leading-none mb-1"
                 >Time Saved</span
               >
               <span class="text-body tabular-nums font-bold text-emerald-600 leading-none py-1">
@@ -116,7 +116,7 @@
               </span>
             </div>
             <div class="flex flex-col border-l border-gray-200 pl-6">
-              <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
+              <span class="text-gray-500 label leading-none mb-1"
                 >Researches Bought</span
               >
               <span class="text-body tabular-nums font-bold text-gray-900 leading-none py-1">
@@ -124,7 +124,7 @@
               </span>
             </div>
             <div class="flex flex-col border-l border-gray-200 pl-6">
-              <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
+              <span class="text-gray-500 label leading-none mb-1"
                 >Gems Spent</span
               >
               <span class="text-body tabular-nums font-bold text-gray-900 leading-none py-1">
@@ -182,7 +182,7 @@
     >
       <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center">
         <div class="flex flex-col">
-          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">Lay Rate</span>
+          <span class="text-gray-400 label leading-none mb-1">Lay Rate</span>
           <span
             v-tippy="'Optimal artifacts applied, max population assumed'"
             class="text-body tabular-nums font-bold text-gray-900 leading-none py-1"
@@ -191,7 +191,7 @@
           </span>
         </div>
         <div class="flex flex-col">
-          <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1"
+          <span class="text-gray-400 label leading-none mb-1"
             >Shipping Cap</span
           >
           <span
@@ -202,7 +202,7 @@
           </span>
         </div>
         <div class="flex flex-col border-l border-gray-200 pl-6">
-          <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
+          <span class="text-gray-500 label leading-none mb-1"
             >Delivery Rate</span
           >
           <span

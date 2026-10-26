@@ -19,18 +19,18 @@
       class="rounded-xl border border-slate-200 bg-white px-3"
     >
       <dl class="mt-1 mb-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-body" data-testid="level-note">
-        <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it does</dt>
+        <dt class="text-slate-500 label pt-0.5">What it does</dt>
         <dd class="text-slate-800">{{ current.does }}</dd>
-        <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">How long</dt>
+        <dt class="text-slate-500 label pt-0.5">How long</dt>
         <dd class="text-slate-800" data-testid="level-how-long">{{ estimates?.[level]?.line ?? current.time }}</dd>
-        <dt class="font-black text-slate-500 uppercase tracking-widest text-[9px] pt-0.5">What it finds</dt>
+        <dt class="text-slate-500 label pt-0.5">What it finds</dt>
         <dd class="text-slate-800">{{ current.finds }}</dd>
       </dl>
       <div
         class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-small text-amber-900"
         data-testid="stronger-promise"
       >
-        <p class="font-black uppercase tracking-wide text-[9px] text-amber-800">What it promises and what it doesn't</p>
+        <p class="font-bold text-small text-amber-800">What it promises and what it doesn't</p>
         <!-- What the option picked promises, and only that (the user, 12 Oct: no lines that don't apply). -->
         <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed" data-testid="promise-lines">
           <li v-for="(line, k) in promises" :key="k">{{ line }}</li>

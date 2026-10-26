@@ -56,7 +56,7 @@
         <label
           v-for="[k, words] in TICK_WORDS"
           :key="k"
-          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
+          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
         >
           <input
             v-model="ticks[k]"
@@ -72,10 +72,10 @@
       </p>
 
       <fieldset class="space-y-1 sm:space-y-1.5">
-        <legend class="text-[10px] font-black text-slate-500 uppercase tracking-widest">On the leaderboard</legend>
+        <legend class="text-slate-500 label">On the leaderboard</legend>
         <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-3">
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
           >
             <input
               v-model="credit"
@@ -99,7 +99,7 @@
             @focus="credit = 'name'"
           />
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
           >
             <input
               v-model="credit"

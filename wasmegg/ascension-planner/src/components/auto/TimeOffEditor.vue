@@ -15,7 +15,7 @@
       <button
         type="button"
         :disabled="store.isRunning || rows.length >= 8"
-        class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+        class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
         :data-testid="`${kind}-add`"
         @click="add"
       >
@@ -48,7 +48,7 @@
       <button
         type="button"
         :disabled="store.isRunning"
-        class="min-h-[44px] sm:min-h-0 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-600 disabled:opacity-40"
+        class="min-h-[44px] sm:min-h-0 text-body font-bold text-slate-400 hover:text-red-600 disabled:opacity-40"
         data-testid="time-off-remove"
         @click="rows.splice(i, 1)"
       >

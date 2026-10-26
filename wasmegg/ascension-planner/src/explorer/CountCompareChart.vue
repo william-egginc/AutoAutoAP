@@ -49,7 +49,7 @@
         v-for="mode in ZOOMS"
         :key="mode.id"
         type="button"
-        class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+        class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
         :class="
           zoom === mode.id
             ? 'bg-slate-900 text-white border-slate-900'
@@ -96,7 +96,7 @@
     <div v-if="comparisons.length" class="overflow-x-auto">
       <table class="w-full text-small">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <tr class="text-slate-400 label">
             <th class="text-left py-1 pr-3">Account</th>
             <th class="text-left py-1 pr-3">Finishes first</th>
             <th class="text-left py-1 pr-3">Other counts tried, days after it</th>

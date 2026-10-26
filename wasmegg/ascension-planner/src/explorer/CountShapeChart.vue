@@ -42,7 +42,7 @@
           v-for="mode in MODES"
           :key="mode.id"
           type="button"
-          class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
           :class="
             view === mode.id
               ? 'bg-slate-900 text-white border-slate-900'
@@ -54,7 +54,7 @@
           {{ mode.label }}
         </button>
       </div>
-      <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+      <span class="text-small font-bold text-slate-400">
         {{ bests.length }} account{{ bests.length === 1 ? '' : 's' }} ({{ rows.length }} run{{
           rows.length === 1 ? '' : 's'
         }}) · {{ summary.length }} stop{{ summary.length === 1 ? '' : 's' }}
@@ -83,7 +83,7 @@
     <div class="overflow-x-auto">
       <table class="w-full text-small">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <tr class="text-slate-400 label">
             <th class="text-left py-1 pr-3">Stop</th>
             <th class="text-right py-1 pr-3">Accounts</th>
             <th class="text-left py-1 pr-3">TE</th>
@@ -188,7 +188,7 @@ function shadeOf(index: number, n: number): string {
   return SHADES[n <= 1 ? SHADES.length - 1 : Math.round((index * (SHADES.length - 1)) / (n - 1))];
 }
 
-const WIN = 'font-black text-slate-800';
+const WIN = 'font-bold text-slate-800';
 const LOSE = 'text-slate-400';
 
 const summary = computed<CheckpointSummary[]>(() => summariseCheckpoints(props.bests.map(b => b.row)));

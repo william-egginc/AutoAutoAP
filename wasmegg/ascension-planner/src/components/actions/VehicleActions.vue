@@ -10,11 +10,11 @@
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></div>
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none"
+            <span class="text-slate-400 label leading-none"
               >Vehicle Sale</span
             >
           </div>
-          <span class="text-[11px] font-black text-indigo-600 uppercase tracking-tighter">75% off</span>
+          <span class="text-indigo-600 label">75% off</span>
         </div>
         <button
           class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
@@ -54,10 +54,10 @@
           </svg>
         </div>
         <div class="flex flex-col items-center relative z-10">
-          <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-indigo-700"
+          <span class="text-body font-bold text-slate-900 group-hover:text-indigo-700"
             >Max Vehicles</span
           >
-          <span v-if="maxVehiclesTime" class="text-small tabular-nums font-black text-indigo-500 mt-0.5">{{
+          <span v-if="maxVehiclesTime" class="text-small tabular-nums font-bold text-indigo-500 mt-0.5">{{
             maxVehiclesTime
           }}</span>
         </div>
@@ -86,7 +86,7 @@
           </svg>
         </div>
         <div class="flex flex-col items-center relative z-10">
-          <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-blue-700"
+          <span class="text-body font-bold text-slate-900 group-hover:text-blue-700"
             >Shipping in 5 Min</span
           >
         </div>
@@ -101,12 +101,12 @@
         class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4 group hover:border-indigo-200 transition-all duration-300 hover:shadow-md"
       >
         <div class="flex items-center justify-between">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Slot {{ index + 1 }}</span>
+          <span class="text-slate-400 label">Slot {{ index + 1 }}</span>
           <div v-if="slot.vehicleId !== null" class="flex flex-col items-end">
-            <span class="text-body tabular-nums font-black text-slate-900">
+            <span class="text-body tabular-nums font-bold text-slate-900">
               {{ formatNumber(getVehicleCapacity(slot, index) * 3600, 0) }}
             </span>
-            <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest opacity-60">eggs/hr</span>
+            <span class="text-slate-400 label opacity-60">eggs/hr</span>
           </div>
         </div>
 
@@ -121,8 +121,8 @@
         <div v-if="slot.vehicleId === 11" class="mt-2 pt-3 border-t border-slate-50">
           <div class="flex items-center justify-between gap-3">
             <div class="flex flex-col gap-0.5">
-              <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest">Train Length</span>
-              <span class="text-small tabular-nums font-black text-indigo-600"
+              <span class="text-slate-400 label">Train Length</span>
+              <span class="text-small tabular-nums font-bold text-indigo-600"
                 >{{ slot.trainLength }} / {{ getMaxTrainLength() }}</span
               >
             </div>
@@ -134,10 +134,10 @@
                 class="group flex flex-col items-center justify-center min-w-[80px] bg-white border border-blue-100 rounded-lg px-2 py-1.5 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 active:scale-95"
                 @click="handleAddTrainCar(index)"
               >
-                <span class="text-[10px] font-black text-blue-700 uppercase tracking-tight group-hover:text-blue-800"
+                <span class="text-body font-bold text-blue-700 group-hover:text-blue-800"
                   >+1 Car ({{ formatGemPrice(getNextCarCost(slot)) }})</span
                 >
-                <span class="text-small font-medium text-slate-400 opacity-80">{{ getCarTimeToBuy(slot) }}</span>
+                <span class="text-small font-normal text-slate-400 opacity-80">{{ getCarTimeToBuy(slot) }}</span>
               </button>
 
               <!-- Max cars button -->
@@ -147,16 +147,16 @@
                 @click="handleMaxTrainCars(index)"
               >
                 <span
-                  class="text-[10px] font-black text-indigo-700 uppercase tracking-tight group-hover:text-indigo-800"
+                  class="text-body font-bold text-indigo-700 group-hover:text-indigo-800"
                   >Max (+{{ getRemainingCars(slot, index) }}) ({{ formatGemPrice(getTotalCarsCost(slot)) }})</span
                 >
-                <span class="text-small font-medium text-slate-400 opacity-80">{{ getMaxCarsTimeToBuy(slot) }}</span>
+                <span class="text-small font-normal text-slate-400 opacity-80">{{ getMaxCarsTimeToBuy(slot) }}</span>
               </button>
             </div>
           </div>
 
           <!-- Capacity per car hints -->
-          <div v-if="slot.trainLength < getMaxTrainLength()" class="mt-2 text-small text-slate-400 italic font-medium">
+          <div v-if="slot.trainLength < getMaxTrainLength()" class="mt-2 text-small text-slate-400 italic font-normal">
             Each car adds +{{ formatNumber((getVehicleType(11)?.baseCapacityPerSecond ?? 0) * 3600, 0) }} eggs/hr before research and artifacts
           </div>
         </div>
@@ -166,10 +166,10 @@
     <!-- Note about fleet size -->
     <div class="flex items-center justify-between px-2">
       <div class="flex flex-col gap-0.5">
-        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <p class="text-small font-bold text-slate-400">
           Fleet Capacity: {{ activeVehicleCount }}/{{ maxVehicleSlots }} active
         </p>
-        <p class="text-small text-indigo-400 italic font-medium">(Fleet Size research unlocks more slots)</p>
+        <p class="text-small text-indigo-400 italic font-normal">(Fleet Size research unlocks more slots)</p>
       </div>
     </div>
 

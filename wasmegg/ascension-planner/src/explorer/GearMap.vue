@@ -32,7 +32,7 @@
             <span>delivery score</span>
             <span class="inline-flex flex-col">
               <span class="block h-2 w-32 rounded-sm" :style="{ background: rampGradient }" />
-              <span class="flex justify-between text-small font-semibold text-slate-400 tabular-nums">
+              <span class="flex justify-between text-small font-bold text-slate-400 tabular-nums">
                 <span>≤{{ Math.round(DELIVERY_RAMP_DOMAIN[0] * 100) }}%</span>
                 <span>{{ Math.round(((DELIVERY_RAMP_DOMAIN[0] + DELIVERY_RAMP_DOMAIN[1]) / 2) * 100) }}%</span>
                 <span>{{ Math.round(DELIVERY_RAMP_DOMAIN[1] * 100) }}%</span>
@@ -76,13 +76,13 @@
         </p>
 
         <details v-if="points.length" class="px-1 text-small">
-          <summary class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-400">
+          <summary class="cursor-pointer text-body font-bold text-slate-400">
             The numbers
           </summary>
           <div class="overflow-x-auto pt-1">
             <table class="w-full text-small">
               <thead>
-                <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <tr class="text-slate-400 label">
                   <th class="text-left py-1 pr-3">Account</th>
                   <th class="text-right py-1 pr-3">TE</th>
                   <th class="text-right py-1 pr-3">Clothed TE</th>
@@ -111,7 +111,7 @@
       </div>
 
       <aside class="space-y-2 text-body">
-        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Gear data still wanted</p>
+        <p class="label text-slate-400">Gear data still wanted</p>
         <p v-if="!needList.length" class="text-slate-500">Every gear ask has enough accounts.</p>
         <ul v-else class="space-y-1.5">
           <li
@@ -121,7 +121,7 @@
           >
             <div class="flex items-baseline justify-between gap-2">
               <span class="font-bold text-slate-800 leading-snug">{{ need.title }}</span>
-              <span class="shrink-0 text-small font-semibold text-slate-500 tabular-nums"
+              <span class="shrink-0 text-small font-bold text-slate-500 tabular-nums"
                 >{{ need.have }} of {{ need.want }}</span
               >
             </div>

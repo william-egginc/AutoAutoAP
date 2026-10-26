@@ -6,11 +6,11 @@
       <div class="flex flex-col gap-0.5">
         <div class="flex items-center gap-2">
           <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></div>
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none"
+          <span class="text-slate-400 label leading-none"
             >Research Sale</span
           >
         </div>
-        <span class="text-[11px] font-black text-indigo-600 uppercase tracking-tighter">70% off</span>
+        <span class="text-indigo-600 label">70% off</span>
       </div>
     </div>
 

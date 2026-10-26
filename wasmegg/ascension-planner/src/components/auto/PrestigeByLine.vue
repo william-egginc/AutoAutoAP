@@ -16,7 +16,7 @@
   >
     <p class="text-body text-slate-800">
       <span
-        class="mr-1 px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 text-[9px] font-black uppercase tracking-widest"
+        class="mr-1 px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 label"
         :title="EVIDENCE"
         data-testid="prestige-by-tag"
         >Experimental · needs more data</span
@@ -24,7 +24,7 @@
       <b>{{ line.text }}</b>
       <span
         v-if="line.tight"
-        class="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
+        class="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 label"
         data-testid="prestige-by-tight"
         >tight</span
       >

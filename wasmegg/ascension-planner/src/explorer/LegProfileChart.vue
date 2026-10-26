@@ -43,7 +43,7 @@
           v-for="mode in MODES"
           :key="mode.id"
           type="button"
-          class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
           :class="
             metric === mode.id
               ? 'bg-slate-900 text-white border-slate-900'

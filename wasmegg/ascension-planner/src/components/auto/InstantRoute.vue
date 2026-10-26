@@ -28,11 +28,11 @@
     <!-- Said to a screen reader (lib/liveStatus.ts): "Working out the instant answer", then "Instant answer ready". -->
     <p class="sr-only" role="status" aria-live="polite" data-testid="instant-live">{{ instantLive }}</p>
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h3 class="text-title font-black text-slate-900">
+      <h3 class="text-title font-bold text-slate-900">
         Instant answer
         <span
           v-if="own"
-          class="ml-1 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[9px] font-black uppercase tracking-widest"
+          class="ml-1 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 label"
           >your gear</span
         >
       </h3>
@@ -109,7 +109,7 @@
       <button
         v-if="idle.button"
         type="button"
-        class="min-h-[44px] sm:min-h-0 font-black uppercase tracking-widest text-[10px] text-emerald-800 underline hover:text-emerald-900"
+        class="min-h-[44px] sm:min-h-0 font-bold text-body text-emerald-800 underline hover:text-emerald-900"
         data-testid="instant-idle-run"
         @click="pressRun(false, 'again')"
       >
@@ -159,7 +159,7 @@
       >
       <button
         type="button"
-        class="font-black uppercase tracking-widest text-[10px] text-emerald-800 underline hover:text-emerald-900"
+        class="font-bold text-body text-emerald-800 underline hover:text-emerald-900"
         @click="pressRun(true, 'again')"
       >
         Work it out again
@@ -183,7 +183,7 @@
       <span>{{ whileWaiting(!!result).text }}</span>
       <button
         type="button"
-        class="font-black uppercase tracking-widest text-[10px] text-amber-900 underline"
+        class="font-bold text-body text-amber-900 underline"
         @click="pressRun(false, 'anyway')"
       >
         Work it out anyway
@@ -281,13 +281,13 @@
       <template v-if="result && deadline">
         <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-700"
+            <span class="label text-emerald-700"
               >Highest TE by {{ show(deadline) }}</span
             >
             <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
             <span
               v-if="preferPicked"
-              class="px-1.5 py-0.5 rounded bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest"
+              class="px-1.5 py-0.5 rounded bg-emerald-700 text-white label"
               data-testid="prefer-fewer-chip"
               >{{ preferCopy.chip }}</span
             >
@@ -297,7 +297,7 @@
               <span class="text-headline font-black text-slate-900">{{ dateBoxOf(result.byDate).endTE }} TE</span>
               <!-- Tight under a day, or inside the gear caveat's window when it shows (lib/spareLine.ts). -->
               <span
-                class="text-title font-black"
+                class="text-title font-bold"
                 :class="dateSpare?.tight ? 'text-amber-700' : 'text-emerald-800'"
                 data-testid="box-spare"
                 >{{ dateSpare?.text }}</span
@@ -305,7 +305,7 @@
               <span
                 v-if="dateSpare?.tight"
                 data-testid="box-tight"
-                class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
+                class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 label"
                 >tight</span
               >
               <span class="text-small font-bold text-slate-500" data-testid="box-instant">instant answer</span>
@@ -319,7 +319,7 @@
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
-              <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
+              <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label"
                 >polished</span
               >{{ boxGain }}
             </p>
@@ -410,7 +410,7 @@
           <div class="overflow-x-auto" data-testid="counts-scroll">
             <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-small" data-testid="counts-table">
               <thead>
-                <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-500 align-bottom">
+                <tr class="text-left label text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
                   <th class="py-1 pr-2">TE · spare</th>
                   <th class="py-1 pr-2">Reached</th>
@@ -428,7 +428,7 @@
                     {{ r.legs.length }}
                     <span
                       v-if="datePickedRow(r)"
-                      class="block text-[9px] font-black uppercase tracking-widest text-emerald-700"
+                      class="block label text-emerald-700"
                       :title="preferCopy.chip"
                       data-testid="prefer-fewer-row"
                       >shown above</span
@@ -482,11 +482,11 @@
       <template v-if="result && !deadline">
         <div v-if="boxLead" class="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 space-y-1" data-testid="instant-box">
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span class="text-[10px] font-black uppercase tracking-widest text-emerald-700">Fastest to {{ store.finalTE }} TE</span>
+            <span class="label text-emerald-700">Fastest to {{ store.finalTE }} TE</span>
             <!-- Q6: the box leads with the fewest ascensions inside the player's margin (search/preferFewer.ts). -->
             <span
               v-if="preferPicked"
-              class="px-1.5 py-0.5 rounded bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest"
+              class="px-1.5 py-0.5 rounded bg-emerald-700 text-white label"
               data-testid="prefer-fewer-chip"
               >{{ preferCopy.chip }}</span
             >
@@ -500,7 +500,7 @@
           </div>
           <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
           <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
-            <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
+            <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label"
               >polished</span
             >{{ boxGain }}
           </p>
@@ -587,7 +587,7 @@
           <div class="overflow-x-auto" data-testid="counts-scroll">
             <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-small" data-testid="counts-table">
               <thead>
-                <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-500 align-bottom">
+                <tr class="text-left label text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
                   <th class="py-1 pr-2">Reaches {{ store.finalTE }}</th>
                   <th class="py-1 pr-2">Behind</th>
@@ -605,7 +605,7 @@
                     {{ r.legs.length }}
                     <span
                       v-if="preferPicked && r === boxLead"
-                      class="block text-[9px] font-black uppercase tracking-widest text-emerald-700"
+                      class="block label text-emerald-700"
                       :title="preferCopy.chip"
                       data-testid="prefer-fewer-row"
                       >shown above</span
@@ -619,7 +619,7 @@
                     <span
                       v-if="nearTie(r)"
                       class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"
-                      :class="nearTie(r)!.kind === 'fewer' ? 'font-semibold text-emerald-700' : 'text-slate-400'"
+                      :class="nearTie(r)!.kind === 'fewer' ? 'font-bold text-emerald-700' : 'text-slate-400'"
                       :data-testid="`near-tie-${nearTie(r)!.kind}`"
                       >{{ nearTie(r)!.text }}</span
                     >
@@ -749,7 +749,7 @@
        instant answer for your TE" (only `below` says that), with Retry and what to do meanwhile; a file newer
        than this page: reload it (InstantUnloaded.vue). Every way `noTable` is set lands here. -->
   <section v-else class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3" data-testid="instant-no-table">
-    <h3 class="text-title font-black text-slate-900">Instant answer</h3>
+    <h3 class="text-title font-bold text-slate-900">Instant answer</h3>
     <InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" />
     <InstantUnloaded :older="olderPage" @retry="run(true)" @by-date="emit('by-date')">
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>

@@ -6,7 +6,7 @@
 -->
 <template>
   <div :class="bare ? 'space-y-3' : 'rounded-xl border border-slate-200 bg-white p-4 space-y-3'">
-    <h3 v-if="!bare" class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ NAMES.start }}</h3>
+    <h3 v-if="!bare" class="text-slate-500 label">{{ NAMES.start }}</h3>
     <p class="text-body text-slate-600">
       Prices <span class="font-bold">{{ chain.join(' ') }}</span> as a fresh start at every
       {{ stepMinutes === 60 ? 'hour' : `${stepMinutes / 60} hours` }} of the next week<template
@@ -35,7 +35,7 @@
         v-if="!store.startSweepRunning"
         type="button"
         :disabled="store.busy || !chain.length"
-        class="ml-auto px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+        class="ml-auto px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800 disabled:opacity-40"
         @click="store.findBestStart(chain, { stepMinutes })"
       >
         Find the best time to start
@@ -43,7 +43,7 @@
       <button
         v-else
         type="button"
-        class="ml-auto px-4 py-2 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50"
+        class="ml-auto px-4 py-2 rounded-lg border border-slate-300 text-body font-bold text-slate-700 hover:bg-slate-50"
         @click="store.stopStartSweep()"
       >
         Stop
@@ -59,8 +59,8 @@
 
     <template v-if="best && sweep && !store.startSweepRunning">
       <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-1">
-        <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800">Best start in the next week</p>
-        <p class="text-body font-black text-emerald-900">{{ show(best.start) }}</p>
+        <p class="text-small font-bold text-emerald-800">Best start in the next week</p>
+        <p class="text-body font-bold text-emerald-900">{{ show(best.start) }}</p>
         <p class="text-body text-emerald-900">
           Reaches the end of the route {{ show(best.finish as number)
           }}<template v-if="soonest && soonest !== best"

@@ -29,14 +29,14 @@
       :class="open ? 'flex-row items-center' : 'flex-col sm:flex-row sm:items-center'"
       data-testid="study-box-strip"
     >
-      <h2 id="study-heading" class="text-body font-black text-slate-800 flex-1 break-words">{{ NAMES.study }}</h2>
+      <h2 id="study-heading" class="text-body font-bold text-slate-800 flex-1 break-words">{{ NAMES.study }}</h2>
       <div class="flex gap-2" :class="open ? 'flex-row' : 'flex-col sm:flex-row'">
         <button
           type="button"
           :class="
             open
-              ? 'min-h-[44px] px-2 py-3 text-[11px] font-bold text-slate-600 underline underline-offset-2 hover:text-slate-900'
-              : 'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700'
+              ? 'min-h-[44px] px-2 py-3 text-body font-bold text-slate-600 underline underline-offset-2 hover:text-slate-900'
+              : 'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700'
           "
           :aria-expanded="open"
           aria-controls="study-box-form"
@@ -48,7 +48,7 @@
         <button
           v-if="!open"
           type="button"
-          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-body font-bold hover:bg-slate-50"
           data-testid="study-strip-no-thanks"
           @click="answerNo"
         >
@@ -68,13 +68,13 @@
     :aria-label="NAMES.study"
     data-testid="study-strip"
   >
-    <p class="text-body font-semibold text-indigo-900 sm:flex-1 break-words">
+    <p class="text-body font-bold text-indigo-900 sm:flex-1 break-words">
       You agreed to help improve the planner in this browser. Use the same choices for this account?
     </p>
     <div class="flex flex-col sm:flex-row gap-2">
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700"
         data-testid="study-strip-yes"
         @click="useForThisAccount"
       >
@@ -82,7 +82,7 @@
       </button>
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-body font-bold hover:bg-indigo-50"
         data-testid="study-strip-no"
         @click="notThisAccount"
       >
@@ -97,13 +97,13 @@
     role="status"
     data-testid="study-thanks"
   >
-    <p class="text-body font-semibold text-emerald-900 sm:flex-1 break-words">
+    <p class="text-body font-bold text-emerald-900 sm:flex-1 break-words">
       Thank you. Your choices are on for this account. Change them any time in {{ NAMES.setup }} ›
       {{ NAMES.study }} (the {{ NAMES.setup }} button on the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
     </p>
     <button
       type="button"
-      class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-emerald-300 bg-white text-emerald-800 text-[10px] font-black uppercase tracking-widest"
+      class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-emerald-300 bg-white text-emerald-800 text-body font-bold"
       data-testid="study-thanks-ok"
       @click="closeThanks"
     >

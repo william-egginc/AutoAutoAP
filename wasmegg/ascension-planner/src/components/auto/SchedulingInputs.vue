@@ -5,23 +5,23 @@
        store (set when the save loads, and again by Single run's Generate and this card's Now button),
        shown as it is rather than as a ticking clock the searches would not follow. -->
   <div v-if="!startTimeOverride" class="space-y-2">
-    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
+    <label class="text-slate-500 label ml-1">Start Time</label>
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-baseline gap-2 flex-wrap px-1">
-        <span class="text-body font-black text-slate-800 tabular-nums">{{ startLabel }}</span>
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Now</span>
+        <span class="text-body font-bold text-slate-800 tabular-nums">{{ startLabel }}</span>
+        <span class="text-slate-400 label">Now</span>
       </div>
       <div class="flex gap-2">
         <button
           @click="setStartTimeToNow"
           title="Start from the current time"
-          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-indigo-100 active:scale-95 whitespace-nowrap"
+          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-body font-bold rounded-xl transition-all shadow-md shadow-indigo-100 active:scale-95 whitespace-nowrap"
         >
           Now
         </button>
         <button
           @click="addOverride"
-          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 active:scale-95 whitespace-nowrap"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-xl transition-all border border-slate-200 active:scale-95 whitespace-nowrap"
         >
           Override
         </button>
@@ -34,7 +34,7 @@
 
   <div v-else class="grid grid-cols-1 gap-4">
     <div class="space-y-2">
-      <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
+      <label class="text-slate-500 label ml-1">Start Time</label>
       <div class="flex gap-3">
         <input
           :value="startDate"
@@ -59,7 +59,7 @@
     </div>
 
     <div class="space-y-2">
-      <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Timezone</label>
+      <label class="text-slate-500 label ml-1">Timezone</label>
       <div class="flex gap-2">
         <div class="relative flex-grow">
           <select
@@ -74,7 +74,7 @@
         </div>
         <button
           @click="removeOverride"
-          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 flex items-center justify-center active:scale-95 whitespace-nowrap"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-xl transition-all border border-slate-200 flex items-center justify-center active:scale-95 whitespace-nowrap"
         >
           Remove Override
         </button>

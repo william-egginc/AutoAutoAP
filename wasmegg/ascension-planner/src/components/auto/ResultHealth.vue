@@ -13,7 +13,7 @@
     :data-testid="hasError ? 'result-contradicts' : 'result-worth-checking'"
   >
     <p
-      class="text-[10px] font-black uppercase tracking-widest"
+      class="label"
       :class="hasError ? 'text-rose-800' : 'text-amber-800'"
     >
       {{ hasError ? 'This result contradicts itself' : 'Worth checking' }}

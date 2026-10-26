@@ -10,9 +10,9 @@
 -->
 <template>
   <div data-testid="now-events">
-    <table class="w-full text-small sm:text-small">
+    <table class="w-full text-small">
       <thead>
-        <tr class="text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">
+        <tr class="label text-slate-500 text-left">
           <th class="py-1.5 pr-1 w-5"></th>
           <th class="py-1.5 pr-2">What</th>
           <th class="py-1.5 pr-2 hidden sm:table-cell">When</th>

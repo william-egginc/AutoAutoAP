@@ -10,7 +10,7 @@
           <div class="p-1 bg-brand-primary rounded shadow-sm text-white shrink-0">
             <slot name="icon" />
           </div>
-          <span class="text-xs font-bold uppercase tracking-widest">{{ title }}</span>
+          <span class="label">{{ title }}</span>
         </div>
         <div
           v-if="badge"
@@ -22,7 +22,7 @@
       </div>
 
       <!-- Description -->
-      <p class="text-body text-slate-700 font-medium">
+      <p class="text-body text-slate-700 font-normal">
         <slot name="description" />
       </p>
 

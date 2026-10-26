@@ -10,12 +10,12 @@
 -->
 <template>
   <div class="overflow-x-auto">
-    <p v-if="title || $slots.title" class="text-[10px] font-black uppercase tracking-widest text-slate-500 pb-1">
+    <p v-if="title || $slots.title" class="label text-slate-500 pb-1">
       <slot name="title">{{ title }}</slot>
     </p>
     <table class="w-full text-small tabular-nums whitespace-nowrap">
       <thead v-if="columns.length">
-        <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+        <tr class="text-left label text-slate-400">
           <th v-if="$slots.expand" class="w-4 py-1"><span class="sr-only">Details</span></th>
           <th v-for="c in columns" :key="c" class="pr-4 py-1">{{ c }}</th>
         </tr>

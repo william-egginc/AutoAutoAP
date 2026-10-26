@@ -39,7 +39,7 @@
         <button
           v-if="autoCountdown > 0"
           type="button"
-          class="px-3 py-1.5 rounded-lg border border-amber-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+          class="px-3 py-1.5 rounded-lg border border-amber-400 text-body font-bold hover:bg-white"
           @click="cancelAutoCarryOn()"
         >
           Cancel the automatic carry on
@@ -47,7 +47,7 @@
       </template>
     </CarryOnOffer>
 
-    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The date</h3>
+    <h3 class="text-slate-500 label">The date</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
          of your own. -->
@@ -61,7 +61,7 @@
         :class="!showCustomDate ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'"
         @click="chooseEggDay"
       >
-        <span class="block text-body font-black text-slate-900">Egg Day {{ eggDayYear }}</span>
+        <span class="block text-body font-bold text-slate-900">Egg Day {{ eggDayYear }}</span>
         <span class="block mt-0.5 text-body text-slate-600"
           >{{ eggDayWords(eggDayYear, plannerZone) }}. Answers you send go on the {{ NAMES.compare }}'s Egg Day
           {{ eggDayYear }} tab.</span
@@ -76,7 +76,7 @@
         :class="showCustomDate ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'"
         @click="customDate = true"
       >
-        <span class="block text-body font-black text-slate-900">Another date</span>
+        <span class="block text-body font-bold text-slate-900">Another date</span>
         <span class="block mt-0.5 text-body text-slate-600"
           >Any date and time you like. Answers you send go on the {{ NAMES.compare }}'s Other dates tab.</span
         >
@@ -84,7 +84,7 @@
     </div>
     <div v-if="showCustomDate" class="flex flex-wrap items-end gap-3">
       <label class="space-y-1">
-        <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</span>
+        <span class="block text-slate-400 label">Date</span>
         <input
           v-model="date"
           type="date"
@@ -93,7 +93,7 @@
         />
       </label>
       <label class="space-y-1">
-        <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Time</span>
+        <span class="block text-slate-400 label">Time</span>
         <input
           v-model="time"
           type="time"
@@ -102,7 +102,7 @@
         />
       </label>
       <label class="space-y-1 max-w-full">
-        <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">In</span>
+        <span class="block text-slate-400 label">In</span>
         <select v-model="zone" :disabled="store.busy" class="max-w-full rounded-lg border-slate-200 text-body font-bold">
           <option value="America/Los_Angeles">Pacific time</option>
           <option :value="plannerZone">Your planner's time ({{ plannerZone }})</option>
@@ -161,12 +161,12 @@
               </p>
             </template>
             <template v-if="quickRunning">
-              <p class="text-body font-semibold text-slate-700" data-testid="quick-estimate-status">
+              <p class="text-body font-bold text-slate-700" data-testid="quick-estimate-status">
                 {{ quickStatus }}
               </p>
               <button
                 type="button"
-                class="min-h-[44px] px-4 rounded-lg border border-slate-400 bg-white text-[11px] font-black uppercase tracking-widest text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                class="min-h-[44px] px-4 rounded-lg border border-slate-400 bg-white text-body font-bold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
                 :disabled="stopAsked"
                 data-testid="quick-estimate-stop"
                 @click="stopDeadline"
@@ -182,14 +182,14 @@
               </p>
               <button
                 type="button"
-                class="min-h-[44px] px-4 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+                class="min-h-[44px] px-4 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700 disabled:opacity-40"
                 :disabled="!!quickIssue"
                 data-testid="quick-estimate-button"
                 @click="quickEstimate"
               >
                 {{ QUICK_ESTIMATE_LABEL }}
               </button>
-              <p v-if="quickIssue" class="text-body font-semibold text-slate-600" data-testid="quick-estimate-issue">
+              <p v-if="quickIssue" class="text-body font-bold text-slate-600" data-testid="quick-estimate-issue">
                 {{ quickIssue }}
               </p>
             </template>
@@ -239,10 +239,10 @@
           :hint="simpleSummary"
           :running="!!runKind"
           class="rounded-xl border border-indigo-200 bg-indigo-50/50 px-3"
-          summary-class="text-[11px] uppercase tracking-widest text-slate-700"
+          summary-class="label text-slate-700"
         >
           <template v-if="!simpleSummary" #extra
-            ><span class="normal-case tracking-normal font-semibold text-rose-700" data-test="settings-issue">{{
+            ><span class="normal-case tracking-normal font-bold text-rose-700" data-test="settings-issue">{{
               nearbyRangeEmpty ? 'no route in this range' : 'nothing to check yet'
             }}</span></template
           >
@@ -251,11 +251,11 @@
             data-test="simple-summary"
           >
             <p v-if="simpleSummary" class="font-bold text-slate-900">{{ simpleSummary }}</p>
-            <p v-else-if="nearbyRangeEmpty" class="font-semibold text-rose-700" data-test="nearby-range-empty">
+            <p v-else-if="nearbyRangeEmpty" class="font-bold text-rose-700" data-test="nearby-range-empty">
               The instant answer has no route with {{ nearbyRange.min }} to {{ nearbyRange.max }} ascensions: widen the
               range below.
             </p>
-            <p v-else class="font-semibold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
+            <p v-else class="font-bold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
             <!-- 3 to one more than the instant answer's count until set (lib/ascRange.ts; Jordan, 22 Oct 2026). -->
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1" data-test="nearby-range">
               <span class="font-bold text-slate-800">Ascensions</span>
@@ -340,7 +340,7 @@
       <p class="text-body text-slate-700" data-testid="custom-intro">{{ CUSTOM_INTRO }}</p>
       <ExhaustivePromise goal="deadline" />
       <template v-if="true">
-        <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
+        <h3 class="text-slate-500 label pt-1">The routes to try</h3>
         <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
            me" is gone from the page; an unfinished run started in it can still be carried on, which is
            the only way `mode` becomes 'auto' now. -->
@@ -399,7 +399,7 @@
             <template #row-after="{ row, k }">
               <p
                 v-if="row.asc >= 3 && stepOf(chains[k]) > widthOf(chains[k])"
-                class="text-small font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
+                class="text-small font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
               >
                 Every {{ stepOf(chains[k]) }} TE is wider than ±{{ widthOf(chains[k]) }}, so after the first stop only the
                 suggested TE itself is tried. Widen the ± slider or pick a smaller step to try more around it.
@@ -407,7 +407,7 @@
             </template>
             <template #footer>
               <label class="space-y-1">
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                <span class="block text-small font-bold text-slate-400"
                   >Last stop: where to start looking</span
                 >
                 <input
@@ -448,7 +448,7 @@
         <template v-else>
           <div class="flex flex-wrap items-end gap-4">
             <label class="space-y-1">
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+              <span class="block text-slate-400 label"
                 >Stops, including the last</span
               >
               <div class="flex items-center gap-2">
@@ -472,7 +472,7 @@
               </div>
             </label>
             <label class="space-y-1">
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+              <span class="block text-small font-bold text-slate-400"
                 >Rough guess for the last stop</span
               >
               <input
@@ -488,7 +488,7 @@
             <!-- How thorough, as one slider (the user, 30 Sept): how many sets of early stops the first
                look tries; the grid it uses follows, and so do the routes and the time below. -->
             <label class="space-y-1">
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">How thorough</span>
+              <span class="block text-slate-400 label">How thorough</span>
               <span class="flex items-center gap-2">
                 <input
                   v-model.number="thoroughIx"
@@ -591,7 +591,7 @@
         <!-- Find on Nearby routes waits for the instant answer still being worked out (search/autoWiden.ts). -->
         <p
           v-if="k === 'around' && instantWait"
-          class="text-body font-semibold text-slate-700"
+          class="text-body font-bold text-slate-700"
           data-test="instant-wait-status"
         >
           {{ instantWait }}
@@ -601,21 +601,21 @@
         <div v-if="k === 'boxes' && runKind !== 'around'" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sets of early stops</div>
-              <div class="text-title font-black text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
+              <div class="text-slate-400 label">Sets of early stops</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
             </div>
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ascensions to simulate</div>
-              <div class="text-title font-black text-slate-900 tabular-nums">
+              <div class="text-slate-400 label">Ascensions to simulate</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums">
                 ~{{ roundedRoutes(plannedLegs).toLocaleString() }}
               </div>
               <div class="text-small text-slate-400">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
             </div>
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              <div class="text-slate-400 label">
                 {{ store.deadlineRunning ? 'Time left' : 'Est. time' }}
               </div>
-              <div class="text-title font-black text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
               <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-400">measuring…</div>
               <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-small text-slate-400">
                 first guess {{ firstGuessLabel }}
@@ -625,8 +625,8 @@
               </div>
             </div>
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</div>
-              <div class="text-title font-black text-slate-900 tabular-nums">{{ costLabel }}</div>
+              <div class="text-slate-400 label">Assumed cost</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums">{{ costLabel }}</div>
               <div class="text-small text-slate-400">an ascension</div>
             </div>
           </div>
@@ -647,7 +647,7 @@
           </p>
           <!-- Above 300,000 routes (search/bigBox.ts): about how many hours here, and the command line. -->
           <BigBoxNote :note="bigBox" />
-          <p v-if="store.longRunNote" class="text-small font-semibold text-amber-800" data-testid="long-run-workers">
+          <p v-if="store.longRunNote" class="text-small font-bold text-amber-800" data-testid="long-run-workers">
             <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
             <template v-else>
               {{ longRunHandLine(LONG_RUN_WORKERS, store.longRunNote.have) }}
@@ -665,7 +665,7 @@
 
         <p
           v-if="k === 'around' ? aroundIssue : startIssue"
-          class="text-body font-semibold text-rose-700"
+          class="text-body font-bold text-rose-700"
           data-testid="by-date-start-issue"
         >
           {{ k === 'around' ? aroundIssue : startIssue }}
@@ -680,7 +680,7 @@
                legs simulated are under the bar's Details. -->
           <div data-run-progress="by-date" class="scroll-mt-24"></div>
           <!-- No instant answer for this TE: which step of the fallback is going (search/autoWiden.ts). -->
-          <p v-if="autoStatus" class="text-body font-semibold text-slate-700" data-test="auto-widen-status">
+          <p v-if="autoStatus" class="text-body font-bold text-slate-700" data-test="auto-widen-status">
             {{ autoStatus }}
           </p>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
@@ -721,7 +721,7 @@
           <button
             v-if="store.isRunning"
             type="button"
-            class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+            class="px-3 py-1.5 rounded-lg border border-slate-400 text-body font-bold hover:bg-white"
             @click="emit('show-fastest')"
           >
             Show that run
@@ -729,7 +729,7 @@
           <button
             v-if="store.isRunning"
             type="button"
-            class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
+            class="px-3 py-1.5 rounded-lg border border-slate-400 text-body font-bold hover:bg-white disabled:opacity-60"
             :disabled="store.stopRequested"
             @click="store.stop()"
           >
@@ -754,7 +754,7 @@
         <!-- Say whose results these are (the Stronger check box has its own heading above Light). -->
         <h4
           v-if="k === 'boxes' || stronger.level === 'light'"
-          class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+          class="label text-slate-500"
           data-testid="exhaustive-results-heading"
         >
           {{ result.simple ? `${NAMES.smart}: the best routes found near the instant answer's route` : 'Custom: the best routes in your boxes' }}
@@ -805,7 +805,7 @@
           </template>
           <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
                than one more TE costs. Otherwise the plain "stopped early". -->
-          <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
+          <span v-if="oneMoreTE" class="block mt-1 font-bold text-amber-800" data-testid="one-more-te-hint">{{
             oneMoreTE.text
           }}</span>
           <template v-else-if="result.stoppedEarly">
@@ -818,7 +818,7 @@
             again.</template
           >
         </ByDateRouteCard>
-        <p v-else class="text-body font-semibold text-rose-700">
+        <p v-else class="text-body font-bold text-rose-700">
           No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
         </p>
         <!-- Its top routes with when each stop and egg happens, on My runs › Your latest run (LatestRunView.vue). -->
@@ -874,7 +874,7 @@
           <button
             v-if="chainsTruncated"
             type="button"
-            class="ml-1 font-black uppercase tracking-widest text-[9px] text-slate-500 hover:text-slate-800 underline"
+            class="ml-1 font-bold text-body text-slate-500 hover:text-slate-800 underline"
             @click="showAllChains = !showAllChains"
           >
             {{ showAllChains ? 'Show fewer' : 'Show all' }}
@@ -921,7 +921,7 @@
         <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
         <!-- CSV and a quick save are on the card (as on Fastest's); here, a save under a name of your own. -->
         <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
-          <p v-if="downloadError" class="text-body font-semibold text-red-700">{{ downloadError }}</p>
+          <p v-if="downloadError" class="text-body font-bold text-red-700">{{ downloadError }}</p>
           <p class="text-body text-slate-500">
             Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
               >, on your save from {{ inPlannerZone(result.backupAt) }}</template
@@ -960,7 +960,7 @@
             <button
               type="button"
               :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
-              class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+              class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800 disabled:opacity-40"
               @click="share"
             >
               <SendingText v-if="sharing" />

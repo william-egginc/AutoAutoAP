@@ -34,7 +34,7 @@
     <section
       class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-1.5 text-body text-slate-800"
     >
-      <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">The short version</p>
+      <p class="text-emerald-700 label">The short version</p>
       <p>
         <b>Every number comes from Joo's Auto AP simulator,</b> the same one behind {{ NAMES.auto }} ›
         {{ NAMES.classic }}. Our part is choosing which TEs to ascend at.
@@ -64,7 +64,7 @@
     <details class="hw rounded-xl border border-slate-200 bg-white" open>
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">1</span>
-        <span class="flex-1 text-body font-black text-slate-900">The simulator, and what our searches add</span>
+        <span class="flex-1 text-body font-bold text-slate-900">The simulator, and what our searches add</span>
         <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
@@ -171,7 +171,7 @@
     <details class="hw rounded-xl border border-slate-200 bg-white">
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">2</span>
-        <span class="flex-1 text-body font-black text-slate-900">The instant answer</span>
+        <span class="flex-1 text-body font-bold text-slate-900">The instant answer</span>
         <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
@@ -250,7 +250,7 @@
     <details class="hw rounded-xl border border-slate-200 bg-white">
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">3</span>
-        <span class="flex-1 text-body font-black text-slate-900">How we checked it</span>
+        <span class="flex-1 text-body font-bold text-slate-900">How we checked it</span>
         <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
@@ -308,7 +308,7 @@
     <details class="hw rounded-xl border border-slate-200 bg-white">
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">4</span>
-        <span class="flex-1 text-body font-black text-slate-900">Your first ascension</span>
+        <span class="flex-1 text-body font-bold text-slate-900">Your first ascension</span>
         <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
@@ -353,7 +353,7 @@
     <details class="hw rounded-xl border border-slate-200 bg-white">
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">5</span>
-        <span class="flex-1 text-body font-black text-slate-900">The leaderboard, and what is sent</span>
+        <span class="flex-1 text-body font-bold text-slate-900">The leaderboard, and what is sent</span>
         <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
@@ -401,7 +401,7 @@
     <details class="hw rounded-xl border border-slate-200 bg-white">
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">6</span>
-        <span class="flex-1 text-body font-black text-slate-900">Known limits, and what's next</span>
+        <span class="flex-1 text-body font-bold text-slate-900">Known limits, and what's next</span>
         <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="hw-body">
@@ -462,7 +462,7 @@
     <details id="nearby-routes" class="hw rounded-xl border border-slate-200 bg-white">
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">7</span>
-        <span class="flex-1 text-body font-black text-slate-900">How {{ NAMES.smart }} search, in detail</span>
+        <span class="flex-1 text-body font-bold text-slate-900">How {{ NAMES.smart }} search, in detail</span>
         <span class="hw-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
       </summary>
       <div class="px-4 pb-4">

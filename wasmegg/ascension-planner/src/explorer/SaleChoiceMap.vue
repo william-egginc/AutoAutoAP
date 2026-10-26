@@ -22,7 +22,7 @@
         v-for="mode in ZOOMS"
         :key="mode.id"
         type="button"
-        class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+        class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
         :class="
           zoom === mode.id
             ? 'bg-slate-900 text-white border-slate-900'
@@ -61,7 +61,7 @@
 
     <!-- The title sits above the scroll box, not in a <caption>: a caption is as wide as the table, so on a
          phone it ran off the right edge and needed a sideways scroll to read. -->
-    <p v-if="legs.length" class="text-[9px] font-black text-slate-400 uppercase tracking-widest" aria-hidden="true">
+    <p v-if="legs.length" class="text-small font-bold text-slate-400" aria-hidden="true">
       The commonest sale plan, by where the ascension starts and how much it climbs
     </p>
     <div v-if="legs.length" class="overflow-x-auto">
@@ -70,7 +70,7 @@
           The commonest sale plan, by where the ascension starts and how much it climbs
         </caption>
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <tr class="text-slate-400 label">
             <th class="text-left py-1 pr-3">Starts at (TE)</th>
             <th v-for="g in summary.gains" :key="g.label" class="text-left py-1 pr-3">Climbs {{ g.label }} TE</th>
           </tr>

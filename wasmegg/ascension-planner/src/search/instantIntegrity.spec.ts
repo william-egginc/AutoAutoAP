@@ -56,8 +56,8 @@ describe('InstantIntegrity.vue', () => {
   it('blocked: the heading, the wait in bold, the advice', async () => {
     const html = await renderHtml(InstantIntegrity, { state: instantIntegrity(480 * 86400, false, cte, false) });
     expect(textOf(html)).toMatch(/^This account can't be planned yet A fresh ascension/);
-    expect(html).toContain('<b class="font-black">480 days</b>');
-    expect(html).toContain('<b class="font-black">Nobody really waits that long</b>');
+    expect(html).toContain('<b class="font-bold">480 days</b>');
+    expect(html).toContain('<b class="font-bold">Nobody really waits that long</b>');
     expect(textOf(html)).toContain('Any mix of these that adds up to about 45 does it');
   });
 

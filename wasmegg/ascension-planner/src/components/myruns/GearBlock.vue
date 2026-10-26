@@ -12,7 +12,7 @@
 -->
 <template>
   <div class="mt-3" data-testid="now-gear">
-    <p class="text-[10px] font-black uppercase tracking-widest text-slate-500">Gear · from your save</p>
+    <p class="label text-slate-500">Gear · from your save</p>
     <details v-for="r in rows" :key="r.id" class="border-t border-slate-100 py-1.5" :data-testid="`now-gear-${r.id}`">
       <summary class="cursor-pointer list-none flex flex-wrap items-center gap-2 text-small">
         <span
@@ -34,7 +34,7 @@
           </template>
         </span>
         <span :class="r.tone">{{ r.words }}</span>
-        <span class="text-small text-indigo-700 font-semibold">▸ each artifact and its stones</span>
+        <span class="text-small text-indigo-700 font-bold">▸ each artifact and its stones</span>
       </summary>
       <div class="mt-2 max-w-md"><LoadoutDisplay :loadout="r.set" /></div>
     </details>

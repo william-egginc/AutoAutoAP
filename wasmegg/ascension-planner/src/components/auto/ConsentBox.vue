@@ -21,7 +21,7 @@
   <div class="space-y-2" :data-consent="consentId || undefined">
     <p
       v-if="folded"
-      class="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-semibold"
+      class="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-bold"
       :class="summaryClass"
       :data-testid="`${testid}-summary`"
     >
@@ -74,7 +74,7 @@
       >
         <label
           v-if="consentId"
-          class="inline-flex items-center gap-1.5 cursor-pointer font-semibold opacity-80"
+          class="inline-flex items-center gap-1.5 cursor-pointer font-bold opacity-80"
           :data-testid="`${testid}-remembered`"
         >
           <input
@@ -102,7 +102,7 @@
         <button
           v-if="foldable && !forceOpen && open"
           type="button"
-          class="px-4 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50"
+          class="px-4 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-body font-bold hover:bg-indigo-50"
           :data-testid="doneTestid || `${testid}-done`"
           @click="open = false"
         >
@@ -112,7 +112,7 @@
     </template>
     <p
       v-if="withdrawn && !agreed && withdrawnText"
-      class="text-small font-semibold text-rose-700"
+      class="text-small font-bold text-rose-700"
       role="status"
       :data-testid="`${testid}-withdrawn`"
     >

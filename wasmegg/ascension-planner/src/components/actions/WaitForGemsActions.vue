@@ -12,7 +12,7 @@
           <div class="text-body font-bold text-slate-800">
             {{ formatNumber(virtueStore.bankValue, 3) }}
           </div>
-          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Gems in Bank</div>
+          <div class="text-slate-400 label">Current Gems in Bank</div>
         </div>
       </div>
     </div>
@@ -25,12 +25,12 @@
         >
           <img :src="iconURL('egginc/icon_virtue_gem.png', 64)" class="w-full h-full object-contain" alt="Gems" />
         </div>
-        <span class="text-xs font-bold text-slate-700 uppercase tracking-tight"> Set Target Gem Count </span>
+        <span class="text-slate-700 label"> Set Target Gem Count </span>
       </div>
 
       <!-- Target input -->
       <div class="flex flex-col gap-3 mb-6">
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wait until I have:</span>
+        <span class="text-slate-400 label">Wait until I have:</span>
         <input
           ref="inputEl"
           v-model="targetInput"
@@ -49,21 +49,21 @@
         class="space-y-3 bg-slate-50/30 rounded-xl p-4 border border-slate-50"
       >
         <div class="flex justify-between items-center text-small">
-          <span class="font-black text-slate-400 uppercase tracking-widest">Required to Earn:</span>
-          <span class="tabular-nums font-black text-slate-900">{{ formatNumber(requiredToEarn, 3) }}</span>
+          <span class="text-slate-400 label">Required to Earn:</span>
+          <span class="tabular-nums font-bold text-slate-900">{{ formatNumber(requiredToEarn, 3) }}</span>
         </div>
 
         <div class="pt-2 mt-1 border-t border-slate-100/50 space-y-2">
           <div class="flex justify-between items-center text-small">
-            <span class="font-black text-slate-400 uppercase tracking-widest">Earnings Rate:</span>
+            <span class="text-slate-400 label">Earnings Rate:</span>
             <span class="tabular-nums text-slate-500">{{ formatNumber(earningsPerSecond, 3) }}/s</span>
           </div>
           <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-small">
-            <span class="font-black text-slate-400 uppercase tracking-widest">Time Required:</span>
-            <span class="tabular-nums font-black text-slate-900">{{ formatDuration(timeToSaveSeconds) }}</span>
+            <span class="text-slate-400 label">Time Required:</span>
+            <span class="tabular-nums font-bold text-slate-900">{{ formatDuration(timeToSaveSeconds) }}</span>
           </div>
           <div class="flex justify-between items-center text-small">
-            <span class="font-black text-slate-400 uppercase tracking-widest">Completion Time:</span>
+            <span class="text-slate-400 label">Completion Time:</span>
             <span class="tabular-nums text-slate-600">{{ formattedAbsoluteTime }}</span>
           </div>
         </div>
@@ -71,7 +71,7 @@
 
       <div
         v-else-if="parsedTarget !== null && parsedTarget <= virtueStore.bankValue"
-        class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-emerald-700 text-[10px] font-bold uppercase tracking-tight"
+        class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-emerald-700 text-small font-bold"
       >
         Target already reached!
       </div>

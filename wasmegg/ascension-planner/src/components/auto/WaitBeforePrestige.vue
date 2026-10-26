@@ -5,7 +5,7 @@
     <button
       v-if="status !== 'running'"
       type="button"
-      class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed"
+      class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-body font-bold hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed"
       :disabled="disabled"
       :title="`Prices this route with a wait of 1 to 24 hours before each prestige: about ${legs} ascensions on the full simulator`"
       data-testid="wait-try"

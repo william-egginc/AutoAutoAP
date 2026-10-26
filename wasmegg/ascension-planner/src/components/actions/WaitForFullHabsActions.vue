@@ -15,7 +15,7 @@
         </div>
         <div>
           <div class="text-body font-bold text-slate-800">Habitat Capacity</div>
-          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div class="text-slate-400 label">
             Filling to {{ formatNumber(habCapacity, 3) }}
           </div>
         </div>
@@ -23,20 +23,20 @@
 
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-small">
-          <div class="text-slate-400 uppercase tracking-[0.2em] font-black">Metric</div>
-          <div class="text-slate-400 uppercase tracking-[0.2em] font-black text-right">Value</div>
+          <div class="text-slate-400 label">Metric</div>
+          <div class="text-slate-400 label text-right">Value</div>
 
-          <div class="text-slate-600 font-bold uppercase tracking-tight">Current Pop:</div>
+          <div class="text-slate-600 label">Current Pop:</div>
           <div class="tabular-nums text-right text-slate-700 font-bold">
             {{ formatNumber(currentPopulation, 3) }}
           </div>
 
-          <div class="text-slate-600 font-bold uppercase tracking-tight">Remaining:</div>
-          <div class="tabular-nums text-right text-slate-900 font-black">
+          <div class="text-slate-600 label">Remaining:</div>
+          <div class="tabular-nums text-right text-slate-900 font-bold">
             {{ formatNumber(chickensToGrow, 3) }}
           </div>
 
-          <div class="text-slate-600 font-bold uppercase tracking-tight pt-2 border-t border-slate-100/50">
+          <div class="text-slate-600 label pt-2 border-t border-slate-100/50">
             IHR (Offline):
           </div>
           <div class="tabular-nums text-right text-slate-700 font-bold pt-2 border-t border-slate-100/50">
@@ -46,8 +46,8 @@
 
         <div class="pt-3 border-t border-slate-100/50">
           <div class="flex justify-between items-center text-small">
-            <span class="font-black text-slate-400 uppercase tracking-widest">Time Required:</span>
-            <span class="tabular-nums font-black text-slate-900 text-body">{{
+            <span class="text-slate-400 label">Time Required:</span>
+            <span class="tabular-nums font-bold text-slate-900 text-body">{{
               formatDuration(timeToGrowSeconds)
             }}</span>
           </div>
@@ -69,7 +69,7 @@
       <span>Wait for Full Habs</span>
     </button>
 
-    <p class="text-[10px] text-slate-400 uppercase font-black tracking-widest leading-relaxed opacity-60">
+    <p class="text-small text-slate-400 font-bold opacity-60">
       Time is based on your current offline internal hatchery rate.
     </p>
   </div>

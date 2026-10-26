@@ -14,10 +14,10 @@
     class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 space-y-1"
     data-testid="instant-integrity"
   >
-    <p class="text-[10px] font-black uppercase tracking-widest text-red-800">This account can't be planned yet</p>
+    <p class="text-small font-bold text-red-800">This account can't be planned yet</p>
     <p class="text-body text-red-900">
       <template v-for="(part, i) in parts" :key="i"
-        ><b v-if="part.bold" class="font-black">{{ part.text }}</b
+        ><b v-if="part.bold" class="font-bold">{{ part.text }}</b
         ><template v-else>{{ part.text }}</template></template
       >
     </p>
@@ -27,9 +27,9 @@
     class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body text-amber-900"
     data-testid="instant-integrity"
   >
-    <span class="font-black uppercase tracking-wide">This account stalls.</span>
+    <span class="font-bold">This account stalls.</span>
     <template v-for="(part, i) in parts" :key="i"
-      ><b v-if="part.bold" class="font-black">{{ part.text }}</b
+      ><b v-if="part.bold" class="font-bold">{{ part.text }}</b
       ><template v-else>{{ part.text }}</template></template
     >
   </p>

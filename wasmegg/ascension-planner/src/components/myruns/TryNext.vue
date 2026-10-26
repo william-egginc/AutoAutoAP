@@ -4,7 +4,7 @@
 -->
 <template>
   <section v-if="pills.length || line" class="rounded-2xl border border-slate-200 bg-white p-4" data-testid="now-try-next">
-    <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Try next</p>
+    <p class="label text-slate-500">Try next</p>
     <div class="mt-1.5 flex flex-wrap gap-1.5">
       <button
         v-for="p in pills"

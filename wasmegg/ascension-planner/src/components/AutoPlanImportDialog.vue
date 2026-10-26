@@ -25,7 +25,7 @@ const emit = defineEmits<{
           </svg>
         </div>
         
-        <h3 class="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Auto Planner file detected</h3>
+        <h3 class="text-title font-bold text-slate-900 mb-2">Auto Planner file detected</h3>
         <p class="text-slate-500 text-body mb-8">
           The file "<span class="font-bold text-slate-700">{{ planName }}</span>" has
           <span class="font-bold text-indigo-600">{{ plural(ascensionCount, 'ascension') }}</span>. 
@@ -43,8 +43,8 @@ const emit = defineEmits<{
               </svg>
             </div>
             <div>
-              <div class="text-sm font-black text-slate-900 uppercase tracking-wider">Open in Single run</div>
-              <div class="text-small font-medium text-slate-500">Restores all ascensions in Auto Planner › Single run.</div>
+              <div class="text-body font-bold text-slate-900">Open in Single run</div>
+              <div class="text-small font-normal text-slate-500">Restores all ascensions in Auto Planner › Single run.</div>
             </div>
           </button>
 
@@ -58,8 +58,8 @@ const emit = defineEmits<{
               </svg>
             </div>
             <div>
-              <div class="text-sm font-black text-slate-900 uppercase tracking-wider">Import into Library</div>
-              <div class="text-small font-medium text-slate-500">Adds {{ plural(ascensionCount, 'separate plan') }} to your library.</div>
+              <div class="text-body font-bold text-slate-900">Import into Library</div>
+              <div class="text-small font-normal text-slate-500">Adds {{ plural(ascensionCount, 'separate plan') }} to your library.</div>
             </div>
           </button>
         </div>
@@ -67,7 +67,7 @@ const emit = defineEmits<{
         <div class="mt-8 flex justify-center">
           <button 
             @click="emit('cancel')"
-            class="text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+            class="text-body font-bold text-slate-400 hover:text-slate-600 transition-colors"
           >
             Cancel
           </button>

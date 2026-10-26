@@ -19,13 +19,13 @@
             <span v-if="showTier" class="text-gray-400 tabular-nums text-small mr-1">T{{ research.tier }}</span>
             {{ research.name }}
           </span>
-          <span class="text-body font-medium text-gray-500 whitespace-nowrap hidden sm:inline-block">
+          <span class="text-body font-normal text-gray-500 whitespace-nowrap hidden sm:inline-block">
             <span v-if="targetLevel" class="text-gray-900">Lv {{ targetLevel }}</span>
             <span v-else>Lv {{ currentLevel }}</span>
             / {{ research.levels }}
           </span>
         </div>
-        <span class="text-body font-medium text-gray-500 whitespace-nowrap sm:hidden">
+        <span class="text-body font-normal text-gray-500 whitespace-nowrap sm:hidden">
           <span v-if="targetLevel" class="text-gray-900">Lv {{ targetLevel }}</span>
           <span v-else>Lv {{ currentLevel }}</span>
           / {{ research.levels }}
@@ -48,7 +48,7 @@
               <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
             </svg>
             <span>
-              <span class="font-bold uppercase tracking-tight mr-1">Lookahead:</span>
+              <span class="label mr-1">Lookahead:</span>
               Needs {{ lookahead.minLevels }} levels for +{{ (lookahead.impact * 100).toFixed(3) }}% Delivery Rate ({{ lookahead.hpp.toFixed(1) }} hr/%)
             </span>
           </div>
@@ -65,14 +65,14 @@
           <div v-if="duringSale || duringEarningsBoost" class="flex items-center justify-end gap-1 mt-0.5">
             <span
               v-if="duringSale"
-              class="text-[8px] font-black uppercase tracking-tight text-rose-600 bg-rose-50 rounded px-1 py-0.5 cursor-help"
+              class="label text-rose-600 bg-rose-50 rounded px-1 py-0.5 cursor-help"
               v-tippy="'This price reflects the 70% research sale discount.'"
             >
               Sale
             </span>
             <span
               v-if="duringEarningsBoost"
-              class="text-[8px] font-black uppercase tracking-tight text-orange-600 bg-orange-50 rounded px-1 py-0.5 cursor-help"
+              class="label text-orange-600 bg-orange-50 rounded px-1 py-0.5 cursor-help"
               v-tippy="'This purchase completes during the 2x earnings boost.'"
             >
               2x
@@ -100,7 +100,7 @@
             </span>
           </div>
         </template>
-        <div v-else class="text-[10px] text-emerald-600 font-black uppercase tracking-widest mt-0.5">Maxed</div>
+        <div v-else class="text-emerald-600 label mt-0.5">Maxed</div>
       </div>
     </div>
 
@@ -111,7 +111,7 @@
         <div v-if="extraStats" class="whitespace-nowrap">
           <div class="flex items-end gap-2">
             <div
-              class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter"
+              class="text-gray-400 label"
               :class="{ 'cursor-help': hpp !== undefined }"
               v-tippy="
                 hpp === undefined
@@ -164,7 +164,7 @@
           <!-- Buy to Here (Cheapest view only) -->
           <button
             v-if="showBuyToHere && !isMaxed"
-            class="bg-blue-600 text-white hover:bg-blue-700 font-bold uppercase tracking-widest text-[10px] py-1.5 px-3 rounded shadow-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            class="bg-blue-600 text-white hover:bg-blue-700 font-bold text-body py-1.5 px-3 rounded shadow-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             :class="showDeadlineWarning ? 'bg-amber-500 hover:bg-amber-600' : ''"
             :disabled="!canBuyToHere"
             v-tippy="deadlineWarningTooltip(buyToHereSeconds, buyToHereTooltip)"
@@ -195,14 +195,14 @@
           <!-- Max button for individual research -->
           <button
             v-if="showMax"
-            class="text-[10px] font-black uppercase tracking-tight py-1 px-2 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-sm border border-gray-200/60"
+            class="text-body font-bold py-1 px-2 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-sm border border-gray-200/60"
             :class="showDeadlineWarning ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300' : ''"
             :disabled="!canBuy || isMaxed"
             v-tippy="deadlineWarningTooltip(maxTimeSeconds)"
             @click.stop="$emit('max')"
           >
             Max
-            <span v-if="maxTime" class="ml-0.5 text-small opacity-70 tabular-nums font-medium lowercase tracking-normal">({{ maxTime }})</span>
+            <span v-if="maxTime" class="ml-0.5 text-small opacity-70 tabular-nums font-normal lowercase tracking-normal">({{ maxTime }})</span>
           </button>
         </div>
       </div>
@@ -223,7 +223,7 @@
             />
           </svg>
           <span>
-            <span class="font-bold uppercase tracking-tight mr-1">Pair Suggestion:</span>
+            <span class="label mr-1">Pair Suggestion:</span>
             {{ recommendationNote }}
             <span v-if="showSaleWarning" class="block mt-0.5 text-amber-600 font-bold">
               ⚠️ Even paired, this won't earn back 70% before the next sale.
@@ -237,20 +237,20 @@
     <div v-if="realisticStats" class="mt-1 flex items-center justify-between w-full pl-[38px] py-1 border-t border-gray-50">
        <div class="flex items-center gap-6">
          <div class="flex flex-col">
-           <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 text-center tabular-nums">Lay Rate</span>
+           <span class="text-gray-400 label leading-none mb-1 text-center tabular-nums">Lay Rate</span>
            <span class="text-small tabular-nums font-bold text-gray-600 leading-none text-center">
              {{ formatNumber(realisticStats.layRate) }}/hr
            </span>
          </div>
          <div class="flex flex-col">
-           <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 text-center tabular-nums">Shipping Cap</span>
+           <span class="text-gray-400 label leading-none mb-1 text-center tabular-nums">Shipping Cap</span>
            <span class="text-small tabular-nums font-bold text-gray-600 leading-none text-center">
              {{ formatNumber(realisticStats.shippingRate) }}/hr
            </span>
          </div>
        </div>
        <div class="text-right">
-         <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 block text-right tabular-nums">Delivery Rate</span>
+         <span class="text-gray-400 label leading-none mb-1 block text-right tabular-nums">Delivery Rate</span>
          <div class="flex items-center justify-end gap-1 leading-none">
            <span class="text-small tabular-nums font-bold text-gray-900">
              {{ formatNumber(realisticStats.elr) }}/hr

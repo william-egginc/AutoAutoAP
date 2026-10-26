@@ -38,7 +38,7 @@
       </div>
 
       <!-- Title -->
-      <div v-if="!isCollapsed" class="text-title font-bold text-slate-800 tracking-tight leading-none mb-1 shadow-sm">
+      <div v-if="!isCollapsed" class="text-title font-bold text-slate-800 leading-none mb-1 shadow-sm">
         Plan Notes
       </div>
     </button>
@@ -131,7 +131,7 @@
         <button
           @click="addNewNote"
           :disabled="!newNoteText.trim()"
-          class="mt-2 w-full py-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold text-xs uppercase tracking-widest rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          class="mt-2 w-full py-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold text-body rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           Add Note
         </button>

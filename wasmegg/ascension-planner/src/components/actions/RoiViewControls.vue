@@ -18,7 +18,7 @@
       <div class="flex items-center gap-1.5">
         <div class="flex gap-0.5 p-0.5 bg-gray-100 rounded-md shadow-inner">
           <button
-            class="px-2 py-0.5 text-body font-medium rounded transition-all whitespace-nowrap"
+            class="px-2 py-0.5 text-body font-normal rounded transition-all whitespace-nowrap"
             :class="
               roiMode === 'immediate'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -29,7 +29,7 @@
             Immediate Impact
           </button>
           <button
-            class="px-2 py-0.5 text-body font-medium rounded transition-all whitespace-nowrap"
+            class="px-2 py-0.5 text-body font-normal rounded transition-all whitespace-nowrap"
             :class="
               roiMode === 'maxed_vehicles'
                 ? 'bg-white text-blue-600 shadow-sm'

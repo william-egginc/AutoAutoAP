@@ -15,21 +15,21 @@
             />
           </svg>
         </div>
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Integrity Summary</span>
+        <span class="text-slate-400 label">Integrity Summary</span>
         <div v-if="activeArtifactSet === 'earnings'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-small font-black tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
-          <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
+          <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
+          <span class="label text-slate-400">/hr</span>
         </div>
         <div v-else-if="activeArtifactSet === 'elr'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-small font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
-          <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
+          <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
+          <span class="label text-slate-400">/hr</span>
         </div>
         <div
           v-if="teGained > 0"
           class="badge-premium bg-indigo-100 text-indigo-700 border-indigo-200/50 flex items-center gap-1 py-0.5 px-2 text-small"
           v-tippy="'Truth Eggs gained in this period'"
         >
-          <span class="font-black">+{{ teGained }}</span>
+          <span class="font-bold">+{{ teGained }}</span>
           <img :src="iconURL('egginc/egg_truth.png', 32)" class="w-3 h-3 object-contain" alt="TE" />
         </div>
       </div>
@@ -37,23 +37,23 @@
       <!-- Stats Grid -->
       <div class="flex flex-wrap items-center" :class="compact ? 'gap-x-3 gap-y-1' : 'gap-x-6 gap-y-2'">
         <div class="flex flex-col items-end">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Habs</span>
+          <span class="text-slate-400 label leading-none mb-1">Habs</span>
           <div class="flex items-center gap-1.5">
             <template v-if="isMaxHabs">
               <span
-                class="badge-premium bg-indigo-50 text-indigo-600 border-indigo-100 py-0.5 px-2 text-[9px] font-black uppercase tracking-tight"
+                class="badge-premium bg-indigo-50 text-indigo-600 border-indigo-100 py-0.5 px-2 label"
                 >Max Universes</span
               >
             </template>
             <template v-else>
-              <span class="text-small font-bold text-slate-700 tracking-tight leading-none">{{ habSummaryText }}</span>
+              <span class="text-small font-bold text-slate-700 leading-none">{{ habSummaryText }}</span>
             </template>
           </div>
         </div>
 
         <div class="flex flex-col items-end">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Hab Cap</span>
-          <span class="text-body tabular-nums font-black text-slate-900">{{ formattedHabCap }}</span>
+          <span class="text-slate-400 label leading-none mb-1">Hab Cap</span>
+          <span class="text-body tabular-nums font-bold text-slate-900">{{ formattedHabCap }}</span>
         </div>
       </div>
     </div>

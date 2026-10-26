@@ -9,7 +9,7 @@
     <template v-if="csv">
       <button
         type="button"
-        class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+        class="px-4 py-2 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700"
         @click="downloadCsv"
       >
         Download CSV
@@ -21,7 +21,7 @@
     <template v-if="diagnostics">
       <button
         type="button"
-        class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+        class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-body font-bold hover:bg-slate-50"
         @click="downloadDiagnostics"
       >
         Download diagnostics
@@ -31,7 +31,7 @@
         player ID. Attach it when you report a result that looks wrong.
       </span>
     </template>
-    <p v-if="downloadError" class="w-full text-body font-semibold text-red-700">{{ downloadError }}</p>
+    <p v-if="downloadError" class="w-full text-body font-bold text-red-700">{{ downloadError }}</p>
   </div>
 </template>
 

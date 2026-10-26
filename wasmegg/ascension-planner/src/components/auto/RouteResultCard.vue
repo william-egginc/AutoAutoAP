@@ -19,16 +19,16 @@
     </template>
     <template #headline>
       <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
-      <p v-if="ranLine && !running" class="text-body font-semibold text-emerald-900/80" data-testid="ran-line">
+      <p v-if="ranLine && !running" class="text-body font-bold text-emerald-900/80" data-testid="ran-line">
         {{ ranLine }}
       </p>
       <div v-if="source" class="text-small font-bold text-emerald-700/80">{{ source }}</div>
-      <div class="tabular-nums text-title sm:text-title font-black text-slate-900 break-words">
+      <div class="tabular-nums text-title font-bold text-slate-900 break-words">
         {{ chain.join(' ') }}
       </div>
     </template>
     <template #aside>
-      <div class="text-title font-black text-slate-900 tabular-nums">
+      <div class="text-title font-bold text-slate-900 tabular-nums">
         {{ days > 0 ? `${days.toFixed(3)} d` : 'pricing…' }}
       </div>
       <div v-if="days > 0" class="text-small font-bold text-emerald-800">reaches {{ finalTE }} on {{ endLabel }}</div>
@@ -91,7 +91,7 @@
       >
         {{ saving ? 'Saving...' : 'Save run' }}
       </button>
-      <span v-if="note" class="text-small font-semibold text-emerald-800">{{ note }}</span>
+      <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
       <p class="w-full text-small text-emerald-900/70" data-testid="build-plan-note">
         {{ simulateNote() }}
       </p>

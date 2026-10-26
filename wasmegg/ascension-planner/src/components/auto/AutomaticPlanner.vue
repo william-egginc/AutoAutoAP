@@ -13,7 +13,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">Auto-AP</h2>
+          <h2 class="text-title font-bold text-slate-900">Auto-AP</h2>
         </div>
 
         <div class="space-y-8 relative">
@@ -26,7 +26,7 @@
               class="flex items-center gap-3 bg-white px-6 py-3 rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-500/10"
             >
               <div class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-              <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest"
+              <span class="text-indigo-600 label"
                 >Form locked while calculating...</span
               >
             </div>
@@ -46,22 +46,22 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                   </svg>
                 </div>
-                <h3 class="text-xs font-black text-slate-700 uppercase tracking-wider">Ascension Targets</h3>
+                <h3 class="text-slate-700 label">Ascension Targets</h3>
               </div>
               <div class="space-y-1.5">
-                <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Target TE(s)</label>
+                <label class="text-slate-500 label px-1">Target TE(s)</label>
                 <div class="flex items-center gap-3">
                   <div class="relative flex-1">
                     <input
                       ref="targetInput"
                       v-model="targetTE"
                       type="text"
-                      class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-body font-black text-slate-900 outline-none focus:border-indigo-500/50 transition-all pr-10"
+                      class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-body font-bold text-slate-900 outline-none focus:border-indigo-500/50 transition-all pr-10"
                       placeholder="e.g. 300 400 490"
                       @input="handleTargetTEInput"
                       @keydown.enter="runGenerate()"
                     />
-                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-black text-small">
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-small">
                       TE
                     </div>
                   </div>
@@ -124,45 +124,45 @@
           v-if="ascensionChain.length === 0"
           class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-body text-amber-800 space-y-2"
         >
-          <p class="font-bold uppercase tracking-wide text-amber-700">
+          <p class="font-bold text-amber-700">
             Before you generate: a few assumptions to know about
           </p>
           <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
             <li>
-              <span class="font-semibold">Habs are always full.</span> Most reliable from around 100 TE, once filling
+              <span class="font-bold">Habs are always full.</span> Most reliable from around 100 TE, once filling
               habs takes no real time.
             </li>
             <li>
-              <span class="font-semibold">Artifacts and stones come from Artifacts &amp; Stones.</span> It starts from
+              <span class="font-bold">Artifacts and stones come from Artifacts &amp; Stones.</span> It starts from
               your inventory, and you can change it there or per ascension.
             </li>
             <li>
-              <span class="font-semibold">No downtime between ascensions.</span> Each ascension is assumed to start the
+              <span class="font-bold">No downtime between ascensions.</span> Each ascension is assumed to start the
               moment the previous one ends. A plan built from a {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }} result keeps
               that search's time off from virtue.
             </li>
-            <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't plan around your awake hours.</li>
+            <li><span class="font-bold">You never sleep.</span> Auto-AP doesn't plan around your awake hours.</li>
           </ul>
           <p class="text-amber-600 leading-relaxed">Treat this as a starting point. Your actual results may vary.</p>
 
           <div class="border-t border-amber-200 pt-3 mt-1">
-            <p class="font-bold uppercase tracking-wide text-amber-700 mb-2">How each ascension runs</p>
+            <p class="label text-amber-700 mb-2">How each ascension runs</p>
             <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
               <li>
-                <span class="font-semibold">Opening (C1, K1, I1):</span> Research for 30 minutes, the best vehicles, then
+                <span class="font-bold">Opening (C1, K1, I1):</span> Research for 30 minutes, the best vehicles, then
                 the best habs it can buy in 4 hours. If that can't max the habs, it repeats C1, K1, I1 until it can.
               </li>
               <li>
-                <span class="font-semibold">C2 / K2 / R1:</span> Finishes fleet size and Graviton Coupling, maxes
+                <span class="font-bold">C2 / K2 / R1:</span> Finishes fleet size and Graviton Coupling, maxes
                 Hyperloops and train cars, then buys silos. A shift that would buy nothing is left out.
               </li>
               <li>
-                <span class="font-semibold">C3:</span> Rides one to three weekly research sales, buying earnings research
+                <span class="font-bold">C3:</span> Rides one to three weekly research sales, buying earnings research
                 first and Delivery Rate research in the final sale.
               </li>
-              <li><span class="font-semibold">H1:</span> Equips the best delivery set for your research at that point.</li>
+              <li><span class="font-bold">H1:</span> Equips the best delivery set for your research at that point.</li>
               <li>
-                <span class="font-semibold">K3, then C4 / I2 / R2 / H2:</span> Waits on each virtue egg until the TE goal
+                <span class="font-bold">K3, then C4 / I2 / R2 / H2:</span> Waits on each virtue egg until the TE goal
                 is reached.
               </li>
             </ul>
@@ -175,11 +175,11 @@
     <!-- Results Section -->
     <div v-if="ascensionChain.length > 0" class="max-w-4xl mx-auto space-y-6 pb-24 relative px-4 sm:px-0">
       <div class="flex flex-col sm:flex-row justify-between items-center gap-4 px-4">
-        <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Generated Roadmap</h2>
+        <h2 class="text-title font-bold text-slate-800">Generated Roadmap</h2>
         <div class="flex flex-wrap justify-center items-center gap-3">
           <button
             :disabled="isGenerating"
-            class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-body font-bold rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
             @click="copySummary"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +194,7 @@
           </button>
           <button
             :disabled="isGenerating || isSavingToLibrary"
-            class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-body font-bold rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
             @click="saveToLibrary"
           >
             <svg v-if="isSavingToLibrary" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -222,7 +222,7 @@
           </button>
           <button
             :disabled="isGenerating || isExporting"
-            class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+            class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-body font-bold rounded-xl transition-all shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
             @click="exportCurrentPlan"
           >
             <svg v-if="isExporting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -306,7 +306,7 @@
         v-if="timeOffInPlan.length"
         class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-body text-sky-900"
       >
-        <span class="font-black uppercase tracking-wide">Includes your time away from virtue (time off).</span>
+        <span class="font-bold">Includes your time away from virtue (time off).</span>
         {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Simulate this plan
         on the search again to put it back.
       </div>
@@ -314,7 +314,7 @@
         v-if="timeOffDroppedFor"
         class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-body text-amber-900"
       >
-        <span class="font-black uppercase tracking-wide">Time away from virtue left out.</span>
+        <span class="font-bold">Time away from virtue left out.</span>
         It was worked into this route for a plan starting {{ boxStart(timeOffDroppedFor) }}, and the start is now
         {{ boxStart(`${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`) }} (a newer save moves it up), so this plan farms
         straight through it. Search again, or re-apply from the search, to put it back.
@@ -339,7 +339,7 @@
     >
       <div class="w-6 h-6 border-3 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin"></div>
       <div class="space-y-0.5 pr-2">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-400">Updating Roadmap</div>
+        <div class="label text-indigo-400">Updating Roadmap</div>
         <div class="text-small font-bold text-slate-200 tabular-nums">{{ generateProgress || 'Calculating...' }}</div>
       </div>
     </div>
@@ -642,7 +642,7 @@ const handleTargetTEInput = (e: Event) => {
 
 <style scoped>
 .btn-premium {
-  @apply rounded-2xl font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3;
+  @apply rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3;
 }
 .btn-primary {
   @apply bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;

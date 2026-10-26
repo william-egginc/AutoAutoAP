@@ -23,11 +23,11 @@
          around them names them rather than saying "left" and "right". -->
     <div v-if="bars.length" class="grid gap-3 md:grid-cols-2">
       <div>
-        <h4 class="px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery set</h4>
+        <h4 class="px-1 text-slate-400 label">Delivery set</h4>
         <EChart :option="deliveryOption" :height="`${chartHeight}px`" />
       </div>
       <div>
-        <h4 class="px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Earnings set</h4>
+        <h4 class="px-1 text-slate-400 label">Earnings set</h4>
         <EChart :option="earningsOption" :height="`${chartHeight}px`" />
       </div>
     </div>

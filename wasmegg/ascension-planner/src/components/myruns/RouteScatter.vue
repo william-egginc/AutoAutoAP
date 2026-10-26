@@ -20,8 +20,8 @@
     data-testid="my-runs-scatter"
     @toggle="open = ($event.target as HTMLDetailsElement).open"
   >
-    <summary class="cursor-pointer text-[11px] font-black uppercase tracking-widest text-slate-500">
-      Your routes at a glance<span class="ml-2 font-semibold normal-case tracking-normal text-slate-500">{{
+    <summary class="cursor-pointer text-body font-bold text-slate-500">
+      Your routes at a glance<span class="ml-2 font-bold normal-case tracking-normal text-slate-500">{{
         countWords
       }}</span>
     </summary>
@@ -79,7 +79,7 @@
                 <button
                   v-if="c.count"
                   type="button"
-                  class="relative flex min-h-[28px] items-center justify-center rounded-[3px] text-small font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 sm:min-h-[34px] sm:text-small"
+                  class="relative flex min-h-[28px] items-center justify-center rounded-[3px] text-small font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 sm:min-h-[34px]"
                   :class="[
                     isBest(c) ? 'outline outline-2 outline-offset-[-2px] outline-[#0b0b0b]' : '',
                     isSel(c) ? 'ring-2 ring-indigo-500 ring-offset-1' : '',
@@ -181,7 +181,7 @@
               :data-testid="`my-runs-heat-level-${l.level}`"
               @click="toggleLevel(l.level)"
             >
-              {{ levelName(l.level) }}{{ ' ' }}<span class="font-semibold opacity-70">{{ l.count }}</span>
+              {{ levelName(l.level) }}{{ ' ' }}<span class="font-bold opacity-70">{{ l.count }}</span>
             </button>
           </div>
         </div>

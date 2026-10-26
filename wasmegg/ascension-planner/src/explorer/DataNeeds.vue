@@ -11,7 +11,7 @@
   <div class="space-y-3">
     <div class="flex flex-wrap items-end gap-3">
       <label class="space-y-1">
-        <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Your TE now</span>
+        <span class="block text-slate-400 label">Your TE now</span>
         <input
           v-model.number="teNow"
           type="number"
@@ -28,7 +28,7 @@
       </p>
     </div>
 
-    <p v-if="!needs.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-body font-semibold text-emerald-700">
+    <p v-if="!needs.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-body font-bold text-emerald-700">
       Nothing on the list right now: every gap has enough accounts. New kinds of question will show up here as they come
       up.
     </p>
@@ -52,12 +52,12 @@
               {{ need.title }}
               <span
                 v-if="need.owned"
-                class="ml-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white"
+                class="ml-1 rounded-full bg-emerald-600 px-2 py-0.5 label text-white"
                 data-testid="need-owned"
                 >{{ need.ownedLabel }}</span
               >
             </span>
-            <span class="text-small font-semibold text-slate-500">
+            <span class="text-small font-bold text-slate-500">
               <span :class="need.have >= need.want ? 'text-emerald-700' : ''" data-testid="need-have"
                 >{{ need.have }} of {{ need.want }} {{ need.want === 1 ? 'account' : 'accounts'
                 }}{{ need.have >= need.want ? ' (enough)' : '' }}</span
@@ -65,7 +65,7 @@
               · who: {{ need.who }}
             </span>
           </div>
-          <p v-if="need.coverageText" class="text-body font-semibold text-slate-700" data-testid="need-coverage">
+          <p v-if="need.coverageText" class="text-body font-bold text-slate-700" data-testid="need-coverage">
             {{ need.coverageText }}
           </p>
           <p class="text-body text-slate-600">{{ need.why }}</p>
@@ -77,7 +77,7 @@
               :key="part.label"
               class="flex flex-wrap items-center gap-x-3 gap-y-1"
             >
-              <span class="w-16 text-[9px] font-black uppercase tracking-widest text-slate-400">{{ part.label }}</span>
+              <span class="w-16 label text-slate-400">{{ part.label }}</span>
               <span v-for="s in part.slots" :key="s.family" class="inline-flex items-center gap-1" :title="s.title">
                 <img
                   :src="iconURL(`egginc/afx_${s.family}_${s.tier}.png`, 64)"
@@ -85,12 +85,12 @@
                   :alt="s.title"
                 />
                 <span class="text-small font-bold text-slate-700">T{{ s.tier }}</span>
-                <span class="rounded px-1 text-small font-black" :class="RARITY_CLASS[s.rarity]">{{ s.rarity }}</span>
+                <span class="rounded px-1 text-small font-bold" :class="RARITY_CLASS[s.rarity]">{{ s.rarity }}</span>
               </span>
               <span v-if="part.note" class="text-small text-slate-500">{{ part.note }}</span>
             </div>
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span class="w-16 text-[9px] font-black uppercase tracking-widest text-slate-400">Stones</span>
+              <span class="w-16 label text-slate-400">Stones</span>
               <span v-for="st in need.gear.stones" :key="st.family" class="inline-flex items-center gap-1">
                 <img
                   :src="iconURL(`egginc/afx_${st.family}_stone_${st.tier}.png`, 64)"
@@ -101,7 +101,7 @@
                 <span class="text-small text-slate-500">{{ st.where }}</span>
               </span>
             </div>
-            <p class="text-small font-semibold text-slate-600">{{ need.gear.cte }}</p>
+            <p class="text-small font-bold text-slate-600">{{ need.gear.cte }}</p>
           </div>
           <!-- A By a date card: what it opens, how big it is, and how long it takes. -->
           <div v-if="need.byDate" class="space-y-1 rounded bg-white px-2 py-1.5 text-body text-slate-700">
@@ -123,7 +123,7 @@
             </p>
             <div class="grid gap-1 sm:grid-cols-3 pt-0.5">
               <div v-for="t in need.times" :key="t.id" class="rounded bg-slate-50 px-2 py-1">
-                <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <div class="label text-slate-400">
                   {{ t.label }} · {{ t.detail }}
                 </div>
                 <div class="font-bold text-slate-800">about {{ t.text }}</div>
@@ -143,20 +143,20 @@
           </p>
           <div v-if="!need.byDate && need.chains > 0" class="grid gap-1 sm:grid-cols-4 text-small">
             <div class="rounded bg-white px-2 py-1">
-              <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
+              <div class="label text-slate-400">Routes</div>
               <div class="font-bold text-slate-800">
                 {{ (need.chains * need.runs).toLocaleString()
                 }}<template v-if="need.runs > 1"> ({{ plural(need.runs, 'run') }})</template>
               </div>
             </div>
             <div v-for="t in need.times" :key="t.id" class="rounded bg-white px-2 py-1">
-              <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+              <div class="label text-slate-400">
                 {{ t.label }} · {{ t.detail }}
               </div>
               <div class="font-bold text-slate-800">about {{ t.text }}</div>
             </div>
           </div>
-          <p v-else-if="!need.byDate" class="text-small font-semibold text-amber-700">
+          <p v-else-if="!need.byDate" class="text-small font-bold text-amber-700">
             {{ NO_FIT_TEXT }}
             <span class="font-normal">
               From {{ teNow }} TE its ascension ranges, with targets at least {{ need.minGap }} TE apart, leave no room.
@@ -171,7 +171,7 @@
                 v-for="link in need.links"
                 :key="link.href"
                 type="button"
-                class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+                class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-body font-bold hover:bg-slate-700"
                 @click="link.byDate ? emit('run-by-date', link.byDate) : emit('run', link.request)"
               >
                 {{ link.label }}
@@ -191,7 +191,7 @@
                 :href="link.href"
                 target="_blank"
                 rel="noopener"
-                class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+                class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-body font-bold hover:bg-slate-700"
               >
                 {{ link.label }} &rarr;
               </a>

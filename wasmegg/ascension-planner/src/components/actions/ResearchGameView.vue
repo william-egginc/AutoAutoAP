@@ -8,14 +8,14 @@
       <!-- Tier Header -->
       <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
         <div class="flex items-center gap-2 flex-1 cursor-pointer" @click="toggleTier(tier)">
-          <span class="font-medium text-gray-900">Tier {{ tier }}</span>
+          <span class="font-normal text-gray-900">Tier {{ tier }}</span>
           <span
             v-if="!tierSummaries[tier]?.isUnlocked"
-            class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold uppercase tracking-wide shadow-sm"
+            class="bg-red-100 text-red-700 px-2 py-0.5 rounded label shadow-sm"
           >
             Locked ({{ tierSummaries[tier]?.purchasesNeeded ?? '?' }} more)
           </span>
-          <span v-else class="text-[10px] text-gray-400 font-medium uppercase">
+          <span v-else class="text-gray-400 label">
             {{ tierSummaries[tier]?.purchasedLevels ?? 0 }} / {{ tierSummaries[tier]?.totalLevels ?? 0 }}
           </span>
         </div>

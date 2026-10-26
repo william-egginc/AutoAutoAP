@@ -9,7 +9,7 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 md:flex-wrap">
           <div>
             <div class="text-body font-bold text-slate-700">Ascension Start</div>
-            <div class="hidden md:block text-[10px] uppercase font-black text-slate-400 tracking-wider">When this journey begins</div>
+            <div class="hidden md:block label text-slate-400">When this journey begins</div>
           </div>
           <div class="flex flex-col md:flex-row md:items-center md:flex-wrap md:justify-end gap-2 w-full md:w-auto mt-1 md:mt-0">
             <DateTimeZonePicker
@@ -18,7 +18,7 @@
               v-model:timezone="localAscensionTimezone"
             />
             <button
-              class="btn-premium btn-primary w-full md:w-auto px-4 py-2.5 text-xs font-black uppercase tracking-widest transition-all disabled:opacity-30"
+              class="btn-premium btn-primary w-full md:w-auto px-4 py-2.5 text-body font-bold transition-all disabled:opacity-30"
               :disabled="!hasAscensionChanges"
               @click="applyAscensionChanges"
             >
@@ -31,7 +31,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
           <div>
             <div class="text-body font-bold text-slate-700">Starting Egg</div>
-            <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">Where the plan begins</div>
+            <div class="hidden sm:block label text-slate-400">Where the plan begins</div>
           </div>
           <div class="flex gap-2 justify-between w-full sm:w-auto mt-1 sm:mt-0">
             <button
@@ -66,7 +66,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
           <div>
             <div class="text-body font-bold text-slate-700">Previous Shifts</div>
-            <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">Experience baseline</div>
+            <div class="hidden sm:block label text-slate-400">Experience baseline</div>
           </div>
           <div class="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
             <input
@@ -86,7 +86,7 @@
               <div class="text-body font-bold text-slate-700">Soul Eggs (SE)</div>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-4 h-4 mb-0.5" alt="SE" />
             </div>
-            <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">
+            <div class="hidden sm:block label text-slate-400">
               Pays for shifts
             </div>
           </div>
@@ -108,7 +108,7 @@
           <div>
             <div class="text-body font-bold text-slate-700">Assume Double Earnings</div>
             <div
-              class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider group-hover:text-slate-500 transition-colors"
+              class="hidden sm:block text-small font-bold text-slate-400 group-hover:text-slate-500 transition-colors"
             >
               Active Video Doubler or Ultra
             </div>
@@ -147,7 +147,7 @@
         </div>
         <div class="flex items-center gap-4">
           <div class="px-2 py-0.5 bg-brand-primary/10 rounded-full">
-            <span class="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none">
+            <span class="text-body font-bold text-slate-900 leading-none">
               {{ totalTe }} <span class="opacity-50">/ 490</span> TE
             </span>
           </div>
@@ -167,7 +167,7 @@
         <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between">
           <div>
             <div class="text-body font-bold text-slate-700">Total Eggs of Truth</div>
-            <div class="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+            <div class="text-small font-bold text-slate-400">
               Multiplies IHR & Earnings by 1.1^TE
             </div>
           </div>
@@ -175,7 +175,7 @@
             <div class="relative">
               <div class="text-title tabular-nums font-bold text-slate-900 px-3">{{ totalTe }}</div>
             </div>
-            <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Max: 490</span>
+            <span class="text-slate-300 label mt-1">Max: 490</span>
           </div>
         </div>
 
@@ -196,7 +196,7 @@
                   :alt="egg"
                 />
               </div>
-              <div class="text-xs font-bold text-slate-800 uppercase tracking-tight">
+              <div class="text-slate-800 label">
                 {{ VIRTUE_EGG_NAMES[egg] }}
               </div>
             </div>
@@ -204,7 +204,7 @@
               <div class="grid grid-cols-2 gap-3 w-full">
                 <!-- Delivered -->
                 <div class="flex flex-col gap-1">
-                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivered</span>
+                  <span class="text-slate-400 label">Delivered</span>
                   <input
                     type="text"
                     :value="formatNumber(eggsDelivered[egg], 3)"
@@ -216,7 +216,7 @@
                 </div>
                 <!-- TE -->
                 <div class="flex flex-col gap-1">
-                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">TE <span class="text-slate-300 font-bold ml-0.5">/ 98</span></span>
+                  <span class="text-slate-400 label truncate">TE <span class="text-slate-300 font-bold ml-0.5">/ 98</span></span>
                   <input
                     type="number"
                     :value="teEarned[egg]"
@@ -258,7 +258,7 @@
           <button
             v-for="setName in ['earnings', 'elr'] as const"
             :key="setName"
-            class="px-4 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+            class="px-4 py-1 text-body font-bold rounded-lg transition-all"
             :class="[
               activeSetTab === setName
                 ? 'bg-white text-slate-900 shadow-sm'
@@ -272,7 +272,7 @@
       </div>
       <div class="p-4">
         <div v-if="activeSetTab === 'earnings' && clothedTe !== null" class="mt-4 flex justify-between items-center px-1">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clothed TE</span>
+          <span class="text-slate-400 label">Clothed TE</span>
           <span class="text-body tabular-nums font-bold text-slate-900">{{ Math.round(clothedTe) }}</span>
         </div>
         <template v-if="!hasArtifactSets">
@@ -284,13 +284,13 @@
           </div>
           <div class="grid grid-cols-2 gap-3">
             <button
-              class="btn-premium btn-primary py-2 text-[10px] font-black uppercase tracking-widest"
+              class="btn-premium btn-primary py-2 text-body font-bold"
               @click="$emit('save-current-to-set', 'earnings')"
             >
               Save as Earnings
             </button>
             <button
-              class="btn-premium btn-primary py-2 text-[10px] font-black uppercase tracking-widest"
+              class="btn-premium btn-primary py-2 text-body font-bold"
               @click="$emit('save-current-to-set', 'elr')"
             >
               Save as Delivery
@@ -312,7 +312,7 @@
           </div>
           <div v-if="activeArtifactSet !== activeSetTab" class="mt-4 flex justify-end">
             <button
-              class="btn-premium btn-secondary py-1.5 px-4 text-[10px] font-black uppercase tracking-widest"
+              class="btn-premium btn-secondary py-1.5 px-4 text-body font-bold"
               @click="$emit('set-active-artifact-set', activeSetTab)"
             >
               Equip as Active
@@ -323,7 +323,7 @@
             class="mt-4 flex justify-end items-center gap-3 bg-brand-primary/5 p-2 rounded-xl border border-brand-primary/10"
           >
             <div class="w-2 h-2 rounded-full bg-brand-primary animate-pulse"></div>
-            <span class="text-[10px] font-black text-slate-900 uppercase tracking-widest"
+            <span class="text-slate-900 label"
               >Currently Active Loadout</span
             >
           </div>
@@ -353,7 +353,7 @@
         <div class="flex items-center gap-4">
           <div class="px-2 py-0.5 bg-slate-200/50 rounded-full">
             <span
-              class="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none tabular-nums"
+              class="text-body font-bold text-slate-600 leading-none tabular-nums"
             >
               {{ formatNumber(totalFuel, 1) }} <span class="opacity-40">/</span> {{ formatNumber(tankCapacity, 1) }}
             </span>
@@ -374,7 +374,7 @@
         <div class="flex items-center justify-between">
           <div>
             <div class="text-body font-bold text-slate-700">Tank Level</div>
-            <div class="text-[10px] uppercase font-black text-slate-400 tracking-wider">Storage capacity tier</div>
+            <div class="label text-slate-400">Storage capacity tier</div>
           </div>
           <select
             :value="tankLevel"
@@ -390,7 +390,7 @@
         <!-- Capacity Bar -->
         <div class="space-y-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
           <div class="flex justify-between items-end mb-1">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilization</span>
+            <span class="text-slate-400 label">Utilization</span>
             <span class="text-small font-bold text-slate-700 tabular-nums">{{ fillPercent.toFixed(1) }}%</span>
           </div>
           <div class="h-3 bg-white shadow-inner rounded-full overflow-hidden border border-slate-100">
@@ -406,7 +406,7 @@
 
         <!-- Per-Egg Fuel Amounts -->
         <div class="space-y-3">
-          <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stored Inventory</h4>
+          <h4 class="text-slate-400 label ml-1">Stored Inventory</h4>
           <div class="grid grid-cols-1 gap-2">
             <div
               v-for="egg in VIRTUE_FUEL_ORDER"
@@ -423,7 +423,7 @@
                 />
               </div>
               <div class="flex-1">
-                <div class="text-xs font-bold text-slate-700 uppercase tracking-tight">{{ VIRTUE_EGG_NAMES[egg] }}</div>
+                <div class="text-slate-700 label">{{ VIRTUE_EGG_NAMES[egg] }}</div>
               </div>
               <div class="flex flex-col items-end">
                 <div class="flex items-center gap-2">
@@ -446,7 +446,7 @@
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
                   />
                 </div>
-                <div v-if="getRoundingShortfall(fuelAmounts[egg]) > 0" class="text-[9px] text-danger font-bold uppercase tracking-widest mt-1">
+                <div v-if="getRoundingShortfall(fuelAmounts[egg]) > 0" class="text-small text-danger font-bold mt-1">
                   You're short by {{ formatFullNumber(getRoundingShortfall(fuelAmounts[egg])) }} eggs
                 </div>
               </div>
@@ -503,7 +503,7 @@
                 />
               </div>
               <div class="min-w-0">
-                <div class="text-xs font-bold text-slate-800 uppercase tracking-tight">{{ research.name }}</div>
+                <div class="text-slate-800 label">{{ research.name }}</div>
               </div>
             </div>
             <div class="flex flex-shrink-0 items-center gap-2">
@@ -522,13 +522,13 @@
                     )
                   "
                 />
-                <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest w-10"
+                <span class="text-slate-300 label w-10"
                   >/ {{ research.maxLevel }}</span
                 >
               </div>
             </div>
           </div>
-          <div class="text-small text-slate-500 font-medium italic pl-14 pr-2 pb-1">
+          <div class="text-small text-slate-500 font-normal italic pl-14 pr-2 pb-1">
             {{ research.effect }}
           </div>
         </div>
@@ -575,8 +575,8 @@
                 />
               </div>
               <div class="min-w-0">
-                <div class="text-xs font-bold text-slate-800 uppercase tracking-tight">{{ egg.name }}</div>
-                <div class="text-small text-slate-400 font-medium truncate italic">
+                <div class="text-slate-800 label">{{ egg.name }}</div>
+                <div class="text-small text-slate-400 font-normal truncate italic">
                   {{ egg.bonusText }} {{ egg.effect.toLowerCase() }}
                 </div>
               </div>

@@ -6,7 +6,7 @@
 <template>
   <div v-if="shifts.length || more" class="space-y-1 text-body" data-testid="route-extras">
     <details v-if="shifts.length" data-testid="first-shifts">
-      <summary class="cursor-pointer font-semibold" :class="tone">
+      <summary class="cursor-pointer font-bold" :class="tone">
         First ascension: {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }},
         {{ short(shifts[0].at) }} to {{ short(shifts[shifts.length - 1].at) }}
       </summary>
@@ -17,7 +17,7 @@
       </ul>
     </details>
     <p v-if="more" :class="tone" data-testid="one-more-te">
-      <span class="font-semibold">One more TE ({{ more.te }}):</span>
+      <span class="font-bold">One more TE ({{ more.te }}):</span>
       <template v-if="more.how === 'run'"
         >{{ ' ' }}about {{ span(more.seconds) }} more, so about <span class="whitespace-nowrap">{{ short(more.at) }}</span> (what
         {{ more.te - 1 }} cost over {{ more.te - 2 }} in this run).</template

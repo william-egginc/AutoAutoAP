@@ -28,7 +28,7 @@
                 {{ SHIP_INFO[ship].displayName }}
               </span>
             </div>
-            <div class="text-gray-500 text-small font-medium">
+            <div class="text-gray-500 text-small font-normal">
               {{ formatNumber(SHIP_INFO[ship].price, 0) }}
             </div>
             <div class="text-gray-400 text-small">Save: {{ formatDuration(saveTime(ship)) }}</div>
@@ -57,7 +57,7 @@
             </div>
 
             <!-- Line 3: Max missions -->
-            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-tight mb-1">
+            <div class="text-gray-400 label mb-1">
               max: {{ maxCount(ship, dur) > 99 ? '>99' : maxCount(ship, dur) }}
             </div>
 

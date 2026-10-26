@@ -5,7 +5,7 @@
 -->
 <template>
   <div v-if="isSafari" class="p-3 rounded-xl border border-sky-200 bg-sky-50 text-body text-sky-900">
-    <span class="font-black uppercase tracking-wide">Long runs in Safari.</span>
+    <span class="font-bold">Long runs in Safari.</span>
     Safari doesn't tell pages how much memory they're using, so this page can't warn you before memory runs short. If
     the page goes white mid-run, Safari has stopped drawing it, but the workers may still be running: check Activity
     Monitor. For runs longer than a few hours:

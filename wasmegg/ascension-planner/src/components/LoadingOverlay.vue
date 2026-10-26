@@ -22,7 +22,7 @@
         </svg>
       </div>
       <div class="space-y-2 text-center max-w-[15rem]">
-        <h3 class="text-title font-black text-gray-900 tracking-tight">{{ title }}</h3>
+        <h3 class="text-title font-bold text-gray-900">{{ title }}</h3>
         <p class="text-body font-bold text-gray-500">{{ message }}</p>
       </div>
     </div>

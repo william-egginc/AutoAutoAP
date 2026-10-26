@@ -22,7 +22,7 @@
     <p class="text-small text-slate-500">
       Lets the search keep going at a lower draw while you use the computer for something else, and go back to full
       speed when you return. Takes effect within about a minute, and no route in progress is lost.
-      <span class="font-semibold text-slate-600">{{ BROWSER_ADVICE[browser] }}</span>
+      <span class="font-bold text-slate-600">{{ BROWSER_ADVICE[browser] }}</span>
     </p>
   </div>
 </template>

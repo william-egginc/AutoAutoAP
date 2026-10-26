@@ -12,7 +12,7 @@
       <span v-if="state === 'loading'">Loading chart…</span>
       <span v-else class="px-4 text-center">
         This chart could not load.
-        <button type="button" class="font-semibold text-slate-600 underline" @click="reloadPage">
+        <button type="button" class="font-bold text-slate-600 underline" @click="reloadPage">
           Reload the page
         </button>
         to try again.

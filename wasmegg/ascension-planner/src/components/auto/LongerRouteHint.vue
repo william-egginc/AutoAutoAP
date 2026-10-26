@@ -22,7 +22,7 @@
           v-if="canAdd"
           type="button"
           :disabled="disabled"
-          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800 disabled:opacity-40"
           @click="add(h.count)"
         >
           {{ mode === 'start' ? `Start from ${h.count} ascensions` : `Add a box with ${h.count} ascensions` }}
@@ -31,7 +31,7 @@
           v-if="h.kind === 'instant' && h.chain && h.chain.length > 1"
           type="button"
           :disabled="disabled"
-          class="px-3 py-1.5 rounded-lg border border-amber-700 text-amber-900 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-lg border border-amber-700 text-amber-900 text-body font-bold hover:bg-amber-100 disabled:opacity-40"
           title="Prices this route with the full simulator, in Exhaustive"
           @click="check(h.chain)"
         >

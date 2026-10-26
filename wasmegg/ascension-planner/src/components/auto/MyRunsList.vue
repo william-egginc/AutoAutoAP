@@ -44,7 +44,7 @@
     <div v-else class="overflow-x-auto">
       <table class="w-full text-small tabular-nums" data-testid="my-runs-table">
         <thead>
-          <tr class="text-left text-[9px] font-black uppercase tracking-widest text-indigo-700/60 whitespace-nowrap">
+          <tr class="text-left label text-indigo-700/60 whitespace-nowrap">
             <th class="pr-2 py-1"></th>
             <th class="pr-3 py-1">Kind</th>
             <th class="pr-3 py-1">Route</th>
@@ -83,26 +83,26 @@
                 }}</span>
                 <span
                   v-if="l.hidden"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-black text-slate-600"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-bold text-slate-600"
                   title="Hidden from the public: only you and the planner's maintainer see it. Open it to show it again."
                   data-testid="my-runs-hidden-tag"
                   >hidden</span
                 >
                 <span
                   v-if="l.maybe"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-100 text-small font-semibold text-slate-500"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-100 text-small font-bold text-slate-500"
                   title="Same timezone and gear as the save you loaded, but this browser holds no code that proves it is yours."
                   >maybe you</span
                 >
                 <span
                   v-if="l.copies.length > 1"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-black text-slate-600"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-bold text-slate-600"
                   :title="`The same result was sent ${l.copies.length} times. Open it for each copy and its CSV.`"
                   >sent ×{{ l.copies.length }}</span
                 >
                 <span
                   v-if="provisionalTag(l.row)"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-black text-amber-800"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-bold text-amber-800"
                   :title="PROVISIONAL_TITLE"
                   >{{ provisionalTag(l.row) }}</span
                 >
@@ -138,7 +138,7 @@
               <td class="py-1.5 text-right">
                 <button
                   type="button"
-                  class="px-2 py-0.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                  class="px-2 py-0.5 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
                   :title="`Open ${l.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
                   @click="emit('use', l.row.chain)"
                 >

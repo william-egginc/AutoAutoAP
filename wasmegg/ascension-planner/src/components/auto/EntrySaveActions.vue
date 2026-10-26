@@ -9,7 +9,7 @@
     <template v-if="state === 'kept' && entry.save">
       <button
         type="button"
-        class="font-black uppercase tracking-widest text-violet-700 hover:text-violet-900 disabled:opacity-40"
+        class="font-bold text-violet-700 hover:text-violet-900 disabled:opacity-40"
         :disabled="store.busy || ui.loading || using"
         title="Load this save into the planner as your active save, with this entry's plan start and settings"
         @click="use"
@@ -18,7 +18,7 @@
       </button>
       <button
         type="button"
-        class="font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 disabled:opacity-40"
+        class="font-bold text-slate-500 hover:text-slate-800 disabled:opacity-40"
         :disabled="downloading"
         @click="download"
       >

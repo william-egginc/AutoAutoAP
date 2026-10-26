@@ -22,7 +22,7 @@
         </svg>
       </div>
       <div class="space-y-2 text-center">
-        <h3 class="text-title font-black text-gray-900 tracking-tight">Recalculating...</h3>
+        <h3 class="text-title font-bold text-gray-900">Recalculating...</h3>
         <p class="text-body font-bold text-gray-500 tabular-nums">
           {{ progress.current }} / {{ progress.total }} actions
         </p>

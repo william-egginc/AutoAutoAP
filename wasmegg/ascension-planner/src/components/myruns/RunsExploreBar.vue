@@ -19,7 +19,7 @@
       @toggle="isOpen = ($event.target as HTMLDetailsElement).open"
     >
       <summary
-        class="min-h-[44px] cursor-pointer py-[14px] text-[10px] leading-4 font-black uppercase tracking-widest text-indigo-700"
+        class="min-h-[44px] cursor-pointer py-[14px] text-body leading-4 font-bold text-indigo-700"
         data-testid="runs-explore-summary"
       >
         Filter and sort<span v-if="active" class="normal-case tracking-normal font-bold text-indigo-900"
@@ -44,7 +44,7 @@
             :data-testid="`runs-chip-${g.id}-${c.value}`"
             @click="emit('toggle', g.id, c.value)"
           >
-            {{ c.label }}{{ ' ' }}<span class="font-semibold opacity-60">{{ c.count }}</span>
+            {{ c.label }}{{ ' ' }}<span class="font-bold opacity-60">{{ c.count }}</span>
           </button>
         </div>
         <div class="flex flex-wrap items-center gap-1.5" data-testid="runs-explore-sort">
@@ -123,7 +123,7 @@ onMounted(() => {
   }
 });
 
-const LABEL = 'mr-1 sm:min-w-[5.5rem] text-[9px] font-black uppercase tracking-widest text-indigo-700/70';
+const LABEL = 'mr-1 sm:min-w-[5.5rem] label text-indigo-700/70';
 const CHIP = 'min-h-[44px] sm:min-h-[32px] rounded-full border px-3 text-small font-bold';
 const ON = 'border-indigo-400 bg-indigo-50 text-indigo-900';
 const OFF = 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300';

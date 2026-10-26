@@ -46,7 +46,7 @@ export default defineComponent({
               'section',
               { class: 'rounded-2xl border border-emerald-200 bg-white p-4 space-y-3', 'data-testid': 'instant-failed' },
               [
-                h('h3', { class: 'text-title font-black text-slate-900' }, 'Instant answer'),
+                h('h3', { class: 'text-title font-bold text-slate-900' }, 'Instant answer'),
                 h(
                   'p',
                   { class: 'rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body text-amber-900' },
@@ -57,7 +57,7 @@ export default defineComponent({
                   {
                     type: 'button',
                     class:
-                      'min-h-[44px] px-4 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50',
+                      'min-h-[44px] px-4 rounded-lg border border-emerald-700 text-emerald-800 label hover:bg-emerald-50',
                     'data-testid': 'instant-failed-again',
                     onClick: again,
                   },

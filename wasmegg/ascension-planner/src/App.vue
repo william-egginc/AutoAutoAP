@@ -96,7 +96,7 @@
             </p>
             <div
               v-if="initialStateStore.hasData && lastBackupFormatted"
-              class="text-center text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-4 -mt-1"
+              class="text-center text-slate-500 label mb-4 -mt-1"
             >
               Player Backup From: {{ lastBackupFormatted }}
             </div>
@@ -119,7 +119,7 @@
         <button
           v-if="loadRetry && loadRetry.message === error && !loading"
           type="button"
-          class="ml-2 min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[11px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50"
+          class="ml-2 min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-body font-bold text-red-700 hover:bg-red-50"
           data-testid="page-error-retry"
           @click="submitPlayerId(loadRetry.id)"
         >
@@ -139,7 +139,7 @@
            below the Auto Planner). -->
       <div v-if="playerId" class="flex justify-center mt-2" data-testid="header-toggle">
         <button
-          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider h-11 sm:h-7 cursor-pointer"
+          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-body font-bold h-11 sm:h-7 cursor-pointer"
           :aria-label="isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'"
           :aria-expanded="!isHeaderCollapsed"
           @click="toggleHeader"
@@ -211,7 +211,7 @@
                   </div>
                   <div>
                     <div class="text-body font-bold text-slate-800">Start from Scratch</div>
-                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
+                    <p class="text-small text-slate-500 font-bold mt-1.5">
                       Clear your entire plan, reset all settings, and begin with a clean slate
                     </p>
                   </div>
@@ -244,7 +244,7 @@
                   </div>
                   <div>
                     <div class="text-body font-bold text-slate-800">Plan Future Ascension</div>
-                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
+                    <p class="text-small text-slate-500 font-bold mt-1.5">
                       Load your latest backup, include pending TE, reset the clock, and start planning fresh
                     </p>
                   </div>
@@ -276,7 +276,7 @@
                   </div>
                   <div>
                     <div class="text-body font-bold text-slate-800">Continue Current Ascension</div>
-                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
+                    <p class="text-small text-slate-500 font-bold mt-1.5">
                       Resume from your current in-game farm with all events applied
                     </p>
                   </div>
@@ -308,7 +308,7 @@
                   </div>
                   <div>
                     <div class="text-body font-bold text-slate-800">Reconcile Plan</div>
-                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
+                    <p class="text-small text-slate-500 font-bold mt-1.5">
                       Load a plan and compare against your current farm to track progress
                     </p>
                   </div>
@@ -365,7 +365,7 @@
                 v-for="v in autoTabs"
                 :key="v.id"
                 type="button"
-                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug"
+                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 label text-center"
                 :class="
                   autoView === v.id
                     ? 'border-indigo-600 text-indigo-700'
@@ -398,7 +398,7 @@
               v-for="v in scienceTabs"
               :key="v.id"
               type="button"
-              class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug"
+              class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 label text-center"
               :class="
                 scienceView === v.id
                   ? 'border-amber-600 text-amber-700'
@@ -438,12 +438,12 @@
             </div>
 
             <div class="flex flex-col gap-0 text-left">
-              <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5"
+              <span class="text-slate-400 label leading-none mb-0.5"
                 >Reconciliation Mode</span
               >
-              <span class="text-small font-bold text-emerald-600 tracking-tight">
+              <span class="text-small font-bold text-emerald-600">
                 Backup from {{ lastBackupFormatted }}
-                <span class="text-emerald-400/80 font-medium">({{ lastBackupAge }})</span>
+                <span class="text-emerald-400/80 font-normal">({{ lastBackupAge }})</span>
               </span>
             </div>
           </div>
@@ -451,7 +451,7 @@
           <div class="flex items-center gap-4 relative z-10">
             <!-- Incomplete Only Toggle -->
             <div class="flex items-center gap-2">
-              <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Incomplete Only</span>
+              <span class="text-slate-400 label">Incomplete Only</span>
               <button
                 class="relative inline-flex h-4 w-8 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
                 :class="actionsStore.showIncompleteOnly ? 'bg-emerald-500' : 'bg-slate-200'"
@@ -499,11 +499,11 @@
             <div class="flex flex-col gap-0.5 text-left">
               <div class="flex items-center gap-2">
                 <div class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></div>
-                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none"
+                <span class="text-slate-400 label leading-none"
                   >Monday 2× Earnings Event</span
                 >
               </div>
-              <span class="text-[11px] font-black text-orange-600 uppercase tracking-tighter">
+              <span class="text-orange-600 label">
                 {{ isEarningsBoostActive ? 'Active' : 'Inactive' }}
               </span>
             </div>
@@ -531,10 +531,10 @@
           <!-- Action History -->
           <div class="section-premium overflow-visible">
             <div class="px-4 py-3 flex justify-between items-center rounded-t-lg">
-              <h2 class="text-title font-semibold text-gray-800">Action History</h2>
+              <h2 class="text-title font-bold text-gray-800">Action History</h2>
               <div class="flex items-center gap-3">
                 <label class="flex items-center gap-1.5 cursor-pointer select-none">
-                  <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Compact</span>
+                  <span class="text-gray-400 label">Compact</span>
                   <button
                     type="button"
                     role="switch"
@@ -565,7 +565,7 @@
           <!-- Available Actions -->
           <div class="section-premium overflow-visible">
             <div class="px-4 py-3 flex justify-between items-center rounded-t-lg">
-              <h2 class="text-title font-semibold text-gray-800">Available Actions</h2>
+              <h2 class="text-title font-bold text-gray-800">Available Actions</h2>
               <button
                 class="p-1 -mr-1 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"
                 @click="expandedSections.availableActions = !expandedSections.availableActions"
@@ -726,13 +726,13 @@
           </div>
           <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
             <button
-              class="px-4 py-2 text-body font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              class="px-4 py-2 text-body font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
               @click="handleArtifactSetSelection('elr')"
             >
               Delivery Rate Set
             </button>
             <button
-              class="px-4 py-2 text-body font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              class="px-4 py-2 text-body font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
               @click="handleArtifactSetSelection('earnings')"
             >
               Earnings Set

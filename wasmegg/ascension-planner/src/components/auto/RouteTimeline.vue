@@ -21,7 +21,7 @@
         data-testid="route-timeline-line"
       >
         <summary class="cursor-pointer text-slate-700 marker:text-slate-400">
-          <span class="font-black">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
+          <span class="font-bold">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
           <template v-if="l.reachedAt">
             · reached <span class="whitespace-nowrap">{{ when(l.reachedAt) }}</span></template
           >
@@ -30,7 +30,7 @@
         <ol class="mt-1 mb-0.5 ml-3 space-y-0.5 text-slate-600">
           <li v-for="(s, k) in l.steps" :key="k" class="break-words" data-testid="route-timeline-step">
             <template v-if="s.label"
-              ><span class="font-black text-slate-700">{{ s.label }}</span> ·
+              ><span class="font-bold text-slate-700">{{ s.label }}</span> ·
             </template>
             <span class="font-bold text-slate-700">{{ eggName(s.egg) }}</span> ·
             <span class="whitespace-nowrap">{{ when(s.start) }}</span> ·
@@ -52,7 +52,7 @@
       </details>
       <!-- No eggs kept (a leg read back from a saved run): the stop and when, without an arrow. -->
       <p v-else class="px-2 py-1 pl-5 text-slate-700" data-testid="route-timeline-line">
-        <span class="font-black">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
+        <span class="font-bold">A{{ l.asc }}</span> &rarr; <span class="font-bold">{{ l.stopTE }} TE</span>
         <template v-if="l.reachedAt">
           · reached <span class="whitespace-nowrap">{{ when(l.reachedAt) }}</span></template
         >

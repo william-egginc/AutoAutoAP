@@ -7,7 +7,7 @@
 -->
 <template>
   <details v-if="online" class="text-body" data-testid="follow-history" @toggle="onToggle">
-    <summary class="cursor-pointer font-semibold text-indigo-700" data-testid="follow-history-summary">
+    <summary class="cursor-pointer font-bold text-indigo-700" data-testid="follow-history-summary">
       <span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>
     </summary>
     <p v-if="state === 'loading'" class="mt-1 text-slate-500">Loading…</p>

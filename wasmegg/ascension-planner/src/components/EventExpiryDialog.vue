@@ -21,16 +21,16 @@
               />
             </svg>
           </div>
-          <h3 class="text-xs font-black text-rose-800 uppercase tracking-widest">Event Expiry Warning</h3>
+          <h3 class="text-rose-800 label">Event Expiry Warning</h3>
         </div>
 
         <div class="p-6">
           <div class="space-y-4">
-            <p class="text-body font-medium text-slate-700">
+            <p class="text-body font-normal text-slate-700">
               The active <span class="text-rose-600 font-bold">{{ eventName }}</span> is scheduled to end at
               <span class="text-slate-900 font-bold">{{ formatTime(endTime) }}</span>.
             </p>
-            <p class="text-body font-medium text-slate-600">
+            <p class="text-body font-normal text-slate-600">
               This action (or sequence of actions) is estimated to complete at 
               <span class="text-slate-900 font-bold">{{ formatTime(completionTime) }}</span>, 
               which is <span class="text-rose-600 font-bold">{{ formatDuration(completionTime - endTime) }}</span> after the event expiry.
@@ -43,7 +43,7 @@
           <div class="mt-8 flex flex-col sm:flex-row justify-end gap-3">
             <div class="flex flex-1 gap-2">
               <button
-                class="flex-1 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors"
+                class="flex-1 px-4 py-2 text-body font-bold text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors"
                 @click="$emit('deactivateAndCancel')"
               >
                 Deactivate and Cancel
@@ -51,13 +51,13 @@
             </div>
             <div class="flex gap-2">
               <button
-                class="px-6 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-600 transition-colors"
+                class="px-6 py-2 text-body font-bold text-slate-400 hover:text-slate-600 transition-colors"
                 @click="$emit('cancel')"
               >
                 Cancel
               </button>
               <button
-                class="btn-premium bg-rose-600 text-white px-8 py-2 text-[10px] font-black uppercase tracking-wider shadow-lg"
+                class="btn-premium bg-rose-600 text-white px-8 py-2 text-body font-bold shadow-lg"
                 @click="$emit('deactivateAndContinue')"
               >
                 Deactivate and Continue

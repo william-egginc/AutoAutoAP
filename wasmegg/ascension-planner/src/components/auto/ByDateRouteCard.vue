@@ -23,15 +23,15 @@
            and when it lands on the right. -->
       <template #headline>
         <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
-        <p v-if="ranLine && !running" class="text-body font-semibold text-emerald-900/80" data-testid="ran-line">
+        <p v-if="ranLine && !running" class="text-body font-bold text-emerald-900/80" data-testid="ran-line">
           {{ ranLine }}
         </p>
-        <div class="tabular-nums text-title sm:text-title font-black text-slate-900 break-words">
+        <div class="tabular-nums text-title font-bold text-slate-900 break-words">
           {{ route.chain.join(' ') }}
         </div>
       </template>
       <template #aside>
-        <div class="text-title font-black text-slate-900 tabular-nums">{{ lastStop }} TE</div>
+        <div class="text-title font-bold text-slate-900 tabular-nums">{{ lastStop }} TE</div>
         <div class="text-body font-bold text-emerald-800">
           reached {{ when(route.reachAt) }}, {{ spareLabel(route.spare) }} to spare
         </div>
@@ -146,7 +146,7 @@
           >
             {{ saving ? 'Saving...' : 'Save answer' }}
           </button>
-          <span v-if="note" class="text-small font-semibold text-emerald-800">{{ note }}</span>
+          <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
         </template>
         <p v-if="simulate" class="w-full text-small text-emerald-900/70" data-testid="simulate-plan-note">
           {{ simulateLine() }}
@@ -168,7 +168,7 @@
         <tbody>
           <template v-for="(leg, i) in legs" :key="i">
           <tr :class="LEG_ROW">
-            <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">
+            <td class="py-1.5 pr-3 font-bold text-slate-700 whitespace-nowrap">
               <!-- The sub-arrow: this ascension's eggs, first and last shift and TE (RouteTimeline.vue). -->
               <button
                 v-if="leg.shifts?.length"

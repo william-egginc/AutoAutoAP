@@ -18,34 +18,34 @@
               alt="Gems"
             />
           </div>
-          <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">Modify Bank Value</h3>
+          <h3 class="text-slate-800 label">Modify Bank Value</h3>
         </div>
 
         <div class="p-5 flex flex-col gap-4">
           <!-- Current Value -->
           <div class="flex items-center justify-between bg-slate-50/50 rounded-xl p-3 border border-slate-100">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Bank</span>
+            <span class="text-slate-400 label">Current Bank</span>
             <span class="tabular-nums text-body font-bold text-slate-800">{{ formatNumber(currentValue, 3) }}</span>
           </div>
 
           <!-- Mode Toggle -->
           <div class="flex gap-1 bg-slate-100 rounded-lg p-0.5">
             <button
-              class="flex-1 px-2 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-all"
+              class="flex-1 px-2 py-1.5 text-body font-bold rounded-md transition-all"
               :class="mode === 'set' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
               @click="mode = 'set'"
             >
               Set Value
             </button>
             <button
-              class="flex-1 px-2 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-all"
+              class="flex-1 px-2 py-1.5 text-body font-bold rounded-md transition-all"
               :class="mode === 'delta' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
               @click="mode = 'delta'"
             >
               Add / Subtract
             </button>
             <button
-              class="flex-1 px-2 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-all"
+              class="flex-1 px-2 py-1.5 text-body font-bold rounded-md transition-all"
               :class="mode === 'time' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
               @click="mode = 'time'"
             >
@@ -55,7 +55,7 @@
 
           <!-- Set Value Mode -->
           <div v-if="mode === 'set'" class="flex flex-col gap-2">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Bank Value</span>
+            <span class="text-slate-400 label">New Bank Value</span>
             <input
               ref="inputEl"
               v-model="setInput"
@@ -68,7 +68,7 @@
 
           <!-- Delta Mode -->
           <div v-else-if="mode === 'delta'" class="flex flex-col gap-2">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</span>
+            <span class="text-slate-400 label">Amount</span>
             <input
               ref="inputEl"
               v-model="deltaInput"
@@ -81,7 +81,7 @@
 
           <!-- By Time Mode -->
           <div v-else class="flex flex-col gap-2">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Duration</span>
+            <span class="text-slate-400 label">Duration</span>
             <input
               ref="inputEl"
               v-model="timeInput"
@@ -95,7 +95,7 @@
           <!-- Precision warning: amount is too small to move the needle at this bank value -->
           <div
             v-if="hasRawInput && isPrecisionLimited"
-            class="p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-700 text-[10px] font-bold uppercase tracking-tight"
+            class="p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-700 text-small font-bold"
           >
             Too small to register — this amount rounds away to nothing against your current bank value
           </div>
@@ -103,21 +103,21 @@
           <!-- Footer: same summary for every mode -->
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
             <div class="flex justify-between items-center text-small">
-              <span class="font-black text-slate-400 uppercase tracking-widest">Current Offline Rate</span>
+              <span class="text-slate-400 label">Current Offline Rate</span>
               <span class="tabular-nums font-bold text-slate-600"
                 >{{ formatNumber(offlineEarningsRate * 3600, 3) }}/hr</span
               >
             </div>
             <div class="flex justify-between items-center text-small">
-              <span class="font-black text-slate-400 uppercase tracking-widest">New Bank Value</span>
+              <span class="text-slate-400 label">New Bank Value</span>
               <span class="tabular-nums font-bold text-slate-800">{{
                 formatNumber(hasRawInput ? newValue : currentValue, 3)
               }}</span>
             </div>
             <div class="flex justify-between items-center text-small">
-              <span class="font-black text-slate-400 uppercase tracking-widest">Change</span>
+              <span class="text-slate-400 label">Change</span>
               <span
-                class="tabular-nums font-black"
+                class="tabular-nums font-bold"
                 :class="
                   hasRawInput && delta < 0 ? 'text-rose-500' : hasRawInput ? 'text-emerald-600' : 'text-slate-300'
                 "
@@ -126,7 +126,7 @@
               </span>
             </div>
             <div class="flex justify-between items-center text-small">
-              <span class="font-black text-slate-400 uppercase tracking-widest">Change (Time)</span>
+              <span class="text-slate-400 label">Change (Time)</span>
               <span
                 class="tabular-nums font-bold"
                 :class="hasRawInput && changeTimeSeconds !== null ? 'text-slate-600' : 'text-slate-300'"
@@ -139,7 +139,7 @@
             </div>
             <div
               v-if="hasRawInput && newValue < 0"
-              class="text-[9px] text-amber-600 font-bold uppercase tracking-widest pt-1"
+              class="text-small text-amber-600 font-bold pt-1"
             >
               Bank will show as 0 until earnings catch up
             </div>
@@ -148,13 +148,13 @@
 
         <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
           <button
-            class="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all rounded-xl hover:shadow-sm"
+            class="px-6 py-2 text-body font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all rounded-xl hover:shadow-sm"
             @click="handleClose"
           >
             Cancel
           </button>
           <button
-            class="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-slate-700 transition-all rounded-xl shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            class="px-6 py-2 text-body font-bold bg-slate-900 text-white hover:bg-slate-700 transition-all rounded-xl shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
             :disabled="!isValid"
             @click="handleConfirm"
           >

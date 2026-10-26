@@ -14,7 +14,7 @@
       <button
         type="button"
         :disabled="disabled"
-        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800 disabled:opacity-40"
         @click="emit('widen')"
       >
         Widen and run again

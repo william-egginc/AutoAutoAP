@@ -62,7 +62,7 @@
         v-for="g in groups"
         :key="g.id"
         type="button"
-        class="px-2.5 py-1 rounded-md text-small font-black border transition-colors"
+        class="px-2.5 py-1 rounded-md text-small font-bold border transition-colors"
         :class="
           selected === g.id
             ? 'bg-slate-900 text-white border-slate-900'
@@ -84,7 +84,7 @@
       <button
         v-if="current"
         type="button"
-        class="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white disabled:opacity-40"
+        class="ml-auto px-3 py-1.5 rounded-lg text-body font-bold bg-indigo-600 text-white disabled:opacity-40"
         :disabled="loading || !pending.length"
         @click="loadTables"
       >
@@ -104,7 +104,7 @@
     <div v-if="current" class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <!-- Only when the group mixes counts: one count is one question. -->
       <div v-if="counts.length > 1" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Plans with</span>
+        <span class="text-slate-400 label">Plans with</span>
         <button
           v-for="c in counts"
           :key="c.ascensions"
@@ -123,7 +123,7 @@
       </div>
       <!-- A 2-ascension plan has one checkpoint: nothing to pick. -->
       <div v-if="checkpoints.length > 1" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Stop</span>
+        <span class="text-slate-400 label">Stop</span>
         <button
           v-for="k in checkpoints"
           :key="k"
@@ -142,7 +142,7 @@
         </button>
       </div>
       <div v-if="curves.length" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Across</span>
+        <span class="text-slate-400 label">Across</span>
         <button
           v-for="m in X_MODES"
           :key="m.id"
@@ -165,7 +165,7 @@
           v-for="view in VIEWS"
           :key="view.id"
           type="button"
-          class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
           :class="
             range === view.id
               ? 'bg-slate-900 text-white border-slate-900'
@@ -178,7 +178,7 @@
         </button>
       </div>
     </div>
-    <p v-if="error" class="text-body font-semibold text-rose-700 px-1">{{ error }}</p>
+    <p v-if="error" class="text-body font-bold text-rose-700 px-1">{{ error }}</p>
 
     <EChart v-if="curves.length" :option="option" height="310px" />
     <!-- In HTML so every run is on screen at any width (legend.ts); each hides its line. -->
@@ -208,11 +208,11 @@
     <!-- ------------------------------------------------------------ per run, at this checkpoint -->
     <div v-if="table.length" class="space-y-1.5">
       <div class="flex flex-wrap items-baseline justify-between gap-2 px-1">
-        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <h4 class="text-slate-400 label">
           Each run at the {{ checkpointWords(checkpoint) }}, in days behind its own best
         </h4>
         <div v-if="checkpoints.length > 1" class="flex items-center gap-1.5">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Coarser step at</span>
+          <span class="text-slate-400 label">Coarser step at</span>
           <button
             v-for="s in SCOPES"
             :key="s.id"
@@ -234,7 +234,7 @@
       <div class="overflow-x-auto">
         <table class="w-full text-small">
           <thead>
-            <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <tr class="text-slate-400 label">
               <th class="text-left py-1 pr-3">Run</th>
               <th
                 class="text-left py-1 pr-3"

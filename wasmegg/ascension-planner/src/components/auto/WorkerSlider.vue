@@ -23,7 +23,7 @@
     </span>
     <span
       v-if="store.longRunNote"
-      class="block text-small font-semibold text-amber-800"
+      class="block text-small font-bold text-amber-800"
       data-testid="long-run-workers"
     >
       <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>

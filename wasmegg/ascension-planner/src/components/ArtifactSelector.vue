@@ -9,7 +9,7 @@
       <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
         <div class="flex items-center gap-2">
           <span
-            class="text-small font-black text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner"
+            class="text-small font-bold text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner"
             >{{ slotIndex + 1 }}</span
           >
         </div>

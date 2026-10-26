@@ -6,24 +6,24 @@
     @confirm="emit('confirm', [...selected].sort((a, b) => a - b))"
     @cancel="emit('cancel')"
   >
-    <p class="text-body font-medium text-slate-600">
+    <p class="text-body font-normal text-slate-600">
       {{ mode === 'set' ? 'Also apply this artifact & stone override to:' : 'Also remove the artifact & stone override from:' }}
     </p>
     <div class="mt-4 flex gap-2">
       <button
-        class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-slate-200"
+        class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-lg border border-slate-200"
         @click="selectLater"
       >
         All later
       </button>
       <button
-        class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-slate-200"
+        class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-lg border border-slate-200"
         @click="selectAll"
       >
         All
       </button>
       <button
-        class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-slate-200"
+        class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-lg border border-slate-200"
         @click="selectOnlyCurrent"
       >
         This one only
@@ -33,7 +33,7 @@
       <label
         v-for="idx in indices"
         :key="idx"
-        class="flex items-center gap-2 px-2 py-1.5 rounded-lg border text-small font-black"
+        class="flex items-center gap-2 px-2 py-1.5 rounded-lg border text-small font-bold"
         :class="selected.has(idx) ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-500'"
       >
         <input

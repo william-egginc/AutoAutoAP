@@ -53,7 +53,7 @@ const emit = defineEmits(['select', 'cancel']);
         
         <div v-else-if="plans.length === 0" class="text-center py-8">
           <p class="text-slate-500 text-body">No plans found in your library.</p>
-          <p class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">Save a plan first to use reconciliation</p>
+          <p class="text-small text-slate-400 mt-1 font-bold">Save a plan first to use reconciliation</p>
         </div>
 
         <div v-else class="space-y-2">
@@ -65,11 +65,11 @@ const emit = defineEmits(['select', 'cancel']);
                     : 'border-slate-100 hover:border-emerald-200 hover:bg-emerald-50'">
             <div class="flex items-center justify-between">
               <div class="font-bold text-slate-800 group-hover:text-emerald-900">{{ plan.name }}</div>
-              <span v-if="isPlanBusy(plan)" class="px-1.5 py-0.5 text-[9px] bg-amber-100 text-amber-700 rounded font-black uppercase tracking-wider">
+              <span v-if="isPlanBusy(plan)" class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded label">
                 Open in another tab
               </span>
             </div>
-            <div class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">
+            <div class="text-body text-slate-400 mt-1 font-bold">
               {{ formatMoment(plan.timestamp, { at: true }) }}
             </div>
           </button>
@@ -85,13 +85,13 @@ const emit = defineEmits(['select', 'cancel']);
               class="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-3 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500 transition-colors"
             ></div>
             <span
-              class="ml-2 text-[8px] font-black text-slate-400 uppercase tracking-widest group-hover/toggle:text-slate-600 transition-colors"
+              class="ml-2 text-slate-400 label group-hover/toggle:text-slate-600 transition-colors"
               >Incomplete Only</span
             >
           </label>
         </div>
 
-        <button @click="emit('cancel')" class="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 uppercase tracking-wider">
+        <button @click="emit('cancel')" class="px-4 py-2 text-body font-bold text-slate-500 hover:text-slate-700">
           Cancel
         </button>
       </div>

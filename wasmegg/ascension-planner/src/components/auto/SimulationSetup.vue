@@ -19,16 +19,16 @@
       :aria-expanded="open"
       @click="toggle"
     >
-      <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What artifacts it will use</h3>
+      <h3 class="text-slate-500 label">What artifacts it will use</h3>
       <span class="text-small font-bold text-indigo-700">{{ open ? 'hide' : 'show' }}</span>
     </button>
 
     <div v-if="open && inventory" class="space-y-4">
       <p class="text-body text-slate-500">
         The searches don't wear a fixed set, or what you have equipped. They re-solve the best loadout inside
-        <span class="font-semibold">every ascension</span> from your virtue inventory, and swap between two: the
-        <span class="font-semibold">delivery</span> set while they build the farm, and the
-        <span class="font-semibold">earnings</span> set when they cash out. In Single run you can change the sets for
+        <span class="font-bold">every ascension</span> from your virtue inventory, and swap between two: the
+        <span class="font-bold">delivery</span> set while they build the farm, and the
+        <span class="font-bold">earnings</span> set when they cash out. In Single run you can change the sets for
         each ascension in its artifact editor; this card shows what the searches use.
       </p>
 
@@ -37,7 +37,7 @@
           v-for="tab in ['elr', 'earnings'] as const"
           :key="tab"
           type="button"
-          class="px-4 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+          class="px-4 py-1 text-body font-bold rounded-lg transition-all"
           :class="setTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
           @click="setTab = tab"
         >
@@ -46,7 +46,7 @@
       </div>
       <LoadoutDisplay :loadout="setTab === 'elr' ? inventory.elr : inventory.earnings" />
       <p v-if="setTab === 'elr'" class="text-body text-slate-500">
-        Solved against your research <span class="font-semibold">as it is today</span>, so this is the set the first
+        Solved against your research <span class="font-bold">as it is today</span>, so this is the set the first
         ascension runs with. Every later ascension re-solves against its own research and will pick something
         different.
       </p>
@@ -59,7 +59,7 @@
       <div class="border-t border-slate-100 pt-3">
         <button
           type="button"
-          class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-700"
+          class="text-body font-bold text-slate-400 hover:text-emerald-700"
           :aria-expanded="rawOpen"
           @click="rawOpen = !rawOpen"
         >
@@ -102,9 +102,9 @@
         considerably slower than it will be.
       </p>
       <p class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
-        <span class="font-black uppercase tracking-wide">Held fixed for the whole plan.</span>
-        This is what you own <span class="font-semibold">today</span>, and the searches assume it never changes. You'll
-        craft and upgrade along the way, so the real run should come in <span class="font-semibold">faster</span> than
+        <span class="font-bold">Held fixed for the whole plan.</span>
+        This is what you own <span class="font-bold">today</span>, and the searches assume it never changes. You'll
+        craft and upgrade along the way, so the real run should come in <span class="font-bold">faster</span> than
         the dates the searches show. Comparisons between routes stay fair, because every one is simulated with the same inventory.
         After any big crafting, load your latest save and search again.
       </p>

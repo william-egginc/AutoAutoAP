@@ -19,7 +19,7 @@
 -->
 <template>
   <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="study-setup">
-    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ NAMES.study }}</h3>
+    <h3 class="text-slate-500 label">{{ NAMES.study }}</h3>
 
     <template v-if="state === 'unanswered'">
       <p class="text-body text-slate-600">Not answered yet.</p>
@@ -37,7 +37,7 @@
         <label
           v-for="[k, words] in TICK_WORDS"
           :key="k"
-          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
+          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
         >
           <input
             :checked="liveTick(k)"
@@ -50,7 +50,7 @@
         </label>
         <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-3">
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
           >
             <input
               v-model="creditShown"
@@ -75,7 +75,7 @@
             @change="creditShown = 'name'"
           />
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
           >
             <input
               v-model="creditShown"
@@ -166,9 +166,9 @@ import { useShareNameStore } from '@/stores/shareName';
 import StudyForm from '../StudyForm.vue';
 
 const BTN =
-  'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50';
+  'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-body font-bold hover:bg-indigo-50';
 const WITHDRAW =
-  'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-700 text-[10px] font-black uppercase tracking-widest hover:bg-rose-50';
+  'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-700 text-body font-bold hover:bg-rose-50';
 
 const names = useShareNameStore();
 const account = computed(() => consentState.account);

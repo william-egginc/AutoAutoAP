@@ -36,7 +36,7 @@
           v-for="mode in AXIS_MODES"
           :key="mode.id"
           type="button"
-          class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors"
+          class="px-3 py-1.5 rounded-lg text-body font-bold border transition-colors"
           :class="
             axis === mode.id
               ? 'bg-slate-900 text-white border-slate-900'
@@ -47,7 +47,7 @@
           {{ mode.label }}
         </button>
       </div>
-      <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+      <label class="flex items-center gap-2 text-slate-500 label">
         <input
           v-model="connect"
           type="checkbox"
@@ -62,7 +62,7 @@
     <!-- Highlight controls. Laid out as one line because it is one question: which checkpoint, and
          which of its values. -->
     <div class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-      <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Highlight</span>
+      <span class="text-slate-400 label">Highlight</span>
       <select
         v-model="highlightPosition"
         class="rounded-md border-slate-300 py-1 text-body font-bold text-slate-700"
@@ -80,7 +80,7 @@
       <button
         v-if="highlightText"
         type="button"
-        class="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
+        class="px-2 py-1 rounded-md text-body font-bold text-slate-400 hover:text-slate-600"
         @click="highlightText = ''"
       >
         Clear
@@ -106,25 +106,25 @@
         :key="group.value"
         class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-3 py-1.5"
       >
-        <span :style="{ color: group.color }" class="font-black">●</span>
-        <span class="tabular-nums font-black text-slate-700 w-12">{{ group.value }}</span>
+        <span :style="{ color: group.color }" class="font-bold">●</span>
+        <span class="tabular-nums font-bold text-slate-700 w-12">{{ group.value }}</span>
         <span class="text-slate-400">{{ plural(group.count, 'route') }}</span>
         <span class="font-bold text-slate-700">best {{ group.bestDays.toFixed(3) }} d</span>
         <span v-if="group.gapDays > 0" class="text-slate-400">+{{ group.gapDays.toFixed(3) }} d</span>
-        <span v-else class="font-black text-emerald-600">leader</span>
+        <span v-else class="font-bold text-emerald-600">leader</span>
         <span class="tabular-nums text-slate-400 truncate">{{ group.bestChain.join(' ') }}</span>
       </div>
     </div>
 
     <div
-      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-400 uppercase tracking-wide"
+      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-400"
     >
       <span>{{ plural(shown.points.length, 'route') }} priced</span>
-      <span v-if="thinned" class="normal-case tracking-normal font-semibold"
+      <span v-if="thinned" class="normal-case tracking-normal font-bold"
         >showing the fastest {{ Math.min(BEST_SHOWN, plotted.length).toLocaleString() }} and a sample,
         {{ plotted.length.toLocaleString() }} in all</span
       >
-      <span v-if="live" class="normal-case tracking-normal font-semibold">redraws every 30 s while it runs</span>
+      <span v-if="live" class="normal-case tracking-normal font-bold">redraws every 30 s while it runs</span>
       <span v-for="group in groups" :key="group.prestiges" class="flex items-center gap-1.5">
         <span :style="{ color: highlightGroups.length ? DIM : group.color }">●</span> {{ plural(group.prestiges, 'ascension') }}
         ({{ group.count }})

@@ -127,7 +127,7 @@
     <!-- 6. Your runs: one section. -->
     <section id="my-runs-your-runs" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3" data-testid="my-runs-your-runs">
       <div>
-        <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Your runs</p>
+        <p class="label text-slate-500">Your runs</p>
         <p class="text-body text-slate-500" data-testid="my-runs-baseline-intro">
           Each run is compared with your <b>instant answer</b>: the one for your save on the day of the run.
         </p>
@@ -338,8 +338,8 @@ const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
-const SUMMARY = 'min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-700';
-const COUNT = 'ml-2 font-semibold normal-case tracking-normal text-slate-500';
+const SUMMARY = 'min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer label text-slate-700';
+const COUNT = 'ml-2 font-bold normal-case tracking-normal text-slate-500';
 
 /** This build has a collector, so a board to read and send to. Without one the board's parts are one line and
  *  their rows are empty from the start (never "loading"). */

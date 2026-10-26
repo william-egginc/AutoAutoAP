@@ -36,7 +36,7 @@
       </div>
 
       <!-- Shift Name -->
-      <div v-if="!isCollapsed" class="text-title font-bold text-slate-800 tracking-tight leading-none mb-1 shadow-sm">
+      <div v-if="!isCollapsed" class="text-title font-bold text-slate-800 leading-none mb-1 shadow-sm">
         {{ shiftName }}
       </div>
     </button>
@@ -54,13 +54,13 @@
         v-if="dates"
         class="w-full bg-white/30 rounded-xl border border-white/40 p-2.5 mb-3 flex flex-col items-center shadow-inner"
       >
-        <div class="text-[9px] font-black text-slate-900 uppercase tracking-widest text-center">
+        <div class="text-slate-900 label text-center">
           {{ formatDateTime(dates.start) }}
         </div>
-        <div class="text-small tabular-nums font-bold text-slate-900 my-1 tracking-tight">
+        <div class="text-small tabular-nums font-bold text-slate-900 my-1">
           {{ isNaN(dates.end.getTime()) ? 'Not reachable' : formatShiftDuration(dates.duration) }}
         </div>
-        <div class="text-[9px] font-black text-slate-900 uppercase tracking-widest text-center">
+        <div class="text-slate-900 label text-center">
           {{ formatDateTime(dates.end) }}
         </div>
       </div>
@@ -69,7 +69,7 @@
       <div class="flex flex-col gap-2.5 w-full">
         <!-- Habs -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Habs</span>
+          <span class="text-slate-400 label">Habs</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ habsDisplay }}
           </span>
@@ -79,7 +79,7 @@
 
         <!-- IHR -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">IHR</span>
+          <span class="text-slate-400 label">IHR</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(offlineIhrHr) }}
           </span>
@@ -89,7 +89,7 @@
 
         <!-- Lay Rate -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Lay Rate</span>
+          <span class="text-slate-400 label">Lay Rate</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(layRateHr) }}
           </span>
@@ -99,7 +99,7 @@
 
         <!-- Shipping -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Shipping</span>
+          <span class="text-slate-400 label text-center">Shipping</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(shippingHr) }}
           </span>
@@ -109,7 +109,7 @@
 
         <!-- ELR -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivery</span>
+          <span class="text-slate-400 label">Delivery</span>
           <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(elrHr) }}
           </span>
@@ -119,7 +119,7 @@
 
         <!-- Offline Earnings -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-none mb-0.5"
+          <span class="text-slate-400 label text-center leading-none mb-0.5"
             >Offline Earnings</span
           >
           <span class="tabular-nums text-small font-bold text-slate-700">
@@ -132,7 +132,7 @@
         <!-- Bank -->
         <div class="flex flex-col items-center">
           <span
-            class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-none mb-0.5"
+            class="flex items-center gap-1 text-slate-400 label text-center leading-none mb-0.5"
           >
             Bank
             <button

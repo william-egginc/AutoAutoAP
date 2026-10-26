@@ -7,11 +7,11 @@
       <!-- Dialog -->
       <div class="card-glass relative w-full max-w-lg overflow-hidden shadow-2xl border border-white/50 bg-white/95">
         <div class="bg-gradient-to-r from-slate-50 to-white px-6 py-4 border-b border-slate-100">
-          <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest">Undo Action</h3>
+          <h3 class="text-body font-bold text-slate-800">Undo Action</h3>
         </div>
 
         <div class="p-6">
-          <p class="text-body font-medium text-slate-600 mb-6">How would you like to undo "{{ actionName }}"?</p>
+          <p class="text-body font-normal text-slate-600 mb-6">How would you like to undo "{{ actionName }}"?</p>
 
           <div class="space-y-4">
             <!-- Option A: Direct Dependents -->
@@ -20,7 +20,7 @@
               @click="$emit('confirm', 'dependents')"
             >
               <div class="flex justify-between items-start mb-2">
-                <span class="text-xs font-black text-slate-700 group-hover:text-blue-600 uppercase tracking-wide">
+                <span class="text-body font-bold text-slate-700 group-hover:text-blue-600">
                   {{
                     areOptionsIdentical
                       ? dependentsA.length > 0
@@ -46,7 +46,7 @@
                 v-if="dependentsA.length > 0"
                 class="mt-3 bg-slate-50 rounded-lg p-3 text-small text-slate-500 border border-slate-100"
               >
-                <p class="font-bold text-amber-600 mb-1 uppercase tracking-tight text-[10px]">
+                <p class="font-bold text-amber-600 mb-1 text-body">
                   Also undoes {{ dependentsA.length }} dependent{{ dependentsA.length > 1 ? 's' : '' }}:
                 </p>
                 <ul class="list-disc list-inside space-y-0.5">
@@ -58,7 +58,7 @@
                   </li>
                 </ul>
               </div>
-              <p v-else class="text-small italic text-slate-400 font-medium">No other actions affected.</p>
+              <p v-else class="text-small italic text-slate-400 font-normal">No other actions affected.</p>
             </button>
 
             <!-- Option B: Until Shift -->
@@ -68,7 +68,7 @@
               @click="$emit('confirm', 'truncate')"
             >
               <div class="flex justify-between items-start mb-2">
-                <span class="text-xs font-black text-slate-700 group-hover:text-purple-600 uppercase tracking-wide"
+                <span class="text-body font-bold text-slate-700 group-hover:text-purple-600"
                   >Option B: Undo Until Shift</span
                 >
                 <span class="badge-premium bg-amber-50 text-amber-700 border border-amber-100 tabular-nums"
@@ -82,7 +82,7 @@
                 v-if="dependentsB.length > 0"
                 class="mt-3 bg-slate-50 rounded-lg p-3 text-small text-slate-500 border border-slate-100"
               >
-                <p class="font-bold text-purple-600 mb-1 uppercase tracking-tight text-[10px]">
+                <p class="font-bold text-purple-600 mb-1 text-body">
                   Also undoes {{ dependentsB.length }} following action{{ dependentsB.length > 1 ? 's' : '' }}:
                 </p>
                 <ul class="list-disc list-inside space-y-0.5">
@@ -94,7 +94,7 @@
                   </li>
                 </ul>
               </div>
-              <p v-else class="text-small italic text-slate-400 font-medium">
+              <p v-else class="text-small italic text-slate-400 font-normal">
                 This is the last action in this period.
               </p>
             </button>

@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-4">
-    <p class="text-body font-medium text-slate-500 mb-4 px-1 italic">Store eggs in your fuel tank for space missions.</p>
+    <p class="text-body font-normal text-slate-500 mb-4 px-1 italic">Store eggs in your fuel tank for space missions.</p>
 
     <!-- Current Tank State -->
     <div class="section-premium p-5">
       <div class="flex justify-between items-end mb-4">
         <div>
-          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Contents</div>
-          <div class="text-title font-bold text-slate-800 tracking-tight">
+          <div class="text-slate-400 label">Tank Contents</div>
+          <div class="text-title font-bold text-slate-800">
             {{ formatNumber(fuelTankStore.totalFuel, 1) }} <span class="text-slate-300 font-normal">/</span>
             {{ formatNumber(fuelTankStore.tankCapacity, 1) }}
           </div>
@@ -43,7 +43,7 @@
           >
             <img :src="iconURL(`egginc/egg_${egg}.png`, 64)" class="w-full h-full object-contain" :alt="egg" />
           </div>
-          <span class="text-xs font-bold text-slate-600 uppercase tracking-tight">{{ VIRTUE_EGG_NAMES[egg] }}</span>
+          <span class="text-slate-600 label">{{ VIRTUE_EGG_NAMES[egg] }}</span>
           <div class="flex-1 flex flex-col items-end">
             <div class="flex items-center gap-1.5">
               <svg
@@ -56,11 +56,11 @@
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span class="text-body tabular-nums font-bold text-slate-700 tracking-tight">
+              <span class="text-body tabular-nums font-bold text-slate-700">
                 {{ formatNumber(fuelTankStore.fuelAmounts[egg], 1) }}
               </span>
             </div>
-            <div v-if="getRoundingShortfall(fuelTankStore.fuelAmounts[egg]) > 0" class="text-[9px] text-danger font-bold uppercase tracking-widest mt-0.5">
+            <div v-if="getRoundingShortfall(fuelTankStore.fuelAmounts[egg]) > 0" class="text-small text-danger font-bold mt-0.5">
               You're short by {{ formatFullNumber(getRoundingShortfall(fuelTankStore.fuelAmounts[egg])) }} eggs
             </div>
           </div>
@@ -79,7 +79,7 @@
           />
         </div>
         <div>
-          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Store Eggs in Tank</div>
+          <div class="text-slate-400 label">Store Eggs in Tank</div>
           <div class="text-body font-bold text-slate-700">Store {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }} Eggs</div>
         </div>
       </div>
@@ -87,14 +87,14 @@
       <!-- Store Mode Toggle -->
       <div class="flex gap-1 mb-3 bg-slate-100 rounded-lg p-0.5">
         <button
-          class="flex-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all"
+          class="flex-1 px-3 py-1.5 text-body font-bold rounded-md transition-all"
           :class="storeMode === 'fillTo' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
           @click="storeMode = 'fillTo'"
         >
           Fill To Target
         </button>
         <button
-          class="flex-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all"
+          class="flex-1 px-3 py-1.5 text-body font-bold rounded-md transition-all"
           :class="storeMode === 'add' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
           @click="storeMode = 'add'"
         >
@@ -104,12 +104,12 @@
 
       <!-- Fuel Speed Selector -->
       <div class="mb-3">
-        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fuel Speed</div>
+        <div class="text-slate-400 label mb-1.5">Fuel Speed</div>
         <div class="flex gap-1 bg-slate-100 rounded-lg p-0.5">
           <button
             v-for="speed in FUEL_SPEED_OPTIONS"
             :key="speed.value"
-            class="flex-1 px-2 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all"
+            class="flex-1 px-2 py-1.5 text-body font-bold rounded-md transition-all"
             :class="fuelSpeed === speed.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
             @click="fuelSpeed = speed.value"
           >
@@ -136,25 +136,25 @@
         <!-- Fill To mode: show current → target → delta -->
         <div v-if="storeMode === 'fillTo'" class="space-y-2">
           <div class="flex justify-between items-center">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currently</span>
+            <span class="text-slate-400 label">Currently</span>
             <span class="text-body tabular-nums font-bold text-slate-500">{{ formatNumber(currentEggFuel, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target</span>
+            <span class="text-slate-400 label">Target</span>
             <span class="text-body tabular-nums font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Storing</span>
+            <span class="text-slate-400 label">Storing</span>
             <span class="text-body tabular-nums font-bold" :class="fillDelta > 0 ? 'text-brand-primary' : 'text-slate-400'">{{ fillDelta > 0 ? formatNumber(fillDelta, 1) : 'Already at target' }}</span>
           </div>
         </div>
         <!-- Add mode: show target -->
         <div v-else class="flex justify-between items-center">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target</span>
+          <span class="text-slate-400 label">Target</span>
           <span class="text-body tabular-nums font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
         </div>
         <div v-if="effectiveStoreAmount > 0" class="flex justify-between items-center">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Time to Store</span>
+          <span class="text-slate-400 label">Time to Store</span>
           <span class="text-body tabular-nums font-bold text-slate-900">{{
             formatDuration(timeToStoreSeconds)
           }}</span>
@@ -162,11 +162,11 @@
         <!-- Variable-speed estimates -->
         <template v-if="fuelSpeed < 1.0 && effectiveStoreAmount > 0">
           <div class="flex justify-between items-center">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eggs Shipped</span>
+            <span class="text-slate-400 label">Eggs Shipped</span>
             <span class="text-body tabular-nums font-bold text-emerald-600">{{ formatNumber(estimatedEggsShipped, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gems Earned</span>
+            <span class="text-slate-400 label">Gems Earned</span>
             <span class="text-body tabular-nums font-bold text-emerald-600">+{{ formatNumber(estimatedGemsEarned, 1) }}</span>
           </div>
         </template>
@@ -189,21 +189,21 @@
     <!-- Remove Fuel Section -->
     <div class="section-premium p-5">
       <div class="mb-5">
-        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Maintenance</div>
+        <div class="text-slate-400 label">Tank Maintenance</div>
         <div class="text-body font-bold text-slate-700">Remove Fuel Storage</div>
       </div>
 
       <!-- Remove Mode Toggle -->
       <div class="flex gap-1 mb-4 bg-slate-100 rounded-lg p-0.5">
         <button
-          class="flex-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all"
+          class="flex-1 px-3 py-1.5 text-body font-bold rounded-md transition-all"
           :class="removeMode === 'drainTo' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
           @click="removeMode = 'drainTo'"
         >
           Drain To Target
         </button>
         <button
-          class="flex-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md transition-all"
+          class="flex-1 px-3 py-1.5 text-body font-bold rounded-md transition-all"
           :class="removeMode === 'remove' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'"
           @click="removeMode = 'remove'"
         >
@@ -221,7 +221,7 @@
                 :alt="egg"
               />
             </div>
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">{{
+            <span class="text-slate-400 label w-16">{{
               VIRTUE_EGG_NAMES[egg]
             }}</span>
 
@@ -234,7 +234,7 @@
             />
 
             <button
-              class="btn-premium btn-primary px-4 py-2 text-[10px] uppercase font-black tracking-widest"
+              class="btn-premium btn-primary px-4 py-2 text-body font-bold"
               :disabled="!canRemove(egg)"
               @click="handleRemoveFuel(egg)"
             >
@@ -247,9 +247,9 @@
             class="ml-10 p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between text-small"
           >
             <div class="flex items-center gap-3">
-              <span class="font-black text-slate-400 uppercase tracking-widest">{{ formatNumber(fuelTankStore.fuelAmounts[egg], 1) }}</span>
+              <span class="text-slate-400 label">{{ formatNumber(fuelTankStore.fuelAmounts[egg], 1) }}</span>
               <span class="text-slate-300">→</span>
-              <span class="font-black text-slate-400 uppercase tracking-widest">{{ formatNumber(parsedRemoveAmount(egg), 1) }}</span>
+              <span class="text-slate-400 label">{{ formatNumber(parsedRemoveAmount(egg), 1) }}</span>
             </div>
             <span
               class="tabular-nums font-bold"
@@ -276,19 +276,19 @@
           </svg>
         </div>
         <div>
-          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Level</div>
+          <div class="text-slate-400 label">Tank Level</div>
           <div class="text-body font-bold text-slate-700">Lv {{ fuelTankStore.tankLevel }}/7</div>
         </div>
       </div>
       <div class="text-right">
-        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Capacity</div>
+        <div class="text-slate-400 label text-right">Capacity</div>
         <div class="text-body tabular-nums font-bold text-slate-900">
           {{ formatNumber(fuelTankStore.tankCapacity, 1) }}
         </div>
       </div>
     </div>
 
-    <p class="text-[10px] text-slate-400 text-center uppercase font-black tracking-widest opacity-60">
+    <p class="text-small text-slate-400 text-center font-bold opacity-60">
       Time assumes your chickens keep growing until the habs are full.
     </p>
   </div>

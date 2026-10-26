@@ -8,7 +8,7 @@
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="search-compare">
-    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Compare the answers</h3>
+    <h3 class="text-slate-500 label">Compare the answers</h3>
     <div class="divide-y divide-slate-100">
       <div
         v-for="r in rows"
@@ -16,16 +16,16 @@
         class="py-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-body"
         :data-testid="`compare-${r.id}`"
       >
-        <span class="w-32 shrink-0 font-black text-slate-800">
+        <span class="w-32 shrink-0 font-bold text-slate-800">
           {{ r.label }}
           <span
             v-if="r.best"
-            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest"
+            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white label"
             >Best</span
           >
         </span>
         <template v-if="r.entry">
-          <span v-if="goal === 'date'" class="font-black text-slate-900">{{ r.entry.endTE }} TE</span>
+          <span v-if="goal === 'date'" class="font-bold text-slate-900">{{ r.entry.endTE }} TE</span>
           <span v-else class="font-bold text-slate-900">{{ show(r.entry.end) }}</span>
           <span v-if="goal === 'date' && r.entry.spare !== undefined" class="text-slate-600"
             >{{ spareLabel(r.entry.spare) }} spare</span

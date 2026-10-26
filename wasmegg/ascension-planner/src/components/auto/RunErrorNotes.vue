@@ -22,7 +22,7 @@
     data-testid="run-error"
   >
     <p>
-      <span v-if="labelled" class="font-bold uppercase tracking-wide">{{
+      <span v-if="labelled" class="label">{{
         beforeStart ? "Didn't start:" : 'Search failed:'
       }}</span>
       {{ error }}

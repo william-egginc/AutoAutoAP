@@ -28,11 +28,11 @@
       >
         <div class="flex items-center gap-2">
           <div class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-          <span class="text-[10px] font-black text-blue-800 uppercase tracking-widest">
+          <span class="text-blue-800 label">
             Tier {{ item.unlockTier }} Unlocked
           </span>
         </div>
-        <span class="text-[10px] text-blue-600 font-bold tracking-tighter uppercase">
+        <span class="text-blue-600 label">
           {{ thresholds[(item.unlockTier ?? 1) - 1] }} Purchases Reached
         </span>
       </div>

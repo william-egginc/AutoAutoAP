@@ -33,7 +33,7 @@
     <p v-else class="px-4 py-8 text-center text-body text-slate-400">
       No run to 490 TE here carries both per-ascension detail and a delivery set yet.
     </p>
-    <p v-if="unchecked.total" class="text-small font-semibold text-slate-500 px-1">
+    <p v-if="unchecked.total" class="text-small font-bold text-slate-500 px-1">
       {{ unchecked.total }} run{{ unchecked.total === 1 ? '' : 's' }} to 490 TE
       {{ unchecked.total === 1 ? 'is' : 'are' }} not drawn because the check cannot judge
       {{ unchecked.total === 1 ? 'it' : 'them' }}: {{ unchecked.text }}.

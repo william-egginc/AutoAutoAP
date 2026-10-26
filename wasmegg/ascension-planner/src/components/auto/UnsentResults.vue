@@ -7,7 +7,7 @@
   "Submit anonymously" or "Credit me as" as on the main share form.
 -->
 <template>
-  <p v-if="!shown.length && sentNote" class="text-body font-semibold text-emerald-700" data-testid="unsent-sent">
+  <p v-if="!shown.length && sentNote" class="text-body font-bold text-emerald-700" data-testid="unsent-sent">
     {{ sentNote }}
   </p>
   <div
@@ -23,7 +23,7 @@
         >
         <button
           type="button"
-          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800 disabled:opacity-40"
           :disabled="sendingId !== null || store.busy || !consentFor(p)"
           :data-testid="`send-unsent-${p.id}`"
           @click="send(p)"
@@ -32,7 +32,7 @@
         </button>
         <button
           type="button"
-          class="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900 disabled:opacity-40"
+          class="text-body font-bold text-amber-700/70 hover:text-amber-900 disabled:opacity-40"
           :disabled="sendingId === p.id"
           @click="store.dropPending(p.id)"
         >
@@ -105,7 +105,7 @@
           </div>
           <p
             v-if="agreed[p.id] && namedButBlank(p.id)"
-            class="ml-6 font-semibold text-rose-700"
+            class="ml-6 font-bold text-rose-700"
             :data-testid="`unsent-name-warning-${p.id}`"
           >
             Type a nickname to be credited, or choose Submit anonymously.
@@ -142,7 +142,7 @@
           </div>
         </template>
       </ConsentBox>
-      <p v-if="messages[p.id]" :class="okIds[p.id] ? 'text-emerald-700' : 'text-rose-700'" class="font-semibold">
+      <p v-if="messages[p.id]" :class="okIds[p.id] ? 'text-emerald-700' : 'text-rose-700'" class="font-bold">
         {{ messages[p.id] }}
       </p>
       <p v-else-if="p.lastError" class="text-rose-700">Last try: {{ p.lastError }}</p>

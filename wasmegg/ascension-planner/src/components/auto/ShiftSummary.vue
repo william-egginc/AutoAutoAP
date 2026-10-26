@@ -13,11 +13,11 @@
             />
           </svg>
         </div>
-        <span class="text-[9px] font-black text-slate-500 uppercase tracking-[0.1em]">{{ title }}</span>
+        <span class="text-slate-500 label">{{ title }}</span>
       </div>
 
       <!-- Col 2 Row 1 (mobile only): Duration, right-aligned -->
-      <div class="flex justify-end items-center text-small font-black tracking-tight text-slate-600 sm:hidden">
+      <div class="flex justify-end items-center text-small font-bold text-slate-600 sm:hidden">
         <span
           v-tippy="{ content: timeTooltipContent, allowHTML: true }"
           class="cursor-help border-b border-dashed border-slate-300/50 transition-colors"
@@ -27,19 +27,19 @@
       </div>
 
       <!-- Col 1 Row 2 (mobile only): SE cost, left-aligned -->
-      <div class="flex items-center gap-1 text-small font-black tracking-tight text-slate-600 sm:hidden">
+      <div class="flex items-center gap-1 text-small font-bold text-slate-600 sm:hidden">
         <span>{{ formatNumber(cost, 3) }}</span>
         <img v-if="costType === 'SE'" :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3" alt="SE" />
       </div>
 
       <!-- Col 2 Row 2 (mobile only): Eggs delivered, right-aligned -->
-      <div class="flex justify-end items-center gap-1 text-small font-black tracking-tight text-slate-600 sm:hidden">
+      <div class="flex justify-end items-center gap-1 text-small font-bold text-slate-600 sm:hidden">
         <span>{{ formatNumber(totalEggsLaid, 3) }}</span>
         <span>Eggs</span>
       </div>
 
       <!-- Desktop only: full right-side row with dot separators (unchanged) -->
-      <div class="hidden sm:flex items-center gap-2 text-small font-black tracking-tight text-slate-600">
+      <div class="hidden sm:flex items-center gap-2 text-small font-bold text-slate-600">
         <span
           v-tippy="{ content: timeTooltipContent, allowHTML: true }"
           class="cursor-help border-b border-dashed border-slate-300/50 hover:text-slate-500 hover:border-slate-400 transition-colors"
@@ -62,7 +62,7 @@
     <div v-if="summaryItems.length > 0" class="flex flex-wrap gap-1">
       <div v-for="(item, index) in summaryItems" :key="index" class="flex items-center">
         <template v-if="item.isPremium">
-          <span class="px-1.5 py-0.5 rounded border text-small font-black tracking-tight bg-slate-50 text-slate-600 border-slate-100">
+          <span class="px-1.5 py-0.5 rounded border text-small font-bold bg-slate-50 text-slate-600 border-slate-100">
             {{ item.text }}
           </span>
         </template>
@@ -70,7 +70,7 @@
           <div class="flex items-center gap-1.5 px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-100">
             <span
               v-if="item.setNames.length"
-              class="text-small font-black tracking-tight text-slate-600 whitespace-nowrap"
+              class="text-small font-bold text-slate-600 whitespace-nowrap"
             >
               {{ item.setNames.length > 1 ? `Equipped ${item.setNames.join(' + ')} Sets` : `Equipped ${item.setNames[0]} Set` }}
             </span>
@@ -92,7 +92,7 @@
                 :class="stone.count > 1 ? 'w-auto pl-0.5 pr-1' : 'justify-center'"
               >
                 <img :src="iconURL(stone.iconPath, 64)" class="w-4 h-4 flex-shrink-0" :alt="stone.name" />
-                <span v-if="stone.count > 1" class="text-small leading-none font-black text-slate-600">
+                <span v-if="stone.count > 1" class="text-small leading-none font-bold text-slate-600">
                   ×{{ stone.count }}
                 </span>
               </div>
@@ -101,21 +101,21 @@
         </template>
         <template v-else-if="item.isPeakELR">
           <div class="flex items-center px-1.5 py-0.5 rounded border bg-slate-50 border-slate-100">
-            <span class="text-small font-black tracking-tight text-slate-600">
+            <span class="text-small font-bold text-slate-600">
               {{ item.text }}
             </span>
           </div>
         </template>
         <template v-else>
           <div class="flex items-center gap-1 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded">
-            <span class="text-small font-black tracking-tight text-slate-600">{{ item.name }}</span>
-            <span class="text-small font-black tracking-tight text-slate-600">{{ item.delta }}</span>
+            <span class="text-small font-bold text-slate-600">{{ item.name }}</span>
+            <span class="text-small font-bold text-slate-600">{{ item.delta }}</span>
           </div>
         </template>
       </div>
     </div>
     <div v-else class="text-center py-1">
-      <p class="text-[8.5px] font-black text-slate-300 uppercase tracking-widest">No purchases during this shift</p>
+      <p class="text-small font-bold text-slate-300">No purchases during this shift</p>
     </div>
   </div>
 </template>
@@ -154,7 +154,7 @@ const formatTime = (ts: number) => {
 const timeTooltipContent = computed(() => {
   return `
     <div class="text-left font-sans">
-      <div class="text-[10px] text-slate-300 font-bold uppercase tracking-widest mb-1 border-b border-slate-600/50 pb-1">Shift Schedule</div>
+      <div class="label text-slate-300 mb-1 border-b border-slate-600/50 pb-1">Shift Schedule</div>
       <div class="text-small mb-0.5"><span class="text-slate-400 mr-2">Start:</span><span class="text-white">${formatTime(props.startTime)}</span></div>
       <div class="text-small"><span class="text-slate-400 mr-2">End:</span><span class="text-white">${formatTime(props.endTime)}</span></div>
     </div>

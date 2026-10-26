@@ -37,7 +37,7 @@
       :aria-expanded="ui.setupOpen"
       @click="ui.setupOpen = !ui.setupOpen"
     >
-      <span class="flex items-center gap-2 text-body font-black text-indigo-900">
+      <span class="flex items-center gap-2 text-body font-bold text-indigo-900">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             stroke-linecap="round"
@@ -68,7 +68,7 @@
         workers</span
       >
       <span
-        class="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest"
+        class="ml-auto px-3 py-1.5 rounded-lg label"
         :class="ui.setupOpen ? 'border border-indigo-300 text-indigo-700 bg-white' : 'bg-indigo-600 text-white'"
         >{{ ui.setupOpen ? 'Close setup' : 'Edit setup' }}</span
       >
@@ -106,7 +106,7 @@
       <p
         v-for="(issue, k) in store.setupIssues"
         :key="k"
-        class="text-body font-semibold"
+        class="text-body font-bold"
         :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
       >
         {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
@@ -114,7 +114,7 @@
       <button
         v-if="issuesOnly"
         type="button"
-        class="mt-1 px-3 py-1.5 min-h-[44px] sm:min-h-0 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest"
+        class="mt-1 px-3 py-1.5 min-h-[44px] sm:min-h-0 rounded-lg bg-indigo-600 text-white text-body font-bold"
         @click="ui.setupOpen = true"
       >
         Open setup
@@ -162,7 +162,7 @@
 
       <p
         v-if="locked"
-        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-body font-semibold text-amber-800"
+        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-body font-bold text-amber-800"
       >
         A search is running, so the plan start, your awake hours, no prestige days and time off are locked: they change which route is fastest,
         and the routes already priced used the old ones. Stop the search (your best so far is kept), change them, and
@@ -175,7 +175,7 @@
       <div class="-mb-4 md:columns-2 md:gap-4" data-testid="setup-columns">
         <!-- Your save -->
         <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Your save</h3>
+          <h3 class="text-slate-500 label">Your save</h3>
           <p class="text-body font-bold text-slate-800">
             {{ initialState.nickname || 'Your account' }} · TE {{ store.currentTE }}
           </p>
@@ -183,7 +183,7 @@
           <button
             type="button"
             :disabled="store.busy || ui.loading"
-            class="min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            class="min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 text-body font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
             data-testid="setup-load-latest"
             @click="ui.backupRetryRequested++"
           >
@@ -195,14 +195,14 @@
                and every later leg funds its own research out of earnings. -->
           <dl class="grid grid-cols-2 gap-3 text-body border-t border-slate-100 pt-3">
             <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Soul eggs</dt>
+              <dt class="text-slate-400 label">Soul eggs</dt>
               <dd class="font-bold" :class="store.setupFacts.soulEggs > 0 ? 'text-slate-700' : 'text-rose-700'">
                 {{ formatSoulEggs(store.setupFacts.soulEggs) }}
               </dd>
             </div>
             <!-- Both, side by side: a reported failure was exactly these two disagreeing. -->
             <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Starting TE</dt>
+              <dt class="text-slate-400 label">Starting TE</dt>
               <dd
                 class="font-bold"
                 :class="
@@ -216,20 +216,20 @@
               </dd>
             </div>
             <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Epic research</dt>
+              <dt class="text-slate-400 label">Epic research</dt>
               <dd class="font-bold text-slate-700">
                 {{ store.setupFacts.epicAtMax }} / {{ store.setupFacts.epicTotal }} maxed
               </dd>
             </div>
             <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Colleggtibles</dt>
+              <dt class="text-slate-400 label">Colleggtibles</dt>
               <dd class="font-bold text-slate-700">{{ store.setupFacts.colleggtibles }}</dd>
             </div>
           </dl>
           <p
             v-for="(issue, k) in saveCardIssues"
             :key="k"
-            class="text-body font-semibold"
+            class="text-body font-bold"
             :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
           >
             {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
@@ -238,18 +238,18 @@
 
         <!-- When the plan starts -->
         <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When the plan starts</h3>
+          <h3 class="text-slate-500 label">When the plan starts</h3>
           <SchedulingInputs />
           <!-- An unset start means "now", which moves on every reload, and plan start is part of the
                run fingerprint: a checkpoint saved before a refresh stops matching. -->
-          <p v-if="store.planStartIsNow" class="text-body font-semibold text-amber-700">
+          <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700">
             No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
             before a long run.
           </p>
           <!-- First ascension: what happens to the ascension you're on. Your plan's A1 dropdown is the same setting
                ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
           <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">First ascension</h3>
+            <h3 class="text-slate-500 label">First ascension</h3>
             <label
               v-for="c in FIRST_ASCENSION_CHOICES"
               :key="c.value"
@@ -266,7 +266,7 @@
               Set from A1's dropdown in {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
               Choosing here changes it there too.
             </p>
-            <p v-if="startTooFar" class="text-body font-semibold text-amber-700">
+            <p v-if="startTooFar" class="text-body font-bold text-amber-700">
               The plan starts more than an hour from now, so there's no current ascension to continue then: the first
               ascension starts fresh, as in {{ NAMES.classic }}.
             </p>
@@ -279,8 +279,8 @@
           class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
           :class="screen === 'classic' ? 'opacity-60' : ''"
         >
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Awake hours</h3>
-          <p v-if="screen === 'classic'" class="text-body font-semibold text-amber-700">
+          <h3 class="text-slate-500 label">Awake hours</h3>
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
             {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
           </p>
           <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
@@ -357,7 +357,7 @@
                 v-for="(label, day) in DAY_LABELS"
                 :key="day"
                 type="button"
-                class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md text-body font-bold disabled:opacity-50"
                 data-testid="setup-day"
                 :class="
                   store.availableDays.includes(day)
@@ -370,17 +370,17 @@
               </button>
             </div>
             <!-- Ticked but describing no restriction at all reads as a constraint and isn't one. -->
-            <p v-if="store.scheduleIsEmpty" class="text-body font-semibold text-amber-700">
+            <p v-if="store.scheduleIsEmpty" class="text-body font-bold text-amber-700">
               Every day, all hours: that's no restriction at all, and it's recorded as no schedule.
             </p>
-            <p v-else-if="!store.availableDays.length" class="text-body font-semibold text-amber-700">
+            <p v-else-if="!store.availableDays.length" class="text-body font-bold text-amber-700">
               No days picked. Pick at least one, or nothing can be scheduled.
             </p>
             <p v-else class="text-body text-slate-500">{{ scheduleText(store.availability) }}.</p>
             <!-- Picking hours means the shifts wait for them too (the user, 5 Oct: the hours should be obvious), so
                  the old "Hold egg shifts for my hours too" box is gone. Only a run or link saved with it off can
                  still be in that state; say so, with a way back. -->
-            <p v-if="!store.deferShifts" class="text-body font-semibold text-amber-700">
+            <p v-if="!store.deferShifts" class="text-body font-bold text-amber-700">
               This plan was saved with egg shifts not waiting for your awake hours.
               <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 underline font-bold" @click="store.deferShifts = true">
                 Make them wait too
@@ -397,7 +397,7 @@
           data-testid="setup-no-prestige-days"
         >
           <TimeOffEditor kind="noPrestige" />
-          <p v-if="screen === 'classic'" class="text-body font-semibold text-amber-700">
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
             {{ NAMES.classic }} doesn't plan around no prestige days yet. The searches do.
           </p>
         </fieldset>
@@ -406,7 +406,7 @@
         <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
-          <p v-if="screen === 'classic'" class="text-body font-semibold text-amber-700">
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
             {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
             {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
@@ -425,14 +425,14 @@
           data-testid="setup-this-computer"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ ThisDevice() }}</h3>
+            <h3 class="text-slate-500 label">{{ ThisDevice() }}</h3>
             <div class="flex flex-wrap gap-1">
               <button
                 v-for="p in PROFILES"
                 :key="p.id"
                 type="button"
                 :disabled="store.isRunning"
-                class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+                class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border text-body font-bold disabled:opacity-40"
                 data-testid="setup-profile"
                 :class="
                   activeProfile === p.id
@@ -446,7 +446,7 @@
               </button>
             </div>
           </div>
-          <p v-if="screen === 'classic'" class="text-body font-semibold text-amber-700">
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
             Not used by {{ NAMES.classic }}: it builds one plan, no search.
           </p>
           <WorkerSlider />
@@ -471,26 +471,26 @@
           </label>
 
           <details class="rounded-lg border border-dashed border-slate-200 px-3 py-2" @toggle="onAdvanced">
-            <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            <summary class="cursor-pointer text-body font-bold text-slate-500">
               Memory · detail kept for
               {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'all' }} routes
             </summary>
             <div class="mt-3 space-y-3">
               <dl class="grid grid-cols-2 gap-3 text-body">
                 <div>
-                  <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logical cores</dt>
+                  <dt class="text-slate-400 label">Logical cores</dt>
                   <dd class="font-bold text-slate-700">{{ store.machineThreads }}</dd>
                 </div>
                 <div>
-                  <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Reported RAM</dt>
+                  <dt class="text-slate-400 label">Reported RAM</dt>
                   <dd class="font-bold text-slate-700">{{ deviceMemoryLabel }}</dd>
                 </div>
                 <div>
-                  <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tab heap limit</dt>
+                  <dt class="text-slate-400 label">Tab heap limit</dt>
                   <dd class="font-bold text-slate-700">{{ heapLimitMb || 'not reported' }}</dd>
                 </div>
                 <div>
-                  <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Heap in use</dt>
+                  <dt class="text-slate-400 label">Heap in use</dt>
                   <dd class="font-bold text-slate-700">{{ heapUsedMb || 'not reported' }}</dd>
                 </div>
               </dl>
@@ -499,7 +499,7 @@
                 browser on purpose, which is why the worker count is yours to choose rather than detected.
               </p>
               <label class="block space-y-1">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                <span class="text-slate-400 label"
                   >Keep per-ascension detail for</span
                 >
                 <span class="flex items-center gap-2">
@@ -545,7 +545,7 @@
           class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2"
           data-testid="share-instant"
         >
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sharing</h3>
+          <h3 class="text-slate-500 label">Sharing</h3>
           <label class="flex items-start gap-3 cursor-pointer">
             <input v-model="shareInstantOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
             <span class="text-body text-slate-600">
@@ -613,7 +613,7 @@
 
         <!-- Experimental: off for players until there is data to back it, on by default on the beta site (composables/usePrestigeBy.ts). -->
         <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="experimental">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Experimental</h3>
+          <h3 class="text-slate-500 label">Experimental</h3>
           <label class="flex items-start gap-3 cursor-pointer">
             <input
               v-model="prestigeBy.stored.value"
@@ -647,7 +647,7 @@
 
         <!-- How the site shows things -->
         <div class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0 md:col-span-2">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How the site shows things</h3>
+          <h3 class="text-slate-500 label">How the site shows things</h3>
           <DateStyleToggle />
           <TabsToggle />
         </div>

@@ -3,7 +3,7 @@
     <!-- Header: Total Gain and Final TE -->
     <div class="bg-slate-50/50 rounded-xl p-4 border border-slate-100 flex flex-wrap items-center justify-between gap-4">
       <div class="space-y-1">
-        <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total TE to Gain</label>
+        <label class="block label text-slate-400">Total TE to Gain</label>
         <div class="flex items-center gap-3">
           <button 
             class="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
@@ -33,7 +33,7 @@
       </div>
 
       <div class="space-y-1">
-        <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">Final Total TE</label>
+        <label class="block label text-slate-400 text-right">Final Total TE</label>
         <div class="flex items-center justify-end gap-2">
           <span class="tabular-nums font-black text-headline text-slate-900">{{ finalTotalTE }}</span>
           <img :src="iconURL('egginc/egg_truth.png', 64)" class="w-6 h-6 object-contain" />
@@ -42,7 +42,7 @@
 
       <div class="w-full sm:w-auto">
         <button 
-          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all shadow-sm border"
+          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg font-bold text-body transition-all shadow-sm border"
           :class="canRebalance ? 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800' : 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'"
           :disabled="!canRebalance"
           @click="rebalance"
@@ -67,9 +67,9 @@
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <span class="font-black text-[10px] uppercase text-slate-900">{{ VIRTUE_EGG_NAMES[eggPlan.egg] }}</span>
+                <span class="label text-slate-900">{{ VIRTUE_EGG_NAMES[eggPlan.egg] }}</span>
                 <span class="text-slate-600 text-small font-bold">{{ formatDuration(eggPlan.durationSeconds) }}</span>
-                <span v-if="eggPlan.isCurrentEgg" class="px-1.5 py-0.5 bg-slate-900 text-white text-[8px] font-black uppercase tracking-tighter rounded">Current</span>
+                <span v-if="eggPlan.isCurrentEgg" class="px-1.5 py-0.5 bg-slate-900 text-white label rounded">Current</span>
               </div>
               <div class="text-small tabular-nums text-slate-400 mt-0.5">
                 <span v-if="index === eggPlans.length - 1">Prestige on</span>
@@ -88,7 +88,7 @@
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
               </button>
-              <span class="px-2 text-center text-small tabular-nums font-black text-slate-900">
+              <span class="px-2 text-center text-small tabular-nums font-bold text-slate-900">
                 {{ eggPlan.targetTE }}
                 <span class="text-indigo-600 font-bold ml-1">(+{{ eggPlan.teToGain }})</span>
               </span>
@@ -126,11 +126,11 @@
     <div v-if="totalTEToGain > 0" class="bg-slate-900 rounded-2xl p-5 text-white shadow-xl shadow-slate-900/20">
       <div class="flex items-center justify-between">
         <div class="space-y-1">
-          <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Duration</label>
-          <div class="text-title tabular-nums font-black">{{ formatDuration(totalDurationSeconds) }}</div>
+          <label class="block label text-slate-400">Total Duration</label>
+          <div class="text-title tabular-nums font-bold">{{ formatDuration(totalDurationSeconds) }}</div>
         </div>
         <div class="text-right space-y-1">
-          <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Final Completion</label>
+          <label class="block label text-slate-400">Final Completion</label>
           <div class="text-body font-bold text-slate-200 italic">{{ finalAbsoluteTime }}</div>
         </div>
       </div>
@@ -139,7 +139,7 @@
     <!-- Apply Button -->
     <div class="pt-2">
       <button 
-        class="btn-premium btn-primary w-full py-4 text-xs font-black uppercase tracking-[0.3em] shadow-xl"
+        class="btn-premium btn-primary w-full py-4 text-body font-bold shadow-xl"
         :disabled="totalTEToGain <= 0 || !allReachable"
         @click="handleApply"
       >
@@ -149,7 +149,7 @@
         v-if="totalTEToGain > 0 && !allReachable"
         class="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-4"
       >
-        <p class="text-[11px] font-bold text-amber-700 uppercase tracking-tight">
+        <p class="text-body font-bold text-amber-700">
           Can't apply: at least one egg's wait would take over a year at this farm's current delivery rate
           ({{ unreachableEggNames }}). Lower the number or build up the farm first.
         </p>

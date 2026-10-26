@@ -22,7 +22,7 @@
   <div class="space-y-2">
     <div v-if="drifts.length" class="flex flex-wrap items-center gap-2">
       <label class="flex items-center gap-1.5">
-        <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Account</span>
+        <span class="label text-slate-400">Account</span>
         <select
           v-model="picked"
           class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-body font-bold text-slate-700"
@@ -41,7 +41,7 @@
         v-for="mode in VIEWS"
         :key="mode.id"
         type="button"
-        class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors disabled:opacity-40"
+        class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors disabled:opacity-40"
         :class="
           view === mode.id
             ? 'bg-slate-900 text-white border-slate-900'
@@ -87,13 +87,13 @@
     <!-- Every account's re-pricings, not just the picked one's: there are few enough to list, and the
          point is how few. A row picks its account. -->
     <div class="space-y-1 pt-1">
-      <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+      <p class="text-small font-bold text-slate-400">
         Every plan priced twice, all accounts ({{ tally.repricings }})
       </p>
       <div v-if="tableRows.length" class="overflow-x-auto">
         <table class="w-full text-small">
           <thead>
-            <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <tr class="text-slate-400 label">
               <th class="text-left py-1 pr-3">Account</th>
               <th class="text-left py-1 pr-3">Plan</th>
               <th class="text-left py-1 pr-3">Made</th>

@@ -43,7 +43,7 @@
         class="flex-1 min-w-0 font-bold truncate flex items-center gap-1.5"
         :class="[compact ? 'text-small' : 'text-small sm:text-body', isStartAction ? 'text-slate-800' : 'text-slate-700']"
       >
-        <span v-if="eggType" class="text-[9px] uppercase font-black text-slate-400 tracking-widest">
+        <span v-if="eggType" class="label text-slate-400">
           {{ action.type === 'start_ascension' ? 'Start:' : 'Egg:' }}
         </span>
         <span :class="{ 'text-slate-900': eggType }">
@@ -56,20 +56,20 @@
         <span
           v-if="savingDuration > 0 || (isPurchaseAction && action.cost > 0)"
           v-tippy="timeToSaveTitle"
-          class="text-[8px] font-black text-rose-500 uppercase tracking-widest"
+          class="text-rose-500 label"
         >
           Save {{ savingDurationFormatted }}
         </span>
         <span
           v-if="waitDuration > 0"
           v-tippy="timeToSaveTitle"
-          class="text-[8px] font-black text-slate-400 uppercase tracking-widest"
+          class="text-slate-400 label"
         >
           Wait {{ waitDurationFormatted }}
         </span>
         <span
           v-if="action.totalTimeSeconds < 1 && action.cost < 0.5 && Math.abs(action.bankDelta) < 0.5"
-          class="text-[8px] font-black text-slate-300 uppercase tracking-widest"
+          class="text-slate-300 label"
         >
           0s
         </span>
@@ -164,14 +164,14 @@
       <div class="flex-1 min-w-0">
         <!-- Description -->
         <!-- Text, never HTML: a plan file can carry any payload (red team 21 Oct 2026, data-inputs #6). -->
-        <div class="text-[9px] uppercase tracking-widest font-black opacity-60 text-slate-500 mt-0.5">
+        <div class="label opacity-60 text-slate-500 mt-0.5">
           {{ effectDescription }}
         </div>
 
         <!-- Deltas -->
         <div
           v-if="!isStartAction || isContinued"
-          class="text-small mt-1 hidden sm:flex flex-wrap gap-x-3 gap-y-0.5 font-black tracking-wider"
+          class="text-small mt-1 hidden sm:flex flex-wrap gap-x-3 gap-y-0.5 font-bold"
         >
           <span v-if="action.eggValueDelta" :class="deltaClass(action.eggValueDelta)"
             >Val {{ formatDelta(action.eggValueDelta) }}</span
@@ -220,9 +220,9 @@
               class="text-small font-bold tabular-nums"
               :class="
                 action.bankDelta >= 0.5
-                  ? 'text-emerald-600 font-black'
+                  ? 'text-emerald-600 font-bold'
                   : action.bankDelta <= -0.5
-                    ? 'text-rose-500 font-black'
+                    ? 'text-rose-500 font-bold'
                     : 'text-slate-300'
               "
             >
@@ -244,7 +244,7 @@
                 action.cost >= 0.5
                   ? 'text-slate-800'
                   : action.bankDelta >= 0.5
-                    ? 'text-emerald-600 font-black'
+                    ? 'text-emerald-600 font-bold'
                     : 'text-slate-300',
               ]"
             >

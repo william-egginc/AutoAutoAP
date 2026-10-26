@@ -13,7 +13,7 @@
     </summary>
     <ol class="mt-1 space-y-1 list-none pl-0" data-testid="instant-steps-list">
       <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="instant-step">
-        <span class="font-black text-slate-800">A{{ l.asc }}</span>
+        <span class="font-bold text-slate-800">A{{ l.asc }}</span>
         <template v-if="l.now">{{ ' ' }}· now, in the ascension you are in</template>
         <template v-else>
           {{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ show(l.prestigeAt) }}</span>

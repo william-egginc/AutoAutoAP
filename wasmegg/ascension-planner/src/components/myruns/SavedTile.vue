@@ -5,9 +5,9 @@
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-1" :data-testid="`now-tile-${goal}`">
-    <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">{{ title }} · saved answer</p>
+    <p class="label text-slate-500">{{ title }} · saved answer</p>
     <template v-if="a">
-      <p class="text-title font-black text-slate-900">{{ headline }}</p>
+      <p class="text-title font-bold text-slate-900">{{ headline }}</p>
       <p class="text-body text-slate-600">
         {{ sub }} · <span class="tabular-nums font-bold text-slate-800" :title="a.chain.join(' ')">{{ route }}</span>
       </p>
@@ -56,7 +56,7 @@
       <p v-else class="text-body text-slate-600" data-testid="now-tile-empty">Not worked out for this save yet.</p>
       <button
         type="button"
-        class="self-start mt-1 rounded-lg border border-indigo-300 px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
+        class="self-start mt-1 rounded-lg border border-indigo-300 px-2.5 py-1 text-body font-bold text-indigo-700 hover:bg-indigo-50"
         @click="emit('open', screenOpen)"
       >
         {{ goal === 'date' ? (open ? `Open ${NAMES.byDate}` : 'Open Egg Day') : `Open ${fastestName(target)}` }}

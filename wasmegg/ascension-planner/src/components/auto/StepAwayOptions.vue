@@ -22,13 +22,13 @@
       >
       <button
         type="button"
-        class="px-3 py-1 rounded-md border border-amber-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+        class="px-3 py-1 rounded-md border border-amber-400 text-body font-bold hover:bg-white"
         @click="cancel"
       >
         Cancel
       </button>
     </div>
-    <p v-if="autoNote" class="font-semibold text-amber-800">{{ autoNote }}</p>
+    <p v-if="autoNote" class="font-bold text-amber-800">{{ autoNote }}</p>
 
     <!-- The four options, folded to one row (lib/panelFold.ts `steppingAway`) unless a run is going; the countdown
          above stays outside, so a crash's carry-on is always in sight. -->
@@ -38,7 +38,7 @@
       hint="Crash recovery, phone watch, progress uploads"
       :running="running"
       :unfinished="canCarryOn || countdown > 0"
-      summary-class="text-[10px] uppercase tracking-widest text-slate-500"
+      summary-class="text-small text-slate-500"
     >
       <div class="space-y-2 pt-1">
         <!-- Each option is one of the account's consents (ConsentBox.vue, composables/useConsent.ts): remembered
@@ -118,7 +118,7 @@
                   :href="watcherHref"
                   target="_blank"
                   rel="noopener"
-                  class="inline-block rounded-md border border-indigo-300 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900"
+                  class="inline-block rounded-md border border-indigo-300 bg-white px-3 py-1 text-body font-bold text-indigo-700 hover:bg-indigo-50 hover:text-indigo-900"
                   @click="onWatcherLink"
                   @auxclick="onWatcherAux"
                   >Open the watcher tab</a
@@ -203,7 +203,7 @@
                     <p class="max-w-xs">
                       Scan with your phone, then bookmark it or Add to Home Screen. You can close it on your phone: the link keeps
                       updating while the run goes.
-                      <span class="block font-semibold text-slate-800"
+                      <span class="block font-bold text-slate-800"
                         >Only someone with this link or QR code can see it; keep it private.</span
                       >
                     </p>
@@ -251,7 +251,7 @@
                       {{ copied === phoneOptions.ntfyTopic ? 'Copied' : 'Copy' }}
                     </button>
                   </p>
-                  <p v-if="!topicOk" class="font-semibold text-amber-800">Letters, numbers, - and _ only.</p>
+                  <p v-if="!topicOk" class="font-bold text-amber-800">Letters, numbers, - and _ only.</p>
                   <p class="text-slate-500">
                     Install the free ntfy app and subscribe to this topic. Anyone who knows a topic can read it, so keep it
                     random.
@@ -329,7 +329,7 @@
             >
             <span
               v-if="autoLine"
-              class="block pl-6 font-semibold text-slate-800"
+              class="block pl-6 font-bold text-slate-800"
               role="status"
               data-testid="auto-send-line"
               >{{ autoLine }}</span

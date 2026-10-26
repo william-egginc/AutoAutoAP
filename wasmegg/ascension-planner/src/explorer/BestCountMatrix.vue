@@ -15,12 +15,12 @@
 <template>
   <div class="space-y-2">
     <div v-if="table.rows.length" class="flex flex-wrap items-center gap-1.5">
-      <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">Order accounts by</span>
+      <span class="text-slate-400 label mr-1">Order accounts by</span>
       <button
         v-for="opt in ORDERS"
         :key="opt.id"
         type="button"
-        class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+        class="px-2 py-0.5 rounded-md text-body font-bold border transition-colors"
         :class="
           order === opt.id
             ? 'bg-slate-900 text-white border-slate-900'
@@ -39,7 +39,7 @@
     <div v-if="table.rows.length" class="overflow-x-auto [container-type:inline-size]">
       <table class="text-small border-separate [border-spacing:3px]">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <tr class="text-slate-400 label">
             <th rowspan="2" class="sticky left-0 z-10 bg-white text-left align-bottom py-1 pr-3">Account</th>
             <th :colspan="table.columns.length" class="text-center pt-1">Ascensions</th>
           </tr>
@@ -48,7 +48,7 @@
               v-for="col in table.columns"
               :key="col.key"
               scope="col"
-              class="text-center text-small font-black w-[5rem] min-w-[5rem]"
+              class="text-center text-small font-bold w-[5rem] min-w-[5rem]"
               :class="col.tried ? 'text-slate-700' : 'text-slate-300'"
               :title="
                 col.tried ? `${col.label} ascensions` : `Nobody here tried ${col.label.replace('–', ' to ')} ascensions`
@@ -70,7 +70,7 @@
                 <div class="text-small text-slate-400">
                   <template v-for="(part, k) in gearParts(row)" :key="part.id"
                     >{{ k ? ' · ' : ''
-                    }}<span :class="part.id === order ? 'font-black text-slate-600' : ''">{{
+                    }}<span :class="part.id === order ? 'font-bold text-slate-600' : ''">{{
                       part.text
                     }}</span></template
                   >
@@ -152,7 +152,7 @@
       aria-label="How to read the fills and borders"
     >
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span class="font-black text-slate-400 uppercase tracking-widest text-[9px]"
+        <span class="font-bold text-slate-400 text-small"
           >Fill: days after the account's earliest finish</span
         >
         <span v-for="bin in FILL_BINS" :key="bin.label" class="inline-flex items-center gap-1">
@@ -169,7 +169,7 @@
         </span>
       </div>
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span class="font-black text-slate-400 uppercase tracking-widest text-[9px]">Border: how the run searched</span>
+        <span class="font-bold text-slate-400 text-small">Border: how the run searched</span>
         <span v-for="g in GRADE_KEY" :key="g.style" class="inline-flex items-center gap-1">
           <span
             class="inline-block w-5 h-3 rounded-sm [background-clip:padding-box]"

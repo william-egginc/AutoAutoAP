@@ -20,12 +20,12 @@
             v-tippy="'This set is currently equipped'"
           >
             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-            <span class="text-[8px] font-black uppercase tracking-tighter text-emerald-600 leading-none">Equipped</span>
+            <span class="text-body font-bold text-emerald-600 leading-none">Equipped</span>
           </div>
         </div>
 
         <span
-          class="text-[10px] font-black uppercase tracking-[0.2em] leading-none mb-1"
+          class="text-body font-bold leading-none mb-1"
           :class="selectedTab === setName ? 'text-blue-700' : 'text-gray-400'"
         >
           {{ setName }}
@@ -41,7 +41,7 @@
           <div class="flex items-center gap-2">
             <template v-if="activeArtifactSet !== selectedTab">
               <button
-                class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors"
+                class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-body font-bold rounded-lg shadow-sm transition-colors"
                 @click="equipSet"
               >
                 Equip Set
@@ -50,13 +50,13 @@
 
             <template v-if="isDirty">
               <button
-                class="text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-wider"
+                class="text-body font-bold text-gray-400 hover:text-gray-600"
                 @click="undoChanges"
               >
                 Undo
               </button>
               <button
-                class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg shadow-sm transition-colors"
+                class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-body font-bold rounded-lg shadow-sm transition-colors"
                 @click="saveChanges"
               >
                 Save Changes
@@ -65,14 +65,14 @@
           </div>
 
           <div v-if="selectedTab === 'earnings' && earningsClothedTe !== null" class="flex items-center gap-1.5">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clothed TE</span>
+            <span class="text-gray-400 label">Clothed TE</span>
             <span class="text-small tabular-nums font-bold text-gray-900">{{ Math.round(earningsClothedTe) }}</span>
           </div>
         </div>
 
         <div v-if="selectedTab === 'elr'" class="flex flex-wrap items-center justify-end gap-y-2 gap-x-4 border-t border-gray-200/60 pt-2 -mt-1">
           <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-tight"
+            <span class="text-gray-500 label"
               >Exclude Gusset</span
             >
             <button
@@ -88,7 +88,7 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-tight"
+            <span class="text-gray-500 label"
               >Assume Max Habs/Vehicles</span
             >
             <button
@@ -104,7 +104,7 @@
           </div>
 
           <button
-            class="px-3 py-1 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+            class="px-3 py-1 text-white text-body font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
             :class="isOptimalELR ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'"
             @click="equipOptimalELR"
             v-tippy="'Find and equip the best delivery rate set from your inventory'"
@@ -140,7 +140,7 @@
             </svg>
           </div>
           <div>
-            <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-tight mb-0.5">Set Optimization</h4>
+            <h4 class="text-blue-900 label mb-0.5">Set Optimization</h4>
             <p class="text-small text-blue-700 leading-tight">
               <strong>Earnings:</strong> Necklaces, Ankhs, Totems, Cubes, Lunar stones.
               <br />

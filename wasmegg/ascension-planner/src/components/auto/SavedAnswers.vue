@@ -26,7 +26,7 @@
     />
     <button
       type="button"
-      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
       :disabled="saving"
       @click="save"
     >
@@ -35,7 +35,7 @@
   </div>
   <slot v-if="!listOnly" />
   <div v-if="store.savedAnswers.length" class="space-y-1">
-    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved answers</h4>
+    <h4 class="text-slate-500 label">Saved answers</h4>
     <div
       v-for="a in store.savedAnswers"
       :key="a.id"
@@ -48,7 +48,7 @@
       >
       <button
         type="button"
-        class="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+        class="ml-auto text-body font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
         :disabled="store.deadlineRunning"
         @click="open(a.id)"
       >
@@ -68,7 +68,7 @@
       />
       <button
         type="button"
-        class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600"
+        class="text-body font-bold text-slate-400 hover:text-rose-600"
         @click="store.removeSavedAnswer(playerId, a.id)"
       >
         Delete

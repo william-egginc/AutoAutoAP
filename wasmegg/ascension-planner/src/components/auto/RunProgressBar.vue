@@ -38,7 +38,7 @@
       <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
         <button
           type="button"
-          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/20"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white/10 text-body font-bold hover:bg-white/20"
           data-testid="run-bar-show"
           @click="emit('show')"
         >
@@ -46,7 +46,7 @@
         </button>
         <span
           v-if="store.submitsWhenDone"
-          class="flex-1 sm:flex-none whitespace-nowrap text-center px-3 py-1.5 rounded-lg bg-indigo-500/30 text-[10px] font-black uppercase tracking-widest"
+          class="flex-1 sm:flex-none whitespace-nowrap text-center px-3 py-1.5 rounded-lg bg-indigo-500/30 label"
           title="It shares its result on the Leaderboard when it finishes (started with the send ticked)"
         >
           Submits when done
@@ -55,7 +55,7 @@
           v-if="bestSoFarHere"
           type="button"
           :disabled="!p.best || store.bestSoFarSending || store.bestSoFarWait > 0"
-          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-400 disabled:opacity-50"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-body font-bold hover:bg-indigo-400 disabled:opacity-50"
           :title="
             store.bestSoFarWait > 0
               ? `You can send again in ${store.bestSoFarWait} min`
@@ -69,7 +69,7 @@
         <button
           type="button"
           :disabled="stopping"
-          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 disabled:opacity-60"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white text-slate-900 text-body font-bold hover:bg-slate-100 disabled:opacity-60"
           @click="stop"
         >
           <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop &amp; keep best</template>
@@ -100,12 +100,12 @@
       class="rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-body text-amber-100"
       data-testid="run-bar-elsewhere"
     >
-      <span class="font-black">{{ props.elsewhere.running }} is running.</span> Stop it (Stop &amp; keep best, here), or
+      <span class="font-bold">{{ props.elsewhere.running }} is running.</span> Stop it (Stop &amp; keep best, here), or
       wait until it's done, to use {{ props.elsewhere.here }}.
     </p>
     <p
       v-if="bestSoFarHere && (store.bestSoFarStatus || store.bestSoFarWait > 0)"
-      class="text-small font-semibold"
+      class="text-small font-bold"
       :class="
         !store.bestSoFarStatus || store.bestSoFarStatus.pending
           ? 'text-amber-200'

@@ -57,7 +57,7 @@
     <div v-if="schedule.totalMissions >= 1 && schedule.totalMissions <= 3">
       <div class="flex items-center gap-2 px-1">
         <input type="checkbox" id="zero-time-launch" v-model="isZeroTime" class="rounded text-blue-600" />
-        <label for="zero-time-launch" class="text-small text-gray-600 font-medium cursor-pointer select-none">
+        <label for="zero-time-launch" class="text-small text-gray-600 font-normal cursor-pointer select-none">
           Launch for 0 time (pre-shift sends)
         </label>
       </div>

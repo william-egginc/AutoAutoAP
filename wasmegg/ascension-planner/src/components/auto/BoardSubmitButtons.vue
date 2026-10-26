@@ -13,7 +13,7 @@
     <div class="flex flex-wrap items-center gap-3">
       <button
         type="button"
-        class="px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+        class="px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-white"
         :aria-expanded="showPayload"
         @click="showPayload = !showPayload"
       >
@@ -27,7 +27,7 @@
         v-if="submitUrl && nameToClaim"
         type="button"
         :disabled="!optIn || claiming"
-        class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+        class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700 disabled:opacity-40"
         :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
         @click="emit('claim')"
       >
@@ -37,7 +37,7 @@
         v-else-if="submitUrl"
         type="button"
         :disabled="!optIn || sending || alreadySubmitted"
-        class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+        class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700 disabled:opacity-40"
         @click="emit('submit')"
       >
         <SendingText v-if="sending" /><template v-else>{{
@@ -48,7 +48,7 @@
       <button
         type="button"
         :disabled="!optIn"
-        class="px-4 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
+        class="px-4 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-white disabled:opacity-40"
         @click="emit('save')"
       >
         Save the file instead
@@ -75,7 +75,7 @@
 
     <p v-if="!submitUrl" class="text-body text-indigo-900/70">
       No collector is configured in this build, so there is nowhere to submit to and the button is not shown.
-      <span class="font-semibold">Save the file</span> and share it however you like. Self-hosting: set
+      <span class="font-bold">Save the file</span> and share it however you like. Self-hosting: set
       <span class="tabular-nums">VITE_SUBMIT_URL</span> at build time.
     </p>
   </div>

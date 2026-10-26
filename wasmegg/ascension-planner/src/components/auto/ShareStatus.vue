@@ -7,7 +7,7 @@
   <component
     :is="tag"
     v-if="message"
-    class="text-small font-semibold"
+    class="text-small font-bold"
     :class="!ok ? 'text-rose-700' : partial ? 'text-amber-700' : 'text-emerald-700'"
   >
     <SendingText v-if="inProgress" :text="message.replace(/\.\.\.$/, '')" />
@@ -17,7 +17,7 @@
     v-if="pendingTable"
     type="button"
     :disabled="retrying"
-    class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
+    class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-body font-bold hover:bg-amber-50 disabled:opacity-40"
     @click="emit('retry')"
   >
     <SendingText v-if="retrying" text="Sending the table" /><template v-else>Retry the table</template>

@@ -23,9 +23,9 @@
       :class="summaryClass"
       :data-testid="`${id}-summary`"
     >
-      <span class="font-black">{{ title }}</span>
+      <span class="font-bold">{{ title }}</span>
       <slot name="extra" />
-      <span v-if="hint" class="min-w-0 font-semibold text-slate-500 normal-case tracking-normal" :data-testid="`${id}-hint`">{{
+      <span v-if="hint" class="min-w-0 font-bold text-slate-500 normal-case tracking-normal" :data-testid="`${id}-hint`">{{
         hint
       }}</span>
       <span aria-hidden="true" class="fold-chevron ml-auto pl-1 text-small leading-none text-slate-400">›</span>

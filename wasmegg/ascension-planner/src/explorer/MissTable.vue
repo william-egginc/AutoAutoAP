@@ -24,7 +24,7 @@
     <div class="overflow-x-auto">
       <table class="text-small tabular-nums">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <tr class="text-slate-400 label">
             <th class="text-left py-1 pr-2 align-bottom">Stop</th>
             <th
               v-for="d in table.offsets"
@@ -45,7 +45,7 @@
               <div class="flex items-start justify-between gap-2">
                 <div class="font-bold leading-4 text-slate-700">
                   {{ row.index + 1 }} · {{ row.te }} TE
-                  <div v-if="row.last" class="text-[9px] font-black text-slate-400 uppercase tracking-widest">last</div>
+                  <div v-if="row.last" class="text-slate-400 label">last</div>
                 </div>
                 <div v-if="!row.last" class="text-right text-small font-normal text-slate-400">
                   <div class="leading-4">keep</div>
@@ -67,7 +67,7 @@
               <div v-if="!row.last" class="leading-4">
                 <span
                   v-if="cell.replan"
-                  :class="replanPays(cell) ? 'font-black text-emerald-800' : 'font-bold text-slate-700'"
+                  :class="replanPays(cell) ? 'font-bold text-emerald-800' : 'font-bold text-slate-700'"
                   >{{ cellDays(cell.replan.behind) }}</span
                 >
                 <span v-else class="italic text-slate-400">{{ missingText }}</span>

@@ -15,7 +15,7 @@
         </div>
         <div>
           <div class="flex items-baseline gap-2">
-            <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-slate-800 leading-none">
+            <h3 class="text-title font-bold text-slate-800 leading-none">
               Next Ascension preview
             </h3>
           </div>
@@ -25,15 +25,15 @@
       <!-- Peak ELR row. Minimal/unstyled list of whatever variants are present — visual layout for
            up to 7 variants is deferred to a later pass. -->
       <div class="flex items-center gap-3 mb-4 px-1 flex-wrap">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Peak Delivery Rate</span>
+        <span class="text-slate-400 label">Peak Delivery Rate</span>
         <template v-for="(entry, i) in presentVariants" :key="entry.key">
           <div v-if="i > 0" class="w-px h-4 bg-slate-200"></div>
           <div class="flex items-center gap-1.5">
-            <span class="text-[9px] font-black text-slate-500 uppercase tracking-wider">{{ entry.key }}</span>
-            <span class="text-small tabular-nums font-black text-indigo-600">
+            <span class="text-slate-500 label">{{ entry.key }}</span>
+            <span class="text-small tabular-nums font-bold text-indigo-600">
               {{ formatNumber(entry.result.summary.maxELR * 3600, 3) }}
             </span>
-            <span class="text-small font-black text-slate-400">/hr</span>
+            <span class="text-small font-bold text-slate-400">/hr</span>
           </div>
         </template>
       </div>

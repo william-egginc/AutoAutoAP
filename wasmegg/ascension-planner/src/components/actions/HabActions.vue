@@ -10,9 +10,9 @@
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2">
             <div class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">Hab Sale</span>
+            <span class="text-slate-400 label leading-none">Hab Sale</span>
           </div>
-          <span class="text-[10px] font-black text-blue-600 uppercase tracking-tighter">80% off</span>
+          <span class="text-blue-600 label">80% off</span>
         </div>
         <button
           class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
@@ -52,10 +52,10 @@
           </svg>
         </div>
         <div class="flex flex-col items-center relative z-10">
-          <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-blue-700"
+          <span class="text-body font-bold text-slate-900 group-hover:text-blue-700"
             >Max Habs</span
           >
-          <span v-if="maxHabsTime" class="text-small tabular-nums font-black text-blue-500 mt-0.5">{{
+          <span v-if="maxHabsTime" class="text-small tabular-nums font-bold text-blue-500 mt-0.5">{{
             maxHabsTime
           }}</span>
         </div>
@@ -84,7 +84,7 @@
           </svg>
         </div>
         <div class="flex flex-col items-center relative z-10">
-          <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-emerald-700"
+          <span class="text-body font-bold text-slate-900 group-hover:text-emerald-700"
             >Habs in 5 Min</span
           >
         </div>
@@ -99,12 +99,12 @@
         class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4 group hover:border-blue-200 transition-all duration-300 hover:shadow-md"
       >
         <div class="flex items-center justify-between">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Slot {{ index + 1 }}</span>
+          <span class="text-slate-400 label">Slot {{ index + 1 }}</span>
           <div v-if="habId !== null" class="flex flex-col items-end">
-            <span class="text-body tabular-nums font-black text-slate-900">
+            <span class="text-body tabular-nums font-bold text-slate-900">
               {{ formatNumber(getHabCapacity(habId), 0) }}
             </span>
-            <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest opacity-60">Capacity</span>
+            <span class="text-slate-400 label opacity-60">Capacity</span>
           </div>
         </div>
 
@@ -118,7 +118,7 @@
 
     <!-- Note about slots -->
     <div class="flex items-center justify-between px-2">
-      <p class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{{ purchasedCount }}/4 habs active</p>
+      <p class="text-slate-400 label">{{ purchasedCount }}/4 habs active</p>
     </div>
 
     <EventExpiryDialog

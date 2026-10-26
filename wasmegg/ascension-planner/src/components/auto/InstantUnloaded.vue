@@ -16,7 +16,7 @@
     <button
       v-if="older"
       type="button"
-      class="min-h-[44px] px-4 rounded-lg border border-emerald-300 bg-white text-[11px] font-black uppercase tracking-widest text-emerald-800 hover:bg-emerald-50"
+      class="min-h-[44px] px-4 rounded-lg border border-emerald-300 bg-white text-body font-bold text-emerald-800 hover:bg-emerald-50"
       data-testid="instant-reload"
       @click="reload"
     >
@@ -25,7 +25,7 @@
     <button
       v-else
       type="button"
-      class="min-h-[44px] px-4 rounded-lg border border-emerald-300 bg-white text-[11px] font-black uppercase tracking-widest text-emerald-800 hover:bg-emerald-50"
+      class="min-h-[44px] px-4 rounded-lg border border-emerald-300 bg-white text-body font-bold text-emerald-800 hover:bg-emerald-50"
       data-testid="instant-retry"
       @click="emit('retry')"
     >

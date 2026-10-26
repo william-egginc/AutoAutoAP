@@ -12,7 +12,7 @@
     class="p-3 rounded-xl border border-violet-200 bg-violet-50 text-body text-violet-900 space-y-2"
   >
     <p v-if="ui.runSaveLoaded.from === 'entry' || ui.runSaveLoaded.from === 'file'">
-      <span class="font-black uppercase tracking-wide">Using your save from {{ when(ui.runSaveLoaded.backupAt) }}.</span>
+      <span class="font-bold">Using your save from {{ when(ui.runSaveLoaded.backupAt) }}.</span>
       The planner is using
       <template v-if="ui.runSaveLoaded.from === 'entry'"
         >the save that "{{ ui.runSaveLoaded.label }}" was priced from (TE {{ ui.runSaveLoaded.te }})</template
@@ -22,14 +22,14 @@
       >. Anything you send to the leaderboard says how old this save is.
     </p>
     <p v-else>
-      <span class="font-black uppercase tracking-wide">Using the save this run started with.</span>
+      <span class="font-bold">Using the save this run started with.</span>
       The planner is using your save from {{ when(ui.runSaveLoaded.backupAt) }} (TE {{ ui.runSaveLoaded.te }}), so the
       run carries on with the farm it began on. Your latest save may differ; load it again when the run is done.
     </p>
     <button
       type="button"
       :disabled="ui.loading || store.isRunning"
-      class="px-3 py-1.5 rounded-lg bg-violet-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 disabled:opacity-40"
+      class="px-3 py-1.5 rounded-lg bg-violet-800 text-white text-body font-bold hover:bg-violet-700 disabled:opacity-40"
       @click="ui.backupRetryRequested++"
     >
       Load my latest save
@@ -41,7 +41,7 @@
     class="p-3 rounded-xl border border-violet-200 bg-violet-50 text-body text-violet-900 space-y-2"
   >
     <p>
-      <span class="font-black uppercase tracking-wide">These results are from an older save</span>
+      <span class="font-bold">These results are from an older save</span>
       ({{ when(store.resultsFromOlderSave.backupAt) }}, TE {{ store.resultsFromOlderSave.te }}). Before following one,
       re-price the fastest few on your latest save<template v-if="store.currentTE > 0">
         (TE {{ store.currentTE }})</template
@@ -50,7 +50,7 @@
     <button
       type="button"
       :disabled="store.recheckingLatest"
-      class="px-3 py-1.5 rounded-lg bg-violet-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 disabled:opacity-40"
+      class="px-3 py-1.5 rounded-lg bg-violet-800 text-white text-body font-bold hover:bg-violet-700 disabled:opacity-40"
       @click="store.recheckOnLatestSave(10)"
     >
       {{ store.recheckingLatest ? 'Re-checking…' : 'Re-check the top 10 on my latest save' }}
@@ -58,7 +58,7 @@
     <div v-if="store.latestRecheck" class="overflow-x-auto">
       <table class="w-full text-small tabular-nums">
         <thead>
-          <tr class="text-left text-[9px] font-black uppercase tracking-widest text-violet-700">
+          <tr class="text-left label text-violet-700">
             <th class="py-1 pr-3">Route</th>
             <th class="py-1 pr-3">Finish on the older save</th>
             <th class="py-1 pr-3">Finish on your latest save</th>

@@ -13,7 +13,7 @@
     @toggle="onPromiseToggle"
   >
     <!-- 44 px to tap on a phone (list-item kept for the marker); unchanged from sm up. -->
-    <summary class="cursor-pointer font-black uppercase tracking-wide text-amber-800 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0" data-testid="exhaustive-promise-summary">
+    <summary class="cursor-pointer font-bold text-amber-800 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0" data-testid="exhaustive-promise-summary">
       What this does and does not promise
     </summary>
     <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed" data-testid="exhaustive-promise-lines">

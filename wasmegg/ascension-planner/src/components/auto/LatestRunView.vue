@@ -160,13 +160,13 @@
            nudged by one TE all over the cache, and ten of those is a useless menu. -->
       <div v-if="store.pricedCount > 1" data-testid="other-options" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div class="flex items-center justify-between gap-3">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          <h3 class="text-slate-500 label">
             Other options worth considering
           </h3>
           <button
             v-if="!store.isRunning"
             type="button"
-            class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
+            class="text-body font-bold text-slate-400 hover:text-slate-600"
             @click="store.rebuildShortlist()"
           >
             Refresh
@@ -176,7 +176,7 @@
         <p class="text-body text-slate-500">
           Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
           half a day slower for one fewer ascension may well be the trade you want. Pick on the
-          <span class="font-semibold">finish date</span>, not the day count: durations from different plan starts are
+          <span class="font-bold">finish date</span>, not the day count: durations from different plan starts are
           not comparable.
         </p>
 
@@ -187,7 +187,7 @@
             v-for="v in VIEWS"
             :key="v.id"
             type="button"
-            class="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors"
+            class="px-2.5 py-1 rounded-lg border text-body font-bold transition-colors"
             :class="
               store.shortlistView === v.id
                 ? 'bg-slate-800 border-slate-800 text-white'
@@ -210,13 +210,13 @@
         >
           Nothing else here is a genuinely different plan: every other route this run priced is the same shape moved
           by a few TE, or more than five days behind. That is normal for a run that only swept one stop, and for one
-          stopped early. Switch to <span class="font-semibold">Fastest</span> to see the quickest of the
+          stopped early. Switch to <span class="font-bold">Fastest</span> to see the quickest of the
           {{ store.pricedCount }}, fastest first.
         </p>
         <div v-else class="overflow-x-auto" data-testid="shortlist">
           <table class="w-full text-small">
             <thead>
-              <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
+              <tr class="text-slate-400 label text-left">
                 <th class="py-2 pr-3">Route</th>
                 <th class="py-2 pr-3">Ascensions</th>
                 <th class="py-2 pr-3">Finishes</th>
@@ -285,7 +285,7 @@
                   <td class="py-2 text-right whitespace-nowrap">
                     <button
                       type="button"
-                      class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                      class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
                       @click="use(row.chain, true)"
                     >
                       Use
@@ -326,7 +326,7 @@
                         </p>
                         <button
                           type="button"
-                          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-40"
+                          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-40"
                           :disabled="anythingRunning"
                           :title="anythingRunning ? 'After the search or check that is running' : 'Simulates this route on one worker'"
                           data-testid="legs-on-demand-start"
@@ -341,7 +341,7 @@
                       last moves off it.
                       <template v-if="store.scheduleEnabled && store.deferShifts">
                         Every shift has already been moved into your awake hours, which is what this option's
-                        <span class="font-semibold">cost</span> above paid for.
+                        <span class="font-bold">cost</span> above paid for.
                       </template>
                     </p>
                   </td>
@@ -352,7 +352,7 @@
         </div>
 
         <p class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
-          Every view above reads the <span class="font-semibold">{{ store.csvRows.toLocaleString() }}</span>
+          Every view above reads the <span class="font-bold">{{ store.csvRows.toLocaleString() }}</span>
           routes this run priced, so switching costs nothing and re-simulates nothing. A route missing from all of
           them was almost certainly never evaluated rather than evaluated and beaten: the search stays in its own
           neighbourhood. Download the CSV for the full list.
@@ -363,10 +363,10 @@
            meant finishing a three-hour run and opening a spreadsheet. -->
       <div v-if="store.pricedCount" data-testid="search-shape" class="p-4 rounded-xl border border-slate-200 bg-white space-y-4">
         <div class="flex items-center justify-between gap-3">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The shape of this search</h3>
+          <h3 class="text-slate-500 label">The shape of this search</h3>
           <button
             type="button"
-            class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
+            class="text-body font-bold text-slate-400 hover:text-slate-600"
             @click="store.setChartShown(!store.chartShown)"
           >
             {{ store.chartShown ? 'Hide' : 'Show' }}
@@ -386,7 +386,7 @@
                 : 'border-amber-200 bg-amber-50 text-amber-900'
             "
           >
-            <span class="font-bold uppercase tracking-wide">{{ runOutcome.title }}:</span>
+            <span class="label">{{ runOutcome.title }}:</span>
             {{ runOutcome.detail }}
           </div>
 

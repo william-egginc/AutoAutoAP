@@ -1,7 +1,7 @@
 <template>
   <div class="mt-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-md">
     <div class="flex items-center justify-between gap-1.5">
-      <span class="text-[9px] font-bold text-gray-400 uppercase tracking-wide">{{ label }}</span>
+      <span class="text-gray-400 label">{{ label }}</span>
       <span class="text-small font-bold" :class="deltaColorClass">{{ deltaText }}</span>
     </div>
     <div class="flex items-center justify-center gap-1.5 mt-0.5">

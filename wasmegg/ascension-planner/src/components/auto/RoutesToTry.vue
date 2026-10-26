@@ -21,8 +21,8 @@
   <div>
     <div v-for="(row, k) in rows" :key="k" class="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-[10px] font-black text-slate-600 uppercase tracking-widest">Box {{ k + firstNumber }}</span>
-        <label class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+        <span class="text-slate-600 label">Box {{ k + firstNumber }}</span>
+        <label class="flex items-center gap-1.5 text-slate-500 label">
           Ascensions
           <input
             :value="row.asc"
@@ -39,7 +39,7 @@
         <button
           type="button"
           :disabled="disabled || row.asc < 2"
-          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-white disabled:opacity-40"
+          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:bg-white disabled:opacity-40"
           @click="emit('suggest', k)"
         >
           Suggest a space
@@ -48,7 +48,7 @@
           v-if="rows.length > minRows"
           type="button"
           :disabled="disabled"
-          class="ml-auto text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600 disabled:opacity-40"
+          class="ml-auto text-body font-bold text-slate-400 hover:text-rose-600 disabled:opacity-40"
           @click="emit('remove', k)"
         >
           Remove
@@ -101,7 +101,7 @@
       <button
         type="button"
         :disabled="disabled"
-        class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg border border-slate-300 text-body font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
         @click="emit('add')"
       >
         + Add another box

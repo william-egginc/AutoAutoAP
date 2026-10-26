@@ -46,7 +46,7 @@
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
     <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
       <div class="min-w-0 flex flex-wrap items-baseline gap-x-3">
-        <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
+        <p class="label text-slate-500">Right now</p>
         <p v-if="card" class="text-body text-slate-500" data-testid="now-calculated">
           Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ howText }})<template
             v-if="card.pricedWith"
@@ -91,7 +91,7 @@
         }}<span
           :class="
             s.state === 'now'
-              ? 'font-black text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
+              ? 'font-bold text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
               : s.state === 'passed'
                 ? 'text-slate-400'
                 : ''
@@ -107,7 +107,7 @@
     <div v-if="card && pill" class="space-y-0.5" data-testid="now-source" :data-source="card.plan.from ? 'search' : 'instant'">
       <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body text-slate-500">
         <span
-          class="rounded px-1.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
+          class="rounded px-1.5 py-0.5 label"
           :class="card.plan.from ? 'bg-indigo-600 text-white' : 'bg-emerald-100 text-emerald-800'"
           data-testid="now-source-pill"
           >{{ pill }}</span
@@ -194,7 +194,7 @@
 
     <!-- Follow another route: typed stops (lib/follow.ts parseTypedRoute). -->
     <details v-if="selectedOption && !notOnVirtue" class="text-body" data-testid="now-follow-typed">
-      <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer font-semibold text-indigo-700" data-testid="now-follow-typed-summary">Follow another route</summary>
+      <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer font-bold text-indigo-700" data-testid="now-follow-typed-summary">Follow another route</summary>
       <form class="mt-1.5 flex flex-wrap items-center gap-2" @submit.prevent="followTyped">
         <label class="sr-only" for="now-follow-input">Stops of the route</label>
         <input
@@ -238,7 +238,7 @@
       </div>
       <div class="min-w-0">
         <div class="flex flex-wrap items-start gap-x-2.5 gap-y-1">
-          <p v-if="onVirtue" class="text-title font-black text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
+          <p v-if="onVirtue" class="text-title font-bold text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
           <p v-else-if="notOnVirtue" class="text-body font-bold text-slate-800" data-testid="now-not-virtue">
             No virtue farm in this save, so nothing to do on a farm yet.
           </p>
@@ -277,7 +277,7 @@
 
     <!-- Not on virtue yet: when to start, from each goal's saved plan (lib/nowStart.ts); nothing worked out here. -->
     <div v-if="notOnVirtue" class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-start">
-      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">When to start</p>
+      <p class="label text-indigo-700">When to start</p>
       <ul v-if="startInfo && startInfo.length" class="mt-0.5 space-y-0.5 text-small text-slate-800" data-testid="now-start-lines">
         <li v-for="l in startInfo" :key="l.key">{{ l.text }}</li>
       </ul>
@@ -297,7 +297,7 @@
 
     <!-- Next step. -->
     <div v-else class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
-      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next step</p>
+      <p class="label text-indigo-700">Next step</p>
       <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
            action and the first shifts (26 Oct 2026); the lines below say why the rest has no times. -->
       <template v-if="!card && follow && (actionText || simWorking)">
@@ -305,7 +305,7 @@
           <b>{{ actionText }}</b>
         </p>
         <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
-          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next shifts</p>
+          <p class="label text-indigo-700">Next shifts</p>
           <ul class="list-none pl-0 text-small text-slate-700">
             <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
           </ul>
@@ -332,7 +332,7 @@
         </p>
         <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, always shown, not interactive. -->
         <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
-          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next shifts</p>
+          <p class="label text-indigo-700">Next shifts</p>
           <ul class="list-none pl-0 text-small text-slate-700">
             <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
           </ul>
@@ -432,7 +432,7 @@
         :rounded="rounded"
       />
       <details class="mt-2" data-testid="now-timeline">
-        <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-semibold text-indigo-700" data-testid="now-timeline-summary">
+        <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-indigo-700" data-testid="now-timeline-summary">
           Full timeline (every ascension, each egg's first and last shift)
         </summary>
         <div class="mt-2">

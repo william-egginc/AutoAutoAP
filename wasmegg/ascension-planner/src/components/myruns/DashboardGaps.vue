@@ -9,7 +9,7 @@
     aria-label="Next steps"
     data-testid="my-runs-steps"
   >
-    <p v-if="!state.steps.length" class="text-body text-emerald-800 font-semibold" data-testid="my-runs-steps-none">
+    <p v-if="!state.steps.length" class="text-body text-emerald-800 font-bold" data-testid="my-runs-steps-none">
       Nothing to change: keep following your route.
     </p>
     <ul v-if="shown.length" class="space-y-2">
@@ -27,7 +27,7 @@
       </li>
     </ul>
     <details v-if="more.length" data-testid="my-runs-steps-more">
-      <summary class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-emerald-800">
+      <summary class="cursor-pointer text-body font-bold text-emerald-800">
         {{ more.length }} more
       </summary>
       <ul class="mt-2 space-y-2">
@@ -67,7 +67,7 @@ function itemAttrs(s: DashStep) {
 
 /** 44 px tall on a phone (a tap target), compact beside the text from `sm` up. */
 const BUTTON =
-  'self-start sm:self-auto shrink-0 min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700';
+  'self-start sm:self-auto shrink-0 min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md text-body font-bold bg-emerald-600 text-white hover:bg-emerald-700';
 
 function act(s: DashStep): void {
   emit('act', s.action);

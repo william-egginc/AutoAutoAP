@@ -33,7 +33,7 @@
           class="input-premium pl-3 pr-10"
         />
         <div
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 group-focus-within:text-brand-primary transition-colors uppercase tracking-widest pointer-events-none"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-primary transition-colors label pointer-events-none"
         >
           Time
         </div>

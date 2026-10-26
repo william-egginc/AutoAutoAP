@@ -8,14 +8,14 @@
     <p
       v-for="(issue, i) in issues"
       :key="i"
-      class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body font-semibold text-amber-900"
+      class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body font-bold text-amber-900"
     >
       <span>{{ issue.message }}</span>
       <button
         v-if="issue.fix"
         type="button"
         :disabled="disabled"
-        class="rounded-md border border-amber-300 bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-800 hover:bg-amber-100 disabled:opacity-40"
+        class="rounded-md border border-amber-300 bg-white px-2 py-0.5 text-body font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-40"
         @click="emit('use', issue.fix)"
       >
         Use {{ issue.fix }}

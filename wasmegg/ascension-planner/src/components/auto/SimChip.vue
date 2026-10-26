@@ -13,7 +13,7 @@
       :aria-label="`Which simulator priced this run: ${label.words}. Show its stamp`"
       @click.stop="open = !open"
     >
-      <span class="px-1 rounded text-small font-black leading-4" :class="CHIP_CLASS[label.kind]">{{ chipText }}</span>
+      <span class="px-1 rounded text-small font-bold leading-4" :class="CHIP_CLASS[label.kind]">{{ chipText }}</span>
     </button>
     <span
       v-if="open"

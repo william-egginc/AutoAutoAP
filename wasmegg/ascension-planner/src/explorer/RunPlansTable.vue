@@ -11,7 +11,7 @@
     <!-- Flex, not inline: Vue drops the whitespace between v-for siblings, so inline nowrap spans had
          no place to wrap and pushed a phone's page sideways. -->
     <p v-if="countBests.length" class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-body text-slate-600">
-      <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Best per ascension count</span>
+      <span class="text-slate-400 label">Best per ascension count</span>
       <span
         v-for="b in countBests"
         :key="b.ascensions"
@@ -33,12 +33,12 @@
 
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <div class="flex flex-wrap items-center gap-1.5">
-        <span class="mr-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Show</span>
+        <span class="mr-1 text-slate-400 label">Show</span>
         <button
           v-for="l in PLAN_LIMITS"
           :key="l"
           type="button"
-          class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2 py-0.5 rounded-md text-body font-bold border transition-colors"
           :class="
             limit === l
               ? 'bg-slate-900 text-white border-slate-900'
@@ -52,7 +52,7 @@
       </div>
       <label
         v-if="counts.length > 1"
-        class="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest"
+        class="flex items-center gap-1.5 text-slate-400 label"
       >
         Ascensions
         <select
@@ -63,7 +63,7 @@
           <option v-for="n in counts" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
-      <label class="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+      <label class="flex items-center gap-1.5 text-slate-400 label">
         Stop TE
         <input
           v-model="filterText"
@@ -102,7 +102,7 @@
     <div class="overflow-x-auto">
       <table class="text-small tabular-nums">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+          <tr class="text-slate-400 label whitespace-nowrap">
             <th class="text-right py-1 pr-5" :aria-sort="ariaSort('rank')">
               <button
                 type="button"
@@ -146,7 +146,7 @@
             <td class="py-1 pr-5 text-right whitespace-nowrap">
               <span
                 v-if="p.rank === 1"
-                class="rounded bg-emerald-100 px-1 text-small font-black text-emerald-800"
+                class="rounded bg-emerald-100 px-1 text-small font-bold text-emerald-800"
                 title="The fastest plan in this run's table"
                 >best</span
               >
@@ -327,7 +327,7 @@ function sortArrow(by: PlanSortKey): string {
 }
 
 function sortHeadClass(by: PlanSortKey): string {
-  return `uppercase tracking-widest [text-align:inherit] hover:text-slate-600 ${sort.value.by === by ? 'text-slate-700' : ''}`;
+  return `label [text-align:inherit] hover:text-slate-600 ${sort.value.by === by ? 'text-slate-700' : ''}`;
 }
 
 function pageButtonClass(current: boolean): string {

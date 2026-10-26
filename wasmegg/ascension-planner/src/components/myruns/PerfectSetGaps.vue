@@ -8,7 +8,7 @@
     <summary class="cursor-pointer list-none text-small">
       <span class="text-small font-bold text-slate-700">Missing for a perfect set</span>
       <span class="ml-2 text-small text-slate-600" data-testid="now-gear-perfect-headline">{{ headline }}</span>
-      <span class="ml-1 text-small font-semibold text-indigo-700">▸ slot by slot</span>
+      <span class="ml-1 text-small font-bold text-indigo-700">▸ slot by slot</span>
     </summary>
     <div class="mt-2 space-y-3 max-w-xl">
       <p v-if="!gaps" class="text-body text-slate-600">{{ headline }}</p>
@@ -18,7 +18,7 @@
           4. Only rarity, tier and stones are compared, not which artifacts or stone types suit each set.
         </p>
         <div v-for="s in gaps.sets" :key="s.id" class="space-y-1" :data-testid="`now-gear-perfect-${s.id}`">
-          <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">{{ s.name }}</p>
+          <p class="label text-slate-500">{{ s.name }}</p>
           <p v-if="s.sameAs" class="text-body text-slate-600">{{ s.sameAs }}</p>
           <p
             v-else-if="!s.upgrades.length && !s.missing.length && !s.tiers.length"

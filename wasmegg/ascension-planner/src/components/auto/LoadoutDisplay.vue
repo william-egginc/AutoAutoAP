@@ -21,7 +21,7 @@
     >
       <div class="flex items-center gap-2.5">
         <span
-          class="text-small font-black text-slate-400 w-5 h-5 shrink-0 flex items-center justify-center bg-white/60 rounded-full shadow-inner"
+          class="text-small font-bold text-slate-400 w-5 h-5 shrink-0 flex items-center justify-center bg-white/60 rounded-full shadow-inner"
           >{{ i + 1 }}</span
         >
         <img
@@ -35,7 +35,7 @@
         </span>
         <span
           v-if="artifact(slot.artifactId)"
-          class="ml-auto shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-600 bg-white/70 border border-white rounded-full px-2 py-0.5"
+          class="ml-auto shrink-0 label text-slate-600 bg-white/70 border border-white rounded-full px-2 py-0.5"
         >
           {{ artifact(slot.artifactId)!.effect }}
         </span>

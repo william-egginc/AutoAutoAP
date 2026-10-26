@@ -21,14 +21,14 @@
               />
             </svg>
           </div>
-          <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">Compare Variants</h3>
+          <h3 class="text-slate-800 label">Compare Variants</h3>
         </div>
 
         <div class="px-6 pt-3 border-b border-slate-100 flex items-center gap-1">
           <button
             v-for="tab in TABS"
             :key="tab.key"
-            class="px-3 py-2 text-[9px] font-black uppercase tracking-widest border-b-2 transition-colors"
+            class="px-3 py-2 label border-b-2 transition-colors"
             :class="
               activeTab === tab.key
                 ? 'border-indigo-600 text-indigo-700'
@@ -45,7 +45,7 @@
             <div class="p-4 overflow-x-auto">
               <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr class="text-[8px] font-black text-slate-400 uppercase tracking-wider">
+                  <tr class="text-slate-400 label">
                     <th class="px-2 py-1.5">Variant</th>
                     <th class="px-2 py-1.5">Tier 13</th>
                     <th class="px-2 py-1.5">Build</th>
@@ -78,7 +78,7 @@
                     <td class="px-2 py-2">
                       <span
                         v-if="row.tier13Unlocked"
-                        class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-200"
+                        class="px-1.5 py-0.5 rounded label bg-amber-50 text-amber-600 border border-amber-200"
                       >
                         Unlocked
                       </span>
@@ -96,10 +96,10 @@
             </div>
 
             <div class="px-4 pb-4 overflow-x-auto">
-              <h4 class="px-2 pb-1.5 text-[8px] font-black text-slate-400 uppercase tracking-wider">Research Levels</h4>
+              <h4 class="px-2 pb-1.5 text-slate-400 label">Research Levels</h4>
               <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr class="text-[8px] font-black text-slate-400 uppercase tracking-wider">
+                  <tr class="text-slate-400 label">
                     <th class="px-2 py-1.5">Variant</th>
                     <th v-for="col in RESEARCH_COLUMNS" :key="col.id" class="px-1 py-1.5 w-[4.75rem] align-bottom">
                       <div class="flex flex-col items-center gap-1">
@@ -151,7 +151,7 @@
 
         <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
           <button
-            class="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all rounded-xl hover:shadow-sm"
+            class="px-6 py-2 text-body font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all rounded-xl hover:shadow-sm"
             @click="$emit('close')"
           >
             Close

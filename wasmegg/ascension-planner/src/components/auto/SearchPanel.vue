@@ -20,12 +20,12 @@
     :data-testid="`search-panel-${screen}`"
   >
     <div class="flex flex-wrap items-center gap-2">
-      <h3 class="text-title font-black text-slate-900">Search</h3>
+      <h3 class="text-title font-bold text-slate-900">Search</h3>
       <!-- "Stopping" once Stop is pressed (23 Oct 2026): the run goes on until the workers finish the routes they
            have (search/stopNote.ts), which can be minutes, and "Running" then looked as if Stop had not worked. -->
       <span
         v-if="running"
-        class="px-1.5 py-0.5 rounded text-white text-[9px] font-black uppercase tracking-widest"
+        class="px-1.5 py-0.5 rounded text-white label"
         :class="stopping ? 'bg-amber-600' : 'bg-indigo-600'"
         data-testid="search-panel-running"
         >{{ stopping ? 'Stopping' : 'Running' }}</span
@@ -62,7 +62,7 @@
         :class="selected === o.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-600 hover:text-slate-800'"
         @click="choose(o.id)"
       >
-        <span class="block text-[12px] font-black uppercase tracking-widest">{{ o.label }}</span>
+        <span class="block text-body font-bold">{{ o.label }}</span>
         <span
           class="block mt-0.5 text-small font-bold"
           :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
@@ -71,7 +71,7 @@
         >
         <!-- What it is for, small, before the player clicks (the user, 15 Oct; kept, Jordan 22 Oct). -->
         <span
-          class="block mt-0.5 text-small font-semibold leading-tight"
+          class="block mt-0.5 text-small font-bold leading-tight"
           :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
           :data-testid="`search-option-for-${o.id}`"
           >{{ o.purpose }}</span

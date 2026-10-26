@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import resolveConfig from 'tailwindcss/resolveConfig';
 import { describe, expect, it } from 'vitest';
-import tailwindConfig from '../../tailwind.config';
+import tailwindConfig, { LABEL } from '../../tailwind.config';
 import {
   BUTTON_TEXT,
   CARD_NOTE,
@@ -54,12 +54,10 @@ describe('the tokens', () => {
     expect(theme.letterSpacing.headline).toBe('-0.02em');
   });
 
-  it('`.label` is the one caps style: 11 px, 700, 0.08em, caps', () => {
-    const r = rule('    .label');
-    expect(r).toContain('font-size: 11px;');
-    expect(r).toContain('font-weight: 700;');
-    expect(r).toContain('letter-spacing: 0.08em;');
-    expect(r).toContain('text-transform: uppercase;');
+  it('`.label` is the one caps style: 11 px, 700, 0.08em, caps (a plugin component, so scoped styles can @apply it)', () => {
+    expect(LABEL).toEqual({ fontSize: '11px', lineHeight: '16px', fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase' });
+    expect(fs.readFileSync(path.resolve(SRC, '../tailwind.config.ts'), 'utf8')).toContain("addComponents({ '.label': LABEL })");
+    expect(css).not.toMatch(/^\s*\.label\s*\{/m);
   });
 
   it('`.heading-xl` (the page title) has one definition: 900, -0.02em, no caps, 28 px on a phone, 32 px from sm', () => {
@@ -128,15 +126,75 @@ function hits(re: RegExp, unless?: RegExp): string[] {
   return out;
 }
 
-/** Caps elements whose caps sit on another line of the same class binding: step 3 (caps) handles them. */
-const STEP3_PENDING = /^components\/(StudyBox\.vue:38|auto\/AscensionOverview\.vue:17|auto\/ForcedAscensionPreview\.vue:18):/;
+/** Every class list in the covered files: static class attributes (any `*class`), and string literals that look like
+ *  class lists (template bindings, scripts, render functions, @apply lines). */
+function classLists(): { at: string; toks: string[] }[] {
+  const out: { at: string; toks: string[] }[] = [];
+  const CLASSY = /^[!a-z0-9:\-[\].\/%#_(),&>=+*~]+$/;
+  for (const { rel, src } of FILES) {
+    const lineAt = (i: number) => `${rel}:${src.slice(0, i).split('\n').length}`;
+    for (const m of src.matchAll(/class="([^"]*)"/g)) out.push({ at: lineAt(m.index!), toks: m[1].split(/\s+/).filter(Boolean) });
+    for (const m of src.matchAll(/'([^'\n]*)'|`([^`$]*)`/g)) {
+      const toks = (m[1] ?? m[2]).split(/\s+/).filter(Boolean);
+      if (toks.length && toks.every(t => CLASSY.test(t)) && toks.some(t => /^(?:[a-z]+:)*(?:text-|font-|tracking-|uppercase$|label$)/.test(t)))
+        out.push({ at: lineAt(m.index!), toks });
+    }
+    for (const m of src.matchAll(/@apply\s+([^;]+);/g)) out.push({ at: lineAt(m.index!), toks: m[1].split(/\s+/) });
+  }
+  return out;
+}
+const LISTS = classLists();
+const base = (t: string) => t.replace(/^(?:[a-z-]+:)*!?/, '');
 
-describe('sizes: the codemod (step 2)', () => {
-  it('no Tailwind size outside the scale on text without caps (fields keep text-base on a phone)', () => {
-    const legacy = /(?<![\w-])(?:[a-z]+:)?text-(?:\[\d+(?:\.\d+)?px\]|xs|sm|lg|xl|[2-9]xl)(?![\w-])/;
-    expect(hits(legacy, /uppercase/).filter(h => !STEP3_PENDING.test(h))).toEqual([]);
+describe('the scale everywhere (the codemod, steps 2 and 3)', () => {
+  it('no Tailwind size outside the five tokens (fields keep text-base sm:text-body: 16 px on a phone)', () => {
+    const legacy = /(?<![\w-])(?:[a-z]+:)*text-(?:\[\d+(?:\.\d+)?px\]|xs|sm|lg|xl|[2-9]xl)(?![\w-])/;
+    expect(hits(legacy)).toEqual([]);
+    expect(hits(/(?<![\w:-])text-base(?![\w-])/, /text-base sm:text-body/)).toEqual([]);
   });
-  it('every text-base sits on a form field, with sm:text-body beside it', () => {
-    expect(hits(/(?<![\w:-])text-base(?![\w-])/, /text-base sm:text-body/).filter(h => !STEP3_PENDING.test(h))).toEqual([]);
+
+  it('nothing under 11 px in src or the shared ui/ (SVG and chart attributes aside)', () => {
+    const tiny = /text-\[(?:[0-9]|10)(?:\.\d+)?px\]/;
+    const bad: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); }
+        else if (/\.(vue|ts|css)$/.test(e.name) && !e.name.endsWith('.spec.ts') && tiny.test(fs.readFileSync(p, 'utf8'))) bad.push(path.relative(path.resolve(SRC, '../../..'), p));
+      }
+    };
+    walk(SRC);
+    walk(path.resolve(SRC, '../../../ui'));
+    // The shared ui/ folder is other tools' too; its one 10 px line (the colleggtible effect note) is listed for a ui/ change.
+    expect(bad).toEqual(['ui/components/ColleggtibleConfig.vue']);
+  });
+
+  it('three weights: no font-medium, font-semibold, font-extrabold or light; 900 only on the headline size', () => {
+    expect(hits(/(?<![\w-])font-(?:thin|extralight|light|medium|semibold|extrabold)(?![\w-])/)).toEqual([]);
+    const black = LISTS.filter(l => l.toks.map(base).includes('font-black') && !l.toks.some(t => /^(?:[a-z]+:)*text-(?:headline|page)$/.test(t)));
+    expect(black.map(l => `${l.at}: ${l.toks.join(' ')}`)).toEqual([]);
+  });
+
+  it('tracking only 0, the label 0.08em and the headline -0.02em: no other tracking class, no arbitrary one', () => {
+    expect(hits(/(?<![\w-])(?:[a-z]+:)*tracking-(?!label\b|headline\b|normal\b)[\w[\].-]+/)).toEqual([]);
+  });
+
+  it('one caps style: no `uppercase` class anywhere; `.label` stands alone (no size, weight or tracking beside it)', () => {
+    expect(hits(/(?<![\w-])(?:[a-z]+:)*uppercase(?![\w-])/)).toEqual([]);
+    const clash = LISTS.filter(l => l.toks.includes('label') && l.toks.some(t => /^(?:text-(?:small|body|title|headline|page|base|\[)|font-(?!variant)|tracking-|leading-(?:snug|relaxed|normal|loose))/.test(base(t))));
+    expect(clash.map(l => `${l.at}: ${l.toks.join(' ')}`)).toEqual([]);
+  });
+
+  it('buttons are sentence case: a <button> carries the caps label only as a tab (underline tab, role="tab", SiteTabs)', () => {
+    const bad: string[] = [];
+    for (const { rel, src } of FILES)
+      for (const m of src.matchAll(/<button\b[^>]*>/g)) {
+        const tag = m[0];
+        const cls = (tag.match(/\sclass="([^"]*)"/)?.[1] ?? '').split(/\s+/);
+        if (!cls.includes('label')) continue;
+        if (cls.includes('border-b-2') || /role="tab"/.test(tag) || rel.endsWith('SiteTabs.vue')) continue;
+        bad.push(`${rel}:${src.slice(0, m.index).split('\n').length}`);
+      }
+    expect(bad).toEqual([]);
   });
 });

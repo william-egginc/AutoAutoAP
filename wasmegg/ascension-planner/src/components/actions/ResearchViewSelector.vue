@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col gap-2 mb-4" ref="containerRef">
-    <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Research View</div>
+    <div class="label text-gray-400">Research View</div>
     <div class="relative">
       <button
         @click="open = !open"
@@ -22,7 +22,7 @@
           class="w-full flex flex-col items-start gap-0.5 px-3 py-2 text-left transition-colors"
           :class="modelValue === v.id ? 'bg-blue-50' : 'hover:bg-gray-50'"
         >
-          <span class="text-body font-medium" :class="modelValue === v.id ? 'text-blue-600' : 'text-gray-700'">
+          <span class="text-body font-normal" :class="modelValue === v.id ? 'text-blue-600' : 'text-gray-700'">
             {{ v.label }}
           </span>
           <span v-if="v.description" class="text-small text-gray-400">{{ v.description }}</span>

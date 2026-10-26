@@ -4,7 +4,7 @@
   the command line. The words are search/bigBox.ts `bigBoxNote`'s, the same the command line prints.
 -->
 <template>
-  <p v-if="note" class="text-body font-semibold text-amber-800" data-testid="big-box-note">
+  <p v-if="note" class="text-body font-bold text-amber-800" data-testid="big-box-note">
     {{ note }}
   </p>
 </template>

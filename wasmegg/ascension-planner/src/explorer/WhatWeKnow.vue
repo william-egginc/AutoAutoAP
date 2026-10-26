@@ -16,7 +16,7 @@
   <section class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
     <div class="space-y-0.5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="text-title font-black text-slate-900">What we know so far</h2>
+        <h2 class="text-title font-bold text-slate-900">What we know so far</h2>
         <span v-if="stats" class="text-small font-bold text-slate-500" data-testid="know-header">
           {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ plural(stats.accounts, 'account') }}<template v-if="stats.te">
             · TE {{ stats.te.min }}-{{ stats.te.max }}</template
@@ -44,7 +44,7 @@
     </div>
 
     <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-body text-slate-800">
-      <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">The short answer</p>
+      <p class="text-emerald-700 label">The short answer</p>
       <p>
         <b>Use the instant answer, then a Fast search.</b> It finds your fastest route (or the highest TE by a date) for
         your gear in seconds, and Fast prices routes near it with the full simulator.
@@ -73,7 +73,7 @@
       <details v-for="(f, i) in findings" :key="f.id" class="finding rounded-lg border border-emerald-100 bg-white">
         <summary class="finding-summary flex cursor-pointer items-start gap-2 px-3 py-2 font-bold text-slate-800">
           <span
-            class="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-small font-black text-emerald-800"
+            class="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-small font-bold text-emerald-800"
             aria-hidden="true"
             >{{ i + 1 }}</span
           >
@@ -197,7 +197,7 @@
     </div>
 
     <details class="rounded-lg border border-emerald-200 bg-white p-3 text-body text-slate-700">
-      <summary class="cursor-pointer text-[10px] font-black text-emerald-700 uppercase tracking-widest">
+      <summary class="cursor-pointer text-body font-bold text-emerald-700">
         What we need next
       </summary>
       <div class="mt-2 space-y-1.5">

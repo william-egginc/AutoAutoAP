@@ -139,7 +139,7 @@
 
     /* --- Player ID Form Premium Overrides --- */
     #playerId {
-        @apply input-premium text-center tabular-nums text-title tracking-wider font-bold text-brand-primary;
+        @apply input-premium text-center tabular-nums text-title tracking-label font-bold text-brand-primary;
     }
 
     /* --- Custom Scrollbar --- */
@@ -191,15 +191,8 @@
        big answer numbers, screen titles and the page title). One caps style, `.label`, for section labels, column
        heads, tabs and badges; buttons and sentences are sentence case. Nothing under 11 px. */
 
-    /* The caps label: 11 px, 700, 0.08em, caps. A colour or margin class may sit beside it; a size, weight or
-       tracking class may not (they would outrank it). */
-    .label {
-        font-size: 11px;
-        line-height: 16px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
+    /* The caps label `.label` (11 px, 700, 0.08em, caps) is a plugin component in tailwind.config.ts, so a scoped
+       <style> can @apply it too. */
 
     /* The page title (App.vue's header, the one definition): sentence case, 900, 28 px on a phone and 32 px from
        sm up (the text-page token), tracking -0.02em. */
