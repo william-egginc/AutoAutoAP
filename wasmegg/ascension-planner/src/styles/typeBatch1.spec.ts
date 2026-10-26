@@ -1,6 +1,6 @@
 /**
  * Type review, batch 1 (26 Oct 2026; ~/code/aaap-tools/notes/type-review-2026-10-26.md, Jordan's answers):
- * form fields at 16 px on a phone so iOS stops zooming. Source checks on src/styles/components.css and the
+ * (a) form fields at 16 px on a phone so iOS stops zooming; (b) tabular numbers in every table. Source checks on src/styles/components.css and the
  * components; the built CSS was checked by hand (see the commit).
  */
 import fs from 'node:fs';
@@ -81,5 +81,29 @@ describe('(a) form fields are 16 px on a phone', () => {
     expect(read('components/auto/YourSetup.vue').match(/border-slate-200 text-base sm:text-sm font-bold/g)).toHaveLength(2);
     expect(read('components/auto/ChainSearchPanel.vue')).toContain('border-slate-300 text-base sm:text-[12px] font-bold');
     expect(read('components/auto/InstantRoute.vue').match(/border-slate-200 text-base sm:text-\[11px\] py-0\.5/g)).toHaveLength(2);
+  });
+});
+
+describe('(b) numbers in tables are tabular', () => {
+  it('a global rule gives every td and th tabular figures', () => {
+    const at = css.indexOf('td,\nth {');
+    expect(at).toBeGreaterThan(-1);
+    expect(depthAt(css, at)).toBe(0);
+    expect(css.slice(at, css.indexOf('}', at))).toContain('font-variant-numeric: tabular-nums;');
+  });
+
+  it('the columns the review named are real table cells, so the rule covers them', () => {
+    const instant = read('components/auto/InstantRoute.vue');
+    // The two counts tables (instant answer, Fastest): TE · spare and Reached; Reaches and Behind.
+    expect(instant.match(/<table class="counts-stack[^"]*" data-testid="counts-table">/g)).toHaveLength(2);
+    for (const head of ['TE · spare', 'Reached', 'Reaches {{ store.finalTE }}', 'Behind']) expect(instant).toContain(`<th class="py-1 pr-2">${head}</th>`);
+    expect(instant).toMatch(/<td class="[^"]*" data-testid="counts-te">/);
+    // Leaderboard: its three tables.
+    expect(read('components/auto/LeaderboardPanel.vue').match(/<table\b/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('no table cell turns tabular figures off', () => {
+    const bad = ALL_VUE.filter(f => /<t[dh]\b[^>]*\b(normal-nums|proportional-nums)\b/.test(fs.readFileSync(f, 'utf8')));
+    expect(bad).toEqual([]);
   });
 });

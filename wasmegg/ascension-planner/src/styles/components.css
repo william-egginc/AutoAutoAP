@@ -262,3 +262,12 @@
         font-size: 16px;
     }
 }
+
+/* Numbers in every table line up (type review 26 Oct, item 6): the instant answer's counts tables (TE · spare,
+   Reached, Reaches, Behind), the Leaderboard's columns, the leg tables. Same-width figures for every cell, so a
+   1 above an 8 no longer shifts a column (it did in Segoe UI). Harmless on a text cell. A cell that needs
+   proportional figures can still say `normal-nums` (one class outranks this). */
+td,
+th {
+    font-variant-numeric: tabular-nums;
+}
