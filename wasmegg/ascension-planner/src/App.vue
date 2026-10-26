@@ -3,7 +3,7 @@
   <div class="aap-navbar"><the-nav-bar active-entry-id="ascension-planner" /></div>
 
   <!-- With the floating Setup pill (SetupDock.vue: fixed 1rem from the bottom right, 56 px tall on a phone with its
-       44 px buttons, about 45 px from sm up) the page ends 6rem plus the phone's safe area lower, so its last lines
+       44 px buttons, about 45 px from sm up, about 65 px in two rows from xl) the page ends 6rem plus the phone's safe area lower, so its last lines
        scroll clear of the pill instead of under it (Jordan, 21 Oct 2026). On Manual below md the notes and stats
        bubbles (FloatingNotes.vue, FloatingStats.vue: fixed 7rem up, about 70 px tall) sit over the page's sides, so
        it ends 12rem lower there: anything, the Help improve the planner ticks too, scrolls clear of them. -->

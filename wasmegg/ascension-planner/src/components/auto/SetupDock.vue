@@ -30,7 +30,14 @@
       <YourSetup :screen="screen" docked />
     </div>
 
-    <div class="flex items-center gap-1 rounded-full bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5">
+    <!-- From xl (1280 px) the pill stacks Setup over the workers, 10rem wide, so it sits in the margin right of the
+         Auto Planner's 56rem column instead of over its right edge (UX review 26 Oct, #18: it covered "Every number
+         of ascensions ›"). Not on My runs, whose summary line needs the width and whose page is wider anyway. -->
+    <div
+      class="flex items-center gap-1 rounded-full bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5"
+      :class="stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : ''"
+      data-testid="setup-dock-pill"
+    >
       <!-- Drag it anywhere (the user, 30 Sept); where it was left is remembered. Double-click puts it back. -->
       <span
         class="cursor-grab active:cursor-grabbing touch-none select-none px-1 text-white/70 hover:text-white"
@@ -66,7 +73,8 @@
           :title="`${errors} problem${errors > 1 ? 's' : ''} with your save`"
         ></span>
       </button>
-      <span class="w-px h-5 bg-white/30" aria-hidden="true"></span>
+      <span class="w-px h-5 bg-white/30" :class="stacked ? 'xl:hidden' : ''" aria-hidden="true"></span>
+      <span v-if="stacked" class="hidden xl:block basis-full h-0" aria-hidden="true"></span>
       <!-- Workers, adjustable folded: a running search resizes to it within about a minute. -->
       <button
         type="button"
@@ -101,11 +109,13 @@ import { useUIStore } from '@/stores/ui';
 import type { AutoView } from '@/lib/siteNav';
 import YourSetup from './YourSetup.vue';
 
-defineProps<{
+const props = defineProps<{
   screen: AutoView;
   /** A short line under "Setup" ("7 am–11 pm · no time off"), on My runs, which has no setup box of its own. */
   summary?: string;
 }>();
+/** Stacked in two rows from xl (see the pill): every screen but My runs (its summary needs the width). */
+const stacked = computed(() => !props.summary);
 const store = useChainSearchStore();
 const ui = useUIStore();
 
