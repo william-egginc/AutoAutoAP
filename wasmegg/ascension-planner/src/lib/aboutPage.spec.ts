@@ -76,7 +76,7 @@ describe('About and privacy page', () => {
     expect(upload).not.toMatch(/useConsent|consentAgreed/);
     if (AUTO_FOLLOW_FIRST)
       expect(text).toContain(
-        'Two things are sent without a press. The route you follow can be saved online by itself: the first answer for Fastest to 490 and for Egg Day 2027, when you follow nothing for that goal'
+        'Two things are sent without a press. The route you follow can be saved online by itself: the first answer for Fastest to 490 TE and for Egg Day 2027, when you follow nothing for that goal'
       );
     else expect(text).not.toContain('The route you follow can be saved online by itself');
     expect(text).toContain(
@@ -97,7 +97,7 @@ describe('About and privacy page', () => {
 
   it('says a public row has the hours, the time off and the start weekday, as the collector keeps them', () => {
     expect(text).toContain(
-      'If you set them, the row also has your hours (the times of day you said you can play, shown in the Schedule column) and the days you marked as away from virtue (time off). It always has the weekday your plan starts on. Rows are public.'
+      'If you set them, the row also has your awake hours (the times of day you said you are awake, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
     );
     expect(text).toContain('Last updated Oct 24, 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
@@ -179,7 +179,7 @@ describe('About and privacy page', () => {
       expect(text).toContain(
         'That is the instant answer as its box shows it, or a Fast, Exact or Custom run that becomes your route on My runs, Right now, whichever comes first.'
       );
-      expect(text).toContain('Every other goal (another By a date, a Fastest to N TE target of your own) is saved only when you press Follow this route');
+      expect(text).toContain('Every other goal (another Highest TE by a date, a Fastest to N TE target of your own) is saved only when you press Follow this route');
       expect(text).toContain('so a route you follow on another device is never replaced. After that, a better answer only asks you');
     } else expect(text).not.toContain('The first answer for Fastest to 490 TE');
     expect(text).not.toContain('When you are not following another route for a goal');
@@ -187,11 +187,11 @@ describe('About and privacy page', () => {
     expect(setup).toContain('It is saved when you press Follow this route,');
     expect(setup).toContain('v-if="AUTO_FOLLOW_FIRST"');
     expect(setup.replace(/\s+/g, ' ')).toContain(
-      'The first answer for {{ NAMES.fastest }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online, unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.'
+      'The first answer for {{ fastestName(store.finalTE) }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online, unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.'
     );
     expect(text).not.toContain('not loading your account');
     expect(text).toContain(
-      'What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to spare, the hours window you used, the time of your save, and the simulator and planner version. Never your player ID or a name. Your days, time off and no-prestige days are not stored.'
+      'What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to spare, the awake hours window you used, the time of your save, and the simulator and planner version. Never your player ID or a name. Your days, time off and no prestige days are not stored.'
     );
     expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
     expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');

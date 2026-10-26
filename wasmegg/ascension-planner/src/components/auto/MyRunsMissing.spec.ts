@@ -51,7 +51,7 @@ describe('A run of yours isn’t here?', () => {
 
   it('an id no row has', async () => {
     expect(textOf(await renderHtml(MyRunsMissing, { ...props, initialId: '999999' }))).toContain(
-      'No run on the public board has that id.'
+      'No run on the public Leaderboard has that id.'
     );
   });
 });

@@ -207,8 +207,8 @@
               progress, so it too is shorter when a plan is made later.
             </p>
             <p class="leading-relaxed">
-              <b class="text-slate-700">These are searches, not surveys.</b> Most runs explored a band somebody typed,
-              so this shows where good routes were found, which is not always where the good routes are. A band that
+              <b class="text-slate-700">These are searches, not surveys.</b> Most runs explored a range somebody typed,
+              so this shows where good routes were found, which is not always where the good routes are. A range that
               stops dead at a round number is usually the edge of a search box.
             </p>
           </div>
@@ -864,20 +864,20 @@
           <template v-if="gearView === 'map'">
             <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
               <b>How to read it:</b> each mark is one account: across is the TE it started from, up is its Clothed TE,
-              darker is a stronger delivery set. Grey areas are where the board still wants accounts.
+              darker is a stronger delivery set. Grey areas are where the Leaderboard still wants accounts.
             </p>
             <details>
               <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
                 How this is worked out
               </summary>
               <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
-                Where the board's accounts sit, and where it has no data. One mark per account, from its newest run that
+                Where the Leaderboard's accounts sit, and where it has no data. One mark per account, from its newest run that
                 recorded its gear: across is the TE that run started from, up is its Clothed TE, darker is a stronger
                 delivery set. Clothed TE is TE plus what the earnings set adds, and every account so far adds between
                 +115 and +129, so the marks sit on one narrow diagonal between the dashed guides. More TE has always
                 come with more Clothed TE, so these runs cannot yet say whether a plan follows the gear or the TE. The
                 pink band is where the planner estimates a first ascension stalls on Integrity, and no account is near
-                it. The grey areas are open asks from {{ NAMES.check }} (the {{ NAMES.science }} tab): places the board still
+                it. The grey areas are open asks from {{ NAMES.check }} (the {{ NAMES.science }} tab): places the Leaderboard still
                 wants more accounts from. One can already hold an account or two ("1 of 2"); it stays grey until enough
                 have covered it.
               </p>
@@ -966,11 +966,11 @@
               </span>
             </p>
             <p class="text-[10px] text-slate-400 leading-relaxed">
-              A wide band means the exact value barely matters; a band one or two TE wide means it does. Both are
-              measured against the space this run actually enumerated, so a band that runs to the edge of that space is
+              A wide range means the exact value barely matters; a range one or two TE wide means it does. Both are
+              measured against the space this run actually enumerated, so a range that runs to the edge of that space is
               telling you about the search as much as about the game. 1% of a 700-day plan is 7 days, more than most
               extra ascensions save, which is why this starts at 1 day. The chart marks the same line and the last
-              stop's band.
+              stop's range.
             </p>
           </div>
 
@@ -1044,7 +1044,7 @@
                   made. A sale plan is a choice for one ascension against a sale calendar everyone shares, so unlike a total
                   it lines up across accounts by TE. An ascension one account sent in several runs is one mark. Larger, ringed
                   marks are ascensions that unlock research tier 13. The table under the chart names the commonest plan for
-                  each 20-TE start band and ascension length. It shows which plan won each ascension of the winning routes, not by
+                  each 20-TE start range and ascension length. It shows which plan won each ascension of the winning routes, not by
                   how much it won.
                 </p>
               </details>
@@ -1193,7 +1193,7 @@
           @run-by-date="r => emit('run-by-date', r)"
         />
         <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
-          The asks are worked out from the runs on the board, so they need the board, and it
+          The asks are worked out from the runs on the Leaderboard, so they need the Leaderboard, and it
           {{ error ? 'gave nothing to work from (see above)' : 'holds no runs yet' }}. Any run you send, from a
           search or from {{ NAMES.submit }}, still helps.
         </p>
@@ -1920,7 +1920,7 @@ function vsBestTitle(row: CollectorRow): string {
       : `Finishes ${signedDays(j.behind).replace(/^[+−]/, '')} after ${against}`;
   // Time off before saves: a time-off copy of a normal run shares its save, and the gap is the time away.
   if (best && timeOffKey(row) !== timeOffKey(best.row)) {
-    return `${days}. The two are planned around different time off, so part of the gap is the time away, not the plans.`;
+    return `${days}. The two are planned around different time off, so part of the gap is the time off, not the plans.`;
   }
   if (j.sameSaveAsBest) return `${days}. Planned from the same save as that run, so the gap is the plans alone.`;
   // Same save, different planner build: the Leaderboard's "other version".

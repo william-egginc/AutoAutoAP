@@ -361,8 +361,8 @@ export const NOT_SAVED_WORDS = "Not saved online yet: your other devices don't s
 
 /** Right now's quiet note when a saved route was set with other hours or another simulator than the player's now. */
 export function setWithOtherWords(o: { hours: boolean; sim: boolean }): string {
-  if (o.hours && o.sim) return 'This route was set with a different hours window and simulator version.';
-  if (o.hours) return 'This route was set with a different hours window.';
+  if (o.hours && o.sim) return 'This route was set with different awake hours and simulator version.';
+  if (o.hours) return 'This route was set with different awake hours.';
   if (o.sim) return 'This route was set with a different simulator version.';
   return '';
 }

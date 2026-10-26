@@ -104,7 +104,7 @@ export function howSure(i: SureInput): Sure {
   const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'simulator check' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
   // Low.
   if (i.olderSimulator) return { level: 'low', reason: 'priced by an older simulator' };
-  if (i.hoursChanged) return { level: 'low', reason: 'priced before your hours changed' };
+  if (i.hoursChanged) return { level: 'low', reason: 'priced before your awake hours changed' };
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };
   if (i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}` };

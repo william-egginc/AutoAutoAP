@@ -393,7 +393,7 @@ export function scatterNotes(v: ScatterView, missed: number): string[] {
     );
   if (missed && v.goal?.kind === 'date')
     out.push(
-      `${missed} By a date ${missed === 1 ? 'run misses its date' : 'runs miss their dates'}, so ${missed === 1 ? 'it is' : 'they are'} not shown.`
+      `${missed} Highest TE by a date ${missed === 1 ? 'run misses its date' : 'runs miss their dates'}, so ${missed === 1 ? 'it is' : 'they are'} not shown.`
     );
   return out;
 }

@@ -78,7 +78,7 @@
       >
         <span class="block text-sm font-black text-slate-900">Another date</span>
         <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
-          >Any date and time you like. Answers you send go on the {{ NAMES.compare }}'s By a date tab.</span
+          >Any date and time you like. Answers you send go on the {{ NAMES.compare }}'s Other dates tab.</span
         >
       </button>
     </div>
@@ -430,17 +430,17 @@
             </template>
           </RoutesToTry>
           <p class="text-[11px] text-slate-500 leading-relaxed">
-            Each box is one band of TEs per ascension before the last, like {{ fastestName(store.finalTE) }} ›
-            {{ NAMES.fullFirst }}'s, separated by <span class="font-mono-premium">;</span>. A band is
+            Each box is one range of TEs per ascension before the last, like {{ fastestName(store.finalTE) }} ›
+            {{ NAMES.fullFirst }}'s, separated by <span class="font-mono-premium">;</span>. A range is
             <span class="font-mono-premium">lo-hi:step</span>, a single value, or several values with commas. Boxes with
             other ascension counts all run from the same click, and a 1- or 2-ascension box costs next to nothing.
             <template v-if="suggestFrom">{{ suggestFrom }}</template>
           </p>
           <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
-            This search starts each fresh ascension the moment the last one ends, or with your hours set, as soon as you
-            are next available; the instant answer starts it on the next whole hour inside your hours. With your hours
-            set, that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). With hours
-            off, the two differ by up to about an hour per ascension.
+            This search starts each fresh ascension the moment the last one ends, or with your awake hours set, as soon as you
+            are next available; the instant answer starts it on the next whole hour inside your awake hours. With your awake hours
+            set, that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). Without awake
+            hours, the two differ by up to about an hour per ascension.
           </p>
         </template>
 
@@ -639,9 +639,9 @@
               (what this machine's last run over a space this shape needed)</template
             >: the last stop is narrowed down, not tried at every TE. During a run the time left is the ascensions left at the
             rate of the last 12 minutes. The estimate uses
-            <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last By a date search</template
+            <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last Highest TE by a date search</template
             ><template v-else
-              >the typical speed for routes this long in players' runs, until this machine has done a By a date search of its
+              >the typical speed for routes this long in players' runs, until this machine has done a Highest TE by a date search of its
               own</template
             >, on {{ store.workerBudget }} workers.
           </p>
@@ -830,9 +830,9 @@
         class="text-[10px] text-slate-500 leading-relaxed"
         data-test="start-timing-note"
       >
-        This search starts each fresh ascension the moment the last one ends, or with your hours set, as soon as you
-        are next available; the instant answer starts it on the next whole hour inside your hours. With your hours set,
-        that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). With hours off, the
+        This search starts each fresh ascension the moment the last one ends, or with your awake hours set, as soon as you
+        are next available; the instant answer starts it on the next whole hour inside your awake hours. With your awake hours set,
+        that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). Without awake hours, the
         two differ by up to about an hour per ascension.
       </p>
       <!-- The best route on the edge of its box (the Full sweep's check, bandCheck.ts): a wider box may
@@ -1631,9 +1631,9 @@ function shapesOf(row: { asc: number; text: string } | undefined, range: [number
 function problemOf(row: { asc: number; text: string } | undefined, range: [number, number] | null): string {
   if (!row || row.asc <= 1) return '';
   const b = bandsOf(row);
-  if (!b.length) return 'Nothing readable yet: press Suggest a space or type bands.';
-  if (b.length !== row.asc - 1) return `These bands make ${b.length + 1} ascensions, not ${row.asc}.`;
-  return range && !shapesOf(row, range) ? 'No route in these bands goes up to the last stop.' : '';
+  if (!b.length) return 'Nothing readable yet: press Suggest a space or type ranges.';
+  if (b.length !== row.asc - 1) return `These ranges make ${b.length + 1} ascensions, not ${row.asc}.`;
+  return range && !shapesOf(row, range) ? 'No route in these ranges goes up to the last stop.' : '';
 }
 /** Advanced's chain `k`, as the editor shows it. */
 const rowShapes = (k: number) => shapesOf(chains.value[k], lastRange.value);
@@ -2246,7 +2246,7 @@ const bigBoxInput = computed<BigBoxInput>(() => ({
   seconds: plan.value.seconds,
   workers: store.workerBudget,
   basis: store.deadlineWorkerSeconds
-    ? `${thisDevice()}'s speed from its last By a date search`
+    ? `${thisDevice()}'s speed from its last Highest TE by a date search`
     : "the typical speed for routes this long in players' runs",
   device: thisDevice(),
   where: 'site',

@@ -326,7 +326,7 @@ export function slipText(n: NeedleWarning | null, chosenHours: number): string |
 
 /** Shown above the suggestions when they were priced without the player's hours. */
 export const ANY_HOUR_WARNING =
-  'These waits assume you can shift eggs at any hour. Set your hours in Setup first: with real hours, long waits usually lose.';
+  'These waits assume you can shift eggs at any hour. Set your awake hours in Setup first: with real awake hours, long waits usually lose.';
 
 /** What the "Try waiting before each prestige" panel says about each prestige, and about the waits together. */
 export interface WaitLines {

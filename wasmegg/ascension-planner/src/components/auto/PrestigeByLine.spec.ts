@@ -25,7 +25,7 @@ describe('PrestigeByLine', () => {
     );
     expect(t).not.toContain('5 test cases so far');
     // No hours: no hours note.
-    expect(t).not.toContain('With your hours on');
+    expect(t).not.toContain('With awake hours on');
     expect(t).toContain(LINE.text);
     expect(t).toContain('tight');
     expect(t).toContain('lands 5.6 h before the date');
@@ -37,7 +37,7 @@ describe('PrestigeByLine', () => {
   it('with hours on, says a prestige minutes off the time shown can move the finish by days (math review, 24 Oct)', async () => {
     const t = textOf(await renderHtml(PrestigeByLine, { line: LINE, status: 'done', hoursOn: true }));
     expect(t).toContain(
-      'With your hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.'
+      'With awake hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.'
     );
   });
 
@@ -94,7 +94,7 @@ describe('PrestigeByLine: one line, the notes behind "Why? ›" (Jordan, 25 Oct 
     const t = textOf(why);
     expect(t.startsWith('Why? ›')).toBe(true);
     expect(t).toContain('Worked out on the instant answer');
-    expect(t).toContain('With your hours on');
+    expect(t).toContain('With awake hours on');
     expect(t).toContain('Treat it as a hint.');
     // The line itself is outside it.
     const outside = textOf(html.replace(why, ''));

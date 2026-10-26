@@ -97,21 +97,21 @@ export function rowSetup(row: { window?: string | null; timeOff?: TimeOffDates[]
 
 /**
  * The secondary line's label for an answer priced with another setup: "with any hour (before your hours changed)",
- * "with 9 am–1 am (before your hours changed)", "with no time off (before your time off changed)", or "with other
+ * "with 9 am–1 am (before your awake hours changed)", "with no time off (before your time off changed)", or "with other
  * hours" when what it was priced with was not recorded. '' for the current setup.
  */
 export function otherSetupLabel(c: SetupCheck): string {
   if (c.fit === 'current') return '';
   const r = c.recorded;
-  if (!r) return 'with other hours';
+  if (!r) return 'with other awake hours';
   if (c.hours)
-    return `with ${hoursShort(r.availability)}${c.timeOff ? `, ${timeOffWords(r.timeOff)}` : ''} (before your hours changed)`;
+    return `with ${hoursShort(r.availability)}${c.timeOff ? `, ${timeOffWords(r.timeOff)}` : ''} (before your awake hours changed)`;
   return `with ${timeOffWords(r.timeOff)} (before your time off changed)`;
 }
 
 /** Right now's header words: "priced with your hours 7 am to 1 am, no time off", "priced with other hours". */
 export function pricedWithWords(c: SetupCheck): string {
-  if (!c.recorded) return 'priced with other hours';
+  if (!c.recorded) return 'priced with other awake hours';
   const line = pricedWithLine(c.recorded);
   return line.charAt(0).toLowerCase() + line.slice(1);
 }

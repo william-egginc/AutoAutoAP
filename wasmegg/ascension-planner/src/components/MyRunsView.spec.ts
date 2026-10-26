@@ -53,7 +53,7 @@ describe('MyRunsView', () => {
     expect(board).toBeGreaterThan(-1);
     expect(board).toBeLessThan(saved);
     expect(saved).toBeLessThan(unsent);
-    expect(t).toContain('Your runs on the board');
+    expect(t).toContain('Your runs on the Leaderboard');
     expect(t).toContain('Saved on this computer');
     expect(t).toContain('Not sent yet');
     // Compare's board in its my-runs mode: no view tabs, no target picker; it asks for the save first.
@@ -67,7 +67,7 @@ describe('MyRunsView', () => {
   it('folds a part that is empty, opens one with something in it, and keeps the board open while it loads', async () => {
     const empty = await renderHtml(MyRunsView, { playerId: 'P' }, {}, [pinia]);
     expect(partTag(empty, 'my-runs-part-board')).toContain(' open');
-    expect(textOf(empty)).toContain('Your runs on the board · loading');
+    expect(textOf(empty)).toContain('Your runs on the Leaderboard · loading');
     expect(partTag(empty, 'my-runs-part-saved')).not.toContain(' open');
     expect(partTag(empty, 'my-runs-part-unsent')).not.toContain(' open');
     expect(textOf(empty)).toContain('Not sent yet · none yet');

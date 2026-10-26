@@ -204,9 +204,9 @@ export function sourceLabel(r: EarlierRoute, showMs: (unixMs: number) => string)
     case 'last-search':
       return 'your last search here';
     case 'board':
-      return when ? `your board run, sent ${when}` : 'your board run';
+      return when ? `your Leaderboard run, sent ${when}` : 'your Leaderboard run';
     case 'board-other':
-      return when ? `your board run, sent ${when} from another browser` : 'your board run, sent from another browser';
+      return when ? `your Leaderboard run, sent ${when} from another browser` : 'your Leaderboard run, sent from another browser';
     case 'saved-search':
       return when ? `your saved search, ${when}` : 'your saved search';
     case 'saved-answer':
@@ -227,7 +227,7 @@ export function earlierFromText(routes: readonly EarlierRoute[]): string {
   const here = n('board');
   const other = n('board-other');
   if (here + other) {
-    const runs = here + other === 1 ? 'your board run' : 'your board runs';
+    const runs = here + other === 1 ? 'your Leaderboard run' : 'your Leaderboard runs';
     parts.push(
       !other ? runs : !here ? `${runs} sent from another browser` : `${runs}, ${other} of them sent from another browser`
     );

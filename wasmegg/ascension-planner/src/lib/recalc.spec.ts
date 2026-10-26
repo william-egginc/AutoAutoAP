@@ -13,10 +13,10 @@ describe('Run Fast (was Recalculate, which ran Check exactly until 23 Oct 2026)'
 
   it('the line beside the button says what it does; the button says "again" once a Fast run drives', () => {
     expect(recalcWords({ auto: 'fastest', depth: 'smart', target: 490 })).toBe(
-      'Opens Fastest to 490 TE with your save and Fast selected; it starts when you press Find'
+      'Opens Fastest to 490 TE with your save and Fast selected; it starts when you press Run'
     );
     expect(recalcWords({ auto: 'by-date', byDate: { eggDay: true } })).toBe(
-      'Opens Highest TE by a date with your save and Fast selected; it starts when you press Find'
+      'Opens Highest TE by a date with your save and Fast selected; it starts when you press Run'
     );
     expect(recalcButton(false)).toBe('Run Fast');
     expect(recalcButton(true)).toBe('Run Fast again');

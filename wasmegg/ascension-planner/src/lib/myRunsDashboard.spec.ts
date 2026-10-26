@@ -97,7 +97,7 @@ describe('Next steps: only what changes what to do', () => {
     expect(s.reason).toMatch(/^It prestiges at 225 TE .+ inside your time off Oct 26\. Run Fast for a route that works around it\.$/);
     expect(s.reason).toMatch(/\d:\d\d [AP]M/);
     const np = { ...off, words: 'your no-prestige days Oct 26', kind: 'no-prestige day' as const };
-    expect(buildSteps(input({ follows: [follow()], windows: [np] })).steps[0].text).toBe('Egg Day 2027: a prestige of your route lands on a no-prestige day');
+    expect(buildSteps(input({ follows: [follow()], windows: [np] })).steps[0].text).toBe('Egg Day 2027: a prestige of your route lands on a no prestige day');
     // A race: Fast, Nearby routes.
     const race = follow({ goalKey: 'fastest-490', name: 'Fastest to 490 TE', goal: 'fastest', deadline: null, eggDay: false });
     expect(buildSteps(input({ follows: [race], windows: [off] })).steps[0].action).toEqual({ to: 'fastest', target: 490, tab: 'nearby', level: 'quick' });

@@ -142,7 +142,7 @@ describe('submitting a result', () => {
       body: new ArrayBuffer(65 * 1024 * 1024),
     };
     const calls = collector();
-    expect((await s.retryTable('fastest')).message).toMatch(/too large for the board .*limit 64\.0 MB/);
+    expect((await s.retryTable('fastest')).message).toMatch(/too large for the Leaderboard .*limit 64\.0 MB/);
     expect(calls).toHaveLength(0);
   });
 
@@ -173,7 +173,7 @@ describe('submitting a result', () => {
     collector(json({ ok: true, id: 'abcd1234', uploadToken: 't' }), json({ error: 'CSV too large' }, 413));
     const res = await s.sendSubmission(PAYLOAD, 'rank,chain\n');
     expect(res.ok).toBe(true);
-    expect(res.message).toMatch(/too large for the board/);
+    expect(res.message).toMatch(/too large for the Leaderboard/);
     expect(res.message).toMatch(/Download CSV/);
     expect(s.pendingTable).toBeNull();
   });
@@ -259,7 +259,7 @@ describe('what the collector says about a send it recognised', () => {
     const calls = collector(json({ ok: true, id: 'feed1234', duplicate: 'exact', firstAt }));
     const res = await s.sendSubmission(PAYLOAD, 'rank,chain\n');
     expect(res).toMatchObject({ ok: true, duplicate: 'exact' });
-    expect(res.message).toMatch(/^Already on the board \(sent at \d{1,2}:\d\d(?:\s[AaPp]\.?[Mm]\.?)?\), nothing new stored$/);
+    expect(res.message).toMatch(/^Already on the Leaderboard \(sent at \d{1,2}:\d\d(?:\s[AaPp]\.?[Mm]\.?)?\), nothing new stored$/);
     expect(calls).toHaveLength(1);
     expect(s.pendingTable).toBeNull();
     // Locked, and remembered on the row the collector already had.
@@ -277,7 +277,7 @@ describe('what the collector says about a send it recognised', () => {
     const res = await s.sendSubmission(PAYLOAD, 'rank,chain\n');
     // What happened to THAT row's missing table -- not "nothing new stored - sent, with the full CSV".
     expect(res.message).toMatch(
-      /^Already on the board \(sent on \S+ \S+ at \d{1,2}:\d\d(?:\s[AaPp]\.?[Mm]\.?)?\); its missing CSV was added \(\d+ KB compressed\)$/
+      /^Already on the Leaderboard \(sent on \S+ \S+ at \d{1,2}:\d\d(?:\s[AaPp]\.?[Mm]\.?)?\); its missing CSV was added \(\d+ KB compressed\)$/
     );
     expect(calls[1]).toMatch(/\/csv\?id=feed1234$/);
   });
@@ -299,7 +299,7 @@ describe('what the collector says about a send it recognised', () => {
     const s = await store();
     collector(json({ ok: true, id: 'feed1234', duplicate: 'exact', renamed: true }));
     const res = await s.sendSubmission({ ...PAYLOAD, nickname: 'Kenzie' });
-    expect(res.message).toBe('Already on the board; your name is on it now (Kenzie)');
+    expect(res.message).toBe('Already on the Leaderboard; your name is on it now (Kenzie)');
   });
 
   // Review, 2026-09-26: the store took the name it had just sent as the stored row's, so a name the
@@ -312,7 +312,7 @@ describe('what the collector says about a send it recognised', () => {
     collector(json({ ok: true, id: 'feed1234', duplicate: 'exact', nickname: 'Kenzie' }));
     const res = await s.sendSubmission({ ...PAYLOAD, nickname: 'Kenzie2' });
     expect(res.message).toBe(
-      'Already on the board, nothing new stored. It is on the board as Kenzie: press Put my name on it to make it Kenzie2'
+      'Already on the Leaderboard, nothing new stored. It is on the Leaderboard as Kenzie: press Put my name on it to make it Kenzie2'
     );
     expect(s.sentRecord).toMatchObject({ id: 'feed1234', nickname: 'Kenzie' });
     expect(s.nameToClaim('Kenzie2')).toBe('Kenzie2');
@@ -326,7 +326,7 @@ describe('what the collector says about a send it recognised', () => {
     s.bestDays = 760.5;
     collector(json({ ok: true, id: 'feed1234', duplicate: 'exact' }));
     const res = await s.sendSubmission({ ...PAYLOAD, nickname: 'Kenzie2' });
-    expect(res.message).toBe('Already on the board, nothing new stored; the name on it was not changed');
+    expect(res.message).toBe('Already on the Leaderboard, nothing new stored; the name on it was not changed');
     expect(s.nameToClaim('Kenzie2')).toBe('Kenzie2');
   });
 });

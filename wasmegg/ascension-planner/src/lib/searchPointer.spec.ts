@@ -38,7 +38,7 @@ describe('pointerOf', () => {
   it('the link and the one line, word for word', () => {
     expect(POINTER_LINK).toBe('See it ↓');
     expect(INSTANT_ONE_LINE).toBe(
-      'These are instant answers, worked out ahead of time. For an answer priced on your account (your hours, your current ascension, your gear), run Fast, Exact or Custom below.'
+      'These are instant answers, worked out ahead of time. For an answer priced on your account (your awake hours, your current ascension, your gear), run Fast, Exact or Custom below.'
     );
   });
 });

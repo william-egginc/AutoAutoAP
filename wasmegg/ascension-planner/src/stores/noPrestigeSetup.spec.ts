@@ -94,16 +94,16 @@ describe('the three kinds of "not now", in the player\'s words', () => {
 
   it('Your setup names all three, each its own thing', () => {
     const setup = read('components/auto/YourSetup.vue');
-    expect(setup).toContain('Awake hours:</span> no shifts outside them');
-    expect(setup).toContain('No prestige on these days:</span> stay on virtue; a prestige waits for the');
-    expect(setup).toContain('Away from virtue (time off):</span> go to the home farm, and rebuild when');
+    expect(setup).toContain('Awake hours:</span> on the virtue farm, but shifts and prestiges wait for them');
+    expect(setup).toContain('No prestige days:</span> stay on virtue; a prestige waits for the');
+    expect(setup).toContain('Time off:</span> off the virtue farm, on the home farm, nothing earned on virtue; rebuild when');
     expect(setup).toContain('<TimeOffEditor kind="noPrestige" />');
   });
 
   it('the day picker has a title and an explanation for each kind', () => {
     const editor = read('components/auto/TimeOffEditor.vue');
-    expect(editor).toContain("title: 'Away from virtue (time off)'");
-    expect(editor).toContain("title: 'No prestige on these days'");
+    expect(editor).toContain("title: 'Time off'");
+    expect(editor).toContain("title: 'No prestige days'");
     expect(editor).toContain('Egg shifts still happen on these days.');
     expect(editor).toContain('Going to the home farm is a prestige');
   });
@@ -111,9 +111,9 @@ describe('the three kinds of "not now", in the player\'s words', () => {
   it('How it works no longer calls time off a wait, and the About page names away from virtue', () => {
     const how = read('components/science/HowItWorks.vue');
     expect(how).not.toContain('Time off is\n          planned the same way');
-    expect(how).toContain('<b>Away from virtue (time off)</b> is different');
-    expect(how).toContain('<b>No prestige on these days</b>');
+    expect(how).toContain('<b>Time off</b> is different');
+    expect(how).toContain('<b>No prestige days</b>');
     const about = fs.readFileSync(path.resolve(__dirname, '../../public/about.html'), 'utf8');
-    expect(about).toContain('away from virtue (time off)');
+    expect(about).toContain('the days you marked as time off');
   });
 });

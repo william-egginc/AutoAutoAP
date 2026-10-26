@@ -530,7 +530,7 @@ const eggPicture = computed(() => eggIconPath(props.currentEgg));
 const goalName = computed(() =>
   props.card?.goal.goal === 'date'
     ? (props.card.name ?? `Egg Day ${props.eggDayYear}`)
-    : `Fastest to ${props.card?.goal.target ?? 490} TE`
+    : fastestName(props.card?.goal.target)
 );
 /** The goal in the route line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
 const followName = computed(() => {

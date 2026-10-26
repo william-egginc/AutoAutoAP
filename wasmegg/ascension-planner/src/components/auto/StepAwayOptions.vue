@@ -318,7 +318,7 @@
               <span class="block text-slate-500"
                 >Puts your best on the leaderboard as an in-progress row, and saves the CSV of everything priced so far with
                 it, so a crash loses less. Only when something new was priced since the last one. The CSV goes when "Send my
-                CSV too" is ticked in Before you send, diagnostics when "Also send diagnostics" is. The finished run replaces it
+                CSV too" is ticked under Run, diagnostics when "Also send diagnostics" is. The finished run replaces it
                 all.</span
               ></span
             >

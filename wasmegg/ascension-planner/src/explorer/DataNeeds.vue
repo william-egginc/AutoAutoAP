@@ -110,7 +110,7 @@
               {{ need.byDate.summary }} {{ need.bd?.wider }}
             </p>
             <p v-if="need.bd?.fitted.length">
-              The longest route's boxes, one per stop, from {{ teNow }} TE (shorter routes use the first ones):
+              The longest route's ranges, one per stop, from {{ teNow }} TE (shorter routes use the first ones):
               <span v-for="(f, i) in need.bd.fitted" :key="i" class="font-mono-premium font-bold"
                 >{{ i ? ' · ' : '' }}{{ f }}</span
               >.
@@ -392,7 +392,7 @@ const GROUPS: { id: 'gear' | 'bydate'; title: string; intro: string }[] = [
     id: 'gear',
     title: "Accounts and gear we haven't seen yet",
     intro:
-      "Every account on the board has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build the instant answer for, in the order we want them. An account counts towards a card once one of its runs wore that set; a card with enough accounts moves to the end until its instant answer is built.",
+      "Every account on the Leaderboard has strong earnings gear: between the all-common floor and the weakest player there is nothing. Each card below is a set we would build the instant answer for, in the order we want them. An account counts towards a card once one of its runs wore that set; a card with enough accounts moves to the end until its instant answer is built.",
   },
 ];
 

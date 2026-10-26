@@ -264,7 +264,7 @@ describe("Light's send", () => {
     expect(s.alreadySubmitted).toBe(false);
     const again = await s.sendLightResult({ result: r, nickname: '', sendCsv: false, diagnostics: false });
     expect(again.ok).toBe(true);
-    expect(again.message).toMatch(/Already on the board/);
+    expect(again.message).toMatch(/Already on the Leaderboard/);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

@@ -445,7 +445,7 @@ const SUBMIT_TIMEOUT_MS = 90_000;
 const TABLE_LIMIT_BYTES = PROGRESS_CSV_LIMIT_BYTES;
 
 function tableTooLargeMessage(size: string): string {
-  return `sent, but the table is too large for the board (${size} compressed, limit ${sizeLabel(TABLE_LIMIT_BYTES)}). The summary is in. Keep the table with Download CSV and send the file to whoever runs the board; retrying will not help.`;
+  return `sent, but the table is too large for the Leaderboard (${size} compressed, limit ${sizeLabel(TABLE_LIMIT_BYTES)}). The summary is in. Keep the table with Download CSV and send the file to whoever runs the Leaderboard; retrying will not help.`;
 }
 
 /** What the progress bar shows for the run going now (see `runProgress`). */
@@ -1361,7 +1361,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       bestSoFarStatus.value = {
         ok: false,
         pending: true,
-        text: 'Not sent yet: tick the box in Before you send to agree, and it sends straight away.',
+        text: 'Not sent yet: tick the box under Run to agree, and it sends straight away.',
       };
   }
   /** Resolves once any best-so-far send in flight has its answer, so a final send that follows
@@ -1437,7 +1437,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const bestSoFarAutoLine = computed(() => {
     const run = bestSoFar.value;
     if (!run || !stepAwayOptions.value.autoSendBest) return '';
-    if (!run.consent) return 'Waiting for your OK in Before you send.';
+    if (!run.consent) return 'Waiting for your OK in the box under Run.';
     const i = autoInput();
     return i ? autoStatusLine(i) : '';
   });
@@ -2814,7 +2814,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!run) return 'no run is loaded';
     if (run.complete) return 'this run finished, so there is nothing left to price';
     if (!run.space) {
-      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same bands and press Run Custom again, and anything it already priced will be replayed';
+      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same ranges and press Run Custom again, and anything it already priced will be replayed';
     }
     if (!currentPlayerId) return 'no player id, so there is no way to check the run is still valid';
     // With its own save stored, the run carries on with that save, not the current one; only the
@@ -4639,7 +4639,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           const wait = Math.max(1, detail.retryAfter ?? 3600);
           return {
             ok: false,
-            message: `the board takes at most 48 progress sends a day from one account; more after midnight UTC, in ${aboutIn(wait * 1000)}.`,
+            message: `the Leaderboard takes at most 48 progress sends a day from one account; more after midnight UTC, in ${aboutIn(wait * 1000)}.`,
             tooSoon: true,
             dailyCap: true,
             retryAfter: wait,
@@ -4668,7 +4668,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message: ctrl.signal.aborted
-          ? `the board didn't answer within ${Math.round(SUBMIT_TIMEOUT_MS / 1000)} seconds. Your results are still here; press it again in a while.`
+          ? `the Leaderboard didn't answer within ${Math.round(SUBMIT_TIMEOUT_MS / 1000)} seconds. Your results are still here; press it again in a while.`
           : "could not reach the planner's server (check your connection). Your results are still here. Press Submit again once you are back online, or use Save the file instead to keep a copy.",
       };
     } finally {
@@ -4712,11 +4712,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ? ' It replaced the best so far you sent before.'
         : ' It replaced the best so far you sent during the run.'
       : reply.replaceRefused
-        ? ` The best so far you sent earlier is still on the board (${reply.replaceRefused}).`
+        ? ` The best so far you sent earlier is still on the Leaderboard (${reply.replaceRefused}).`
         : '';
     const note =
       (flagged?.length
-        ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; Insights shows it to you as yours in this browser.`
+        ? ` It went to the flagged Leaderboard (${flagged.join(', ')}), shown anonymously; Insights shows it to you as yours in this browser.`
         : '') + replacedNote;
     // A copy the collector caught is said as a plain note, not an error and not a thank-you for
     // something that stored nothing (see `duplicateMessage`).
@@ -4877,9 +4877,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       case 'too-big':
         return { kind: 'too-big', bytes };
       case 'no-parts':
-        return { kind: 'failed', why: `the board doesn't take a CSV over ${sizeLabel(CSV_PART_BYTES)} yet` };
+        return { kind: 'failed', why: `the Leaderboard doesn't take a CSV over ${sizeLabel(CSV_PART_BYTES)} yet` };
       case 'refused':
-        return { kind: 'failed', why: 'the board answered 403' };
+        return { kind: 'failed', why: 'the Leaderboard answered 403' };
       default:
         return { kind: 'failed', why: up.why };
     }
@@ -5014,7 +5014,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const p = runProgress.value;
     if (bestSoFarSending.value) return { ok: false, text: 'Already sending.' };
     if (!run) return say(false, 'This run cannot send its best so far.');
-    if (!run.consent) return say(false, 'Not sent: tick the box in Before you send to agree first.');
+    if (!run.consent) return say(false, 'Not sent: tick the box under Run to agree first.');
     if (!p?.best || (p.kind === 'by-date') !== (run.kind === 'deadline'))
       return say(false, 'Nothing found yet to send.');
     // One every 30 minutes (BEST_SO_FAR_GAP_MS): each send costs the collector several KV writes.
@@ -5095,7 +5095,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const evidence = csv.kind === 'sent' ? ` Its CSV so far (${sizeLabel(csv.bytes)}) was stored with it.` : '';
         return say(false, `${res.message}${evidence}`, { quarantined: true });
       }
-      const flaggedNote = /flagged board/.test(res.message) ? ' It went to the flagged board.' : '';
+      const flaggedNote = /flagged (board|Leaderboard)/i.test(res.message) ? ' It went to the flagged Leaderboard.' : '';
       const as = payload.nickname ? ` as ${payload.nickname}` : ' anonymously';
       const carried = [
         csv.kind === 'sent' ? `the CSV so far (${sizeLabel(csv.bytes)})` : '',
@@ -5360,11 +5360,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }> {
     try {
       if (lightSent(o.result))
-        return { ok: true, duplicate: 'exact', message: 'Already on the board: this result was sent from this browser.' };
+        return { ok: true, duplicate: 'exact', message: 'Already on the Leaderboard: this result was sent from this browser.' };
       let payload = buildLightSubmission(o.result, o.nickname, o.note);
       if (!payload) return { ok: false, message: 'Nothing to send yet.' };
       const problems = validateSubmission(payload);
-      if (problems.length) return { ok: false, message: `this result can't go on the board (${problems.join('; ')}).` };
+      if (problems.length) return { ok: false, message: `this result can't go on the Leaderboard (${problems.join('; ')}).` };
       if (o.diagnostics) {
         try {
           const parsed = JSON.parse(
@@ -5458,7 +5458,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message:
-          "the board would not rename it: it was not stored with this browser's code for the account (sent from another browser, or before codes existed).",
+          "the Leaderboard would not rename it: it was not stored with this browser's code for the account (sent from another browser, or before codes existed).",
       };
     }
     if (res.status === 404) {
@@ -5469,10 +5469,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (age >= 0 && age < CLAIM_CATCH_UP_MS) {
         return {
           ok: false,
-          message: 'the board has not caught up with that send yet. Nothing is lost. Try again in a minute.',
+          message: 'the Leaderboard has not caught up with that send yet. Nothing is lost. Try again in a minute.',
         };
       }
-      return { ok: false, message: "the board does not have that run (or the planner's server cannot rename runs yet)." };
+      return { ok: false, message: "the Leaderboard does not have that run (or the planner's server cannot rename runs yet)." };
     }
     if (res.status === 429)
       return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter).replace('press Submit', 'press it') };
@@ -5552,7 +5552,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // A collector from before parts: nothing was stored, and the token stays good for when it is updated.
       return {
         ok: true,
-        message: `sent, but the board doesn't take a table over ${sizeLabel(CSV_PART_BYTES)} yet (${mb} compressed). The summary is in. Keep the table with Download CSV; Retry the table works once the board is updated.`,
+        message: `sent, but the Leaderboard doesn't take a table over ${sizeLabel(CSV_PART_BYTES)} yet (${mb} compressed). The summary is in. Keep the table with Download CSV; Retry the table works once the Leaderboard is updated.`,
       };
     }
     if (up.kind === 'already') {
@@ -5991,7 +5991,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         return {
           chains: [],
           error:
-            'No routes: the bands leave nothing strictly increasing once the minimum gap and your current TE are applied.',
+            'No routes: the ranges leave nothing strictly increasing once the minimum gap and your current TE are applied.',
         };
       }
       return { chains, error: null };
@@ -6075,7 +6075,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chainsDone.value = 0;
     chainsReplayed.value = 0;
     runLog.value = spec.bands?.length
-      ? [`--- exhaustive: ${spec.bands.length} bands, ${spec.bands.length + 1} ascensions`]
+      ? [`--- exhaustive: ${spec.bands.length} ranges, ${spec.bands.length + 1} ascensions`]
       : [`--- exhaustive: ${spec.minAsc}-${spec.maxAsc} ascensions`];
     if (minGap) runLog.value.push(`minimum gap ${minGap} TE between stops`);
     runLog.value.push(`${chains.length.toLocaleString()} routes, no pruning`);
@@ -6322,7 +6322,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : 'failed';
       if (options.recheck && !stopRequested.value && bestDays.value > 0 && pool) {
         const finalStage = stage.value;
-        stage.value = 're-checking your earlier plans for the board';
+        stage.value = 're-checking your earlier plans for the Leaderboard';
         await recheckBeforeTheEnd(pool);
         stage.value = finalStage;
       }
@@ -8649,7 +8649,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           : 'done';
       if (options.recheck && !outcome.stoppedEarly && bestDays.value > 0 && pool) {
         const finalStage = stage.value;
-        stage.value = 're-checking your earlier plans for the board';
+        stage.value = 're-checking your earlier plans for the Leaderboard';
         await recheckBeforeTheEnd(pool);
         stage.value = finalStage;
       }

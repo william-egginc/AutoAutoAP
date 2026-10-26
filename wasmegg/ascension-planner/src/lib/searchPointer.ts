@@ -59,7 +59,7 @@ export const POINTER_LINK = 'See it ↓';
  * the instant answer is worked out ahead of time; for one priced on the player's account, a search below.
  */
 export const INSTANT_ONE_LINE =
-  'These are instant answers, worked out ahead of time. For an answer priced on your account (your hours, your current ascension, your gear), run Fast, Exact or Custom below.';
+  'These are instant answers, worked out ahead of time. For an answer priced on your account (your awake hours, your current ascension, your gear), run Fast, Exact or Custom below.';
 
 /**
  * HOOK, NOT WIRED (23 Oct 2026): "First ascension: 3 egg shifts, Thu Oct 22, 4 pm to Fri Oct 23, 2 am" and "One more

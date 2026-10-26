@@ -279,7 +279,7 @@ export function buildSteps(i: StepsInput): DashSteps {
       steps.push({
         id: `prestige:${f.goalKey}`,
         kinds: ['prestige'],
-        text: `${f.name}: a prestige of your route lands ${w.kind === 'time off' ? 'in your time off' : 'on a no-prestige day'}`,
+        text: `${f.name}: a prestige of your route lands ${w.kind === 'time off' ? 'in your time off' : 'on a no prestige day'}`,
         reason: `It prestiges at ${p.te} TE ${when(p.at)}, inside ${w.words}. Run Fast for a route that works around it.`,
         button: 'Run Fast',
         action: goalAction(f),
@@ -306,7 +306,7 @@ export function buildSteps(i: StepsInput): DashSteps {
       id: 'unsent',
       kinds: ['unsent'],
       text: `${plural(i.pending, 'result')} not sent`,
-      reason: 'Kept in this browser; send each one so it counts on the board.',
+      reason: 'Kept in this browser; send each one so it counts on the Leaderboard.',
       button: 'Show me',
       action: { to: 'unsent' },
     });

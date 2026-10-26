@@ -221,7 +221,7 @@ describe('FindBar', () => {
       'Your best so far is sent as soon as you tick it, anonymously or under the name you choose below'
     );
     expect(t).toContain('Tick the box below and it sends straight away');
-    expect(t).toContain('Not sent yet: tick the box in Before you send to agree, and it sends straight away.');
+    expect(t).toContain('Not sent yet: tick the box under Run to agree, and it sends straight away.');
     // The name choice is there before the tick, since the tick sends.
     expect(t).toMatch(/Submit anonymously.*Credit me as/);
     store.endBestSoFar();

@@ -181,5 +181,5 @@ export function integrityMessage(seconds: number, cte?: CteParts | null): string
             `closer to that.`)
     : `A fresh ascension on this account sits on the Integrity shift for ${wait} before it can afford its habs ` +
         `(a healthy account is through it in under an hour). The plan runs, but that wait is in every date it gives, ` +
-        `and a result will go to the flagged board rather than the main one.`;
+        `and a result will go to the flagged Leaderboard rather than the main one.`;
 }

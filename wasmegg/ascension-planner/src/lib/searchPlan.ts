@@ -214,7 +214,7 @@ export function sourcePill(level: FoundLevel | null): string {
 export function replaceWords(t: Takeover, search: Pick<NowPlan, 'end'>, instant: Pick<NowPlan, 'end'> | null): string {
   if (t === 'makes-date') return 'Makes the date on your account, so it replaces the instant answer for the same goal:';
   if (t === 'simulated')
-    return "Simulated on your account with your hours, time off and dates, so it replaces the instant answer's estimate for the same goal:";
+    return "Simulated on your account with your awake hours, time off and dates, so it replaces the instant answer's estimate for the same goal:";
   if (t === 'sooner' && instant) {
     const gap = instant.end - search.end;
     return gap < 60

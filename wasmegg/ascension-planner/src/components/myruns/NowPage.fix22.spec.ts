@@ -111,9 +111,9 @@ describe('Right now and the Fastest tile: one plan, the other hours secondary', 
     const html = await renderHtml(RightNowCard, cardProps(cardOf()));
     const t = textOf(html);
     expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 11:59 PM');
-    expect(t).toContain('(simulator check) · priced with your hours 7 am to 1 am, no time off · from your save of Oct 15 at 2:40 PM');
+    expect(t).toContain('(simulator check) · priced with awake hours 7 am to 1 am, no time off · from your save of Oct 15 at 2:40 PM');
     expect(html).toContain('data-testid="now-secondary"');
-    expect(t).toContain(`With any hour (before your hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 PM)`);
+    expect(t).toContain(`With any hour (before your awake hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 PM)`);
   });
 
   it('the tile leads with the same plan and shows the same secondary line', async () => {
@@ -137,7 +137,7 @@ describe('Right now and the Fastest tile: one plan, the other hours secondary', 
     expect(t).toContain(day(B.end));
     expect(t).toContain('6 ascensions');
     expect(t).toContain('Calculated Oct 15 at 11:59 PM');
-    expect(t).toContain(`With any hour (before your hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 PM`);
+    expect(t).toContain(`With any hour (before your awake hours changed): 7 ascensions, 490 TE on ${day(A.end)} (calculated Oct 15 at 11:51 PM`);
   });
 });
 

@@ -32,7 +32,7 @@ export function byDateSimulate(
       ...(run.planStart && run.planStart > 0 ? { start: run.planStart } : {}),
       ...(legs.length ? { legs } : {}),
       ...(run.firstAscension ? { firstAscension: run.firstAscension } : {}),
-      from: 'your By a date search',
+      from: 'your Highest TE by a date search',
     },
     note: buildUp ? BUILDUP_NOTE : '',
   };

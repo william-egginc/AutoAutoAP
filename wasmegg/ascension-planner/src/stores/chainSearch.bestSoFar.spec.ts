@@ -144,7 +144,7 @@ describe("the run's final send replaces its best so far", () => {
     collector({ ok: true, id: 'eeee0005', replaceRefused: 'the earlier row (dddd0004) was kept: not yours' });
     const res = await s.sendSubmission(BY_DATE);
     expect(res.ok).toBe(true);
-    expect(res.message).toMatch(/still on the board \(the earlier row \(dddd0004\) was kept/);
+    expect(res.message).toMatch(/still on the Leaderboard \(the earlier row \(dddd0004\) was kept/);
     // Sending again cannot change a refusal: the run is done with it.
     expect(s.provisionalRows.deadline).toBeNull();
   });
@@ -168,7 +168,7 @@ describe('Send best so far', () => {
     expect((await s.sendBestSoFar()).ok).toBe(false);
     s.beginBestSoFar('fastest', null);
     const res = await s.sendBestSoFar();
-    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box in Before you send to agree first.' });
+    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box under Run to agree first.' });
     expect(s.bestSoFarStatus).toMatchObject({ ok: false });
     expect(bodies).toHaveLength(0);
   });
@@ -413,7 +413,7 @@ describe('Send best so far', () => {
       expect(s.bestSoFar).toMatchObject({ asked: true, sendOnAgree: true, consent: null });
       expect(s.bestSoFarStatus).toMatchObject({
         pending: true,
-        text: expect.stringMatching(/tick the box in Before you send/),
+        text: expect.stringMatching(/tick the box under Run/),
       });
       s.agreeBestSoFar('');
       expect(s.bestSoFar).toMatchObject({ asked: false, consent: { nickname: '' } });

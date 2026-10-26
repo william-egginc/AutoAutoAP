@@ -104,13 +104,13 @@ export function hideStatus(result: HideResult, hidden: boolean, opts: { all?: bo
       if (!done && missing) return { text: 'Not found yet, try again in a moment.', tone: 'warn' };
       if (opts.all && !done) {
         return {
-          text: hidden ? 'You have no runs on the board to hide.' : 'None of your runs are hidden.',
+          text: hidden ? 'You have no runs on the Leaderboard to hide.' : 'None of your runs are hidden.',
           tone: 'ok',
         };
       }
       const head = hidden
-        ? 'Hidden. It can take up to a minute to leave the public board.'
-        : 'Showing again. It can take up to a minute to be back on the public board.';
+        ? 'Hidden. It can take up to a minute to leave the public Leaderboard.'
+        : 'Showing again. It can take up to a minute to be back on the public Leaderboard.';
       const tail = [
         missing
           ? `${missing === 1 ? 'One run was' : `${missing} runs were`} not found yet, try again in a moment.`
@@ -130,13 +130,13 @@ export function hideStatus(result: HideResult, hidden: boolean, opts: { all?: bo
       return {
         text: result.problems.includes('no owner code')
           ? "This browser didn't send these runs, so it can't hide them."
-          : "The board didn't accept that. Reload the page and try again.",
+          : "The Leaderboard didn't accept that. Reload the page and try again.",
         tone: 'error',
       };
     case 'network':
       return { text: "Couldn't reach the leaderboard. Check your connection and try again.", tone: 'error' };
     case 'http':
-      return { text: `The board answered ${result.status}. Try again later.`, tone: 'error' };
+      return { text: `The Leaderboard answered ${result.status}. Try again later.`, tone: 'error' };
   }
 }
 

@@ -191,7 +191,7 @@ describe('MyRunsList with a realistic mix (16 Oct: "Showing 0 of 25" under Kind 
     // Goal: the planner's 490 first, every other target as one chip, Egg Day, other dates; with how many runs each.
     expect(t).toContain('Goal Fastest to 490 TE 8 Other targets 6 Egg Day 2027 5 Other dates 6');
     expect(t).toMatch(/Ascensions 2 6 3 19/);
-    expect(t).toMatch(/Hours My hours \d+ Any time \d+/);
+    expect(t).toMatch(/Awake hours My awake hours \d+ Any time \d+/);
     // No level was sent on these rows: one value, so no Level chips.
     expect(html).not.toContain('data-testid="runs-explore-level"');
   });

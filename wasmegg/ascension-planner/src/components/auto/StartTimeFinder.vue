@@ -104,7 +104,7 @@
       </div>
       <p class="text-[10px] text-slate-500">
         Each square is a start time. Darker green finishes sooner; grey finishes last of the week. Hover a square for
-        when it finishes and how long the run takes. Empty squares are hours you're asleep.
+        when it finishes and how long the run takes. Empty squares are outside your awake hours.
       </p>
     </template>
   </div>
