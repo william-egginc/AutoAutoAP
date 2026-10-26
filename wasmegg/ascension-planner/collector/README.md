@@ -1133,3 +1133,28 @@ old builds are still open. The code is `buildcount.js`; the page side is `src/li
 - **Reading it:** `npx wrangler@4 d1 execute aaap-watch --remote --command "SELECT day, build, n FROM build_counts ORDER BY day DESC, n DESC"`.
 - **Deploy:** apply the migration first (`wrangler d1 migrations apply aaap-watch --remote`), then deploy the Worker.
   The migration only creates a table.
+
+## Prefs in the cloud (`/prefs`, 26 Oct 2026)
+
+Each account's consent choices and Setup, saved online so that entering the player ID on any device loads them
+(Jordan's design and trade-off as for `/follow`: the key is SHA-256 of `"aaap-follow-v1:"` + the ID in upper case,
+anyone with the ID can read and write them). Contract: `~/code/aaap-tools/notes/prefs-contract.md`; code: `prefs.js`.
+A separate endpoint, not reserved goals in `/follow`, so `/follow` answers exactly as before and the clients already
+live never see a `consent` or `setup` goal.
+
+| endpoint | what |
+|---|---|
+| `GET /prefs?k=` | `{ prefs: { consent?, setup? }, now }`, each `{ value, version, updatedAt }`; a kind never saved is absent |
+| `PUT /prefs` | `{ k, kind: 'consent' \| 'setup', value }`; `{ ok, version, updatedAt, unchanged? }` |
+| `GET /prefs/history?k=&kind=` | the last 5 versions of a kind, newest first; a restore is a PUT of an old value |
+
+- **consent** (`readConsent`): `at` required (ms), `answeredAt`, `study` yes/no/later, `ticks` (up to 16 named booleans),
+  `credit` name/anonymous, `nickname` (40 characters, only with credit name). **setup** (`readSetup`): `at` required,
+  `hours` (`{start, end, days?, scheduleEnabled?}` or null), `timeOff` and `noPrestigeDays` (up to 16 `{from, to}`
+  texts each), `targetTE` (1 to 490 or null), `timezone`. Not the "This computer" settings. Unknown fields are dropped;
+  a bad field refuses the write (`400`, `problems`); a value over 4 KB is `413`.
+- **Limits:** 30 writes an hour per key (D1 `follow_rate` under `prefs|<key>`, apart from `/follow`'s), 5 versions per
+  kind, a 6 KB body, `FOLLOW_LIMIT` per address (60 a minute, GET and PUT counted apart), 20,000 keys. An equal value is
+  not stored again. Any `EI` + 16 digits is refused. Last write wins by the client's `at`; the server keeps every write.
+- **D1** (`WATCH`, migration `migrations/0004_prefs.sql`, one new table `prefs`; nothing existing changes). Apply the
+  migration to the database first, then deploy; an older collector answers `/prefs` with 404.
