@@ -24,14 +24,18 @@ export type FoldSection =
 
 export type FoldDefault = 'open' | 'folded';
 
-/** THE SPLIT. Change a value here to move a section between open and folded. */
+/**
+ * THE SPLIT. Change a value here to move a section between open and folded. Jordan's defaults (26 Oct 2026, item 7):
+ * the instant answer's "Every number of ascensions" and Stepping away? start open; Search settings stays folded (the
+ * screen runs Fast unless the player opens it).
+ */
 export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   whatItDoes: 'folded',
   promise: 'folded',
   searchSettings: 'folded',
   acknowledgement: 'folded',
-  steppingAway: 'folded',
-  countTable: 'folded',
+  steppingAway: 'open',
+  countTable: 'open',
   howWorkedOut: 'folded',
 };
 
