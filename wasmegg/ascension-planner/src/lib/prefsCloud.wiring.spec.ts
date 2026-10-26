@@ -41,7 +41,8 @@ describe('your choices and Setup saved online: wiring', () => {
     expect(store).toContain('getPrefs(url, k)');
     expect(store).toContain('putPrefs(p.url, p.key, kind, p.value)');
     const takes = [...store.matchAll(/(\w+)\(id\)/g)].map(m => m[1]);
-    expect([...new Set(takes)].sort()).toEqual(['accountHash', 'anonymousFor', 'load', 'nameFor', 'prefsKey']);
+    // `knownName`: the "Credit me as" name for the credit (the name store, else the header's name; useStudy.ts).
+    expect([...new Set(takes)].sort()).toEqual(['accountHash', 'anonymousFor', 'knownName', 'load', 'nameFor', 'prefsKey']);
     // Nothing of the ID is returned from the store.
     const ret = store.slice(store.lastIndexOf('return {'));
     expect(ret).not.toMatch(/readyId|idOf/);

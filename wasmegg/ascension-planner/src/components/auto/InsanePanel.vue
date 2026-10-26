@@ -1510,6 +1510,8 @@ const {
   anonymous,
   nickname,
   nicknameTouched,
+  carryName,
+  dropCarried,
   plainName,
   effectiveNickname,
   submitMessage,
@@ -1985,6 +1987,8 @@ async function start(andSubmit = false): Promise<void> {
   // Cancel starts nothing and leaves nothing behind (search/bigBox.ts, BigBoxConfirm.vue).
   if (!(await confirmBigBox(bigBoxInputFor(totalChains.value)))) return;
   findAndSubmit.value = andSubmit && optIn.value;
+  // A fresh run goes under the account's own choice, not the last carried-on run's name.
+  dropCarried();
   store.lastAutoSend = null;
   // The sweep link has done its job: later visits to this screen (and reloads) start from the
   // player's own settings, not the link's again.
@@ -2015,10 +2019,8 @@ async function owesResult(): Promise<boolean> {
   await store.bestSoFarSettled();
   // Not once the player withdrew (store `owedRow`).
   const owed = store.owedRow('fastest');
-  if (!agreed && owed) {
-    anonymous.value = !owed.nickname;
-    if (owed.nickname) nickname.value = owed.nickname;
-  }
+  // Under the name its best so far went with, on this screen only (never the account's choice).
+  if (!agreed && owed) carryName(owed.nickname ?? '');
   return agreed || !!owed;
 }
 
@@ -2087,10 +2089,8 @@ async function resumeQueue(q: SweepQueueRecord, next: number): Promise<void> {
   resuming.value = 'checkpoint';
   // Its recorded Find and submit holds unless the account's agreement was withdrawn since.
   findAndSubmit.value = q.submit && store.carriedYesHolds();
-  if (q.submit) {
-    anonymous.value = !q.name;
-    if (q.name) nickname.value = q.name;
-  }
+  // Its own name, on this screen only (never the account's choice).
+  if (q.submit) carryName(q.name ?? '');
   store.lastAutoSend = null;
   store.submitsWhenDone = findAndSubmit.value;
   store.beginBestSoFar('fastest', findAndSubmit.value ? { nickname: q.name ?? '' } : null);

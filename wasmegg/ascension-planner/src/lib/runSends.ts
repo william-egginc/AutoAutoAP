@@ -41,6 +41,17 @@ export function runSendsTicked(sharing: boolean, choice: boolean | null = runSen
   return sharing && (choice ?? true);
 }
 
+/** Another tab ticked or unticked it (a `storage` event): this tab's Runs follow at once. Exported for the specs. */
+export function runSendsStorageEvent(key: string | null, newValue: string | null): void {
+  if (key !== RUN_SENDS_KEY) return;
+  runSendsChoice.value = newValue === '1' ? true : newValue === '0' ? false : null;
+}
+try {
+  if (typeof window !== 'undefined') window.addEventListener('storage', e => runSendsStorageEvent(e.key, e.newValue));
+} catch {
+  /* one tab only */
+}
+
 /** For specs: read storage again. */
 export function reloadRunSends(): void {
   runSendsChoice.value = read();

@@ -6,9 +6,11 @@
    - yes for this account: what is on, read live from the account's consents, with Change (the ticks and
      the credit, applied as they are changed) and Withdraw;
    - yes in this browser but not this account: Use for this account, and Withdraw;
-   - no thanks, or withdrawn: what is on for this account RIGHT NOW (read live from its consents, like the yes
-     line: a share button, or another tab, may have turned some on), Withdraw while any sharing is still on,
-     and Change (the form again).
+   - no thanks, or withdrawn: what is on for this account RIGHT NOW, read live from the same consents every Before
+     you send reads (a share button, another tab or a saved choice may have turned some on): only what is on, as
+     "sharing you turned on by hand", or "Nothing is shared from this account." (Jordan, 26 Oct 2026: "You said no
+     thanks. For this account right now: runs shared · …" read as a contradiction). Withdraw while any sharing is
+     still on, and Change (the form again).
 
   Withdraw stops future sends only: what was already sent stays, and the CSV choice is left as it is. It turns
   off the account on screen now and every other account that said yes through this box or the strip as each next
@@ -112,9 +114,16 @@
 
     <template v-else>
       <p class="text-[11px] text-slate-600 leading-relaxed break-words" data-testid="study-setup-off">
-        <template v-if="state === 'no'">You said no thanks.</template>
-        <template v-else>Withdrawn on {{ answeredOn }}.</template>
-        {{ ' ' }}For this account right now: {{ summary }}.
+        <template v-if="byHand.length">
+          <template v-if="state === 'no'">You said no thanks to the box; sharing</template>
+          <template v-else>Withdrawn on {{ answeredOn }}; sharing</template>
+          {{ ' ' }}you turned on by hand: {{ byHand.join(' · ') }}.
+        </template>
+        <template v-else>
+          <template v-if="state === 'no'">You said no thanks.</template>
+          <template v-else>Withdrawn on {{ answeredOn }}.</template>
+          {{ ' ' }}Nothing is shared from this account.
+        </template>
       </p>
       <StudyForm v-if="formOpen" @answered="formOpen = false" />
       <div v-else class="flex flex-col sm:flex-row gap-2">
@@ -238,6 +247,22 @@ const summary = computed(() =>
     !anonymous.value && knownName(account.value) ? `credited as ${knownName(account.value)}` : 'anonymous',
   ].join(' · ')
 );
+
+/**
+ * After No thanks or a withdraw: only what is actually on for this account (the consents every Before you send reads),
+ * never a default nobody chose. The CSV goes only with a share, so it is named only with runs shared; the name too.
+ */
+const byHand = computed(() => {
+  const on: string[] = [];
+  const share = liveTick('share');
+  if (share) on.push(WORDS.share[0]);
+  if (share && liveTick('csv')) on.push(WORDS.csv[0]);
+  if (liveTick('diag')) on.push(WORDS.diag[0]);
+  if (liveTick('checks')) on.push(WORDS.checks[0]);
+  if (consentAgreed('shareBaseline')) on.push('instant answer shared with your runs');
+  if (share) on.push(!anonymous.value && knownName(account.value) ? `credited as ${knownName(account.value)}` : 'anonymous');
+  return on;
+});
 
 function withdraw(): void {
   changing.value = false;

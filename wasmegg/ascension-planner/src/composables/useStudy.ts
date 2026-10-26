@@ -17,7 +17,8 @@ import { computed, reactive, readonly, watch } from 'vue';
 import { consentAgreed, consentState, setConsent, type ConsentId, type StorageLike } from './useConsent';
 import { useShareExtras } from './useShareExtras';
 import { useAccountName } from './useShareResult';
-import { useShareNameStore } from '@/stores/shareName';
+import { onCreditChange, useShareNameStore } from '@/stores/shareName';
+import { rememberRunSends } from '@/lib/runSends';
 import {
   STUDY_KEY,
   WITHDRAW_CONSENTS,
@@ -124,12 +125,18 @@ export function defaultCredit(playerId: string): StudyCredit {
   return knownName(playerId) ? 'name' : 'anon';
 }
 
+/**
+ * The credit picked here, put in the account's one "Credit me as" (stores/shareName.ts), which every Before you send
+ * shows and every send reads. The name is kept as picked even when it is the account's own (it used to be left
+ * to follow the header's name, so /prefs saved no credit at all, and a new browser, a private window or a page
+ * where the header's name hadn't arrived showed Submit anonymously and sent anonymously: Jordan, 26 Oct 2026).
+ */
 function applyCredit(playerId: string, credit: StudyCredit, nickname: string): StudyCredit {
   const names = useShareNameStore();
   const name = capName(nickname.trim()).trim();
   if (credit === 'name' && name) {
+    if (names.nameFor(playerId) !== name) names.setName(playerId, name);
     names.setAnonymous(playerId, false);
-    if (name !== knownName(playerId)) names.setName(playerId, name);
     return 'name';
   }
   // No name known: anonymous, whatever was asked (a name is never made up).
@@ -159,6 +166,24 @@ export function answerYes(ticks: StudyTicks, credit: StudyCredit, nickname: stri
   const given = applyCredit(id, credit, nickname);
   save(afterYes(fresh(), consentState.hash, Date.now(), ticks, given));
   state.thanked = true;
+}
+
+/** Every tick of "Help improve the planner" on. */
+export const ALL_TICKS: StudyTicks = { share: true, csv: true, diag: true, checks: true };
+
+/**
+ * YES TO ALL (Jordan, 26 Oct 2026: it sometimes left the send tick under Run, or "Share my instant answer with my
+ * runs", unticked). Every sharing choice on, remembered for the account (each stamped now, so a value saved online
+ * earlier never undoes it: stores/prefs.ts, newer wins): the four ticks of the box (share, CSV, diagnostics and this
+ * visit's diagnostics tick, search results), the instant answer with my runs (`shareBaseline`), and the send tick
+ * under every Run (lib/runSends.ts: one choice for the browser, Fastest and By a date alike; a player who had
+ * unticked it once kept it off). The one function behind Yes to all, in the box and in Setup (StudyForm.vue).
+ */
+export function yesToAll(credit: StudyCredit, nickname: string): void {
+  if (!consentState.account || !consentState.hash) return;
+  rememberRunSends(true);
+  answerYes({ ...ALL_TICKS }, credit, nickname);
+  setConsent('shareBaseline', true, true);
 }
 
 /**
@@ -230,12 +255,23 @@ export function applySavedStudy(
   const rec = fresh();
   if (answer === 'yes') {
     if (rec.answer === null) save(afterYes(rec, hash, at, { ...rec.ticks, ...ticks }, credit ?? rec.credit));
-    else if (rec.accounts[hash] !== 'yes') save({ ...rec, accounts: { ...rec.accounts, [hash]: 'yes' } });
+    else if (rec.accounts[hash] !== 'yes' || (credit && credit !== rec.credit))
+      save({ ...rec, credit: credit ?? rec.credit, accounts: { ...rec.accounts, [hash]: 'yes' } });
     return;
   }
   if (rec.answer === null) save({ ...rec, answer: 'no', at });
   else if (rec.answer === 'yes' && rec.accounts[hash] !== 'no') save({ ...rec, accounts: { ...rec.accounts, [hash]: 'no' } });
 }
+
+/**
+ * The other way: anonymous or "Credit me as" picked anywhere else (Before you send, a share box, /prefs applying a
+ * saved choice) for the account on screen is this browser's record's credit too, so the strip offers the same.
+ */
+onCreditChange((playerId, anonymous) => {
+  if (!consentState.account || playerId !== consentState.account) return;
+  const credit: StudyCredit = anonymous ? 'anon' : 'name';
+  if (fresh().credit !== credit) save({ ...state.rec, credit });
+});
 
 /** The "Thank you" line closed. */
 export function closeThanks(): void {

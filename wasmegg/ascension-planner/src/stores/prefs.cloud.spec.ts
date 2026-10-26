@@ -14,7 +14,9 @@ import { usePrefsStore, PREFS_DEBOUNCE_MS } from '@/stores/prefs';
 import { hashID } from '@/lib/storage/db';
 import { localAtKey, prefsSig, buildSetupValue, type CloudSetup } from '@/lib/prefsCloud';
 import { consentAgreed, consentGivenThisVisit, consentRecord, resetConsents, setConsentAccount } from '@/composables/useConsent';
-import { answerYes, resetStudy, setStudyTick, studyState, studyStep } from '@/composables/useStudy';
+import { answerYes, defaultCredit, resetStudy, setStudyTick, studyState, studyStep, yesToAll } from '@/composables/useStudy';
+import { useShareIdentity } from '@/composables/useShareResult';
+import { useEidsStore } from 'lib';
 
 const ID = 'EI0000000000000000';
 /** sha256("aaap-follow-v1:EI0000000000000000") (node crypto). */
@@ -382,5 +384,156 @@ describe('two accounts', () => {
     expect(JSON.parse(mem.get(localAtKey(h1, 'setup'))!).sig).toContain('310');
     expect(JSON.parse(mem.get(localAtKey(h2, 'setup'))!).sig).toContain('420');
     expectNoId();
+  });
+});
+
+describe('"Credit me as": one setting with Before you send (Jordan, 26 Oct 2026)', () => {
+  const NAME = 'Williamthe5thc';
+
+  it('"Credit me as" the account\'s own name in the Help box is saved online as that name (it was saved as no credit)', async () => {
+    useEidsStore().eids.set(ID, { username: NAME });
+    await loadAccount();
+    calls = [];
+    answerYes({ share: true, csv: true, diag: true, checks: true }, 'name', NAME);
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(puts()).toHaveLength(1);
+    expect(body().value).toMatchObject({ credit: 'name', nickname: NAME });
+    // Then Submit anonymously under Run: saved too.
+    useShareIdentity(() => ID).anonymous.value = true;
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(puts()).toHaveLength(2);
+    expect(body(1).value.credit).toBe('anonymous');
+    expect(body(1).value.nickname).toBeUndefined();
+    expectNoId();
+  });
+
+  it('"Credit me as" picked under Run (the name following the header\'s) is saved online as that name', async () => {
+    useEidsStore().eids.set(ID, { username: NAME });
+    await loadAccount();
+    calls = [];
+    useShareIdentity(() => ID).anonymous.value = false;
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(body().value).toMatchObject({ credit: 'name', nickname: NAME });
+  });
+
+  it('a saved credit "name" + nickname is the Help box\'s and Before you send\'s, and the send\'s', async () => {
+    answer = cloudPrefs({ consent: entry({ at: AT - 60_000, answeredAt: AT - 60_000, study: 'yes', ticks: { leaderboard: true }, credit: 'name', nickname: NAME }) });
+    await loadAccount();
+    const who = useShareIdentity(() => ID);
+    expect(who.anonymous.value).toBe(false);
+    expect(who.nickname.value).toBe(NAME);
+    expect(defaultCredit(ID)).toBe('name');
+    expect(studyState.rec.credit).toBe('name');
+  });
+
+  it('a saved "anonymous" is both too, over this browser\'s older "Credit me as"', async () => {
+    const h = await hashID(ID);
+    mem.set(`aap-share-anon:${h}`, '0');
+    mem.set(`aap-share-name:${h}`, NAME);
+    answer = cloudPrefs({ consent: entry({ at: AT - 60_000, answeredAt: AT - 60_000, study: 'yes', ticks: { leaderboard: true }, credit: 'anonymous' }) });
+    await loadAccount();
+    expect(useShareIdentity(() => ID).anonymous.value).toBe(true);
+    expect(defaultCredit(ID)).toBe('anon');
+    expect(studyState.rec.credit).toBe('anon');
+  });
+
+  it('two accounts: one account\'s saved credit is never the other\'s', async () => {
+    answer = url =>
+      url.endsWith(KEY)
+        ? { status: 200, body: { prefs: { consent: entry({ at: AT - 60_000, study: 'yes', ticks: { leaderboard: true }, credit: 'name', nickname: NAME }) } } }
+        : { status: 200, body: { prefs: {} } };
+    const { prefs } = await loadAccount();
+    await setConsentAccount(ID2);
+    useInitialStateStore().rawBackup = { eiUserId: ID2 } as never;
+    await vi.waitFor(() => expect(gets()).toHaveLength(2));
+    await vi.waitFor(() => expect(prefs.following).toBe(true));
+    expect(useShareIdentity(() => ID2).anonymous.value).toBe(true);
+    expect(useShareNameStore().nameFor(ID2)).toBeUndefined();
+    expect(useShareIdentity(() => ID).nickname.value).toBe(NAME);
+  });
+});
+
+describe('Yes to all and a saved value read late (Jordan, 26 Oct 2026: newer wins)', () => {
+  const OLD = { at: AT - 3_600_000, answeredAt: AT - 3_600_000, study: 'yes', ticks: { leaderboard: false, sendCsv: false, diagnosticsDefault: false, keepSharingChecks: false, shareBaseline: false }, credit: 'anonymous' };
+  const ON = { leaderboard: true, sendCsv: true, diagnosticsDefault: true, keepSharingChecks: true, shareBaseline: true };
+
+  /** Load the account with the GET held until `release` (the read still on its way when Yes to all is pressed). */
+  async function loadHeld(cloud: unknown, keptAt: number | null) {
+    let release!: () => void;
+    const held = new Promise<void>(r => (release = r));
+    vi.stubGlobal('fetch', async (url: string, init?: { method?: string; body?: string }) => {
+      const method = init?.method ?? 'GET';
+      calls.push({ url, method, body: init?.body });
+      if (method === 'GET') {
+        await held;
+        return { ok: true, status: 200, json: async () => ({ prefs: cloud ? { consent: entry(cloud) } : {}, now: AT }) };
+      }
+      return { ok: true, status: 200, json: async () => ({ ok: true, version: 2 }) };
+    });
+    if (keptAt !== null) mem.set(localAtKey(await hashID(ID), 'consent'), JSON.stringify({ at: keptAt, sig: 'older' }));
+    fakeSearch();
+    await setConsentAccount(ID);
+    useInitialStateStore().rawBackup = { eiUserId: ID } as never;
+    const prefs = usePrefsStore();
+    made.push(prefs);
+    await vi.waitFor(() => expect(gets()).toHaveLength(1));
+    return { prefs, release };
+  }
+
+  it('pressed while the older saved value is read: the older value never undoes it, and Yes to all goes up', async () => {
+    // This browser last synced before that saved value (another browser saved it since).
+    const { prefs, release } = await loadHeld(OLD, AT - 7_200_000);
+    vi.setSystemTime(AT + 1000);
+    yesToAll('anon', '');
+    release();
+    await vi.waitFor(() => expect(prefs.ready.consent).toBe(true));
+    for (const id of Object.keys(ON) as (keyof typeof ON)[]) expect(consentAgreed(id), id).toBe(true);
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(puts()).toHaveLength(1);
+    expect(body().value.ticks).toEqual(ON);
+    expect(body().value.at).toBeGreaterThan(OLD.at);
+    expectNoId();
+  });
+
+  it('the same with nothing saved online yet: it goes up', async () => {
+    const { prefs, release } = await loadHeld(null, null);
+    yesToAll('anon', '');
+    release();
+    await vi.waitFor(() => expect(prefs.ready.consent).toBe(true));
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(puts()).toHaveLength(1);
+    expect(body().value.ticks).toEqual(ON);
+  });
+
+  it('pressed after the load: stamped now, so the next load of the older value changes nothing', async () => {
+    answer = cloudPrefs({ consent: entry(OLD) });
+    await loadAccount();
+    vi.setSystemTime(AT + 1000);
+    yesToAll('anon', '');
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
+    expect(body().value.ticks).toEqual(ON);
+    expect(body().value.at).toBe(AT + 1000);
+    // A reload in which the collector still answers the old value (its write lost): this browser's newer choice stands.
+    disposeAll();
+    setActivePinia(createPinia());
+    resetConsents(st);
+    resetStudy(st);
+    calls = [];
+    answer = cloudPrefs({ consent: entry(OLD) });
+    await loadAccount();
+    for (const id of Object.keys(ON) as (keyof typeof ON)[]) expect(consentAgreed(id), id).toBe(true);
+  });
+
+  it('a second account is untouched by the first\'s Yes to all', async () => {
+    answer = url => (url.includes('?k=') ? { status: 200, body: { prefs: {} } } : { status: 200, body: { ok: true, version: 1 } });
+    const { prefs } = await loadAccount();
+    yesToAll('anon', '');
+    await setConsentAccount(ID2);
+    useInitialStateStore().rawBackup = { eiUserId: ID2 } as never;
+    await vi.waitFor(() => expect(gets()).toHaveLength(2));
+    await vi.waitFor(() => expect(prefs.following).toBe(true));
+    for (const id of ['leaderboard', 'diagnosticsDefault', 'keepSharingChecks', 'shareBaseline'] as const) expect(consentAgreed(id), id).toBe(false);
+    await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS * 2);
+    expect(puts().every(c => JSON.parse(c.body!).k === KEY)).toBe(true);
   });
 });

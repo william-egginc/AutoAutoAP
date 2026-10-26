@@ -26,7 +26,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useShareNameStore } from '@/stores/shareName';
 import { accountHash } from '@/lib/accountHash';
 import { applySavedConsent, consentState } from '@/composables/useConsent';
-import { applySavedStudy, studyState } from '@/composables/useStudy';
+import { applySavedStudy, knownName, studyState } from '@/composables/useStudy';
 import {
   SYNCED_CONSENTS,
   buildConsentValue,
@@ -140,6 +140,13 @@ export const usePrefsStore = defineStore('prefs', () => {
   const timers: Partial<Record<PrefsKind, ReturnType<typeof setTimeout>>> = {};
   /** Above zero while a saved value is being put in place: nothing it sets is a change. */
   let applying = 0;
+  /** A change of the player's made before the kind was ready (its saved value still being read): saved once it is,
+   *  when it is still the newer. */
+  const missed: Record<PrefsKind, boolean> = { consent: false, setup: false };
+  /** When the account on screen began loading: a synced consent chosen since was the player's, before it was ready. */
+  let genStart = 0;
+  /** Set by the load when such a change is newer than the saved value: the writing side saves it once ready. */
+  let owedConsent = false;
   /** Moves on each account (or collector) switch: work for the last one stops. */
   let gen = 0;
   /** The account the current `ready` is for (its id, in memory only, to match the consent and name stores; never
@@ -164,8 +171,15 @@ export const usePrefsStore = defineStore('prefs', () => {
     }
     const n = names();
     const anon = n?.anonymousFor(id);
-    const name = (n?.nameFor(id) ?? '').trim();
-    const credit: ConsentNow['credit'] = anon === true ? 'anonymous' : name ? 'name' : null;
+    // "Credit me as" is the name the send goes under: the one typed, else the header's (useStudy.ts `knownName`), as
+    // every Before you send shows it. Not picked yet (anonymous on every screen): no credit is saved.
+    let name = '';
+    try {
+      name = anon === false ? knownName(id) : '';
+    } catch {
+      name = (n?.nameFor(id) ?? '').trim();
+    }
+    const credit: ConsentNow['credit'] = anon === true ? 'anonymous' : anon === false && name ? 'name' : null;
     return { study, answeredAt: study ? rec.at : 0, ticks, credit, nickname: credit === 'name' ? name : '' };
   }
 
@@ -198,13 +212,16 @@ export const usePrefsStore = defineStore('prefs', () => {
 
   // ------------------------------------------------------------------------------ the local `at`
 
-  /** This browser's `at` for the account's consent: the one kept with the last sync; else, never synced, its latest
-   *  choice of the synced consents, or when the study was answered for it (0: nothing chosen here). */
+  /** This browser's `at` for the account's consent: the latest of the one kept with the last sync, its latest choice
+   *  of the synced consents (a remembered one, or a no), and when the study was answered for it (0: nothing chosen
+   *  here). A choice made since the last sync counts (Jordan, 26 Oct 2026: Yes to all pressed while the saved value
+   *  was still being read was undone by that older value). */
   function localConsentAt(hash: string): number {
-    const kept = readLocalAt(hash, 'consent');
-    if (kept) return kept.at;
-    let at = 0;
-    for (const c of SYNCED_CONSENTS) at = Math.max(at, consentState.records[c]?.at ?? 0);
+    let at = readLocalAt(hash, 'consent')?.at ?? 0;
+    for (const c of SYNCED_CONSENTS) {
+      const r = consentState.records[c];
+      if (r && (r.remember || !r.agreed)) at = Math.max(at, r.at);
+    }
     const rec = studyState.rec;
     if (rec.answer !== null && (rec.answer !== 'yes' || rec.accounts[hash] !== undefined)) at = Math.max(at, rec.at);
     return at;
@@ -302,11 +319,26 @@ export const usePrefsStore = defineStore('prefs', () => {
       // the name stays as it is
     }
     if (g !== gen || !sameAccount(id, hash)) return;
+    const rec = studyState.rec;
+    const early =
+      missed.consent ||
+      SYNCED_CONSENTS.some(c => {
+        const r = consentState.records[c];
+        return !!r && (r.remember || !r.agreed) && r.at >= genStart;
+      }) ||
+      (rec.accounts[hash] !== undefined && rec.at >= genStart);
+    missed.consent = false;
     if (cloud && cloudIsNewer(cloud.at, localConsentAt(hash))) {
       applyConsent(id, hash, cloud);
       synced.consent = sigNow('consent');
       writeLocalAt(hash, 'consent', { at: cloud.at, sig: synced.consent });
-    } else synced.consent = sigNow('consent');
+      ready.value = { ...ready.value, consent: true };
+      return;
+    }
+    // Changed here while the saved value was read, and newer: what is online is that saved value (or nothing), so the
+    // change goes up as soon as the kind is ready, as any change would (the writing side, below).
+    synced.consent = early ? (cloud ? prefsSig(buildConsentValue(consentFromCloud(cloud), cloud.at)) : '') : sigNow('consent');
+    owedConsent = early;
     ready.value = { ...ready.value, consent: true };
   }
 
@@ -373,6 +405,9 @@ export const usePrefsStore = defineStore('prefs', () => {
       ready.value = { consent: false, setup: false };
       synced.consent = '';
       synced.setup = '';
+      missed.consent = false;
+      owedConsent = false;
+      genStart = Date.now();
       readyIdRef.value = '';
       const id = sig.slice(0, sig.lastIndexOf('|'));
       const url = sig.slice(sig.lastIndexOf('|') + 1);
@@ -387,7 +422,11 @@ export const usePrefsStore = defineStore('prefs', () => {
 
   /** A change of the player's: saved online 2 s after the last one, unless it came back to the value last synced. */
   function changed(kind: PrefsKind): void {
-    if (applying > 0 || !ready.value[kind]) return;
+    if (applying > 0) return;
+    if (!ready.value[kind]) {
+      if (kind === 'consent' && readyIdRef.value) missed.consent = true;
+      return;
+    }
     try {
       const url = prefsUrl();
       const hash = partition.value;
@@ -458,6 +497,17 @@ export const usePrefsStore = defineStore('prefs', () => {
     },
     (now, was) => {
       if (now && was) changed('consent');
+    },
+    { flush: 'sync' }
+  );
+
+  // A change of the player's made while the account's saved value was read (the load says so): saved now it's ready.
+  watch(
+    () => ready.value.consent,
+    r => {
+      if (!r || !owedConsent) return;
+      owedConsent = false;
+      changed('consent');
     },
     { flush: 'sync' }
   );
