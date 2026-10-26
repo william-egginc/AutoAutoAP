@@ -47,8 +47,10 @@ const st = {
   removeItem: (k: string) => void mem.delete(k),
 };
 
+let extraSearch: Record<string, unknown> = {};
 const fakeSearch = (submitUrl = SUBMIT, remembered: { at: number } | null = null) =>
   defineStore('chainSearch', () => ({
+    ...extraSearch,
     submitUrl,
     scheduleEnabled: ref(false),
     availableFrom: ref(7),
@@ -79,6 +81,7 @@ beforeEach(() => {
   muted = 0;
   logged.length = 0;
   answer = cloudPrefs({});
+  extraSearch = {};
   vi.stubGlobal('fetch', async (url: string, init?: { method?: string; body?: string }) => {
     const method = init?.method ?? 'GET';
     calls.push({ url, method, body: init?.body });
@@ -166,6 +169,36 @@ describe('loading an account', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(puts()).toEqual([]);
     expectNoId();
+  });
+
+  // crash2 (26 Oct 2026): in a fresh browser the Setup lands while the instant answer is up.
+  it("the Setup goes in through Your setup's own one-go apply when it has one (checked, muted, remembered once)", async () => {
+    const apply = vi.fn(() => true);
+    extraSearch = { applyOnlineSetup: apply };
+    answer = cloudPrefs({ setup: entry(CLOUD_SETUP) });
+    const { search, planner } = await loadAccount();
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(apply).toHaveBeenCalledWith({
+      scheduleEnabled: true,
+      fromHour: 9,
+      toHour: 17,
+      days: [1, 2, 3, 4, 5],
+      timeOff: [{ from: '2026-12-24', to: '2026-12-26' }],
+      noPrestige: [{ from: '2026-11-03', to: '2026-11-04' }],
+      finalTE: 300,
+      timezone: 'Europe/London',
+    });
+    // Nothing set field by field beside it.
+    expect([search.scheduleEnabled, search.availableFrom, search.timeOff, planner.timezone]).toEqual([false, 7, [], 'America/Denver']);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(puts()).toEqual([]);
+  });
+
+  it('without it: the time zone first, and one this browser does not know is left as it is', async () => {
+    answer = cloudPrefs({ setup: entry({ ...CLOUD_SETUP, timezone: 'Mars/Olympus_Mons' }) });
+    const { search, planner } = await loadAccount();
+    expect(planner.timezone).toBe('America/Denver');
+    expect(search.timeOff).toEqual([{ from: '2026-12-24', to: '2026-12-26' }]);
   });
 
   it('an older saved value is ignored (and not written back)', async () => {

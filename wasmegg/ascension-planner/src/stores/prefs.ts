@@ -34,6 +34,7 @@ import {
   cloudIsNewer,
   consentFromCloud,
   getPrefs,
+  isKnownZone,
   prefsKey,
   prefsSig,
   prefsUrlOf,
@@ -84,6 +85,7 @@ type SearchLike = {
   setupLoaded?: boolean;
   setupMuted?: () => boolean;
   isRunning?: boolean;
+  applyOnlineSetup?: (p: Partial<SetupNow>) => boolean;
 };
 
 interface Pending {
@@ -266,7 +268,14 @@ export const usePrefsStore = defineStore('prefs', () => {
     const p = setupFromCloud(v);
     applying++;
     try {
-      // Through the store's own refs, not muted: Your setup remembers it in this browser too (lib/setupMemory.ts).
+      // In one go (crash2, 26 Oct 2026: in a fresh browser this lands while the instant answer is up): checked, the
+      // time zone first, muted field by field, then remembered in this browser once (chainSearch `applyOnlineSetup`).
+      if (s.applyOnlineSetup) {
+        s.applyOnlineSetup(p);
+        return;
+      }
+      const pl = planner();
+      if (p.timezone && pl && isKnownZone(p.timezone) && pl.timezone !== p.timezone) pl.timezone = p.timezone;
       if (p.scheduleEnabled !== undefined && s.scheduleEnabled !== p.scheduleEnabled) s.scheduleEnabled = p.scheduleEnabled;
       if (p.fromHour !== undefined && s.availableFrom !== p.fromHour) s.availableFrom = p.fromHour;
       if (p.toHour !== undefined && s.availableTo !== p.toHour) s.availableTo = p.toHour;
@@ -274,8 +283,6 @@ export const usePrefsStore = defineStore('prefs', () => {
       if (p.timeOff && JSON.stringify(p.timeOff) !== JSON.stringify(s.timeOff)) s.timeOff = p.timeOff;
       if (p.noPrestige && JSON.stringify(p.noPrestige) !== JSON.stringify(s.noPrestige)) s.noPrestige = p.noPrestige;
       if (p.finalTE !== undefined && s.finalTE !== p.finalTE) s.finalTE = p.finalTE;
-      const pl = planner();
-      if (p.timezone && pl && pl.timezone !== p.timezone) pl.timezone = p.timezone;
     } finally {
       applying--;
     }

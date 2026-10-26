@@ -34,6 +34,7 @@ import {
   type SetupGroup,
   type SetupValues,
 } from '@/lib/setupMemory';
+import { isKnownZone, type SetupNow } from '@/lib/prefsCloud';
 import { plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
@@ -806,12 +807,74 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** A setting changed: remembered when the player changed it (not muted, an account loaded and read). */
   function noteSetupEdit(group: SetupGroup): void {
-    if (setupMute > 0 || !setupKeyNow || !setupLoaded.value) return;
+    if (setupMute > 0) return;
+    rememberSetupGroups([group]);
+  }
+  /** These groups remembered as they stand now (debounced write), once an account is loaded and read. */
+  function rememberSetupGroups(groups: readonly SetupGroup[]): void {
+    if (!groups.length || !setupKeyNow || !setupLoaded.value) return;
     const now = setupNow();
     if (setupPending && setupPending.key !== setupKeyNow) flushSetupWrite();
-    setupPending = { key: setupKeyNow, edits: { ...setupPending?.edits, [group]: now[group] } };
+    const edits: Partial<SetupValues> = { ...setupPending?.edits };
+    for (const g of groups) (edits as Record<SetupGroup, unknown>)[g] = now[g];
+    setupPending = { key: setupKeyNow, edits };
     if (setupTimer) clearTimeout(setupTimer);
     setupTimer = setTimeout(flushSetupWrite, 400);
+  }
+
+  /**
+   * YOUR SETUP READ BACK FROM ONLINE (stores/prefs.ts; crash2, 26 Oct 2026: a fresh browser gets the whole Setup
+   * after the page has drawn, while the instant answer is up). Put in place in one go: checked first (an unknown time
+   * zone or an hour out of range is left as it is), the time zone before the hours, time off and no-prestige days that
+   * are read in it, every field muted (no half-applied Setup reaches a `sync` watcher as the player's edit), then
+   * remembered in this browser once, as the player's own edit would be. Returns whether anything changed.
+   */
+  function applyOnlineSetup(p: Partial<SetupNow>): boolean {
+    const groups = new Set<SetupGroup>();
+    let changed = false;
+    const planner = useAutoPlannerStore();
+    const hour = (h: number | undefined) => (h !== undefined && Number.isInteger(h) && h >= 0 && h <= 23 ? h : undefined);
+    const from = hour(p.fromHour);
+    const to = hour(p.toHour);
+    const days = Array.isArray(p.days) ? [...new Set(p.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b) : undefined;
+    const range = (w: { from: string; to: string }) => !!w && typeof w.from === 'string' && typeof w.to === 'string';
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    muteSetupMemory(() => {
+      if (p.timezone && isKnownZone(p.timezone) && planner.timezone !== p.timezone) {
+        planner.timezone = p.timezone;
+        changed = true;
+      }
+      if (p.scheduleEnabled !== undefined && scheduleEnabled.value !== p.scheduleEnabled) {
+        scheduleEnabled.value = p.scheduleEnabled;
+        groups.add('hours');
+      }
+      if (from !== undefined && availableFrom.value !== from) {
+        availableFrom.value = from;
+        groups.add('hours');
+      }
+      if (to !== undefined && availableTo.value !== to) {
+        availableTo.value = to;
+        groups.add('hours');
+      }
+      if (days && !same(days, availableDays.value)) {
+        availableDays.value = days;
+        groups.add('hours');
+      }
+      if (p.timeOff && !same(p.timeOff, timeOff.value)) {
+        timeOff.value = p.timeOff.filter(range).map(w => ({ from: w.from, to: w.to }));
+        groups.add('timeOff');
+      }
+      if (p.noPrestige && !same(p.noPrestige, noPrestige.value)) {
+        noPrestige.value = p.noPrestige.filter(range).map(w => ({ from: w.from, to: w.to }));
+        groups.add('noPrestige');
+      }
+      if (p.finalTE !== undefined && Number.isInteger(p.finalTE) && p.finalTE >= 1 && p.finalTE <= 490 && finalTE.value !== p.finalTE) {
+        finalTE.value = p.finalTE;
+        changed = true;
+      }
+    });
+    rememberSetupGroups([...groups]);
+    return changed || groups.size > 0;
   }
   // `sync`: the mute is read at the moment of the change, not after the restore that made it has ended.
   watch([scheduleEnabled, availableFrom, availableTo, availableDays], () => noteSetupEdit('hours'), {
@@ -9211,6 +9274,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setupRemembered,
     setupIsRemembered,
     loadSetupFor,
+    applyOnlineSetup,
     resetSetupToDefaults,
     muteSetupMemory,
     setupMuted,
