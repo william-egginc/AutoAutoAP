@@ -132,6 +132,7 @@ import {
   type PricingSource,
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
+import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
@@ -708,6 +709,28 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * (composables/useFollowEstimate.ts), with what this save's instant answer priced its own routes with: the selected
    * goal's own snapshot, else another goal's of the same save and setup.
    */
+  /**
+   * THE PRICING RECORD'S SETUP KEY (lib/followEstimate.ts `pricingSetupKey`), the same words InstantRoute.vue keeps it
+   * under, read WITHOUT `collectInputs()` (the crash lesson, search/instantScale.ts: the whole search setup rebuilt on
+   * each reactive edit, and anything in it that threw took the page down). Its first ascension is the store's
+   * `firstAscensionFor()`, the value `collectInputs` itself puts there. Memoised by its own inputs (an edit to a day off
+   * re-reads it once), and a reading that throws keeps the last good key with a console line.
+   */
+  const pricingSetupLast = { value: '' };
+  const pricingSetup = computed(() =>
+    readKept(
+      () =>
+        pricingSetupKey({
+          availability: store.availability,
+          timeOff: store.timeOff,
+          noPrestige: store.noPrestige,
+          useHours: useHoursFromStores(),
+          firstAscension: store.firstAscensionFor(),
+        }),
+      pricingSetupLast,
+      err => console.warn('My runs: reading the setup for the follow estimate failed:', err instanceof Error ? err.message : String(err))
+    )
+  );
   type FollowPriced = NonNullable<ReturnType<typeof followPricedFor>>;
   function estimatePickFor(fp: FollowPriced | null): PickedPricing {
     if (!fp || (fp.price.priced !== 'none' && fp.price.priced !== 'finish')) return null;
@@ -733,18 +756,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     });
     // The settings the instant answer kept for this save and setup the moment its answer was in (any goal's: they
     // price every route from this save), found by account, save and setup rather than by the goal's key.
-    let setup = '';
-    try {
-      setup = pricingSetupKey({
-        availability: store.availability,
-        timeOff: store.timeOff,
-        noPrestige: store.noPrestige,
-        useHours: useHoursFromStores(),
-        firstAscension: store.collectInputs().firstAscension,
-      });
-    } catch {
-      setup = '';
-    }
+    const setup = pricingSetup.value;
     if (setup && storeReady.value)
       sources.push(
         ...recordSources(readPricingRecords(), {

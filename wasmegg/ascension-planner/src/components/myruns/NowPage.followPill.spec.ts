@@ -401,6 +401,41 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
   });
 });
 
+describe('the crash lesson: the pricing setup key without collectInputs (26 Oct 2026)', () => {
+  it('a throwing collectInputs does not take Right now down; the follow keeps its estimate', async () => {
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
+    const store = useChainSearchStore();
+    vi.spyOn(store, 'collectInputs').mockImplementation(() => {
+      throw new Error('boom');
+    });
+    store.noPrestige = [{ from: '2026-12-01', to: '2026-12-01' }];
+    expect(() => [page.follow.value, page.cardPlan.value, page.goalChoices.value, page.events.value, page.ascensions.value]).not.toThrow();
+    const r = await render(page);
+    expect(r.text).toContain('Right now');
+    scope.stop();
+  });
+
+  it('an edit to a day off reads the setup key once, never through collectInputs', async () => {
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
+    const store = useChainSearchStore();
+    const first = vi.spyOn(store, 'firstAscensionFor');
+    store.noPrestige = [{ from: '2026-12-01', to: '2026-12-01' }];
+    // Every computed that prices the follows reads the key: the card, the pills, Next steps.
+    void [page.follow.value, page.cardPlan.value, page.goalChoices.value, page.followsForSteps.value];
+    void [page.follow.value, page.goalChoices.value];
+    expect(first.mock.calls.length).toBeLessThanOrEqual(1);
+    const src = (await import('node:fs')).readFileSync(new URL('../../composables/useNowPage.ts', import.meta.url), 'utf8');
+    expect(src).not.toContain('store.collectInputs().firstAscension');
+    scope.stop();
+  });
+});
+
 describe('the pill words (lib/planGoals.ts)', () => {
   const day = (t: number) => `day ${t}`;
   it('every state of a followed route, never "no saved plan yet"', () => {
