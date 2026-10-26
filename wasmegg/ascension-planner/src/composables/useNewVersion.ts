@@ -28,6 +28,7 @@
  */
 import { onMounted, onUnmounted, ref } from 'vue';
 import { buildIdFrom, startBuildCount } from '@/lib/buildCount';
+import { notesNewerThan, type RunningBuild } from '@/lib/updateNotes';
 
 /** The hashed entry script for `entry` (`index`, `explorer`) named in this HTML, or null. */
 export function entryScriptIn(html: string, entry: string): string | null {
@@ -51,71 +52,54 @@ export type ReleaseLevel = 'small' | 'big' | 'essential';
 
 export interface ReleaseInfo {
   level: ReleaseLevel;
-  note: string;
-  /** Notes of the deploys this tab also missed, newest first; absent when it missed only one. */
-  earlier?: string[];
-}
-
-/** One deploy in release.ts `history`. */
-export interface HistoryEntry {
-  at: string;
-  note: string;
-  level?: 'small' | 'big';
-}
-
-/** The history entries newer than this tab's build (newest first, as written), notes cut at 200.
- *  Nothing when the tab does not know its own build time or the history is malformed. */
-export function missedEntries(history: unknown, ownBuildTime: string): HistoryEntry[] {
-  if (!Array.isArray(history) || !ownBuildTime) return [];
-  const out: HistoryEntry[] = [];
-  for (const h of history) {
-    if (!h || typeof h !== 'object') continue;
-    const { at, note, level } = h as { at?: unknown; note?: unknown; level?: unknown };
-    if (typeof at === 'string' && typeof note === 'string' && note.trim() && at > ownBuildTime) {
-      out.push({ at, note: note.slice(0, 200), level: level === 'big' ? 'big' : 'small' });
-    }
-  }
-  return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-}
-
-/** "and 1 earlier update" / "and 3 earlier updates"; '' for none. */
-export function earlierText(n: number): string {
-  return n <= 0 ? '' : `and ${n} earlier update${n === 1 ? '' : 's'}`;
+  /** The release notes newer than this tab's build (lib/updateNotes.ts), newest first, at most MAX_SHOWN; empty
+   *  when there are none, and then the banner says only "Small update available" (or asks for the reload). */
+  notes: string[];
+  /** How many more newer notes did not fit ("+N more"). */
+  more: number;
 }
 
 /** This bundle's build time, or '' where the define is absent (tests, dev). */
 export const OWN_BUILD_TIME: string = typeof __BUILD_TIME__ === 'string' ? __BUILD_TIME__ : '';
 
+/** This bundle's build: its time, and the `at` of each release note it already carries (vite.config.ts). */
+export const RUNNING_BUILD: RunningBuild = {
+  builtAt: OWN_BUILD_TIME,
+  noteAts: typeof __BUILD_NOTE_ATS__ !== 'undefined' && Array.isArray(__BUILD_NOTE_ATS__) ? __BUILD_NOTE_ATS__ : [],
+};
+
 /**
  * How much the live build matters to THIS tab: "essential" when the tab was built before the last
  * change an open tab could trip over (release.ts `reloadIfBuiltBefore`) -- so a tab that slept
  * through an essential deploy and then saw a later small one is still told to reload; else "big"
- * when ANY update it missed is marked big (the headline is then the newest big one); else "small".
+ * when ANY update it missed is marked big; else "small".
  * A version.json without the marker (from before this existed), or a tab that does not know its
  * own build time, counts as "essential": the only kind of notice there used to be.
+ *
+ * The notes are ONLY the history entries newer than this tab's build (lib/updateNotes.ts). The
+ * top-level `release.note` is never shown: it is always the newest entry, so a tab that already had
+ * every note listed that one anyway -- the stale "Joo’s latest planner..." Release 5 note in tabs
+ * running Release 5 or later (26 Oct 2026).
  */
-export function releaseFrom(versionJson: unknown, ownBuildTime: string = OWN_BUILD_TIME): ReleaseInfo {
+export function releaseFrom(versionJson: unknown, running: RunningBuild = RUNNING_BUILD): ReleaseInfo {
   const r = versionJson && typeof versionJson === 'object' ? (versionJson as LiveEntries).release : null;
-  if (!r || typeof r !== 'object') return { level: 'essential', note: '' };
-  const noteRaw = (r as { note?: unknown }).note;
-  let note = typeof noteRaw === 'string' ? noteRaw.slice(0, 200) : '';
+  if (!r || typeof r !== 'object') return { level: 'essential', notes: [], more: 0 };
   const since = (r as { reloadIfBuiltBefore?: unknown }).reloadIfBuiltBefore;
-  const missed = missedEntries((r as { history?: unknown }).history, ownBuildTime);
-  const headline = missed.find(h => h.level === 'big') ?? missed[0];
-  if (headline) note = headline.note;
-  const earlier = missed.filter(h => h !== headline).map(h => h.note);
-  const extra = earlier.length ? { earlier } : {};
-  if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'essential', note, ...extra };
-  if (ownBuildTime < since) return { level: 'essential', note, ...extra };
-  return { level: missed.some(h => h.level === 'big') ? 'big' : 'small', note, ...extra };
+  const newer = notesNewerThan((r as { history?: unknown }).history, running);
+  const notes = newer.shown.map(h => h.note);
+  const more = newer.more;
+  const ownBuildTime = running?.builtAt ?? '';
+  if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'essential', notes, more };
+  if (ownBuildTime < since) return { level: 'essential', notes, more };
+  return { level: newer.anyBig ? 'big' : 'small', notes, more };
 }
 
 const RANK: Record<ReleaseLevel, number> = { small: 0, big: 1, essential: 2 };
 
-/** Levels only go up: a tab already asking for more never drops back to a quieter notice. */
+/** Levels only go up: a tab already asking for more never drops back to a quieter notice. The notes
+ *  always come from the newest check: a later version.json lists every note this tab still lacks. */
 export function raiseLevel(current: ReleaseInfo | null, next: ReleaseInfo): ReleaseInfo {
-  if (current && RANK[current.level] > RANK[next.level])
-    return { ...current, note: next.note || current.note, earlier: next.earlier };
+  if (current && RANK[current.level] > RANK[next.level]) return { ...next, level: current.level };
   return next;
 }
 
@@ -183,7 +167,7 @@ const CHANNEL = 'aap-new-version';
 export function useNewVersion(pageUrl: string, entry: string) {
   const available = ref(false);
   /** What the newer build says about itself; meaningful once `available` is true. */
-  const release = ref<ReleaseInfo>({ level: 'essential', note: '' });
+  const release = ref<ReleaseInfo>({ level: 'essential', notes: [], more: 0 });
   let timer: ReturnType<typeof setInterval> | null = null;
   let channel: BroadcastChannel | null = null;
   let lastChecked = 0;
