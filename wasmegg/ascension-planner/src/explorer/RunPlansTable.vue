@@ -23,7 +23,7 @@
         "
       >
         <b class="text-slate-700">{{ b.ascensions }}</b
-        >: <span class="font-mono-premium">{{ b.chain.join(' ') }}</span> {{ b.days.toFixed(2) }} d
+        >: <span class="tabular-nums">{{ b.chain.join(' ') }}</span> {{ b.days.toFixed(2) }} d
         <span class="text-slate-400">({{ behindText(b.days - countBestDays, b.days === countBestDays) }})</span>
       </span>
       <span v-if="countBests.some(b => b.partial)" class="text-[10px] text-slate-400">
@@ -71,7 +71,7 @@
           autocomplete="off"
           spellcheck="false"
           placeholder="280 or 275-285"
-          class="w-36 rounded-md border-slate-300 py-0.5 text-[11px] font-mono-premium normal-case tracking-normal text-slate-700 placeholder:text-slate-300"
+          class="w-36 rounded-md border-slate-300 py-0.5 text-[11px] tabular-nums normal-case tracking-normal text-slate-700 placeholder:text-slate-300"
           title="Plans with a stop at this TE, or in this range. Several, separated by spaces, must all hold: 230 275-285 is a stop at 230 and one in 275-285."
         />
       </label>
@@ -140,7 +140,7 @@
         <tbody class="divide-y divide-slate-100">
           <tr v-for="p in view.rows" :key="p.rank" class="hover:bg-slate-50">
             <td class="py-1 pr-5 text-right text-slate-400">{{ p.rank.toLocaleString() }}</td>
-            <td class="py-1 pr-5 font-mono-premium text-slate-700 whitespace-nowrap">{{ p.chain.join(' ') }}</td>
+            <td class="py-1 pr-5 tabular-nums text-slate-700 whitespace-nowrap">{{ p.chain.join(' ') }}</td>
             <td class="py-1 pr-5 text-right text-slate-500">{{ p.ascensions }}</td>
             <td class="py-1 pr-5 text-right font-bold text-slate-700 whitespace-nowrap">{{ p.days.toFixed(2) }} d</td>
             <td class="py-1 pr-5 text-right whitespace-nowrap">

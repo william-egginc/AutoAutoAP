@@ -603,7 +603,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
       <div v-if="importProgress" class="mb-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
         <div class="flex justify-between items-center mb-2">
           <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Importing Plans</span>
-          <span class="text-xs font-mono font-bold text-indigo-600">
+          <span class="text-xs tabular-nums font-bold text-indigo-600">
             {{ importProgress.current }} / {{ importProgress.total }}
           </span>
         </div>

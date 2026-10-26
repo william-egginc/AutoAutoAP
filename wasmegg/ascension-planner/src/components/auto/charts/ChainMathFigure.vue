@@ -22,7 +22,7 @@
 <template>
   <figure class="m-0">
     <div class="rounded-xl border border-slate-200 bg-white p-3 overflow-x-auto">
-      <svg :viewBox="`0 0 ${W} ${H}`" class="block w-full h-auto min-w-[520px]" role="img" :aria-label="spec.ariaLabel">
+      <svg :viewBox="`0 0 ${W} ${H}`" class="block w-full h-auto min-w-[520px] tabular-nums" role="img" :aria-label="spec.ariaLabel">
         <!-- horizontal gridlines + y ticks -->
         <g>
           <template v-for="t in spec.yTicks" :key="`y${t}`">
@@ -33,7 +33,6 @@
               text-anchor="end"
               fill="#94a3b8"
               font-size="10"
-              font-family="ui-monospace, monospace"
             >
               {{ t }}
             </text>
@@ -46,7 +45,6 @@
             font-size="9"
             font-weight="700"
             letter-spacing="0.1em"
-            font-family="ui-monospace, monospace"
           >
             {{ spec.yLabel }}
           </text>
@@ -98,7 +96,6 @@
             :fill="a.fill"
             :font-size="a.size || 11"
             :font-weight="a.weight || 600"
-            font-family="ui-monospace, monospace"
             paint-order="stroke"
             stroke="#ffffff"
             stroke-width="4"
@@ -132,7 +129,6 @@
           text-anchor="middle"
           fill="#94a3b8"
           font-size="10"
-          font-family="ui-monospace, monospace"
         >
           {{ t.label }}
         </text>

@@ -160,7 +160,7 @@
               >
                 {{ openHidden === (h.id ?? '') ? '⌄' : '›' }}
               </button>
-              <span class="font-mono">{{ h.chain.join(' ') }}</span>
+              <span class="tabular-nums">{{ h.chain.join(' ') }}</span>
               <span v-if="isDeadlineRow(h)">{{ h.finalTE }} TE by {{ deadlineText(h.deadline as number) }}</span>
               <span v-else :title="finishTitle(finishMs(h), h.timezone)"
                 >to {{ h.finalTE }}, finishes {{ finishDateText(finishMs(h), viewZone) }}</span
@@ -404,7 +404,7 @@
                         >
                         <!-- Under the name on a phone, wrapping rather than widening the column. -->
                         <div v-if="narrow" class="mt-0.5 max-w-[10rem] leading-snug">
-                          <span class="font-mono text-slate-600">{{ e.best.row.chain.join(' ') }}</span>
+                          <span class="tabular-nums text-slate-600">{{ e.best.row.chain.join(' ') }}</span>
                           <span
                             v-if="provisionalTag(e.best.row)"
                             class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
@@ -425,7 +425,7 @@
                         class="py-2 pr-3 cursor-pointer"
                         @click="onRowClick($event, () => (openPlayers[e.key] = !openPlayers[e.key]))"
                       >
-                        <span class="font-mono font-bold text-slate-700 whitespace-nowrap">{{
+                        <span class="tabular-nums font-bold text-slate-700 whitespace-nowrap">{{
                           e.best.row.chain.join(' ')
                         }}</span>
                         <span
@@ -851,7 +851,7 @@
                           >{{ line.row.note }}</span
                         >
                         <div v-if="narrow" class="mt-0.5 max-w-[10rem] font-normal leading-snug">
-                          <span class="font-mono text-slate-600">{{ line.row.chain.join(' ') }}</span>
+                          <span class="tabular-nums text-slate-600">{{ line.row.chain.join(' ') }}</span>
                           <span
                             v-for="chip in line.chips"
                             :key="chip.text"
@@ -871,7 +871,7 @@
                         @click="onRowClick($event, () => (open = open === line.key ? '' : line.key))"
                       >
                         <span
-                          class="font-mono font-bold text-slate-700"
+                          class="tabular-nums font-bold text-slate-700"
                           :class="
                             line.row.chain.length > 9
                               ? 'inline-block max-w-[16rem] whitespace-normal'

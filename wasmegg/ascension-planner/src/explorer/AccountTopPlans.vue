@@ -145,7 +145,7 @@
             <tr v-for="p in view.rows" :key="p.key" class="align-top">
               <td class="py-1.5 pr-3 text-right tabular-nums text-slate-400">{{ p.rank }}</td>
               <td class="py-1.5 pr-3 whitespace-nowrap" :title="p.chainTitle">
-                <span class="font-mono text-slate-800"
+                <span class="tabular-nums text-slate-800"
                   ><template v-for="(c, k) in p.route" :key="k"
                     >{{ k ? ' ' : '' }}<s v-if="c.passed" class="text-slate-400">{{ c.te }}</s
                     ><template v-else>{{ c.te }}</template></template

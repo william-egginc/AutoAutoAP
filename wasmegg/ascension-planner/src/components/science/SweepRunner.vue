@@ -275,7 +275,7 @@
             <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
           </div>
           <p v-if="store.bestDays > 0 && run.phase === 'running'" class="text-[11px] text-slate-600">
-            Best so far: <span class="font-mono-premium">{{ store.bestChain.join(' → ') }}</span
+            Best so far: <span class="tabular-nums">{{ store.bestChain.join(' → ') }}</span
             >, done {{ finishDate }}.
           </p>
 
@@ -316,7 +316,7 @@
               >Stopped early, after {{ plural(store.chainsDone, 'route') }}.
             </template>
             <template v-else>Done: every route in the sweep was priced. </template>
-            The fastest was <span class="font-mono-premium font-bold">{{ store.bestChain.join(' → ') }}</span
+            The fastest was <span class="tabular-nums font-bold">{{ store.bestChain.join(' → ') }}</span
             >, done {{ finishDate }} ({{ store.bestDays.toFixed(2) }} days).
           </p>
           <p

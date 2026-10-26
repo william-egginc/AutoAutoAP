@@ -17,11 +17,11 @@
         </div>
         <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Integrity Summary</span>
         <div v-if="activeArtifactSet === 'earnings'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black font-mono-premium text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
+          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
           <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
         </div>
         <div v-else-if="activeArtifactSet === 'elr'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black font-mono-premium text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
+          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
           <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
         </div>
         <div
@@ -53,7 +53,7 @@
 
         <div class="flex flex-col items-end">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Hab Cap</span>
-          <span class="text-sm font-mono-premium font-black text-slate-900">{{ formattedHabCap }}</span>
+          <span class="text-sm tabular-nums font-black text-slate-900">{{ formattedHabCap }}</span>
         </div>
       </div>
     </div>

@@ -199,7 +199,7 @@
                     type="number"
                     min="0"
                     :value="modelValue.stones[family][tier]"
-                    class="w-14 bg-white border border-slate-100 rounded-md px-1 py-0.5 text-center font-mono-premium font-black text-slate-900 outline-none focus:border-indigo-500/50"
+                    class="w-14 bg-white border border-slate-100 rounded-md px-1 py-0.5 text-center tabular-nums font-black text-slate-900 outline-none focus:border-indigo-500/50"
                     @change="setStone(family, tier, Number(($event.target as HTMLInputElement).value))"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
                   />
@@ -394,9 +394,3 @@ function choiceLabel(ids: string[]): string {
   return `${options.map(a => `T${a.tier}${a.rarityCode}`).join(' or ')} ${options[0].familyName}`;
 }
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-</style>

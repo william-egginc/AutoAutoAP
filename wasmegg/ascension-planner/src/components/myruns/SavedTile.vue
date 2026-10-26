@@ -9,7 +9,7 @@
     <template v-if="a">
       <p class="text-xl font-black text-slate-900">{{ headline }}</p>
       <p class="text-[13px] text-slate-600">
-        {{ sub }} · <span class="font-mono font-bold text-slate-800" :title="a.chain.join(' ')">{{ route }}</span>
+        {{ sub }} · <span class="tabular-nums font-bold text-slate-800" :title="a.chain.join(' ')">{{ route }}</span>
       </p>
       <p class="text-[12px] text-slate-500" data-testid="now-tile-when">
         Calculated {{ whenAgo(a.calculatedAt / 1000, now, zone) }}<template v-if="a.saveSeconds">
@@ -49,7 +49,7 @@
         <p class="text-[13px] text-slate-700" data-testid="now-tile-no-route-in-time">{{ lateWords }}</p>
         <p v-if="tile.late.answer" class="text-[12px] text-slate-500" data-testid="now-tile-late">
           {{ tile.late.answer.endTE }} TE ·
-          <span class="font-mono" :title="tile.late.answer.chain.join(' ')">{{ tile.late.answer.chain.join(' ') }}</span> ·
+          <span class="tabular-nums" :title="tile.late.answer.chain.join(' ')">{{ tile.late.answer.chain.join(' ') }}</span> ·
           {{ lateMark }}
         </p>
       </template>

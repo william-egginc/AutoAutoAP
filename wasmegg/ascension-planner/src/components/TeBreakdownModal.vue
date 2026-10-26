@@ -36,7 +36,7 @@
                 </span>
               </div>
             </div>
-            <div class="flex items-center gap-2 font-mono-premium text-sm">
+            <div class="flex items-center gap-2 tabular-nums text-sm">
               <span class="text-slate-400">{{ stat.start }}</span>
               <span class="text-slate-300">→</span>
               <span class="font-bold" :class="{ 'text-indigo-900': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
@@ -92,8 +92,6 @@ defineEmits<{ close: [] }>();
 </script>
 
 <style scoped>
-.font-mono-premium { font-family: 'JetBrains Mono', 'Roboto Mono', monospace; }
-
 .animate-in {
   animation-duration: 200ms;
 }

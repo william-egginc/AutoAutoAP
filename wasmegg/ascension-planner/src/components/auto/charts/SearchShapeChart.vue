@@ -75,7 +75,7 @@
         v-model="highlightText"
         type="text"
         placeholder="195, 196, 197 or 195-200"
-        class="w-52 rounded-md border-slate-300 py-1 text-[11px] font-mono-premium font-bold text-slate-800"
+        class="w-52 rounded-md border-slate-300 py-1 text-[11px] tabular-nums font-bold text-slate-800"
       />
       <button
         v-if="highlightText"
@@ -107,12 +107,12 @@
         class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-3 py-1.5"
       >
         <span :style="{ color: group.color }" class="font-black">●</span>
-        <span class="font-mono-premium font-black text-slate-700 w-12">{{ group.value }}</span>
+        <span class="tabular-nums font-black text-slate-700 w-12">{{ group.value }}</span>
         <span class="text-slate-400">{{ plural(group.count, 'route') }}</span>
         <span class="font-bold text-slate-700">best {{ group.bestDays.toFixed(3) }} d</span>
         <span v-if="group.gapDays > 0" class="text-slate-400">+{{ group.gapDays.toFixed(3) }} d</span>
         <span v-else class="font-black text-emerald-600">leader</span>
-        <span class="font-mono-premium text-slate-400 truncate">{{ group.bestChain.join(' ') }}</span>
+        <span class="tabular-nums text-slate-400 truncate">{{ group.bestChain.join(' ') }}</span>
       </div>
     </div>
 

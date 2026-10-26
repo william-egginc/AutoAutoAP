@@ -1,7 +1,7 @@
 /**
  * Type review, batch 1 (26 Oct 2026; ~/code/aaap-tools/notes/type-review-2026-10-26.md, Jordan's answers):
  * (a) form fields at 16 px on a phone so iOS stops zooming; (b) tabular numbers in every table;
- * (c) heat map labels readable on a phone. Source checks on src/styles/components.css and the
+ * (c) heat map labels readable on a phone; (d) no mono anywhere: route chains in the body font, tabular-nums. Source checks on src/styles/components.css and the
  * components; the built CSS was checked by hand (see the commit).
  */
 import fs from 'node:fs';
@@ -167,5 +167,62 @@ describe('(c) the heat map labels are at least 12 px on a phone', () => {
       expect(lay.T + fs / 3 - fs * 0.75).toBeGreaterThanOrEqual(0);
       expect(lay.plotW).toBeGreaterThan(200);
     }
+  });
+});
+
+describe('(d) no mono anywhere', () => {
+  const APP = path.resolve(SRC, '..');
+  /** Everything a player's browser gets from this app: src (but Joo's simulator), the pages, public/, the config. */
+  function appFiles(dir: string, out: string[] = []): string[] {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (['node_modules', 'auto', 'engine'].includes(e.name) && dir === SRC) continue;
+        if (e.name === 'node_modules') continue;
+        appFiles(p, out);
+      } else if (/\.(vue|ts|css|html)$/.test(e.name) && !e.name.endsWith('.spec.ts')) out.push(p);
+    }
+    return out;
+  }
+  const files = [
+    ...appFiles(SRC),
+    ...appFiles(path.join(APP, 'public')),
+    ...['index.html', 'explorer.html', 'watch.html'].map(f => path.join(APP, f)),
+    ...vueFiles(path.resolve(SRC, '../../../ui')),
+  ];
+  // The other worktree's file (spec-ux27-c, the My runs heat map) keeps the alias class until it lands.
+  const ALIAS_OK = path.join(SRC, 'components/myruns/RouteScatter.vue');
+
+  it('no monospace family, no JetBrains Mono, no --font-family-mono', () => {
+    const bad: string[] = [];
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      if (/monospace|JetBrains|Roboto Mono|Fira Code|font-family-mono|SFMono|Menlo/.test(src)) bad.push(path.relative(APP, f));
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('no font-mono or font-mono-premium class (the alias rule itself aside; RouteScatter.vue keeps it until its branch lands)', () => {
+    const bad = files.filter(f => f !== ALIAS_OK && /(?<![\w-])font-mono(-premium)?(?![\w-])/.test(fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace('.font-mono-premium {', '')));
+    expect(bad.map(f => path.relative(APP, f))).toEqual([]);
+  });
+
+  it('the alias class is tabular figures only, and font-mono / code / pre inherit the body font', () => {
+    const at = css.indexOf('.font-mono-premium {');
+    expect(css.slice(at, css.indexOf('}', at))).toBe('.font-mono-premium {\n        font-variant-numeric: tabular-nums;\n    ');
+    const pre = css.indexOf('pre,\ncode,\nkbd,\nsamp {');
+    expect(pre).toBeGreaterThan(-1);
+    const rule = css.slice(pre, css.indexOf('}', pre));
+    expect(rule).toContain('font-family: inherit;');
+    expect(rule).toContain('font-variant-numeric: tabular-nums;');
+    expect(fs.readFileSync(path.join(APP, 'tailwind.config.ts'), 'utf8')).toMatch(/fontFamily: \{\s*mono: \['inherit'\],\s*\}/);
+  });
+
+  it('route chains carry tabular-nums: instant answer, Leaderboard, My runs, the explainers', () => {
+    expect(read('components/auto/InstantRoute.vue')).toContain('tabular-nums');
+    expect(read('components/auto/LeaderboardPanel.vue')).toContain('tabular-nums');
+    expect(read('components/myruns/RightNowCard.vue')).toContain('tabular-nums');
+    expect(read('components/auto/ChainSearchExplainer.vue')).toContain('<code class="tabular-nums text-slate-800">195 219 248 286 327 490</code>');
+    expect(read('components/auto/charts/ChainMathFigure.vue')).toContain('min-w-[520px] tabular-nums');
   });
 });

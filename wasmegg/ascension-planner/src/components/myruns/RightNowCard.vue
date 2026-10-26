@@ -379,7 +379,7 @@
       <!-- By a date (Egg Day too): plans kept, none in time (lib/eggDayRule.ts): said plainly, the nearest shown, marked. -->
       <p v-else-if="selectedOption?.state === 'late'" class="text-[13px] text-slate-700" data-testid="now-no-route-in-time">
         {{ lateWords }}<template v-if="selectedOption.late?.chain"
-          >{{ ' ' }}<span class="font-mono" data-testid="now-late-route">{{ selectedOption.late.chain.join(' ') }}</span> · {{ lateMark }}</template
+          >{{ ' ' }}<span class="tabular-nums" data-testid="now-late-route">{{ selectedOption.late.chain.join(' ') }}</span> · {{ lateMark }}</template
         >
         ·
         <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">

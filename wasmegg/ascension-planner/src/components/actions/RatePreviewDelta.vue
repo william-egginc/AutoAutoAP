@@ -5,9 +5,9 @@
       <span class="text-[9px] font-bold" :class="deltaColorClass">{{ deltaText }}</span>
     </div>
     <div class="flex items-center justify-center gap-1.5 mt-0.5">
-      <span class="text-[10px] font-mono font-bold text-gray-600">{{ formatNumber(before) }}{{ unit }}</span>
+      <span class="text-[10px] tabular-nums font-bold text-gray-600">{{ formatNumber(before) }}{{ unit }}</span>
       <span class="text-[10px] text-gray-300">&#8594;</span>
-      <span class="text-[10px] font-mono font-bold text-gray-900">{{ formatNumber(after) }}{{ unit }}</span>
+      <span class="text-[10px] tabular-nums font-bold text-gray-900">{{ formatNumber(after) }}{{ unit }}</span>
     </div>
   </div>
 </template>

@@ -66,7 +66,7 @@
 
           <div v-if="selectedTab === 'earnings' && earningsClothedTe !== null" class="flex items-center gap-1.5">
             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clothed TE</span>
-            <span class="text-xs font-mono-premium font-bold text-gray-900">{{ Math.round(earningsClothedTe) }}</span>
+            <span class="text-xs tabular-nums font-bold text-gray-900">{{ Math.round(earningsClothedTe) }}</span>
           </div>
         </div>
 

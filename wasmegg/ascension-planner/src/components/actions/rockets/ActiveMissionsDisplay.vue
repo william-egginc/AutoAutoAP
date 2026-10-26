@@ -95,7 +95,7 @@
 
             <div
               v-if="mission.returnTimestamp"
-              class="text-[11px] font-mono-premium font-black text-slate-900 flex items-center gap-1"
+              class="text-[11px] tabular-nums font-black text-slate-900 flex items-center gap-1"
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

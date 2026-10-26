@@ -55,7 +55,7 @@
           <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-blue-700"
             >Max Habs</span
           >
-          <span v-if="maxHabsTime" class="text-[9px] font-mono-premium font-black text-blue-500 mt-0.5">{{
+          <span v-if="maxHabsTime" class="text-[9px] tabular-nums font-black text-blue-500 mt-0.5">{{
             maxHabsTime
           }}</span>
         </div>
@@ -101,7 +101,7 @@
         <div class="flex items-center justify-between">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Slot {{ index + 1 }}</span>
           <div v-if="habId !== null" class="flex flex-col items-end">
-            <span class="text-sm font-mono-premium font-black text-slate-900">
+            <span class="text-sm tabular-nums font-black text-slate-900">
               {{ formatNumber(getHabCapacity(habId), 0) }}
             </span>
             <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest opacity-60">Capacity</span>

@@ -56,7 +56,7 @@
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span class="text-sm font-mono-premium font-bold text-slate-700 tracking-tight">
+              <span class="text-sm tabular-nums font-bold text-slate-700 tracking-tight">
                 {{ formatNumber(fuelTankStore.fuelAmounts[egg], 1) }}
               </span>
             </div>
@@ -123,7 +123,7 @@
           v-model="amountInput"
           type="text"
           :placeholder="storeMode === 'fillTo' ? 'Target total, e.g., 10T' : 'e.g., 50B, 100T'"
-          class="input-premium flex-1 font-mono-premium font-bold py-2.5"
+          class="input-premium flex-1 tabular-nums font-bold py-2.5"
           @keyup.enter="handleStoreFuel"
         />
         <button class="btn-premium btn-primary px-6 py-2.5" :disabled="!canStore" @click="handleStoreFuel">
@@ -137,25 +137,25 @@
         <div v-if="storeMode === 'fillTo'" class="space-y-2">
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currently</span>
-            <span class="text-sm font-mono-premium font-bold text-slate-500">{{ formatNumber(currentEggFuel, 1) }}</span>
+            <span class="text-sm tabular-nums font-bold text-slate-500">{{ formatNumber(currentEggFuel, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target</span>
-            <span class="text-sm font-mono-premium font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
+            <span class="text-sm tabular-nums font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Storing</span>
-            <span class="text-sm font-mono-premium font-bold" :class="fillDelta > 0 ? 'text-brand-primary' : 'text-slate-400'">{{ fillDelta > 0 ? formatNumber(fillDelta, 1) : 'Already at target' }}</span>
+            <span class="text-sm tabular-nums font-bold" :class="fillDelta > 0 ? 'text-brand-primary' : 'text-slate-400'">{{ fillDelta > 0 ? formatNumber(fillDelta, 1) : 'Already at target' }}</span>
           </div>
         </div>
         <!-- Add mode: show target -->
         <div v-else class="flex justify-between items-center">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target</span>
-          <span class="text-sm font-mono-premium font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
+          <span class="text-sm tabular-nums font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
         </div>
         <div v-if="effectiveStoreAmount > 0" class="flex justify-between items-center">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Time to Store</span>
-          <span class="text-sm font-mono-premium font-bold text-slate-900">{{
+          <span class="text-sm tabular-nums font-bold text-slate-900">{{
             formatDuration(timeToStoreSeconds)
           }}</span>
         </div>
@@ -163,11 +163,11 @@
         <template v-if="fuelSpeed < 1.0 && effectiveStoreAmount > 0">
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eggs Shipped</span>
-            <span class="text-sm font-mono-premium font-bold text-emerald-600">{{ formatNumber(estimatedEggsShipped, 1) }}</span>
+            <span class="text-sm tabular-nums font-bold text-emerald-600">{{ formatNumber(estimatedEggsShipped, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gems Earned</span>
-            <span class="text-sm font-mono-premium font-bold text-emerald-600">+{{ formatNumber(estimatedGemsEarned, 1) }}</span>
+            <span class="text-sm tabular-nums font-bold text-emerald-600">+{{ formatNumber(estimatedGemsEarned, 1) }}</span>
           </div>
         </template>
         <div
@@ -229,7 +229,7 @@
               v-model="removeInputs[egg]"
               type="text"
               :placeholder="removeMode === 'drainTo' ? 'Target remaining' : 'Amount'"
-              class="input-premium flex-1 font-mono-premium py-2 text-xs font-bold"
+              class="input-premium flex-1 tabular-nums py-2 text-xs font-bold"
               @keyup.enter="handleRemoveFuel(egg)"
             />
 
@@ -252,7 +252,7 @@
               <span class="font-black text-slate-400 uppercase tracking-widest">{{ formatNumber(parsedRemoveAmount(egg), 1) }}</span>
             </div>
             <span
-              class="font-mono-premium font-bold"
+              class="tabular-nums font-bold"
               :class="drainDelta(egg) > 0 ? 'text-brand-primary' : 'text-slate-400'"
             >
               {{ drainDelta(egg) > 0 ? `Removing ${formatNumber(drainDelta(egg), 1)}` : 'Already at target' }}
@@ -282,7 +282,7 @@
       </div>
       <div class="text-right">
         <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Capacity</div>
-        <div class="text-sm font-mono-premium font-bold text-slate-900">
+        <div class="text-sm tabular-nums font-bold text-slate-900">
           {{ formatNumber(fuelTankStore.tankCapacity, 1) }}
         </div>
       </div>

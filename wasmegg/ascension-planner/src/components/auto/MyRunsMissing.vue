@@ -23,7 +23,7 @@
         autocomplete="off"
         placeholder="e.g. 1a2b3c4d"
         aria-label="The run’s id"
-        class="w-40 rounded-lg border-slate-300 text-xs font-mono py-1.5"
+        class="w-40 rounded-lg border-slate-300 text-xs tabular-nums py-1.5"
         data-testid="my-runs-missing-id"
       />
       <div v-if="answers.length" class="space-y-2" aria-live="polite">
@@ -33,7 +33,7 @@
           class="rounded-md bg-slate-50 px-2 py-1.5"
           data-testid="my-runs-missing-answer"
         >
-          <p v-if="a.label" class="font-mono font-bold text-slate-600">{{ a.label }}</p>
+          <p v-if="a.label" class="tabular-nums font-bold text-slate-600">{{ a.label }}</p>
           <p v-for="(line, i) in a.lines" :key="i" class="text-slate-600 leading-relaxed">{{ line }}</p>
         </div>
       </div>

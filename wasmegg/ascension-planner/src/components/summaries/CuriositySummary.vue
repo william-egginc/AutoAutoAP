@@ -22,7 +22,7 @@
           v-if="activeArtifactSet === 'earnings'"
           class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50"
         >
-          <span class="text-[9px] font-black font-mono-premium text-slate-700">{{
+          <span class="text-[9px] font-black tabular-nums text-slate-700">{{
             formatNumber(hourlyOfflineEarnings, 3)
           }}</span>
           <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
@@ -31,7 +31,7 @@
           v-else-if="activeArtifactSet === 'elr'"
           class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50"
         >
-          <span class="text-[9px] font-black font-mono-premium text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
+          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
           <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
         </div>
       </div>

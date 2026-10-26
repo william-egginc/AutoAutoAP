@@ -8,7 +8,7 @@
     <template #description>
       Buys any research that takes
       <span
-        class="font-mono font-bold text-brand-primary bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm mx-0.5"
+        class="tabular-nums font-bold text-brand-primary bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm mx-0.5"
         >{{ displayDuration }}</span
       >
       or less to save, right now.

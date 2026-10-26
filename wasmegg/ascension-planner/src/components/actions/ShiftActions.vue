@@ -14,7 +14,7 @@
         </div>
         <div class="badge-premium bg-white border-slate-100 shadow-sm px-3 py-1 flex items-center gap-2">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shifts:</span>
-          <span class="text-sm font-mono-premium font-black text-slate-900">{{ virtueStore.shiftCount }}</span>
+          <span class="text-sm tabular-nums font-black text-slate-900">{{ virtueStore.shiftCount }}</span>
           <span v-if="virtueStore.plannedShifts > 0" class="text-[10px] font-bold text-brand-primary">
             +{{ virtueStore.plannedShifts }}
           </span>
@@ -26,7 +26,7 @@
         <div class="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-indigo-50 shadow-inner">
           <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Duration</div>
           <div class="flex items-center gap-2">
-            <span class="text-lg font-mono-premium font-black text-slate-900">{{ timeSinceLastShiftFormatted }}</span>
+            <span class="text-lg tabular-nums font-black text-slate-900">{{ timeSinceLastShiftFormatted }}</span>
             <div class="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse"></div>
           </div>
           <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1 opacity-60">
@@ -64,7 +64,7 @@
         <div class="flex items-center gap-2">
           <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Next Cost:</span>
           <div class="flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-xl border border-slate-100 shadow-sm">
-            <span class="text-xs font-mono-premium font-black text-slate-900">
+            <span class="text-xs tabular-nums font-black text-slate-900">
               {{ formatNumber(nextShiftCostValue, 3) }}
             </span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3.5 h-3.5" alt="SE" />

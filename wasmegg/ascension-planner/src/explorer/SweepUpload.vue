@@ -89,7 +89,7 @@
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Ranges as typed</span>
-          <input v-model="bands" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 font-mono text-[12px]" />
+          <input v-model="bands" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 tabular-nums text-[12px]" />
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Minimum gap</span>

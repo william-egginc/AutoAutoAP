@@ -21,7 +21,7 @@
       class="mt-1 block w-max max-w-[16rem] whitespace-normal rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left text-[10px] font-normal leading-snug text-slate-600 shadow"
       @click.stop
     >
-      <span class="block font-mono text-slate-800">{{ label.stamp ?? 'no stamp' }}</span>
+      <span class="block tabular-nums text-slate-800">{{ label.stamp ?? 'no stamp' }}</span>
       {{ label.title }}
     </span>
   </span>

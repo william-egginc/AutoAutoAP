@@ -52,8 +52,8 @@
           <p class="text-sm font-bold text-slate-700">No server configured for this copy of the page.</p>
           <p class="text-[12px] text-slate-500 leading-relaxed">
             Paste the planner's server base URL: the same Worker the planner's Submit button posts to, without the
-            <code class="font-mono-premium">/submit</code>. It is remembered in this browser, and
-            <code class="font-mono-premium">?collector=…</code> on this page's own URL does the same thing for a link
+            <code class="tabular-nums">/submit</code>. It is remembered in this browser, and
+            <code class="tabular-nums">?collector=…</code> on this page's own URL does the same thing for a link
             you want to share.
           </p>
           <form class="flex flex-wrap gap-2" @submit.prevent="adoptTypedBase">
@@ -61,7 +61,7 @@
               v-model="typedBase"
               type="url"
               placeholder="https://ascension-chain-collector.example.workers.dev"
-              class="flex-1 min-w-[18rem] rounded-lg border-slate-300 text-sm font-mono-premium"
+              class="flex-1 min-w-[18rem] rounded-lg border-slate-300 text-sm tabular-nums"
             />
             <button
               type="submit"
@@ -121,7 +121,7 @@
                 </label>
               </p>
             </div>
-            <p v-if="!embedded" class="text-[10px] font-mono-premium text-slate-400 truncate max-w-xl">{{ base }}</p>
+            <p v-if="!embedded" class="text-[10px] tabular-nums text-slate-400 truncate max-w-xl">{{ base }}</p>
           </div>
           <div class="flex gap-2">
             <button
@@ -420,8 +420,8 @@
                 one the player has fallen behind, one made from an old save) are greyed, with the reason on hover (on a
                 phone, under the name), and listed last when sorted by finish. <b>What was checked</b> is how each run
                 searched and, for a box it tried in full, the TEs at each ascension as they are typed into the planner
-                (<span class="font-mono-premium">181-250:5</span> is every 5th TE from 181 to 250,
-                <span class="font-mono-premium">:1</span> every TE); the full box is on hover. <b>What's left</b> is how
+                (<span class="tabular-nums">181-250:5</span> is every 5th TE from 181 to 250,
+                <span class="tabular-nums">:1</span> every TE); the full box is on hover. <b>What's left</b> is how
                 much of that same box at every TE the run did not price (the TEs between its steps, or the rest of a box
                 it stopped early) and how long pricing the rest would take on a 16-20 core machine. Runs that improved a
                 starting route instead of trying a fixed box have nothing to measure against. <b>can't check</b> marks a run
@@ -604,7 +604,7 @@
                             >
                             <SimChip :stamp="block.best.row.simVersion" />
                             ({{ plural(block.best.row.ascensions, 'ascension') }},
-                            <span class="font-mono-premium">{{ block.best.row.chain.join(' ') }}</span
+                            <span class="tabular-nums">{{ block.best.row.chain.join(' ') }}</span
                             >)
                             <span v-if="!bestListed.has(block.key)" class="text-slate-400"
                               >(not listed here: {{ unlistedWhy(block.best.row) }})</span
@@ -668,11 +668,11 @@
                       <td v-if="selectedCount === 'all'" class="py-1.5 pr-3 text-right font-bold">
                         {{ row.ascensions }}
                       </td>
-                      <td class="py-1.5 pr-3 font-mono-premium text-slate-500 whitespace-nowrap">
+                      <td class="py-1.5 pr-3 tabular-nums text-slate-500 whitespace-nowrap">
                         {{ row.currentTE }} → {{ row.finalTE }}
                       </td>
                       <td
-                        class="py-1.5 pr-3 font-mono-premium whitespace-nowrap"
+                        class="py-1.5 pr-3 tabular-nums whitespace-nowrap"
                         :class="judged.byId.get(row.id)?.standing ? 'text-slate-700' : ''"
                       >
                         {{ row.chain.join(' ') }}
@@ -721,7 +721,7 @@
                            copies as the text a player would type into the planner. -->
                         <div
                           v-if="searched.get(row.id)?.pieces.length"
-                          class="font-mono-premium text-[10px] text-slate-500 max-w-[17rem]"
+                          class="tabular-nums text-[10px] text-slate-500 max-w-[17rem]"
                         >
                           <template v-for="(piece, k) in searched.get(row.id)?.pieces" :key="k"
                             >{{ k ? ' ' : '' }}<span class="whitespace-nowrap">{{ piece }}</span></template
@@ -957,10 +957,10 @@
               {{ plural(loadedRun.ascensions, 'ascension') }} came within {{ toleranceText }} of this run's best ({{
                 plateau.bestDays.toFixed(2)
               }}
-              d, <span class="font-mono-premium">{{ plateau.bestChain.join(' ') }}</span
+              d, <span class="tabular-nums">{{ plateau.bestChain.join(' ') }}</span
               >). That plateau put each stop here:
             </p>
-            <p class="text-[11px] font-mono-premium text-slate-700">
+            <p class="text-[11px] tabular-nums text-slate-700">
               <span v-for="band in plateau.bands" :key="band.index" class="mr-3">
                 {{ band.index + 1 }}: {{ absoluteOf(band.lo) }}–{{ absoluteOf(band.hi) }}
               </span>

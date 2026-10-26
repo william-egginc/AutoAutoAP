@@ -99,19 +99,19 @@
               }}<span v-if="cp.index === summary.length - 1" class="font-normal text-slate-400"> (last)</span>
             </td>
             <td class="py-1 pr-3 text-right text-slate-400">{{ cp.accounts }}</td>
-            <td class="py-1 pr-3 font-mono-premium whitespace-nowrap" :class="tighter(cp) === 'te' ? WIN : LOSE">
+            <td class="py-1 pr-3 tabular-nums whitespace-nowrap" :class="tighter(cp) === 'te' ? WIN : LOSE">
               {{ rangeText(cp.te) }}
             </td>
-            <td class="py-1 pr-3 font-mono-premium whitespace-nowrap" :class="tighter(cp) === 'above' ? WIN : LOSE">
+            <td class="py-1 pr-3 tabular-nums whitespace-nowrap" :class="tighter(cp) === 'above' ? WIN : LOSE">
               +{{ rangeText(cp.aboveStart) }}
             </td>
             <td
-              class="py-1 pr-3 text-right font-mono-premium text-slate-600"
+              class="py-1 pr-3 text-right tabular-nums text-slate-600"
               :title="cp.slope == null ? 'Needs three accounts at different starting TEs' : ''"
             >
               {{ cp.slope == null ? '—' : cp.slope.toFixed(2) }}
             </td>
-            <td class="py-1 font-mono-premium text-slate-500 whitespace-nowrap">
+            <td class="py-1 tabular-nums text-slate-500 whitespace-nowrap">
               <b class="text-slate-700">{{ pct(cp.share.mid) }}</b>
               <span class="text-slate-400"> ({{ pct(cp.share.lo) }}–{{ pct(cp.share.hi) }})</span>
             </td>

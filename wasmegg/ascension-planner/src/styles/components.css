@@ -139,7 +139,7 @@
 
     /* --- Player ID Form Premium Overrides --- */
     #playerId {
-        @apply input-premium text-center font-mono-premium text-lg tracking-wider font-bold text-brand-primary;
+        @apply input-premium text-center tabular-nums text-lg tracking-wider font-bold text-brand-primary;
     }
 
     /* --- Custom Scrollbar --- */
@@ -183,8 +183,10 @@
     }
 
     /* --- Typography --- */
+    /* No mono anywhere (Jordan, 26 Oct 2026): route chains and numbers are the body font with tabular figures,
+       class `tabular-nums`. This name stays only for components/myruns/RouteScatter.vue until the heat map
+       branch (spec-ux27-c) lands; it used var(--font-family-mono), which was never defined. */
     .font-mono-premium {
-        font-family: var(--font-family-mono);
         font-variant-numeric: tabular-nums;
     }
 
@@ -269,5 +271,17 @@
    proportional figures can still say `normal-nums` (one class outranks this). */
 td,
 th {
+    font-variant-numeric: tabular-nums;
+}
+
+/* No mono anywhere (Jordan, 26 Oct 2026): code and preformatted text (the CSV preview, the submit JSON, the
+   inline route numbers in the explainers) use the body font with tabular figures. <pre> keeps its own
+   white-space: pre. tailwind.config.ts sets fontFamily.mono to inherit as well, so preflight and any
+   font-mono class (ui/ included) follow. */
+pre,
+code,
+kbd,
+samp {
+    font-family: inherit;
     font-variant-numeric: tabular-nums;
 }

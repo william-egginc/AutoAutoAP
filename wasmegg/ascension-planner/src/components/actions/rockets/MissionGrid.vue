@@ -37,7 +37,7 @@
           <!-- Duration cells -->
           <td v-for="dur in ALL_DURATIONS" :key="dur" class="p-2 align-top text-center">
             <!-- Line 1: Duration -->
-            <div class="font-mono text-gray-700 mb-1 leading-tight">
+            <div class="tabular-nums text-gray-700 mb-1 leading-tight">
               {{ formatDuration(getEffectiveDuration(ship, dur, ftlLevel)).replace(/\s/g, '') }}
             </div>
 

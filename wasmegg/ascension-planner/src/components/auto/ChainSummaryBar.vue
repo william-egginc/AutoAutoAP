@@ -26,7 +26,7 @@
       </div>
       <div class="summary-item">
         <span class="summary-label">Ascensions</span>
-        <span class="summary-value font-mono-premium font-black text-slate-600">{{ totals.count }}</span>
+        <span class="summary-value tabular-nums font-black text-slate-600">{{ totals.count }}</span>
       </div>
       <div
         class="summary-item cursor-pointer hover:bg-slate-50 p-2 -mx-2 -my-2 rounded-xl transition-colors duration-200 group"
@@ -34,7 +34,7 @@
       >
         <span class="summary-label group-hover:text-indigo-400 transition-colors">TE Progress</span>
         <div class="flex items-center gap-2">
-          <span class="summary-value font-mono-premium font-black text-indigo-600 group-hover:text-indigo-700 transition-colors">+{{ totals.teGained }}</span>
+          <span class="summary-value tabular-nums font-black text-indigo-600 group-hover:text-indigo-700 transition-colors">+{{ totals.teGained }}</span>
           <span class="hidden sm:inline text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors">
             ({{ totals.startTE }} → {{ totals.endTE }})
           </span>
@@ -42,7 +42,7 @@
       </div>
       <div class="summary-item">
         <span class="summary-label">Duration</span>
-        <span class="summary-value font-mono-premium font-black text-slate-600">{{ totals.durationStr }}</span>
+        <span class="summary-value tabular-nums font-black text-slate-600">{{ totals.durationStr }}</span>
       </div>
       <div class="summary-item">
         <span class="summary-label">End Date</span>
@@ -51,8 +51,8 @@
       <div class="summary-item">
         <span class="summary-label">Shifts</span>
         <div class="flex items-center gap-2">
-          <span class="summary-value font-mono-premium font-black text-slate-600">+{{ totals.shiftsTotal }}</span>
-          <span class="hidden sm:inline text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 font-mono-premium">
+          <span class="summary-value tabular-nums font-black text-slate-600">+{{ totals.shiftsTotal }}</span>
+          <span class="hidden sm:inline text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 tabular-nums">
             (#{{ totals.startShifts }} → #{{ totals.endShifts }})
           </span>
         </div>
@@ -60,12 +60,12 @@
       <div class="summary-item">
         <span class="summary-label">Soul Eggs</span>
         <div class="flex items-center gap-2">
-          <span class="summary-value font-mono-premium font-black text-rose-500" v-tippy="'SE Consumed'">
+          <span class="summary-value tabular-nums font-black text-rose-500" v-tippy="'SE Consumed'">
             -{{ formatNumber(totals.totalSEConsumed, 1) }}
           </span>
           <div class="hidden sm:flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80" v-tippy="'Remaining SE'">
             <div class="text-[8px] font-black leading-none text-slate-400 mb-1 uppercase tracking-widest">Remaining</div>
-            <div class="text-[11px] font-black leading-none text-slate-700 font-mono-premium flex items-center gap-1">
+            <div class="text-[11px] font-black leading-none text-slate-700 tabular-nums flex items-center gap-1">
               {{ formatNumber(totals.remainingSE, 1) }}
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3" alt="SE" />
             </div>
@@ -194,7 +194,6 @@ const teStatsList = computed(() => {
 </script>
 
 <style scoped>
-.font-mono-premium { font-family: 'JetBrains Mono', 'Roboto Mono', monospace; }
 .summary-item { @apply flex flex-col gap-0.5 sm:gap-1; }
 .summary-label { @apply text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wider sm:tracking-[0.2em] leading-none; }
 .summary-value { @apply text-[10px] sm:text-[13px] font-bold tracking-tight whitespace-nowrap; }

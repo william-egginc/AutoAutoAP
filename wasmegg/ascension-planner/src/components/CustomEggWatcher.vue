@@ -47,7 +47,7 @@
                     >New</span
                   >
                 </div>
-                <div class="text-[9px] text-slate-400 font-mono truncate">{{ egg.identifier }}</div>
+                <div class="text-[9px] text-slate-400 tabular-nums truncate">{{ egg.identifier }}</div>
               </div>
               <div class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-right shrink-0">
                 {{ effectName(egg) }}
@@ -61,7 +61,7 @@
                 :class="egg.buffs[i - 1] ? '' : 'opacity-40'"
               >
                 <div class="text-[8px] text-slate-400 font-black">L{{ i }}</div>
-                <div class="text-[10px] font-mono font-semibold text-slate-700">
+                <div class="text-[10px] tabular-nums font-semibold text-slate-700">
                   {{ egg.buffs[i - 1] ? formatMultiplier(egg.buffs[i - 1].value) : '—' }}
                 </div>
               </div>
@@ -93,13 +93,13 @@
                   <span v-if="isNew(egg.identifier)" class="ml-1 text-[9px] font-black uppercase text-emerald-600"
                     >New</span
                   >
-                  <div class="text-[9px] text-slate-400 font-mono font-normal">{{ egg.identifier }}</div>
+                  <div class="text-[9px] text-slate-400 tabular-nums font-normal">{{ egg.identifier }}</div>
                 </td>
                 <td class="py-1.5 px-2 text-slate-500 whitespace-nowrap">{{ effectName(egg) }}</td>
                 <td
                   v-for="i in 4"
                   :key="i"
-                  class="py-1.5 px-2 text-right font-mono whitespace-nowrap"
+                  class="py-1.5 px-2 text-right tabular-nums whitespace-nowrap"
                   :class="egg.buffs[i - 1] ? 'text-slate-700' : 'text-slate-300'"
                 >
                   {{ egg.buffs[i - 1] ? formatMultiplier(egg.buffs[i - 1].value) : '—' }}

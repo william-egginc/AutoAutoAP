@@ -8,7 +8,7 @@
       What if you had maxed gear? (all legendary + T4 stones)
     </summary>
     <div class="mt-1 space-y-1 pl-3">
-      <p v-if="letters" class="font-mono-premium text-[10px] text-slate-500">{{ letters }}</p>
+      <p v-if="letters" class="tabular-nums text-[10px] text-slate-500">{{ letters }}</p>
       <p v-if="alreadyMaxed">Your gear is already maxed: your instant answer is the maxed one.</p>
       <p v-else-if="status === 'running'" class="text-slate-400">Finding your route again with maxed gear…</p>
       <p v-else-if="status === 'error'" class="text-slate-500">Couldn’t work that out this time.</p>

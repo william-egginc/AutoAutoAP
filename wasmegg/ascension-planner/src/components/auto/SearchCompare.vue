@@ -30,7 +30,7 @@
           <span v-if="goal === 'date' && r.entry.spare !== undefined" class="text-slate-600"
             >{{ spareLabel(r.entry.spare) }} spare</span
           >
-          <span class="font-mono-premium text-slate-700 break-all">{{ r.entry.chain.join(' ') }}</span>
+          <span class="tabular-nums text-slate-700 break-all">{{ r.entry.chain.join(' ') }}</span>
           <span class="text-[10px] text-slate-500">{{ note(r) }}</span>
         </template>
         <span v-else class="text-slate-400">not run yet</span>

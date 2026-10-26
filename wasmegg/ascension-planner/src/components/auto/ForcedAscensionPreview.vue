@@ -30,7 +30,7 @@
           <div v-if="i > 0" class="w-px h-4 bg-slate-200"></div>
           <div class="flex items-center gap-1.5">
             <span class="text-[9px] font-black text-slate-500 uppercase tracking-wider">{{ entry.key }}</span>
-            <span class="text-[13px] font-mono-premium font-black text-indigo-600">
+            <span class="text-[13px] tabular-nums font-black text-indigo-600">
               {{ formatNumber(entry.result.summary.maxELR * 3600, 3) }}
             </span>
             <span class="text-[9px] font-black text-slate-400">/hr</span>
@@ -59,7 +59,3 @@ const presentVariants = computed(() =>
     .map(([key, result]) => ({ key, result }))
 );
 </script>
-
-<style scoped>
-.font-mono-premium { font-family: 'JetBrains Mono', 'Roboto Mono', monospace; }
-</style>

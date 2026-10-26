@@ -108,7 +108,7 @@
         <div class="flex justify-between gap-3">
           <span>Seed route</span>
           <span v-if="isRecheck" class="text-slate-400 text-right">none (priced again, not searched)</span>
-          <span v-else-if="row.seed?.length" class="font-mono font-bold">{{ row.seed.join(' ') }}</span>
+          <span v-else-if="row.seed?.length" class="tabular-nums font-bold">{{ row.seed.join(' ') }}</span>
           <span v-else class="text-slate-400">none (Custom: every route in its boxes)</span>
         </div>
         <div v-if="row.note" class="flex justify-between gap-3">
@@ -260,7 +260,7 @@
       </div>
       <!-- One line per leg, each value kept with its unit, the line wrapping between values when its column is
            narrow (15 Oct: a nowrap table ran past the panel's edge: "25.24 d 2.65 q/hr" outside the grey box). -->
-      <div v-if="row.legs?.length" class="font-mono text-[10px] text-slate-600 space-y-0.5" data-testid="run-legs">
+      <div v-if="row.legs?.length" class="tabular-nums text-[10px] text-slate-600 space-y-0.5" data-testid="run-legs">
         <div v-for="(l, k) in row.legs" :key="k" class="flex flex-wrap gap-x-2">
           <span class="whitespace-nowrap">A{{ k + 1 }} → {{ l.te }}</span>
           <span class="whitespace-nowrap">{{ l.strategy }}</span>
@@ -296,7 +296,7 @@
       </div>
       <!-- In the notation players type (`183-219:6`), not every TE: a band of every TE from 150 to
            489 listed 340 numbers. -->
-      <div v-if="row.space.bands?.length" class="mt-1 font-mono text-[10px] text-slate-600">
+      <div v-if="row.space.bands?.length" class="mt-1 tabular-nums text-[10px] text-slate-600">
         <div v-for="(b, k) in row.space.bands" :key="k">A{{ k + 1 }}: {{ formatBand(b) }}</div>
       </div>
       <!-- A run cut short enumerated a space it did not finish, so its answer is the best of what
@@ -328,7 +328,7 @@
       </div>
       <template v-if="row.proof.runnersUp.length">
         <h4 class="mt-2 text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Runners-up</h4>
-        <div v-for="(c, k) in row.proof.runnersUp" :key="k" class="font-mono text-[10px] text-slate-600">
+        <div v-for="(c, k) in row.proof.runnersUp" :key="k" class="tabular-nums text-[10px] text-slate-600">
           {{ k + 2 }}. {{ c.chain.join(' ') }} {{ c.days.toFixed(3) }} d
           <span class="text-slate-400">+{{ (c.days - row.durationDays).toFixed(3) }}</span>
         </div>
@@ -337,7 +337,7 @@
         <h4 class="mt-2 text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
           Best per ascension count
         </h4>
-        <div v-for="(g, k) in row.proof.byAscensions" :key="k" class="font-mono text-[10px] text-slate-600">
+        <div v-for="(g, k) in row.proof.byAscensions" :key="k" class="tabular-nums text-[10px] text-slate-600">
           {{ g.ascensions }} asc: {{ g.chain.join(' ') }} {{ g.days.toFixed(3) }} d
           <span class="text-slate-400">({{ g.priced.toLocaleString() }} priced)</span>
         </div>

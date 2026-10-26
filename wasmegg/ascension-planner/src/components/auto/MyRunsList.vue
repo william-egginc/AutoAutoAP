@@ -78,7 +78,7 @@
                 {{ kindText(l) }}
               </td>
               <td class="pr-3 py-1.5 cursor-pointer" @click="onRowClick($event, () => toggle(l.key))">
-                <span class="font-mono font-bold whitespace-nowrap" :class="l.hidden ? '' : 'text-slate-700'">{{
+                <span class="tabular-nums font-bold whitespace-nowrap" :class="l.hidden ? '' : 'text-slate-700'">{{
                   l.row.chain.join(' ')
                 }}</span>
                 <span

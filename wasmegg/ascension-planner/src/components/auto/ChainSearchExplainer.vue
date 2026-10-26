@@ -58,7 +58,7 @@
         <p>
           You reach a Truth Egg target by ascending to a stop, prestiging, ascending to a higher one, and so on. That
           list of stops is a route:
-          <code class="font-mono-premium text-slate-800">195 219 248 286 327 490</code>. You pick them and the game does
+          <code class="tabular-nums text-slate-800">195 219 248 286 327 490</code>. You pick them and the game does
           the rest. The plans players have sent in run two to three years, and two routes to the same target can finish
           <span class="font-bold text-slate-800">weeks apart</span>: in players' every-TE runs, moving one stop by a
           single TE, with the rest left where they are, changed the finish by typically about 2.5% of the plan. Finding
@@ -72,7 +72,7 @@
             current 177 and a final 490 there are 312 to pick from:
           </p>
           <div class="overflow-x-auto">
-            <table class="w-full text-[11px] font-mono-premium">
+            <table class="w-full text-[11px] tabular-nums">
               <thead>
                 <tr class="text-slate-400 uppercase tracking-widest text-[9px] font-black">
                   <th class="text-left py-1.5 pr-4 font-black">Route length</th>
@@ -104,7 +104,7 @@
           <p class="mb-3">
             The figure below is one box on one account, priced almost in full:
             {{ DISTRIBUTION.n.toLocaleString() }} of its 10,416 routes of the form
-            <code class="font-mono-premium text-slate-800">195 X₂ X₃ X₄ 490</code> (3 could not be priced). So its
+            <code class="tabular-nums text-slate-800">195 X₂ X₃ X₄ 490</code> (3 could not be priced). So its
             winner is all but <span class="font-bold text-slate-800">proven</span> the best in that box. No search
             picked it.
           </p>
