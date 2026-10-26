@@ -191,6 +191,7 @@ function ctxOf(s: State): Record<string, unknown> {
     preferShowBest: false,
     pressRun: () => {},
     prestige: null,
+    boxPrestige: null,
     prestigeFlag: { enabled: { value: false }, beta: true },
     prestigeStatus: 'idle',
     result,

@@ -124,18 +124,19 @@ describe('InstantRoute wiring', () => {
     expect(route).toContain(
       '<PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />'
     );
-    // Over the instant route it was worked out on: the box shows it unless Prefer fewer picked another.
-    expect((route.match(/v-if="prestigeFlag.enabled.value && !preferPicked"/g) ?? []).length).toBe(2);
-    // With Prefer fewer on by default, a box showing another route says where the line went (both boxes).
-    expect((route.match(/v-if="prestigeFlag.enabled.value && preferPicked && prestigeStatus !== 'idle'"/g) ?? []).length).toBe(2);
-    expect(route).toContain('The “Prestige by” line is worked out on the fastest route: “Show the fastest instead” shows it.');
-    expect(route).toContain('The “Prestige by” line is worked out on the highest TE route: “Show the highest TE instead” shows it.');
+    // Prestige by follows the box's route (Jordan, 26 Oct 2026): shown under both boxes whatever Prefer fewer picked,
+    // and the muted "worked out on the fastest route" line is gone.
+    expect((route.match(/<PrestigeByLine\s+v-if="prestigeFlag.enabled.value"\s+:line="boxPrestige\?\.line \?\? null"/g) ?? []).length).toBe(2);
+    expect(route).not.toContain('prestige-by-other-route');
+    expect(route).not.toContain('is worked out on the fastest route');
+    expect(route).not.toContain('is worked out on the highest TE route');
+    expect(route).not.toMatch(/prestigeFlag\.enabled\.value && !?preferPicked/);
     expect(route).toContain('v-if="preferPicked && r === boxLead"');
     expect(route).toContain('v-if="datePickedRow(r)"');
     expect(route).toContain(`:class="r === boxLead ? 'bg-emerald-50/60' : ''"`);
   });
 
-  it('saved answers: the pick is never saved, so a new default needs no new key and no INSTANT_RULES bump', () => {
+  it('saved answers: the pick is never saved, so a new default needs no new answer key', () => {
     // The snapshot keeps every row; the box's pick is worked out on screen from them with the margin in force, so an
     // answer saved under Off shows the within 12 h / same TE pick when put back (26 Oct 2026, Jordan's defaults).
     const snap = route.slice(route.indexOf('interface InstantSnapshot {'), route.indexOf('let snapKey: string | null = null;'));
@@ -147,6 +148,23 @@ describe('InstantRoute wiring', () => {
     expect(route).toContain('? dateBoxOf(found.byDate)');
     expect(route).toContain('<FollowButton primary :chain="boxLead.chain"');
     expect(route).toContain('<FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain"');
+  });
+
+  it('Prestige by on the box’s route: worked out on it, saved with it, again (debounced) when the box changes', () => {
+    // The box's route (either goal) goes to prestigePlan when Prefer fewer picked it; the lookups stop at its count.
+    expect(route).toContain('const boxRoute = computed<Route | null>(');
+    expect(route).toMatch(/const picked = preferPicked\.value \? shown : null;/);
+    expect(route).toContain('boxRoute: picked,');
+    expect(route).toMatch(/max: bounds\.max === null \? picked\.legs\.length : Math\.min\(bounds\.max, picked\.legs\.length\)/);
+    // Saved with the route it is for; one saved without (before 26 Oct 2026) is not put back; shown only for the box's.
+    expect(route).toMatch(/record: recordOfCutoff\(cut, line, plan, PRESTIGE_EGGS\), route: routeKey \}/);
+    expect(route).toContain("prestige.value = s.prestige && typeof s.prestige.route === 'string' ? s.prestige : null;");
+    expect(route).toMatch(/p && boxRoute\.value && p\.route === key\(boxRoute\.value\.chain\) \? p : null/);
+    // Again when the box's route changes: once per route (not per margin), after a short wait.
+    expect(route).toMatch(/watch\(\s+\(\) => \(boxRoute\.value \? key\(boxRoute\.value\.chain\) : null\),/);
+    expect(route).toContain('}, PRESTIGE_DEBOUNCE_MS);');
+    // The shared record carries the line for the box's route.
+    expect(route).toContain('return boxPrestige.value ? { ...record, prestigeBy: boxPrestige.value.record } : record;');
   });
 
   it('numbers: the instant answer’s, with no shifts (none are said)', () => {

@@ -73,9 +73,9 @@ describe('PrestigeByLine', () => {
     expect(uses.filter(u => /\n\s*dated\n/.test(u))).toHaveLength(1);
     expect(template.indexOf('dated\n')).toBeLessThan(template.indexOf('Fastest to {{ store.finalTE }} TE'));
     for (const u of uses) {
-      // Not over a route Prefer fewer ascensions picked instead of the best (Q6): it is worked out on the best. The box
-      // always shows the instant route otherwise (no Check exactly since 23 Oct 2026), so the line is always there.
-      expect(u).toContain('v-if="prestigeFlag.enabled.value && !preferPicked"');
+      // Worked out on the route the box shows, Prefer fewer's pick included (Jordan, 26 Oct 2026): always there.
+      expect(u).toContain('v-if="prestigeFlag.enabled.value"');
+      expect(u).toContain(':line="boxPrestige?.line ?? null"');
       expect(u).toContain('mismatch=""');
       expect(u).toContain(':beta="prestigeFlag.beta"');
       expect(u).toContain(':hours-on="hoursLimited"');

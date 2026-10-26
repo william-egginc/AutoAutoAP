@@ -347,11 +347,19 @@ export function splitHours(from: number, to: number, n: number): [number, number
 /** The candidate routes in a finder's answer, as the checkpoints after the prestige: each count's
  *  route and (`others`) the other routes it kept, without the first stop when the first ascension is
  *  the player's own (continue or build-up) rather than a fresh one. */
-export function candidatesOf(found: FoundRoutes, mode: PrestigeMode, freshFirst: boolean, others = true): number[][] {
-  const routes: (Route | null)[] =
+export function candidatesOf(
+  found: FoundRoutes,
+  mode: PrestigeMode,
+  freshFirst: boolean,
+  others = true,
+  /** Only routes with at most this many ascensions (the box's own count when Prefer fewer picked it). */
+  maxAscensions: number | null = null
+): number[][] {
+  const all: (Route | null)[] =
     mode === 'date'
       ? [found.byDate, ...found.byDateByAscensions, ...(others ? (found.dateAlternatives ?? []).flat() : [])]
       : [found.best, ...found.byAscensions, ...(others ? (found.alternatives ?? []).flat() : [])];
+  const routes = maxAscensions === null ? all : all.filter(r => !r || r.chain.length <= maxAscensions);
   return dedupe(routes.filter((r): r is Route => !!r).map(r => (freshFirst ? [...r.chain] : r.chain.slice(1))));
 }
 
@@ -573,8 +581,15 @@ export function prestigePlan(o: {
   siloSeconds: number;
   /** 'frozen': the farm adds nothing while it waits (the cautious model). */
   eggs?: 'frozen' | 'silo' | 'laying';
+  /**
+   * The route the green box shows when Prefer fewer picked one other than the best (search/preferFewer.ts; Jordan,
+   * 26 Oct 2026): the line keeps ITS outcome, and only routes with at most its ascensions are priced again (a later
+   * prestige that only keeps it on a longer route would undo the pick). Left out: the best, every route, as before.
+   */
+  boxRoute?: Route | null;
 }): PrestigePlan | null {
-  const route = o.mode === 'date' ? o.found.byDate : o.found.best;
+  const box = o.boxRoute ?? null;
+  const route = box ?? (o.mode === 'date' ? o.found.byDate : o.found.best);
   if (!route?.legs.length) return null;
   const first = route.legs[0];
   const own = first.label === 'continue' || first.label === 'buildup';
@@ -592,8 +607,10 @@ export function prestigePlan(o: {
     startTE: own ? first.endTE : Math.floor(o.startTE),
     delivered: own ? [...f!.delivered] : [...o.saveDelivered],
     laying,
-    keep: outcomeOf(o.found, o.mode, o.startTE),
-    candidates: candidatesOf(o.found, o.mode, !own),
+    keep: box ? outcomeOf({ best: box, byDate: box }, o.mode, o.startTE) : outcomeOf(o.found, o.mode, o.startTE),
+    candidates: box
+      ? dedupe([[...(own ? box.chain.slice(1) : box.chain)], ...candidatesOf(o.found, o.mode, !own, true, box.chain.length)])
+      : candidatesOf(o.found, o.mode, !own),
   };
 }
 

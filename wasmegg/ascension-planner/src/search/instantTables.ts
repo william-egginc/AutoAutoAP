@@ -22,7 +22,9 @@ import type { TableEntry } from './tableBracket';
  */
 // 24 Oct 2026 (pricing): answers saved before they kept their pricing settings (lib/followEstimate.ts) are worked out
 // again once, so My runs can price a followed route on them.
-export const INSTANT_RULES = '2026-10-24-pricing';
+// 26 Oct 2026 (boxprestige): the "Prestige by" line is worked out on the route the box shows (Prefer fewer's pick) and
+// saved with that route; answers saved with a line for the best route are worked out again once.
+export const INSTANT_RULES = '2026-10-26-boxprestige';
 
 /** One file as tables.json lists it: what changes when the file is rebuilt, restamped or replaced. */
 export function entryIdentity(e: TableEntry): string {
