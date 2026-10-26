@@ -353,6 +353,23 @@ export function setConsentRemember(id: ConsentId, remember: boolean): void {
   persist();
 }
 
+/**
+ * A choice read back from the account's choices saved online (stores/prefs.ts, newer than this browser's): kept as a
+ * remembered choice. Dated no later than this visit's start, so it is never "given this visit" and sends nothing by
+ * itself (the 15 Oct rule); a newer choice of this tab's own keeps its place in the order. A yes turned off is a
+ * withdraw, as everywhere.
+ */
+export function applySavedConsent(id: ConsentId, agreed: boolean, at: number): void {
+  const was = consentRecord(id);
+  if (state.records[id] && was.agreed === agreed) return;
+  let when = Math.max(1, Math.min(Math.floor(at) || 1, visitStart - 1));
+  if (when <= was.at) when = was.at + 1;
+  state.records = { ...state.records, [id]: { agreed, remember: true, at: when } };
+  if (state.account && state.loaded) visit.set(state.account, state.records);
+  persist();
+  if (was.agreed && !agreed) state.withdrawals = { ...state.withdrawals, [id]: consentWithdrawals(id) + 1 };
+}
+
 /** A yes the page itself gives on the player's behalf (a run that sends what it owes): for this visit
  *  only, so it is never remembered for them. */
 export function agreeThisVisit(id: ConsentId): void {

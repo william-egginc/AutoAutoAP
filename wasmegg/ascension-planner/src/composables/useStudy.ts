@@ -213,6 +213,30 @@ export function setStudyCredit(credit: StudyCredit, nickname: string): void {
   save({ ...fresh(), credit: given });
 }
 
+/**
+ * The account's answer read back from its choices saved online (stores/prefs.ts, newer than this browser's): the box
+ * isn't asked again for it in a new browser or a private window. Nothing is sent and no consent is set here (the
+ * caller sets the saved ticks with `applySavedConsent`). Yes: this browser's answer when it had none, else this
+ * account's yes. No (or "later"): this browser's no when it had none; after a yes here, "not this account".
+ */
+export function applySavedStudy(
+  hash: string,
+  answer: 'yes' | 'no',
+  at: number,
+  ticks: Partial<StudyTicks> = {},
+  credit?: StudyCredit
+): void {
+  if (!hash) return;
+  const rec = fresh();
+  if (answer === 'yes') {
+    if (rec.answer === null) save(afterYes(rec, hash, at, { ...rec.ticks, ...ticks }, credit ?? rec.credit));
+    else if (rec.accounts[hash] !== 'yes') save({ ...rec, accounts: { ...rec.accounts, [hash]: 'yes' } });
+    return;
+  }
+  if (rec.answer === null) save({ ...rec, answer: 'no', at });
+  else if (rec.answer === 'yes' && rec.accounts[hash] !== 'no') save({ ...rec, accounts: { ...rec.accounts, [hash]: 'no' } });
+}
+
 /** The "Thank you" line closed. */
 export function closeThanks(): void {
   state.thanked = false;

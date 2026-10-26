@@ -585,6 +585,14 @@
               UNREACHABLE_NOTE
             }}</span>
           </p>
+          <!-- Your choices and Setup saved online (lib/prefsCloud.ts, stores/prefs.ts); about.html says the same. -->
+          <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="prefs-online">
+            <span class="font-bold text-slate-800">Your choices and Setup are saved online</span>: your consent choices and
+            your Setup (awake hours, time off, no prestige days, target TE and time zone) are saved under the same code as
+            the route you follow, made from your player ID. Anyone who knows your player ID can read and change them. Never
+            the ID itself, and a name only if you chose to be credited by name. The last 5 versions of each are kept, and at
+            most 30 changes an hour are saved.
+          </p>
           <!-- "Which build is in use" (lib/buildCount.ts): no choice here; Global Privacy Control or Do Not Track turns
                it off. about.html says the same. -->
           <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="build-count">

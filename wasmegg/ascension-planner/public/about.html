@@ -110,7 +110,7 @@
     <main>
       <p><a href="./">← Back to the planner</a></p>
       <h1>About and privacy</h1>
-      <p class="muted">Last updated Oct 24, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+      <p class="muted">Last updated Oct 26, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
 
       <section id="what">
         <h2>What this is</h2>
@@ -261,6 +261,25 @@
         </p>
       </section>
 
+      <!-- stores/prefs.ts, lib/prefsCloud.ts: these sentences go with that code. -->
+      <section id="prefs">
+        <h2>Your choices and Setup, saved online</h2>
+        <p>
+          Your consent choices and your Setup (awake hours, time off, no prestige days, target TE and time zone) are saved
+          online under the same code as the route you follow, made from your player ID. Anyone who knows your player ID can
+          read and change them. Never the ID itself, and a name only if you chose to be credited by name. The last 5
+          versions of each are kept, and at most 30 changes an hour are saved.
+        </p>
+        <p>
+          Your consent choices are your answer to <b>Help improve the planner</b>, the sharing ticks behind it and how you
+          are credited. That is so a new browser or a private window doesn't ask again and has your Setup when you enter
+          your ID there: loading your account reads them, and the newer of the saved ones and the ones in that browser are
+          used. They are saved only when you change them, never just because a page loaded. The workers, the memory and
+          the other <b>This computer</b> settings stay in this browser. If the planner's server can't be reached, your
+          choices still work in this browser.
+        </p>
+      </section>
+
       <section id="never">
         <h2>What is never sent to the leaderboard</h2>
         <ul>
@@ -310,6 +329,10 @@
             <tr>
               <td>The routes you follow</td>
               <td>No time limit. The last 5 versions of each goal, for up to 8 goals.</td>
+            </tr>
+            <tr>
+              <td>Your choices and Setup</td>
+              <td>No time limit. The last 5 versions of each.</td>
             </tr>
             <tr>
               <td>Version counts</td>

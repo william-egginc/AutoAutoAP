@@ -827,6 +827,7 @@ import LoadingOverlay from '@/components/LoadingOverlay.vue';
 import PlanLibrary from '@/components/PlanLibrary.vue';
 import PlanSelectionDialog from '@/components/PlanSelectionDialog.vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { usePrefsStore } from '@/stores/prefs';
 import { allowForVisit, useTabPrefs } from '@/composables/useTabPrefs';
 import { useMyRunsShown } from '@/composables/useMyRunsShown';
 import { myRunsTab } from '@/lib/myRunsShown';
@@ -1283,6 +1284,9 @@ watch(playerId, id => (uiStore.screenPlayerId = id), { immediate: true });
 // Every consent box, remembered per account (composables/useConsent.ts): this account's agreements, or
 // nothing agreed. A switch never carries the last account's yes over.
 watch(playerId, id => void setConsentAccount(id), { immediate: true });
+// Your choices and Setup, saved online per account (stores/prefs.ts): read once as the account loads, written on
+// the player's own changes only.
+usePrefsStore();
 // Which of the Leaderboard and Science tabs show (composables/useTabPrefs.ts): off until turned on in Setup, never
 // with no collector. An address that asks for one opens it for this visit (allowForVisit, here and in goTo).
 const { shown: optionalShown } = useTabPrefs(() => !!chainSearchStore.submitUrl);
