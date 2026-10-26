@@ -34,6 +34,10 @@ export interface SnapRoute {
     /** routeFinder.ts RouteLeg's held opening: the prestige into it waited for a morning where its opening fits. */
     heldOpening?: 'morning' | 'uncertain';
     wanted?: number;
+    /** The current ascension simulated on the live save (lib/followSim.ts `withCurrentSim`): its start, end and
+     *  shifts are exact, and `buildEnd` is when its build phase ends. */
+    simulated?: boolean;
+    buildEnd?: number;
   }[];
   end: number;
   seconds?: number;

@@ -133,6 +133,8 @@ import {
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
+import { useCurrentSim, type SimRequest } from './useCurrentSim';
+import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
 import { SIM_VERSION } from '@/search/simVersion';
@@ -1021,11 +1023,55 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     },
     { immediate: true }
   );
+  /**
+   * THE CURRENT ASCENSION SIMULATED ON THE LIVE SAVE (26 Oct 2026, lib/followSim.ts): the followed route's first
+   * ascension, when its plan has the table's times, simulated once per save, route and setup in one chain worker
+   * (composables/useCurrentSim.ts, never while a search runs). The request carries a builder: the evaluator's inputs
+   * are read from the stores once, in the run, never here.
+   */
+  const simRequest = computed<SimRequest | null>(() => {
+    const p = followState.value?.plan?.plan;
+    const acct = account.value;
+    if (!p || p.legs || !p.tableLegs?.length || !p.chain.length || !acct || !storeReady.value || onVirtue.value === false) return null;
+    const useHours = useHoursFromStores();
+    const setup = simSetupKey({
+      availability: store.availability,
+      useHours,
+      timeOff: store.timeOff,
+      noPrestige: store.noPrestige,
+      firstAscension: store.firstAscension,
+      deferShifts: !!store.deferShifts,
+    });
+    const route = [...p.chain];
+    const backupTime = saveSeconds.value;
+    return {
+      key: simKey({ account: acct, backupTime, route, setup }),
+      account: acct,
+      backupTime,
+      route,
+      setup,
+      inputs: () => {
+        const i = store.collectInputs();
+        // One ascension, not the whole route: no dated milestones to meet; the hours only as the answers use them.
+        return { ...i, milestones: [], ...(useHours ? {} : { availability: null }) };
+      },
+    };
+  });
+  const { state: currentSim } = useCurrentSim(simRequest, searchBusy);
+  /** 'working' while the current ascension is simulated (or 'waiting' for a search), else null. */
+  const simWorking = computed(() => {
+    const st = currentSim.value;
+    return st && st.key === simRequest.value?.key && (st.status === 'working' || st.status === 'waiting') ? st.status : null;
+  });
   const cardPlan = computed<CardPlan | null>(() => {
     const c = basePlan.value;
     const r = shiftRequest.value;
     const st = r ? otherStates.value[r.key] : null;
-    return c && st?.status === 'done' ? { ...c, plan: withTableShifts(c.plan, st.route) } : c;
+    const shifted = c && st?.status === 'done' ? { ...c, plan: withTableShifts(c.plan, st.route) } : c;
+    const sim = currentSim.value;
+    return shifted && sim?.status === 'done' && sim.key === simRequest.value?.key
+      ? { ...shifted, plan: withCurrentSim(shifted.plan, sim.leg) }
+      : shifted;
   });
   /**
    * With a followed route for the selected goal: the planner's pick for this save as the new result the prompt
@@ -1140,7 +1186,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const p = cardPlan.value?.plan;
     if (!p || p.legs) return [];
     return ascensionSteps(
-      stepLegsOf(p).map((l, i) => ({ ...l, ...(p.tableLegs?.[i]?.shifts ? { shifts: p.tableLegs[i].shifts } : {}) })),
+      stepLegsOf(p).map((l, i) => ({
+        ...l,
+        ...(p.tableLegs?.[i]?.shifts ? { shifts: p.tableLegs[i].shifts } : {}),
+        ...(p.tableLegs?.[i]?.simulated ? { simulated: true } : {}),
+      })),
       stepHours.value,
       stepNoPrestige.value
     );
@@ -1406,6 +1456,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     events,
     shownEvents,
     ascensions,
+    simWorking,
     ascNow,
     track,
     gear,

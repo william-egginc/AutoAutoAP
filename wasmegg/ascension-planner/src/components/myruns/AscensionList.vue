@@ -24,7 +24,7 @@
           </template>
         </template>
         {{ ' ' }}→ <span class="font-bold">{{ l.stopTE }} TE</span> reached
-        <span class="whitespace-nowrap">{{ about(l.reachedAt) }}</span>
+        <span class="whitespace-nowrap">{{ l.simulated ? exact(l.reachedAt) : about(l.reachedAt) }}</span>
         <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-[11px] text-slate-600" data-testid="now-ascension-shifts">
           <li v-for="(s, k) in l.shifts" :key="k" data-testid="now-ascension-shift">
             Shift to {{ virtueEggName(s.egg) }} · <span class="whitespace-nowrap">{{ l.simulated ? exact(s.at) : about(s.at) }}</span>
@@ -62,6 +62,7 @@ const about = (t: number) => `about ${showDateTime(roundToHourIn(t, props.zone),
 const exact = (t: number) => showDateTime(t, props.zone);
 function noShifts(l: AscensionStep): string {
   if (l.asc === 1 && props.working) return 'Working out your shifts…';
+  if (l.simulated) return 'No shifts left in it: worked out on your save.';
   return l.now ? "The instant answer doesn't keep the shifts of the ascension you are in." : 'No shifts kept for it.';
 }
 </script>

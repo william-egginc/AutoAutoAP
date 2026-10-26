@@ -21,6 +21,7 @@ import {
 } from '@/lib/nowPlan';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { planFromEstimate } from '@/lib/followEstimate';
+import { withCurrentSim } from '@/lib/followSim';
 import type { Availability } from '@/search/availability';
 import type { Route } from '@/search/routeFinder';
 
@@ -181,6 +182,32 @@ describe('every ascension and its shifts (AscensionList.vue, lib/instantSteps.ts
       rounded: true,
     });
     expect(html).not.toContain('now-event-wait');
+  });
+});
+
+describe('the ascension you are in, simulated (lib/followSim.ts)', () => {
+  it('its shifts are exact and say so; while it is worked out A1 says so', async () => {
+    const p = withCurrentSim(plan(), {
+      key: 'continue',
+      startTime: T0,
+      endTime: T0 + 20 * H,
+      endTE: 226,
+      buildPhaseEndTime: T0,
+      shifts: [{ at: T0 + 2 * H + 17 * 60, egg: 'kindness' }],
+    });
+    const lines = ascensionSteps(
+      stepLegsOf(p).map((l, i) => ({ ...l, shifts: p.tableLegs![i].shifts, simulated: p.tableLegs![i].simulated })),
+      null,
+      null
+    );
+    expect(lines[0]).toMatchObject({ simulated: true, shifts: [{ egg: 'kindness' }] });
+    const t = textOf(await renderHtml(AscensionList, { lines, zone: ZONE }));
+    expect(t).toMatch(/Shift to Kindness · Jan 4, 2027,? 11:17 AM/);
+    expect(t).toContain('worked out on your save, to the minute');
+    const bare = ascensionSteps(stepLegsOf(plan()), null, null);
+    expect(textOf(await renderHtml(AscensionList, { lines: bare, zone: ZONE, working: true }))).toContain('Working out your shifts…');
+    // All planned shifts counts the simulated ones too.
+    expect(shiftsAfter(p, T0)).toBe(13);
   });
 });
 

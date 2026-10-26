@@ -34,7 +34,8 @@
   this save's Fast, Exact or Custom result keeps that result's ("from your Fast run, on your account", exact times,
   calendar). Only a route that is neither says "not priced on this save yet".
   EVERY ASCENSION (26 Oct 2026): the table lists each ascension's prestige (one that waits for the hours or past a
-  no-prestige day says so), and the Full timeline of a plan with no exact legs lists A1..An with each one's shifts from
+  no-prestige day says so); the ascension you are in is simulated on the save in the background ("Working out your
+  shifts…", lib/followSim.ts) and its exact shifts replace the table's; and the Full timeline of a plan with no exact legs lists A1..An with each one's shifts from
   the instant answer (AscensionList.vue).
   A FOLLOWED ROUTE ALWAYS HAS A TIMELINE (24 Oct 2026, lib/followEstimate.ts): that route is then priced on the instant
   answer's data (the same pricing the instant answer uses, in a route worker) and its steps shown "estimated from the
@@ -306,6 +307,11 @@
         <p v-if="card.plan.estimated" class="mt-0.5 text-[12px] text-slate-600" data-testid="now-next-estimated">
           Your route's steps, {{ ESTIMATE_WORDS }}.
         </p>
+        <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
+        <p v-if="simWorking" class="mt-0.5 text-[12px] text-slate-600" role="status" data-testid="now-sim-working" :data-state="simWorking">
+          <template v-if="simWorking === 'working'">Working out your shifts…</template>
+          <template v-else>Your shifts are worked out once the search running now ends.</template>
+        </p>
         <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
           {{ paceBadge }}.
           <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" data-testid="now-behind-run-fast" @click="emit('recalc', recalcRequest)">Run Fast ›</button>
@@ -401,7 +407,7 @@
         </summary>
         <div class="mt-2">
           <!-- No exact legs: every ascension with the instant answer's shifts (lib/instantSteps.ts `ascensionSteps`). -->
-          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" />
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" />
           <RouteTimeline
             v-else
             :chain="card.plan.chain"
@@ -503,6 +509,9 @@ const props = defineProps<{
   followCloudUnreachable?: boolean;
   /** Every ascension and its shifts (useNowPage `ascensions`), for the Full timeline when the plan has no exact legs. */
   ascensions?: AscensionStep[];
+  /** The ascension you are in is being simulated on your save ('working'), or waits for a search (useNowPage
+   *  `simWorking`); null or absent: not. */
+  simWorking?: 'working' | 'waiting' | null;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];

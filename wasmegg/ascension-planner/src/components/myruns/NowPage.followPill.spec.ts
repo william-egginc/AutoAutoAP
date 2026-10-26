@@ -26,6 +26,8 @@ import { FOLLOW_PREFIX } from '@/lib/follow';
 import { saveTEOf } from '@/lib/saveFreshness';
 import type { SnapPricing } from '@/lib/followEstimate';
 import { setChainPricer, type ChainPricer } from '@/composables/useFollowEstimate';
+import { setSimRunner, type SimRunner } from '@/composables/useCurrentSim';
+import { readSimRecords } from '@/lib/followSim';
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
@@ -61,7 +63,10 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   stubPricer();
 });
-afterEach(() => setChainPricer(null));
+afterEach(() => {
+  setChainPricer(null);
+  setSimRunner(null);
+});
 
 const leg = (start: number, end: number, endTE: number) =>
   ({ key: 'continue', endTE, durationSeconds: end - start, maxELR: 0, endTime: end, tier13Unlocked: false, startTime: start, shifts: [], endEgg: { egg: 'kindness', te: 40 } }) as LegSummary;
@@ -155,6 +160,28 @@ async function setup(
     await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
   }
   return { page, scope, now, eggDayAt, te };
+}
+
+async function renderProps(page: Awaited<ReturnType<typeof setup>>['page']) {
+  return {
+    card: page.cardPlan.value,
+    onVirtue: true,
+    currentEgg: 'curiosity',
+    teSoFar: page.teSoFar.value,
+    ascNow: page.ascNow.value,
+    track: null,
+    events: page.events.value,
+    shownEvents: page.shownEvents.value,
+    gear: null,
+    now: page.now.value,
+    zone: ZONE,
+    saveSeconds: page.saveSeconds.value,
+    eggDayYear: page.eggDayYear,
+    goals: page.goalChoices.value,
+    selectedGoal: page.selectedGoal.value,
+    follow: page.follow.value,
+    ascensions: page.ascensions.value,
+  };
 }
 
 async function render(page: Awaited<ReturnType<typeof setup>>['page']) {
@@ -319,6 +346,32 @@ describe("each ascension's shifts (26 Oct 2026)", () => {
     expect(page.events.value.filter(e => e.kind === 'shift').map(e => e.eggs ?? [e.egg])).toEqual([['humility'], ['kindness']]);
     expect(page.plannedShifts.value).toMatchObject({ count: 2, partial: true });
     expect(page.ascensions.value.map(l => l.shifts.length)).toEqual([0, 2]);
+    scope.stop();
+  });
+});
+
+describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => {
+  it('once the route is estimated: its first stop simulated in the background, "Working out your shifts…", then its exact shifts', async () => {
+    const sims: { inputs: import('@/search/types').SearchInputs; chain: number[]; resolve: (l: LegSummary | null) => void }[] = [];
+    setSimRunner((): SimRunner => ({ run: (inputs, chain) => new Promise(resolve => sims.push({ inputs, chain, resolve })), terminate: () => undefined }));
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    expect(sims).toHaveLength(0);
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    expect(sims[0].chain).toEqual([226]);
+    expect(sims[0].inputs.milestones).toEqual([]);
+    expect(page.simWorking.value).toBe('working');
+    let r = await renderHtml(RightNowCard, { ...(await renderProps(page)), simWorking: page.simWorking.value }, {}, [getActivePinia()!]);
+    expect(textOf(r)).toContain('Working out your shifts…');
+    sims[0].resolve(leg(now - H, now + 18 * H, 226));
+    await vi.waitFor(() => expect(page.cardPlan.value?.plan.tableLegs?.[0].simulated).toBe(true));
+    expect(page.simWorking.value).toBeNull();
+    expect(page.cardPlan.value?.plan.tableLegs?.[0].end).toBe(now + 18 * H);
+    expect(readSimRecords()).toHaveLength(1);
+    expect(JSON.stringify(readSimRecords())).not.toContain(A_ID);
+    r = await renderHtml(RightNowCard, { ...(await renderProps(page)), simWorking: page.simWorking.value }, {}, [getActivePinia()!]);
+    expect(textOf(r)).not.toContain('Working out your shifts…');
     scope.stop();
   });
 });
