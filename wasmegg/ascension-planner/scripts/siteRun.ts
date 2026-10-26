@@ -22,8 +22,11 @@
  * The scripts/pc harness (zz_e2e_fine.spec.ts) proved the store runs under Node this way; this is the
  * same idea without vitest.
  */
-import { createWriteStream, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, createWriteStream, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { LegSpill } from '@/search/legSpill';
+import { FileSpillBackend } from './nodeLegSpill';
 import { createGzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { Worker as NodeWorker } from 'node:worker_threads';
@@ -51,6 +54,11 @@ import type { Milestone } from '@/search/milestones';
 import type { TimeOffDates } from '@/search/timeOff';
 import type { EffortTier } from '@/search/types';
 import type { FirstAscension } from '@/search/firstAscension';
+
+/** The leg spill's file in an --out directory (search/legSpill.ts), beside the checkpoint. */
+export const LEG_SPILL_FILE = 'legs.spill';
+/** The full download in an --out directory: every route's legs, gzipped. */
+export const FULL_CSV_FILE = 'run-full.csv.gz';
 
 export type SiteKind = 'smart' | 'full' | 'by-date';
 
@@ -169,7 +177,7 @@ function days(seconds: number): string {
 
 /** Chunks of text to a gzip file, one at a time, so a table of hundreds of thousands of chains never
  *  exists as one string. Resolves when the file is closed. */
-async function writeGzip(path: string, chunks: Iterable<string>): Promise<void> {
+async function writeGzip(path: string, chunks: Iterable<string> | AsyncIterable<string>): Promise<void> {
   const gz = createGzip();
   const file = createWriteStream(path);
   const done = new Promise<void>((resolve, reject) => {
@@ -178,20 +186,20 @@ async function writeGzip(path: string, chunks: Iterable<string>): Promise<void> 
     gz.on('error', reject);
   });
   gz.pipe(file);
-  for (const chunk of chunks) {
+  for await (const chunk of chunks) {
     if (!gz.write(chunk)) await new Promise<void>(r => gz.once('drain', () => r()));
   }
   gz.end();
   await done;
 }
 
-async function writePlain(path: string, chunks: Iterable<string>): Promise<void> {
+async function writePlain(path: string, chunks: Iterable<string> | AsyncIterable<string>): Promise<void> {
   const file = createWriteStream(path);
   const done = new Promise<void>((resolve, reject) => {
     file.on('finish', resolve);
     file.on('error', reject);
   });
-  for (const chunk of chunks) {
+  for await (const chunk of chunks) {
     if (!file.write(chunk)) await new Promise<void>(r => file.once('drain', () => r()));
   }
   file.end();
@@ -394,6 +402,37 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
   process.on('beforeExit', onBeforeExit);
   process.on('exit', onExit);
 
+  // EVERY ROUTE'S LEGS ON DISK (search/legSpill.ts): beside the checkpoint with --out, so a carried-on run
+  // keeps them; else a temporary file, deleted at the end. The downloaded files (--csv, run.csv,
+  // run-full.csv.gz) have every route's legs; run.csv.gz and sends keep the collector's rule.
+  const spillPath = o.out
+    ? join(o.out.dir, LEG_SPILL_FILE)
+    : join(tmpdir(), `aaap-legs-${process.pid}-${Date.now()}.spill`);
+  let spill: LegSpill | null = null;
+  try {
+    if (o.out) mkdirSync(o.out.dir, { recursive: true });
+    spill = new LegSpill(new FileSpillBackend(spillPath), o.tz);
+    store.setLegSpill(spill);
+  } catch (e) {
+    console.warn(`  (no leg spill: ${e instanceof Error ? e.message : String(e)}; the files keep legs for the top routes only)`);
+  }
+
+  // Test knobs: AAP_LEG_DETAIL_BUDGET sets "Keep per-ascension detail for N routes" (Setup > Memory on the
+  // page); AAP_MEMORY_LOG=FILE appends the heap, RSS and the spill's count every 15 s (a measured run).
+  const legBudget = Number(process.env.AAP_LEG_DETAIL_BUDGET);
+  if (legBudget > 0) store.legDetailBudget = legBudget;
+  const memLog = process.env.AAP_MEMORY_LOG;
+  const memTimer = memLog
+    ? setInterval(() => {
+        const m = process.memoryUsage();
+        appendFileSync(
+          memLog,
+          JSON.stringify({ t: Date.now(), heapMB: Math.round(m.heapUsed / 1048576), rssMB: Math.round(m.rss / 1048576), spilled: spill?.count ?? 0, spillMB: Math.round((spill?.bytes ?? 0) / 1048576), legsHeld: store.legsHeld, priced: store.chainsDone }) + '\n'
+        );
+      }, 15000)
+    : null;
+  memTimer?.unref();
+
   o.onStatus?.('running');
   try {
     const code =
@@ -406,6 +445,12 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
     o.onStatus?.('failed');
     throw e;
   } finally {
+    if (memTimer) clearInterval(memTimer);
+    store.setLegSpill(null);
+    if (spill) {
+      if (spill.stopped) console.log(`  leg detail on disk stopped early: ${spill.stopped}`);
+      await spill.close(!o.out).catch(() => {});
+    }
     console.error = consoleError;
     console.warn = consoleWarn;
     finished = true;
@@ -658,7 +703,7 @@ async function runChains(
       for (const row of rows) console.log(`    ${days(row.seconds)}  +${days(row.gapSeconds)}   ${row.chain.join(' ')}`);
     }
     if (o.csvPath && spaces.length === 1) {
-      await writePlain(o.csvPath, store.exportCsvChunks());
+      await writePlain(o.csvPath, store.streamFullCsv('fastest'));
       console.log(`\n  every chain priced -> ${o.csvPath}`);
     }
     let dir: string | null = null;
@@ -700,15 +745,20 @@ async function writeRunFiles(
   const payload = kind === 'chains' ? store.buildRunSubmission(nickname) : route ? store.buildDeadlineSubmission(route, nickname) : null;
   const csvFile = join(dir, CSV_FILE);
   if (o.out.csv) {
+    // run.csv.gz is what a send uploads (the collector's rule); the plain run.csv and run-full.csv.gz
+    // are the downloads: every route's legs, from the leg spill.
+    const fullKind = kind === 'chains' ? 'fastest' : 'deadline';
     if (kind === 'chains') {
       await writeGzip(csvFile, store.exportCsvChunks());
-      if (o.out.plainCsv) await writePlain(join(dir, 'run.csv'), store.exportCsvChunks());
     } else {
       const text = scrubIdentifiers(store.deadlineCsv());
       await writeGzip(csvFile, [text]);
-      if (o.out.plainCsv) writeFileSync(join(dir, 'run.csv'), text);
     }
+    if (o.out.plainCsv) await writePlain(join(dir, 'run.csv'), store.streamFullCsv(fullKind));
     console.log(`\n  table -> ${csvFile}`);
+    const fullFile = join(dir, FULL_CSV_FILE);
+    await writeGzip(fullFile, store.streamFullCsv(fullKind));
+    console.log(`  every route's legs -> ${fullFile}`);
   }
   if (!payload) {
     console.error('\n  no submission file: nothing to send');
@@ -796,7 +846,7 @@ async function runByDate(
     console.log(`    ${route.chain.join(' ')}   ${route.chain[route.chain.length - 1]} on ${show(route.reachAt)}`);
   }
   if (o.csvPath) {
-    writeFileSync(o.csvPath, store.deadlineCsv());
+    await writePlain(o.csvPath, store.streamFullCsv('deadline'));
     console.log(`\n  routes -> ${o.csvPath}`);
   }
   if (o.out) await writeRunFiles(o, store, 'by-date', o.out.dir, partition, best);

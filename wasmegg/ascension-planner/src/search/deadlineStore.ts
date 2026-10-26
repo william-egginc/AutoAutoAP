@@ -227,6 +227,8 @@ export interface DeadlineCheckpoint {
   carryOns?: number;
   /** About how many bytes its parts hold, for diagnostics. */
   bytes?: number;
+  /** The run's leg spill's length at this checkpoint (search/legSpill.ts); a carry-on cuts it back to it. */
+  spillBytes?: number;
 }
 
 /** About what a part holds in storage: its strings, and 8 bytes a number. */
