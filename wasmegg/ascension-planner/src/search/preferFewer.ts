@@ -200,7 +200,7 @@ export interface PreferCopy {
   what: string;
   /** Under the box's numbers, cost first, then the saving. */
   line: string;
-  /** "No route with fewer ascensions is within 1 day." */
+  /** "No route with fewer ascensions is within 1 day." Not shown since 26 Oct 2026 (PreferFewerNote.vue). */
   muted: string;
 }
 

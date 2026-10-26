@@ -78,11 +78,13 @@ describe('PreferFewerNote (the green box)', () => {
     expect(textOf(date)).toContain('Show the highest TE instead ›');
   });
 
-  it('nothing fits: only the muted line; off or nothing to say: nothing', async () => {
-    const muted = { chip: '', what: '', line: '', muted: 'No route with fewer ascensions is within 1 day.' };
-    expect(textOf(await renderHtml(PreferFewerNote, { copy: muted, goal: 'fastest', showingBest: false }))).toBe(
-      'No route with fewer ascensions is within 1 day.'
-    );
+  it('nothing fits, off, or nothing to say: nothing (the muted line is hidden since 26 Oct 2026, Jordan)', async () => {
+    for (const m of ['No route with fewer ascensions is within 12 h.', 'No route with fewer ascensions reaches the same TE.']) {
+      const muted = { chip: '', what: '', line: '', muted: m };
+      const html = await renderHtml(PreferFewerNote, { copy: muted, goal: 'fastest', showingBest: false });
+      expect(html).not.toContain('prefer-fewer-note');
+      expect(html).not.toContain('No route with fewer ascensions');
+    }
     const none = { chip: '', what: '', line: '', muted: '' };
     expect(
       await renderHtml(PreferFewerNote, { copy: none, goal: 'fastest', showingBest: false })
