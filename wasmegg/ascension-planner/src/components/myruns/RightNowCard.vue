@@ -298,6 +298,23 @@
     <!-- Next step. -->
     <div v-else class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
       <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next step</p>
+      <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
+           action and the first shifts (26 Oct 2026); the lines below say why the rest has no times. -->
+      <template v-if="!card && follow && (actionText || simWorking)">
+        <p v-if="actionText" class="text-[13px] text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
+          <b>{{ actionText }}</b>
+        </p>
+        <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
+          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next shifts</p>
+          <ul class="list-none pl-0 text-[12px] text-slate-700">
+            <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
+          </ul>
+        </div>
+        <p v-if="simWorking" class="mt-0.5 text-[12px] text-slate-600" role="status" data-testid="now-sim-working" :data-state="simWorking">
+          <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
+          <template v-else>Your shifts are worked out once the search running now ends.</template>
+        </p>
+      </template>
       <template v-if="card">
         <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
              line from the plan's events. -->
@@ -598,7 +615,13 @@ const followNote = computed(() => {
   if (!f) return '';
   // The same words as its pill (lib/planGoals.ts `followNoTimesWords`): being worked out, or not priced.
   if (f.price === 'none')
-    return followNoTimesWords(f.estimating === 'working' || f.estimating === 'waiting' ? f.estimating : 'none');
+    return followNoTimesWords(
+      f.estimating === 'working' || f.estimating === 'waiting'
+        ? f.estimating
+        : f.estimating === 'beyond' || f.estimating === 'failed'
+          ? 'failed'
+          : 'none'
+    );
   if (f.price === 'estimate') return "estimated from the instant answer's data";
   if (f.price === 'finish' && f.finish) {
     const lands = dateAt(f.finish.end, props.now, props.zone);

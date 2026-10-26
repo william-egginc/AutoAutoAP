@@ -444,6 +444,44 @@ describe("Jordan's Fastest to 490 TE route on a table whose rows end at 489 (26 
   });
 });
 
+describe('the ascension you are in without the table\'s estimate (26 Oct 2026)', () => {
+  it('simulated whether or not the estimate is in; when the estimate fails, Next step, Next shifts and the pill come from it', async () => {
+    const sims: { chain: number[]; resolve: (l: LegSummary | null) => void }[] = [];
+    setSimRunner((): SimRunner => ({ run: (_i, chain) => new Promise(resolve => sims.push({ chain, resolve })), terminate: () => undefined }));
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    // Started while the estimate is still being worked out: not waiting for it.
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    expect(sims[0].chain).toEqual([226]);
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(null);
+    await vi.waitFor(() => expect(page.follow.value?.estimating).toBe('failed'));
+    expect(page.cardPlan.value).toBeNull();
+    expect(pillOf(page, 'fastest-490')?.follow?.times).toBe('first');
+    const l = leg(now - H, now + 18 * H, 226);
+    sims[0].resolve({ ...l, buildPhaseEndTime: now - H, shifts: [{ at: now + 2 * H, egg: 'humility' }, { at: now + 3 * H, egg: 'kindness' }] });
+    await vi.waitFor(() => expect(page.nextStep.value).toEqual({ kind: 'shift', egg: 'humility', at: now + 2 * H }));
+    // The route goes on past it: the list ends with its prestige, not the goal.
+    expect(page.nextShiftLines.value.map(x => x.kind)).toEqual(['shift', 'shift', 'prestige']);
+    const pill = pillOf(page, 'fastest-490')?.follow;
+    expect(pill?.times).toBe('current');
+    expect(pill?.end).toBe(now + 18 * H);
+    const html = await renderHtml(
+      RightNowCard,
+      { ...(await renderProps(page)), nextStep: page.nextStep.value, nextShiftLines: page.nextShiftLines.value },
+      {},
+      [getActivePinia()!]
+    );
+    const t = textOf(html);
+    expect(t).toMatch(/Next step Shift to Humility at [A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    expect(t).toContain('Next shifts Shift to Humility · about');
+    expect(t).toContain('Prestige at 226 TE · about');
+    expect(t).toContain("Your route couldn't be priced on the instant answer's data");
+    expect(t).toContain("Following your pick · its times couldn't be estimated");
+    expect(t).toMatch(/Fastest to 490 TE following · next prestige about/);
+    scope.stop();
+  });
+});
+
 describe('the crash lesson: the pricing setup key without collectInputs (26 Oct 2026)', () => {
   it('a throwing collectInputs does not take Right now down; the follow keeps its estimate', async () => {
     const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
@@ -488,13 +526,22 @@ describe('the pill words (lib/planGoals.ts)', () => {
     expect(followOptionWords({ times: 'estimate', end: 5 }, day, 'after your date')).toBe('following · lands about day 5');
     expect(followOptionWords({ times: 'timeline', end: 5 }, day, 'after your date')).toBe('following · lands day 5');
     expect(followOptionWords({ times: 'finish', end: 5, late: true }, day, 'after Egg Day starts')).toBe('following · lands day 5, after Egg Day starts');
+    expect(followOptionWords({ times: 'failed', end: null }, day, 'x')).toBe("following · its times couldn't be estimated");
+    expect(followOptionWords({ times: 'first', end: null }, day, 'x')).toBe('following · working out the first ascension');
+    expect(followOptionWords({ times: 'current', end: 5 }, day, 'x')).toBe('following · next prestige about day 5');
   });
   it('from the follow card', () => {
     expect(goalFollowOf({ price: 'instant' }, 9)).toEqual({ times: 'timeline', end: 9 });
     expect(goalFollowOf({ price: 'estimate', missesDate: true }, 9)).toEqual({ times: 'estimate', end: 9, late: true });
     expect(goalFollowOf({ price: 'finish', finish: { end: 7 } }, null)).toEqual({ times: 'finish', end: 7 });
     expect(goalFollowOf({ price: 'none', estimating: 'working' }, null)).toEqual({ times: 'working', end: null });
-    for (const e of ['nosource', 'beyond', 'failed', undefined]) expect(goalFollowOf({ price: 'none', estimating: e }, null).times).toBe('none');
+    for (const e of ['nosource', undefined]) expect(goalFollowOf({ price: 'none', estimating: e }, null).times).toBe('none');
+    // Tried and couldn't be made: said so (26 Oct 2026), unless the ascension you are in is known or being worked out.
+    for (const e of ['beyond', 'failed']) expect(goalFollowOf({ price: 'none', estimating: e }, null).times).toBe('failed');
+    expect(goalFollowOf({ price: 'none', estimating: 'failed' }, null, { working: true, prestigeAt: null })).toEqual({ times: 'first', end: null });
+    expect(goalFollowOf({ price: 'none', estimating: 'beyond' }, null, { working: false, prestigeAt: 77 })).toEqual({ times: 'current', end: 77 });
+    // The table's estimate being worked out says that first.
+    expect(goalFollowOf({ price: 'none', estimating: 'working' }, null, { working: false, prestigeAt: 77 }).times).toBe('working');
   });
 });
 

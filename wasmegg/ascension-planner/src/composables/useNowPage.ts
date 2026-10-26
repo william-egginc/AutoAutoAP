@@ -625,7 +625,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     goalOptions(planGoals.value, zone.value).map(g => {
       if (!followedKeys.value.has(g.key)) return g;
       const fs = followStateOf(g.key);
-      return fs ? { ...g, following: true, follow: goalFollowOf(fs.card, fs.plan ? planFinish(fs.plan.plan) : null) } : { ...g, following: true };
+      return fs
+        ? { ...g, following: true, follow: goalFollowOf(fs.card, fs.plan ? planFinish(fs.plan.plan) : null, g.key === selectedGoal.value ? currentChip.value : null) }
+        : { ...g, following: true };
     })
   );
 
@@ -1044,9 +1046,14 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * are read from the stores once, in the run, never here.
    */
   const simRequest = computed<SimRequest | null>(() => {
-    const p = followState.value?.plan?.plan;
+    // Any followed route without exact legs, whether the table's estimate is in, being worked out or couldn't be made
+    // (26 Oct 2026: a route the estimate couldn't price still gets its Next step from the ascension you are in).
+    const fs = followState.value;
+    const p = fs?.plan?.plan;
     const acct = account.value;
-    if (!p || p.legs || !p.tableLegs?.length || !p.chain.length || !acct || !storeReady.value || onVirtue.value === false) return null;
+    if (!fs || p?.legs || !acct || !storeReady.value || onVirtue.value === false) return null;
+    const route = followedFromNow(p ? p.chain : fs.card.chain, teSoFar.value);
+    if (!route.length) return null;
     const useHours = useHoursFromStores();
     const setup = simSetupKey({
       availability: store.availability,
@@ -1056,7 +1063,6 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       firstAscension: store.firstAscension,
       deferShifts: !!store.deferShifts,
     });
-    const route = [...p.chain];
     const backupTime = saveSeconds.value;
     return {
       key: simKey({ account: acct, backupTime, route, setup }),
@@ -1210,9 +1216,22 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     );
   });
   /** The plan's ascensions as lib/nextAction.ts reads them (the first simulated once it is in). */
+  /** The simulated ascension, when it is in for the followed route. */
+  const simLeg = computed(() => {
+    const sim = currentSim.value;
+    return sim?.status === 'done' && sim.key === simRequest.value?.key ? sim.leg : null;
+  });
+  /** The route goes on past the legs known (no plan: only the simulated ascension). */
+  const moreThanKnown = computed(() => !cardPlan.value && (simRequest.value?.route.length ?? 0) > 1);
   const actionLegs = computed<ActionLeg[]>(() => {
     const p = cardPlan.value?.plan;
-    if (!p || p.legs) return [];
+    // No timeline for the route: the ascension you are in alone, once simulated.
+    const leg = simLeg.value;
+    if (!p)
+      return leg && simRequest.value
+        ? [{ to: simRequest.value.route[0], endTE: leg.endTE, start: leg.startTime, end: leg.endTime, shifts: leg.shifts, simulated: true, ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}) }]
+        : [];
+    if (p.legs) return [];
     return (p.tableLegs ?? []).slice(0, p.chain.length).map(l => ({
       to: l.to,
       endTE: l.endTE,
@@ -1223,6 +1242,14 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       ...(l.buildEnd !== undefined ? { buildEnd: l.buildEnd } : {}),
     }));
   });
+  /** The selected followed route's pill without a timeline: the ascension you are in being worked out, or its next
+   *  prestige (planGoals `goalFollowOf`). */
+  const currentChip = computed(() => {
+    if (cardPlan.value || !simRequest.value) return null;
+    const leg = simLeg.value;
+    if (leg) return { working: false, prestigeAt: simRequest.value.route.length > 1 ? prestigeAtFrom(leg.endTime) : leg.endTime };
+    return simWorking.value ? { working: true, prestigeAt: null } : null;
+  });
   /** When a prestige may happen from a moment: the hours and the no-prestige days (search/noPrestige.ts). */
   const prestigeAtFrom = (t: number) => nextPrestigeAt(t, stepHours.value, stepNoPrestige.value);
   /** THE NEXT ACTION (26 Oct 2026, lib/nextAction.ts): from the ascension you are in as simulated on the save; null
@@ -1230,12 +1257,14 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const nextStep = computed<NextAction | null>(() => {
     const first = actionLegs.value[0];
     if (!first?.simulated) return null;
-    return nextAction({ now: now.value, leg: first, last: actionLegs.value.length === 1, prestigeAt: prestigeAtFrom });
+    return nextAction({ now: now.value, leg: first, last: actionLegs.value.length === 1 && !moreThanKnown.value, prestigeAt: prestigeAtFrom });
   });
   /** NEXT SHIFTS (26 Oct 2026, lib/nextAction.ts `nextShifts`): the next 3 to 5 shifts under the Next step, the
    *  ascension you are in from the simulation, the later ones from the table, ending with a prestige inside the list. */
   const nextShiftLines = computed<NextShiftLine[]>(() =>
-    actionLegs.value.length ? nextShifts({ now: now.value, legs: actionLegs.value, prestigeAt: prestigeAtFrom }) : []
+    actionLegs.value.length
+      ? nextShifts({ now: now.value, legs: actionLegs.value, prestigeAt: prestigeAtFrom, more: moreThanKnown.value })
+      : []
   );
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
    *  planned-shift total reads the legs, so it still counts both. A prestige that waits for the hours or past a

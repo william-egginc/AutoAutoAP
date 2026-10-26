@@ -118,6 +118,14 @@ describe('nextShifts: the short list under the Next step', () => {
     expect(l.filter(x => x.kind === 'shift')).toHaveLength(3);
   });
 
+  it('only the ascension you are in known (`more`): it ends with its prestige, held for the hours, not the goal', () => {
+    const l = nextShifts({ now: T0 + 12 * H, legs: [fresh], more: true, prestigeAt: t => nextPrestigeAt(t, HOURS, []) });
+    expect(l).toEqual([
+      { kind: 'shift', egg: 'curiosity', at: T0 + 30 * H, exact: true },
+      { kind: 'prestige', at: T0 + 48 * H, te: 227, exact: true },
+    ]);
+  });
+
   it('nothing ahead: empty', () => {
     expect(nextShifts({ now: T0 + 100 * D, legs })).toEqual([]);
     expect(nextShifts({ now: T0, legs: [] })).toEqual([]);

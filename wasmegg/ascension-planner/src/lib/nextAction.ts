@@ -107,6 +107,9 @@ export function nextShifts(o: {
   prestigeAt?: (t: number) => number;
   min?: number;
   max?: number;
+  /** The route goes on past the legs given (only the ascension you are in is known): it ends with that prestige, not
+   *  the goal. */
+  more?: boolean;
 }): NextShiftLine[] {
   const min = o.min ?? 3;
   const max = o.max ?? 5;
@@ -128,7 +131,10 @@ export function nextShifts(o: {
     const te = ok(leg.endTE) ? leg.endTE : leg.to;
     const next = legs[i + 1];
     if (!next) {
-      if (leg.end > o.now) out.push({ kind: 'goal', at: leg.end, te, exact });
+      if (o.more) {
+        const at = o.prestigeAt ? o.prestigeAt(leg.end) : leg.end;
+        if (at > o.now) out.push({ kind: 'prestige', at, te, exact });
+      } else if (leg.end > o.now) out.push({ kind: 'goal', at: leg.end, te, exact });
       return out;
     }
     const at = exact ? (o.prestigeAt ? o.prestigeAt(leg.end) : leg.end) : next.start;

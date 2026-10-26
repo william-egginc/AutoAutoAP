@@ -231,7 +231,9 @@ export interface GoalOption {
  *   'none': no times on this save (nothing to estimate from, past the data, or the estimate failed).
  */
 export interface GoalFollow {
-  times: 'timeline' | 'estimate' | 'finish' | 'working' | 'waiting' | 'none';
+  /** 'failed': the estimate was tried and couldn't be made; 'first': only the ascension you are in is being worked out
+   *  (simulated on the save); 'current': only it is known, `end` its next prestige. */
+  times: 'timeline' | 'estimate' | 'finish' | 'working' | 'waiting' | 'none' | 'failed' | 'first' | 'current';
   /** When the route lands (its last stop), unix seconds; null without times. */
   end: number | null;
   /** By a date: it lands after the date. */
@@ -241,28 +243,37 @@ export interface GoalFollow {
 /** A followed route's state from Right now's follow card (useNowPage `FollowCard`) and its plan's finish. */
 export function goalFollowOf(
   card: { price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none'; estimating?: string; finish?: { end: number }; missesDate?: boolean },
-  planEnd: number | null
+  planEnd: number | null,
+  /** With no timeline: the ascension you are in, simulated on the save (lib/followSim.ts): being worked out, or its next
+   *  prestige (26 Oct 2026). */
+  current?: { working: boolean; prestigeAt: number | null } | null
 ): GoalFollow {
   const late = card.missesDate ? { late: true } : {};
   if (card.price === 'exact' || card.price === 'instant') return { times: 'timeline', end: planEnd, ...late };
   if (card.price === 'estimate') return { times: 'estimate', end: planEnd, ...late };
   if (card.price === 'finish') return { times: 'finish', end: card.finish?.end ?? null, ...late };
   if (card.estimating === 'working' || card.estimating === 'waiting') return { times: card.estimating, end: null };
+  if (current?.prestigeAt != null) return { times: 'current', end: current.prestigeAt };
+  if (current?.working) return { times: 'first', end: null };
+  if (card.estimating === 'beyond' || card.estimating === 'failed') return { times: 'failed', end: null };
   return { times: 'none', end: null };
 }
 
 /** A followed route with no times yet, in words: the follow line's note and the pill's (they agree). */
-export function followNoTimesWords(times: 'working' | 'waiting' | 'none'): string {
+export function followNoTimesWords(times: 'working' | 'waiting' | 'none' | 'failed' | 'first'): string {
   if (times === 'working') return 'working out its times';
   if (times === 'waiting') return 'its times once the search running now ends';
+  if (times === 'failed') return "its times couldn't be estimated";
+  if (times === 'first') return 'working out the first ascension';
   return 'not priced on this save yet';
 }
 
 /** Under a followed goal's pill: "following · lands about Nov 4, 2026", "following · working out its times",
  *  "following · not priced on this save yet". `late` words: lib/eggDayRule.ts `lateMarker`. */
 export function followOptionWords(f: GoalFollow, dayWords: (unix: number) => string, lateWords: string): string {
-  if (f.times === 'working' || f.times === 'waiting' || f.times === 'none' || f.end == null)
-    return `following · ${followNoTimesWords(f.times === 'working' || f.times === 'waiting' ? f.times : 'none')}`;
+  if (f.times === 'current' && f.end != null) return `following · next prestige about ${dayWords(f.end)}`;
+  if (f.times === 'working' || f.times === 'waiting' || f.times === 'none' || f.times === 'failed' || f.times === 'first' || f.end == null)
+    return `following · ${followNoTimesWords(f.times === 'working' || f.times === 'waiting' || f.times === 'failed' || f.times === 'first' ? f.times : 'none')}`;
   const when = `lands ${f.times === 'estimate' ? 'about ' : ''}${dayWords(f.end)}`;
   return `following · ${when}${f.late ? `, ${lateWords}` : ''}`;
 }
