@@ -7,6 +7,15 @@ import { readSearchMode } from '@/lib/searchMode';
 
 export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'myruns' | 'science';
 
+const KEPT_OPEN_KEY = 'aap.headerKeptOpen';
+function readKeptOpen(): boolean {
+  try {
+    return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(KEPT_OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export const useUIStore = defineStore('ui', () => {
   /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, My runs, Science. */
   const plannerTab = ref<PlannerTab>('manual');
@@ -19,6 +28,21 @@ export const useUIStore = defineStore('ui', () => {
   const compareView = ref<CompareView>('eggday');
   const scienceView = ref<ScienceView>('how');
   const isHeaderCollapsed = ref(false);
+  /**
+   * The player opened the top menu (the account chips, the ID box) with its chevron and left it open: the automatic
+   * collapses (opening the Auto Planner, a reload restoring it) leave it open (QA, 26 Oct 2026: after a resize in Safari
+   * the chips came back folded away). Kept for this tab (sessionStorage), so a reload of the tab keeps it too.
+   */
+  const headerKeptOpen = ref(readKeptOpen());
+  function setHeaderKeptOpen(open: boolean): void {
+    headerKeptOpen.value = open;
+    try {
+      if (open) sessionStorage.setItem(KEPT_OPEN_KEY, '1');
+      else sessionStorage.removeItem(KEPT_OPEN_KEY);
+    } catch {
+      // a preference for this tab, never a reason to fail
+    }
+  }
   const isFooterCollapsed = ref(false);
   const loading = ref(false);
   const error = ref('');
@@ -98,6 +122,8 @@ export const useUIStore = defineStore('ui', () => {
     compareView,
     scienceView,
     isHeaderCollapsed,
+    headerKeptOpen,
+    setHeaderKeptOpen,
     isFooterCollapsed,
     loading,
     error,

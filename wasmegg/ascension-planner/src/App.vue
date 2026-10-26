@@ -140,7 +140,7 @@
           class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider h-11 sm:h-7 cursor-pointer"
           :aria-label="isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'"
           :aria-expanded="!isHeaderCollapsed"
-          @click="isHeaderCollapsed = !isHeaderCollapsed"
+          @click="toggleHeader"
         >
           <svg
             class="w-3.5 h-3.5 transition-transform duration-300"
@@ -1787,7 +1787,13 @@ watch(
 /** Opening the Auto Planner collapses the header, unless there's no player ID or no save loaded yet:
  *  the header is where the player enters one (Joo's d574c3b7). */
 function collapseHeaderIfPlayerLoaded() {
-  if (playerId.value && initialStateStore.rawBackup) isHeaderCollapsed.value = true;
+  // Not when the player opened the top menu themselves and left it open (ui store `headerKeptOpen`).
+  if (playerId.value && initialStateStore.rawBackup && !uiStore.headerKeptOpen) isHeaderCollapsed.value = true;
+}
+/** The chevron: open or fold the top menu; an open one is kept open through the automatic collapses. */
+function toggleHeader() {
+  isHeaderCollapsed.value = !isHeaderCollapsed.value;
+  uiStore.setHeaderKeptOpen(!isHeaderCollapsed.value);
 }
 
 async function handleAutoPlannerTabClick() {

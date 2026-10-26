@@ -44,7 +44,8 @@ describe('App.vue header layout', () => {
   });
 
   it('has one chevron, with an accessible name, in the one place under the tabs', () => {
-    expect(app.match(/@click="isHeaderCollapsed = !isHeaderCollapsed"/g)).toHaveLength(1);
+    expect(app.match(/@click="toggleHeader"/g)).toHaveLength(1);
+    expect(app).toContain('isHeaderCollapsed.value = !isHeaderCollapsed.value;');
     expect(app).toContain("isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'");
     // Not tied to a screen.
     const block = app.slice(app.indexOf('data-testid="header-toggle"') - 120, app.indexOf('data-testid="header-toggle"') + 40);
