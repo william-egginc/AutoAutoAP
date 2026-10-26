@@ -6,7 +6,9 @@ import { dateAt, eventWhen, relativeWords } from './eventWhen';
 import { shiftTitle, type PlanEvent } from './nowPlan';
 import { clockWords } from './planPace';
 import { virtueEggName } from './virtueEggs';
-import { hoursWords, timeOffWords } from './pricedWith';
+import { hoursShort } from './pricedWith';
+import { formatHourOfDay, formatMoment } from './clock';
+import { usableTimeOff } from '@/search/timeOff';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffDates } from '@/search/timeOff';
 
@@ -162,8 +164,59 @@ export function whenAgo(atSeconds: number, nowSeconds: number, zone: string): st
   return d ? `${d} (${relativeWords(atSeconds - nowSeconds)})` : '';
 }
 
-/** The Setup button's line on My runs: "7 am–11 pm · no time off", "any hour · time off Oct 20–22". */
-export function setupSummary(availability: Availability | null | undefined, timeOff: TimeOffDates[] | null | undefined): string {
-  const hours = hoursWords(availability).replace(/^awake hours /, '').replace(/^(\d+ [ap]m) to (\d+ [ap]m)/, '$1–$2');
-  return `${hours} · ${timeOffWords(timeOff)}`;
+/** An hour of the day as the browser says it, short: "7 AM" (en-US), "19:00" (de-DE): the minutes are left off
+ *  only on a 12-hour clock, where "7 AM" reads whole. */
+function hourShort(h: number, locale?: string): string {
+  const s = formatHourOfDay(h, locale);
+  return /[^\d:\s.]/.test(s) ? s.replace(/[:.]00(?=\D|$)/, '') : s;
+}
+
+/** A whole-day stretch in the browser's format, compact: "Oct 27", "Oct 29–30", "Oct 29 – Nov 2",
+ *  "Dec 30, 2026 – Jan 2, 2027" (the year only when the stretch crosses one). */
+export function stretchWords(d: TimeOffDates, locale?: string): string {
+  const [fy, fm, fd] = d.from.split('-').map(Number);
+  const [ty, tm, td] = d.to.split('-').map(Number);
+  const at = (y: number, m: number, day: number, year: boolean) =>
+    formatMoment(Date.UTC(y, m - 1, day, 12), { zone: 'UTC', dateOnly: true, year: year ? 'always' : 'never', locale });
+  if (d.from === d.to) return at(fy, fm, fd, false);
+  if (fy !== ty) return `${at(fy, fm, fd, true)} – ${at(ty, tm, td, true)}`;
+  if (fm === tm) {
+    // The first day's words with its day number made the run ("Oct 29" → "Oct 29–30", "29. Okt." → "29–30. Okt.").
+    const first = at(fy, fm, fd, false);
+    const i = first.search(new RegExp(`(^|\\D)${fd}(\\D|$)`));
+    if (i >= 0) {
+      const start = first.indexOf(String(fd), i);
+      return `${first.slice(0, start)}${fd}–${td}${first.slice(start + String(fd).length)}`;
+    }
+  }
+  return `${at(fy, fm, fd, false)} – ${at(ty, tm, td, false)}`;
+}
+
+/** Up to two stretches shown, then "+N more". */
+export const SUMMARY_STRETCHES = 2;
+function stretchList(list: TimeOffDates[], locale?: string): string {
+  const shown = list.slice(0, SUMMARY_STRETCHES).map(d => stretchWords(d, locale)).join(', ');
+  const more = list.length - SUMMARY_STRETCHES;
+  return more > 0 ? `${shown} +${more} more` : shown;
+}
+
+/**
+ * The Setup pill's line on My runs (Jordan, 26 Oct 2026: time off and no prestige days in it too):
+ * "7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27", "any hour · no time off". The no prestige part is left
+ * out when there are none. Hours and dates in the browser's format (lib/clock.ts); `locale` is for specs.
+ */
+export function setupSummary(
+  availability: Availability | null | undefined,
+  timeOff: TimeOffDates[] | null | undefined,
+  noPrestige?: TimeOffDates[] | null,
+  locale?: string
+): string {
+  const hours = hoursShort(availability).replace(/\b(\d+) ([ap]m)\b/g, (_, n: string, ap: string) =>
+    hourShort((Number(n) % 12) + (ap === 'pm' ? 12 : 0), locale)
+  );
+  const off = usableTimeOff(timeOff);
+  const held = usableTimeOff(noPrestige);
+  const parts = [hours, off.length ? `time off ${stretchList(off, locale)}` : 'no time off'];
+  if (held.length) parts.push(`no prestige ${stretchList(held, locale)}`);
+  return parts.join(' · ');
 }

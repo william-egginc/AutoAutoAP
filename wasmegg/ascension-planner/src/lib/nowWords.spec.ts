@@ -43,12 +43,48 @@ describe('the Right now card’s words', () => {
 });
 
 describe('the Setup button’s line', () => {
-  it('hours and time off, short', async () => {
+  const HOURS = { fromHour: 7, toHour: 23, days: [0, 1, 2, 3, 4, 5, 6], timezone: 'UTC' } as never;
+  const L = 'en-US';
+  it('hours and none: today’s wording, no "no prestige" part', async () => {
     const { setupSummary } = await import('./nowWords');
-    expect(setupSummary({ fromHour: 7, toHour: 23, days: [0, 1, 2, 3, 4, 5, 6], timezone: 'UTC' } as never, [])).toBe(
-      '7 am–11 pm · no time off'
+    expect(setupSummary(HOURS, [], [], L)).toBe('7 AM–11 PM · no time off');
+    expect(setupSummary(null, null, null, L)).toBe('any hour · no time off');
+    expect(setupSummary(HOURS, [], undefined, L)).toBe('7 AM–11 PM · no time off');
+  });
+  it('one stretch of time off and one no prestige day', async () => {
+    const { setupSummary } = await import('./nowWords');
+    expect(setupSummary(HOURS, [{ from: '2026-10-29', to: '2026-10-30' }], [{ from: '2026-10-27', to: '2026-10-27' }], L)).toBe(
+      '7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27'
     );
-    expect(setupSummary(null, [{ from: '2026-10-20', to: '2026-10-22' }])).toBe('any hour · time off Oct 20–22');
+    expect(setupSummary(null, [{ from: '2026-10-20', to: '2026-10-22' }], [], L)).toBe('any hour · time off Oct 20–22');
+    expect(setupSummary(null, [], [{ from: '2026-11-03', to: '2026-11-04' }], L)).toBe('any hour · no time off · no prestige Nov 3–4');
+  });
+  it('two stretches, then three as "+1 more"', async () => {
+    const { setupSummary } = await import('./nowWords');
+    const two = [
+      { from: '2026-11-03', to: '2026-11-03' },
+      { from: '2026-10-29', to: '2026-10-30' },
+    ];
+    expect(setupSummary(HOURS, two, two, L)).toBe('7 AM–11 PM · time off Oct 29–30, Nov 3 · no prestige Oct 29–30, Nov 3');
+    const three = [...two, { from: '2026-12-01', to: '2026-12-02' }];
+    expect(setupSummary(HOURS, three, three, L)).toBe(
+      '7 AM–11 PM · time off Oct 29–30, Nov 3 +1 more · no prestige Oct 29–30, Nov 3 +1 more'
+    );
+  });
+  it('across months and years; half-typed rows left out', async () => {
+    const { setupSummary, stretchWords } = await import('./nowWords');
+    expect(stretchWords({ from: '2026-10-29', to: '2026-11-02' }, L)).toBe('Oct 29 – Nov 2');
+    expect(stretchWords({ from: '2026-12-30', to: '2027-01-02' }, L)).toBe('Dec 30, 2026 – Jan 2, 2027');
+    expect(stretchWords({ from: '2026-10-27', to: '2026-10-27' }, L)).toBe('Oct 27');
+    expect(setupSummary(null, [{ from: '2026-10-29', to: '' }], [{ from: '2026-11-05', to: '2026-11-01' }], L)).toBe('any hour · no time off');
+  });
+  it('in the browser’s format: a 24-hour clock and day-first dates', async () => {
+    const { setupSummary } = await import('./nowWords');
+    const days = { fromHour: 7, toHour: 23, days: [1, 2, 3, 4, 5], timezone: 'UTC' } as never;
+    expect(setupSummary(days, [{ from: '2026-10-29', to: '2026-10-30' }], [{ from: '2026-10-27', to: '2026-10-27' }], 'en-GB')).toBe(
+      '7:00–23:00 on Mon–Fri · time off 29–30 Oct · no prestige 27 Oct'
+    );
+    expect(setupSummary(days, [], [], 'en-US')).toBe('7 AM–11 PM on Mon–Fri · no time off');
   });
 });
 

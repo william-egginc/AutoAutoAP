@@ -47,25 +47,48 @@ describe('the Setup pill at 1280', () => {
     }
   });
 
-  it('My runs: from xl the pill is a small round Setup button, no label, summary or workers; phones keep the full pill', async () => {
+  it('My runs keeps the full pill at xl: Setup, the summary line, the divider and − workers +, nothing hidden', async () => {
     const p = createPinia();
     setActivePinia(p);
-    const html = await renderHtml(SetupDock, { screen: 'fastest', summary: '7 am–11 pm · no time off' }, {}, [p]);
-    expect(html).toContain('aria-label="Setup"');
-    // The label block, the divider and the three workers controls hide from xl; the drag handle and the gear stay.
-    expect(html).toMatch(/<span class="xl:hidden flex flex-col items-start leading-tight">/);
-    expect((html.match(/xl:hidden/g) ?? []).length).toBeGreaterThanOrEqual(5);
-    expect(html).toContain('Drag to move');
-    // Below xl nothing changes: the summary and the workers are still in the markup.
-    expect(html).toContain('7 am–11 pm · no time off');
-    expect(html).toContain('Fewer workers');
+    const summary = '7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27';
+    const html = await renderHtml(SetupDock, { screen: 'fastest', summary }, {}, [p]);
+    // Nothing on it hides at any width (Jordan, 26 Oct 2026: players turn the workers down mid-run).
+    expect(html).not.toContain('xl:hidden');
+    expect(html).toContain('>Setup</span>');
+    expect(html).toContain(summary);
+    expect(html).toMatch(/class="w-px h-5 bg-white\/30"/);
+    for (const w of ['Fewer workers', 'More workers', 'Drag to move']) expect(html).toContain(w);
+    expect(html).toMatch(/\d+\/\d+ workers/);
+    // One row, not the Auto Planner's stacked 10rem pill; from xl at most 27rem wide, its summary wrapping at 13rem.
+    const tag = pill(html);
+    expect(tag).not.toContain('xl:w-40');
+    expect(html).not.toContain('basis-full');
+    expect(tag).toContain('xl:max-w-[27rem]');
+    expect(html).toMatch(/data-testid="setup-dock-summary"/);
+    expect(html.match(/<span[^>]*data-testid="setup-dock-summary"[^>]*>/)?.[0]).toContain('xl:max-w-[13rem]');
   });
 
-  it('My runs keeps the one-row pill below xl (its summary line needs the width)', async () => {
+  it('phones keep the one-row pill with its 44 px tap targets', async () => {
     const p = createPinia();
     setActivePinia(p);
-    const html = await renderHtml(SetupDock, { screen: 'fastest', summary: '7 am–11 pm · no time off' }, {}, [p]);
-    expect(pill(html)).not.toContain('xl:w-40');
-    expect(html).not.toContain('basis-full');
+    const html = await renderHtml(SetupDock, { screen: 'fastest', summary: '7 AM–11 PM · no time off' }, {}, [p]);
+    expect(pill(html)).toContain('flex items-center gap-1 rounded-full bg-indigo-600');
+    expect((html.match(/w-11 h-11 sm:w-6 sm:h-6/g) ?? []).length).toBe(2);
+    expect(html).toContain('min-h-[44px] sm:min-h-0 rounded-full px-2.5');
+  });
+
+  it('My runs at 1280: the page keeps 28rem free on its right from xl, so nothing sits under the pill', () => {
+    const app = readFileSync('src/App.vue', 'utf8');
+    expect(app).toContain("setupDockShown && plannerTab === 'myruns' ? 'xl:pr-[28rem]' : ''");
+    // The pill (at most 27rem, 1rem from the edge) starts left of where the page's padding begins, and the
+    // page's own 1rem padding (max-w-6xl mx-auto p-4) keeps a gap, with or without a 15 px scrollbar.
+    expect(app).toContain('<div class="max-w-6xl mx-auto p-4">');
+    for (const w of [1280, 1280 - 15]) {
+      const contentRight = w - 28 * 16 - 16;
+      const pillLeft = w - 16 - 27 * 16;
+      expect(pillLeft - contentRight).toBeGreaterThanOrEqual(16);
+      // And My runs still has room: over 750 px of content at 1280.
+      expect(Math.min(contentRight - 16, 72 * 16)).toBeGreaterThan(750);
+    }
   });
 });
