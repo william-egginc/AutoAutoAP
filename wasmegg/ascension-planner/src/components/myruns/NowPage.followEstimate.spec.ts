@@ -223,10 +223,10 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     expect(r.text).toContain("Following your pick · estimated from the instant answer's data");
     expect(r.text).not.toContain(NO_TIMELINE);
     expect(r.text).not.toContain(WORKING);
-    // Rounded: no calendar buttons; Run Fast and Simulate it still offered for exact times.
+    // Rounded: no calendar buttons; one path per card (25 Oct 2026): no Run Fast or Simulate it on the follow line.
     expect(r.html).not.toContain('data-testid="calendar-button"');
-    expect(r.html).toContain('data-testid="now-follow-price"');
-    expect(r.html).toContain('data-testid="now-follow-simulate"');
+    expect(r.html).not.toContain('data-testid="now-follow-price"');
+    expect(r.html).not.toContain('data-testid="now-follow-simulate"');
     expect(r.text).not.toMatch(/\btables?\b|\bchain\b|checkpoint|\bLight\b/);
     // The worker is let go once it has answered.
     expect(terminated).toBeGreaterThan(0);
@@ -242,7 +242,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     scope.stop();
   });
 
-  it("(c) the worker fails or can't price it: said, the 'Simulate it' line, a console line, nothing thrown", async () => {
+  it("(c) the worker fails or can't price it: said, with Try next for its times, a console line, nothing thrown", async () => {
     for (const how of ['reject', 'null'] as const) {
       setActivePinia(createPinia());
       mem.clear();
@@ -255,7 +255,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
       expect(page.follow.value?.price, how).toBe('none');
       expect(page.cardPlan.value).toBeNull();
       const { text } = await render(page);
-      expect(text, how).toContain("Your route couldn't be priced on the instant answer's data: Simulate it ›");
+      expect(text, how).toContain(`Your route couldn't be priced on the instant answer's data: ${'a run from Try next, below, works out its times on your account.'}`);
       expect(vi.mocked(console.warn).mock.calls.some(c => String(c[0]).includes('205 238')), how).toBe(true);
       scope.stop();
     }
@@ -267,7 +267,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     await nextTick();
     expect(calls).toHaveLength(0);
     const { text } = await render(page);
-    expect(text).toContain('Your route goes past what the instant answer covers, so it has no estimate: Simulate it ›');
+    expect(text).toContain('Your route goes past what the instant answer covers, so it has no estimate: a run from Try next, below, works out its times on your account.');
     scope.stop();
   });
 

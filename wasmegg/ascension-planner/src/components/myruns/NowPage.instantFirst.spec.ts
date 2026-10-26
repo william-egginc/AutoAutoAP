@@ -318,12 +318,12 @@ describe('the card', () => {
     expect(t).toMatch(/Jul 14, 2027 at \d+:00 AM/);
     expect(t).toMatch(/\d+\.\d h spare \(instant\)/);
     expect(t).toContain('The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.');
-    // One Run Fast on the card (ux review 26 Oct, row 15): the events point at it in plain words.
-    expect(t).toContain('From the instant answer, rounded to the hour. For exact times on your account, use Run Fast above.');
+    // No Run Fast on the card (one path per card, 25 Oct 2026): the events point at Try next in plain words.
+    expect(t).toContain('From the instant answer, rounded to the hour. For exact times on your account, use a run from Try next below.');
     expect(html).not.toContain('data-testid="now-run-fast"');
     expect(t).not.toContain('Add to calendar');
     expect(t).not.toContain('＋ Add');
-    expect(t).toContain('Run Fast Opens Highest TE by a date with your save and Fast selected');
+    expect(t).not.toContain('Opens Highest TE by a date with your save and Fast selected');
   });
 
   it('R2, from your Fast run: the pill, exact times, calendar Add buttons, Go back', async () => {
@@ -339,7 +339,7 @@ describe('the card', () => {
     expect(t).toContain('＋ Add');
     expect(t).toMatch(/goal: 312 TE .* h spare/);
     expect(t).not.toContain('(instant)');
-    expect(t).toContain('Run Fast again');
+    expect(t).not.toContain('Run Fast again');
   });
 
   it('gone back: the instant answer with "Use your Fast run"; a late result: the one line', async () => {

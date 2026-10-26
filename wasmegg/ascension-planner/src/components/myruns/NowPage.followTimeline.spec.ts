@@ -170,12 +170,13 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     expect(text).toContain('Following your pick');
     expect(text).not.toContain(NOT_PRICED);
     expect(text).not.toContain(NO_TIMELINE);
-    // Next step with its (rounded) time, no calendar buttons, "use Run Fast above" under the events (no second link).
+    // Next step with its (rounded) time, no calendar buttons, Try next named under the events (no link, no Run Fast
+    // button on the card: one path per card, 25 Oct 2026).
     expect(text).toMatch(/Next step .*at around \d+:\d\d [AP]M/);
     expect(html).not.toContain('data-testid="calendar-button"');
-    expect(text).toContain('For exact times on your account, use Run Fast above.');
-    expect(html).toContain('data-testid="now-recalc-button"');
-    // The follow line offers nothing more to price it (the card's Run Fast does).
+    expect(text).toContain('For exact times on your account, use a run from Try next below.');
+    expect(html).not.toContain('data-testid="now-recalc-button"');
+    // The follow line offers nothing more to price it.
     expect(html).not.toContain('data-testid="now-follow-price"');
     scope.stop();
   });
@@ -205,7 +206,7 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     expect(text).toContain(`Following your pick · ${NOT_PRICED}`);
     // No pricing settings kept for this save (an answer from before 24 Oct 2026): said in plain words.
     expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup");
-    expect(html).toContain('data-testid="now-follow-price"');
+    expect(html).not.toContain('data-testid="now-follow-price"');
     expect(html).not.toContain('data-testid="now-source-pill"');
     scope.stop();
   });

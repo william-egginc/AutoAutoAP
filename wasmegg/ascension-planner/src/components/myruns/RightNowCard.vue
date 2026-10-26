@@ -15,8 +15,9 @@
   "Follow this route" (lib/follow.ts): a route the player picked for the goal (on the instant answer, a saved answer or
   run, a board row, or typed in the box under the route line) replaces the planner's pick: the route line, the events,
   the timeline and the calendar text follow it, priced from a save's Check exactly (lib/followPrice.ts). Priced on an
-  older save, it says so; not priced, it says so and offers "Price it ›" (Recalculate with the route attached) and
-  "Simulate it ›" (Single run). "Use the planner's route ›" goes back to the planner's pick.
+  older save, it says so; not priced, it says so. ONE PATH PER CARD (25 Oct 2026): the follow line's "Run Fast ›",
+  "Simulate it ›" and "Use the planner's route ›" and the card's Run Fast button are gone (Try next has the runs); the
+  way back is one quiet "Stop following: use the planner's route" under Earlier versions.
   INSTANT FIRST (part B, wireframes/price-route-v2 R1 and R2, 23 Oct 2026; there is no Check exactly any more): the plan
   is the instant answer's ("from the instant answer": times rounded to the hour, no calendar buttons, a "run Fast" link
   that only opens the panel) until a Fast, Exact or Custom result for the same goal takes over (lib/searchPlan.ts: By a
@@ -124,23 +125,11 @@
       <p v-else-if="keepLine" class="text-[12px] text-slate-600" data-testid="now-keeps-instant">{{ keepLine }}</p>
     </div>
 
-    <!-- The player's own pick (lib/follow.ts): where its price came from, Price it / Simulate it, and the way back. -->
+    <!-- The player's own pick (lib/follow.ts) and where its price came from. One path per card (25 Oct 2026): no Run
+         Fast, Simulate it or way back on this line; the way back is the quiet line under Earlier versions. -->
     <p v-if="follow" class="text-[12px] text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
       <span class="font-bold text-indigo-800" data-testid="now-follow-whose">{{ followWhose }}</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
-      ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template
-      ><template v-if="offerPrice"
-        >{{ ' ' }}·
-        <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-price" title="Opens the goal's screen with Fast selected; it starts when you press Find" @click="priceIt">
-          Run Fast ›
-        </button>
-        ·
-        <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-simulate" :title="`Opens ${NAMES.classic} with this route on your save. Its times aren't brought back here.`" @click="emit('simulate', [...follow.chain])">
-          Simulate it ›
-        </button></template
-      >{{ ' ' }}·
-      <button type="button" class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0" data-testid="now-follow-back" @click="emit('unfollow')">
-        Use the planner's route ›
-      </button>
+      ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template>
     </p>
 
     <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
@@ -192,6 +181,12 @@
       :zone="zone"
       :now="now"
     />
+    <!-- The only way to stop following (25 Oct 2026: off the follow line, quiet, under Earlier versions). -->
+    <p v-if="follow" class="text-[11px] text-slate-500" data-testid="now-follow-back-line">
+      <button type="button" class="inline-flex min-h-[44px] items-center underline hover:text-slate-700 sm:min-h-0" data-testid="now-follow-back" @click="emit('unfollow')">
+        Stop following: use the planner's route
+      </button>
+    </p>
 
     <!-- Follow another route: typed stops (lib/follow.ts parseTypedRoute). -->
     <details v-if="selectedOption && !notOnVirtue" class="text-[12px]" data-testid="now-follow-typed">
@@ -339,8 +334,8 @@
           >Your route goes past what the instant answer covers, so it has no estimate:{{ ' ' }}</template
         ><template v-else-if="follow.estimating === 'failed'"
           >Your route couldn't be priced on the instant answer's data:{{ ' ' }}</template
-        ><template v-else>No timeline for your route on this save yet:{{ ' ' }}</template>Simulate it › shows its times in
-        {{ NAMES.classic }}, or Run Fast › for a result on your account.
+        ><template v-else>No timeline for your route on this save yet:{{ ' ' }}</template>a run from Try next, below, works
+        out its times on your account.
       </p>
       <!-- By a date (Egg Day too): plans kept, none in time (lib/eggDayRule.ts): said plainly, the nearest shown, marked. -->
       <p v-else-if="selectedOption?.state === 'late'" class="text-[13px] text-slate-700" data-testid="now-no-route-in-time">
@@ -369,19 +364,6 @@
           Work out my plan ›
         </button>
       </p>
-    </div>
-
-    <!-- Run Fast (was Recalculate): the goal's screen with this save and Fast selected (lib/recalc.ts). -->
-    <div v-if="card && !notOnVirtue" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="now-recalc">
-      <button
-        type="button"
-        class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50"
-        data-testid="now-recalc-button"
-        @click="emit('recalc', recalcRequest)"
-      >
-        {{ recalcLabel }}
-      </button>
-      <span class="text-[11px] text-slate-500">{{ recalcLine }}</span>
     </div>
 
     <GearBlock
@@ -454,7 +436,7 @@ import type { SnapWhatIf } from '@/search/instantSnapshot';
 import type { SetMatch } from '@/lib/gearMatch';
 import { phaseWords, type PhaseBadge } from '@/lib/nowPhase';
 import { NOTHING_PRICED, type StartLine } from '@/lib/nowStart';
-import { askGoal, recalcButton, recalcWords, type RecalcRequest } from '@/lib/recalc';
+import { askGoal, type RecalcRequest } from '@/lib/recalc';
 import { keepWords, replaceWords, sourcePill } from '@/lib/searchPlan';
 import { NOT_SAVED_WORDS, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { ESTIMATE_WORDS } from '@/lib/followEstimate';
@@ -526,13 +508,11 @@ const emit = defineEmits<{
   useSearch: [];
   /** A route typed in "Follow another route": follow it for this goal. */
   follow: [chain: number[]];
-  /** "Use the planner's route ›": back to the planner's pick for this goal. */
+  /** "Stop following: use the planner's route": back to the planner's pick for this goal. */
   unfollow: [];
   saveOnline: [];
   /** Retry reading the routes saved online (stores/follow.ts `loadCloud(true)`). */
   retryCloud: [];
-  /** "Simulate it ›": the followed route in Single run (search/simulateRoute.ts). */
-  simulate: [chain: number[]];
 }>();
 
 /** Not on virtue yet (null: not known, the card stays as it is). */
@@ -588,11 +568,6 @@ const followNote = computed(() => {
   if (f.source === 'older-save' && f.pricedSave) return `priced on your save of ${dateAt(f.pricedSave, props.now, props.zone)}, may have drifted`;
   return '';
 });
-/** "Run Fast ›" and "Simulate it ›": whenever the route has no timeline of this save (the instant answer's has its
- *  own "run Fast" under the events). */
-const offerPrice = computed(
-  () => !!props.follow && ((props.follow.price !== 'exact' && props.follow.price !== 'instant') || props.follow.source === 'older-save')
-);
 /** The goal asked for: the card's, else the selected option's (a followed route with no plan yet). */
 const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: number | null }>(() => {
   if (props.card) return props.card.goal;
@@ -601,11 +576,6 @@ const askFor = computed<{ goal: 'fastest' | 'date'; target: number; deadline: nu
   const t = Number(/^fastest-(\d+)$/.exec(o?.key ?? '')?.[1] ?? 490);
   return { goal: 'fastest', target: t, deadline: null };
 });
-/** "Run Fast ›" beside a followed route not priced on this save: the goal's screen with Fast selected (lib/recalc.ts). */
-function priceIt(): void {
-  if (!props.follow) return;
-  emit('recalc', recalcRequest.value);
-}
 const typed = ref('');
 const typedError = ref('');
 const typedHint = computed(() => (askFor.value.goal === 'fastest' ? `e.g. 197 222 247 ${askFor.value.target}` : 'e.g. 197 222 247'));
@@ -691,10 +661,8 @@ const recalcRequest = computed<RecalcRequest>(() => ({
   open: goalOpen.value,
   goal: askGoal(askFor.value),
 }));
-const recalcLine = computed(() => recalcWords(goalOpen.value));
 /** The screen that works the goal's instant answer out: "Highest TE by a date", "Fastest to 490 TE". */
 const screenName = computed(() => (askFor.value.goal === 'date' ? NAMES.byDate : fastestName(askFor.value.target)));
-const recalcLabel = computed(() => recalcButton(props.card?.plan.from?.level === 'Fast'));
 
 // ------------------------------------------------------------------- instant answer or search result
 /** The instant answer's plan (not a search's, not an older snapshot's Check exactly): times rounded, no calendar. */

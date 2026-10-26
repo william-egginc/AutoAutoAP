@@ -1,8 +1,8 @@
 /**
  * "Follow this route" on Right now (16 Oct 2026), server-rendered: the player's pick replaces the planner's on the
- * route line, priced from a save (this one, or an older one, said so), or not priced yet with "Price it ›"
- * (Recalculate with the route attached) and "Simulate it ›"; "Use the planner's route ›" goes back. Then the buttons
- * that pick a route, wired where the plan says. Ids: placeholders only.
+ * route line, priced from a save (this one, or an older one, said so), or not priced yet. One path per card (25 Oct
+ * 2026): no Run Fast, Simulate it or way back on the follow line; one quiet "Stop following: use the planner's route"
+ * under Earlier versions. Then the buttons that pick a route, wired where the plan says. Ids: placeholders only.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -128,16 +128,18 @@ const followedCard: CardPlan = {
 };
 
 describe('Right now with a followed route', () => {
-  it('priced on this save: the route line names it your pick, with the way back and no Price it', async () => {
+  it('priced on this save: the route line names it your pick, the quiet way back under it, and no Price it', async () => {
     const t = textOf(await renderHtml(RightNowCard, props(followedCard, thisSave)));
     expect(t).toContain('Following 222 → 490 (Fastest to 490 TE · your pick)');
-    expect(t).toContain('Following your pick · Use the planner\'s route ›');
+    expect(t).toContain("Following your pick Stop following: use the planner's route");
     expect(t).not.toContain('Price it');
     expect(t).not.toContain('may have drifted');
     // Its events and timeline are there (they follow the plan, which is the followed route's).
     const html = await renderHtml(RightNowCard, props(followedCard, thisSave));
     expect(html).toContain('data-testid="now-timeline"');
-    expect(html).toContain('data-testid="now-recalc"');
+    // One path per card (25 Oct 2026): the card's Run Fast button went (Try next has the runs).
+    expect(html).not.toContain('data-testid="now-recalc"');
+    expect(html).toContain('data-testid="now-follow-back"');
   });
 
   it("priced on an older save: says which, that it may have drifted, and offers Price it", async () => {
@@ -145,7 +147,7 @@ describe('Right now with a followed route', () => {
     const c: CardPlan = { ...followedCard, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: OLD } }, followed: older };
     const t = textOf(await renderHtml(RightNowCard, props(c, older)));
     expect(t).toContain(
-      'Following your pick · priced on your save of Oct 14 at 8:40 AM, may have drifted · Run Fast › · Simulate it › · Use the planner\'s route ›'
+      'Following your pick · priced on your save of Oct 14 at 8:40 AM, may have drifted Stop following: use the planner\'s route'
     );
     // The card's own older-save box is not said twice.
     expect(t).not.toContain('This plan was worked out from your save of');
@@ -156,8 +158,9 @@ describe('Right now with a followed route', () => {
     const html = await renderHtml(RightNowCard, props(null, none));
     const t = textOf(html);
     expect(t).toContain('Following 222 → 490 (Fastest to 490 TE · your pick)');
-    expect(t).toContain('Following your pick · not priced on this save yet · Run Fast › · Simulate it › · Use the planner\'s route ›');
-    expect(t).toContain('No timeline for your route on this save yet');
+    expect(t).toContain("Following your pick · not priced on this save yet Stop following: use the planner's route");
+    expect(t).not.toMatch(/Run Fast|Simulate it/);
+    expect(t).toContain('No timeline for your route on this save yet: a run from Try next, below, works out its times on your account.');
     expect(html).not.toContain('data-testid="now-events"');
     expect(html).not.toContain('data-testid="now-timeline"');
     expect(html).not.toContain('Add to calendar');
@@ -173,30 +176,18 @@ describe('Right now with a followed route', () => {
       finish: { end: NOW + 100 * H, endTE: 490, at: OLD * 1000 + 600_000 },
     };
     const t = textOf(await renderHtml(RightNowCard, props(null, fin)));
-    expect(t).toMatch(/Following your pick · checked Oct 14 at 8:50 AM: lands Oct 19 at 6:40 PM, no timeline kept · Run Fast ›/);
+    expect(t).toMatch(/Following your pick · checked Oct 14 at 8:50 AM: lands Oct 19 at 6:40 PM, no timeline kept Stop following/);
   });
 
-  it('"Run Fast ›" beside a route not priced asks Run Fast for the goal (no Check exactly since 23 Oct 2026)', async () => {
+  it('"Stop following: use the planner\'s route" is the one way back: it asks to unfollow', async () => {
     const none: FollowCard = { chain: [222, 490], from: 'typed', price: 'none', source: null, pricedSave: null };
-    const onRecalc = vi.fn();
-    let setup: Record<string, unknown> = {};
-    const app = createSSRApp({ render: () => h(RightNowCard, { ...props(null, none), onRecalc } as never) });
-    app.mixin({
-      created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
-        if (this.$.type.__file?.endsWith('/RightNowCard.vue')) setup = this.$.setupState;
-      },
-    });
-    await renderToString(app);
-    (setup.priceIt as () => void)();
-    expect(onRecalc).toHaveBeenCalledWith({
-      open: { auto: 'fastest', depth: 'smart', target: 490 },
-      goal: 'target 490',
-    });
-    // App opens the goal's screen on Fast (lib/recalc.ts fastOpen); nothing is asked of InstantRoute any more.
+    const html = await renderHtml(RightNowCard, props(null, none));
+    for (const id of ['now-follow-price', 'now-follow-simulate', 'now-recalc-button']) expect(html).not.toContain(`data-testid="${id}"`);
+    expect(html.match(/data-testid="now-follow-back"/g)).toHaveLength(1);
+    const card = read('RightNowCard.vue');
+    expect(card).toContain('data-testid="now-follow-back" @click="emit(\'unfollow\')"');
+    // The behind line's Run Fast and App's path stay (lib/recalc.ts fastOpen).
     expect(read('../../App.vue')).toContain('openFromMyRuns(fastOpen(req.open));');
-    const route = read('../auto/InstantRoute.vue');
-    expect(route).not.toContain('followedToPrice');
-    expect(route).not.toContain('exactAsk');
   });
 
   it('the typed box follows a route for the goal; a bad one says what to fix', async () => {
@@ -219,7 +210,7 @@ describe('Right now with a followed route', () => {
     const view = read('../MyRunsView.vue');
     expect(view).toContain('@follow="followTyped"');
     expect(view).toContain('@unfollow="unfollowGoal"');
-    expect(view).toContain('@simulate="simulateFollowed"');
+    expect(view).not.toContain('@simulate=');
     expect(view).toContain(':follow="page.follow.value"');
   });
 });

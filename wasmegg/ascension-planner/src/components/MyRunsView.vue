@@ -71,7 +71,6 @@
         @use-search="page.useSearchResult"
         @follow="followTyped"
         @unfollow="unfollowGoal"
-        @simulate="simulateFollowed"
       />
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
@@ -100,7 +99,6 @@
           :standing="standingWords(page.shownTile.value.stand)"
           :standing-label="page.shownTile.value.standingLabel"
           :open="page.shownTile.value.open ?? null"
-          :run-fast-above="runFastAbove"
           @open="to => emit('open', to)"
           @routes="showRuns(page.shownTile.value.goal)"
         />
@@ -283,7 +281,6 @@ import { useNowPage } from '@/composables/useNowPage';
 import { useConsent } from '@/composables/useConsent';
 import { useStartTimesStore } from '@/stores/startTimes';
 import { useFollowStore } from '@/stores/follow';
-import { simulateRoute } from '@/search/simulateRoute';
 import type { RecalcRequest } from '@/lib/recalc';
 import { markMyRunsSeen } from '@/composables/useMyRunsShown';
 import DashboardGaps from './myruns/DashboardGaps.vue';
@@ -319,7 +316,7 @@ function openStartTimes(chain: number[] | null): void {
   else startTimes.open();
 }
 
-/** Right now's followed route (lib/follow.ts): typed in its box, back to the checked route, or opened in Single run. */
+/** Right now's followed route (lib/follow.ts): typed in its box, or back to the checked route. */
 const follows = useFollowStore();
 function followTyped(chain: number[]): void {
   const g = page.selectedGoal.value;
@@ -328,10 +325,6 @@ function followTyped(chain: number[]): void {
 function unfollowGoal(): void {
   const g = page.selectedGoal.value;
   if (g) void follows.unfollow(g);
-}
-function simulateFollowed(chain: number[]): void {
-  const date = page.cardPlan.value?.goal.goal === 'date' || !(page.selectedGoal.value ?? 'fastest').startsWith('fastest');
-  simulateRoute(chain, date ? 'by-date' : 'fastest', { from: 'the route you follow (My runs)' });
 }
 
 const store = useChainSearchStore();
@@ -382,17 +375,8 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
-/**
- * Right now's Run Fast button is showing (RightNowCard: a card, on virtue): the one Run Fast on My runs (ux review
- * 26 Oct, row 15). The tile's How sure and Try next's "Egg Day, Fast" then don't repeat it for the same goal.
- */
-const runFastAbove = computed(() => !!page.cardPlan.value && page.onVirtue.value !== false);
-const pills = computed(() => {
-  const all = tryNextPills(page.fastestTile.value, page.eggDayTile.value);
-  const g = page.cardPlan.value?.goal;
-  const eggDayAbove = runFastAbove.value && g?.goal === 'date' && g.deadline === page.eggDayAt;
-  return eggDayAbove ? all.filter(p => p.id !== 'eggday-fast') : all;
-});
+/** Try next's runs, all of them: Right now has no Run Fast button of its own since 25 Oct 2026 (one path per card). */
+const pills = computed(() => tryNextPills(page.fastestTile.value, page.eggDayTile.value));
 /** "One more TE by Egg Day … would come …, after Egg Day starts, so it isn’t counted.": saved legs only, the laid
  *  egg's next TE (lib/tryNext.ts `oneMoreLine`, from endEggsOf's `next`). */
 const oneMore = computed(() => {

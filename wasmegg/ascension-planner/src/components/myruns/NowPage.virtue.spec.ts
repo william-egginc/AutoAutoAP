@@ -259,22 +259,15 @@ describe('the corner badge and the gear', () => {
 });
 
 describe('Run Fast (was Recalculate)', () => {
-  it('a button on Right now with a line saying what it does', async () => {
-    const t = textOf(await renderHtml(RightNowCard, cardProps()));
-    expect(t).toContain('Run Fast Opens Fastest to 490 TE with your save and Fast selected; it starts when you press Find');
-    const d = textOf(
-      await renderHtml(
-        RightNowCard,
-        cardProps({
-          card: { ...card, goal: { goal: 'date', target: 490, deadline: 1815753600 } },
-          selectedGoal: 'eggday-2027',
-        })
-      )
+  it('no Run Fast button on Right now any more (25 Oct 2026, one path per card: Try next has the runs)', async () => {
+    const html = await renderHtml(RightNowCard, cardProps());
+    expect(html).not.toContain('data-testid="now-recalc"');
+    expect(textOf(html)).not.toContain('Opens Fastest to 490 TE with your save and Fast selected');
+    const d = await renderHtml(
+      RightNowCard,
+      cardProps({ card: { ...card, goal: { goal: 'date', target: 490, deadline: 1815753600 } }, selectedGoal: 'eggday-2027' })
     );
-    expect(d).toContain('Opens Highest TE by a date with your save and Fast selected; it starts when you press Find');
-    // Without a plan there is nothing to recalculate: "Work it out ›" is there.
-    const empty = await renderHtml(RightNowCard, cardProps({ card: null, events: [], shownEvents: [], track: null }));
-    expect(empty).not.toContain('data-testid="now-recalc"');
+    expect(textOf(d)).not.toContain('Opens Highest TE by a date with your save and Fast selected');
   });
 
   it("emits the goal's screen and its words; App loads a fresh save when 6 h old, opens, then asks", async () => {
