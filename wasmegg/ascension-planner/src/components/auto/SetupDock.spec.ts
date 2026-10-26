@@ -77,18 +77,16 @@ describe('the Setup pill at 1280', () => {
     expect(html).toContain('min-h-[44px] sm:min-h-0 rounded-full px-2.5');
   });
 
-  it('My runs at 1280: the page keeps 28rem free on its right from xl, so nothing sits under the pill', () => {
+  it('My runs keeps full width at xl: no right padding class; bottom padding stays', () => {
     const app = readFileSync('src/App.vue', 'utf8');
-    expect(app).toContain("setupDockShown && plannerTab === 'myruns' ? 'xl:pr-[28rem]' : ''");
-    // The pill (at most 27rem, 1rem from the edge) starts left of where the page's padding begins, and the
-    // page's own 1rem padding (max-w-6xl mx-auto p-4) keeps a gap, with or without a 15 px scrollbar.
+    // The pill floats over the page like any floating button (orchestrator, 26 Oct 2026: a 28rem right padding left
+    // an empty right half at 1280, worse than the overlap).
+    expect(app).not.toMatch(/xl:pr-\[/);
     expect(app).toContain('<div class="max-w-6xl mx-auto p-4">');
-    for (const w of [1280, 1280 - 15]) {
-      const contentRight = w - 28 * 16 - 16;
-      const pillLeft = w - 16 - 27 * 16;
-      expect(pillLeft - contentRight).toBeGreaterThanOrEqual(16);
-      // And My runs still has room: over 750 px of content at 1280.
-      expect(Math.min(contentRight - 16, 72 * 16)).toBeGreaterThan(750);
-    }
+    expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'" class="max-w-6xl mx-auto mt-6">');
+    // The room under the page for the pill, on My runs too.
+    expect(app).toContain(":style=\"setupDockShown ? { paddingBottom: SETUP_DOCK_CLEARANCE } : undefined\"");
+    expect(app).toContain("(plannerTab.value === 'automatic' || plannerTab.value === 'myruns') && !!playerId.value && !loading.value");
+    expect(app).toContain("const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';");
   });
 });

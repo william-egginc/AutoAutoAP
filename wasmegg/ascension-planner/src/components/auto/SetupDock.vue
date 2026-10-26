@@ -33,8 +33,8 @@
     <!-- From xl (1280 px) the pill stacks Setup over the workers, 10rem wide, so it sits in the margin right of the
          Auto Planner's 56rem column instead of over its right edge (UX review 26 Oct, #18: it covered "Every number
          of ascensions ›"). On My runs it stays the full one-row pill at every width (Jordan, 26 Oct 2026: players turn
-         the workers down mid-run): from xl its summary wraps at 13rem and the pill is at most 27rem wide; App.vue keeps
-         28rem free right of My runs from xl (xl:pr-[28rem]), so no content sits under it at 1280. -->
+         the workers down mid-run): from xl its summary wraps at 13rem and the pill is at most 27rem wide. My runs keeps
+         its full width and the pill floats over it (draggable); App.vue's bottom room lets the last lines clear it. -->
     <div
       class="flex items-center gap-1 rounded-full bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5"
       :class="stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:max-w-[27rem] xl:rounded-2xl'"

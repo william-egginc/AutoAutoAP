@@ -7,8 +7,8 @@
        scroll clear of the pill instead of under it (Jordan, 21 Oct 2026). On Manual below md the notes and stats
        bubbles (FloatingNotes.vue, FloatingStats.vue: fixed 7rem up, about 70 px tall) sit over the page's sides, so
        it ends 12rem lower there: anything, the Help improve the planner ticks too, scrolls clear of them. On My runs
-       the pill is the full one-row pill, up to 27rem wide from xl, so from xl the page keeps 28rem free on its right
-       (Jordan, 26 Oct 2026): at 1280 nothing on the page sits under it, wherever the page is scrolled. -->
+       the pill is the full one-row pill (up to 27rem wide from xl) and the page keeps its full width: the pill floats
+       over the bottom right like any floating button, draggable, and this bottom room lets the last lines clear it. -->
   <div
     :class="[
       'min-h-screen bg-gray-100 transition-all duration-300',
@@ -21,7 +21,6 @@
           : plannerTab === 'automatic' || isFooterCollapsed
             ? 'pb-8'
             : 'pb-24',
-      setupDockShown && plannerTab === 'myruns' ? 'xl:pr-[28rem]' : '',
     ]"
     :style="setupDockShown ? { paddingBottom: SETUP_DOCK_CLEARANCE } : undefined"
   >
