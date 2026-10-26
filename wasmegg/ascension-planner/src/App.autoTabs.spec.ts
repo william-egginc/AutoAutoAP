@@ -31,6 +31,17 @@ describe('the Auto Planner sub-tabs', () => {
     expect(nav).toContain('class="grid grid-cols-3 w-full sm:flex');
   });
 
+  it('in every state: the list depends on nothing but the target (no fresh-profile, width, answer or run condition), and nothing else draws an Auto sub-tab row (QA 26 Oct 2026 saw "My runs, Fastest, …" on an older build)', () => {
+    const at = app.indexOf('const autoTabs = computed');
+    const list = app.slice(at, app.indexOf(']);', at));
+    for (const cond of ['myRunsTabShown', 'myRuns', 'innerWidth', 'matchMedia', 'hasData', 'rawBackup', '...(']) expect(list).not.toContain(cond);
+    // One sub-tab row, drawn from autoTabs only, and no other v-for over a My runs tab in the nav.
+    expect(app.match(/v-for="v in autoTabs"/g)).toHaveLength(1);
+    expect(nav).not.toMatch(/myruns/i);
+    // My runs appears in the top tabs exactly once.
+    expect(app.match(/id: 'myruns' as const/g)).toHaveLength(1);
+  });
+
   it('My runs is still a top tab, shown on the same rule', () => {
     expect(app).toMatch(/\.\.\.\(myRunsTabShown\.value\s*\?\s*\[\s*\{\s*id: 'myruns' as const,\s*tab: 'myruns',\s*label: NAMES\.myRuns,/);
   });
