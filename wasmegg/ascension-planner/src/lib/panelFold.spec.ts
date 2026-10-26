@@ -15,7 +15,6 @@ import {
 
 const SECTIONS: FoldSection[] = [
   'whatItDoes',
-  'promise',
   'searchSettings',
   'acknowledgement',
   'steppingAway',
@@ -97,22 +96,29 @@ describe('foldOpen', () => {
 describe("the player's toggle, remembered per section", () => {
   it('none until toggled; then per section', () => {
     for (const s of SECTIONS) expect(readFoldToggle(s)).toBeNull();
-    rememberFoldToggle('promise', true);
+    rememberFoldToggle('acknowledgement', true);
     rememberFoldToggle('countTable', false);
-    expect(mem.get(foldKey('promise'))).toBe('1');
-    expect(readFoldToggle('promise')).toBe(true);
+    expect(mem.get(foldKey('acknowledgement'))).toBe('1');
+    expect(readFoldToggle('acknowledgement')).toBe(true);
     expect(readFoldToggle('countTable')).toBe(false);
     expect(readFoldToggle('whatItDoes')).toBeNull();
   });
-  it('keeps what players chose under the two older keys', () => {
-    mem.set('aap-stronger-promise-closed', '0');
+  it('keeps what players chose under the older Search settings key', () => {
     mem.set('aap.fastest.searchSettingsOpen', '1');
-    expect(readFoldToggle('promise')).toBe(true);
     expect(readFoldToggle('searchSettings')).toBe(true);
-    mem.set('aap-stronger-promise-closed', '1');
-    expect(readFoldToggle('promise')).toBe(false);
-    rememberFoldToggle('promise', true);
-    expect(readFoldToggle('promise')).toBe(true);
+    mem.set('aap.fastest.searchSettingsOpen', '0');
+    expect(readFoldToggle('searchSettings')).toBe(false);
+    rememberFoldToggle('searchSettings', true);
+    expect(readFoldToggle('searchSettings')).toBe(true);
+  });
+  it('the merged promise fold (26 Oct 2026): its old keys are harmless, What this does keeps its own toggle', () => {
+    mem.set('aap-stronger-promise-closed', '0');
+    mem.set('aap.fold.promise', '1');
+    expect(readFoldToggle('whatItDoes')).toBeNull();
+    expect(foldOpen('whatItDoes', { remembered: readFoldToggle('whatItDoes') })).toBe(false);
+    rememberFoldToggle('whatItDoes', true);
+    expect(readFoldToggle('whatItDoes')).toBe(true);
+    expect(Object.keys(PANEL_FOLD)).not.toContain('promise');
   });
   it('never throws without storage', () => {
     vi.stubGlobal('localStorage', {
@@ -123,8 +129,8 @@ describe("the player's toggle, remembered per section", () => {
         throw new Error('blocked');
       },
     });
-    expect(readFoldToggle('promise')).toBeNull();
-    expect(() => rememberFoldToggle('promise', true)).not.toThrow();
+    expect(readFoldToggle('whatItDoes')).toBeNull();
+    expect(() => rememberFoldToggle('whatItDoes', true)).not.toThrow();
   });
 });
 

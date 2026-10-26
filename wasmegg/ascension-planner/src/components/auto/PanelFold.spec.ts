@@ -93,8 +93,8 @@ describe('PanelFold', () => {
   });
 
   it("opens where the player opened it last time, per section", async () => {
-    mem.set(foldKey('promise'), '1');
-    expect(isOpen(detailsTag(await render(PanelFold, { section: 'promise', title: 'T' }), 'fold-promise'))).toBe(true);
+    mem.set(foldKey('acknowledgement'), '1');
+    expect(isOpen(detailsTag(await render(PanelFold, { section: 'acknowledgement', title: 'T' }), 'fold-acknowledgement'))).toBe(true);
     expect(isOpen(detailsTag(await render(PanelFold, { section: 'whatItDoes', title: 'T' }), 'fold-whatItDoes'))).toBe(false);
   });
 
@@ -139,14 +139,15 @@ describe('PanelFold', () => {
 });
 
 describe('every foldable part reads lib/panelFold.ts', () => {
-  it('What this does and the promise (StrongerBox): folded by default, open when the table says so', async () => {
+  it('What this does (StrongerBox), the promise inside it: folded by default, open when the table says so', async () => {
     const html = await render(StrongerBox, { goal: 'fastest' });
     expect(isOpen(detailsTag(html, 'fold-whatItDoes'))).toBe(false);
-    expect(isOpen(detailsTag(html, 'stronger-promise'))).toBe(false);
+    expect(html.match(/<details/g)).toHaveLength(1);
     expect(html.indexOf('data-testid="level-note"')).toBeGreaterThan(html.indexOf('data-testid="fold-whatItDoes"'));
-    const opened = await withTable('whatItDoes', 'open', () => withTable('promise', 'open', () => render(StrongerBox, { goal: 'date' })));
+    expect(html.indexOf('data-testid="stronger-promise"')).toBeGreaterThan(html.indexOf('data-testid="level-note"'));
+    expect(html.indexOf('data-testid="stronger-promise"')).toBeLessThan(html.indexOf('</details>'));
+    const opened = await withTable('whatItDoes', 'open', () => render(StrongerBox, { goal: 'date' }));
     expect(isOpen(detailsTag(opened, 'fold-whatItDoes'))).toBe(true);
-    expect(isOpen(detailsTag(opened, 'stronger-promise'))).toBe(true);
   });
 
   it('Stepping away?: one row, open by default (26 Oct 2026), closed only by the player and open again while a run is going; the crash countdown stays outside it', async () => {
@@ -169,7 +170,6 @@ describe('every foldable part reads lib/panelFold.ts', () => {
     const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     const where: Record<FoldSection, string[]> = {
       whatItDoes: ['StrongerBox.vue'],
-      promise: ['StrongerBox.vue'],
       searchSettings: ['ChainSearchPanel.vue', 'DeadlinePanel.vue'],
       acknowledgement: ['FindBar.vue'],
       steppingAway: ['StepAwayOptions.vue'],

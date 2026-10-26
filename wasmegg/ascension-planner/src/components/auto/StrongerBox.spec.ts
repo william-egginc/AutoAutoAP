@@ -20,7 +20,9 @@ describe('StrongerBox', () => {
     expect(t).not.toContain('How hard to look');
     // Under the "What this does" fold (lib/panelFold.ts `whatItDoes`) since 25 Oct.
     expect(t).toMatch(/^What this does › What it does Fast and Exact\. Starting from the instant answer's route/);
-    expect(t).toContain('What this does and does not promise');
+    // One fold since 26 Oct 2026: the promise is the amber part of "What this does".
+    expect(t).not.toContain('What this does and does not promise');
+    expect(t).toContain("What it promises and what it doesn't");
     expect(t).toContain('proves the best only inside');
     expect(html).not.toContain('id="stronger-check-results"');
   });
@@ -35,7 +37,7 @@ describe('StrongerBox', () => {
       },
     });
     const t = textOf(html);
-    expect(t).toContain('The same as Fast, with one more TE either side of each early stop.');
+    expect(t).toContain('The same as Fast, with one more TE either side of each early stop (up to 4).');
     expect(t).toContain('How long About 3.0 h on this computer (7 workers).');
   });
 });
@@ -142,25 +144,77 @@ describe('no "Find a starting chain for me" (12 Oct)', () => {
 });
 
 describe('names and result headings (12 Oct)', () => {
-  it('the search is "Fast and Exact", with its results heading', async () => {
+  it('the search is "Fast and Exact"; no heading over the search (26 Oct 2026: the panel intro says it)', async () => {
     useStrongerStore().level = 'quick';
-    const fast = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
-    // One clear sentence (UX review 26 Oct 2026, item 10: the old heading read cut off).
-    expect(fast).toContain("Fast and Exact look near the instant answer's route for a better one");
+    const html = await renderHtml(StrongerBox, { goal: 'fastest' });
+    const fast = textOf(html);
+    expect(fast).not.toContain('look near the instant answer\'s route for a better one');
+    expect(html).not.toContain('data-testid="nearby-heading"');
     expect(fast).toContain('What it does Fast and Exact.');
     const { NAMES } = await import('@/lib/siteNav');
     expect(NAMES.smart).toBe('Fast and Exact');
   });
 });
 
-describe('"What this does and does not promise" (12 Oct)', () => {
-  it('an amber box, closed by default (22 Oct mockup), that can be opened and is remembered', async () => {
+describe('"What this does": one fold, the promise its amber part (26 Oct 2026)', () => {
+  it('one <details>, closed by default, the amber promise inside it after the three lines', async () => {
     const html = await renderHtml(StrongerBox, { goal: 'fastest' });
-    expect(html).not.toMatch(/<details[^>]*open[^>]*data-testid="stronger-promise"|<details[^>]*data-testid="stronger-promise"[^>]*open/);
+    expect(html.match(/<details/g)).toHaveLength(1);
     expect(html).toMatch(/border-amber-200 bg-amber-50[^"]*"[^>]*data-testid="stronger-promise"/);
+    expect(html).not.toMatch(/<details[^>]*data-testid="stronger-promise"/);
     const src = fs.readFileSync(path.join(__dirname, 'StrongerBox.vue'), 'utf8');
-    // Opened and remembered through PanelFold.vue (lib/panelFold.ts `promise`, which still reads the old key).
-    expect(src).toMatch(/<PanelFold\s+section="promise"/);
+    expect(src.match(/<PanelFold\b/g)).toHaveLength(1);
+    expect(src).toMatch(/<PanelFold\s+section="whatItDoes"/);
+    expect(src).not.toContain('section="promise"');
+  });
+  // Each point once: the claims both parts used to make are said a single time, on each screen and level.
+  const once = [
+    "before 23 Oct",
+    'up to 13 Oct',
+    'It can miss a route whose early stops are further away',
+    'proves the best only inside the boxes you set',
+    'never scans every route',
+    'up to 3 TE either side',
+    'Each last stop is found to the exact TE',
+    'priced with the full simulator on your save',
+    'Keep this tab in front',
+  ];
+  for (const goal of ['fastest', 'date'] as const)
+    for (const level of ['quick', 'normal', 'thorough'] as const)
+      it(`${goal} ${level}: no claim twice`, async () => {
+        useStrongerStore().level = level;
+        const t = textOf(await renderHtml(StrongerBox, { goal }));
+        for (const c of once) expect(t.split(c).length - 1, c).toBeLessThanOrEqual(1);
+        expect(t.split('can miss').length - 1 + (t.split('can still miss').length - 1)).toBeLessThanOrEqual(1);
+      });
+  it('every distinct claim is still there', async () => {
+    useStrongerStore().level = 'quick';
+    const f = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
+    for (const c of [
+      'up to 8 TE either way',
+      'several stops have to move together',
+      'or the one you picked',
+      '3 accounts, and only one of them has a proven best',
+      'a short search (Fast) often found a route at least a day sooner',
+      'Treat that as an upper bound',
+      'Going bigger rarely added more',
+      'A refresh is safe',
+      'awake hours',
+    ])
+      expect(f, c).toContain(c);
+    useStrongerStore().level = 'quick';
+    const d = textOf(await renderHtml(StrongerBox, { goal: 'date' }));
+    for (const c of [
+      'up to 3 TE either side',
+      'Long routes get fewer, and it narrows if the search would take too long',
+      'Each last stop is found to the exact TE',
+      'It can miss a route whose early stops are further away',
+      'Custom proves the best only inside the boxes you set',
+      'No search up to 13 Oct beat the instant answer\'s TE by a date',
+      'only 2 like-for-like runs from one save',
+      'You can stop it at any point',
+    ])
+      expect(d, c).toContain(c);
   });
 });
 
@@ -168,14 +222,15 @@ describe('the promise box follows the level (12 Oct)', () => {
   it('Fastest Exact: what it finds and can miss; no Light lines', async () => {
     useStrongerStore().level = 'normal';
     const t = textOf(await renderHtml(StrongerBox, { goal: 'fastest' }));
-    expect(t).toContain('moves neighbouring stops in pairs and tries one ascension more or fewer');
+    expect(t).toContain('moving neighbouring stops in pairs. Then it tries one ascension more or fewer');
+    expect(t).toContain('three or more stops have to move together');
     expect(t).toContain('never a proven best');
     expect(t).not.toContain('No search:');
   });
-  it('By a date Very high (a stored or linked run): within 5 TE of the instant answer\'s route', async () => {
+  it('By a date Very high (a stored or linked run): up to 5 TE either side', async () => {
     useStrongerStore().level = 'thorough';
     const t = textOf(await renderHtml(StrongerBox, { goal: 'date' }));
-    expect(t).toContain("each early stop within 5 TE of the answer's route");
+    expect(t).toContain('two more TE either side of each early stop (up to 5)');
     expect(t).not.toContain('No search:');
   });
 });
