@@ -292,6 +292,17 @@ export function readSetupValue(v: unknown): CloudSetup | null {
   return out;
 }
 
+/** A time zone this browser knows (an unknown one, put in place, makes every date on the page throw). */
+export function isKnownZone(zone: string): boolean {
+  if (typeof zone !== 'string' || !ZONE.test(zone)) return false;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** What a Setup value read back sets in the app (only the parts it has). */
 export function setupFromCloud(v: CloudSetup): Partial<SetupNow> {
   const out: Partial<SetupNow> = { ...scheduleFromCloud(v) };

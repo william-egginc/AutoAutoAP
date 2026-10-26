@@ -8,27 +8,34 @@
  * A render function, not a single-file component, so its spec can draw it with Vue's own renderer and throw at it
  * (InstantGuard.spec.ts): component specs otherwise render on the server, where an error after the first render
  * never shows.
+ *
+ * What threw is kept (lib/renderGuard.ts `cardErrorOf`: name, message, where, 3 stack lines, no ID, no URL query):
+ * one tagged console line, and a closed "Details" fold in the message (crash2, 26 Oct 2026).
  */
 import { defineComponent, getCurrentInstance, h, onErrorCaptured, ref } from 'vue';
-import { INSTANT_FAILED, isRenderFailure } from '@/lib/renderGuard';
+import { INSTANT_FAILED, cardErrorLog, cardErrorOf, cardErrorText, isRenderFailure, type CardError } from '@/lib/renderGuard';
 
 export default defineComponent({
   name: 'InstantGuard',
   setup(_props, { slots }) {
     const failed = ref(false);
+    const caught = ref<CardError | null>(null);
     const mounts = ref(0);
     const self = getCurrentInstance()?.proxy ?? null;
 
     onErrorCaptured((err, instance, info) => {
       // Only the card in the slot failing to draw itself; a part inside it (its own component) blanks only that part.
       if (!self || instance?.$parent !== self || !isRenderFailure(info)) return;
-      console.error('instant answer: the card could not be drawn', err);
+      const e = cardErrorOf(err, info);
+      console.error(cardErrorLog(e));
+      caught.value = e;
       failed.value = true;
       return false;
     });
 
     function again(): void {
       failed.value = false;
+      caught.value = null;
       mounts.value++;
     }
 
@@ -56,6 +63,19 @@ export default defineComponent({
                   },
                   'Show it again'
                 ),
+                caught.value
+                  ? h('details', { class: 'text-[11px] text-slate-600', 'data-testid': 'instant-failed-details' }, [
+                      h('summary', { class: 'cursor-pointer font-bold text-slate-700' }, 'Details'),
+                      h(
+                        'pre',
+                        {
+                          class: 'mt-1 whitespace-pre-wrap break-words rounded bg-slate-50 border border-slate-200 p-2 text-[10px] text-slate-700',
+                          'data-testid': 'instant-failed-error',
+                        },
+                        cardErrorText(caught.value)
+                      ),
+                    ])
+                  : null,
               ]
             )
           : null,

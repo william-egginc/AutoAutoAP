@@ -17,7 +17,7 @@ import {
   type VNode,
 } from 'vue';
 import InstantGuard from './InstantGuard';
-import { INSTANT_FAILED, isRenderFailure } from '@/lib/renderGuard';
+import { INSTANT_FAILED, cardErrorOf, cardErrorText, isRenderFailure, scrubErrorText } from '@/lib/renderGuard';
 
 interface Node {
   tag: string;
@@ -112,8 +112,10 @@ describe('InstantGuard', () => {
     expect(byTestId(root, 'instant-failed')).not.toBeNull();
     expect(textOf(root)).toContain(INSTANT_FAILED);
     expect(textOf(root)).toContain('Show it again');
-    // Player words: no raw error, no "table".
-    expect(textOf(root)).not.toMatch(/TypeError|undefined|table/i);
+    // Player words outside the closed Details fold: no raw error, no "table".
+    const failedCard = byTestId(root, 'instant-failed')!;
+    const outside = failedCard.children.filter(c => c.props['data-testid'] !== 'instant-failed-details');
+    expect(outside.map(textOf).join('')).not.toMatch(/TypeError|undefined|table/i);
     expect(errors).toEqual([]);
     expect(spy).toHaveBeenCalled();
     // Show it again: a fresh card.
@@ -183,5 +185,76 @@ describe('InstantGuard', () => {
     await nextTick();
     expect(byTestId(root, 'instant-failed')).not.toBeNull();
     spy.mockRestore();
+  });
+});
+
+// crash2 (26 Oct 2026): a fresh Chrome showed the message and nobody could tell what threw. The guard keeps the error.
+describe('InstantGuard keeps what went wrong', () => {
+  const ID = 'EI1234567890123456';
+  it('the error name and message in a closed Details fold, one tagged console line, no ID', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const Card = defineComponent({
+      setup: () => () => {
+        const e = new TypeError(`Cannot read properties of null (reading 'insertBefore') for ${ID}`);
+        e.stack = [
+          `TypeError: Cannot read properties of null (reading 'insertBefore') for ${ID}`,
+          '    at insert (https://example.test/assets/index-abc.js:1:200)',
+          '    at mountElement (https://example.test/assets/index-abc.js?k=3726b0602ac0&id=' + ID + ':2:300)',
+          '    at patch (https://example.test/assets/index-abc.js:3:400)',
+          '    at render (https://example.test/assets/index-abc.js:4:500)',
+        ].join('\n');
+        throw e;
+      },
+    });
+    const { root } = mount(Card);
+    await nextTick();
+    const fold = byTestId(root, 'instant-failed-details');
+    expect(fold).not.toBeNull();
+    expect(fold!.tag).toBe('details');
+    // Closed by default: no `open`.
+    expect(fold!.props.open).toBeFalsy();
+    const text = textOf(byTestId(root, 'instant-failed-error')!);
+    expect(text).toContain("TypeError: Cannot read properties of null (reading 'insertBefore')");
+    expect(text).toContain('(while drawing)');
+    expect(text).toContain('at insert (https://example.test/assets/index-abc.js:1:200)');
+    // 3 stack lines at most, no query, no ID, anywhere on the page or in the console.
+    expect(text.split('\n')).toHaveLength(4);
+    expect(text).not.toContain('at render');
+    expect(text).not.toContain('?k=');
+    expect(textOf(root)).not.toMatch(/EI\d{16}/);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const line = String(spy.mock.calls[0]![0]);
+    expect(line).toMatch(/^\[instant\] card could not be drawn: TypeError: Cannot read properties of null/);
+    expect(line).not.toMatch(/EI\d{16}/);
+    expect(spy.mock.calls[0]).toHaveLength(1);
+    // Show it again clears it.
+    (byTestId(root, 'instant-failed-again')!.props.onClick as () => void)();
+    await nextTick();
+    spy.mockRestore();
+  });
+
+  it('cardErrorOf: name, message, where, 3 lines; a thrown non-error; production codes', () => {
+    const e = cardErrorOf('plain text thrown', 'https://vuejs.org/error-reference/#runtime-15');
+    expect(e).toEqual({ name: 'Error', message: 'plain text thrown', where: 'updating', stack: [] });
+    expect(cardErrorText(e)).toBe('Error: plain text thrown (while updating)');
+    const r = new RangeError('Invalid time zone specified: Mars/Base');
+    r.stack = 'RangeError: Invalid time zone specified: Mars/Base\n    at a (x.js:1:1)\n    at b (x.js:2:2)\n    at c (x.js:3:3)\n    at d (x.js:4:4)';
+    const k = cardErrorOf(r, 'setup function');
+    expect(k.name).toBe('RangeError');
+    expect(k.where).toBe('setting up');
+    expect(k.stack).toEqual(['at a (x.js:1:1)', 'at b (x.js:2:2)', 'at c (x.js:3:3)']);
+    // Safari: no header line, the frames only.
+    const s = new Error('boom');
+    s.stack = 'render@https://example.test/a.js:1:2\npatch@https://example.test/a.js:3:4';
+    expect(cardErrorOf(s, 'render function').stack).toEqual(['render@https://example.test/a.js:1:2', 'patch@https://example.test/a.js:3:4']);
+    expect(cardErrorOf(new Error('x'.repeat(1000))).message.length).toBeLessThanOrEqual(300);
+  });
+
+  it('scrubErrorText: every ID and every URL query goes, the rest stays', () => {
+    expect(scrubErrorText(`no save for ${ID} or ei0000000000000001`)).toBe('no save for EI… or EI…');
+    expect(scrubErrorText('GET https://c.example/prefs?k=abc123&x=1 failed')).toBe('GET https://c.example/prefs failed');
+    // The query and what follows it in the same word (a line number can't be told from a value) go.
+    expect(scrubErrorText('at f (/assets/x.js?v=2:1:1)')).toBe('at f (/assets/x.js)');
+    expect(scrubErrorText('is it undefined? yes')).toBe('is it undefined? yes');
   });
 });
