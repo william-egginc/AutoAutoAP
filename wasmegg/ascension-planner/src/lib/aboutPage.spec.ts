@@ -212,11 +212,15 @@ describe('About and privacy page', () => {
     expect(store.match(/saveOnline\(goalKey, f\)/g)?.length).toBe(2);
   });
   it('says your choices and Setup are saved online under the follow code, who can read them, and the limits (26 Oct 2026)', () => {
-    const line =
-      'Your consent choices and your Setup (awake hours, time off, no prestige days, target TE and time zone) are saved online under the same code as the route you follow, made from your player ID. Anyone who knows your player ID can read and change them. Never the ID itself, and a name only if you chose to be credited by name. The last 5 versions of each are kept, and at most 30 changes an hour are saved.';
-    expect(text).toContain(line);
-    expect(text).toContain('They are saved only when you change them, never just because a page loaded.');
-    expect(text).toContain('The workers, the memory and the other This computer settings stay in this browser.');
+    // The Collector chat's draft (aaap-tools/notes/prefs-about-draft.md).
+    expect(text).toContain(
+      'Your sharing choices (the Help improve the planner answer, what you agreed to send, and whether you are credited by a name or stay anonymous) and your Setup (awake hours and the days they apply to, time off, no prestige days, your target TE and your time zone) are saved online, under the same code made from your player ID that the route you follow uses.'
+    );
+    expect(text).toContain('Anyone who knows your player ID can make the same code, so they could read these choices, and change them.');
+    expect(text).toContain(
+      'What is stored: the answers and ticks, the name you chose to be credited by (only if you chose a name), when you answered, and the Setup values above. Never your player ID. The settings for This computer (workers, memory) are not stored. The last 5 versions of each are kept, and at most 30 changes an hour are saved.'
+    );
+    expect(text).toContain('Your choices and Setup are saved online only when you change them, and read whenever you load an account');
     expect(text).toContain('Your choices and Setup No time limit. The last 5 versions of each.');
     const setup = read('src/components/auto/YourSetup.vue').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     expect(setup).toContain(

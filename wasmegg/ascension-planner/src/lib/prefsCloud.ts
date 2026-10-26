@@ -62,19 +62,19 @@ export interface CloudRange {
   to: string;
 }
 
-/** Awake hours (24-hour "HH:MM") and the days they hold on (0 = Sunday). */
+/** Awake hours (24-hour "HH:MM"), the days they hold on (0 = Sunday) and whether they are on (Setup's tick). */
 export interface CloudHours {
   start: string;
   end: string;
   days?: number[];
+  scheduleEnabled?: boolean;
 }
 
-/** The Setup value (contract, with the two changes the orchestrator asked the collector to adopt: `noPrestigeDays`
- *  shaped like `timeOff`, and the days and the on/off of the awake hours). */
+/** The Setup value (contract, with the two changes the collector adopted on 26 Oct: `noPrestigeDays` shaped like
+ *  `timeOff`, and `days` and `scheduleEnabled` inside `hours`). */
 export interface CloudSetup {
   at: number;
   hours?: CloudHours | null;
-  scheduleEnabled?: boolean;
   timeOff?: CloudRange[];
   noPrestigeDays?: CloudRange[];
   targetTE?: number | null;
@@ -144,28 +144,28 @@ const weekdays = (v: unknown): number[] | null =>
   Array.isArray(v) ? [...new Set(v.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b) : null;
 
 /**
- * THE AWAKE HOURS MAPPING, both ways, in one place (the collector adopts `days` and `scheduleEnabled`; where they sit
- * is decided here only). Off: `hours` null (any time) and `scheduleEnabled` false: the hours picked while off aren't
- * kept, so a collector that drops `scheduleEnabled` still reads "off". On: `hours` {start, end, days}. The app's
- * whole hours go as "HH:00" (24 as "00:00", the same end of the day); a read "HH:MM" keeps its hour.
+ * THE AWAKE HOURS MAPPING, both ways, in one place (where `days` and `scheduleEnabled` sit is decided here only; the
+ * collector adopted both inside `hours`, prefs-contract-progress.md 26 Oct). `hours` {start, end, days, scheduleEnabled}:
+ * the hours picked are kept while the tick is off too. The app's whole hours go as "HH:00" (24 as "00:00", the same end
+ * of the day); a read "HH:MM" keeps its hour. Read back: null is "any time" (off); no `scheduleEnabled` is on.
  */
-export function scheduleToCloud(s: Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>): Pick<CloudSetup, 'hours' | 'scheduleEnabled'> {
+export function scheduleToCloud(s: Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>): Pick<CloudSetup, 'hours'> {
   const hour = (h: number) => (Number.isInteger(h) && h >= 0 && h <= 24 ? h % 24 : null);
   const from = hour(s.fromHour);
   const to = hour(s.toHour);
-  if (!s.scheduleEnabled || from === null || to === null) return { hours: null, scheduleEnabled: false };
+  if (from === null || to === null) return { hours: null };
   const days = weekdays(s.days) ?? [];
-  return { hours: { start: `${pad2(from)}:00`, end: `${pad2(to)}:00`, days }, scheduleEnabled: true };
+  return { hours: { start: `${pad2(from)}:00`, end: `${pad2(to)}:00`, days, scheduleEnabled: !!s.scheduleEnabled } };
 }
-export function scheduleFromCloud(v: Pick<CloudSetup, 'hours' | 'scheduleEnabled'>): Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>> {
-  const out: Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>> = {};
-  if (v.hours === undefined && v.scheduleEnabled === undefined) return out;
-  out.scheduleEnabled = v.scheduleEnabled ?? !!v.hours;
-  if (v.hours) {
-    out.fromHour = Number(v.hours.start.slice(0, 2));
-    out.toHour = Number(v.hours.end.slice(0, 2));
-    if (v.hours.days) out.days = [...v.hours.days];
-  }
+export function scheduleFromCloud(v: Pick<CloudSetup, 'hours'>): Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>> {
+  if (v.hours === undefined) return {};
+  if (v.hours === null) return { scheduleEnabled: false };
+  const out: Partial<Pick<SetupNow, 'scheduleEnabled' | 'fromHour' | 'toHour' | 'days'>> = {
+    scheduleEnabled: v.hours.scheduleEnabled ?? true,
+    fromHour: Number(v.hours.start.slice(0, 2)),
+    toHour: Number(v.hours.end.slice(0, 2)),
+  };
+  if (v.hours.days) out.days = [...v.hours.days];
   return out;
 }
 
@@ -235,8 +235,8 @@ export function prefsProblems(kind: PrefsKind, v: unknown): string[] {
       if (typeof h !== 'object' || !HHMM.test(String(h.start)) || !HHMM.test(String(h.end))) p.push('hours');
       else if (h.days !== undefined && (!Array.isArray(h.days) || h.days.length > 7 || weekdays(h.days)?.length !== h.days.length))
         p.push('hours.days');
+      else if (h.scheduleEnabled !== undefined && typeof h.scheduleEnabled !== 'boolean') p.push('hours.scheduleEnabled');
     }
-    if (x.scheduleEnabled !== undefined && typeof x.scheduleEnabled !== 'boolean') p.push('scheduleEnabled');
     for (const f of ['timeOff', 'noPrestigeDays'] as const) {
       const list = x[f];
       if (list === undefined) continue;
@@ -281,9 +281,9 @@ export function readSetupValue(v: unknown): CloudSetup | null {
       out.hours = { start: String(h.start), end: String(h.end) };
       const days = weekdays(h.days);
       if (days) out.hours.days = days;
+      if (typeof h.scheduleEnabled === 'boolean') out.hours.scheduleEnabled = h.scheduleEnabled;
     }
   }
-  if (typeof x.scheduleEnabled === 'boolean') out.scheduleEnabled = x.scheduleEnabled;
   if (Array.isArray(x.timeOff)) out.timeOff = ranges(x.timeOff as CloudRange[]);
   if (Array.isArray(x.noPrestigeDays)) out.noPrestigeDays = ranges(x.noPrestigeDays as CloudRange[]);
   if (x.targetTE === null) out.targetTE = null;

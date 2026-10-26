@@ -68,11 +68,10 @@ describe('the key and the URL', () => {
 });
 
 describe('the Setup value', () => {
-  it('has the contract shape, days inside hours and scheduleEnabled beside it', () => {
+  it('has the contract shape, days and scheduleEnabled inside hours (as the collector adopted them)', () => {
     expect(buildSetupValue(setup(), AT)).toEqual({
       at: AT,
-      hours: { start: '07:00', end: '23:00', days: [1, 2, 3, 4, 5] },
-      scheduleEnabled: true,
+      hours: { start: '07:00', end: '23:00', days: [1, 2, 3, 4, 5], scheduleEnabled: true },
       timeOff: [{ from: '2026-12-24', to: '2026-12-26' }],
       noPrestigeDays: [{ from: '2026-11-03', to: '2026-11-03' }],
       targetTE: 350,
@@ -81,16 +80,18 @@ describe('the Setup value', () => {
     expect(prefsProblems('setup', buildSetupValue(setup(), AT))).toEqual([]);
   });
 
-  it('awake hours off: hours null and scheduleEnabled false; hour 24 is "00:00"', () => {
-    expect(scheduleToCloud(setup({ scheduleEnabled: false }))).toEqual({ hours: null, scheduleEnabled: false });
-    expect(scheduleToCloud(setup({ fromHour: 18, toHour: 24, days: [6, 0, 0, 9] }))).toEqual({
-      hours: { start: '18:00', end: '00:00', days: [0, 6] },
-      scheduleEnabled: true,
+  it('awake hours off keep the hours picked; hour 24 is "00:00"', () => {
+    expect(scheduleToCloud(setup({ scheduleEnabled: false }))).toEqual({
+      hours: { start: '07:00', end: '23:00', days: [1, 2, 3, 4, 5], scheduleEnabled: false },
     });
+    expect(scheduleToCloud(setup({ fromHour: 18, toHour: 24, days: [6, 0, 0, 9] }))).toEqual({
+      hours: { start: '18:00', end: '00:00', days: [0, 6], scheduleEnabled: true },
+    });
+    expect(prefsProblems('setup', { at: AT, ...scheduleToCloud(setup({ scheduleEnabled: false })) })).toEqual([]);
   });
 
-  it('maps back: hours, days, on and off; a collector that dropped scheduleEnabled still reads on and off', () => {
-    expect(scheduleFromCloud({ hours: { start: '09:30', end: '17:00', days: [0, 6] }, scheduleEnabled: true })).toEqual({
+  it('maps back: hours, days, on and off; null is any time (off), no scheduleEnabled is on', () => {
+    expect(scheduleFromCloud({ hours: { start: '09:30', end: '17:00', days: [0, 6], scheduleEnabled: true } })).toEqual({
       scheduleEnabled: true,
       fromHour: 9,
       toHour: 17,
@@ -110,7 +111,7 @@ describe('the Setup value', () => {
       expect(back.finalTE).toBe(s.finalTE);
       expect(back.timezone).toBe(s.timezone);
       expect(back.scheduleEnabled).toBe(s.scheduleEnabled);
-      if (s.scheduleEnabled) expect([back.fromHour, back.toHour, back.days]).toEqual([s.fromHour, s.toHour, s.days]);
+      expect([back.fromHour, back.toHour, back.days]).toEqual([s.fromHour, s.toHour, s.days]);
     }
   });
 
@@ -125,7 +126,7 @@ describe('the Setup value', () => {
 
   it('never holds the "This computer" settings', () => {
     const s = { ...setup(), workers: 8, memoryCap: 4096, holdShifts: true, firstAscension: 'fresh' } as SetupNow;
-    expect(Object.keys(buildSetupValue(s, AT)!).sort()).toEqual(['at', 'hours', 'noPrestigeDays', 'scheduleEnabled', 'targetTE', 'timeOff', 'timezone']);
+    expect(Object.keys(buildSetupValue(s, AT)!).sort()).toEqual(['at', 'hours', 'noPrestigeDays', 'targetTE', 'timeOff', 'timezone']);
   });
 
   it('refuses an ID-shaped string and a bad `at`', () => {
@@ -183,6 +184,7 @@ describe('the contract checks', () => {
     expect(prefsProblems('setup', { at: AT, noPrestigeDays: [{ from: 'x<y', to: 'z' }] })).toEqual(['noPrestigeDays']);
     expect(prefsProblems('setup', { at: AT, hours: { start: '7:00', end: '23:00' } })).toEqual(['hours']);
     expect(prefsProblems('setup', { at: AT, hours: { start: '07:00', end: '23:00', days: [7] } })).toEqual(['hours.days']);
+    expect(prefsProblems('setup', { at: AT, hours: { start: '07:00', end: '23:00', scheduleEnabled: 'yes' } })).toEqual(['hours.scheduleEnabled']);
     expect(prefsProblems('consent', { at: AT, ticks: { Bad: true } })).toEqual(['ticks']);
     expect(prefsProblems('consent', { at: 5 })).toEqual(['at']);
   });

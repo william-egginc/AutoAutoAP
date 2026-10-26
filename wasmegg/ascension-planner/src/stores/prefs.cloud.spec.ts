@@ -126,8 +126,7 @@ function expectNoId() {
 
 const CLOUD_SETUP: CloudSetup = {
   at: AT - 60_000,
-  hours: { start: '09:00', end: '17:00', days: [1, 2, 3, 4, 5] },
-  scheduleEnabled: true,
+  hours: { start: '09:00', end: '17:00', days: [1, 2, 3, 4, 5], scheduleEnabled: true },
   timeOff: [{ from: '2026-12-24', to: '2026-12-26' }],
   noPrestigeDays: [{ from: '2026-11-03', to: '2026-11-04' }],
   targetTE: 300,
@@ -242,8 +241,7 @@ describe('writing', () => {
       kind: 'setup',
       value: {
         at: changedAt,
-        hours: { start: '08:00', end: '23:00', days: [0, 1, 2, 3, 4, 5, 6] },
-        scheduleEnabled: true,
+        hours: { start: '08:00', end: '23:00', days: [0, 1, 2, 3, 4, 5, 6], scheduleEnabled: true },
         timeOff: [],
         noPrestigeDays: [{ from: '2026-11-10', to: '2026-11-10' }],
         targetTE: 350,
@@ -301,7 +299,7 @@ describe('writing', () => {
     expect(puts()).toEqual([]);
     search.finalTE = 333;
     await vi.advanceTimersByTimeAsync(PREFS_DEBOUNCE_MS);
-    expect(Object.keys(body().value).sort()).toEqual(['at', 'hours', 'noPrestigeDays', 'scheduleEnabled', 'targetTE', 'timeOff', 'timezone']);
+    expect(Object.keys(body().value).sort()).toEqual(['at', 'hours', 'noPrestigeDays', 'targetTE', 'timeOff', 'timezone']);
   });
 });
 
