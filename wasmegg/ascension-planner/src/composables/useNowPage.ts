@@ -1089,6 +1089,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const st = currentSim.value;
     return st && st.key === simRequest.value?.key && (st.status === 'working' || st.status === 'waiting') ? st.status : null;
   });
+  /** The simulation failed: its short reason, and whether it is tried once more (Right now says so, never silently). */
+  const simFailure = computed(() => {
+    const st = currentSim.value;
+    return st?.status === 'failed' && st.key === simRequest.value?.key ? { reason: st.reason, retrying: !!st.retrying } : null;
+  });
   const cardPlan = computed<CardPlan | null>(() => {
     const c = basePlan.value;
     const r = shiftRequest.value;
@@ -1207,6 +1212,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return useHoursFromStores() ? (store.availability ?? null) : null;
   });
   const stepNoPrestige = computed(() => timeOffWindows(usableTimeOff(store.noPrestige ?? []), zone.value));
+  /** Time off as absolute stretches: the estimate prices none, so its rows that run into one are flagged. */
+  const stepTimeOff = computed(() => timeOffWindows(usableTimeOff(store.timeOff ?? []), zone.value));
   /** Every ascension of the plan and its shifts (Right now's Full timeline when the plan has no exact legs). */
   const ascensions = computed(() => {
     const p = cardPlan.value?.plan;
@@ -1216,13 +1223,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         ...l,
         ...(p.tableLegs?.[i]?.shifts ? { shifts: p.tableLegs[i].shifts } : {}),
         ...(p.tableLegs?.[i]?.simulated ? { simulated: true } : {}),
+        ...(p.tableLegs?.[i]?.timeOff ? { timeOff: p.tableLegs[i].timeOff } : {}),
         // The build-up line (lib/buildUpLine.ts): its variant (the simulated one's key, else the table's label) and rate.
         ...(p.tableLegs?.[i]?.variant ? { variant: p.tableLegs[i].variant } : {}),
         ...(p.tableLegs?.[i]?.label ? { label: p.tableLegs[i].label } : {}),
         ...(p.tableLegs?.[i]?.peakELR !== undefined ? { peakELR: p.tableLegs[i].peakELR } : {}),
       })),
       stepHours.value,
-      stepNoPrestige.value
+      stepNoPrestige.value,
+      stepTimeOff.value
     );
   });
   /** The plan's ascensions as lib/nextAction.ts reads them (the first simulated once it is in). */
@@ -1249,6 +1258,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
               simulated: true,
               ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
               ...(continuesFarm(leg.key) ? { live: true } : {}),
+              ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             },
           ]
         : [];
@@ -1262,6 +1272,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       ...(l.simulated ? { simulated: true } : {}),
       ...(l.buildEnd !== undefined ? { buildEnd: l.buildEnd } : {}),
       ...(continuesFarm(l.variant) ? { live: true } : {}),
+      ...(l.timeOff ? { timeOff: l.timeOff } : {}),
     }));
   });
   /** The selected followed route's pill without a timeline: the ascension you are in being worked out, or its next
@@ -1279,13 +1290,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const nextStep = computed<NextAction | null>(() => {
     const first = actionLegs.value[0];
     if (!first?.simulated) return null;
-    return nextAction({ now: now.value, leg: first, last: actionLegs.value.length === 1 && !moreThanKnown.value, prestigeAt: prestigeAtFrom });
+    return nextAction({
+      now: now.value,
+      leg: first,
+      last: actionLegs.value.length === 1 && !moreThanKnown.value,
+      prestigeAt: prestigeAtFrom,
+      timeOff: stepTimeOff.value,
+    });
   });
   /** NEXT SHIFTS (26 Oct 2026, lib/nextAction.ts `nextShifts`): the next 3 to 5 shifts under the Next step, the
    *  ascension you are in from the simulation, the later ones from the table, ending with a prestige inside the list. */
   const nextShiftLines = computed<NextShiftLine[]>(() =>
     actionLegs.value.length
-      ? nextShifts({ now: now.value, legs: actionLegs.value, prestigeAt: prestigeAtFrom, more: moreThanKnown.value })
+      ? nextShifts({ now: now.value, legs: actionLegs.value, prestigeAt: prestigeAtFrom, more: moreThanKnown.value, timeOff: stepTimeOff.value })
       : []
   );
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
@@ -1295,7 +1312,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!cardPlan.value) return [];
     // Done by the save's state, not the clock alone: the egg it is on and its TE (nowPlan `planEvents`).
     const list = planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null);
-    const lines = instantSteps(stepLegsOf(cardPlan.value.plan), stepHours.value, stepNoPrestige.value);
+    const lines = instantSteps(stepLegsOf(cardPlan.value.plan), stepHours.value, stepNoPrestige.value, stepTimeOff.value);
     return mergeSimultaneousShifts(markPrestigeWaits(list, lines), zone.value);
   });
   const shownEvents = computed(() => tableEvents(events.value));
@@ -1550,6 +1567,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     shownEvents,
     ascensions,
     simWorking,
+    simFailure,
     simSlow,
     nextStep,
     nextShiftLines,

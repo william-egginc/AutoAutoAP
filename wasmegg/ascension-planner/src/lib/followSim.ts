@@ -33,6 +33,14 @@ export interface SimLeg {
   /** Its peak eggs per second after K3 (LegSummary.maxELR): the rate it produces at once built. Absent in records
    *  kept before 26 Oct 2026 and when the simulation had none. */
   maxELR?: number;
+  /**
+   * TIME OFF INSIDE IT (26 Oct 2026, Williamthe5thc: time off Oct 29-30 made the simulation's one-stop route come back
+   * as two segments, the ascension cut when the time off starts and a rebuild after it, and only the first was read:
+   * it ends below the stop, so Right now dropped it and fell back to the table without a word). Going to the home farm
+   * is a prestige: the ascension you are in ends at `from` with `te`, and is built again from `to` (the rebuild's
+   * start) up to the stop (`endTime`, `endTE`). `rebuildBuildEnd`: the rebuild's build phase end.
+   */
+  timeOff?: { from: number; to: number; te: number; rebuildBuildEnd?: number };
 }
 
 export interface SimRecord {
@@ -91,6 +99,43 @@ export function simLegOf(leg: LegSummary | null | undefined): SimLeg | null {
     buildPhaseEndTime: finite(leg.buildPhaseEndTime) ? leg.buildPhaseEndTime : null,
     shifts: (leg.shifts ?? []).filter(s => finite(s.at) && typeof s.egg === 'string').map(s => ({ at: s.at, egg: s.egg })),
     ...(finite(leg.maxELR) && leg.maxELR > 0 ? { maxELR: leg.maxELR } : {}),
+  };
+}
+
+/**
+ * The ascension you are in from ALL the segments the chain evaluator gives a one-stop route (search/chain.ts
+ * `priceStep`): one leg normally; with time off, the leg cut when it starts ('stopped', when it gained TE before it)
+ * and the rebuild after it ('restarted'). Null when there is no usable segment.
+ */
+export function simLegFromSegments(
+  legs: readonly LegSummary[] | null | undefined,
+  o: { timeOff?: readonly { from: number; to: number }[] | null; currentTE: number; planStart: number }
+): SimLeg | null {
+  const segs = (legs ?? []).filter(l => l && finite(l.endTime));
+  if (!segs.length) return null;
+  const first = segs[0];
+  if (segs.length === 1 && !first.timeOff) return simLegOf(first);
+  const last = simLegOf(segs[segs.length - 1]);
+  if (!last) return null;
+  const stopped = first.timeOff === 'stopped' ? simLegOf(first) : null;
+  // No TE gained before the time off: the farm lays as it is until it starts (the window the rebuild came back from).
+  const window = (o.timeOff ?? []).filter(w => w.from < last.startTime).sort((a, b) => b.from - a.from)[0];
+  const from = stopped ? stopped.endTime : window ? window.from : last.startTime;
+  const shifts = segs.flatMap(s => simLegOf(s)?.shifts ?? []).sort((a, b) => a.at - b.at);
+  return {
+    key: stopped ? stopped.key : 'continue',
+    startTime: stopped ? stopped.startTime : Math.min(o.planStart, from),
+    endTime: last.endTime,
+    endTE: last.endTE,
+    buildPhaseEndTime: stopped ? stopped.buildPhaseEndTime : null,
+    shifts,
+    ...(last.maxELR ? { maxELR: last.maxELR } : {}),
+    timeOff: {
+      from,
+      to: last.startTime,
+      te: stopped ? stopped.endTE : Math.floor(o.currentTE),
+      ...(last.buildPhaseEndTime !== null ? { rebuildBuildEnd: last.buildPhaseEndTime } : {}),
+    },
   };
 }
 
@@ -188,6 +233,7 @@ export function withCurrentSim(plan: NowPlan, leg: SimLeg | null | undefined): N
         variant: leg.key,
         ...(finite(leg.maxELR) && leg.maxELR > 0 ? { peakELR: leg.maxELR } : {}),
         ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
+        ...(leg.timeOff ? { timeOff: { ...leg.timeOff } } : {}),
       },
       ...plan.tableLegs!.slice(1),
     ],

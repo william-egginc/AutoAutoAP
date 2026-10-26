@@ -30,12 +30,23 @@
         >
           <td class="py-2 pr-1" aria-hidden="true">{{ e.kind === 'shift' ? '⇄' : e.kind === 'prestige' ? '↑' : '⚑' }}</td>
           <td class="py-2 pr-2">
-            <span v-if="e.kind === 'prestige'" class="text-slate-500" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
+            <span v-if="e.kind === 'prestige' && !e.timeOff" class="text-slate-500" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
             ><span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
             <!-- Every ascension's prestige is listed (26 Oct 2026); one that waits says why and when it happens. -->
             <p v-if="e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past" class="text-[11px] text-amber-800" data-testid="now-event-wait">
               {{ e.wait === 'days' ? 'Waits past your no-prestige days' : 'Waits for your hours' }}: prestige
               {{ whenAt(e.prestigeAt) }}
+            </p>
+            <!-- What the instant estimate doesn't price (lib/instantSteps.ts): said in amber, Fast prices it. -->
+            <p v-if="e.kind === 'prestige' && !e.past && e.cutByTimeOff" class="text-[11px] text-amber-800" data-testid="now-event-cut">
+              Runs into your time off {{ timeOffDays(e.cutByTimeOff, zone) }}: the ascension ends when it starts (going to
+              your home farm is a prestige). Fast prices it.
+            </p>
+            <p v-else-if="e.kind === 'prestige' && !e.past && e.prestigeInTimeOff" class="text-[11px] text-amber-800" data-testid="now-event-in-timeoff">
+              Falls in your time off {{ timeOffDays(e.prestigeInTimeOff, zone) }}: Fast prices it.
+            </p>
+            <p v-if="e.kind === 'prestige' && !e.past && e.onNoPrestigeDay" class="text-[11px] text-amber-800" data-testid="now-event-no-prestige-day">
+              Falls on a no-prestige day: it waits past your no-prestige days. Fast prices it.
             </p>
             <p v-if="e.past && e.kind === 'prestige'" class="text-[11px] text-amber-800">
               The plan had you prestige {{ dateAt(e.at, now, zone, true) }}: load a newer save.
@@ -77,6 +88,7 @@ import { eventTitle, howFar, notDoneTitle, whenWords } from '@/lib/nowWords';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { virtueEggName } from '@/lib/virtueEggs';
 import type { PlanEvent } from '@/lib/nowPlan';
+import { timeOffDays } from '@/lib/instantSteps';
 import { thisDevice } from '@/search/device';
 
 const props = defineProps<{

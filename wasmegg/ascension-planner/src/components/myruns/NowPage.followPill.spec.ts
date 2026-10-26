@@ -426,6 +426,48 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
   });
 });
 
+describe('time off cutting the ascension you are in (26 Oct 2026, regression of egg-beta 14866724)', () => {
+  it('the simulation comes back as the cut ascension and its rebuild: A1 is simulated, Next step its shift, then the time off', async () => {
+    const sims: { resolve: (l: LegSummary[] | null) => void }[] = [];
+    setSimRunner((): SimRunner => ({ run: () => new Promise(resolve => sims.push({ resolve })), terminate: () => undefined }));
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    const off = now + 40 * H;
+    const back = off + 2 * D + 7 * H;
+    sims[0].resolve([
+      { ...leg(now - H, off, 225), key: 'continue', timeOff: 'stopped', buildPhaseEndTime: now - H, shifts: [{ at: now + 2 * H, egg: 'kindness', fromEgg: 'curiosity' }] },
+      { ...leg(back, back + 3 * D, 226), key: '1-sale', timeOff: 'restarted', buildPhaseEndTime: back + D, shifts: [{ at: back + 2 * D, egg: 'humility', fromEgg: 'curiosity' }] },
+    ]);
+    await vi.waitFor(() => expect(page.cardPlan.value?.plan.tableLegs?.[0].simulated).toBe(true));
+    expect(page.cardPlan.value?.plan.tableLegs?.[0].timeOff).toEqual({ from: off, to: back, te: 225, rebuildBuildEnd: back + D });
+    expect(page.nextStep.value).toEqual({ kind: 'shift', egg: 'kindness', at: now + 2 * H });
+    expect(page.nextShiftLines.value.map(l => l.kind).slice(0, 3)).toEqual(['shift', 'timeoff', 'back']);
+    const t = textOf(
+      await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value, nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!])
+    );
+    expect(t).not.toContain("The instant answer doesn't keep the shifts of the ascension you are in");
+    expect(t).toContain('Time off: to your home farm at 225 TE');
+    expect(t).toMatch(/Your time off starts [A-Z][a-z]{2} \d{1,2}, \d{4}.*?: this ascension ends there at 225 TE/);
+    scope.stop();
+  });
+
+  it('a failure is said, with its reason, never a silent fallback', async () => {
+    const sims: { reject: (e: Error) => void }[] = [];
+    setSimRunner((): SimRunner => ({ run: () => new Promise((_r, reject) => sims.push({ reject })), terminate: () => undefined }));
+    const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490' });
+    await vi.waitFor(() => expect(followCalls()).toHaveLength(1));
+    followCalls()[0].resolve(route490(now, now + 9 * D));
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    sims[0].reject(new RangeError('Invalid time value'));
+    await vi.waitFor(() => expect(page.simFailure.value).toEqual({ reason: 'RangeError: Invalid time value', retrying: true }));
+    const t = textOf(await renderHtml(RightNowCard, { ...(await renderProps(page)), simFailure: page.simFailure.value }, {}, [getActivePinia()!]));
+    expect(t).toContain('Could not work out your shifts: RangeError: Invalid time value (trying once more in a minute)');
+    scope.stop();
+  });
+});
+
 describe("Jordan's Fastest to 490 TE route on a table whose rows end at 489 (26 Oct 2026: it said \"goes past what the instant answer covers\")", () => {
   it("priced from Egg Day's answer of this save (its snapshot), no Fastest to 490 answer at all", async () => {
     const { page, scope, now } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490', tableTo: 489 });

@@ -15,7 +15,7 @@
  */
 import { onScopeDispose, ref, watch, type Ref } from 'vue';
 import type { LegSummary, SearchInputs } from '@/search/types';
-import { findSimRecord, readSimRecords, recordSim, simLegOf, type SimLeg } from '@/lib/followSim';
+import { findSimRecord, readSimRecords, recordSim, simLegFromSegments, type SimLeg } from '@/lib/followSim';
 
 export interface SimRequest {
   /** lib/followSim.ts `simKey`. */
@@ -32,11 +32,13 @@ export interface SimRequest {
 export type SimState =
   | { key: string; status: 'waiting' | 'working' }
   | { key: string; status: 'done'; leg: SimLeg; at: number }
-  | { key: string; status: 'failed' };
+  /** `reason`: a short why, said on Right now; `retrying`: it is tried once more after `retryMs`. */
+  | { key: string; status: 'failed'; reason: string; retrying?: boolean };
 
 /** What simulates one route (a chain worker pool of one). */
 export interface SimRunner {
-  run(inputs: SearchInputs, chain: number[]): Promise<LegSummary | null>;
+  /** Every segment the one-stop route comes back with (one leg; with time off, the cut leg and the rebuild). */
+  run(inputs: SearchInputs, chain: number[]): Promise<LegSummary[] | LegSummary | null>;
   terminate(): void;
 }
 
@@ -53,7 +55,7 @@ async function defaultRunner(): Promise<SimRunner | null> {
         return null;
       }
       const out = await pool.evaluate([chain]);
-      return out.results[0]?.legs[0] ?? null;
+      return out.results[0]?.legs ?? null;
     },
     terminate() {
       gone = true;
@@ -75,15 +77,21 @@ export function setSimRunner(f: (() => Promise<SimRunner | null> | SimRunner | n
  * and once it has run `slowMs` Right now adds "(can take a few minutes)". Leaving My runs lets it go; the next visit
  * starts it again, or reads the record when it finished.
  */
-const TIMING = { delayMs: 3000, slowMs: 20_000 };
+const TIMING = { delayMs: 3000, slowMs: 20_000, retryMs: 60_000 };
 let timing = { ...TIMING };
 /** Specs: other delays (null: back to the defaults). */
 export function setSimTiming(t: Partial<typeof TIMING> | null): void {
   timing = { ...TIMING, ...(t ?? {}) };
 }
 
-/** Keys that failed on this page load: not tried again until the save, route or setup changes. */
-const failed = new Set<string>();
+/** Keys that failed on this page load, with why and how often: tried once more after `retryMs`, then not again until
+ *  the save, route or setup changes. */
+const failed = new Map<string, { reason: string; tries: number }>();
+/** The words of a failure, short and without any ID (an error message names no account). */
+function reasonOf(err: unknown): string {
+  const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  return text.replace(/EI\d{16}/gi, 'EI…').slice(0, 160);
+}
 
 export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean>) {
   const state = ref<SimState | null>(null);
@@ -93,11 +101,13 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
   let runningKey: string | null = null;
   let asked = 0;
   let startTimer: ReturnType<typeof setTimeout> | null = null;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let slowTimer: ReturnType<typeof setTimeout> | null = null;
   function clearTimers(): void {
     if (startTimer) clearTimeout(startTimer);
     if (slowTimer) clearTimeout(slowTimer);
-    startTimer = slowTimer = null;
+    if (retryTimer) clearTimeout(retryTimer);
+    startTimer = slowTimer = retryTimer = null;
     slow.value = false;
   }
   function letGo(): void {
@@ -134,7 +144,12 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
       }
       if (!r) throw new Error('no chain worker');
       runner = r;
-      const leg = simLegOf(await r.run(inputs, [req.route[0]]));
+      const got = await r.run(inputs, [req.route[0]]);
+      const leg = simLegFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
+        timeOff: inputs.timeOff,
+        currentTE: inputs.currentTE,
+        planStart: inputs.planStart,
+      });
       if (id !== asked) return;
       if (!leg) throw new Error(`the ascension to ${req.route[0]} TE could not be simulated`);
       const at = Date.now();
@@ -142,15 +157,23 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
       result = { key: req.key, status: 'done', leg, at };
     } catch (err) {
       if (id !== asked) return;
-      console.warn('My runs: simulating the ascension you are in failed:', err instanceof Error ? err.message : String(err));
-      failed.add(req.key);
-      result = { key: req.key, status: 'failed' };
+      const reason = reasonOf(err);
+      console.warn('My runs: simulating the ascension you are in failed:', reason);
+      const tries = (failed.get(req.key)?.tries ?? 0) + 1;
+      failed.set(req.key, { reason, tries });
+      result = { key: req.key, status: 'failed', reason, ...(tries < 2 ? { retrying: true } : {}) };
     }
     runner?.terminate();
     runner = null;
     runningKey = null;
     clearTimers();
     state.value = result;
+    // Once more, after a longer wait (a worker that ran out of memory, a page that was busy).
+    if (result.status === 'failed' && result.retrying)
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        if (id === asked && request.value?.key === req.key && !busy.value) schedule(req);
+      }, timing.retryMs);
   }
   watch(
     [request, busy],
@@ -167,9 +190,10 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
         state.value = { key: req.key, status: 'done', leg: kept.leg, at: kept.at };
         return;
       }
-      if (failed.has(req.key)) {
-        letGo();
-        state.value = { key: req.key, status: 'failed' };
+      const f = failed.get(req.key);
+      if (f && (f.tries >= 2 || retryTimer)) {
+        if (!retryTimer) letGo();
+        state.value = { key: req.key, status: 'failed', reason: f.reason, ...(retryTimer ? { retrying: true } : {}) };
         return;
       }
       if (isBusy) {
