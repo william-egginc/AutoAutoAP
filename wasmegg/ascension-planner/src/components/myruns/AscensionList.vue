@@ -2,7 +2,8 @@
   Right now's Full timeline for a plan with no exact legs (26 Oct 2026, Jordan: it said "the instant answer keeps when
   each ascension ends, not each shift"). Every ascension A1..An, as the instant answer's "When each step happens" has
   it (lib/instantSteps.ts): when its prestige happens (marked when it waits for the hours or past a no-prestige day)
-  and when its stop is reached; under each, its shifts. The table's shifts come from its replay (search/legShifts.ts),
+  and when its stop is reached; under each, its build-up in one line (lib/buildUpLine.ts: the opening's shifts are not in
+  the table) and its shifts. The table's shifts come from its replay (search/legShifts.ts),
   each after the build-up, to the hour; the current ascension's, once simulated on the live save, are exact. Nothing
   is worked out here.
 -->
@@ -25,6 +26,7 @@
         </template>
         {{ ' ' }}→ <span class="font-bold">{{ l.stopTE }} TE</span> reached
         <span class="whitespace-nowrap">{{ l.simulated ? exact(l.reachedAt) : about(l.reachedAt) }}</span>
+        <p v-if="l.buildUp" class="mt-0.5 ml-4 text-[11px] text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
         <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-[11px] text-slate-600" data-testid="now-ascension-shifts">
           <li v-for="(s, k) in l.shifts" :key="k" data-testid="now-ascension-shift">
             Shift to {{ virtueEggName(s.egg) }} · <span class="whitespace-nowrap">{{ l.simulated ? exact(s.at) : about(s.at) }}</span>

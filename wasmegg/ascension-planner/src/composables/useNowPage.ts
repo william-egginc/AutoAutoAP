@@ -1216,6 +1216,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         ...l,
         ...(p.tableLegs?.[i]?.shifts ? { shifts: p.tableLegs[i].shifts } : {}),
         ...(p.tableLegs?.[i]?.simulated ? { simulated: true } : {}),
+        // The build-up line (lib/buildUpLine.ts): its variant (the simulated one's key, else the table's label) and rate.
+        ...(p.tableLegs?.[i]?.variant ? { variant: p.tableLegs[i].variant } : {}),
+        ...(p.tableLegs?.[i]?.label ? { label: p.tableLegs[i].label } : {}),
+        ...(p.tableLegs?.[i]?.peakELR !== undefined ? { peakELR: p.tableLegs[i].peakELR } : {}),
       })),
       stepHours.value,
       stepNoPrestige.value
