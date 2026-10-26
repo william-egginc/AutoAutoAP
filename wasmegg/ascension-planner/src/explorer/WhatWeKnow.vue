@@ -58,7 +58,7 @@
       </p>
       <p><b>Ascend at the time the plan shows,</b> and run the instant answer again after each ascension.</p>
       <p>
-        <b>Halfway through a build?</b> Leave the first ascension on Fastest (Setup): it now weighs finishing the
+        <b>Halfway through a build?</b> Leave the first ascension on Soonest (Setup): it now weighs finishing the
         build against prestiging now.
       </p>
       <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>

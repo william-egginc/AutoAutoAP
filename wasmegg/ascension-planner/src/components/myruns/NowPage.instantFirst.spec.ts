@@ -318,8 +318,9 @@ describe('the card', () => {
     expect(t).toMatch(/Jul 14, 2027 at \d+:00 AM/);
     expect(t).toMatch(/\d+\.\d h spare \(instant\)/);
     expect(t).toContain('The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.');
-    expect(t).toMatch(/From the instant answer, rounded to the hour. For exact times on your account, run Fast ?\./);
-    expect(html).toContain('data-testid="now-run-fast"');
+    // One Run Fast on the card (ux review 26 Oct, row 15): the events point at it in plain words.
+    expect(t).toContain('From the instant answer, rounded to the hour. For exact times on your account, use Run Fast above.');
+    expect(html).not.toContain('data-testid="now-run-fast"');
     expect(t).not.toContain('Add to calendar');
     expect(t).not.toContain('＋ Add');
     expect(t).toContain('Run Fast Opens Highest TE by a date with your save and Fast selected');

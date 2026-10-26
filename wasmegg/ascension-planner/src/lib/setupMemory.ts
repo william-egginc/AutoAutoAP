@@ -38,7 +38,7 @@ export type SetupGroup = 'hours' | 'holdShifts' | 'timeOff' | 'noPrestige' | 'fi
 export type SetupValues = Omit<RememberedSetup, 'v' | 'at'>;
 
 /** The store's own defaults (stores/chainSearch.ts): any hour (7 am to 11 pm when picked, every day),
- *  hold shifts on, no time off, no no-prestige days, first ascension Fastest. */
+ *  hold shifts on, no time off, no no-prestige days, first ascension Soonest. */
 export function setupDefaults(): SetupValues {
   return {
     hours: { on: false, from: 7, to: 23, days: [0, 1, 2, 3, 4, 5, 6] },

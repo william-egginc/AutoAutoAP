@@ -410,7 +410,6 @@
         :calculated-when="calculatedWhen"
         :following="following"
         :rounded="rounded"
-        @run-fast="emit('recalc', recalcRequest)"
       />
       <details class="mt-2" data-testid="now-timeline">
         <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-[13px] font-semibold text-indigo-700" data-testid="now-timeline-summary">

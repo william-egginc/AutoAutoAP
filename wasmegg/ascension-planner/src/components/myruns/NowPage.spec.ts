@@ -90,7 +90,7 @@ const cardProps = (o: Record<string, unknown> = {}) => {
 describe('the save-age strip', () => {
   it('green, amber, red, and none', async () => {
     const ok = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 3 * H, NOW, ZONE), loading: false });
-    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 AM (3 hours ago). Load a fresh one ›');
+    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 AM (3 h ago). Load a fresh one ›');
     expect(ok).toContain('data-tone="ok"');
     const bad = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 80 * H, NOW, ZONE), loading: false });
     expect(bad).toContain('data-tone="bad"');
@@ -229,6 +229,24 @@ describe('a saved-answer tile', () => {
     expect(t).toContain('Older save than the one you loaded. Work it out again ›');
     expect(t).toContain('Egg Day: 3rd of 12 named players');
     expect(t).toContain('See the routes ›');
+  });
+
+  it("Right now's Run Fast is on the page: How sure gives the reason, no second Run Fast (ux review 26 Oct, row 15)", async () => {
+    const t = textOf(
+      await renderHtml(SavedTile, {
+        tile: tile(),
+        goal: 'date',
+        title: 'Egg Day 2027',
+        target: 490,
+        now: NOW,
+        zone: ZONE,
+        standing: '',
+        standingLabel: 'Egg Day',
+        runFastAbove: true,
+      })
+    );
+    expect(t).toContain('How sure: Medium Instant answer, 5 days old.');
+    expect(t).not.toContain('Run Fast');
   });
 
   it('nothing yet: says so, with its screen', async () => {

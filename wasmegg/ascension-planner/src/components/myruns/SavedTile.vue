@@ -27,7 +27,7 @@
         <b>How sure: {{ LEVEL[tile.sure.level] }}</b>
         <span class="block">
           {{ cap(tile.sure.reason) }}.
-          <button v-if="tile.sure.action" type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" @click="emit('open', actionOpen)">
+          <button v-if="tile.sure.action && !runFastAbove" type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" @click="emit('open', actionOpen)">
             Run Fast ›
           </button>
         </span>
@@ -89,6 +89,9 @@ const props = defineProps<{
   standingLabel: string;
   /** Another date than Egg Day (the goal picked on Right now, 24 Oct 2026): its screen. Absent: Egg Day's. */
   open?: MyRunsOpen | null;
+  /** Right now's Run Fast button is on the page for this same goal: How sure gives no second one (ux review
+   *  26 Oct, row 15: one Run Fast on My runs). */
+  runFastAbove?: boolean;
 }>();
 const emit = defineEmits<{ open: [to: MyRunsOpen]; routes: [] }>();
 

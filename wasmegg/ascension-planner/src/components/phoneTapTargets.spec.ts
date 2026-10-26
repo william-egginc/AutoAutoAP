@@ -114,18 +114,19 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     const form = fs.readFileSync(path.resolve(__dirname, '../../../../ui/components/PlayerIdForm.vue'), 'utf8');
     expect(form).toContain('aria-label="Edit name"');
   });
-  it('My runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, run Fast, Work out my plan)', () => {
+  it('My runs: the links (Load a fresh one, Run Fast, Work it out again, See the routes, Work out my plan)', () => {
     expect(tagWith(read('myruns/SaveAgeStrip.vue'), 'data-testid="now-save-fresh"')).toContain(TAP);
     const tile = read('myruns/SavedTile.vue');
-    expect(tagWith(tile, 'v-if="tile.sure.action"')).toContain(TAP);
+    expect(tagWith(tile, 'v-if="tile.sure.action && !runFastAbove"')).toContain(TAP);
     expect(tagWith(tile, "@click=\"emit('open', screenOpen)\"")).toContain(TAP);
     expect(tagWith(tile, "@click=\"emit('routes')\"")).toContain(TAP);
-    expect(tagWith(read('myruns/EventsTable.vue'), 'data-testid="now-run-fast"')).toContain(TAP);
     const now = read('myruns/RightNowCard.vue');
     expect(tagWith(now, 'data-testid="now-behind-run-fast"')).toContain(TAP);
     expect(tagWith(now, 'data-testid="now-work-out-plan"')).toContain(TAP);
     expect(tagWith(now, 'data-testid="now-follow-typed-summary"')).toContain(SUMMARY);
     expect(tagWith(now, 'data-testid="now-timeline-summary"')).toContain(SUMMARY);
+    // "A run of yours isn't here?" (ux review 26 Oct, row 12: was 264×15).
+    expect(tagWith(read('auto/MyRunsMissing.vue'), 'data-testid="my-runs-missing-summary"')).toContain(SUMMARY);
   });
   it('My runs: Try next chips, the Showing buttons, the section summaries and the Your runs chips', () => {
     expect(tagWith(read('myruns/TryNext.vue'), ':data-testid="`now-try-${p.id}`"')).toContain('min-h-[44px] sm:min-h-0');
@@ -140,6 +141,8 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
   it('Setup: Load latest save, Reset to defaults, the days, the device profiles, Make them wait too, time off', () => {
     const src = read('auto/YourSetup.vue');
     expect(tagWith(src, 'data-testid="setup-load-latest"')).toContain('min-h-[44px] sm:min-h-0');
+    // Load a save file: a button now, not a heading-looking label (ux review 26 Oct, row 19).
+    expect(tagWith(read('auto/SaveFileBar.vue'), 'data-testid="save-file-load"')).toContain('min-h-[44px] sm:min-h-0');
     const resets = tagsWith(src, 'data-testid="setup-reset"');
     expect(resets).toHaveLength(2);
     for (const t of resets) expect(t).toContain(TAP);

@@ -7,7 +7,8 @@
 -->
 <template>
   <details class="rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-[11px]" data-testid="my-runs-missing">
-    <summary class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-500">
+    <!-- 44 px tall on a phone (ux review 26 Oct, row 12: it was 264×15), as it was from sm up. -->
+    <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-500" data-testid="my-runs-missing-summary">
       A run of yours isn’t here?
     </summary>
     <div class="mt-2 space-y-2">

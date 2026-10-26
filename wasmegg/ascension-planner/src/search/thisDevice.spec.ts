@@ -61,7 +61,7 @@ describe('the places that say it', () => {
     stubPhone();
     const phone = textOf(await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [createPinia()]));
     expect(phone).toContain('Saved on this phone');
-    expect(phone).toContain('the runs and answers saved on this phone');
+    // (The intro's "saved on this phone" went with the one-line intro, ux review 26 Oct, row 15.)
     expect(phone).not.toMatch(/this computer|this device/);
     vi.stubGlobal('navigator', { userAgent: WIN });
     const pc = textOf(await renderHtml(MyRunsView, { playerId: 'EI1234567890123456' }, {}, [createPinia()]));

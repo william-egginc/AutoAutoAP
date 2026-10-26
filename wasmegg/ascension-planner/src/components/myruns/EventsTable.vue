@@ -53,9 +53,8 @@
       <CalendarButton :events="upcoming.map(calOf)" :label="`Add all ${upcoming.length} upcoming to calendar`" primary />
     </div>
     <p v-if="rounded" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed" data-testid="now-events-rounded">
-      From the instant answer, rounded to the hour. For exact times on your account,
-      <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-run-fast" @click="emit('runFast')">run Fast</button
-      >.
+      <!-- Plain words, no second Run Fast (ux review 26 Oct, row 15): the card's Run Fast button sits above. -->
+      From the instant answer, rounded to the hour. For exact times on your account, use Run Fast above.
     </p>
     <p v-else-if="upcoming.length" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
       Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
@@ -87,10 +86,6 @@ const props = defineProps<{
   following?: string;
   /** The instant answer's times (estimates): rounded to the hour, no calendar buttons. */
   rounded?: boolean;
-}>();
-const emit = defineEmits<{
-  /** "run Fast": open the goal's screen with Fast selected (it never starts by itself). */
-  runFast: [];
 }>();
 const when = (e: PlanEvent) => whenWords(e, props.goal, props.now, props.zone, !!props.rounded);
 const far = (e: PlanEvent) => howFar(e, props.now, props.zone, !!props.rounded, props.goal);

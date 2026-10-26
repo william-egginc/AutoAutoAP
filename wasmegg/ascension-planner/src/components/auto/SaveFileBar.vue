@@ -6,12 +6,15 @@
 <template>
   <div class="space-y-1">
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+      <!-- A button, not a heading (ux review 26 Oct, row 19: "LOAD A SAVE FILE" had no button in sight): the label
+           opens the file picker; the input stays focusable (sr-only), so Tab and Enter reach it too. 44 px on phones. -->
       <label
-        class="font-black uppercase tracking-widest text-slate-500 hover:text-slate-800"
+        class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 focus-within:ring-2 focus-within:ring-indigo-400"
         :class="disabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer'"
+        data-testid="save-file-load"
       >
         {{ loading ? 'Loading the save…' : 'Load a save file' }}
-        <input type="file" accept=".json,application/json" class="hidden" :disabled="disabled" @change="onFile" />
+        <input type="file" accept=".json,application/json" class="sr-only" :disabled="disabled" @change="onFile" />
       </label>
       <span class="text-slate-400">This file is your game save; don't share it publicly.</span>
     </div>

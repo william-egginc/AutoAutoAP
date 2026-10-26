@@ -88,7 +88,7 @@
           type="button"
           class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no-prestige days, first ascension Fastest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no-prestige days, first ascension Soonest'"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -152,7 +152,7 @@
           type="button"
           class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no-prestige days, first ascension Fastest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no-prestige days, first ascension Soonest'"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -662,6 +662,7 @@ import { instantUrlOf } from '@/search/instantRecord';
 import { useFollowStore } from '@/stores/follow';
 import { CLOUD_EGG_DAY_YEAR, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { AUTO_FOLLOW_FIRST } from '@/lib/followPolicy';
+import { ageAgo } from '@/lib/saveAge';
 import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import SchedulingInputs from './SchedulingInputs.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
@@ -744,16 +745,8 @@ const startTooFar = computed(
 const saveAgeLabel = computed(() => {
   const at = initialState.rawBackup?.approxTime;
   if (!at) return 'No save loaded yet.';
-  const mins = Math.max(0, Math.round((Date.now() / 1000 - at) / 60));
-  const age =
-    mins < 1
-      ? 'just now'
-      : mins < 60
-        ? `${mins} min ago`
-        : mins < 48 * 60
-          ? `${Math.round(mins / 60)} h ago`
-          : `${Math.round(mins / 1440)} days ago`;
-  return `Save from ${age} (${showDateTime(at, zone.value)}).`;
+  // The one save age on Setup (lib/saveAge.ts `ageAgo`, the style every save-age line uses).
+  return `Save from ${ageAgo(Math.max(0, Date.now() / 1000 - at))} (${showDateTime(at, zone.value)}).`;
 });
 
 /** Problems with the save, for its card. Not the save-age note: Start time, beside it, already says

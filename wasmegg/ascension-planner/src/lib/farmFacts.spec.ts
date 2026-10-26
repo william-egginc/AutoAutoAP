@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eggLines, farmFacts } from './farmFacts';
+import { eggLines, farmFacts, nextTeLine, NEXT_TE_CAP_DAYS } from './farmFacts';
 
 describe('your eggs from the save', () => {
   it('each egg’s lifetime TE, the way to the next, and when the egg being laid gets it', () => {
@@ -46,5 +46,23 @@ describe('your eggs from the save', () => {
     expect(f.habFull).toBeCloseTo(125 / f.habCapacity, 6);
     expect(f.elr).toBeGreaterThan(0);
     expect(f.siloMinutes).toBe(120);
+  });
+});
+
+describe('nextTeLine (Your eggs, the line under each egg)', () => {
+  const egg = { egg: 'curiosity' as const, te: 10, progress: 0.13, current: true, nextInSeconds: 0 };
+  const DAY = 86400;
+  it('the egg being laid: when, at the save\'s rate, less the time since the save', () => {
+    expect(nextTeLine({ ...egg, nextInSeconds: 5 * DAY }, 1e9 + DAY, 1e9)).toBe("next TE in 4 days at your save's rate");
+    expect(nextTeLine({ ...egg, nextInSeconds: DAY }, 1e9 + 2 * DAY, 1e9)).toBe('next TE likely reached since your save');
+  });
+  it('over about 10 years: "not at this rate", never "in 57308 days"', () => {
+    expect(nextTeLine({ ...egg, nextInSeconds: 57308 * DAY }, 1e9, 1e9)).toBe('next TE: not at this rate (over 10 years)');
+    expect(nextTeLine({ ...egg, nextInSeconds: NEXT_TE_CAP_DAYS * DAY }, 1e9, 1e9)).toBe("next TE in 3650 days at your save's rate");
+    expect(nextTeLine({ ...egg, nextInSeconds: NEXT_TE_CAP_DAYS * DAY + 60 }, 1e9, 1e9)).toBe('next TE: not at this rate (over 10 years)');
+  });
+  it('the other eggs: after a shift; no rate: the share only', () => {
+    expect(nextTeLine({ ...egg, current: false }, 1e9, 1e9)).toBe('13% to the next TE · after a shift');
+    expect(nextTeLine({ ...egg, nextInSeconds: null }, 1e9, 1e9)).toBe('13% to the next TE');
   });
 });
