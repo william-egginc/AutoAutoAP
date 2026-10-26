@@ -152,7 +152,7 @@ function ctxOf(s: State): Record<string, unknown> {
     setAscBound: () => {},
     widenTo: () => {},
     followGoal: 'date',
-    gainsText: '',
+    boxGain: '',
     headCaveat: null,
     gearDiffers: false,
     gearTable: false,
@@ -545,5 +545,39 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
     expect(html).toContain('in 1,858 days (5.1 years)');
     expect(html.toLowerCase()).not.toContain('worked out ahead</span');
     expect(html).toContain('data-testid="box-instant"');
+  });
+});
+
+describe('lines that come and go (UX review, 26 Oct 2026, items 3 and 7)', () => {
+  const at = (answer: Answer, deadline: boolean): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+
+  it('the polish: a small "polished" tag and what it did for the route in the box, inside the box; never "the background polish"', async () => {
+    for (const [answer, deadline] of [['date', true], ['fastest', false]] as const) {
+      const html = await draw(at(answer, deadline), { boxGain: 'this route 6 h sooner' });
+      const box = html.slice(html.indexOf('data-testid="instant-box"'));
+      expect(box).toContain('data-testid="box-polished"');
+      expect(box).toMatch(/>polished<\/span\s*>this route 6 h sooner/);
+      expect(html).not.toContain('background polish');
+      expect(await draw(at(answer, deadline))).not.toContain('data-testid="box-polished"');
+    }
+  });
+
+  it('"Pricing your route on the instant answers for the closest…" only when its line can show (no box on screen)', async () => {
+    const withBox = await draw(at('date', true), { bracketStatus: 'running' });
+    expect(withBox).not.toContain('Pricing your route');
+    const noBox = await draw(at('date', true), { bracketStatus: 'running', boxShown: false });
+    expect(noBox).toContain('Pricing your route');
   });
 });

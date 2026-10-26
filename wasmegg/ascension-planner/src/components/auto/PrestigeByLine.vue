@@ -4,7 +4,9 @@
   answer gets worse, and what it gets after that.
 -->
 <template>
-  <p v-if="status === 'running'" class="text-[11px] text-slate-400" data-testid="prestige-by-running">
+  <!-- A quiet one-liner only while it is working, and for at most STILL_WORKING_MS: past that it says nothing until a
+       line comes (UX review 26 Oct 2026, item 7: it sat in the green box until the player had scrolled away). -->
+  <p v-if="status === 'running' && working" class="text-[11px] text-slate-400" data-testid="prestige-by-running">
     Working out how long your next prestige can wait…
   </p>
   <div
@@ -58,11 +60,12 @@
 </template>
 
 <script setup lang="ts">
+import { useStillWorking } from '@/composables/useStillWorking';
 import type { PrestigeLine } from '@/search/prestigeBy';
 // With hours on: prestige at the time shown (shared with the instant card and Insights, lib/hoursNote.ts).
 import { HOURS_NOTE } from '@/lib/hoursNote';
 
-defineProps<{
+const props = defineProps<{
   line: PrestigeLine | null;
   status: 'idle' | 'running' | 'done' | 'error';
   /** Set when the exact check disagrees with the instant answer the line was worked out on. */
@@ -72,6 +75,10 @@ defineProps<{
   /** The player's hours are set (Let me pick my hours, a window that isn't any hour). */
   hoursOn?: boolean;
 }>();
+
+/** How long "Working out…" shows before it gives way to nothing (the line still shows if it comes later). */
+const STILL_WORKING_MS = 20_000;
+const working = useStillWorking(() => props.status, STILL_WORKING_MS);
 
 /** What the line has been checked against so far (the prestige-warn research, 11 Oct 2026): the alt's save alone,
  *  one date, hours off, and the older farm that stopped laying while the prestige waited (the math review's second

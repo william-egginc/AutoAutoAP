@@ -4,6 +4,7 @@
  * it chooses among the routes it keeps rather than hiding rows.
  */
 import type { FoundRoutes, OutsideRoute, Route } from './routeFinder';
+import { roundedGap } from '@/lib/format';
 
 const lastTE = (r: Route) => r.legs[r.legs.length - 1]?.endTE ?? 0;
 
@@ -226,16 +227,20 @@ export function polishGains(before: FoundRoutes, after: FoundRoutes, dated: bool
   return out;
 }
 
-/** "4 ascensions 4.1 h sooner; 7 ascensions +1 TE". */
-export function describeGains(gains: PolishGain[], dated: boolean): string {
+/**
+ * What the polish did for the route the answer's box shows (`k` ascensions), after a small "polished" tag: "this route
+ * 6 h sooner", "this route 6 h more to spare", "this route +1 TE". '' when it improved only other counts: the box is
+ * not the row it changed (UX review 26 Oct 2026, item 3: "Improved by the background polish: 8 ascensions 6.2 h more
+ * to spare" above a box with 2 read as if the answer were wrong). Gaps rounded as the table rounds (lib/format.ts).
+ */
+export function describeBoxGain(gains: PolishGain[], k: number, dated: boolean): string {
   // Read back from a saved answer: anything that isn't a number (an Infinity saved as null) is left out, never a
   // throw while the card draws.
-  return (Array.isArray(gains) ? gains : [])
-    .filter(g => !!g && Number.isFinite(g.hours) && Number.isFinite(g.te) && Number.isFinite(g.k))
-    .map(g => {
-      const h = `${g.hours >= 10 ? g.hours.toFixed(0) : g.hours.toFixed(1)} h`;
-      const what = g.te > 0 ? `+${g.te} TE` : dated ? `${h} more to spare` : `${h} sooner`;
-      return `${g.k} ascension${g.k === 1 ? '' : 's'} ${what}`;
-    })
-    .join('; ');
+  const g = (Array.isArray(gains) ? gains : []).find(
+    x => !!x && Number.isFinite(x.hours) && Number.isFinite(x.te) && x.k === k
+  );
+  if (!g) return '';
+  if (g.te > 0) return `this route +${g.te} TE`;
+  const h = roundedGap(g.hours * 3600);
+  return dated ? `this route ${h} more to spare` : `this route ${h} sooner`;
 }

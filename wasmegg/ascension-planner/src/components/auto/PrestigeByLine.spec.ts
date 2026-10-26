@@ -98,3 +98,12 @@ describe('PrestigeByLine: one line, the notes behind "Why? ›" (Jordan, 25 Oct 
     expect(why).toContain('min-h-[44px]');
   });
 });
+
+describe('PrestigeByLine: "Working out…" for at most ~20 s (UX review 26 Oct 2026, item 7)', () => {
+  it('goes through useStillWorking with 20 s', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'PrestigeByLine.vue'), 'utf8');
+    expect(src).toContain('const STILL_WORKING_MS = 20_000;');
+    expect(src).toContain('useStillWorking(() => props.status, STILL_WORKING_MS)');
+    expect(src).toContain(`v-if="status === 'running' && working"`);
+  });
+});

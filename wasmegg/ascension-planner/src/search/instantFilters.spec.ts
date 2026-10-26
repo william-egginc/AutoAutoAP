@@ -4,7 +4,7 @@ import {
   boundInput,
   boundsAfter,
   boundsText,
-  describeGains,
+  describeBoxGain,
   polishGains,
   readFilters,
   setBound,
@@ -205,7 +205,9 @@ describe('the background polish’s gains', () => {
     const after = base([null, r(1, 10_000), r(2, 20_000 - 4.1 * 3600), r(3, 30_030)]);
     const g = polishGains(before, after, false);
     expect(g).toEqual([{ k: 2, hours: expect.closeTo(4.1, 5) as number, te: 0 }]);
-    expect(describeGains(g, false)).toBe('2 ascensions 4.1 h sooner');
+    expect(describeBoxGain(g, 2, false)).toBe('this route 4 h sooner');
+    // The box shows another count: nothing (UX review 26 Oct 2026, item 3).
+    expect(describeBoxGain(g, 3, false)).toBe('');
   });
 
   it('By a date: a higher TE, or the same TE with more to spare', () => {
@@ -216,6 +218,9 @@ describe('the background polish’s gains', () => {
       [1, 1],
       [2, 0],
     ]);
-    expect(describeGains(g, true)).toBe('1 ascension +1 TE; 2 ascensions 10 h more to spare');
+    expect(describeBoxGain(g, 1, true)).toBe('this route +1 TE');
+    expect(describeBoxGain(g, 2, true)).toBe('this route 10 h more to spare');
+    expect(describeBoxGain(g, 8, true)).toBe('');
+    expect(describeBoxGain(null as unknown as [], 2, true)).toBe('');
   });
 });

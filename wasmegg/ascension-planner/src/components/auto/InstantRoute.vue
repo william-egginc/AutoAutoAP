@@ -266,10 +266,9 @@
         <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
           Polishing the routes in the background…
         </p>
-        <p v-else-if="gainsText" class="text-[11px] text-emerald-800">
-          Improved by the background polish: {{ gainsText }}.
-        </p>
-        <p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-500">
+        <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
+             the box's one caveat line): no "Pricing…" line that ends in nothing (UX review 26 Oct 2026, item 7). -->
+        <p v-if="bracketStatus === 'running' && !boxShown" class="text-[11px] text-slate-500" data-testid="instant-bracket-running">
           Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
         </p>
         <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
@@ -318,6 +317,12 @@
               Reached {{ show(dateBoxOf(result.byDate).end) }} ·
               {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
             </div>
+            <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
+            <p v-if="boxGain" class="text-[11px] text-emerald-800" data-testid="box-polished">
+              <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
+                >polished</span
+              >{{ boxGain }}
+            </p>
             <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
             <AnswerCaveatLine :caveat="headCaveat" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
@@ -493,6 +498,12 @@
           <div class="text-[12px] font-bold text-emerald-800">
             in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
+          <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
+          <p v-if="boxGain" class="text-[11px] text-emerald-800" data-testid="box-polished">
+            <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
+              >polished</span
+            >{{ boxGain }}
+          </p>
           <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
           <AnswerCaveatLine :caveat="headCaveat" />
           <div class="font-mono-premium text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
@@ -802,7 +813,7 @@ import {
   boundInput,
   boundsAfter,
   boundsText,
-  describeGains,
+  describeBoxGain,
   filterBounds,
   polishGains,
   insideHoursFor,
@@ -1026,7 +1037,14 @@ const ms = ref<number | null>(null);
 /** The background polish (the user, 6 Oct): running, and what it improved. */
 const backgroundStatus = ref<'idle' | 'running' | 'done'>('idle');
 const gains = ref<PolishGain[]>([]);
-const gainsText = computed(() => describeGains(gains.value, !!props.deadline));
+/** What the polish did for the route the box shows ('' when it improved other counts only: instantFilters.ts
+ *  `describeBoxGain`, UX review 26 Oct 2026, item 3). */
+const boxGain = computed(() => {
+  const r = result.value;
+  if (!r) return '';
+  const k = props.deadline ? (r.byDate ? dateBoxOf(r.byDate).chain.length : 0) : (boxLead.value?.legs.length ?? 0);
+  return k ? describeBoxGain(gains.value, k, !!props.deadline) : '';
+});
 
 /** The player's earnings set's Clothed TE bonus (read from the save the planner loaded). A reading that throws keeps
  *  the last good one (search/instantScale.ts `readKept`): never the reason the card can't be drawn. */

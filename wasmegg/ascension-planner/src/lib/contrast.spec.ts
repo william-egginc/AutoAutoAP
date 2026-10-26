@@ -72,7 +72,7 @@ describe('and the screens use them', () => {
     expect(src.match(/<tr class="text-left text-\[10px\] font-black uppercase tracking-widest text-slate-500 align-bottom">/g)).toHaveLength(2);
     expect(src).not.toMatch(/<tr class="[^"]*text-\[9px\][^"]*text-slate-400/);
     expect(src).toContain('<span v-if="ms !== null" class="text-[10px] text-slate-500"');
-    expect(src).toContain(`<p v-if="bracketStatus === 'running'" class="text-[11px] text-slate-500">`);
+    expect(src).toMatch(/<p v-if="bracketStatus === 'running'[^"]*" class="text-\[11px\] text-slate-500"/);
   });
   it('SearchPanel.vue: Fast / Exact / Custom in slate-600, indigo-600 when picked', () => {
     const src = read('components/auto/SearchPanel.vue');
