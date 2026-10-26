@@ -41,7 +41,7 @@
 
       <button
         :disabled="isInvalid"
-        class="btn-premium w-full text-small"
+        class="btn-premium w-full text-body"
         :class="alwaysOn ? 'btn-primary' : 'btn-secondary'"
         @click="emit('update:alwaysOn', !alwaysOn)"
       >

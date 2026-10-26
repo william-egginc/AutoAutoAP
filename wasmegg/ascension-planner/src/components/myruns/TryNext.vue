@@ -10,7 +10,7 @@
         v-for="p in pills"
         :key="p.id"
         type="button"
-        class="min-h-[44px] sm:min-h-0 rounded-full border border-indigo-200 bg-white px-3 py-1 text-small font-bold text-indigo-700 hover:bg-indigo-50"
+        class="min-h-[44px] sm:min-h-0 rounded-full border border-indigo-200 bg-white px-3 py-1 text-body font-bold text-indigo-700 hover:bg-indigo-50"
         :data-testid="`now-try-${p.id}`"
         @click="emit('open', p.open)"
       >

@@ -122,7 +122,7 @@
         <button
           v-if="myPublicCount"
           type="button"
-          class="px-2.5 py-1 rounded-md border border-slate-300 text-small font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
+          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
           :disabled="hideAllBusy || hideBusy.size > 0"
           @click="changeHidden({ all: true }, true)"
         >
@@ -131,7 +131,7 @@
         <button
           v-if="myHidden.length"
           type="button"
-          class="px-2.5 py-1 rounded-md border border-slate-300 text-small font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
+          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
           :disabled="hideAllBusy || hideBusy.size > 0"
           @click="changeHidden({ all: true }, false)"
         >

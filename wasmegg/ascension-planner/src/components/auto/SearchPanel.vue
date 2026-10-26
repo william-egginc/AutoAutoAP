@@ -71,7 +71,7 @@
         >
         <!-- What it is for, small, before the player clicks (the user, 15 Oct; kept, Jordan 22 Oct). -->
         <span
-          class="block mt-0.5 text-small font-bold leading-tight"
+          class="block mt-0.5 text-small font-normal leading-tight"
           :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
           :data-testid="`search-option-for-${o.id}`"
           >{{ o.purpose }}</span

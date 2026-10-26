@@ -428,7 +428,7 @@
                     {{ r.legs.length }}
                     <span
                       v-if="datePickedRow(r)"
-                      class="block label text-emerald-700"
+                      class="block whitespace-normal text-small font-bold text-emerald-700"
                       :title="preferCopy.chip"
                       data-testid="prefer-fewer-row"
                       >shown above</span
@@ -605,7 +605,7 @@
                     {{ r.legs.length }}
                     <span
                       v-if="preferPicked && r === boxLead"
-                      class="block label text-emerald-700"
+                      class="block whitespace-normal text-small font-bold text-emerald-700"
                       :title="preferCopy.chip"
                       data-testid="prefer-fewer-row"
                       >shown above</span
@@ -652,7 +652,7 @@
           <button
             v-if="hiddenCounts || showMoreCounts"
             type="button"
-            class="inline-flex items-center min-h-[44px] sm:min-h-0 mt-1 text-small font-bold text-slate-500 underline hover:text-emerald-800"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 mt-1 text-body font-bold text-slate-500 underline hover:text-emerald-800"
             data-testid="instant-more-counts"
             @click="showMoreCounts = !showMoreCounts"
           >

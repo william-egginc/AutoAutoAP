@@ -31,7 +31,7 @@
 
       <button
         :disabled="isInvalid || loading || applying"
-        class="btn-premium btn-primary w-full text-small inline-flex items-center justify-center gap-1.5"
+        class="btn-premium btn-primary w-full text-body inline-flex items-center justify-center gap-1.5"
         @click="emit('buy', parsedSeconds)"
       >
         <InlineSpinner v-if="applying" class="w-3 h-3" />

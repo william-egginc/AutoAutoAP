@@ -17,7 +17,7 @@
     </p>
     <button
       type="button"
-      class="min-h-[44px] sm:min-h-0 text-small font-bold text-emerald-800 underline hover:text-emerald-950"
+      class="min-h-[44px] sm:min-h-0 text-body font-bold text-emerald-800 underline hover:text-emerald-950"
       :aria-pressed="showingBest"
       data-testid="prefer-fewer-toggle"
       @click="emit('toggle')"

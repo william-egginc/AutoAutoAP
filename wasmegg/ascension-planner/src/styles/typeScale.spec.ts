@@ -214,3 +214,16 @@ describe('line length (step 4): reading paragraphs stop at about 65 characters (
     expect(hits(/<(?:table|td|th|button)\b[^>]*max-w-prose/)).toEqual([]);
   });
 });
+
+describe('phone check (step 5): fixes found on the 390 px shots', () => {
+  it('"shown above" in the counts tables wraps in its narrow column as small text (11 px caps ran into the date)', () => {
+    const src = read('components/auto/InstantRoute.vue');
+    expect(src.match(/class="block whitespace-normal text-small font-bold text-emerald-700"\s+:title="preferCopy\.chip"/g)).toHaveLength(2);
+  });
+  it('action buttons are the body size: Follow this route, the Prefer fewer choices, Copy, Show more ascension counts', () => {
+    expect(read('components/FollowButton.vue')).toContain("primary ? 'min-h-[44px] sm:min-h-0 px-3 py-1.5 text-body' : 'px-2 py-0.5 text-body'");
+    expect(read('components/auto/PreferFewerControl.vue')).not.toMatch(/<button[^>]*text-small/);
+    expect(read('components/auto/StepAwayOptions.vue')).not.toMatch(/<button[^>]*text-small/);
+    expect(read('components/auto/InstantRoute.vue')).not.toMatch(/<button[^>]*text-small/);
+  });
+});

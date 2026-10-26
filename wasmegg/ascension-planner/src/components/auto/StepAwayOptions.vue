@@ -101,7 +101,7 @@
                       ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
                       ><button
                         type="button"
-                        class="mx-1 rounded border border-amber-300 bg-white px-1 text-small font-bold hover:bg-amber-100"
+                        class="mx-1 rounded border border-amber-300 bg-white px-1 text-body font-bold hover:bg-amber-100"
                         @click="copy(part.code)"
                       >
                         {{ copied === part.code ? 'Copied' : 'Copy' }}
@@ -132,7 +132,7 @@
                     ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
                     ><button
                       type="button"
-                      class="mx-1 rounded border border-slate-300 bg-white px-1 text-small font-bold hover:bg-slate-100"
+                      class="mx-1 rounded border border-slate-300 bg-white px-1 text-body font-bold hover:bg-slate-100"
                       @click="copy(part.code)"
                     >
                       {{ copied === part.code ? 'Copied' : 'Copy' }}
@@ -184,7 +184,7 @@
                     >
                     <button
                       type="button"
-                      class="rounded border border-slate-300 bg-white px-1 text-small font-bold hover:bg-slate-100"
+                      class="rounded border border-slate-300 bg-white px-1 text-body font-bold hover:bg-slate-100"
                       @click="copy(phoneLink.url)"
                     >
                       {{ copied === phoneLink.url ? 'Copied' : 'Copy' }}
@@ -245,7 +245,7 @@
                     />
                     <button
                       type="button"
-                      class="rounded border border-slate-300 bg-white px-1 text-small font-bold hover:bg-slate-100"
+                      class="rounded border border-slate-300 bg-white px-1 text-body font-bold hover:bg-slate-100"
                       @click="copy(phoneOptions.ntfyTopic)"
                     >
                       {{ copied === phoneOptions.ntfyTopic ? 'Copied' : 'Copy' }}

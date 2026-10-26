@@ -153,7 +153,7 @@
           v-for="m in modes"
           :key="m.id"
           type="button"
-          class="min-h-[44px] sm:min-h-0 rounded-lg border px-3 py-1.5 text-small font-bold"
+          class="min-h-[44px] sm:min-h-0 rounded-lg border px-3 py-1.5 text-body font-bold"
           :class="showing === m.id ? 'border-indigo-400 bg-indigo-50 text-indigo-900' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'"
           :aria-pressed="showing === m.id"
           :data-testid="`my-runs-show-${m.id}`"

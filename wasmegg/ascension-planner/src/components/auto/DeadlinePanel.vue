@@ -196,7 +196,7 @@
             <button
               v-if="quickRunning || quickBest"
               type="button"
-              class="min-h-[44px] text-small font-bold text-indigo-700 underline hover:text-indigo-900"
+              class="min-h-[44px] text-body font-bold text-indigo-700 underline hover:text-indigo-900"
               data-testid="quick-estimate-show"
               @click="showQuickRun"
             >

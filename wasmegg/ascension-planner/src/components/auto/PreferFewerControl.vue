@@ -17,7 +17,7 @@
         type="button"
         role="radio"
         :aria-checked="!customOpen && sameMargin(p.margin, modelValue)"
-        class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-small font-bold"
+        class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-body font-bold"
         :class="!customOpen && sameMargin(p.margin, modelValue) ? ON : OFF"
         :data-testid="`prefer-fewer-${p.label}`"
         @click="pick(p.margin)"
