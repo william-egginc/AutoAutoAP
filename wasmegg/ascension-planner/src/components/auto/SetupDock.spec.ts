@@ -47,7 +47,21 @@ describe('the Setup pill at 1280', () => {
     }
   });
 
-  it('My runs keeps the one-row pill (its summary line needs the width)', async () => {
+  it('My runs: from xl the pill is a small round Setup button, no label, summary or workers; phones keep the full pill', async () => {
+    const p = createPinia();
+    setActivePinia(p);
+    const html = await renderHtml(SetupDock, { screen: 'fastest', summary: '7 am–11 pm · no time off' }, {}, [p]);
+    expect(html).toContain('aria-label="Setup"');
+    // The label block, the divider and the three workers controls hide from xl; the drag handle and the gear stay.
+    expect(html).toMatch(/<span class="xl:hidden flex flex-col items-start leading-tight">/);
+    expect((html.match(/xl:hidden/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect(html).toContain('Drag to move');
+    // Below xl nothing changes: the summary and the workers are still in the markup.
+    expect(html).toContain('7 am–11 pm · no time off');
+    expect(html).toContain('Fewer workers');
+  });
+
+  it('My runs keeps the one-row pill below xl (its summary line needs the width)', async () => {
     const p = createPinia();
     setActivePinia(p);
     const html = await renderHtml(SetupDock, { screen: 'fastest', summary: '7 am–11 pm · no time off' }, {}, [p]);
