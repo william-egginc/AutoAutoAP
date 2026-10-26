@@ -91,7 +91,7 @@
             each stop up to 8 TE either way until nothing moves. Then it checks every other number of ascensions inside
             your limits: each starts from the instant answer's route for that count, gets its last stop fine-tuned and,
             unless it is more than two days behind by then, one pass of nudges. It keeps the fastest. Exact also tries
-            each neighbouring pair of stops together, then one ascension more or fewer; the retired Very high level also
+            each neighbouring pair of stops together, then one ascension more or fewer; the retired Exact (wider) level also
             tried groups of three. You can stop it at any point and keep the best route so far. The result is a strong local best.
             Nobody has proven it's the best overall.
           </li>
@@ -126,14 +126,14 @@
         <p>
           <b>How long, and what it finds</b> (from players' runs up to 13 Oct 2026, a small sample). On
           {{ NAMES.fastest }}, Fast takes about 5-10 minutes on an 8-core computer and a few minutes on 16; Exact about
-          20-30 minutes on 8 cores and 10-20 on 16 or more; the retired Very high level about 1.5-2.5 hours on 8 cores and 45 minutes to
+          20-30 minutes on 8 cores and 10-20 on 16 or more; the retired Exact (wider) level about 1.5-2.5 hours on 8 cores and 45 minutes to
           1.5 hours on 16. {{ NAMES.full }} runs about 70 routes a minute on 8 cores and about 120 on 16, so its time
-          follows the size of your boxes. The Fast and Very high
+          follows the size of your boxes. The Fast and Exact (wider)
           figures rest on very few runs, and the 8- and 16-core figures are estimates fitted from other machines. A tab
           in the background runs several times slower, so keep it in front. On {{ NAMES.fastest }}, a short Fast search
           often found a route at least a day sooner than the instant answer's, on about 5 accounts before 23 Oct. Treat
           that as an upper bound: part of the gap came from how the old instant answer was priced, and it has not been
-          measured again since. Going bigger (Exact, Very high, {{ NAMES.full }}) rarely added
+          measured again since. Going bigger (Exact, Exact (wider), {{ NAMES.full }}) rarely added
           more. On {{ NAMES.byDate }}, no search up to 13 Oct beat the instant answer's TE, but that rests on 2
           like-for-like runs, both on one developer's save starting below TE 150 (5 counting runs held to fewer
           ascensions). Both reached the same TE; one was a 43.7-hour search, and a 7-minute one found the same route. We will update these figures as more runs

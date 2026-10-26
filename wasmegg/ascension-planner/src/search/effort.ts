@@ -83,7 +83,8 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
     warning: null,
   },
   thorough: {
-    label: 'Very high',
+    // The glossary of 25 Oct 2026 retires "Very high" as a player word: the stored level stays `thorough`.
+    label: 'Exact (wider)',
     cliDuration: '7–13 h',
     typicalTime: 'About 1.5-2.5 hours on an 8-core computer, 45 minutes to 1.5 hours on 16.',
     adds: '+ every combination of each group of three neighbouring stops.',

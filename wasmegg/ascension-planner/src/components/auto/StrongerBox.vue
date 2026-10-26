@@ -42,7 +42,7 @@
           @change="setVeryHigh(($event.target as HTMLInputElement).checked)"
         />
         <span
-          ><b>Very high</b
+          ><b>Exact (wider)</b
           ><span v-if="estimates?.thorough" class="text-slate-500">{{ ' ' }}· {{ estimates.thorough.short }} here</span
           ><span class="text-slate-500">{{ ' ' }}· if you're curious</span><br /><span
             class="text-slate-500"
@@ -52,7 +52,7 @@
         >
       </label>
       <p v-else class="text-[11px] text-slate-600" data-testid="very-high-off">
-        <span v-if="level === 'thorough'" class="font-bold" data-testid="used-very-high">This run used Very high.{{ ' ' }}</span
+        <span v-if="level === 'thorough'" class="font-bold" data-testid="used-very-high">This run used Exact (wider).{{ ' ' }}</span
         >For a full sweep, use Custom.
       </p>
     </template>
@@ -134,7 +134,7 @@ const levels = computed<LevelText[]>(() =>
         },
         {
           id: 'thorough',
-          does: `${EXACT_FIRST} Exact with Very high: Fast and pairs, plus moving three neighbouring stops together.`,
+          does: `${EXACT_FIRST} Exact (wider): Fast and pairs, plus moving three neighbouring stops together.`,
           time: EFFORT_NOTES.thorough.typicalTime,
           finds: `The strongest search near the instant answer. In players' runs so far it never found more than Exact did. Still not a proven best: for that, use Custom with boxes you set.`,
         },
@@ -154,7 +154,7 @@ const levels = computed<LevelText[]>(() =>
         },
         {
           id: 'thorough',
-          does: `${EXACT_FIRST} With Very high: the same as Fast, with two more TE either side of each early stop.`,
+          does: `${EXACT_FIRST} Exact (wider): the same as Fast, with two more TE either side of each early stop.`,
           time: 'Sized to stay under about 8 hours (a cap, not a measurement); yours is below.',
           finds: `The widest net near the instant answer. Still not a proven best: for that, use Custom with boxes you set.`,
         },

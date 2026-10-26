@@ -206,7 +206,7 @@ describe('Very high, inside Exact (lib/veryHigh.ts)', () => {
   });
   it.runIf(SHOW_VERY_HIGH)('on: a tick box with its time, what it is for and one sentence of what it does', async () => {
     const t = textOf(await exact('fastest'));
-    expect(t).toContain("Very high · ~6.8 h here · if you're curious");
+    expect(t).toContain("Exact (wider) · ~6.8 h here · if you're curious");
     expect(t).toContain('Also tries every group of three stops together.');
     expect(t).not.toContain('For a full sweep, use Custom.');
   });
@@ -214,7 +214,7 @@ describe('Very high, inside Exact (lib/veryHigh.ts)', () => {
     const html = await exact('fastest');
     expect(html).not.toContain('data-testid="very-high-box"');
     expect(textOf(html)).toContain('For a full sweep, use Custom.');
-    expect(textOf(html)).not.toContain('This run used Very high.');
+    expect(textOf(html)).not.toContain('This run used Exact (wider).');
   });
   it('the box markup is still there behind the constant (source), so it comes back in one line', () => {
     const src = fs.readFileSync(path.resolve(__dirname, 'StrongerBox.vue'), 'utf8');
@@ -224,8 +224,8 @@ describe('Very high, inside Exact (lib/veryHigh.ts)', () => {
   });
   it.runIf(!SHOW_VERY_HIGH)('off: a Very high run still shows, on Exact, saying it used Very high', async () => {
     const t = textOf(await exact('date', 'thorough'));
-    expect(t).toContain('This run used Very high. For a full sweep, use Custom.');
-    expect(t).toContain('With Very high: the same as Fast, with two more TE either side');
+    expect(t).toContain('This run used Exact (wider). For a full sweep, use Custom.');
+    expect(t).toContain('Exact (wider): the same as Fast, with two more TE either side');
   });
   it('Exact says first that it is a wider search, priced the same way (no Check exactly since 23 Oct 2026)', async () => {
     for (const g of ['fastest', 'date'] as const) {
@@ -237,7 +237,7 @@ describe('Very high, inside Exact (lib/veryHigh.ts)', () => {
   it('Fast shows no Very high line', async () => {
     useStrongerStore().level = 'quick';
     const t = textOf(await renderHtml(StrongerBox, { goal: 'date', estimates }, {}, [pinia]));
-    expect(t).not.toContain('Very high');
+    expect(t).not.toContain('Exact (wider)');
     expect(t).not.toContain('For a full sweep');
   });
 });

@@ -47,8 +47,8 @@
                 </label>
                 <HelpTip
                   >How many search steps to run. Each level adds steps to the one below, and stopping keeps what the
-                  finished steps found. (Very high's extra step comes before the one-more-or-fewer check, so stopping
-                  Very high early gives the pairs' answer plus the triples found so far, without that check.)</HelpTip
+                  finished steps found. (The extra step of Exact (wider) comes before the one-more-or-fewer check, so stopping
+                  that level early gives the pairs' answer plus the triples found so far, without that check.)</HelpTip
                 >
               </span>
               <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{{ note.label }}</span>
@@ -87,7 +87,7 @@
               </p>
               <p class="text-[11px] text-slate-500">
                 <span class="font-black uppercase tracking-widest text-slate-400">Reference time:</span>
-                {{ note.typicalTime }} These come from players' runs (few of them for Fast and Very high; the 8- and
+                {{ note.typicalTime }} These come from players' runs (few of them for Fast and Exact (wider); the 8- and
                 16-core figures are estimates). Your machine has {{ store.workersInPool + 1 }} logical cores, so expect
                 a different number. The live estimate below is measured on your machine. Keep this tab in front: a
                 hidden tab runs several times slower.

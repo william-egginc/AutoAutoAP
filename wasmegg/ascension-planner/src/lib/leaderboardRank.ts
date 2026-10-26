@@ -2425,7 +2425,7 @@ const NAME_EXHAUSTIVE = 'Custom';
 const NAME_LIGHT = 'Checked at once';
 
 /** A sent effort tier's name on the planner's slider. */
-const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Very high', balanced: 'Balanced (retired)' };
+const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Exact (wider)', balanced: 'Balanced (retired)' };
 
 /** A sent effort tier for display: Smart search is "Simple". Rows sent before Balanced was retired
  *  still say 'balanced'. A tier this build does not know is shown as sent. */

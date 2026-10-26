@@ -245,9 +245,9 @@
         <div>
           <p class="font-bold text-slate-800 mb-2">What the search actually runs</p>
           <p class="mb-3">
-            It moves stops one at a time, then tries neighbouring pairs (and on Very high, triples) in every
+            It moves stops one at a time, then tries neighbouring pairs (and on Exact (wider), triples) in every
             combination. Each effort level adds a step to the one below; Fast, the default, stops after the nudges and then gives the other ascension counts in your limits one quick pass each. You
-            can stop whenever you like and keep the best route priced so far. One catch: Very high does triples before the one-more-or-fewer step, so stopping
+            can stop whenever you like and keep the best route priced so far. One catch: Exact (wider) does triples before the one-more-or-fewer step, so stopping
             it early gets you the pairs' answer plus whatever the triples found, without the count check.
           </p>
           <ol class="space-y-2 list-decimal list-outside pl-4">
@@ -256,7 +256,7 @@
             </li>
           </ol>
           <p class="mt-3">
-            On a 7-ascension route, Very high prices about 11,062 routes. That's roughly
+            On a 7-ascension route, Exact (wider) prices about 11,062 routes. That's roughly
             <span class="font-bold text-slate-800">one in a hundred million</span> of the 7-ascension routes out there.
             It gets away with it because the sale calendar already chops the range into pieces small enough to sweep.
           </p>
@@ -363,7 +363,7 @@ const STAGES = [
     what: 'try every combination of each neighbouring pair (17 × 17), for moves that only pay off together.',
   },
   {
-    name: 'Triples (Very high only)',
+    name: 'Triples (Exact (wider) only)',
     what: 'the same for each group of three neighbours (13 × 13 × 13).',
   },
   {
