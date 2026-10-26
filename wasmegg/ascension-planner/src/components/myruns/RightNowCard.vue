@@ -773,7 +773,9 @@ const howText = computed(() => {
 const pill = computed(() => {
   const p = props.card?.plan;
   if (!p || (p.exact && !p.from)) return '';
-  return sourcePill(p.from?.level ?? null);
+  // A run read back from the Leaderboard (lib/boardRunPlan.ts): "from your Fast run (sent from another browser), …".
+  const words = sourcePill(p.from?.level ?? null);
+  return p.from?.otherBrowser ? words.replace(/ run,/, ' run (sent from another browser),') : words;
 });
 /** "done Oct 22 at 4:47 pm, your save of Oct 22 at 11:03 am, priced with your hours …" / "worked out ahead of time;
  *  times rounded to the hour". */

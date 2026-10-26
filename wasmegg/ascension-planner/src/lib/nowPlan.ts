@@ -104,7 +104,8 @@ export interface NowPlan {
   exact: boolean;
   /** A Fast, Exact or Custom result's plan (lib/searchPlan.ts): which level and when it was found (ms). Absent: the
    *  instant answer's (or an older snapshot's Check exactly). */
-  from?: { level: FoundLevel; at: number };
+  /** `otherBrowser`: the run was sent from another browser and read back from the Leaderboard (lib/boardRunPlan.ts). */
+  from?: { level: FoundLevel; at: number; otherBrowser?: boolean };
   /** A followed route priced on the instant answer's data on this page (lib/followEstimate.ts): the table's times,
    *  rounded like the instant answer's own. Absent otherwise. */
   estimated?: boolean;

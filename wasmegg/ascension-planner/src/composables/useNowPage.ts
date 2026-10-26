@@ -132,6 +132,8 @@ import {
   type PricingSource,
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
+import { useBoardRunLegs, type BoardRunWant, type RunCsvFetch } from './useBoardRunLegs';
+import { fetchRunCsv } from '@/explorer/collector';
 import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
@@ -642,6 +644,26 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * account and goal (this save's own key first, then the index's), each with the TE its routes start from, then
    * Check exactly's history. Nothing is worked out here (a route with no timeline is estimated below).
    */
+  /**
+   * A FOLLOWED ROUTE FROM A RUN SENT FROM ANOTHER BROWSER (26 Oct 2026, composables/useBoardRunLegs.ts): the account's
+   * Leaderboard run of the followed route, its legs read once from its CSV, priced like a kept result (exact legs, the
+   * calendar's Add buttons) with "(sent from another browser)".
+   */
+  const boardWants = computed<BoardRunWant[]>(() =>
+    hasSave.value
+      ? planGoals.value.flatMap(pg => {
+          const f = follows.followed(pg.goal.key);
+          const g = goalOf(pg.goal);
+          return f ? [{ goalKey: pg.goal.key, goal: g.goal, target: g.target, deadline: g.deadline, chain: [...f.chain] }] : [];
+        })
+      : []
+  );
+  const boardCsvFetch = computed<RunCsvFetch | null>(() => {
+    const base = store.submitUrl ? store.leaderboardUrl.replace(/\/$/, '') : '';
+    return base ? (id: string) => fetchRunCsv(base, id) : null;
+  });
+  const { found: boardRuns } = useBoardRunLegs({ rows: o.myRows, wants: boardWants, currentTE: teSoFar, fetch: boardCsvFetch });
+
   function followPricedFor(sel: ReturnType<typeof plansByGoal>[number] | undefined) {
     const f = sel ? follows.followed(sel.goal.key) : null;
     if (!sel || !f || !hasSave.value) return null;
@@ -673,8 +695,22 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     // This save's Fast, Exact or Custom results for the goal (the store's, the one kept beyond the snapshot): a followed
     // route that is one of them keeps its timeline (lib/followPrice.ts step 0).
     const results: FollowResult[] = [];
+    const olderResultsFromBoard: FollowResult[] = [];
     const live = liveFor(g);
     if (live) results.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }, check: currentSetup(sn.setup) });
+    // The account's Leaderboard run of this route, sent from another browser (`boardRuns`): this save's when its save is
+    // the loaded one (within ten minutes), else an older save's.
+    const run = boardRuns.value[sel.goal.key];
+    if (run) {
+      const same = run.save != null && Math.abs(run.save - saveSeconds.value) <= 600;
+      (same ? results : olderResultsFromBoard).push({
+        found: run.search,
+        meta: same
+          ? { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }
+          : { account: acct ?? '', goal: words, backupTime: run.save ?? 0 },
+        check: same ? currentSetup(sn.setup) : setupCheck(null, sn.setup, sn.today),
+      });
+    }
     const k = keptFor(g);
     if (k)
       results.push({
@@ -684,7 +720,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       });
     // The account's results for the goal kept from older saves (or this save under another setup): a followed route
     // that is one of them shows its timeline, said to be priced on that save.
-    const olderResults: FollowResult[] = [];
+    const olderResults: FollowResult[] = [...olderResultsFromBoard];
     for (const e of keptList.value) {
       if (!acct || e.account !== acct || e.goal !== words || e.search.at === k?.search.at) continue;
       olderResults.push({

@@ -29,6 +29,8 @@ import { accountOf } from '@/search/runSaves';
 import { backupSecondsOf } from '@/lib/saveFreshness';
 import { setChainPricer, type ChainPricer } from '@/composables/useFollowEstimate';
 import { setSimRunner, setSimTiming, type SimRunner } from '@/composables/useCurrentSim';
+import { setRunCsvFetch } from '@/composables/useBoardRunLegs';
+import { buildChainsCsv } from '@/search/csv';
 import { readSimRecords } from '@/lib/followSim';
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { BoardRow } from '@/lib/leaderboardRank';
@@ -70,6 +72,7 @@ afterEach(() => {
   setChainPricer(null);
   setSimRunner(null);
   setSimTiming(null);
+  setRunCsvFetch(null);
 });
 
 const leg = (start: number, end: number, endTE: number) =>
@@ -96,7 +99,7 @@ const TABLE = 'precompute/table-v2.bin';
  */
 async function setup(
   followed: Record<string, unknown>,
-  o: { fast?: boolean; final?: number; pricing?: boolean; startTE?: number; snapFor?: 'eggday' | 'race'; followKey?: string; select?: boolean; whatIf?: SnapWhatIf; tableTo?: number; record?: boolean; before?: (now: number) => void } = {}
+  o: { fast?: boolean; final?: number; pricing?: boolean; startTE?: number; snapFor?: 'eggday' | 'race'; followKey?: string; select?: boolean; whatIf?: SnapWhatIf; tableTo?: number; record?: boolean; before?: (now: number) => void; rows?: BoardRow[] } = {}
 ) {
   loadAndSyncBackup(A_ID, save(), 'plan_next');
   rollUpPendingTE();
@@ -176,7 +179,7 @@ async function setup(
   await vi.waitFor(() => expect(follows.partition).not.toBe(''));
   o.before?.(now);
   const scope = effectScope();
-  const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
+  const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>(o.rows ?? []), boardRows: ref<BoardRow[] | null>([]) }))!;
   if (o.select !== false) {
     page.selectGoal(goalKey);
     await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
@@ -422,6 +425,68 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     const withList = await renderHtml(RightNowCard, { ...(await renderProps(page)), nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!]);
     expect(withList).toContain('data-testid="now-next-shifts"');
     expect(textOf(withList)).toMatch(/Next shifts Shift to Humility · about [A-Z][a-z]{2} \d{1,2}, \d{4}, [^·]* Prestige at 226 TE · about/);
+    scope.stop();
+  });
+});
+
+describe('a followed route from a Fast run sent from another browser (26 Oct 2026, Williamthe5thc)', () => {
+  it("its legs are read back from the run's CSV: exact legs, \"from your Fast run (sent from another browser)\", Add buttons", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const runLegs = [
+      { ...leg(now - H, now + 20 * H, 226), shifts: [{ at: now + 2 * H, egg: 'kindness', fromEgg: 'curiosity' }] },
+      { ...leg(now + 21 * H, now + 3 * D, 277), key: '1-sale' as const, shifts: [{ at: now + 2 * D, egg: 'humility', fromEgg: 'curiosity' }] },
+      { ...leg(now + 3 * D, now + 6 * D, 317), key: '1-sale' as const },
+      { ...leg(now + 6 * D, now + 9 * D, 490), key: '1-sale' as const },
+    ];
+    const csv = buildChainsCsv([{ key: '226,277,317,490', seconds: 9 * D, legs: runLegs }], {
+      planStart: now - H,
+      timezone: ZONE,
+      currentTE: 194,
+      final: 490,
+      effort: 'quick',
+      firstAscension: 'auto',
+      availability: null,
+      seedChain: [226, 490],
+      loadouts: [{ label: 'equipped in the backup', loadout: null }],
+      generatedAt: Date.now(),
+    });
+    const asked: string[] = [];
+    setRunCsvFetch(async id => (asked.push(id), csv));
+    const row = {
+      id: 'run-7',
+      hasCsv: true,
+      chain: [226, 277, 317, 490],
+      durationDays: 9,
+      finalTE: 490,
+      level: 'quick',
+      startUtc: new Date((now - H) * 1000).toISOString(),
+      backupAgeHours: 0,
+      receivedAt: new Date().toISOString(),
+    } as BoardRow;
+    const { page, scope } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490', rows: [row] });
+    await vi.waitFor(() => expect(page.follow.value?.price).toBe('exact'));
+    expect(asked).toEqual(['run-7']);
+    expect(page.cardPlan.value?.plan).toMatchObject({ exact: true, from: { level: 'Fast', otherBrowser: true } });
+    expect(page.cardPlan.value?.plan.legs).toHaveLength(4);
+    const html = await renderHtml(RightNowCard, { ...(await renderProps(page)), events: page.events.value, shownEvents: page.shownEvents.value }, {}, [getActivePinia()!]);
+    const t = textOf(html);
+    expect(t).toContain('from your Fast run (sent from another browser), on your account');
+    expect(t).toMatch(/Shift to Kindness/);
+    expect(t).toContain('Add');
+    expect(html).not.toContain('estimated from the instant answer');
+    scope.stop();
+  });
+
+  it('a CSV that cannot be read leaves the estimate (and asks once)', async () => {
+    let asked = 0;
+    setRunCsvFetch(async () => {
+      asked++;
+      throw new Error('403');
+    });
+    const row = { id: 'run-8', hasCsv: true, chain: [226, 277, 317, 490], durationDays: 9, finalTE: 490, level: 'quick', startUtc: new Date().toISOString(), backupAgeHours: 0 } as BoardRow;
+    const { page, scope } = await setup({ ...FOLLOWED, at: at() }, { followKey: 'fastest-490', rows: [row] });
+    await vi.waitFor(() => expect(asked).toBe(1));
+    expect(page.follow.value?.price).not.toBe('exact');
     scope.stop();
   });
 });
