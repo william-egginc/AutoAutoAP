@@ -189,7 +189,8 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
       return { ...DEFAULT_ROUTE, section, science };
     }
     if (section === 'auto') {
-      const auto: AutoView = sub === 'fastest' || sub === 'by-date' ? sub : 'classic';
+      // A bare #/auto opens the first sub-tab, Fastest to 490 TE; Single run keeps its own address, #/auto/classic.
+      const auto: AutoView = sub === 'by-date' ? 'by-date' : sub === 'classic' ? 'classic' : 'fastest';
       return {
         ...DEFAULT_ROUTE,
         section: 'auto',

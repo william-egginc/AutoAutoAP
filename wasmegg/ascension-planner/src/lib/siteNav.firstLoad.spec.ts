@@ -77,4 +77,13 @@ describe('App.vue wiring', () => {
     expect(body.indexOf('if (newPlayerLanding) {')).toBeGreaterThan(body.indexOf('failLoad(id, SAVE_SET_UP_FAILED);'));
     expect(body.indexOf('if (newPlayerLanding) {')).toBeLessThan(body.indexOf('await initAutoOnce();'));
   });
+
+  it('a bare #/auto opens Fastest to 490 TE (the first sub-tab); Single run keeps #/auto/classic', () => {
+    expect(routeFromLocation('', '#/auto')).toMatchObject({ section: 'auto', auto: 'fastest', depth: 'smart' });
+    expect(routeFromLocation('', '#/auto/')).toMatchObject({ section: 'auto', auto: 'fastest' });
+    expect(routeFromLocation('', '#/auto/by-date')).toMatchObject({ auto: 'by-date' });
+    expect(routeFromLocation('', '#/auto/classic')).toMatchObject({ auto: 'classic' });
+    expect(routeFromLocation('', '#/auto/fastest/full')).toMatchObject({ auto: 'fastest', depth: 'full' });
+    expect(hashFor(routeFromLocation('', '#/auto/classic')!)).toBe('#/auto/classic');
+  });
 });
