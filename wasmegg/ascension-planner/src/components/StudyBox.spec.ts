@@ -109,7 +109,8 @@ describe('the box', () => {
     expect(textOf(html)).toContain('No thanks');
     const src = readFileSync('src/components/StudyForm.vue', 'utf8');
     expect(src).toContain('for (const [k] of TICK_WORDS) ticks[k] = true;');
-    expect(src).toMatch(/function yesAll\(\): void \{[^}]*\n  yes\(\);/);
+    // Every sharing choice, through the one function (useStudy.ts `yesToAll`; its own spec: yesToAll.spec.ts).
+    expect(src).toMatch(/function yesAll\(\): void \{[^}]*\n  yesToAll\(credit\.value, nickname\.value\);/);
   });
 
   it('starts anonymous when the account has no name, and credited when it has one', async () => {

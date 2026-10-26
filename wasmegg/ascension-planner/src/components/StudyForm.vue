@@ -131,7 +131,8 @@
       >
         Yes, help improve it
       </button>
-      <!-- Ticks all four and says yes in one press (the credit stays as shown). Always on: it ticks first. -->
+      <!-- Every sharing choice on (the four here, the instant answer with my runs, the send tick under Run) and yes, in
+           one press (useStudy.ts `yesToAll`; the credit stays as shown). Always on: it ticks first. -->
       <button
         type="button"
         class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border text-[11px] font-black uppercase tracking-widest"
@@ -172,7 +173,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { DEFAULT_TICKS, TICK_WORDS, anyTick, capName, type StudyCredit } from '@/lib/study';
 import { consentState } from '@/composables/useConsent';
-import { STUDY_NAME_MAX, answerNo, answerYes, defaultCredit, knownName } from '@/composables/useStudy';
+import { STUDY_NAME_MAX, answerNo, answerYes, defaultCredit, knownName, yesToAll } from '@/composables/useStudy';
 import { useShareNameStore } from '@/stores/shareName';
 
 const props = defineProps<{
@@ -233,10 +234,11 @@ function yes(): void {
   answerYes({ ...ticks }, credit.value, nickname.value);
   emit('answered', 'yes');
 }
-/** Every tick on and yes, in one press. */
+/** Every sharing choice on and yes, in one press (useStudy.ts `yesToAll`: the box's ticks and the ones it doesn't show). */
 function yesAll(): void {
   for (const [k] of TICK_WORDS) ticks[k] = true;
-  yes();
+  yesToAll(credit.value, nickname.value);
+  emit('answered', 'yes');
 }
 function no(): void {
   answerNo();

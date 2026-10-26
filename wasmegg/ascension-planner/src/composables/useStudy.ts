@@ -18,6 +18,7 @@ import { consentAgreed, consentState, setConsent, type ConsentId, type StorageLi
 import { useShareExtras } from './useShareExtras';
 import { useAccountName } from './useShareResult';
 import { onCreditChange, useShareNameStore } from '@/stores/shareName';
+import { rememberRunSends } from '@/lib/runSends';
 import {
   STUDY_KEY,
   WITHDRAW_CONSENTS,
@@ -165,6 +166,24 @@ export function answerYes(ticks: StudyTicks, credit: StudyCredit, nickname: stri
   const given = applyCredit(id, credit, nickname);
   save(afterYes(fresh(), consentState.hash, Date.now(), ticks, given));
   state.thanked = true;
+}
+
+/** Every tick of "Help improve the planner" on. */
+export const ALL_TICKS: StudyTicks = { share: true, csv: true, diag: true, checks: true };
+
+/**
+ * YES TO ALL (Jordan, 26 Oct 2026: it sometimes left the send tick under Run, or "Share my instant answer with my
+ * runs", unticked). Every sharing choice on, remembered for the account (each stamped now, so a value saved online
+ * earlier never undoes it: stores/prefs.ts, newer wins): the four ticks of the box (share, CSV, diagnostics and this
+ * visit's diagnostics tick, search results), the instant answer with my runs (`shareBaseline`), and the send tick
+ * under every Run (lib/runSends.ts: one choice for the browser, Fastest and By a date alike; a player who had
+ * unticked it once kept it off). The one function behind Yes to all, in the box and in Setup (StudyForm.vue).
+ */
+export function yesToAll(credit: StudyCredit, nickname: string): void {
+  if (!consentState.account || !consentState.hash) return;
+  rememberRunSends(true);
+  answerYes({ ...ALL_TICKS }, credit, nickname);
+  setConsent('shareBaseline', true, true);
 }
 
 /**
