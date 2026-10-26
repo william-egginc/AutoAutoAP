@@ -116,6 +116,8 @@ describe('the UX review of 25 Oct 2026: the rest of the small targets', () => {
     expect(tagWith(now, 'data-testid="now-work-out-plan"')).toContain(TAP);
     expect(tagWith(now, 'data-testid="now-follow-typed-summary"')).toContain(SUMMARY);
     expect(tagWith(now, 'data-testid="now-timeline-summary"')).toContain(SUMMARY);
+    // "A run of yours isn't here?" (ux review 26 Oct, row 12: was 264×15).
+    expect(tagWith(read('auto/MyRunsMissing.vue'), 'data-testid="my-runs-missing-summary"')).toContain(SUMMARY);
   });
   it('My runs: Try next chips, the Showing buttons, the section summaries and the Your runs chips', () => {
     expect(tagWith(read('myruns/TryNext.vue'), ':data-testid="`now-try-${p.id}`"')).toContain('min-h-[44px] sm:min-h-0');
