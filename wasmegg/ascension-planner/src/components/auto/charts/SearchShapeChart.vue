@@ -57,7 +57,7 @@
       </label>
     </div>
 
-    <p class="text-[11px] text-slate-500 leading-relaxed px-1">{{ AXIS_MODES.find(m => m.id === axis)?.hint }}</p>
+    <p class="text-body text-slate-500 px-1">{{ AXIS_MODES.find(m => m.id === axis)?.hint }}</p>
 
     <!-- Highlight controls. Laid out as one line because it is one question: which checkpoint, and
          which of its values. -->
@@ -65,17 +65,17 @@
       <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Highlight</span>
       <select
         v-model="highlightPosition"
-        class="rounded-md border-slate-300 py-1 text-[11px] font-bold text-slate-700"
+        class="rounded-md border-slate-300 py-1 text-body font-bold text-slate-700"
         :disabled="!positions.length"
       >
         <option v-for="p in positions" :key="p.id" :value="p.id">{{ p.label }}</option>
       </select>
-      <span class="text-[11px] font-bold text-slate-400">=</span>
+      <span class="text-small font-bold text-slate-400">=</span>
       <input
         v-model="highlightText"
         type="text"
         placeholder="195, 196, 197 or 195-200"
-        class="w-52 rounded-md border-slate-300 py-1 text-[11px] tabular-nums font-bold text-slate-800"
+        class="w-52 rounded-md border-slate-300 py-1 text-body tabular-nums font-bold text-slate-800"
       />
       <button
         v-if="highlightText"
@@ -85,22 +85,22 @@
       >
         Clear
       </button>
-      <span v-if="highlightText && !highlightValues.length" class="text-[10px] font-bold text-amber-700">
+      <span v-if="highlightText && !highlightValues.length" class="text-small font-bold text-amber-700">
         Nothing readable there. Try 195, 196, 197 or 195-200.
       </span>
-      <span v-else-if="highlightValues.length && !matchedCount" class="text-[10px] font-bold text-amber-700">
+      <span v-else-if="highlightValues.length && !matchedCount" class="text-small font-bold text-amber-700">
         No route in this run puts {{ positionLabel.toLowerCase() }} on any of those.
       </span>
     </div>
 
     <EChart v-if="shown.points.length" :option="option" height="360px" />
-    <p v-else class="px-4 py-10 text-center text-[10px] font-bold text-slate-400">
+    <p v-else class="px-4 py-10 text-center text-small font-bold text-slate-400">
       Nothing priced yet. The chart fills in as the search reports batches.
     </p>
 
     <!-- The footer is the actual answer when a highlight is on: best-of per value, side by side.
          Reading it off the cloud is guesswork; reading it off four numbers is not. -->
-    <div v-if="highlightGroups.length" class="rounded-lg border border-slate-200 divide-y divide-slate-100 text-[11px]">
+    <div v-if="highlightGroups.length" class="rounded-lg border border-slate-200 divide-y divide-slate-100 text-body">
       <div
         v-for="group in highlightGroups"
         :key="group.value"

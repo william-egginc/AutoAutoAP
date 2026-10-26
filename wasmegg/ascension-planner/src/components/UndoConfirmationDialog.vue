@@ -11,7 +11,7 @@
         </div>
 
         <div class="p-6">
-          <p class="text-sm font-medium text-slate-600 mb-6">How would you like to undo "{{ actionName }}"?</p>
+          <p class="text-body font-medium text-slate-600 mb-6">How would you like to undo "{{ actionName }}"?</p>
 
           <div class="space-y-4">
             <!-- Option A: Direct Dependents -->
@@ -35,7 +35,7 @@
                   >Refund: {{ formatNumber(refundA, 3) }}</span
                 >
               </div>
-              <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+              <p class="text-body text-slate-500 mb-3">
                 {{
                   dependentsA.length > 0
                     ? 'Undoes this action and any other actions that directly depend on its effects.'
@@ -44,7 +44,7 @@
               </p>
               <div
                 v-if="dependentsA.length > 0"
-                class="mt-3 bg-slate-50 rounded-lg p-3 text-xs text-slate-500 border border-slate-100"
+                class="mt-3 bg-slate-50 rounded-lg p-3 text-small text-slate-500 border border-slate-100"
               >
                 <p class="font-bold text-amber-600 mb-1 uppercase tracking-tight text-[10px]">
                   Also undoes {{ dependentsA.length }} dependent{{ dependentsA.length > 1 ? 's' : '' }}:
@@ -58,7 +58,7 @@
                   </li>
                 </ul>
               </div>
-              <p v-else class="text-[10px] italic text-slate-400 font-medium">No other actions affected.</p>
+              <p v-else class="text-small italic text-slate-400 font-medium">No other actions affected.</p>
             </button>
 
             <!-- Option B: Until Shift -->
@@ -75,12 +75,12 @@
                   >Refund: {{ formatNumber(refundB, 3) }}</span
                 >
               </div>
-              <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+              <p class="text-body text-slate-500 mb-3">
                 Undoes this action and EVERY action that follows it within the current egg period.
               </p>
               <div
                 v-if="dependentsB.length > 0"
-                class="mt-3 bg-slate-50 rounded-lg p-3 text-xs text-slate-500 border border-slate-100"
+                class="mt-3 bg-slate-50 rounded-lg p-3 text-small text-slate-500 border border-slate-100"
               >
                 <p class="font-bold text-purple-600 mb-1 uppercase tracking-tight text-[10px]">
                   Also undoes {{ dependentsB.length }} following action{{ dependentsB.length > 1 ? 's' : '' }}:
@@ -94,7 +94,7 @@
                   </li>
                 </ul>
               </div>
-              <p v-else class="text-[10px] italic text-slate-400 font-medium">
+              <p v-else class="text-small italic text-slate-400 font-medium">
                 This is the last action in this period.
               </p>
             </button>
@@ -102,7 +102,7 @@
 
           <!-- Cancel Button -->
           <div class="mt-6 flex justify-end">
-            <button class="btn-premium btn-ghost text-xs text-slate-500 hover:text-slate-800" @click="$emit('cancel')">
+            <button class="btn-premium btn-ghost text-body text-slate-500 hover:text-slate-800" @click="$emit('cancel')">
               Cancel
             </button>
           </div>

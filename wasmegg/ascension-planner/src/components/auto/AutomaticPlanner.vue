@@ -56,12 +56,12 @@
                       ref="targetInput"
                       v-model="targetTE"
                       type="text"
-                      class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:border-indigo-500/50 transition-all pr-10"
+                      class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-body font-black text-slate-900 outline-none focus:border-indigo-500/50 transition-all pr-10"
                       placeholder="e.g. 300 400 490"
                       @input="handleTargetTEInput"
                       @keydown.enter="runGenerate()"
                     />
-                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-black text-[10px]">
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-black text-small">
                       TE
                     </div>
                   </div>
@@ -75,7 +75,7 @@
                     <img :src="iconURL('egginc-extras/silo.png', 64)" class="w-5 h-5 object-contain" alt="silo" />
                   </button>
                 </div>
-                <p class="text-[10px] font-bold text-slate-400 leading-relaxed px-1 mt-2">
+                <p class="text-small font-bold text-slate-400 px-1 mt-2">
                   Enter several target TEs separated by spaces to generate a whole multi-ascension route at once.
                 </p>
               </div>
@@ -85,7 +85,7 @@
 
         <div
           v-if="showLowClothedTEWarning"
-          class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex gap-3"
+          class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl text-body text-amber-800 flex gap-3"
         >
           <svg
             class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500"
@@ -112,7 +112,7 @@
         <div v-if="ui.runSaveLoaded" class="mt-4"><RunSaveNotice /></div>
 
         <button
-          class="btn-premium btn-primary w-full py-4 mt-8 text-sm shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
+          class="btn-premium btn-primary w-full py-4 mt-8 text-body shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
           :disabled="isGenerating"
           @click="runGenerate()"
         >
@@ -122,7 +122,7 @@
 
         <div
           v-if="ascensionChain.length === 0"
-          class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2"
+          class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-body text-amber-800 space-y-2"
         >
           <p class="font-bold uppercase tracking-wide text-amber-700">
             Before you generate: a few assumptions to know about
@@ -247,7 +247,7 @@
       <div
         v-if="fromInstant"
         ref="planStart"
-        class="mb-3 scroll-mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[12px] text-emerald-900 flex flex-wrap items-center gap-x-3 gap-y-1"
+        class="mb-3 scroll-mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-body text-emerald-900 flex flex-wrap items-center gap-x-3 gap-y-1"
       >
         <span
           >Simulated <b class="tabular-nums">{{ routeText(fromInstant.chain) }}</b> from
@@ -304,7 +304,7 @@
       <!-- Time off worked into this plan by the chain search's Apply (stores/autoPlanner.ts). -->
       <div
         v-if="timeOffInPlan.length"
-        class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
+        class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-body text-sky-900"
       >
         <span class="font-black uppercase tracking-wide">Includes your time away from virtue (time off).</span>
         {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Simulate this plan
@@ -312,7 +312,7 @@
       </div>
       <div
         v-if="timeOffDroppedFor"
-        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-body text-amber-900"
       >
         <span class="font-black uppercase tracking-wide">Time away from virtue left out.</span>
         It was worked into this route for a plan starting {{ boxStart(timeOffDroppedFor) }}, and the start is now
@@ -321,7 +321,7 @@
       </div>
       <div
         v-if="olderSaveNote"
-        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-body text-amber-900"
       >
         {{ olderSaveNote }}
       </div>
@@ -340,7 +340,7 @@
       <div class="w-6 h-6 border-3 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin"></div>
       <div class="space-y-0.5 pr-2">
         <div class="text-[10px] font-black uppercase tracking-widest text-indigo-400">Updating Roadmap</div>
-        <div class="text-xs font-bold text-slate-200 tabular-nums">{{ generateProgress || 'Calculating...' }}</div>
+        <div class="text-small font-bold text-slate-200 tabular-nums">{{ generateProgress || 'Calculating...' }}</div>
       </div>
     </div>
 

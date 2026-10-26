@@ -25,7 +25,7 @@
           <!-- Current Value -->
           <div class="flex items-center justify-between bg-slate-50/50 rounded-xl p-3 border border-slate-100">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Bank</span>
-            <span class="tabular-nums text-sm font-bold text-slate-800">{{ formatNumber(currentValue, 3) }}</span>
+            <span class="tabular-nums text-body font-bold text-slate-800">{{ formatNumber(currentValue, 3) }}</span>
           </div>
 
           <!-- Mode Toggle -->
@@ -102,19 +102,19 @@
 
           <!-- Footer: same summary for every mode -->
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
-            <div class="flex justify-between items-center text-[10px]">
+            <div class="flex justify-between items-center text-small">
               <span class="font-black text-slate-400 uppercase tracking-widest">Current Offline Rate</span>
               <span class="tabular-nums font-bold text-slate-600"
                 >{{ formatNumber(offlineEarningsRate * 3600, 3) }}/hr</span
               >
             </div>
-            <div class="flex justify-between items-center text-[10px]">
+            <div class="flex justify-between items-center text-small">
               <span class="font-black text-slate-400 uppercase tracking-widest">New Bank Value</span>
               <span class="tabular-nums font-bold text-slate-800">{{
                 formatNumber(hasRawInput ? newValue : currentValue, 3)
               }}</span>
             </div>
-            <div class="flex justify-between items-center text-[10px]">
+            <div class="flex justify-between items-center text-small">
               <span class="font-black text-slate-400 uppercase tracking-widest">Change</span>
               <span
                 class="tabular-nums font-black"
@@ -125,7 +125,7 @@
                 {{ hasRawInput && delta >= 0 ? '+' : '' }}{{ formatNumber(hasRawInput ? delta : 0, 3) }}
               </span>
             </div>
-            <div class="flex justify-between items-center text-[10px]">
+            <div class="flex justify-between items-center text-small">
               <span class="font-black text-slate-400 uppercase tracking-widest">Change (Time)</span>
               <span
                 class="tabular-nums font-bold"

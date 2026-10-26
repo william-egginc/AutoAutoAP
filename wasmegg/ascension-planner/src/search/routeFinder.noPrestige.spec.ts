@@ -186,7 +186,7 @@ describe('the days reach the workers and the saved-answer identity', () => {
 describe('the instant card', () => {
   const src = readFileSync(fileURLToPath(new URL('../components/auto/InstantRoute.vue', import.meta.url)), 'utf8');
   it('says the prestiges wait past the days, only when some are set', () => {
-    expect(src).toContain('<p v-if="noPrestigeOn" class="text-[11px] text-slate-500" data-testid="instant-no-prestige">');
+    expect(src).toContain('<p v-if="noPrestigeOn" class="text-body text-slate-500" data-testid="instant-no-prestige">');
     expect(src).toContain('Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time');
   });
   it('the "Prestige by" line, which times its own prestige by the hours only, says it does not know the days', () => {

@@ -26,16 +26,16 @@
 
         <div class="p-6">
           <div class="space-y-4">
-            <p class="text-sm font-medium text-slate-700 leading-relaxed">
+            <p class="text-body font-medium text-slate-700">
               The active <span class="text-rose-600 font-bold">{{ eventName }}</span> is scheduled to end at
               <span class="text-slate-900 font-bold">{{ formatTime(endTime) }}</span>.
             </p>
-            <p class="text-sm font-medium text-slate-600 leading-relaxed">
+            <p class="text-body font-medium text-slate-600">
               This action (or sequence of actions) is estimated to complete at 
               <span class="text-slate-900 font-bold">{{ formatTime(completionTime) }}</span>, 
               which is <span class="text-rose-600 font-bold">{{ formatDuration(completionTime - endTime) }}</span> after the event expiry.
             </p>
-            <p class="text-xs text-slate-500 italic">
+            <p class="text-body text-slate-500 italic">
               Deactivate and Continue turns the event off first, then adds the action(s) at normal rates. Deactivate and Cancel turns it off and adds nothing. Cancel leaves the event on and adds nothing.
             </p>
           </div>

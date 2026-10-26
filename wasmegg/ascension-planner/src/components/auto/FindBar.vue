@@ -31,7 +31,7 @@
            the box instead of starting. -->
       <button
         type="button"
-        class="btn-premium btn-primary flex-1 min-w-[12rem] py-4 text-sm shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
+        class="btn-premium btn-primary flex-1 min-w-[12rem] py-4 text-body shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
         :class="needsTicks ? 'opacity-40' : ''"
         :disabled="findDisabled || notReady || running || (needsTicks && !ACK_FOLDS)"
         :aria-disabled="needsTicks ? 'true' : undefined"
@@ -55,7 +55,7 @@
         >
           <SendingText v-if="store.bestSoFarSending" /><template v-else>Send best so far</template>
         </button>
-        <span class="text-[10px] font-semibold text-slate-500 text-center" data-testid="best-so-far-hint">{{
+        <span class="text-small font-semibold text-slate-500 text-center" data-testid="best-so-far-hint">{{
           asking && !optIn
             ? sendsOnTick
               ? 'Tick the box below and it sends straight away'
@@ -79,7 +79,7 @@
          the player's own choice is remembered in this browser. Ticked with sharing off, it opens Before you send. -->
     <div v-if="showSubmit && !running" class="space-y-0.5">
       <label
-        class="inline-flex items-center min-h-[44px] sm:min-h-0 gap-2 cursor-pointer text-[11px] font-semibold text-slate-700"
+        class="inline-flex items-center min-h-[44px] sm:min-h-0 gap-2 cursor-pointer text-body font-semibold text-slate-700"
         data-testid="run-sends"
       >
         <input
@@ -94,7 +94,7 @@
       <!-- Ticked with sharing off: names the fold the ticks are in, and opens it (UX review 26 Oct 2026, item 11:
            "tick the box below" sat above a folded "Before you send"). A player who said yes never has it popped
            open, and with the send unticked a plain Run just finds. -->
-      <p v-if="needsTicks" class="text-[10px] font-semibold text-slate-500" data-testid="acknowledge-hint">
+      <p v-if="needsTicks" class="text-small font-semibold text-slate-500" data-testid="acknowledge-hint">
         To send the result, open{{ ' ' }}
         <!-- A link to the fold, which can be a long way below on a phone. -->
         <button
@@ -106,10 +106,10 @@
         >
       </p>
     </div>
-    <p v-if="running && stopping" class="text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
+    <p v-if="running && stopping" class="text-body text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
     <p
       v-if="bestSoFarHere && store.bestSoFarStatus"
-      class="text-[11px] font-semibold"
+      class="text-body font-semibold"
       :class="
         store.bestSoFarStatus.pending
           ? 'text-amber-700'
@@ -124,7 +124,7 @@
     <!-- Greyed out because the other search on this screen is going (the user, 12 Oct: it said nothing). -->
     <p
       v-if="blockedBy && !running"
-      class="text-[11px] font-semibold text-slate-600"
+      class="text-body font-semibold text-slate-600"
       data-testid="find-blocked"
     >
       {{ blockedBy }} is running, and one search runs at a time: {{ runLabel }} comes back when it finishes or you stop it.
@@ -140,7 +140,7 @@
     </p>
     <!-- The save is still settling (a Science link, the Auto Planner tab, a new player id): every
          search reads it, so Run waits rather than pricing one save and labelling it with another. -->
-    <p v-if="notReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
+    <p v-if="notReady" class="text-body font-semibold text-amber-700">{{ store.saveNotReady }}</p>
     <!-- The acknowledgement, its ticks, the name and the note: folded under "Before you send" by default
          (lib/panelFold.ts `acknowledgement`), "ticks needed" in amber until ticked. It opens by itself when
          Send best so far asks, and when the send is ticked (or Run pressed with it ticked) without the ticks. -->
@@ -151,7 +151,7 @@
       title="Before you send"
       :running="running"
       class="rounded-xl border border-indigo-200 bg-indigo-50/60 px-3"
-      summary-class="text-[11px] text-indigo-900"
+      summary-class="text-body text-indigo-900"
     >
       <!-- Only while the ticks are needed: before a run with the send ticked, or when Send best so far asks. With the
            send unticked a plain Run needs no ticks, so nothing shows (coordinator, 25 Oct 2026). -->
@@ -165,7 +165,7 @@
         ></template
       >
       <div
-        class="pb-3 space-y-2 text-[11px] text-indigo-900"
+        class="pb-3 space-y-2 text-body text-indigo-900"
         data-testid="share-box"
       >
         <!-- The account's agreement (composables/useConsent.ts, ConsentBox.vue). Agreed before and remembered:
@@ -178,7 +178,7 @@
           consent-id="leaderboard"
           :force-open="asking"
           :show-box="!running || asking"
-          summary-class="text-[11px] text-indigo-900"
+          summary-class="text-body text-indigo-900"
           withdrawn-text="Withdrawn: nothing more goes to the leaderboard from here until you agree again."
         >
           <template #summary>
@@ -218,7 +218,7 @@
           </template>
           <template #after>
             <template v-if="!running || asking">
-              <p v-if="goalWord === 'target'" class="ml-7 text-[10px] text-indigo-900/70">
+              <p v-if="goalWord === 'target'" class="ml-7 text-small text-indigo-900/70">
                 It also sends your best three plans already on the board, re-priced from this save.
               </p>
               <!-- Asked for by "Send my progress every..." (Stepping away?): the yes, then it sends by itself. -->

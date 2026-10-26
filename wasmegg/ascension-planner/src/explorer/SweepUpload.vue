@@ -20,21 +20,21 @@
         class="block w-full text-[11px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:text-white"
         @change="onFiles"
       />
-      <p class="text-[10px] text-slate-400">
+      <p class="text-small text-slate-400">
         <b>chain-search-*.csv</b> (or a .csv.gz) and <b>chain-search-diagnostics-*.json</b>, from the two download
         buttons under the results. Pick both at once.
       </p>
-      <p class="text-[10px] font-semibold text-slate-500">
+      <p class="text-small font-semibold text-slate-500">
         CSV: {{ csvName || '—' }} · diagnostics: {{ diagName || '—' }}
       </p>
     </div>
 
-    <p v-if="readError" class="rounded-lg bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
+    <p v-if="readError" class="rounded-lg bg-rose-50 px-3 py-2 text-body font-semibold text-rose-700">
       {{ readError }}
     </p>
 
     <template v-if="csv && diag && check">
-      <div class="grid gap-2 sm:grid-cols-3 text-[11px]">
+      <div class="grid gap-2 sm:grid-cols-3 text-body">
         <div class="rounded-lg bg-slate-50 px-3 py-2">
           <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Run</div>
           <div class="font-bold text-slate-800">{{ csv.currentTE }} → {{ csv.finalTE }} TE</div>
@@ -69,13 +69,13 @@
 
       <ul
         v-if="check.errors.length"
-        class="space-y-1 rounded-lg bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700"
+        class="space-y-1 rounded-lg bg-rose-50 px-3 py-2 text-small font-semibold text-rose-700"
       >
         <li v-for="e in check.errors" :key="e">✕ {{ e }}</li>
       </ul>
       <ul
         v-if="check.warnings.length"
-        class="space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800"
+        class="space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-small font-semibold text-amber-800"
       >
         <li v-for="w in check.warnings" :key="w">! {{ w }}</li>
       </ul>
@@ -83,13 +83,13 @@
       <div class="grid gap-3 sm:grid-cols-2">
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Which sweep</span>
-          <select v-model="presetId" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]">
+          <select v-model="presetId" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body">
             <option v-for="p in SWEEP_PRESETS" :key="p.id" :value="p.id">{{ p.label }}</option>
           </select>
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Ranges as typed</span>
-          <input v-model="bands" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 tabular-nums text-[12px]" />
+          <input v-model="bands" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 tabular-nums text-body" />
         </label>
         <label class="space-y-1">
           <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Minimum gap</span>
@@ -97,7 +97,7 @@
             v-model.number="minGap"
             type="number"
             min="0"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
         <label class="space-y-1">
@@ -105,7 +105,7 @@
           <input
             v-model="nickname"
             maxlength="40"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
         <label class="space-y-1">
@@ -116,7 +116,7 @@
             v-model.number="cores"
             type="number"
             min="1"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
         <label class="space-y-1">
@@ -126,7 +126,7 @@
             type="number"
             min="1"
             placeholder="browsers can't tell us this"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
         <label class="space-y-1">
@@ -137,19 +137,19 @@
             v-model.number="workers"
             type="number"
             min="1"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
       </div>
 
-      <details class="text-[11px] text-slate-500">
+      <details class="text-body text-slate-500">
         <summary class="cursor-pointer font-bold">Exactly what gets sent</summary>
         <p class="mt-1">
           This record, plus the CSV (compressed, player IDs removed), is sent as a <b>public</b> row on the leaderboard:
           anyone can see it and download its CSV. No player ID and no in-game name: those are in
           neither. The artifact set and time zone do narrow down who you are among people who know each other.
         </p>
-        <pre class="mt-1 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] text-slate-100">{{
+        <pre class="mt-1 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-small text-slate-100">{{
           previewJson
         }}</pre>
       </details>
@@ -165,7 +165,7 @@
         </button>
         <span
           v-if="sendMessage"
-          class="text-[11px] font-semibold"
+          class="text-small font-semibold"
           :class="sendOk ? 'text-emerald-700' : 'text-rose-700'"
         >
           {{ sendMessage }}

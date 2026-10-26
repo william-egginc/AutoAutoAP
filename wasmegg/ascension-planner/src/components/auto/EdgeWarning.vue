@@ -6,7 +6,7 @@
 -->
 <template>
   <div
-    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-[11px] text-amber-900 leading-relaxed"
+    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-body text-amber-900"
     data-test="edge-warning"
   >
     <p v-for="line in lines" :key="line">{{ line }}</p>
@@ -19,7 +19,7 @@
       >
         Widen and run again
       </button>
-      <p class="text-[10px] text-amber-800/80"><slot /></p>
+      <p class="text-small text-amber-800/80"><slot /></p>
     </template>
   </div>
 </template>

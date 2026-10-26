@@ -16,7 +16,7 @@
             <div class="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2">
               <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-slate-800 leading-none">
                 A{{ index + 1 }} of {{ total }}
-                <span v-if="index === 0" class="ml-1 sm:ml-2 text-[8px] sm:text-[10px] font-bold text-slate-400 capitalize opacity-70">
+                <span v-if="index === 0" class="ml-1 sm:ml-2 text-small sm:text-small font-bold text-slate-400 capitalize opacity-70">
                   — {{ summary.strategyLabel === 'Continue current' ? 'Continue current ascension' : 'Prestige now' }}
                 </span>
               </h3>
@@ -51,12 +51,12 @@
               <input
                 v-model="editEndDate"
                 type="date"
-                class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all w-36"
+                class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all w-36"
               />
               <input
                 v-model="editEndTime"
                 type="time"
-                class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all w-28"
+                class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all w-28"
               />
               <button
                 class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-wider rounded-lg transition-all"
@@ -72,7 +72,7 @@
                 @click="resetEndTimeOverride"
               >Reset to Auto</button>
             </div>
-            <div v-if="endTimeEditError" class="text-[8px] sm:text-[9px] font-bold text-rose-500 mt-1">{{ endTimeEditError }}</div>
+            <div v-if="endTimeEditError" class="text-small sm:text-small font-bold text-rose-500 mt-1">{{ endTimeEditError }}</div>
 
             <div v-if="displayComparisons.length > 0" class="flex flex-wrap gap-2 mt-1">
               <div v-for="(comp, ci) in displayComparisons" :key="ci"
@@ -245,11 +245,11 @@
             TE Progress
           </div>
           <div class="flex items-baseline gap-0.5 sm:gap-1.5">
-            <span class="text-sm sm:text-xl tabular-nums font-black text-slate-400">{{ summary.startTE }}</span>
+            <span class="text-body sm:text-title tabular-nums font-black text-slate-400">{{ summary.startTE }}</span>
             <svg class="w-1.5 h-1.5 sm:w-3.5 sm:h-3.5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
-            <span class="text-base sm:text-2xl tabular-nums font-black text-emerald-600">{{ summary.endTE }}</span>
+            <span class="text-body sm:text-headline tabular-nums font-black text-emerald-600">{{ summary.endTE }}</span>
           </div>
           <div class="text-[8px] sm:text-[9px] font-black text-emerald-500/80 uppercase tracking-tight mt-0.5">+{{ summary.teGained }}</div>
         </div>
@@ -261,7 +261,7 @@
             <span class="sm:hidden">Delivery</span><span class="hidden sm:inline">Delivery Rate</span>
           </div>
           <div class="flex items-center gap-0.5 sm:gap-1.5">
-            <span class="text-[11px] sm:text-xl tabular-nums font-black text-indigo-600">{{ formatNumber(summary.maxELR * 3600, 3) }}</span>
+            <span class="text-small sm:text-title tabular-nums font-black text-indigo-600">{{ formatNumber(summary.maxELR * 3600, 3) }}</span>
             <span class="text-[6px] sm:text-[9px] font-black text-slate-400 uppercase">/HR</span>
           </div>
           <div v-if="summary.alternativeELRs && summary.alternativeELRs.length > 0" class="flex flex-col gap-0.5 mt-0.5">
@@ -271,7 +271,7 @@
               class="flex items-baseline gap-0.5 sm:gap-1"
             >
               <span
-                class="text-[7px] sm:text-[10px] tabular-nums font-bold"
+                class="text-small sm:text-small tabular-nums font-bold"
                 :class="alt.isActive ? 'text-indigo-500' : 'text-slate-400'"
               >{{ formatNumber(alt.elr * 3600, 3) }}</span>
               <span class="text-[6px] sm:text-[8px] font-black uppercase tracking-wide" :class="alt.isActive ? 'text-indigo-400' : 'text-slate-300'">/hr</span>
@@ -287,7 +287,7 @@
             Duration
           </div>
           <div class="flex items-center gap-1 sm:gap-1.5">
-            <span class="text-sm sm:text-xl tabular-nums font-black text-indigo-600">{{ formatDuration(summary.totalDurationSeconds) }}</span>
+            <span class="text-body sm:text-title tabular-nums font-black text-indigo-600">{{ formatDuration(summary.totalDurationSeconds) }}</span>
           </div>
         </div>
 
@@ -298,7 +298,7 @@
             Last TE Wait
           </div>
           <div class="flex items-center gap-1 sm:gap-1.5">
-            <span class="text-sm sm:text-xl tabular-nums font-black text-indigo-500">{{ formatDuration(summary.lastTEDurationSeconds) }}</span>
+            <span class="text-body sm:text-title tabular-nums font-black text-indigo-500">{{ formatDuration(summary.lastTEDurationSeconds) }}</span>
           </div>
         </div>
       </div>
@@ -325,7 +325,7 @@
                 v-if="hasLoadoutOverride"
                 class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 text-[7px] font-black uppercase tracking-wider leading-none"
               >Overridden</span>
-              <span v-else class="text-[8px] font-bold text-slate-400">As used in C1 and H1</span>
+              <span v-else class="text-small font-bold text-slate-400">As used in C1 and H1</span>
             </div>
             <div class="flex items-center gap-1.5">
               <button
@@ -358,7 +358,7 @@
               SE Consumed
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl tabular-nums font-black text-rose-600">{{ formatNumber(summary.totalShiftCost, 3) }}</span>
+              <span class="text-body sm:text-title tabular-nums font-black text-rose-600">{{ formatNumber(summary.totalShiftCost, 3) }}</span>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3 sm:w-4 sm:h-4 opacity-80" alt="SE" />
             </div>
           </div>
@@ -370,7 +370,7 @@
               Ending SE Balance
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl tabular-nums font-black" :class="summary.endSoulEggs < 0 ? 'text-rose-600' : 'text-slate-600'">
+              <span class="text-body sm:text-title tabular-nums font-black" :class="summary.endSoulEggs < 0 ? 'text-rose-600' : 'text-slate-600'">
                 {{ formatNumber(summary.endSoulEggs, 3) }}
               </span>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3 sm:w-4 sm:h-4 opacity-40" alt="SE" />
@@ -385,7 +385,7 @@
               Eggs Delivered
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl tabular-nums font-black text-slate-600">
+              <span class="text-body sm:text-title tabular-nums font-black text-slate-600">
                 {{ formatNumber(Object.values(summary.eggsDelivered).reduce((s, n) => s + n, 0), 3) }}
               </span>
             </div>
@@ -404,16 +404,16 @@
               <div class="space-y-0 sm:space-y-0.5 text-center sm:text-left">
                 <!-- TE Count -->
                 <div class="flex items-center justify-center sm:justify-start gap-0.5 sm:gap-1">
-                  <span class="text-[10px] sm:text-base tabular-nums font-black text-slate-800 leading-none">
+                  <span class="text-small sm:text-body tabular-nums font-black text-slate-800 leading-none">
                     {{ summary.finalTE[egg] || 0 }}
                   </span>
-                  <span v-if="summary.teEarned[egg]" class="text-[7px] sm:text-[8px] font-black text-emerald-500 leading-none">
+                  <span v-if="summary.teEarned[egg]" class="text-small sm:text-small font-black text-emerald-500 leading-none">
                     (+{{ summary.teEarned[egg] }})
                   </span>
                 </div>
 
                 <!-- Eggs Delivered -->
-                <div class="text-[7px] sm:text-[8px] font-bold text-slate-400 tabular-nums leading-none">
+                <div class="text-small sm:text-small font-bold text-slate-400 tabular-nums leading-none">
                   {{ formatNumber(summary.eggsDelivered[egg], 3) }}
                 </div>
               </div>

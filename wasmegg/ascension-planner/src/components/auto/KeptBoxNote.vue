@@ -4,7 +4,7 @@
   slider-sized suggestion (the same as Suggest a space at those settings).
 -->
 <template>
-  <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-500" data-test="kept-box-note">
+  <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-small text-slate-500" data-test="kept-box-note">
     <span>Your typed box is kept.</span>
     <button
       type="button"

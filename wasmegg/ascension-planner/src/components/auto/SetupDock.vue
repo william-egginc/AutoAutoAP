@@ -18,7 +18,7 @@
       <div
         class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5"
       >
-        <span class="text-sm font-black text-indigo-900">Setup</span>
+        <span class="text-body font-black text-indigo-900">Setup</span>
         <button
           type="button"
           class="min-h-[44px] sm:min-h-0 px-3 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"
@@ -68,7 +68,7 @@
         <span class="flex flex-col items-start leading-tight">
           <span class="text-[10px] font-black uppercase tracking-widest">Setup</span>
           <!-- My runs (17 Oct 2026): the hours and time off under it, since that page has no setup box. -->
-          <span v-if="summary" class="text-[10px] font-normal text-white/85 text-left xl:max-w-[13rem]" data-testid="setup-dock-summary">{{ summary }}</span>
+          <span v-if="summary" class="text-small font-normal text-white/85 text-left xl:max-w-[13rem]" data-testid="setup-dock-summary">{{ summary }}</span>
         </span>
         <span
           v-if="errors"
@@ -88,7 +88,7 @@
       >
         −
       </button>
-      <span class="text-[11px] font-bold tabular-nums whitespace-nowrap" :title="`Workers ${thisDevice()} gives the searches`"
+      <span class="text-small font-bold tabular-nums whitespace-nowrap" :title="`Workers ${thisDevice()} gives the searches`"
         >{{ store.workerBudget }}/{{ store.machineThreads }} workers</span
       >
       <button

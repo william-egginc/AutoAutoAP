@@ -28,22 +28,22 @@
                 <img :src="stat.icon" class="w-6 h-6 object-contain" :alt="stat.name" />
               </div>
               <div class="flex flex-col">
-                <span class="text-sm font-black" :class="{ 'text-indigo-700': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
+                <span class="text-body font-black" :class="{ 'text-indigo-700': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
                   {{ stat.name }}
                 </span>
-                <span class="text-[10px] text-slate-400 font-medium leading-tight">
+                <span class="text-small text-slate-400 font-medium leading-tight">
                   {{ formatNumber(stat.delivered) }} delivered
                 </span>
               </div>
             </div>
-            <div class="flex items-center gap-2 tabular-nums text-sm">
+            <div class="flex items-center gap-2 tabular-nums text-body">
               <span class="text-slate-400">{{ stat.start }}</span>
               <span class="text-slate-300">→</span>
               <span class="font-bold" :class="{ 'text-indigo-900': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
                 {{ stat.end }}
               </span>
               <span
-                class="ml-1 w-10 text-right font-black text-[10px]"
+                class="ml-1 w-10 text-right font-black text-small"
                 :class="{
                   'text-indigo-600': stat.id === 'truth' && stat.delta > 0,
                   'text-emerald-500': stat.id !== 'truth' && stat.delta > 0,

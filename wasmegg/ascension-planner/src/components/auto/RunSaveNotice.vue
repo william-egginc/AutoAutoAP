@@ -9,7 +9,7 @@
 <template>
   <div
     v-if="ui.runSaveLoaded"
-    class="p-3 rounded-xl border border-violet-200 bg-violet-50 text-[11px] text-violet-900 leading-relaxed space-y-2"
+    class="p-3 rounded-xl border border-violet-200 bg-violet-50 text-body text-violet-900 space-y-2"
   >
     <p v-if="ui.runSaveLoaded.from === 'entry' || ui.runSaveLoaded.from === 'file'">
       <span class="font-black uppercase tracking-wide">Using your save from {{ when(ui.runSaveLoaded.backupAt) }}.</span>
@@ -38,7 +38,7 @@
 
   <div
     v-else-if="store.resultsFromOlderSave && !store.isRunning"
-    class="p-3 rounded-xl border border-violet-200 bg-violet-50 text-[11px] text-violet-900 leading-relaxed space-y-2"
+    class="p-3 rounded-xl border border-violet-200 bg-violet-50 text-body text-violet-900 space-y-2"
   >
     <p>
       <span class="font-black uppercase tracking-wide">These results are from an older save</span>
@@ -56,7 +56,7 @@
       {{ store.recheckingLatest ? 'Re-checking…' : 'Re-check the top 10 on my latest save' }}
     </button>
     <div v-if="store.latestRecheck" class="overflow-x-auto">
-      <table class="w-full text-[11px] tabular-nums">
+      <table class="w-full text-small tabular-nums">
         <thead>
           <tr class="text-left text-[9px] font-black uppercase tracking-widest text-violet-700">
             <th class="py-1 pr-3">Route</th>

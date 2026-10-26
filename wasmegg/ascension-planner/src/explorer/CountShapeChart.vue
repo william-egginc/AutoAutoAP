@@ -76,12 +76,12 @@
       :entries="[...accountEntries, MEDIAN_ENTRY]"
       label="Accounts: click to hide or show"
     />
-    <p class="text-[10px] text-slate-400 leading-relaxed px-1">{{ hint }}</p>
+    <p class="text-small text-slate-400 px-1">{{ hint }}</p>
 
     <!-- The same numbers as the chart, for the reader who wants to copy one: the TEs the best plans
          really used, the same as TE above the start, and the slope that says which travels. -->
     <div class="overflow-x-auto">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <thead>
           <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
             <th class="text-left py-1 pr-3">Stop</th>
@@ -118,7 +118,7 @@
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 px-1 text-[10px] text-slate-500 leading-relaxed max-w-3xl">
+      <p class="mt-1 px-1 text-small text-slate-500 max-w-3xl">
         Each account counts once, by its best plan at this count. <b>Slope vs start</b>: how many TE the stop moves for
         each TE higher the plan starts; about 0 is the same TE whoever you are, about 1 moves with your start (from
         {{ plural(summary[0]?.accounts ?? 0, 'account') }} at most, so it is only a rough trend). The narrower of the two ranges

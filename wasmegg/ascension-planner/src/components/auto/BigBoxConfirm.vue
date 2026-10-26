@@ -22,7 +22,7 @@
       <p id="big-box-confirm-title" class="text-[11px] font-black uppercase tracking-widest text-amber-800">
         {{ ask.step === 1 ? 'Start this big box?' : 'A very big box' }}
       </p>
-      <p id="big-box-confirm-text" class="text-[13px] leading-relaxed text-slate-700">{{ ask.text }}</p>
+      <p id="big-box-confirm-text" class="text-body text-slate-700">{{ ask.text }}</p>
       <div class="flex flex-wrap justify-end gap-3 pt-1">
         <button
           ref="cancelButton"

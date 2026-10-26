@@ -8,7 +8,7 @@
   is worked out here.
 -->
 <template>
-  <div class="text-[12px] text-slate-700" data-testid="now-ascensions">
+  <div class="text-body text-slate-700" data-testid="now-ascensions">
     <ol class="space-y-1.5 list-none pl-0">
       <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="now-ascension" :data-asc="l.asc">
         <span class="font-black text-slate-800">A{{ l.asc }}</span>
@@ -26,8 +26,8 @@
         </template>
         {{ ' ' }}→ <span class="font-bold">{{ l.stopTE }} TE</span> reached
         <span class="whitespace-nowrap">{{ l.simulated ? exact(l.reachedAt) : about(l.reachedAt) }}</span>
-        <p v-if="l.buildUp" class="mt-0.5 ml-4 text-[11px] text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
-        <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-[11px] text-slate-600" data-testid="now-ascension-shifts">
+        <p v-if="l.buildUp" class="mt-0.5 ml-4 text-body text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
+        <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-body text-slate-600" data-testid="now-ascension-shifts">
           <li v-for="(s, k) in l.shifts" :key="k" data-testid="now-ascension-shift">
             Shift to {{ virtueEggName(s.egg) }} · <span class="whitespace-nowrap">{{ l.simulated ? exact(s.at) : about(s.at) }}</span>
           </li>
@@ -35,10 +35,10 @@
             {{ l.simulated ? 'worked out on your save, to the minute' : 'from the instant answer, to the hour' }}
           </li>
         </ul>
-        <p v-else class="ml-4 text-[11px] text-slate-500" data-testid="now-ascension-no-shifts">{{ noShifts(l) }}</p>
+        <p v-else class="ml-4 text-body text-slate-500" data-testid="now-ascension-no-shifts">{{ noShifts(l) }}</p>
       </li>
     </ol>
-    <p class="mt-1.5 text-[11px] text-slate-500 leading-relaxed" data-testid="now-ascensions-note">
+    <p class="mt-1.5 text-body text-slate-500" data-testid="now-ascensions-note">
       Times from the instant answer are to the hour. Its shifts start at each ascension's swap to Humility (H1): the
       first hours' shifts of a fresh ascension are not in it yet. For every shift on your account, use a run from Try
       next below.

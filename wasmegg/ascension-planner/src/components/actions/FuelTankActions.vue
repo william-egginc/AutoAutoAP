@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-4">
-    <p class="text-xs font-medium text-slate-500 mb-4 px-1 italic">Store eggs in your fuel tank for space missions.</p>
+    <p class="text-body font-medium text-slate-500 mb-4 px-1 italic">Store eggs in your fuel tank for space missions.</p>
 
     <!-- Current Tank State -->
     <div class="section-premium p-5">
       <div class="flex justify-between items-end mb-4">
         <div>
           <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Contents</div>
-          <div class="text-xl font-bold text-slate-800 tracking-tight">
+          <div class="text-title font-bold text-slate-800 tracking-tight">
             {{ formatNumber(fuelTankStore.totalFuel, 1) }} <span class="text-slate-300 font-normal">/</span>
             {{ formatNumber(fuelTankStore.tankCapacity, 1) }}
           </div>
@@ -56,7 +56,7 @@
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span class="text-sm tabular-nums font-bold text-slate-700 tracking-tight">
+              <span class="text-body tabular-nums font-bold text-slate-700 tracking-tight">
                 {{ formatNumber(fuelTankStore.fuelAmounts[egg], 1) }}
               </span>
             </div>
@@ -80,7 +80,7 @@
         </div>
         <div>
           <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Store Eggs in Tank</div>
-          <div class="text-sm font-bold text-slate-700">Store {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }} Eggs</div>
+          <div class="text-body font-bold text-slate-700">Store {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }} Eggs</div>
         </div>
       </div>
 
@@ -137,25 +137,25 @@
         <div v-if="storeMode === 'fillTo'" class="space-y-2">
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currently</span>
-            <span class="text-sm tabular-nums font-bold text-slate-500">{{ formatNumber(currentEggFuel, 1) }}</span>
+            <span class="text-body tabular-nums font-bold text-slate-500">{{ formatNumber(currentEggFuel, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target</span>
-            <span class="text-sm tabular-nums font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
+            <span class="text-body tabular-nums font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Storing</span>
-            <span class="text-sm tabular-nums font-bold" :class="fillDelta > 0 ? 'text-brand-primary' : 'text-slate-400'">{{ fillDelta > 0 ? formatNumber(fillDelta, 1) : 'Already at target' }}</span>
+            <span class="text-body tabular-nums font-bold" :class="fillDelta > 0 ? 'text-brand-primary' : 'text-slate-400'">{{ fillDelta > 0 ? formatNumber(fillDelta, 1) : 'Already at target' }}</span>
           </div>
         </div>
         <!-- Add mode: show target -->
         <div v-else class="flex justify-between items-center">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target</span>
-          <span class="text-sm tabular-nums font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
+          <span class="text-body tabular-nums font-bold text-slate-700">{{ formatNumber(parsedAmount, 1) }}</span>
         </div>
         <div v-if="effectiveStoreAmount > 0" class="flex justify-between items-center">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Time to Store</span>
-          <span class="text-sm tabular-nums font-bold text-slate-900">{{
+          <span class="text-body tabular-nums font-bold text-slate-900">{{
             formatDuration(timeToStoreSeconds)
           }}</span>
         </div>
@@ -163,16 +163,16 @@
         <template v-if="fuelSpeed < 1.0 && effectiveStoreAmount > 0">
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Eggs Shipped</span>
-            <span class="text-sm tabular-nums font-bold text-emerald-600">{{ formatNumber(estimatedEggsShipped, 1) }}</span>
+            <span class="text-body tabular-nums font-bold text-emerald-600">{{ formatNumber(estimatedEggsShipped, 1) }}</span>
           </div>
           <div class="flex justify-between items-center">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gems Earned</span>
-            <span class="text-sm tabular-nums font-bold text-emerald-600">+{{ formatNumber(estimatedGemsEarned, 1) }}</span>
+            <span class="text-body tabular-nums font-bold text-emerald-600">+{{ formatNumber(estimatedGemsEarned, 1) }}</span>
           </div>
         </template>
         <div
           v-if="exceedsCapacity"
-          class="flex items-center gap-2 text-red-500 text-[10px] font-bold mt-1 bg-red-50 p-2 rounded-lg border border-red-100"
+          class="flex items-center gap-2 text-red-500 text-small font-bold mt-1 bg-red-50 p-2 rounded-lg border border-red-100"
         >
           <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
             <path
@@ -190,7 +190,7 @@
     <div class="section-premium p-5">
       <div class="mb-5">
         <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Maintenance</div>
-        <div class="text-sm font-bold text-slate-700">Remove Fuel Storage</div>
+        <div class="text-body font-bold text-slate-700">Remove Fuel Storage</div>
       </div>
 
       <!-- Remove Mode Toggle -->
@@ -229,7 +229,7 @@
               v-model="removeInputs[egg]"
               type="text"
               :placeholder="removeMode === 'drainTo' ? 'Target remaining' : 'Amount'"
-              class="input-premium flex-1 tabular-nums py-2 text-xs font-bold"
+              class="input-premium flex-1 tabular-nums py-2 text-body font-bold"
               @keyup.enter="handleRemoveFuel(egg)"
             />
 
@@ -244,7 +244,7 @@
           <!-- Drain To info line -->
           <div
             v-if="removeMode === 'drainTo' && parsedRemoveAmount(egg) > 0 && fuelTankStore.fuelAmounts[egg] > 0"
-            class="ml-10 p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between text-[10px]"
+            class="ml-10 p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between text-small"
           >
             <div class="flex items-center gap-3">
               <span class="font-black text-slate-400 uppercase tracking-widest">{{ formatNumber(fuelTankStore.fuelAmounts[egg], 1) }}</span>
@@ -277,12 +277,12 @@
         </div>
         <div>
           <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tank Level</div>
-          <div class="text-sm font-bold text-slate-700">Lv {{ fuelTankStore.tankLevel }}/7</div>
+          <div class="text-body font-bold text-slate-700">Lv {{ fuelTankStore.tankLevel }}/7</div>
         </div>
       </div>
       <div class="text-right">
         <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Capacity</div>
-        <div class="text-sm tabular-nums font-bold text-slate-900">
+        <div class="text-body tabular-nums font-bold text-slate-900">
           {{ formatNumber(fuelTankStore.tankCapacity, 1) }}
         </div>
       </div>

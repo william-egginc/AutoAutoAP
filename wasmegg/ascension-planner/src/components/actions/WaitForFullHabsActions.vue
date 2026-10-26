@@ -14,7 +14,7 @@
           />
         </div>
         <div>
-          <div class="text-sm font-bold text-slate-800">Habitat Capacity</div>
+          <div class="text-body font-bold text-slate-800">Habitat Capacity</div>
           <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
             Filling to {{ formatNumber(habCapacity, 3) }}
           </div>
@@ -22,7 +22,7 @@
       </div>
 
       <div class="space-y-3">
-        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
+        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-small">
           <div class="text-slate-400 uppercase tracking-[0.2em] font-black">Metric</div>
           <div class="text-slate-400 uppercase tracking-[0.2em] font-black text-right">Value</div>
 
@@ -45,9 +45,9 @@
         </div>
 
         <div class="pt-3 border-t border-slate-100/50">
-          <div class="flex justify-between items-center text-[10px]">
+          <div class="flex justify-between items-center text-small">
             <span class="font-black text-slate-400 uppercase tracking-widest">Time Required:</span>
-            <span class="tabular-nums font-black text-slate-900 text-sm">{{
+            <span class="tabular-nums font-black text-slate-900 text-body">{{
               formatDuration(timeToGrowSeconds)
             }}</span>
           </div>

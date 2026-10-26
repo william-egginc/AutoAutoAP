@@ -80,12 +80,12 @@ describe('(a) form fields are 16 px on a phone', () => {
     expect(bad).toEqual([]);
   });
 
-  it('the fields the review named are 16 px below sm in their own classes too, their old size from sm up', () => {
+  it('the fields the review named are 16 px below sm in their own classes too, the body size from sm up (type batch 2)', () => {
     const sched = read('components/auto/SchedulingInputs.vue');
-    expect(sched.match(/py-2\.5 text-base sm:text-xs font-bold/g)).toHaveLength(3);
-    expect(read('components/auto/YourSetup.vue').match(/border-slate-200 text-base sm:text-sm font-bold/g)).toHaveLength(2);
-    expect(read('components/auto/ChainSearchPanel.vue')).toContain('border-slate-300 text-base sm:text-[12px] font-bold');
-    expect(read('components/auto/InstantRoute.vue').match(/border-slate-200 text-base sm:text-\[11px\] py-0\.5/g)).toHaveLength(2);
+    expect(sched.match(/py-2\.5 text-base sm:text-body font-bold/g)).toHaveLength(3);
+    expect(read('components/auto/YourSetup.vue').match(/border-slate-200 text-base sm:text-body font-bold/g)).toHaveLength(2);
+    expect(read('components/auto/ChainSearchPanel.vue')).toContain('border-slate-300 text-base sm:text-body font-bold');
+    expect(read('components/auto/InstantRoute.vue').match(/border-slate-200 text-base sm:text-body py-0\.5/g)).toHaveLength(2);
   });
 });
 

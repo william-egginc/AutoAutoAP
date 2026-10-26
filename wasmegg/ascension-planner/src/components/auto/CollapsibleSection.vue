@@ -34,8 +34,8 @@
       :data-testid="`show-${id}`"
       @click="set(true)"
     >
-      <span class="text-sm font-black text-slate-900">{{ title }}</span>
-      <span class="min-w-0 flex-1 text-[12px] text-slate-600 break-words">{{ summary || 'Hidden' }}</span>
+      <span class="text-body font-black text-slate-900">{{ title }}</span>
+      <span class="min-w-0 flex-1 text-small text-slate-600 break-words">{{ summary || 'Hidden' }}</span>
       <span class="text-[9px] font-black uppercase tracking-widest text-indigo-700">Show</span>
     </button>
     <div v-show="open"><slot /></div>

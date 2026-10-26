@@ -105,3 +105,38 @@ describe('buttons, column heads and notes have one definition (resultCardStyle.t
     expect(study).not.toMatch(/<button[^>]*uppercase/);
   });
 });
+
+/** Every .vue and .ts under src the codemod covers (not specs, not Joo's simulator or src/lib). */
+function appFiles(dir = SRC, out: string[] = []): string[] {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      if (dir === SRC && ['auto', 'engine', 'lib'].includes(e.name)) continue;
+      if (e.name !== 'node_modules') appFiles(p, out);
+    } else if (/\.(vue|ts)$/.test(e.name) && !/\.spec\.ts$|\.d\.ts$/.test(e.name)) out.push(p);
+  }
+  return out;
+}
+const FILES = appFiles().map(f => ({ rel: path.relative(SRC, f), src: fs.readFileSync(f, 'utf8') }));
+/** "file:line: text" for each line matching `re` (and not `unless`). */
+function hits(re: RegExp, unless?: RegExp): string[] {
+  const out: string[] = [];
+  for (const { rel, src } of FILES)
+    src.split('\n').forEach((l, i) => {
+      if (re.test(l) && !(unless && unless.test(l))) out.push(`${rel}:${i + 1}: ${l.trim().slice(0, 120)}`);
+    });
+  return out;
+}
+
+/** Caps elements whose caps sit on another line of the same class binding: step 3 (caps) handles them. */
+const STEP3_PENDING = /^components\/(StudyBox\.vue:38|auto\/AscensionOverview\.vue:17|auto\/ForcedAscensionPreview\.vue:18):/;
+
+describe('sizes: the codemod (step 2)', () => {
+  it('no Tailwind size outside the scale on text without caps (fields keep text-base on a phone)', () => {
+    const legacy = /(?<![\w-])(?:[a-z]+:)?text-(?:\[\d+(?:\.\d+)?px\]|xs|sm|lg|xl|[2-9]xl)(?![\w-])/;
+    expect(hits(legacy, /uppercase/).filter(h => !STEP3_PENDING.test(h))).toEqual([]);
+  });
+  it('every text-base sits on a form field, with sm:text-body beside it', () => {
+    expect(hits(/(?<![\w:-])text-base(?![\w-])/, /text-base sm:text-body/).filter(h => !STEP3_PENDING.test(h))).toEqual([]);
+  });
+});

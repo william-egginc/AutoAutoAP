@@ -25,7 +25,7 @@
         </div>
 
         <div class="p-6">
-          <p v-if="message" class="text-sm font-medium text-slate-600 leading-relaxed">
+          <p v-if="message" class="text-body font-medium text-slate-600">
             {{ message }}
           </p>
           

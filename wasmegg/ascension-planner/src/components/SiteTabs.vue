@@ -40,7 +40,7 @@
           {{ t.label }}
           <span
             v-if="t.id === 'auto'"
-            class="shrink-0 bg-indigo-500 text-[8px] px-1.5 py-0.5 rounded-md sm:ml-1 border border-indigo-400/30"
+            class="shrink-0 bg-indigo-500 text-small px-1.5 py-0.5 rounded-md sm:ml-1 border border-indigo-400/30"
             :class="current === t.tab ? 'text-white' : 'text-white/90'"
             >BETA</span
           >

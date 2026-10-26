@@ -65,7 +65,7 @@
           </span>
           <div class="hidden sm:flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80" v-tippy="'Remaining SE'">
             <div class="text-[8px] font-black leading-none text-slate-400 mb-1 uppercase tracking-widest">Remaining</div>
-            <div class="text-[11px] font-black leading-none text-slate-700 tabular-nums flex items-center gap-1">
+            <div class="text-small font-black leading-none text-slate-700 tabular-nums flex items-center gap-1">
               {{ formatNumber(totals.remainingSE, 1) }}
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3" alt="SE" />
             </div>
@@ -196,5 +196,5 @@ const teStatsList = computed(() => {
 <style scoped>
 .summary-item { @apply flex flex-col gap-0.5 sm:gap-1; }
 .summary-label { @apply text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wider sm:tracking-[0.2em] leading-none; }
-.summary-value { @apply text-[10px] sm:text-[13px] font-bold tracking-tight whitespace-nowrap; }
+.summary-value { @apply text-small sm:text-small font-bold tracking-tight whitespace-nowrap; }
 </style>

@@ -24,7 +24,7 @@
     style="top: calc(env(safe-area-inset-top, 0px) + 0.5rem)"
   >
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <p class="flex-[1_1_18rem] min-w-0 text-[12px] font-bold leading-snug break-words">
+      <p class="flex-[1_1_18rem] min-w-0 text-body font-bold break-words">
         {{ kindLabel }} · <template v-if="p.chain">{{ queueCountLine({ chain: p.chain, done: p.done, total: p.total, queueTotal: p.queueTotal ?? null }) }}</template
         ><template v-else>{{ p.done.toLocaleString()
         }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit }}</template
@@ -84,12 +84,12 @@
       ></div>
       <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
     </div>
-    <p v-if="stopping" class="text-[10px] text-white/70 leading-snug" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
-    <p v-if="p.stage" class="text-[10px] text-white/60 truncate">{{ p.stage }}</p>
+    <p v-if="stopping" class="text-small text-white/70" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
+    <p v-if="p.stage" class="text-small text-white/60 truncate">{{ p.stage }}</p>
     <!-- What the screen's own progress block used to add (lib/runDetails.ts; the in-page header, bar and time
          line went on 16 Oct 2026, so this bar is the one progress display). Folded: the line above is enough
          most of the time. -->
-    <details v-if="details" class="text-[10px] text-white/60" data-testid="run-bar-details">
+    <details v-if="details" class="text-small text-white/60" data-testid="run-bar-details">
       <summary class="cursor-pointer select-none font-bold text-white/70 hover:text-white">Details</summary>
       <p class="mt-1 break-words leading-snug">{{ details }}</p>
     </details>
@@ -97,7 +97,7 @@
          progress line, so it floats with the bar instead of an amber box pushing the page down (the user, 15 Oct). -->
     <p
       v-if="props.elsewhere"
-      class="rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-[11px] leading-snug text-amber-100"
+      class="rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-body text-amber-100"
       data-testid="run-bar-elsewhere"
     >
       <span class="font-black">{{ props.elsewhere.running }} is running.</span> Stop it (Stop &amp; keep best, here), or
@@ -105,7 +105,7 @@
     </p>
     <p
       v-if="bestSoFarHere && (store.bestSoFarStatus || store.bestSoFarWait > 0)"
-      class="text-[10px] font-semibold"
+      class="text-small font-semibold"
       :class="
         !store.bestSoFarStatus || store.bestSoFarStatus.pending
           ? 'text-amber-200'

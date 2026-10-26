@@ -23,16 +23,16 @@
            and when it lands on the right. -->
       <template #headline>
         <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
-        <p v-if="ranLine && !running" class="text-[11px] font-semibold text-emerald-900/80 leading-snug" data-testid="ran-line">
+        <p v-if="ranLine && !running" class="text-body font-semibold text-emerald-900/80" data-testid="ran-line">
           {{ ranLine }}
         </p>
-        <div class="tabular-nums text-lg sm:text-xl font-black text-slate-900 break-words">
+        <div class="tabular-nums text-title sm:text-title font-black text-slate-900 break-words">
           {{ route.chain.join(' ') }}
         </div>
       </template>
       <template #aside>
-        <div class="text-lg font-black text-slate-900 tabular-nums">{{ lastStop }} TE</div>
-        <div class="text-[11px] font-bold text-emerald-800">
+        <div class="text-title font-black text-slate-900 tabular-nums">{{ lastStop }} TE</div>
+        <div class="text-body font-bold text-emerald-800">
           reached {{ when(route.reachAt) }}, {{ spareLabel(route.spare) }} to spare
         </div>
       </template>
@@ -52,7 +52,7 @@
       />
       <!-- What a screen adds under the route's details (DeadlinePanel: "Try waiting before each prestige"). -->
       <slot v-if="!running" name="extras" />
-      <p v-if="!legs.length && running" class="text-[10px] text-emerald-900/70" data-testid="by-date-card-no-legs">
+      <p v-if="!legs.length && running" class="text-small text-emerald-900/70" data-testid="by-date-card-no-legs">
         The time of each stop comes with the finished result.
       </p>
       <!-- TE per egg when the route ends, and when each egg's next TE would come at the final delivery rate
@@ -61,7 +61,7 @@
            a guess, and a dash with its reason when the rate or the end time isn't known. -->
       <div v-if="eggs" class="space-y-1" data-testid="by-date-te-per-egg">
         <div class="overflow-x-auto">
-          <table class="text-[11px] tabular-nums whitespace-nowrap">
+          <table class="text-small tabular-nums whitespace-nowrap">
             <thead>
               <tr :class="LEG_HEAD">
                 <th class="pr-4 py-1">TE per egg</th>
@@ -75,7 +75,7 @@
                   {{ VIRTUE_EGG_NAMES[r.egg]
                   }}<span
                     v-if="r.laying"
-                    class="text-[9px] text-emerald-700/80"
+                    class="text-small text-emerald-700/80"
                     title="The egg the farm is on at the end"
                   >
                     · laying</span
@@ -99,7 +99,7 @@
       </div>
       <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->
       <p v-if="pricedWith && !running" :class="CARD_NOTE" data-testid="priced-with">{{ pricedWith }}.</p>
-      <p v-if="simulate && simulateNote" class="text-[10px] text-emerald-900/70" data-testid="by-date-simulate-note">
+      <p v-if="simulate && simulateNote" class="text-small text-emerald-900/70" data-testid="by-date-simulate-note">
         {{ simulateNote }}
       </p>
       <!-- The same row as Fastest's card, in the same order: the main action (Simulate this plan, as
@@ -146,9 +146,9 @@
           >
             {{ saving ? 'Saving...' : 'Save answer' }}
           </button>
-          <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
+          <span v-if="note" class="text-small font-semibold text-emerald-800">{{ note }}</span>
         </template>
-        <p v-if="simulate" class="w-full text-[10px] text-emerald-900/70" data-testid="simulate-plan-note">
+        <p v-if="simulate" class="w-full text-small text-emerald-900/70" data-testid="simulate-plan-note">
           {{ simulateLine() }}
         </p>
       </template>

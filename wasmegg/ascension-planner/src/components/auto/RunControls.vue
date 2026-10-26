@@ -23,11 +23,11 @@
     <IntegrityNotice v-if="integrityNotice" :deadline-offer="deadlineOffer" />
     <slot name="above-find" />
     <!-- Phones only (the user, 12 Oct 2026). -->
-    <p v-if="phone" class="text-[11px] text-slate-500" data-testid="phone-note">{{ PHONE_NOTE }}</p>
+    <p v-if="phone" class="text-body text-slate-500" data-testid="phone-note">{{ PHONE_NOTE }}</p>
     <!-- Many workers on a long run (the user, 12 Oct 2026): a warning, never a block. -->
     <p
       v-if="manyWorkers"
-      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body text-amber-900"
       data-testid="many-workers"
     >
       <span class="font-bold">{{ store.workerBudget }} workers.</span> {{ MANY_WORKERS_TEXT }}

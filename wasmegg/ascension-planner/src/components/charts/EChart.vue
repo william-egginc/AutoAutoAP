@@ -7,7 +7,7 @@
     <div ref="containerRef" class="h-full w-full" />
     <div
       v-if="state !== 'ready'"
-      class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-50 text-[11px] text-slate-400"
+      class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-50 text-body text-slate-400"
     >
       <span v-if="state === 'loading'">Loading chart…</span>
       <span v-else class="px-4 text-center">

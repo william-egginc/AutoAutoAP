@@ -14,7 +14,7 @@
     >
       Show the chart
     </button>
-    <span class="text-[11px] text-slate-500">Draws the heat map of every route priced so far</span>
+    <span class="text-body text-slate-500">Draws the heat map of every route priced so far</span>
   </div>
   <div v-else class="space-y-3">
     <template v-if="!showDots">
@@ -149,12 +149,12 @@ function closeDots(): void {
 const DetailPicker = defineComponent({
   setup() {
     return () =>
-      h('div', { class: 'flex flex-wrap items-center gap-2 text-[11px] text-slate-500' }, [
+      h('div', { class: 'flex flex-wrap items-center gap-2 text-small text-slate-500' }, [
         h('span', 'Dots to draw'),
         h(
           'select',
           {
-            class: 'rounded border border-slate-300 bg-white pl-1.5 pr-7 py-1 text-[11px] text-slate-700',
+            class: 'rounded border border-slate-300 bg-white pl-1.5 pr-7 py-1 text-body text-slate-700',
             value: String(selectedValue.value),
             onChange: (e: Event) => {
               const v = (e.target as HTMLSelectElement).value;

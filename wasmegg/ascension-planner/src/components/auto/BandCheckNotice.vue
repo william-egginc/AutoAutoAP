@@ -8,7 +8,7 @@
     <p
       v-for="(issue, i) in issues"
       :key="i"
-      class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900 leading-relaxed"
+      class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body font-semibold text-amber-900"
     >
       <span>{{ issue.message }}</span>
       <button

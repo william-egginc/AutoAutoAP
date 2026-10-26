@@ -68,7 +68,7 @@
       <slot name="after" :agreed="agreed" />
       <div
         v-if="agreed && footer"
-        class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px]"
+        class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-small"
         :class="footerIndent ? 'ml-7' : ''"
         :data-testid="`${testid}-footer`"
       >
@@ -112,7 +112,7 @@
     </template>
     <p
       v-if="withdrawn && !agreed && withdrawnText"
-      class="text-[10px] font-semibold text-rose-700"
+      class="text-small font-semibold text-rose-700"
       role="status"
       :data-testid="`${testid}-withdrawn`"
     >

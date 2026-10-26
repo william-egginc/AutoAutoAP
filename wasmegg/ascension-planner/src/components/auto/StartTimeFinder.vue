@@ -7,7 +7,7 @@
 <template>
   <div :class="bare ? 'space-y-3' : 'rounded-xl border border-slate-200 bg-white p-4 space-y-3'">
     <h3 v-if="!bare" class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ NAMES.start }}</h3>
-    <p class="text-[11px] text-slate-600 leading-relaxed">
+    <p class="text-body text-slate-600">
       Prices <span class="font-bold">{{ chain.join(' ') }}</span> as a fresh start at every
       {{ stepMinutes === 60 ? 'hour' : `${stepMinutes / 60} hours` }} of the next week<template
         v-if="store.scheduleEnabled"
@@ -18,19 +18,19 @@
     </p>
 
     <div class="flex flex-wrap items-center gap-3">
-      <label class="text-[11px] text-slate-600 flex items-center gap-2">
+      <label class="text-small text-slate-600 flex items-center gap-2">
         <span class="font-bold text-slate-700">Try a start every</span>
         <select
           v-model.number="stepMinutes"
           :disabled="store.busy"
-          class="rounded-md border-slate-300 py-1 text-[11px] font-bold text-slate-800"
+          class="rounded-md border-slate-300 py-1 text-body font-bold text-slate-800"
         >
           <option :value="60">hour</option>
           <option :value="120">2 hours</option>
           <option :value="180">3 hours</option>
         </select>
       </label>
-      <span class="text-[11px] text-slate-500">about {{ estimateLabel }} on {{ store.workerBudget }} workers</span>
+      <span class="text-small text-slate-500">about {{ estimateLabel }} on {{ store.workerBudget }} workers</span>
       <button
         v-if="!store.startSweepRunning"
         type="button"
@@ -54,14 +54,14 @@
       <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
         <div class="h-full bg-indigo-500 transition-all" :style="{ width: `${pct}%` }"></div>
       </div>
-      <p class="text-[11px] text-slate-500">{{ sweep.done }} of {{ sweep.total }} start times priced</p>
+      <p class="text-body text-slate-500">{{ sweep.done }} of {{ sweep.total }} start times priced</p>
     </div>
 
     <template v-if="best && sweep && !store.startSweepRunning">
       <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-1">
         <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800">Best start in the next week</p>
-        <p class="text-base font-black text-emerald-900">{{ show(best.start) }}</p>
-        <p class="text-[11px] text-emerald-900 leading-relaxed">
+        <p class="text-body font-black text-emerald-900">{{ show(best.start) }}</p>
+        <p class="text-body text-emerald-900">
           Reaches the end of the route {{ show(best.finish as number)
           }}<template v-if="soonest && soonest !== best"
             >, {{ gainLabel }} than starting at the first time tried ({{ show(soonest.start) }}, done
@@ -70,7 +70,7 @@
         </p>
         <!-- The run's own length, not counting the wait to start: the hour's own effect (the squares below are
              coloured by finish instead, which is what the best start is picked on; Allan, Discord, 12 Oct). -->
-        <p v-if="quickest" class="text-[11px] text-emerald-900 leading-relaxed" data-testid="start-quickest">
+        <p v-if="quickest" class="text-body text-emerald-900" data-testid="start-quickest">
           <span class="font-bold">Quickest run, not counting the wait to start:</span> starting
           {{ show(quickest.start) }} takes {{ daysOf(quickest) }} days; the slowest start in the week takes
           {{ daysOf(slowest!) }} days, so the hour alone can change the run's length by {{ spreadLabel }}. A later start
@@ -81,7 +81,7 @@
       <!-- The week at a glance: when the run finishes from each start, against the soonest finish (the same
            measure as the best start above: a 2 pm start that runs a bit longer still beats a 7 pm one). -->
       <div class="overflow-x-auto">
-        <table class="text-[10px] tabular-nums border-separate" style="border-spacing: 2px">
+        <table class="text-small tabular-nums border-separate" style="border-spacing: 2px">
           <thead>
             <tr>
               <th></th>
@@ -102,7 +102,7 @@
           </tbody>
         </table>
       </div>
-      <p class="text-[10px] text-slate-500">
+      <p class="text-small text-slate-500">
         Each square is a start time. Darker green finishes sooner; grey finishes last of the week. Hover a square for
         when it finishes and how long the run takes. Empty squares are outside your awake hours.
       </p>

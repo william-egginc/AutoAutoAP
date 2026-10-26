@@ -22,7 +22,7 @@
       maxlength="80"
       :placeholder="defaultLabel"
       aria-label="Name for this answer"
-      class="w-64 max-w-full rounded-lg border-slate-300 text-xs text-slate-800"
+      class="w-64 max-w-full rounded-lg border-slate-300 text-body text-slate-800"
     />
     <button
       type="button"
@@ -39,7 +39,7 @@
     <div
       v-for="a in store.savedAnswers"
       :key="a.id"
-      class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 text-[11px]"
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 text-small"
     >
       <span class="font-bold text-slate-800">{{ a.label }}</span>
       <span class="text-slate-500"

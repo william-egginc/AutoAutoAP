@@ -6,7 +6,7 @@
         <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Silos Owned</h4>
         <div class="badge-premium bg-slate-50 text-slate-600 border-slate-100 px-3 py-1 flex items-center gap-1.5">
           <span class="text-[10px] font-black opacity-60 uppercase tracking-widest">Active:</span>
-          <span class="text-sm tabular-nums font-black text-slate-900"
+          <span class="text-body tabular-nums font-black text-slate-900"
             >{{ siloOutput.siloCount }}/{{ siloOutput.maxSilos }}</span
           >
         </div>
@@ -72,7 +72,7 @@
                 <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-indigo-700"
                   >Buy Silo #{{ siloOutput.siloCount + 1 }}</span
                 >
-                <span class="text-[9px] tabular-nums font-black text-indigo-500 mt-0.5">
+                <span class="text-small tabular-nums font-black text-indigo-500 mt-0.5">
                   {{ formatGemPrice(siloOutput.nextSiloCost) }} gems<template v-if="timeToBuy">
                     · Ready in {{ timeToBuy }}</template
                   >
@@ -107,7 +107,7 @@
                 <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-violet-700"
                   >Silos in 1 Hr</span
                 >
-                <span class="text-[9px] tabular-nums font-black text-violet-500 mt-0.5">
+                <span class="text-small tabular-nums font-black text-violet-500 mt-0.5">
                   {{ maxSilosIn1Hour.count }} new silo{{ maxSilosIn1Hour.count !== 1 ? 's' : '' }} ·
                   {{ formatDuration(maxSilosIn1Hour.seconds) }}
                 </span>
@@ -133,7 +133,7 @@
         <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3 leading-none relative z-10">
           Total Away Time
         </p>
-        <p class="text-4xl tabular-nums font-black text-slate-900 mb-3 tracking-tight relative z-10">
+        <p class="text-headline tabular-nums font-black text-slate-900 mb-3 tracking-tight relative z-10">
           {{ siloOutput.formatted }}
         </p>
 
@@ -175,7 +175,7 @@
           <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-0.5"
             >Current Rank</span
           >
-          <span class="text-xs tabular-nums font-black text-indigo-700">
+          <span class="text-small tabular-nums font-black text-indigo-700">
             Lv {{ siloOutput.siloCapacityLevel }}/20
           </span>
         </div>

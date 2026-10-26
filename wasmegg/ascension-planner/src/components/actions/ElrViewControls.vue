@@ -7,7 +7,7 @@
           v-for="option in viewOptions"
           :key="option.id"
           @click="$emit('update:viewMode', option.id)"
-          class="px-2.5 py-1 text-[11px] font-medium rounded transition-all whitespace-nowrap"
+          class="px-2.5 py-1 text-small font-medium rounded transition-all whitespace-nowrap"
           :class="
             viewMode === option.id
               ? 'bg-white text-blue-600 shadow-sm'
@@ -25,7 +25,7 @@
           v-for="option in sortOptions"
           :key="option.id"
           @click="$emit('update:sortMode', option.id)"
-          class="px-2.5 py-1 text-[11px] font-medium rounded transition-all whitespace-nowrap"
+          class="px-2.5 py-1 text-small font-medium rounded transition-all whitespace-nowrap"
           :class="
             sortMode === option.id
               ? 'bg-white text-blue-600 shadow-sm'
@@ -44,7 +44,7 @@
             v-for="option in roiDisplayOptions"
             :key="option.id"
             @click="$emit('update:roiDisplayMode', option.id)"
-            class="px-2.5 py-1 text-[11px] font-medium rounded transition-all whitespace-nowrap"
+            class="px-2.5 py-1 text-small font-medium rounded transition-all whitespace-nowrap"
             :class="
               roiDisplayMode === option.id
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -55,7 +55,7 @@
           </button>
         </div>
         <span
-          class="w-4 h-4 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-[9px] cursor-help hover:bg-gray-200 transition-colors leading-none shrink-0"
+          class="w-4 h-4 inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-400 text-small cursor-help hover:bg-gray-200 transition-colors leading-none shrink-0"
           v-tippy="
             'HPP: hours of buy-time per 1% Delivery Rate impact. Lower is better.\n\nDelivery Time: how long, laying at the boosted rate, it takes for the extra production to pay back what it cost to buy this research.'
           "

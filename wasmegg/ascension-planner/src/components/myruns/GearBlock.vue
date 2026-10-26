@@ -14,9 +14,9 @@
   <div class="mt-3" data-testid="now-gear">
     <p class="text-[10px] font-black uppercase tracking-widest text-slate-500">Gear · from your save</p>
     <details v-for="r in rows" :key="r.id" class="border-t border-slate-100 py-1.5" :data-testid="`now-gear-${r.id}`">
-      <summary class="cursor-pointer list-none flex flex-wrap items-center gap-2 text-[12px]">
+      <summary class="cursor-pointer list-none flex flex-wrap items-center gap-2 text-small">
         <span
-          class="shrink-0 text-[11px] font-bold"
+          class="shrink-0 text-small font-bold"
           :class="r.id === 'equipped' && match ? 'min-w-[7rem] max-w-full text-slate-700' : 'w-28 text-slate-500'"
           :data-testid="r.id === 'equipped' ? 'now-gear-match' : undefined"
           :data-match="r.id === 'equipped' ? (match ?? undefined) : undefined"
@@ -34,12 +34,12 @@
           </template>
         </span>
         <span :class="r.tone">{{ r.words }}</span>
-        <span class="text-[11px] text-indigo-700 font-semibold">▸ each artifact and its stones</span>
+        <span class="text-small text-indigo-700 font-semibold">▸ each artifact and its stones</span>
       </summary>
       <div class="mt-2 max-w-md"><LoadoutDisplay :loadout="r.set" /></div>
     </details>
     <PerfectSetGaps :equipped="equipped" :earnings="earnings" :production="production" :match="match ?? null" />
-    <p v-if="whatIfText" class="text-[11px] text-emerald-800" data-testid="now-gear-maxed">{{ whatIfText }}</p>
+    <p v-if="whatIfText" class="text-body text-emerald-800" data-testid="now-gear-maxed">{{ whatIfText }}</p>
   </div>
 </template>
 

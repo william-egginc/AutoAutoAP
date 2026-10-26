@@ -19,7 +19,7 @@
               >Clothed TE {{ Math.round(earningsClothedTe) }}</span
             >
             <span class="w-1 h-1 bg-slate-200 rounded-full"></span>
-            <span class="text-[10px] font-black text-slate-500">Delivery Rate {{ formatNumber(currentELR * 3600, 3) }}/hr</span>
+            <span class="text-small font-black text-slate-500">Delivery Rate {{ formatNumber(currentELR * 3600, 3) }}/hr</span>
           </div>
         </div>
       </div>
@@ -55,7 +55,7 @@
             <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">{{ VIRTUE_EGG_NAMES[egg] }}</span>
           </div>
           <div class="flex items-baseline gap-1">
-            <span class="text-lg tabular-nums font-black text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
+            <span class="text-title tabular-nums font-black text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
             <span class="text-[8px] font-black text-slate-400 uppercase">Claimed</span>
           </div>
           <div class="mt-1 text-[9px] font-black uppercase" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-600' : 'text-slate-300'">
@@ -63,7 +63,7 @@
           </div>
         </div>
       </div>
-      <p v-if="sinceSync" class="text-[11px] font-bold text-slate-600 px-1 tabular-nums">
+      <p v-if="sinceSync" class="text-body font-bold text-slate-600 px-1 tabular-nums">
         <span class="font-black text-indigo-600">+{{ formatNumber(sinceSync.eggs, 3) }}</span>
         {{ VIRTUE_EGG_NAMES[sinceSync.egg] }} eggs since your last sync {{ formatDuration(sinceSync.seconds) }} ago
         <span v-if="sinceSync.te > 0" class="font-black text-emerald-600">(+{{ sinceSync.te }} TE)</span>
@@ -74,7 +74,7 @@
     <template v-else>
       <p
         v-if="teOverride"
-        class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] font-bold text-amber-800 leading-relaxed"
+        class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-body font-bold text-amber-800"
       >
         The plan starts from exactly the claimed TE entered below. Pending (unclaimed) TE, partial progress toward
         your next TE, and eggs shipped since your last sync are not counted.
@@ -93,7 +93,7 @@
               :value="teOverride ? teOverride[egg] : truthEggsStore.teEarned[egg]"
               min="0"
               max="98"
-              class="w-full bg-white border border-slate-100 rounded-lg px-3 py-1.5 text-[11px] tabular-nums font-black text-slate-900 outline-none focus:border-indigo-500/50 focus:bg-white transition-all"
+              class="w-full bg-white border border-slate-100 rounded-lg px-3 py-1.5 text-body tabular-nums font-black text-slate-900 outline-none focus:border-indigo-500/50 focus:bg-white transition-all"
               @change="handleTEEarnedChange(egg, ($event.target as HTMLInputElement).value)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
@@ -111,7 +111,7 @@
       >
         <div class="min-w-0">
           <div class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Artifacts &amp; Stones</div>
-          <div class="text-[10px] font-bold text-slate-500 truncate">{{ loadoutSummary }}</div>
+          <div class="text-small font-bold text-slate-500 truncate">{{ loadoutSummary }}</div>
         </div>
         <svg
           class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform"
@@ -124,7 +124,7 @@
         </svg>
       </button>
       <div v-if="isLoadoutOpen" class="px-3 pb-3 space-y-2">
-        <p v-if="!initialStateStore.rawBackup" class="text-[10px] font-bold text-amber-600">
+        <p v-if="!initialStateStore.rawBackup" class="text-small font-bold text-amber-600">
           No inventory — enter stones manually.
         </p>
         <AutoLoadoutEditor

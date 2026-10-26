@@ -10,14 +10,14 @@
         v-for="p in pills"
         :key="p.id"
         type="button"
-        class="min-h-[44px] sm:min-h-0 rounded-full border border-indigo-200 bg-white px-3 py-1 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50"
+        class="min-h-[44px] sm:min-h-0 rounded-full border border-indigo-200 bg-white px-3 py-1 text-small font-bold text-indigo-700 hover:bg-indigo-50"
         :data-testid="`now-try-${p.id}`"
         @click="emit('open', p.open)"
       >
         {{ p.label }} ›
       </button>
     </div>
-    <p v-if="line" class="mt-1.5 text-[13px] text-slate-600">{{ line }}</p>
+    <p v-if="line" class="mt-1.5 text-body text-slate-600">{{ line }}</p>
   </section>
 </template>
 

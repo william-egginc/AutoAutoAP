@@ -25,7 +25,7 @@
         </div>
 
         <div class="p-6">
-          <p class="text-sm font-medium text-slate-600 leading-relaxed">
+          <p class="text-body font-medium text-slate-600">
             A plan named <strong class="text-slate-900">"{{ planName }}"</strong> already exists in your library. How
             would you like to proceed?
           </p>
@@ -46,7 +46,7 @@
                 </svg>
               </div>
               <div>
-                <div class="text-sm font-bold text-slate-800">Overwrite</div>
+                <div class="text-body font-bold text-slate-800">Overwrite</div>
                 <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
                   Replace the existing plan with the imported one
                 </div>
@@ -68,7 +68,7 @@
                 </svg>
               </div>
               <div>
-                <div class="text-sm font-bold text-slate-800">Keep Both (Rename)</div>
+                <div class="text-body font-bold text-slate-800">Keep Both (Rename)</div>
                 <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
                   Save as "{{ renamedName }}"
                 </div>
@@ -85,7 +85,7 @@
                 </svg>
               </div>
               <div>
-                <div class="text-sm font-bold text-slate-800">Skip</div>
+                <div class="text-body font-bold text-slate-800">Skip</div>
                 <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
                   Don't import this plan
                 </div>
@@ -100,7 +100,7 @@
               type="checkbox"
               class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
             />
-            <label for="apply-to-all" class="text-xs font-medium text-slate-500 cursor-pointer select-none">
+            <label for="apply-to-all" class="text-small font-medium text-slate-500 cursor-pointer select-none">
               Apply to all remaining collisions ({{ remainingCount }})
             </label>
           </div>

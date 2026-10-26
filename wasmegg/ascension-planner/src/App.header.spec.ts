@@ -17,7 +17,7 @@ describe('the header title', () => {
     expect(name).toBeLessThan(app.indexOf('<the-player-id-form'));
     const tag = app.slice(app.lastIndexOf('<p', name), app.indexOf('>', name));
     expect(tag).toContain('v-if="playerName"');
-    expect(tag).toContain('text-sm');
+    expect(tag).toContain('text-body');
     expect(tag).not.toMatch(/heading-xl|text-gradient|uppercase/);
     expect(app.slice(name, app.indexOf('</p>', name))).toContain('{{ playerName }}');
   });

@@ -20,12 +20,12 @@
   is one row, with the other sends named on it.
 -->
 <template>
-  <p v-if="narrow && edges.right && !edges.left" class="mb-1 text-right text-[10px] text-slate-400">
+  <p v-if="narrow && edges.right && !edges.left" class="mb-1 text-right text-small text-slate-400">
     Swipe the table for more columns →
   </p>
   <div class="relative">
     <div :ref="edges.bind" class="overflow-x-auto [container-type:inline-size]" @scroll.passive="edges.update">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <thead>
           <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left whitespace-nowrap">
             <th class="py-1.5 pr-3 w-4"></th>
@@ -67,26 +67,26 @@
                 }}</span>
                 <span
                   v-if="p.folded.copies.length > 1"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-[9px] font-black text-slate-600"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-black text-slate-600"
                   :title="`The same result was sent ${p.folded.copies.length} times`"
                   >sent ×{{ p.folded.copies.length }}</span
                 >
                 <span
                   v-if="resends?.get(p)?.length"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-[9px] font-black text-slate-600"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-black text-slate-600"
                   :title="resendTitle(p)"
                   >{{ resendTag(p) }}</span
                 >
                 <span
                   v-for="t in tags.get(p.row) ?? []"
                   :key="t"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-sky-100 text-[9px] font-black text-sky-800"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-sky-100 text-small font-black text-sky-800"
                   :title="settingTagTitle(t)"
                   >{{ t }}</span
                 >
                 <span
                   v-if="originOf(p)"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-indigo-100 text-[9px] font-black text-indigo-800"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-indigo-100 text-small font-black text-indigo-800"
                   :title="originTitle(originOf(p))"
                   >{{ originOf(p) }}</span
                 >
@@ -97,7 +97,7 @@
                 >
                 <span
                   v-if="provisionalTag(p.row)"
-                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                  class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-black text-amber-800"
                   :title="PROVISIONAL_TITLE"
                   >{{ provisionalTag(p.row) }}</span
                 >
@@ -151,13 +151,13 @@
             <tr v-if="open[keyOf(p, i)]" class="bg-slate-50">
               <td :colspan="columns" class="p-0">
                 <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
-                  <div v-if="p.earlier.length" class="text-[11px] text-slate-600">
+                  <div v-if="p.earlier.length" class="text-small text-slate-600">
                     <span class="font-bold">Earlier runs of this plan:</span>
                     <span v-for="(e, k) in p.earlier" :key="k">
                       {{ k ? ', ' : ' ' }}{{ plannedDay(e) }} (finish {{ finishDateText(e.finish, viewZone) }})
                     </span>
                   </div>
-                  <div v-if="resends?.get(p)?.length" class="text-[11px] text-slate-600">
+                  <div v-if="resends?.get(p)?.length" class="text-small text-slate-600">
                     <span class="font-bold">Also sent as the same plan, counted once:</span>
                     <span v-for="(e, k) in resends?.get(p) ?? []" :key="k">
                       {{ k ? ', ' : ' ' }}{{ resendText(e) }}

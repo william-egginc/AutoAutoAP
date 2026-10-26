@@ -6,7 +6,7 @@
   when opened. Nothing shows without a collector or an account.
 -->
 <template>
-  <details v-if="online" class="text-[12px]" data-testid="follow-history" @toggle="onToggle">
+  <details v-if="online" class="text-body" data-testid="follow-history" @toggle="onToggle">
     <summary class="cursor-pointer font-semibold text-indigo-700" data-testid="follow-history-summary">
       <span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>
     </summary>
@@ -37,11 +37,11 @@
           <span class="tabular-nums">{{ v.value.chain.join(' → ') }}</span>
           · {{ finishOf(v.value) }} · {{ sourceWords(v.value.source) }} · set {{ when(v.value.at / 1000) }}
         </span>
-        <span v-if="isCurrent(v.value)" class="text-[11px] font-bold text-emerald-700">Following</span>
+        <span v-if="isCurrent(v.value)" class="text-small font-bold text-emerald-700">Following</span>
         <button
           v-else
           type="button"
-          class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[12px] font-bold text-indigo-700 hover:bg-indigo-50"
+          class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-body font-bold text-indigo-700 hover:bg-indigo-50"
           data-testid="follow-history-restore"
           :disabled="busy"
           @click="restoreIt(v.value)"

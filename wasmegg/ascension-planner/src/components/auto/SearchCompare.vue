@@ -13,7 +13,7 @@
       <div
         v-for="r in rows"
         :key="r.id"
-        class="py-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[12px]"
+        class="py-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-body"
         :data-testid="`compare-${r.id}`"
       >
         <span class="w-32 shrink-0 font-black text-slate-800">
@@ -31,7 +31,7 @@
             >{{ spareLabel(r.entry.spare) }} spare</span
           >
           <span class="tabular-nums text-slate-700 break-all">{{ r.entry.chain.join(' ') }}</span>
-          <span class="text-[10px] text-slate-500">{{ note(r) }}</span>
+          <span class="text-small text-slate-500">{{ note(r) }}</span>
         </template>
         <span v-else class="text-slate-400">not run yet</span>
       </div>

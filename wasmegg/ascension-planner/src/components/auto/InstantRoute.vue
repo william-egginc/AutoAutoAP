@@ -28,7 +28,7 @@
     <!-- Said to a screen reader (lib/liveStatus.ts): "Working out the instant answer", then "Instant answer ready". -->
     <p class="sr-only" role="status" aria-live="polite" data-testid="instant-live">{{ instantLive }}</p>
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h3 class="text-base font-black text-slate-900">
+      <h3 class="text-title font-black text-slate-900">
         Instant answer
         <span
           v-if="own"
@@ -36,7 +36,7 @@
           >your gear</span
         >
       </h3>
-      <span v-if="ms !== null" class="text-[10px] text-slate-500"
+      <span v-if="ms !== null" class="text-small text-slate-500"
         >every route checked in {{ (ms / 1000).toFixed(1) }} s</span
       >
     </div>
@@ -47,7 +47,7 @@
          the one amber box under the answer says so instead (GearCaveat.vue `gearShift`). -->
     <p
       v-if="ownChanged && !shiftedTable"
-      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body text-amber-900"
       data-testid="instant-own-changed"
     >
       Your gear changed since your instant answer was made ({{ ownChanged }}), so this answer uses the instant answer
@@ -58,24 +58,24 @@
          account switch's quick load; an answer from before stays, labelled, until the new one. -->
     <p
       v-if="result && (resultFromBefore || store.startWait)"
-      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] font-bold text-amber-900"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body font-bold text-amber-900"
       data-testid="instant-from-before"
     >
       {{ START_WAIT_LABEL }}
     </p>
-    <p v-if="saveWaitText" class="text-[12px] text-slate-500 flex items-center gap-2" data-testid="instant-wait-save">
+    <p v-if="saveWaitText" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-wait-save">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       {{ saveWaitText }}
     </p>
     <p
       v-else-if="atTarget && status !== 'loading'"
-      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-600"
+      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-body text-slate-600"
       data-testid="instant-at-target"
     >
       Your save is already at TE {{ Math.floor(store.currentTE) }}, at or past {{ target }} TE, so there is no route for
       the instant answer to find.{{ deadline || target >= 490 ? '' : ' Pick a higher target TE to plan further.' }}
     </p>
-    <p v-else-if="status === 'loading'" class="text-[12px] text-slate-500 flex items-center gap-2" data-testid="instant-loading">
+    <p v-else-if="status === 'loading'" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       {{ loadingText }}{{ result ? ' The answer below is the previous one until the new one is ready.' : '' }}
     </p>
@@ -90,7 +90,7 @@
     </NoInstantAnswer>
     <p
       v-else-if="status === 'error'"
-      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body text-amber-900"
       data-testid="instant-error"
     >
       {{ errorText }}
@@ -98,7 +98,7 @@
     <!-- Never nothing (search/instantDeferral.ts idleLine): no answer, nothing loading or waited for, no error. -->
     <p
       v-else-if="!result && !waiting"
-      class="text-[12px] text-slate-500 flex flex-wrap items-center gap-2"
+      class="text-body text-slate-500 flex flex-wrap items-center gap-2"
       data-testid="instant-idle"
     >
       <span
@@ -120,7 +120,7 @@
     <!-- LOW-TE OPENING (auto/lowTeOpening.ts): search/instantIntegrity.ts lowTeOpeningNote. -->
     <p
       v-if="status !== 'loading' && !atTarget && lowTeNote && !below && !boxShown"
-      class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-relaxed text-sky-900"
+      class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-body text-sky-900"
       data-testid="instant-lowte"
     >
       {{ lowTeNote }}
@@ -129,7 +129,7 @@
     <!-- A table from an older simulator (search/simVersion.ts): still shown, said so. -->
     <p
       v-if="status !== 'loading' && simNote"
-      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body text-amber-900"
       data-testid="instant-sim-version"
     >
       This instant answer was made with {{ simNote }}, not the simulator this page runs. Where one round of
@@ -140,14 +140,14 @@
 
     <p
       v-if="header?.fake"
-      class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[12px] font-bold text-rose-800"
+      class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-body font-bold text-rose-800"
     >
       Test instant answer: rows below what has been simulated are filled in from the nearest real ones, to try the page.
       These routes and dates are not real answers.
     </p>
     <p
       v-if="savedAt"
-      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[11px] text-slate-600 flex flex-wrap items-center gap-x-3"
+      class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-body text-slate-600 flex flex-wrap items-center gap-x-3"
       data-testid="saved-answer"
     >
       <span
@@ -172,12 +172,12 @@
       @remember="confirmRun(true)"
       @cancel="confirming = null"
     />
-    <p v-if="!confirming && runBusy && alongside" class="text-[11px] text-slate-500" data-testid="instant-alongside">
+    <p v-if="!confirming && runBusy && alongside" class="text-body text-slate-500" data-testid="instant-alongside">
       Running alongside your search: this uses more memory.
     </p>
     <p
       v-if="waiting"
-      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900 flex flex-wrap items-center gap-x-3"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body text-amber-900 flex flex-wrap items-center gap-x-3"
       data-testid="instant-waits"
     >
       <span>{{ whileWaiting(!!result).text }}</span>
@@ -201,7 +201,7 @@
 
       <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
       <div v-if="result" class="space-y-1">
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-body text-slate-600">
           <label v-if="hoursOn" class="flex items-center gap-2 cursor-pointer">
             <input
               :checked="filters.inHours"
@@ -224,7 +224,7 @@
               :max="MAX_ASCENSIONS"
               placeholder="any"
               aria-label="Fewest ascensions (blank for any)"
-              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-[11px] py-0.5 px-2"
+              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-body py-0.5 px-2"
               data-testid="instant-min-ascensions"
               @change="setAscBound('min', $event)"
             />
@@ -237,42 +237,42 @@
               :max="MAX_ASCENSIONS"
               placeholder="any"
               aria-label="Most ascensions (blank for any)"
-              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-[11px] py-0.5 px-2"
+              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-body py-0.5 px-2"
               data-testid="instant-max-ascensions"
               @change="setAscBound('max', $event)"
             />
           </span>
         </div>
-        <p v-if="useHours" class="text-[11px] text-slate-500">
+        <p v-if="useHours" class="text-body text-slate-500">
           Each prestige waits for your awake hours (the times shown include the wait).
         </p>
-        <p v-if="rangeText" class="text-[11px] text-slate-500" data-testid="instant-range-note">
+        <p v-if="rangeText" class="text-body text-slate-500" data-testid="instant-range-note">
           Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
         </p>
         <!-- No prestige on these days (search/noPrestige.ts): held in every route here, hours ticked or not. -->
-        <p v-if="noPrestigeOn" class="text-[11px] text-slate-500" data-testid="instant-no-prestige">
+        <p v-if="noPrestigeOn" class="text-body text-slate-500" data-testid="instant-no-prestige">
           Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time, and
           the farm keeps laying while it waits, {{ siloWords }} (the times shown include the wait).
         </p>
-        <p v-if="useHours && openingNote === 'morning'" class="text-[11px] text-slate-500" data-testid="held-opening">
+        <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-500" data-testid="held-opening">
           A stop reached late in your day waits for the next morning to prestige: an ascension's first shifts come in
           its first hours, and started that late some would fall after your awake hours end, which the instant answer can't
           time.
         </p>
-        <p v-else-if="useHours && openingNote === 'uncertain'" class="text-[11px] text-amber-800" data-testid="held-opening">
+        <p v-else-if="useHours && openingNote === 'uncertain'" class="text-body text-amber-800" data-testid="held-opening">
           Less certain with these awake hours: an ascension's first shifts take longer than your awake hours last, so some of them
           will wait for you in ways the instant answer can't time. A search below simulates them.
         </p>
-        <p v-if="backgroundStatus === 'running'" class="text-[11px] text-slate-400">
+        <p v-if="backgroundStatus === 'running'" class="text-body text-slate-400">
           Polishing the routes in the background…
         </p>
         <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
              the box's one caveat line): no "Pricing…" line that ends in nothing (UX review 26 Oct 2026, item 7). -->
-        <p v-if="bracketStatus === 'running' && !boxShown" class="text-[11px] text-slate-500" data-testid="instant-bracket-running">
+        <p v-if="bracketStatus === 'running' && !boxShown" class="text-body text-slate-500" data-testid="instant-bracket-running">
           Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
         </p>
         <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
-        <p v-else-if="bracketText && !boxShown" class="text-[11px] text-slate-700">{{ bracketText }}</p>
+        <p v-else-if="bracketText && !boxShown" class="text-body text-slate-700">{{ bracketText }}</p>
       </div>
 
       <!-- THE INSTANT CARD (wireframes/price-route-v2, Jordan 23 Oct 2026): the green box and the counts list show the
@@ -294,10 +294,10 @@
           </div>
           <template v-if="result.byDate">
             <div class="flex flex-wrap items-baseline gap-x-3">
-              <span class="text-2xl font-black text-slate-900">{{ dateBoxOf(result.byDate).endTE }} TE</span>
+              <span class="text-headline font-black text-slate-900">{{ dateBoxOf(result.byDate).endTE }} TE</span>
               <!-- Tight under a day, or inside the gear caveat's window when it shows (lib/spareLine.ts). -->
               <span
-                class="text-lg font-black"
+                class="text-title font-black"
                 :class="dateSpare?.tight ? 'text-amber-700' : 'text-emerald-800'"
                 data-testid="box-spare"
                 >{{ dateSpare?.text }}</span
@@ -308,17 +308,17 @@
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-widest"
                 >tight</span
               >
-              <span class="text-[11px] font-bold text-slate-500" data-testid="box-instant">instant answer</span>
+              <span class="text-small font-bold text-slate-500" data-testid="box-instant">instant answer</span>
             </div>
-            <div class="tabular-nums text-sm font-bold text-slate-800">
+            <div class="tabular-nums text-body font-bold text-slate-800">
               {{ dateBoxOf(result.byDate).chain.join(' → ') }}
             </div>
-            <div class="text-[12px] text-slate-700">
+            <div class="text-small text-slate-700">
               Reached {{ show(dateBoxOf(result.byDate).end) }} ·
               {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
             </div>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
-            <p v-if="boxGain" class="text-[11px] text-emerald-800" data-testid="box-polished">
+            <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
               <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
                 >polished</span
               >{{ boxGain }}
@@ -340,7 +340,7 @@
             <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
             <p
               v-if="prestigeFlag.enabled.value && noPrestigeOn && prestigeStatus !== 'idle'"
-              class="text-[11px] text-amber-800"
+              class="text-body text-amber-800"
               data-testid="prestige-by-no-days"
             >
               The “Prestige by” line doesn't know your no-prestige days; Fast, Exact or Custom do.
@@ -375,7 +375,7 @@
               :candidate="instantCandidate(dateBoxOf(result.byDate))"
             />
           </template>
-          <p v-else-if="result.outside?.date" class="text-[12px] text-amber-800" data-testid="instant-no-route">
+          <p v-else-if="result.outside?.date" class="text-body text-amber-800" data-testid="instant-no-route">
             No route in this range: the nearest is {{ plural(result.outside.date.ascensions, 'ascension') }},
             {{ result.outside.date.endTE }} TE by {{ show(result.outside.date.end) }}
             ({{ result.outside.date.chain.join(' → ') }}).{{ ' ' }}
@@ -388,17 +388,17 @@
               Include {{ result.outside.date.ascensions }}
             </button>
           </p>
-          <p v-else class="text-[12px] text-amber-800" data-testid="instant-no-route">
+          <p v-else class="text-body text-amber-800" data-testid="instant-no-route">
             No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
           </p>
         </div>
-        <p v-if="result.byDate" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-one-line">
+        <p v-if="result.byDate" class="text-body text-slate-600" data-testid="instant-one-line">
           {{ INSTANT_ONE_LINE }}
         </p>
         <!-- With hours that limit when a prestige can be made: prestige at the time shown (the Prestige by line's words,
              lib/hoursNote.ts; the math review's second check, 24 Oct 2026: one route moved 6.3 days between at once and
              on the hour). -->
-        <p v-if="result.byDate && hoursLimited" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-hours-note">
+        <p v-if="result.byDate && hoursLimited" class="text-body text-slate-600" data-testid="instant-hours-note">
           {{ HOURS_NOTE }}
         </p>
         <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
@@ -406,9 +406,9 @@
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
-          <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-[11px] text-slate-600">
+          <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-[12px]" data-testid="counts-table">
+            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-small" data-testid="counts-table">
               <thead>
                 <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
@@ -492,21 +492,21 @@
             >
           </div>
           <div class="flex flex-wrap items-baseline gap-x-3">
-            <span class="text-2xl font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
-            <span class="text-[11px] font-bold text-slate-500" data-testid="box-instant">instant answer</span>
+            <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
+            <span class="text-small font-bold text-slate-500" data-testid="box-instant">instant answer</span>
           </div>
-          <div class="text-[12px] font-bold text-emerald-800">
+          <div class="text-small font-bold text-emerald-800">
             in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
           <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
-          <p v-if="boxGain" class="text-[11px] text-emerald-800" data-testid="box-polished">
+          <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
             <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest"
               >polished</span
             >{{ boxGain }}
           </p>
           <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
           <AnswerCaveatLine :caveat="headCaveat" />
-          <div class="tabular-nums text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
+          <div class="tabular-nums text-body font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). -->
@@ -521,7 +521,7 @@
           <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
           <p
             v-if="prestigeFlag.enabled.value && noPrestigeOn && prestigeStatus !== 'idle'"
-            class="text-[11px] text-amber-800"
+            class="text-body text-amber-800"
             data-testid="prestige-by-no-days"
           >
             The “Prestige by” line doesn't know your no-prestige days; Fast, Exact or Custom do.
@@ -553,7 +553,7 @@
             :candidate="instantCandidate({ chain: boxLead.chain, end: boxLead.end, endTE: boxLead.chain[boxLead.chain.length - 1] })"
           />
         </div>
-        <p v-else-if="result.outside?.fastest" class="text-[12px] text-amber-800" data-testid="instant-no-route">
+        <p v-else-if="result.outside?.fastest" class="text-body text-amber-800" data-testid="instant-no-route">
           No route in this range: the nearest is {{ plural(result.outside.fastest.ascensions, 'ascension') }}, reaching
           {{ store.finalTE }} on {{ showFinish(result.outside.fastest.end) }} ({{ result.outside.fastest.chain.join(' → ') }}).{{
             ' '
@@ -567,25 +567,25 @@
             Include {{ result.outside.fastest.ascensions }}
           </button>
         </p>
-        <p v-else class="text-[12px] text-amber-800" data-testid="instant-no-route">
+        <p v-else class="text-body text-amber-800" data-testid="instant-no-route">
           No route reaches {{ store.finalTE }} from here in the instant answer{{
             filtering ? ' with these filters' : ''
           }}.
         </p>
-        <p v-if="boxLead" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-one-line">
+        <p v-if="boxLead" class="text-body text-slate-600" data-testid="instant-one-line">
           {{ INSTANT_ONE_LINE }}
         </p>
         <!-- Prestige at the time shown, with hours (as under By a date's box). -->
-        <p v-if="boxLead && hoursLimited" class="text-[12px] text-slate-600 leading-relaxed" data-testid="instant-hours-note">
+        <p v-if="boxLead && hoursLimited" class="text-body text-slate-600" data-testid="instant-hours-note">
           {{ HOURS_NOTE }}
         </p>
         <!-- Every number of ascensions, instant numbers only. A table from 30rem up; stacked rows below it. -->
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="fastest" />
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
-          <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-[11px] text-slate-600">
+          <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-[12px]" data-testid="counts-table">
+            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-small" data-testid="counts-table">
               <thead>
                 <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
@@ -618,7 +618,7 @@
                     >
                     <span
                       v-if="nearTie(r)"
-                      class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] leading-snug"
+                      class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"
                       :class="nearTie(r)!.kind === 'fewer' ? 'font-semibold text-emerald-700' : 'text-slate-400'"
                       :data-testid="`near-tie-${nearTie(r)!.kind}`"
                       >{{ nearTie(r)!.text }}</span
@@ -652,13 +652,13 @@
           <button
             v-if="hiddenCounts || showMoreCounts"
             type="button"
-            class="inline-flex items-center min-h-[44px] sm:min-h-0 mt-1 text-[10px] font-bold text-slate-500 underline hover:text-emerald-800"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 mt-1 text-small font-bold text-slate-500 underline hover:text-emerald-800"
             data-testid="instant-more-counts"
             @click="showMoreCounts = !showMoreCounts"
           >
             {{ showMoreCounts ? 'Show fewer ascension counts' : `Show more ascension counts (${hiddenCounts})` }}
           </button>
-          <p v-else-if="moreDontHelp" class="mt-1 text-[10px] text-slate-500" data-testid="instant-more-dont-help">
+          <p v-else-if="moreDontHelp" class="mt-1 text-small text-slate-500" data-testid="instant-more-dont-help">
             More ascensions don't help past TE ~{{ USEFUL_STOP_NOTE }}: a build there already lays at its full rate, so an
             extra stop only adds a prestige.
           </p>
@@ -692,13 +692,13 @@
         />
         <p
           v-if="leftOut.length"
-          class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+          class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
         >
           Not in the instant answer's routes: your {{ leftOut.join(', ') }}. Fast, Exact and Custom include them.
         </p>
 
         <!-- Folded (lib/panelFold.ts `howWorkedOut`). -->
-        <PanelFold section="howWorkedOut" title="How this is worked out" testid="instant-how" class="text-[11px] text-slate-500" summary-class="text-slate-600">
+        <PanelFold section="howWorkedOut" title="How this is worked out" testid="instant-how" class="text-body text-slate-500" summary-class="text-slate-600">
           <p class="mt-1 leading-relaxed">
             Every ascension {{ own ? 'your account can make, with the gear your save has now,' : 'a maxed account can make' }}
             was simulated ahead of time, from every TE at every hour of the week, so
@@ -749,7 +749,7 @@
        instant answer for your TE" (only `below` says that), with Retry and what to do meanwhile; a file newer
        than this page: reload it (InstantUnloaded.vue). Every way `noTable` is set lands here. -->
   <section v-else class="rounded-2xl border border-emerald-200 bg-white p-4 space-y-3" data-testid="instant-no-table">
-    <h3 class="text-base font-black text-slate-900">Instant answer</h3>
+    <h3 class="text-title font-black text-slate-900">Instant answer</h3>
     <InstantPointer v-if="pointer" :pointer="pointer" @see="seeResult" />
     <InstantUnloaded :older="olderPage" @retry="run(true)" @by-date="emit('by-date')">
       <template v-if="$slots['no-answer']" #default><slot name="no-answer" /></template>

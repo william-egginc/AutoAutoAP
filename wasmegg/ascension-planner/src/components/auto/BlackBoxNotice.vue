@@ -5,7 +5,7 @@
 <template>
   <div
     v-if="crash && !sameFinishedRun"
-    class="p-3 rounded-xl border border-amber-300 bg-amber-50 text-[11px] text-amber-900 leading-relaxed space-y-2"
+    class="p-3 rounded-xl border border-amber-300 bg-amber-50 text-body text-amber-900 space-y-2"
   >
     <p>
       <span class="font-black uppercase tracking-wide">Last time, this page stopped without finishing.</span>

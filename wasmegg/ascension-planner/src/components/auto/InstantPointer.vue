@@ -4,7 +4,7 @@
   shows below it: the answer, still working, none for this TE, or the file not loaded (InstantRoute.vue, both sections).
 -->
 <template>
-  <p class="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-[12px] text-slate-700" data-testid="instant-pointer">
+  <p class="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-body text-slate-700" data-testid="instant-pointer">
     {{ pointer.level }} found <b>{{ pointer.value }}</b> on your account.{{ ' ' }}<button
       type="button"
       class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900"

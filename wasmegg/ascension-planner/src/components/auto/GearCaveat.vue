@@ -9,7 +9,7 @@
 <template>
   <p
     v-if="parts.main || parts.optimistic"
-    class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+    class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
     data-testid="gear-caveat"
   >
     <!-- The words are lib/answerCaveat.ts gearCaveatParts, so the one line under the answer's "Why?" says the same.

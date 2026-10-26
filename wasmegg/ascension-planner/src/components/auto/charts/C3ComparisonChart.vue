@@ -1,5 +1,5 @@
 <template>
-  <div v-if="series.length === 0" class="px-4 py-10 text-center text-[10px] font-bold text-slate-400">
+  <div v-if="series.length === 0" class="px-4 py-10 text-center text-small font-bold text-slate-400">
     No variant in this comparison has a C3 shift to compare (build phase skipped or not reached).
   </div>
   <template v-else>

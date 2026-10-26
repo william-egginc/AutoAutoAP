@@ -12,16 +12,16 @@
         </div>
         <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Humility Summary</span>
         <div v-if="activeArtifactSet === 'earnings'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
+          <span class="text-small font-black tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
           <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
         </div>
         <div v-else-if="activeArtifactSet === 'elr'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
+          <span class="text-small font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
           <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
         </div>
         <div
           v-if="teGained > 0"
-          class="badge-premium badge-success flex items-center gap-1 py-0.5 px-2 text-[10px]"
+          class="badge-premium badge-success flex items-center gap-1 py-0.5 px-2 text-small"
           v-tippy="'Truth Eggs gained in this period'"
         >
           <span class="font-black">+{{ teGained }}</span>
@@ -40,7 +40,7 @@
             >Mission(s)</span
           >
           <div class="flex items-center gap-1.5">
-            <span class="text-sm tabular-nums font-black text-slate-900">{{ shipsSent }}</span>
+            <span class="text-body tabular-nums font-black text-slate-900">{{ shipsSent }}</span>
           </div>
         </div>
 
@@ -48,11 +48,11 @@
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1"
             >Time Planned</span
           >
-          <span class="text-sm tabular-nums font-black text-slate-900">{{ formattedMissionTime }}</span>
+          <span class="text-body tabular-nums font-black text-slate-900">{{ formattedMissionTime }}</span>
         </div>
       </div>
 
-      <div v-else class="text-[11px] text-slate-400 italic font-medium">
+      <div v-else class="text-body text-slate-400 italic font-medium">
         No missions launched or TE gained in this {{ hideHeader ? 'date range' : 'shift' }}
       </div>
     </div>

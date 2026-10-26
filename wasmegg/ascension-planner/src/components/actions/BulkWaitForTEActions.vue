@@ -35,7 +35,7 @@
       <div class="space-y-1">
         <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">Final Total TE</label>
         <div class="flex items-center justify-end gap-2">
-          <span class="tabular-nums font-black text-2xl text-slate-900">{{ finalTotalTE }}</span>
+          <span class="tabular-nums font-black text-headline text-slate-900">{{ finalTotalTE }}</span>
           <img :src="iconURL('egginc/egg_truth.png', 64)" class="w-6 h-6 object-contain" />
         </div>
       </div>
@@ -68,10 +68,10 @@
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-black text-[10px] uppercase text-slate-900">{{ VIRTUE_EGG_NAMES[eggPlan.egg] }}</span>
-                <span class="text-slate-600 text-[10px] font-bold">{{ formatDuration(eggPlan.durationSeconds) }}</span>
+                <span class="text-slate-600 text-small font-bold">{{ formatDuration(eggPlan.durationSeconds) }}</span>
                 <span v-if="eggPlan.isCurrentEgg" class="px-1.5 py-0.5 bg-slate-900 text-white text-[8px] font-black uppercase tracking-tighter rounded">Current</span>
               </div>
-              <div class="text-[10px] tabular-nums text-slate-400 mt-0.5">
+              <div class="text-small tabular-nums text-slate-400 mt-0.5">
                 <span v-if="index === eggPlans.length - 1">Prestige on</span>
                 <span v-else>Shift on</span>
                 <span class="text-slate-500">&nbsp;{{ eggPlan.absoluteTime }}</span>
@@ -88,7 +88,7 @@
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
               </button>
-              <span class="px-2 text-center text-xs tabular-nums font-black text-slate-900">
+              <span class="px-2 text-center text-small tabular-nums font-black text-slate-900">
                 {{ eggPlan.targetTE }}
                 <span class="text-indigo-600 font-bold ml-1">(+{{ eggPlan.teToGain }})</span>
               </span>
@@ -127,11 +127,11 @@
       <div class="flex items-center justify-between">
         <div class="space-y-1">
           <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Duration</label>
-          <div class="text-xl tabular-nums font-black">{{ formatDuration(totalDurationSeconds) }}</div>
+          <div class="text-title tabular-nums font-black">{{ formatDuration(totalDurationSeconds) }}</div>
         </div>
         <div class="text-right space-y-1">
           <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Final Completion</label>
-          <div class="text-sm font-bold text-slate-200 italic">{{ finalAbsoluteTime }}</div>
+          <div class="text-body font-bold text-slate-200 italic">{{ finalAbsoluteTime }}</div>
         </div>
       </div>
     </div>

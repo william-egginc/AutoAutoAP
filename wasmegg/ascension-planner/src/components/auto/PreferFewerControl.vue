@@ -6,7 +6,7 @@
 <template>
   <div class="py-1 space-y-1" data-testid="prefer-fewer">
     <div
-      class="flex flex-wrap items-center gap-1 text-[11px] text-slate-600"
+      class="flex flex-wrap items-center gap-1 text-small text-slate-600"
       role="radiogroup"
       aria-label="Prefer fewer ascensions"
     >
@@ -17,7 +17,7 @@
         type="button"
         role="radio"
         :aria-checked="!customOpen && sameMargin(p.margin, modelValue)"
-        class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-[11px] font-bold"
+        class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-small font-bold"
         :class="!customOpen && sameMargin(p.margin, modelValue) ? ON : OFF"
         :data-testid="`prefer-fewer-${p.label}`"
         @click="pick(p.margin)"
@@ -28,7 +28,7 @@
         type="button"
         role="radio"
         :aria-checked="customOpen"
-        class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-[11px] font-bold"
+        class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-body font-bold"
         :class="customOpen ? ON : OFF"
         data-testid="prefer-fewer-custom"
         @click="openCustom"
@@ -42,7 +42,7 @@
           type="number"
           min="0"
           :step="goal === 'fastest' ? 0.5 : 1"
-          class="w-16 min-h-[44px] sm:min-h-0 rounded-md border-slate-300 py-0.5 px-1 text-[11px]"
+          class="w-16 min-h-[44px] sm:min-h-0 rounded-md border-slate-300 py-0.5 px-1 text-body"
           :aria-label="goal === 'fastest' ? 'How much slower' : 'How many TE below'"
           data-testid="prefer-fewer-amount"
           @change="applyCustom"
@@ -50,7 +50,7 @@
         <select
           v-if="goal === 'fastest'"
           v-model="unit"
-          class="min-h-[44px] sm:min-h-0 rounded-md border-slate-300 py-0.5 pl-1 pr-6 text-[11px]"
+          class="min-h-[44px] sm:min-h-0 rounded-md border-slate-300 py-0.5 pl-1 pr-6 text-body"
           aria-label="Hours or days"
           @change="applyCustom"
         >
@@ -60,7 +60,7 @@
         <template v-else>TE</template>
       </span>
     </div>
-    <p class="text-[10px] text-slate-500" data-testid="prefer-fewer-help">
+    <p class="text-small text-slate-500" data-testid="prefer-fewer-help">
       Picks the route with the fewest ascensions that is still within that margin of the
       {{ goal === 'fastest' ? 'fastest' : 'highest TE' }}. It only changes which route the green box shows.
     </p>

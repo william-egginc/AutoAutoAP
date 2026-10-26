@@ -7,7 +7,7 @@
 -->
 <template>
   <div
-    class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900 space-y-2"
+    class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body text-amber-900 space-y-2"
     role="alert"
     data-testid="instant-warning"
     :data-at="at"

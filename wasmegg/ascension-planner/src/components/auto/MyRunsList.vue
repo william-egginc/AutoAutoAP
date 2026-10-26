@@ -26,12 +26,12 @@
       @clear="sel = clearExplore(sel)"
     />
 
-    <p v-if="!lines.length" class="text-[11px] text-indigo-900/60 py-4 text-center" data-testid="my-runs-none">
+    <p v-if="!lines.length" class="text-body text-indigo-900/60 py-4 text-center" data-testid="my-runs-none">
       None of the runs on the Leaderboard are yours yet. Share a result from the Auto Planner and it shows up here.
     </p>
     <p
       v-else-if="!shown.length"
-      class="text-[12px] text-indigo-900/70 py-4 text-center"
+      class="text-body text-indigo-900/70 py-4 text-center"
       data-testid="my-runs-none-shown"
     >
       No runs match:{{ ' ' }}<button
@@ -42,7 +42,7 @@
       >Clear filters</button>
     </p>
     <div v-else class="overflow-x-auto">
-      <table class="w-full text-[11px] tabular-nums" data-testid="my-runs-table">
+      <table class="w-full text-small tabular-nums" data-testid="my-runs-table">
         <thead>
           <tr class="text-left text-[9px] font-black uppercase tracking-widest text-indigo-700/60 whitespace-nowrap">
             <th class="pr-2 py-1"></th>
@@ -83,26 +83,26 @@
                 }}</span>
                 <span
                   v-if="l.hidden"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-[9px] font-black text-slate-600"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-black text-slate-600"
                   title="Hidden from the public: only you and the planner's maintainer see it. Open it to show it again."
                   data-testid="my-runs-hidden-tag"
                   >hidden</span
                 >
                 <span
                   v-if="l.maybe"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-100 text-[9px] font-semibold text-slate-500"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-100 text-small font-semibold text-slate-500"
                   title="Same timezone and gear as the save you loaded, but this browser holds no code that proves it is yours."
                   >maybe you</span
                 >
                 <span
                   v-if="l.copies.length > 1"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-[9px] font-black text-slate-600"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-slate-200 text-small font-black text-slate-600"
                   :title="`The same result was sent ${l.copies.length} times. Open it for each copy and its CSV.`"
                   >sent ×{{ l.copies.length }}</span
                 >
                 <span
                   v-if="provisionalTag(l.row)"
-                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                  class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-black text-amber-800"
                   :title="PROVISIONAL_TITLE"
                   >{{ provisionalTag(l.row) }}</span
                 >
@@ -161,7 +161,7 @@
         </tbody>
       </table>
     </div>
-    <p v-if="countText" class="text-[10px] text-slate-500" data-testid="my-runs-count">{{ countText }}</p>
+    <p v-if="countText" class="text-small text-slate-500" data-testid="my-runs-count">{{ countText }}</p>
   </div>
 </template>
 

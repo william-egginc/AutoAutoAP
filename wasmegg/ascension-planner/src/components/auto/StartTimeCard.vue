@@ -13,8 +13,8 @@
 <template>
   <section id="start-times" class="space-y-4 scroll-mt-24" data-testid="start-times-card">
     <div class="space-y-1">
-      <h1 class="text-2xl font-black text-slate-900">{{ NAMES.start }}</h1>
-      <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
+      <h1 class="text-headline font-black text-slate-900">{{ NAMES.start }}</h1>
+      <p class="text-body text-slate-600 max-w-3xl">
         For coming back after a break: one route priced as a fresh start at every hour of the next week, to see
         whether waiting for the weekly sales finishes sooner. It uses your save and Setup from the
         {{ NAMES.auto }}.
@@ -24,33 +24,33 @@
          before still lands here, so say why there is nothing to pick. -->
     <p
       v-if="onVirtue"
-      class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 leading-relaxed"
+      class="rounded-xl border border-slate-200 bg-white p-4 text-body text-slate-600"
       data-testid="start-times-on-virtue"
     >
       You're already ascending, so there's no start to pick.
     </p>
     <div v-else class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-      <p v-if="!(store.currentTE > 0)" class="text-[11px] font-semibold text-amber-700" data-testid="start-times-no-save">
+      <p v-if="!(store.currentTE > 0)" class="text-body font-semibold text-amber-700" data-testid="start-times-no-save">
         Load your save first: open {{ fastestName(store.finalTE) }} in the {{ NAMES.auto }}, then come back here.
       </p>
-      <p v-else-if="store.saveNotReady" class="text-[11px] font-semibold text-amber-700">{{ store.saveNotReady }}</p>
-      <p v-if="!choices.length" class="text-[11px] text-slate-500 leading-relaxed" data-testid="start-times-empty">
+      <p v-else-if="store.saveNotReady" class="text-body font-semibold text-amber-700">{{ store.saveNotReady }}</p>
+      <p v-if="!choices.length" class="text-body text-slate-500" data-testid="start-times-empty">
         It prices the instant answer's best route. Open {{ fastestName(store.finalTE) }} once so the instant answer
         loads, or use "Check start times for this route" under a search's result.
       </p>
-      <label v-else class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+      <label v-else class="flex flex-wrap items-center gap-2 text-small text-slate-600">
         <span class="font-bold text-slate-700">Route</span>
         <select
           v-model="pick"
           :disabled="store.startSweepRunning"
-          class="max-w-full rounded-md border-slate-300 py-1 text-[11px] font-bold text-slate-800"
+          class="max-w-full rounded-md border-slate-300 py-1 text-body font-bold text-slate-800"
           data-testid="start-times-route"
         >
           <option v-for="c in choices" :key="c.key" :value="c.key">{{ c.label }}</option>
         </select>
       </label>
       <StartTimeFinder v-if="chosen" :chain="chosen.chain" bare />
-      <p v-if="newError" class="text-[11px] font-semibold text-rose-700" data-testid="start-times-error">{{ newError }}</p>
+      <p v-if="newError" class="text-body font-semibold text-rose-700" data-testid="start-times-error">{{ newError }}</p>
     </div>
   </section>
 </template>

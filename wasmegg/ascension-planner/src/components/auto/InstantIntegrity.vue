@@ -6,7 +6,7 @@
   one grey line (the panel holds the routes back for those seconds).
 -->
 <template>
-  <p v-if="state.kind === 'checking'" class="text-[11px] text-slate-400" data-testid="instant-integrity">
+  <p v-if="state.kind === 'checking'" class="text-body text-slate-400" data-testid="instant-integrity">
     Checking whether this account can build…
   </p>
   <div
@@ -15,7 +15,7 @@
     data-testid="instant-integrity"
   >
     <p class="text-[10px] font-black uppercase tracking-widest text-red-800">This account can't be planned yet</p>
-    <p class="text-[12px] leading-relaxed text-red-900">
+    <p class="text-body text-red-900">
       <template v-for="(part, i) in parts" :key="i"
         ><b v-if="part.bold" class="font-black">{{ part.text }}</b
         ><template v-else>{{ part.text }}</template></template
@@ -24,7 +24,7 @@
   </div>
   <p
     v-else-if="state.kind === 'warn'"
-    class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900"
+    class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body text-amber-900"
     data-testid="instant-integrity"
   >
     <span class="font-black uppercase tracking-wide">This account stalls.</span>

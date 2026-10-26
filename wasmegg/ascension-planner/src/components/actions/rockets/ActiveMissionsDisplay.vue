@@ -7,7 +7,7 @@
         </div>
         Active Virtue Missions
       </h3>
-      <span class="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+      <span class="text-small font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
         {{ missions.filter(m => !m.statusIsFueling).length }} In-flight
         <template v-if="missions.some(m => m.statusIsFueling)">
           + {{ missions.filter(m => m.statusIsFueling).length }} Fueling
@@ -39,7 +39,7 @@
         <!-- Mission Details -->
         <div class="flex-grow min-w-0">
           <div class="flex items-center justify-between mb-0.5">
-            <h4 class="text-sm font-bold text-gray-900 truncate">{{ mission.shipName }}</h4>
+            <h4 class="text-body font-bold text-gray-900 truncate">{{ mission.shipName }}</h4>
             <div class="flex items-center gap-2">
               <span
                 class="text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase"
@@ -58,7 +58,7 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-3 text-[11px] text-gray-500 font-medium">
+          <div class="flex items-center gap-3 text-small text-gray-500 font-medium">
             <div class="flex items-center gap-1">
               <span class="text-gray-400">Target:</span>
               <span class="text-gray-700">{{ mission.sensorTarget || 'None' }}</span>
@@ -78,7 +78,7 @@
                 :class="mission.statusIsFueling ? 'bg-orange-500' : 'bg-green-500'"
               ></div>
               <span
-                class="text-[11px] font-bold"
+                class="text-small font-bold"
                 :class="mission.statusIsFueling ? 'text-orange-600' : 'text-green-600'"
               >
                 {{ mission.statusName }}
@@ -95,7 +95,7 @@
 
             <div
               v-if="mission.returnTimestamp"
-              class="text-[11px] tabular-nums font-black text-slate-900 flex items-center gap-1"
+              class="text-small tabular-nums font-black text-slate-900 flex items-center gap-1"
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path

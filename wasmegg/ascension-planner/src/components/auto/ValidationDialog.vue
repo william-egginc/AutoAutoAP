@@ -41,7 +41,7 @@
                 </div>
                 <div>
                   <h3 class="text-[10px] font-black text-rose-100 uppercase tracking-[0.2em] mb-1">Validation Error</h3>
-                  <div class="text-2xl font-black tracking-tight leading-tight">Invalid Target TE</div>
+                  <div class="text-headline font-black tracking-tight">Invalid Target TE</div>
                 </div>
               </div>
             </div>
@@ -52,7 +52,7 @@
                 <div class="absolute -top-3 left-6 px-3 py-1 bg-white border border-slate-200 rounded-full text-[9px] font-black text-slate-400 uppercase tracking-widest shadow-sm">
                   System Message
                 </div>
-                <p class="text-[15px] font-bold text-slate-700 leading-relaxed italic">
+                <p class="text-body font-bold text-slate-700 italic">
                   "{{ message }}"
                 </p>
               </div>
@@ -64,7 +64,7 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p class="text-xs font-bold text-amber-900/80 leading-relaxed">
+                  <p class="text-body font-bold text-amber-900/80">
                     Ascension plans must always result in a <span class="text-amber-700">positive gain</span> of Truth Eggs. You cannot target a value lower than or equal to what you have already earned.
                   </p>
                 </div>

@@ -7,11 +7,11 @@
   <section class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-1" :data-testid="`now-tile-${goal}`">
     <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">{{ title }} · saved answer</p>
     <template v-if="a">
-      <p class="text-xl font-black text-slate-900">{{ headline }}</p>
-      <p class="text-[13px] text-slate-600">
+      <p class="text-title font-black text-slate-900">{{ headline }}</p>
+      <p class="text-body text-slate-600">
         {{ sub }} · <span class="tabular-nums font-bold text-slate-800" :title="a.chain.join(' ')">{{ route }}</span>
       </p>
-      <p class="text-[12px] text-slate-500" data-testid="now-tile-when">
+      <p class="text-body text-slate-500" data-testid="now-tile-when">
         Calculated {{ whenAgo(a.calculatedAt / 1000, now, zone) }}<template v-if="a.saveSeconds">
           · from your save of {{ dateAt(a.saveSeconds, now, zone) }}<template v-if="tile.saveGapSeconds"
             >, <span data-testid="now-tile-save-gap">{{ saveGapWords(tile.saveGapSeconds) }}</span></template
@@ -20,10 +20,10 @@
         · {{ howWords(a) }}<template v-if="sourceWords(a)"> · {{ sourceWords(a) }}</template>
       </p>
       <!-- A better answer of this save priced with other hours: secondary, named (fix 22, lib/currentAnswer.ts). -->
-      <p v-if="tile.secondary" class="text-[12px] text-slate-500" data-testid="now-tile-secondary">
+      <p v-if="tile.secondary" class="text-body text-slate-500" data-testid="now-tile-secondary">
         {{ secondaryText }} (calculated {{ dateAt(tile.secondary.calculatedAt / 1000, now, zone) }} · {{ howWords(tile.secondary) }})
       </p>
-      <div v-if="tile.sure" class="mt-1 rounded-lg px-2.5 py-1.5 text-[13px]" :class="SURE[tile.sure.level]" data-testid="now-tile-sure">
+      <div v-if="tile.sure" class="mt-1 rounded-lg px-2.5 py-1.5 text-body" :class="SURE[tile.sure.level]" data-testid="now-tile-sure">
         <b>How sure: {{ LEVEL[tile.sure.level] }}</b>
         <span class="block">
           {{ cap(tile.sure.reason) }}.
@@ -32,28 +32,28 @@
           </button>
         </span>
       </div>
-      <p v-if="tile.olderSave" class="mt-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[12px] text-amber-900" data-testid="now-tile-older">
+      <p v-if="tile.olderSave" class="mt-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-body text-amber-900" data-testid="now-tile-older">
         Older save than the one you loaded.
         <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" @click="emit('open', screenOpen)">Work it out again ›</button>
       </p>
-      <p v-if="standing" class="mt-1 border-t border-slate-100 pt-1.5 text-[13px] text-slate-700" data-testid="now-tile-standing">
+      <p v-if="standing" class="mt-1 border-t border-slate-100 pt-1.5 text-body text-slate-700" data-testid="now-tile-standing">
         {{ standingLabel }}: <b>{{ standing }}</b>
       </p>
-      <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 self-start mt-1 text-[13px] font-bold text-indigo-700 underline" @click="emit('routes')">
+      <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 self-start mt-1 text-body font-bold text-indigo-700 underline" @click="emit('routes')">
         See the routes ›
       </button>
     </template>
     <template v-else>
       <!-- Answers kept, none in time (lib/eggDayRule.ts): said plainly; the nearest is shown, marked, never the answer. -->
       <template v-if="tile.late">
-        <p class="text-[13px] text-slate-700" data-testid="now-tile-no-route-in-time">{{ lateWords }}</p>
-        <p v-if="tile.late.answer" class="text-[12px] text-slate-500" data-testid="now-tile-late">
+        <p class="text-body text-slate-700" data-testid="now-tile-no-route-in-time">{{ lateWords }}</p>
+        <p v-if="tile.late.answer" class="text-body text-slate-500" data-testid="now-tile-late">
           {{ tile.late.answer.endTE }} TE ·
           <span class="tabular-nums" :title="tile.late.answer.chain.join(' ')">{{ tile.late.answer.chain.join(' ') }}</span> ·
           {{ lateMark }}
         </p>
       </template>
-      <p v-else class="text-[13px] text-slate-600" data-testid="now-tile-empty">Not worked out for this save yet.</p>
+      <p v-else class="text-body text-slate-600" data-testid="now-tile-empty">Not worked out for this save yet.</p>
       <button
         type="button"
         class="self-start mt-1 rounded-lg border border-indigo-300 px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-indigo-700 hover:bg-indigo-50"

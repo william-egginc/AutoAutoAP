@@ -20,11 +20,11 @@
       @click="toggle"
     >
       <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What artifacts it will use</h3>
-      <span class="text-[10px] font-bold text-indigo-700">{{ open ? 'hide' : 'show' }}</span>
+      <span class="text-small font-bold text-indigo-700">{{ open ? 'hide' : 'show' }}</span>
     </button>
 
     <div v-if="open && inventory" class="space-y-4">
-      <p class="text-[11px] text-slate-500 leading-relaxed">
+      <p class="text-body text-slate-500">
         The searches don't wear a fixed set, or what you have equipped. They re-solve the best loadout inside
         <span class="font-semibold">every ascension</span> from your virtue inventory, and swap between two: the
         <span class="font-semibold">delivery</span> set while they build the farm, and the
@@ -45,12 +45,12 @@
         </button>
       </div>
       <LoadoutDisplay :loadout="setTab === 'elr' ? inventory.elr : inventory.earnings" />
-      <p v-if="setTab === 'elr'" class="text-[11px] text-slate-500 leading-relaxed">
+      <p v-if="setTab === 'elr'" class="text-body text-slate-500">
         Solved against your research <span class="font-semibold">as it is today</span>, so this is the set the first
         ascension runs with. Every later ascension re-solves against its own research and will pick something
         different.
       </p>
-      <p v-else class="text-[11px] text-slate-500 leading-relaxed">
+      <p v-else class="text-body text-slate-500">
         The best earnings set your inventory can build. It doesn't depend on research, so it's the
         same in every ascension.
       </p>
@@ -73,7 +73,7 @@
             <span
               v-for="a in inventory.artifacts"
               :key="a.label"
-              class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-700"
+              class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-small font-bold text-slate-700"
             >
               <span v-if="a.count > 1" class="text-slate-400">{{ a.count }}&#215; </span>{{ a.label }}
             </span>
@@ -82,12 +82,12 @@
             <span
               v-for="st in inventory.stones"
               :key="st.label"
-              class="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[10px] font-bold text-indigo-800"
+              class="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-small font-bold text-indigo-800"
             >
               <span v-if="st.count > 1" class="text-indigo-400">{{ st.count }}&#215; </span>{{ st.label }}
             </span>
           </div>
-          <p class="text-[11px] text-slate-400 leading-relaxed">
+          <p class="text-body text-slate-400">
             Most of these never get worn. The solver picks from the whole pile, so the pile is its input, but only the
             two sets above are what any ascension runs with.
           </p>
@@ -96,12 +96,12 @@
 
       <p
         v-if="!inventory.artifacts.length && !inventory.stones.length"
-        class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed"
+        class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3"
       >
         No virtue artifacts found in this save. Every ascension is being simulated bare, which makes every plan look
         considerably slower than it will be.
       </p>
-      <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
+      <p class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
         <span class="font-black uppercase tracking-wide">Held fixed for the whole plan.</span>
         This is what you own <span class="font-semibold">today</span>, and the searches assume it never changes. You'll
         craft and upgrade along the way, so the real run should come in <span class="font-semibold">faster</span> than

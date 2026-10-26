@@ -11,8 +11,8 @@
           <img :src="iconURL(selectedOption.iconPath, 64)" class="w-full h-full object-contain" />
         </div>
         <div class="flex flex-col flex-1 min-w-0 justify-center">
-          <span class="text-sm font-bold text-slate-900 truncate">{{ selectedOption.name }}</span>
-          <div class="text-[10px] text-slate-500 truncate flex items-center mt-0.5 font-medium leading-none">
+          <span class="text-body font-bold text-slate-900 truncate">{{ selectedOption.name }}</span>
+          <div class="text-small text-slate-500 truncate flex items-center mt-0.5 font-medium leading-none">
             <span v-if="selectedOption.capacity">{{ selectedOption.capacity }}</span>
             <span v-if="selectedOption.capacity && selectedOption.price !== undefined" class="mx-1.5">•</span>
             
@@ -65,10 +65,10 @@
             <img :src="iconURL(opt.iconPath, 64)" class="w-full h-full object-contain" />
           </div>
           <div class="flex-1 min-w-0 flex flex-col justify-center">
-            <div class="text-sm font-bold truncate" :class="modelValue === opt.id ? 'text-blue-700' : 'text-slate-900'">
+            <div class="text-body font-bold truncate" :class="modelValue === opt.id ? 'text-blue-700' : 'text-slate-900'">
               {{ opt.name }}
             </div>
-            <div class="text-[10px] sm:text-xs text-slate-500 whitespace-normal flex flex-wrap items-center leading-relaxed mt-0.5 font-medium">
+            <div class="text-small sm:text-body text-slate-500 whitespace-normal flex flex-wrap items-center mt-0.5 font-medium">
               <span v-if="opt.capacity">{{ opt.capacity }}</span>
               <span v-if="opt.capacity && opt.price !== undefined" class="mx-1.5">•</span>
               

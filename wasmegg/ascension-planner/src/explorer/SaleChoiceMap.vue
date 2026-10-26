@@ -33,20 +33,20 @@
       >
         {{ mode.label }}
       </button>
-      <span v-if="zoom === 'short' && above" class="text-[10px] font-bold text-slate-500">
+      <span v-if="zoom === 'short' && above" class="text-small font-bold text-slate-500">
         {{ above }} longer ascension{{ above === 1 ? '' : 's' }} (mostly the last ascension to the target) above {{ SHORT_TE }} TE,
         not drawn; they are in the table below
       </span>
     </div>
 
     <EChart v-if="legs.length" :option="option" height="380px" />
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
       No run here that still stands carried per-ascension detail past its first ascension.
     </p>
 
     <div
       v-if="legs.length"
-      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-500"
+      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"
       aria-label="How to read the marks"
     >
       <span>Colour and shape are the sale plan, not an account; the legend counts ascensions.</span>
@@ -65,7 +65,7 @@
       The commonest sale plan, by where the ascension starts and how much it climbs
     </p>
     <div v-if="legs.length" class="overflow-x-auto">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <caption class="sr-only">
           The commonest sale plan, by where the ascension starts and how much it climbs
         </caption>
@@ -97,14 +97,14 @@
                 >
                 <b class="text-slate-700">{{ topText(cell) }}</b>
                 <span class="ml-1 text-slate-500">{{ Math.round(cell.share * 100) }}%</span>
-                <span class="ml-1 text-[10px] text-slate-400">n {{ cell.n }}</span>
+                <span class="ml-1 text-small text-slate-400">n {{ cell.n }}</span>
               </template>
               <span v-else class="text-slate-300">—</span>
             </td>
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 px-1 text-[10px] text-slate-500 leading-relaxed max-w-3xl">
+      <p class="mt-1 px-1 text-small text-slate-500 max-w-3xl">
         n counts ascensions; an ascension one account sent in several runs counts once. A share under two thirds, or an n of one or
         two, is only a weak tendency. Hover a cell for every plan in it and how many accounts it comes from. This is
         which plan the planner picked for the winning routes, not by how much it won: the runs only keep the plan that

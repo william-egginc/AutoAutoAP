@@ -30,7 +30,7 @@
             min="1"
             :max="maxAsc"
             :disabled="disabled"
-            class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+            class="w-16 rounded-md border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
             @input="emit('asc', k, asNumber(($event.target as HTMLInputElement).value))"
           />
         </label>
@@ -60,7 +60,7 @@
         type="text"
         :disabled="disabled"
         :placeholder="placeholder"
-        class="w-full rounded-lg border-slate-300 text-sm tabular-nums font-bold text-slate-800 disabled:opacity-50"
+        class="w-full rounded-lg border-slate-300 text-body tabular-nums font-bold text-slate-800 disabled:opacity-50"
         @input="emit('text', k, ($event.target as HTMLInputElement).value)"
       />
       <BandCheckNotice
@@ -72,7 +72,7 @@
         :disabled="disabled"
         @use="t => emit('text', k, t)"
       />
-      <span class="block text-[10px]" :class="problems[k] ? 'text-rose-600' : 'text-slate-500'">
+      <span class="block text-small" :class="problems[k] ? 'text-rose-600' : 'text-slate-500'">
         {{ problems[k] || summaries[k] }}
       </span>
       <slot name="row-notes" :row="row" :k="k" />

@@ -37,7 +37,7 @@
       <!-- Site storage blocked (lib/storageGuard.ts): the page runs on memory, so say nothing will be kept. -->
       <p
         v-if="storageIsBlocked"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
         role="status"
         data-testid="storage-blocked"
       >
@@ -46,7 +46,7 @@
       <!-- A storage write failed (full or refused; lib/storageWrites.ts): what was just set may not survive a reload. -->
       <p
         v-if="storageWontSave"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
         role="status"
         data-testid="storage-write-failed"
       >
@@ -55,7 +55,7 @@
       <!-- A save with a hab, vehicle or research level newer than this planner's data (lib/saveGuard.ts). -->
       <p
         v-if="initialStateStore.saveNote"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
         role="status"
         data-testid="save-note"
       >
@@ -89,7 +89,7 @@
             <!-- The save's name on its own small line, not run into the title in display type (UX review 26 Oct, #13). -->
             <p
               v-if="playerName"
-              class="mx-4 -mt-1 mb-2 text-center text-sm font-bold text-slate-600 break-words"
+              class="mx-4 -mt-1 mb-2 text-center text-body font-bold text-slate-600 break-words"
               data-testid="header-player-name"
             >
               {{ playerName }}
@@ -161,7 +161,7 @@
       <main id="main-content">
       <!-- A running search's progress, said to a screen reader at most every 10 s and at its end. -->
       <RunAnnouncer />
-      <h1 v-if="plannerTab === 'manual' && playerId" class="mt-4 text-center text-2xl font-black text-slate-900">
+      <h1 v-if="plannerTab === 'manual' && playerId" class="mt-4 text-center text-headline font-black text-slate-900">
         {{ NAMES.manual }}
       </h1>
       <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
@@ -210,7 +210,7 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-800">Start from Scratch</div>
+                    <div class="text-body font-bold text-slate-800">Start from Scratch</div>
                     <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
                       Clear your entire plan, reset all settings, and begin with a clean slate
                     </p>
@@ -243,7 +243,7 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-800">Plan Future Ascension</div>
+                    <div class="text-body font-bold text-slate-800">Plan Future Ascension</div>
                     <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
                       Load your latest backup, include pending TE, reset the clock, and start planning fresh
                     </p>
@@ -275,7 +275,7 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-800">Continue Current Ascension</div>
+                    <div class="text-body font-bold text-slate-800">Continue Current Ascension</div>
                     <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
                       Resume from your current in-game farm with all events applied
                     </p>
@@ -307,7 +307,7 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-800">Reconcile Plan</div>
+                    <div class="text-body font-bold text-slate-800">Reconcile Plan</div>
                     <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
                       Load a plan and compare against your current farm to track progress
                     </p>
@@ -414,7 +414,7 @@
 
       <!-- Current Mode Label -->
       <div v-if="plannerTab === 'manual' && plannerModeLabel" class="mt-4 flex justify-center">
-        <span class="text-sm font-bold text-slate-700">{{ plannerModeLabel }}</span>
+        <span class="text-body font-bold text-slate-700">{{ plannerModeLabel }}</span>
       </div>
 
       <!-- Reconciliation Status Banner -->
@@ -441,7 +441,7 @@
               <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5"
                 >Reconciliation Mode</span
               >
-              <span class="text-[10px] font-bold text-emerald-600 tracking-tight">
+              <span class="text-small font-bold text-emerald-600 tracking-tight">
                 Backup from {{ lastBackupFormatted }}
                 <span class="text-emerald-400/80 font-medium">({{ lastBackupAge }})</span>
               </span>
@@ -531,7 +531,7 @@
           <!-- Action History -->
           <div class="section-premium overflow-visible">
             <div class="px-4 py-3 flex justify-between items-center rounded-t-lg">
-              <h2 class="text-lg font-semibold text-gray-800">Action History</h2>
+              <h2 class="text-title font-semibold text-gray-800">Action History</h2>
               <div class="flex items-center gap-3">
                 <label class="flex items-center gap-1.5 cursor-pointer select-none">
                   <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Compact</span>
@@ -565,7 +565,7 @@
           <!-- Available Actions -->
           <div class="section-premium overflow-visible">
             <div class="px-4 py-3 flex justify-between items-center rounded-t-lg">
-              <h2 class="text-lg font-semibold text-gray-800">Available Actions</h2>
+              <h2 class="text-title font-semibold text-gray-800">Available Actions</h2>
               <button
                 class="p-1 -mr-1 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"
                 @click="expandedSections.availableActions = !expandedSections.availableActions"
@@ -592,8 +592,8 @@
           :inert="blockedBy && autoView !== 'fastest' ? true : undefined"
         >
           <template v-if="autoView === 'classic'">
-            <h1 class="max-w-4xl mx-auto text-2xl font-black text-slate-900">{{ NAMES.classic }}</h1>
-            <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
+            <h1 class="max-w-4xl mx-auto text-headline font-black text-slate-900">{{ NAMES.classic }}</h1>
+            <p class="max-w-4xl mx-auto text-body text-slate-600">
               <span class="font-bold text-slate-900">{{ NAMES.classicFirst }}</span> is Joo's original planner: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
               2× earnings boost in it. To have the stops found for you, use
@@ -647,8 +647,8 @@
              too many boxes there). A result's "Check start times for this route" opens it on that route. -->
         <StartTimeCard v-else-if="scienceView === 'start'" />
         <div v-else>
-          <h1 class="text-2xl font-black text-slate-900">Help check the planner</h1>
-          <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
+          <h1 class="text-headline font-black text-slate-900">Help check the planner</h1>
+          <p class="text-body text-slate-600 max-w-3xl">
             <template v-if="scienceView === 'check'">
               These are the runs the Leaderboard still needs. Run one on your account and it fills a gap.
             </template>
@@ -721,18 +721,18 @@
           class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         >
           <div class="px-6 py-5 border-b border-slate-100">
-            <h3 class="text-lg font-bold text-slate-800">Current Artifact Set</h3>
-            <p class="mt-2 text-sm text-slate-500">Which artifact set do you currently have equipped in game?</p>
+            <h3 class="text-title font-bold text-slate-800">Current Artifact Set</h3>
+            <p class="mt-2 text-body text-slate-500">Which artifact set do you currently have equipped in game?</p>
           </div>
           <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
             <button
-              class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              class="px-4 py-2 text-body font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
               @click="handleArtifactSetSelection('elr')"
             >
               Delivery Rate Set
             </button>
             <button
-              class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              class="px-4 py-2 text-body font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
               @click="handleArtifactSetSelection('earnings')"
             >
               Earnings Set
@@ -766,7 +766,7 @@
       </main>
 
       <!-- On every screen, at the end of the page (a plain link, so it shows on phones too). -->
-      <footer class="pt-8 text-center text-[11px] text-slate-500" data-testid="site-footer">
+      <footer class="pt-8 text-center text-small text-slate-500" data-testid="site-footer">
         <a
           href="./about.html"
           class="inline-block px-3 py-2 underline decoration-dotted underline-offset-2 hover:text-slate-800"

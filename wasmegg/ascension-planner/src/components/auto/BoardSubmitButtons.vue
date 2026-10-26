@@ -69,11 +69,11 @@
 
     <pre
       v-if="showPayload"
-      class="max-h-64 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] leading-relaxed text-slate-200"
+      class="max-h-64 overflow-auto rounded-lg bg-slate-900 p-3 text-small text-slate-200"
       >{{ preview() }}</pre
     >
 
-    <p v-if="!submitUrl" class="text-[11px] text-indigo-900/70 leading-relaxed">
+    <p v-if="!submitUrl" class="text-body text-indigo-900/70">
       No collector is configured in this build, so there is nowhere to submit to and the button is not shown.
       <span class="font-semibold">Save the file</span> and share it however you like. Self-hosting: set
       <span class="tabular-nums">VITE_SUBMIT_URL</span> at build time.

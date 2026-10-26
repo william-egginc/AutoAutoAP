@@ -17,10 +17,10 @@
           type="number"
           min="1"
           max="489"
-          class="w-28 rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+          class="w-28 rounded-lg border border-slate-200 px-2 py-1.5 text-body"
         />
       </label>
-      <p class="text-[10px] text-slate-400 max-w-md">
+      <p class="text-small text-slate-400 max-w-md">
         The ranges below are fitted to this: your 1st ascension's range starts just above your TE. Times are estimates
         from the speeds other players' runs recorded<template v-if="workers && threads"
           >, on the {{ workers }} workers Setup gives searches on {{ thisDevice() }}</template
@@ -28,7 +28,7 @@
       </p>
     </div>
 
-    <p v-if="!needs.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700">
+    <p v-if="!needs.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-body font-semibold text-emerald-700">
       Nothing on the list right now: every gap has enough accounts. New kinds of question will show up here as they come
       up.
     </p>
@@ -36,8 +36,8 @@
     <!-- Two lists: the By a date runs first, then the gear and accounts we have no table for. -->
     <section v-for="group in groups" :key="group.id" class="space-y-2">
       <div v-if="group.items.length" class="space-y-1 pt-1">
-        <p class="text-[12px] font-bold text-slate-800">{{ group.title }}</p>
-        <p v-if="group.intro" class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">{{ group.intro }}</p>
+        <p class="text-body font-bold text-slate-800">{{ group.title }}</p>
+        <p v-if="group.intro" class="text-body text-slate-500 max-w-3xl">{{ group.intro }}</p>
       </div>
       <ol v-if="group.items.length" class="space-y-2">
         <li
@@ -48,7 +48,7 @@
           :data-testid="`need-${need.id}`"
         >
           <div class="flex flex-wrap items-baseline justify-between gap-2">
-            <span class="text-[12px] font-bold text-slate-900">
+            <span class="text-small font-bold text-slate-900">
               {{ need.title }}
               <span
                 v-if="need.owned"
@@ -57,7 +57,7 @@
                 >{{ need.ownedLabel }}</span
               >
             </span>
-            <span class="text-[10px] font-semibold text-slate-500">
+            <span class="text-small font-semibold text-slate-500">
               <span :class="need.have >= need.want ? 'text-emerald-700' : ''" data-testid="need-have"
                 >{{ need.have }} of {{ need.want }} {{ need.want === 1 ? 'account' : 'accounts'
                 }}{{ need.have >= need.want ? ' (enough)' : '' }}</span
@@ -65,10 +65,10 @@
               · who: {{ need.who }}
             </span>
           </div>
-          <p v-if="need.coverageText" class="text-[11px] font-semibold text-slate-700" data-testid="need-coverage">
+          <p v-if="need.coverageText" class="text-body font-semibold text-slate-700" data-testid="need-coverage">
             {{ need.coverageText }}
           </p>
-          <p class="text-[11px] text-slate-600 leading-relaxed">{{ need.why }}</p>
+          <p class="text-body text-slate-600">{{ need.why }}</p>
           <!-- A gear card: the artifacts and stones to have. Rarity is not in an icon, so it is the
                letter beside it (L legendary, E epic, R rare, C common). -->
           <div v-if="need.gear" class="space-y-1.5 rounded bg-white px-2 py-1.5">
@@ -84,10 +84,10 @@
                   class="w-7 h-7 object-contain"
                   :alt="s.title"
                 />
-                <span class="text-[10px] font-bold text-slate-700">T{{ s.tier }}</span>
-                <span class="rounded px-1 text-[9px] font-black" :class="RARITY_CLASS[s.rarity]">{{ s.rarity }}</span>
+                <span class="text-small font-bold text-slate-700">T{{ s.tier }}</span>
+                <span class="rounded px-1 text-small font-black" :class="RARITY_CLASS[s.rarity]">{{ s.rarity }}</span>
               </span>
-              <span v-if="part.note" class="text-[10px] text-slate-500">{{ part.note }}</span>
+              <span v-if="part.note" class="text-small text-slate-500">{{ part.note }}</span>
             </div>
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span class="w-16 text-[9px] font-black uppercase tracking-widest text-slate-400">Stones</span>
@@ -97,14 +97,14 @@
                   class="w-6 h-6 object-contain"
                   :alt="`${STONE_NAME[st.family]} stone`"
                 />
-                <span class="text-[10px] font-bold text-slate-700">T{{ st.tier }} {{ STONE_NAME[st.family] }}</span>
-                <span class="text-[10px] text-slate-500">{{ st.where }}</span>
+                <span class="text-small font-bold text-slate-700">T{{ st.tier }} {{ STONE_NAME[st.family] }}</span>
+                <span class="text-small text-slate-500">{{ st.where }}</span>
               </span>
             </div>
-            <p class="text-[10px] font-semibold text-slate-600">{{ need.gear.cte }}</p>
+            <p class="text-small font-semibold text-slate-600">{{ need.gear.cte }}</p>
           </div>
           <!-- A By a date card: what it opens, how big it is, and how long it takes. -->
-          <div v-if="need.byDate" class="space-y-1 rounded bg-white px-2 py-1.5 text-[11px] text-slate-700">
+          <div v-if="need.byDate" class="space-y-1 rounded bg-white px-2 py-1.5 text-body text-slate-700">
             <p>
               Opens <b>{{ NAMES.byDate }}</b> on Egg Day with ascension counts {{ need.byDate.asc.join(', ') }}.
               {{ need.byDate.summary }} {{ need.bd?.wider }}
@@ -131,7 +131,7 @@
             </div>
           </div>
           <!-- Only when there is something to run: with no chains there are no buttons to press. -->
-          <p v-if="!need.byDate && need.chains > 0" class="text-[11px] text-slate-700">
+          <p v-if="!need.byDate && need.chains > 0" class="text-body text-slate-700">
             {{
               need.links.length > 1 ? 'Press both buttons below, one after the other.' : 'Press Run this sweep below.'
             }}
@@ -141,7 +141,7 @@
             <template v-if="need.minGap > 0">Ascension targets stay at least {{ need.minGap }} TE apart.</template>
             {{ need.note ? need.note : '' }}
           </p>
-          <div v-if="!need.byDate && need.chains > 0" class="grid gap-1 sm:grid-cols-4 text-[11px]">
+          <div v-if="!need.byDate && need.chains > 0" class="grid gap-1 sm:grid-cols-4 text-small">
             <div class="rounded bg-white px-2 py-1">
               <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
               <div class="font-bold text-slate-800">
@@ -156,13 +156,13 @@
               <div class="font-bold text-slate-800">about {{ t.text }}</div>
             </div>
           </div>
-          <p v-else-if="!need.byDate" class="text-[10px] font-semibold text-amber-700">
+          <p v-else-if="!need.byDate" class="text-small font-semibold text-amber-700">
             {{ NO_FIT_TEXT }}
             <span class="font-normal">
               From {{ teNow }} TE its ascension ranges, with targets at least {{ need.minGap }} TE apart, leave no room.
             </span>
           </p>
-          <p v-if="!need.byDate && runInPlace && need.chains > 0" class="text-[10px] text-slate-500">{{ SCIENCE_SWEEP_NOTE }}</p>
+          <p v-if="!need.byDate && runInPlace && need.chains > 0" class="text-small text-slate-500">{{ SCIENCE_SWEEP_NOTE }}</p>
           <div v-if="need.byDate || need.chains > 0" class="flex flex-wrap items-center gap-2 pt-1">
             <!-- Inside the planner (the Science tab) it runs right here, in SweepRunner.vue; on the
                  standalone Explorer page there is no save to run it on, so it opens the planner. -->
@@ -176,7 +176,7 @@
               >
                 {{ link.label }}
               </button>
-              <span class="text-[10px] text-slate-400">
+              <span class="text-small text-slate-400">
                 {{
                   need.byDate
                     ? `Switches to ${NAMES.byDate} with this filled in; nothing starts until you press Run.`
@@ -195,7 +195,7 @@
               >
                 {{ link.label }} &rarr;
               </a>
-              <span class="text-[10px] text-slate-400">
+              <span class="text-small text-slate-400">
                 Opens {{ need.byDate ? `${NAMES.byDate} › ${NAMES.full}` : `${fastestName(finalTe)} › ${NAMES.fullFirst}` }} in a new tab with all of this filled in, on the save
                 you have loaded.
               </span>

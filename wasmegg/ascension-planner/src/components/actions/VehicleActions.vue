@@ -57,7 +57,7 @@
           <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-indigo-700"
             >Max Vehicles</span
           >
-          <span v-if="maxVehiclesTime" class="text-[9px] tabular-nums font-black text-indigo-500 mt-0.5">{{
+          <span v-if="maxVehiclesTime" class="text-small tabular-nums font-black text-indigo-500 mt-0.5">{{
             maxVehiclesTime
           }}</span>
         </div>
@@ -103,7 +103,7 @@
         <div class="flex items-center justify-between">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Slot {{ index + 1 }}</span>
           <div v-if="slot.vehicleId !== null" class="flex flex-col items-end">
-            <span class="text-sm tabular-nums font-black text-slate-900">
+            <span class="text-body tabular-nums font-black text-slate-900">
               {{ formatNumber(getVehicleCapacity(slot, index) * 3600, 0) }}
             </span>
             <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest opacity-60">eggs/hr</span>
@@ -122,7 +122,7 @@
           <div class="flex items-center justify-between gap-3">
             <div class="flex flex-col gap-0.5">
               <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest">Train Length</span>
-              <span class="text-xs tabular-nums font-black text-indigo-600"
+              <span class="text-small tabular-nums font-black text-indigo-600"
                 >{{ slot.trainLength }} / {{ getMaxTrainLength() }}</span
               >
             </div>
@@ -137,7 +137,7 @@
                 <span class="text-[10px] font-black text-blue-700 uppercase tracking-tight group-hover:text-blue-800"
                   >+1 Car ({{ formatGemPrice(getNextCarCost(slot)) }})</span
                 >
-                <span class="text-[9px] font-medium text-slate-400 opacity-80">{{ getCarTimeToBuy(slot) }}</span>
+                <span class="text-small font-medium text-slate-400 opacity-80">{{ getCarTimeToBuy(slot) }}</span>
               </button>
 
               <!-- Max cars button -->
@@ -150,13 +150,13 @@
                   class="text-[10px] font-black text-indigo-700 uppercase tracking-tight group-hover:text-indigo-800"
                   >Max (+{{ getRemainingCars(slot, index) }}) ({{ formatGemPrice(getTotalCarsCost(slot)) }})</span
                 >
-                <span class="text-[9px] font-medium text-slate-400 opacity-80">{{ getMaxCarsTimeToBuy(slot) }}</span>
+                <span class="text-small font-medium text-slate-400 opacity-80">{{ getMaxCarsTimeToBuy(slot) }}</span>
               </button>
             </div>
           </div>
 
           <!-- Capacity per car hints -->
-          <div v-if="slot.trainLength < getMaxTrainLength()" class="mt-2 text-[9px] text-slate-400 italic font-medium">
+          <div v-if="slot.trainLength < getMaxTrainLength()" class="mt-2 text-small text-slate-400 italic font-medium">
             Each car adds +{{ formatNumber((getVehicleType(11)?.baseCapacityPerSecond ?? 0) * 3600, 0) }} eggs/hr before research and artifacts
           </div>
         </div>
@@ -169,7 +169,7 @@
         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
           Fleet Capacity: {{ activeVehicleCount }}/{{ maxVehicleSlots }} active
         </p>
-        <p class="text-[10px] text-indigo-400 italic font-medium">(Fleet Size research unlocks more slots)</p>
+        <p class="text-small text-indigo-400 italic font-medium">(Fleet Size research unlocks more slots)</p>
       </div>
     </div>
 

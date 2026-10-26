@@ -9,7 +9,7 @@
   Nothing is worked out here: a route priced without its legs says so rather than guessing.
 -->
 <template>
-  <div class="space-y-1 text-[11px] leading-relaxed whitespace-normal text-left" data-testid="route-timeline">
+  <div class="space-y-1 text-body whitespace-normal text-left" data-testid="route-timeline">
     <p v-if="!lines.length" class="text-slate-500" data-testid="route-timeline-none">
       {{ noLegsText || "When each stop happens wasn't kept for this route." }}
     </p>
@@ -42,7 +42,7 @@
           </li>
         </ol>
         <!-- Each egg's first and last shift, one small line under the list. -->
-        <p class="mt-0.5 ml-3 text-[10px] text-slate-400" data-testid="route-timeline-egg-summary">
+        <p class="mt-0.5 ml-3 text-small text-slate-400" data-testid="route-timeline-egg-summary">
           Each egg, first to last:
           <template v-for="(e, k) in l.eggs" :key="e.egg"
             >{{ k ? ' · ' : '' }}{{ eggName(e.egg) }} {{ when(e.firstAt) }} to {{ when(e.lastAt)
@@ -58,12 +58,12 @@
         >
       </p>
     </template>
-    <p v-if="lines.some(l => !l.eggs.length)" class="text-[10px] text-slate-400" data-testid="route-timeline-no-eggs">
+    <p v-if="lines.some(l => !l.eggs.length)" class="text-small text-slate-400" data-testid="route-timeline-no-eggs">
       Each egg's times weren't kept for
       {{ lines.every(l => !l.eggs.length) ? 'this route' : 'the ascensions without an arrow' }} (read back from a saved
       run, or priced before they were kept).
     </p>
-    <p v-if="lines.length && missingTE" class="text-[10px] text-slate-400" data-testid="route-timeline-no-te">
+    <p v-if="lines.length && missingTE" class="text-small text-slate-400" data-testid="route-timeline-no-te">
       This route was priced before the planner kept each egg's TE at its shifts, so it shows when you lay each egg, not
       the TE it reaches.
     </p>

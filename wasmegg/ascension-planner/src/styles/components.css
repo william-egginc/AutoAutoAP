@@ -139,7 +139,7 @@
 
     /* --- Player ID Form Premium Overrides --- */
     #playerId {
-        @apply input-premium text-center tabular-nums text-lg tracking-wider font-bold text-brand-primary;
+        @apply input-premium text-center tabular-nums text-title tracking-wider font-bold text-brand-primary;
     }
 
     /* --- Custom Scrollbar --- */

@@ -10,7 +10,7 @@
 <template>
   <p
     v-if="report"
-    class="rounded-lg border px-3 py-2 text-[11px]"
+    class="rounded-lg border px-3 py-2 text-body"
     :class="
       !report.ok
         ? 'bg-red-50 border-red-200 text-red-800'

@@ -20,7 +20,7 @@
       :disabled="disabled || anonymous"
       placeholder="nickname"
       aria-label="Nickname"
-      class="rounded-lg border-indigo-200 text-sm font-bold text-slate-800 w-48 disabled:opacity-40"
+      class="rounded-lg border-indigo-200 text-body font-bold text-slate-800 w-48 disabled:opacity-40"
       @input="onNickname"
     />
   </div>

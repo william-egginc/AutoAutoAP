@@ -15,7 +15,7 @@
   <div class="space-y-3 text-left" data-testid="study-form">
     <!-- Short on purpose (about 5 lines at 390 px, 21 Oct 2026): the full list is behind "What exactly is sent"
          (about.html#sent), and each tick says public or private itself. -->
-    <p class="text-[12px] text-slate-600 leading-relaxed break-words" data-testid="study-intro">
+    <p class="text-body text-slate-600 break-words" data-testid="study-intro">
       Help make the planner’s answers better.{{ ' ' }}<span :class="phoneOnly"
         >Your runs go public only when you press share. The last tick sends a private, anonymous record of the best
         result of a Fast, Exact or Custom search.{{ ' ' }}</span
@@ -27,7 +27,7 @@
       href="./about.html#sent"
       target="_blank"
       rel="noopener"
-      class="inline-flex items-center min-h-[44px] sm:min-h-0 text-[12px] font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
+      class="inline-flex items-center min-h-[44px] sm:min-h-0 text-small font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
       data-testid="study-about"
       >What exactly is sent</a
     >
@@ -36,7 +36,7 @@
     <button
       v-if="compact"
       type="button"
-      class="sm:hidden flex w-full items-center justify-between gap-2 min-h-[44px] px-3 rounded-lg border border-indigo-200 bg-indigo-50/60 text-[12px] font-bold text-indigo-800 hover:bg-indigo-50"
+      class="sm:hidden flex w-full items-center justify-between gap-2 min-h-[44px] px-3 rounded-lg border border-indigo-200 bg-indigo-50/60 text-body font-bold text-indigo-800 hover:bg-indigo-50"
       :aria-expanded="choicesOpen"
       aria-controls="study-choices"
       data-testid="study-choices-toggle"
@@ -56,7 +56,7 @@
         <label
           v-for="[k, words] in TICK_WORDS"
           :key="k"
-          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[12px] font-semibold text-slate-700"
+          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
         >
           <input
             v-model="ticks[k]"
@@ -67,7 +67,7 @@
           <span class="break-words">{{ words }}</span>
         </label>
       </fieldset>
-      <p class="text-[11px] text-slate-500" data-testid="study-untick-note">
+      <p class="text-body text-slate-500" data-testid="study-untick-note">
         Tick what you are happy to share; anything you leave unticked stays off.
       </p>
 
@@ -75,7 +75,7 @@
         <legend class="text-[10px] font-black text-slate-500 uppercase tracking-widest">On the leaderboard</legend>
         <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-3">
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[12px] font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
           >
             <input
               v-model="credit"
@@ -92,14 +92,14 @@
             :maxlength="STUDY_NAME_MAX"
             placeholder="nickname"
             aria-label="Nickname"
-            class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-sm font-bold text-slate-800"
+            class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-body font-bold text-slate-800"
             :class="credit === 'anon' ? 'opacity-50' : ''"
             data-testid="study-nickname"
             @input="capField"
             @focus="credit = 'name'"
           />
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[12px] font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-semibold text-slate-700"
           >
             <input
               v-model="credit"
@@ -111,7 +111,7 @@
             Stay anonymous
           </label>
         </div>
-        <p v-if="credit === 'name' && !nickname.trim()" class="text-[11px] text-amber-700">
+        <p v-if="credit === 'name' && !nickname.trim()" class="text-body text-amber-700">
           Type a name to be credited; until then you stay anonymous.
         </p>
       </fieldset>
@@ -161,7 +161,7 @@
     <p
       v-if="!canSayYes"
       id="study-yes-why"
-      class="text-[11px] text-amber-700"
+      class="text-body text-amber-700"
       :class="folded ? 'hidden sm:block' : ''"
       data-testid="study-yes-why"
     >

@@ -26,12 +26,12 @@
       >
         Download diagnostics
       </button>
-      <span class="text-[11px] text-slate-500">
+      <span class="text-body text-slate-500">
         A small JSON file of what this run was <em>given</em>: backup age, TE, research and loadout. No save data and no
         player ID. Attach it when you report a result that looks wrong.
       </span>
     </template>
-    <p v-if="downloadError" class="w-full text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
+    <p v-if="downloadError" class="w-full text-body font-semibold text-red-700">{{ downloadError }}</p>
   </div>
 </template>
 

@@ -8,7 +8,7 @@
   say it) and the buttons are this one's.
 -->
 <template>
-  <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-[11px] text-amber-900 leading-relaxed">
+  <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-body text-amber-900">
     <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">{{ title }}</h3>
     <slot />
     <RunGoingElsewhere v-if="elsewhere" />

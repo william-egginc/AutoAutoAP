@@ -31,13 +31,13 @@
       >
         {{ opt.label }}
       </button>
-      <span class="text-[10px] text-slate-400">lowest first, from each account's earliest-finish run</span>
+      <span class="text-small text-slate-400">lowest first, from each account's earliest-finish run</span>
     </div>
 
     <!-- A size container, so a tapped cell's details can be as wide as what is on screen (100cqw),
          however wide the table is: the runs table's pattern. -->
     <div v-if="table.rows.length" class="overflow-x-auto [container-type:inline-size]">
-      <table class="text-[11px] border-separate [border-spacing:3px]">
+      <table class="text-small border-separate [border-spacing:3px]">
         <thead>
           <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
             <th rowspan="2" class="sticky left-0 z-10 bg-white text-left align-bottom py-1 pr-3">Account</th>
@@ -48,7 +48,7 @@
               v-for="col in table.columns"
               :key="col.key"
               scope="col"
-              class="text-center text-[11px] font-black w-[5rem] min-w-[5rem]"
+              class="text-center text-small font-black w-[5rem] min-w-[5rem]"
               :class="col.tried ? 'text-slate-700' : 'text-slate-300'"
               :title="
                 col.tried ? `${col.label} ascensions` : `Nobody here tried ${col.label.replace('–', ' to ')} ascensions`
@@ -67,7 +67,7 @@
                 <span class="whitespace-nowrap"
                   ><AccountDot :index="row.color" class="mr-1.5" /><b class="text-slate-700">{{ row.label }}</b></span
                 >
-                <div class="text-[10px] text-slate-400">
+                <div class="text-small text-slate-400">
                   <template v-for="(part, k) in gearParts(row)" :key="part.id"
                     >{{ k ? ' · ' : ''
                     }}<span :class="part.id === order ? 'font-black text-slate-600' : ''">{{
@@ -75,10 +75,10 @@
                     }}</span></template
                   >
                 </div>
-                <div v-if="row.anchor && !row.anchorShown" class="text-[10px] text-slate-400">
+                <div v-if="row.anchor && !row.anchorShown" class="text-small text-slate-400">
                   earliest finish: {{ plural(row.anchor.row.ascensions, 'ascension') }}, not in this table
                 </div>
-                <div v-else-if="!row.anchor" class="text-[10px] text-slate-400">no finish still stands</div>
+                <div v-else-if="!row.anchor" class="text-small text-slate-400">no finish still stands</div>
               </th>
               <!-- A button, so the details a mouse gets on hover are a tap away on a phone: they open in a
                  row under this one. -->
@@ -101,7 +101,7 @@
                       :style="cell.style === 'hatched' ? { background: fillOf(cell).color } : undefined"
                       >{{ cell.text }}</span
                     >
-                    <i v-else-if="cell.state === 'hidden'" class="text-[10px] font-normal text-slate-400">hidden</i>
+                    <i v-else-if="cell.state === 'hidden'" class="text-small font-normal text-slate-400">hidden</i>
                   </div>
                 </button>
               </td>
@@ -109,13 +109,13 @@
             <tr v-if="picked && picked.row === row.key && pickedCell">
               <td :colspan="table.columns.length + 1" class="p-0">
                 <div
-                  class="sticky left-0 max-w-[100cqw] flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-2.5 py-1.5 text-[11px] leading-relaxed text-slate-700"
+                  class="sticky left-0 max-w-[100cqw] flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50/60 px-2.5 py-1.5 text-body text-slate-700"
                   role="status"
                 >
                   <p class="grow whitespace-pre-line">{{ cellTitle(row, pickedCell, viewZone) }}</p>
                   <button
                     type="button"
-                    class="shrink-0 rounded px-1 text-[13px] leading-none text-slate-500 hover:bg-indigo-100"
+                    class="shrink-0 rounded px-1 text-small leading-none text-slate-500 hover:bg-indigo-100"
                     aria-label="Close these details"
                     @click="picked = null"
                   >
@@ -127,7 +127,7 @@
           </template>
         </tbody>
         <tfoot>
-          <tr class="text-[10px] text-slate-500">
+          <tr class="text-small text-slate-500">
             <th scope="row" class="sticky left-0 z-10 bg-white text-left font-bold pt-1 pr-3 whitespace-nowrap">
               Accounts that tried it
             </th>
@@ -144,11 +144,11 @@
         </tfoot>
       </table>
     </div>
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">No run to this target yet.</p>
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">No run to this target yet.</p>
 
     <div
       v-if="table.rows.length"
-      class="space-y-1.5 px-1 text-[10px] text-slate-500"
+      class="space-y-1.5 px-1 text-small text-slate-500"
       aria-label="How to read the fills and borders"
     >
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">

@@ -7,7 +7,7 @@
   <component
     :is="tag"
     v-if="message"
-    class="text-[11px] font-semibold"
+    class="text-small font-semibold"
     :class="!ok ? 'text-rose-700' : partial ? 'text-amber-700' : 'text-emerald-700'"
   >
     <SendingText v-if="inProgress" :text="message.replace(/\.\.\.$/, '')" />

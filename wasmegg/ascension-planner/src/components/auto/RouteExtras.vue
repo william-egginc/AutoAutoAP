@@ -4,7 +4,7 @@
   shifts fold into one line until opened; the TE is one line. Nothing when the legs don't say.
 -->
 <template>
-  <div v-if="shifts.length || more" class="space-y-1 text-[11px] leading-relaxed" data-testid="route-extras">
+  <div v-if="shifts.length || more" class="space-y-1 text-body" data-testid="route-extras">
     <details v-if="shifts.length" data-testid="first-shifts">
       <summary class="cursor-pointer font-semibold" :class="tone">
         First ascension: {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }},

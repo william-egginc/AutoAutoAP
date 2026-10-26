@@ -8,7 +8,7 @@
         <!-- Ascension Start Time -->
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 md:flex-wrap">
           <div>
-            <div class="text-sm font-bold text-slate-700">Ascension Start</div>
+            <div class="text-body font-bold text-slate-700">Ascension Start</div>
             <div class="hidden md:block text-[10px] uppercase font-black text-slate-400 tracking-wider">When this journey begins</div>
           </div>
           <div class="flex flex-col md:flex-row md:items-center md:flex-wrap md:justify-end gap-2 w-full md:w-auto mt-1 md:mt-0">
@@ -30,7 +30,7 @@
         <!-- Starting Egg -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
           <div>
-            <div class="text-sm font-bold text-slate-700">Starting Egg</div>
+            <div class="text-body font-bold text-slate-700">Starting Egg</div>
             <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">Where the plan begins</div>
           </div>
           <div class="flex gap-2 justify-between w-full sm:w-auto mt-1 sm:mt-0">
@@ -65,7 +65,7 @@
         <!-- Previous Shifts (editable) -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
           <div>
-            <div class="text-sm font-bold text-slate-700">Previous Shifts</div>
+            <div class="text-body font-bold text-slate-700">Previous Shifts</div>
             <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">Experience baseline</div>
           </div>
           <div class="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
@@ -73,7 +73,7 @@
               type="number"
               :value="initialShiftCount"
               :min="0"
-              class="input-premium w-full sm:w-40 text-right text-sm tabular-nums font-bold text-slate-900"
+              class="input-premium w-full sm:w-40 text-right text-body tabular-nums font-bold text-slate-900"
               @change="$emit('set-initial-shift-count', parseInt(($event.target as HTMLInputElement).value) || 0)"
             />
           </div>
@@ -83,7 +83,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
           <div>
             <div class="flex items-center gap-1.5">
-              <div class="text-sm font-bold text-slate-700">Soul Eggs (SE)</div>
+              <div class="text-body font-bold text-slate-700">Soul Eggs (SE)</div>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-4 h-4 mb-0.5" alt="SE" />
             </div>
             <div class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider">
@@ -94,7 +94,7 @@
             <input
               type="text"
               :value="formatNumber(soulEggs, 3)"
-              class="input-premium w-full sm:w-40 text-right text-sm tabular-nums font-bold text-slate-900"
+              class="input-premium w-full sm:w-40 text-right text-body tabular-nums font-bold text-slate-900"
               @blur="handleSoulEggsChange(($event.target as HTMLInputElement).value)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
@@ -106,7 +106,7 @@
           class="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl border border-slate-100 group hover:bg-slate-50 transition-colors"
         >
           <div>
-            <div class="text-sm font-bold text-slate-700">Assume Double Earnings</div>
+            <div class="text-body font-bold text-slate-700">Assume Double Earnings</div>
             <div
               class="hidden sm:block text-[10px] uppercase font-black text-slate-400 tracking-wider group-hover:text-slate-500 transition-colors"
             >
@@ -166,14 +166,14 @@
         <!-- Eggs of Truth (Total display) -->
         <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 flex items-center justify-between">
           <div>
-            <div class="text-sm font-bold text-slate-700">Total Eggs of Truth</div>
+            <div class="text-body font-bold text-slate-700">Total Eggs of Truth</div>
             <div class="text-[10px] uppercase font-black text-slate-400 tracking-wider">
               Multiplies IHR & Earnings by 1.1^TE
             </div>
           </div>
           <div class="flex items-center gap-3">
             <div class="relative">
-              <div class="text-lg tabular-nums font-bold text-slate-900 px-3">{{ totalTe }}</div>
+              <div class="text-title tabular-nums font-bold text-slate-900 px-3">{{ totalTe }}</div>
             </div>
             <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Max: 490</span>
           </div>
@@ -208,7 +208,7 @@
                   <input
                     type="text"
                     :value="formatNumber(eggsDelivered[egg], 3)"
-                    class="input-premium w-full text-right text-sm tabular-nums font-bold text-slate-900"
+                    class="input-premium w-full text-right text-body tabular-nums font-bold text-slate-900"
                     placeholder="0"
                     @change="handleEggsDeliveredChange(egg, ($event.target as HTMLInputElement).value)"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
@@ -222,7 +222,7 @@
                     :value="teEarned[egg]"
                     :min="0"
                     :max="98"
-                    class="input-premium w-full text-right text-sm tabular-nums font-bold text-slate-900"
+                    class="input-premium w-full text-right text-body tabular-nums font-bold text-slate-900"
                     @change="handleTEEarnedChange(egg, ($event.target as HTMLInputElement).value)"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
                   />
@@ -273,7 +273,7 @@
       <div class="p-4">
         <div v-if="activeSetTab === 'earnings' && clothedTe !== null" class="mt-4 flex justify-between items-center px-1">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clothed TE</span>
-          <span class="text-sm tabular-nums font-bold text-slate-900">{{ Math.round(clothedTe) }}</span>
+          <span class="text-body tabular-nums font-bold text-slate-900">{{ Math.round(clothedTe) }}</span>
         </div>
         <template v-if="!hasArtifactSets">
           <div class="mb-4">
@@ -373,12 +373,12 @@
         <!-- Tank Level Selector -->
         <div class="flex items-center justify-between">
           <div>
-            <div class="text-sm font-bold text-slate-700">Tank Level</div>
+            <div class="text-body font-bold text-slate-700">Tank Level</div>
             <div class="text-[10px] uppercase font-black text-slate-400 tracking-wider">Storage capacity tier</div>
           </div>
           <select
             :value="tankLevel"
-            class="input-premium w-auto text-sm font-bold text-slate-900 py-2.5 pl-4 pr-12"
+            class="input-premium w-auto text-body font-bold text-slate-900 py-2.5 pl-4 pr-12"
             @change="$emit('set-tank-level', parseInt(($event.target as HTMLSelectElement).value))"
           >
             <option v-for="opt in tankLevelOptions" :key="opt.level" :value="opt.level">
@@ -391,7 +391,7 @@
         <div class="space-y-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
           <div class="flex justify-between items-end mb-1">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilization</span>
-            <span class="text-xs font-bold text-slate-700 tabular-nums">{{ fillPercent.toFixed(1) }}%</span>
+            <span class="text-small font-bold text-slate-700 tabular-nums">{{ fillPercent.toFixed(1) }}%</span>
           </div>
           <div class="h-3 bg-white shadow-inner rounded-full overflow-hidden border border-slate-100">
             <div
@@ -440,7 +440,7 @@
                   <input
                     type="text"
                     :value="formatNumber(fuelAmounts[egg], 1)"
-                    class="input-premium w-40 text-right text-sm tabular-nums font-bold text-slate-900"
+                    class="input-premium w-40 text-right text-body tabular-nums font-bold text-slate-900"
                     placeholder="0"
                     @blur="handleFuelAmountChange(egg, ($event.target as HTMLInputElement).value)"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
@@ -513,7 +513,7 @@
                   :value="research.level"
                   :min="0"
                   :max="research.maxLevel"
-                  class="input-premium w-16 text-center text-xs tabular-nums py-1 font-bold"
+                  class="input-premium w-16 text-center text-body tabular-nums py-1 font-bold"
                   @change="
                     $emit(
                       'set-epic-research-level',
@@ -528,7 +528,7 @@
               </div>
             </div>
           </div>
-          <div class="text-[10px] text-slate-500 font-medium italic leading-relaxed pl-14 pr-2 pb-1">
+          <div class="text-small text-slate-500 font-medium italic pl-14 pr-2 pb-1">
             {{ research.effect }}
           </div>
         </div>
@@ -576,7 +576,7 @@
               </div>
               <div class="min-w-0">
                 <div class="text-xs font-bold text-slate-800 uppercase tracking-tight">{{ egg.name }}</div>
-                <div class="text-[10px] text-slate-400 font-medium truncate italic leading-relaxed">
+                <div class="text-small text-slate-400 font-medium truncate italic">
                   {{ egg.bonusText }} {{ egg.effect.toLowerCase() }}
                 </div>
               </div>
@@ -585,7 +585,7 @@
             <div class="flex items-center gap-4">
               <select
                 :value="egg.tierIndex"
-                class="input-premium py-1 pl-3 pr-10 text-xs font-bold text-slate-900 border-none bg-slate-100 hover:bg-slate-200 transition-colors w-auto"
+                class="input-premium py-1 pl-3 pr-10 text-body font-bold text-slate-900 border-none bg-slate-100 hover:bg-slate-200 transition-colors w-auto"
                 @change="$emit('set-colleggtible-tier', egg.id, parseInt(($event.target as HTMLSelectElement).value))"
               >
                 <option v-for="opt in TIER_OPTIONS" :key="opt.value" :value="opt.value">

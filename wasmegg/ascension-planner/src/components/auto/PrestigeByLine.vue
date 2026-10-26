@@ -6,7 +6,7 @@
 <template>
   <!-- A quiet one-liner only while it is working, and for at most STILL_WORKING_MS: past that it says nothing until a
        line comes (UX review 26 Oct 2026, item 7: it sat in the green box until the player had scrolled away). -->
-  <p v-if="status === 'running' && working" class="text-[11px] text-slate-400" data-testid="prestige-by-running">
+  <p v-if="status === 'running' && working" class="text-body text-slate-400" data-testid="prestige-by-running">
     Working out how long your next prestige can wait…
   </p>
   <div
@@ -14,7 +14,7 @@
     class="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 space-y-1"
     data-testid="prestige-by"
   >
-    <p class="text-[12px] text-slate-800 leading-relaxed">
+    <p class="text-body text-slate-800">
       <span
         class="mr-1 px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 text-[9px] font-black uppercase tracking-widest"
         :title="EVIDENCE"
@@ -33,28 +33,28 @@
          per number, the rest behind Why, as under the answer itself: AnswerCaveatLine.vue). -->
     <details data-testid="prestige-by-why">
       <summary
-        class="cursor-pointer min-h-[44px] sm:min-h-0 py-2.5 sm:py-0 text-[11px] font-bold text-violet-800 underline decoration-dotted underline-offset-2"
+        class="cursor-pointer min-h-[44px] sm:min-h-0 py-2.5 sm:py-0 text-body font-bold text-violet-800 underline decoration-dotted underline-offset-2"
         data-testid="prestige-by-why-summary"
       >
         Why? ›
       </summary>
       <div class="mt-1 space-y-1">
-        <p class="text-[10px] text-slate-500 leading-relaxed">
+        <p class="text-small text-slate-500">
           Worked out on the instant answer's prices, each later start on the whole hour, with your farm laying while
           you wait for as long as its silos hold.<template v-if="line.spareSeconds !== null">
             At the latest start it lands {{ hours(line.spareSeconds) }} before the date.</template
           >
           Work it out again from your new save after you prestige.
         </p>
-        <p v-if="hoursOn" class="text-[10px] text-slate-700" data-testid="prestige-by-hours">{{ HOURS_NOTE }}</p>
-        <p class="text-[10px] text-violet-800" data-testid="prestige-by-evidence">{{ EVIDENCE }}</p>
+        <p v-if="hoursOn" class="text-small text-slate-700" data-testid="prestige-by-hours">{{ HOURS_NOTE }}</p>
+        <p class="text-small text-violet-800" data-testid="prestige-by-evidence">{{ EVIDENCE }}</p>
       </div>
     </details>
-    <p v-if="mismatch" class="text-[10px] text-amber-800">{{ mismatch }}</p>
+    <p v-if="mismatch" class="text-small text-amber-800">{{ mismatch }}</p>
   </div>
   <!-- Beta only: hidden by the 7-day rule, but say it is there, so the line can be seen working. Not on By a date
        (UX review 26 Oct 2026, item 8): nothing there until it is closer. -->
-  <p v-else-if="beta && !dated && status === 'done' && line?.farOff" class="text-[11px] text-slate-400" data-testid="prestige-by-far">
+  <p v-else-if="beta && !dated && status === 'done' && line?.farOff" class="text-body text-slate-400" data-testid="prestige-by-far">
     Prestige by: your next prestige is more than 7 days away (the cutoff is about {{ line.farOff }}). This line
     shows when it's closer.
   </p>

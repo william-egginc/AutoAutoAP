@@ -36,7 +36,7 @@
       </div>
 
       <!-- Shift Name -->
-      <div v-if="!isCollapsed" class="text-lg font-bold text-slate-800 tracking-tight leading-none mb-1 shadow-sm">
+      <div v-if="!isCollapsed" class="text-title font-bold text-slate-800 tracking-tight leading-none mb-1 shadow-sm">
         {{ shiftName }}
       </div>
     </button>
@@ -57,7 +57,7 @@
         <div class="text-[9px] font-black text-slate-900 uppercase tracking-widest text-center">
           {{ formatDateTime(dates.start) }}
         </div>
-        <div class="text-xs tabular-nums font-bold text-slate-900 my-1 tracking-tight">
+        <div class="text-small tabular-nums font-bold text-slate-900 my-1 tracking-tight">
           {{ isNaN(dates.end.getTime()) ? 'Not reachable' : formatShiftDuration(dates.duration) }}
         </div>
         <div class="text-[9px] font-black text-slate-900 uppercase tracking-widest text-center">
@@ -70,7 +70,7 @@
         <!-- Habs -->
         <div class="flex flex-col items-center">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Habs</span>
-          <span class="tabular-nums text-[11px] font-bold text-slate-700">
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ habsDisplay }}
           </span>
         </div>
@@ -80,7 +80,7 @@
         <!-- IHR -->
         <div class="flex flex-col items-center">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">IHR</span>
-          <span class="tabular-nums text-[11px] font-bold text-slate-700">
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(offlineIhrHr) }}
           </span>
         </div>
@@ -90,7 +90,7 @@
         <!-- Lay Rate -->
         <div class="flex flex-col items-center">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Lay Rate</span>
-          <span class="tabular-nums text-[11px] font-bold text-slate-700">
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(layRateHr) }}
           </span>
         </div>
@@ -100,7 +100,7 @@
         <!-- Shipping -->
         <div class="flex flex-col items-center">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Shipping</span>
-          <span class="tabular-nums text-[11px] font-bold text-slate-700">
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(shippingHr) }}
           </span>
         </div>
@@ -110,7 +110,7 @@
         <!-- ELR -->
         <div class="flex flex-col items-center">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivery</span>
-          <span class="tabular-nums text-[11px] font-bold text-slate-700">
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(elrHr) }}
           </span>
         </div>
@@ -122,7 +122,7 @@
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-none mb-0.5"
             >Offline Earnings</span
           >
-          <span class="tabular-nums text-[11px] font-bold text-slate-700">
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatMoney(offlineEarningsHr) }}
           </span>
         </div>
@@ -151,7 +151,7 @@
             </button>
           </span>
           <div class="flex items-center gap-1">
-            <span class="tabular-nums text-[11px] font-bold text-slate-700">
+            <span class="tabular-nums text-small font-bold text-slate-700">
               {{ formatNumber(Math.max(0, snapshot.bankValue), 3) }}
             </span>
             <img :src="iconURL('egginc/icon_virtue_gem.png', 32)" class="w-3 h-3" alt="Gems" />

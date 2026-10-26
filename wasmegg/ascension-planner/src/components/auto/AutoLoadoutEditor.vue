@@ -46,14 +46,14 @@
             :style="{ backgroundColor: view.kind === 'artifact' ? slotTint(view.artifactId) : 'white' }"
           >
             <span
-              class="text-[10px] font-black text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
+              class="text-small font-black text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
               >{{ idx + 1 }}</span
             >
             <template v-if="view.kind === 'artifact'">
               <img :src="iconURL(getArtifact(view.artifactId)!.iconPath, 64)" class="w-7 h-7" />
               <div class="min-w-0">
-                <div class="text-[11px] font-black text-slate-800 truncate">{{ getArtifact(view.artifactId)!.label }}</div>
-                <div class="text-[9px] text-slate-500">{{ getArtifact(view.artifactId)!.effect }}</div>
+                <div class="text-small font-black text-slate-800 truncate">{{ getArtifact(view.artifactId)!.label }}</div>
+                <div class="text-small text-slate-500">{{ getArtifact(view.artifactId)!.effect }}</div>
               </div>
             </template>
             <template v-else-if="view.kind === 'choice'">
@@ -67,8 +67,8 @@
                 />
               </div>
               <div class="min-w-0">
-                <div class="text-[11px] font-black text-slate-800 truncate">{{ choiceLabel(view.artifactIds) }}</div>
-                <div class="text-[9px] font-bold text-amber-600">H1 picks based on research and stones</div>
+                <div class="text-small font-black text-slate-800 truncate">{{ choiceLabel(view.artifactIds) }}</div>
+                <div class="text-small font-bold text-amber-600">H1 picks based on research and stones</div>
               </div>
             </template>
             <template v-else-if="view.kind === 'holder'">
@@ -81,20 +81,20 @@
                 />
               </div>
               <div class="min-w-0">
-                <div class="text-[11px] font-black text-slate-800">Stone holder</div>
-                <div class="text-[9px] font-bold text-amber-600 truncate">
+                <div class="text-small font-black text-slate-800">Stone holder</div>
+                <div class="text-small font-bold text-amber-600 truncate">
                   H1 picks {{ view.pick === 1 ? 'one' : view.pick }} of: {{ view.artifactIds.map(id => getArtifact(id)!.label).join(', ') }}
                 </div>
               </div>
             </template>
-            <span v-else class="text-[10px] text-gray-400 italic">Empty slot</span>
+            <span v-else class="text-small text-gray-400 italic">Empty slot</span>
           </div>
 
           <!-- What H1 may choose from. Edited by hand to try out an inventory you don't have. -->
           <div v-if="isEditingCandidates" class="section-premium p-3 space-y-3">
             <div>
-              <div class="text-[10px] font-black text-slate-700">Which artifacts can H1 choose from?</div>
-              <div class="text-[9px] text-slate-500">
+              <div class="text-small font-black text-slate-700">Which artifacts can H1 choose from?</div>
+              <div class="text-small text-slate-500">
                 Click to add or remove. Pick two of a family (e.g. T4R and T3E metronome) to see H1 choose between them.
               </div>
             </div>
@@ -109,7 +109,7 @@
                   v-for="option in family.options"
                   :key="option.id"
                   v-tippy="`${option.label}: ${option.effect}, ${option.slots} stone slot${option.slots === 1 ? '' : 's'}`"
-                  class="px-1.5 py-0.5 rounded-md border text-[10px] font-black transition-all"
+                  class="px-1.5 py-0.5 rounded-md border text-small font-black transition-all"
                   :class="
                     hasCandidate(option.id)
                       ? 'border-indigo-500 ring-1 ring-indigo-500 text-slate-900'
@@ -130,7 +130,7 @@
                 <span
                   v-for="candidate in holderCandidates"
                   :key="candidate.artifactId"
-                  class="flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-700"
+                  class="flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-lg border border-slate-200 text-small font-bold text-slate-700"
                   :style="{ backgroundColor: slotTint(candidate.artifactId) }"
                 >
                   <img :src="iconURL(getArtifact(candidate.artifactId)!.iconPath, 64)" class="w-4 h-4" />
@@ -143,7 +143,7 @@
                     ×
                   </button>
                 </span>
-                <span v-if="holderCandidates.length === 0" class="text-[10px] text-gray-400 italic">None</span>
+                <span v-if="holderCandidates.length === 0" class="text-small text-gray-400 italic">None</span>
               </div>
               <ArtifactSelect
                 :model-value="null"
@@ -167,10 +167,10 @@
     <div class="space-y-2">
       <div class="flex items-center justify-between px-1">
         <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Stones Available</h4>
-        <span class="text-[9px] font-bold text-slate-400">Lunar &amp; shell → earnings · Quantum &amp; tachyon → delivery</span>
+        <span class="text-small font-bold text-slate-400">Lunar &amp; shell → earnings · Quantum &amp; tachyon → delivery</span>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-[10px]">
+        <table class="w-full text-small">
           <thead>
             <tr class="text-slate-400 font-black uppercase tracking-widest">
               <th class="text-left font-black px-1 py-1"></th>
@@ -213,7 +213,7 @@
                 </div>
                 <div
                   v-if="defaultValue && defaultValue.stones[family][tier] !== modelValue.stones[family][tier]"
-                  class="text-center text-[8px] text-slate-400"
+                  class="text-center text-small text-slate-400"
                 >
                   {{ defaultLabel }} {{ defaultValue.stones[family][tier] }}
                 </div>

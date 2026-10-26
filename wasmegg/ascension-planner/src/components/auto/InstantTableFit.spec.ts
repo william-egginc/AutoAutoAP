@@ -97,7 +97,7 @@ describe('the counts tables fit the card', () => {
 
   it('Fastest: the near-tie line may wrap', () => {
     const fast = cards[1];
-    expect(fast).toContain('class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] leading-snug"');
+    expect(fast).toContain('class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"');
   });
 });
 

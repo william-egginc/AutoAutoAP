@@ -66,7 +66,7 @@
 
           <div v-if="selectedTab === 'earnings' && earningsClothedTe !== null" class="flex items-center gap-1.5">
             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Clothed TE</span>
-            <span class="text-xs tabular-nums font-bold text-gray-900">{{ Math.round(earningsClothedTe) }}</span>
+            <span class="text-small tabular-nums font-bold text-gray-900">{{ Math.round(earningsClothedTe) }}</span>
           </div>
         </div>
 
@@ -141,7 +141,7 @@
           </div>
           <div>
             <h4 class="text-[10px] font-bold text-blue-900 uppercase tracking-tight mb-0.5">Set Optimization</h4>
-            <p class="text-[10px] text-blue-700 leading-tight">
+            <p class="text-small text-blue-700 leading-tight">
               <strong>Earnings:</strong> Necklaces, Ankhs, Totems, Cubes, Lunar stones.
               <br />
               <strong>Delivery:</strong> Metronomes, Compasses, Gussets, Tachyon/Quantum stones.

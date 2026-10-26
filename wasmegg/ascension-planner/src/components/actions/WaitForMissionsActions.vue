@@ -14,7 +14,7 @@
             />
           </svg>
         </div>
-        <p class="text-[11px] font-medium text-blue-700 leading-relaxed">
+        <p class="text-body font-medium text-blue-700">
           <span class="font-black uppercase tracking-widest text-[9px] block mb-1">Info:</span>
           This shows missions that were in flight in your last save. Press Wait on one to add its remaining time to your
           plan.
@@ -52,7 +52,7 @@
         </svg>
       </div>
       <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-2">No Active Missions</h3>
-      <p class="text-[11px] text-slate-500 max-w-xs leading-relaxed font-medium">
+      <p class="text-body text-slate-500 max-w-xs font-medium">
         No active virtue missions were found in your last save. Use the Rockets tab to plan new launches.
       </p>
     </div>

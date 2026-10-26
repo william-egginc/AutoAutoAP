@@ -19,7 +19,7 @@
             </div>
           </div>
           <div class="text-right">
-            <span class="text-xs tabular-nums font-black text-rose-500">
+            <span class="text-small tabular-nums font-black text-rose-500">
               {{ formatDuration(researchSaleWait) }}
             </span>
           </div>
@@ -46,7 +46,7 @@
             </div>
           </div>
           <div class="text-right">
-            <span class="text-xs tabular-nums font-black text-orange-600">
+            <span class="text-small tabular-nums font-black text-orange-600">
               {{ formatDuration(earningsBoostWait) }}
             </span>
           </div>

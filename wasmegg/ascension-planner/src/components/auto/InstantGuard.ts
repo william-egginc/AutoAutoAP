@@ -46,10 +46,10 @@ export default defineComponent({
               'section',
               { class: 'rounded-2xl border border-emerald-200 bg-white p-4 space-y-3', 'data-testid': 'instant-failed' },
               [
-                h('h3', { class: 'text-base font-black text-slate-900' }, 'Instant answer'),
+                h('h3', { class: 'text-title font-black text-slate-900' }, 'Instant answer'),
                 h(
                   'p',
-                  { class: 'rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-900' },
+                  { class: 'rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body text-amber-900' },
                   INSTANT_FAILED
                 ),
                 h(
@@ -64,12 +64,12 @@ export default defineComponent({
                   'Show it again'
                 ),
                 caught.value
-                  ? h('details', { class: 'text-[11px] text-slate-600', 'data-testid': 'instant-failed-details' }, [
+                  ? h('details', { class: 'text-small text-slate-600', 'data-testid': 'instant-failed-details' }, [
                       h('summary', { class: 'cursor-pointer font-bold text-slate-700' }, 'Details'),
                       h(
                         'pre',
                         {
-                          class: 'mt-1 whitespace-pre-wrap break-words rounded bg-slate-50 border border-slate-200 p-2 text-[10px] text-slate-700',
+                          class: 'mt-1 whitespace-pre-wrap break-words rounded bg-slate-50 border border-slate-200 p-2 text-small text-slate-700',
                           'data-testid': 'instant-failed-error',
                         },
                         cardErrorText(caught.value)

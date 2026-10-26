@@ -13,7 +13,7 @@
 <template>
   <div
     v-if="prompt"
-    class="rounded-xl border border-indigo-300 bg-indigo-50 px-3 py-2 text-[12px] text-indigo-950 space-y-1.5"
+    class="rounded-xl border border-indigo-300 bg-indigo-50 px-3 py-2 text-small text-indigo-950 space-y-1.5"
     role="status"
     data-testid="better-route"
     :data-id="prompt.id"
@@ -22,7 +22,7 @@
     <div class="flex flex-wrap gap-2">
       <button
         type="button"
-        class="min-h-[44px] rounded-xl bg-indigo-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-indigo-700"
+        class="min-h-[44px] rounded-xl bg-indigo-600 px-4 py-2 text-body font-bold text-white hover:bg-indigo-700"
         data-testid="better-route-follow"
         @click.stop="followIt"
       >
@@ -30,7 +30,7 @@
       </button>
       <button
         type="button"
-        class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-4 py-2 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50"
+        class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-4 py-2 text-body font-bold text-indigo-700 hover:bg-indigo-50"
         data-testid="better-route-keep"
         @click.stop="keepIt"
       >

@@ -58,7 +58,7 @@
                   <tr
                     v-for="row in rows"
                     :key="row.key"
-                    class="text-[10px] font-bold text-slate-700 border-t border-slate-100 cursor-pointer transition-colors"
+                    class="text-small font-bold text-slate-700 border-t border-slate-100 cursor-pointer transition-colors"
                     :class="row.key === activeVariantKey ? 'bg-indigo-50' : 'hover:bg-slate-50'"
                     @click="select(row.key)"
                   >
@@ -108,7 +108,7 @@
                           class="w-5 h-5 object-contain"
                           :alt="col.name"
                         />
-                        <span class="text-[7px] leading-tight text-center normal-case tracking-normal">{{
+                        <span class="text-small leading-tight text-center normal-case tracking-normal">{{
                           col.name
                         }}</span>
                       </div>
@@ -119,7 +119,7 @@
                   <tr
                     v-for="row in rows"
                     :key="row.key"
-                    class="text-[10px] font-bold text-slate-700 border-t border-slate-100 cursor-pointer transition-colors"
+                    class="text-small font-bold text-slate-700 border-t border-slate-100 cursor-pointer transition-colors"
                     :class="row.key === activeVariantKey ? 'bg-indigo-50' : 'hover:bg-slate-50'"
                     @click="select(row.key)"
                   >

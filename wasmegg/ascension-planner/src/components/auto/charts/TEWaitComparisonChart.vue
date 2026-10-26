@@ -1,5 +1,5 @@
 <template>
-  <div v-if="rays.length === 0" class="px-4 py-10 text-center text-[10px] font-bold text-slate-400">
+  <div v-if="rays.length === 0" class="px-4 py-10 text-center text-small font-bold text-slate-400">
     No variant in this comparison has a TE-wait phase to compare.
   </div>
   <template v-else>
@@ -25,7 +25,7 @@
     <div v-if="neverCrossing.length" class="mx-2 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
       <div class="text-[8px] font-black uppercase tracking-wider text-amber-700 mb-1">Never crosses</div>
       <ul class="space-y-0.5">
-        <li v-for="note in neverCrossing" :key="`${note.a}-${note.b}`" class="text-[10px] font-bold text-amber-800">
+        <li v-for="note in neverCrossing" :key="`${note.a}-${note.b}`" class="text-small font-bold text-amber-800">
           <span :style="{ color: variantColor(note.leader) }">{{ variantLabel(note.leader) }}</span>
           stays ahead of
           <span :style="{ color: variantColor(note.other) }">{{ variantLabel(note.other) }}</span>

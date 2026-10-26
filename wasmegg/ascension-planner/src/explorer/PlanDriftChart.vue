@@ -25,7 +25,7 @@
         <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Account</span>
         <select
           v-model="picked"
-          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-700"
+          class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-body font-bold text-slate-700"
         >
           <option v-for="d in drifts" :key="d.key" :value="d.key">
             {{ d.label }} ·
@@ -56,20 +56,20 @@
     </div>
 
     <EChart v-if="current && shown.length" :option="option" height="340px" />
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
       No run here at {{ finalTE }} TE has a plan start to place.
     </p>
-    <p v-if="current && !current.repricedPlans" class="px-1 text-[11px] text-slate-500">
+    <p v-if="current && !current.repricedPlans" class="px-1 text-body text-slate-500">
       None of {{ current.label }}'s plans has been priced twice yet, so there is no line to draw: each mark is one plan
       at the date it was made.
     </p>
-    <p v-if="current?.anchorKind === 'own'" class="px-1 text-[10px] text-amber-700">
+    <p v-if="current?.anchorKind === 'own'" class="px-1 text-small text-amber-700">
       None of this account's runs at {{ finalTE }} TE still stands, so heights count from the earliest finish shown.
     </p>
 
     <div
       v-if="current && shown.length"
-      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-500"
+      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"
       aria-label="How to read the marks"
     >
       <span class="text-slate-600">Colour is the ascension count, not an account</span>
@@ -91,7 +91,7 @@
         Every plan priced twice, all accounts ({{ tally.repricings }})
       </p>
       <div v-if="tableRows.length" class="overflow-x-auto">
-        <table class="w-full text-[11px]">
+        <table class="w-full text-small">
           <thead>
             <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
               <th class="text-left py-1 pr-3">Account</th>
@@ -124,10 +124,10 @@
           </tbody>
         </table>
       </div>
-      <p v-else class="text-[11px] text-slate-500">No plan to {{ finalTE }} TE has been priced twice yet.</p>
+      <p v-else class="text-body text-slate-500">No plan to {{ finalTE }} TE has been priced twice yet.</p>
     </div>
 
-    <p class="px-1 text-[11px] text-slate-600 leading-relaxed max-w-3xl">
+    <p class="px-1 text-body text-slate-600 max-w-3xl">
       <template v-if="tally.repricings">
         That is {{ tally.repricings }} re-pricing{{ tally.repricings === 1 ? '' : 's' }} on
         {{ tally.accounts }} account{{ tally.accounts === 1 ? '' : 's' }}, which is thin: {{ tally.later }} came out

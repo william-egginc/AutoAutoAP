@@ -6,7 +6,7 @@
 <template>
   <div
     v-if="items.length && !store.busy"
-    class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-2 text-[11px] text-amber-900"
+    class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-2 text-body text-amber-900"
   >
     <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">Earlier unfinished runs</h3>
     <!-- Folded by default on every screen (the user, 13 Oct: clutter): one line, Show lists them. Runs from this

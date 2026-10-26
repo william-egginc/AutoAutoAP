@@ -18,7 +18,7 @@
       <p id="integrity-alert-title" class="text-[11px] font-black uppercase tracking-widest text-rose-800">
         This account can't be planned yet
       </p>
-      <p class="text-[13px] leading-relaxed text-slate-700">
+      <p class="text-body text-slate-700">
         <template v-for="(part, i) in parts" :key="i"
           ><b v-if="part.bold" class="font-black text-slate-900">{{ part.text }}</b
           ><template v-else>{{ part.text }}</template></template

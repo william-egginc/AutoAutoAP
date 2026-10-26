@@ -40,7 +40,7 @@ const emit = defineEmits(['select', 'cancel']);
   <div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
       <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-        <h3 class="text-base font-bold text-slate-800">Select Plan to Reconcile</h3>
+        <h3 class="text-title font-bold text-slate-800">Select Plan to Reconcile</h3>
         <button @click="emit('cancel')" class="text-slate-400 hover:text-slate-600 transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
@@ -52,7 +52,7 @@ const emit = defineEmits(['select', 'cancel']);
         </div>
         
         <div v-else-if="plans.length === 0" class="text-center py-8">
-          <p class="text-slate-500 text-sm">No plans found in your library.</p>
+          <p class="text-slate-500 text-body">No plans found in your library.</p>
           <p class="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">Save a plan first to use reconciliation</p>
         </div>
 

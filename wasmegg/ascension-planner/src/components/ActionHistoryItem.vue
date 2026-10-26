@@ -41,7 +41,7 @@
       <!-- Name -->
       <div
         class="flex-1 min-w-0 font-bold truncate flex items-center gap-1.5"
-        :class="[compact ? 'text-[10px]' : 'text-xs sm:text-sm', isStartAction ? 'text-slate-800' : 'text-slate-700']"
+        :class="[compact ? 'text-small' : 'text-small sm:text-body', isStartAction ? 'text-slate-800' : 'text-slate-700']"
       >
         <span v-if="eggType" class="text-[9px] uppercase font-black text-slate-400 tracking-widest">
           {{ action.type === 'start_ascension' ? 'Start:' : 'Egg:' }}
@@ -171,7 +171,7 @@
         <!-- Deltas -->
         <div
           v-if="!isStartAction || isContinued"
-          class="text-[8px] mt-1 hidden sm:flex flex-wrap gap-x-3 gap-y-0.5 font-black tracking-wider"
+          class="text-small mt-1 hidden sm:flex flex-wrap gap-x-3 gap-y-0.5 font-black tracking-wider"
         >
           <span v-if="action.eggValueDelta" :class="deltaClass(action.eggValueDelta)"
             >Val {{ formatDelta(action.eggValueDelta) }}</span
@@ -210,14 +210,14 @@
       <div v-if="!isStartAction" class="shrink-0 text-right">
         <template v-if="action.type === 'shift'">
           <div class="flex items-center gap-1 justify-end mt-0.5">
-            <span class="text-xs font-bold text-slate-700 tabular-nums">{{ formatNumber(action.cost, 3) }}</span>
+            <span class="text-small font-bold text-slate-700 tabular-nums">{{ formatNumber(action.cost, 3) }}</span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3" alt="SE" />
           </div>
         </template>
         <template v-else-if="action.type === 'modify_bank'">
           <div class="flex items-center gap-0.5 justify-end mt-0.5">
             <span
-              class="text-xs font-bold tabular-nums"
+              class="text-small font-bold tabular-nums"
               :class="
                 action.bankDelta >= 0.5
                   ? 'text-emerald-600 font-black'
@@ -239,7 +239,7 @@
         <template v-else>
           <div class="flex items-center gap-0.5 justify-end mt-0.5">
             <span
-              class="text-xs font-bold tabular-nums"
+              class="text-small font-bold tabular-nums"
               :class="[
                 action.cost >= 0.5
                   ? 'text-slate-800'

@@ -18,12 +18,12 @@
   baseline on the board). Without `row.baseline` neither is there.
 -->
 <template>
-  <div class="grid gap-4 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] text-[11px]">
+  <div class="grid gap-4 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] text-body">
     <div v-if="compare.length" style="grid-column: 1 / -1" class="space-y-1.5" data-testid="run-baseline">
       <BaselineChip :line="chip" />
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400">Compared with {{ whose }} instant answer</h4>
       <div class="overflow-x-auto">
-        <table class="w-full text-[11px]" data-testid="run-baseline-list">
+        <table class="w-full text-small" data-testid="run-baseline-list">
           <thead>
             <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
               <th class="pr-3 py-1">Answer</th>
@@ -51,7 +51,7 @@
           </tbody>
         </table>
       </div>
-      <p class="text-[10px] text-slate-500">
+      <p class="text-small text-slate-500">
         The instant answer row is the one for this save when the run was sent, shared by the player. Every other row is
         the full simulator on the same save and hours.
       </p>
@@ -174,7 +174,7 @@
            this result the viewer sent goes together, or the line would stay up as the next copy.
            ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
            maintainer" below to it. -->
-      <div v-if="hide && ownIds.length" class="mt-2 text-[10px] text-slate-500">
+      <div v-if="hide && ownIds.length" class="mt-2 text-small text-slate-500">
         <p v-if="allHidden">
           <span class="font-semibold text-slate-600">Hidden from the public</span> ·
           <button
@@ -260,7 +260,7 @@
       </div>
       <!-- One line per leg, each value kept with its unit, the line wrapping between values when its column is
            narrow (15 Oct: a nowrap table ran past the panel's edge: "25.24 d 2.65 q/hr" outside the grey box). -->
-      <div v-if="row.legs?.length" class="tabular-nums text-[10px] text-slate-600 space-y-0.5" data-testid="run-legs">
+      <div v-if="row.legs?.length" class="tabular-nums text-small text-slate-600 space-y-0.5" data-testid="run-legs">
         <div v-for="(l, k) in row.legs" :key="k" class="flex flex-wrap gap-x-2">
           <span class="whitespace-nowrap">A{{ k + 1 }} → {{ l.te }}</span>
           <span class="whitespace-nowrap">{{ l.strategy }}</span>
@@ -296,7 +296,7 @@
       </div>
       <!-- In the notation players type (`183-219:6`), not every TE: a band of every TE from 150 to
            489 listed 340 numbers. -->
-      <div v-if="row.space.bands?.length" class="mt-1 tabular-nums text-[10px] text-slate-600">
+      <div v-if="row.space.bands?.length" class="mt-1 tabular-nums text-small text-slate-600">
         <div v-for="(b, k) in row.space.bands" :key="k">A{{ k + 1 }}: {{ formatBand(b) }}</div>
       </div>
       <!-- A run cut short enumerated a space it did not finish, so its answer is the best of what
@@ -328,7 +328,7 @@
       </div>
       <template v-if="row.proof.runnersUp.length">
         <h4 class="mt-2 text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Runners-up</h4>
-        <div v-for="(c, k) in row.proof.runnersUp" :key="k" class="tabular-nums text-[10px] text-slate-600">
+        <div v-for="(c, k) in row.proof.runnersUp" :key="k" class="tabular-nums text-small text-slate-600">
           {{ k + 2 }}. {{ c.chain.join(' ') }} {{ c.days.toFixed(3) }} d
           <span class="text-slate-400">+{{ (c.days - row.durationDays).toFixed(3) }}</span>
         </div>
@@ -337,7 +337,7 @@
         <h4 class="mt-2 text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
           Best per ascension count
         </h4>
-        <div v-for="(g, k) in row.proof.byAscensions" :key="k" class="tabular-nums text-[10px] text-slate-600">
+        <div v-for="(g, k) in row.proof.byAscensions" :key="k" class="tabular-nums text-small text-slate-600">
           {{ g.ascensions }} asc: {{ g.chain.join(' ') }} {{ g.days.toFixed(3) }} d
           <span class="text-slate-400">({{ g.priced.toLocaleString() }} priced)</span>
         </div>
@@ -349,7 +349,7 @@
       <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
         Sent {{ copies!.length }} times: every copy
       </h4>
-      <ul class="text-[11px] text-slate-600 divide-y divide-slate-100">
+      <ul class="text-body text-slate-600 divide-y divide-slate-100">
         <li v-for="(c, k) in copies" :key="c.id ?? k" class="py-1 flex flex-wrap items-baseline gap-x-1.5">
           <span class="font-bold whitespace-nowrap" :title="utcTitle(c.submittedAt)">{{
             sentWhen(c.submittedAt)

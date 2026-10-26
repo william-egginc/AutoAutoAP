@@ -11,7 +11,7 @@
   itself through the panel's own Carry on (`carry-on`).
 -->
 <template>
-  <div class="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1 space-y-2 text-[11px] text-slate-700">
+  <div class="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1 space-y-2 text-body text-slate-700">
     <div
       v-if="countdown > 0 && !countdownElsewhere"
       class="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-amber-900"
@@ -101,7 +101,7 @@
                       ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
                       ><button
                         type="button"
-                        class="mx-1 rounded border border-amber-300 bg-white px-1 text-[10px] font-bold hover:bg-amber-100"
+                        class="mx-1 rounded border border-amber-300 bg-white px-1 text-small font-bold hover:bg-amber-100"
                         @click="copy(part.code)"
                       >
                         {{ copied === part.code ? 'Copied' : 'Copy' }}
@@ -123,7 +123,7 @@
                   @auxclick="onWatcherAux"
                   >Open the watcher tab</a
                 >
-                <span v-if="tip" class="text-[10px] text-slate-500">{{ tip }}</span>
+                <span v-if="tip" class="text-small text-slate-500">{{ tip }}</span>
               </p>
               <p class="text-slate-500">
                 <template v-for="(part, i) in [...help.keepAwake, ...(help.note ? [' ', ...help.note] : [])]" :key="i"
@@ -132,7 +132,7 @@
                     ><code class="rounded bg-white px-1 select-all">{{ part.code }}</code
                     ><button
                       type="button"
-                      class="mx-1 rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+                      class="mx-1 rounded border border-slate-300 bg-white px-1 text-small font-bold hover:bg-slate-100"
                       @click="copy(part.code)"
                     >
                       {{ copied === part.code ? 'Copied' : 'Copy' }}
@@ -178,13 +178,13 @@
                       :href="phoneLink.url"
                       target="_blank"
                       rel="noopener"
-                      class="break-all tabular-nums text-[10px] text-indigo-700 underline hover:text-indigo-900"
+                      class="break-all tabular-nums text-small text-indigo-700 underline hover:text-indigo-900"
                       data-testid="watch-phone-link"
                       >{{ phoneLink.url }}</a
                     >
                     <button
                       type="button"
-                      class="rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+                      class="rounded border border-slate-300 bg-white px-1 text-small font-bold hover:bg-slate-100"
                       @click="copy(phoneLink.url)"
                     >
                       {{ copied === phoneLink.url ? 'Copied' : 'Copy' }}
@@ -218,7 +218,7 @@
                     type="text"
                     :maxlength="WATCH_LABEL_MAX"
                     placeholder="optional, e.g. big sweep"
-                    class="w-48 rounded border-slate-300 px-1 py-0 text-[11px]"
+                    class="w-48 rounded border-slate-300 px-1 py-0 text-body"
                   />
                   <span class="text-slate-500">Shown on the phone page. Leave it empty to send none.</span>
                 </label>
@@ -240,12 +240,12 @@
                       v-model.trim="phoneOptions.ntfyTopic"
                       type="text"
                       maxlength="64"
-                      class="w-56 rounded border-slate-300 px-1 py-0 tabular-nums text-[11px]"
+                      class="w-56 rounded border-slate-300 px-1 py-0 tabular-nums text-body"
                       aria-label="ntfy topic"
                     />
                     <button
                       type="button"
-                      class="rounded border border-slate-300 bg-white px-1 text-[10px] font-bold hover:bg-slate-100"
+                      class="rounded border border-slate-300 bg-white px-1 text-small font-bold hover:bg-slate-100"
                       @click="copy(phoneOptions.ntfyTopic)"
                     >
                       {{ copied === phoneOptions.ntfyTopic ? 'Copied' : 'Copy' }}
@@ -261,7 +261,7 @@
                     <select
                       v-model.number="phoneOptions.ntfyEveryMin"
                       aria-label="How often to send a progress note"
-                      class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
+                      class="mx-1 rounded border-slate-300 py-0 pl-1 pr-6 text-body font-bold"
                     >
                       <option :value="0">never</option>
                       <option :value="60">1 hour</option>
@@ -307,7 +307,7 @@
               <select
                 v-model.number="options.autoSendEveryMin"
                 aria-label="How often to send my progress"
-                class="mx-1 min-h-[44px] sm:min-h-0 rounded border-slate-300 py-0 pl-1 pr-6 text-[11px] font-bold"
+                class="mx-1 min-h-[44px] sm:min-h-0 rounded border-slate-300 py-0 pl-1 pr-6 text-body font-bold"
                 data-testid="auto-send-every"
               >
                 <option :value="60">1 hour</option>

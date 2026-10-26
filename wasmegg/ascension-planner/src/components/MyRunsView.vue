@@ -24,15 +24,15 @@
 <template>
   <div class="space-y-3 pb-16" data-testid="my-runs">
     <div>
-      <h1 class="text-2xl font-black text-slate-900">{{ NAMES.myRuns }}</h1>
+      <h1 class="text-headline font-black text-slate-900">{{ NAMES.myRuns }}</h1>
       <!-- One line (ux review 26 Oct, row 15): what the page holds is in its section headings below. -->
-      <p class="text-sm text-slate-600 leading-relaxed max-w-3xl" data-testid="my-runs-intro">
+      <p class="text-body text-slate-600 max-w-3xl" data-testid="my-runs-intro">
         The only thing worked out here is an estimate from the instant answer of a route you follow.
       </p>
     </div>
 
     <SaveAgeStrip :strip="page.strip.value" :server="serverSave" :now="page.now.value" :loading="loading" @fresh="emit('fresh')" />
-    <p v-if="page.saveWaiting.value" class="text-[12px] text-slate-500" data-testid="now-save-waiting">
+    <p v-if="page.saveWaiting.value" class="text-body text-slate-500" data-testid="now-save-waiting">
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>
 
@@ -128,7 +128,7 @@
     <section id="my-runs-your-runs" class="rounded-2xl border border-slate-200 bg-white p-4 space-y-3" data-testid="my-runs-your-runs">
       <div>
         <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Your runs</p>
-        <p class="text-[11px] text-slate-500" data-testid="my-runs-baseline-intro">
+        <p class="text-body text-slate-500" data-testid="my-runs-baseline-intro">
           Each run is compared with your <b>instant answer</b>: the one for your save on the day of the run.
         </p>
       </div>
@@ -136,13 +136,13 @@
            "Share my search results" sends privately. -->
       <label
         v-if="hasBoard"
-        class="flex items-start gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[12px] text-slate-700"
+        class="flex items-start gap-2 rounded-xl border border-slate-200 px-3 py-2 text-small text-slate-700"
         data-testid="my-runs-share-baseline"
       >
         <input v-model="shareBaseline.agreed.value" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-slate-300" />
         <span>
           <b>Share my instant answer with my runs</b>
-          <span class="block text-[11px] text-slate-500"
+          <span class="block text-body text-slate-500"
             >Sends the instant answer's route and date beside each run you send, so the Leaderboard can show how much a search
             gained. Same rules as sending a run: never your player ID, never your save.</span
           >
@@ -153,7 +153,7 @@
           v-for="m in modes"
           :key="m.id"
           type="button"
-          class="min-h-[44px] sm:min-h-0 rounded-lg border px-3 py-1.5 text-[12px] font-bold"
+          class="min-h-[44px] sm:min-h-0 rounded-lg border px-3 py-1.5 text-small font-bold"
           :class="showing === m.id ? 'border-indigo-400 bg-indigo-50 text-indigo-900' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'"
           :aria-pressed="showing === m.id"
           :data-testid="`my-runs-show-${m.id}`"
@@ -177,10 +177,10 @@
       <div v-show="showing === 'all'" class="space-y-3" data-testid="my-runs-all">
         <!-- No collector (VITE_SUBMIT_URL unset): no board to read or send to, so its two parts give way to one
              line and nothing here reaches for the network (21 Oct 2026). -->
-        <p v-if="!hasBoard" class="text-[12px] text-slate-600 leading-relaxed" data-testid="my-runs-no-board">
+        <p v-if="!hasBoard" class="text-body text-slate-600" data-testid="my-runs-no-board">
           {{ noBoard() }}
         </p>
-        <p v-if="hasBoard" class="text-[11px] text-slate-500">The filters change this list only, not Right now above.</p>
+        <p v-if="hasBoard" class="text-body text-slate-500">The filters change this list only, not Right now above.</p>
         <details
           v-if="hasBoard"
           :open="open.board"
@@ -214,7 +214,7 @@
             Saved on {{ thisDevice() }}<span :class="COUNT">{{ countText(savedCount) }}</span>
           </summary>
           <div class="mt-3 space-y-3">
-            <p class="text-[11px] text-slate-500 leading-relaxed">
+            <p class="text-body text-slate-500">
               Kept in this browser for this account. Open puts one back on its screen in the {{ NAMES.auto }}: runs on
               {{ fastestName(store.finalTE) }}, answers on {{ NAMES.byDate }}.
             </p>
@@ -246,11 +246,11 @@
             Not sent yet<span :class="COUNT">{{ countText(unsentCount) }}</span>
           </summary>
           <div class="mt-3 space-y-2">
-            <p class="text-[11px] text-slate-500 leading-relaxed">
+            <p class="text-body text-slate-500">
               Finished results this browser kept because they didn't reach the Leaderboard (the page closed first, or nothing sent
               them). Each goes with its own route and CSV, whatever save is loaded now.
             </p>
-            <p v-if="store.isRunning || store.deadlineRunning" class="text-[11px] text-slate-500">
+            <p v-if="store.isRunning || store.deadlineRunning" class="text-body text-slate-500">
               A search is running: these show again when it ends.
             </p>
             <UnsentResults :player-id="playerId" />

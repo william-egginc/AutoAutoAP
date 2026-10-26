@@ -17,16 +17,16 @@
         </div>
         <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Integrity Summary</span>
         <div v-if="activeArtifactSet === 'earnings'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
+          <span class="text-small font-black tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
           <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
         </div>
         <div v-else-if="activeArtifactSet === 'elr'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
+          <span class="text-small font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
           <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
         </div>
         <div
           v-if="teGained > 0"
-          class="badge-premium bg-indigo-100 text-indigo-700 border-indigo-200/50 flex items-center gap-1 py-0.5 px-2 text-[10px]"
+          class="badge-premium bg-indigo-100 text-indigo-700 border-indigo-200/50 flex items-center gap-1 py-0.5 px-2 text-small"
           v-tippy="'Truth Eggs gained in this period'"
         >
           <span class="font-black">+{{ teGained }}</span>
@@ -46,14 +46,14 @@
               >
             </template>
             <template v-else>
-              <span class="text-[11px] font-bold text-slate-700 tracking-tight leading-none">{{ habSummaryText }}</span>
+              <span class="text-small font-bold text-slate-700 tracking-tight leading-none">{{ habSummaryText }}</span>
             </template>
           </div>
         </div>
 
         <div class="flex flex-col items-end">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Hab Cap</span>
-          <span class="text-sm tabular-nums font-black text-slate-900">{{ formattedHabCap }}</span>
+          <span class="text-body tabular-nums font-black text-slate-900">{{ formattedHabCap }}</span>
         </div>
       </div>
     </div>

@@ -37,7 +37,7 @@
       :aria-expanded="ui.setupOpen"
       @click="ui.setupOpen = !ui.setupOpen"
     >
-      <span class="flex items-center gap-2 text-sm font-black text-indigo-900">
+      <span class="flex items-center gap-2 text-body font-black text-indigo-900">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             stroke-linecap="round"
@@ -48,22 +48,22 @@
         </svg>
         Setup
       </span>
-      <span class="text-[12px] text-slate-600"
+      <span class="text-small text-slate-600"
         >Plan starts <span class="font-bold text-slate-900">{{ startLabel }}</span></span
       >
-      <span class="text-[12px] text-slate-600"
+      <span class="text-small text-slate-600"
         >First ascension <span class="font-bold text-slate-900">{{ firstLabel }}</span></span
       >
-      <span class="text-[12px] text-slate-600"
+      <span class="text-small text-slate-600"
         >Awake hours <span class="font-bold text-slate-900">{{ awakeLabel }}</span></span
       >
-      <span class="text-[12px] text-slate-600"
+      <span class="text-small text-slate-600"
         >Time off <span class="font-bold text-slate-900">{{ timeOffCount || 'none' }}</span></span
       >
-      <span v-if="noPrestigeCount" class="text-[12px] text-slate-600" data-testid="setup-no-prestige"
+      <span v-if="noPrestigeCount" class="text-small text-slate-600" data-testid="setup-no-prestige"
         >No prestige days <span class="font-bold text-slate-900">{{ noPrestigeCount }}</span></span
       >
-      <span class="text-[12px] text-slate-600"
+      <span class="text-small text-slate-600"
         ><span class="font-bold text-slate-900">{{ store.workerBudget }} of {{ store.machineThreads }}</span>
         workers</span
       >
@@ -78,7 +78,7 @@
     <template v-if="!docked && !issuesOnly">
       <p
         v-if="store.setupIsRemembered"
-        class="text-[11px] text-slate-500"
+        class="text-body text-slate-500"
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
@@ -106,7 +106,7 @@
       <p
         v-for="(issue, k) in store.setupIssues"
         :key="k"
-        class="text-[11px] font-semibold leading-relaxed"
+        class="text-body font-semibold"
         :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
       >
         {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
@@ -122,13 +122,13 @@
     </div>
 
     <div v-if="docked" class="p-4 space-y-4">
-      <p class="text-[11px] text-slate-500">
+      <p class="text-body text-slate-500">
         One setup for all three Auto Planner screens: change it here and {{ NAMES.classic }}, {{ fastestName(store.finalTE) }} and
         {{ NAMES.byDate }} all use it.
       </p>
 
       <!-- The three kinds of "not now" (Jordan, 24 Oct 2026), side by side so none is read as another. -->
-      <ul class="text-[11px] text-slate-500 leading-relaxed list-disc pl-5" data-testid="setup-not-now">
+      <ul class="text-body text-slate-500 list-disc pl-5" data-testid="setup-not-now">
         <li><span class="font-bold text-slate-700">Awake hours:</span> on the virtue farm, but shifts and prestiges wait for them; the farm keeps laying while they wait.</li>
         <li>
           <span class="font-bold text-slate-700">No prestige days:</span> stay on virtue; a prestige waits for the
@@ -142,7 +142,7 @@
 
       <p
         v-if="store.setupIsRemembered"
-        class="text-[11px] text-slate-500"
+        class="text-body text-slate-500"
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
@@ -162,7 +162,7 @@
 
       <p
         v-if="locked"
-        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold text-amber-800 leading-relaxed"
+        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-body font-semibold text-amber-800"
       >
         A search is running, so the plan start, your awake hours, no prestige days and time off are locked: they change which route is fastest,
         and the routes already priced used the old ones. Stop the search (your best so far is kept), change them, and
@@ -176,10 +176,10 @@
         <!-- Your save -->
         <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2">
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Your save</h3>
-          <p class="text-sm font-bold text-slate-800">
+          <p class="text-body font-bold text-slate-800">
             {{ initialState.nickname || 'Your account' }} · TE {{ store.currentTE }}
           </p>
-          <p class="text-[11px] text-slate-500">{{ saveAgeLabel }}</p>
+          <p class="text-body text-slate-500">{{ saveAgeLabel }}</p>
           <button
             type="button"
             :disabled="store.busy || ui.loading"
@@ -193,7 +193,7 @@
           <SaveFileBar v-if="initialState.playerId" :player-id="initialState.playerId" />
           <!-- What the plan starts from, besides the artifacts: leg 1 continues an already-built farm,
                and every later leg funds its own research out of earnings. -->
-          <dl class="grid grid-cols-2 gap-3 text-[11px] border-t border-slate-100 pt-3">
+          <dl class="grid grid-cols-2 gap-3 text-body border-t border-slate-100 pt-3">
             <div>
               <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Soul eggs</dt>
               <dd class="font-bold" :class="store.setupFacts.soulEggs > 0 ? 'text-slate-700' : 'text-rose-700'">
@@ -229,7 +229,7 @@
           <p
             v-for="(issue, k) in saveCardIssues"
             :key="k"
-            class="text-[11px] font-semibold leading-relaxed"
+            class="text-body font-semibold"
             :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
           >
             {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
@@ -242,7 +242,7 @@
           <SchedulingInputs />
           <!-- An unset start means "now", which moves on every reload, and plan start is part of the
                run fingerprint: a checkpoint saved before a refresh stops matching. -->
-          <p v-if="store.planStartIsNow" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
+          <p v-if="store.planStartIsNow" class="text-body font-semibold text-amber-700">
             No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
             before a long run.
           </p>
@@ -257,16 +257,16 @@
               :class="firstChoice === c.value ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
             >
               <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
-              <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="text-body text-slate-600">
                 <span class="block font-bold text-slate-800">{{ c.label }}</span>
                 {{ c.blurb }}
               </span>
             </label>
-            <p v-if="store.firstAscensionFromClassic" class="text-[11px] text-slate-500 leading-relaxed">
+            <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-500">
               Set from A1's dropdown in {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
               Choosing here changes it there too.
             </p>
-            <p v-if="startTooFar" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
+            <p v-if="startTooFar" class="text-body font-semibold text-amber-700">
               The plan starts more than an hour from now, so there's no current ascension to continue then: the first
               ascension starts fresh, as in {{ NAMES.classic }}.
             </p>
@@ -280,7 +280,7 @@
           :class="screen === 'classic' ? 'opacity-60' : ''"
         >
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Awake hours</h3>
-          <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
+          <p v-if="screen === 'classic'" class="text-body font-semibold text-amber-700">
             {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
           </p>
           <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
@@ -290,7 +290,7 @@
               :class="!store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
             >
               <input v-model="store.scheduleEnabled" type="radio" :value="false" class="mt-0.5 text-indigo-600" />
-              <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="text-body text-slate-600">
                 <span class="block font-bold text-slate-800">Any hour</span>
                 The plan prestiges the moment each stop is reached, day or night. Fastest on paper.
               </span>
@@ -300,7 +300,7 @@
               :class="store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
             >
               <input v-model="store.scheduleEnabled" type="radio" :value="true" class="mt-0.5 text-indigo-600" />
-              <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="text-body text-slate-600">
                 <span class="block font-bold text-slate-800">Awake hours</span>
                 Prestiges and egg shifts wait for your next awake hour. You are still on the virtue farm while you wait, and
                 the farm keeps laying.
@@ -309,20 +309,20 @@
           </div>
           <div v-if="store.scheduleEnabled" class="pl-8 space-y-3">
             <div class="flex flex-wrap items-center gap-3">
-              <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+              <label class="flex items-center gap-2 text-small font-bold text-slate-600">
                 From
                 <select
                   v-model.number="store.availableFrom"
-                  class="rounded-lg border-slate-200 text-base sm:text-sm font-bold text-slate-800 disabled:bg-slate-50"
+                  class="rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
                 </select>
               </label>
-              <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+              <label class="flex items-center gap-2 text-small font-bold text-slate-600">
                 to
                 <select
                   v-model.number="store.availableTo"
-                  class="rounded-lg border-slate-200 text-base sm:text-sm font-bold text-slate-800 disabled:bg-slate-50"
+                  class="rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">
                     {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}
@@ -341,14 +341,14 @@
                   :title="showHour(h - 1) + (hourAwake(h - 1) ? ': awake' : ': asleep')"
                 ></span>
               </div>
-              <div class="flex justify-between text-[9px] text-slate-400 mt-0.5">
+              <div class="flex justify-between text-small text-slate-400 mt-0.5">
                 <span>{{ showHour(0) }}</span
                 ><span>{{ showHour(6) }}</span
                 ><span>{{ showHour(12) }}</span
                 ><span>{{ showHour(18) }}</span
                 ><span>{{ showHour(23) }}</span>
               </div>
-              <p class="text-[10px] text-slate-500 mt-1">
+              <p class="text-small text-slate-500 mt-1">
                 Hours are in the plan's timezone ({{ zone }}). Blue is your awake hours: shifts and prestiges happen only then. Days you are awake:
               </p>
             </div>
@@ -370,17 +370,17 @@
               </button>
             </div>
             <!-- Ticked but describing no restriction at all reads as a constraint and isn't one. -->
-            <p v-if="store.scheduleIsEmpty" class="text-[11px] font-semibold text-amber-700">
+            <p v-if="store.scheduleIsEmpty" class="text-body font-semibold text-amber-700">
               Every day, all hours: that's no restriction at all, and it's recorded as no schedule.
             </p>
-            <p v-else-if="!store.availableDays.length" class="text-[11px] font-semibold text-amber-700">
+            <p v-else-if="!store.availableDays.length" class="text-body font-semibold text-amber-700">
               No days picked. Pick at least one, or nothing can be scheduled.
             </p>
-            <p v-else class="text-[11px] text-slate-500">{{ scheduleText(store.availability) }}.</p>
+            <p v-else class="text-body text-slate-500">{{ scheduleText(store.availability) }}.</p>
             <!-- Picking hours means the shifts wait for them too (the user, 5 Oct: the hours should be obvious), so
                  the old "Hold egg shifts for my hours too" box is gone. Only a run or link saved with it off can
                  still be in that state; say so, with a way back. -->
-            <p v-if="!store.deferShifts" class="text-[11px] font-semibold text-amber-700">
+            <p v-if="!store.deferShifts" class="text-body font-semibold text-amber-700">
               This plan was saved with egg shifts not waiting for your awake hours.
               <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 underline font-bold" @click="store.deferShifts = true">
                 Make them wait too
@@ -397,7 +397,7 @@
           data-testid="setup-no-prestige-days"
         >
           <TimeOffEditor kind="noPrestige" />
-          <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
+          <p v-if="screen === 'classic'" class="text-body font-semibold text-amber-700">
             {{ NAMES.classic }} doesn't plan around no prestige days yet. The searches do.
           </p>
         </fieldset>
@@ -406,12 +406,12 @@
         <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
-          <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
+          <p v-if="screen === 'classic'" class="text-body font-semibold text-amber-700">
             {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
             {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
           </p>
-          <p v-else class="text-[11px] text-slate-500 leading-relaxed">
+          <p v-else class="text-body text-slate-500">
             The searches price every route with the time off in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
             {{ NAMES.insights }} keeps runs with time off apart from the rest, since they answer a different
             question.
@@ -446,14 +446,14 @@
               </button>
             </div>
           </div>
-          <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
+          <p v-if="screen === 'classic'" class="text-body font-semibold text-amber-700">
             Not used by {{ NAMES.classic }}: it builds one plan, no search.
           </p>
           <WorkerSlider />
           <BackgroundSpeed />
           <label class="flex items-start gap-3 cursor-pointer">
             <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Keep my computer awake while a search runs.</span> If it sleeps,
               every worker freezes until you wake it. It can't stop a laptop sleeping when the lid is closed.
             </span>
@@ -464,7 +464,7 @@
               type="checkbox"
               class="mt-0.5 rounded border-slate-300 text-indigo-600"
             />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Let the instant answer run during a search.</span> It uses more
               memory, so a big run could crash. Unticked, it warns you first.
             </span>
@@ -476,7 +476,7 @@
               {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'all' }} routes
             </summary>
             <div class="mt-3 space-y-3">
-              <dl class="grid grid-cols-2 gap-3 text-[11px]">
+              <dl class="grid grid-cols-2 gap-3 text-body">
                 <div>
                   <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logical cores</dt>
                   <dd class="font-bold text-slate-700">{{ store.machineThreads }}</dd>
@@ -494,7 +494,7 @@
                   <dd class="font-bold text-slate-700">{{ heapUsedMb || 'not reported' }}</dd>
                 </div>
               </dl>
-              <p class="text-[11px] text-slate-500 leading-relaxed">
+              <p class="text-body text-slate-500">
                 Cores is the only hardware figure a web page gets accurately. Reported RAM is rounded and capped by the
                 browser on purpose, which is why the worker count is yours to choose rather than detected.
               </p>
@@ -508,12 +508,12 @@
                     type="number"
                     min="0"
                     step="500"
-                    class="w-32 rounded-lg border-slate-200 text-sm font-bold text-slate-800"
+                    class="w-32 rounded-lg border-slate-200 text-body font-bold text-slate-800"
                   />
-                  <span class="text-[11px] font-bold text-slate-500">fastest routes</span>
+                  <span class="text-small font-bold text-slate-500">fastest routes</span>
                 </span>
               </label>
-              <p class="text-[11px] text-slate-500 leading-relaxed">
+              <p class="text-body text-slate-500">
                 Holding detail for
                 <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> routes ({{
                   heldMb
@@ -548,7 +548,7 @@
           <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sharing</h3>
           <label class="flex items-start gap-3 cursor-pointer">
             <input v-model="shareInstantOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Share my search results</span>
               (anonymous; helps make the instant answer more accurate). After each Fast, Exact or Custom search, at most
               once an hour per save, this browser sends its result's route and times beside the instant answer's for the
@@ -564,7 +564,7 @@
                box as on My runs. -->
           <label class="flex items-start gap-3 cursor-pointer" data-testid="share-baseline">
             <input v-model="shareBaselineOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Share my instant answer with my runs</span>
               (public, with the run). Each run you send to the Leaderboard also carries your instant answer for it: the
               route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
@@ -573,7 +573,7 @@
           </label>
           <!-- The followed route saved online (lib/followCloud.ts, stores/follow.ts): no choice here, it is how Follow
                works (Jordan, 23 Oct 2026); about.html says the same. -->
-          <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="follow-online">
+          <p class="text-body text-slate-600" data-testid="follow-online">
             <span class="font-bold text-slate-800">The route you follow is saved online</span> under a code made from
             your player ID, so another device shows your route when you enter your ID there. Anyone who knows your player
             ID can see it. It holds the route, the goal, when you set it, the awake hours window you used, the time of your save
@@ -592,7 +592,7 @@
             }}</span>
           </p>
           <!-- Your choices and Setup saved online (lib/prefsCloud.ts, stores/prefs.ts); about.html says the same. -->
-          <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="prefs-online">
+          <p class="text-body text-slate-600" data-testid="prefs-online">
             <span class="font-bold text-slate-800">Your choices and Setup are saved online</span>: your consent choices and
             your Setup (awake hours, time off, no prestige days, target TE and time zone) are saved under the same code as
             the route you follow, made from your player ID. Anyone who knows your player ID can read and change them. Never
@@ -601,12 +601,12 @@
           </p>
           <!-- "Which build is in use" (lib/buildCount.ts): no choice here; Global Privacy Control or Do Not Track turns
                it off. about.html says the same. -->
-          <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="build-count">
+          <p class="text-body text-slate-600" data-testid="build-count">
             <span class="font-bold text-slate-800">The page's version</span> is sent to the planner's server at most once a day:
             just the version, nothing else, so the maintainer knows when old versions are still in use. Global Privacy Control or Do
             Not Track turns it off.
           </p>
-          <p class="text-[11px] text-slate-500 leading-relaxed">
+          <p class="text-body text-slate-500">
             Sending a result to the Leaderboard, its CSV and diagnostics are separate choices, in Before you send under Run.
           </p>
         </div>
@@ -621,7 +621,7 @@
               class="mt-0.5 rounded border-slate-300 text-indigo-600"
               data-testid="prestige-by-box"
             />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Prestige by…</span> A line under the instant answer saying how long
               your next prestige can wait before the answer gets worse, and what it gets after that. Still being
               checked, so it can be wrong.
@@ -638,7 +638,7 @@
               class="mt-0.5 rounded border-slate-300 text-indigo-600"
               data-testid="prestige-by-record"
             />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Include it in results I share</span>, so it can be checked against
               what happens. Only with "Share this result" ticked; nothing more is sent than the prediction itself.
             </span>

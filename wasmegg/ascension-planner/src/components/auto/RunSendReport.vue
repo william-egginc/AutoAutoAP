@@ -12,7 +12,7 @@
 <template>
   <div
     v-if="own && message && !running"
-    class="rounded-lg border px-3 py-2 text-[11px] space-y-2"
+    class="rounded-lg border px-3 py-2 text-small space-y-2"
     :class="
       !ok
         ? 'bg-red-50 border-red-200 text-red-800'

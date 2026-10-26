@@ -29,7 +29,7 @@
       :class="open ? 'flex-row items-center' : 'flex-col sm:flex-row sm:items-center'"
       data-testid="study-box-strip"
     >
-      <h2 id="study-heading" class="text-[13px] font-black text-slate-800 flex-1 break-words">{{ NAMES.study }}</h2>
+      <h2 id="study-heading" class="text-body font-black text-slate-800 flex-1 break-words">{{ NAMES.study }}</h2>
       <div class="flex gap-2" :class="open ? 'flex-row' : 'flex-col sm:flex-row'">
         <button
           type="button"
@@ -68,7 +68,7 @@
     :aria-label="NAMES.study"
     data-testid="study-strip"
   >
-    <p class="text-[12px] font-semibold text-indigo-900 sm:flex-1 break-words">
+    <p class="text-body font-semibold text-indigo-900 sm:flex-1 break-words">
       You agreed to help improve the planner in this browser. Use the same choices for this account?
     </p>
     <div class="flex flex-col sm:flex-row gap-2">
@@ -97,7 +97,7 @@
     role="status"
     data-testid="study-thanks"
   >
-    <p class="text-[12px] font-semibold text-emerald-900 sm:flex-1 break-words">
+    <p class="text-body font-semibold text-emerald-900 sm:flex-1 break-words">
       Thank you. Your choices are on for this account. Change them any time in {{ NAMES.setup }} ›
       {{ NAMES.study }} (the {{ NAMES.setup }} button on the {{ NAMES.auto }} and {{ NAMES.myRuns }}).
     </p>

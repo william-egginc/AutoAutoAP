@@ -9,7 +9,7 @@
       <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
         <div class="flex items-center gap-2">
           <span
-            class="text-[10px] font-black text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner"
+            class="text-small font-black text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner"
             >{{ slotIndex + 1 }}</span
           >
         </div>
@@ -34,7 +34,7 @@
       <!-- Artifact Effect Display & Stone Slots (stone slots only when stones are edited here) -->
       <div v-if="slot.artifactId" class="ml-8 space-y-3">
         <div
-          class="badge-premium badge-brand bg-white/60 backdrop-blur-sm border border-brand-primary/10 text-[10px] py-1 px-3 flex items-center gap-2 max-w-fit"
+          class="badge-premium badge-brand bg-white/60 backdrop-blur-sm border border-brand-primary/10 text-small py-1 px-3 flex items-center gap-2 max-w-fit"
         >
           <div class="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse"></div>
           {{ getArtifact(slot.artifactId)?.effect }}
@@ -70,14 +70,14 @@
             />
             <!-- Slot name/tier tooltip on hover -->
             <div
-              class="absolute -top-2 -right-2 bg-gray-800 text-white text-[8px] font-bold px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap"
+              class="absolute -top-2 -right-2 bg-gray-800 text-white text-small font-bold px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap"
             >
               {{ getStone(slot.stones[stoneIndex - 1])?.label || stoneIndex }}
             </div>
           </div>
         </div>
       </div>
-      <div v-else class="ml-5 text-[10px] text-gray-400 italic">
+      <div v-else class="ml-5 text-small text-gray-400 italic">
         {{ stones === 'hidden' ? 'Empty slot' : 'Select an artifact to configure stones' }}
       </div>
     </div>

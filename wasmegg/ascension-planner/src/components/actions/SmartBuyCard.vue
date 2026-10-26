@@ -22,7 +22,7 @@
       </div>
 
       <!-- Description -->
-      <p class="text-[11px] text-slate-700 leading-relaxed font-medium">
+      <p class="text-body text-slate-700 font-medium">
         <slot name="description" />
       </p>
 
@@ -30,7 +30,7 @@
       <slot />
 
       <!-- Note -->
-      <p v-if="note" class="text-[10px] text-slate-500 text-center px-2 leading-tight">
+      <p v-if="note" class="text-small text-slate-500 text-center px-2 leading-tight">
         {{ note }}
       </p>
     </div>

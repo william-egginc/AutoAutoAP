@@ -5,7 +5,7 @@
   JSON file that "Load a save file" (SaveFileBar.vue) reads back. Entries without a kept save say why.
 -->
 <template>
-  <div class="w-full flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+  <div class="w-full flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
     <template v-if="state === 'kept' && entry.save">
       <button
         type="button"

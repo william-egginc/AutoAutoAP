@@ -47,10 +47,10 @@
             class="flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80"
             v-tippy="{ content: 'Spent • Remaining', placement: 'top' }"
           >
-            <div class="text-[8px] font-black leading-none text-slate-400 mb-1">
+            <div class="text-small font-black leading-none text-slate-400 mb-1">
               -{{ formatNumber(totalShiftCost, 1) }}
             </div>
-            <div class="text-[9px] font-black leading-none text-slate-600 flex items-center gap-0.5">
+            <div class="text-small font-black leading-none text-slate-600 flex items-center gap-0.5">
               {{ formatNumber(finalSE, 1) }}
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-2.5 h-2.5" alt="SE" />
             </div>
@@ -131,7 +131,7 @@
           </svg>
         </button>
 
-        <span class="ml-4 text-[10px] text-slate-400 italic font-medium"
+        <span class="ml-4 text-small text-slate-400 italic font-medium"
           >Developed by
           <span @click="triggerCat" class="cursor-pointer select-none hover:text-slate-600 transition-colors"
             >joobrainie</span
@@ -172,7 +172,7 @@
           </div>
 
           <div class="p-6">
-            <p class="text-sm font-medium text-slate-600 leading-relaxed mb-6">
+            <p class="text-body font-medium text-slate-600 mb-6">
               If you find this tool helpful, you're welcome to buy me a coffee! No obligation at all, but it is deeply appreciated.
             </p>
             
@@ -180,16 +180,16 @@
               <a href="https://ko-fi.com/joobrainie" target="_blank" rel="noopener noreferrer" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-300 hover:shadow-md transition-all bg-white group hover:-translate-y-0.5">
                 <img src="/static/kofi_logo.png" class="w-8 h-8 group-hover:scale-110 transition-transform" alt="Ko-fi" />
                 <div class="flex flex-col">
-                  <span class="text-sm font-black text-slate-800">Support on Ko-fi</span>
-                  <span class="text-xs font-medium text-slate-500">ko-fi.com/joobrainie</span>
+                  <span class="text-body font-black text-slate-800">Support on Ko-fi</span>
+                  <span class="text-small font-medium text-slate-500">ko-fi.com/joobrainie</span>
                 </div>
               </a>
 
               <a href="https://paypal.me/joobrainie" target="_blank" rel="noopener noreferrer" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-300 hover:shadow-md transition-all bg-white group hover:-translate-y-0.5">
                 <img src="/static/paypal_logo.svg" class="w-8 h-8 group-hover:scale-110 transition-transform" alt="PayPal" />
                 <div class="flex flex-col">
-                  <span class="text-sm font-black text-slate-800">Support via PayPal</span>
-                  <span class="text-xs font-medium text-slate-500">paypal.me/joobrainie</span>
+                  <span class="text-body font-black text-slate-800">Support via PayPal</span>
+                  <span class="text-small font-medium text-slate-500">paypal.me/joobrainie</span>
                 </div>
               </a>
             </div>
@@ -465,7 +465,7 @@ function triggerCat() {
 }
 
 .summary-value {
-  @apply text-[13px] font-bold tracking-tight whitespace-nowrap;
+  @apply text-small font-bold tracking-tight whitespace-nowrap;
 }
 
 .btn-icon-premium {

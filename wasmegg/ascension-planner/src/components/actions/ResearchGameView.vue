@@ -23,13 +23,13 @@
           <!-- Max Tier button -->
           <button
             v-if="tierSummaries[tier]?.isUnlocked && !isTierMaxed(tier)"
-            class="btn-premium text-xs py-1 px-2"
+            class="btn-premium text-body py-1 px-2"
             :class="isResearchSaleActive && (baseTimestamp / 1000 + viewTimes.tierSeconds[tier] > researchSaleDeadline) ? 'btn-danger bg-amber-500 hover:bg-amber-600 border-amber-600' : 'btn-secondary'"
             @click.stop="$emit('max-tier', tier)"
             v-tippy="deadlineWarningTooltip(viewTimes.tierSeconds[tier])"
           >
             Max Tier
-            <span v-if="viewTimes.tiers[tier]" class="ml-1 text-[9px] opacity-70">({{ viewTimes.tiers[tier] }})</span>
+            <span v-if="viewTimes.tiers[tier]" class="ml-1 text-small opacity-70">({{ viewTimes.tiers[tier] }})</span>
           </button>
           <svg
             class="w-5 h-5 text-gray-400 transition-transform cursor-pointer"

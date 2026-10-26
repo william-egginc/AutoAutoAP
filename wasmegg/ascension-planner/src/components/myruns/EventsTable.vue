@@ -10,7 +10,7 @@
 -->
 <template>
   <div data-testid="now-events">
-    <table class="w-full text-[12px] sm:text-[13px]">
+    <table class="w-full text-small sm:text-small">
       <thead>
         <tr class="text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">
           <th class="py-1.5 pr-1 w-5"></th>
@@ -33,14 +33,14 @@
             <span v-if="e.kind === 'prestige'" class="text-slate-500" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
             ><span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
             <!-- Every ascension's prestige is listed (26 Oct 2026); one that waits says why and when it happens. -->
-            <p v-if="e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past" class="text-[11px] text-amber-800" data-testid="now-event-wait">
+            <p v-if="e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past" class="text-small text-amber-800" data-testid="now-event-wait">
               {{ e.wait === 'days' ? 'Waits past your no-prestige days' : 'Waits for your hours' }}: prestige
               {{ whenAt(e.prestigeAt) }}
             </p>
-            <p v-if="e.past && e.kind === 'prestige'" class="text-[11px] text-amber-800">
+            <p v-if="e.past && e.kind === 'prestige'" class="text-small text-amber-800">
               The plan had you prestige {{ dateAt(e.at, now, zone, true) }}: load a newer save.
             </p>
-            <p class="sm:hidden text-[12px]">
+            <p class="sm:hidden text-small">
               {{ when(e) }}{{ ' · ' }}<b>{{ far(e) }}</b>
             </p>
             <div v-if="addable(e)" class="mt-1 sm:hidden">
@@ -58,11 +58,11 @@
     <div v-if="upcoming.length > 1" class="mt-2">
       <CalendarButton :events="upcoming.map(calOf)" :label="`Add all ${upcoming.length} upcoming to calendar`" primary />
     </div>
-    <p v-if="rounded" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed" data-testid="now-events-rounded">
+    <p v-if="rounded" class="mt-1.5 text-body text-slate-500" data-testid="now-events-rounded">
       <!-- Plain words, no link (ux review 26 Oct, row 15; 25 Oct 2026: the card's Run Fast went, Try next has the runs). -->
       From the instant answer, rounded to the hour. For exact times on your account, use a run from Try next below.
     </p>
-    <p v-else-if="upcoming.length" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
+    <p v-else-if="upcoming.length" class="mt-1.5 text-body text-slate-500">
       Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
       nothing is sent. If the plan changes, add them again after a new run.
     </p>

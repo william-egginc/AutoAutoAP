@@ -5,7 +5,7 @@
 -->
 <template>
   <div class="space-y-1">
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-small">
       <!-- A button, not a heading (ux review 26 Oct, row 19: "LOAD A SAVE FILE" had no button in sight): the label
            opens the file picker; the input stays focusable (sr-only), so Tab and Enter reach it too. 44 px on phones. -->
       <label
@@ -18,7 +18,7 @@
       </label>
       <span class="text-slate-400">This file is your game save; don't share it publicly.</span>
     </div>
-    <p v-if="store.olderSaveError" class="text-[11px] font-semibold text-rose-700">{{ store.olderSaveError }}</p>
+    <p v-if="store.olderSaveError" class="text-body font-semibold text-rose-700">{{ store.olderSaveError }}</p>
   </div>
 </template>
 

@@ -4,7 +4,7 @@
     <div class="relative">
       <button
         @click="open = !open"
-        class="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg shadow-inner hover:bg-gray-200 transition-colors"
+        class="w-full flex items-center gap-2.5 px-3 py-2 text-body font-medium text-gray-700 bg-gray-100 rounded-lg shadow-inner hover:bg-gray-200 transition-colors"
       >
         <template v-if="kind === 'tier' && nextLockedTier != null">
           <div class="w-7 h-7 flex items-center justify-center shrink-0 rounded bg-blue-100 text-blue-600">
@@ -42,10 +42,10 @@
             <LockOpenIcon class="w-4 h-4" />
           </div>
           <div class="min-w-0">
-            <div class="text-[13px] font-bold" :class="kind === 'tier' ? 'text-blue-600' : 'text-gray-900'">
+            <div class="text-small font-bold" :class="kind === 'tier' ? 'text-blue-600' : 'text-gray-900'">
               Unlock Tier {{ nextLockedTier }}
             </div>
-            <div class="text-[10px] text-gray-400">Fastest ROI-optimal path to unlock the next tier.</div>
+            <div class="text-small text-gray-400">Fastest ROI-optimal path to unlock the next tier.</div>
           </div>
         </button>
 
@@ -64,16 +64,16 @@
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-2">
               <span
-                class="text-[13px] font-bold truncate"
+                class="text-small font-bold truncate"
                 :class="kind === 'research' && researchSelection === option.research.id ? 'text-blue-600' : 'text-gray-900'"
               >
                 {{ option.research.name }}
               </span>
-              <span class="text-[10px] font-medium text-gray-400 whitespace-nowrap shrink-0">
+              <span class="text-small font-medium text-gray-400 whitespace-nowrap shrink-0">
                 Lv {{ option.currentLevel + 1 }}/{{ option.research.levels }}
               </span>
             </div>
-            <div class="text-[10px] text-gray-400 leading-snug">{{ option.research.description }}</div>
+            <div class="text-small text-gray-400">{{ option.research.description }}</div>
           </div>
         </button>
       </div>

@@ -7,7 +7,7 @@
 -->
 <template>
   <p
-    class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800"
+    class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-body text-emerald-800"
     data-testid="sent-by-run"
   >
     <b>Submitted automatically.</b>

@@ -5,7 +5,7 @@
        (ConsentBox.vue, composables/useConsent.ts, still stored as `keepSharingChecks`): remembered per account,
        folded to one line once on, withdrawn at once (the next result sends nothing). -->
   <div
-    class="rounded-lg border border-emerald-200 bg-white/70 px-2.5 py-1.5 text-[11px] text-slate-700 space-y-0.5"
+    class="rounded-lg border border-emerald-200 bg-white/70 px-2.5 py-1.5 text-body text-slate-700 space-y-0.5"
     data-testid="share-check"
   >
     <ConsentBox
@@ -23,7 +23,7 @@
         ><span>Sharing my search results with the planner's maintainer (anonymous)</span
         ><span
           v-if="status"
-          class="text-[10px] font-normal"
+          class="text-small font-normal"
           :class="sent ? 'text-emerald-700' : 'text-slate-500'"
           data-testid="share-status"
           >· {{ status }}</span
@@ -43,7 +43,7 @@
           </label>
           <span
             v-if="status"
-            class="text-[10px]"
+            class="text-small"
             :class="sent ? 'text-emerald-700' : 'text-slate-500'"
             data-testid="share-status"
             >{{ status }}</span
@@ -52,7 +52,7 @@
       </template>
       <template #text><span>Share my search results</span></template>
       <template #after>
-        <p class="text-[10px] text-slate-500 leading-snug">
+        <p class="text-small text-slate-500">
           Sends this result and the instant answer for the same goal to the planner's maintainer when a search
           finishes, to make the instant answer more accurate. Never your player ID, never shown on the board. At most
           once an hour per save.

@@ -19,7 +19,7 @@
     <button
       ref="trigger"
       type="button"
-      class="relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden w-3.5 h-3.5 rounded-full border border-slate-300 text-slate-400 text-[9px] font-black leading-none flex items-center justify-center hover:border-slate-500 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+      class="relative before:absolute before:-inset-[15px] before:content-[''] sm:before:hidden w-3.5 h-3.5 rounded-full border border-slate-300 text-slate-400 text-small font-black leading-none flex items-center justify-center hover:border-slate-500 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400"
       :aria-describedby="open ? id : undefined"
       aria-label="What does this mean?"
       @mouseenter="show"
@@ -36,7 +36,7 @@
         v-if="open"
         :id="id"
         role="tooltip"
-        class="pointer-events-none fixed z-[9999] w-64 rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-medium normal-case tracking-normal leading-relaxed text-slate-100 shadow-xl"
+        class="pointer-events-none fixed z-[9999] w-64 rounded-lg bg-slate-900 px-3 py-2 text-body font-medium normal-case tracking-normal text-slate-100 shadow-xl"
         :style="{ left: `${pos.left}px`, top: `${pos.top}px` }"
       >
         <slot />

@@ -8,7 +8,7 @@
 <template>
   <details
     :open="promiseOpen"
-    class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900"
+    class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-small text-amber-900"
     data-testid="exhaustive-promise"
     @toggle="onPromiseToggle"
   >

@@ -17,9 +17,9 @@
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved runs</h3>
-      <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
+      <span class="text-small font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
-    <p v-if="!listOnly" class="text-[11px] text-slate-500 leading-relaxed">
+    <p v-if="!listOnly" class="text-body text-slate-500">
       Kept in this browser, per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with
       the save it started with while that save is kept here, and puts its target, schedule, time off and plan start
       back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped. Each run also
@@ -31,7 +31,7 @@
         v-model="label"
         type="text"
         placeholder="Name this run (optional)"
-        class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-sm text-slate-800"
+        class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-body text-slate-800"
       />
       <button
         type="button"
@@ -43,19 +43,19 @@
       </button>
     </div>
 
-    <p v-if="note" class="text-[11px] font-semibold text-amber-700 leading-relaxed">{{ note }}</p>
+    <p v-if="note" class="text-body font-semibold text-amber-700">{{ note }}</p>
 
-    <p v-if="!store.savedRuns.length" class="text-[11px] text-slate-400">Nothing saved yet.</p>
+    <p v-if="!store.savedRuns.length" class="text-body text-slate-400">Nothing saved yet.</p>
     <div v-else class="divide-y divide-slate-100">
       <div v-for="run in store.savedRuns" :key="run.id" class="flex flex-wrap items-center gap-3 py-2">
         <div class="flex-1 min-w-[14rem]">
-          <div class="text-xs font-bold text-slate-800">
+          <div class="text-small font-bold text-slate-800">
             {{ run.label }}
             <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 text-[9px] font-black uppercase text-slate-500">{{
               run.space ? NAMES.full : NAMES.smart
             }}</span>
           </div>
-          <div class="text-[10px] text-slate-400 tabular-nums">
+          <div class="text-small text-slate-400 tabular-nums">
             {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ plural(run.chainsPriced, 'route') }}<template
               v-if="!run.complete"
             >

@@ -6,7 +6,7 @@
   or has been quiet for two minutes.
 -->
 <template>
-  <p class="text-[11px] font-bold leading-relaxed" data-testid="run-going-elsewhere" role="status">
+  <p class="text-body font-bold" data-testid="run-going-elsewhere" role="status">
     This run is still going in another tab or window. Switch to that one to see it; carrying it on here would run the
     same search twice. If that tab is closed or stops answering for 2 minutes, Carry on comes back here.
   </p>

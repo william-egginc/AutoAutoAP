@@ -17,7 +17,7 @@
           />
         </div>
         <div>
-          <div class="text-sm font-bold text-slate-800">
+          <div class="text-body font-bold text-slate-800">
             {{ VIRTUE_EGG_NAMES[virtueStore.currentEgg] }}
           </div>
           <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Egg</div>
@@ -26,7 +26,7 @@
 
       <!-- Current TE State -->
       <div class="space-y-3">
-        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
+        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-small">
           <div class="text-slate-400 uppercase tracking-[0.2em] font-black">Metric</div>
           <div class="text-slate-400 uppercase tracking-[0.2em] font-black text-right">Value (Initial → Current)</div>
 
@@ -42,12 +42,12 @@
           >
             Shipped in Plan:
           </div>
-          <div class="tabular-nums text-right text-slate-900 font-black pt-2 border-t border-slate-100/50 text-xs">
+          <div class="tabular-nums text-right text-slate-900 font-black pt-2 border-t border-slate-100/50 text-small">
             {{ formatNumber(Math.max(0, currentEggsDelivered - initialEggsDelivered), 2) }}
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 text-[10px] pt-3 border-t border-slate-100/50">
+        <div class="grid grid-cols-2 gap-4 text-small pt-3 border-t border-slate-100/50">
           <div class="space-y-1">
             <div class="flex items-center justify-between">
               <span class="text-slate-400 uppercase tracking-widest font-black">Claimed TE:</span>
@@ -60,7 +60,7 @@
           </div>
           <div class="flex flex-col justify-end text-right">
             <span class="text-slate-400 uppercase tracking-widest font-black">Total Progress:</span>
-            <span class="tabular-nums font-bold text-slate-900 text-sm tracking-tighter"
+            <span class="tabular-nums font-bold text-slate-900 text-body tracking-tighter"
               >{{ truthEggsStore.totalTE }} <span class="text-slate-300 font-normal">/ 490</span></span
             >
           </div>
@@ -104,7 +104,7 @@
             :min="1"
             :max="98 - currentTE"
             @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
-            class="flex-1 h-11 text-center text-sm tabular-nums font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
+            class="flex-1 h-11 text-center text-body tabular-nums font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
             :disabled="currentTE >= 98"
             @input="onBoxInput"
             @blur="onBoxLeave"
@@ -124,37 +124,37 @@
 
       <!-- Calculated values -->
       <div v-if="teToGain > 0" class="space-y-3 bg-slate-50/30 rounded-xl p-4 border border-slate-50">
-        <div class="flex justify-between items-center text-[10px]">
+        <div class="flex justify-between items-center text-small">
           <span class="font-black text-slate-400 uppercase tracking-widest">Reaches:</span>
           <span class="tabular-nums font-black text-slate-900">TE #{{ targetTENumber }}</span>
         </div>
-        <div class="flex justify-between items-center text-[10px]">
+        <div class="flex justify-between items-center text-small">
           <span class="font-black text-slate-400 uppercase tracking-widest">TE to Gain:</span>
           <span class="tabular-nums font-black text-slate-900">+{{ teToGain }} TE</span>
         </div>
-        <div class="flex justify-between items-center text-[10px]">
+        <div class="flex justify-between items-center text-small">
           <span class="font-black text-slate-400 uppercase tracking-widest">Eggs to Lay:</span>
           <span class="tabular-nums font-bold text-slate-700">{{ formatNumber(eggsToLay, 3) }}</span>
         </div>
 
         <div class="pt-2 mt-1 border-t border-slate-100/50 space-y-2">
-          <div class="flex justify-between items-center text-[10px]">
+          <div class="flex justify-between items-center text-small">
             <div class="flex items-center gap-1">
               <span class="font-black text-slate-400 uppercase tracking-widest">Delivery Rate per hour:</span>
             </div>
             <span class="tabular-nums text-slate-500">{{ formatNumber(elrPerHour, 2) }}</span>
           </div>
-          <div class="flex justify-between items-center text-[10px]">
+          <div class="flex justify-between items-center text-small">
             <div class="flex items-center gap-1">
               <span class="font-black text-slate-400 uppercase tracking-widest">Delivery Rate per day:</span>
             </div>
             <span class="tabular-nums text-slate-500">{{ formatNumber(elrPerDay, 2) }}</span>
           </div>
-          <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-[10px]">
+          <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-small">
             <span class="font-black text-slate-400 uppercase tracking-widest">Time Required:</span>
             <span class="tabular-nums font-black text-slate-900">{{ formatDuration(timeToLaySeconds) }}</span>
           </div>
-          <div class="flex justify-between items-center text-[10px]">
+          <div class="flex justify-between items-center text-small">
             <span class="font-black text-slate-400 uppercase tracking-widest">Completion Time:</span>
             <span class="tabular-nums font-black text-slate-900">{{ absoluteEarnedTime }}</span>
           </div>

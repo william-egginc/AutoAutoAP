@@ -15,17 +15,17 @@
       <!-- Name & Level -->
       <div class="flex-1 min-w-0 flex items-center justify-between gap-2">
         <div class="flex min-w-0 items-center justify-start gap-2">
-          <span class="text-[13px] font-bold text-gray-900 truncate">
-            <span v-if="showTier" class="text-gray-400 tabular-nums text-[10px] mr-1">T{{ research.tier }}</span>
+          <span class="text-small font-bold text-gray-900 truncate">
+            <span v-if="showTier" class="text-gray-400 tabular-nums text-small mr-1">T{{ research.tier }}</span>
             {{ research.name }}
           </span>
-          <span class="text-[11px] font-medium text-gray-500 whitespace-nowrap hidden sm:inline-block">
+          <span class="text-body font-medium text-gray-500 whitespace-nowrap hidden sm:inline-block">
             <span v-if="targetLevel" class="text-gray-900">Lv {{ targetLevel }}</span>
             <span v-else>Lv {{ currentLevel }}</span>
             / {{ research.levels }}
           </span>
         </div>
-        <span class="text-[11px] font-medium text-gray-500 whitespace-nowrap sm:hidden">
+        <span class="text-body font-medium text-gray-500 whitespace-nowrap sm:hidden">
           <span v-if="targetLevel" class="text-gray-900">Lv {{ targetLevel }}</span>
           <span v-else>Lv {{ currentLevel }}</span>
           / {{ research.levels }}
@@ -36,12 +36,12 @@
     <!-- Row 2: Description, Gem Cost -->
     <div class="flex items-start justify-between w-full pl-[38px] gap-4">
       <!-- Description -->
-      <div class="text-[10px] text-gray-500 leading-snug">
+      <div class="text-small text-gray-500">
         {{ research.description }}
         
         <div
           v-if="lookahead"
-          class="mt-1.5 p-1.5 inline-block bg-amber-50 border border-amber-100 rounded text-[9px] text-amber-800 leading-tight shadow-sm"
+          class="mt-1.5 p-1.5 inline-block bg-amber-50 border border-amber-100 rounded text-small text-amber-800 leading-tight shadow-sm"
         >
           <div class="flex items-start gap-1">
             <svg class="w-3 h-3 text-amber-500 shrink-0 mt-px" fill="currentColor" viewBox="0 0 20 20">
@@ -58,7 +58,7 @@
       <!-- Gem Cost -->
       <div class="text-right shrink-0">
         <template v-if="!isMaxed">
-          <div class="flex items-center justify-end gap-1 text-[11px] tabular-nums text-amber-600 font-bold">
+          <div class="flex items-center justify-end gap-1 text-small tabular-nums text-amber-600 font-bold">
             {{ formatGemPrice(price) }}
             <img :src="iconURL('egginc/icon_virtue_gem.png', 64)" class="w-2.5 h-2.5 object-contain opacity-80" alt="Gem" />
           </div>
@@ -86,7 +86,7 @@
               v-for="(crossing, i) in eventCrossings?.sale ?? []"
               :key="`sale-${i}`"
               v-tippy="crossingTooltip('research sale', crossing)"
-              class="text-[8px] font-bold text-gray-400 whitespace-nowrap cursor-help"
+              class="text-small font-bold text-gray-400 whitespace-nowrap cursor-help"
             >
               ⏳ Sale {{ crossing.togglesTo ? 'starts' : 'ends' }} in {{ formatDuration(crossing.waitSeconds) }}
             </span>
@@ -94,7 +94,7 @@
               v-for="(crossing, i) in eventCrossings?.boost ?? []"
               :key="`boost-${i}`"
               v-tippy="crossingTooltip('2x earnings boost', crossing)"
-              class="text-[8px] font-bold text-gray-400 whitespace-nowrap cursor-help"
+              class="text-small font-bold text-gray-400 whitespace-nowrap cursor-help"
             >
               ⏳ 2x {{ crossing.togglesTo ? 'starts' : 'ends' }} in {{ formatDuration(crossing.waitSeconds) }}
             </span>
@@ -124,7 +124,7 @@
               {{ extraLabel }}
             </div>
             <div
-              class="text-[11px] tabular-nums text-gray-900 leading-none"
+              class="text-small tabular-nums text-gray-900 leading-none"
               v-tippy="
                 extraLabel === 'Achieve ROI' && extraSeconds !== undefined
                   ? formatAbsoluteTime(extraSeconds, baseTimestamp, virtueStore.ascensionTimezone)
@@ -140,7 +140,7 @@
                 ⚠️
               </span>
             </div>
-            <div v-if="hpp !== undefined" class="text-[9px] tabular-nums text-gray-400 leading-none pb-[1px]">
+            <div v-if="hpp !== undefined" class="text-small tabular-nums text-gray-400 leading-none pb-[1px]">
               <template v-if="roiDisplayMode === 'time'">
                 {{ formatDuration(timeRoiSeconds ?? Infinity) }}
               </template>
@@ -155,7 +155,7 @@
       <!-- Time Cost and Actions (Right aligned) -->
       <div class="flex items-center gap-2 shrink-0">
         <!-- Time Cost -->
-        <div v-if="timeToBuy && !isMaxed" class="text-[11px] tabular-nums text-gray-400 whitespace-nowrap">
+        <div v-if="timeToBuy && !isMaxed" class="text-small tabular-nums text-gray-400 whitespace-nowrap">
           {{ timeToBuy }}
         </div>
 
@@ -171,7 +171,7 @@
             @click.stop="$emit('buyToHere')"
           >
             Buy to here
-            <span v-if="buyToHereTime" class="ml-1 text-[9px] opacity-70 tabular-nums lowercase tracking-normal">({{ buyToHereTime }})</span>
+            <span v-if="buyToHereTime" class="ml-1 text-small opacity-70 tabular-nums lowercase tracking-normal">({{ buyToHereTime }})</span>
           </button>
 
           <!-- Buy one level button -->
@@ -202,7 +202,7 @@
             @click.stop="$emit('max')"
           >
             Max
-            <span v-if="maxTime" class="ml-0.5 text-[8px] opacity-70 tabular-nums font-medium lowercase tracking-normal">({{ maxTime }})</span>
+            <span v-if="maxTime" class="ml-0.5 text-small opacity-70 tabular-nums font-medium lowercase tracking-normal">({{ maxTime }})</span>
           </button>
         </div>
       </div>
@@ -213,7 +213,7 @@
       v-if="recommendationNote"
       class="w-full pl-[38px]"
     >
-      <div class="p-1.5 inline-block bg-blue-50 border border-blue-100 rounded text-[9px] text-blue-800 leading-tight shadow-sm">
+      <div class="p-1.5 inline-block bg-blue-50 border border-blue-100 rounded text-small text-blue-800 leading-tight shadow-sm">
         <div class="flex items-start gap-1">
           <svg class="w-3 h-3 text-blue-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path
@@ -238,13 +238,13 @@
        <div class="flex items-center gap-6">
          <div class="flex flex-col">
            <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 text-center tabular-nums">Lay Rate</span>
-           <span class="text-[10px] tabular-nums font-bold text-gray-600 leading-none text-center">
+           <span class="text-small tabular-nums font-bold text-gray-600 leading-none text-center">
              {{ formatNumber(realisticStats.layRate) }}/hr
            </span>
          </div>
          <div class="flex flex-col">
            <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 text-center tabular-nums">Shipping Cap</span>
-           <span class="text-[10px] tabular-nums font-bold text-gray-600 leading-none text-center">
+           <span class="text-small tabular-nums font-bold text-gray-600 leading-none text-center">
              {{ formatNumber(realisticStats.shippingRate) }}/hr
            </span>
          </div>
@@ -252,10 +252,10 @@
        <div class="text-right">
          <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 block text-right tabular-nums">Delivery Rate</span>
          <div class="flex items-center justify-end gap-1 leading-none">
-           <span class="text-[11px] tabular-nums font-bold text-gray-900">
+           <span class="text-small tabular-nums font-bold text-gray-900">
              {{ formatNumber(realisticStats.elr) }}/hr
            </span>
-           <span v-if="realisticStats.elrDelta > 0.001" class="text-[9px] tabular-nums font-bold text-gray-400 ml-1">
+           <span v-if="realisticStats.elrDelta > 0.001" class="text-small tabular-nums font-bold text-gray-400 ml-1">
              (+{{ formatWithReference(realisticStats.elrDelta, realisticStats.elr) }})
            </span>
          </div>

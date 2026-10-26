@@ -10,12 +10,12 @@
       <div class="flex justify-between items-start mb-6 relative z-10">
         <div>
           <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Shift Progress</h4>
-          <p class="text-[11px] font-medium text-slate-500">Since {{ lastShiftLabel }}</p>
+          <p class="text-body font-medium text-slate-500">Since {{ lastShiftLabel }}</p>
         </div>
         <div class="badge-premium bg-white border-slate-100 shadow-sm px-3 py-1 flex items-center gap-2">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Shifts:</span>
-          <span class="text-sm tabular-nums font-black text-slate-900">{{ virtueStore.shiftCount }}</span>
-          <span v-if="virtueStore.plannedShifts > 0" class="text-[10px] font-bold text-brand-primary">
+          <span class="text-body tabular-nums font-black text-slate-900">{{ virtueStore.shiftCount }}</span>
+          <span v-if="virtueStore.plannedShifts > 0" class="text-small font-bold text-brand-primary">
             +{{ virtueStore.plannedShifts }}
           </span>
         </div>
@@ -26,7 +26,7 @@
         <div class="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-indigo-50 shadow-inner">
           <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">Duration</div>
           <div class="flex items-center gap-2">
-            <span class="text-lg tabular-nums font-black text-slate-900">{{ timeSinceLastShiftFormatted }}</span>
+            <span class="text-title tabular-nums font-black text-slate-900">{{ timeSinceLastShiftFormatted }}</span>
             <div class="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse"></div>
           </div>
           <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1 opacity-60">
@@ -60,11 +60,11 @@
     <!-- Shift Options -->
     <div>
       <div class="flex justify-between items-center mb-4 px-2">
-        <h4 class="text-[10px] font-black text-slate-400 tracking-[0.2em]">Select Target Egg</h4>
+        <h4 class="text-small font-black text-slate-400 tracking-[0.2em]">Select Target Egg</h4>
         <div class="flex items-center gap-2">
           <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Next Cost:</span>
           <div class="flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-xl border border-slate-100 shadow-sm">
-            <span class="text-xs tabular-nums font-black text-slate-900">
+            <span class="text-small tabular-nums font-black text-slate-900">
               {{ formatNumber(nextShiftCostValue, 3) }}
             </span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3.5 h-3.5" alt="SE" />
@@ -97,7 +97,7 @@
         </div>
         <div class="flex-1">
           <h5 class="text-[10px] font-black text-red-800 uppercase tracking-widest mb-0.5">Insufficient SE</h5>
-          <p class="text-[11px] font-medium text-red-600/80 leading-relaxed">
+          <p class="text-body font-medium text-red-600/80">
             The next shift costs more soul eggs than you have left.
           </p>
         </div>
@@ -137,10 +137,10 @@
               v-tippy="'Claimed (+Pending) Truth Eggs'"
               class="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-slate-100 bg-slate-50/50 shadow-sm mt-2"
             >
-              <span class="text-[10px] font-black text-slate-700 leading-none">
+              <span class="text-small font-black text-slate-700 leading-none">
                 {{ truthEggsStore.teEarned[egg] }}
               </span>
-              <span class="text-[9px] font-bold text-indigo-600 leading-none">
+              <span class="text-small font-bold text-indigo-600 leading-none">
                 (+{{ truthEggsStore.pendingTEForEgg(egg) }})
               </span>
               <img :src="iconURL(getColleggtibleIconPath('truth'), 64)" class="w-3 h-3" alt="TE" />

@@ -4,7 +4,7 @@
 
     <ResearchViewSelector v-model="currentView" :views="VIEWS" />
 
-    <p class="text-sm text-gray-500 mb-4 px-1">
+    <p class="text-body text-gray-500 mb-4 px-1">
       {{ viewDescription }}
     </p>
 
@@ -74,12 +74,12 @@
       <!-- Milestone Summary -->
       <div v-if="milestoneSummary" class="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
         <template v-if="milestoneSummary.truncated">
-          <p v-if="milestoneSummary.partialPurchaseCount > 0" class="text-xs text-gray-500 text-center italic">
+          <p v-if="milestoneSummary.partialPurchaseCount > 0" class="text-body text-gray-500 text-center italic">
             This milestone takes at least {{ milestoneSummary.partialPurchaseCount }}
             {{ milestoneSummary.partialPurchaseCount === 1 ? 'purchase' : 'purchases' }} (at least
             {{ formatDuration(milestoneSummary.partialSeconds) }}) — too many to fully calculate right now.
           </p>
-          <p v-else class="text-xs text-gray-500 text-center italic">
+          <p v-else class="text-body text-gray-500 text-center italic">
             Unable to find a path to this milestone from the current state.
           </p>
         </template>
@@ -91,7 +91,7 @@
               >
               <span
                 v-tippy="'For a research level: time to save for it with no other purchases. For a tier: time to unlock it buying the cheapest research first.'"
-                class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
+                class="text-body tabular-nums font-bold text-gray-900 leading-none py-1"
               >
                 {{ formatDuration(milestoneSummary.baselineSeconds) }}
               </span>
@@ -102,7 +102,7 @@
               >
               <span
                 v-tippy="'Time to reach this milestone by always buying whatever currently pays for itself fastest.'"
-                class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
+                class="text-body tabular-nums font-bold text-gray-900 leading-none py-1"
               >
                 {{ formatDuration(milestoneSummary.optimizedSeconds) }}
               </span>
@@ -111,7 +111,7 @@
               <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
                 >Time Saved</span
               >
-              <span class="text-sm tabular-nums font-bold text-emerald-600 leading-none py-1">
+              <span class="text-body tabular-nums font-bold text-emerald-600 leading-none py-1">
                 {{ formatDuration(Math.max(0, milestoneSummary.timeSavedSeconds)) }}
               </span>
             </div>
@@ -119,7 +119,7 @@
               <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
                 >Researches Bought</span
               >
-              <span class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1">
+              <span class="text-body tabular-nums font-bold text-gray-900 leading-none py-1">
                 {{ milestoneSummary.purchaseCount }}
               </span>
             </div>
@@ -127,12 +127,12 @@
               <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
                 >Gems Spent</span
               >
-              <span class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1">
+              <span class="text-body tabular-nums font-bold text-gray-900 leading-none py-1">
                 {{ formatGemPrice(milestoneSummary.gemsSpent) }}
               </span>
             </div>
           </div>
-          <p class="mt-2 text-[10px] text-gray-400 text-center">Finishes {{ milestoneSummary.finishAbsoluteTime }}</p>
+          <p class="mt-2 text-small text-gray-400 text-center">Finishes {{ milestoneSummary.finishAbsoluteTime }}</p>
         </template>
       </div>
 
@@ -145,14 +145,14 @@
       >
         <InlineSpinner v-if="isApplyingMilestoneChain" class="w-3.5 h-3.5" />
         {{ isApplyingMilestoneChain ? 'Buying…' : 'Buy Entire Chain' }}
-        <span v-if="!isApplyingMilestoneChain" class="ml-1 text-[10px] opacity-70 tabular-nums lowercase tracking-normal">
+        <span v-if="!isApplyingMilestoneChain" class="ml-1 text-small opacity-70 tabular-nums lowercase tracking-normal">
           ({{ sortedResearches.length }} {{ sortedResearches.length === 1 ? 'purchase' : 'purchases' }})
         </span>
       </button>
 
       <!-- Event Crossing Details Toggle -->
       <div v-if="sortedResearches.length > 0" class="flex items-center justify-between mt-2 px-1">
-        <span class="text-xs text-gray-500">See details of sale and earnings events</span>
+        <span class="text-small text-gray-500">See details of sale and earnings events</span>
         <button
           class="relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
           :class="showEventCrossingDetails ? 'bg-indigo-500' : 'bg-slate-200'"
@@ -185,7 +185,7 @@
           <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">Lay Rate</span>
           <span
             v-tippy="'Optimal artifacts applied, max population assumed'"
-            class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
+            class="text-body tabular-nums font-bold text-gray-900 leading-none py-1"
           >
             {{ formatNumber(realisticSummary.layRate) }}/hr
           </span>
@@ -196,7 +196,7 @@
           >
           <span
             v-tippy="'Optimal artifacts applied, max vehicles assumed'"
-            class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
+            class="text-body tabular-nums font-bold text-gray-900 leading-none py-1"
           >
             {{ formatNumber(realisticSummary.shippingRate) }}/hr
           </span>
@@ -207,13 +207,13 @@
           >
           <span
             v-tippy="'The lower of the two rates'"
-            class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
+            class="text-body tabular-nums font-bold text-gray-900 leading-none py-1"
           >
             {{ formatNumber(realisticSummary.elr) }}/hr
           </span>
         </div>
       </div>
-      <p class="mt-2 text-[10px] text-gray-400 text-center italic leading-tight px-2">
+      <p class="mt-2 text-small text-gray-400 text-center italic leading-tight px-2">
         Note: These stats reflect performance after maxing habs, vehicles, and equipping optimal stone layout.
       </p>
     </div>

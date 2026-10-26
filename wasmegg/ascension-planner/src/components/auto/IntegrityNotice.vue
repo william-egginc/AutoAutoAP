@@ -13,7 +13,7 @@
   <BlackBoxNotice :deadline-offer="deadlineOffer" />
   <div
     v-if="ui.staleBackup"
-    class="p-3 rounded-xl border text-[11px] leading-relaxed space-y-2"
+    class="p-3 rounded-xl border text-body space-y-2"
     :class="
       store.staleBackupAccepted
         ? 'border-amber-200 bg-amber-50 text-amber-900'
@@ -53,10 +53,10 @@
       </label>
     </div>
   </div>
-  <p v-if="store.integrityChecking" class="text-[11px] text-slate-400">Checking whether this account can build...</p>
+  <p v-if="store.integrityChecking" class="text-body text-slate-400">Checking whether this account can build...</p>
   <div
     v-else-if="store.integrityNotice"
-    class="p-3 rounded-xl border text-[11px] leading-relaxed"
+    class="p-3 rounded-xl border text-body"
     :class="
       store.integrityNotice.blocked
         ? 'border-red-200 bg-red-50 text-red-800'

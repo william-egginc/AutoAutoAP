@@ -7,7 +7,7 @@
 <template>
   <span
     v-if="line"
-    class="inline-block rounded-full border px-2 py-0.5 text-[11px]"
+    class="inline-block rounded-full border px-2 py-0.5 text-body"
     :class="line.tone === 'better' ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-slate-50 text-slate-600'"
     data-testid="baseline-chip"
     :data-tone="line.tone"

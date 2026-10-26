@@ -11,20 +11,20 @@
     <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Your eggs · from your save</p>
     <div class="mt-2 grid grid-cols-1 sm:grid-cols-5 gap-2.5">
       <div v-for="e in eggs" :key="e.egg" data-testid="now-egg">
-        <p class="text-[13px]" :class="e.current ? 'font-black text-slate-900' : 'text-slate-700'">
+        <p class="text-body" :class="e.current ? 'font-black text-slate-900' : 'text-slate-700'">
           {{ virtueEggName(e.egg) }} {{ e.te }} TE
         </p>
         <div class="h-1.5 rounded bg-slate-100 overflow-hidden my-1" role="img" :aria-label="`${Math.round(e.progress * 100)}% to the next TE`">
           <div class="h-1.5 bg-indigo-500" :style="{ width: `${Math.round(e.progress * 100)}%` }" />
         </div>
-        <p class="text-[11px] text-slate-500">{{ nextLine(e) }}</p>
+        <p class="text-body text-slate-500">{{ nextLine(e) }}</p>
       </div>
     </div>
     <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-      <div v-for="f in tiles" :key="f.label" class="rounded-lg bg-slate-50 px-2.5 py-1.5 text-[13px]" :data-testid="`now-fact-${f.id}`">
+      <div v-for="f in tiles" :key="f.label" class="rounded-lg bg-slate-50 px-2.5 py-1.5 text-small" :data-testid="`now-fact-${f.id}`">
         <p class="text-[10px] font-black uppercase tracking-widest text-slate-500">{{ f.label }}</p>
         <p class="font-bold text-slate-800">{{ f.value }}</p>
-        <p v-if="f.note" class="text-[11px] text-slate-500">{{ f.note }}</p>
+        <p v-if="f.note" class="text-body text-slate-500">{{ f.note }}</p>
       </div>
     </div>
   </section>

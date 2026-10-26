@@ -11,7 +11,7 @@
 <template>
   <div class="space-y-2">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <span class="text-[11px] font-bold text-slate-800">{{ words.title }}</span>
+      <span class="text-small font-bold text-slate-800">{{ words.title }}</span>
       <button
         type="button"
         :disabled="store.isRunning || rows.length >= 8"
@@ -22,29 +22,29 @@
         {{ words.add }}
       </button>
     </div>
-    <p class="text-[11px] text-slate-500 leading-relaxed" :data-testid="`${kind}-explain`">{{ words.explain }}</p>
+    <p class="text-body text-slate-500" :data-testid="`${kind}-explain`">{{ words.explain }}</p>
     <div v-for="(row, i) in rows" :key="i" class="flex flex-wrap items-center gap-2">
-      <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+      <label class="flex items-center gap-1.5 text-small font-bold text-slate-600">
         From
         <input
           v-model="row.from"
           type="date"
           :disabled="store.isRunning"
-          class="rounded-md border-slate-300 text-[12px] text-slate-800 disabled:opacity-50"
+          class="rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
           @change="keepOrder(row)"
         />
       </label>
-      <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+      <label class="flex items-center gap-1.5 text-small font-bold text-slate-600">
         to
         <input
           v-model="row.to"
           type="date"
           :min="row.from"
           :disabled="store.isRunning"
-          class="rounded-md border-slate-300 text-[12px] text-slate-800 disabled:opacity-50"
+          class="rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
         />
       </label>
-      <span class="text-[10px] text-slate-400">{{ days(row) }}</span>
+      <span class="text-small text-slate-400">{{ days(row) }}</span>
       <button
         type="button"
         :disabled="store.isRunning"
