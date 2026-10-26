@@ -184,11 +184,7 @@
 
     /* --- Typography --- */
     /* No mono anywhere (Jordan, 26 Oct 2026): route chains and numbers are the body font with tabular figures,
-       class `tabular-nums`. This name stays only for components/myruns/RouteScatter.vue until the heat map
-       branch (spec-ux27-c) lands; it used var(--font-family-mono), which was never defined. */
-    .font-mono-premium {
-        font-variant-numeric: tabular-nums;
-    }
+       class `tabular-nums`. */
 
     .heading-xl {
         font-size: 1.875rem;

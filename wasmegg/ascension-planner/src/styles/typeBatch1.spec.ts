@@ -190,9 +190,6 @@ describe('(d) no mono anywhere', () => {
     ...['index.html', 'explorer.html', 'watch.html'].map(f => path.join(APP, f)),
     ...vueFiles(path.resolve(SRC, '../../../ui')),
   ];
-  // The other worktree's file (spec-ux27-c, the My runs heat map) keeps the alias class until it lands.
-  const ALIAS_OK = path.join(SRC, 'components/myruns/RouteScatter.vue');
-
   it('no monospace family, no JetBrains Mono, no --font-family-mono', () => {
     const bad: string[] = [];
     for (const f of files) {
@@ -202,14 +199,13 @@ describe('(d) no mono anywhere', () => {
     expect(bad).toEqual([]);
   });
 
-  it('no font-mono or font-mono-premium class (the alias rule itself aside; RouteScatter.vue keeps it until its branch lands)', () => {
-    const bad = files.filter(f => f !== ALIAS_OK && /(?<![\w-])font-mono(-premium)?(?![\w-])/.test(fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace('.font-mono-premium {', '')));
+  it('no font-mono or font-mono-premium class anywhere', () => {
+    const bad = files.filter(f => /(?<![\w-])font-mono(-premium)?(?![\w-])/.test(fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')));
     expect(bad.map(f => path.relative(APP, f))).toEqual([]);
   });
 
-  it('the alias class is tabular figures only, and font-mono / code / pre inherit the body font', () => {
-    const at = css.indexOf('.font-mono-premium {');
-    expect(css.slice(at, css.indexOf('}', at))).toBe('.font-mono-premium {\n        font-variant-numeric: tabular-nums;\n    ');
+  it('there is no mono alias class left, and font-mono / code / pre inherit the body font', () => {
+    expect(css).not.toContain('.font-mono-premium');
     const pre = css.indexOf('pre,\ncode,\nkbd,\nsamp {');
     expect(pre).toBeGreaterThan(-1);
     const rule = css.slice(pre, css.indexOf('}', pre));

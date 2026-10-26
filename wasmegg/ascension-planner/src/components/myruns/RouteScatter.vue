@@ -129,7 +129,7 @@
             <div class="min-w-0 flex-1 py-2" aria-live="polite">
               <template v-if="selLine">
                 <p class="font-bold text-slate-900">{{ selLine.head }}</p>
-                <p class="font-mono-premium font-bold text-slate-900 break-words">{{ selLine.route }}</p>
+                <p class="tabular-nums font-bold text-slate-900 break-words">{{ selLine.route }}</p>
                 <p v-for="(l, k) in selLine.more" :key="k">{{ l }}</p>
               </template>
               <p v-else>{{ hint }}</p>
@@ -211,7 +211,7 @@
               </thead>
               <tbody style="font-variant-numeric: tabular-nums">
                 <tr v-for="p in view.shown" :key="p.id" class="border-t border-slate-100">
-                  <td class="py-1 pr-3 font-mono-premium whitespace-nowrap">{{ p.chain.join(' → ') }}</td>
+                  <td class="py-1 pr-3 tabular-nums whitespace-nowrap">{{ p.chain.join(' → ') }}</td>
                   <td class="py-1 pr-3">{{ p.asc }}</td>
                   <td v-if="view.goal?.kind === 'race'" class="py-1 pr-3">
                     {{ p.days != null ? p.days.toFixed(1) : '' }}
