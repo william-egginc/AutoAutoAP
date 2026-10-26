@@ -21,12 +21,19 @@
     aria-labelledby="study-heading"
     data-testid="study-box"
   >
-    <div class="flex flex-col sm:flex-row sm:items-center gap-2" data-testid="study-box-strip">
-      <h2 id="study-heading" class="text-[13px] font-black text-slate-800 sm:flex-1 break-words">{{ NAMES.study }}</h2>
-      <div class="flex flex-col sm:flex-row gap-2">
+    <!-- Open: the heading and Hide on one row at every width (26 Oct 2026: a full-width Hide was the loudest thing
+         on a phone). Folded: Choose… and No thanks under the heading on a phone, beside it from sm up. -->
+    <div
+      class="flex gap-2"
+      :class="open ? 'flex-row items-center' : 'flex-col sm:flex-row sm:items-center'"
+      data-testid="study-box-strip"
+    >
+      <h2 id="study-heading" class="text-[13px] font-black text-slate-800 flex-1 break-words">{{ NAMES.study }}</h2>
+      <div class="flex gap-2" :class="open ? 'flex-row' : 'flex-col sm:flex-row'">
         <button
           type="button"
-          class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700"
+          class="sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700"
+          :class="open ? '' : 'w-full'"
           :aria-expanded="open"
           aria-controls="study-box-form"
           data-testid="study-choose"
@@ -46,7 +53,7 @@
       </div>
     </div>
     <div v-show="open" id="study-box-form" class="pt-3 pb-2" data-testid="study-box-form">
-      <StudyForm />
+      <StudyForm compact />
     </div>
   </section>
 

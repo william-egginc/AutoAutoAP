@@ -12,6 +12,7 @@ import { useShareNameStore } from '@/stores/shareName';
 import { hashID } from '@/lib/storage/db';
 import StudyBox from './StudyBox.vue';
 import StudySetup from './auto/StudySetup.vue';
+import StudyForm from './StudyForm.vue';
 
 const A = 'EI1234567890123456';
 const B = 'EI0000000000000000';
@@ -329,7 +330,7 @@ describe('wiring', () => {
     const f = read('./StudyForm.vue');
     expect(f).toContain(':disabled="!canSayYes"');
     expect(f).toContain('const canSayYes = computed(() => anyTick(ticks));');
-    expect(f).toMatch(/<p v-if="!canSayYes"[^>]*>\s*Tick at least one to say yes, or press No thanks\.\s*<\/p>/);
+    expect(f).toMatch(/<p\s+v-if="!canSayYes"[^>]*>\s*Tick at least one to say yes, or press No thanks\.\s*<\/p>/);
     expect(f).toContain('if (!canSayYes.value) return;');
   });
 
@@ -393,5 +394,100 @@ describe('the slim strip (Jordan, 25 Oct 2026: the answer is the first thing see
     expect(src).toMatch(/data-testid="study-strip-no-thanks"\s+@click="answerNo"/);
     answerNo();
     expect(textOf(await box())).toBe('');
+  });
+});
+
+describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open, trimmed under sm)', () => {
+  const tag = (html: string, id: string) =>
+    html.match(new RegExp(`<[a-z]+\\b[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
+  const classes = (t: string) => (t.match(/class="([^"]*)"/)?.[1] ?? '').split(/\s+/).filter(Boolean);
+  /** The classes that apply under sm (no sm:, hover: or disabled: prefix). */
+  const phone = (t: string) => classes(t).filter(c => !/^(sm|md|lg|xl|hover|disabled):/.test(c));
+  /** The intro as a phone shows it: the `hidden sm:inline` sentences left out. */
+  const phoneIntro = (html: string) =>
+    textOf(
+      (html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '').replace(
+        /<span class="hidden sm:inline">[\s\S]*?<\/span>/g,
+        ''
+      )
+    );
+
+  it('open: the heading and Hide on one row at every width (no flex-col, no full-width Hide)', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const strip = tag(html, 'study-box-strip');
+    expect(classes(strip)).toContain('flex-row');
+    expect(classes(strip)).not.toContain('flex-col');
+    const hide = tag(html, 'study-choose');
+    expect(classes(hide)).not.toContain('w-full');
+    // Folded, a phone still stacks Choose… and No thanks under the heading (fine at 390, note 5).
+    const folded = tag(await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]), 'study-box-strip');
+    expect(classes(folded)).toEqual(expect.arrayContaining(['flex-col', 'sm:flex-row']));
+  });
+
+  it('StudyBox passes compact; Setup’s copy does not', () => {
+    expect(readFileSync('src/components/StudyBox.vue', 'utf8')).toContain('<StudyForm compact />');
+    const setupSrc = readFileSync('src/components/auto/StudySetup.vue', 'utf8');
+    expect(setupSrc.match(/<StudyForm\b[^>]*>/g)?.length).toBeGreaterThan(0);
+    for (const t of setupSrc.match(/<StudyForm\b[^>]*>/g) ?? []) expect(t).not.toContain('compact');
+  });
+
+  it('the intro is one sentence on a phone, the whole paragraph from sm up, and the link stays', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    expect(phoneIntro(html)).toBe('Help make the planner’s answers better. Your player ID and save are never sent.');
+    expect(textOf(html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '')).toBe(INTRO);
+    expect(phone(tag(html, 'study-about'))).not.toContain('hidden');
+  });
+
+  it('ticks, untick note and credit fold behind one 44 px "Choose what to share ›" row, always open from sm up', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const row = tag(html, 'study-choices-toggle');
+    expect(textOf(html.match(/<button[^>]*data-testid="study-choices-toggle"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? '')).toBe(
+      'Choose what to share ›'
+    );
+    expect(row).toContain('min-h-[44px]');
+    expect(row).toContain('aria-expanded="false"');
+    expect(row).toContain('aria-controls="study-choices"');
+    expect(classes(row)).toContain('sm:hidden');
+    const choices = tag(html, 'study-choices');
+    expect(choices).toMatch(/\sid="study-choices"/);
+    expect(classes(choices)).toEqual(expect.arrayContaining(['hidden', 'sm:block']));
+    // Everything folded is inside it, once (one set of ids and ticks).
+    const inner = html.slice(html.indexOf('data-testid="study-choices"'), html.indexOf('data-testid="study-yes"'));
+    for (const id of ['study-tick-share', 'study-tick-csv', 'study-tick-diag', 'study-tick-checks', 'study-untick-note', 'study-credit-name', 'study-nickname', 'study-credit-anon'])
+      expect(inner).toContain(`data-testid="${id}"`);
+    expect(html.match(/data-testid="study-tick-share"/g)).toHaveLength(1);
+  });
+
+  it('on a phone, folded: Yes to all and No thanks side by side, the same size and weight; Yes and its line wait for the ticks', async () => {
+    await setConsentAccount(A);
+    const html = await box();
+    const row = html.slice(html.lastIndexOf('<div', html.indexOf('data-testid="study-yes"')));
+    expect(classes(row.match(/<div[^>]*>/)![0])).toEqual(expect.arrayContaining(['grid', 'grid-cols-2']));
+    const all = tag(html, 'study-yes-all');
+    const no = tag(html, 'study-no');
+    expect(phone(all).sort()).toEqual(phone(no).sort());
+    expect(phone(all)).toEqual(expect.arrayContaining(['bg-white', 'text-slate-700', 'border-slate-300']));
+    expect(phone(all).join(' ')).not.toMatch(/indigo/);
+    // Yes, help improve it (needs a tick) and "Tick at least one" show with the ticks only.
+    expect(classes(tag(html, 'study-yes'))).toEqual(expect.arrayContaining(['hidden', 'sm:inline-block', 'col-span-2']));
+    expect(classes(tag(html, 'study-yes-why'))).toEqual(expect.arrayContaining(['hidden', 'sm:block']));
+    // What a phone shows of the form: the link, the row and two buttons.
+    expect(phone(tag(html, 'study-choices-toggle'))).not.toContain('hidden');
+    expect(phone(all)).not.toContain('hidden');
+    expect(phone(no)).not.toContain('hidden');
+  });
+
+  it('Setup’s full form: no fold, the whole intro, all three buttons as before', async () => {
+    await setConsentAccount(A);
+    const html = await renderHtml(StudyForm, {}, {}, [pinia]);
+    expect(html).not.toContain('study-choices-toggle');
+    expect(html).not.toMatch(/\bhidden sm:/);
+    expect(phoneIntro(html)).toBe(INTRO);
+    expect(phone(tag(html, 'study-yes-all'))).toEqual(expect.arrayContaining(['bg-indigo-50', 'text-indigo-800']));
+    expect(html).not.toContain('grid-cols-2');
+    expect(html).not.toMatch(/\sid="study-choices"/);
   });
 });
