@@ -111,7 +111,7 @@
             </p>
             <p v-if="need.bd?.fitted.length">
               The longest route's ranges, one per stop, from {{ teNow }} TE (shorter routes use the first ones):
-              <span v-for="(f, i) in need.bd.fitted" :key="i" class="font-mono-premium font-bold"
+              <span v-for="(f, i) in need.bd.fitted" :key="i" class="tabular-nums font-bold"
                 >{{ i ? ' · ' : '' }}{{ f }}</span
               >.
             </p>

@@ -23,7 +23,7 @@
       </div>
       <div class="space-y-2 text-center">
         <h3 class="text-xl font-black text-gray-900 tracking-tight">Recalculating...</h3>
-        <p class="text-sm font-bold text-gray-500 tabular-nums font-mono-premium">
+        <p class="text-sm font-bold text-gray-500 tabular-nums">
           {{ progress.current }} / {{ progress.total }} actions
         </p>
       </div>

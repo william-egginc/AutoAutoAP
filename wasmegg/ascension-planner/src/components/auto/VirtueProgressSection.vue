@@ -55,7 +55,7 @@
             <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">{{ VIRTUE_EGG_NAMES[egg] }}</span>
           </div>
           <div class="flex items-baseline gap-1">
-            <span class="text-lg font-mono-premium font-black text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
+            <span class="text-lg tabular-nums font-black text-slate-900 leading-none">{{ backupProgress.teEarned[egg] }}</span>
             <span class="text-[8px] font-black text-slate-400 uppercase">Claimed</span>
           </div>
           <div class="mt-1 text-[9px] font-black uppercase" :class="backupProgress.tePending[egg] > 0 ? 'text-emerald-600' : 'text-slate-300'">
@@ -93,7 +93,7 @@
               :value="teOverride ? teOverride[egg] : truthEggsStore.teEarned[egg]"
               min="0"
               max="98"
-              class="w-full bg-white border border-slate-100 rounded-lg px-3 py-1.5 text-[11px] font-mono-premium font-black text-slate-900 outline-none focus:border-indigo-500/50 focus:bg-white transition-all"
+              class="w-full bg-white border border-slate-100 rounded-lg px-3 py-1.5 text-[11px] tabular-nums font-black text-slate-900 outline-none focus:border-indigo-500/50 focus:bg-white transition-all"
               @change="handleTEEarnedChange(egg, ($event.target as HTMLInputElement).value)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
@@ -391,9 +391,3 @@ function handleLoadoutChange(inputs: AutoLoadoutInputs) {
   saveAutoPlannerLoadoutInputs(initialStateStore.playerId, customized ? inputs : null);
 }
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-</style>

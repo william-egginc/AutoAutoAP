@@ -81,7 +81,9 @@ describe('the counts tables fit the card', () => {
         const cell = route.slice(0, route.indexOf('</td>'));
         expect(cell).toContain('flex flex-wrap');
         expect(cell).toContain('Simulate this plan');
-        expect(cell).toContain('font-mono-premium');
+        // The route in the body font with tabular figures: no mono anywhere (Jordan, 26 Oct 2026).
+        expect(cell).toContain('tabular-nums');
+        expect(cell).not.toContain('font-mono');
         expect(cell).not.toMatch(/<td[^>]*whitespace-nowrap/);
       });
 

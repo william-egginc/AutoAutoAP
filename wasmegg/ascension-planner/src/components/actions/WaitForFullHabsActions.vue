@@ -27,19 +27,19 @@
           <div class="text-slate-400 uppercase tracking-[0.2em] font-black text-right">Value</div>
 
           <div class="text-slate-600 font-bold uppercase tracking-tight">Current Pop:</div>
-          <div class="font-mono-premium text-right text-slate-700 font-bold">
+          <div class="tabular-nums text-right text-slate-700 font-bold">
             {{ formatNumber(currentPopulation, 3) }}
           </div>
 
           <div class="text-slate-600 font-bold uppercase tracking-tight">Remaining:</div>
-          <div class="font-mono-premium text-right text-slate-900 font-black">
+          <div class="tabular-nums text-right text-slate-900 font-black">
             {{ formatNumber(chickensToGrow, 3) }}
           </div>
 
           <div class="text-slate-600 font-bold uppercase tracking-tight pt-2 border-t border-slate-100/50">
             IHR (Offline):
           </div>
-          <div class="font-mono-premium text-right text-slate-700 font-bold pt-2 border-t border-slate-100/50">
+          <div class="tabular-nums text-right text-slate-700 font-bold pt-2 border-t border-slate-100/50">
             {{ formatNumber(ihr, 3) }} / min
           </div>
         </div>
@@ -47,7 +47,7 @@
         <div class="pt-3 border-t border-slate-100/50">
           <div class="flex justify-between items-center text-[10px]">
             <span class="font-black text-slate-400 uppercase tracking-widest">Time Required:</span>
-            <span class="font-mono-premium font-black text-slate-900 text-sm">{{
+            <span class="tabular-nums font-black text-slate-900 text-sm">{{
               formatDuration(timeToGrowSeconds)
             }}</span>
           </div>

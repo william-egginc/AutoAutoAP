@@ -112,9 +112,3 @@ const emit = defineEmits<{
 
 const close = () => emit('close');
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-}
-</style>

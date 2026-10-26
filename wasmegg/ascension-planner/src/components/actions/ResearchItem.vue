@@ -16,7 +16,7 @@
       <div class="flex-1 min-w-0 flex items-center justify-between gap-2">
         <div class="flex min-w-0 items-center justify-start gap-2">
           <span class="text-[13px] font-bold text-gray-900 truncate">
-            <span v-if="showTier" class="text-gray-400 font-mono text-[10px] mr-1">T{{ research.tier }}</span>
+            <span v-if="showTier" class="text-gray-400 tabular-nums text-[10px] mr-1">T{{ research.tier }}</span>
             {{ research.name }}
           </span>
           <span class="text-[11px] font-medium text-gray-500 whitespace-nowrap hidden sm:inline-block">
@@ -58,7 +58,7 @@
       <!-- Gem Cost -->
       <div class="text-right shrink-0">
         <template v-if="!isMaxed">
-          <div class="flex items-center justify-end gap-1 text-[11px] font-mono text-amber-600 font-bold">
+          <div class="flex items-center justify-end gap-1 text-[11px] tabular-nums text-amber-600 font-bold">
             {{ formatGemPrice(price) }}
             <img :src="iconURL('egginc/icon_virtue_gem.png', 64)" class="w-2.5 h-2.5 object-contain opacity-80" alt="Gem" />
           </div>
@@ -124,7 +124,7 @@
               {{ extraLabel }}
             </div>
             <div
-              class="text-[11px] font-mono text-gray-900 leading-none"
+              class="text-[11px] tabular-nums text-gray-900 leading-none"
               v-tippy="
                 extraLabel === 'Achieve ROI' && extraSeconds !== undefined
                   ? formatAbsoluteTime(extraSeconds, baseTimestamp, virtueStore.ascensionTimezone)
@@ -140,7 +140,7 @@
                 ⚠️
               </span>
             </div>
-            <div v-if="hpp !== undefined" class="text-[9px] font-mono text-gray-400 leading-none pb-[1px]">
+            <div v-if="hpp !== undefined" class="text-[9px] tabular-nums text-gray-400 leading-none pb-[1px]">
               <template v-if="roiDisplayMode === 'time'">
                 {{ formatDuration(timeRoiSeconds ?? Infinity) }}
               </template>
@@ -155,7 +155,7 @@
       <!-- Time Cost and Actions (Right aligned) -->
       <div class="flex items-center gap-2 shrink-0">
         <!-- Time Cost -->
-        <div v-if="timeToBuy && !isMaxed" class="text-[11px] font-mono text-gray-400 whitespace-nowrap">
+        <div v-if="timeToBuy && !isMaxed" class="text-[11px] tabular-nums text-gray-400 whitespace-nowrap">
           {{ timeToBuy }}
         </div>
 
@@ -171,7 +171,7 @@
             @click.stop="$emit('buyToHere')"
           >
             Buy to here
-            <span v-if="buyToHereTime" class="ml-1 text-[9px] opacity-70 font-mono lowercase tracking-normal">({{ buyToHereTime }})</span>
+            <span v-if="buyToHereTime" class="ml-1 text-[9px] opacity-70 tabular-nums lowercase tracking-normal">({{ buyToHereTime }})</span>
           </button>
 
           <!-- Buy one level button -->
@@ -202,7 +202,7 @@
             @click.stop="$emit('max')"
           >
             Max
-            <span v-if="maxTime" class="ml-0.5 text-[8px] opacity-70 font-mono font-medium lowercase tracking-normal">({{ maxTime }})</span>
+            <span v-if="maxTime" class="ml-0.5 text-[8px] opacity-70 tabular-nums font-medium lowercase tracking-normal">({{ maxTime }})</span>
           </button>
         </div>
       </div>
@@ -237,25 +237,25 @@
     <div v-if="realisticStats" class="mt-1 flex items-center justify-between w-full pl-[38px] py-1 border-t border-gray-50">
        <div class="flex items-center gap-6">
          <div class="flex flex-col">
-           <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 text-center font-mono">Lay Rate</span>
-           <span class="text-[10px] font-mono font-bold text-gray-600 leading-none text-center">
+           <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 text-center tabular-nums">Lay Rate</span>
+           <span class="text-[10px] tabular-nums font-bold text-gray-600 leading-none text-center">
              {{ formatNumber(realisticStats.layRate) }}/hr
            </span>
          </div>
          <div class="flex flex-col">
-           <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 text-center font-mono">Shipping Cap</span>
-           <span class="text-[10px] font-mono font-bold text-gray-600 leading-none text-center">
+           <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 text-center tabular-nums">Shipping Cap</span>
+           <span class="text-[10px] tabular-nums font-bold text-gray-600 leading-none text-center">
              {{ formatNumber(realisticStats.shippingRate) }}/hr
            </span>
          </div>
        </div>
        <div class="text-right">
-         <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 block text-right font-mono">Delivery Rate</span>
+         <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1 block text-right tabular-nums">Delivery Rate</span>
          <div class="flex items-center justify-end gap-1 leading-none">
-           <span class="text-[11px] font-mono font-bold text-gray-900">
+           <span class="text-[11px] tabular-nums font-bold text-gray-900">
              {{ formatNumber(realisticStats.elr) }}/hr
            </span>
-           <span v-if="realisticStats.elrDelta > 0.001" class="text-[9px] font-mono font-bold text-gray-400 ml-1">
+           <span v-if="realisticStats.elrDelta > 0.001" class="text-[9px] tabular-nums font-bold text-gray-400 ml-1">
              (+{{ formatWithReference(realisticStats.elrDelta, realisticStats.elr) }})
            </span>
          </div>

@@ -2,7 +2,7 @@
   <div class="flex items-center justify-between gap-2 px-0.5">
     <div class="flex flex-col leading-tight">
       <span class="text-[9px] text-slate-500">100% ROI by</span>
-      <span class="text-[10px] font-mono text-slate-700">{{ deadlineLabel }}</span>
+      <span class="text-[10px] tabular-nums text-slate-700">{{ deadlineLabel }}</span>
     </div>
     <div class="flex items-center gap-1.5">
       <button

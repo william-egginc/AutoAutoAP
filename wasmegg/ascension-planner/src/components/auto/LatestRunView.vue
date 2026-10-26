@@ -245,7 +245,7 @@
                   <!-- The caret sits with the chain it opens, not off at the far right past six
                        other columns. Same move as the leg table's A1 caret, for the same reason. -->
                   <!-- A long route wraps at its spaces (not the Why column, not off the side). -->
-                  <td class="py-2 pr-3 font-mono font-bold text-slate-700 min-w-[10rem]">
+                  <td class="py-2 pr-3 tabular-nums font-bold text-slate-700 min-w-[10rem]">
                     <!-- Every row: one without its legs can have them worked out (search/legsOnDemand.ts). -->
                     <button
                       type="button"

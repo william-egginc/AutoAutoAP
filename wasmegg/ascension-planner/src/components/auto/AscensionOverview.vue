@@ -245,11 +245,11 @@
             TE Progress
           </div>
           <div class="flex items-baseline gap-0.5 sm:gap-1.5">
-            <span class="text-sm sm:text-xl font-mono-premium font-black text-slate-400">{{ summary.startTE }}</span>
+            <span class="text-sm sm:text-xl tabular-nums font-black text-slate-400">{{ summary.startTE }}</span>
             <svg class="w-1.5 h-1.5 sm:w-3.5 sm:h-3.5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
-            <span class="text-base sm:text-2xl font-mono-premium font-black text-emerald-600">{{ summary.endTE }}</span>
+            <span class="text-base sm:text-2xl tabular-nums font-black text-emerald-600">{{ summary.endTE }}</span>
           </div>
           <div class="text-[8px] sm:text-[9px] font-black text-emerald-500/80 uppercase tracking-tight mt-0.5">+{{ summary.teGained }}</div>
         </div>
@@ -261,7 +261,7 @@
             <span class="sm:hidden">Delivery</span><span class="hidden sm:inline">Delivery Rate</span>
           </div>
           <div class="flex items-center gap-0.5 sm:gap-1.5">
-            <span class="text-[11px] sm:text-xl font-mono-premium font-black text-indigo-600">{{ formatNumber(summary.maxELR * 3600, 3) }}</span>
+            <span class="text-[11px] sm:text-xl tabular-nums font-black text-indigo-600">{{ formatNumber(summary.maxELR * 3600, 3) }}</span>
             <span class="text-[6px] sm:text-[9px] font-black text-slate-400 uppercase">/HR</span>
           </div>
           <div v-if="summary.alternativeELRs && summary.alternativeELRs.length > 0" class="flex flex-col gap-0.5 mt-0.5">
@@ -271,7 +271,7 @@
               class="flex items-baseline gap-0.5 sm:gap-1"
             >
               <span
-                class="text-[7px] sm:text-[10px] font-mono-premium font-bold"
+                class="text-[7px] sm:text-[10px] tabular-nums font-bold"
                 :class="alt.isActive ? 'text-indigo-500' : 'text-slate-400'"
               >{{ formatNumber(alt.elr * 3600, 3) }}</span>
               <span class="text-[6px] sm:text-[8px] font-black uppercase tracking-wide" :class="alt.isActive ? 'text-indigo-400' : 'text-slate-300'">/hr</span>
@@ -287,7 +287,7 @@
             Duration
           </div>
           <div class="flex items-center gap-1 sm:gap-1.5">
-            <span class="text-sm sm:text-xl font-mono-premium font-black text-indigo-600">{{ formatDuration(summary.totalDurationSeconds) }}</span>
+            <span class="text-sm sm:text-xl tabular-nums font-black text-indigo-600">{{ formatDuration(summary.totalDurationSeconds) }}</span>
           </div>
         </div>
 
@@ -298,7 +298,7 @@
             Last TE Wait
           </div>
           <div class="flex items-center gap-1 sm:gap-1.5">
-            <span class="text-sm sm:text-xl font-mono-premium font-black text-indigo-500">{{ formatDuration(summary.lastTEDurationSeconds) }}</span>
+            <span class="text-sm sm:text-xl tabular-nums font-black text-indigo-500">{{ formatDuration(summary.lastTEDurationSeconds) }}</span>
           </div>
         </div>
       </div>
@@ -358,7 +358,7 @@
               SE Consumed
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl font-mono-premium font-black text-rose-600">{{ formatNumber(summary.totalShiftCost, 3) }}</span>
+              <span class="text-sm sm:text-xl tabular-nums font-black text-rose-600">{{ formatNumber(summary.totalShiftCost, 3) }}</span>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3 sm:w-4 sm:h-4 opacity-80" alt="SE" />
             </div>
           </div>
@@ -370,7 +370,7 @@
               Ending SE Balance
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl font-mono-premium font-black" :class="summary.endSoulEggs < 0 ? 'text-rose-600' : 'text-slate-600'">
+              <span class="text-sm sm:text-xl tabular-nums font-black" :class="summary.endSoulEggs < 0 ? 'text-rose-600' : 'text-slate-600'">
                 {{ formatNumber(summary.endSoulEggs, 3) }}
               </span>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3 sm:w-4 sm:h-4 opacity-40" alt="SE" />
@@ -385,7 +385,7 @@
               Eggs Delivered
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl font-mono-premium font-black text-slate-600">
+              <span class="text-sm sm:text-xl tabular-nums font-black text-slate-600">
                 {{ formatNumber(Object.values(summary.eggsDelivered).reduce((s, n) => s + n, 0), 3) }}
               </span>
             </div>
@@ -404,7 +404,7 @@
               <div class="space-y-0 sm:space-y-0.5 text-center sm:text-left">
                 <!-- TE Count -->
                 <div class="flex items-center justify-center sm:justify-start gap-0.5 sm:gap-1">
-                  <span class="text-[10px] sm:text-base font-mono-premium font-black text-slate-800 leading-none">
+                  <span class="text-[10px] sm:text-base tabular-nums font-black text-slate-800 leading-none">
                     {{ summary.finalTE[egg] || 0 }}
                   </span>
                   <span v-if="summary.teEarned[egg]" class="text-[7px] sm:text-[8px] font-black text-emerald-500 leading-none">
@@ -413,7 +413,7 @@
                 </div>
 
                 <!-- Eggs Delivered -->
-                <div class="text-[7px] sm:text-[8px] font-bold text-slate-400 font-mono-premium leading-none">
+                <div class="text-[7px] sm:text-[8px] font-bold text-slate-400 tabular-nums leading-none">
                   {{ formatNumber(summary.eggsDelivered[egg], 3) }}
                 </div>
               </div>
@@ -736,9 +736,3 @@ const formatTimeRange = (start: number, end: number) => {
   return `${show(s)} — ${show(e)}`;
 };
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-</style>

@@ -18,7 +18,7 @@
             step="1"
             v-model.lazy.number="totalTEToGain"
             @keydown="e => ['e', 'E', '+', '-', '.', ','].includes(e.key) && e.preventDefault()"
-            class="w-16 min-h-[44px] sm:min-h-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center font-mono-premium font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
+            class="w-16 min-h-[44px] sm:min-h-0 bg-white border border-slate-200 rounded-lg px-2 py-1 text-center tabular-nums font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/5 transition-all shadow-sm"
             @change="handleTotalChange"
             @input="onBoxInput"
             @blur="onBoxLeave"
@@ -35,7 +35,7 @@
       <div class="space-y-1">
         <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">Final Total TE</label>
         <div class="flex items-center justify-end gap-2">
-          <span class="font-mono-premium font-black text-2xl text-slate-900">{{ finalTotalTE }}</span>
+          <span class="tabular-nums font-black text-2xl text-slate-900">{{ finalTotalTE }}</span>
           <img :src="iconURL('egginc/egg_truth.png', 64)" class="w-6 h-6 object-contain" />
         </div>
       </div>
@@ -71,7 +71,7 @@
                 <span class="text-slate-600 text-[10px] font-bold">{{ formatDuration(eggPlan.durationSeconds) }}</span>
                 <span v-if="eggPlan.isCurrentEgg" class="px-1.5 py-0.5 bg-slate-900 text-white text-[8px] font-black uppercase tracking-tighter rounded">Current</span>
               </div>
-              <div class="text-[10px] font-mono-premium text-slate-400 mt-0.5">
+              <div class="text-[10px] tabular-nums text-slate-400 mt-0.5">
                 <span v-if="index === eggPlans.length - 1">Prestige on</span>
                 <span v-else>Shift on</span>
                 <span class="text-slate-500">&nbsp;{{ eggPlan.absoluteTime }}</span>
@@ -88,7 +88,7 @@
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" /></svg>
               </button>
-              <span class="px-2 text-center text-xs font-mono-premium font-black text-slate-900">
+              <span class="px-2 text-center text-xs tabular-nums font-black text-slate-900">
                 {{ eggPlan.targetTE }}
                 <span class="text-indigo-600 font-bold ml-1">(+{{ eggPlan.teToGain }})</span>
               </span>
@@ -127,7 +127,7 @@
       <div class="flex items-center justify-between">
         <div class="space-y-1">
           <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Duration</label>
-          <div class="text-xl font-mono-premium font-black">{{ formatDuration(totalDurationSeconds) }}</div>
+          <div class="text-xl tabular-nums font-black">{{ formatDuration(totalDurationSeconds) }}</div>
         </div>
         <div class="text-right space-y-1">
           <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Final Completion</label>
@@ -565,9 +565,3 @@ async function handleApply() {
   }
 }
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-variant-numeric: tabular-nums;
-}
-</style>

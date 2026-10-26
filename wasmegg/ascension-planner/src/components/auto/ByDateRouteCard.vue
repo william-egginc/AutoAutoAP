@@ -26,7 +26,7 @@
         <p v-if="ranLine && !running" class="text-[11px] font-semibold text-emerald-900/80 leading-snug" data-testid="ran-line">
           {{ ranLine }}
         </p>
-        <div class="font-mono-premium text-lg sm:text-xl font-black text-slate-900 break-words">
+        <div class="tabular-nums text-lg sm:text-xl font-black text-slate-900 break-words">
           {{ route.chain.join(' ') }}
         </div>
       </template>

@@ -68,7 +68,7 @@
             type="text"
             inputmode="numeric"
             placeholder="200 250"
-            class="min-h-[44px] sm:min-h-[32px] w-32 rounded-lg border-slate-300 py-1 text-[12px] font-mono"
+            class="min-h-[44px] sm:min-h-[32px] w-32 rounded-lg border-slate-300 py-1 text-[12px] tabular-nums"
             data-testid="runs-explore-stops"
             @input="emit('stops', ($event.target as HTMLInputElement).value)"
           />

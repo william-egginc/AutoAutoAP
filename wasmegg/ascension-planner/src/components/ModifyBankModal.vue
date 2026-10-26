@@ -25,7 +25,7 @@
           <!-- Current Value -->
           <div class="flex items-center justify-between bg-slate-50/50 rounded-xl p-3 border border-slate-100">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Bank</span>
-            <span class="font-mono-premium text-sm font-bold text-slate-800">{{ formatNumber(currentValue, 3) }}</span>
+            <span class="tabular-nums text-sm font-bold text-slate-800">{{ formatNumber(currentValue, 3) }}</span>
           </div>
 
           <!-- Mode Toggle -->
@@ -61,7 +61,7 @@
               v-model="setInput"
               type="text"
               placeholder="e.g. 1.5T"
-              class="input-premium font-mono-premium font-bold py-2.5"
+              class="input-premium tabular-nums font-bold py-2.5"
               @keyup.enter="handleConfirm"
             />
           </div>
@@ -74,7 +74,7 @@
               v-model="deltaInput"
               type="text"
               placeholder="e.g. 50B to add, -50B to subtract"
-              class="input-premium font-mono-premium font-bold py-2.5"
+              class="input-premium tabular-nums font-bold py-2.5"
               @keyup.enter="handleConfirm"
             />
           </div>
@@ -87,7 +87,7 @@
               v-model="timeInput"
               type="text"
               placeholder="e.g. 2d4h to add, -2d4h to subtract"
-              class="input-premium font-mono-premium font-bold py-2.5"
+              class="input-premium tabular-nums font-bold py-2.5"
               @keyup.enter="handleConfirm"
             />
           </div>
@@ -104,20 +104,20 @@
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
             <div class="flex justify-between items-center text-[10px]">
               <span class="font-black text-slate-400 uppercase tracking-widest">Current Offline Rate</span>
-              <span class="font-mono-premium font-bold text-slate-600"
+              <span class="tabular-nums font-bold text-slate-600"
                 >{{ formatNumber(offlineEarningsRate * 3600, 3) }}/hr</span
               >
             </div>
             <div class="flex justify-between items-center text-[10px]">
               <span class="font-black text-slate-400 uppercase tracking-widest">New Bank Value</span>
-              <span class="font-mono-premium font-bold text-slate-800">{{
+              <span class="tabular-nums font-bold text-slate-800">{{
                 formatNumber(hasRawInput ? newValue : currentValue, 3)
               }}</span>
             </div>
             <div class="flex justify-between items-center text-[10px]">
               <span class="font-black text-slate-400 uppercase tracking-widest">Change</span>
               <span
-                class="font-mono-premium font-black"
+                class="tabular-nums font-black"
                 :class="
                   hasRawInput && delta < 0 ? 'text-rose-500' : hasRawInput ? 'text-emerald-600' : 'text-slate-300'
                 "
@@ -128,7 +128,7 @@
             <div class="flex justify-between items-center text-[10px]">
               <span class="font-black text-slate-400 uppercase tracking-widest">Change (Time)</span>
               <span
-                class="font-mono-premium font-bold"
+                class="tabular-nums font-bold"
                 :class="hasRawInput && changeTimeSeconds !== null ? 'text-slate-600' : 'text-slate-300'"
               >
                 <template v-if="hasRawInput && changeTimeSeconds !== null">
@@ -322,10 +322,6 @@ async function handleConfirm() {
 </script>
 
 <style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-
 .animate-in {
   animation-duration: 200ms;
 }

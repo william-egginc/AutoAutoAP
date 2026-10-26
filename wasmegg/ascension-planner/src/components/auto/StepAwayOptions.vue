@@ -178,7 +178,7 @@
                       :href="phoneLink.url"
                       target="_blank"
                       rel="noopener"
-                      class="break-all font-mono text-[10px] text-indigo-700 underline hover:text-indigo-900"
+                      class="break-all tabular-nums text-[10px] text-indigo-700 underline hover:text-indigo-900"
                       data-testid="watch-phone-link"
                       >{{ phoneLink.url }}</a
                     >
@@ -240,7 +240,7 @@
                       v-model.trim="phoneOptions.ntfyTopic"
                       type="text"
                       maxlength="64"
-                      class="w-56 rounded border-slate-300 px-1 py-0 font-mono text-[11px]"
+                      class="w-56 rounded border-slate-300 px-1 py-0 tabular-nums text-[11px]"
                       aria-label="ntfy topic"
                     />
                     <button

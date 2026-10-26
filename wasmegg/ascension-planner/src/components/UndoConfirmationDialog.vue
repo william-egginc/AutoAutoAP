@@ -31,7 +31,7 @@
                         : 'Option A: Undo Action'
                   }}
                 </span>
-                <span class="badge-premium bg-amber-50 text-amber-700 border border-amber-100 font-mono-premium"
+                <span class="badge-premium bg-amber-50 text-amber-700 border border-amber-100 tabular-nums"
                   >Refund: {{ formatNumber(refundA, 3) }}</span
                 >
               </div>
@@ -71,7 +71,7 @@
                 <span class="text-xs font-black text-slate-700 group-hover:text-purple-600 uppercase tracking-wide"
                   >Option B: Undo Until Shift</span
                 >
-                <span class="badge-premium bg-amber-50 text-amber-700 border border-amber-100 font-mono-premium"
+                <span class="badge-premium bg-amber-50 text-amber-700 border border-amber-100 tabular-nums"
                   >Refund: {{ formatNumber(refundB, 3) }}</span
                 >
               </div>

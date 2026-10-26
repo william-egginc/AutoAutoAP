@@ -37,7 +37,7 @@
             </td>
             <td class="py-1.5 pr-3 tabular-nums">{{ r.currentTE ?? '—' }}</td>
             <td class="py-1.5 pr-3 tabular-nums">{{ r.clothedTE !== undefined ? Math.round(r.clothedTE) : '—' }}</td>
-            <td class="py-1.5 pr-3 font-mono-premium">{{ r.chain.join(' ') }}</td>
+            <td class="py-1.5 pr-3 tabular-nums">{{ r.chain.join(' ') }}</td>
             <td class="py-1.5 pr-3 tabular-nums">{{ describeDuration(r.durationDays * 86400) }}</td>
             <td class="py-1.5 pr-3 tabular-nums">
               {{ r.integrityMinutes !== undefined ? describeDuration(r.integrityMinutes * 60) : '—' }}

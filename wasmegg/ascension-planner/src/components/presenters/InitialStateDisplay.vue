@@ -73,7 +73,7 @@
               type="number"
               :value="initialShiftCount"
               :min="0"
-              class="input-premium w-full sm:w-40 text-right text-sm font-mono-premium font-bold text-slate-900"
+              class="input-premium w-full sm:w-40 text-right text-sm tabular-nums font-bold text-slate-900"
               @change="$emit('set-initial-shift-count', parseInt(($event.target as HTMLInputElement).value) || 0)"
             />
           </div>
@@ -94,7 +94,7 @@
             <input
               type="text"
               :value="formatNumber(soulEggs, 3)"
-              class="input-premium w-full sm:w-40 text-right text-sm font-mono-premium font-bold text-slate-900"
+              class="input-premium w-full sm:w-40 text-right text-sm tabular-nums font-bold text-slate-900"
               @blur="handleSoulEggsChange(($event.target as HTMLInputElement).value)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             />
@@ -173,7 +173,7 @@
           </div>
           <div class="flex items-center gap-3">
             <div class="relative">
-              <div class="text-lg font-mono-premium font-bold text-slate-900 px-3">{{ totalTe }}</div>
+              <div class="text-lg tabular-nums font-bold text-slate-900 px-3">{{ totalTe }}</div>
             </div>
             <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">Max: 490</span>
           </div>
@@ -208,7 +208,7 @@
                   <input
                     type="text"
                     :value="formatNumber(eggsDelivered[egg], 3)"
-                    class="input-premium w-full text-right text-sm font-mono-premium font-bold text-slate-900"
+                    class="input-premium w-full text-right text-sm tabular-nums font-bold text-slate-900"
                     placeholder="0"
                     @change="handleEggsDeliveredChange(egg, ($event.target as HTMLInputElement).value)"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
@@ -222,7 +222,7 @@
                     :value="teEarned[egg]"
                     :min="0"
                     :max="98"
-                    class="input-premium w-full text-right text-sm font-mono-premium font-bold text-slate-900"
+                    class="input-premium w-full text-right text-sm tabular-nums font-bold text-slate-900"
                     @change="handleTEEarnedChange(egg, ($event.target as HTMLInputElement).value)"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
                   />
@@ -273,7 +273,7 @@
       <div class="p-4">
         <div v-if="activeSetTab === 'earnings' && clothedTe !== null" class="mt-4 flex justify-between items-center px-1">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Clothed TE</span>
-          <span class="text-sm font-mono-premium font-bold text-slate-900">{{ Math.round(clothedTe) }}</span>
+          <span class="text-sm tabular-nums font-bold text-slate-900">{{ Math.round(clothedTe) }}</span>
         </div>
         <template v-if="!hasArtifactSets">
           <div class="mb-4">
@@ -353,7 +353,7 @@
         <div class="flex items-center gap-4">
           <div class="px-2 py-0.5 bg-slate-200/50 rounded-full">
             <span
-              class="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none font-mono-premium"
+              class="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none tabular-nums"
             >
               {{ formatNumber(totalFuel, 1) }} <span class="opacity-40">/</span> {{ formatNumber(tankCapacity, 1) }}
             </span>
@@ -391,7 +391,7 @@
         <div class="space-y-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
           <div class="flex justify-between items-end mb-1">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilization</span>
-            <span class="text-xs font-bold text-slate-700 font-mono-premium">{{ fillPercent.toFixed(1) }}%</span>
+            <span class="text-xs font-bold text-slate-700 tabular-nums">{{ fillPercent.toFixed(1) }}%</span>
           </div>
           <div class="h-3 bg-white shadow-inner rounded-full overflow-hidden border border-slate-100">
             <div
@@ -440,7 +440,7 @@
                   <input
                     type="text"
                     :value="formatNumber(fuelAmounts[egg], 1)"
-                    class="input-premium w-40 text-right text-sm font-mono-premium font-bold text-slate-900"
+                    class="input-premium w-40 text-right text-sm tabular-nums font-bold text-slate-900"
                     placeholder="0"
                     @blur="handleFuelAmountChange(egg, ($event.target as HTMLInputElement).value)"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
@@ -513,7 +513,7 @@
                   :value="research.level"
                   :min="0"
                   :max="research.maxLevel"
-                  class="input-premium w-16 text-center text-xs font-mono-premium py-1 font-bold"
+                  class="input-premium w-16 text-center text-xs tabular-nums py-1 font-bold"
                   @change="
                     $emit(
                       'set-epic-research-level',

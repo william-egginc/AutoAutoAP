@@ -210,14 +210,14 @@
       <div v-if="!isStartAction" class="shrink-0 text-right">
         <template v-if="action.type === 'shift'">
           <div class="flex items-center gap-1 justify-end mt-0.5">
-            <span class="text-xs font-bold text-slate-700 font-mono-premium">{{ formatNumber(action.cost, 3) }}</span>
+            <span class="text-xs font-bold text-slate-700 tabular-nums">{{ formatNumber(action.cost, 3) }}</span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3" alt="SE" />
           </div>
         </template>
         <template v-else-if="action.type === 'modify_bank'">
           <div class="flex items-center gap-0.5 justify-end mt-0.5">
             <span
-              class="text-xs font-bold font-mono-premium"
+              class="text-xs font-bold tabular-nums"
               :class="
                 action.bankDelta >= 0.5
                   ? 'text-emerald-600 font-black'
@@ -239,7 +239,7 @@
         <template v-else>
           <div class="flex items-center gap-0.5 justify-end mt-0.5">
             <span
-              class="text-xs font-bold font-mono-premium"
+              class="text-xs font-bold tabular-nums"
               :class="[
                 action.cost >= 0.5
                   ? 'text-slate-800'

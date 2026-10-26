@@ -224,7 +224,7 @@
               :max="MAX_ASCENSIONS"
               placeholder="any"
               aria-label="Fewest ascensions (blank for any)"
-              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-[11px] py-0.5 px-2"
+              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-[11px] py-0.5 px-2"
               data-testid="instant-min-ascensions"
               @change="setAscBound('min', $event)"
             />
@@ -237,7 +237,7 @@
               :max="MAX_ASCENSIONS"
               placeholder="any"
               aria-label="Most ascensions (blank for any)"
-              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-[11px] py-0.5 px-2"
+              class="w-14 min-h-[44px] sm:min-h-0 rounded-lg border-slate-200 text-base sm:text-[11px] py-0.5 px-2"
               data-testid="instant-max-ascensions"
               @change="setAscBound('max', $event)"
             />
@@ -310,7 +310,7 @@
               >
               <span class="text-[11px] font-bold text-slate-500" data-testid="box-instant">instant answer</span>
             </div>
-            <div class="font-mono-premium text-sm font-bold text-slate-800">
+            <div class="tabular-nums text-sm font-bold text-slate-800">
               {{ dateBoxOf(result.byDate).chain.join(' → ') }}
             </div>
             <div class="text-[12px] text-slate-700">
@@ -442,7 +442,7 @@
                   <!-- The route, with its buttons beside it when the card has room and under it when not. -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span class="font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</span>
+                      <span class="tabular-nums text-slate-800">{{ r.chain.join(' ') }}</span>
                       <button
                         type="button"
                         class="inline-flex items-center min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"
@@ -506,7 +506,7 @@
           </p>
           <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
           <AnswerCaveatLine :caveat="headCaveat" />
-          <div class="font-mono-premium text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
+          <div class="tabular-nums text-sm font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). -->
@@ -627,7 +627,7 @@
                   <!-- The route, with its buttons beside it when the card has room and under it when not. -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span class="font-mono-premium text-slate-800">{{ r.chain.join(' ') }}</span>
+                      <span class="tabular-nums text-slate-800">{{ r.chain.join(' ') }}</span>
                       <button
                         type="button"
                         class="inline-flex items-center min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-800 whitespace-nowrap"

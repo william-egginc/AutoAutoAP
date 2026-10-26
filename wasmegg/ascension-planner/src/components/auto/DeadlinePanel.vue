@@ -415,7 +415,7 @@
                   type="text"
                   :disabled="store.busy"
                   placeholder="e.g. 220-320"
-                  class="w-40 rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                  class="w-40 rounded-lg border-slate-300 text-sm tabular-nums font-bold text-slate-800 disabled:opacity-50"
                 />
               </label>
               <span class="text-[10px] pb-2" :class="lastRange && !lastTooHigh ? 'text-slate-500' : 'text-rose-600'">
@@ -431,8 +431,8 @@
           </RoutesToTry>
           <p class="text-[11px] text-slate-500 leading-relaxed">
             Each box is one range of TEs per ascension before the last, like {{ fastestName(store.finalTE) }} ›
-            {{ NAMES.fullFirst }}'s, separated by <span class="font-mono-premium">;</span>. A range is
-            <span class="font-mono-premium">lo-hi:step</span>, a single value, or several values with commas. Boxes with
+            {{ NAMES.fullFirst }}'s, separated by <span class="tabular-nums">;</span>. A range is
+            <span class="tabular-nums">lo-hi:step</span>, a single value, or several values with commas. Boxes with
             other ascension counts all run from the same click, and a 1- or 2-ascension box costs next to nothing.
             <template v-if="suggestFrom">{{ suggestFrom }}</template>
           </p>
@@ -846,11 +846,11 @@
       >
         <template v-if="edgeWiden && result.simple">
           This opens Custom with the boxes the search used, that one widened to
-          <span class="font-mono-premium">{{ edgeWiden.text }}</span
+          <span class="tabular-nums">{{ edgeWiden.text }}</span
           >, and runs it.
         </template>
         <template v-else-if="edgeWiden">
-          Box {{ edgeWiden.row + 1 }} becomes <span class="font-mono-premium">{{ edgeWiden.text }}</span
+          Box {{ edgeWiden.row + 1 }} becomes <span class="tabular-nums">{{ edgeWiden.text }}</span
           >.
         </template>
       </EdgeWarning>

@@ -62,7 +62,7 @@
                 data-testid="row-open-name"
                 @click="onRowClick($event, () => (open[keyOf(p, i)] = !open[keyOf(p, i)]))"
               >
-                <span class="font-mono font-bold text-slate-700" :class="narrow ? '' : 'whitespace-nowrap'">{{
+                <span class="tabular-nums font-bold text-slate-700" :class="narrow ? '' : 'whitespace-nowrap'">{{
                   p.row.chain.join(' ')
                 }}</span>
                 <span

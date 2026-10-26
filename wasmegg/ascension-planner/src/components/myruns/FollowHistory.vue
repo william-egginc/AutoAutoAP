@@ -34,7 +34,7 @@
         :data-version="v.version"
       >
         <span class="min-w-0 text-slate-700">
-          <span class="font-mono">{{ v.value.chain.join(' → ') }}</span>
+          <span class="tabular-nums">{{ v.value.chain.join(' → ') }}</span>
           · {{ finishOf(v.value) }} · {{ sourceWords(v.value.source) }} · set {{ when(v.value.at / 1000) }}
         </span>
         <span v-if="isCurrent(v.value)" class="text-[11px] font-bold text-emerald-700">Following</span>

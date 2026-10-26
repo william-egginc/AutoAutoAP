@@ -15,7 +15,7 @@
   <div v-else-if="table" class="space-y-2">
     <p class="text-[10px] text-slate-400 leading-relaxed">
       Days after this run's best,
-      <span class="font-mono-premium text-slate-500">{{ table.best.chain.join(' ') }}</span>
+      <span class="tabular-nums text-slate-500">{{ table.best.chain.join(' ') }}</span>
       ({{ table.best.days.toFixed(2) }} d), looked up among {{ truncatedCount ? 'the' : 'its' }}
       {{ plural(table.priced, 'plan') }} at {{ plural(table.ascensions, 'ascension') }}{{
         truncatedCount ? ' this page read' : ''

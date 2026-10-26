@@ -28,7 +28,7 @@
       <!-- Duration -->
       <div class="summary-item">
         <span class="summary-label">Duration</span>
-        <span class="summary-value font-mono-premium font-black text-slate-600">{{ formattedDuration }}</span>
+        <span class="summary-value tabular-nums font-black text-slate-600">{{ formattedDuration }}</span>
       </div>
 
       <!-- End Date -->
@@ -41,7 +41,7 @@
       <div class="summary-item">
         <span class="summary-label">Shifts</span>
         <div class="flex items-center gap-2">
-          <span class="summary-value font-mono-premium font-black text-slate-600">{{ shiftCount }}</span>
+          <span class="summary-value tabular-nums font-black text-slate-600">{{ shiftCount }}</span>
           <div
             v-if="totalShiftCost > 0"
             class="flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80"
@@ -65,7 +65,7 @@
       >
         <span class="summary-label group-hover:text-indigo-400 transition-colors">TE Gained</span>
         <div class="flex items-center gap-2">
-          <span class="summary-value font-mono-premium font-black text-slate-600 group-hover:text-indigo-600 transition-colors">+{{ teGained }}</span>
+          <span class="summary-value tabular-nums font-black text-slate-600 group-hover:text-indigo-600 transition-colors">+{{ teGained }}</span>
           <span
             class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors"
           >
@@ -196,7 +196,7 @@
 
             <div class="mt-8 flex justify-end">
               <button
-                class="px-8 py-2 text-xs font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-xl font-mono-premium"
+                class="px-8 py-2 text-xs font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-xl tabular-nums"
                 @click="showDonateModal = false"
               >
                 Close

@@ -55,7 +55,7 @@
               run.space ? NAMES.full : NAMES.smart
             }}</span>
           </div>
-          <div class="text-[10px] text-slate-400 font-mono-premium">
+          <div class="text-[10px] text-slate-400 tabular-nums">
             {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ plural(run.chainsPriced, 'route') }}<template
               v-if="!run.complete"
             >

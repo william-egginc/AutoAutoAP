@@ -29,7 +29,7 @@
         <div id="cs-settings" class="pb-5 pt-1 space-y-8">
           <!-- In the Stronger check box: one line; the route to start from is in Start from a different route below. -->
           <p v-if="embedded" class="text-[12px] text-slate-700 leading-relaxed" data-testid="start-line">
-            Starts from <span class="font-mono-premium font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
+            Starts from <span class="tabular-nums font-bold">{{ store.seedChain.join(' ') }}</span>&nbsp;<span
               class="text-slate-500"
               >({{ seedSource }})</span
             > · up to ~{{ store.estimateForCurrentSettings.toLocaleString() }} routes<template
@@ -108,7 +108,7 @@
             <select
               v-model="startPick"
               :disabled="store.isRunning"
-              class="w-full rounded-lg border-slate-300 text-[12px] font-bold text-slate-800 disabled:opacity-50"
+              class="w-full rounded-lg border-slate-300 text-base sm:text-[12px] font-bold text-slate-800 disabled:opacity-50"
               data-testid="start-from-pick"
             >
               <option v-for="o in startOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
@@ -245,7 +245,7 @@
       <!-- The coarse scan's own log, verbatim, the way the CLI prints it -->
       <div
         v-if="store.coarseLog.length"
-        class="p-4 bg-slate-900 rounded-xl font-mono text-[11px] text-slate-300 leading-relaxed overflow-x-auto"
+        class="p-4 bg-slate-900 rounded-xl tabular-nums text-[11px] text-slate-300 leading-relaxed overflow-x-auto"
       >
         <div v-for="(line, i) in store.coarseLog" :key="i" class="whitespace-pre">{{ line }}</div>
       </div>
@@ -512,7 +512,7 @@
             {{ store.finalTE }} on its own goes straight to the target, so there are no stops for {{ NAMES.smart }} to
             look for. To plan that one ascension, go to {{ NAMES.auto }} › {{ NAMES.classic }}, type
             {{ store.finalTE }} in Target TE(s) and press Generate plan. To search for a faster route instead, pick
-            Type a route… under Start from a different route and give it some stops (like <span class="font-mono">200 250 300 {{ store.finalTE }}</span
+            Type a route… under Start from a different route and give it some stops (like <span class="tabular-nums">200 250 300 {{ store.finalTE }}</span
             >).
           </div>
         </template>
@@ -662,9 +662,9 @@
                     <th class="py-2 pr-3">
                       Strategy
                       <HelpTip
-                        ><span class="font-mono">2-sale-tier13</span> means: spend two weekly Research Sales building
+                        ><span class="tabular-nums">2-sale-tier13</span> means: spend two weekly Research Sales building
                         before you start earning, and unlock Tier 13 research on the way.
-                        <span class="font-mono">continue</span> means carry on the ascension you are already in rather
+                        <span class="tabular-nums">continue</span> means carry on the ascension you are already in rather
                         than prestiging now.</HelpTip
                       >
                     </th>
@@ -769,7 +769,7 @@
                               {{ b.egg || 'shift' }}
                               <span v-if="!b.isSwitch" class="font-normal normal-case text-emerald-600">(start)</span>
                             </span>
-                            <span class="font-mono">{{ stamp(b.at) }}</span>
+                            <span class="tabular-nums">{{ stamp(b.at) }}</span>
                             <span class="tabular-nums" :class="b.isSwitch ? 'text-slate-400' : 'text-emerald-500'">
                               {{ b.length }}
                             </span>
@@ -904,7 +904,7 @@
             To stop it happening on a long run<template v-if="tabHelp.name"> in {{ tabHelp.name }}</template>:
             <template v-for="(part, i) in tabHelp.keepAwake" :key="i"
               ><template v-if="typeof part === 'string'">{{ part }}</template
-              ><span v-else class="font-mono select-all">{{ part.code }}</span></template
+              ><span v-else class="tabular-nums select-all">{{ part.code }}</span></template
             >
             For a genuinely unattended overnight run the command-line version has no such problem.
           </p>
@@ -940,7 +940,7 @@
             <div
               v-for="(line, i) in store.runLog"
               :key="i"
-              class="whitespace-pre font-mono text-[11px] leading-relaxed"
+              class="whitespace-pre tabular-nums text-[11px] leading-relaxed"
               :class="line.startsWith('--- ') ? 'text-emerald-400 font-bold mt-2' : 'text-slate-300'"
             >
               {{ line }}
@@ -973,7 +973,7 @@
                 <span class="font-bold">Share your result with the virtue track and the leaderboards.</span>
                 Pooling results across accounts is the only way to answer questions one account cannot: whether the
                 effort tiers behave the same everywhere, whether
-                <span class="font-mono">maxLast</span> is right, whether a route shape that wins here wins anywhere
+                <span class="tabular-nums">maxLast</span> is right, whether a route shape that wins here wins anywhere
                 else.
               </p>
             </template>

@@ -57,7 +57,7 @@
           <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-indigo-700"
             >Max Vehicles</span
           >
-          <span v-if="maxVehiclesTime" class="text-[9px] font-mono-premium font-black text-indigo-500 mt-0.5">{{
+          <span v-if="maxVehiclesTime" class="text-[9px] tabular-nums font-black text-indigo-500 mt-0.5">{{
             maxVehiclesTime
           }}</span>
         </div>
@@ -103,7 +103,7 @@
         <div class="flex items-center justify-between">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Slot {{ index + 1 }}</span>
           <div v-if="slot.vehicleId !== null" class="flex flex-col items-end">
-            <span class="text-sm font-mono-premium font-black text-slate-900">
+            <span class="text-sm tabular-nums font-black text-slate-900">
               {{ formatNumber(getVehicleCapacity(slot, index) * 3600, 0) }}
             </span>
             <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest opacity-60">eggs/hr</span>
@@ -122,7 +122,7 @@
           <div class="flex items-center justify-between gap-3">
             <div class="flex flex-col gap-0.5">
               <span class="text-[9px] text-slate-400 uppercase font-black tracking-widest">Train Length</span>
-              <span class="text-xs font-mono-premium font-black text-indigo-600"
+              <span class="text-xs tabular-nums font-black text-indigo-600"
                 >{{ slot.trainLength }} / {{ getMaxTrainLength() }}</span
               >
             </div>

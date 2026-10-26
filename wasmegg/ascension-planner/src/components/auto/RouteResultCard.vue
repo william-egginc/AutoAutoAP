@@ -23,7 +23,7 @@
         {{ ranLine }}
       </p>
       <div v-if="source" class="text-[10px] font-bold text-emerald-700/80">{{ source }}</div>
-      <div class="font-mono-premium text-lg sm:text-xl font-black text-slate-900 break-words">
+      <div class="tabular-nums text-lg sm:text-xl font-black text-slate-900 break-words">
         {{ chain.join(' ') }}
       </div>
     </template>

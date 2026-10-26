@@ -70,7 +70,7 @@
       <div class="hw-body">
         <p>
           A <b>route</b> is the list of TEs you ascend at, ending at your target, like
-          <code class="font-mono-premium text-slate-800">195 219 248 286 327 490</code>. Joo's simulator plays each
+          <code class="tabular-nums text-slate-800">195 219 248 286 327 490</code>. Joo's simulator plays each
           ascension shift by shift: the opening research, habs, vehicles and silos, the sale-timed research buying, then
           the egg shifts up to the next TE. Every build is timed to end when the weekly Research Sale ends, Saturday
           9:00 am Pacific. We didn't write a second simulator. Every search calls Joo's code, on your own computer's

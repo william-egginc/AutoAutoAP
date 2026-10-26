@@ -259,7 +259,7 @@
           <p class="pt-2 font-bold text-slate-800">How the work is split</p>
           <p>
             <span class="font-bold text-slate-800">Routes are sorted so related ones sit together.</span> Every route
-            starting <code class="font-mono-premium">195 229</code> sits next to the others that start that way, because
+            starting <code class="tabular-nums">195 229</code> sits next to the others that start that way, because
             the expensive unit is the <span class="font-semibold">ascension</span>, not the route. Two routes that share their
             first three stops share those three ascensions' simulations exactly.
           </p>
@@ -412,7 +412,7 @@
                 type="text"
                 :disabled="store.isRunning"
                 placeholder="185-200:5; 210-240:10; 250-290:20"
-                class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+                class="w-full rounded-lg border-slate-300 text-sm tabular-nums font-bold text-slate-800 disabled:opacity-50"
               />
               <div class="flex flex-wrap items-center gap-2 pt-1">
                 <label
@@ -1078,7 +1078,7 @@
                 </label>
                 <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
                   Submitting as
-                  <span class="font-mono-premium font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
+                  <span class="tabular-nums font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
                 </p>
               </template>
 

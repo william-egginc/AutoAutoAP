@@ -84,10 +84,10 @@
                       </span>
                       <span v-else class="text-slate-300">—</span>
                     </td>
-                    <td class="px-2 py-2 font-mono-premium">{{ formatDuration(row.summary.buildDurationSeconds) }}</td>
-                    <td class="px-2 py-2 font-mono-premium">{{ formatDuration(row.summary.totalDurationSeconds) }}</td>
-                    <td class="px-2 py-2 font-mono-premium">{{ formatNumber(row.summary.maxELR * 3600, 3) }}/hr</td>
-                    <td class="px-2 py-2 font-mono-premium">
+                    <td class="px-2 py-2 tabular-nums">{{ formatDuration(row.summary.buildDurationSeconds) }}</td>
+                    <td class="px-2 py-2 tabular-nums">{{ formatDuration(row.summary.totalDurationSeconds) }}</td>
+                    <td class="px-2 py-2 tabular-nums">{{ formatNumber(row.summary.maxELR * 3600, 3) }}/hr</td>
+                    <td class="px-2 py-2 tabular-nums">
                       {{ formatNumber(row.summary.maxEarningsRate * 3600, 3) }}/hr
                     </td>
                   </tr>
@@ -129,7 +129,7 @@
                     <td
                       v-for="col in RESEARCH_COLUMNS"
                       :key="col.id"
-                      class="px-1 py-2 text-center font-mono-premium"
+                      class="px-1 py-2 text-center tabular-nums"
                       :class="(row.researchLevels[col.id] || 0) >= col.maxLevel ? 'text-amber-600' : ''"
                     >
                       {{ (row.researchLevels[col.id] || 0) >= col.maxLevel ? 'Max' : row.researchLevels[col.id] || 0 }}
@@ -232,10 +232,6 @@ const select = (variant: VariantKey) => {
 </script>
 
 <style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-
 .animate-in {
   animation-duration: 200ms;
 }

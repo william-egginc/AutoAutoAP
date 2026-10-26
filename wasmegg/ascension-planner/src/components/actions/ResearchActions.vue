@@ -91,7 +91,7 @@
               >
               <span
                 v-tippy="'For a research level: time to save for it with no other purchases. For a tier: time to unlock it buying the cheapest research first.'"
-                class="text-sm font-mono font-bold text-gray-900 leading-none py-1"
+                class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
               >
                 {{ formatDuration(milestoneSummary.baselineSeconds) }}
               </span>
@@ -102,7 +102,7 @@
               >
               <span
                 v-tippy="'Time to reach this milestone by always buying whatever currently pays for itself fastest.'"
-                class="text-sm font-mono font-bold text-gray-900 leading-none py-1"
+                class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
               >
                 {{ formatDuration(milestoneSummary.optimizedSeconds) }}
               </span>
@@ -111,7 +111,7 @@
               <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
                 >Time Saved</span
               >
-              <span class="text-sm font-mono font-bold text-emerald-600 leading-none py-1">
+              <span class="text-sm tabular-nums font-bold text-emerald-600 leading-none py-1">
                 {{ formatDuration(Math.max(0, milestoneSummary.timeSavedSeconds)) }}
               </span>
             </div>
@@ -119,7 +119,7 @@
               <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
                 >Researches Bought</span
               >
-              <span class="text-sm font-mono font-bold text-gray-900 leading-none py-1">
+              <span class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1">
                 {{ milestoneSummary.purchaseCount }}
               </span>
             </div>
@@ -127,7 +127,7 @@
               <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1"
                 >Gems Spent</span
               >
-              <span class="text-sm font-mono font-bold text-gray-900 leading-none py-1">
+              <span class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1">
                 {{ formatGemPrice(milestoneSummary.gemsSpent) }}
               </span>
             </div>
@@ -145,7 +145,7 @@
       >
         <InlineSpinner v-if="isApplyingMilestoneChain" class="w-3.5 h-3.5" />
         {{ isApplyingMilestoneChain ? 'Buying…' : 'Buy Entire Chain' }}
-        <span v-if="!isApplyingMilestoneChain" class="ml-1 text-[10px] opacity-70 font-mono lowercase tracking-normal">
+        <span v-if="!isApplyingMilestoneChain" class="ml-1 text-[10px] opacity-70 tabular-nums lowercase tracking-normal">
           ({{ sortedResearches.length }} {{ sortedResearches.length === 1 ? 'purchase' : 'purchases' }})
         </span>
       </button>
@@ -185,7 +185,7 @@
           <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">Lay Rate</span>
           <span
             v-tippy="'Optimal artifacts applied, max population assumed'"
-            class="text-sm font-mono font-bold text-gray-900 leading-none py-1"
+            class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
           >
             {{ formatNumber(realisticSummary.layRate) }}/hr
           </span>
@@ -196,7 +196,7 @@
           >
           <span
             v-tippy="'Optimal artifacts applied, max vehicles assumed'"
-            class="text-sm font-mono font-bold text-gray-900 leading-none py-1"
+            class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
           >
             {{ formatNumber(realisticSummary.shippingRate) }}/hr
           </span>
@@ -207,7 +207,7 @@
           >
           <span
             v-tippy="'The lower of the two rates'"
-            class="text-sm font-mono font-bold text-gray-900 leading-none py-1"
+            class="text-sm tabular-nums font-bold text-gray-900 leading-none py-1"
           >
             {{ formatNumber(realisticSummary.elr) }}/hr
           </span>

@@ -2,16 +2,16 @@
   <input
     v-model="date"
     type="date"
-    class="input-premium w-full md:w-auto text-sm font-mono-premium font-bold text-slate-900 py-2.5 px-4"
+    class="input-premium w-full md:w-auto text-sm tabular-nums font-bold text-slate-900 py-2.5 px-4"
   />
   <input
     v-model="time"
     type="time"
-    class="input-premium w-full md:w-auto text-sm font-mono-premium font-bold text-slate-900 py-2.5 px-4"
+    class="input-premium w-full md:w-auto text-sm tabular-nums font-bold text-slate-900 py-2.5 px-4"
   />
   <select
     v-model="timezone"
-    class="input-premium w-full md:w-auto text-sm font-mono-premium font-bold text-slate-900 py-2.5 pl-4 pr-12"
+    class="input-premium w-full md:w-auto text-sm tabular-nums font-bold text-slate-900 py-2.5 pl-4 pr-12"
   >
     <option v-for="tz in allTimezones" :key="tz.value" :value="tz.value">
       {{ tz.label }}

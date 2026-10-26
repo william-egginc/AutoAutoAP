@@ -112,7 +112,7 @@
               @click="picked = r.accountKey"
             >
               <td class="py-1 pr-3 whitespace-nowrap font-bold text-slate-700">{{ r.account }}</td>
-              <td class="py-1 pr-3 whitespace-nowrap font-mono-premium text-slate-600">{{ r.plan }}</td>
+              <td class="py-1 pr-3 whitespace-nowrap tabular-nums text-slate-600">{{ r.plan }}</td>
               <td class="py-1 pr-3 whitespace-nowrap text-slate-500">{{ r.made }}</td>
               <td class="py-1 pr-3 whitespace-nowrap text-slate-500">{{ r.again }}</td>
               <td class="py-1 pr-3 whitespace-nowrap text-right tabular-nums text-slate-600">{{ r.apart }}</td>

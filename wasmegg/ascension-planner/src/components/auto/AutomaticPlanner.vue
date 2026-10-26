@@ -250,7 +250,7 @@
         class="mb-3 scroll-mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[12px] text-emerald-900 flex flex-wrap items-center gap-x-3 gap-y-1"
       >
         <span
-          >Simulated <b class="font-mono-premium">{{ routeText(fromInstant.chain) }}</b> from
+          >Simulated <b class="tabular-nums">{{ routeText(fromInstant.chain) }}</b> from
           {{ fromInstant.from ?? 'the instant answer' }}. Each ascension's View details lists its steps and
           purchases.</span
         >
@@ -340,7 +340,7 @@
       <div class="w-6 h-6 border-3 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin"></div>
       <div class="space-y-0.5 pr-2">
         <div class="text-[10px] font-black uppercase tracking-widest text-indigo-400">Updating Roadmap</div>
-        <div class="text-xs font-bold text-slate-200 font-mono-premium">{{ generateProgress || 'Calculating...' }}</div>
+        <div class="text-xs font-bold text-slate-200 tabular-nums">{{ generateProgress || 'Calculating...' }}</div>
       </div>
     </div>
 
@@ -649,8 +649,5 @@ const handleTargetTEInput = (e: Event) => {
 }
 .section-premium {
   @apply bg-white rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-700;
-}
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
 }
 </style>

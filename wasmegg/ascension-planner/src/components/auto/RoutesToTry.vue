@@ -60,7 +60,7 @@
         type="text"
         :disabled="disabled"
         :placeholder="placeholder"
-        class="w-full rounded-lg border-slate-300 text-sm font-mono-premium font-bold text-slate-800 disabled:opacity-50"
+        class="w-full rounded-lg border-slate-300 text-sm tabular-nums font-bold text-slate-800 disabled:opacity-50"
         @input="emit('text', k, ($event.target as HTMLInputElement).value)"
       />
       <BandCheckNotice

@@ -56,7 +56,7 @@
         <div class="flex items-center gap-3">
           <!-- Shift info -->
           <div v-if="isShiftAction && headerAction.cost > 0" class="flex items-center gap-1 opacity-80">
-            <span class="text-[9px] sm:text-[10px] font-bold text-slate-700 font-mono-premium">
+            <span class="text-[9px] sm:text-[10px] font-bold text-slate-700 tabular-nums">
               {{ formatNumber(headerAction.cost, 3) }}
             </span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3.5 h-3.5" alt="SE" />

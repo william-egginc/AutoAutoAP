@@ -77,7 +77,7 @@
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="(band, i) in summary.starts" :key="band.label">
-            <th scope="row" class="text-left font-mono-premium font-normal text-slate-600 py-1 pr-3 whitespace-nowrap">
+            <th scope="row" class="text-left tabular-nums font-normal text-slate-600 py-1 pr-3 whitespace-nowrap">
               {{ band.label }}
             </th>
             <td

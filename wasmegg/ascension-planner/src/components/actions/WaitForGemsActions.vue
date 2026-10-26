@@ -36,7 +36,7 @@
           v-model="targetInput"
           type="text"
           placeholder="e.g. 1M or 1,234,567"
-          class="w-full h-10 px-4 text-sm font-mono-premium font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
+          class="w-full h-10 px-4 text-sm tabular-nums font-bold bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
         />
         <div v-if="parsedTarget !== null" class="text-[10px] font-bold text-slate-500 text-right">
           Parsed: {{ formatNumber(parsedTarget, 3) }}
@@ -50,21 +50,21 @@
       >
         <div class="flex justify-between items-center text-[10px]">
           <span class="font-black text-slate-400 uppercase tracking-widest">Required to Earn:</span>
-          <span class="font-mono-premium font-black text-slate-900">{{ formatNumber(requiredToEarn, 3) }}</span>
+          <span class="tabular-nums font-black text-slate-900">{{ formatNumber(requiredToEarn, 3) }}</span>
         </div>
 
         <div class="pt-2 mt-1 border-t border-slate-100/50 space-y-2">
           <div class="flex justify-between items-center text-[10px]">
             <span class="font-black text-slate-400 uppercase tracking-widest">Earnings Rate:</span>
-            <span class="font-mono-premium text-slate-500">{{ formatNumber(earningsPerSecond, 3) }}/s</span>
+            <span class="tabular-nums text-slate-500">{{ formatNumber(earningsPerSecond, 3) }}/s</span>
           </div>
           <div class="flex justify-between items-center pt-2 mt-1 border-t border-slate-100/50 text-[10px]">
             <span class="font-black text-slate-400 uppercase tracking-widest">Time Required:</span>
-            <span class="font-mono-premium font-black text-slate-900">{{ formatDuration(timeToSaveSeconds) }}</span>
+            <span class="tabular-nums font-black text-slate-900">{{ formatDuration(timeToSaveSeconds) }}</span>
           </div>
           <div class="flex justify-between items-center text-[10px]">
             <span class="font-black text-slate-400 uppercase tracking-widest">Completion Time:</span>
-            <span class="font-mono-premium text-slate-600">{{ formattedAbsoluteTime }}</span>
+            <span class="tabular-nums text-slate-600">{{ formattedAbsoluteTime }}</span>
           </div>
         </div>
       </div>
