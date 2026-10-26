@@ -425,6 +425,15 @@ describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open,
     expect(classes(folded)).toEqual(expect.arrayContaining(['flex-col', 'sm:flex-row']));
   });
 
+  it('Hide is the quiet one: a small slate underlined text button, 44 px tall, at every width; Choose… stays filled', async () => {
+    await setConsentAccount(A);
+    const hide = classes(tag(await box(), 'study-choose'));
+    expect(hide).toEqual(expect.arrayContaining(['min-h-[44px]', 'underline', 'text-slate-600']));
+    expect(hide.join(' ')).not.toMatch(/\bbg-|indigo|sm:min-h-0|w-full/);
+    const choose = classes(tag(await renderHtml(StudyBox, { startOpen: false }, {}, [pinia]), 'study-choose'));
+    expect(choose).toEqual(expect.arrayContaining(['bg-indigo-600', 'text-white', 'min-h-[44px]']));
+  });
+
   it('StudyBox passes compact; Setup’s copy does not', () => {
     expect(readFileSync('src/components/StudyBox.vue', 'utf8')).toContain('<StudyForm compact />');
     const setupSrc = readFileSync('src/components/auto/StudySetup.vue', 'utf8');

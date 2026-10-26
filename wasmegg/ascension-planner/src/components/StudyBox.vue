@@ -21,8 +21,9 @@
     aria-labelledby="study-heading"
     data-testid="study-box"
   >
-    <!-- Open: the heading and Hide on one row at every width (26 Oct 2026: a full-width Hide was the loudest thing
-         on a phone). Folded: Choose… and No thanks under the heading on a phone, beside it from sm up. -->
+    <!-- Open: the heading and Hide on one row at every width, Hide a quiet text button (slate, underlined, 44 px
+         tall at every width; 26 Oct 2026: a full-width filled Hide was the loudest thing on a phone). Folded: the
+         filled Choose… is the main action again, with No thanks, under the heading on a phone and beside it from sm up. -->
     <div
       class="flex gap-2"
       :class="open ? 'flex-row items-center' : 'flex-col sm:flex-row sm:items-center'"
@@ -32,8 +33,11 @@
       <div class="flex gap-2" :class="open ? 'flex-row' : 'flex-col sm:flex-row'">
         <button
           type="button"
-          class="sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700"
-          :class="open ? '' : 'w-full'"
+          :class="
+            open
+              ? 'min-h-[44px] px-2 py-3 text-[11px] font-bold text-slate-600 underline underline-offset-2 hover:text-slate-900'
+              : 'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700'
+          "
           :aria-expanded="open"
           aria-controls="study-box-form"
           data-testid="study-choose"
