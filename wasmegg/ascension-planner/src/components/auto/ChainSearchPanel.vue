@@ -471,6 +471,7 @@
         v-model:nickname="nickname"
         v-model:note="store.runNote"
         kind="smart"
+        :option="choiceForEffort(store.effort).option"
         :player-id="playerId"
         :find-disabled="
           store.busy ||
@@ -1062,6 +1063,7 @@ import { pricedWithLine } from '@/lib/pricedWith';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { lastRunLine } from '@/lib/lastRunLine';
+import { choiceForEffort } from '@/lib/searchOption';
 import { backupSecondsOf } from '@/lib/saveFreshness';
 import { thisDevice } from '@/search/device';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
@@ -1302,10 +1304,10 @@ function startFromCount(n: number): string {
   store.setLimits(plan.minPrestiges, plan.maxPrestiges);
   store.findSeedFirst = false;
   store.seedOverride = plan.chain.slice(0, -1).join(' ');
-  const set = `Starting route set to ${plan.chain.join(' ')}. Press Find to search from it`;
+  const set = `Starting route set to ${plan.chain.join(' ')}.`;
   return store.effort === 'quick'
-    ? `${set} on Fast (minutes; it also checks the other counts inside the new limits). For a wider search, pick Exact above.`
-    : `${set} on ${note.value.label}, which also tries one more and one fewer ascension; Fast, above, is quicker.`;
+    ? `${set} Press Run Fast to search from it (minutes; it also checks the other counts inside the new limits). For a wider search, pick Exact above.`
+    : `${set} Press Run Exact to search from it on ${note.value.label}, which also tries one more and one fewer ascension; Fast, above, is quicker.`;
 }
 /** "(from the instant answer)" beside the Limits inputs while they follow it. */
 const limitsFollowHint = computed(() => limitsHint(store.limitsFollowing));

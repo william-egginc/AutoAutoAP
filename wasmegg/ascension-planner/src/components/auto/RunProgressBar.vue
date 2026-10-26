@@ -47,7 +47,7 @@
         <span
           v-if="store.submitsWhenDone"
           class="flex-1 sm:flex-none whitespace-nowrap text-center px-3 py-1.5 rounded-lg bg-indigo-500/30 text-[10px] font-black uppercase tracking-widest"
-          title="It shares its result on the leaderboard when it finishes (Find and submit)"
+          title="It shares its result on the Leaderboard when it finishes (started with the send ticked)"
         >
           Submits when done
         </span>

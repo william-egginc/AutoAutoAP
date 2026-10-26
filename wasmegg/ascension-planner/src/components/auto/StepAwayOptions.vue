@@ -297,8 +297,8 @@
         >
           <template #summary="{ agreed }"
             ><span v-if="agreed"
-              >Sending my progress every {{ everyLabel }} while a run goes (it still needs your OK to share, given at Find
-              and submit or under Find)</span
+              >Sending my progress every {{ everyLabel }} while a run goes (it still needs your OK to share, given in
+              Before you send under Run)</span
             ><span v-else>Send my progress every {{ everyLabel }}: off</span></template
           >
           <template #text>
@@ -318,14 +318,14 @@
               <span class="block text-slate-500"
                 >Puts your best on the leaderboard as an in-progress row, and saves the CSV of everything priced so far with
                 it, so a crash loses less. Only when something new was priced since the last one. The CSV goes when "Send my
-                CSV too" is ticked under Find, diagnostics when "Also send diagnostics" is. The finished run replaces it
+                CSV too" is ticked in Before you send, diagnostics when "Also send diagnostics" is. The finished run replaces it
                 all.</span
               ></span
             >
           </template>
           <template #aside>
             <span v-if="options.autoSendBest && !autoHere" class="block pl-6 text-slate-500"
-              >It asks for your OK when a run starts, unless you start it with Find and submit.</span
+              >It asks for your OK when a run starts, unless you start it with "Send the result to the Leaderboard" ticked.</span
             >
             <span
               v-if="autoLine"
@@ -589,7 +589,7 @@ function evaluate(final = false): void {
     // Nothing to carry on from: a run first saves after its first batch, about a minute in.
     const early = !!mark && mark.beatAt - mark.startedAt < EARLY_CRASH_MS;
     autoNote.value = early
-      ? "The last run can't carry on by itself: it crashed before its first save point, about a minute in. Press Find again."
+      ? "The last run can't carry on by itself: it crashed before its first save point, about a minute in. Press Run again."
       : "The last run can't carry on by itself, so it's waiting for you. See the unfinished run above.";
   } else if (v.why === 'guard') {
     stepAwayGiveUp('stuck');

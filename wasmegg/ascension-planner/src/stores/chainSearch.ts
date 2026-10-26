@@ -1236,7 +1236,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const bestSoFarSending = ref(false);
   /**
    * How the last Send best so far went, for the bar and the screen. Cleared when a run begins.
-   * `pending`: not an outcome but what to do next ("tick the box under Find"), shown in neither
+   * `pending`: not an outcome but what to do next ("tick the box in Before you send"), shown in neither
    * green nor red.
    */
   const bestSoFarStatus = ref<{ ok: boolean; text: string; pending?: boolean } | null>(null);
@@ -1361,7 +1361,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       bestSoFarStatus.value = {
         ok: false,
         pending: true,
-        text: 'Not sent yet: tick the box under Find to agree, and it sends straight away.',
+        text: 'Not sent yet: tick the box in Before you send to agree, and it sends straight away.',
       };
   }
   /** Resolves once any best-so-far send in flight has its answer, so a final send that follows
@@ -1437,7 +1437,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const bestSoFarAutoLine = computed(() => {
     const run = bestSoFar.value;
     if (!run || !stepAwayOptions.value.autoSendBest) return '';
-    if (!run.consent) return 'Waiting for your OK in the box under Find.';
+    if (!run.consent) return 'Waiting for your OK in Before you send.';
     const i = autoInput();
     return i ? autoStatusLine(i) : '';
   });
@@ -2725,7 +2725,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const { initPlanFuture } = await import('@/lib/modes/planFuture');
         await initPlanFuture(playerId, inputs.context.rawBackup);
       } catch (e) {
-        error.value = `This run's stored save could not be loaded (${describeRunError(e)}). Reload your save and press Find again.`;
+        error.value = `This run's stored save could not be loaded (${describeRunError(e)}). Reload your save and press Run again.`;
         return null;
       }
     }
@@ -2814,7 +2814,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!run) return 'no run is loaded';
     if (run.complete) return 'this run finished, so there is nothing left to price';
     if (!run.space) {
-      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same bands and press Find again, and anything it already priced will be replayed';
+      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same bands and press Run Custom again, and anything it already priced will be replayed';
     }
     if (!currentPlayerId) return 'no player id, so there is no way to check the run is still valid';
     // With its own save stored, the run carries on with that save, not the current one; only the
@@ -5014,7 +5014,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const p = runProgress.value;
     if (bestSoFarSending.value) return { ok: false, text: 'Already sending.' };
     if (!run) return say(false, 'This run cannot send its best so far.');
-    if (!run.consent) return say(false, 'Not sent: tick the box under Find to agree first.');
+    if (!run.consent) return say(false, 'Not sent: tick the box in Before you send to agree first.');
     if (!p?.best || (p.kind === 'by-date') !== (run.kind === 'deadline'))
       return say(false, 'Nothing found yet to send.');
     // One every 30 minutes (BEST_SO_FAR_GAP_MS): each send costs the collector several KV writes.
@@ -6210,7 +6210,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (blocking.length || moved) {
       error.value = blocking.length
         ? blocking[0].message
-        : 'Your plan start or settings changed while the run was starting. Check them, then press Find.';
+        : 'Your plan start or settings changed while the run was starting. Check them, then press Run.';
       errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
@@ -6506,7 +6506,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runLog.value.push(`--- a search worker stopped: ${e.message.slice(0, 160)}`);
     runNotes.value = [
       ...runNotes.value,
-      'A search worker stopped, so the search ended early with the best route it had found. Press Find again to carry on: the routes already priced are kept.',
+      'A search worker stopped, so the search ended early with the best route it had found. Press Run again to carry on: the routes already priced are kept.',
     ];
     refreshShortlist(true);
     runEnd = (await persist(liveCache, true, false)) ? 'stopped' : 'failed';
@@ -6971,7 +6971,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       const inputs = await loadRunInputs(partitionHash, cp.inputsKey);
       if (!inputs) {
-        error.value = `This search's save is no longer stored on ${thisDevice()}, so it can't carry on. Press Find again.`;
+        error.value = `This search's save is no longer stored on ${thisDevice()}, so it can't carry on. Press Run again.`;
         return;
       }
       ready = [cp, inputs, (cp.account as AccountSnapshot | undefined) ?? accountFromStoredSave(inputs)];

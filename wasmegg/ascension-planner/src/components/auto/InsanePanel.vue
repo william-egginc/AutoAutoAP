@@ -251,8 +251,8 @@
             of hand fastest: the bands multiply, so halving the step in each does far more than double the work.
           </p>
           <p>
-            Nothing here is capped. Above 100,000 routes, Find asks you to confirm first; above 500,000 it asks twice.
-            The count and estimate below update as you type, so check them before you press Find.
+            Nothing here is capped. Above 100,000 routes, Run Custom asks you to confirm first; above 500,000 it asks twice.
+            The count and estimate below update as you type, so check them before you press Run Custom.
           </p>
           <!-- How the work is split: explanation, so it sits here with the rest (it was between the
                estimate and Find). -->
@@ -743,7 +743,7 @@
         </div>
 
         <!-- The run controls (RunControls.vue): the same block on every search screen. A sweep link
-             already sends itself, so it gets Find alone, labelled as the card at the top labels it. -->
+             already sends itself, so it gets the button alone (no send tick), labelled as the card at the top labels it. -->
         <RunControls
           long-run
           v-model:opt-in="optIn"
@@ -764,12 +764,13 @@
           "
           :running="(store.isRunning && ownRun) || queueAt >= 0"
           :stopping="store.stopRequested || queueCancelled"
+          option="custom"
           :find-label="
             sweepRequest
               ? sweepConsent
                 ? 'Start this sweep'
                 : 'Start this sweep (tick &quot;I understand&quot; at the top first)'
-              : 'Find'
+              : ''
           "
           running-word="Pricing every route"
           :show-submit="!sweepRequest && !!store.submitUrl"
@@ -1786,11 +1787,11 @@ function addChain(): void {
 function addChainOfCount(n: number): string {
   const suggested = spaceFor(n, suggestBudget)?.text ?? '';
   const queued = extraChains.value.findIndex(r => r.asc === n && r.text.trim() === suggested);
-  if (queued >= 0) return `Box ${queued + 2} already has ${n} ascensions. Press Find to run it.`;
+  if (queued >= 0) return `Box ${queued + 2} already has ${n} ascensions. Press Run Custom to run it.`;
   extraChains.value.push({ asc: n, text: '' });
   const k = extraChains.value.length - 1;
   suggestExtra(k);
-  return `Added Box ${k + 2} with ${n} ascensions under The space to search. Press Find to run it.`;
+  return `Added Box ${k + 2} with ${n} ascensions under The space to search. Press Run Custom to run it.`;
 }
 /** The instant answer's route, handed to the Full sweep as one-value bands (taken by the watch on `ui.fullSweepBands`). */
 function checkRouteExactly(chain: number[]): void {

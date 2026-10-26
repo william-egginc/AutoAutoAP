@@ -145,7 +145,7 @@ let standDown = false;
 let seenRunning: number | undefined;
 
 const WAITING = 'Waiting for a run to start.';
-const WAITING_DETAIL = "Keep this tab open; press Find on the run's page.";
+const WAITING_DETAIL = "Keep this tab open; press Run on the run's page.";
 
 function check(): void {
   if (standDown) return;
@@ -174,7 +174,7 @@ function check(): void {
         WAITING,
         'done',
         m?.status === 'running'
-          ? `${WAITING_DETAIL} The last run here went quiet ${age} ago, before this tab opened, so this tab won't reopen it. Carry it on in the planner, or press Find for a new run, and this tab will watch it.`
+          ? `${WAITING_DETAIL} The last run here went quiet ${age} ago, before this tab opened, so this tab won't reopen it. Carry it on in the planner, or press Run for a new run, and this tab will watch it.`
           : WAITING_DETAIL
       );
       return;

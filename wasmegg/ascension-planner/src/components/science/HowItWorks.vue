@@ -106,7 +106,7 @@
           <li>
             <b>{{ NAMES.byDate }}:</b> both versions try every set of early stops in their boxes, and for each one find
             the highest last stop that still makes the date (step up, step down, then halve the gap). The last stop
-            isn't held to a box. In <b>{{ NAMES.smart }}</b> you pick the date and press Find: it builds the boxes for
+            isn't held to a box. In <b>{{ NAMES.smart }}</b> you pick the date and press Run: it builds the boxes for
             you around the instant answer's route for each number of ascensions, each early stop a few TE either side at
             every TE, sized to stay under about 25 minutes (a cap, not a measurement). In <b>{{ NAMES.full }}</b> you
             set the boxes yourself. One 12-hour {{ NAMES.full }} run on 10 Oct simulated 153,785 routes, every route in
@@ -118,7 +118,7 @@
         </ul>
         <p>
           Every search, Fast, Exact or Custom, on {{ NAMES.fastest }} or {{ NAMES.byDate }}, has the
-          same run controls in the same order: Find or Find and submit, Stop, the progress, Stepping away?, what was
+          same run controls in the same order: Run Fast, Run Exact or Run Custom with its send tick, Stop, the progress, Stepping away?, what was
           sent, and any errors. It uses the number of workers Setup shows (half your computer's cores, at most 12,
           until you pick a number), and Science's time estimates use that number too. On the one 20-thread PC we
           measured, 12 workers were as fast as 19, so more is not always faster.

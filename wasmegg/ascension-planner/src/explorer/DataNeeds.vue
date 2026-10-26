@@ -179,7 +179,7 @@
               <span class="text-[10px] text-slate-400">
                 {{
                   need.byDate
-                    ? `Switches to ${NAMES.byDate} with this filled in; nothing starts until you press Find.`
+                    ? `Switches to ${NAMES.byDate} with this filled in; nothing starts until you press Run.`
                     : `Shows how many routes and about how long on ${thisDevice()} before anything starts.`
                 }}
               </span>
@@ -386,7 +386,7 @@ const GROUPS: { id: 'gear' | 'bydate'; title: string; intro: string }[] = [
     id: 'bydate',
     title: "Checking the instant answer: Egg Day runs",
     intro:
-      `${NAMES.byDate} runs now save every ascension, so each one checks the instant answer, and the best route for each number of ascensions checks how it picks routes. These open ${NAMES.byDate} on Egg Day with the stops filled in; nothing starts until you press Find. Each is sized to start in the morning and finish by night on a desktop.`,
+      `${NAMES.byDate} runs now save every ascension, so each one checks the instant answer, and the best route for each number of ascensions checks how it picks routes. These open ${NAMES.byDate} on Egg Day with the stops filled in; nothing starts until you press Run. Each is sized to start in the morning and finish by night on a desktop.`,
   },
   {
     id: 'gear',

@@ -11,7 +11,7 @@
     data-testid="sent-by-run"
   >
     <b>Submitted automatically.</b>
-    {{ ' ' }}<template v-if="sending">Sending this result now; how it went shows beside Find.</template
+    {{ ' ' }}<template v-if="sending">Sending this result now; how it went shows beside Run.</template
     ><template v-else>Already on the board: this run sent its result when it finished.</template>
   </p>
 </template>
