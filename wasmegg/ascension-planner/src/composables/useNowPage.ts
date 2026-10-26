@@ -135,7 +135,7 @@ import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
-import { nextAction, type ActionLeg, type NextAction } from '@/lib/nextAction';
+import { nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
@@ -1220,6 +1220,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!first?.simulated) return null;
     return nextAction({ now: now.value, leg: first, last: actionLegs.value.length === 1, prestigeAt: prestigeAtFrom });
   });
+  /** NEXT SHIFTS (26 Oct 2026, lib/nextAction.ts `nextShifts`): the next 3 to 5 shifts under the Next step, the
+   *  ascension you are in from the simulation, the later ones from the table, ending with a prestige inside the list. */
+  const nextShiftLines = computed<NextShiftLine[]>(() =>
+    actionLegs.value.length ? nextShifts({ now: now.value, legs: actionLegs.value, prestigeAt: prestigeAtFrom }) : []
+  );
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
    *  planned-shift total reads the legs, so it still counts both. A prestige that waits for the hours or past a
    *  no-prestige day says so (nowPlan `markPrestigeWaits`). */
@@ -1483,6 +1488,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     ascensions,
     simWorking,
     nextStep,
+    nextShiftLines,
     ascNow,
     track,
     gear,

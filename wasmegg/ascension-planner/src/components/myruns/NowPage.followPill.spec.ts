@@ -392,6 +392,11 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     const html = await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value }, {}, [getActivePinia()!]);
     expect(html).toContain('data-testid="now-next-action"');
     expect(textOf(html)).toMatch(/Next step Shift to Humility at [A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    // Next shifts: the simulated one, then the prestige (the route's table legs list no shifts here).
+    expect(page.nextShiftLines.value.map(l => l.kind)).toEqual(['shift', 'prestige', 'prestige', 'prestige', 'goal']);
+    const withList = await renderHtml(RightNowCard, { ...(await renderProps(page)), nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!]);
+    expect(withList).toContain('data-testid="now-next-shifts"');
+    expect(textOf(withList)).toMatch(/Next shifts Shift to Humility · about [A-Z][a-z]{2} \d{1,2}, \d{4}, [^·]* Prestige at 226 TE · about/);
     scope.stop();
   });
 });

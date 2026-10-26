@@ -312,6 +312,13 @@
         <p v-if="card.plan.estimated" class="mt-0.5 text-[12px] text-slate-600" data-testid="now-next-estimated">
           Your route's steps, {{ ESTIMATE_WORDS }}.
         </p>
+        <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, always shown, not interactive. -->
+        <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
+          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next shifts</p>
+          <ul class="list-none pl-0 text-[12px] text-slate-700">
+            <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
+          </ul>
+        </div>
         <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
         <p v-if="simWorking" class="mt-0.5 text-[12px] text-slate-600" role="status" data-testid="now-sim-working" :data-state="simWorking">
           <template v-if="simWorking === 'working'">Working out your shifts…</template>
@@ -437,7 +444,8 @@ import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
-import { nextActionWords, type NextAction } from '@/lib/nextAction';
+import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
+import { roundToHourIn } from '@/lib/nowWords';
 import { showDateTime } from '@/lib/displayTime';
 import type { AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
@@ -521,6 +529,8 @@ const props = defineProps<{
   simWorking?: 'working' | 'waiting' | null;
   /** The next action from the simulated ascension (useNowPage `nextStep`); null or absent: the events' line. */
   nextStep?: NextAction | null;
+  /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */
+  nextShiftLines?: NextShiftLine[];
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -667,6 +677,9 @@ const nextText = computed(() =>
 );
 /** "Shift to Humility at …", "Building up until about …", "Prestige at …" (lib/nextAction.ts). */
 const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, t => showDateTime(t, props.zone)) : ''));
+/** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
+const shiftLineText = (l: NextShiftLine) =>
+  nextShiftWords(l, (t, exact) => showDateTime(exact ? t : roundToHourIn(t, props.zone), props.zone));
 /** The calendar button's event: the first one ahead (a step not done yet is already due: nothing to add). */
 const nextEvent = computed(() => props.events.find(e => !e.past && !e.notDone && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>

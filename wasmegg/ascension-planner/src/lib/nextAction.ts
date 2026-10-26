@@ -10,7 +10,9 @@
  *                                    route's last ascension "Reach <TE> TE at <time>"
  *   nothing known                    null: Right now keeps its line from the table
  *
- * No purchases: shifts, the build-up as one stretch, and prestiges only.
+ * No purchases: shifts, the build-up as one stretch, and prestiges only. `nextShifts` is the short list under it: the
+ * next 3 to 5 shifts, the current ascension's from the simulation and the later ones' from the table, ending with a
+ * prestige that falls inside the list.
  *
  * Pure: `now` and the prestige rule are parameters.
  */
@@ -77,4 +79,73 @@ export function nextActionWords(a: NextAction, when: (t: number) => string): str
   if (a.kind === 'shift') return `Shift to ${virtueEggName(a.egg)} at ${when(a.at)}`;
   if (a.kind === 'goal') return `Reach ${a.te} TE at ${when(a.at)}`;
   return `Prestige at ${when(a.at)}`;
+}
+
+/** One line of the Next shifts list. */
+export interface NextShiftLine {
+  kind: 'build' | 'shift' | 'prestige' | 'goal';
+  /** The shift's egg (switched TO). */
+  egg?: string;
+  /** The moment: the shift, the prestige, the goal reached, or the build-up's end. */
+  at: number;
+  /** The prestige's or the goal's TE. */
+  te?: number;
+  /** From the simulation (exact), else the table (to the hour). */
+  exact: boolean;
+}
+
+/**
+ * The next shifts after `now`, at least `min` when the route has them and at most `max`, in time order: the current
+ * ascension's (`legs[0]`, simulated, with a "building up" line first while in its build-up), then the later ones' from
+ * the table. Each prestige between ascensions is a line; the list ends with one when it already holds `min` shifts,
+ * and with the goal when it gets there. Prestige times: the next ascension's start (the table's, held already), or for
+ * the simulated one `prestigeAt` of its end.
+ */
+export function nextShifts(o: {
+  now: number;
+  legs: readonly ActionLeg[];
+  prestigeAt?: (t: number) => number;
+  min?: number;
+  max?: number;
+}): NextShiftLine[] {
+  const min = o.min ?? 3;
+  const max = o.max ?? 5;
+  const out: NextShiftLine[] = [];
+  let shifts = 0;
+  const legs = o.legs.filter(l => ok(l.start) && ok(l.end));
+  for (let i = 0; i < legs.length; i++) {
+    const leg = legs[i];
+    const exact = !!leg.simulated;
+    if (i === 0 && leg.simulated) {
+      const until = buildUntil(leg);
+      if (until !== null && o.now < until) out.push({ kind: 'build', at: until, exact });
+    }
+    for (const s of leg.shifts ?? []) {
+      if (!ok(s.at) || s.at <= o.now) continue;
+      out.push({ kind: 'shift', egg: s.egg, at: s.at, exact });
+      if (++shifts >= max) return out;
+    }
+    const te = ok(leg.endTE) ? leg.endTE : leg.to;
+    const next = legs[i + 1];
+    if (!next) {
+      if (leg.end > o.now) out.push({ kind: 'goal', at: leg.end, te, exact });
+      return out;
+    }
+    const at = exact ? (o.prestigeAt ? o.prestigeAt(leg.end) : leg.end) : next.start;
+    if (at > o.now) {
+      out.push({ kind: 'prestige', at, te, exact });
+      if (shifts >= min) return out;
+    }
+  }
+  return out;
+}
+
+/** A line's words: "Shift to Humility · about Oct 28, 2026, 3:00 PM", "Building up until about …",
+ *  "Prestige at 277 TE · about …", "490 TE reached · about …". `when` formats a moment. */
+export function nextShiftWords(l: NextShiftLine, when: (t: number, exact: boolean) => string): string {
+  const t = `about ${when(l.at, l.exact)}`;
+  if (l.kind === 'build') return `Building up until ${t}`;
+  if (l.kind === 'shift') return `Shift to ${virtueEggName(l.egg)} · ${t}`;
+  if (l.kind === 'goal') return `${l.te} TE reached · ${t}`;
+  return `Prestige at ${l.te} TE · ${t}`;
 }
