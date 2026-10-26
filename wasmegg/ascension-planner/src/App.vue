@@ -83,6 +83,14 @@
             <component :is="screenHasH1 ? 'p' : 'h1'" class="mx-4 mt-8 mb-2 text-center heading-xl text-gradient">
               {{ pageTitle }}
             </component>
+            <!-- The save's name on its own small line, not run into the title in display type (UX review 26 Oct, #13). -->
+            <p
+              v-if="playerName"
+              class="mx-4 -mt-1 mb-2 text-center text-sm font-bold text-slate-600 break-words"
+              data-testid="header-player-name"
+            >
+              {{ playerName }}
+            </p>
             <div
               v-if="initialStateStore.hasData && lastBackupFormatted"
               class="text-center text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-4 -mt-1"
@@ -1447,13 +1455,14 @@ const lastBackupAge = computed(() => {
   return `${hours}h${remainingMinutes}m ago`;
 });
 
-const pageTitle = computed(() => {
-  const name = initialStateStore.rawBackup?.userName;
-  return name ? `Ascension Planner ${name}` : 'Ascension Planner';
-});
+/** The header's title; the save's name sits on its own line under it (`playerName`). */
+const pageTitle = 'Ascension Planner';
+const playerName = computed(() => initialStateStore.rawBackup?.userName ?? '');
+/** The browser tab keeps the name in the title. */
+const documentTitle = computed(() => (playerName.value ? `${pageTitle} ${playerName.value}` : pageTitle));
 
 watch(
-  pageTitle,
+  documentTitle,
   newTitle => {
     document.title = newTitle;
   },
