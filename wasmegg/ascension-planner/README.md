@@ -415,9 +415,15 @@ Paths are relative to this folder. The full module map is on
 - The leg spill: `src/search/legSpill.ts` (shared), `src/lib/legSpillOpfs.ts`, `src/workers/legSpill.worker.ts`
   and `src/lib/legSpillText.ts` (the page), `scripts/nodeLegSpill.ts` (the command line). Consent and Setup
   saved online: `src/lib/prefsCloud.ts`, `src/stores/prefs.ts`.
-- Type: no monospace font anywhere (`tailwind.config.ts` sets `fontFamily.mono` to `inherit`; `pre`, `code`,
-  `kbd` and `samp` use the body font), tabular figures in every table cell, and every text field, select and
-  textarea at 16 px below `sm` so iOS does not zoom on focus (`src/styles/components.css`).
+- Type: five sizes, set as tokens in `tailwind.config.ts`: `text-small` 12 px (notes, table cells, badges),
+  `text-body` 14 px (explanations, buttons), `text-title` 18 px (card titles), `text-headline` 24 px (the answer,
+  screen titles) and `text-page` 32 px (the page title, `.heading-xl`, 28 px on a phone). Three weights: 400, 700
+  and 900 (900 only for the big numbers and titles). One caps style, `.label` (11 px, bold, 0.08em), for section
+  labels, column heads, tabs and badges. Buttons and sentences are sentence case. Nothing is under 11 px.
+  Reading paragraphs stop at about 65 characters (`max-w-prose`). No monospace font anywhere (`fontFamily.mono`
+  is `inherit`; `pre`, `code`, `kbd` and `samp` use the body font), tabular figures in every table cell, and
+  every text field, select and textarea at 16 px below `sm` so iOS does not zoom on focus
+  (`src/styles/components.css`). `src/styles/typeScale.spec.ts` checks all of this.
 - **`ascension-chain-search`** is the main line; the site is built from it. Upstream is
   **`wasmegg-carpet/egg`** (Carpet's fork; its `ascension-planner` branch carries Joo's planner), merged in.
   Work happens on short topic branches merged back into `ascension-chain-search`.

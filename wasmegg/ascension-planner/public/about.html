@@ -132,6 +132,17 @@
           saves that a saved run or answer needs are kept with it. Nothing expires them. Clearing this site's data in
           your browser removes all of it.
         </p>
+        <!-- lib/legSpillOpfs.ts, lib/legSpillText.ts: these sentences go with that code. -->
+        <p id="detail-file">
+          A search's per-ascension detail is kept in a file in this browser, so the downloaded CSV can have every
+          route's detail, not only the fastest routes set by <b>Keep per-ascension detail for N fastest routes</b>
+          (Setup › This computer). There is one file for each account and screen, named like
+          <code>aaap-legs/legs-fastest-&lt;code&gt;.spill</code>. The code is made from your player ID, not the ID
+          itself. A new search starts the file again. <b>Download CSV</b> writes the full file through this storage
+          too, and that copy is removed 10 minutes later. Nothing in these files leaves your computer, except what a
+          send includes (see <a href="#sent">What is sent, and when</a>). The command line keeps its own file,
+          <code>legs.spill</code>, on the computer it runs on.
+        </p>
       </section>
 
       <section id="save">
@@ -141,6 +152,15 @@
           Cloudflare. The relay passes your player ID to the game server and your save back to your browser. It stores
           nothing, logs nothing, and only talks to the game's servers. Cloudflare, who host it, keep ordinary request
           statistics. The planner does not send your save or your player ID anywhere else.
+        </p>
+        <!-- lib/serverSave.ts, composables/useServerSave.ts: these sentences go with that code. -->
+        <p id="save-check">
+          My runs also checks, quietly, whether the game's server has a newer save than the one loaded. It makes the
+          same request as loading your save: your player ID goes through the same relay to the game's server, and
+          your save comes back. The planner keeps only the save's time, and only until you close or reload the page.
+          It does not put that save into the planner unless you press <b>A newer save is on the server · Load it</b>. It checks once per page load for
+          each account, and not when you are offline or your save is under 10 minutes old. Nothing goes to the
+          planner's own server.
         </p>
       </section>
 
@@ -183,7 +203,9 @@
             shown on your public run so others can compare. Without that tick it is not sent.
           </li>
           <li>
-            <b>The CSV</b> of every route the search priced. Nothing is sent until you tick the agreement, which is off by
+            <b>The CSV</b> of the routes the search priced, with each route's total time. It has the per-ascension
+            times for the top 20,000 routes only (5,000, or none, if the file would be too big to send), not the full
+            file that <b>Download CSV</b> saves. Nothing is sent until you tick the agreement, which is off by
             default. Once you agree, "Send my CSV too" starts ticked, and you can untick it. The CSV is public too: anyone
             can download the CSV of a row. A sweep run from Science always sends one.
           </li>
@@ -279,8 +301,20 @@
           They are saved when you change them, and read when your account is loaded: the newer of the saved ones and the
           ones on that device wins. What is stored: the answers and ticks, the name you chose to be credited by (only if
           you chose a name), when you answered, and the Setup values above. Never your player ID. The settings for
-          <b>This computer</b> (workers, memory) are not stored. The last 5 versions of each are kept, and at most 30
+          <b>This computer</b> (workers, memory, the per-ascension detail) and the <b>Stepping away?</b> choices are
+          not stored. The last 5 versions of each are kept, and at most 30
           changes an hour are saved. If the planner's server can't be reached, your choices still work on that device.
+        </p>
+      </section>
+
+      <!-- composables/useBoardRunLegs.ts, explorer/collector.ts fetchRunCsv: these sentences go with that code. -->
+      <section id="readback">
+        <h2>Your own run's CSV, read back</h2>
+        <p>
+          If the route you follow comes from a Fast, Exact or Custom run you sent from another browser, My runs reads
+          that run's CSV back from the planner's server, once per page load, to get its exact per-ascension times. It
+          asks by the run's row ID on the Leaderboard, never by your player ID. It is the same CSV the Leaderboard
+          offers for that row. If the run has no CSV, or it can't be read, My runs shows the estimate instead.
         </p>
       </section>
 
