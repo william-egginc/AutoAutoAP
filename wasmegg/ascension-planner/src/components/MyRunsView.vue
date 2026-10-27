@@ -83,6 +83,7 @@
       <YourEggs
         :eggs="page.eggs.value"
         :facts="page.facts.value"
+        :after-shift="page.afterShift.value"
         :shifts-done="page.shiftsDone.value"
         :next-shift-cost="page.nextShiftCost.value"
         :planned-shifts="page.plannedShifts.value"
