@@ -334,4 +334,28 @@ describe('About and privacy page', () => {
     expect(read('src/composables/useBoardRunLegs.ts')).toContain('fetchCsv(row.id)');
     expect(read('src/explorer/collector.ts')).toContain('const res = await fetch(`${base}/csv?id=${encodeURIComponent(id)}`, { signal });');
   });
+  it("pins what the About page says about the collector's /answers: 8 an account, 30 writes an hour, no time limit, never the player ID (27 Oct 2026)", () => {
+    expect(text).toContain('Up to 8 answers are kept for each account');
+    expect(text).toContain('At most 30 are saved an hour.');
+    expect(text).toContain('No time limit. Up to 8 for each account; a new one replaces the one saved longest ago.');
+    const answers = read('collector/answers.js');
+    // The limits: 64 KB gzipped, 8 an account, 20,000 in all, and the same 30 writes an hour as the follow route.
+    expect(answers).toContain('export const ANSWER_MAX_BYTES = 65_536;');
+    expect(answers).toContain('export const ANSWER_MAX_ENTRIES = 8;');
+    expect(answers).toContain('export const ANSWER_MAX_TOTAL = 20_000;');
+    expect(answers).toContain('FOLLOW_WRITES_PER_HOUR');
+    expect(read('collector/follow.js')).toContain('export const FOLLOW_WRITES_PER_HOUR = 30;');
+    // A ninth entry replaces the one written longest ago (the least recently written goes), and is never refused for room.
+    expect(answers).toContain('DELETE FROM answers WHERE key = ? AND e NOT IN (SELECT e FROM answers WHERE key = ? ORDER BY updated DESC, e LIMIT ?)');
+    // No time limit: the only deletes are that eviction and the app's explicit DELETE; no cron or other file removes answers.
+    expect(answers.match(/DELETE FROM answers/g)).toHaveLength(2);
+    expect(read('collector/worker.js')).not.toMatch(/DELETE FROM answers/);
+    expect(read('collector/prefs.js')).not.toMatch(/DELETE FROM answers/);
+    // The player ID is refused anywhere in the query, and only the key (64 hex characters) is accepted.
+    expect(answers).toContain('if (PLAYER_ID.test(url.search)) return bad([');
+    expect(answers).toContain('k must be 64 lowercase hex characters');
+    // The body is gzip and is not inflated by the collector: the app scrubs before it compresses.
+    expect(answers).toContain('body[0] !== 0x1f || body[1] !== 0x8b');
+    expect(answers).toContain('the app scrubs before it compresses');
+  });
 });
