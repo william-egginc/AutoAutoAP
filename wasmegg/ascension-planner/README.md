@@ -188,8 +188,18 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
 ```
 
 - `--backup FILE` runs fully offline. `--player-id EI... --save-backup me.json` fetches a save once.
-- `--out DIR` writes `run.csv.gz` and `submission.json` and keeps a resume point; run the same command
-  again after a kill and it carries on. `--dry-run` says what would run and stops.
+- `--out DIR` writes `run.csv.gz` (the table a send uploads), `run-full.csv.gz` (every route's per-ascension
+  detail; `--plain-csv` adds `run.csv`), `submission.json` (with the re-checks) and keeps a resume point
+  (`checkpoint/`, `run.json`, `last-progress.txt`, and `legs.spill`, every priced route's legs on disk, about
+  the size of `run.csv`); run the same command again after a kill and it carries on. `--dry-run` says what
+  would run and stops.
+- The settings are the flags: Awake hours (`--available-from/--available-to/--available-days`, or
+  `--sleep-from/--sleep-until`), `--time-off`, `--no-prestige` (Your setup's no-prestige days),
+  `--first-ascension auto|buildup|continue|fresh` (auto is the site's Soonest), `--timezone`. Setup saved on the
+  site is not read. Without an instant answer the command line's default limits (5-8, By a date 4
+  ascensions) are fixed and it says so; the site sets them from its instant answer.
+- Environment knobs: `AAP_LEG_DETAIL_BUDGET` (Setup > Memory's routes kept in memory), `AAP_WORKER_HEAP_MB`,
+  `AAP_HEAP_STOP_SHARE`, `AAP_MEMORY_LOG` (see `--help`).
 - A box above 300,000 routes prints the site's note (routes, about how many hours). A box above 100,000
   routes asks `Continue? [y/N]` before it runs (again above 500,000); `--yes` skips that, and without a
   terminal to answer it stops and says to add `--yes`. `--dry-run` never asks.
@@ -197,7 +207,9 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
   (one value per stop), with your Awake hours (`--sleep-from 23 --sleep-until 7`, else it warns). `--delay-max`,
   `--delay-near`, `--delay-passes`, `--singles-only`; `--handoff hour` prestiges on the hour as the site does.
 - Sending (`--submit`, or `submit --from`) is the same send the site makes, anonymous unless
-  `--nickname`. To any collector not on your own machine it needs `--yes`, or nothing leaves.
+  `--nickname`: the re-checks, a table with per-ascension detail for the top 20,000 routes, diagnostics with
+  `--diagnostics`; no shared instant baseline and no best so far. To any collector not on your own machine
+  it needs `--yes`, or nothing leaves.
   What-ifs (`--add-artifact`, `--mod`) are never sent.
 - Awake hours, Time off and the first ascension match Setup: `--available-from/--available-to`,
   `--time-off`, `--first-ascension auto|buildup|continue|fresh`.
@@ -274,8 +286,10 @@ and [Searches in detail](https://github.com/william-egginc/AutoAutoAP/wiki/Searc
 
 ### The CSV
 
-**Download CSV**, the `run.csv.gz` that `--out` writes and the table a send uploads have one row per leg
-of every route a run priced. It starts with `#` comment lines: plan start, TE and target, effort, first
+**Download CSV** (and the command line's `--csv`, `run.csv` and `run-full.csv.gz`) has one row per leg of every
+route a run priced: every route's legs are kept on disk as the run goes (OPFS on the page, `legs.spill` in the
+command line). The table a send uploads (`run.csv.gz`) has them for the top 20,000 routes and one row each for
+the rest. It starts with `#` comment lines: plan start, TE and target, effort, first
 ascension, Awake hours, Time off, your note, the artifacts and stones; `# searched:` (the boxes, in the command
 line's notation) and `# ascensions:` (the count range and the minimum gap); and, for Highest TE by a date, `# workers:`
 (the run's workers over its life). The header's own words have no commas, since Numbers and Excel split
@@ -286,7 +300,8 @@ The columns: `rank`, `chain`, `prestiges`, `total_days`, `gap_days` (the route),
 `leg_days`, `peak_delivery_q_per_hr`, `night_shifts` (shifts still outside your Awake hours),
 `prestige_delay_hours`, `shift_hold_hours` (waits for Awake hours), `starts_on_egg`, `shift_times_local`
 and `time_off`; leg 1 has a few more (which way it went, and what the other way would have given). A
-route restored after a refresh keeps its total but not its per-leg cells. Details:
+route restored after a refresh keeps its per-leg cells when the run's detail on disk survived (else just its
+total); a full By a date file adds a section with every priced route's legs (rows starting `pricedleg`). Details:
 [Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard).
 
 ### Checking a table someone sent (`--check-bin`)
