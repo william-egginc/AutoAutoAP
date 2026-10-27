@@ -57,8 +57,10 @@ describe('the box never changes while a search runs', () => {
   });
   it('the answer is set only by working it out, its polish, or a saved one put back', () => {
     const sets = script.match(/\bresult\.value = /g) ?? [];
-    // run (none at the target, none below the table, the answer, none while waiting), the polish, applySnapshot.
-    expect(sets).toHaveLength(6);
+    // run (none at the target, none below the table, the answer, none while waiting), the polish, applySnapshot, and
+    // dropStale (a stale answer of another key goes when the work fails: cached answers first, 27 Oct 2026).
+    expect(sets).toHaveLength(7);
+    expect(fn('function dropStale(')).toContain('if (staleAt.value !== null && staleOther) result.value = null;');
     expect(fn('function applySnapshot(')).toContain('result.value = s.result;');
   });
   it('a search result reaches the card only through the pointer and the share box', () => {

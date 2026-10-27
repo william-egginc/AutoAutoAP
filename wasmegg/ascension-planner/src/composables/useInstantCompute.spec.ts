@@ -445,7 +445,10 @@ describe('My runs works the instant answer out by itself, in the background', ()
       change();
       n++;
       await vi.waitFor(() => expect(computes).toHaveLength(n));
-      expect(page.follow.value?.estimating).toBe('instant');
+      // Meanwhile the previous setup's record prices the route, marked "From <time>, checking…" (cached answers first,
+      // 27 Oct 2026: NowPage.staleFirst.spec.ts), or the estimate shown last stays: never a blank.
+      const f = page.follow.value;
+      expect(f?.estimating === 'instant' || f?.estimating === 'working' || !!f?.staleAt).toBe(true);
       computes[n - 1].resolve(pricingOf(te, now));
       await vi.waitFor(() => expect(page.follow.value?.estimating).not.toBe('instant'));
       // Once: the record for that setup is now kept.

@@ -319,6 +319,10 @@
         </p>
       </template>
       <template v-if="card">
+        <!-- Times from before while they are worked out again (useNowPage `staleAt`: cached answers first, then recheck). -->
+        <p v-if="follow?.staleAt" class="text-small text-amber-800" role="status" data-testid="now-follow-stale">
+          From {{ showDateTime(follow.staleAt / 1000, zone) }}, checking…
+        </p>
         <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
              line from the plan's events. -->
         <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">

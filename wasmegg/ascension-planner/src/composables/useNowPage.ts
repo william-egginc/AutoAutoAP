@@ -125,16 +125,19 @@ import {
   estimateKey,
   needsPricingRecord,
   pickPricing,
+  pickWithStale,
   recordFinalFor,
   planFromEstimate,
   pricingSetupKey,
   readPricing,
   readPricingRecords,
   recordSources,
+  staleRecordSources,
   type PickedPricing,
   type PricingSource,
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
+import { keepHeld, readHeld } from '@/lib/heldEstimate';
 import { useInstantCompute, type InstantComputeRequest } from './useInstantCompute';
 import { useBoardRunLegs, type BoardRunWant, type RunCsvFetch } from './useBoardRunLegs';
 import { fetchRunCsv } from '@/explorer/collector';
@@ -201,6 +204,10 @@ export interface FollowCard {
   finish?: { end: number; endTE: number | null; at: number };
   /** By a date: the route lands after the date. */
   missesDate?: boolean;
+  /** Its times are from before, ms (cached answers first, then recheck: Jordan, 27 Oct 2026): another setup's or
+   *  save's pricing record while this one's is worked out, or the estimate shown last while it is priced again. Right
+   *  now says "From <time>, checking…" and its pill "· checking…". Absent: worked out for this save and setup. */
+  staleAt?: number;
   /** Right now's words for whose route it is: "your pick" (a Follow press), "from the instant answer" or "from your
    *  Fast run" (the first answer, followed on its own, lib/followPolicy.ts). Absent: "your pick". */
   label?: string;
@@ -797,7 +804,22 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   type FollowPriced = NonNullable<ReturnType<typeof followPricedFor>>;
   function estimatePickFor(fp: FollowPriced | null): PickedPricing {
     if (!fp || (fp.price.priced !== 'none' && fp.price.priced !== 'finish')) return null;
-    return pickPricing(pricingSourcesFor(fp.sel.goal.key), followedFromNow(fp.f.chain, teSoFar.value), teSoFar.value);
+    // The account's newest other record meanwhile, while this save and setup's is worked out (marked stale).
+    return pickWithStale(pricingSourcesFor(fp.sel.goal.key), staleSources(), followedFromNow(fp.f.chain, teSoFar.value), teSoFar.value);
+  }
+  /** Other saves' and setups' records of this account that start at the save's TE (lib/followEstimate.ts
+   *  `staleRecordSources`): only for pricing meanwhile, never counted as this save and setup's. */
+  function staleSources(): PricingSource[] {
+    void recordsRead.value;
+    const setup = pricingSetup.value;
+    if (!setup || !storeReady.value) return [];
+    return staleRecordSources(readPricingRecords(), {
+      account: account.value,
+      backupTime: saveSeconds.value,
+      setup,
+      currentTE: teSoFar.value,
+      meta: account.value ? { account: account.value, goal: '', backupTime: saveSeconds.value } : null,
+    });
   }
   /** What this save's instant answer priced its routes with (`goalKey`'s own snapshot ranked first). */
   function pricingSourcesFor(goalKey: GoalKey): PricingSource[] {
@@ -932,7 +954,55 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return key === selectedGoal.value ? followState.value : (otherFollowStates.value.get(key) ?? null);
   }
 
+  /**
+   * CACHED ANSWERS FIRST, THEN RECHECK (Jordan, 27 Oct 2026: never a blank while it is worked out again). The estimate
+   * shown last for a goal and route (this page load's, else the one kept in this browser, lib/heldEstimate.ts) stays on
+   * screen, marked with when its pricing was kept, while the route's times are being worked out again (a new record,
+   * a reload): until the fresh one is in, or the work fails (then its words, as before).
+   */
+  const shownLast = new Map<string, { at: number; card: FollowCard; plan: CardPlan | null }>();
+  const heldKeyOf = (goalKey: GoalKey, chain: readonly number[]) => `${account.value ?? ''}|${goalKey}|${chain.join(',')}`;
+  const HOLDING = new Set(['working', 'waiting', 'instant', 'instantwait']);
   function followStateFor(
+    fp: FollowPriced | null,
+    pick: PickedPricing,
+    est: import('./useFollowEstimate').EstimateState | null,
+    asked: boolean
+  ): { card: FollowCard; plan: CardPlan | null } | null {
+    const st = followStateNow(fp, pick, est, asked);
+    if (!st || !fp || !account.value) return st;
+    const key = heldKeyOf(fp.sel.goal.key, st.card.chain);
+    if (st.plan && st.card.price === 'estimate') {
+      shownLast.set(key, { at: shownLast.get(key)?.at ?? Date.now(), card: st.card, plan: st.plan });
+      return st;
+    }
+    if (st.card.price !== 'none' || !HOLDING.has(st.card.estimating ?? '')) return st;
+    const last = shownLast.get(key);
+    const held =
+      last?.plan ? last : readHeld<CardPlan, FollowCard>(account.value, fp.sel.goal.key, st.card.chain);
+    if (!held?.plan) return st;
+    const card: FollowCard = { ...held.card, staleAt: held.at };
+    return { card, plan: { ...held.plan, followed: card } };
+  }
+  const heldWritten = new Map<string, string>();
+  // The fresh estimates shown, kept for the next page load (lib/heldEstimate.ts); a stale one is not kept.
+  watch(
+    () => [followState.value, ...otherFollowStates.value.values()],
+    list => {
+      const acct = account.value;
+      if (!acct) return;
+      for (const st of list) {
+        if (!st?.plan || st.card.price !== 'estimate' || st.card.staleAt || !st.plan.key) continue;
+        const k = heldKeyOf(st.plan.key, st.card.chain);
+        const last = shownLast.get(k);
+        const sig = `${last?.at ?? ''}|${planFinish(st.plan.plan)}|${st.plan.plan.calculatedAt ?? ''}`;
+        if (heldWritten.get(k) === sig) continue;
+        heldWritten.set(k, sig);
+        keepHeld({ account: acct, goalKey: st.plan.key, chain: [...st.card.chain], at: last?.at ?? Date.now(), plan: st.plan, card: st.card });
+      }
+    }
+  );
+  function followStateNow(
     fp: FollowPriced | null,
     pick: PickedPricing,
     est: import('./useFollowEstimate').EstimateState | null,
@@ -977,7 +1047,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         source: 'this-save',
         pricedSave: saveSeconds.value,
         ...(g.deadline && !finishesBefore(planFinish(p), g.deadline) ? { missesDate: true } : {}),
+        ...(pick.source.stale ? { staleAt: pick.source.at } : {}),
       };
+      shownLast.set(heldKeyOf(sel.goal.key, p.chain), { at: pick.source.at, card, plan: null });
       return {
         card,
         plan: { plan: p, goal: g, state: 'this-save', pricedWith: pricedWithWords(currentSetup(sn.setup)), secondary: null, key: sel.goal.key, name: sel.goal.name, followed: card },
