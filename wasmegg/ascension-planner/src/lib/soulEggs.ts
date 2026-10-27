@@ -7,7 +7,11 @@
  * interpolation: `soulEggsLeft` pays each shift out of what is left, as `plannedShiftsCost` does, earning none.
  *
  * Under a quarter left, one plain amber line says so (SoulEggWarning.vue); it never blocks anything.
+ *
+ * My runs also says what is left after the followed route (27 Oct 2026, Jordan: Single run shows "Soul eggs: −3.0s,
+ * remaining 9.7s"): `soulEggsAfterLine`, one plain line, amber under the same quarter.
  */
+import { formatNumber } from './format';
 import { plannedShiftsCost } from './shiftCost';
 
 /** Under this share of soul eggs left, the plan says so. */
@@ -51,4 +55,30 @@ export function soulEggWarning(p: SoulEggPlan): string {
     return `This plan has ${plan} shift${s(plan)}, which in this plan alone would leave ${percent(left)} of your soul eggs (counted from 0 shifts: your save's shifts since your last Path reset aren't known here). ${tail}`;
   const done = Math.max(0, Math.floor(p.done));
   return `This plan has about ${done + plan} shifts since your last Path reset (${done} in your save, ${plan} in the plan), which would leave ${percent(left)} of the soul eggs you have now. ${tail}`;
+}
+
+/**
+ * "After this plan: about 9.7s soul eggs (3.0s spent on 48 shifts)" (My runs' Right now and its saved answer tile):
+ * today's soul eggs less the planned shifts' cost (`plannedShiftsCost` from the save's `done` shifts, as All planned
+ * shifts prices them), each number as Single run writes its Spent / Remaining (`formatNumber(x, 1)`). `opening`: how
+ * many of the shifts are the estimated build-up shifts (lib/openingShifts.ts). `amber` under SE_WARN_BELOW left, the
+ * warning's threshold. Null without the save's soul eggs or a planned count.
+ */
+export function soulEggsAfterLine(p: {
+  soulEggs: number | null | undefined;
+  done: number | null | undefined;
+  planned: { count: number; opening?: number } | null | undefined;
+}): { text: string; amber: boolean } | null {
+  const se = p.soulEggs;
+  if (se == null || !(se > 0) || !p.planned || !Number.isFinite(p.planned.count)) return null;
+  const count = Math.max(0, Math.floor(p.planned.count));
+  const done = Math.max(0, Math.floor(p.done ?? 0));
+  const spent = plannedShiftsCost(se, done, count);
+  const left = Math.max(0, se - spent);
+  const opening = p.planned.opening ?? 0;
+  const tail =
+    count === 0
+      ? 'no shifts planned'
+      : `${formatNumber(spent, 1)} spent on ${count} shift${s(count)}${opening > 0 ? `, including about ${opening} build-up shifts (estimated)` : ''}`;
+  return { text: `After this plan: about ${formatNumber(left, 1)} soul eggs (${tail})`, amber: soulEggsLeft(done, count, se) < SE_WARN_BELOW };
 }

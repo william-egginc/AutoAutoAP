@@ -12,6 +12,7 @@ import { isConstrained, type Availability } from '@/search/availabilitySchedule'
 import { nextPrestigeAt, noPrestigeAt, usableNoPrestige } from '@/search/noPrestige';
 import type { TimeOffWindow } from '@/search/types';
 import { buildUpLine, type BuildUpLeg } from './buildUpLine';
+import { estimatedOpening } from './openingShifts';
 
 export interface StepLeg {
   from: number;
@@ -142,6 +143,9 @@ export interface AscensionStep extends StepLine {
   /** "You do the build-up for 2 sales, then start producing at …" (lib/buildUpLine.ts): absent for continue, the
    *  build-up of the save's farm, or a leg whose sale count is not known. */
   buildUp?: string;
+  /** A fresh ascension whose listed shifts leave its opening out: the simulator's standard build-up shifts, estimated
+   *  (lib/openingShifts.ts `estimatedOpening`, 6). Absent: none to add. */
+  openingShifts?: number;
   /** Time off cuts it (the simulated ascension, lib/followSim.ts): to the home farm at `from` with `te`, built again
    *  from `to`. */
   timeOff?: { from: number; to: number; te: number };
@@ -151,7 +155,8 @@ export interface AscensionStep extends StepLine {
  * EVERY ASCENSION AND ITS SHIFTS (26 Oct 2026, My runs' Full timeline for a route with no exact legs): `instantSteps`'
  * lines, each with the shifts its leg lists (the table's from H1 on, search/legShifts.ts; the current ascension's
  * from the simulation once it is in). A leg that lists none has an empty list. Each fresh ascension also says what
- * its build-up is (`buildUp`, from its variant and rate: lib/buildUpLine.ts), the opening the table's shifts leave out.
+ * its build-up is (`buildUp`, from its variant and rate: lib/buildUpLine.ts), the opening the table's shifts leave out,
+ * and how many shifts that opening makes when its list leaves them out (`openingShifts`, estimated: lib/openingShifts.ts).
  */
 export function ascensionSteps(
   legs:
@@ -171,11 +176,13 @@ export function ascensionSteps(
     .map(l => (l.timeOff ? { ...l, timeOffKnown: true } : l));
   return instantSteps(list, hours, noPrestige, timeOff).map((line, i) => {
     const buildUp = buildUpLine(list[i]);
+    const opening = estimatedOpening(list[i]);
     return {
       ...line,
       shifts: (list[i].shifts ?? []).filter(s => Number.isFinite(s.at)).map(s => ({ at: s.at, egg: s.egg })),
       simulated: !!list[i].simulated,
       ...(buildUp ? { buildUp } : {}),
+      ...(opening > 0 ? { openingShifts: opening } : {}),
       ...(list[i].timeOff ? { timeOff: { from: list[i].timeOff!.from, to: list[i].timeOff!.to, te: list[i].timeOff!.te } } : {}),
     };
   });

@@ -40,6 +40,7 @@
     <template v-if="page.hasSave.value">
       <RightNowCard
         :card="page.cardPlan.value"
+        :soul-eggs-after="page.soulEggsAfter.value"
         :on-virtue="page.onVirtue.value"
         :current-egg="page.currentEgg.value"
         :te-so-far="page.teSoFar.value"
@@ -108,6 +109,7 @@
           :standing="standingWords(page.shownTile.value.stand)"
           :standing-label="page.shownTile.value.standingLabel"
           :open="page.shownTile.value.open ?? null"
+          :soul-eggs-after="page.tileSoulEggsAfter.value"
           @open="to => emit('open', to)"
           @routes="showRuns(page.shownTile.value.goal)"
         />

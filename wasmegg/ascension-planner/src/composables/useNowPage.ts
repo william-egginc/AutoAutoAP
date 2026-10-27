@@ -63,7 +63,7 @@ import {
   planEvents,
   planFromSnapshot,
   planPrestiges,
-  shiftsAfter,
+  plannedShiftsAfter,
   stepLegsOf,
   tableEvents,
   withTableShifts,
@@ -99,6 +99,7 @@ import {
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
 import { afterShiftLines, afterShiftNote, shiftRates } from '@/lib/nextTeEgg';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
+import { soulEggsAfterLine } from '@/lib/soulEggs';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
 import { dayWords as dayWordsIn } from '@/lib/eventWhen';
 import {
@@ -1563,12 +1564,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
   /** The plan's shifts after the save and their cost at today's soul eggs; null: can't tell (no shift listed).
-   *  `partial`: counted from the table's shifts, which leave out each fresh ascension's opening. */
+   *  `opening`: each fresh ascension's build-up shifts the table leaves out, added as an estimate (lib/nowPlan.ts
+   *  `plannedShiftsAfter`, 27 Oct 2026). `partial`: counted from the table's shifts with none added. */
   const plannedShifts = computed(() => {
     const p = cardPlan.value?.plan;
-    const n = p ? shiftsAfter(p, saveSeconds.value) : null;
-    if (n == null) return null;
-    return { count: n, cost: plannedShiftsCost(soulEggs.value, shiftsDone.value, n), ...(p && !p.legs ? { partial: true } : {}) };
+    const c = p ? plannedShiftsAfter(p, saveSeconds.value) : null;
+    if (c == null) return null;
+    const n = c.count;
+    return {
+      count: n,
+      cost: plannedShiftsCost(soulEggs.value, shiftsDone.value, n),
+      opening: c.opening,
+      ...(p && !p.legs && !c.opening ? { partial: true } : {}),
+    };
   });
 
   // -------------------------------------------------------------------------------------- the tiles
@@ -1662,6 +1670,20 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return { goal: 'fastest', key: sel?.key ?? null, name: null, tile: f.tile, target: f.target, stand: raceStand.value, standingLabel: `Fastest to ${f.target} TE` };
   });
 
+  /** "After this plan: about 9.7s soul eggs (3.0s spent on 48 shifts)" (lib/soulEggs.ts `soulEggsAfterLine`, 27 Oct
+   *  2026): the planned shifts above at today's soul eggs. Null without the save's soul eggs or a planned count. */
+  const soulEggsAfter = computed(() =>
+    hasSave.value ? soulEggsAfterLine({ soulEggs: soulEggs.value, done: shiftsDone.value, planned: plannedShifts.value }) : null
+  );
+  /** The same line on the saved answer tile, only when its answer is the route Right now shows (same goal and stops):
+   *  the planned count is that route's. */
+  const tileSoulEggsAfter = computed(() => {
+    const a = shownTile.value.tile.answer;
+    const p = cardPlan.value?.plan;
+    if (!a || !p || p.goal !== shownTile.value.goal || a.chain.join(',') !== p.chain.join(',')) return null;
+    return soulEggsAfter.value;
+  });
+
   return {
     now,
     zone,
@@ -1708,6 +1730,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     soulEggs,
     nextShiftCost,
     plannedShifts,
+    soulEggsAfter,
+    tileSoulEggsAfter,
     fastestTile,
     eggDayTile,
     raceStand,
