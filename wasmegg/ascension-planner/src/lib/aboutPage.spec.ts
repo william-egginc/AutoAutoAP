@@ -218,7 +218,7 @@ describe('About and privacy page', () => {
     );
     expect(text).toContain('Anyone who knows your player ID can make the same code, so they could read these choices, and change them.');
     expect(text).toContain(
-      'What is stored: the answers and ticks, the name you chose to be credited by (only if you chose a name), when you answered, and the Setup values above. Never your player ID. The settings for This computer (workers, memory) are not stored. The last 5 versions of each are kept, and at most 30 changes an hour are saved.'
+      'What is stored: the answers and ticks, the name you chose to be credited by (only if you chose a name), when you answered, and the Setup values above. Never your player ID. The settings for This computer (workers, memory, the per-ascension detail) and the Stepping away? choices are not stored. The last 5 versions of each are kept, and at most 30 changes an hour are saved.'
     );
     expect(text).toContain('Your choices and Setup are saved online only when you change them, and read whenever you load an account');
     expect(text).toContain('Your choices and Setup No time limit. The last 5 versions of each.');
@@ -233,5 +233,61 @@ describe('About and privacy page', () => {
     expect(cloud).toContain('export const PREFS_WRITES_PER_HOUR = 30;');
     expect(cloud).not.toMatch(/\n  (workers|memory|memoryCap|playerId|eiUserId)\??: /);
     expect(cloud).toContain("if (c.credit === 'name' && name) value.nickname = name;");
+    // Only the sharing consents go online (not the Stepping away? ones), and Setup has no field for the detail setting.
+    expect(cloud).toContain(
+      "export const SYNCED_CONSENTS = ['leaderboard', 'sendCsv', 'diagnosticsDefault', 'keepSharingChecks', 'shareBaseline'] as const;"
+    );
+    const setupShape = cloud.slice(cloud.indexOf('export interface CloudSetup {'), cloud.indexOf('export type CloudPrefValue'));
+    expect(setupShape).not.toMatch(/leg|detail|budget|workers/i);
+  });
+
+  it('says where per-ascension detail is kept on disk, the 10-minute download copy, and what a send carries (26 Oct 2026)', () => {
+    expect(text).toContain(
+      "A search's per-ascension detail is kept in a file in this browser, so the downloaded CSV can have every route's detail, not only the fastest routes set by Keep per-ascension detail for N fastest routes (Setup › This computer)."
+    );
+    expect(text).toContain(
+      'There is one file for each account and screen, named like aaap-legs/legs-fastest-&lt;code&gt;.spill . The code is made from your player ID, not the ID itself.'
+    );
+    expect(text).toContain('Download CSV writes the full file through this storage too, and that copy is removed 10 minutes later.');
+    expect(text).toContain('Nothing in these files leaves your computer, except what a send includes');
+    expect(text).toContain('The command line keeps its own file, legs.spill , on the computer it runs on.');
+    expect(text).toContain(
+      'The CSV of the routes the search priced, with each route\'s total time. It has the per-ascension times for the top 20,000 routes only (5,000, or none, if the file would be too big to send), not the full file that Download CSV saves.'
+    );
+    expect(text).not.toContain('The CSV of every route the search priced');
+    // What it says must stay true: the file names, the 10 minutes, and the 20,000 / 5,000 / none of a send.
+    expect(read('src/workers/legSpill.protocol.ts')).toContain("export const LEG_SPILL_DIR = 'aaap-legs';");
+    expect(read('src/lib/legSpillOpfs.ts')).toContain('return `legs-${kind}-${partitionHash.slice(0, 32)}.spill`;');
+    expect(read('src/lib/legSpillText.ts')).toContain('export const DOWNLOAD_FILE_TTL_MS = 10 * 60_000;');
+    expect(read('src/search/csv.ts')).toContain('export const DEADLINE_LEG_ROUTES = 20000;');
+    const store = read('src/stores/chainSearch.ts');
+    expect(store.match(/for \(const legRoutes of \[DEADLINE_LEG_ROUTES, Math\.floor\(DEADLINE_LEG_ROUTES \/ 4\), 0\]\)/g)?.length).toBe(2);
+    expect(read('scripts/siteRun.ts')).toContain('legs.spill');
+  });
+
+  it("says what My runs' quiet save check sends: the same request as loading a save, through the relay (26 Oct 2026)", () => {
+    expect(text).toContain(
+      "My runs also checks, quietly, whether the game's server has a newer save than the one loaded. It makes the same request as loading your save: your player ID goes through the same relay to the game's server, and your save comes back. The planner keeps only the save's time, and only until you close or reload the page."
+    );
+    expect(text).toContain(
+      'It checks once per page load for each account, and not when you are offline or your save is under 10 minutes old. Nothing goes to the planner\'s own server.'
+    );
+    // What it says must stay true: Load's own request, only the time kept, the 10 minutes.
+    const check = read('src/lib/serverSave.ts');
+    expect(check).toContain('const { backup } = await requestSave(playerId, o.request ? { request: o.request } : {});');
+    expect(check).toContain('known.set(hash, { checkedAt: Math.floor(o.nowSeconds), serverBackupTime: t });');
+    expect(check).toContain('export const QUIET_CHECK_MIN_AGE_S = 10 * 60;');
+    expect(check).toContain("export const NEWER_ON_SERVER = 'A newer save is on the server · Load it';");
+    expect(text).toContain('unless you press A newer save is on the server · Load it');
+  });
+
+  it("says My runs reads your own run's CSV back by the row's id, never the player ID (26 Oct 2026)", () => {
+    expect(text).toContain(
+      "If the route you follow comes from a Fast, Exact or Custom run you sent from another browser, My runs reads that run's CSV back from the planner's server, once per page load, to get its exact per-ascension times. It asks by the run's row ID on the Leaderboard, never by your player ID."
+    );
+    expect(text).toContain("If the run has no CSV, or it can't be read, My runs shows the estimate instead.");
+    // What it says must stay true: the fetch takes a row id only.
+    expect(read('src/composables/useBoardRunLegs.ts')).toContain('fetchCsv(row.id)');
+    expect(read('src/explorer/collector.ts')).toContain('const res = await fetch(`${base}/csv?id=${encodeURIComponent(id)}`, { signal });');
   });
 });
