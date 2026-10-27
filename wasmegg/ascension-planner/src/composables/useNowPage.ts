@@ -63,7 +63,7 @@ import {
   planEvents,
   planFromSnapshot,
   planPrestiges,
-  shiftsAfter,
+  plannedShiftsAfter,
   stepLegsOf,
   tableEvents,
   withTableShifts,
@@ -1563,12 +1563,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
   /** The plan's shifts after the save and their cost at today's soul eggs; null: can't tell (no shift listed).
-   *  `partial`: counted from the table's shifts, which leave out each fresh ascension's opening. */
+   *  `opening`: each fresh ascension's build-up shifts the table leaves out, added as an estimate (lib/nowPlan.ts
+   *  `plannedShiftsAfter`, 27 Oct 2026). `partial`: counted from the table's shifts with none added. */
   const plannedShifts = computed(() => {
     const p = cardPlan.value?.plan;
-    const n = p ? shiftsAfter(p, saveSeconds.value) : null;
-    if (n == null) return null;
-    return { count: n, cost: plannedShiftsCost(soulEggs.value, shiftsDone.value, n), ...(p && !p.legs ? { partial: true } : {}) };
+    const c = p ? plannedShiftsAfter(p, saveSeconds.value) : null;
+    if (c == null) return null;
+    const n = c.count;
+    return {
+      count: n,
+      cost: plannedShiftsCost(soulEggs.value, shiftsDone.value, n),
+      opening: c.opening,
+      ...(p && !p.legs && !c.opening ? { partial: true } : {}),
+    };
   });
 
   // -------------------------------------------------------------------------------------- the tiles

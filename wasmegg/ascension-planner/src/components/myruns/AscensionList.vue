@@ -3,7 +3,7 @@
   each ascension ends, not each shift"). Every ascension A1..An, as the instant answer's "When each step happens" has
   it (lib/instantSteps.ts): when its prestige happens (marked when it waits for the hours or past a no-prestige day)
   and when its stop is reached; under each, its build-up in one line (lib/buildUpLine.ts: the opening's shifts are not in
-  the table) and its shifts. The table's shifts come from its replay (search/legShifts.ts),
+  the table), how many shifts that opening makes (estimated, lib/openingShifts.ts) and its shifts. The table's shifts come from its replay (search/legShifts.ts),
   each after the build-up, to the hour; the current ascension's, once simulated on the live save, are exact. Nothing
   is worked out here.
 -->
@@ -45,6 +45,10 @@
           to your home farm is a prestige), and is built again from {{ exact(l.timeOff.to) }}.
         </p>
         <p v-if="l.buildUp" class="mt-0.5 ml-4 text-body text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
+        <!-- Its opening's shifts, when its list leaves them out: the simulator's standard count (lib/openingShifts.ts). -->
+        <p v-if="l.openingShifts" class="ml-4 text-small text-slate-500" data-testid="now-ascension-opening">
+          Its first hours: about {{ l.openingShifts }} build-up shifts (estimated, not listed)
+        </p>
         <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-small text-slate-600" data-testid="now-ascension-shifts">
           <li v-for="(s, k) in l.shifts" :key="k" data-testid="now-ascension-shift">
             Shift to {{ virtueEggName(s.egg) }} · <span class="whitespace-nowrap">{{ l.simulated ? exact(s.at) : about(s.at) }}</span>

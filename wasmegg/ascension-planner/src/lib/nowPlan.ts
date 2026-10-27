@@ -8,7 +8,8 @@
  *                     its legs when they were kept, when it was worked out, its runner-up gap.
  *   planEvents        the shifts, prestiges and the goal, each with past / not done yet / next flags.
  *   onTrack           a newer save against where the plan (made from an older one) expected it (lib/planPace.ts).
- *   shiftsAfter       how many shifts the plan has after a moment (the "all planned shifts" tile).
+ *   shiftsAfter       how many shifts the plan lists after a moment.
+ *   plannedShiftsAfter  those plus each fresh ascension's estimated build-up shifts (the "all planned shifts" tile).
  *
  * Pure: no Vue, no stores; `now` is always a parameter. The one read: `planFromSnapshot`'s Prefer fewer margin, by
  * default the one stored for the screen (search/preferFewer.ts, guarded), when the caller does not pass it.
@@ -19,6 +20,7 @@ import type { FoundLevel } from './searchPointer';
 import type { StepLeg, StepLine } from './instantSteps';
 import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './planPace';
 import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
+import { estimatedOpening } from './openingShifts';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
 export interface SnapRoute {
@@ -622,6 +624,23 @@ export function shiftsAfter(plan: NowPlan, afterSeconds: number): number | null 
   let n = 0;
   for (const leg of legs.slice(0, plan.chain.length)) for (const sh of leg.shifts ?? []) if (sh.at > afterSeconds) n++;
   return n;
+}
+
+/**
+ * The "all planned shifts" count (27 Oct 2026, Jordan: it said 24 where Single run said +48): the shifts listed after
+ * `afterSeconds` (`shiftsAfter`) plus, on the table's legs, each fresh ascension's build-up shifts the table leaves
+ * out (lib/openingShifts.ts `estimatedOpening`: the simulator's standard opening, 6), for each one that starts at or
+ * after `afterSeconds` (an ascension already under way when the save was taken has its opening behind it). Exact legs
+ * list every shift: nothing added. Null when nothing is listed (as `shiftsAfter`).
+ */
+export function plannedShiftsAfter(plan: NowPlan, afterSeconds: number): { count: number; listed: number; opening: number } | null {
+  const listed = shiftsAfter(plan, afterSeconds);
+  if (listed == null) return null;
+  let opening = 0;
+  if (!plan.legs)
+    for (const leg of (plan.tableLegs ?? []).slice(0, plan.chain.length))
+      if (Number.isFinite(leg.start) && leg.start >= afterSeconds) opening += estimatedOpening(leg);
+  return { count: listed + opening, listed, opening };
 }
 
 // ----------------------------------------------------------------------------------- on track
