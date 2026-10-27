@@ -7,12 +7,13 @@ with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 24
 
 - **Instant answer**: the best routes for your save in seconds, looked up in ascensions priced ahead of time.
 - **Search** (Fast / Exact / Custom): nothing runs by itself; you pick how hard to look and press Run (the button
-  reads Run Fast, Run Exact or Run Custom). Fast and Exact search
+  reads Run Fast, Run Exact or Run Custom; the tick under it sends the result to the Leaderboard). Fast and Exact search
   near the instant answer's route, pricing each route through the full simulator on your own save. **Price this
   route** (on the instant answer's longer-route note) puts that route in Custom's first box.
 - **Custom**: every route in boxes you set, so the answer is proven inside those boxes.
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
 - **Prefer fewer ascensions** (on the instant answer) and **Try waiting before each prestige** (under a search result).
+- **My runs**: where you are now on the route you follow: the Next step, the Next shifts, the Full timeline, and your runs.
 - **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
   Both are off until you tick them in Setup.
 
@@ -29,15 +30,19 @@ and for developers. The maintainer is Williamthe5thc (Discord).
 
 ## Screens at a glance
 
-The tabs are **Manual Planner**, **Auto Planner** and **My runs**. **Leaderboard** and **Science** are off
+The tabs are **Manual Planner**, **Auto Planner** and **My runs** (shown once the account has something there, or
+while a search runs). **Leaderboard** and **Science** are off
 until you tick them in Setup › How the site shows things (kept in this browser). A link to one of them still
 opens it, for that visit. Both need the collector: a build without one never shows them.
 
 Above the tabs, once a save is loaded (and only in a build with a collector), the **Help improve the
-planner** box asks once per browser whether to turn on the site's sharing choices (share runs on the
-leaderboard, the CSV, private diagnostics, share search results). All four start unticked, and Yes stays off
-until one is ticked (No thanks is always available). The answer is kept in this browser (`aap.study`, no
-player ID and no name) across tabs, reloads and restarts; Yes or No thanks hides the box, and the choices
+planner** box asks whether to turn on the site's sharing choices (share runs on the
+Leaderboard, the CSV, private diagnostics, share search results). It is open on every page load until it is
+answered; **Hide** folds it to a strip. All four start unticked, and **Yes, help improve it** stays off
+until one is ticked; **Yes to all** ticks all four (and "Share my instant answer with my runs" and the Run
+tick) and says yes in one press; No thanks is always available. The answer is kept in this browser (`aap.study`, no
+player ID and no name) across tabs, reloads and restarts, and with the account's choices saved online (see
+Privacy and security), so a new browser does not ask again; Yes or No thanks hides the box, and the choices
 change later in Setup › Help improve the planner. Yes applies to the account on screen only; another
 account loaded later gets a one-line offer to use the same choices. Withdrawing there turns sharing off for
 every account in this browser that said yes in the box; an account that agreed under a share button keeps
@@ -46,30 +51,59 @@ that choice.
 - **Manual Planner**: plan an ascension by hand, action by action (upstream's planner). **Wait for TE** stops
   at 98 TE per egg.
 - **Auto Planner**
-  - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
-    Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
   - **Fastest to 490 TE** (the name follows your final target): the instant answer on top, then the
-    **Search** card: **Fast**, **Exact** or **Custom**.
-    **Prefer fewer ascensions** (off by default; within 12 h, 1 day, 2 days or custom) leads the green box
-    with the fewest-ascensions route that close to the best. Under a search result, **Try waiting before each
+    **Search** card: **Fast**, **Exact** or **Custom**. One button runs it, named after the strength picked
+    (**Run Fast**, **Run Exact**, **Run Custom**), with the tick **Send the result to the Leaderboard when it
+    finishes** under it: on by default for a player who said yes to sharing, off otherwise, and your own tick or
+    untick is remembered in this browser. It never sends with sharing off: ticking it then opens **Before you
+    send**. Until Oct 25, 2026 these were two buttons, Find and Find and submit.
+    **Prefer fewer ascensions** (within 12 h by default; Off, within 1 day, 2 days or custom) leads the green box
+    with the fewest-ascensions route that close to the best. It is kept in this browser only, and a pick saved
+    before these defaults is dropped once (`aap-prefer-fewer-v2`). Under a search result, **Try waiting before each
     prestige** prices the route with waits of 1 to 24 hours, on Setup's Awake hours, and suggests a wait only
     when it gains over half an hour and being 2 hours off costs under three times that.
-  - **Highest TE by a date**: the same layout (Prefer fewer: same TE, within 1 or 2 TE). With no instant
-    answer for your TE, **Get a quick estimate** runs a quick scan and a Fast or Exact search around it, about 15
-    minutes in all. A suggested Custom box stays under 20,000 sets of early stops; a typed one is not capped.
+  - **Highest TE by a date**: the same layout (Prefer fewer: same TE by default; Off, within 1 or 2 TE). With no instant
+    answer for your TE, **Get a quick estimate** runs a quick scan and a Fast or Exact search around it, about 10
+    to 15 minutes in all. A suggested Custom box stays under 20,000 sets of early stops; a typed one is not capped.
   - Custom above 300,000 routes shows a note (about how many hours; the command line); Run Custom asks first
     above 100,000 routes, and again above 500,000 (Science sweeps too).
+  - **Single run** (was Your plan): Joo's Classic auto planner. Type the TEs to ascend at and it lays out every ascension.
+    Joo's artifact and stone editor sets the earnings and delivery sets for the whole plan or for one ascension.
+- **Setup** (the Setup button on the Auto Planner and My runs) holds the three kinds of "not now":
+  - **Awake hours**: you are on the virtue farm, but a shift or a prestige waits until you are back inside
+    them; the farm keeps laying meanwhile, and those eggs count.
+  - **No prestige days**: whole dates with no prestige. You stay on virtue, a prestige waits for the next
+    allowed time (inside your Awake hours if set), shifts still happen, and the laying while it waits counts
+    only up to the farm's silo time.
+  - **Time off**: whole dates off the virtue farm, on the home farm. Going home is a prestige, so the ascension
+    in progress ends when the time off starts, nothing is earned on virtue while away, and you come back to a
+    complete rebuild toward the same stop.
+  - Fast, Exact and Custom use all three. The instant answer uses Awake hours and No prestige days but does not
+    price Time off, and says so; its "Prestige by" line knows Awake hours only. Single run does not hold for
+    Awake hours.
 - **Leaderboard** (was Compare, off until ticked in Setup): Egg Day, Fastest to 490 TE, All runs, Other dates, and **Insights**
   (charts across everybody's runs; also the standalone `explorer.html`). Its Your latest run tab is one line
   pointing to My runs now. A **sim** chip beside each run says which simulator priced it, since finish times
   from two simulators do not compare exactly. **Show runs from older simulators** (on by default, kept in this
   browser) hides the older ones when turned off.
-- **My runs** (a top tab, and the Auto Planner's fourth tab: the same page): the "where am I now" page. A save-age strip;
-  **Right now** (your plan's next shifts with dates and calendar reminders built in the browser: an .ics file or a
-  Google link, with a 10-minute alert; its gear rows fold out **Missing for a perfect set**, slot by slot against
-  T4 Legendary with tier-4 stones); **Your eggs**; your saved answers as tiles with **How sure** (High, Medium or
-  Low); **Try next**; **Your routes at a glance** (your routes as points, one goal at a time, folded); then **Your
-  runs** (Latest or All, with filters): runs on the Leaderboard that are yours or look like yours, the hidden ones too,
+- **My runs** (a top tab): the "where am I now" page. A save-age strip with the save check (at most once per page load
+  it asks the server whether a newer save is there: "A newer save is on the server · Load it", or "This is the newest
+  save on the server" with "Why is my save out of date?"; it never swaps the save by itself);
+  **Right now**: the **Next step** and the **Next shifts** (the next few shifts, with the prestiges between).
+  The ascension you are in is simulated on your loaded save in the background ("Working out your shifts…"), so
+  its shifts are to the minute and later ones come from the instant answer, to the hour; a Time off ahead ends
+  that ascension where the time off starts. Then the **Full timeline** (every ascension, each egg's first and last
+  shift), where each fresh ascension has a build-up line such as "You do the build-up for 2 sales, then start
+  producing at 3.574q/hr". My runs works out the instant answer for a followed route itself, so no other tab
+  is needed after a Setup change or in a fresh browser; the instant answer does not price Time off, and its rows
+  say so in amber. A route followed from your own run sent from another browser gets that run's exact times
+  from its CSV on the planner's server, when it was sent with one. Calendar reminders are built in the browser:
+  an .ics file or a Google link, with a 10-minute alert; the gear rows fold out **Missing for a perfect set**, slot by slot against
+  T4 Legendary with tier-4 stones. **Your eggs**, with the **Silos** tile (about how long the silos have left,
+  estimated from your save); the saved answer for the goal picked, as a tile with **How sure** (High, Medium or
+  Low); **Try next**; **Your routes at a glance** (folded: a heat map of your routes, one goal at a time, by
+  ascension count and finish date or TE, the best route starred, with "The same routes as a list"); then **Your
+  runs** (the latest run or All my runs, with filters): runs on the Leaderboard that are yours or look like yours, the hidden ones too,
   runs saved on this computer or phone, and results not sent yet. Each run's details say **What was searched**.
   Saved runs, saved answers and Right now's chip say how many hours ahead of or behind the plan your latest
   save is: "On schedule (within an hour)", or "5 hours behind, as of 3:42 pm" (days from 48 hours).
@@ -111,8 +145,8 @@ up to upstream `39261255`: every fresh build starts with one C1/K1/I1 pass with 
 when that pass can't max the habs, the build takes the C1/K1/I1 rounds from his PR 717 (our default,
 `DEFAULT_OPENING_FALLBACK = 'rounds'`) or his v2 openings (`'v2'`), at any TE. This replaced our earlier
 rule, which used the rounds only below TE 120. Joo's Chain Finder and Table Builder tabs were left out of
-this merge, so this site does not have them. It does **not** plan around Awake hours (they are used only by the searches, via
-`search/leg.ts`) or Continue my
+this merge, so this site does not have them. It does **not** plan around Awake hours (the searches hold for them, via
+`search/leg.ts`, and the instant answer prices them) or Continue my
 build-up, and does not find stops for you. Full list:
 [Single run vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
 
@@ -188,8 +222,14 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
 ```
 
 - `--backup FILE` runs fully offline. `--player-id EI... --save-backup me.json` fetches a save once.
-- `--out DIR` writes `run.csv.gz` and `submission.json` and keeps a resume point; run the same command
-  again after a kill and it carries on. `--dry-run` says what would run and stops.
+- `--out DIR` writes `run.csv.gz` (what a send uploads: per-ascension detail for the top 20,000 routes),
+  `run-full.csv.gz` (every route's per-ascension detail) and `submission.json`, and keeps a resume point; run
+  the same command again after a kill and it carries on. The detail is kept on disk as the run goes, in
+  `DIR/legs.spill` (the help says about the size of the plain CSV; delete it once the files are written if you
+  need the room); without `--out` it is a temporary file, deleted at the end. `--plain-csv` also writes
+  `DIR/run.csv`, uncompressed, with every route's detail; `--no-submit-csv` writes none of the three tables and
+  leaves the table out of the send. `--csv FILE` (the plain CSV without `--out`, by default
+  `fastsearch-<timestamp>.csv`) has every route's detail too. `--dry-run` says what would run and stops.
 - A box above 300,000 routes prints the site's note (routes, about how many hours). A box above 100,000
   routes asks `Continue? [y/N]` before it runs (again above 500,000); `--yes` skips that, and without a
   terminal to answer it stops and says to add `--yes`. `--dry-run` never asks.
@@ -200,7 +240,7 @@ node dist-search/fastsearch.js submit --from run1 --nickname Me --yes
   `--nickname`. To any collector not on your own machine it needs `--yes`, or nothing leaves.
   What-ifs (`--add-artifact`, `--mod`) are never sent.
 - Awake hours, Time off and the first ascension match Setup: `--available-from/--available-to`,
-  `--time-off`, `--first-ascension auto|buildup|continue|fresh`.
+  `--time-off`, `--first-ascension auto|buildup|continue|fresh`. There is no flag for No prestige days.
 - Its own tools, not on the site: `--exhaustive --range`, `--stages`, `--grid`, `--direct`
   (`scripts/autoplan.py` is an older Python driver of `--stages`).
 
@@ -274,8 +314,18 @@ and [Searches in detail](https://github.com/william-egginc/AutoAutoAP/wiki/Searc
 
 ### The CSV
 
-**Download CSV**, the `run.csv.gz` that `--out` writes and the table a send uploads have one row per leg
-of every route a run priced. It starts with `#` comment lines: plan start, TE and target, effort, first
+**Download CSV** is the full file: one row per leg (ascension) of every route a run priced, as are the command
+line's `run-full.csv.gz`, `run.csv` and `--csv` file. Each priced route's per-ascension detail is written to
+disk as the run goes (the leg spill: in the browser's private file storage, OPFS, one file per account and
+screen; `legs.spill` in the command line), and the download reads it back, through an OPFS file, so even a
+big file never sits in the page's memory. Highest TE by a date's full file adds a section of every priced route's legs,
+rows tagged `pricedleg`. Without that storage (no OPFS, a private window, or another tab has this account's file
+open) the download has per-ascension detail only for the routes held in memory: Setup › This computer › Memory,
+**Keep per-ascension detail for N fastest routes** (0 is all; the default follows the browser's reported memory,
+500 to 8,000, or 2,000 where it reports none; remembered in this browser, not saved online). The Memory line
+says which case applies. The `run.csv.gz` that `--out` writes and the table a send uploads have per-ascension
+detail for the top 20,000 routes only, and only the total for every other route; a Fastest send over
+the upload limit tries 5,000 routes, then none. The CSV starts with `#` comment lines: plan start, TE and target, effort, first
 ascension, Awake hours, Time off, your note, the artifacts and stones; `# searched:` (the boxes, in the command
 line's notation) and `# ascensions:` (the count range and the minimum gap); and, for Highest TE by a date, `# workers:`
 (the run's workers over its life). The header's own words have no commas, since Numbers and Excel split
@@ -286,7 +336,7 @@ The columns: `rank`, `chain`, `prestiges`, `total_days`, `gap_days` (the route),
 `leg_days`, `peak_delivery_q_per_hr`, `night_shifts` (shifts still outside your Awake hours),
 `prestige_delay_hours`, `shift_hold_hours` (waits for Awake hours), `starts_on_egg`, `shift_times_local`
 and `time_off`; leg 1 has a few more (which way it went, and what the other way would have given). A
-route restored after a refresh keeps its total but not its per-leg cells. Details:
+route replayed from a saved checkpoint keeps its total; its per-leg cells can be blank (the header says so). Details:
 [Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard).
 
 ### Checking a table someone sent (`--check-bin`)
@@ -360,7 +410,14 @@ Paths are relative to this folder. The full module map is on
   `src/explorer/` (Insights, `explorer.html`), `src/watch/` (`watch.html`).
 - `collector/`: the Cloudflare Worker. `scripts/precompute.ts`: the instant answer's tables.
   `scripts/fastsearch.ts`, `scripts/siteRun.ts`: the command line. `public/about.html`: About and privacy.
-  `release.ts`: the update notes an open tab shows.
+  `release.ts`: the update notes an open tab shows (the banner lists the notes newer than the tab's build,
+  newest first, at most 5, then "+N more").
+- The leg spill: `src/search/legSpill.ts` (shared), `src/lib/legSpillOpfs.ts`, `src/workers/legSpill.worker.ts`
+  and `src/lib/legSpillText.ts` (the page), `scripts/nodeLegSpill.ts` (the command line). Consent and Setup
+  saved online: `src/lib/prefsCloud.ts`, `src/stores/prefs.ts`.
+- Type: no monospace font anywhere (`tailwind.config.ts` sets `fontFamily.mono` to `inherit`; `pre`, `code`,
+  `kbd` and `samp` use the body font), tabular figures in every table cell, and every text field, select and
+  textarea at 16 px below `sm` so iOS does not zoom on focus (`src/styles/components.css`).
 - **`ascension-chain-search`** is the main line; the site is built from it. Upstream is
   **`wasmegg-carpet/egg`** (Carpet's fork; its `ascension-planner` branch carries Joo's planner), merged in.
   Work happens on short topic branches merged back into `ascension-chain-search`.
@@ -375,7 +432,13 @@ How to merge upstream safely: [Contributing and upstream sync](https://github.co
 ## Privacy and security
 
 - Your save and player ID stay in your browser. The save is fetched through a small relay that stores nothing.
-- Nothing goes to the leaderboard until you tick the agreement and press a send button; unticking it stops sends at once.
+- Nothing goes to the Leaderboard until you tick the agreement and send: Run with its Leaderboard tick on, or a share
+  button. Unticking the agreement stops sends at once.
+- Your sharing choices and your Setup (Awake hours, Time off, No prestige days, the target TE and the time zone) are
+  saved online on the planner's server (`GET`/`PUT /prefs`), under a code made from your player ID (SHA-256, the same
+  code as the followed route), never the ID itself, and a name only if you chose to be credited by name. There is no
+  switch for it, and anyone who knows the player ID can read and change them. This computer's settings, the first
+  ascension, the Stepping away? choices and Prefer fewer stay in the browser.
 - A send never holds your player ID, and ID-shaped text is stripped from names, notes, `searched` and the CSV.
 - The short version: `public/about.html`; problems go to `/.well-known/security.txt`; what the collector keeps: `collector/README.md`.
   Full details: [Privacy and security](https://github.com/william-egginc/AutoAutoAP/wiki/Privacy-and-security).
