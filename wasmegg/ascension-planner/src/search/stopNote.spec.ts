@@ -26,7 +26,7 @@ describe('the stopping note', () => {
     expect(panel).toContain("import { STOPPING_NOTE } from '@/search/stopNote'");
     // The quick estimate card's Stop, and the Stop that run button.
     expect((panel.match(/data-testid="stopping-note"/g) ?? []).length).toBe(2);
-    expect(panel).toContain('v-if="stopAsked" class="text-[11px] text-slate-600" data-testid="stopping-note"');
+    expect(panel).toContain('v-if="stopAsked" class="text-body text-slate-600" data-testid="stopping-note"');
     expect(panel).toContain('store.isRunning && store.stopRequested');
   });
 });

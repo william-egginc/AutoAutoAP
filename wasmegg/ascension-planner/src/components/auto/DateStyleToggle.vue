@@ -1,8 +1,8 @@
 <!-- How dates and hours are shown on this site, in this browser (lib/displayTime.ts). -->
 <template>
-  <label class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+  <label class="flex flex-wrap items-center gap-2 text-small text-slate-600">
     <span class="font-bold text-slate-700">Show dates as</span>
-    <select v-model="dateStyle" class="rounded-md border-slate-300 py-1 text-[11px] font-bold text-slate-800">
+    <select v-model="dateStyle" class="rounded-md border-slate-300 py-1 text-body font-bold text-slate-800">
       <option value="local">{{ example('local') }} (your browser's format)</option>
       <option value="iso">{{ example('iso') }}</option>
     </select>

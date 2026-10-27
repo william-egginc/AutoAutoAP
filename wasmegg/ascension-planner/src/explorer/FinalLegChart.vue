@@ -30,17 +30,17 @@
       :entries="legendEntries"
       label="Accounts: click to hide or show"
     />
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
       No run to 490 TE here carries both per-ascension detail and a delivery set yet.
     </p>
-    <p v-if="unchecked.total" class="text-[10px] font-semibold text-slate-500 px-1">
+    <p v-if="unchecked.total" class="text-small font-bold text-slate-500 px-1">
       {{ unchecked.total }} run{{ unchecked.total === 1 ? '' : 's' }} to 490 TE
       {{ unchecked.total === 1 ? 'is' : 'are' }} not drawn because the check cannot judge
       {{ unchecked.total === 1 ? 'it' : 'them' }}: {{ unchecked.text }}.
     </p>
     <!-- The section around this says what the check is for and that it was fitted on these runs;
          this says only how "expected" is worked out and what the hollow marker means. -->
-    <p class="text-[10px] text-slate-400 leading-relaxed px-1">
+    <p class="text-small text-slate-400 px-1">
       Expected peak = the run's delivery score × {{ PERFECT_QPH }} q/hr × how much of that rate a farm has reached by
       its last stop ({{ rampAt(190) }}% at 190 TE, all of it from 280). A hollow marker is a flagged run.
     </p>

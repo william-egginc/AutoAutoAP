@@ -13,7 +13,7 @@
   <BlackBoxNotice :deadline-offer="deadlineOffer" />
   <div
     v-if="ui.staleBackup"
-    class="p-3 rounded-xl border text-[11px] leading-relaxed space-y-2"
+    class="p-3 rounded-xl border text-body space-y-2"
     :class="
       store.staleBackupAccepted
         ? 'border-amber-200 bg-amber-50 text-amber-900'
@@ -26,12 +26,12 @@
       nothing to plan from; the health check refuses a run, so there is no "anyway" to offer.
     -->
     <p v-if="!initialState.rawBackup">
-      <span class="font-black uppercase tracking-wide">Your save didn't load.</span>
+      <span class="font-bold">Your save didn't load.</span>
       Fetching it failed ({{ ui.staleBackup }}) and there's no earlier copy on {{ thisDevice() }}, so there is nothing to plan
       from yet. Try again in a minute.
     </p>
     <p v-else>
-      <span class="font-black uppercase tracking-wide">Your latest save didn't load.</span>
+      <span class="font-bold">Your latest save didn't load.</span>
       Fetching it failed ({{ ui.staleBackup }}), so the planner is working from an older copy<template v-if="savedAgo">
         ({{ savedAgo }})</template
       ><template v-if="store.currentTE > 0">, at {{ store.currentTE }} TE</template>. If you've played since, every plan
@@ -42,7 +42,7 @@
         type="button"
         :disabled="ui.loading || store.busy"
         :title="store.isRunning ? 'Stop the run first: reloading the save resets the planner under it' : undefined"
-        class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
         @click="ui.backupRetryRequested++"
       >
         {{ ui.loading ? 'Loading…' : 'Try again' }}
@@ -53,21 +53,21 @@
       </label>
     </div>
   </div>
-  <p v-if="store.integrityChecking" class="text-[11px] text-slate-400">Checking whether this account can build...</p>
+  <p v-if="store.integrityChecking" class="text-body text-slate-400">Checking whether this account can build...</p>
   <div
     v-else-if="store.integrityNotice"
-    class="p-3 rounded-xl border text-[11px] leading-relaxed"
+    class="p-3 rounded-xl border text-body"
     :class="
       store.integrityNotice.blocked
         ? 'border-red-200 bg-red-50 text-red-800'
         : 'border-amber-200 bg-amber-50 text-amber-900'
     "
   >
-    <span class="font-black uppercase tracking-wide"
+    <span class="label"
       >{{ store.integrityNotice.blocked ? "This account can't be planned yet" : 'This account stalls' }}.</span
     >
     <template v-for="(part, i) in noticeParts" :key="i"
-      ><b v-if="part.bold" class="font-black">{{ part.text }}</b
+      ><b v-if="part.bold" class="font-bold">{{ part.text }}</b
       ><template v-else>{{ part.text }}</template></template
     >
   </div>

@@ -5,7 +5,7 @@
 -->
 <template>
   <div
-    class="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[10px] text-slate-500"
+    class="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-small text-slate-500"
     role="group"
     :aria-label="label"
   >

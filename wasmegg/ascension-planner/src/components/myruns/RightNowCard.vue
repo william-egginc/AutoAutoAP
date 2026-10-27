@@ -46,8 +46,8 @@
   <section class="rounded-2xl border border-slate-200 bg-white p-4 space-y-2" data-testid="now-card">
     <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
       <div class="min-w-0 flex flex-wrap items-baseline gap-x-3">
-        <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">Right now</p>
-        <p v-if="card" class="text-[12px] text-slate-500" data-testid="now-calculated">
+        <p class="label text-slate-500">Right now</p>
+        <p v-if="card" class="text-body text-slate-500" data-testid="now-calculated">
           Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ howText }})<template
             v-if="card.pricedWith"
             >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
@@ -79,19 +79,19 @@
         :data-state="g.state"
         @click="emit('select', g.key)"
       >
-        <span class="block text-[13px] font-bold">{{ g.label }}</span>
-        <span class="block text-[11px]" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times">{{ optionSub(g) }}</span>
+        <span class="block text-small font-bold">{{ g.label }}</span>
+        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times">{{ optionSub(g) }}</span>
       </button>
     </div>
 
     <!-- The route followed: the ascension the save is in highlighted, the stops passed greyed; wraps. -->
-    <p v-if="shownChain.length" class="text-[13px] text-slate-700 break-words" data-testid="now-chain">
+    <p v-if="shownChain.length" class="text-body text-slate-700 break-words" data-testid="now-chain">
       <template v-if="notOnVirtue">If you start then:{{ ' ' }}</template>Following<template v-for="(s, i) in stops" :key="i"
         >{{ i ? ' → ' : ' '
         }}<span
           :class="
             s.state === 'now'
-              ? 'font-black text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
+              ? 'font-bold text-indigo-800 underline decoration-indigo-500 decoration-2 underline-offset-2'
               : s.state === 'passed'
                 ? 'text-slate-400'
                 : ''
@@ -105,42 +105,42 @@
 
     <!-- Where the plan comes from (lib/searchPlan.ts): the instant answer or a search's result on the account. -->
     <div v-if="card && pill" class="space-y-0.5" data-testid="now-source" :data-source="card.plan.from ? 'search' : 'instant'">
-      <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-slate-500">
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body text-slate-500">
         <span
-          class="rounded px-1.5 py-0.5 text-[10px] font-black uppercase tracking-widest"
+          class="rounded px-1.5 py-0.5 label"
           :class="card.plan.from ? 'bg-indigo-600 text-white' : 'bg-emerald-100 text-emerald-800'"
           data-testid="now-source-pill"
           >{{ pill }}</span
         >
         <span data-testid="now-source-sub">{{ pillSub }}</span>
       </p>
-      <p v-if="replaceLine" class="text-[12px] text-slate-600" data-testid="now-replaces">
+      <p v-if="replaceLine" class="text-body text-slate-600" data-testid="now-replaces">
         {{ replaceLine }}
         <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-go-back" @click="emit('goBack')">
           Go back to the instant answer
         </button>
       </p>
-      <p v-else-if="backLine" class="text-[12px] text-slate-600" data-testid="now-went-back">
+      <p v-else-if="backLine" class="text-body text-slate-600" data-testid="now-went-back">
         {{ backLine }}
         <button type="button" class="font-bold text-indigo-700 underline" data-testid="now-use-search" @click="emit('useSearch')">
           Use your {{ card.driving?.search?.from?.level }} run
         </button>
       </p>
-      <p v-else-if="keepLine" class="text-[12px] text-slate-600" data-testid="now-keeps-instant">{{ keepLine }}</p>
+      <p v-else-if="keepLine" class="text-body text-slate-600" data-testid="now-keeps-instant">{{ keepLine }}</p>
     </div>
 
     <!-- The player's own pick (lib/follow.ts) and where its price came from. One path per card (25 Oct 2026): no Run
          Fast, Simulate it or way back on this line; the way back is the quiet line under Earlier versions. -->
-    <p v-if="follow" class="text-[12px] text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
+    <p v-if="follow" class="text-body text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
       <span class="font-bold text-indigo-800" data-testid="now-follow-whose">{{ followWhose }}</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
       ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template>
     </p>
 
     <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
-    <p v-if="follow && followSetWith" class="text-[12px] text-slate-500" data-testid="now-follow-set-with">{{ followSetWith }}</p>
+    <p v-if="follow && followSetWith" class="text-body text-slate-500" data-testid="now-follow-set-with">{{ followSetWith }}</p>
     <!-- Not saved online (a press that didn't get through, its retry too): said, with "Save it online" (stores/follow.ts
          `notSaved`). -->
-    <p v-if="follow && (followSaveWords || followNotSaved)" class="text-[12px] text-amber-800" role="status" :data-testid="followSaveWords ? 'now-follow-save' : 'now-follow-unsaved'">
+    <p v-if="follow && (followSaveWords || followNotSaved)" class="text-body text-amber-800" role="status" :data-testid="followSaveWords ? 'now-follow-save' : 'now-follow-unsaved'">
       {{ followSaveWords || NOT_SAVED_WORDS }}<template v-if="followNotSaved">{{ ' ' }}</template>
       <button
         v-if="followNotSaved"
@@ -154,7 +154,7 @@
     </p>
     <!-- The routes saved online couldn't be read on this load: amber with Retry, never red, as following still works in
          this browser (UX review, 25 Oct 2026). -->
-    <p v-if="followCloudUnreachable" class="text-[12px] text-amber-800" role="status" data-testid="now-follow-cloud-unreachable">
+    <p v-if="followCloudUnreachable" class="text-body text-amber-800" role="status" data-testid="now-follow-cloud-unreachable">
       {{ UNREACHABLE_NOTE }} Following still works in this browser.{{ ' ' }}
       <button
         type="button"
@@ -186,15 +186,15 @@
       :now="now"
     />
     <!-- The only way to stop following (25 Oct 2026: off the follow line, quiet, under Earlier versions). -->
-    <p v-if="follow" class="text-[11px] text-slate-500" data-testid="now-follow-back-line">
+    <p v-if="follow" class="text-body text-slate-500" data-testid="now-follow-back-line">
       <button type="button" class="inline-flex min-h-[44px] items-center underline hover:text-slate-700 sm:min-h-0" data-testid="now-follow-back" @click="emit('unfollow')">
         Stop following: use the planner's route
       </button>
     </p>
 
     <!-- Follow another route: typed stops (lib/follow.ts parseTypedRoute). -->
-    <details v-if="selectedOption && !notOnVirtue" class="text-[12px]" data-testid="now-follow-typed">
-      <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer font-semibold text-indigo-700" data-testid="now-follow-typed-summary">Follow another route</summary>
+    <details v-if="selectedOption && !notOnVirtue" class="text-body" data-testid="now-follow-typed">
+      <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer font-bold text-indigo-700" data-testid="now-follow-typed-summary">Follow another route</summary>
       <form class="mt-1.5 flex flex-wrap items-center gap-2" @submit.prevent="followTyped">
         <label class="sr-only" for="now-follow-input">Stops of the route</label>
         <input
@@ -204,10 +204,10 @@
           inputmode="numeric"
           autocomplete="off"
           :placeholder="typedHint"
-          class="min-h-[44px] w-56 max-w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-[13px]"
+          class="min-h-[44px] w-56 max-w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-body"
           data-testid="now-follow-input"
         />
-        <button type="submit" class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700 hover:bg-indigo-50">
+        <button type="submit" class="min-h-[44px] rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-body font-bold text-indigo-700 hover:bg-indigo-50">
           Follow
         </button>
         <span v-if="typedError" class="w-full text-rose-700" data-testid="now-follow-error">{{ typedError }}</span>
@@ -216,17 +216,17 @@
     </details>
 
     <!-- A better plan of this save priced with other hours: named, never the lead (fix 22, lib/currentAnswer.ts). -->
-    <p v-if="card?.secondary" class="text-[12px] text-slate-500" data-testid="now-secondary">
+    <p v-if="card?.secondary" class="text-body text-slate-500" data-testid="now-secondary">
       {{ secondaryText }}<template v-if="card.secondary.plan.calculatedAt">
         (calculated {{ dateAt(card.secondary.plan.calculatedAt / 1000, now, zone) }})</template
       >
     </p>
 
-    <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-setup-changed">
+    <p v-if="card?.state === 'setup-changed'" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-body text-amber-900" data-testid="now-setup-changed">
       Setup changed since this plan.
       <button type="button" class="font-bold underline" @click="emit('open', goalOpen)">Get the instant answer for your Setup ›</button>
     </p>
-    <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-900" data-testid="now-older-save">
+    <p v-else-if="card?.state === 'older-save' && !follow" class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-body text-amber-900" data-testid="now-older-save">
       This plan was worked out from your save of {{ planSaveWhen }}, an older one than you loaded.
     </p>
 
@@ -238,126 +238,126 @@
       </div>
       <div class="min-w-0">
         <div class="flex flex-wrap items-start gap-x-2.5 gap-y-1">
-          <p v-if="onVirtue" class="text-xl font-black text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
-          <p v-else-if="notOnVirtue" class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
+          <p v-if="onVirtue" class="text-title font-bold text-slate-900">{{ eggName || 'Your virtue farm' }}</p>
+          <p v-else-if="notOnVirtue" class="text-body font-bold text-slate-800 max-w-prose" data-testid="now-not-virtue">
             No virtue farm in this save, so nothing to do on a farm yet.
           </p>
-          <p v-else class="text-sm font-bold text-slate-800" data-testid="now-not-virtue">
+          <p v-else class="text-body font-bold text-slate-800 max-w-prose" data-testid="now-not-virtue">
             No virtue farm in this save<template v-if="card?.plan.planStart">: the plan starts with a fresh ascension {{ dateAt(card.plan.planStart, now, zone) }}</template>.
           </p>
           <!-- The state, as a badge on the egg's own line (lib/nowPhase.ts), its rate smaller underneath. -->
           <span v-if="notOnVirtue || phaseText" class="inline-flex flex-col items-start">
             <span
               v-if="notOnVirtue"
-              class="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[12px] font-bold text-amber-900"
+              class="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-small font-bold text-amber-900"
               data-testid="now-not-virtue-pill"
               >Not on virtue yet</span
             >
             <span
               v-else-if="phaseText"
-              class="rounded-full border px-2.5 py-0.5 text-[12px] font-bold"
+              class="rounded-full border px-2.5 py-0.5 text-small font-bold"
               :class="phase!.phase === 'building' ? 'border-sky-300 bg-sky-50 text-sky-900' : 'border-emerald-300 bg-emerald-50 text-emerald-800'"
               data-testid="now-phase"
               :data-phase="phase!.phase"
               >{{ phaseText.title }}</span
             >
-            <span v-if="phaseText && phaseText.rate && !notOnVirtue" class="mt-0.5 text-[11px] text-slate-500" data-testid="now-phase-rate">{{ phaseText.rate }}</span>
+            <span v-if="phaseText && phaseText.rate && !notOnVirtue" class="mt-0.5 text-small text-slate-500" data-testid="now-phase-rate">{{ phaseText.rate }}</span>
           </span>
         </div>
-        <p class="text-[12px] text-slate-500">
+        <p class="text-body text-slate-500">
           <template v-if="card && ascNow > 0">ascension {{ ascNow }} of {{ card.plan.chain.length }} · </template>
           <template v-else-if="card && card.plan.planStart && ascNow === 0">plan starts {{ dateAt(card.plan.planStart, now, zone) }} · </template>
           {{ Math.floor(teSoFar) }} TE so far
         </p>
       </div>
-      <span v-if="chip" class="ml-auto rounded-full border px-2.5 py-0.5 text-[12px] font-bold" :class="CHIP[chip.tone]" data-testid="now-track">
+      <span v-if="chip" class="ml-auto rounded-full border px-2.5 py-0.5 text-small font-bold" :class="CHIP[chip.tone]" data-testid="now-track">
         {{ chip.text }}
       </span>
     </div>
 
     <!-- Not on virtue yet: when to start, from each goal's saved plan (lib/nowStart.ts); nothing worked out here. -->
     <div v-if="notOnVirtue" class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-start">
-      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">When to start</p>
-      <ul v-if="startInfo && startInfo.length" class="mt-0.5 space-y-0.5 text-[13px] text-slate-800" data-testid="now-start-lines">
+      <p class="label text-indigo-700">When to start</p>
+      <ul v-if="startInfo && startInfo.length" class="mt-0.5 space-y-0.5 text-small text-slate-800" data-testid="now-start-lines">
         <li v-for="l in startInfo" :key="l.key">{{ l.text }}</li>
       </ul>
-      <p v-else class="text-[13px] text-slate-700" data-testid="now-start-none">{{ NOTHING_PRICED }}</p>
+      <p v-else class="text-body text-slate-700" data-testid="now-start-none">{{ NOTHING_PRICED }}</p>
       <button
         type="button"
-        class="mt-2 min-h-[44px] rounded-xl bg-indigo-600 px-4 py-2 text-[14px] font-bold text-white hover:bg-indigo-700"
+        class="mt-2 min-h-[44px] rounded-xl bg-indigo-600 px-4 py-2 text-body font-bold text-white hover:bg-indigo-700"
         data-testid="now-when-start"
         @click="emit('startTimes', card?.plan.chain.length ? [...card.plan.chain] : null)"
       >
         When should I start? ›
       </button>
-      <span class="block mt-1 text-[11px] text-slate-500"
+      <span class="block mt-1 text-body text-slate-500 max-w-prose"
         >Prices a route at every hour of the next week for this save ({{ NAMES.science }} › {{ NAMES.start }}).</span
       >
     </div>
 
     <!-- Next step. -->
     <div v-else class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
-      <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next step</p>
+      <p class="label text-indigo-700">Next step</p>
       <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
            action and the first shifts (26 Oct 2026); the lines below say why the rest has no times. -->
       <template v-if="!card && follow && (actionText || simWorking || simFailure)">
-        <p v-if="actionText" class="text-[13px] text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
+        <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
           <b>{{ actionText }}</b>
         </p>
         <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
-          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next shifts</p>
-          <ul class="list-none pl-0 text-[12px] text-slate-700">
+          <p class="label text-indigo-700">Next shifts</p>
+          <ul class="list-none pl-0 text-small text-slate-700">
             <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
           </ul>
         </div>
-        <p v-if="simWorking" class="mt-0.5 text-[12px] text-slate-600" role="status" data-testid="now-sim-working" :data-state="simWorking">
+        <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
           <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
-        <p v-if="simFailure" class="mt-0.5 text-[12px] text-amber-800" role="status" data-testid="now-sim-failed">
+        <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
           Could not work out your shifts: {{ simFailure.reason }}<template v-if="simFailure.retrying">{{ ' ' }}(trying once more in a minute)</template>
         </p>
       </template>
       <template v-if="card">
         <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
              line from the plan's events. -->
-        <p v-if="actionText" class="text-[13px] text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
+        <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
           <b>{{ actionText }}</b>
         </p>
-        <p v-else-if="nextText" class="text-[13px] text-slate-800">
+        <p v-else-if="nextText" class="text-body text-slate-800">
           <b>{{ nextText }}</b>
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
-        <p v-else class="text-[13px] text-slate-700">Nothing left in this plan: work out a new one.</p>
+        <p v-else class="text-body text-slate-700">Nothing left in this plan: work out a new one.</p>
         <!-- The next prestige of the estimate runs into time off or a no-prestige day it doesn't price: never a plain time. -->
-        <p v-if="!actionText && nextFlag" class="mt-0.5 text-[12px] text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
-        <p v-if="card.plan.estimated" class="mt-0.5 text-[12px] text-slate-600" data-testid="now-next-estimated">
+        <p v-if="!actionText && nextFlag" class="mt-0.5 text-body text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
+        <p v-if="card.plan.estimated" class="mt-0.5 text-body text-slate-600 max-w-prose" data-testid="now-next-estimated">
           <template v-if="simulatedNow">The ascension you are in, simulated on your save; the rest of your route's steps, {{ ESTIMATE_WORDS }}.</template>
           <template v-else>Your route's steps, {{ ESTIMATE_WORDS }}.</template>
         </p>
         <!-- Next shifts (lib/nextAction.ts `nextShifts`): one quiet list, always shown, not interactive. -->
         <div v-if="nextShiftLines && nextShiftLines.length" class="mt-1.5" data-testid="now-next-shifts">
-          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-700">Next shifts</p>
-          <ul class="list-none pl-0 text-[12px] text-slate-700">
+          <p class="label text-indigo-700">Next shifts</p>
+          <ul class="list-none pl-0 text-small text-slate-700">
             <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
           </ul>
         </div>
         <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
-        <p v-if="simWorking" class="mt-0.5 text-[12px] text-slate-600" role="status" data-testid="now-sim-working" :data-state="simWorking">
+        <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
           <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
-        <p v-if="simFailure" class="mt-0.5 text-[12px] text-amber-800" role="status" data-testid="now-sim-failed">
+        <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
           Could not work out your shifts: {{ simFailure.reason }}<template v-if="simFailure.retrying">{{ ' ' }}(trying once more in a minute)</template>
         </p>
-        <p v-if="track?.kind === 'behind'" class="mt-1 text-[12px] text-rose-800" data-testid="now-behind">
+        <p v-if="track?.kind === 'behind'" class="mt-1 text-body text-rose-800" data-testid="now-behind">
           {{ paceBadge }}.
           <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" data-testid="now-behind-run-fast" @click="emit('recalc', recalcRequest)">Run Fast ›</button>
         </p>
       </template>
       <p
         v-else-if="follow && (follow.estimating === 'working' || follow.estimating === 'waiting')"
-        class="text-[13px] text-slate-700"
+        class="text-body text-slate-700 max-w-prose"
         role="status"
         data-testid="now-follow-estimating"
         :data-state="follow.estimating"
@@ -368,7 +368,7 @@
       <!-- My runs works the instant answer for this setup out itself (composables/useInstantCompute.ts). -->
       <p
         v-else-if="follow && (follow.estimating === 'instant' || follow.estimating === 'instantwait')"
-        class="text-[13px] text-slate-700"
+        class="text-body text-slate-700 max-w-prose"
         role="status"
         data-testid="now-follow-instant"
         :data-state="follow.estimating"
@@ -376,7 +376,7 @@
         <template v-if="follow.estimating === 'instant'">Working out the instant answer for your setup…</template>
         <template v-else>The instant answer for your setup is worked out once the search running now ends.</template>
       </p>
-      <p v-else-if="follow && follow.estimating === 'nosource'" class="text-[13px] text-slate-700" data-testid="now-follow-nosource">
+      <p v-else-if="follow && follow.estimating === 'nosource'" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-nosource">
         <template v-if="follow.instantFailure"
           >No timeline for your route yet: the instant answer for your setup couldn't be worked out here ({{ follow.instantFailure }}).</template
         ><template v-else
@@ -391,7 +391,7 @@
           Open {{ screenName }} once so the instant answer can price it ›
         </button>
       </p>
-      <p v-else-if="follow" class="text-[13px] text-slate-700" data-testid="now-follow-next" :data-estimating="follow.estimating ?? ''">
+      <p v-else-if="follow" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-next" :data-estimating="follow.estimating ?? ''">
         <template v-if="follow.estimating === 'beyond'"
           >Your route goes past what the instant answer covers, so it has no estimate:{{ ' ' }}</template
         ><template v-else-if="follow.estimating === 'failed'"
@@ -400,7 +400,7 @@
         out its times on your account.
       </p>
       <!-- By a date (Egg Day too): plans kept, none in time (lib/eggDayRule.ts): said plainly, the nearest shown, marked. -->
-      <p v-else-if="selectedOption?.state === 'late'" class="text-[13px] text-slate-700" data-testid="now-no-route-in-time">
+      <p v-else-if="selectedOption?.state === 'late'" class="text-body text-slate-700" data-testid="now-no-route-in-time">
         {{ lateWords }}<template v-if="selectedOption.late?.chain"
           >{{ ' ' }}<span class="tabular-nums" data-testid="now-late-route">{{ selectedOption.late.chain.join(' ') }}</span> · {{ lateMark }}</template
         >
@@ -409,17 +409,17 @@
           Work it out ›
         </button>
       </p>
-      <p v-else-if="selectedOption" class="text-[13px] text-slate-700" data-testid="now-no-plan">
+      <p v-else-if="selectedOption" class="text-body text-slate-700 max-w-prose" data-testid="now-no-plan">
         {{ selectedOption.label }}: {{ emptyGoalWords(selectedOption.state) }} ·
         <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-it-out" @click="emit('open', selectedOption.open)">
           Work it out ›
         </button>
-        <span class="block mt-0.5 text-[11px] text-slate-500"
+        <span class="block mt-0.5 text-body text-slate-500 max-w-prose"
           >The instant answer for a goal is kept for a day after its screen works it out; a Fast, Exact or Custom result
           for it takes over when it is better.</span
         >
       </p>
-      <p v-else class="text-[13px] text-slate-700" data-testid="now-no-plan">
+      <p v-else class="text-body text-slate-700 max-w-prose" data-testid="now-no-plan">
         No plan with its times is saved for this save yet: the instant answer for a goal is kept for a day after its
         screen works it out.
         <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline" data-testid="now-work-out-plan" @click="emit('open', { auto: 'fastest', depth: 'smart', target: 490 })">
@@ -455,7 +455,7 @@
         :rounded="rounded"
       />
       <details class="mt-2" data-testid="now-timeline">
-        <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-[13px] font-semibold text-indigo-700" data-testid="now-timeline-summary">
+        <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-indigo-700" data-testid="now-timeline-summary">
           Full timeline (every ascension, each egg's first and last shift)
         </summary>
         <div class="mt-2">

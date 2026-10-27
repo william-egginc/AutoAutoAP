@@ -43,7 +43,7 @@
           v-for="mode in MODES"
           :key="mode.id"
           type="button"
-          class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
           :class="
             metric === mode.id
               ? 'bg-slate-900 text-white border-slate-900'
@@ -54,7 +54,7 @@
           {{ mode.label }}
         </button>
       </div>
-      <span v-if="!withLegs.length" class="text-[10px] font-bold text-amber-700">
+      <span v-if="!withLegs.length" class="text-small font-bold text-amber-700">
         No run at this count carried per-ascension detail.
       </span>
     </div>
@@ -67,7 +67,7 @@
       :entries="legendEntries"
       label="Accounts: click to hide or show"
     />
-    <p class="text-[10px] text-slate-400 leading-relaxed px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
+    <p class="text-small text-slate-400 px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
   </div>
 </template>
 

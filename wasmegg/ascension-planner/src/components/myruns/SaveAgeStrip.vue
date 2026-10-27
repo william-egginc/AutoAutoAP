@@ -10,7 +10,7 @@
 -->
 <template>
   <div
-    class="rounded-xl border px-3 py-2 text-[13px]"
+    class="rounded-xl border px-3 py-2 text-body"
     :class="strip ? TONE[strip.tone] : 'border-slate-200 bg-slate-50 text-slate-700'"
     data-testid="now-save-strip"
     :data-tone="strip?.tone ?? 'none'"

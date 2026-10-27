@@ -11,7 +11,7 @@
     class="inline-flex items-center rounded-lg border font-bold"
     :class="[
       on ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50',
-      primary ? 'min-h-[44px] sm:min-h-0 px-3 py-1.5 text-[12px]' : 'px-2 py-0.5 text-[11px]',
+      primary ? 'min-h-[44px] sm:min-h-0 px-3 py-1.5 text-body' : 'px-2 py-0.5 text-body',
     ]"
     :aria-pressed="on ? 'true' : 'false'"
     :title="on ? `Right now (My runs) follows this route for ${goalName}` : `Right now (My runs) follows this route for ${goalName} instead of the checked one`"

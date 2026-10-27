@@ -1,6 +1,6 @@
 <template>
   <!-- "What if you had maxed gear?" (the user, 15 Oct): the answer found again on the maxed table. -->
-  <details class="mt-2 text-[11px] text-slate-700" data-testid="instant-maxed-what-if" @toggle="onToggle">
+  <details class="mt-2 text-body text-slate-700" data-testid="instant-maxed-what-if" @toggle="onToggle">
     <summary
       class="cursor-pointer font-bold text-slate-600 hover:text-emerald-800 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0"
       data-testid="instant-maxed-what-if-summary"
@@ -8,12 +8,12 @@
       What if you had maxed gear? (all legendary + T4 stones)
     </summary>
     <div class="mt-1 space-y-1 pl-3">
-      <p v-if="letters" class="tabular-nums text-[10px] text-slate-500">{{ letters }}</p>
+      <p v-if="letters" class="tabular-nums text-small text-slate-500">{{ letters }}</p>
       <p v-if="alreadyMaxed">Your gear is already maxed: your instant answer is the maxed one.</p>
       <p v-else-if="status === 'running'" class="text-slate-400">Finding your route again with maxed gear…</p>
       <p v-else-if="status === 'error'" class="text-slate-500">Couldn’t work that out this time.</p>
       <p v-else-if="text" class="font-bold text-emerald-800" data-testid="instant-maxed-result">{{ text }}</p>
-      <p class="text-[10px] text-slate-400">
+      <p class="text-small text-slate-400">
         A ballpark: it assumes you have the gear from your next prestige, uses the maxed instant answer (a few percent
         off the full simulator) and its maxed epic research and colleggtibles.
       </p>

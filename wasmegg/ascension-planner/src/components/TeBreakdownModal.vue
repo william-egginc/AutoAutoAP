@@ -10,7 +10,7 @@
           <div class="p-1.5 bg-slate-100 rounded-lg text-slate-600">
             <img :src="iconURL('egginc/egg_truth.png', 64)" class="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" alt="Truth" />
           </div>
-          <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">TE Breakdown</h3>
+          <h3 class="text-slate-800 label">TE Breakdown</h3>
         </div>
 
         <div class="p-4 flex flex-col gap-2">
@@ -28,22 +28,22 @@
                 <img :src="stat.icon" class="w-6 h-6 object-contain" :alt="stat.name" />
               </div>
               <div class="flex flex-col">
-                <span class="text-sm font-black" :class="{ 'text-indigo-700': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
+                <span class="text-body font-bold" :class="{ 'text-indigo-700': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
                   {{ stat.name }}
                 </span>
-                <span class="text-[10px] text-slate-400 font-medium leading-tight">
+                <span class="text-small text-slate-400 font-normal leading-tight">
                   {{ formatNumber(stat.delivered) }} delivered
                 </span>
               </div>
             </div>
-            <div class="flex items-center gap-2 tabular-nums text-sm">
+            <div class="flex items-center gap-2 tabular-nums text-body">
               <span class="text-slate-400">{{ stat.start }}</span>
               <span class="text-slate-300">→</span>
               <span class="font-bold" :class="{ 'text-indigo-900': stat.id === 'truth', 'text-slate-700': stat.id !== 'truth' }">
                 {{ stat.end }}
               </span>
               <span
-                class="ml-1 w-10 text-right font-black text-[10px]"
+                class="ml-1 w-10 text-right font-bold text-small"
                 :class="{
                   'text-indigo-600': stat.id === 'truth' && stat.delta > 0,
                   'text-emerald-500': stat.id !== 'truth' && stat.delta > 0,
@@ -58,7 +58,7 @@
 
         <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
           <button
-            class="px-6 py-2 text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all rounded-xl hover:shadow-sm"
+            class="px-6 py-2 text-body font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all rounded-xl hover:shadow-sm"
             @click="$emit('close')"
           >
             Close

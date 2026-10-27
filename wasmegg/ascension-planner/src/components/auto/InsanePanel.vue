@@ -29,22 +29,22 @@
            the time is acceptable. -->
       <div v-if="sweepRequest" class="p-4 rounded-xl border border-indigo-200 bg-indigo-50 space-y-3">
         <div class="space-y-1">
-          <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+          <p class="text-indigo-400 label">
             Sweep request from {{ NAMES.science }}
           </p>
-          <h3 class="text-sm font-black text-slate-900">{{ sweepRequest.label }}</h3>
-          <p class="text-[11px] text-slate-600">
-            Ranges <code class="rounded bg-white px-1 text-[10px]">{{ bandsText }}</code
+          <h3 class="text-body font-bold text-slate-900">{{ sweepRequest.label }}</h3>
+          <p class="text-body text-slate-600 max-w-prose">
+            Ranges <code class="rounded bg-white px-1 text-small">{{ bandsText }}</code
             >, minimum gap {{ minGap
             }}<template v-if="sweepRequest.firstAscension !== null"
               >, {{ describeFirstAscension(sweepRequest.firstAscension) }}</template
             >. These are already filled in below.
           </p>
-          <p class="text-[11px] text-slate-600">
+          <p class="text-body text-slate-600 max-w-prose">
             This sweep fills a gap in the shared data for science. It isn't tuned to find your best route; use
             {{ NAMES.smartFirst }} or the instant answer for that.
           </p>
-          <p class="text-[11px] text-slate-600">
+          <p class="text-body text-slate-600 max-w-prose">
             <template v-if="timeOffText">
               Planned around time off: <b>{{ timeOffText }}</b
               >. It still prices every route, but the result goes on the Leaderboard with the time-off runs and won't fill
@@ -60,15 +60,15 @@
           </p>
         </div>
 
-        <div class="grid gap-2 sm:grid-cols-3 text-[11px]">
+        <div class="grid gap-2 sm:grid-cols-3 text-small">
           <div class="rounded-lg bg-white px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
+            <div class="label text-slate-400">Routes</div>
             <div class="font-bold text-slate-800">{{ chainCountLabel }}</div>
           </div>
           <div class="rounded-lg bg-white px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Estimated time</div>
+            <div class="label text-slate-400">Estimated time</div>
             <div class="font-bold text-slate-800">{{ estimateLabel }}</div>
-            <div class="text-[10px] text-slate-400">
+            <div class="text-small text-slate-400">
               {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}
             </div>
           </div>
@@ -76,7 +76,7 @@
             <button
               type="button"
               :disabled="store.isRunning"
-              class="px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 disabled:opacity-40"
+              class="px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-indigo-50 disabled:opacity-40"
               @click="benchmark"
             >
               {{ measuredCost ? 'Re-benchmark' : 'Benchmark my PC' }}
@@ -85,7 +85,7 @@
         </div>
 
         <label class="block space-y-1">
-          <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
+          <span class="flex items-baseline justify-between text-body font-bold text-slate-700">
             <span>How much of {{ thisDevice() }} to use</span>
             <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
           </span>
@@ -97,7 +97,7 @@
             class="w-full accent-indigo-600"
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
-          <span class="block text-[10px] text-slate-500">
+          <span class="block text-small text-slate-500">
             Fewer workers keep the computer usable and quieter; more finish sooner, up to a point (on the one 20-thread
             PC we measured, 12 workers were as fast as 19). The estimate above follows the
             slider. You can move it during a run too: the change takes effect within about a minute, and no route in
@@ -111,8 +111,8 @@
           v-model="sweepConsent"
           consent-id="scienceSweep"
           testid="sweep-consent"
-          label-class="text-[11px] text-slate-700"
-          summary-class="text-[11px] text-slate-700"
+          label-class="text-body text-slate-700"
+          summary-class="text-body text-slate-700"
           withdrawn-text="Withdrawn: this sweep's result will not be sent."
         >
           <template #summary>
@@ -137,15 +137,15 @@
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
           :disabled="store.isRunning"
-          class="pl-6 text-[11px] text-slate-700"
+          class="pl-6 text-small text-slate-700"
           @nickname-typed="nicknameTouched = true"
         />
-        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-[11px] text-slate-700" />
+        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-small text-slate-700" />
 
         <IntegrityNotice />
         <p
           v-if="ascMismatch"
-          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] font-semibold text-rose-800"
+          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-body font-bold text-rose-800"
         >
           The Ascensions box ({{ suggestAsc }}) no longer matches this sweep ({{
             plural(bands.length + 1, 'ascension')
@@ -162,12 +162,12 @@
               !chainCount ||
               ascMismatch
             "
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
+            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500 disabled:opacity-40"
             @click="start(false)"
           >
             {{ store.isRunning ? 'Running...' : 'Start this sweep' }}
           </button>
-          <span class="text-[10px] text-slate-500">
+          <span class="text-small text-slate-500">
             One press starts it (the button further down does the same). When the sweep finishes, the result is
             submitted automatically, tagged {{ sweepRequest.preset }}. If you stop it early, what it priced so far is
             sent, marked as partial.
@@ -193,23 +193,23 @@
              refusal that only appears below the fold reads as "the button does nothing". -->
         <p
           v-if="store.noFeasibleChain && !store.error"
-          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-[11px] text-rose-800"
+          class="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-body text-rose-800"
         >
           <b>No route finished</b>, so there is nothing to save or submit. The reason is further down.
         </p>
         <p
           v-if="store.error && !store.errorIsIntegrityNotice"
-          class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800"
+          class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-body text-red-800"
         >
           <b>{{ store.errorBeforeStart ? "Didn't start" : 'Search failed' }}:</b> {{ store.error }}
         </p>
         <p
           v-else-if="store.runNotes.length"
-          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-900"
+          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body text-amber-900"
         >
           <span v-for="n in store.runNotes" :key="n" class="block">{{ n }}</span>
         </p>
-        <p v-else-if="store.isRunning" class="text-[11px] font-semibold text-indigo-700">
+        <p v-else-if="store.isRunning" class="text-body font-bold text-indigo-700 max-w-prose">
           Running: progress is shown further down. Leave this tab open<template v-if="autoSubmitArmed"
             >; the result is submitted automatically when it finishes</template
           >.
@@ -223,13 +223,13 @@
       <!-- The site's tabs pick the goal now (Fastest route / Highest TE by a date); this switch is
            only for the panel on its own. -->
       <div v-if="!props.goal" class="flex flex-wrap items-center gap-2">
-        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">What are you after?</span>
+        <span class="text-small font-bold text-slate-500">What are you after?</span>
         <button
           v-for="g in GOALS"
           :key="g.id"
           type="button"
           :disabled="store.busy"
-          class="px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+          class="px-3 py-1.5 rounded-lg border text-body font-bold disabled:opacity-40"
           :class="
             goal === g.id
               ? 'border-slate-800 bg-slate-800 text-white'
@@ -241,10 +241,10 @@
         </button>
       </div>
       <details v-if="goal === 'fastest'" class="rounded-xl border border-slate-200 bg-white">
-        <summary class="cursor-pointer px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+        <summary class="cursor-pointer px-4 py-3 text-body font-bold text-slate-500">
           How {{ NAMES.fullFirst }} works, and what it costs
         </summary>
-        <div class="px-4 pb-4 text-xs text-slate-600 leading-relaxed space-y-2">
+        <div class="px-4 pb-4 text-body text-slate-600 space-y-2">
           <p>
             This prices <span class="font-bold">every</span> route in the ranges you describe, with no descent, stages or
             pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
@@ -260,7 +260,7 @@
           <p>
             <span class="font-bold text-slate-800">Routes are sorted so related ones sit together.</span> Every route
             starting <code class="tabular-nums">195 229</code> sits next to the others that start that way, because
-            the expensive unit is the <span class="font-semibold">ascension</span>, not the route. Two routes that share their
+            the expensive unit is the <span class="font-bold">ascension</span>, not the route. Two routes that share their
             first three stops share those three ascensions' simulations exactly.
           </p>
           <p>
@@ -355,13 +355,13 @@
         <!-- The space. These numbers are the whole definition of the search. Batch 3's Simple mode can
              leave it out (`hideRoutes`). -->
         <div v-if="!hideRoutes" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The space to search</h3>
+          <h3 class="text-slate-500 label">The space to search</h3>
 
           <!-- Workers are in Your setup (This computer), with the other machine settings. -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label class="space-y-1">
               <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Final target TE</span>
+                <span class="text-slate-400 label">Final target TE</span>
                 <HelpTip
                   >The TE every route ends at. It's added to the end of each route automatically, so it never goes in
                   the ranges below.</HelpTip
@@ -372,12 +372,12 @@
                 type="number"
                 min="1"
                 :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+                class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
               />
             </label>
             <label class="space-y-1">
               <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Your TE now</span>
+                <span class="text-slate-400 label">Your TE now</span>
                 <HelpTip
                   >Read from your backup, not editable here. It is the floor for every stop in the ranges.</HelpTip
                 >
@@ -386,7 +386,7 @@
                 :value="store.currentTE"
                 type="number"
                 disabled
-                class="w-full rounded-lg border-slate-200 bg-slate-50 text-sm font-bold text-slate-500"
+                class="w-full rounded-lg border-slate-200 bg-slate-50 text-body font-bold text-slate-500"
               />
             </label>
           </div>
@@ -394,11 +394,11 @@
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
             <label class="space-y-1 block">
               <!-- Labelled like the chains added below it (Chain 2, 3...), so it reads as one of them. -->
-              <span v-if="!sweepRequest" class="block text-[10px] font-black text-slate-600 uppercase tracking-widest">
+              <span v-if="!sweepRequest" class="block text-slate-600 label">
                 Box 1<template v-if="bands.length"> · {{ plural(bands.length + 1, 'ascension') }}</template>
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <span class="text-slate-400 label">
                   Ranges, one per stop
                 </span>
                 <HelpTip>
@@ -412,11 +412,11 @@
                 type="text"
                 :disabled="store.isRunning"
                 placeholder="185-200:5; 210-240:10; 250-290:20"
-                class="w-full rounded-lg border-slate-300 text-sm tabular-nums font-bold text-slate-800 disabled:opacity-50"
+                class="w-full rounded-lg border-slate-300 text-body tabular-nums font-bold text-slate-800 disabled:opacity-50"
               />
               <div class="flex flex-wrap items-center gap-2 pt-1">
                 <label
-                  class="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"
+                  class="flex items-center gap-1.5 text-slate-500 label"
                 >
                   Ascensions
                   <input
@@ -425,11 +425,11 @@
                     :min="suggestRange[0]"
                     :max="suggestRange[1]"
                     :disabled="store.isRunning"
-                    class="w-16 rounded-md border-slate-300 text-xs font-bold text-slate-800 disabled:opacity-50"
+                    class="w-16 rounded-md border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
                     @input="markAscTouched"
                   />
                 </label>
-                <span v-if="chain1FromInstant" class="text-[10px] text-slate-400" data-testid="asc-follow-hint"
+                <span v-if="chain1FromInstant" class="text-small text-slate-400" data-testid="asc-follow-hint"
                   >(from the instant answer)</span
                 >
                 <SpaceSliders
@@ -444,7 +444,7 @@
                 <button
                   type="button"
                   :disabled="store.isRunning || !suggestion"
-                  class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+                  class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
                   @click="applySuggestion"
                 >
                   Suggest a space
@@ -458,11 +458,11 @@
                   covers three counts; remove them under Box 2 and 3 if you only want one. Either way it's a starting
                   point you can edit.
                 </HelpTip>
-                <span v-if="suggestion" class="text-[10px] text-slate-500">
+                <span v-if="suggestion" class="text-small text-slate-500">
                   Suggest would fill in {{ plural(suggestAsc, 'ascension') }}, {{ plural(suggestion.chains, 'route') }},
                   about {{ chainsTimeLabel(suggestion.chains) }} &middot;
                   <template v-if="suggestion.kind === 'complete'">
-                    <span class="font-black text-emerald-700">complete sweep</span>
+                    <span class="font-bold text-emerald-700">complete sweep</span>
                     {{
                       suggestion.exact
                         ? 'of every reachable TE, so the run proves the optimum'
@@ -481,7 +481,7 @@
                     measured shape, from {{ plural(suggestion.runs, 'run') }} across {{ plural(suggestion.accounts, 'account') }}
                   </template>
                 </span>
-                <span v-else class="text-[10px] text-amber-700">
+                <span v-else class="text-small text-amber-700">
                   No suggestion for this target or ascension count.
                 </span>
                 <KeptBoxNote
@@ -492,7 +492,7 @@
                 />
               </div>
 
-              <span class="block text-[10px] text-slate-400">
+              <span class="block text-small text-slate-400">
                 <template v-if="bands.length">
                   {{ plural(bands.length, 'range') }} → {{ plural(bands.length + 1, 'ascension') }} ·
                   {{ bands.map(b => b.length).join(' × ') }} values
@@ -501,7 +501,7 @@
               </span>
               <!-- Plain words for the step, right under the bands it describes: "181-250:5" means 181,
                    186, 191... and never 227, so a faster Smart search result between grid points is no surprise. -->
-              <p v-if="!plannedGridComplete && gridExample" class="text-[11px] text-slate-600 leading-relaxed">
+              <p v-if="!plannedGridComplete && gridExample" class="text-body text-slate-600">
                 <span class="font-bold text-slate-800">This space tries {{ plannedGridLabel }}</span> (for example
                 {{ gridExample }}), not every TE in between, which would take weeks. The winner is the best on this
                 grid, and a route between grid points can be faster.
@@ -518,7 +518,7 @@
                  so a mismatch is now an error that blocks Start until one of the two is changed. -->
               <p
                 v-if="ascMismatch"
-                class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800 leading-relaxed"
+                class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-body font-bold text-rose-800"
               >
                 Your ranges make {{ plural(bands.length + 1, 'ascension') }}, and that is what would run, but the
                 Ascensions box says {{ suggestAsc }}. The box only chooses what Suggest a space fills in: press Suggest
@@ -557,7 +557,7 @@
               @use-sliders="suggestExtra"
             >
               <template #row-after="{ row, k }">
-                <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-[10px] text-slate-500">
+                <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-small text-slate-500">
                   Suggest would fill in {{ plural(extraSugs[k]!.chains, 'route') }}, about
                   {{ chainsTimeLabel(extraSugs[k]!.chains)
                   }}<template v-if="extraCoarse(k)"
@@ -566,7 +566,7 @@
                 </span>
               </template>
               <template #footer>
-                <span v-if="extraChains.length" class="text-[11px] text-slate-500">
+                <span v-if="extraChains.length" class="text-body text-slate-500">
                   One click runs {{ extraChains.length === 1 ? 'both' : 'all ' + (extraChains.length + 1) }} boxes, one
                   after another. Each finished one is saved under Saved for later.
                 </span>
@@ -575,7 +575,7 @@
 
             <label class="space-y-1 block max-w-xs">
               <span class="flex items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <span class="text-small font-bold text-slate-400">
                   Keep stops at least this many TE apart
                 </span>
                 <HelpTip>
@@ -590,9 +590,9 @@
                 type="number"
                 min="0"
                 :disabled="store.isRunning"
-                class="w-full rounded-lg border-slate-300 text-sm font-bold text-slate-800 disabled:opacity-50"
+                class="w-full rounded-lg border-slate-300 text-body font-bold text-slate-800 disabled:opacity-50"
               />
-              <span class="block text-[10px] text-slate-500">
+              <span class="block text-small text-slate-500">
                 {{
                   minGap > 0
                     ? `e.g. after ascending at 200, the next stop is ${200 + minGap} or higher. 0 = no limit.`
@@ -601,14 +601,14 @@
               </span>
             </label>
 
-            <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 leading-relaxed">
-              The winner will be the best <span class="font-semibold">of the ranges you set</span>, not of everything
+            <p class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+              The winner will be the best <span class="font-bold">of the ranges you set</span>, not of everything
               reachable. That's still a stronger claim than the {{ NAMES.smartFirst }} search makes, which homes in rather than
               trying everything.
             </p>
           </div>
 
-          <p class="text-[11px] text-slate-500 leading-relaxed">
+          <p class="text-body text-slate-500 max-w-prose">
             The ascension count includes the final target, so 4 ranges is 5 ascensions. Values at or below your current
             TE, and at or above the target, are dropped: neither is an ascension you can perform.
           </p>
@@ -622,16 +622,16 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Values tried</span>
+                <span class="text-slate-400 label">Values tried</span>
                 <HelpTip
                   >Stop values across all the ranges, after anything outside (your TE, target) is dropped.</HelpTip
                 >
               </div>
-              <div class="text-lg font-black text-slate-900 tabular-nums">{{ poolSize }}</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums">{{ poolSize }}</div>
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Routes it will run</span>
+                <span class="text-slate-400 label">Routes it will run</span>
                 <HelpTip
                   >Every route through the ranges that can actually be played: each stop above the one before it (and at
                   least the minimum gap above it), with the target added at the end. Combinations that go down, stand
@@ -640,22 +640,22 @@
                   you before that happens.</HelpTip
                 >
               </div>
-              <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
+              <div class="text-title font-bold tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
                 {{ chainCountLabel }}
               </div>
               <!-- Only the playable ones (the user, 1 Oct: "we are running the feasible total chains... however
                    the lay user may not know that"). -->
-              <div v-if="runChainsNote" class="text-[10px] text-slate-500 leading-snug">{{ runChainsNote }}</div>
+              <div v-if="runChainsNote" class="text-small text-slate-500">{{ runChainsNote }}</div>
               <div
                 v-else-if="!runLeft && unplayable > 0 && totalChains === chainCount"
-                class="text-[10px] text-slate-500 leading-snug"
+                class="text-small text-slate-500"
               >
                 playable, of {{ combinations.toLocaleString() }} the ranges could make
               </div>
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Est. time</span>
+                <span class="text-small font-bold text-slate-400">Est. time</span>
                 <HelpTip
                   >Routes x assumed cost / workers. It errs high on purpose: the assumed cost is the typical cost of a
                   route this long in players' runs until this machine has its own measured or benchmarked rate, and
@@ -664,13 +664,13 @@
                   slower.</HelpTip
                 >
               </div>
-              <div class="text-lg font-black tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
+              <div class="text-title font-bold tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
                 {{ estimateLabel }}
               </div>
             </div>
             <div>
               <div class="flex items-center justify-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</span>
+                <span class="text-slate-400 label">Assumed cost</span>
                 <HelpTip
                   >What the estimate charges per route. It starts at the typical cost for routes this long in players'
                   runs and switches to this machine's own measured rate once the first chunk lands, or as soon as you
@@ -679,7 +679,7 @@
                 >
               </div>
               <div
-                class="text-lg font-black tabular-nums"
+                class="text-title font-bold tabular-nums"
                 :class="{
                   'text-emerald-700': store.rateSource === 'live',
                   'text-indigo-700': store.rateSource === 'benchmark',
@@ -695,27 +695,27 @@
             <button
               type="button"
               :disabled="store.isRunning || store.benchmarking || !chainCount"
-              class="px-3 py-1.5 rounded-md border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 disabled:opacity-40"
+              class="px-3 py-1.5 rounded-md border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-indigo-50 disabled:opacity-40"
               @click="benchmark"
             >
               {{ store.benchmarking ? 'Benchmarking…' : store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}
             </button>
-            <span v-if="store.benchmarking" class="text-[11px] text-slate-500">
+            <span v-if="store.benchmarking" class="text-body text-slate-500">
               Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} routes as a throwaway run, at the same cost
               as a real run's opening chunk.
             </span>
-            <span v-else-if="store.benchmarkedAt" class="text-[11px] text-slate-500">
+            <span v-else-if="store.benchmarkedAt" class="text-body text-slate-500">
               {{ store.rateSource === 'live' ? 'Measured' : 'Benchmarked' }} on this machine ·
               {{ plural(store.benchmarkChainCount, 'route') }} · {{ agoLabel(store.benchmarkedAt) }}
             </span>
           </div>
-          <p v-if="store.benchmarkError" class="text-[11px] font-semibold text-red-700">{{ store.benchmarkError }}</p>
+          <p v-if="store.benchmarkError" class="text-body font-bold text-red-700">{{ store.benchmarkError }}</p>
 
-          <p v-if="coverageBefore" class="text-[11px] font-semibold text-slate-700 leading-relaxed">
+          <p v-if="coverageBefore" class="text-body font-bold text-slate-700">
             {{ coverageBefore }}
             <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
           </p>
-          <p class="text-[11px] leading-relaxed" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
+          <p class="text-body" :class="tooBig ? 'text-red-800' : 'text-slate-500'">
             <template v-if="!poolSize">
               The ranges are empty once values outside ({{ store.currentTE }}, {{ store.finalTE }}) are dropped.
             </template>
@@ -803,16 +803,16 @@
             >
               <button
                 type="button"
-                class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+                class="px-4 py-2 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800"
                 @click="resumeCrashed"
               >
                 {{ store.crashedQueue ? 'Carry on the unfinished queue' : 'Carry on the unfinished run' }}
               </button>
-              <span v-if="store.crashedQueue" class="text-[11px] text-amber-900">
+              <span v-if="store.crashedQueue" class="text-body text-amber-900">
                 Box {{ store.crashedQueue.next + 1 }} of {{ store.crashedQueue.record.chains.length }} next; its
                 settings are put back for you.
               </span>
-              <span v-else class="text-[11px] text-amber-900">
+              <span v-else class="text-body text-amber-900">
                 {{ (store.crashedRun.durations?.length ?? 0).toLocaleString() }} routes already priced; its settings are
                 put back for you.
               </span>
@@ -826,7 +826,7 @@
               data-run-progress="full"
               class="scroll-mt-24"
             >
-              <p v-if="!store.isRunning && store.runCost" class="text-[10px] text-slate-400 font-bold tabular-nums">
+              <p v-if="!store.isRunning && store.runCost" class="text-small text-slate-400 font-bold tabular-nums">
                 Took {{ describeCompute(store.runCost.minutes, store.runCost.workers) }}
               </p>
             </div>
@@ -836,7 +836,7 @@
               v-if="queueAt >= 0 || queueResults.length"
               class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
             >
-              <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              <p class="text-small font-bold text-slate-500">
                 <template v-if="queueAt >= 0">Running box {{ queueAt + 1 }} of {{ store.sweepQueue.total }}</template>
                 <template v-else>All boxes from the last click</template>
               </p>
@@ -869,7 +869,7 @@
                   </td>
                 </template>
               </ResultTable>
-              <p class="text-[10px] text-slate-500">
+              <p class="text-small text-slate-500">
                 Each is saved under Saved for later, so you can open any of them again. Compare them by finish date.
               </p>
             </div>
@@ -893,14 +893,14 @@
               v-if="store.noFeasibleChain && !store.error"
               class="rounded-xl border border-rose-300 bg-rose-50 p-4 space-y-2"
             >
-              <p class="text-[10px] font-black text-rose-800 uppercase tracking-widest">
+              <p class="text-small font-bold text-rose-800">
                 No route in this space finishes
               </p>
-              <p class="text-[11px] text-rose-900/90 leading-relaxed">
+              <p class="text-body text-rose-900/90 max-w-prose">
                 Every route was simulated, and none of them reaches {{ store.finalTE }} TE in any time the planner can
                 put a date on. That is a result, not a crash, so there is nothing to save or submit.
               </p>
-              <p class="text-[11px] text-rose-900/90 leading-relaxed">
+              <p class="text-body text-rose-900/90 max-w-prose">
                 The usual cause is earnings. On a low-TE account the early ascensions cannot earn enough to buy the habs
                 and vehicles the plan is waiting on, so the very first ascension stalls and every ascension after it inherits the
                 stall. A different space won't fix that. More Truth Eggs or a stronger earnings set (totem, ankh,
@@ -939,10 +939,10 @@
               />
               <!-- Soul eggs the route's shifts would leave: one amber line under a quarter (lib/soulEggs.ts). -->
               <SoulEggWarning v-if="!store.isRunning" :legs="store.bestLegs" :ascensions="store.bestChain.length" planner />
-              <p v-if="!store.isRunning && resultExplain" class="text-[11px] text-emerald-900/80 leading-relaxed">
+              <p v-if="!store.isRunning && resultExplain" class="text-body text-emerald-900/80">
                 {{ resultExplain }}
               </p>
-              <p v-if="coverageAfter" class="text-[11px] text-emerald-900/80 leading-relaxed">
+              <p v-if="coverageAfter" class="text-body text-emerald-900/80">
                 {{ coverageAfter }}
                 <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
               </p>
@@ -970,21 +970,21 @@
                 :on-add="addChainOfCount"
                 @check="checkRouteExactly"
               />
-              <p class="text-[10px] text-emerald-900/60">
+              <p class="text-small text-emerald-900/60">
                 Compare runs by finish date. Two runs started hours apart have different plan starts, so their day
                 counts don't measure the same thing, but the dates they land on do.
               </p>
               <p
                 v-if="store.continueWarning"
-                class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900 leading-relaxed"
+                class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-body text-amber-900"
               >
                 {{ store.continueWarning }}
               </p>
               <ResultHealth class="mt-2" :issues="store.resultContradictions" />
-              <p v-if="store.stoppedEarly" class="text-[11px] text-emerald-900/70 pt-1">
+              <p v-if="store.stoppedEarly" class="text-body text-emerald-900/70 pt-1 max-w-prose">
                 You stopped it early, so this is the best of what was priced, not the optimum of the space.
               </p>
-              <p v-if="store.timeOff.length && !store.isRunning" class="text-[11px] text-emerald-900/80">
+              <p v-if="store.timeOff.length && !store.isRunning" class="text-body text-emerald-900/80 max-w-prose">
                 Your time off goes into the plan too: the ascension it interrupts ends when the time off starts
                 (going to the home farm is a prestige), and a rebuild starts after it.
               </p>
@@ -992,7 +992,7 @@
           </template>
           <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. Not for a
              player already on virtue (lib/onVirtue.ts): their first ascension has started. -->
-          <p v-if="offerStart && ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-[11px]">
+          <p v-if="offerStart && ownRun && store.bestChain.length && store.bestDays > 0 && !store.isRunning" class="text-body">
             <button
               type="button"
               class="font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
@@ -1017,7 +1017,7 @@
                report what went in. -->
             <CsvCard v-if="ownRun && (store.pricedCount || store.noFeasibleChain)" :csv="store.csvRows > 0" diagnostics>
               <template #csv>
-                <span class="text-[11px] text-slate-500">
+                <span class="text-body text-slate-500">
                   {{ countLabel(store.csvRows) }}, one row per ascension. Safe to download mid-run.
                 </span>
               </template>
@@ -1046,14 +1046,14 @@
               @nickname-typed="nicknameTouched = true"
             >
               <template #intro>
-                <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+                <p class="text-body text-indigo-900/80 max-w-prose">
                   A Custom result is the most useful thing the Leaderboard can get: the best of a stated grid rather than
                   a search result. It is sent with the space it covered and what it found there (the runners-up, the
                   best route at each ascension count, and the spread), so a reader can tell a real find from a flat
                   neighbourhood without downloading the CSV. A run opened from Saved for later above is sent without a run
                   cost, because the time it took wasn't this machine's.
                 </p>
-                <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+                <p class="text-body text-indigo-900/80 max-w-prose">
                   The Leaderboard uses the random code so that a run landing on the flagged Leaderboard shows to you as yours and to
                   everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
                   you sent anonymously, and your own later runs can replace your older plans on the Leaderboard (nobody else's
@@ -1063,7 +1063,7 @@
                 </p>
               </template>
               <template #opted>
-                <label class="flex items-start gap-3 cursor-pointer text-[11px] text-indigo-900/80">
+                <label class="flex items-start gap-3 cursor-pointer text-body text-indigo-900/80">
                   <input
                     v-model="stampName"
                     type="checkbox"
@@ -1076,7 +1076,7 @@
                     tell apart at a glance when several are on the Leaderboard.
                   </span>
                 </label>
-                <p v-if="!anonymous" class="text-[11px] text-indigo-900/70">
+                <p v-if="!anonymous" class="text-body text-indigo-900/70">
                   Submitting as
                   <span class="tabular-nums font-bold">{{ effectiveNickname || '(blank, so anonymous)' }}</span>
                 </p>

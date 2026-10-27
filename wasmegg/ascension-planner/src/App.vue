@@ -37,7 +37,7 @@
       <!-- Site storage blocked (lib/storageGuard.ts): the page runs on memory, so say nothing will be kept. -->
       <p
         v-if="storageIsBlocked"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
         role="status"
         data-testid="storage-blocked"
       >
@@ -46,7 +46,7 @@
       <!-- A storage write failed (full or refused; lib/storageWrites.ts): what was just set may not survive a reload. -->
       <p
         v-if="storageWontSave"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
         role="status"
         data-testid="storage-write-failed"
       >
@@ -55,7 +55,7 @@
       <!-- A save with a hab, vehicle or research level newer than this planner's data (lib/saveGuard.ts). -->
       <p
         v-if="initialStateStore.saveNote"
-        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800"
+        class="mb-4 mx-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-body text-amber-800"
         role="status"
         data-testid="save-note"
       >
@@ -89,14 +89,14 @@
             <!-- The save's name on its own small line, not run into the title in display type (UX review 26 Oct, #13). -->
             <p
               v-if="playerName"
-              class="mx-4 -mt-1 mb-2 text-center text-sm font-bold text-slate-600 break-words"
+              class="mx-4 -mt-1 mb-2 text-center text-body font-bold text-slate-600 break-words"
               data-testid="header-player-name"
             >
               {{ playerName }}
             </p>
             <div
               v-if="initialStateStore.hasData && lastBackupFormatted"
-              class="text-center text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-4 -mt-1"
+              class="text-center text-slate-500 label mb-4 -mt-1"
             >
               Player Backup From: {{ lastBackupFormatted }}
             </div>
@@ -119,7 +119,7 @@
         <button
           v-if="loadRetry && loadRetry.message === error && !loading"
           type="button"
-          class="ml-2 min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[11px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50"
+          class="ml-2 min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-body font-bold text-red-700 hover:bg-red-50"
           data-testid="page-error-retry"
           @click="submitPlayerId(loadRetry.id)"
         >
@@ -139,7 +139,7 @@
            below the Auto Planner). -->
       <div v-if="playerId" class="flex justify-center mt-2" data-testid="header-toggle">
         <button
-          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider h-11 sm:h-7 cursor-pointer"
+          class="bg-white/95 backdrop-blur-xl border border-slate-100 px-4 py-1 rounded-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5 text-body font-bold h-11 sm:h-7 cursor-pointer"
           :aria-label="isHeaderCollapsed ? 'Open the top menu' : 'Close the top menu'"
           :aria-expanded="!isHeaderCollapsed"
           @click="toggleHeader"
@@ -161,7 +161,7 @@
       <main id="main-content">
       <!-- A running search's progress, said to a screen reader at most every 10 s and at its end. -->
       <RunAnnouncer />
-      <h1 v-if="plannerTab === 'manual' && playerId" class="mt-4 text-center text-2xl font-black text-slate-900">
+      <h1 v-if="plannerTab === 'manual' && playerId" class="mt-4 text-center text-headline font-black text-slate-900">
         {{ NAMES.manual }}
       </h1>
       <!-- Help improve the planner (Q13, 21 Oct 2026): just under the tab row and its chevron (Jordan, 21 Oct: tabs
@@ -210,8 +210,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-800">Start from Scratch</div>
-                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
+                    <div class="text-body font-bold text-slate-800">Start from Scratch</div>
+                    <p class="text-small text-slate-500 font-bold mt-1.5">
                       Clear your entire plan, reset all settings, and begin with a clean slate
                     </p>
                   </div>
@@ -243,8 +243,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-800">Plan Future Ascension</div>
-                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
+                    <div class="text-body font-bold text-slate-800">Plan Future Ascension</div>
+                    <p class="text-small text-slate-500 font-bold mt-1.5">
                       Load your latest backup, include pending TE, reset the clock, and start planning fresh
                     </p>
                   </div>
@@ -275,8 +275,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-800">Continue Current Ascension</div>
-                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
+                    <div class="text-body font-bold text-slate-800">Continue Current Ascension</div>
+                    <p class="text-small text-slate-500 font-bold mt-1.5">
                       Resume from your current in-game farm with all events applied
                     </p>
                   </div>
@@ -307,8 +307,8 @@
                     </svg>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-800">Reconcile Plan</div>
-                    <p class="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1.5 leading-relaxed">
+                    <div class="text-body font-bold text-slate-800">Reconcile Plan</div>
+                    <p class="text-small text-slate-500 font-bold mt-1.5">
                       Load a plan and compare against your current farm to track progress
                     </p>
                   </div>
@@ -365,7 +365,7 @@
                 v-for="v in autoTabs"
                 :key="v.id"
                 type="button"
-                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug"
+                class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 py-2 -mb-px border-b-2 label text-center"
                 :class="
                   autoView === v.id
                     ? 'border-indigo-600 text-indigo-700'
@@ -398,7 +398,7 @@
               v-for="v in scienceTabs"
               :key="v.id"
               type="button"
-              class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 text-[11px] font-black uppercase tracking-wider sm:tracking-widest text-center leading-snug"
+              class="min-w-0 px-2 sm:px-4 py-2 -mb-px border-b-2 label text-center"
               :class="
                 scienceView === v.id
                   ? 'border-amber-600 text-amber-700'
@@ -414,7 +414,7 @@
 
       <!-- Current Mode Label -->
       <div v-if="plannerTab === 'manual' && plannerModeLabel" class="mt-4 flex justify-center">
-        <span class="text-sm font-bold text-slate-700">{{ plannerModeLabel }}</span>
+        <span class="text-body font-bold text-slate-700">{{ plannerModeLabel }}</span>
       </div>
 
       <!-- Reconciliation Status Banner -->
@@ -438,12 +438,12 @@
             </div>
 
             <div class="flex flex-col gap-0 text-left">
-              <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5"
+              <span class="text-slate-400 label leading-none mb-0.5"
                 >Reconciliation Mode</span
               >
-              <span class="text-[10px] font-bold text-emerald-600 tracking-tight">
+              <span class="text-small font-bold text-emerald-600">
                 Backup from {{ lastBackupFormatted }}
-                <span class="text-emerald-400/80 font-medium">({{ lastBackupAge }})</span>
+                <span class="text-emerald-400/80 font-normal">({{ lastBackupAge }})</span>
               </span>
             </div>
           </div>
@@ -451,7 +451,7 @@
           <div class="flex items-center gap-4 relative z-10">
             <!-- Incomplete Only Toggle -->
             <div class="flex items-center gap-2">
-              <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Incomplete Only</span>
+              <span class="text-slate-400 label">Incomplete Only</span>
               <button
                 class="relative inline-flex h-4 w-8 items-center rounded-full transition-all duration-300 focus:outline-none shadow-inner"
                 :class="actionsStore.showIncompleteOnly ? 'bg-emerald-500' : 'bg-slate-200'"
@@ -499,11 +499,11 @@
             <div class="flex flex-col gap-0.5 text-left">
               <div class="flex items-center gap-2">
                 <div class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></div>
-                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none"
+                <span class="text-slate-400 label leading-none"
                   >Monday 2× Earnings Event</span
                 >
               </div>
-              <span class="text-[11px] font-black text-orange-600 uppercase tracking-tighter">
+              <span class="text-orange-600 label">
                 {{ isEarningsBoostActive ? 'Active' : 'Inactive' }}
               </span>
             </div>
@@ -531,10 +531,10 @@
           <!-- Action History -->
           <div class="section-premium overflow-visible">
             <div class="px-4 py-3 flex justify-between items-center rounded-t-lg">
-              <h2 class="text-lg font-semibold text-gray-800">Action History</h2>
+              <h2 class="text-title font-bold text-gray-800">Action History</h2>
               <div class="flex items-center gap-3">
                 <label class="flex items-center gap-1.5 cursor-pointer select-none">
-                  <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Compact</span>
+                  <span class="text-gray-400 label">Compact</span>
                   <button
                     type="button"
                     role="switch"
@@ -565,7 +565,7 @@
           <!-- Available Actions -->
           <div class="section-premium overflow-visible">
             <div class="px-4 py-3 flex justify-between items-center rounded-t-lg">
-              <h2 class="text-lg font-semibold text-gray-800">Available Actions</h2>
+              <h2 class="text-title font-bold text-gray-800">Available Actions</h2>
               <button
                 class="p-1 -mr-1 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"
                 @click="expandedSections.availableActions = !expandedSections.availableActions"
@@ -592,8 +592,8 @@
           :inert="blockedBy && autoView !== 'fastest' ? true : undefined"
         >
           <template v-if="autoView === 'classic'">
-            <h1 class="max-w-4xl mx-auto text-2xl font-black text-slate-900">{{ NAMES.classic }}</h1>
-            <p class="max-w-4xl mx-auto text-sm text-slate-600 leading-relaxed">
+            <h1 class="max-w-4xl mx-auto text-headline font-black text-slate-900">{{ NAMES.classic }}</h1>
+            <p class="max-w-4xl mx-auto text-body text-slate-600">
               <span class="font-bold text-slate-900">{{ NAMES.classicFirst }}</span> is Joo's original planner: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
               2× earnings boost in it. To have the stops found for you, use
@@ -647,8 +647,8 @@
              too many boxes there). A result's "Check start times for this route" opens it on that route. -->
         <StartTimeCard v-else-if="scienceView === 'start'" />
         <div v-else>
-          <h1 class="text-2xl font-black text-slate-900">Help check the planner</h1>
-          <p class="text-sm text-slate-600 leading-relaxed max-w-3xl">
+          <h1 class="text-headline font-black text-slate-900">Help check the planner</h1>
+          <p class="text-body text-slate-600 max-w-3xl">
             <template v-if="scienceView === 'check'">
               These are the runs the Leaderboard still needs. Run one on your account and it fills a gap.
             </template>
@@ -721,18 +721,18 @@
           class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         >
           <div class="px-6 py-5 border-b border-slate-100">
-            <h3 class="text-lg font-bold text-slate-800">Current Artifact Set</h3>
-            <p class="mt-2 text-sm text-slate-500">Which artifact set do you currently have equipped in game?</p>
+            <h3 class="text-title font-bold text-slate-800">Current Artifact Set</h3>
+            <p class="mt-2 text-body text-slate-500">Which artifact set do you currently have equipped in game?</p>
           </div>
           <div class="px-6 py-4 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
             <button
-              class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              class="px-4 py-2 text-body font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
               @click="handleArtifactSetSelection('elr')"
             >
               Delivery Rate Set
             </button>
             <button
-              class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              class="px-4 py-2 text-body font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
               @click="handleArtifactSetSelection('earnings')"
             >
               Earnings Set
@@ -766,7 +766,7 @@
       </main>
 
       <!-- On every screen, at the end of the page (a plain link, so it shows on phones too). -->
-      <footer class="pt-8 text-center text-[11px] text-slate-500" data-testid="site-footer">
+      <footer class="pt-8 text-center text-small text-slate-500" data-testid="site-footer">
         <a
           href="./about.html"
           class="inline-block px-3 py-2 underline decoration-dotted underline-offset-2 hover:text-slate-800"
@@ -2217,9 +2217,6 @@ ChevronIcon.props = { expanded: Boolean };
 </script>
 
 <style scoped>
-.heading-xl {
-  @apply text-3xl md:text-4xl font-black uppercase tracking-tighter;
-}
 .text-gradient {
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   -webkit-background-clip: text;
@@ -2229,7 +2226,7 @@ ChevronIcon.props = { expanded: Boolean };
   @apply bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500;
 }
 .btn-premium {
-  @apply rounded-xl font-black uppercase tracking-widest text-[10px] transition-all duration-300 flex items-center justify-center gap-2;
+  @apply rounded-xl font-bold text-body transition-all duration-300 flex items-center justify-center gap-2;
 }
 .btn-primary {
   @apply bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 active:scale-95;

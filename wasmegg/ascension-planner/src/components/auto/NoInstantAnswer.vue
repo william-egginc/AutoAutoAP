@@ -10,17 +10,17 @@
 -->
 <template>
   <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2" data-testid="instant-none">
-    <p class="text-sm font-black text-slate-900" data-testid="instant-none-heading">{{ heading }}</p>
-    <p v-if="sub" class="text-[11px] text-slate-600">{{ sub }}</p>
+    <p class="text-body font-bold text-slate-900" data-testid="instant-none-heading">{{ heading }}</p>
+    <p v-if="sub" class="text-body text-slate-600">{{ sub }}</p>
     <slot>
-      <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="instant-none-fastest">
+      <p class="text-body text-slate-700 max-w-prose" data-testid="instant-none-fastest">
         The quick estimate is on {{ NAMES.byDate }}: pick a date there and press
         <b>{{ QUICK_ESTIMATE_LABEL }}</b>. The {{ NAMES.smart }} search below still runs here, starting from a route spaced out
         from your TE.
       </p>
       <button
         type="button"
-        class="min-h-[44px] px-4 rounded-lg border border-indigo-300 bg-white text-[11px] font-black uppercase tracking-widest text-indigo-800 hover:bg-indigo-50"
+        class="min-h-[44px] px-4 rounded-lg border border-indigo-300 bg-white text-body font-bold text-indigo-800 hover:bg-indigo-50"
         data-testid="instant-none-open-by-date"
         @click="emit('by-date')"
       >

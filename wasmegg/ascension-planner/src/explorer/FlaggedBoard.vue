@@ -10,17 +10,17 @@
 -->
 <template>
   <div class="space-y-3">
-    <p v-if="error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-[11px] text-red-800">
+    <p v-if="error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-body text-red-800">
       {{ error }}
     </p>
-    <p v-else-if="loading" class="text-[11px] text-slate-400">Loading these runs…</p>
-    <p v-else-if="!rows.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700">
+    <p v-else-if="loading" class="text-body text-slate-400">Loading these runs…</p>
+    <p v-else-if="!rows.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-body font-bold text-emerald-700">
       No run like that has been sent yet.
     </p>
     <div v-else class="overflow-x-auto">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
+          <tr class="text-slate-400 label text-left">
             <th class="py-1.5 pr-3">Who</th>
             <th class="py-1.5 pr-3">TE</th>
             <th class="py-1.5 pr-3">Clothed TE</th>

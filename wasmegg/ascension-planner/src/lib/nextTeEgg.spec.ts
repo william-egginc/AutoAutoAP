@@ -198,23 +198,31 @@ describe('Your eggs with several eggs (server render)', () => {
     expect(t).toContain('next TE in ~2 d 4 h after you shift here');
     expect(t).toContain('next TE in ~25 min after you shift here');
     expect(html.match(/data-testid="now-egg-after-shift"/g)?.length).toBe(2);
+    // The time line stands in for "N% to the next TE · after a shift"; Humility, with no time, keeps it.
+    expect(t).not.toContain('60% to the next TE');
+    expect(t).not.toContain('10% to the next TE');
+    expect(t).toContain('100% to the next TE · after a shift');
     expect(t).toContain('estimated from your save of Oct 15 at 2:40 PM');
   });
 
-  it('phone width: one column, the lines wrap, small text without a size under 11 px', async () => {
+  it('phone width: one column, the lines wrap, the type scale (no size under 11 px, no caps)', async () => {
     const html = await renderHtml(YourEggs, props);
     expect(html).toContain('grid-cols-1 sm:grid-cols-5');
     const lines = html.match(/<p[^>]*data-testid="now-egg-after-shift"[^>]*>/g) ?? [];
     for (const p of lines) {
       expect(p).toContain('break-words');
-      expect(p).toContain('text-small');
+      expect(p).toContain('text-body');
+      expect(p).toContain('tabular-nums');
       expect(p).not.toMatch(/text-\[(\d|10)px\]|uppercase|whitespace-nowrap/);
     }
-    expect(html).toMatch(/data-testid="now-eggs-after-shift-note"/);
+    const note = html.match(/<p[^>]*data-testid="now-eggs-after-shift-note"[^>]*>/)?.[0] ?? '';
+    expect(note).toContain('text-small');
+    expect(note).toContain('break-words');
   });
 
   it('without after-shift lines (no data): no line and no note', async () => {
     const html = await renderHtml(YourEggs, { ...props, afterShift: null });
     expect(html).not.toContain('now-egg-after-shift');
+    expect(textOf(html)).toContain('60% to the next TE · after a shift');
   });
 });

@@ -20,7 +20,7 @@
     role="status"
     data-testid="update-banner-small"
   >
-    <p class="text-[11px] leading-relaxed">
+    <p class="text-body max-w-prose">
       <span class="font-bold text-slate-900">Small update available</span>.{{ ' '
       }}<template v-if="hasNotes">New:</template
       ><template v-else
@@ -29,11 +29,11 @@
         ></template
       >
     </p>
-    <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-[11px] leading-relaxed" data-testid="update-notes">
+    <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-body" data-testid="update-notes">
       <li v-for="(n, i) in shown" :key="i">{{ n }}</li>
       <li v-if="more > 0" class="list-none -ml-4 text-slate-500">+{{ more }} more</li>
     </ul>
-    <p v-if="hasNotes" class="mt-1 text-[11px] leading-relaxed">
+    <p v-if="hasNotes" class="mt-1 text-body max-w-prose">
       No need to reload now; you will get it next time you open the page.<template v-if="note"
         >{{ ' ' }}If you reload anyway, {{ note }}.</template
       >
@@ -42,7 +42,7 @@
       <button
         type="button"
         :class="TAP"
-        class="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800"
+        class="px-2 py-1 text-body font-bold text-slate-500 hover:text-slate-800"
         @click="dismissed = true"
       >
         Dismiss
@@ -50,7 +50,7 @@
       <button
         type="button"
         :class="TAP"
-        class="px-2 py-1 rounded-md bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+        class="px-2 py-1 rounded-md bg-slate-800 text-white text-body font-bold hover:bg-slate-700"
         @click="reload"
       >
         Reload anyway
@@ -67,7 +67,7 @@
     role="status"
     data-testid="update-banner-big"
   >
-    <div class="text-[12px] flex-1 min-w-[14rem]">
+    <div class="text-body flex-1 min-w-[14rem]">
       <span class="font-bold">New on the planner</span><template v-if="hasNotes">:</template
       ><template v-else>.</template>
       <ul v-if="hasNotes" class="mt-1 list-disc pl-4" data-testid="update-notes">
@@ -80,7 +80,7 @@
       <button
         type="button"
         :class="TAP"
-        class="px-3 py-1.5 rounded-lg text-sky-800 text-[10px] font-black uppercase tracking-widest hover:bg-sky-100"
+        class="px-3 py-1.5 rounded-lg text-sky-800 text-body font-bold hover:bg-sky-100"
         @click="dismissedBig = notesKey"
       >
         Dismiss
@@ -88,7 +88,7 @@
       <button
         type="button"
         :class="TAP"
-        class="px-3 py-1.5 rounded-lg bg-sky-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-sky-600"
+        class="px-3 py-1.5 rounded-lg bg-sky-700 text-white text-body font-bold hover:bg-sky-600"
         @click="reload"
       >
         Reload
@@ -105,7 +105,7 @@
     <!-- The fix comes first, and the notes (release.ts) are what else is new: they are usually a
          feature list, and read as the fix it said the new Explorer views were something this tab
          could run into (review, 2026-09-27). The advice is its own sentence. -->
-    <div class="text-[12px] font-semibold flex-1 min-w-[14rem]">
+    <div class="text-body font-bold flex-1 min-w-[14rem]">
       Please reload: this tab is missing a fix from a newer version.{{ advice
       }}<template v-if="hasNotes">{{ ' ' }}Also new:</template>
       <ul v-if="hasNotes" class="mt-1 list-disc pl-4 font-normal" data-testid="update-notes">
@@ -117,7 +117,7 @@
       <button
         type="button"
         :class="TAP"
-        class="px-3 py-1.5 rounded-lg text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100"
+        class="px-3 py-1.5 rounded-lg text-amber-800 text-body font-bold hover:bg-amber-100"
         @click="later"
       >
         Later
@@ -125,7 +125,7 @@
       <button
         type="button"
         :class="TAP"
-        class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-500"
+        class="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-body font-bold hover:bg-amber-500"
         @click="reload"
       >
         Reload

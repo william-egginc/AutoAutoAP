@@ -15,7 +15,7 @@
   <div class="space-y-3 text-left" data-testid="study-form">
     <!-- Short on purpose (about 5 lines at 390 px, 21 Oct 2026): the full list is behind "What exactly is sent"
          (about.html#sent), and each tick says public or private itself. -->
-    <p class="text-[12px] text-slate-600 leading-relaxed break-words" data-testid="study-intro">
+    <p class="text-body text-slate-600 break-words max-w-prose" data-testid="study-intro">
       Help make the planner’s answers better.{{ ' ' }}<span :class="phoneOnly"
         >Your runs go public only when you press share. The last tick sends a private, anonymous record of the best
         result of a Fast, Exact or Custom search.{{ ' ' }}</span
@@ -27,7 +27,7 @@
       href="./about.html#sent"
       target="_blank"
       rel="noopener"
-      class="inline-flex items-center min-h-[44px] sm:min-h-0 text-[12px] font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
+      class="inline-flex items-center min-h-[44px] sm:min-h-0 text-small font-bold text-indigo-700 underline decoration-dotted underline-offset-2 hover:text-indigo-900"
       data-testid="study-about"
       >What exactly is sent</a
     >
@@ -36,7 +36,7 @@
     <button
       v-if="compact"
       type="button"
-      class="sm:hidden flex w-full items-center justify-between gap-2 min-h-[44px] px-3 rounded-lg border border-indigo-200 bg-indigo-50/60 text-[12px] font-bold text-indigo-800 hover:bg-indigo-50"
+      class="sm:hidden flex w-full items-center justify-between gap-2 min-h-[44px] px-3 rounded-lg border border-indigo-200 bg-indigo-50/60 text-body font-bold text-indigo-800 hover:bg-indigo-50"
       :aria-expanded="choicesOpen"
       aria-controls="study-choices"
       data-testid="study-choices-toggle"
@@ -56,7 +56,7 @@
         <label
           v-for="[k, words] in TICK_WORDS"
           :key="k"
-          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[12px] font-semibold text-slate-700"
+          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
         >
           <input
             v-model="ticks[k]"
@@ -67,15 +67,15 @@
           <span class="break-words">{{ words }}</span>
         </label>
       </fieldset>
-      <p class="text-[11px] text-slate-500" data-testid="study-untick-note">
+      <p class="text-body text-slate-500" data-testid="study-untick-note">
         Tick what you are happy to share; anything you leave unticked stays off.
       </p>
 
       <fieldset class="space-y-1 sm:space-y-1.5">
-        <legend class="text-[10px] font-black text-slate-500 uppercase tracking-widest">On the leaderboard</legend>
+        <legend class="text-slate-500 label">On the leaderboard</legend>
         <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-3">
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[12px] font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
           >
             <input
               v-model="credit"
@@ -92,14 +92,14 @@
             :maxlength="STUDY_NAME_MAX"
             placeholder="nickname"
             aria-label="Nickname"
-            class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-sm font-bold text-slate-800"
+            class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-body font-bold text-slate-800"
             :class="credit === 'anon' ? 'opacity-50' : ''"
             data-testid="study-nickname"
             @input="capField"
             @focus="credit = 'name'"
           />
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[12px] font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
           >
             <input
               v-model="credit"
@@ -111,7 +111,7 @@
             Stay anonymous
           </label>
         </div>
-        <p v-if="credit === 'name' && !nickname.trim()" class="text-[11px] text-amber-700">
+        <p v-if="credit === 'name' && !nickname.trim()" class="text-body text-amber-700">
           Type a name to be credited; until then you stay anonymous.
         </p>
       </fieldset>
@@ -122,8 +122,8 @@
     <div :class="compact ? 'grid grid-cols-2 sm:flex sm:flex-row gap-2' : 'flex flex-col sm:flex-row gap-2'">
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
-        :class="compact ? ['col-span-2', folded ? 'hidden sm:inline-block' : ''] : ''"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+        :class="[BUTTON_TEXT, compact ? ['col-span-2', folded ? 'hidden sm:inline-block' : ''] : '']"
         data-testid="study-yes"
         :disabled="!canSayYes"
         :aria-describedby="canSayYes ? undefined : 'study-yes-why'"
@@ -135,12 +135,13 @@
            one press (useStudy.ts `yesToAll`; the credit stays as shown). Always on: it ticks first. -->
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border text-[11px] font-black uppercase tracking-widest"
-        :class="
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border"
+        :class="[
+          BUTTON_TEXT,
           compact
             ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 sm:border-indigo-300 sm:bg-indigo-50 sm:text-indigo-800 sm:hover:bg-indigo-100'
-            : 'border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
-        "
+            : 'border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100',
+        ]"
         data-testid="study-yes-all"
         @click="yesAll"
       >
@@ -148,7 +149,8 @@
       </button>
       <button
         type="button"
-        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-[11px] font-black uppercase tracking-widest hover:bg-slate-50"
+        class="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+        :class="BUTTON_TEXT"
         data-testid="study-no"
         @click="no"
       >
@@ -159,7 +161,7 @@
     <p
       v-if="!canSayYes"
       id="study-yes-why"
-      class="text-[11px] text-amber-700"
+      class="text-body text-amber-700"
       :class="folded ? 'hidden sm:block' : ''"
       data-testid="study-yes-why"
     >
@@ -171,6 +173,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
+import { BUTTON_TEXT } from './auto/resultCardStyle';
 import { DEFAULT_TICKS, TICK_WORDS, anyTick, capName, type StudyCredit } from '@/lib/study';
 import { consentState } from '@/composables/useConsent';
 import { STUDY_NAME_MAX, answerNo, answerYes, defaultCredit, knownName, yesToAll } from '@/composables/useStudy';

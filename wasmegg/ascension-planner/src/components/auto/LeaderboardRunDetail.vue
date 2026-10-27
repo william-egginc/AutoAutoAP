@@ -18,14 +18,14 @@
   baseline on the board). Without `row.baseline` neither is there.
 -->
 <template>
-  <div class="grid gap-4 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] text-[11px]">
+  <div class="grid gap-4 grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] text-body">
     <div v-if="compare.length" style="grid-column: 1 / -1" class="space-y-1.5" data-testid="run-baseline">
       <BaselineChip :line="chip" />
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400">Compared with {{ whose }} instant answer</h4>
+      <h4 class="label text-slate-400">Compared with {{ whose }} instant answer</h4>
       <div class="overflow-x-auto">
-        <table class="w-full text-[11px]" data-testid="run-baseline-list">
+        <table class="w-full text-small" data-testid="run-baseline-list">
           <thead>
-            <tr class="text-left text-[9px] font-black uppercase tracking-widest text-slate-400">
+            <tr class="text-left label text-slate-400">
               <th class="pr-3 py-1">Answer</th>
               <th class="pr-3 py-1">Finishes</th>
               <th class="pr-3 py-1">Difference</th>
@@ -42,7 +42,7 @@
             >
               <td class="pr-3 py-1 font-bold text-slate-800">
                 {{ c.label
-                }}<span v-if="c.thisRun" class="ml-1 rounded bg-indigo-600 px-1 text-[9px] font-black uppercase text-white">this run</span>
+                }}<span v-if="c.thisRun" class="ml-1 rounded bg-indigo-600 px-1 label text-white">this run</span>
               </td>
               <td class="pr-3 py-1" :class="c.end == null ? 'text-slate-400' : ''">{{ compareFinish(c) }}</td>
               <td class="pr-3 py-1 font-bold" :class="c.tone === 'better' ? 'text-emerald-700' : 'text-slate-600'">{{ c.diff || '·' }}</td>
@@ -51,15 +51,15 @@
           </tbody>
         </table>
       </div>
-      <p class="text-[10px] text-slate-500">
+      <p class="text-small text-slate-500">
         The instant answer row is the one for this save when the run was sent, shared by the player. Every other row is
         the full simulator on the same save and hours.
       </p>
     </div>
     <div>
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Run</h4>
+      <h4 class="label text-slate-400 mb-1.5">Run</h4>
       <!-- Sent while its run was going ("Send best so far"); the run's final row replaces it. -->
-      <p v-if="provisionalTag(row)" class="mb-1.5 font-semibold text-amber-700" :title="PROVISIONAL_TITLE">
+      <p v-if="provisionalTag(row)" class="mb-1.5 font-bold text-amber-700" :title="PROVISIONAL_TITLE">
         {{ provisionalTag(row) }}: the best its run had found so far. It is replaced when the run finishes.
       </p>
       <div class="space-y-0.5 text-slate-600">
@@ -128,7 +128,7 @@
           <span class="shrink-0">What was searched</span>
           <span
             class="text-right break-words min-w-0"
-            :class="row.searched ? 'font-semibold' : 'text-slate-400'"
+            :class="row.searched ? 'font-bold' : 'text-slate-400'"
             :title="row.searched || undefined"
             >{{ searchedLine }}</span
           >
@@ -174,12 +174,12 @@
            this result the viewer sent goes together, or the line would stay up as the next copy.
            ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
            maintainer" below to it. -->
-      <div v-if="hide && ownIds.length" class="mt-2 text-[10px] text-slate-500">
+      <div v-if="hide && ownIds.length" class="mt-2 text-small text-slate-500">
         <p v-if="allHidden">
-          <span class="font-semibold text-slate-600">Hidden from the public</span> ·
+          <span class="font-bold text-slate-600">Hidden from the public</span> ·
           <button
             type="button"
-            class="font-semibold underline hover:text-indigo-800 disabled:opacity-50 disabled:no-underline"
+            class="font-bold underline hover:text-indigo-800 disabled:opacity-50 disabled:no-underline"
             :disabled="busy"
             @click="hide.setHidden(ownIds, false)"
           >
@@ -189,7 +189,7 @@
         <template v-else>
           <button
             type="button"
-            class="font-semibold underline hover:text-indigo-800 disabled:opacity-50 disabled:no-underline"
+            class="font-bold underline hover:text-indigo-800 disabled:opacity-50 disabled:no-underline"
             :disabled="busy"
             @click="hide.setHidden(ownIds, true)"
           >
@@ -210,7 +210,7 @@
          each artifact is what makes a T3L ankh over a T4E chalice read as a choice rather than a
          bug. -->
     <div v-if="row.delivery?.length || row.earnings?.length">
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+      <h4 class="label text-slate-400 mb-1.5">
         {{ setTab === 'earnings' ? 'Earnings set' : 'Production set' }}
       </h4>
       <div class="flex gap-1 mb-1.5">
@@ -218,7 +218,7 @@
           v-for="t in ['delivery', 'earnings'] as const"
           :key="t"
           type="button"
-          class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest"
+          class="px-2 py-0.5 rounded text-body font-bold"
           :class="setTab === t ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-600'"
           @click="setTab = t"
         >
@@ -234,7 +234,7 @@
       </div>
     </div>
     <div v-else>
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Artifacts</h4>
+      <h4 class="label text-slate-400 mb-1.5">Artifacts</h4>
       <div v-if="!row.artifacts?.length" class="text-slate-400">none recorded</div>
       <!-- Schema 2 sends labels; rows stored under schema 1 are still {label,count}. -->
       <div v-for="(a, k) in row.artifacts" :key="k" class="text-slate-600">
@@ -242,7 +242,7 @@
       </div>
     </div>
     <div>
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Stones</h4>
+      <h4 class="label text-slate-400 mb-1.5">Stones</h4>
       <div v-if="!row.stones?.length" class="text-slate-400">none recorded</div>
       <!-- The count right after its label: pushed to the far edge it sat against the next column. -->
       <div v-for="(st, k) in row.stones" :key="k" class="flex gap-2 text-slate-600">
@@ -251,7 +251,7 @@
       </div>
     </div>
     <div>
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Ascensions</h4>
+      <h4 class="label text-slate-400 mb-1.5">Ascensions</h4>
       <div v-if="isRecheck" class="text-slate-400">
         no per-ascension detail: a later run priced this route again and sent only its length
       </div>
@@ -260,7 +260,7 @@
       </div>
       <!-- One line per leg, each value kept with its unit, the line wrapping between values when its column is
            narrow (15 Oct: a nowrap table ran past the panel's edge: "25.24 d 2.65 q/hr" outside the grey box). -->
-      <div v-if="row.legs?.length" class="tabular-nums text-[10px] text-slate-600 space-y-0.5" data-testid="run-legs">
+      <div v-if="row.legs?.length" class="tabular-nums text-small text-slate-600 space-y-0.5" data-testid="run-legs">
         <div v-for="(l, k) in row.legs" :key="k" class="flex flex-wrap gap-x-2">
           <span class="whitespace-nowrap">A{{ k + 1 }} → {{ l.te }}</span>
           <span class="whitespace-nowrap">{{ l.strategy }}</span>
@@ -273,7 +273,7 @@
          check the claim, and "fastest 2-ascension chain to 490 with a first target in {249, 299}"
          is a statement you can disagree with where "fastest chain found" is not. -->
     <div v-if="row.space">
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Proven over</h4>
+      <h4 class="label text-slate-400 mb-1.5">Proven over</h4>
       <div class="space-y-0.5 text-slate-600">
         <div class="flex justify-between gap-3">
           <span>Targets from</span>
@@ -296,13 +296,13 @@
       </div>
       <!-- In the notation players type (`183-219:6`), not every TE: a band of every TE from 150 to
            489 listed 340 numbers. -->
-      <div v-if="row.space.bands?.length" class="mt-1 tabular-nums text-[10px] text-slate-600">
+      <div v-if="row.space.bands?.length" class="mt-1 tabular-nums text-small text-slate-600">
         <div v-for="(b, k) in row.space.bands" :key="k">A{{ k + 1 }}: {{ formatBand(b) }}</div>
       </div>
       <!-- A run cut short enumerated a space it did not finish, so its answer is the best of what
            it reached -- an ordinary search result. Letting that render as a proof is the one way
            this block could mislead. -->
-      <p v-if="row.space.stoppedEarly" class="mt-1 font-semibold text-amber-700">
+      <p v-if="row.space.stoppedEarly" class="mt-1 font-bold text-amber-700">
         Stopped before every route in the boxes was priced, so this is the best of what it reached, not a proof.
       </p>
     </div>
@@ -311,7 +311,7 @@
          chain hardly matters, ahead by forty is a real find, and the headline number looks
          identical either way. -->
     <div v-if="row.proof">
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">What it found</h4>
+      <h4 class="label text-slate-400 mb-1.5">What it found</h4>
       <div class="space-y-0.5 text-slate-600">
         <div class="flex justify-between gap-3">
           <span>Margin over 2nd</span>
@@ -327,17 +327,17 @@
         </div>
       </div>
       <template v-if="row.proof.runnersUp.length">
-        <h4 class="mt-2 text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Runners-up</h4>
-        <div v-for="(c, k) in row.proof.runnersUp" :key="k" class="tabular-nums text-[10px] text-slate-600">
+        <h4 class="mt-2 label text-slate-400 mb-1">Runners-up</h4>
+        <div v-for="(c, k) in row.proof.runnersUp" :key="k" class="tabular-nums text-small text-slate-600">
           {{ k + 2 }}. {{ c.chain.join(' ') }} {{ c.days.toFixed(3) }} d
           <span class="text-slate-400">+{{ (c.days - row.durationDays).toFixed(3) }}</span>
         </div>
       </template>
       <template v-if="row.proof.byAscensions.length">
-        <h4 class="mt-2 text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+        <h4 class="mt-2 label text-slate-400 mb-1">
           Best per ascension count
         </h4>
-        <div v-for="(g, k) in row.proof.byAscensions" :key="k" class="tabular-nums text-[10px] text-slate-600">
+        <div v-for="(g, k) in row.proof.byAscensions" :key="k" class="tabular-nums text-small text-slate-600">
           {{ g.ascensions }} asc: {{ g.chain.join(' ') }} {{ g.days.toFixed(3) }} d
           <span class="text-slate-400">({{ g.priced.toLocaleString() }} priced)</span>
         </div>
@@ -346,10 +346,10 @@
     <!-- One line per copy, wrapping as a line of text does: as a table, its last two columns (chains
          priced, Download) sat past the edge of a phone screen. -->
     <div v-if="several" class="col-span-full">
-      <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+      <h4 class="label text-slate-400 mb-1.5">
         Sent {{ copies!.length }} times: every copy
       </h4>
-      <ul class="text-[11px] text-slate-600 divide-y divide-slate-100">
+      <ul class="text-body text-slate-600 divide-y divide-slate-100">
         <li v-for="(c, k) in copies" :key="c.id ?? k" class="py-1 flex flex-wrap items-baseline gap-x-1.5">
           <span class="font-bold whitespace-nowrap" :title="utcTitle(c.submittedAt)">{{
             sentWhen(c.submittedAt)

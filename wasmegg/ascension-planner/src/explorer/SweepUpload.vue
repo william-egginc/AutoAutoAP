@@ -10,33 +10,33 @@
 <template>
   <div class="space-y-4">
     <div class="space-y-1.5">
-      <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+      <label class="block text-small font-bold text-slate-400">
         The two files from {{ NAMES.fullFirst }} (Download CSV and Download diagnostics)
       </label>
       <input
         type="file"
         multiple
         accept=".csv,.gz,.json,application/json,text/csv,application/gzip"
-        class="block w-full text-[11px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:text-white"
+        class="block w-full text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-white"
         @change="onFiles"
       />
-      <p class="text-[10px] text-slate-400">
+      <p class="text-small text-slate-400">
         <b>chain-search-*.csv</b> (or a .csv.gz) and <b>chain-search-diagnostics-*.json</b>, from the two download
         buttons under the results. Pick both at once.
       </p>
-      <p class="text-[10px] font-semibold text-slate-500">
+      <p class="text-small font-bold text-slate-500">
         CSV: {{ csvName || '—' }} · diagnostics: {{ diagName || '—' }}
       </p>
     </div>
 
-    <p v-if="readError" class="rounded-lg bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
+    <p v-if="readError" class="rounded-lg bg-rose-50 px-3 py-2 text-body font-bold text-rose-700">
       {{ readError }}
     </p>
 
     <template v-if="csv && diag && check">
-      <div class="grid gap-2 sm:grid-cols-3 text-[11px]">
+      <div class="grid gap-2 sm:grid-cols-3 text-body">
         <div class="rounded-lg bg-slate-50 px-3 py-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Run</div>
+          <div class="label text-slate-400">Run</div>
           <div class="font-bold text-slate-800">{{ csv.currentTE }} → {{ csv.finalTE }} TE</div>
           <div class="text-slate-500">
             best {{ csv.best?.chain.join(' ') }} · {{ csv.best?.days.toFixed(2) }} d ·
@@ -45,12 +45,12 @@
           </div>
         </div>
         <div class="rounded-lg bg-slate-50 px-3 py-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Plan start</div>
+          <div class="label text-slate-400">Plan start</div>
           <div class="font-bold text-slate-800">{{ preview?.startLocal }} ({{ preview?.startWeekday }})</div>
           <div class="text-slate-500">{{ csv.timezone }} · backup {{ preview?.backupAgeHours ?? '?' }} h old</div>
         </div>
         <div class="rounded-lg bg-slate-50 px-3 py-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Gear</div>
+          <div class="label text-slate-400">Gear</div>
           <div class="font-bold text-slate-800">
             delivery {{ preview?.deliveryScore ? (preview.deliveryScore.score * 100).toFixed(1) + '%' : '—' }} · Clothed
             TE
@@ -69,87 +69,87 @@
 
       <ul
         v-if="check.errors.length"
-        class="space-y-1 rounded-lg bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700"
+        class="space-y-1 rounded-lg bg-rose-50 px-3 py-2 text-small font-bold text-rose-700"
       >
         <li v-for="e in check.errors" :key="e">✕ {{ e }}</li>
       </ul>
       <ul
         v-if="check.warnings.length"
-        class="space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800"
+        class="space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-small font-bold text-amber-800"
       >
         <li v-for="w in check.warnings" :key="w">! {{ w }}</li>
       </ul>
 
       <div class="grid gap-3 sm:grid-cols-2">
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Which sweep</span>
-          <select v-model="presetId" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]">
+          <span class="block text-slate-400 label">Which sweep</span>
+          <select v-model="presetId" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body">
             <option v-for="p in SWEEP_PRESETS" :key="p.id" :value="p.id">{{ p.label }}</option>
           </select>
         </label>
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Ranges as typed</span>
-          <input v-model="bands" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 tabular-nums text-[12px]" />
+          <span class="block text-slate-400 label">Ranges as typed</span>
+          <input v-model="bands" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 tabular-nums text-body" />
         </label>
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Minimum gap</span>
+          <span class="block text-slate-400 label">Minimum gap</span>
           <input
             v-model.number="minGap"
             type="number"
             min="0"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nickname (optional)</span>
+          <span class="block text-slate-400 label">Nickname (optional)</span>
           <input
             v-model="nickname"
             maxlength="40"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <span class="block text-small font-bold text-slate-400">
             CPU threads on the machine that ran it
           </span>
           <input
             v-model.number="cores"
             type="number"
             min="1"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">RAM, GB</span>
+          <span class="block text-slate-400 label">RAM, GB</span>
           <input
             v-model.number="ramGB"
             type="number"
             min="1"
             placeholder="browsers can't tell us this"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
         <label class="space-y-1">
-          <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest"
+          <span class="block text-slate-400 label"
             >Workers the run used</span
           >
           <input
             v-model.number="workers"
             type="number"
             min="1"
-            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[12px]"
+            class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-body"
           />
         </label>
       </div>
 
-      <details class="text-[11px] text-slate-500">
+      <details class="text-body text-slate-500">
         <summary class="cursor-pointer font-bold">Exactly what gets sent</summary>
         <p class="mt-1">
           This record, plus the CSV (compressed, player IDs removed), is sent as a <b>public</b> row on the leaderboard:
           anyone can see it and download its CSV. No player ID and no in-game name: those are in
           neither. The artifact set and time zone do narrow down who you are among people who know each other.
         </p>
-        <pre class="mt-1 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] text-slate-100">{{
+        <pre class="mt-1 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-small text-slate-100">{{
           previewJson
         }}</pre>
       </details>
@@ -157,7 +157,7 @@
       <div class="flex items-center gap-3">
         <button
           type="button"
-          class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white disabled:opacity-40"
+          class="px-4 py-2 rounded-lg text-body font-bold bg-indigo-600 text-white disabled:opacity-40"
           :disabled="!!check.errors.length || sending || sent"
           @click="send"
         >
@@ -165,7 +165,7 @@
         </button>
         <span
           v-if="sendMessage"
-          class="text-[11px] font-semibold"
+          class="text-small font-bold"
           :class="sendOk ? 'text-emerald-700' : 'text-rose-700'"
         >
           {{ sendMessage }}
@@ -174,7 +174,7 @@
           v-if="pendingTable"
           type="button"
           :disabled="retrying"
-          class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-body font-bold hover:bg-amber-50 disabled:opacity-40"
           @click="retryTable"
         >
           {{ retrying ? 'Sending the CSV…' : 'Retry the CSV' }}

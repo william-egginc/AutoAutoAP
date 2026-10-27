@@ -24,8 +24,8 @@
            Science) the planner has its own. -->
       <template v-if="!embedded">
         <header class="space-y-1">
-          <h1 class="text-2xl font-black tracking-tight text-slate-900">Insights</h1>
-          <p class="text-sm text-slate-500 max-w-3xl leading-relaxed">
+          <h1 class="text-headline font-black text-slate-900">Insights</h1>
+          <p class="text-body text-slate-500 max-w-3xl">
             Every run submitted to the planner's server, grouped by how many ascensions it takes. Pick a count to see where
             each ascension lands, how long each one runs, and whether the shape repeats across accounts.
           </p>
@@ -39,18 +39,18 @@
           :href="scienceHref('check')"
           class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-indigo-900 hover:bg-indigo-100"
         >
-          <span class="text-[13px] font-bold">
+          <span class="text-body font-bold">
             Want to help improve the planner? Run one of the sweeps we still need and submit it.
           </span>
-          <span class="text-[10px] font-black uppercase tracking-widest">See what's needed &rarr;</span>
+          <span class="label">See what's needed &rarr;</span>
         </a>
       </template>
 
       <!-- ------------------------------------------------------------------ source and loading -->
       <section v-if="part === 'insights'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div v-if="!base" class="space-y-2">
-          <p class="text-sm font-bold text-slate-700">No server configured for this copy of the page.</p>
-          <p class="text-[12px] text-slate-500 leading-relaxed">
+          <p class="text-body font-bold text-slate-700">No server configured for this copy of the page.</p>
+          <p class="text-body text-slate-500 max-w-prose">
             Paste the planner's server base URL: the same Worker the planner's Submit button posts to, without the
             <code class="tabular-nums">/submit</code>. It is remembered in this browser, and
             <code class="tabular-nums">?collector=…</code> on this page's own URL does the same thing for a link
@@ -61,11 +61,11 @@
               v-model="typedBase"
               type="url"
               placeholder="https://ascension-chain-collector.example.workers.dev"
-              class="flex-1 min-w-[18rem] rounded-lg border-slate-300 text-sm tabular-nums"
+              class="flex-1 min-w-[18rem] rounded-lg border-slate-300 text-body tabular-nums"
             />
             <button
               type="submit"
-              class="px-4 py-2 rounded-lg bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest"
+              class="px-4 py-2 rounded-lg bg-slate-900 text-white text-body font-bold"
             >
               Load
             </button>
@@ -74,26 +74,26 @@
 
         <div v-else class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-0.5">
-            <p v-if="loading" class="text-sm font-bold text-slate-500">Loading the runs…</p>
-            <p v-else-if="error" class="text-sm font-bold text-rose-700">{{ error }}</p>
-            <p v-else-if="allSimHidden" class="text-sm font-bold text-amber-700" data-testid="sim-all-hidden">
+            <p v-if="loading" class="text-body font-bold text-slate-500">Loading the runs…</p>
+            <p v-else-if="error" class="text-body font-bold text-rose-700">{{ error }}</p>
+            <p v-else-if="allSimHidden" class="text-body font-bold text-amber-700" data-testid="sim-all-hidden">
               {{ allSimHidden }}
             </p>
             <!-- Inside the planner, a plain headline and what was left out, one line each (the user's
                  screenshot, 30 Sept: the checkboxes ran into the next sentence, and the collector URL and
                  worker-time note read like developer notes). The page on its own keeps the detail. -->
-            <p v-else class="text-sm font-bold text-slate-700">
+            <p v-else class="text-body font-bold text-slate-700">
               {{ plural(usable.length, 'run') }} from {{ plural(accounts.length, 'account') }}<template v-if="!embedded">
                 · {{ plural(totalChainsPriced, 'route') }} priced between them<template v-if="computeTotal.runs">
                   · {{ formatMinutes(computeTotal.minutes) }} of computing</template
                 ></template
               >
             </p>
-            <p v-if="!embedded && !loading && computeTotal.runs" class="text-[11px] text-slate-500">
+            <p v-if="!embedded && !loading && computeTotal.runs" class="text-body text-slate-500 max-w-prose">
               Worker time from the {{ computeTotal.runs }} run{{ computeTotal.runs === 1 ? '' : 's' }} that recorded it
               (minutes x workers); runs from older versions and from uploads did not.
             </p>
-            <div v-if="!loading" class="space-y-0.5 text-[11px] text-slate-500">
+            <div v-if="!loading" class="space-y-0.5 text-body text-slate-500">
               <p v-if="folded.hidden.size">
                 {{ folded.hidden.size }} repeat send{{ folded.hidden.size === 1 ? '' : 's' }} of a result already listed
                 {{ folded.hidden.size === 1 ? 'is' : 'are' }} counted once (the same plan from the same save, sent twice
@@ -121,12 +121,12 @@
                 </label>
               </p>
             </div>
-            <p v-if="!embedded" class="text-[10px] tabular-nums text-slate-400 truncate max-w-xl">{{ base }}</p>
+            <p v-if="!embedded" class="text-small tabular-nums text-slate-400 truncate max-w-xl">{{ base }}</p>
           </div>
           <div class="flex gap-2">
             <button
               type="button"
-              class="px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300"
+              class="px-3 py-1.5 rounded-lg border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300"
               :disabled="loading"
               @click="load"
             >
@@ -135,7 +135,7 @@
             <button
               v-if="!embedded"
               type="button"
-              class="px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300"
+              class="px-3 py-1.5 rounded-lg border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300"
               @click="forgetBase"
             >
               Change server
@@ -147,7 +147,7 @@
       <!-- Science needs the runs too, but not the collector's details: just say when they can't load. -->
       <p
         v-if="part === 'science' && (!base || error)"
-        class="rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold"
+        class="rounded-xl border border-slate-200 bg-white p-4 text-body font-bold"
         :class="base ? 'text-rose-700' : 'text-slate-600'"
       >
         {{ base ? error : "No planner's server is set up for this copy of the site, so there's nothing to show here." }}
@@ -168,7 +168,7 @@
            runs arrived and the page above it filled in. -->
       <section
         v-if="base && loading && !rows.length"
-        class="flex h-40 items-center justify-center rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-400"
+        class="flex h-40 items-center justify-center rounded-xl border border-slate-200 bg-white text-small font-bold text-slate-400"
         role="status"
       >
         Loading the runs…
@@ -176,7 +176,7 @@
 
       <p
         v-if="part === 'insights' && simHidden && !allSimHidden"
-        class="text-[11px] text-slate-500"
+        class="text-body text-slate-500"
         data-testid="sim-hidden"
       >
         {{ simHidden }}
@@ -184,8 +184,8 @@
 
       <template v-if="part === 'insights' && rows.length">
         <!-- The caveats, folded and first: "accounts are a guess" matters before reading any account row. -->
-        <details class="rounded-xl border border-slate-200 bg-white p-4 text-[11px] text-slate-500">
-          <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
+        <details class="rounded-xl border border-slate-200 bg-white p-4 text-body text-slate-500">
+          <summary class="cursor-pointer text-body font-bold text-slate-500">
             How to read all of this
           </summary>
           <div class="mt-2 space-y-2">
@@ -217,13 +217,13 @@
         <!-- ------------------------------------------------------------------------- filtering -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <div class="flex flex-wrap items-center gap-3">
-            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Target TE</span>
+            <span class="text-slate-400 label">Target TE</span>
             <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="target in targets"
                 :key="target.finalTE"
                 type="button"
-                class="px-2.5 py-1 rounded-md text-[10px] font-black border transition-colors"
+                class="px-2.5 py-1 rounded-md text-small font-bold border transition-colors"
                 :class="
                   finalTE === target.finalTE
                     ? 'bg-slate-900 text-white border-slate-900'
@@ -234,7 +234,7 @@
                 {{ target.finalTE }} <span class="opacity-60">({{ target.runs }})</span>
               </button>
             </div>
-            <label class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            <label class="flex items-center gap-2 text-slate-500 label">
               <input
                 v-model="exhaustiveOnly"
                 type="checkbox"
@@ -243,7 +243,7 @@
               Proofs only
             </label>
           </div>
-          <p class="text-[11px] text-slate-500 leading-relaxed">
+          <p class="text-body text-slate-500 max-w-prose">
             One target at a time, because a 300 route and a 490 route are different problems and their stops do not sit
             in the same places.
             <template v-if="exhaustiveOnly">
@@ -255,16 +255,16 @@
 
         <!-- Which count wins, near the top: it answers the question most people come with (review, 30 Sept). -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Which ascension count finishes first, account by account</h2>
-          <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+          <h2 class="text-title font-bold text-slate-900">Which ascension count finishes first, account by account</h2>
+          <p class="text-body text-slate-700 max-w-3xl">
             <b>How to read it:</b> each row is one account. "best" is the number of ascensions that finished first for
             it; every other cell says how many days later that count finished. Darker is closer to the best.
           </p>
           <details>
-            <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+            <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
               How this is worked out
             </summary>
-            <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            <p class="mt-1 text-body text-slate-500 max-w-3xl">
               One row per account, one column per ascension count tried at this target. Each cell is that account's best
               plan at that count whose finish still stands, as days after the account's own earliest finish (the one the
               runs table names): "best" at 0, darker is closer. A row only compares with itself; nothing compares down a
@@ -288,7 +288,7 @@
 
         <!-- ---------------------------------------------------------------- the count selector -->
         <section class="space-y-2">
-          <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">By ascension count</h2>
+          <h2 class="text-slate-400 label px-1">By ascension count</h2>
           <div v-if="countGroups.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             <button
               type="button"
@@ -300,17 +300,17 @@
               "
               @click="selectedCount = 'all'"
             >
-              <div class="text-xl font-black leading-none">All</div>
+              <div class="text-title font-bold leading-none">All</div>
               <div
-                class="text-[9px] font-black uppercase tracking-widest mt-1"
+                class="text-body font-bold mt-1"
                 :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-400'"
               >
                 ascension counts
               </div>
-              <div class="mt-2 text-[11px] font-bold">
+              <div class="mt-2 text-small font-bold">
                 {{ allGroup.rows.length }} run{{ allGroup.rows.length === 1 ? '' : 's' }}
               </div>
-              <div class="text-[10px]" :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-400'">
+              <div class="text-small" :class="selectedCount === 'all' ? 'text-slate-300' : 'text-slate-400'">
                 {{ allGroup.accounts }} account{{ allGroup.accounts === 1 ? '' : 's' }}
                 <template v-if="allGroup.exhaustive">· {{ allGroup.exhaustive }} proven</template>
               </div>
@@ -327,18 +327,18 @@
               "
               @click="selectedCount = group.ascensions"
             >
-              <div class="text-xl font-black leading-none">{{ group.ascensions }}</div>
+              <div class="text-title font-bold leading-none">{{ group.ascensions }}</div>
               <div
-                class="text-[9px] font-black uppercase tracking-widest mt-1"
+                class="text-body font-bold mt-1"
                 :class="selectedCount === group.ascensions ? 'text-slate-300' : 'text-slate-400'"
               >
                 ascensions
               </div>
-              <div class="mt-2 text-[11px] font-bold">
+              <div class="mt-2 text-small font-bold">
                 {{ group.rows.length }} run{{ group.rows.length === 1 ? '' : 's' }}
               </div>
               <div
-                class="text-[10px]"
+                class="text-small"
                 :class="selectedCount === group.ascensions ? 'text-slate-300' : 'text-slate-400'"
               >
                 {{ group.accounts }} account{{ group.accounts === 1 ? '' : 's' }}
@@ -348,7 +348,7 @@
           </div>
           <p
             v-else
-            class="px-4 py-8 text-center text-[11px] text-slate-400 bg-white rounded-xl border border-slate-200"
+            class="px-4 py-8 text-center text-body text-slate-400 bg-white rounded-xl border border-slate-200"
           >
             Nothing matches that filter yet.
           </p>
@@ -357,21 +357,21 @@
         <!-- ------------------------------------------------------------------- selected detail -->
         <section v-if="selected" class="rounded-xl border border-slate-200 bg-white p-4 space-y-5">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 class="text-lg font-black text-slate-900">
+            <h2 class="text-title font-bold text-slate-900">
               {{ selectedCount === 'all' ? 'Every ascension count' : plural(selectedCount, 'ascension') }}
-              <span class="text-[11px] font-bold text-slate-400">
+              <span class="text-body font-bold text-slate-400">
                 · {{ selected.rows.length }} run{{ selected.rows.length === 1 ? '' : 's' }} from
                 {{ selected.accounts }} account{{ selected.accounts === 1 ? '' : 's' }}
               </span>
             </h2>
-            <span class="text-[11px] text-slate-500 max-w-md">
+            <span class="text-body text-slate-500 max-w-md">
               No "fastest" across accounts: gear decides that. Each account's earliest finish is named in the table.
             </span>
           </div>
 
           <template v-if="selectedCount !== 'all'">
             <div class="space-y-2">
-              <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Where each stop lands</h3>
+              <h3 class="text-slate-400 label">Where each stop lands</h3>
               <CountShapeChart
                 :rows="selected.rows"
                 :bests="selectedBests"
@@ -383,7 +383,7 @@
 
             <!-- Interesting, but no decision depends on it: folded (review, 30 Sept). -->
             <details>
-              <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              <summary class="cursor-pointer text-body font-bold text-slate-500">
                 How each ascension goes
               </summary>
               <div class="mt-2">
@@ -395,7 +395,7 @@
               </div>
             </details>
           </template>
-          <p v-else class="text-[11px] text-slate-500 leading-relaxed">
+          <p v-else class="text-body text-slate-500 max-w-prose">
             Pick one count to see where its stops land and how each ascension goes: the third ascension of a 4-ascension
             plan and of a 7-ascension plan are not the same thing, so those charts only work one count at a time.
           </p>
@@ -403,12 +403,12 @@
           <!-- Every run, folded: twelve columns and a long explainer, for the few who want them (review,
                30 Sept). -->
           <details id="the-runs" class="scroll-mt-4">
-            <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            <summary class="cursor-pointer text-body font-bold text-slate-500">
               Show every run
             </summary>
             <div class="mt-2 space-y-2">
-              <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">The runs</h3>
-              <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              <h3 class="text-slate-400 label">The runs</h3>
+              <p class="text-body text-slate-500 max-w-3xl">
                 Grouped by account, earliest finish first unless you pick another order below; click an account's name
                 to fold its runs away. <b>Finishes</b> is the date the plan reaches {{ finalTE }} TE, in your timezone
                 (the player's own is on hover): it is the same whenever the same plan is run, so it is what compares
@@ -429,14 +429,14 @@
                 190 TE, or a target other than 490): not flagged, and not cleared either.
               </p>
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
+                <span class="text-slate-400 label mr-1"
                   >Sort each account by</span
                 >
                 <button
                   v-for="opt in runSortOptions"
                   :key="opt.by"
                   type="button"
-                  class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+                  class="px-2 py-0.5 rounded-md text-body font-bold border transition-colors"
                   :class="
                     activeSort.by === opt.by
                       ? 'bg-slate-900 text-white border-slate-900'
@@ -449,7 +449,7 @@
                 </button>
                 <button
                   type="button"
-                  class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  class="px-2 py-0.5 rounded-md text-body font-bold border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                   title="Flip the order"
                   @click="flipRunSort"
                 >
@@ -458,7 +458,7 @@
                 <span class="grow" />
                 <button
                   type="button"
-                  class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                  class="px-2 py-0.5 rounded-md text-body font-bold border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
                   :disabled="runBlocks.every(b => collapsed.has(b.key))"
                   @click="
                     setCollapsed(
@@ -471,7 +471,7 @@
                 </button>
                 <button
                   type="button"
-                  class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                  class="px-2 py-0.5 rounded-md text-body font-bold border border-slate-200 bg-white text-slate-500 hover:border-slate-300 disabled:opacity-40"
                   :disabled="!runBlocks.some(b => collapsed.has(b.key))"
                   @click="
                     setCollapsed(
@@ -483,7 +483,7 @@
                   Expand all
                 </button>
               </div>
-              <p v-if="activeSort.by === 'length'" class="text-[10px] text-amber-800 leading-relaxed max-w-3xl">
+              <p v-if="activeSort.by === 'length'" class="text-small text-amber-800 max-w-3xl">
                 Plan length counts from each run's own start, so a plan made a day later shows a day fewer even when it
                 is the same plan. In this order, only runs from the same save compare; to see which plan is better, sort
                 by finish.
@@ -491,9 +491,9 @@
               <!-- A size container, so each account's header line can be exactly as wide as what is on
                  screen (100cqw) however wide the table itself is: the Leaderboard's pattern. -->
               <div class="overflow-x-auto [container-type:inline-size]">
-                <table class="w-full text-[11px]">
+                <table class="w-full text-small">
                   <thead>
-                    <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                    <tr class="text-slate-400 label">
                       <th class="text-left py-1 pr-3">Who</th>
                       <th
                         v-if="selectedCount === 'all'"
@@ -571,7 +571,7 @@
                   </thead>
                   <tbody v-for="block in runBlocks" :key="block.key" class="divide-y divide-slate-100">
                     <tr class="bg-slate-50">
-                      <td :colspan="selectedCount === 'all' ? 13 : 12" class="p-0 text-[10px] text-slate-500">
+                      <td :colspan="selectedCount === 'all' ? 13 : 12" class="p-0 text-small text-slate-500">
                         <!-- Pinned to the left edge and as wide as the visible part of the table: on a phone
                            the table is wider than the screen, and a line spanning all of it put the
                            route and the "not listed here" note off-screen. It wraps on screen instead. -->
@@ -587,7 +587,7 @@
                           >
                             <span
                               aria-hidden="true"
-                              class="inline-block w-3.5 text-[13px] leading-none align-middle text-slate-500"
+                              class="inline-block w-3.5 text-small leading-none align-middle text-slate-500"
                               >{{ collapsed.has(block.key) ? '▸' : '▾' }}</span
                             >
                             <AccountDot :index="accountColors.get(block.key) ?? 0" class="mr-1.5" />
@@ -624,35 +624,35 @@
                         {{ whoText(row) || 'anonymous' }}
                         <span
                           v-if="judged.byId.get(row.id)?.best"
-                          class="ml-1 rounded bg-emerald-100 px-1 text-[9px] font-black text-emerald-800"
+                          class="ml-1 rounded bg-emerald-100 px-1 text-small font-bold text-emerald-800"
                           title="This account's earliest finish at this target"
                         >
                           best
                         </span>
                         <span
                           v-if="stateOf(row)"
-                          class="ml-1 whitespace-nowrap rounded bg-slate-100 px-1 text-[9px] font-black text-slate-500"
+                          class="ml-1 whitespace-nowrap rounded bg-slate-100 px-1 text-small font-bold text-slate-500"
                           :title="judged.byId.get(row.id)?.reason"
                         >
                           {{ stateOf(row) }}
                         </span>
                         <span
                           v-if="folded.sends.get(row.id)"
-                          class="ml-1 whitespace-nowrap text-[9px] font-bold text-slate-400"
+                          class="ml-1 whitespace-nowrap text-small font-bold text-slate-400"
                           title="The same result was sent more than once; it is listed once"
                         >
                           sent ×{{ folded.sends.get(row.id) }}
                         </span>
                         <span
                           v-if="flagged.has(row.id)"
-                          class="ml-1 rounded bg-amber-100 px-1 text-[9px] font-black text-amber-800"
+                          class="ml-1 rounded bg-amber-100 px-1 text-small font-bold text-amber-800"
                           :title="flagged.get(row.id)"
                         >
                           flagged
                         </span>
                         <span
                           v-else-if="unchecked.has(row.id)"
-                          class="ml-1 whitespace-nowrap rounded border border-dashed border-slate-300 px-1 text-[9px] font-bold text-slate-400"
+                          class="ml-1 whitespace-nowrap rounded border border-dashed border-slate-300 px-1 text-small font-bold text-slate-400"
                           :title="unchecked.get(row.id)"
                         >
                           can't check
@@ -660,7 +660,7 @@
                         <!-- Why a run is greyed, on screen where there is no hover to show it: a phone. -->
                         <div
                           v-if="stateOf(row) && judged.byId.get(row.id)?.reason"
-                          class="sm:hidden mt-0.5 max-w-[14rem] text-[10px] leading-snug text-slate-400"
+                          class="sm:hidden mt-0.5 max-w-[14rem] text-small text-slate-400"
                         >
                           {{ judged.byId.get(row.id)?.reason }}
                         </div>
@@ -679,7 +679,7 @@
                         <span
                           v-for="t in tags.get(row) ?? []"
                           :key="t"
-                          class="ml-1 rounded bg-sky-100 px-1 font-sans text-[9px] font-black text-sky-800"
+                          class="ml-1 rounded bg-sky-100 px-1 font-sans text-small font-bold text-sky-800"
                           >{{ t }}</span
                         >
                       </td>
@@ -687,17 +687,17 @@
                         {{ plannedText(row) }}
                       </td>
                       <td
-                        class="py-1.5 pr-3 whitespace-nowrap font-black"
+                        class="py-1.5 pr-3 whitespace-nowrap font-bold"
                         :title="finishTitle(judged.byId.get(row.id)?.finish ?? null, row.timezone)"
                       >
                         {{ finishDateText(judged.byId.get(row.id)?.finish ?? null, viewZone) }}
                         <SimChip :stamp="row.simVersion" />
                       </td>
                       <td class="py-1.5 pr-3 text-right whitespace-nowrap" :title="vsBestTitle(row)">
-                        <span v-if="judged.byId.get(row.id)?.best" class="font-black text-emerald-700">best</span>
+                        <span v-if="judged.byId.get(row.id)?.best" class="font-bold text-emerald-700">best</span>
                         <template v-else-if="judged.byId.get(row.id)?.behind != null">
                           {{ vsBestText(judged.byId.get(row.id)!.behind!) }}
-                          <span v-if="judged.byId.get(row.id)?.sameSaveAsBest" class="text-[9px] text-slate-400"
+                          <span v-if="judged.byId.get(row.id)?.sameSaveAsBest" class="text-small text-slate-400"
                             >same save</span
                           >
                         </template>
@@ -711,7 +711,7 @@
                           :class="
                             row.space
                               ? searched.get(row.id)?.finished
-                                ? 'font-black text-emerald-700'
+                                ? 'font-bold text-emerald-700'
                                 : 'font-bold text-amber-700'
                               : 'text-slate-500'
                           "
@@ -721,7 +721,7 @@
                            copies as the text a player would type into the planner. -->
                         <div
                           v-if="searched.get(row.id)?.pieces.length"
-                          class="tabular-nums text-[10px] text-slate-500 max-w-[17rem]"
+                          class="tabular-nums text-small text-slate-500 max-w-[17rem]"
                         >
                           <template v-for="(piece, k) in searched.get(row.id)?.pieces" :key="k"
                             >{{ k ? ' ' : '' }}<span class="whitespace-nowrap">{{ piece }}</span></template
@@ -745,8 +745,8 @@
                           >
                           <template v-else>
                             <span class="font-bold text-slate-600">{{ plansText(leftById.get(row.id)!.left) }}</span>
-                            <span class="text-[9px] text-slate-400"> {{ leftShareText(leftById.get(row.id)!) }}</span>
-                            <div class="text-[10px] text-slate-400">
+                            <span class="text-small text-slate-400"> {{ leftShareText(leftById.get(row.id)!) }}</span>
+                            <div class="text-small text-slate-400">
                               ~{{ longEstimate(leftById.get(row.id)!.seconds) }}
                             </div>
                           </template>
@@ -763,7 +763,7 @@
                         <button
                           v-if="row.hasCsv"
                           type="button"
-                          class="px-2 py-0.5 rounded-md border border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300 disabled:opacity-40"
+                          class="px-2 py-0.5 rounded-md border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300 disabled:opacity-40"
                           :disabled="csvLoadingId === row.id"
                           @click="openTable(row, $event)"
                         >
@@ -781,16 +781,16 @@
 
         <!-- ------------------------------------------------------------------ across the counts -->
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Does one more ascension help?</h2>
-          <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+          <h2 class="text-title font-bold text-slate-900">Does one more ascension help?</h2>
+          <p class="text-body text-slate-700 max-w-3xl">
             <b>How to read it:</b> Each line is one account. Lower means it finishes sooner, and 0 is that account's
             best count; where a line flattens out, more ascensions stopped helping.
           </p>
           <details>
-            <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+            <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
               How this is worked out
             </summary>
-            <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            <p class="mt-1 text-body text-slate-500 max-w-3xl">
               One line per account, never one line across accounts: a duration depends on artifacts, colleggtibles,
               research and starting TE at least as much as on the route, so the fair way to ask this is to hold one
               account still and vary the count. Each point is how many days after that account's earliest finish the
@@ -811,17 +811,17 @@
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-          <h2 class="text-lg font-black text-slate-900">Each sweep, every account (to 490)</h2>
-          <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+          <h2 class="text-title font-bold text-slate-900">Each sweep, every account (to 490)</h2>
+          <p class="text-body text-slate-700 max-w-3xl">
             <b>How to read it:</b> Each line is one run's full table: how much slower every TE at a stop is than that
             run's best one. A narrow dip means the exact TE matters; the table under it says how many days a coarser
             search would have lost.
           </p>
           <details>
-            <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+            <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
               How this is worked out
             </summary>
-            <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            <p class="mt-1 text-body text-slate-500 max-w-3xl">
               Runs to 490 only, whatever target is picked above. For each TE at the picked stop (the last by default),
               how far the best plan through it is behind that run's own best, as a percent of it, one line per run. Each
               line is one table priced from one save, so its shape is exact, and as a percent of its own best it
@@ -842,13 +842,13 @@
 
         <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 class="text-lg font-black text-slate-900">Gear</h2>
+            <h2 class="text-title font-bold text-slate-900">Gear</h2>
             <div class="flex gap-1.5">
               <button
                 v-for="v in GEAR_VIEWS"
                 :key="v.id"
                 type="button"
-                class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+                class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
                 :class="
                   gearView === v.id
                     ? 'bg-slate-900 text-white border-slate-900'
@@ -862,15 +862,15 @@
             </div>
           </div>
           <template v-if="gearView === 'map'">
-            <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+            <p class="text-body text-slate-700 max-w-3xl">
               <b>How to read it:</b> each mark is one account: across is the TE it started from, up is its Clothed TE,
               darker is a stronger delivery set. Grey areas are where the Leaderboard still wants accounts.
             </p>
             <details>
-              <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+              <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
                 How this is worked out
               </summary>
-              <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+              <p class="mt-1 text-body text-slate-500 max-w-3xl">
                 Where the Leaderboard's accounts sit, and where it has no data. One mark per account, from its newest run that
                 recorded its gear: across is the TE that run started from, up is its Clothed TE, darker is a stronger
                 delivery set. Clothed TE is TE plus what the earnings set adds, and every account so far adds between
@@ -885,7 +885,7 @@
             <GearMap :accounts="accounts" :what-ifs="whatIfs" />
           </template>
           <template v-else>
-            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            <p class="text-body text-slate-500 max-w-3xl">
               <b>Delivery set</b>: each account's delivery set as a percent of the best possible, bars from 0; the grey
               ticks are the best peak delivery any of that account's runs to 490 reached. <b>Earnings set</b>: what its
               earnings set is worth, as Clothed TE minus TE, bars from 0 (TE and Clothed TE are in the tooltip: hover or
@@ -904,9 +904,9 @@
           class="rounded-xl border border-slate-200 bg-white p-4 space-y-4 scroll-mt-4"
         >
           <div class="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 class="text-lg font-black text-slate-900">
+            <h2 class="text-title font-bold text-slate-900">
               Every route {{ whoText(loadedRun) || 'that run' }} priced
-              <span class="text-[11px] font-bold text-slate-400">
+              <span class="text-small font-bold text-slate-400">
                 · {{ plural(loadedChains.length, 'route') }}
                 <!-- The file is in rank order, fastest first, and the cap keeps the first N — so
                      what a cap drops is the SLOW tail, not the old one. -->
@@ -916,14 +916,14 @@
             <div class="flex gap-2">
               <a
                 href="#the-runs"
-                class="px-3 py-1 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300"
+                class="px-3 py-1 rounded-lg border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300"
                 @click.prevent="backToRuns"
               >
                 &uarr; Back to the runs
               </a>
               <button
                 type="button"
-                class="px-3 py-1 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-slate-300"
+                class="px-3 py-1 rounded-lg border border-slate-200 text-body font-bold text-slate-500 hover:border-slate-300"
                 @click="closeTable"
               >
                 Close
@@ -933,14 +933,14 @@
 
           <div v-if="plateau" class="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1">
             <div class="flex flex-wrap items-center gap-1.5">
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1"
+              <span class="text-slate-400 label mr-1"
                 >Near the best means</span
               >
               <button
                 v-for="t in TOLERANCES"
                 :key="t.id"
                 type="button"
-                class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+                class="px-2 py-0.5 rounded-md text-body font-bold border transition-colors"
                 :class="
                   plateauTolerance === t.id
                     ? 'bg-slate-900 text-white border-slate-900'
@@ -952,7 +952,7 @@
                 within {{ t.label }}
               </button>
             </div>
-            <p class="text-[11px] text-slate-600 leading-relaxed">
+            <p class="text-body text-slate-600 max-w-prose">
               <b>{{ plateau.near.toLocaleString() }}</b> of {{ plural(plateau.total, 'route') }} at
               {{ plural(loadedRun.ascensions, 'ascension') }} came within {{ toleranceText }} of this run's best ({{
                 plateau.bestDays.toFixed(2)
@@ -960,12 +960,12 @@
               d, <span class="tabular-nums">{{ plateau.bestChain.join(' ') }}</span
               >). That plateau put each stop here:
             </p>
-            <p class="text-[11px] tabular-nums text-slate-700">
+            <p class="text-body tabular-nums text-slate-700">
               <span v-for="band in plateau.bands" :key="band.index" class="mr-3">
                 {{ band.index + 1 }}: {{ absoluteOf(band.lo) }}–{{ absoluteOf(band.hi) }}
               </span>
             </p>
-            <p class="text-[10px] text-slate-400 leading-relaxed">
+            <p class="text-small text-slate-400">
               A wide range means the exact value barely matters; a range one or two TE wide means it does. Both are
               measured against the space this run actually enumerated, so a range that runs to the edge of that space is
               telling you about the search as much as about the game. 1% of a 700-day plan is 7 days, more than most
@@ -982,8 +982,8 @@
           />
 
           <div class="space-y-2 border-t border-slate-100 pt-4">
-            <h3 class="text-sm font-black text-slate-900">What missing a stop costs</h3>
-            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            <h3 class="text-body font-bold text-slate-900">What missing a stop costs</h3>
+            <p class="text-body text-slate-500 max-w-3xl">
               A plan rarely goes exactly to schedule: you are asleep when a stop arrives, or you ascend a little early.
               This reads what that costs off this run's own table, where every plan was priced from the same save, so
               the days compare directly. For each stop of the best plan and a miss of 1 or 2 TE either way, "keep" is
@@ -997,8 +997,8 @@
           </div>
 
           <div class="space-y-2 border-t border-slate-100 pt-4">
-            <h3 class="text-sm font-black text-slate-900">Every plan this run priced</h3>
-            <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+            <h3 class="text-body font-bold text-slate-900">Every plan this run priced</h3>
+            <p class="text-body text-slate-500 max-w-3xl">
               The run's whole table, fastest first: its top 10, 25 or 100, or every plan it checked, 100 to a page. All
               of them were priced from one save, so here, and only here, days compare directly: "vs best" is the gap
               between two plans and nothing else, and each finish date is this run's plan start plus that plan's days,
@@ -1017,26 +1017,26 @@
           </div>
         </section>
 
-        <p v-if="csvError" class="text-[11px] font-bold text-rose-700 px-1">{{ csvError }}</p>
+        <p v-if="csvError" class="text-body font-bold text-rose-700 px-1">{{ csvError }}</p>
 
         <!-- The specialist sections, one click away (review, 30 Sept): the sale plans the planner picks
              for you, one account's stored plans, day-to-day drift, and the checks on the runs themselves. -->
         <details class="rounded-xl border border-slate-200 bg-white p-4">
-          <summary class="cursor-pointer text-[11px] font-black text-slate-600 uppercase tracking-widest">
+          <summary class="cursor-pointer text-body font-bold text-slate-600">
             More charts and checks
           </summary>
           <div class="mt-3 space-y-4">
             <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-              <h2 class="text-lg font-black text-slate-900">Which sale plan wins each ascension?</h2>
-              <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+              <h2 class="text-title font-bold text-slate-900">Which sale plan wins each ascension?</h2>
+              <p class="text-body text-slate-700 max-w-3xl">
                 <b>How to read it:</b> Each mark is one ascension of a winning plan: where it starts (across), how far it
                 climbs (up), and how many Research Sales the planner built through (colour).
               </p>
               <details>
-                <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
                   How this is worked out
                 </summary>
-                <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                <p class="mt-1 text-body text-slate-500 max-w-3xl">
                   One mark per ascension, from ascension 2 on, of every plan whose finish still stands. Across is the TE the ascension
                   starts at, up is how much TE it climbs, and the colour and shape are the sale plan the planner picked
                   for that ascension (1, 2 or 3 sales); here the colours mean the sale plan, not an account. Ascension 1 is left
@@ -1051,16 +1051,16 @@
               <SaleChoiceMap :rows="filtered" :judged="judged" :account-labels="accountLabels" />
             </section>
             <section v-if="base" class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-              <h2 class="text-lg font-black text-slate-900">An account's best plans, from all its stored tables</h2>
-              <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+              <h2 class="text-title font-bold text-slate-900">An account's best plans, from all its stored tables</h2>
+              <p class="text-body text-slate-700 max-w-3xl">
                 <b>How to read it:</b> Pick an account and load its tables to see every plan its runs priced, best
                 first, ranked by the date each reaches the target.
               </p>
               <details>
-                <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
                   How this is worked out
                 </summary>
-                <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                <p class="mt-1 text-body text-slate-500 max-w-3xl">
                   A stored table is every plan one run priced, so besides each run's winner an account's tables hold its
                   runners-up, its other ascension counts and the plans one TE over. Pick an account and load its tables:
                   the list merges them and ranks every plan by finish date, the run's plan start plus the plan's days.
@@ -1084,16 +1084,16 @@
               />
             </section>
             <section class="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
-              <h2 class="text-lg font-black text-slate-900">Does the best plan move from one day to the next?</h2>
-              <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+              <h2 class="text-title font-bold text-slate-900">Does the best plan move from one day to the next?</h2>
+              <p class="text-body text-slate-700 max-w-3xl">
                 <b>How to read it:</b> Each line is one plan priced on different days. A line that rises is a plan whose
                 finish slipped when priced again; a flat one held.
               </p>
               <details>
-                <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
                   How this is worked out
                 </summary>
-                <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                <p class="mt-1 text-body text-slate-500 max-w-3xl">
                   One account at a time. Each mark is a plan at the date it was made, measured by its finish date as
                   days after the account's earliest finish that still stands; totals never compare across starts. A line
                   joins the same plan each time it was priced: by a newer run of it, by a newer run with the stops since
@@ -1113,17 +1113,17 @@
               v-if="part === 'insights' && rows.length"
               class="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
             >
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Checks</div>
-              <h2 class="text-lg font-black text-slate-900">Did each final ascension reach its gear's rate? (to 490)</h2>
-              <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+              <div class="text-slate-400 label">Checks</div>
+              <h2 class="text-title font-bold text-slate-900">Did each final ascension reach its gear's rate? (to 490)</h2>
+              <p class="text-body text-slate-700 max-w-3xl">
                 <b>How to read it:</b> Each point is one run. Near 100% means its last ascension reached the delivery rate its
                 gear should; below the 80% line the run is flagged and left out of the rest of the page.
               </p>
               <details>
-                <summary class="cursor-pointer text-[10px] font-bold text-slate-400 hover:text-slate-600">
+                <summary class="cursor-pointer text-body font-bold text-slate-400 hover:text-slate-600">
                   How this is worked out
                 </summary>
-                <p class="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                <p class="mt-1 text-body text-slate-500 max-w-3xl">
                   One point per run to 490, whatever target is picked above. Across is the run's last stop; up is the
                   peak delivery its final ascension reached, as a percent of what its delivery set should reach from that
                   stop. Below the 80% line the run is flagged for the old delivery-set bug (earnings researched with the
@@ -1147,8 +1147,8 @@
               class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
             >
               <div class="space-y-1">
-                <h2 class="text-lg font-black text-slate-900">Runs the planner can't help yet</h2>
-                <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+                <h2 class="text-title font-bold text-slate-900">Runs the planner can't help yet</h2>
+                <p class="text-body text-slate-500 max-w-3xl">
                   Runs from accounts where the planner stops working: a first ascension that sits on the Integrity shift
                   for over an hour, a plan past ten years, or a result that contradicts itself. They are kept apart from
                   everything above, because they are not routes to copy, and shown anonymously, except runs sent from
@@ -1172,8 +1172,8 @@
       >
         <!-- Inside the planner the Science tab's own heading says this. -->
         <div v-if="!embedded" class="space-y-1">
-          <h2 class="text-lg font-black text-slate-900">Help fill the gaps</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+          <h2 class="text-title font-bold text-slate-900">Help fill the gaps</h2>
+          <p class="text-body text-slate-500 max-w-3xl">
             What the collected runs are still short of, worked out from them: each item drops off once enough accounts
             have covered it. Every run helps, even if nothing here matches your account, but these are the gaps where
             one more account teaches the most.
@@ -1192,7 +1192,7 @@
           @run="r => emit('run-sweep', r)"
           @run-by-date="r => emit('run-by-date', r)"
         />
-        <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+        <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-body text-slate-500">
           The asks are worked out from the runs on the Leaderboard, so they need the Leaderboard, and it
           {{ error ? 'gave nothing to work from (see above)' : 'holds no runs yet' }}. Any run you send, from a
           search or from {{ NAMES.submit }}, still helps.
@@ -1206,8 +1206,8 @@
         class="rounded-xl border border-slate-200 bg-white p-4 space-y-3 scroll-mt-4"
       >
         <div class="space-y-1">
-          <h2 class="text-lg font-black text-slate-900">{{ NAMES.submit }}</h2>
-          <p class="text-[11px] text-slate-500 leading-relaxed max-w-3xl">
+          <h2 class="text-title font-bold text-slate-900">{{ NAMES.submit }}</h2>
+          <p class="text-body text-slate-500 max-w-3xl">
             Ran a sweep and closed the tab, or ran it on another machine? Upload its two files here. They are checked
             against each other, for truncation and for the old delivery-set bug, before anything is sent.
           </p>
@@ -1220,19 +1220,19 @@
         v-if="!embedded && part === 'insights' && base"
         class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 space-y-2"
       >
-        <h2 class="text-lg font-black text-slate-900">Help fill the gaps, and {{ NAMES.submit }}</h2>
-        <p class="text-[12px] text-indigo-900/80 leading-relaxed max-w-3xl">
+        <h2 class="text-title font-bold text-slate-900">Help fill the gaps, and {{ NAMES.submit }}</h2>
+        <p class="text-body text-indigo-900/80 max-w-3xl">
           Both are on the planner's {{ NAMES.science }} tab now, where the sweeps run.
         </p>
         <div class="flex flex-wrap gap-2">
           <a
             :href="scienceHref('check')"
-            class="px-3 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+            class="px-3 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800"
             >{{ NAMES.check }} &rarr;</a
           >
           <a
             :href="scienceHref('submit')"
-            class="px-3 py-2 rounded-lg border border-indigo-300 bg-white text-[10px] font-black uppercase tracking-widest text-indigo-800 hover:border-indigo-500"
+            class="px-3 py-2 rounded-lg border border-indigo-300 bg-white text-body font-bold text-indigo-800 hover:border-indigo-500"
             >{{ NAMES.submit }} &rarr;</a
           >
         </div>
@@ -1824,7 +1824,7 @@ function sortArrow(by: RunSortKey): string {
 /** Header buttons keep the header's look (a button resets text-transform and centres its text) and
  *  mark the order in force. */
 function sortHeadClass(by: RunSortKey): string {
-  return `uppercase tracking-widest [text-align:inherit] hover:text-slate-600 ${activeSort.value.by === by ? 'text-slate-700' : ''}`;
+  return `label [text-align:inherit] hover:text-slate-600 ${activeSort.value.by === by ? 'text-slate-700' : ''}`;
 }
 
 function setCollapsed(keys: string[], fold: boolean): void {

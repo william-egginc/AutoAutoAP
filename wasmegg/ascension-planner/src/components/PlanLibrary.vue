@@ -549,7 +549,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
     <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-      <h3 class="text-sm font-semibold text-gray-900 flex items-center">
+      <h3 class="text-body font-bold text-gray-900 flex items-center">
         <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             stroke-linecap="round"
@@ -561,7 +561,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
         Plan Library
         <span
           v-if="plans.length > 0"
-          class="ml-2 px-1.5 py-0.5 text-[10px] bg-slate-200 text-slate-600 rounded-full font-bold"
+          class="ml-2 px-1.5 py-0.5 text-small bg-slate-200 text-slate-600 rounded-full font-bold"
         >
           {{ plans.length }}
         </span>
@@ -569,14 +569,14 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
       <div class="flex items-center space-x-2">
         <button
           v-if="bulkSelectMode && selectedPlanIds.size > 0"
-          class="px-2.5 py-1 text-xs font-medium rounded border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
+          class="px-2.5 py-1 text-body font-normal rounded border border-red-300 text-red-600 hover:bg-red-50 transition-colors"
           @click="$event.shiftKey ? executeBulkDelete() : (showBulkDeleteConfirm = true)"
         >
           Delete ({{ selectedPlanIds.size }})
         </button>
         <button
           v-if="plans.length > 0"
-          class="px-2.5 py-1 text-xs font-medium rounded border transition-colors"
+          class="px-2.5 py-1 text-small font-normal rounded border transition-colors"
           :class="bulkSelectMode
             ? 'border-gray-300 text-gray-600 hover:bg-gray-50'
             : 'border-indigo-300 text-indigo-600 hover:bg-indigo-50'"
@@ -585,13 +585,13 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
           {{ bulkSelectMode ? 'Cancel' : 'Multi-Select' }}
         </button>
         <button
-          class="px-2.5 py-1 text-xs font-medium rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          class="px-2.5 py-1 text-body font-normal rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="plans.length === 0"
           @click="exportAll"
         >
           Export All
         </button>
-        <label class="px-2.5 py-1 text-xs font-medium rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer">
+        <label class="px-2.5 py-1 text-small font-normal rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer">
           Import
           <input type="file" class="hidden" accept=".json" @change="handleImport" />
         </label>
@@ -602,8 +602,8 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
       <!-- Import progress bar -->
       <div v-if="importProgress" class="mb-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
         <div class="flex justify-between items-center mb-2">
-          <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Importing Plans</span>
-          <span class="text-xs tabular-nums font-bold text-indigo-600">
+          <span class="text-indigo-600 label">Importing Plans</span>
+          <span class="text-small tabular-nums font-bold text-indigo-600">
             {{ importProgress.current }} / {{ importProgress.total }}
           </span>
         </div>
@@ -620,7 +620,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
       </div>
 
       <div v-else-if="plans.length === 0" class="text-center py-6">
-        <p class="text-gray-500 text-sm">Your library is empty. Save your current plan to see it here.</p>
+        <p class="text-gray-500 text-body">Your library is empty. Save your current plan to see it here.</p>
       </div>
 
       <div v-else class="space-y-0.5 max-h-64 overflow-y-auto pr-2">
@@ -637,7 +637,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
             <div v-if="editingPlanId === plan.id" class="flex items-center">
               <input
                 v-model="newName"
-                class="block w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1"
+                class="block w-full text-body border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-1"
                 @keyup.enter="saveRename"
               />
               <button class="ml-2 text-green-600 hover:text-green-800" @click="saveRename">
@@ -655,22 +655,22 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
                 @click.stop
                 @change="togglePlanSelection(plan.id)"
               />
-              <span class="text-sm font-medium text-gray-900 truncate" :title="plan.name">{{ plan.name }}</span>
+              <span class="text-body font-normal text-gray-900 truncate" :title="plan.name">{{ plan.name }}</span>
               <span
                 v-if="actionsStore.activePlanId === plan.id"
-                class="ml-2 px-1 text-[10px] bg-indigo-100 text-indigo-700 rounded font-bold uppercase tracking-wider"
+                class="ml-2 px-1 bg-indigo-100 text-indigo-700 rounded label"
                 >Active</span
               >
               <span
                 v-else-if="busyPlanIds.has(plan.id)"
-                class="ml-2 px-1.5 py-0.5 text-[9px] bg-amber-100 text-amber-700 rounded font-black uppercase tracking-wider"
+                class="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded label"
                 >Open in another tab</span
               >
             </div>
           </div>
 
           <div class="flex items-center space-x-0 sm:space-x-2">
-            <span class="hidden sm:inline text-[10px] text-gray-400 whitespace-nowrap mr-1">
+            <span class="hidden sm:inline text-small text-gray-400 whitespace-nowrap mr-1">
               Updated {{ formatMoment(plan.timestamp) }}
             </span>
             <button class="p-0.5 sm:p-1 text-gray-400 hover:text-indigo-600" v-tippy="'Export this plan (JSON)'" @click="exportPlan(plan)">
@@ -722,7 +722,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
         />
       </svg>
-      <p class="text-[11px] text-amber-700 leading-relaxed uppercase tracking-tight font-medium">
+      <p class="text-body text-amber-700 font-normal max-w-prose">
         Plans are stored locally in this browser. Clearing site data will delete your library. Use "Export All" to
         create external backups.
       </p>
@@ -771,10 +771,10 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
     @cancel="showCopyPrompt = false"
   >
     <div class="mt-3">
-      <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">New Plan Name</label>
+      <label class="block text-gray-400 label mb-1">New Plan Name</label>
       <input
         v-model="copyName"
-        class="block w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-2 px-3 shadow-sm"
+        class="block w-full text-body border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 py-2 px-3 shadow-sm"
         @keyup.enter="executeCopy"
         placeholder="Enter name for copy..."
       />

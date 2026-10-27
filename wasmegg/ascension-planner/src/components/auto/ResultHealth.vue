@@ -13,7 +13,7 @@
     :data-testid="hasError ? 'result-contradicts' : 'result-worth-checking'"
   >
     <p
-      class="text-[10px] font-black uppercase tracking-widest"
+      class="label"
       :class="hasError ? 'text-rose-800' : 'text-amber-800'"
     >
       {{ hasError ? 'This result contradicts itself' : 'Worth checking' }}
@@ -21,12 +21,12 @@
     <p
       v-for="(issue, k) in issues"
       :key="k"
-      class="text-[11px] leading-relaxed"
+      class="text-body"
       :class="hasError ? 'text-rose-900/90' : 'text-amber-900'"
     >
       {{ issue.message }}
     </p>
-    <p v-if="hasError" class="text-[11px] text-rose-900/80 leading-relaxed">
+    <p v-if="hasError" class="text-body text-rose-900/80 max-w-prose">
       Reload your backup and run it again before trusting these dates, and compare leg 1 against the official
       planner. If leg 1 agrees and a later leg doesn't, the fault is in the state carried between legs.
     </p>

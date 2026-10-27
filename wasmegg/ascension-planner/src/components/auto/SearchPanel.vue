@@ -20,24 +20,24 @@
     :data-testid="`search-panel-${screen}`"
   >
     <div class="flex flex-wrap items-center gap-2">
-      <h3 class="text-base font-black text-slate-900">Search</h3>
+      <h3 class="text-title font-bold text-slate-900">Search</h3>
       <!-- "Stopping" once Stop is pressed (23 Oct 2026): the run goes on until the workers finish the routes they
            have (search/stopNote.ts), which can be minutes, and "Running" then looked as if Stop had not worked. -->
       <span
         v-if="running"
-        class="px-1.5 py-0.5 rounded text-white text-[9px] font-black uppercase tracking-widest"
+        class="px-1.5 py-0.5 rounded text-white label"
         :class="stopping ? 'bg-amber-600' : 'bg-indigo-600'"
         data-testid="search-panel-running"
         >{{ stopping ? 'Stopping' : 'Running' }}</span
       >
       <a
         href="#/science/how"
-        class="ml-auto inline-flex min-h-[44px] items-center text-[12px] font-bold text-indigo-700 underline whitespace-nowrap sm:inline sm:min-h-0"
+        class="ml-auto inline-flex min-h-[44px] items-center text-small font-bold text-indigo-700 underline whitespace-nowrap sm:inline sm:min-h-0"
         data-testid="search-panel-how"
         >How it works ›</a
       >
     </div>
-    <p class="text-[12px] text-slate-600 leading-relaxed" data-testid="search-panel-intro">
+    <p class="text-body text-slate-600 max-w-prose" data-testid="search-panel-intro">
       Checks the instant answer harder, with the full simulator on your save. Pick how hard to look; your choice is
       remembered.
     </p>
@@ -62,23 +62,23 @@
         :class="selected === o.id ? 'bg-white text-indigo-700 shadow' : 'text-slate-600 hover:text-slate-800'"
         @click="choose(o.id)"
       >
-        <span class="block text-[12px] font-black uppercase tracking-widest">{{ o.label }}</span>
+        <span class="block text-body font-bold">{{ o.label }}</span>
         <span
-          class="block mt-0.5 text-[10px] font-bold"
+          class="block mt-0.5 text-small font-bold"
           :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
           :data-testid="`search-option-time-${o.id}`"
           >{{ o.time }}</span
         >
         <!-- What it is for, small, before the player clicks (the user, 15 Oct; kept, Jordan 22 Oct). -->
         <span
-          class="block mt-0.5 text-[10px] font-semibold leading-tight"
+          class="block mt-0.5 text-small font-normal leading-tight"
           :class="selected === o.id ? 'text-indigo-600' : 'text-slate-600'"
           :data-testid="`search-option-for-${o.id}`"
           >{{ o.purpose }}</span
         >
       </button>
     </div>
-    <p v-if="running" class="text-[11px] text-slate-500" data-testid="search-panel-locked">
+    <p v-if="running" class="text-body text-slate-500" data-testid="search-panel-locked">
       The choice is locked while a search runs. Stop it to change.
     </p>
 

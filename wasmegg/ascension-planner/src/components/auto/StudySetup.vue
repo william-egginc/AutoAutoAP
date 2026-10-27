@@ -19,10 +19,10 @@
 -->
 <template>
   <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="study-setup">
-    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ NAMES.study }}</h3>
+    <h3 class="text-slate-500 label">{{ NAMES.study }}</h3>
 
     <template v-if="state === 'unanswered'">
-      <p class="text-[11px] text-slate-600">Not answered yet.</p>
+      <p class="text-body text-slate-600">Not answered yet.</p>
       <StudyForm v-if="formOpen" @answered="formOpen = false" />
       <button v-else type="button" :class="BTN" data-testid="study-setup-answer" @click="formOpen = true">
         Answer now
@@ -30,14 +30,14 @@
     </template>
 
     <template v-else-if="state === 'yes'">
-      <p class="text-[11px] text-slate-600 leading-relaxed break-words" data-testid="study-setup-summary">
+      <p class="text-body text-slate-600 break-words" data-testid="study-setup-summary">
         You said yes on {{ answeredOn }} for this account: {{ summary }}.
       </p>
       <div v-if="changing" class="space-y-1.5" data-testid="study-setup-change">
         <label
           v-for="[k, words] in TICK_WORDS"
           :key="k"
-          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[11px] font-semibold text-slate-700"
+          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
         >
           <input
             :checked="liveTick(k)"
@@ -50,7 +50,7 @@
         </label>
         <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-3">
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[11px] font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
           >
             <input
               v-model="creditShown"
@@ -67,7 +67,7 @@
             :maxlength="STUDY_NAME_MAX"
             placeholder="nickname"
             aria-label="Nickname"
-            class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-sm font-bold text-slate-800"
+            class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-body font-bold text-slate-800"
             :class="creditShown === 'anon' ? 'opacity-50' : ''"
             data-testid="study-setup-nickname"
             @input="capField"
@@ -75,7 +75,7 @@
             @change="creditShown = 'name'"
           />
           <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-[11px] font-semibold text-slate-700"
+            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
           >
             <input
               v-model="creditShown"
@@ -87,10 +87,10 @@
             Stay anonymous
           </label>
         </div>
-        <p v-if="creditShown === 'name' && !nickname.trim()" class="text-[11px] text-amber-700">
+        <p v-if="creditShown === 'name' && !nickname.trim()" class="text-body text-amber-700">
           Type a name to be credited; until then you stay anonymous.
         </p>
-        <p v-else-if="creditShown === 'anon' && nickname.trim()" class="text-[11px] text-slate-500">
+        <p v-else-if="creditShown === 'anon' && nickname.trim()" class="text-body text-slate-500">
           Anonymous; the name is kept for when you pick Credit me as.
         </p>
       </div>
@@ -103,7 +103,7 @@
     </template>
 
     <template v-else-if="state === 'other-account'">
-      <p class="text-[11px] text-slate-600">You said yes in this browser, but not for this account yet.</p>
+      <p class="text-body text-slate-600">You said yes in this browser, but not for this account yet.</p>
       <div class="flex flex-col sm:flex-row gap-2">
         <button type="button" :class="BTN" data-testid="study-setup-use" @click="useForThisAccount">
           Use for this account
@@ -113,7 +113,7 @@
     </template>
 
     <template v-else>
-      <p class="text-[11px] text-slate-600 leading-relaxed break-words" data-testid="study-setup-off">
+      <p class="text-body text-slate-600 break-words max-w-prose" data-testid="study-setup-off">
         <template v-if="byHand.length">
           <template v-if="state === 'no'">You said no thanks to the box; sharing</template>
           <template v-else>Withdrawn on {{ answeredOn }}; sharing</template>
@@ -136,7 +136,7 @@
 
     <p
       v-if="state === 'yes' || state === 'other-account' || (state !== 'unanswered' && anySharing)"
-      class="text-[11px] text-slate-500 leading-relaxed"
+      class="text-body text-slate-500 max-w-prose"
       data-testid="study-setup-withdraw-note"
     >
       Withdraw turns off sharing for every account in this browser that said yes here: this one now, the others as each
@@ -166,9 +166,9 @@ import { useShareNameStore } from '@/stores/shareName';
 import StudyForm from '../StudyForm.vue';
 
 const BTN =
-  'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50';
+  'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-body font-bold hover:bg-indigo-50';
 const WITHDRAW =
-  'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-700 text-[10px] font-black uppercase tracking-widest hover:bg-rose-50';
+  'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-rose-300 bg-white text-rose-700 text-body font-bold hover:bg-rose-50';
 
 const names = useShareNameStore();
 const account = computed(() => consentState.account);

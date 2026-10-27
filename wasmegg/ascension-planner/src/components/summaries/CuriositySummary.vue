@@ -17,22 +17,22 @@
             />
           </svg>
         </div>
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Curiosity Summary</span>
+        <span class="text-slate-400 label">Curiosity Summary</span>
         <div
           v-if="activeArtifactSet === 'earnings'"
           class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50"
         >
-          <span class="text-[9px] font-black tabular-nums text-slate-700">{{
+          <span class="text-small font-bold tabular-nums text-slate-700">{{
             formatNumber(hourlyOfflineEarnings, 3)
           }}</span>
-          <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
+          <span class="label text-slate-400">/hr</span>
         </div>
         <div
           v-else-if="activeArtifactSet === 'elr'"
           class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50"
         >
-          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
-          <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
+          <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
+          <span class="label text-slate-400">/hr</span>
         </div>
       </div>
 
@@ -41,7 +41,7 @@
         class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50/50 border border-amber-100/50"
       >
         <img :src="iconURL('egginc/icon_virtue_gem.png', 32)" class="w-3 h-3" alt="Gems" />
-        <span class="text-[10px] font-black text-amber-600 tracking-tight">{{
+        <span class="text-small font-bold text-amber-600">{{
           formatGemPrice(totalResearchCost)
         }}</span>
       </div>
@@ -51,7 +51,7 @@
       <div v-for="(item, index) in summaryItems" :key="index" class="flex items-center gap-2.5">
         <template v-if="item.isPremium">
           <span
-            class="badge-premium bg-amber-50 text-amber-700 border-amber-100 flex-shrink-0 text-[10px] py-0.5 font-black uppercase tracking-tight"
+            class="badge-premium bg-amber-50 text-amber-700 border-amber-100 flex-shrink-0 py-0.5 label"
           >
             <span
               v-for="(part, pIdx) in item.parts"
@@ -65,7 +65,7 @@
         </template>
         <template v-else>
           <div class="w-1 h-1 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.4)]"></div>
-          <span class="text-[11px] font-bold text-slate-700 tracking-tight leading-tight">
+          <span class="text-small font-bold text-slate-700 leading-tight">
             <span
               v-for="(part, pIdx) in item.parts"
               :key="pIdx"
@@ -86,7 +86,7 @@
       class="flex flex-col items-center bg-slate-50/50 rounded-xl border border-dashed border-slate-100"
       :class="compact ? 'py-2' : 'py-4'"
     >
-      <span class="text-[11px] text-slate-400 italic font-medium"
+      <span class="text-small text-slate-400 italic font-normal"
         >No research purchased in this {{ hideHeader ? 'date range' : 'shift' }}</span
       >
     </div>

@@ -3,10 +3,10 @@
     <!-- Current State -->
     <div class="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
       <div class="flex justify-between items-center mb-5">
-        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Silos Owned</h4>
+        <h4 class="text-slate-400 label">Silos Owned</h4>
         <div class="badge-premium bg-slate-50 text-slate-600 border-slate-100 px-3 py-1 flex items-center gap-1.5">
-          <span class="text-[10px] font-black opacity-60 uppercase tracking-widest">Active:</span>
-          <span class="text-sm tabular-nums font-black text-slate-900"
+          <span class="opacity-60 label">Active:</span>
+          <span class="text-body tabular-nums font-bold text-slate-900"
             >{{ siloOutput.siloCount }}/{{ siloOutput.maxSilos }}</span
           >
         </div>
@@ -38,7 +38,7 @@
           />
           <div v-else class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
 
-          <span class="absolute bottom-1 right-1.5 text-[8px] font-black text-slate-300 uppercase">#{{ index }}</span>
+          <span class="absolute bottom-1 right-1.5 text-slate-300 label">#{{ index }}</span>
         </div>
       </div>
 
@@ -69,10 +69,10 @@
                 </svg>
               </div>
               <div class="flex flex-col items-center relative z-10">
-                <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-indigo-700"
+                <span class="text-body font-bold text-slate-900 group-hover:text-indigo-700"
                   >Buy Silo #{{ siloOutput.siloCount + 1 }}</span
                 >
-                <span class="text-[9px] tabular-nums font-black text-indigo-500 mt-0.5">
+                <span class="text-small tabular-nums font-bold text-indigo-500 mt-0.5">
                   {{ formatGemPrice(siloOutput.nextSiloCost) }} gems<template v-if="timeToBuy">
                     · Ready in {{ timeToBuy }}</template
                   >
@@ -104,10 +104,10 @@
                 </svg>
               </div>
               <div class="flex flex-col items-center relative z-10">
-                <span class="text-[11px] font-black uppercase tracking-widest text-slate-900 group-hover:text-violet-700"
+                <span class="text-body font-bold text-slate-900 group-hover:text-violet-700"
                   >Silos in 1 Hr</span
                 >
-                <span class="text-[9px] tabular-nums font-black text-violet-500 mt-0.5">
+                <span class="text-small tabular-nums font-bold text-violet-500 mt-0.5">
                   {{ maxSilosIn1Hour.count }} new silo{{ maxSilosIn1Hour.count !== 1 ? 's' : '' }} ·
                   {{ formatDuration(maxSilosIn1Hour.seconds) }}
                 </span>
@@ -119,7 +119,7 @@
           v-else
           class="flex flex-col items-center py-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 border-dashed text-emerald-700/80"
         >
-          <p class="text-[10px] font-black uppercase tracking-widest">Maximum silos reached (10/10)</p>
+          <p class="text-small font-bold">Maximum silos reached (10/10)</p>
         </div>
       </div>
 
@@ -130,21 +130,21 @@
         <!-- Simplified Decoration -->
         <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-50"></div>
 
-        <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3 leading-none relative z-10">
+        <p class="text-slate-400 label mb-3 leading-none relative z-10">
           Total Away Time
         </p>
-        <p class="text-4xl tabular-nums font-black text-slate-900 mb-3 tracking-tight relative z-10">
+        <p class="text-headline tabular-nums font-black text-slate-900 mb-3 relative z-10">
           {{ siloOutput.formatted }}
         </p>
 
         <div
           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-100 shadow-sm relative z-10"
         >
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <span class="text-slate-400 label">
             {{ siloOutput.siloCount }} silo{{ siloOutput.siloCount !== 1 ? 's' : '' }}
           </span>
           <div class="w-1 h-1 rounded-full bg-slate-200"></div>
-          <span class="text-[9px] font-black text-indigo-500 uppercase tracking-widest">
+          <span class="text-indigo-500 label">
             {{ siloOutput.minutesPerSilo }}m each
           </span>
         </div>
@@ -167,21 +167,21 @@
             />
           </div>
           <div>
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Silo Capacity</p>
-            <p class="text-[11px] font-black text-indigo-900 uppercase">Epic Research: +6 min/silo/level</p>
+            <p class="text-slate-400 label mb-0.5">Silo Capacity</p>
+            <p class="text-body font-bold text-indigo-900">Epic Research: +6 min/silo/level</p>
           </div>
         </div>
         <div class="text-right">
-          <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-0.5"
+          <span class="text-indigo-400 label block mb-0.5"
             >Current Rank</span
           >
-          <span class="text-xs tabular-nums font-black text-indigo-700">
+          <span class="text-small tabular-nums font-bold text-indigo-700">
             Lv {{ siloOutput.siloCapacityLevel }}/20
           </span>
         </div>
       </div>
       <div
-        class="mt-3 flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-tight bg-white/50 p-2 rounded-lg border border-indigo-50/50 shadow-inner"
+        class="mt-3 flex items-center gap-2 text-small font-bold text-slate-500 bg-white/50 p-2 rounded-lg border border-indigo-50/50 shadow-inner"
       >
         <span class="opacity-60">Base: 60m</span>
         <div class="w-1 h-px bg-slate-300"></div>

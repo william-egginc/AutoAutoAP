@@ -22,7 +22,7 @@
       @click="set(false)"
     >
       <span
-        class="px-2 py-0.5 rounded-full border border-slate-200 bg-white text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-800"
+        class="px-2 py-0.5 rounded-full border border-slate-200 bg-white label text-slate-500 group-hover:text-slate-800"
         >Hide</span
       >
     </button>
@@ -34,9 +34,9 @@
       :data-testid="`show-${id}`"
       @click="set(true)"
     >
-      <span class="text-sm font-black text-slate-900">{{ title }}</span>
-      <span class="min-w-0 flex-1 text-[12px] text-slate-600 break-words">{{ summary || 'Hidden' }}</span>
-      <span class="text-[9px] font-black uppercase tracking-widest text-indigo-700">Show</span>
+      <span class="text-body font-bold text-slate-900">{{ title }}</span>
+      <span class="min-w-0 flex-1 text-small text-slate-600 break-words">{{ summary || 'Hidden' }}</span>
+      <span class="text-body font-bold text-indigo-700">Show</span>
     </button>
     <div v-show="open"><slot /></div>
   </div>

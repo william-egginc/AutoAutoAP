@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <p class="text-sm text-gray-500">
+    <p class="text-body text-gray-500 max-w-prose">
       Plan rocket missions. Choose how many of each ship to send — fuel is drawn from your tank.
     </p>
 
@@ -32,7 +32,7 @@
           />
         </svg>
       </div>
-      <div class="text-xs text-amber-800 leading-normal">
+      <div class="text-body text-amber-800">
         Saving for these ships will take <strong>{{ formatDuration(saveTimeSeconds) }}</strong>. Consider switching to your
         <strong>earnings set</strong> while you wait.
       </div>
@@ -41,28 +41,28 @@
     <!-- Launch Button -->
     <div v-if="rocketsStore.queuedMissions.length > 0" class="flex items-center gap-3">
       <button
-        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-body"
         :disabled="rocketsStore.isOverBudget"
         @click="handleLaunch"
       >
         Launch {{ schedule.totalMissions }} Missions
       </button>
-      <button class="px-3 py-2 text-gray-600 hover:text-gray-800 text-sm" @click="rocketsStore.clearAll()">
+      <button class="px-3 py-2 text-gray-600 hover:text-gray-800 text-body" @click="rocketsStore.clearAll()">
         Clear All
       </button>
-      <span v-if="rocketsStore.isOverBudget" class="text-red-500 text-xs"> Not enough fuel in tank </span>
+      <span v-if="rocketsStore.isOverBudget" class="text-red-500 text-small"> Not enough fuel in tank </span>
     </div>
 
     <!-- Pre-shift Launch Option -->
     <div v-if="schedule.totalMissions >= 1 && schedule.totalMissions <= 3">
       <div class="flex items-center gap-2 px-1">
         <input type="checkbox" id="zero-time-launch" v-model="isZeroTime" class="rounded text-blue-600" />
-        <label for="zero-time-launch" class="text-xs text-gray-600 font-medium cursor-pointer select-none">
+        <label for="zero-time-launch" class="text-small text-gray-600 font-normal cursor-pointer select-none">
           Launch for 0 time (pre-shift sends)
         </label>
       </div>
 
-      <p class="text-[11px] text-gray-500 leading-relaxed italic border-l-2 border-gray-200 pl-3 py-0.5">
+      <p class="text-body text-gray-500 italic border-l-2 border-gray-200 pl-3 py-0.5">
         Use this when you launch right before a shift: the missions add no time to your plan.
       </p>
     </div>

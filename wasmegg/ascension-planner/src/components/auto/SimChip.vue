@@ -13,12 +13,12 @@
       :aria-label="`Which simulator priced this run: ${label.words}. Show its stamp`"
       @click.stop="open = !open"
     >
-      <span class="px-1 rounded text-[9px] font-black leading-4" :class="CHIP_CLASS[label.kind]">{{ chipText }}</span>
+      <span class="px-1 rounded text-small font-bold leading-4" :class="CHIP_CLASS[label.kind]">{{ chipText }}</span>
     </button>
     <span
       v-if="open"
       role="note"
-      class="mt-1 block w-max max-w-[16rem] whitespace-normal rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left text-[10px] font-normal leading-snug text-slate-600 shadow"
+      class="mt-1 block w-max max-w-[16rem] whitespace-normal rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left text-small font-normal text-slate-600 shadow"
       @click.stop
     >
       <span class="block tabular-nums text-slate-800">{{ label.stamp ?? 'no stamp' }}</span>

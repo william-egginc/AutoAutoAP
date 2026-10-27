@@ -5,10 +5,10 @@
 <template>
   <div
     v-if="crash && !sameFinishedRun"
-    class="p-3 rounded-xl border border-amber-300 bg-amber-50 text-[11px] text-amber-900 leading-relaxed space-y-2"
+    class="p-3 rounded-xl border border-amber-300 bg-amber-50 text-body text-amber-900 space-y-2"
   >
     <p>
-      <span class="font-black uppercase tracking-wide">Last time, this page stopped without finishing.</span>
+      <span class="font-bold">Last time, this page stopped without finishing.</span>
       It was {{ doing }} at {{ when(crash.last.at)
       }}<template v-if="crash.last.done !== undefined"
         >, {{ crash.last.done.toLocaleString() }} priced<template v-if="crash.last.total">
@@ -29,14 +29,14 @@
     <div class="flex flex-wrap gap-3">
       <button
         type="button"
-        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800"
+        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800"
         @click="download"
       >
         Download the black box
       </button>
       <button
         type="button"
-        class="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900"
+        class="text-body font-bold text-amber-700/70 hover:text-amber-900"
         @click="store.dismissCrash()"
       >
         Dismiss

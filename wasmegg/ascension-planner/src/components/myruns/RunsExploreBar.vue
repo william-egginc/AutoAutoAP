@@ -19,7 +19,7 @@
       @toggle="isOpen = ($event.target as HTMLDetailsElement).open"
     >
       <summary
-        class="min-h-[44px] cursor-pointer py-[14px] text-[10px] leading-4 font-black uppercase tracking-widest text-indigo-700"
+        class="min-h-[44px] cursor-pointer py-[14px] text-body leading-4 font-bold text-indigo-700"
         data-testid="runs-explore-summary"
       >
         Filter and sort<span v-if="active" class="normal-case tracking-normal font-bold text-indigo-900"
@@ -44,7 +44,7 @@
             :data-testid="`runs-chip-${g.id}-${c.value}`"
             @click="emit('toggle', g.id, c.value)"
           >
-            {{ c.label }}{{ ' ' }}<span class="font-semibold opacity-60">{{ c.count }}</span>
+            {{ c.label }}{{ ' ' }}<span class="font-bold opacity-60">{{ c.count }}</span>
           </button>
         </div>
         <div class="flex flex-wrap items-center gap-1.5" data-testid="runs-explore-sort">
@@ -68,7 +68,7 @@
             type="text"
             inputmode="numeric"
             placeholder="200 250"
-            class="min-h-[44px] sm:min-h-[32px] w-32 rounded-lg border-slate-300 py-1 text-[12px] tabular-nums"
+            class="min-h-[44px] sm:min-h-[32px] w-32 rounded-lg border-slate-300 py-1 text-body tabular-nums"
             data-testid="runs-explore-stops"
             @input="emit('stops', ($event.target as HTMLInputElement).value)"
           />
@@ -76,13 +76,13 @@
       </div>
     </details>
     <div class="flex flex-wrap items-center gap-2 border-t border-indigo-50 pt-2">
-      <span class="text-[12px] font-bold text-indigo-900" aria-live="polite" data-testid="runs-explore-count">{{
+      <span class="text-small font-bold text-indigo-900" aria-live="polite" data-testid="runs-explore-count">{{
         countWords(shown, total)
       }}</span>
       <button
         v-if="active"
         type="button"
-        class="min-h-[44px] sm:min-h-[32px] rounded-lg border border-indigo-300 bg-white px-3 text-[12px] font-bold text-indigo-700 hover:bg-indigo-50"
+        class="min-h-[44px] sm:min-h-[32px] rounded-lg border border-indigo-300 bg-white px-3 text-body font-bold text-indigo-700 hover:bg-indigo-50"
         data-testid="runs-explore-clear"
         @click="emit('clear')"
       >
@@ -123,8 +123,8 @@ onMounted(() => {
   }
 });
 
-const LABEL = 'mr-1 sm:min-w-[5.5rem] text-[9px] font-black uppercase tracking-widest text-indigo-700/70';
-const CHIP = 'min-h-[44px] sm:min-h-[32px] rounded-full border px-3 text-[12px] font-bold';
+const LABEL = 'mr-1 sm:min-w-[5.5rem] label text-indigo-700/70';
+const CHIP = 'min-h-[44px] sm:min-h-[32px] rounded-full border px-3 text-small font-bold';
 const ON = 'border-indigo-400 bg-indigo-50 text-indigo-900';
 const OFF = 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300';
 

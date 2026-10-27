@@ -9,12 +9,12 @@
   <div v-if="!store.chartShown" class="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
     <button
       type="button"
-      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700"
       @click="store.setChartShown(true)"
     >
       Show the chart
     </button>
-    <span class="text-[11px] text-slate-500">Draws the heat map of every route priced so far</span>
+    <span class="text-body text-slate-500">Draws the heat map of every route priced so far</span>
   </div>
   <div v-else class="space-y-3">
     <template v-if="!showDots">
@@ -25,7 +25,7 @@
       >
         <button
           type="button"
-          class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+          class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700"
           @click="openDots"
         >
           Show the dots
@@ -33,7 +33,7 @@
         <button
           type="button"
           data-testid="hide-chart"
-          class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100"
+          class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-body font-bold hover:bg-slate-100"
           @click="store.setChartShown(false)"
         >
           Hide the chart
@@ -45,7 +45,7 @@
       <div class="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
         <button
           type="button"
-          class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700"
+          class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700"
           @click="closeDots"
         >
           Back to the heat map
@@ -53,7 +53,7 @@
         <button
           type="button"
           data-testid="hide-chart"
-          class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100"
+          class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-body font-bold hover:bg-slate-100"
           @click="store.setChartShown(false)"
         >
           Hide the chart
@@ -149,12 +149,12 @@ function closeDots(): void {
 const DetailPicker = defineComponent({
   setup() {
     return () =>
-      h('div', { class: 'flex flex-wrap items-center gap-2 text-[11px] text-slate-500' }, [
+      h('div', { class: 'flex flex-wrap items-center gap-2 text-small text-slate-500' }, [
         h('span', 'Dots to draw'),
         h(
           'select',
           {
-            class: 'rounded border border-slate-300 bg-white pl-1.5 pr-7 py-1 text-[11px] text-slate-700',
+            class: 'rounded border border-slate-300 bg-white pl-1.5 pr-7 py-1 text-body text-slate-700',
             value: String(selectedValue.value),
             onChange: (e: Event) => {
               const v = (e.target as HTMLSelectElement).value;
@@ -172,7 +172,7 @@ const DetailPicker = defineComponent({
         warn.value
           ? h(
               'span',
-              { class: 'w-full text-amber-700 font-semibold' },
+              { class: 'w-full text-amber-700 font-bold' },
               `Drawing ${drawn.value.toLocaleString()} dots can make the page slow or crash it on some computers; 5,000 shows the shape well.`
             )
           : null,

@@ -8,8 +8,8 @@
   say it) and the buttons are this one's.
 -->
 <template>
-  <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-[11px] text-amber-900 leading-relaxed">
-    <h3 class="text-[10px] font-black text-amber-800 uppercase tracking-widest">{{ title }}</h3>
+  <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2 text-body text-amber-900">
+    <h3 class="text-amber-800 label">{{ title }}</h3>
     <slot />
     <RunGoingElsewhere v-if="elsewhere" />
     <div v-else class="flex flex-wrap items-center gap-3">
@@ -17,7 +17,7 @@
         v-if="canCarryOn"
         type="button"
         :disabled="disabled"
-        class="px-4 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+        class="px-4 py-2 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800 disabled:opacity-40"
         data-testid="carry-on"
         @click="emit('carry-on')"
       >
@@ -27,7 +27,7 @@
       <button
         v-if="discardable"
         type="button"
-        class="text-[10px] font-black uppercase tracking-widest text-amber-700/70 hover:text-amber-900"
+        class="text-body font-bold text-amber-700/70 hover:text-amber-900"
         @click="emit('discard')"
       >
         Discard it

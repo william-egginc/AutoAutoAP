@@ -40,8 +40,8 @@
                   </svg>
                 </div>
                 <div>
-                  <h3 class="text-[10px] font-black text-rose-100 uppercase tracking-[0.2em] mb-1">Validation Error</h3>
-                  <div class="text-2xl font-black tracking-tight leading-tight">Invalid Target TE</div>
+                  <h3 class="text-rose-100 label mb-1">Validation Error</h3>
+                  <div class="text-headline font-black">Invalid Target TE</div>
                 </div>
               </div>
             </div>
@@ -49,10 +49,10 @@
             <!-- Content -->
             <div class="p-8 pb-10 space-y-8">
               <div class="bg-slate-50 border border-slate-200/60 rounded-3xl p-8 relative group">
-                <div class="absolute -top-3 left-6 px-3 py-1 bg-white border border-slate-200 rounded-full text-[9px] font-black text-slate-400 uppercase tracking-widest shadow-sm">
+                <div class="absolute -top-3 left-6 px-3 py-1 bg-white border border-slate-200 rounded-full text-slate-400 label shadow-sm">
                   System Message
                 </div>
-                <p class="text-[15px] font-bold text-slate-700 leading-relaxed italic">
+                <p class="text-body font-bold text-slate-700 italic">
                   "{{ message }}"
                 </p>
               </div>
@@ -64,7 +64,7 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p class="text-xs font-bold text-amber-900/80 leading-relaxed">
+                  <p class="text-body font-bold text-amber-900/80 max-w-prose">
                     Ascension plans must always result in a <span class="text-amber-700">positive gain</span> of Truth Eggs. You cannot target a value lower than or equal to what you have already earned.
                   </p>
                 </div>
@@ -77,7 +77,7 @@
                   class="group relative px-10 py-4 bg-slate-900 text-white overflow-hidden rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-slate-200"
                 >
                   <div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <span class="relative text-[11px] font-black uppercase tracking-[0.2em]">Okay</span>
+                  <span class="relative text-body font-bold">Okay</span>
                 </button>
               </div>
             </div>

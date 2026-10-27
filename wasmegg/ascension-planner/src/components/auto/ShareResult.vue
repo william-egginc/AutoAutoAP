@@ -11,10 +11,10 @@
 -->
 <template>
   <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 space-y-3 scroll-mt-4">
-    <h3 class="text-[10px] font-black text-indigo-800 uppercase tracking-widest">{{ heading }}</h3>
+    <h3 class="text-indigo-800 label">{{ heading }}</h3>
     <slot name="intro" />
     <!-- The run sent a best so far (Send best so far): this send takes its place on the board. -->
-    <p v-if="replacesBestSoFar" class="text-[11px] font-semibold text-indigo-900" data-testid="share-replaces">
+    <p v-if="replacesBestSoFar" class="text-body font-bold text-indigo-900 max-w-prose" data-testid="share-replaces">
       Your best so far from this run is on the Leaderboard as "in progress". Sending this result replaces it.
     </p>
     <!-- Compact (the user, 12 Oct: the same consent twice): not agreed yet, the screen's one button, which
@@ -23,13 +23,13 @@
     <template v-if="compact && !optIn && sendLabel && !asking">
       <button
         type="button"
-        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800"
+        class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800"
         data-testid="share-ask"
         @click="asking = true"
       >
         {{ sendLabel }}
       </button>
-      <p class="text-[10px] text-indigo-900/70">This asks you to agree first; nothing is sent by that press.</p>
+      <p class="text-small text-indigo-900/70">This asks you to agree first; nothing is sent by that press.</p>
     </template>
     <!-- The account's agreement (ConsentBox.vue, composables/useConsent.ts): compact folds it to one line
          once agreed, with Change; opened, "Remember my choice", Withdraw and Done. -->
@@ -40,9 +40,9 @@
       :foldable="compact"
       done-testid="share-done"
       box-testid="share-consent"
-      label-class="text-xs text-indigo-900"
+      label-class="text-body text-indigo-900"
       input-class="border-indigo-300 text-indigo-600 focus:ring-indigo-500"
-      summary-class="text-[11px] text-indigo-900"
+      summary-class="text-body text-indigo-900"
       :footer-indent="false"
       withdrawn-text="Withdrawn: nothing more goes to the leaderboard from here until you agree again."
     >
@@ -71,23 +71,23 @@
             v-model:anonymous="anonymous"
             v-model:nickname="nickname"
             :nickname-max="nicknameMax"
-            class="text-[11px] text-indigo-900"
+            class="text-small text-indigo-900"
             @nickname-typed="emit('nicknameTyped')"
           />
           <ShareExtras :csv-detail="csvDetail" />
           <!-- The same note box as Find and submit's (FindBar.vue), holding the run's own note: what it
                says here is what is sent, and what the CSV's header carries. -->
-          <RunNoteBox v-if="note !== undefined" v-model="note" class="text-[11px] text-indigo-900" />
+          <RunNoteBox v-if="note !== undefined" v-model="note" class="text-small text-indigo-900" />
           <slot name="opted" />
         </div>
       </template>
       <template #aside="{ folded }">
         <template v-if="folded">
-          <details v-if="note !== undefined" class="text-[11px] text-indigo-900" data-testid="share-note-fold">
+          <details v-if="note !== undefined" class="text-small text-indigo-900" data-testid="share-note-fold">
             <summary class="cursor-pointer font-bold text-indigo-800">
               {{ note ? 'Note on this run (added)' : 'Add a note on this run' }}
             </summary>
-            <RunNoteBox v-model="note" class="mt-1 text-[11px] text-indigo-900" />
+            <RunNoteBox v-model="note" class="mt-1 text-small text-indigo-900" />
           </details>
           <div class="space-y-2"><slot name="opted" /></div>
         </template>

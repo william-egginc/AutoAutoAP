@@ -8,7 +8,7 @@
         justify-content: center;
         gap: 0.5rem;
         padding: 0.5rem 1rem;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 0.875rem;
         border-radius: var(--radius-md);
         transition: all var(--transition-fast);
@@ -139,7 +139,7 @@
 
     /* --- Player ID Form Premium Overrides --- */
     #playerId {
-        @apply input-premium text-center tabular-nums text-lg tracking-wider font-bold text-brand-primary;
+        @apply input-premium text-center tabular-nums text-title tracking-label font-bold text-brand-primary;
     }
 
     /* --- Custom Scrollbar --- */
@@ -165,10 +165,10 @@
         display: inline-flex;
         align-items: center;
         padding: 0.125rem 0.625rem;
-        font-size: 0.75rem;
+        font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.08em;
         border-radius: var(--radius-full);
     }
 
@@ -186,11 +186,28 @@
     /* No mono anywhere (Jordan, 26 Oct 2026): route chains and numbers are the body font with tabular figures,
        class `tabular-nums`. */
 
+    /* The type scale (type review batch 2, Jordan 26 Oct 2026). Sizes are tailwind.config.ts tokens: text-small (12),
+       text-body (14), text-title (18), text-headline (24), text-page (32). Weights 400 / 700 / 900 (900 only for the
+       big answer numbers, screen titles and the page title). One caps style, `.label`, for section labels, column
+       heads, tabs and badges; buttons and sentences are sentence case. Nothing under 11 px. */
+
+    /* The caps label `.label` (11 px, 700, 0.08em, caps) is a plugin component in tailwind.config.ts, so a scoped
+       <style> can @apply it too. */
+
+    /* The page title (App.vue's header, the one definition): sentence case, 900, 28 px on a phone and 32 px from
+       sm up (the text-page token), tracking -0.02em. */
     .heading-xl {
-        font-size: 1.875rem;
-        font-weight: 800;
-        letter-spacing: -0.025em;
-        line-height: 1.2;
+        font-size: 1.75rem;
+        line-height: 34px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+    }
+
+    @media (min-width: 640px) {
+        .heading-xl {
+            font-size: 2rem;
+            line-height: 36px;
+        }
     }
 
     .text-gradient {

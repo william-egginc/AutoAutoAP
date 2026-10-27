@@ -4,7 +4,7 @@
   phones). Nothing to fold: the line alone.
 -->
 <template>
-  <div v-if="caveat" class="text-[12px] leading-relaxed text-amber-900" data-testid="answer-caveat">
+  <div v-if="caveat" class="text-body text-amber-900" data-testid="answer-caveat">
     <details v-if="caveat.more.length" data-testid="answer-caveat-why">
       <summary
         class="list-none [&::-webkit-details-marker]:hidden cursor-pointer min-h-[44px] sm:min-h-0 py-2.5 sm:py-0"
@@ -16,7 +16,7 @@
           >Why? ›</span
         >
       </summary>
-      <ul class="mt-1 space-y-1 text-[11px] text-slate-700 list-disc pl-4" data-testid="answer-caveat-more">
+      <ul class="mt-1 space-y-1 text-small text-slate-700 list-disc pl-4" data-testid="answer-caveat-more">
         <li v-for="(t, i) in caveat.more" :key="i">{{ t }}</li>
       </ul>
     </details>

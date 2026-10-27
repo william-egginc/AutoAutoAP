@@ -1,11 +1,11 @@
 <template>
-  <div v-if="series.length === 0" class="px-4 py-10 text-center text-[10px] font-bold text-slate-400">
+  <div v-if="series.length === 0" class="px-4 py-10 text-center text-small font-bold text-slate-400">
     No variant in this comparison has a C3 shift to compare (build phase skipped or not reached).
   </div>
   <template v-else>
     <EChart :option="option" height="380px" />
     <div
-      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-2 pt-2 text-[8px] font-bold text-slate-400 uppercase tracking-wide"
+      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-2 pt-2 text-small font-bold text-slate-400"
     >
       <span class="flex items-center gap-1"
         ><span class="text-slate-400">●</span> Graviton Coupling / Multiversal Layering purchase</span

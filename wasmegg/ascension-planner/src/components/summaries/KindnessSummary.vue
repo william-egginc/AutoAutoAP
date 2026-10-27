@@ -15,30 +15,30 @@
             />
           </svg>
         </div>
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Kindness Summary</span>
+        <span class="text-slate-400 label">Kindness Summary</span>
         <div v-if="activeArtifactSet === 'earnings'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
-          <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
+          <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
+          <span class="label text-slate-400">/hr</span>
         </div>
         <div v-else-if="activeArtifactSet === 'elr'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
-          <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
+          <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
+          <span class="label text-slate-400">/hr</span>
         </div>
       </div>
 
       <!-- Stats Grid -->
       <div class="flex flex-wrap items-center" :class="compact ? 'gap-x-3 gap-y-1' : 'gap-x-6 gap-y-2'">
         <div class="flex flex-col items-end">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Fleet</span>
+          <span class="text-slate-400 label leading-none mb-1">Fleet</span>
           <div class="flex items-center gap-1.5">
             <template v-if="isMaxed">
               <span
-                class="badge-premium bg-pink-50 text-pink-600 border-pink-100 py-0.5 px-2 text-[9px] font-black uppercase tracking-tight"
+                class="badge-premium bg-pink-50 text-pink-600 border-pink-100 py-0.5 px-2 label"
                 >Full Hyperloop</span
               >
             </template>
             <template v-else>
-              <span class="text-[11px] font-bold text-slate-700 tracking-tight leading-none">{{
+              <span class="text-small font-bold text-slate-700 leading-none">{{
                 vehicleSummaryText
               }}</span>
             </template>
@@ -46,10 +46,10 @@
         </div>
 
         <div class="flex flex-col items-end">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1"
+          <span class="text-slate-400 label leading-none mb-1"
             >Shipping Cap</span
           >
-          <span class="text-sm tabular-nums font-black text-slate-900">{{ formattedShippingCap }}</span>
+          <span class="text-body tabular-nums font-bold text-slate-900">{{ formattedShippingCap }}</span>
         </div>
       </div>
     </div>

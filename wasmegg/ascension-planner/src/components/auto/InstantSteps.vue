@@ -5,7 +5,7 @@
   in them (Simulate this plan lists each one). Closed by default: native <details>, no state to keep.
 -->
 <template>
-  <details v-if="lines.length" class="text-[11px] text-slate-700" data-testid="instant-steps">
+  <details v-if="lines.length" class="text-body text-slate-700" data-testid="instant-steps">
     <summary
       class="cursor-pointer inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-emerald-800 underline decoration-dotted underline-offset-2 marker:text-emerald-600"
     >
@@ -13,7 +13,7 @@
     </summary>
     <ol class="mt-1 space-y-1 list-none pl-0" data-testid="instant-steps-list">
       <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="instant-step">
-        <span class="font-black text-slate-800">A{{ l.asc }}</span>
+        <span class="font-bold text-slate-800">A{{ l.asc }}</span>
         <template v-if="l.now">{{ ' ' }}· now, in the ascension you are in</template>
         <template v-else>
           {{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ show(l.prestigeAt) }}</span>
@@ -30,7 +30,7 @@
         <span class="whitespace-nowrap">{{ show(l.reachedAt) }}</span>
       </li>
     </ol>
-    <p class="mt-1 text-[10px] text-slate-500" data-testid="instant-steps-note">
+    <p class="mt-1 text-small text-slate-500" data-testid="instant-steps-note">
       Times as the instant answer works them out, to the hour. Each egg shift is in Simulate this plan.
     </p>
   </details>

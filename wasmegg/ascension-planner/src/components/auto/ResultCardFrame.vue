@@ -10,12 +10,12 @@
   <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2 scroll-mt-24" data-result-card>
     <div class="flex items-baseline justify-between gap-4 flex-wrap">
       <div class="min-w-0">
-        <p class="text-[10px] font-black uppercase tracking-widest text-emerald-800"><slot name="heading" /></p>
+        <p class="label text-emerald-800"><slot name="heading" /></p>
         <slot name="headline" />
       </div>
       <div v-if="$slots.aside" class="sm:text-right"><slot name="aside" /></div>
     </div>
-    <p v-if="stillGoing" class="text-[11px] text-emerald-800" data-testid="route-card-still-going">
+    <p v-if="stillGoing" class="text-body text-emerald-800" data-testid="route-card-still-going">
       The search is still going, so this can still improve.
     </p>
     <slot />

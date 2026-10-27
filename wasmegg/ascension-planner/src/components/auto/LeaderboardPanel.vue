@@ -41,14 +41,14 @@
        and Hide from the public as Compare, without its tabs. Every kind and target, hidden runs too. -->
   <div v-if="myRunsMode" class="space-y-3" data-testid="my-runs-board">
     <div class="flex flex-wrap items-start justify-between gap-3">
-      <p class="flex-1 min-w-[14rem] text-[11px] text-indigo-900/80 leading-relaxed">
+      <p class="flex-1 min-w-[14rem] text-body text-indigo-900/80">
         Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, Fastest to N TE for
         any target, and other dates, and the ones hidden from the public. Open one for its details, or press
-        <span class="font-semibold">Use</span> to open its route in Single run, without running it. Single run doesn't use your awake hours.
+        <span class="font-bold">Use</span> to open its route in Single run, without running it. Single run doesn't use your awake hours.
       </p>
       <button
         type="button"
-        class="min-h-[44px] px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
+        class="min-h-[44px] px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-white disabled:opacity-40"
         :disabled="loading"
         @click="load"
       >
@@ -58,13 +58,13 @@
     <div aria-live="polite">
       <p
         v-if="hideMsg"
-        class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-[11px]"
+        class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-body"
         :class="hideMsgClass(hideMsg)"
       >
         <span>{{ hideMsg.text }}</span>
         <button
           type="button"
-          class="shrink-0 text-[10px] font-black uppercase tracking-widest opacity-60 hover:opacity-100"
+          class="shrink-0 text-body font-bold opacity-60 hover:opacity-100"
           @click="hideMsg = null"
         >
           OK
@@ -72,11 +72,11 @@
       </p>
     </div>
     <!-- Not exclusive: with /all down, the runs /mine returned (hidden ones too) still list. -->
-    <p v-if="error" class="flex flex-wrap items-center gap-2 text-[11px] text-red-700 font-semibold" data-testid="board-error">
+    <p v-if="error" class="flex flex-wrap items-center gap-2 text-body text-red-700 font-bold" data-testid="board-error">
       <span>{{ error }}</span>
       <button
         type="button"
-        class="min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[10px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50 disabled:opacity-40"
+        class="min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-body font-bold text-red-700 hover:bg-red-50 disabled:opacity-40"
         :disabled="loading"
         data-testid="board-retry"
         @click="load"
@@ -84,10 +84,10 @@
         Retry
       </button>
     </p>
-    <p v-if="loading && !allRows.length && !mineRows" class="text-[11px] text-indigo-900/60 py-6 text-center">
+    <p v-if="loading && !allRows.length && !mineRows" class="text-body text-indigo-900/60 py-6 text-center">
       Loading…
     </p>
-    <p v-else-if="!myKey && !mineRows?.length" class="text-[11px] text-indigo-900/70 py-4">
+    <p v-else-if="!myKey && !mineRows?.length" class="text-body text-indigo-900/70 py-4">
       Load your save to see your own runs here.
     </p>
     <MyRunsList
@@ -114,15 +114,15 @@
          here could be proved yours. -->
     <section
       v-if="mineRows?.length"
-      class="mt-2 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-3 text-[11px]"
+      class="mt-2 space-y-2 rounded-lg border border-slate-200 bg-white/60 p-3 text-body"
       aria-label="Who sees your runs"
     >
       <div class="flex flex-wrap items-center gap-2">
-        <h4 class="mr-auto text-[9px] font-black uppercase tracking-widest text-slate-500">Who sees your runs</h4>
+        <h4 class="mr-auto label text-slate-500">Who sees your runs</h4>
         <button
           v-if="myPublicCount"
           type="button"
-          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
+          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
           :disabled="hideAllBusy || hideBusy.size > 0"
           @click="changeHidden({ all: true }, true)"
         >
@@ -131,7 +131,7 @@
         <button
           v-if="myHidden.length"
           type="button"
-          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
+          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-indigo-400 hover:text-indigo-800 disabled:opacity-50"
           :disabled="hideAllBusy || hideBusy.size > 0"
           @click="changeHidden({ all: true }, false)"
         >
@@ -145,7 +145,7 @@
         Nothing is deleted, and you can show it again any time.
       </p>
       <div v-if="myHidden.length">
-        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+        <p class="text-small font-bold text-slate-400 mb-1">
           Hidden from the public ({{ myHidden.length }})
         </p>
         <ul class="divide-y divide-slate-100 text-slate-500">
@@ -172,7 +172,7 @@
                 Hidden from the public ·
                 <button
                   type="button"
-                  class="font-semibold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50 disabled:no-underline"
+                  class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-50 disabled:no-underline"
                   :disabled="hideAllBusy || (!!h.id && hideBusy.has(h.id))"
                   @click="h.id && changeHidden({ ids: [h.id] }, false)"
                 >
@@ -187,7 +187,7 @@
         </ul>
       </div>
     </section>
-    <p v-if="capped" class="text-[10px] text-amber-800">
+    <p v-if="capped" class="text-small text-amber-800">
       The planner's server sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
     </p>
   </div>
@@ -196,19 +196,19 @@
     <div class="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 class="text-[10px] font-black text-indigo-700 uppercase tracking-widest">{{ NAMES.compare }}</h1>
+          <h1 class="text-indigo-700 label">{{ NAMES.compare }}</h1>
         </div>
         <div v-if="boardView" class="flex items-end gap-2">
           <label v-if="tab !== 'dates' && tab !== 'eggday'" class="block">
-            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Target TE</span>
-            <select v-model="final" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
+            <span class="block label text-indigo-700/70 mb-1">Target TE</span>
+            <select v-model="final" class="rounded-lg border-indigo-200 text-body font-bold text-slate-700 py-1.5">
               <option value="">all</option>
               <option v-for="te in targets" :key="te" :value="String(te)">{{ te }}</option>
             </select>
           </label>
           <button
             type="button"
-            class="min-h-[44px] px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-40"
+            class="min-h-[44px] px-3 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-white disabled:opacity-40"
             :disabled="loading"
             @click="load"
           >
@@ -224,7 +224,7 @@
           type="button"
           role="tab"
           :aria-selected="tab === t"
-          class="min-h-[44px] sm:min-h-0 px-3 py-1.5 -mb-px rounded-t-lg text-[10px] font-black uppercase tracking-widest border border-b-0"
+          class="min-h-[44px] sm:min-h-0 px-3 py-1.5 -mb-px rounded-t-lg label border border-b-0"
           data-testid="board-view-tab"
           :class="
             tab === t
@@ -239,7 +239,7 @@
 
       <!-- Which simulator priced each run (lib/simLabel.ts): every finish carries a "sim" chip (SimChip.vue), and
            this hides the runs this site's own simulator did not price, on every view here, Insights too. -->
-      <div v-if="tab !== 'latest'" class="flex flex-wrap items-center gap-x-3 text-[11px] text-indigo-900/80">
+      <div v-if="tab !== 'latest'" class="flex flex-wrap items-center gap-x-3 text-small text-indigo-900/80">
         <label class="inline-flex min-h-[44px] items-center gap-2">
           <input v-model="showOlder" type="checkbox" class="rounded border-indigo-300 text-indigo-600" />
           Show runs from older simulators
@@ -254,13 +254,13 @@
       <div aria-live="polite">
         <p
           v-if="hideMsg && boardView"
-          class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-[11px]"
+          class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-body"
           :class="hideMsgClass(hideMsg)"
         >
           <span>{{ hideMsg.text }}</span>
           <button
             type="button"
-            class="shrink-0 text-[10px] font-black uppercase tracking-widest opacity-60 hover:opacity-100"
+            class="shrink-0 text-body font-bold opacity-60 hover:opacity-100"
             @click="hideMsg = null"
           >
             OK
@@ -274,17 +274,17 @@
 
       <!-- Your latest run: its block moved to My runs (16 Oct 2026; LatestRunView.vue in MyRunsView.vue). The
            tab and its address stay, as one line pointing there. -->
-      <p v-else-if="tab === 'latest'" class="text-xs text-slate-700 py-2" data-testid="latest-moved">
+      <p v-else-if="tab === 'latest'" class="text-body text-slate-700 py-2" data-testid="latest-moved">
         <a :href="MY_RUNS_HASH" class="font-bold text-indigo-700 underline hover:text-indigo-900"
           >{{ NAMES.latest }} is now in {{ NAMES.myRuns }} ›</a
         >
       </p>
 
-      <p v-else-if="error" class="flex flex-wrap items-center gap-2 text-[11px] text-red-700 font-semibold" data-testid="board-error">
+      <p v-else-if="error" class="flex flex-wrap items-center gap-2 text-body text-red-700 font-bold" data-testid="board-error">
         <span>{{ error }}</span>
         <button
           type="button"
-          class="min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-[10px] font-black uppercase tracking-widest text-red-700 hover:bg-red-50 disabled:opacity-40"
+          class="min-h-[44px] px-3 rounded-lg border border-red-300 bg-white text-body font-bold text-red-700 hover:bg-red-50 disabled:opacity-40"
           :disabled="loading"
           data-testid="board-retry"
           @click="load"
@@ -293,41 +293,41 @@
         </button>
       </p>
 
-      <p v-else-if="loading && !allRows.length" class="text-[11px] text-indigo-900/60 py-6 text-center">Loading…</p>
+      <p v-else-if="loading && !allRows.length" class="text-body text-indigo-900/60 py-6 text-center">Loading…</p>
 
-      <p v-else-if="!allRows.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
-        Nothing submitted yet. Run a search and use <span class="font-semibold">Share this result</span>.
+      <p v-else-if="!allRows.length" class="text-body text-indigo-900/60 py-6 text-center">
+        Nothing submitted yet. Run a search and use <span class="font-bold">Share this result</span>.
       </p>
 
       <!-- ================================================================== RACE -->
       <template v-else-if="tab === 'race'">
-        <p v-if="target == null" class="text-[11px] text-indigo-900/70 py-4">
+        <p v-if="target == null" class="text-body text-indigo-900/70 py-4">
           Pick a target TE above: Fastest to N TE needs one finish line.
         </p>
         <template v-else>
-          <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+          <p class="text-body text-indigo-900/80 max-w-prose">
             Players ranked by when their current best plan reaches {{ target }}. How far along they already are counts,
             so this shows who gets there first, not whose plan is best. To compare a route with yours, press
-            <span class="font-semibold">Use</span>.
+            <span class="font-bold">Use</span>.
           </p>
           <!-- Only this browser sees it: the race is named-only, and saying where an anonymous run
                would sit on the public board would tie it to the account. -->
           <p
             v-if="anonPlace"
-            class="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[11px] text-emerald-900"
+            class="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-body text-emerald-900"
           >
             {{ anonPlace }}
           </p>
-          <label v-if="myTE > 0" class="inline-flex items-center gap-2 text-[11px] text-indigo-900/80">
+          <label v-if="myTE > 0" class="inline-flex items-center gap-2 text-body text-indigo-900/80">
             <input v-model="nearMe" type="checkbox" class="rounded border-indigo-300 text-indigo-600" />
             Only players within {{ NEAR_TE }} TE of you (you are at TE {{ myTE }})
           </label>
 
-          <p v-if="!race || !race.entries.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
+          <p v-if="!race || !race.entries.length" class="text-body text-indigo-900/60 py-6 text-center">
             No named player has a current plan to {{ target }} yet. To join, pick “Credit me as” when you share a
             result.
           </p>
-          <p v-else-if="!raceShown.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
+          <p v-else-if="!raceShown.length" class="text-body text-indigo-900/60 py-6 text-center">
             Nobody within {{ NEAR_TE }} TE of you has a current plan to {{ target }}.
           </p>
           <!-- A size container, so an opened player's plans can be exactly as wide as what is on
@@ -336,7 +336,7 @@
                scrolling (review, 2026-09-27); a shadow on an edge says there is more that way. -->
           <p
             v-else-if="narrow && raceEdges.right && !raceEdges.left"
-            class="-mb-2 text-right text-[10px] text-slate-400"
+            class="-mb-2 text-right text-small text-slate-400"
           >
             Swipe the table for more columns →
           </p>
@@ -346,10 +346,10 @@
               class="overflow-x-auto [container-type:inline-size]"
               @scroll.passive="raceEdges.update"
             >
-              <table class="w-full text-xs">
+              <table class="w-full text-small">
                 <thead>
                   <tr
-                    class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left whitespace-nowrap"
+                    class="label text-slate-400 text-left whitespace-nowrap"
                   >
                     <th class="py-2 pr-2"></th>
                     <th class="py-2 pr-3 text-right">#</th>
@@ -383,7 +383,7 @@
                           {{ openPlayers[e.key] ? '⌄' : '›' }}
                         </button>
                       </td>
-                      <td class="py-2 pr-3 text-right font-black text-slate-500">{{ e.rank }}</td>
+                      <td class="py-2 pr-3 text-right font-bold text-slate-500">{{ e.rank }}</td>
                       <td
                         class="py-2 pr-3 font-bold text-slate-700 cursor-pointer"
                         data-testid="row-open-name"
@@ -393,11 +393,11 @@
                           >{{ e.label }}
                           <span
                             v-if="isMe(e)"
-                            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest"
+                            class="ml-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white label"
                             >you</span
                           ><span
                             v-else-if="whoIs(e) === 'maybe'"
-                            class="ml-1 text-[9px] font-semibold text-slate-400"
+                            class="ml-1 text-small font-bold text-slate-400"
                             title="Same timezone and gear as the save you loaded, but this browser holds no code that proves it."
                             >maybe you</span
                           ></span
@@ -407,14 +407,14 @@
                           <span class="tabular-nums text-slate-600">{{ e.best.row.chain.join(' ') }}</span>
                           <span
                             v-if="provisionalTag(e.best.row)"
-                            class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                            class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-bold text-amber-800"
                             :title="PROVISIONAL_TITLE"
                             >{{ provisionalTag(e.best.row) }}</span
                           >
                           <span
                             v-for="t in raceTags.get(e.key) ?? []"
                             :key="t"
-                            class="ml-1 inline-block px-1 rounded bg-sky-100 text-[9px] font-black text-sky-800"
+                            class="ml-1 inline-block px-1 rounded bg-sky-100 text-small font-bold text-sky-800"
                             :title="settingTagTitle(t)"
                             >{{ t }}</span
                           >
@@ -430,14 +430,14 @@
                         }}</span>
                         <span
                           v-if="provisionalTag(e.best.row)"
-                          class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                          class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-bold text-amber-800"
                           :title="PROVISIONAL_TITLE"
                           >{{ provisionalTag(e.best.row) }}</span
                         >
                         <span
                           v-for="t in raceTags.get(e.key) ?? []"
                           :key="t"
-                          class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-sky-100 text-[9px] font-black text-sky-800"
+                          class="ml-1.5 inline-block whitespace-nowrap px-1 rounded bg-sky-100 text-small font-bold text-sky-800"
                           :title="settingTagTitle(t)"
                           >{{ t }}</span
                         >
@@ -473,7 +473,7 @@
                       <td class="py-2 text-right">
                         <button
                           type="button"
-                          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
                           :title="`Open ${e.best.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
                           @click="emit('use', e.best.row.chain)"
                         >
@@ -490,7 +490,7 @@
                              list scrolls sideways inside this block instead. -->
                         <div class="sticky left-0 w-[100cqw] px-3 py-3 space-y-3">
                           <div>
-                            <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                            <h4 class="label text-slate-400 mb-1">
                               Current plans · {{ e.label
                               }}<template v-if="browserCount(e) > 1">
                                 · sent from {{ browserCount(e) }} browsers</template
@@ -509,13 +509,13 @@
                               gap-label="vs best"
                               @use="c => emit('use', c)"
                             />
-                            <p v-if="e.listed.length" class="mt-1 text-[10px] text-slate-400">
+                            <p v-if="e.listed.length" class="mt-1 text-small text-slate-400">
                               "vs best" only compares plans made from the same save as the best one and priced by the
                               same version of the planner.
                             </p>
                           </div>
                           <div v-if="e.dropped.length">
-                            <h4 class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                            <h4 class="label text-slate-400 mb-1">
                               Not counted
                             </h4>
                             <LeaderboardPlanList
@@ -547,8 +547,8 @@
             ></div>
           </div>
 
-          <details v-if="race && race.waiting.length" class="text-[11px] text-indigo-900/80">
-            <summary class="cursor-pointer font-semibold">
+          <details v-if="race && race.waiting.length" class="text-body text-indigo-900/80">
+            <summary class="cursor-pointer font-bold">
               No current plan to {{ target }} ({{ race.waiting.length }}
               {{ race.waiting.length === 1 ? 'player' : 'players' }})
             </summary>
@@ -560,12 +560,12 @@
             </ul>
           </details>
 
-          <p class="text-[10px] text-slate-500 leading-relaxed">
+          <p class="text-small text-slate-500">
             Dates and days left are in your timezone ({{ viewZone }}); hover a finish for the player's own. Anonymous
             runs are not ranked in Fastest to {{ target }} TE, so add a name to join. All runs lists every run.
           </p>
-          <details class="text-[10px] text-slate-500 leading-relaxed">
-            <summary class="cursor-pointer font-semibold text-slate-600">How Fastest to {{ target }} TE is judged</summary>
+          <details class="text-small text-slate-500">
+            <summary class="cursor-pointer font-bold text-slate-600">How Fastest to {{ target }} TE is judged</summary>
             <ul class="mt-1 ml-4 list-disc space-y-1">
               <li>A player's line is their earliest-finishing plan that still counts.</li>
               <li>
@@ -584,9 +584,9 @@
                 Each player gets one line. Runs from a second browser (a second code) join it when the name, timezone,
                 artifacts and TE agree, and each browser's plans are judged by that browser's runs. Runs sent under the
                 name without a code since codes began join it the same way, tagged
-                <span class="font-semibold">no code</span>. Anyone could have sent those, so they never set the line's
-                finish or place. A name marked <span class="font-semibold">(no code)</span> or
-                <span class="font-semibold">(other code)</span> is one of these lines that did not fit, and it may be
+                <span class="font-bold">no code</span>. Anyone could have sent those, so they never set the line's
+                finish or place. A name marked <span class="font-bold">(no code)</span> or
+                <span class="font-bold">(other code)</span> is one of these lines that did not fit, and it may be
                 somebody else.
               </li>
               <li>"Tried" counts each plan once, however often it was run or sent.</li>
@@ -597,13 +597,13 @@
 
       <!-- ======================================================= EGG DAY, AND BY A DATE -->
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
-        <p v-if="tab === 'eggday'" class="text-[11px] text-indigo-900/80 leading-relaxed">
+        <p v-if="tab === 'eggday'" class="text-body text-indigo-900/80 max-w-prose">
           The highest TE each player can reach by Egg Day {{ eggDayYear }} (Jul 14, 9:00 am Pacific), from the Auto
           Planner's <span class="font-bold">{{ NAMES.byDate }}</span> search with the Egg Day preset. Players are ranked
           by the TE they reach, then by time to spare, using each player's best answer. Game events aren't simulated,
           including Egg Day's own.
         </p>
-        <p v-else class="text-[11px] text-indigo-900/80 leading-relaxed">
+        <p v-else class="text-body text-indigo-900/80 max-w-prose">
           The highest TE each player can reach by any other date, from the Auto Planner's
           <span class="font-bold">{{ NAMES.byDate }}</span> search, one table per date. Dates are in your timezone
           ({{ viewZone }}). Players are ranked by the TE they reach, then by time to spare, using each player's best
@@ -611,27 +611,27 @@
         </p>
         <div class="flex flex-wrap items-end gap-3">
           <label class="block">
-            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1"
+            <span class="block label text-indigo-700/70 mb-1"
               >Ascensions</span
             >
-            <select v-model="dateAsc" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
+            <select v-model="dateAsc" class="rounded-lg border-indigo-200 text-body font-bold text-slate-700 py-1.5">
               <option :value="null">any</option>
               <option v-for="n in dateAscOptions" :key="n" :value="n">{{ n }}</option>
             </select>
           </label>
           <label class="block">
-            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1"
+            <span class="block label text-indigo-700/70 mb-1"
               >Awake hours</span
             >
-            <select v-model="dateHours" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
+            <select v-model="dateHours" class="rounded-lg border-indigo-200 text-body font-bold text-slate-700 py-1.5">
               <option :value="null">either</option>
               <option value="awake">planned around awake hours</option>
               <option value="any">any time of day</option>
             </select>
           </label>
           <label class="block">
-            <span class="block text-[9px] font-black uppercase tracking-widest text-indigo-700/70 mb-1">Time off</span>
-            <select v-model="dateOff" class="rounded-lg border-indigo-200 text-xs font-bold text-slate-700 py-1.5">
+            <span class="block label text-indigo-700/70 mb-1">Time off</span>
+            <select v-model="dateOff" class="rounded-lg border-indigo-200 text-body font-bold text-slate-700 py-1.5">
               <option :value="null">either</option>
               <option value="with">with time off</option>
               <option value="without">without time off</option>
@@ -640,36 +640,36 @@
           <button
             v-if="dateFiltered"
             type="button"
-            class="text-[10px] font-black uppercase tracking-widest text-indigo-700/70 hover:text-indigo-900 pb-2"
+            class="text-body font-bold text-indigo-700/70 hover:text-indigo-900 pb-2"
             @click="((dateAsc = null), (dateHours = null), (dateOff = null))"
           >
             Clear
           </button>
         </div>
-        <p v-if="!shownDates.length && dateFiltered" class="text-[11px] text-indigo-900/60 py-6 text-center">
+        <p v-if="!shownDates.length && dateFiltered" class="text-body text-indigo-900/60 py-6 text-center">
           No answers in these categories.
         </p>
-        <p v-else-if="!shownDates.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
+        <p v-else-if="!shownDates.length" class="text-body text-indigo-900/60 py-6 text-center">
           No answers yet. Run {{ NAMES.byDate }} in the Auto Planner<template v-if="tab === 'eggday'">
             with the Egg Day preset</template
           >
-          and use <span class="font-semibold">Share this result</span>.
+          and use <span class="font-bold">Share this result</span>.
         </p>
         <div
           v-for="g in shownDates"
           :key="g.deadline"
           class="rounded-xl border border-indigo-100 bg-white p-3 space-y-2"
         >
-          <p class="text-[10px] font-black uppercase tracking-widest text-indigo-800">
+          <p class="text-small font-bold text-indigo-800">
             By {{ deadlineText(g.deadline) }}
-            <span v-if="g.deadline * 1000 < now" class="font-semibold normal-case tracking-normal text-slate-500"
+            <span v-if="g.deadline * 1000 < now" class="font-bold normal-case tracking-normal text-slate-500"
               >· this date has passed</span
             >
           </p>
           <div class="overflow-x-auto">
-            <table class="w-full text-[11px] tabular-nums">
+            <table class="w-full text-small tabular-nums">
               <thead>
-                <tr class="text-left text-[9px] font-black uppercase tracking-widest text-indigo-700/60">
+                <tr class="text-left label text-indigo-700/60">
                   <th class="pr-3 py-1">#</th>
                   <th class="pr-3 py-1">Who</th>
                   <th class="pr-3 py-1">TE by then</th>
@@ -692,14 +692,14 @@
                     "
                     @click="openDate = openDate === dateKey(g.deadline, e) ? '' : dateKey(g.deadline, e)"
                   >
-                    <td class="pr-3 py-1 font-black">{{ e.rank ?? '—' }}</td>
+                    <td class="pr-3 py-1 font-bold">{{ e.rank ?? '—' }}</td>
                     <td class="pr-3 py-1 font-bold">
                       {{ e.label
                       }}<span v-if="e.others.length" class="font-normal text-slate-400">
                         · {{ e.others.length }} more</span
                       >
                     </td>
-                    <td class="pr-3 py-1 font-black text-indigo-900 whitespace-nowrap">
+                    <td class="pr-3 py-1 font-bold text-indigo-900 whitespace-nowrap">
                       {{ e.te }}
                       <SimChip :stamp="e.best.simVersion" />
                     </td>
@@ -707,7 +707,7 @@
                       {{ e.best.chain.join(' ')
                       }}<span
                         v-if="provisionalTag(e.best)"
-                        class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-[9px] font-black text-amber-800"
+                        class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-bold text-amber-800"
                         :title="PROVISIONAL_TITLE"
                         >{{ provisionalTag(e.best) }}</span
                       >
@@ -744,10 +744,10 @@
                         :view-zone="viewZone"
                       />
                       <div v-if="e.others.length" class="space-y-1">
-                        <p class="text-[9px] font-black uppercase tracking-widest text-indigo-700/60">
+                        <p class="text-small font-bold text-indigo-700/60">
                           Their other answers for this date
                         </p>
-                        <p v-for="o in e.others" :key="o.id ?? o.chain.join(',')" class="text-[11px] text-slate-600">
+                        <p v-for="o in e.others" :key="o.id ?? o.chain.join(',')" class="text-small text-slate-600">
                           <span class="font-bold text-indigo-900">{{ o.finalTE }} TE</span>
                           <SimChip :stamp="o.simVersion" /> via {{ o.chain.join(' ') }}, from
                           {{ o.currentTE ?? '—' }} TE, sent {{ sentText(o.receivedAt ?? o.submittedAt) }}
@@ -765,7 +765,7 @@
               </tbody>
             </table>
           </div>
-          <p v-if="g.anonymous.length" class="text-[10px] text-slate-500">
+          <p v-if="g.anonymous.length" class="text-small text-slate-500">
             Anonymous answers are listed but not ranked, as in Fastest to N TE.
           </p>
         </div>
@@ -773,18 +773,18 @@
 
       <!-- ================================================================== ALL RUNS -->
       <template v-else>
-        <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+        <p class="text-body text-indigo-900/80 max-w-prose">
           Every run on the Leaderboard. A result sent more than once shows once, with how many times it was sent; open it to
           see each copy and its CSV. Look-alike runs (same route and save) are tagged with how they differ. A run sent
           under a player's name without their code since codes began is tagged
-          <span class="font-semibold">no code</span>. Plan length counts from each run's own start, so it shrinks every
+          <span class="font-bold">no code</span>. Plan length counts from each run's own start, so it shrinks every
           day a plan is run again. Compare finish dates instead. A route's length on someone else's account says little
-          about yours until you press <span class="font-semibold">Use</span>.
+          about yours until you press <span class="font-bold">Use</span>.
         </p>
-        <p v-if="!runLines.length" class="text-[11px] text-indigo-900/60 py-6 text-center">
+        <p v-if="!runLines.length" class="text-body text-indigo-900/60 py-6 text-center">
           No runs to {{ target }} yet.
         </p>
-        <p v-else-if="narrow && runEdges.right && !runEdges.left" class="-mb-2 text-right text-[10px] text-slate-400">
+        <p v-else-if="narrow && runEdges.right && !runEdges.left" class="-mb-2 text-right text-small text-slate-400">
           Swipe the table for more columns →
         </p>
         <!-- A size container for the opened run's detail, as in Race. On a phone the route sits under
@@ -795,14 +795,14 @@
             class="overflow-x-auto [container-type:inline-size]"
             @scroll.passive="runEdges.update"
           >
-            <table class="w-full text-xs">
+            <table class="w-full text-small">
               <thead>
-                <tr class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-left whitespace-nowrap">
+                <tr class="label text-slate-400 text-left whitespace-nowrap">
                   <th class="py-2 pr-3"></th>
                   <th v-for="c in shownColumns" :key="c.key" class="py-2 pr-3" :class="c.right ? 'text-right' : ''">
                     <button
                       type="button"
-                      class="uppercase tracking-widest hover:text-slate-700 whitespace-nowrap"
+                      class="hover:text-slate-700 whitespace-nowrap"
                       :title="c.title"
                       :class="sortKey === c.key ? 'text-slate-700' : ''"
                       :aria-sort="sortKey === c.key ? (sortAsc ? 'ascending' : 'descending') : 'none'"
@@ -846,7 +846,7 @@
                              the run's detail. Text interpolation, so it is always escaped. -->
                         <span
                           v-if="line.row.note"
-                          class="block max-w-[12rem] truncate whitespace-nowrap text-[10px] font-normal text-slate-500"
+                          class="block max-w-[12rem] truncate whitespace-nowrap text-small font-normal text-slate-500"
                           :title="line.row.note"
                           >{{ line.row.note }}</span
                         >
@@ -855,7 +855,7 @@
                           <span
                             v-for="chip in line.chips"
                             :key="chip.text"
-                            class="ml-1 inline-block px-1 rounded text-[9px] font-black"
+                            class="ml-1 inline-block px-1 rounded text-small font-bold"
                             :class="chip.cls"
                             :title="chip.title"
                             >{{ chip.text }}</span
@@ -882,7 +882,7 @@
                         <span
                           v-for="chip in line.chips"
                           :key="chip.text"
-                          class="ml-1.5 inline-block whitespace-nowrap px-1 rounded text-[9px] font-black"
+                          class="ml-1.5 inline-block whitespace-nowrap px-1 rounded text-small font-bold"
                           :class="chip.cls"
                           :title="chip.title"
                           >{{ chip.text }}</span
@@ -927,7 +927,7 @@
                       <td v-else-if="c.key === 'effort'" class="py-2 pr-3 text-slate-400">
                         <span
                           v-if="line.row.space"
-                          class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest text-white"
+                          class="px-1.5 py-0.5 rounded label text-white"
                           :class="line.row.space.stoppedEarly ? 'bg-amber-600' : 'bg-indigo-600'"
                         >
                           {{ foundByText(line.row) }}
@@ -945,7 +945,7 @@
                     <td class="py-2 text-right">
                       <button
                         type="button"
-                        class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                        class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
                         @click="emit('use', line.row.chain)"
                       >
                         Use
@@ -980,7 +980,7 @@
         </div>
       </template>
 
-      <p v-if="capped && boardView" class="text-[10px] text-amber-800">
+      <p v-if="capped && boardView" class="text-small text-amber-800">
         The planner's server sent its maximum of {{ plural(ALL_CAP, 'run') }}, so the oldest or slowest runs may be missing.
       </p>
     </div>

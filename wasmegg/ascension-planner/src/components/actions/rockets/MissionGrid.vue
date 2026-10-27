@@ -1,6 +1,6 @@
 <template>
   <div class="overflow-x-auto">
-    <table class="w-full text-xs border-collapse">
+    <table class="w-full text-small border-collapse">
       <thead>
         <tr class="border-b border-gray-300">
           <th class="text-left p-2 w-28">Ship</th>
@@ -28,10 +28,10 @@
                 {{ SHIP_INFO[ship].displayName }}
               </span>
             </div>
-            <div class="text-gray-500 text-[11px] font-medium">
+            <div class="text-gray-500 text-small font-normal">
               {{ formatNumber(SHIP_INFO[ship].price, 0) }}
             </div>
-            <div class="text-gray-400 text-[10px]">Save: {{ formatDuration(saveTime(ship)) }}</div>
+            <div class="text-gray-400 text-small">Save: {{ formatDuration(saveTime(ship)) }}</div>
           </td>
 
           <!-- Duration cells -->
@@ -57,7 +57,7 @@
             </div>
 
             <!-- Line 3: Max missions -->
-            <div class="text-[10px] text-gray-400 font-bold uppercase tracking-tight mb-1">
+            <div class="text-gray-400 label mb-1">
               max: {{ maxCount(ship, dur) > 99 ? '>99' : maxCount(ship, dur) }}
             </div>
 
@@ -69,7 +69,7 @@
                 :max="maxCount(ship, dur)"
                 :value="rocketsStore.getCount(ship, dur)"
                 :disabled="maxCount(ship, dur) === 0 && rocketsStore.getCount(ship, dur) === 0"
-                class="w-12 px-1 py-0.5 border border-gray-300 rounded text-center text-xs font-bold focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+                class="w-12 px-1 py-0.5 border border-gray-300 rounded text-center text-body font-bold focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                 :class="{ 'border-red-400 bg-red-50 text-red-700': isOverMax(ship, dur) }"
                 @input="handleInput(ship, dur, $event)"
               />

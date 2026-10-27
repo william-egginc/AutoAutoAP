@@ -8,7 +8,7 @@
   alone").
 -->
 <template>
-  <p v-if="line" class="text-[11px] text-amber-800 leading-relaxed" data-testid="soul-egg-warning">{{ line }}</p>
+  <p v-if="line" class="text-body text-amber-800" data-testid="soul-egg-warning">{{ line }}</p>
 </template>
 
 <script setup lang="ts">

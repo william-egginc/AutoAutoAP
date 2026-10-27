@@ -52,7 +52,7 @@
 <template>
   <div class="space-y-3">
     <!-- The names are the older shared sweeps' (the Science tab no longer asks for them); players read them as codes. -->
-    <p v-if="groups.length" class="text-[11px] text-slate-500 leading-relaxed">
+    <p v-if="groups.length" class="text-body text-slate-500 max-w-prose">
       Each button is a group of runs, with how many there are. Named ones are sweeps from the older shared presets (the
       Science tab no longer asks for them): the M sweeps try a grid of TEs (M2 every 2nd TE, M4 every 5th), the F
       sweeps every TE where it matters most, and the rest are sweeps players designed themselves. "2 ascensions" and the like are the other runs, grouped by ascension count.
@@ -62,7 +62,7 @@
         v-for="g in groups"
         :key="g.id"
         type="button"
-        class="px-2.5 py-1 rounded-md text-[10px] font-black border transition-colors"
+        class="px-2.5 py-1 rounded-md text-small font-bold border transition-colors"
         :class="
           selected === g.id
             ? 'bg-slate-900 text-white border-slate-900'
@@ -84,7 +84,7 @@
       <button
         v-if="current"
         type="button"
-        class="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white disabled:opacity-40"
+        class="ml-auto px-3 py-1.5 rounded-lg text-body font-bold bg-indigo-600 text-white disabled:opacity-40"
         :disabled="loading || !pending.length"
         @click="loadTables"
       >
@@ -97,19 +97,19 @@
         }}
       </button>
     </div>
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
       No sweeps yet. A Custom run (a box of TEs for each stop), or an upload tagged with a preset, shows up here.
     </p>
 
     <div v-if="current" class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <!-- Only when the group mixes counts: one count is one question. -->
       <div v-if="counts.length > 1" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Plans with</span>
+        <span class="text-slate-400 label">Plans with</span>
         <button
           v-for="c in counts"
           :key="c.ascensions"
           type="button"
-          class="px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors"
+          class="px-2 py-0.5 rounded-md text-small font-bold border transition-colors"
           :class="
             shownCount === c.ascensions
               ? 'bg-slate-700 text-white border-slate-700'
@@ -123,12 +123,12 @@
       </div>
       <!-- A 2-ascension plan has one checkpoint: nothing to pick. -->
       <div v-if="checkpoints.length > 1" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Stop</span>
+        <span class="text-slate-400 label">Stop</span>
         <button
           v-for="k in checkpoints"
           :key="k"
           type="button"
-          class="px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors"
+          class="px-2 py-0.5 rounded-md text-small font-bold border transition-colors"
           :class="
             checkpoint === k
               ? 'bg-slate-700 text-white border-slate-700'
@@ -142,12 +142,12 @@
         </button>
       </div>
       <div v-if="curves.length" class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Across</span>
+        <span class="text-slate-400 label">Across</span>
         <button
           v-for="m in X_MODES"
           :key="m.id"
           type="button"
-          class="px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors"
+          class="px-2 py-0.5 rounded-md text-small font-bold border transition-colors"
           :class="
             xMode === m.id
               ? 'bg-slate-700 text-white border-slate-700'
@@ -165,7 +165,7 @@
           v-for="view in VIEWS"
           :key="view.id"
           type="button"
-          class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
           :class="
             range === view.id
               ? 'bg-slate-900 text-white border-slate-900'
@@ -178,7 +178,7 @@
         </button>
       </div>
     </div>
-    <p v-if="error" class="text-[11px] font-semibold text-rose-700 px-1">{{ error }}</p>
+    <p v-if="error" class="text-body font-bold text-rose-700 px-1">{{ error }}</p>
 
     <EChart v-if="curves.length" :option="option" height="310px" />
     <!-- In HTML so every run is on screen at any width (legend.ts); each hides its line. -->
@@ -188,14 +188,14 @@
       :entries="legendEntries"
       label="Runs: click to hide or show"
     />
-    <p v-else-if="current" class="px-4 py-6 text-center text-[11px] text-slate-400">
+    <p v-else-if="current" class="px-4 py-6 text-center text-body text-slate-400">
       Load the tables to draw this sweep.
       <template v-if="noTable">
         {{ noTable }} of its {{ plural(shownRows.length, 'run') }} {{ noTable === 1 ? 'has' : 'have' }} no table stored and cannot
         be drawn.
       </template>
     </p>
-    <p v-if="curves.length && curves.length < shownRows.length" class="text-[10px] text-slate-500 px-1">
+    <p v-if="curves.length && curves.length < shownRows.length" class="text-small text-slate-500 px-1">
       {{ curves.length }} of {{ plural(shownRows.length, 'run') }} drawn<template v-if="noTable"
         >; {{ noTable }} {{ noTable === 1 ? 'has' : 'have' }} no table stored</template
       ><template v-if="pending.length">; {{ pending.length }} not loaded yet</template
@@ -203,21 +203,21 @@
         >; {{ singlePoint }} priced only one TE at the {{ checkpointWords(checkpoint) }}</template
       >.
     </p>
-    <p v-if="curves.length" class="text-[10px] text-slate-400 leading-relaxed px-1">{{ hint }}</p>
+    <p v-if="curves.length" class="text-small text-slate-400 px-1">{{ hint }}</p>
 
     <!-- ------------------------------------------------------------ per run, at this checkpoint -->
     <div v-if="table.length" class="space-y-1.5">
       <div class="flex flex-wrap items-baseline justify-between gap-2 px-1">
-        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <h4 class="text-slate-400 label">
           Each run at the {{ checkpointWords(checkpoint) }}, in days behind its own best
         </h4>
         <div v-if="checkpoints.length > 1" class="flex items-center gap-1.5">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Coarser step at</span>
+          <span class="text-slate-400 label">Coarser step at</span>
           <button
             v-for="s in SCOPES"
             :key="s.id"
             type="button"
-            class="px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors"
+            class="px-2 py-0.5 rounded-md text-small font-bold border transition-colors"
             :class="
               scope === s.id
                 ? 'bg-slate-700 text-white border-slate-700'
@@ -232,9 +232,9 @@
         </div>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-[11px]">
+        <table class="w-full text-small">
           <thead>
-            <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <tr class="text-slate-400 label">
               <th class="text-left py-1 pr-3">Run</th>
               <th
                 class="text-left py-1 pr-3"
@@ -269,14 +269,14 @@
               <td class="py-1.5 pr-3 whitespace-nowrap" :title="line.title">
                 <span class="mr-1" :style="{ color: line.color }" aria-hidden="true">{{ line.glyph }}</span>
                 <b class="text-slate-700">{{ line.label }}</b>
-                <span class="text-[10px] text-slate-400">{{ ` · from ${line.currentTE} TE · ${line.id}` }}</span>
+                <span class="text-small text-slate-400">{{ ` · from ${line.currentTE} TE · ${line.id}` }}</span>
               </td>
               <td class="py-1.5 pr-3 whitespace-nowrap font-bold text-slate-700" :title="line.bestTitle">
                 {{ line.bestText }}
               </td>
               <td v-for="r in line.ranges" :key="r.days" class="py-1.5 pr-3 whitespace-nowrap" :title="r.title">
                 <span class="text-slate-700">{{ r.text }}</span>
-                <span v-if="r.note" class="text-[10px] text-slate-400"> · {{ r.note }}</span>
+                <span v-if="r.note" class="text-small text-slate-400"> · {{ r.note }}</span>
               </td>
               <td
                 v-for="c in line.coarse"
@@ -291,7 +291,7 @@
           </tbody>
         </table>
       </div>
-      <p class="text-[10px] text-slate-400 leading-relaxed px-1">
+      <p class="text-small text-slate-400 px-1">
         Each run against its own best, inside its own table (one save), so these days are exact; they never compare one
         run's total with another's. A range with a count after it is a saw: some TEs inside it fall further behind
         (hover for which). "Box edge" means the range runs into the end of what the run tried, so it may go further. The

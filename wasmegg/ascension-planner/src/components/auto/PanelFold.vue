@@ -23,12 +23,12 @@
       :class="summaryClass"
       :data-testid="`${id}-summary`"
     >
-      <span class="font-black">{{ title }}</span>
+      <span class="font-bold">{{ title }}</span>
       <slot name="extra" />
-      <span v-if="hint" class="min-w-0 font-semibold text-slate-500 normal-case tracking-normal" :data-testid="`${id}-hint`">{{
+      <span v-if="hint" class="min-w-0 font-bold text-slate-500 normal-case tracking-normal" :data-testid="`${id}-hint`">{{
         hint
       }}</span>
-      <span aria-hidden="true" class="fold-chevron ml-auto pl-1 text-[13px] leading-none text-slate-400">›</span>
+      <span aria-hidden="true" class="fold-chevron ml-auto pl-1 text-small leading-none text-slate-400">›</span>
     </summary>
     <slot />
   </details>
@@ -53,7 +53,7 @@ const props = withDefaults(
     testid?: string;
     summaryClass?: string;
   }>(),
-  { hint: '', running: false, unfinished: false, testid: '', summaryClass: 'text-[11px] text-slate-700' }
+  { hint: '', running: false, unfinished: false, testid: '', summaryClass: 'text-body text-slate-700' }
 );
 
 const id = computed(() => props.testid || `fold-${props.section}`);

@@ -22,11 +22,11 @@
       maxlength="80"
       :placeholder="defaultLabel"
       aria-label="Name for this answer"
-      class="w-64 max-w-full rounded-lg border-slate-300 text-xs text-slate-800"
+      class="w-64 max-w-full rounded-lg border-slate-300 text-body text-slate-800"
     />
     <button
       type="button"
-      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
       :disabled="saving"
       @click="save"
     >
@@ -35,11 +35,11 @@
   </div>
   <slot v-if="!listOnly" />
   <div v-if="store.savedAnswers.length" class="space-y-1">
-    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved answers</h4>
+    <h4 class="text-slate-500 label">Saved answers</h4>
     <div
       v-for="a in store.savedAnswers"
       :key="a.id"
-      class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 text-[11px]"
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 text-small"
     >
       <span class="font-bold text-slate-800">{{ a.label }}</span>
       <span class="text-slate-500"
@@ -48,7 +48,7 @@
       >
       <button
         type="button"
-        class="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+        class="ml-auto text-body font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
         :disabled="store.deadlineRunning"
         @click="open(a.id)"
       >
@@ -68,7 +68,7 @@
       />
       <button
         type="button"
-        class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-600"
+        class="text-body font-bold text-slate-400 hover:text-rose-600"
         @click="store.removeSavedAnswer(playerId, a.id)"
       >
         Delete

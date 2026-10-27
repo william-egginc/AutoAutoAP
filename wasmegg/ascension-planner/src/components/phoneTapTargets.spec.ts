@@ -24,7 +24,9 @@ describe('the instant card on a phone', () => {
   it('Simulate this plan (both boxes and the counts rows) is 44 px tall', () => {
     const tags = [...src.matchAll(/<button[^>]*>\s*Simulate this plan\s*<\/button>/g)].map(m => m[0]);
     expect(tags).toHaveLength(4);
-    for (const t of tags) expect(t).toContain(TAP);
+    // The shared SECONDARY_BUTTON since type batch 2 (26 Oct 2026); it carries the 44 px classes.
+    expect(SECONDARY_BUTTON).toContain('inline-flex items-center justify-center min-h-[44px] sm:min-h-0');
+    for (const t of tags) expect(t.includes(TAP) || /:class="\[?SECONDARY_BUTTON\b/.test(t), t).toBe(true);
   });
   it('Follow this route: the boxes use the 44 px primary button, the counts rows get 44 px too', () => {
     expect(src.match(/<FollowButton primary|<FollowButton v-if="boxFollowable" primary/g)).toHaveLength(2);

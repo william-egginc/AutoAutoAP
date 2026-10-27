@@ -115,6 +115,7 @@ function ctxOf(s: State): Record<string, unknown> {
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
     SHARE_WHAT: '',
     SIMULATE_TITLE: '',
+    SECONDARY_BUTTON: 'btn',
     START_WAIT_LABEL: 'From before: waiting for your save.',
     TABLE_URL: '/precompute/table-v2.bin',
     TIGHT_SECONDS: 86400,

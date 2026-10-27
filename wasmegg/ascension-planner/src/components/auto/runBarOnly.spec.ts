@@ -37,7 +37,7 @@ describe('the run bar is the only progress', () => {
 
   it("the bar carries the rest under a folded Details (lib/runDetails.ts), and keeps its buttons", () => {
     const bar = read('RunProgressBar.vue');
-    expect(bar).toContain('<details v-if="details" class="text-[10px] text-white/60" data-testid="run-bar-details">');
+    expect(bar).toContain('<details v-if="details" class="text-small text-white/60" data-testid="run-bar-details">');
     expect(bar).toContain('runDetailLine(');
     expect(bar).toContain('data-testid="run-bar-show"');
     expect(bar).toContain('data-testid="run-bar-best-so-far"');

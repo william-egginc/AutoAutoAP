@@ -68,12 +68,12 @@ describe('and the screens use them', () => {
   it('SiteTabs.vue: slate-500 when not picked', () => {
     expect(read('components/SiteTabs.vue')).toContain("'text-slate-500 hover:text-slate-700 hover:bg-slate-50'");
   });
-  it('InstantRoute.vue: both tables’ headers 10 px slate-500; the checked-in and Pricing lines slate-500', () => {
+  it('InstantRoute.vue: both tables’ headers the caps label (11 px) in slate-500; the checked-in and Pricing lines slate-500', () => {
     const src = read('components/auto/InstantRoute.vue');
-    expect(src.match(/<tr class="text-left text-\[10px\] font-black uppercase tracking-widest text-slate-500 align-bottom">/g)).toHaveLength(2);
+    expect(src.match(/<tr class="text-left label text-slate-500 align-bottom">/g)).toHaveLength(2);
     expect(src).not.toMatch(/<tr class="[^"]*text-\[9px\][^"]*text-slate-400/);
-    expect(src).toContain('<span v-if="ms !== null" class="text-[10px] text-slate-500"');
-    expect(src).toMatch(/<p v-if="bracketStatus === 'running'[^"]*" class="text-\[11px\] text-slate-500"/);
+    expect(src).toContain('<span v-if="ms !== null" class="text-small text-slate-500"');
+    expect(src).toMatch(/<p v-if="bracketStatus === 'running'[^"]*" class="text-body text-slate-500 max-w-prose"/);
   });
   it('SearchPanel.vue: Fast / Exact / Custom in slate-600, indigo-600 when picked', () => {
     const src = read('components/auto/SearchPanel.vue');

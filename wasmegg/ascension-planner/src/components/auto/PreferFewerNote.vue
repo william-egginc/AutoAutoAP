@@ -9,15 +9,15 @@
 <template>
   <div v-if="copy.line" class="space-y-0.5" data-testid="prefer-fewer-note">
     <template v-if="!showingBest">
-      <p v-if="copy.what" class="text-[12px] text-slate-700" data-testid="prefer-fewer-what">{{ copy.what }}</p>
-      <p class="text-[12px] text-slate-700" data-testid="prefer-fewer-line">{{ copy.line }}</p>
+      <p v-if="copy.what" class="text-body text-slate-700" data-testid="prefer-fewer-what">{{ copy.what }}</p>
+      <p class="text-body text-slate-700" data-testid="prefer-fewer-line">{{ copy.line }}</p>
     </template>
-    <p v-else class="text-[11px] text-slate-500" data-testid="prefer-fewer-showing-best">
+    <p v-else class="text-body text-slate-500" data-testid="prefer-fewer-showing-best">
       Showing the {{ bestWord }} for now; Prefer fewer ascensions is still on.
     </p>
     <button
       type="button"
-      class="min-h-[44px] sm:min-h-0 text-[11px] font-bold text-emerald-800 underline hover:text-emerald-950"
+      class="min-h-[44px] sm:min-h-0 text-body font-bold text-emerald-800 underline hover:text-emerald-950"
       :aria-pressed="showingBest"
       data-testid="prefer-fewer-toggle"
       @click="emit('toggle')"

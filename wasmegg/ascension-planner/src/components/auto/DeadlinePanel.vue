@@ -39,7 +39,7 @@
         <button
           v-if="autoCountdown > 0"
           type="button"
-          class="px-3 py-1.5 rounded-lg border border-amber-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+          class="px-3 py-1.5 rounded-lg border border-amber-400 text-body font-bold hover:bg-white"
           @click="cancelAutoCarryOn()"
         >
           Cancel the automatic carry on
@@ -47,7 +47,7 @@
       </template>
     </CarryOnOffer>
 
-    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The date</h3>
+    <h3 class="text-slate-500 label">The date</h3>
     <!-- Egg Day or a date of your own, as one choice of two: a dark "Egg Day" button beside date
          boxes that already held Egg Day read oddly (the user, 30 Sept). The boxes show for a date
          of your own. -->
@@ -61,8 +61,8 @@
         :class="!showCustomDate ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'"
         @click="chooseEggDay"
       >
-        <span class="block text-sm font-black text-slate-900">Egg Day {{ eggDayYear }}</span>
-        <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
+        <span class="block text-body font-bold text-slate-900">Egg Day {{ eggDayYear }}</span>
+        <span class="block mt-0.5 text-body text-slate-600"
           >{{ eggDayWords(eggDayYear, plannerZone) }}. Answers you send go on the {{ NAMES.compare }}'s Egg Day
           {{ eggDayYear }} tab.</span
         >
@@ -76,40 +76,40 @@
         :class="showCustomDate ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'"
         @click="customDate = true"
       >
-        <span class="block text-sm font-black text-slate-900">Another date</span>
-        <span class="block mt-0.5 text-[11px] text-slate-600 leading-relaxed"
+        <span class="block text-body font-bold text-slate-900">Another date</span>
+        <span class="block mt-0.5 text-body text-slate-600"
           >Any date and time you like. Answers you send go on the {{ NAMES.compare }}'s Other dates tab.</span
         >
       </button>
     </div>
     <div v-if="showCustomDate" class="flex flex-wrap items-end gap-3">
       <label class="space-y-1">
-        <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</span>
+        <span class="block text-slate-400 label">Date</span>
         <input
           v-model="date"
           type="date"
           :disabled="store.busy"
-          class="rounded-lg border-slate-200 text-sm font-bold"
+          class="rounded-lg border-slate-200 text-body font-bold"
         />
       </label>
       <label class="space-y-1">
-        <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Time</span>
+        <span class="block text-slate-400 label">Time</span>
         <input
           v-model="time"
           type="time"
           :disabled="store.busy"
-          class="rounded-lg border-slate-200 text-sm font-bold"
+          class="rounded-lg border-slate-200 text-body font-bold"
         />
       </label>
       <label class="space-y-1 max-w-full">
-        <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">In</span>
-        <select v-model="zone" :disabled="store.busy" class="max-w-full rounded-lg border-slate-200 text-sm font-bold">
+        <span class="block text-slate-400 label">In</span>
+        <select v-model="zone" :disabled="store.busy" class="max-w-full rounded-lg border-slate-200 text-body font-bold">
           <option value="America/Los_Angeles">Pacific time</option>
           <option :value="plannerZone">Your planner's time ({{ plannerZone }})</option>
         </select>
       </label>
     </div>
-    <p class="text-[11px] text-slate-500 leading-relaxed">
+    <p class="text-body text-slate-500 max-w-prose">
       <!-- The planner's time only when it reads differently from the zone the date was given in (Egg Day: Pacific);
            otherwise it was a third copy of the same date (UX review 26 Oct 2026, item 14). -->
       <template v-if="deadline && !sameClock(deadline, plannerZone, zone)"
@@ -131,7 +131,7 @@
         data-testid="ascend-needed"
         @change="setAscendNeeded(($event.target as HTMLInputElement).checked)"
       />
-      <span class="text-[11px] text-slate-600 leading-relaxed">
+      <span class="text-body text-slate-600">
         <span class="font-bold text-slate-800">I need to ascend at the last stop before the deadline.</span> Counts the
         wait until your awake hours after reaching it, so you reach the last stop in time to act on it.
       </span>
@@ -156,47 +156,47 @@
           <div class="space-y-2" data-testid="quick-estimate">
             <template v-if="quickBest && result">
               <ByDateRouteCard :route="quickBest" :deadline="result.deadline" :zone="plannerZone" />
-              <p class="text-[11px] text-slate-700 leading-relaxed" data-testid="quick-estimate-note">
+              <p class="text-body text-slate-700" data-testid="quick-estimate-note">
                 {{ quickEstimateNote(!!edges.length && !!edgeWiden) }}
               </p>
             </template>
             <template v-if="quickRunning">
-              <p class="text-[11px] font-semibold text-slate-700" data-testid="quick-estimate-status">
+              <p class="text-body font-bold text-slate-700" data-testid="quick-estimate-status">
                 {{ quickStatus }}
               </p>
               <button
                 type="button"
-                class="min-h-[44px] px-4 rounded-lg border border-slate-400 bg-white text-[11px] font-black uppercase tracking-widest text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                class="min-h-[44px] px-4 rounded-lg border border-slate-400 bg-white text-body font-bold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
                 :disabled="stopAsked"
                 data-testid="quick-estimate-stop"
                 @click="stopDeadline"
               >
                 <SendingText v-if="stopAsked" text="Stopping" /><template v-else>Stop &amp; keep best</template>
               </button>
-              <p v-if="stopAsked" class="text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
+              <p v-if="stopAsked" class="text-body text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
             </template>
             <template v-else>
-              <p v-if="!quickBest" class="text-[12px] text-slate-700 leading-relaxed">
+              <p v-if="!quickBest" class="text-body text-slate-700 max-w-prose">
                 A quick scan of 1 to 5 ascensions, then {{ NAMES.smart }} near its best, held to about
                 {{ Math.round(FALLBACK_BUDGET_SECONDS / 60) }} min on {{ thisDevice() }}. Stop keeps the best route so far.
               </p>
               <button
                 type="button"
-                class="min-h-[44px] px-4 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+                class="min-h-[44px] px-4 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700 disabled:opacity-40"
                 :disabled="!!quickIssue"
                 data-testid="quick-estimate-button"
                 @click="quickEstimate"
               >
                 {{ QUICK_ESTIMATE_LABEL }}
               </button>
-              <p v-if="quickIssue" class="text-[11px] font-semibold text-slate-600" data-testid="quick-estimate-issue">
+              <p v-if="quickIssue" class="text-body font-bold text-slate-600" data-testid="quick-estimate-issue">
                 {{ quickIssue }}
               </p>
             </template>
             <button
               v-if="quickRunning || quickBest"
               type="button"
-              class="min-h-[44px] text-[11px] font-bold text-indigo-700 underline hover:text-indigo-900"
+              class="min-h-[44px] text-body font-bold text-indigo-700 underline hover:text-indigo-900"
               data-testid="quick-estimate-show"
               @click="showQuickRun"
             >
@@ -239,23 +239,23 @@
           :hint="simpleSummary"
           :running="!!runKind"
           class="rounded-xl border border-indigo-200 bg-indigo-50/50 px-3"
-          summary-class="text-[11px] uppercase tracking-widest text-slate-700"
+          summary-class="label text-slate-700"
         >
           <template v-if="!simpleSummary" #extra
-            ><span class="normal-case tracking-normal font-semibold text-rose-700" data-test="settings-issue">{{
+            ><span class="normal-case tracking-normal font-bold text-rose-700" data-test="settings-issue">{{
               nearbyRangeEmpty ? 'no route in this range' : 'nothing to check yet'
             }}</span></template
           >
           <div
-            class="pb-3 space-y-1.5 text-[11px] text-slate-700 leading-relaxed"
+            class="pb-3 space-y-1.5 text-body text-slate-700"
             data-test="simple-summary"
           >
             <p v-if="simpleSummary" class="font-bold text-slate-900">{{ simpleSummary }}</p>
-            <p v-else-if="nearbyRangeEmpty" class="font-semibold text-rose-700" data-test="nearby-range-empty">
+            <p v-else-if="nearbyRangeEmpty" class="font-bold text-rose-700" data-test="nearby-range-empty">
               The instant answer has no route with {{ nearbyRange.min }} to {{ nearbyRange.max }} ascensions: widen the
               range below.
             </p>
-            <p v-else class="font-semibold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
+            <p v-else class="font-bold text-rose-700">Nothing to check yet: the save hasn't loaded.</p>
             <!-- 3 to one more than the instant answer's count until set (lib/ascRange.ts; Jordan, 22 Oct 2026). -->
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1" data-test="nearby-range">
               <span class="font-bold text-slate-800">Ascensions</span>
@@ -266,7 +266,7 @@
                 :max="nearbyRange.max"
                 :disabled="store.busy"
                 aria-label="Fewest ascensions"
-                class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold sm:min-h-0"
+                class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-body font-bold sm:min-h-0"
               />
               <span class="text-slate-400">to</span>
               <input
@@ -276,15 +276,15 @@
                 :max="DATE_RANGE_BOUNDS.ceil"
                 :disabled="store.busy"
                 aria-label="Most ascensions"
-                class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-[11px] font-bold sm:min-h-0"
+                class="min-h-[44px] w-14 rounded-lg border-slate-200 py-0.5 text-body font-bold sm:min-h-0"
               />
-              <span v-if="nearbyRangeHint" class="text-[10px] text-slate-400" data-test="nearby-range-hint">{{
+              <span v-if="nearbyRangeHint" class="text-small text-slate-400" data-test="nearby-range-hint">{{
                 nearbyRangeHint
               }}</span>
               <button
                 v-if="canFollowNearbyRange"
                 type="button"
-                class="inline-flex min-h-[44px] items-center text-[10px] font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 sm:min-h-0"
+                class="inline-flex min-h-[44px] items-center text-body font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 sm:min-h-0"
                 :disabled="store.busy"
                 data-test="nearby-range-reset"
                 @click="followNearbyRange"
@@ -337,10 +337,10 @@
     <!-- Custom is Exhaustive, unchanged: the chain editor, and its run controls and results. -->
     <template #custom>
     <section id="exhaustive" class="space-y-3 scroll-mt-24">
-      <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="custom-intro">{{ CUSTOM_INTRO }}</p>
+      <p class="text-body text-slate-700" data-testid="custom-intro">{{ CUSTOM_INTRO }}</p>
       <ExhaustivePromise goal="deadline" />
       <template v-if="true">
-        <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest pt-1">The routes to try</h3>
+        <h3 class="text-slate-500 label pt-1">The routes to try</h3>
         <!-- One way only (the user, 5 Oct: "just have I'll set the stops, make it simpler"). "Pick them for
            me" is gone from the page; an unfinished run started in it can still be carried on, which is
            the only way `mode` becomes 'auto' now. -->
@@ -375,22 +375,22 @@
             @use-sliders="suggestRow"
           >
             <template #asc-after="{ k }">
-              <span v-if="k === 0 && boxFromInstant" class="text-[10px] text-slate-400" data-testid="asc-follow-hint"
+              <span v-if="k === 0 && boxFromInstant" class="text-small text-slate-400" data-testid="asc-follow-hint"
                 >(from the instant answer)</span
               >
             </template>
             <template #row-notes="{ row, k }">
-              <span v-if="instantNote(k)" class="block text-[10px] text-indigo-700" data-test="instant-set-note">{{
+              <span v-if="instantNote(k)" class="block text-small text-indigo-700" data-test="instant-set-note">{{
                 instantNote(k)
               }}</span>
-              <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-[10px] text-slate-500"
+              <span v-else-if="chains[k].centre && !chains[k].centredOn" class="block text-small text-slate-500"
                 >No instant answer for {{ plural(row.asc, 'ascension') }} yet, so the boxes after the first are the card's
                 wider ones.</span
               >
-              <p v-if="chains[k].restored && row.asc >= 2" class="text-[10px] text-slate-400">
+              <p v-if="chains[k].restored && row.asc >= 2" class="text-small text-slate-400">
                 Restored from the unfinished run (the sliders apply when you press Suggest a space).
               </p>
-              <span v-if="coarseRows[k]" class="block text-[10px] text-amber-700" data-test="coarse-note">{{
+              <span v-if="coarseRows[k]" class="block text-small text-amber-700" data-test="coarse-note">{{
                 COARSE_SUGGESTION_NOTE
               }}</span>
             </template>
@@ -399,7 +399,7 @@
             <template #row-after="{ row, k }">
               <p
                 v-if="row.asc >= 3 && stepOf(chains[k]) > widthOf(chains[k])"
-                class="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
+                class="text-small font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1"
               >
                 Every {{ stepOf(chains[k]) }} TE is wider than ±{{ widthOf(chains[k]) }}, so after the first stop only the
                 suggested TE itself is tried. Widen the ± slider or pick a smaller step to try more around it.
@@ -407,7 +407,7 @@
             </template>
             <template #footer>
               <label class="space-y-1">
-                <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                <span class="block text-small font-bold text-slate-400"
                   >Last stop: where to start looking</span
                 >
                 <input
@@ -415,10 +415,10 @@
                   type="text"
                   :disabled="store.busy"
                   placeholder="e.g. 220-320"
-                  class="w-40 rounded-lg border-slate-300 text-sm tabular-nums font-bold text-slate-800 disabled:opacity-50"
+                  class="w-40 rounded-lg border-slate-300 text-body tabular-nums font-bold text-slate-800 disabled:opacity-50"
                 />
               </label>
-              <span class="text-[10px] pb-2" :class="lastRange && !lastTooHigh ? 'text-slate-500' : 'text-rose-600'">
+              <span class="text-small pb-2" :class="lastRange && !lastTooHigh ? 'text-slate-500' : 'text-rose-600'">
                 {{
                   lastTooHigh
                     ? LAST_TOO_HIGH
@@ -429,14 +429,14 @@
               </span>
             </template>
           </RoutesToTry>
-          <p class="text-[11px] text-slate-500 leading-relaxed">
+          <p class="text-body text-slate-500 max-w-prose">
             Each box is one range of TEs per ascension before the last, like {{ fastestName(store.finalTE) }} ›
             {{ NAMES.fullFirst }}'s, separated by <span class="tabular-nums">;</span>. A range is
             <span class="tabular-nums">lo-hi:step</span>, a single value, or several values with commas. Boxes with
             other ascension counts all run from the same click, and a 1- or 2-ascension box costs next to nothing.
             <template v-if="suggestFrom">{{ suggestFrom }}</template>
           </p>
-          <p v-if="instantSets.length" class="text-[10px] text-slate-500 leading-relaxed" data-test="handoff-note">
+          <p v-if="instantSets.length" class="text-small text-slate-500" data-test="handoff-note">
             This search starts each fresh ascension the moment the last one ends, or with your awake hours set, as soon as you
             are next available; the instant answer starts it on the next whole hour inside your awake hours. With your awake hours
             set, that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). Without awake
@@ -448,7 +448,7 @@
         <template v-else>
           <div class="flex flex-wrap items-end gap-4">
             <label class="space-y-1">
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+              <span class="block text-slate-400 label"
                 >Stops, including the last</span
               >
               <div class="flex items-center gap-2">
@@ -458,7 +458,7 @@
                   min="1"
                   max="8"
                   :disabled="store.busy"
-                  class="w-16 rounded-lg border-slate-200 text-sm font-bold"
+                  class="w-16 rounded-lg border-slate-200 text-body font-bold"
                 />
                 <span class="text-slate-400">to</span>
                 <input
@@ -467,12 +467,12 @@
                   min="1"
                   max="8"
                   :disabled="store.busy"
-                  class="w-16 rounded-lg border-slate-200 text-sm font-bold"
+                  class="w-16 rounded-lg border-slate-200 text-body font-bold"
                 />
               </div>
             </label>
             <label class="space-y-1">
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+              <span class="block text-small font-bold text-slate-400"
                 >Rough guess for the last stop</span
               >
               <input
@@ -481,14 +481,14 @@
                 :min="store.currentTE + 2"
                 max="490"
                 :disabled="store.busy"
-                class="w-24 rounded-lg border-slate-200 text-sm font-bold"
+                class="w-24 rounded-lg border-slate-200 text-body font-bold"
                 @input="lastHiTouched = true"
               />
             </label>
             <!-- How thorough, as one slider (the user, 30 Sept): how many sets of early stops the first
                look tries; the grid it uses follows, and so do the routes and the time below. -->
             <label class="space-y-1">
-              <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest">How thorough</span>
+              <span class="block text-slate-400 label">How thorough</span>
               <span class="flex items-center gap-2">
                 <input
                   v-model.number="thoroughIx"
@@ -500,13 +500,13 @@
                   class="w-36 accent-slate-800"
                   aria-label="How thorough the first look is"
                 />
-                <span class="text-[11px] font-bold text-slate-700"
+                <span class="text-body font-bold text-slate-700"
                   >{{ THOROUGH[thoroughIx].label }} · first look every {{ usedStep }} TE</span
                 >
               </span>
             </label>
           </div>
-          <div class="text-[11px] text-slate-600 leading-relaxed space-y-1.5">
+          <div class="text-body text-slate-600 space-y-1.5">
             <p>
               <span class="font-bold text-slate-800">It looks wide, then zooms in.</span> The first look tries early stops
               every {{ usedStep }} TE ({{ shapes.toLocaleString() }} sets, plus every TE for the first 5 above yours, and
@@ -591,7 +591,7 @@
         <!-- Find on Nearby routes waits for the instant answer still being worked out (search/autoWiden.ts). -->
         <p
           v-if="k === 'around' && instantWait"
-          class="text-[11px] font-semibold text-slate-700"
+          class="text-body font-bold text-slate-700"
           data-test="instant-wait-status"
         >
           {{ instantWait }}
@@ -601,36 +601,36 @@
         <div v-if="k === 'boxes' && runKind !== 'around'" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sets of early stops</div>
-              <div class="text-lg font-black text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
+              <div class="text-slate-400 label">Sets of early stops</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums">{{ plannedShapes.toLocaleString() }}</div>
             </div>
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ascensions to simulate</div>
-              <div class="text-lg font-black text-slate-900 tabular-nums">
+              <div class="text-slate-400 label">Ascensions to simulate</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums">
                 ~{{ roundedRoutes(plannedLegs).toLocaleString() }}
               </div>
-              <div class="text-[9px] text-slate-400">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
+              <div class="text-small text-slate-400">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
             </div>
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              <div class="text-slate-400 label">
                 {{ store.deadlineRunning ? 'Time left' : 'Est. time' }}
               </div>
-              <div class="text-lg font-black text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
-              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-[9px] text-slate-400">measuring…</div>
-              <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-[9px] text-slate-400">
+              <div class="text-title font-bold text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
+              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-400">measuring…</div>
+              <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-small text-slate-400">
                 first guess {{ firstGuessLabel }}
               </div>
-              <div v-else-if="backgroundLabel" class="text-[9px] text-slate-400" data-test="background-estimate">
+              <div v-else-if="backgroundLabel" class="text-small text-slate-400" data-test="background-estimate">
                 {{ backgroundLabel }}
               </div>
             </div>
             <div>
-              <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Assumed cost</div>
-              <div class="text-lg font-black text-slate-900 tabular-nums">{{ costLabel }}</div>
-              <div class="text-[9px] text-slate-400">an ascension</div>
+              <div class="text-slate-400 label">Assumed cost</div>
+              <div class="text-title font-bold text-slate-900 tabular-nums">{{ costLabel }}</div>
+              <div class="text-small text-slate-400">an ascension</div>
             </div>
           </div>
-          <p class="pt-2 text-[10px] text-slate-500 leading-relaxed">
+          <p class="pt-2 text-small text-slate-500">
             Counted in ascensions, not routes: a set's first route simulates its early ascensions, shared with the
             sets that start the same way, and every later try at its last stop only the last ascension. About
             {{ plan.sets ? (plan.routes / plan.sets).toFixed(1) : 4 }} routes per set<template
@@ -647,7 +647,7 @@
           </p>
           <!-- Above 300,000 routes (search/bigBox.ts): about how many hours here, and the command line. -->
           <BigBoxNote :note="bigBox" />
-          <p v-if="store.longRunNote" class="text-[10px] font-semibold text-amber-800" data-testid="long-run-workers">
+          <p v-if="store.longRunNote" class="text-small font-bold text-amber-800" data-testid="long-run-workers">
             <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>
             <template v-else>
               {{ longRunHandLine(LONG_RUN_WORKERS, store.longRunNote.have) }}
@@ -665,7 +665,7 @@
 
         <p
           v-if="k === 'around' ? aroundIssue : startIssue"
-          class="text-[11px] font-semibold text-rose-700"
+          class="text-body font-bold text-rose-700"
           data-testid="by-date-start-issue"
         >
           {{ k === 'around' ? aroundIssue : startIssue }}
@@ -680,7 +680,7 @@
                legs simulated are under the bar's Details. -->
           <div data-run-progress="by-date" class="scroll-mt-24"></div>
           <!-- No instant answer for this TE: which step of the fallback is going (search/autoWiden.ts). -->
-          <p v-if="autoStatus" class="text-[11px] font-semibold text-slate-700" data-test="auto-widen-status">
+          <p v-if="autoStatus" class="text-body font-bold text-slate-700" data-test="auto-widen-status">
             {{ autoStatus }}
           </p>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
@@ -706,7 +706,7 @@
         <!-- Everything above greys out while anything else in this tab is busy; say what, and offer a way out. -->
         <div
           v-if="store.busy && !store.deadlineRunning && reportKind === k"
-          class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-[11px] text-slate-700"
+          class="flex flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 text-body text-slate-700"
         >
           <span>
             <span class="font-bold">Waiting for another run in this tab:</span>
@@ -721,7 +721,7 @@
           <button
             v-if="store.isRunning"
             type="button"
-            class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white"
+            class="px-3 py-1.5 rounded-lg border border-slate-400 text-body font-bold hover:bg-white"
             @click="emit('show-fastest')"
           >
             Show that run
@@ -729,13 +729,13 @@
           <button
             v-if="store.isRunning"
             type="button"
-            class="px-3 py-1.5 rounded-lg border border-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white disabled:opacity-60"
+            class="px-3 py-1.5 rounded-lg border border-slate-400 text-body font-bold hover:bg-white disabled:opacity-60"
             :disabled="store.stopRequested"
             @click="store.stop()"
           >
             <SendingText v-if="store.stopRequested" text="Stopping" /><template v-else>Stop that run</template>
           </button>
-          <p v-if="store.isRunning && store.stopRequested" class="w-full text-[11px] text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
+          <p v-if="store.isRunning && store.stopRequested" class="w-full text-body text-slate-600" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
         </div>
         <RunErrorNotes
           v-if="reportKind === k"
@@ -754,7 +754,7 @@
         <!-- Say whose results these are (the Stronger check box has its own heading above Light). -->
         <h4
           v-if="k === 'boxes' || stronger.level === 'light'"
-          class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+          class="label text-slate-500"
           data-testid="exhaustive-results-heading"
         >
           {{ result.simple ? `${NAMES.smart}: the best routes found near the instant answer's route` : 'Custom: the best routes in your boxes' }}
@@ -805,7 +805,7 @@
           </template>
           <!-- One more TE (search/oneMoreTE.ts): stopped early, or narrow or edge boxes, with more spare
                than one more TE costs. Otherwise the plain "stopped early". -->
-          <span v-if="oneMoreTE" class="block mt-1 font-semibold text-amber-800" data-testid="one-more-te-hint">{{
+          <span v-if="oneMoreTE" class="block mt-1 font-bold text-amber-800" data-testid="one-more-te-hint">{{
             oneMoreTE.text
           }}</span>
           <template v-else-if="result.stoppedEarly">
@@ -818,7 +818,7 @@
             again.</template
           >
         </ByDateRouteCard>
-        <p v-else class="text-[11px] font-semibold text-rose-700">
+        <p v-else class="text-body font-bold text-rose-700 max-w-prose">
           No route tried reaches any stop by then. Try a later date, a lower last stop, or more stops.
         </p>
         <!-- Its top routes with when each stop and egg happens, on My runs › Your latest run (LatestRunView.vue). -->
@@ -827,7 +827,7 @@
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
       <p
         v-if="best && (result.simple || mode !== 'space' || !instantSets.length)"
-        class="text-[10px] text-slate-500 leading-relaxed"
+        class="text-small text-slate-500"
         data-test="start-timing-note"
       >
         This search starts each fresh ascension the moment the last one ends, or with your awake hours set, as soon as you
@@ -858,7 +858,7 @@
            above, beside the button). -->
       <p
         v-else-if="noInstantNote && !store.deadlineRunning"
-        class="text-[11px] text-amber-900 leading-relaxed"
+        class="text-body text-amber-900"
         data-test="no-instant-note"
       >
         {{ noInstantNote }}
@@ -866,7 +866,7 @@
 
       <!-- How long the run took and what it searched (search/deadlineSummary.ts), kept with the result so
            a saved answer and a carried-on run say it too. -->
-      <div class="text-[11px] text-slate-600 leading-relaxed space-y-0.5" data-testid="by-date-took">
+      <div class="text-body text-slate-600 space-y-0.5" data-testid="by-date-took">
         <p>{{ summary.line }}</p>
         <p v-if="summary.chains.length" data-testid="by-date-chains">
           Boxes: {{ shownChains.join(' · ') }}<template v-if="chainsTruncated && !showAllChains">…</template
@@ -874,7 +874,7 @@
           <button
             v-if="chainsTruncated"
             type="button"
-            class="ml-1 font-black uppercase tracking-widest text-[9px] text-slate-500 hover:text-slate-800 underline"
+            class="ml-1 font-bold text-body text-slate-500 hover:text-slate-800 underline"
             @click="showAllChains = !showAllChains"
           >
             {{ showAllChains ? 'Show fewer' : 'Show all' }}
@@ -921,8 +921,8 @@
         <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
         <!-- CSV and a quick save are on the card (as on Fastest's); here, a save under a name of your own. -->
         <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
-          <p v-if="downloadError" class="text-[11px] font-semibold text-red-700">{{ downloadError }}</p>
-          <p class="text-[11px] text-slate-500 leading-relaxed">
+          <p v-if="downloadError" class="text-body font-bold text-red-700">{{ downloadError }}</p>
+          <p class="text-body text-slate-500 max-w-prose">
             Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
               >, on your save from {{ inPlannerZone(result.backupAt) }}</template
             >.<template v-if="resultPricedWith">{{ ' ' }}{{ resultPricedWith }}.</template> A route that reaches one more TE
@@ -947,20 +947,20 @@
           @nickname-typed="shareNameTouched = true"
         >
           <template #intro>
-            <p class="text-[11px] text-indigo-900/80 leading-relaxed">
+            <p class="text-body text-indigo-900/80 max-w-prose">
               Sends the best route above to the {{ NAMES.compare }}'s <span class="font-bold">{{ shareTab }}</span> tab,
               where answers for the same date are ranked by the highest TE reached, then the time to spare. It stays
               out of Fastest to 490 TE.
             </p>
           </template>
           <template #opted>
-            <p class="text-[11px] text-indigo-900/80">
+            <p class="text-body text-indigo-900/80">
               Only named answers are ranked. Anonymous ones are listed below the ranking.
             </p>
             <button
               type="button"
               :disabled="sharing || store.deadlineRunning || sentKey === resultKey"
-              class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-800 disabled:opacity-40"
+              class="px-4 py-2 rounded-lg bg-indigo-700 text-white text-body font-bold hover:bg-indigo-800 disabled:opacity-40"
               @click="share"
             >
               <SendingText v-if="sharing" />

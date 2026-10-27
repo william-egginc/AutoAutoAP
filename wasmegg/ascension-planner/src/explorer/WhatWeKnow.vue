@@ -16,8 +16,8 @@
   <section class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
     <div class="space-y-0.5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
-        <span v-if="stats" class="text-[10px] font-bold text-slate-500" data-testid="know-header">
+        <h2 class="text-title font-bold text-slate-900">What we know so far</h2>
+        <span v-if="stats" class="text-small font-bold text-slate-500" data-testid="know-header">
           {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ plural(stats.accounts, 'account') }}<template v-if="stats.te">
             · TE {{ stats.te.min }}-{{ stats.te.max }}</template
           >
@@ -27,9 +27,9 @@
             ></template
           >
         </span>
-        <span v-else class="text-[10px] font-bold text-slate-400">Counting the Leaderboard…</span>
+        <span v-else class="text-small font-bold text-slate-400">Counting the Leaderboard…</span>
       </div>
-      <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+      <p class="text-body text-slate-700 max-w-3xl">
         What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
         ascensions pay off and where the stops land. How the planner itself works, and how its numbers were checked, is
         on
@@ -37,14 +37,14 @@
           >{{ NAMES.science }} › {{ NAMES.how }}</a
         ><template v-else>{{ NAMES.science }} › {{ NAMES.how }}</template>.
       </p>
-      <p class="text-[10px] text-slate-500">
+      <p class="text-small text-slate-500">
         Findings checked {{ FINDINGS_CHECKED }}, on the simulator the site ran before Oct 21, 2026. They have not been
         checked again on the newer one yet.
       </p>
     </div>
 
-    <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-[12px] text-slate-800 leading-relaxed">
-      <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">The short answer</p>
+    <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-body text-slate-800">
+      <p class="text-emerald-700 label">The short answer</p>
       <p>
         <b>Use the instant answer, then a Fast search.</b> It finds your fastest route (or the highest TE by a date) for
         your gear in seconds, and Fast prices routes near it with the full simulator.
@@ -64,21 +64,21 @@
       <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>
     </div>
 
-    <p class="text-[11px] text-slate-500 leading-relaxed">
+    <p class="text-body text-slate-500 max-w-prose">
       Tap a finding to open it. The header counts are worked out from the Leaderboard each time the page loads. The charts and
       tables further down are live too and show dates in your timezone.
     </p>
 
-    <div class="space-y-1.5 text-[12px] text-slate-700 leading-relaxed">
+    <div class="space-y-1.5 text-body text-slate-700">
       <details v-for="(f, i) in findings" :key="f.id" class="finding rounded-lg border border-emerald-100 bg-white">
         <summary class="finding-summary flex cursor-pointer items-start gap-2 px-3 py-2 font-bold text-slate-800">
           <span
-            class="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-800"
+            class="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-small font-bold text-emerald-800"
             aria-hidden="true"
             >{{ i + 1 }}</span
           >
           <span class="flex-1">{{ f.headline }}</span>
-          <span class="finding-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+          <span class="finding-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
         </summary>
         <div class="px-3 pb-3 pl-10 text-slate-700 space-y-2">
           <!-- How far the hour holds (the math review's second check, 24 Oct 2026, findings 3 and 10): with hours off,
@@ -116,7 +116,7 @@
           <template v-else-if="f.id === 'count'">
             <p>Finish brought forward by one more ascension (the instant answer's best routes):</p>
             <div class="overflow-x-auto">
-              <table class="text-[11px] tabular-nums border-collapse">
+              <table class="text-small tabular-nums border-collapse">
                 <thead>
                   <tr class="text-left text-slate-500">
                     <th class="py-1 pr-4 font-bold">from TE</th>
@@ -196,12 +196,12 @@
       </details>
     </div>
 
-    <details class="rounded-lg border border-emerald-200 bg-white p-3 text-[12px] text-slate-700 leading-relaxed">
-      <summary class="cursor-pointer text-[10px] font-black text-emerald-700 uppercase tracking-widest">
+    <details class="rounded-lg border border-emerald-200 bg-white p-3 text-body text-slate-700">
+      <summary class="cursor-pointer text-body font-bold text-emerald-700">
         What we need next
       </summary>
       <div class="mt-2 space-y-1.5">
-        <p class="text-[11px] text-slate-500">
+        <p class="text-body text-slate-500">
           These are the asks on the
           <a v-if="scienceHref" :href="scienceHref" class="font-bold text-indigo-700 underline">Science tab</a
           ><template v-else>Science tab</template>.

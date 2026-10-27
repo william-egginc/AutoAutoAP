@@ -12,7 +12,7 @@
 <template>
   <div
     v-if="own && message && !running"
-    class="rounded-lg border px-3 py-2 text-[11px] space-y-2"
+    class="rounded-lg border px-3 py-2 text-small space-y-2"
     :class="
       !ok
         ? 'bg-red-50 border-red-200 text-red-800'
@@ -28,7 +28,7 @@
         v-if="nameToClaim"
         type="button"
         :disabled="claiming"
-        class="px-3 py-1.5 rounded-lg border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg border border-current text-body font-bold hover:bg-white/60 disabled:opacity-40"
         @click="emit('claim')"
       >
         {{ claiming ? 'Renaming...' : 'Put my name on it' }}
@@ -37,7 +37,7 @@
         v-if="pendingTable"
         type="button"
         :disabled="retrying"
-        class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-body font-bold hover:bg-amber-50 disabled:opacity-40"
         @click="emit('retry')"
       >
         <SendingText v-if="retrying" text="Sending the table" /><template v-else>Retry the table</template>

@@ -5,7 +5,7 @@
   >
     <button
       @click="toggleCollapse"
-      class="absolute -top-8 right-6 bg-white/95 backdrop-blur-xl border border-b-0 border-slate-100 px-3 py-1 rounded-t-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 text-[10px] font-black uppercase tracking-wider h-8"
+      class="absolute -top-8 right-6 bg-white/95 backdrop-blur-xl border border-b-0 border-slate-100 px-3 py-1 rounded-t-lg shadow-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 text-body font-bold h-8"
     >
       <svg
         class="w-4 h-4 transition-transform duration-300"
@@ -28,7 +28,7 @@
       <!-- Duration -->
       <div class="summary-item">
         <span class="summary-label">Duration</span>
-        <span class="summary-value tabular-nums font-black text-slate-600">{{ formattedDuration }}</span>
+        <span class="summary-value tabular-nums font-bold text-slate-600">{{ formattedDuration }}</span>
       </div>
 
       <!-- End Date -->
@@ -41,16 +41,16 @@
       <div class="summary-item">
         <span class="summary-label">Shifts</span>
         <div class="flex items-center gap-2">
-          <span class="summary-value tabular-nums font-black text-slate-600">{{ shiftCount }}</span>
+          <span class="summary-value tabular-nums font-bold text-slate-600">{{ shiftCount }}</span>
           <div
             v-if="totalShiftCost > 0"
             class="flex flex-col justify-center border-l border-slate-100 pl-2 h-7 opacity-80"
             v-tippy="{ content: 'Spent • Remaining', placement: 'top' }"
           >
-            <div class="text-[8px] font-black leading-none text-slate-400 mb-1">
+            <div class="text-small font-bold leading-none text-slate-400 mb-1">
               -{{ formatNumber(totalShiftCost, 1) }}
             </div>
-            <div class="text-[9px] font-black leading-none text-slate-600 flex items-center gap-0.5">
+            <div class="text-small font-bold leading-none text-slate-600 flex items-center gap-0.5">
               {{ formatNumber(finalSE, 1) }}
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-2.5 h-2.5" alt="SE" />
             </div>
@@ -65,9 +65,9 @@
       >
         <span class="summary-label group-hover:text-indigo-400 transition-colors">TE Gained</span>
         <div class="flex items-center gap-2">
-          <span class="summary-value tabular-nums font-black text-slate-600 group-hover:text-indigo-600 transition-colors">+{{ teGained }}</span>
+          <span class="summary-value tabular-nums font-bold text-slate-600 group-hover:text-indigo-600 transition-colors">+{{ teGained }}</span>
           <span
-            class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors"
+            class="text-slate-400 label bg-slate-50 group-hover:bg-indigo-50 px-2 py-0.5 rounded-full border border-slate-100 group-hover:border-indigo-100 transition-colors"
           >
             (Total: {{ currentTE }})
           </span>
@@ -131,7 +131,7 @@
           </svg>
         </button>
 
-        <span class="ml-4 text-[10px] text-slate-400 italic font-medium"
+        <span class="ml-4 text-small text-slate-400 italic font-normal"
           >Developed by
           <span @click="triggerCat" class="cursor-pointer select-none hover:text-slate-600 transition-colors"
             >joobrainie</span
@@ -168,11 +168,11 @@
             <div class="p-1.5 bg-slate-100 rounded-lg text-slate-600">
               <img :src="iconURL('egginc/icon_gift.png', 64)" class="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" alt="Gift" />
             </div>
-            <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">Support the Developer</h3>
+            <h3 class="text-slate-800 label">Support the Developer</h3>
           </div>
 
           <div class="p-6">
-            <p class="text-sm font-medium text-slate-600 leading-relaxed mb-6">
+            <p class="text-body font-normal text-slate-600 mb-6 max-w-prose">
               If you find this tool helpful, you're welcome to buy me a coffee! No obligation at all, but it is deeply appreciated.
             </p>
             
@@ -180,23 +180,23 @@
               <a href="https://ko-fi.com/joobrainie" target="_blank" rel="noopener noreferrer" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-300 hover:shadow-md transition-all bg-white group hover:-translate-y-0.5">
                 <img src="/static/kofi_logo.png" class="w-8 h-8 group-hover:scale-110 transition-transform" alt="Ko-fi" />
                 <div class="flex flex-col">
-                  <span class="text-sm font-black text-slate-800">Support on Ko-fi</span>
-                  <span class="text-xs font-medium text-slate-500">ko-fi.com/joobrainie</span>
+                  <span class="text-body font-bold text-slate-800">Support on Ko-fi</span>
+                  <span class="text-small font-normal text-slate-500">ko-fi.com/joobrainie</span>
                 </div>
               </a>
 
               <a href="https://paypal.me/joobrainie" target="_blank" rel="noopener noreferrer" class="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:border-slate-300 hover:shadow-md transition-all bg-white group hover:-translate-y-0.5">
                 <img src="/static/paypal_logo.svg" class="w-8 h-8 group-hover:scale-110 transition-transform" alt="PayPal" />
                 <div class="flex flex-col">
-                  <span class="text-sm font-black text-slate-800">Support via PayPal</span>
-                  <span class="text-xs font-medium text-slate-500">paypal.me/joobrainie</span>
+                  <span class="text-body font-bold text-slate-800">Support via PayPal</span>
+                  <span class="text-small font-normal text-slate-500">paypal.me/joobrainie</span>
                 </div>
               </a>
             </div>
 
             <div class="mt-8 flex justify-end">
               <button
-                class="px-8 py-2 text-xs font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-xl tabular-nums"
+                class="px-8 py-2 text-body font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors rounded-xl tabular-nums"
                 @click="showDonateModal = false"
               >
                 Close
@@ -461,11 +461,11 @@ function triggerCat() {
 }
 
 .summary-label {
-  @apply text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none;
+  @apply text-slate-400 label leading-none;
 }
 
 .summary-value {
-  @apply text-[13px] font-bold tracking-tight whitespace-nowrap;
+  @apply text-small font-bold whitespace-nowrap;
 }
 
 .btn-icon-premium {

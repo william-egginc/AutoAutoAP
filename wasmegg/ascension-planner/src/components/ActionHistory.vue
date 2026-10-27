@@ -7,7 +7,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
       </div>
-      <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No actions yet.</p>
+      <p class="text-body font-bold text-slate-400">No actions yet.</p>
     </div>
 
     <!-- Action list with grouping -->
@@ -46,7 +46,7 @@
     <!-- Footer Actions -->
     <div v-if="actionCount > 0" class="flex justify-center pt-2">
       <button
-        class="text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors py-2 px-4 rounded-xl hover:bg-red-50"
+        class="text-body font-bold text-slate-400 hover:text-red-500 transition-colors py-2 px-4 rounded-xl hover:bg-red-50"
         @click="handleClearAll"
       >
         Clear All

@@ -16,10 +16,10 @@
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
     <div class="flex items-center justify-between gap-3">
-      <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved runs</h3>
-      <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
+      <h3 class="text-slate-500 label">Saved runs</h3>
+      <span class="text-small font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
-    <p v-if="!listOnly" class="text-[11px] text-slate-500 leading-relaxed">
+    <p v-if="!listOnly" class="text-body text-slate-500 max-w-prose">
       Kept in this browser, per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with
       the save it started with while that save is kept here, and puts its target, schedule, time off and plan start
       back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped. Each run also
@@ -31,31 +31,31 @@
         v-model="label"
         type="text"
         placeholder="Name this run (optional)"
-        class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-sm text-slate-800"
+        class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-body text-slate-800"
       />
       <button
         type="button"
         :disabled="store.bestDays <= 0 || store.isRunning || saving"
-        class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+        class="px-4 py-2 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
         @click="save"
       >
         {{ saving ? 'Saving…' : 'Save this run' }}
       </button>
     </div>
 
-    <p v-if="note" class="text-[11px] font-semibold text-amber-700 leading-relaxed">{{ note }}</p>
+    <p v-if="note" class="text-body font-bold text-amber-700">{{ note }}</p>
 
-    <p v-if="!store.savedRuns.length" class="text-[11px] text-slate-400">Nothing saved yet.</p>
+    <p v-if="!store.savedRuns.length" class="text-body text-slate-400">Nothing saved yet.</p>
     <div v-else class="divide-y divide-slate-100">
       <div v-for="run in store.savedRuns" :key="run.id" class="flex flex-wrap items-center gap-3 py-2">
         <div class="flex-1 min-w-[14rem]">
-          <div class="text-xs font-bold text-slate-800">
+          <div class="text-small font-bold text-slate-800">
             {{ run.label }}
-            <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 text-[9px] font-black uppercase text-slate-500">{{
+            <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 label text-slate-500">{{
               run.space ? NAMES.full : NAMES.smart
             }}</span>
           </div>
-          <div class="text-[10px] text-slate-400 tabular-nums">
+          <div class="text-small text-slate-400 tabular-nums">
             {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ plural(run.chainsPriced, 'route') }}<template
               v-if="!run.complete"
             >
@@ -77,14 +77,14 @@
           v-if="canResume && !run.complete && run.space"
           type="button"
           :disabled="store.busy || resuming !== ''"
-          class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700 disabled:opacity-40"
           @click="resume(run.id)"
         >
           {{ resuming === run.id ? 'Carrying on…' : 'Carry on' }}
         </button>
         <button
           type="button"
-          class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"
           :disabled="store.busy || store.sweepQueue.at >= 0"
           title="Opening a run replaces the results on screen, so it's off while a run is going"
           @click="open(run.id)"
@@ -104,7 +104,7 @@
         />
         <button
           type="button"
-          class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-red-300 hover:text-red-600"
+          class="px-3 py-1.5 rounded-md border border-slate-300 text-body font-bold text-slate-500 hover:border-red-300 hover:text-red-600"
           @click="store.deleteSavedRun(playerId, run.id)"
         >
           Delete

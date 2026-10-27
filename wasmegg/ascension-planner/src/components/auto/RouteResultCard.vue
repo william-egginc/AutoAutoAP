@@ -19,19 +19,19 @@
     </template>
     <template #headline>
       <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
-      <p v-if="ranLine && !running" class="text-[11px] font-semibold text-emerald-900/80 leading-snug" data-testid="ran-line">
+      <p v-if="ranLine && !running" class="text-body font-bold text-emerald-900/80" data-testid="ran-line">
         {{ ranLine }}
       </p>
-      <div v-if="source" class="text-[10px] font-bold text-emerald-700/80">{{ source }}</div>
-      <div class="tabular-nums text-lg sm:text-xl font-black text-slate-900 break-words">
+      <div v-if="source" class="text-small font-bold text-emerald-700/80">{{ source }}</div>
+      <div class="tabular-nums text-title font-bold text-slate-900 break-words">
         {{ chain.join(' ') }}
       </div>
     </template>
     <template #aside>
-      <div class="text-lg font-black text-slate-900 tabular-nums">
+      <div class="text-title font-bold text-slate-900 tabular-nums">
         {{ days > 0 ? `${days.toFixed(3)} d` : 'pricing…' }}
       </div>
-      <div v-if="days > 0" class="text-[11px] font-bold text-emerald-800">reaches {{ finalTE }} on {{ endLabel }}</div>
+      <div v-if="days > 0" class="text-small font-bold text-emerald-800">reaches {{ finalTE }} on {{ endLabel }}</div>
     </template>
 
     <slot />
@@ -91,8 +91,8 @@
       >
         {{ saving ? 'Saving...' : 'Save run' }}
       </button>
-      <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
-      <p class="w-full text-[10px] text-emerald-900/70" data-testid="build-plan-note">
+      <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
+      <p class="w-full text-small text-emerald-900/70" data-testid="build-plan-note">
         {{ simulateNote() }}
       </p>
     </template>

@@ -181,7 +181,7 @@ describe('the next TE under two days: hours', () => {
 describe('Right now: the routes saved online could not be read (UX review, 25 Oct 2026)', () => {
   it('says so in amber, with Retry, and that following still works here', async () => {
     const html = await renderHtml(RightNowCard, { ...cardProps(cardOf()), followCloudUnreachable: true });
-    expect(html).toMatch(/class="text-\[12px\] text-amber-800" role="status" data-testid="now-follow-cloud-unreachable"/);
+    expect(html).toMatch(/class="text-body text-amber-800" role="status" data-testid="now-follow-cloud-unreachable"/);
     expect(textOf(html)).toContain("Couldn't read your routes saved online right now. Following still works in this browser. Retry ›");
     expect(html).not.toMatch(/now-follow-cloud-unreachable[^>]*rose|red-/);
   });

@@ -1,10 +1,10 @@
 <template>
   <div class="flex flex-col gap-2 mb-4" ref="containerRef">
-    <div class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Research View</div>
+    <div class="label text-gray-400">Research View</div>
     <div class="relative">
       <button
         @click="open = !open"
-        class="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm font-bold text-gray-800 bg-white border-2 rounded-lg shadow-sm transition-colors"
+        class="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-body font-bold text-gray-800 bg-white border-2 rounded-lg shadow-sm transition-colors"
         :class="open ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-indigo-300 hover:border-indigo-400'"
       >
         <span>{{ selectedLabel }}</span>
@@ -22,10 +22,10 @@
           class="w-full flex flex-col items-start gap-0.5 px-3 py-2 text-left transition-colors"
           :class="modelValue === v.id ? 'bg-blue-50' : 'hover:bg-gray-50'"
         >
-          <span class="text-sm font-medium" :class="modelValue === v.id ? 'text-blue-600' : 'text-gray-700'">
+          <span class="text-body font-normal" :class="modelValue === v.id ? 'text-blue-600' : 'text-gray-700'">
             {{ v.label }}
           </span>
-          <span v-if="v.description" class="text-xs text-gray-400">{{ v.description }}</span>
+          <span v-if="v.description" class="text-small text-gray-400">{{ v.description }}</span>
         </button>
       </div>
     </div>
