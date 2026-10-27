@@ -33,10 +33,17 @@ beforeEach(() => {
 afterEach(() => setAnswersFetch(null));
 
 describe('the answers store', () => {
-  it('no key (no account yet): no call', async () => {
-    const a = useAnswersStore();
-    expect(await a.fallbackFor('target 490')).toBeNull();
-    expect(calls).toEqual([]);
+  it('no key (no account yet): it waits for one a while, then gives up with no call', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const a = useAnswersStore();
+      const asked = a.fallbackFor({ goal: 'target 490' });
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(await asked).toBeNull();
+      expect(calls).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("the follow key and the collector's /answers; a 404 is quiet and the last call of the page load", async () => {
@@ -45,7 +52,7 @@ describe('the answers store', () => {
     const follows = useFollowStore();
     follows.cloudKey = 'b'.repeat(64);
     const a = useAnswersStore();
-    expect(await a.fallbackFor('target 490')).toBeNull();
+    expect(await a.fallbackFor({ goal: 'target 490' })).toBeNull();
     expect(calls).toEqual([`https://collector.example/answers?k=${'b'.repeat(64)}`]);
     expect(await a.newestAny()).toBeNull();
     expect(calls).toHaveLength(1);

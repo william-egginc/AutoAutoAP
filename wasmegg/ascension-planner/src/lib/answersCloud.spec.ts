@@ -140,12 +140,12 @@ describe('the client against a stand-in collector', () => {
     await vi.waitFor(() => expect(c.store.size).toBe(1));
     // Another page load (a new browser): nothing kept, the cloud answer read.
     const r = client(c);
-    const got = await r.newestFor('target 490');
+    const got = await r.newestFor({ goal: 'target 490' });
     expect(got?.at).toBe(1000);
     expect((got?.snap as { result: unknown }).result).toBeTruthy();
-    expect(await r.newestFor('date 1815670800')).toBeNull();
+    expect(await r.newestFor({ goal: 'date 1815670800' })).toBeNull();
     const gets = c.calls.filter(x => x.method === 'GET');
-    await r.newestFor('target 490');
+    await r.newestFor({ goal: 'target 490' });
     expect(c.calls.filter(x => x.method === 'GET').length).toBe(gets.length);
     expect(r.read.map(a => a.at)).toEqual([1000]);
   });
@@ -175,7 +175,7 @@ describe('the client against a stand-in collector', () => {
   it('no write on load: reading back never writes; nothing is offered, nothing is sent', async () => {
     const c = collector();
     const r = client(c);
-    await r.newestFor('target 490');
+    await r.newestFor({ goal: 'target 490' });
     await r.newestAny();
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS * 3);
     expect(c.calls.filter(x => x.method !== 'GET')).toHaveLength(0);
@@ -196,7 +196,7 @@ describe('the client against a stand-in collector', () => {
   it('404 (an older collector): quiet, and nothing more is asked on this page load', async () => {
     const c = collector({ missing: true });
     const w = client(c);
-    expect(await w.newestFor('target 490')).toBeNull();
+    expect(await w.newestFor({ goal: 'target 490' })).toBeNull();
     expect(w.off).toBe(true);
     const n = c.calls.length;
     expect(await w.newestAny()).toBeNull();
@@ -254,7 +254,7 @@ describe('the client against a stand-in collector', () => {
   it('without a key or a collector: no call at all', async () => {
     const c = collector();
     const w = new AnswersClient({ key: () => '', url: () => URL, busy: () => false, fetch: () => c.f });
-    expect(await w.newestFor('target 490')).toBeNull();
+    expect(await w.newestFor({ goal: 'target 490' })).toBeNull();
     w.offer(offer(1));
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
     expect(c.calls).toHaveLength(0);
@@ -282,7 +282,7 @@ describe("the browser's fetch", () => {
     w.offer(offer(1000));
     await vi.advanceTimersByTimeAsync(ANSWERS_DEBOUNCE_MS + 10);
     await vi.waitFor(() => expect(c.calls.filter(x => x.method === 'PUT')).toHaveLength(1));
-    expect((await new AnswersClient({ key: () => K, url: () => URL, busy: () => false, fetch: () => strict }).newestFor('target 490'))?.at).toBe(1000);
+    expect((await new AnswersClient({ key: () => K, url: () => URL, busy: () => false, fetch: () => strict }).newestFor({ goal: 'target 490' }))?.at).toBe(1000);
   });
 
   it("the store hands the client a fetch that keeps the browser's own `this`", () => {

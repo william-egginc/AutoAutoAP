@@ -42,7 +42,7 @@ describe('the instant answer becomes the follow', () => {
     // then the screen left or a search started) showed "from the instant answer · not priced on this save yet".
     expect(block).toContain('if (keptAnswer.value !== found) return null;');
     expect(script).toMatch(/if \(snap && writeSnapshot\(snapKey, snap\)\) \{\n\s+keptAnswer\.value = result\.value;/);
-    expect(script).toMatch(/applySnapshot\(s\);\n\s+keptAnswer\.value = result\.value;\n\s+return true;/);
+    expect(script).toMatch(/applySnapshot\(s\);\n\s+keptAnswer\.value = result\.value;\n(\s+offerCloud\(s\);\n)?\s+return true;/);
     // Declared before the watch reads it (immediate).
     expect(script.indexOf('const keptAnswer = shallowRef')).toBeLessThan(script.indexOf('THE FIRST ANSWER BECOMES THE FOLLOW'));
   });

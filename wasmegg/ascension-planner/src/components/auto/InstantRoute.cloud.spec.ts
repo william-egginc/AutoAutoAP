@@ -20,8 +20,9 @@ describe('the instant answer card and the copy saved online', () => {
     const show = fn('showStale');
     // The local copy is looked for first; the cloud only when it gave nothing.
     expect(show.indexOf('latestSnapshotFor<InstantSnapshot>(')).toBeLessThan(show.indexOf('answersCloud.fallbackFor('));
-    expect(show).toMatch(/if \(!s\) \{\n(\s+\/\/[^\n]*\n)*\s+void answersCloud\.fallbackFor\(/);
-    expect(show).toMatch(/if \(id !== runs \|\| result\.value \|\| status\.value !== 'loading'\) return;/);
+    expect(show).toMatch(/if \(!s\) \{\n(\s+\/\/[^\n]*\n)*\s+const goal = instantGoal\(props\.deadline, store\.finalTE\);\n\s+void answersCloud\.fallbackFor\(/);
+    // Shown on any run of the same goal still working (answersRead.spec.ts).
+    expect(show).toMatch(/if \(result\.value \|\| status\.value !== 'loading' \|\| instantGoal\(props\.deadline, store\.finalTE\) !== goal\) return;/);
     expect(show).toMatch(/applySnapshot\(c\.snap as InstantSnapshot, true\);/);
   });
 
@@ -31,11 +32,11 @@ describe('the instant answer card and the copy saved online', () => {
     expect(apply).toMatch(/status\.value = 'done';\n\s+\}/);
   });
 
-  it('a fresh answer kept is offered to the cloud copy (never a stale or restored one)', () => {
+  it('a fresh answer kept is offered to the cloud copy, and one put back from this browser (never a stale one)', () => {
     const save = fn('saveSnapshot');
     expect(save).toMatch(/keptAnswer\.value = result\.value;\n\s+noteMyRuns\(\);\n\s+offerCloud\(snap\);/);
     expect(fn('applySnapshot')).not.toContain('offerCloud');
-    expect(fn('restoreSnapshot')).not.toContain('offerCloud');
+    expect(fn('restoreSnapshot')).toContain('offerCloud(s);');
     const offer = fn('offerCloud');
     expect(offer).toContain('answersCloud.offer({');
     expect(offer).toContain('pricing: pricingRecordNow()');

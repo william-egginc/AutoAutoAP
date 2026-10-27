@@ -9,7 +9,7 @@
  * answer once kept in this browser (InstantRoute.vue `saveSnapshot`), never on load, never a restored or stale one.
  */
 import { defineStore, getActivePinia } from 'pinia';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useFollowStore } from '@/stores/follow';
 import { AnswersClient, answersUrlOf, type AnswerOffer, type AnswersFetch, type CloudAnswer } from '@/lib/answersCloud';
@@ -23,6 +23,9 @@ export function setAnswersFetch(f: AnswersFetch | null): void {
   fetchFor = f ? () => f : browserFetch;
 }
 
+/** How long a read waits for the account key and the collector before it gives up (quietly, with a console line). */
+const READY_WAIT_MS = 20_000;
+
 export const useAnswersStore = defineStore('answers', () => {
   const searchStore = () => {
     try {
@@ -32,15 +35,43 @@ export const useAnswersStore = defineStore('answers', () => {
       return null;
     }
   };
+  const keyNow = (): string => {
+    try {
+      return useFollowStore().cloudKey;
+    } catch {
+      return '';
+    }
+  };
+  const urlNow = (): string => answersUrlOf(searchStore()?.submitUrl);
+  /**
+   * The key and the collector known (27 Oct 2026: a fresh private window asked before its account key was worked out,
+   * got nothing and never asked again). Resolves when both are, or after READY_WAIT_MS (the read then says why not).
+   */
+  function whenReady(): Promise<void> {
+    if (/^[0-9a-f]{64}$/.test(keyNow()) && urlNow()) return Promise.resolve();
+    return new Promise<void>(resolve => {
+      let stop: (() => void) | null = null;
+      const timer = setTimeout(() => {
+        stop?.();
+        resolve();
+      }, READY_WAIT_MS);
+      stop = watch(
+        () => /^[0-9a-f]{64}$/.test(keyNow()) && !!urlNow(),
+        ok => {
+          if (!ok) return;
+          clearTimeout(timer);
+          queueMicrotask(() => stop?.());
+          resolve();
+        },
+        { immediate: true }
+      );
+    });
+  }
   const client = new AnswersClient({
-    key: () => {
-      try {
-        return useFollowStore().cloudKey;
-      } catch {
-        return '';
-      }
-    },
-    url: () => answersUrlOf(searchStore()?.submitUrl),
+    key: keyNow,
+    url: urlNow,
+    whenReady,
+    log: line => console.info(line),
     busy: () => {
       const s = searchStore();
       return !!s && (s.isRunning || s.deadlineRunning || s.resultSending);
@@ -50,9 +81,10 @@ export const useAnswersStore = defineStore('answers', () => {
   /** Bumped when an answer is read back (My runs reads `read` again). */
   const readTick = ref(0);
 
-  /** The newest answer saved online for `goal`, or null (none, no collector, an older one, offline). */
-  async function fallbackFor(goal: string): Promise<CloudAnswer | null> {
-    const a = await client.newestFor(goal).catch(() => null);
+  /** The answer saved online to show for a goal while it is worked out (lib/answersCloud.ts `pickEntry`: the exact entry,
+   *  else this save's, else the goal's newest), or null (none, no collector, an older one, offline). */
+  async function fallbackFor(want: { goal: string; e?: string | null; backupTime?: number | null }): Promise<CloudAnswer | null> {
+    const a = await client.newestFor(want).catch(() => null);
     if (a) readTick.value++;
     return a;
   }

@@ -148,6 +148,44 @@ export type AnswersFetch = (
   init?: { method?: string; headers?: Record<string, string>; body?: Uint8Array }
 ) => Promise<AnswersResponse>;
 
+/** `t490` as itself, `d<unix>` as the deadline's UTC date (`d2027-07-14`): the console lines' goal words. */
+export function tagWords(tag: string): string {
+  const m = /^d(\d+)$/.exec(tag);
+  return m ? `d${new Date(Number(m[1]) * 1000).toISOString().slice(0, 10)}` : tag;
+}
+
+/**
+ * The entry to serve for a goal (`AnswersClient.newestFor`): the exact entry key; else the newest of the same goal and
+ * save; else the newest of the same goal; else, for a date goal, the newest whose deadline is within a day of it (the
+ * same date read in another time zone). Null: none for this goal.
+ */
+export function pickEntry(
+  list: readonly AnswersEntry[],
+  want: { tag: string; e: string | null; backupTime: number | null }
+): AnswersEntry | null {
+  const exact = want.e ? list.find(x => x.e === want.e) : undefined;
+  if (exact) return exact;
+  const newest = (xs: AnswersEntry[]) => xs.sort((a, b) => b.at - a.at)[0] ?? null;
+  const same = list.filter(x => entryGoalTag(x.e) === want.tag);
+  const save = want.backupTime ? same.filter(x => entrySave(x.e) === Math.floor(want.backupTime!)) : [];
+  if (save.length) return newest(save);
+  if (same.length) return newest(same);
+  const d = /^d(\d+)$/.exec(want.tag);
+  if (!d) return null;
+  const at = Number(d[1]);
+  return newest(
+    list.filter(x => {
+      const m = /^d(\d+)$/.exec(entryGoalTag(x.e) ?? '');
+      return !!m && Math.abs(Number(m[1]) - at) <= 86_400;
+    })
+  );
+}
+/** The save (backup time) of an entry key, or null. */
+export const entrySave = (e: string): number | null => {
+  const m = /^a1\.[td]\d{1,11}\.(\d+)\./.exec(e);
+  return m ? Number(m[1]) : null;
+};
+
 export interface AnswersEntry {
   e: string;
   at: number;
@@ -160,6 +198,11 @@ export interface AnswersEnv {
   key(): string;
   url(): string;
   busy(): boolean;
+  /** Resolves once the key and the URL are known (the account's follow key is worked out after its save loads): a
+   *  read asked before then waits for it instead of giving up (stores/answers.ts, at most a while). */
+  whenReady?(): Promise<unknown>;
+  /** Dev lines on the console ("[answers] …", never an ID or the key). */
+  log?(line: string): void;
   fetch(): AnswersFetch | null;
   now?(): number;
 }
@@ -185,6 +228,8 @@ export class AnswersClient {
   /** No answers saved online here (404/503): nothing more is asked on this page load. */
   off = false;
   private listFor = '';
+  /** Why the last list read gave nothing ('' when it answered): the console line says so. */
+  private listWhy = '';
   private list: Promise<AnswersEntry[]> | null = null;
   private bodies = new Map<string, Promise<CloudAnswer | null>>();
   private synced = new Map<string, number>();
@@ -225,8 +270,10 @@ export class AnswersClient {
         const res = await f(`${r.url}?k=${r.k}`, { method: 'GET' });
         if (!res.ok) {
           this.noted(res.status);
+          this.listWhy = `the list answered ${res.status}`;
           return [];
         }
+        this.listWhy = '';
         const body = (await res.json()) as { entries?: Partial<AnswersEntry>[] };
         const out: AnswersEntry[] = [];
         for (const x of body?.entries ?? [])
@@ -236,6 +283,7 @@ export class AnswersClient {
         for (const x of out) if (!this.synced.has(x.e)) this.synced.set(x.e, x.at);
         return out.slice(0, ANSWERS_MAX_ENTRIES);
       } catch {
+        this.listWhy = 'the list could not be read (offline or blocked)';
         return [];
       }
     })();
@@ -270,13 +318,55 @@ export class AnswersClient {
     return p;
   }
 
-  /** The newest answer saved online for `goal` (`target 490`, `date <unix>`), or null. */
-  async newestFor(goal: string): Promise<CloudAnswer | null> {
-    const tag = goalTagOf(goal);
-    if (!tag) return null;
+  /**
+   * The answer saved online to show for a goal while it is worked out here (the stale slot: better than blank, marked
+   * "From <time>, checking…"). The entry key holds this browser's Setup, save and tables, which another browser's
+   * rarely match (its Setup still the default before /prefs lands, a newer save, other tables), so: the exact entry
+   * when there is one, else this save's newest for the goal, else the newest for the goal; a date goal read in
+   * another time zone (its deadline hours off), the nearest date within a day. Never another goal's.
+   */
+  async newestFor(want: { goal: string; e?: string | null; backupTime?: number | null }): Promise<CloudAnswer | null> {
+    const tag = goalTagOf(want.goal);
+    if (!tag) {
+      this.say(`read skipped: goal not kept online (${want.goal.split(' ')[0]})`);
+      return null;
+    }
+    if (!this.ready() && !this.off && this.env.whenReady) await this.env.whenReady();
+    const why = this.notReady();
+    if (why) {
+      this.say(`read skipped: ${why}`);
+      return null;
+    }
     const list = await this.entries();
-    const e = list.find(x => entryGoalTag(x.e) === tag);
-    return e ? this.body(e.e) : null;
+    const e = pickEntry(list, { tag, e: want.e ?? null, backupTime: want.backupTime ?? null });
+    if (!e && this.listWhy) {
+      this.say(`read skipped: ${this.listWhy}`);
+      return null;
+    }
+    if (!e) {
+      if (!this.off) this.say(`no saved answer online for this save and setup (entries: ${list.length}, goal: ${tagWords(tag)})`);
+      else this.say('read skipped: no answers saved online on this collector (404 or 503)');
+      return null;
+    }
+    const a = await this.body(e.e);
+    if (a) this.say(`served cloud answer ${fnv(e.e).slice(0, 6)} from ${new Date(a.at).toISOString()}`);
+    else this.say(`read skipped: the answer ${fnv(e.e).slice(0, 6)} could not be read back`);
+    return a;
+  }
+
+  private say(line: string): void {
+    try {
+      this.env.log?.(`[answers] ${line}`.replace(/EI\d{16}/gi, 'EI-'));
+    } catch {
+      // never a reason to fail
+    }
+  }
+  private notReady(): string {
+    if (this.off) return 'no answers saved online on this collector (404 or 503)';
+    if (!isKey(this.env.key())) return 'no account key yet';
+    if (!this.env.url()) return 'no collector';
+    if (!this.env.fetch()) return 'no fetch here';
+    return '';
   }
 
   /** The newest answer saved online of any goal, or null. */

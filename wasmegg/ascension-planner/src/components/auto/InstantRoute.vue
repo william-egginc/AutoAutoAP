@@ -930,6 +930,7 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
 import { useAnswersStore } from '@/stores/answers';
+import { entryKeyOf } from '@/lib/answersCloud';
 import { autoFollowsGoal, instantAutoFollowOf } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
@@ -2630,10 +2631,17 @@ function saveSnapshot(id: number): void {
 /**
  * THE ANSWER SAVED ONLINE (stores/answers.ts, lib/answersCloud.ts; Jordan, 27 Oct 2026): a fresh answer, once kept in
  * this browser, with its pricing record, so a new browser shows it at once (`showStale`). Debounced, skipped when the
- * same one is already online, never while a search runs; only here, never on a restore or a stale answer. The ID never
- * goes (scrubbed before gzip; the key is the follow key).
+ * same one is already online, never while a search runs; never a stale answer. Also one put back from this browser's
+ * own copy (`restoreSnapshot`), once (27 Oct 2026: answers kept before the cloud build were only ever put back, never
+ * worked out again, so they never reached the cloud and another browser had nothing to show). The ID never goes
+ * (scrubbed before gzip; the key is the follow key).
  */
 const answersCloud = useAnswersStore();
+/** This browser's entry key for the answer being worked out (its goal, save, Setup and tables), or null. */
+function cloudEntryKey(): string | null {
+  const m = snapMeta();
+  return m && snapKey ? entryKeyOf({ goal: m.goal, backupTime: m.backupTime, snapKey, tables: runTables }) : null;
+}
 function offerCloud(snap: InstantSnapshot): void {
   const m = snap.meta;
   if (!m || !snapKey) return;
@@ -2712,6 +2720,7 @@ function restoreSnapshot(tablesNow: string | null): boolean {
   if (!s || s.v !== 1 || !s.result || !s.header || !savedAnswerFits(s, GEAR_RULE, tablesNow)) return false;
   applySnapshot(s);
   keptAnswer.value = result.value;
+  offerCloud(s);
   return true;
 }
 /**
@@ -2738,9 +2747,13 @@ function showStale(id: number): void {
   if (!s) {
     // Nothing kept in this browser (a new browser, a private window): the account's answer saved online, if it comes
     // in while this one is still being worked out (stores/answers.ts; quiet when there is none).
-    void answersCloud.fallbackFor(instantGoal(props.deadline, store.finalTE)).then(c => {
+    // Any run of the same goal still working shows it (27 Oct 2026: Setup arriving from /prefs starts another run while
+    // the read is in flight; the first one's answer was dropped as another run's). Asked with this browser's own entry
+    // key and save, so an exact match wins (lib/answersCloud.ts `pickEntry`).
+    const goal = instantGoal(props.deadline, store.finalTE);
+    void answersCloud.fallbackFor({ goal, e: cloudEntryKey(), backupTime: m?.backupTime }).then(c => {
       if (!c) return;
-      if (id !== runs || result.value || status.value !== 'loading') return;
+      if (result.value || status.value !== 'loading' || instantGoal(props.deadline, store.finalTE) !== goal) return;
       applySnapshot(c.snap as InstantSnapshot, true);
       staleOther = true;
     });
