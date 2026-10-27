@@ -162,11 +162,11 @@ route slower. `scripts/precompute.ts --prune-bench` reproduces it.
 
 On a mobile browser (an iPad included), 4 GB of memory or less, or 2 cores or fewer (`src/search/device.ts`), the instant
 answer keeps to the answer itself: two route workers, no background polish, no nearest tables above
-and below, and the exact check only when _Check exactly_ is pressed.
+and below (_Check exactly_, which priced the route through the full simulator, is no longer on the instant answer).
 
 ## Filters
 
-- **Works inside my hours** (shown when _Let me pick my hours_ is on): the finder drops an arrival as
+- **Works inside my awake hours** (shown when Setup's _Awake hours_ are on): the finder drops an arrival as
   soon as its prestige (the start of each ascension after the first, at the time the table starts it)
   falls outside the player's hours and days, so every route it keeps fits them. Counts left with no
   such route are named.
