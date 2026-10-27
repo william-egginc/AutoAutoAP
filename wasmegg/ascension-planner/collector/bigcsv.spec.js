@@ -257,6 +257,24 @@ describe('who may, and what', () => {
   });
 });
 
+describe('the minimum run size', () => {
+  it('is 100,000 routes with no var (live), and the test collector var lowers it', async () => {
+    const small = await submit({ chainsPriced: 2000, durationDays: 730 });
+    const refused = await start(small.id, small.uploadToken, PART + 1);
+    expect(refused.status).toBe(422);
+    expect((await refused.json()).minRoutes).toBe(100_000);
+    // Exactly 100,000 is still too small ("more than").
+    const edge = await submit({ chainsPriced: 100_000, durationDays: 731 });
+    expect((await start(edge.id, edge.uploadToken, PART + 1)).status).toBe(422);
+    env.BIGCSV_MIN_ROUTES = '1000';
+    expect((await start(small.id, small.uploadToken, PART + 1)).status).toBe(200);
+    // A garbage var falls back to 100,000.
+    env.BIGCSV_MIN_ROUTES = 'lots';
+    const other = await submit({ chainsPriced: 2000, durationDays: 732 }, 'c'.repeat(32), '3.3.3.3');
+    expect((await start(other.id, other.uploadToken, PART + 1)).status).toBe(422);
+  });
+});
+
 describe('the maintainer', () => {
   it('downloads with the admin token (ranges too) and deletes; anyone else gets 404', async () => {
     const { id, uploadToken } = await submit();

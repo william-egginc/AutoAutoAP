@@ -150,7 +150,10 @@ export async function handleBigCsv(request, env, ctx, deps, now = Date.now()) {
     if (parts > BIGCSV_MAX_PARTS) return bad([`at most ${BIGCSV_MAX_PARTS} parts: use a bigger partSize`]);
     const row = await deps.findRow(env, ctx, id);
     if (!row) return reply({ error: 'not found' }, 404);
-    if (!(Number(row.chainsPriced) > BIGCSV_MIN_ROUTES)) return reply({ error: 'too small', minRoutes: BIGCSV_MIN_ROUTES }, 422);
+    // The minimum can be lowered by the TEST collector's var BIGCSV_MIN_ROUTES (an end-to-end run with 2,000 routes);
+    // live sets no var, so it stays at 100,000.
+    const minRoutes = Number(env.BIGCSV_MIN_ROUTES) || BIGCSV_MIN_ROUTES;
+    if (!(Number(row.chainsPriced) > minRoutes)) return reply({ error: 'too small', minRoutes }, 422);
     const owner = typeof row.owner === 'string' ? row.owner.slice(0, 12) : null;
     const since = now - 30 * DAY_MS;
     if (owner) {
