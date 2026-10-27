@@ -117,6 +117,9 @@ const props = defineProps<{
   /** A short line under "Setup" ("7 AM–11 PM · time off Oct 29–30 · no prestige Oct 27"), on My runs, which has no
    *  setup box of its own. */
   summary?: string;
+  /** Room to leave under the pill, px: Single run's fixed bar of totals and its fold tab (App.vue measures it,
+   *  useBottomBarRoom), so the pill sits 1rem above the bar instead of cut off over it (Jordan, 27 Oct 2026). */
+  bottomOffset?: number;
 }>();
 /** Stacked in two rows from xl (see the pill): every screen but My runs (its summary needs the width). */
 const stacked = computed(() => !props.summary);
@@ -161,17 +164,20 @@ function savePos(): void {
   }
 }
 const viewport = ref({ w: window.innerWidth, h: window.innerHeight });
-/** Kept on screen whatever the window does after. */
+/** Kept on screen whatever the window does after, and above Single run's bar. */
 function clamped(p: { x: number; y: number }): { x: number; y: number } {
   const w = dock.value?.offsetWidth ?? 260;
   const h = dock.value?.offsetHeight ?? 44;
   return {
     x: Math.min(Math.max(4, p.x), Math.max(4, viewport.value.w - w - 4)),
-    y: Math.min(Math.max(4, p.y), Math.max(4, viewport.value.h - h - 4)),
+    y: Math.min(Math.max(4, p.y), Math.max(4, viewport.value.h - h - 4 - (props.bottomOffset ?? 0))),
   };
 }
 const dockStyle = computed(() => {
-  if (!pos.value) return { right: '1rem', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' };
+  if (!pos.value) {
+    const bar = props.bottomOffset ? ` + ${props.bottomOffset}px` : '';
+    return { right: '1rem', bottom: `calc(env(safe-area-inset-bottom, 0px)${bar} + 1rem)` };
+  }
   const p = clamped(pos.value);
   return { left: `${p.x}px`, top: `${p.y}px` };
 });

@@ -988,6 +988,7 @@
               :claiming="claiming"
               :sending="submitting"
               :already-submitted="store.alreadySubmitted"
+              :on-board-line="fastestOnBoardLine"
               :message="submitMessage"
               :ok="submitOk"
               :partial="submitPartial"
@@ -1359,6 +1360,7 @@ const {
   submit,
   payloadPreview,
   downloadSubmission,
+  fastestOnBoardLine,
 } = useFastestShare(store, () => props.playerId);
 
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV card. */

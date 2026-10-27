@@ -167,7 +167,7 @@ describe('nothing floating covers the end of the page on a phone', () => {
   const rem = 16;
   it('the Setup pill (1rem up, 44 px buttons in a py-1.5 pill) sits inside the room left under the page', () => {
     const dock = read('auto/SetupDock.vue');
-    expect(dock).toContain("bottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)'");
+    expect(dock).toContain("bottom: `calc(env(safe-area-inset-bottom, 0px)${bar} + 1rem)`");
     expect(tagWith(dock, 'class="flex items-center gap-1 rounded-full bg-indigo-600')).toContain('py-1.5');
     const pillTop = 1 * rem + 44 + 2 * 6; // from the bottom of the screen, on a phone
     const room = Number(app.match(/SETUP_DOCK_CLEARANCE = 'calc\(env\(safe-area-inset-bottom, 0px\) \+ (\d+)rem\)'/)![1]) * rem;
