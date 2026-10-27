@@ -116,3 +116,10 @@ namespace_id = "1106"
   [ratelimits.simple]
   limit = 10
   period = 60
+
+# Big CSVs (bigcsv.js, 26 Oct 2026): the FULL-detail .csv.gz of a very large run, in a PRIVATE R2 bucket (no public
+# access, no custom domain). Parts go through the Worker; their record is in D1 (migration 0005). The retention is a
+# bucket lifecycle rule (90 days, README "Big CSVs"), not a binding setting. The test Worker points at aaap-bigcsv-test.
+[[r2_buckets]]
+binding = "BIGCSV"
+bucket_name = "aaap-bigcsv"

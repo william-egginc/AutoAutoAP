@@ -1158,3 +1158,53 @@ live never see a `consent` or `setup` goal.
   not stored again. Any `EI` + 16 digits is refused. Last write wins by the client's `at`; the server keeps every write.
 - **D1** (`WATCH`, migration `migrations/0004_prefs.sql`, one new table `prefs`; nothing existing changes). Apply the
   migration to the database first, then deploy; an older collector answers `/prefs` with 404.
+
+## Big CSVs (`/bigcsv/*`, 26 Oct 2026)
+
+The FULL-detail `.csv.gz` of a very large run (about 800k routes, 300 to 370 MB gzipped) kept in a private R2 bucket
+(`aaap-bigcsv`, binding `BIGCSV`). `/csv` (KV) is unchanged: the summary of every route plus the top ~20k routes' legs
+still goes there first. Contract for the app: `~/code/aaap-tools/notes/bigcsv-contract.md`; code: `bigcsv.js`.
+
+| route | what |
+|---|---|
+| `POST /bigcsv/start?id=&bytes=&partSize=` | open an R2 multipart upload, or resume the open one |
+| `PUT /bigcsv/part?id=&n=` | one part, streamed straight to R2 (5 to 90 MB; every part `partSize` except the last; `content-length` required) |
+| `GET /bigcsv/parts?id=` | the parts the server has (the resume call) |
+| `POST /bigcsv/complete?id=` | assemble; checks the size and the gzip magic (`422` and deleted if wrong) |
+| `POST /bigcsv/abort?id=` | drop an open upload |
+| `GET /bigcsv/status?id=` | public: `{ kept, bytes, at }`, never the file |
+| `GET`/`DELETE /bigcsv/admin?id=` | the maintainer: download (`Range` works) or delete, header `x-admin-token` = secret `BIGCSV_ADMIN_TOKEN` (`404` without it) |
+
+- **Auth and caps:** the row's FINAL upload token (`x-upload-token`, as `/csv`); the row must be on a board and have priced
+  more than 100,000 routes (`422` otherwise); one per row (`409`); 3 per account (owner code) in 30 days and a 9 GB byte
+  budget over 90 days (`429`); a file up to 4 GiB; `UPLOAD_LIMITER` per address. No player ID in the object name
+  (`bigcsv/<row id>.csv.gz`) or its metadata (row id, bytes, parts, time).
+- **D1, not KV:** the R2 binding cannot list a multipart upload's parts, so `bigcsv` and `bigcsv_parts` (migration
+  `0005_bigcsv.sql`) hold each upload's state and part etags; that is also what makes an upload resumable. No KV writes.
+- **Private:** nothing serves the object except the admin route. The board row can say "full CSV kept" from `/bigcsv/status`.
+- **Retention:** 90 days by an R2 lifecycle rule, plus unfinished uploads aborted after 1 day (commands in the note
+  `~/code/aaap-tools/notes/bigcsv-commands.md`). The free R2 plan holds 10 GB: about 27 files of 370 MB, which is why
+  the budget is counted over the same 90 days.
+- **Without the binding** (an older collector, or R2 not set up) every `/bigcsv/*` route but status answers `503`.
+
+## Instant answers in the cloud (`/answers`, 27 Oct 2026)
+
+The page's computed instant answer and pricing record per account, 10 to 40 KB gzipped, kept online so another device
+shows it at once and then rechecks. Contract: `~/code/aaap-tools/notes/instantcloud-contract.md`; code: `answers.js`.
+A sibling of `/follow` (a follow value is 4 KB and `GET /follow` returns every goal), with the same key `k` (SHA-256 of
+`"aaap-follow-v1:"` + the ID in upper case, computed in the browser) and an opaque entry key `e` the app builds from the
+save hash, the Setup key and the table identity / rules.
+
+| route | what |
+|---|---|
+| `GET /answers?k=` | the entries without bodies: `{ entries: [{ e, at, bytes, updatedAt }], now }`, newest first |
+| `GET /answers/get?k=&e=` | the gzip bytes as sent (`application/octet-stream`; headers `x-answer-at`, `x-answer-updated`) |
+| `PUT /answers?k=&e=&at=` | the gzip bytes; replaces that entry (last write wins) |
+| `DELETE /answers?k=&e=` | removes one |
+
+- **The body is not inflated here** (CPU), so it cannot be scanned for a player ID: the app scrubs before compressing, as for
+  the CSV. Checked: gzip magic, at most 65,536 bytes (`413`; `411` without `content-length`), the query (any `EI` + 16 digits is `400`).
+- **Limits:** 8 entries per key (a ninth evicts the least recently written: `evicted: 1`), 30 writes an hour per key (`follow_rate`
+  under `answers|<key>`), 20,000 entries in all, `FOLLOW_LIMIT` per address. D1 (the `WATCH` binding), migration
+  `0006_answers.sql` (one table; the data is base64 text because D1 returns BLOBs as number arrays). No KV, no R2.
+- An older collector answers `/answers` with 404: the app treats it as "no cloud answers here".
