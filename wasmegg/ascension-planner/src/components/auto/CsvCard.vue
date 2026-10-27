@@ -32,12 +32,14 @@
       </span>
     </template>
     <p v-if="downloadError" class="w-full text-body font-bold text-red-700">{{ downloadError }}</p>
+    <BigCsvStatus />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useRunDownloads } from '@/composables/useRunDownloads';
+import BigCsvStatus from './BigCsvStatus.vue';
 
 withDefaults(defineProps<{ csv?: boolean; diagnostics?: boolean }>(), { csv: true, diagnostics: false });
 const { downloadError, downloadCsv, downloadDiagnostics } = useRunDownloads(useChainSearchStore());

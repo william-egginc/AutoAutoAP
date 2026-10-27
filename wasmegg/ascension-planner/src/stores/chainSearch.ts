@@ -271,7 +271,15 @@ import {
 } from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
 import type { LegSpill } from '@/search/legSpill';
-import { lastSpillOpenFailure, openPageLegSpill } from '@/lib/legSpillOpfs';
+import { lastSpillOpenFailure, openBigCsvSink, openPageLegSpill } from '@/lib/legSpillOpfs';
+import {
+  BIG_CSV_MIN_ROUTES,
+  bigCsvMessage,
+  gzipCsvTo,
+  uploadBigCsv,
+  type BigCsvOutcome,
+  type BigCsvSink,
+} from '@/search/bigCsvUpload';
 import { browserStorage, readLegDetailBudget, staleDownloadReason, writeLegDetailBudget, type SpillInfo } from '@/lib/legSpillText';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
 import { reviewContext, reviewLegs, reviewSetup, TE_MISMATCH_TOLERANCE, type HealthIssue } from '@/search/health';
@@ -4933,13 +4941,26 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         token: uploadToken,
         body,
       };
+      // A very large run's final send: its full CSV goes to the collector's private store too, with this
+      // row's token (search/bigCsvUpload.ts). Not for a result sent from a file, nor a light send.
+      if (!saved && !provisional && Number((payload as { chainsPriced?: number }).chainsPriced) > BIG_CSV_MIN_ROUTES)
+        bigCsvRow = { kind: deadlineSend ? 'deadline' : 'fastest', id, token: uploadToken };
     } catch {
       return done(
         withTable({ message: 'sent, but the table could not be compressed in this browser, so it was skipped' }) + note
       );
     }
     const table = await postTable();
-    return { ok: table.ok, message: withTable(table) + note, ...(duplicate ? { duplicate } : {}), id };
+    // The page sends the full CSV in the background (the result is in already); the CLI awaits it itself.
+    if (bigCsvRow && bigCsvAuto) void sendFullCsv();
+    return {
+      ok: table.ok,
+      message: withTable(table) + note,
+      ...(duplicate ? { duplicate } : {}),
+      id,
+      // A result sent from a file (the CLI's submit --from): the row's final token, for its full CSV upload.
+      ...(saved && !saved.light ? { uploadToken } : {}),
+    };
   }
 
   /**
@@ -6105,6 +6126,73 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (out?.ok) return out.body;
     }
     return null;
+  }
+
+  // ------------------------------------------------------------------ the full CSV to the private store
+  /** The last final send of a run over BIG_CSV_MIN_ROUTES: its row and FINAL upload token (memory only). */
+  let bigCsvRow: { kind: 'fastest' | 'deadline'; id: string; token: string } | null = null;
+  /** The page starts the upload by itself after the send; the command line awaits `sendFullCsv`. */
+  let bigCsvAuto = true;
+  /** Where the gzipped file is made: the page's OPFS (lib/legSpillOpfs.ts), the CLI's file. */
+  let bigCsvSinkOf: () => Promise<BigCsvSink | null> = openBigCsvSink;
+  function setBigCsvPlatform(o: { sink: () => Promise<BigCsvSink | null>; auto: boolean }): void {
+    bigCsvSinkOf = o.sink;
+    bigCsvAuto = o.auto;
+  }
+  /** How the full CSV's upload stands, for the panel. */
+  const bigCsvState = ref<{
+    state: 'building' | 'uploading' | 'done' | 'failed' | 'stopped';
+    done: number;
+    total: number;
+    message: string;
+  } | null>(null);
+  let bigCsvBusy: Promise<BigCsvOutcome | null> | null = null;
+  /**
+   * The full CSV (store `streamFullCsv`, every route's legs, scrubbed) of the last big run sent, gzipped into the
+   * platform's file and uploaded to the collector's private store, resuming an open upload. Null: nothing to send
+   * (no big run sent, or no disk for the file). One at a time.
+   */
+  function sendFullCsv(): Promise<BigCsvOutcome | null> {
+    if (bigCsvBusy) return bigCsvBusy;
+    const row = bigCsvRow;
+    if (!row || !submitUrl) return Promise.resolve(null);
+    bigCsvBusy = (async () => {
+      try {
+        const sink = await bigCsvSinkOf();
+        if (!sink) return null;
+        bigCsvState.value = { state: 'building', done: 0, total: 0, message: 'Making the full CSV...' };
+        const source = await gzipCsvTo(streamFullCsv(row.kind), sink, scrubIdentifiers, n => {
+          if (bigCsvState.value) bigCsvState.value = { ...bigCsvState.value, done: n };
+        });
+        bigCsvState.value = { state: 'uploading', done: 0, total: source.size, message: 'Uploading the full CSV...' };
+        const out = await uploadBigCsv({
+          base: submitUrl.replace(/\/submit\/?$/, ''),
+          id: row.id,
+          token: row.token,
+          source,
+          onProgress: (done, total) => {
+            bigCsvState.value = { state: 'uploading', done, total, message: 'Uploading the full CSV...' };
+          },
+        });
+        bigCsvState.value =
+          out.kind === 'unavailable'
+            ? null
+            : {
+                state: out.kind === 'kept' ? 'done' : out.kind === 'stopped' ? 'stopped' : 'failed',
+                done: source.size,
+                total: source.size,
+                message: bigCsvMessage(out),
+              };
+        if (out.kind === 'kept' || out.kind === 'unavailable' || out.kind === 'refused') bigCsvRow = null;
+        return out;
+      } catch (e) {
+        bigCsvState.value = { state: 'failed', done: 0, total: 0, message: bigCsvMessage({ kind: 'failed', why: plainError(e) }) };
+        return { kind: 'failed', why: plainError(e) } as BigCsvOutcome;
+      } finally {
+        bigCsvBusy = null;
+      }
+    })();
+    return bigCsvBusy;
   }
 
   /** Suggested filename, so two exports from different runs do not collide in Downloads. */
@@ -9645,6 +9733,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     streamFullCsv,
     fastestUploadCsv,
     deadlineUploadGz,
+    sendFullCsv,
+    setBigCsvPlatform,
+    bigCsvState,
     withRechecks,
     setLegSpill,
     setLegSpillOpener,

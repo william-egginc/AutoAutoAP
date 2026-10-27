@@ -8,6 +8,7 @@
  * from there, so a multi-gigabyte file is never one Blob in the page's memory.
  */
 import { LegSpill, type SpillBackend } from '@/search/legSpill';
+import type { BigCsvSink, BigCsvSource } from '@/search/bigCsvUpload';
 import { LEG_SPILL_DIR, type LegSpillReply, type LegSpillRequest } from '@/workers/legSpill.protocol';
 import { DOWNLOAD_FILE_TTL_MS, spillOpenFailure, withBom, type SpillUnavailable } from './legSpillText';
 
@@ -173,5 +174,41 @@ export async function saveFullCsv(chunks: AsyncIterable<string>, filename: strin
   } catch (e) {
     console.warn('chain search: could not write the download through OPFS', e);
     return false;
+  }
+}
+
+/** The full CSV's gzipped file for the private store (search/bigCsvUpload.ts), in OPFS beside the spills. */
+const BIG_CSV_FILE = 'bigcsv.csv.gz';
+
+/**
+ * A sink writing the full CSV's gzip into OPFS through the worker (appends), and the finished file read back by
+ * slices from the page (the worker lets go of it first: OPFS gives a file one holder). Null without OPFS.
+ */
+export async function openBigCsvSink(): Promise<BigCsvSink | null> {
+  if (typeof Worker === 'undefined' || typeof navigator === 'undefined' || !navigator.storage?.getDirectory) return null;
+  try {
+    const w = spillWorker();
+    await w.ask({ op: 'open', name: BIG_CSV_FILE });
+    await w.ask({ op: 'truncate', name: BIG_CSV_FILE, size: 0 });
+    let size = 0;
+    return {
+      async write(bytes: Uint8Array) {
+        const copy = bytes.slice();
+        await w.ask({ op: 'append', name: BIG_CSV_FILE, bytes: copy }, [copy.buffer]);
+        size += bytes.byteLength;
+      },
+      async close(): Promise<BigCsvSource> {
+        await w.ask({ op: 'close', name: BIG_CSV_FILE, remove: false });
+        const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle(LEG_SPILL_DIR);
+        const file = await (await dir.getFileHandle(BIG_CSV_FILE)).getFile();
+        return {
+          size: file.size || size,
+          read: async (at, len) => new Uint8Array(await file.slice(at, at + len).arrayBuffer()),
+        };
+      },
+    };
+  } catch (e) {
+    console.warn('chain search: no file for the full CSV upload', e);
+    return null;
   }
 }
