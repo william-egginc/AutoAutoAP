@@ -34,8 +34,11 @@ describe('each screen swaps its Share box for the line only when its run sent th
   ] as const) {
     it(file, () => {
       const s = src(file);
-      // The line, then the box as the v-else-if: never both, and a plain Find keeps the box.
-      expect(s).toMatch(/<SentByRunNote\s+v-if="[^"]*sentByRun"[^>]*\/>\s*<ShareResult\s+v-else-if=/);
+      // The line, then the box as the v-else-if: never both, and a plain Find keeps the box. By a date may say
+      // between them that the result is already on the board (shareOnBoard.spec.ts), also as a v-else-if.
+      expect(s).toMatch(
+        /<SentByRunNote\s+v-if="[^"]*sentByRun"[^>]*\/>\s*(?:<!--[\s\S]*?-->\s*<p\s+v-else-if="[^"]*onBoardLine"[\s\S]*?<\/p>\s*)?<ShareResult\s+v-else-if=/
+      );
       // Sent by the run, not failed, and the result on screen is the one it sent.
       const def = s.match(/const sentByRun = computed\(([\s\S]*?)\);\n/)?.[1] ?? '';
       expect(def).toContain(`${flag}.value`);

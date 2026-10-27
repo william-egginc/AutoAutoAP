@@ -934,6 +934,13 @@
         <!-- Share: Compare's Egg Day tab for an Egg Day answer, else "By a date". Same opt-in as Insane. -->
         <!-- Sent by the run itself: one line instead of the box (SentByRunNote.vue). -->
         <SentByRunNote v-if="best && collectorConfigured && sentByRun" :sending="sharing" />
+        <!-- Already on the board, known on load from the account's own rows (Jordan, 27 Oct 2026): said in place
+             of the box, so there is no Send for a result already there. -->
+        <p
+          v-else-if="best && collectorConfigured && onBoardLine"
+          class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-body text-emerald-800"
+          data-testid="share-on-board"
+        >{{ onBoardLine }}</p>
         <ShareResult
           v-else-if="best && collectorConfigured"
           compact
@@ -2775,6 +2782,7 @@ const {
   sentKey,
   shareTab,
   share,
+  onBoardLine,
 } = useByDateShare(
   store,
   shareIdentity,

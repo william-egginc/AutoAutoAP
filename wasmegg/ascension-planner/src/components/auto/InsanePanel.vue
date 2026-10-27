@@ -1089,6 +1089,7 @@
                 :claiming="claiming"
                 :sending="submitting"
                 :already-submitted="store.alreadySubmitted"
+                :on-board-line="fastestOnBoardLine"
                 :message="submitMessage"
                 :ok="submitOk"
                 :partial="submitPartial"
@@ -1526,6 +1527,7 @@ const {
   submit,
   payloadPreview,
   downloadSubmission,
+  fastestOnBoardLine,
 } = useFastestShare(store, () => props.playerId, stampName);
 
 /** Values across all the bands (the "Values tried" figure). */

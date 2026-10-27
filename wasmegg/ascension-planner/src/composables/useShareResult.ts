@@ -21,6 +21,7 @@ import { useEidsStore } from 'lib';
 import { sentence } from '@/utils/errors';
 import { NAMES } from '@/lib/siteNav';
 import { eggDayYearOf } from '@/lib/eggDay';
+import { onBoardLine as onBoardLineOf } from '@/search/sentOnBoard';
 import { useShareConsent } from './useShareConsent';
 import { useShareExtras } from './useShareExtras';
 import type { useChainSearchStore } from '@/stores/chainSearch';
@@ -297,6 +298,25 @@ export function useByDateShare(
       retryingTable.value = false;
     }
   }
+  /**
+   * "Already on the Leaderboard (sent at 10:48 AM)" when this answer's row is already there, known on load from
+   * the account's rows (stores/chainSearch.ts `deadlineOnBoard`; Jordan, 27 Oct 2026: the box offered Send for
+   * a run already on the board). '' otherwise, and while the rows are not read (offline, no collector): Send as
+   * before. A send made this visit says so itself (`sentKey`).
+   */
+  const onBoardLine = computed(() => {
+    if (!collectorConfigured.value || sentKey.value === resultKey.value) return '';
+    const row = store.deadlineOnBoard(best.value);
+    return row ? onBoardLineOf(row) : '';
+  });
+  watch(
+    () => !!best.value && collectorConfigured.value,
+    show => {
+      if (show) void store.loadMineRows();
+    },
+    { immediate: true }
+  );
+
   /** The leaderboard tab this answer goes on: Egg Day has its own. */
   const shareTab = computed(() => {
     const y = result.value ? eggDayYearOf(result.value.deadline) : null;
@@ -350,6 +370,7 @@ export function useByDateShare(
     sentKey,
     shareTab,
     share,
+    onBoardLine,
   };
 }
 

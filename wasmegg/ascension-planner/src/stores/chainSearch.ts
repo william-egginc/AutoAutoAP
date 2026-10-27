@@ -284,6 +284,8 @@ import {
   type SubmissionFlag,
 } from '@/search/rules';
 import { existingOwnerToken, ownerToken } from '@/search/owner';
+import { fetchMineRows } from '@/search/myBoardRows';
+import { sentRowFor } from '@/search/sentOnBoard';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { nextPrestigeAt } from '@/search/noPrestige';
@@ -4319,6 +4321,70 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return clean && clean !== (rec.nickname ?? '') ? clean : '';
   }
 
+  // ------------------------------------------------------------------------- already on the board, on load
+  //
+  // A result this browser already put on the Leaderboard is said so before Send is pressed (Jordan, 27 Oct
+  // 2026: By a date offered "Send 313 TE by this date" for a run already there, and only the press said so).
+  // By a date's sends are not remembered in this browser (`rememberSent` is Fastest's and Light's), and a
+  // kept result can land without its copy being dropped, so the account's own rows are read: GET /mine with
+  // this browser's code (search/sentOnBoard.ts compares them as the collector does). Read once per account
+  // and visit, and again after a send; never with no code (none is minted here). Not read, nothing changes.
+
+  /** The account's rows sent with this browser's code, or null until read (or unreadable). */
+  const mineRows = ref<BoardRow[] | null>(null);
+  /** The partition `mineRows` was read for ('' for none yet, or to read again). */
+  let mineFor = '';
+  let mineLoad: Promise<void> | null = null;
+  async function loadMineRows(): Promise<void> {
+    if (!submitUrl) return;
+    const partition = await accountPartition();
+    if (!partition) return;
+    if (mineFor === partition) return mineLoad ?? undefined;
+    if (mineFor) mineRows.value = null;
+    mineFor = partition;
+    const token = existingOwnerToken(partition);
+    if (!token) return;
+    const load = fetchMineRows(submitUrl.replace(/\/submit\/?$/, ''), token).then(rows => {
+      if (mineFor === partition && rows) mineRows.value = rows;
+    });
+    mineLoad = load.finally(() => {
+      if (mineLoad === load) mineLoad = null;
+    });
+    return mineLoad;
+  }
+  /** Rows that could be this result: this browser's, the same route and time. Cheap, before a payload is built. */
+  function mineLike(chain: readonly number[], days: number): boolean {
+    const d = Math.round(days * 1e4);
+    const c = chain.join(' ');
+    return !!mineRows.value?.some(
+      r => r.yours === true && (r.chain ?? []).join(' ') === c && Math.round((r.durationDays ?? NaN) * 1e4) === d
+    );
+  }
+  /** Fastest's result on screen, when its row is already on the board. */
+  const fastestOnBoard = computed<BoardRow | null>(() => {
+    if (!mineRows.value || isRunning.value || !(bestDays.value > 0) || !mineLike(bestChain.value, bestDays.value))
+      return null;
+    try {
+      return sentRowFor(buildRunSubmission(''), mineRows.value);
+    } catch {
+      return null;
+    }
+  });
+  /** By a date's `route` (of the result on screen), when its row is already on the board. */
+  function deadlineOnBoard(route: DeadlineRoute | null): BoardRow | null {
+    const r = deadlineResult.value;
+    if (!route || !r || !mineRows.value || !mineLike(route.chain, (route.reachAt - r.planStart) / 86400)) return null;
+    try {
+      return sentRowFor(buildDeadlineSubmission(route, ''), mineRows.value);
+    } catch {
+      return null;
+    }
+  }
+  /** A kept result (Send it now) whose row is already on the board. */
+  function pendingOnBoard(p: PendingSend): BoardRow | null {
+    return sentRowFor(p.payload, mineRows.value);
+  }
+
   // ------------------------------------------------------------------------- re-checks
   //
   // Schema 7's `rechecks` (search/rechecks.ts has the why): the player's best three current plans
@@ -4868,8 +4934,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!provisional && payload.replaces) markProvisionalDone(payload.replaces);
     if (!provisional && payload.replaces && provisionalRows.value[kind]?.id === payload.replaces)
       setProvisional(kind, null);
-    // The board has a new row of this account's: the next run's rechecks should see it.
+    // The board has a new row of this account's: the next run's rechecks should see it, and so should the
+    // next "already on the board" (`loadMineRows` reads again).
     recheckFetch = null;
+    mineFor = '';
 
     // Said with every success message, because a run that went to the flagged board will not appear
     // on the main one, and without this it looks lost.
@@ -9458,6 +9526,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runCost,
     alreadySubmitted,
     sentRecord,
+    mineRows,
+    loadMineRows,
+    fastestOnBoard,
+    deadlineOnBoard,
+    pendingOnBoard,
     nameToClaim,
     chainsEstimated,
     bestChain,

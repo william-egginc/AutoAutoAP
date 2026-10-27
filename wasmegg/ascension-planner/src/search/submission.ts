@@ -789,8 +789,7 @@ export interface DuplicateNote {
  */
 export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote = {}, now = Date.now()): string {
   if (kind === 'result') return 'sent (the same answer as your earlier run, from another search)';
-  const when = sentAtText(note.firstAt, now);
-  const lead = `Already on the Leaderboard${when ? ` (sent ${when})` : ''}`;
+  const lead = alreadyOnBoardText(note.firstAt, now);
   const clauses: string[] = [];
   if (note.renamed) clauses.push(`your name is on it now (${note.renamed})`);
   if (note.table?.landed === 'new') {
@@ -808,6 +807,13 @@ export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote =
     else text += `. It is on the Leaderboard without a name: press Put my name on it to add ${sent}`;
   }
   return text;
+}
+
+/** "Already on the Leaderboard (sent at 10:48 AM)": the lead of an exact copy's answer, and what a share box says
+ *  on load for a result already there (search/sentOnBoard.ts). `firstAt` is when the stored row arrived. */
+export function alreadyOnBoardText(firstAt: string | undefined, now = Date.now()): string {
+  const when = sentAtText(firstAt, now);
+  return `Already on the Leaderboard${when ? ` (sent ${when})` : ''}`;
 }
 
 /** `at 7:46 PM` today, `on Sep 24 at 7:46 PM` before (en-US), in this browser's own zone (lib/clock.ts); '' when

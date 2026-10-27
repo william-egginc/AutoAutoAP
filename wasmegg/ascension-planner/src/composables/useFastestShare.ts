@@ -7,9 +7,10 @@
  * Smart search used to carry a private copy of sendRunResult's steps, and a name that was neither
  * trimmed nor capped; the Full sweep had its own. Now a fix lands on both.
  */
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import type { useChainSearchStore } from '@/stores/chainSearch';
 import { sendRunResult } from '@/search/sendRun';
+import { onBoardLine } from '@/search/sentOnBoard';
 import { useShareExtras } from './useShareExtras';
 import { useBoardSubmit, useShareIdentity } from './useShareResult';
 import { consentGivenThisVisit } from './useConsent';
@@ -79,6 +80,24 @@ export function useFastestShare(
     }
   }
 
+  /**
+   * "Already on the Leaderboard (sent at 10:48 AM)" when the result's row is already there, known on load from
+   * the account's rows (stores/chainSearch.ts `fastestOnBoard`; Jordan, 27 Oct 2026). '' otherwise, or while
+   * the rows are not read: Submit as before. A send made this visit says how it went itself.
+   */
+  const fastestOnBoardLine = computed(() => {
+    if (submitMessage.value) return '';
+    const row = store.fastestOnBoard;
+    return row ? onBoardLine(row) : '';
+  });
+  watch(
+    () => store.bestDays > 0 && !store.isRunning,
+    done => {
+      if (done) void store.loadMineRows();
+    },
+    { immediate: true }
+  );
+
   /** The payload, pretty-printed, so "show exactly what is sent" is the literal bytes. */
   function payloadPreview(): string {
     const p = store.buildRunSubmission(effectiveNickname.value);
@@ -113,5 +132,6 @@ export function useFastestShare(
     submit,
     payloadPreview,
     downloadSubmission,
+    fastestOnBoardLine,
   };
 }

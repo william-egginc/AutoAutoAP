@@ -33,6 +33,14 @@
       >
         {{ claiming ? 'Renaming...' : 'Put my name on it' }}
       </button>
+      <!-- Already on the board, known on load from the account's own rows (Jordan, 27 Oct 2026): said, with no
+           Submit, rather than learnt from the press. -->
+      <span
+        v-else-if="submitUrl && onBoardLine && !sending"
+        class="text-body font-bold text-emerald-700"
+        data-testid="share-on-board"
+        >{{ onBoardLine }}</span
+      >
       <button
         v-else-if="submitUrl"
         type="button"
@@ -95,6 +103,9 @@ defineProps<{
   claiming: boolean;
   sending: boolean;
   alreadySubmitted: boolean;
+  /** "Already on the Leaderboard (sent at 10:48 AM)" for a result whose row is already there (the store's
+   *  `fastestOnBoard`), or '' / absent: Submit as before. */
+  onBoardLine?: string;
   message: string;
   ok: boolean;
   partial: boolean;
