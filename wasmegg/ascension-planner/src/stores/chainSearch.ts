@@ -5339,17 +5339,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const intent = deadlineSubmitIntent();
         if (intent)
           consent = { nickname: intent.nickname, sendCsv: intent.sendCsv, sendDiagnostics: intent.sendDiagnostics };
-        for (const legRoutes of [DEADLINE_LEG_ROUTES, Math.floor(DEADLINE_LEG_ROUTES / 4), 0]) {
-          const out = await gzipChunksCapped(
-            deadlineCsvChunksNow({ legRoutes }),
-            TABLE_LIMIT_BYTES,
-            scrubIdentifiers
-          ).catch(() => null);
-          if (out?.ok) {
-            gz = out.body;
-            break;
-          }
-        }
+        gz = (await deadlineUploadGz()) ?? undefined;
       } else {
         if (!(bestDays.value > 0)) return;
         key = safeResultKey();
@@ -5485,6 +5475,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * The workers are gone by now and the instant answer is kept asleep (`beginResultSend`); the CSV is
    * the kept one when the run kept it, else streamed into gzip. Never throws.
    */
+  /**
+   * This Fastest result with its re-checks, for a send later from a file (the command line's --out
+   * submission.json, sent by `fastsearch submit --from`), as `sendSubmission` adds them to this run's send now.
+   */
+  async function withRechecks(payload: Submission): Promise<Submission> {
+    if (payload.rechecks?.length || payload.provisional) return payload;
+    const named = !!payload.nickname?.trim();
+    const rechecks =
+      rechecksFor(safeResultKey(), named) ?? (await computeRechecks(RECHECK_BUDGET_MS))[named ? 'named' : 'anonymous'];
+    return rechecks.length ? { ...payload, rechecks } : payload;
+  }
+
   async function sendDeadlineAnswer(o: {
     route: DeadlineRoute;
     nickname: string;
@@ -6089,6 +6091,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (out.ok) return { gz: out.body };
     }
     return exportCsvChunks();
+  }
+
+  /**
+   * The By a date table a kept send or the CLI's run.csv.gz uploads: legs for the top DEADLINE_LEG_ROUTES routes,
+   * then a quarter of them, then none, until the gzip fits the collector's limit; null when even that is over.
+   */
+  async function deadlineUploadGz(): Promise<ArrayBuffer | null> {
+    for (const legRoutes of [DEADLINE_LEG_ROUTES, Math.floor(DEADLINE_LEG_ROUTES / 4), 0]) {
+      const out = await gzipChunksCapped(deadlineCsvChunksNow({ legRoutes }), TABLE_LIMIT_BYTES, scrubIdentifiers).catch(
+        () => null
+      );
+      if (out?.ok) return out.body;
+    }
+    return null;
   }
 
   /** Suggested filename, so two exports from different runs do not collide in Downloads. */
@@ -9628,6 +9644,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     exportCsvChunks,
     streamFullCsv,
     fastestUploadCsv,
+    deadlineUploadGz,
+    withRechecks,
     setLegSpill,
     setLegSpillOpener,
     legSpillStatus,

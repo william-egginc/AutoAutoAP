@@ -119,7 +119,23 @@ import { createPinia, setActivePinia } from 'pinia';
 setActivePinia(createPinia());
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
+
+/**
+ * A packed table file's bytes, as the page reads one (search/tableFetch.ts): FILE.gz first, unpacked, else FILE;
+ * FILE may itself end in .gz. So a folder of deployed tables (own and gear tables are served .gz only) reads
+ * the same here as on the site.
+ */
+function readTableFile(file: string): ArrayBuffer {
+  const path = /\.gz$/.test(file) || !existsSync(`${file}.gz`) ? file : `${file}.gz`;
+  const raw = readFileSync(path);
+  const buf = /\.gz$/.test(path) ? gunzipSync(raw) : raw;
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+}
+/** Whether a table is there under `file` or `file.gz`. */
+function tableFileExists(file: string): boolean {
+  return existsSync(file) || existsSync(`${file}.gz`);
+}
 import { fork } from 'node:child_process';
 import { getNextSaleEnd } from '@/lib/events';
 import { resolveColleggtibleContracts } from 'lib';
@@ -173,13 +189,18 @@ import { splitByWork } from '@/search/routePool';
 import {
   compositeTable,
   gearShiftTable,
+  gearShiftUrl,
   packTable,
+  parseCompositeUrl,
   readTable,
   restampTable,
   withExtras,
+  type Table,
   type TableHeader,
 } from '@/search/precomputedTable';
-import { instantGearShift } from '@/search/instantGear';
+import { chooseInstantTable, instantFirstLegs, instantPricingOptions, instantScaleOf } from '@/search/instantCompute';
+import { firstLegsOn, tableAtUrl } from '@/search/tableUrlLoad';
+import { gearShiftKey, instantGearShift, nearMaxedGear } from '@/search/instantGear';
 import { SIM_VERSION } from '@/search/simVersion';
 import type { Availability } from '@/search/availability';
 import { liveFreshBuilds } from '@/search/liveCell';
@@ -197,7 +218,7 @@ import {
   v2TableName,
   type TableGear,
 } from '@/search/tableGear';
-import { manifestFiles, tableFileProblem } from '@/search/tableBracket';
+import { MAXED_TABLE_FILE, manifestFiles, tableFileProblem } from '@/search/tableBracket';
 import { buildAt, buildPeak, k3StateOf, paramsOf, PEAK_TE, REFERENCE_WEEK, startStateAt } from '@/search/tableBuild';
 import { holdRate, paramsAndExtrasOf } from '@/search/tableV2Build';
 import { bestReplay, replayTail } from '@/search/tableV2';
@@ -992,8 +1013,7 @@ function stopMaxArg(): { usefulStopMax?: number } {
 }
 
 async function routeBin(): Promise<void> {
-  const buf = readFileSync(arg('route-bin')!);
-  const table = readTable(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer);
+  const table = readTable(readTableFile(arg('route-bin')!));
   const te = Number(arg('te'));
   const start = arg('start') ? Math.floor(Date.parse(arg('start')!) / 1000) : Math.floor(Date.now() / 1000);
   const t0 = performance.now();
@@ -1168,6 +1188,8 @@ function pack(): void {
   );
   mkdirSync(out.replace(/\/[^/]*$/, ''), { recursive: true });
   writeFileSync(out, bytes);
+  // And OUT.gz, as the page fetches it (own and gear tables are served .gz only).
+  writeFileSync(`${out}.gz`, gzipSync(bytes, { level: 9 }));
   console.log(
     `packed start TEs ${from}-${tes[tes.length - 1]} (${cells.length} cells) into ${out}: ${(bytes.length / 1e6).toFixed(1)} MB`
   );
@@ -1258,8 +1280,7 @@ function putStampInventory(backup: VirtueAfxBackup, gear: TableGear): void {
 async function checkBin(): Promise<void> {
   const t0 = performance.now();
   const file = arg('check-bin')!;
-  const buf = readFileSync(file);
-  const bytes = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  const bytes = readTableFile(file);
   const structure = checkStructure(bytes);
   const header = structure.header;
   const errors = [...structure.errors];
@@ -2928,10 +2949,7 @@ async function pruneBench(file: string): Promise<void> {
 async function instant2(file: string): Promise<void> {
   const dir = arg('tables');
   if (!dir) throw new Error('--instant2 needs --tables DIR');
-  const loadBin = (name: string) => {
-    const b = readFileSync(`${dir}/${name}`);
-    return readTable(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer, 1 << 16);
-  };
+  const loadBin = (name: string) => readTable(readTableFile(`${dir}/${name}`), 1 << 16);
   const standIn = arg('stand-in') ? loadBin(arg('stand-in')!) : null;
   if (standIn && !standIn.header.gear) throw new Error('--stand-in: that table has no gear stamp');
   await loadInputs(file, standIn ? { edit: b => putStampInventory(b, standIn.header.gear!) } : {});
@@ -2966,7 +2984,7 @@ async function instant2(file: string): Promise<void> {
   const id = (inputs.context.rawBackup as { eiUserId?: string } | undefined)?.eiUserId;
   if (id && !standIn) {
     // Its `.v2` name first, then the plain one (tableGear.ts ownTableNames), as the page.
-    const name = (await ownTableNames(id)).find(n => existsSync(`${dir}/${n}`));
+    const name = (await ownTableNames(id)).find(n => tableFileExists(`${dir}/${n}`));
     if (name) {
       const h = loadBin(name).header;
       const stamp = h.gear ? gearStamp(inputs, inv.earnings, h.gear.research) : null;
@@ -2976,7 +2994,7 @@ async function instant2(file: string): Promise<void> {
   let gearFile: string | null = null;
   if (!ownFile && maxed1.header.k3) {
     const stamp = gearStamp(inputs, inv.earnings, maxed1.header.k3.research);
-    if (stamp) for (const n of await gearTableFiles(stamp)) if (existsSync(`${dir}/${n}`)) (gearFile ??= n);
+    if (stamp) for (const n of await gearTableFiles(stamp)) if (tableFileExists(`${dir}/${n}`)) (gearFile ??= n);
   }
   const scale = instantDeliveryScale(inputs, maxed1.header.k3!);
   const forceG = has('force-g');
@@ -2986,7 +3004,7 @@ async function instant2(file: string): Promise<void> {
   const ownNew = ownFile && current(ownFile) ? ownFile : null;
   const gearNew = !ownNew && gearFile && current(gearFile) ? gearFile : null;
   const shift = instantGearShift(inputs, maxed2.header);
-  const nearMaxed = !!shift && shift.g < 0.05 && Math.abs(shift.geo - 1) < 0.005 && Math.abs(shift.k - 1) < 0.005;
+  const nearMaxed = !!shift && nearMaxedGear(shift);
 
   type Pick = { lookup: BuildLookup; scale: number; kind: string };
   const oldPick: Pick = ownFile
@@ -2994,14 +3012,40 @@ async function instant2(file: string): Promise<void> {
     : gearFile
       ? { lookup: compositeTable(loadBin(gearFile), maxed1, GEAR_TO, scale).lookup, scale: 1, kind: 'gear' }
       : { lookup: maxed1.lookup, scale, kind: 'maxed' };
-  const newPick: Pick =
-    ownNew && !forceG
-      ? { lookup: loadBin(ownNew).lookup, scale: 1, kind: 'own' }
-      : gearNew && !forceG
-        ? { lookup: compositeTable(loadBin(gearNew), maxed2, GEAR_TO, scale).lookup, scale: 1, kind: 'gear' }
-        : shift && !nearMaxed
-          ? { lookup: gearShiftTable(maxed2, shift, 1 << 16).lookup, scale: 1, kind: 'G' }
-          : { lookup: maxed2.lookup, scale, kind: 'maxed' };
+  // NEW is the page's own instant answer (search/instantCompute.ts, as InstantRoute.vue and My runs read it):
+  // its table choice, scale, first ascensions and pricing options, over this folder instead of the site.
+  // --force-g keeps the old experiment's switch: the form G whatever own or gear table there is.
+  const files = new Map<string, Promise<Table>>();
+  const fromDir = (url: string) => Promise.resolve(readTable(readTableFile(`${dir}/${url.replace(/^.*\//, '')}`), 1 << 16));
+  const pageLoad = (url: string) => {
+    if (!files.has(url)) files.set(url, tableAtUrl(url, fromDir));
+    return files.get(url)!;
+  };
+  const pagePool = {
+    header: async (url: string) => (await pageLoad(url)).header,
+    firstLegs: async (req: Parameters<typeof firstLegsOn>[1] & { url: string }) => firstLegsOn(await pageLoad(req.url), req),
+  };
+  const base = './';
+  const maxedUrl = `${base}${MAXED_TABLE_FILE}`;
+  const choice = forceG
+    ? (() => {
+        const url = shift && !nearMaxedGear(shift) ? gearShiftUrl(maxedUrl, gearShiftKey(shift)) : maxedUrl;
+        return { url, header: maxed2.header, mismatch: '', stampHash: '', gearShifted: url !== maxedUrl };
+      })()
+    : await chooseInstantTable({
+        pool: pagePool,
+        maxedUrl,
+        base,
+        ownTableUrls: async () => (id && !standIn ? (await ownTableNames(id)).map(n => `${base}${n}`) : []),
+        inputs: () => inputs,
+        earnings: () => inv.earnings,
+      });
+  const pageScale = instantScaleOf(choice, maxedUrl, () => inputs.context);
+  const newPick: Pick = {
+    lookup: (await pageLoad(choice.url)).lookup,
+    scale: pageScale,
+    kind: choice.gearShifted ? 'G' : choice.url === maxedUrl ? 'maxed' : parseCompositeUrl(choice.url) ? 'gear' : 'own',
+  };
 
   const tail: TailOptions = {
     ...(hours && !has('no-hold') ? { holdShifts: true } : {}),
@@ -3011,6 +3055,41 @@ async function instant2(file: string): Promise<void> {
   };
   const solve = async (p: Pick, v2: boolean) => {
     const t0 = performance.now();
+    if (v2) {
+      // The page's first ascensions and options (instantFirstLegs, instantPricingOptions), held for the hours
+      // and the no-prestige days as the answer holds them.
+      const mode = inputs.firstAscension ?? 'auto';
+      const legs = await instantFirstLegs({
+        pool: pagePool,
+        url: choice.url,
+        header: choice.header,
+        inputs,
+        te,
+        final,
+        scale: p.scale,
+        hours,
+        deferShifts: !has('no-hold'),
+        // The store's `buildUpTails` and `liveFreshBuilds`, here in this process.
+        buildUpTails: async () =>
+          (mode === 'auto' || mode === 'buildup') && inputs.currentFarmState && inputs.context.rawBackup
+            ? buildUpTailParamsV2(inputs, inputs.planStart)
+            : [],
+        liveFresh: async (t, s) => liveFreshBuilds(inputs, t, s),
+      });
+      const opts = instantPricingOptions({
+        te,
+        start,
+        firstLegs: legs!.firstLegs,
+        scale: p.scale,
+        ...(deadline !== undefined ? { deadline } : {}),
+        hours,
+        tail: legs!.tail,
+      });
+      const found = await findRoutes({ table: p.lookup, final, maxAscensions, ...opts });
+      const polished = { ...found, ...polishFound(p.lookup, opts, found) };
+      const r = deadline !== undefined ? polished.byDate : polished.best;
+      return { route: r, ms: Math.round(performance.now() - t0), tail: legs!.tail };
+    }
     const base = await instantFirstLegsBase(inputs, {
       startTE: te,
       final,
@@ -3086,7 +3165,7 @@ async function instant2(file: string): Promise<void> {
     goal: deadline !== undefined ? `date ${new Date(deadline * 1000).toISOString().slice(0, 10)}` : `fastest ${final}`,
     standIn: arg('stand-in') ?? null,
     tableOld: oldPick.kind + (ownFile || gearFile ? ` (${(ownFile ?? gearFile)!.slice(0, 9)}, ${loadBin((ownFile ?? gearFile)!).header.simVersion})` : ''),
-    tableNew: newPick.kind,
+    tableNew: newPick.kind + (choice.mismatch ? ` (own table no longer fits: ${choice.mismatch})` : ''),
     scale: +scale.toFixed(4),
     shift: shift ? { g: +shift.g.toFixed(2), geo: +shift.geo.toFixed(4), k: +shift.k.toFixed(4), parts: shift.parts } : null,
     tail,
