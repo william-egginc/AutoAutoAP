@@ -1011,7 +1011,7 @@
           />
           <template #keep>
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
-            <SavedRuns :player-id="playerId" can-resume />
+            <SavedRuns :player-id="playerId" can-resume heading="Saved for later" />
 
             <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
                report what went in. -->

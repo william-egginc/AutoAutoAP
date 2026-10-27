@@ -302,3 +302,22 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
     expect(src).toContain('const boardRows = ref<BoardRow[] | null>(hasBoard ? null : []);');
   });
 });
+
+describe('words (26 Oct 2026)', () => {
+  it('the intro says what the page holds and where searches run', () => {
+    const src = read('MyRunsView.vue');
+    const intro = src.match(/<p([^>]*)data-testid="my-runs-intro">([\s\S]*?)<\/p>/)!;
+    expect(intro[1]).toContain('text-body');
+    expect(intro[1]).toContain('max-w-prose');
+    expect(intro[2].replace(/\s+/g, ' ').trim()).toBe(
+      'From your save: where you are now, your next steps and your runs. Estimates are worked out here in the background; searches run on the {{ NAMES.auto }}.'
+    );
+    expect(src).not.toContain('The only thing worked out here');
+  });
+
+  it("Custom's run list is headed Saved for later, as its text says; My runs' stays Saved runs", () => {
+    expect(read('auto/InsanePanel.vue')).toContain('<SavedRuns :player-id="playerId" can-resume heading="Saved for later" />');
+    expect(read('auto/SavedRuns.vue')).toContain("{{ heading || 'Saved runs' }}");
+    expect(read('MyRunsView.vue')).not.toMatch(/<SavedRuns[^>]*heading=/);
+  });
+});

@@ -26,8 +26,9 @@
     <div>
       <h1 class="text-headline font-black text-slate-900">{{ NAMES.myRuns }}</h1>
       <!-- One line (ux review 26 Oct, row 15): what the page holds is in its section headings below. -->
-      <p class="text-body text-slate-600 max-w-3xl" data-testid="my-runs-intro">
-        The only thing worked out here is an estimate from the instant answer of a route you follow.
+      <p class="text-body text-slate-600 max-w-prose" data-testid="my-runs-intro">
+        From your save: where you are now, your next steps and your runs. Estimates are worked out here in the
+        background; searches run on the {{ NAMES.auto }}.
       </p>
     </div>
 
@@ -83,6 +84,7 @@
       <YourEggs
         :eggs="page.eggs.value"
         :facts="page.facts.value"
+        :after-shift="page.afterShift.value"
         :shifts-done="page.shiftsDone.value"
         :next-shift-cost="page.nextShiftCost.value"
         :planned-shifts="page.plannedShifts.value"

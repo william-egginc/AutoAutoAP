@@ -1,6 +1,7 @@
 <!--
   My runs' "Your eggs" (spec myruns-now v3, section 3), from the loaded save: each virtue egg's TE and how far to
-  its next (the egg being laid: when, at the save's rate), and the farm's facts. The silos are estimated to now
+  its next (the egg being laid: when, at the save's rate; each other egg: when, after a shift to it, lib/nextTeEgg.ts,
+  26 Oct 2026), and the farm's facts. The silos are estimated to now
   (lib/farmNow.ts): time left, or empty since when. "All planned shifts" counts the
   saved plan's shifts after the save and prices them with the shift-cost formula at today's soul eggs
   (lib/shiftCost.ts); without a saved timeline it can't tell. With the instant answer's shifts only (26 Oct 2026) it
@@ -17,9 +18,11 @@
         <div class="h-1.5 rounded bg-slate-100 overflow-hidden my-1" role="img" :aria-label="`${Math.round(e.progress * 100)}% to the next TE`">
           <div class="h-1.5 bg-indigo-500" :style="{ width: `${Math.round(e.progress * 100)}%` }" />
         </div>
-        <p class="text-body text-slate-500">{{ nextLine(e) }}</p>
+        <p v-if="shiftLine(e.egg)" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-after-shift">{{ shiftLine(e.egg) }}</p>
+        <p v-else class="text-body text-slate-500">{{ nextLine(e) }}</p>
       </div>
     </div>
+    <p v-if="afterShift" class="mt-1.5 text-small text-slate-500 break-words" data-testid="now-eggs-after-shift-note">{{ afterShift.note }}</p>
     <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
       <div v-for="f in tiles" :key="f.label" class="rounded-lg bg-slate-50 px-2.5 py-1.5 text-small" :data-testid="`now-fact-${f.id}`">
         <p class="label text-slate-500">{{ f.label }}</p>
@@ -51,11 +54,20 @@ const props = defineProps<{
   saveSeconds: number;
   /** The planner's time zone, for "empty since" (the browser's when not given). */
   zone?: string;
+  /** Each egg the player isn't on: "next TE in ~2 d 4 h after you shift here", by egg, and the note on where from
+   *  (lib/nextTeEgg.ts). It stands in for the egg's "N% to the next TE · after a shift" line; an egg left out (at the
+   *  TE cap, no data) keeps that line. */
+  afterShift?: { lines: Record<string, string>; note: string } | null;
 }>();
 
 /** lib/farmFacts.ts `nextTeLine`: capped at about 10 years ("not at this rate"). */
 function nextLine(e: EggLine): string {
   return nextTeLine(e, props.now, props.saveSeconds);
+}
+
+/** The egg's next TE after a shift to it; '' says nothing (the egg being laid, at the TE cap, no data). */
+function shiftLine(egg: string): string {
+  return props.afterShift?.lines[egg] ?? '';
 }
 
 /**

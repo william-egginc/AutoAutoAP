@@ -97,6 +97,7 @@ import {
   type PricedSetup,
 } from '@/lib/currentAnswer';
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
+import { afterShiftLines, afterShiftNote, shiftRates } from '@/lib/nextTeEgg';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
 import { dayWords as dayWordsIn } from '@/lib/eventWhen';
@@ -1542,6 +1543,22 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const { delivered, earned } = saveEggCountsOf(raw.value);
     return eggLines(delivered, earned, currentEgg.value, facts.value?.elr ?? null);
   });
+  /** Each egg the player isn't on: its next TE after a shift to it (lib/nextTeEgg.ts), by egg, and the one note under
+   *  them. The save's farm at full habs, the habs refilling at the hatchery rate at or below 100 TE in all. */
+  const afterShift = computed<{ lines: Record<string, string>; note: string } | null>(() => {
+    if (!hasSave.value || !onVirtue.value) return null;
+    const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
+    const rates = shiftRates({
+      farm: farm.value,
+      epic: initial.epicResearchLevels,
+      colleggtibles: initial.colleggtibleModifiers,
+      equipped: inventory.value?.equipped ?? initial.artifactLoadout,
+      totalTe,
+    });
+    const lines = afterShiftLines({ eggs: eggs.value, delivered: saveEggCountsOf(raw.value).delivered, totalTe, rates });
+    if (!Object.keys(lines).length) return null;
+    return { lines, note: afterShiftNote(totalTe, saveSeconds.value, now.value, zone.value) };
+  });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
@@ -1683,6 +1700,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     track,
     gear,
     facts,
+    afterShift,
     phase,
     startInfo,
     eggs,
