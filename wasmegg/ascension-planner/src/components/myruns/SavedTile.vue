@@ -11,6 +11,10 @@
       <p class="text-body text-slate-600">
         {{ sub }} · <span class="tabular-nums font-bold text-slate-800" :title="a.chain.join(' ')">{{ route }}</span>
       </p>
+      <!-- Soul eggs after it (lib/soulEggs.ts `soulEggsAfterLine`), when it is the route Right now follows. -->
+      <p v-if="soulEggsAfter" class="text-body break-words" :class="soulEggsAfter.amber ? 'text-amber-800' : 'text-slate-600'" data-testid="now-tile-soul-eggs">
+        {{ soulEggsAfter.text }}
+      </p>
       <p class="text-body text-slate-500" data-testid="now-tile-when">
         Calculated {{ whenAgo(a.calculatedAt / 1000, now, zone) }}<template v-if="a.saveSeconds">
           · from your save of {{ dateAt(a.saveSeconds, now, zone) }}<template v-if="tile.saveGapSeconds"
@@ -92,6 +96,9 @@ const props = defineProps<{
   /** Right now's Run Fast button is on the page for this same goal: How sure gives no second one (ux review
    *  26 Oct, row 15: one Run Fast on My runs). */
   runFastAbove?: boolean;
+  /** "After this plan: about 9.7s soul eggs (3.0s spent on 48 shifts)" (lib/soulEggs.ts `soulEggsAfterLine`), amber
+   *  under a quarter left; given only when the answer is the route Right now follows. Null or absent: none. */
+  soulEggsAfter?: { text: string; amber: boolean } | null;
 }>();
 const emit = defineEmits<{ open: [to: MyRunsOpen]; routes: [] }>();
 

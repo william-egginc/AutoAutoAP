@@ -342,6 +342,10 @@
             <li v-for="(l, i) in nextShiftLines" :key="i" :data-kind="l.kind" data-testid="now-next-shift">{{ shiftLineText(l) }}</li>
           </ul>
         </div>
+        <!-- Soul eggs after the plan (lib/soulEggs.ts `soulEggsAfterLine`): the planned shifts at today's soul eggs. -->
+        <p v-if="soulEggsAfter" class="mt-1 text-body break-words" :class="soulEggsAfter.amber ? 'text-amber-800' : 'text-slate-600'" data-testid="now-soul-eggs-after">
+          {{ soulEggsAfter.text }}
+        </p>
         <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
         <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
           <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
@@ -517,6 +521,9 @@ import type { FollowCard } from '@/composables/useNowPage';
 const props = defineProps<{
   card: CardPlan | null;
   onVirtue: boolean | null;
+  /** "After this plan: about 9.7s soul eggs (3.0s spent on 48 shifts)" (useNowPage `soulEggsAfter`); null or absent:
+   *  none (no soul eggs in the save, or no planned count). */
+  soulEggsAfter?: { text: string; amber: boolean } | null;
   currentEgg: string | null;
   teSoFar: number;
   ascNow: number;
