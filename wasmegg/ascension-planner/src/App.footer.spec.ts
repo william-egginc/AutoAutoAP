@@ -27,7 +27,7 @@ describe('App.vue footer link', () => {
     expect(app).toMatch(
       /setupDockShown = computed\(\s*\(\) => \(plannerTab\.value === 'automatic' \|\| plannerTab\.value === 'myruns'\) && !!playerId\.value && !loading\.value/
     );
-    expect(app).toContain(`:style="setupDockShown ? { paddingBottom: SETUP_DOCK_CLEARANCE } : undefined"`);
+    expect(app).toContain(`:style="setupDockShown ? { paddingBottom: pageBottomRoom } : undefined"`);
     expect(app).toContain(`const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';`);
   });
 });

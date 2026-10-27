@@ -85,7 +85,7 @@ describe('the Setup pill at 1280', () => {
     expect(app).toContain('<div class="max-w-6xl mx-auto p-4">');
     expect(app).toContain('<div v-else-if="plannerTab === \'myruns\'" class="max-w-6xl mx-auto mt-6">');
     // The room under the page for the pill, on My runs too.
-    expect(app).toContain(":style=\"setupDockShown ? { paddingBottom: SETUP_DOCK_CLEARANCE } : undefined\"");
+    expect(app).toContain(":style=\"setupDockShown ? { paddingBottom: pageBottomRoom } : undefined\"");
     expect(app).toContain("(plannerTab.value === 'automatic' || plannerTab.value === 'myruns') && !!playerId.value && !loading.value");
     expect(app).toContain("const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';");
   });

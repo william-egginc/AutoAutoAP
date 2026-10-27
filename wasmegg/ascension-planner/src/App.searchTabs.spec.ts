@@ -88,6 +88,6 @@ describe('setup: the floating button only', () => {
   it('Fastest and By a date show no setup bar, only the save\'s problems; the floating Setup button stays', () => {
     expect(fastest).toContain('<YourSetup screen="fastest" issues-only />');
     expect(read('components/auto/ByDateScreen.vue')).toContain('<YourSetup screen="by-date" issues-only />');
-    expect(app).toContain('<SetupDock v-if="plannerTab === \'automatic\' && playerId && !loading" :screen="autoView" />');
+    expect(app).toContain('<SetupDock v-if="plannerTab === \'automatic\' && playerId && !loading" :screen="autoView" :bottom-offset="singleRunBarRoom" />');
   });
 });

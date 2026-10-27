@@ -22,7 +22,7 @@
             ? 'pb-8'
             : 'pb-24',
     ]"
-    :style="setupDockShown ? { paddingBottom: SETUP_DOCK_CLEARANCE } : undefined"
+    :style="setupDockShown ? { paddingBottom: pageBottomRoom } : undefined"
   >
     <div class="max-w-6xl mx-auto p-4">
       <CustomEggWatcher v-if="isDev" />
@@ -662,8 +662,9 @@
         <ChainExplorer v-if="scienceView === 'check' || scienceView === 'submit'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" :gear-coverage="gearCoverage" :workers="chainSearchStore.workerBudget" :threads="chainSearchStore.machineThreads" @run-sweep="openSweep" @run-by-date="openByDate" />
       </div>
 
-      <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. -->
-      <SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" />
+      <!-- Your setup, floating, on every Auto Planner screen: the gear opens it; workers adjust folded. On Single run it
+           sits above Joo's fixed bar of totals (measured: it wraps on a phone and folds), not over it. -->
+      <SetupDock v-if="plannerTab === 'automatic' && playerId && !loading" :screen="autoView" :bottom-offset="singleRunBarRoom" />
       <!-- And on My runs (17 Oct 2026), which has no setup box: Fastest's setup, its hours under the button. -->
       <SetupDock
         v-else-if="plannerTab === 'myruns' && playerId && !loading"
@@ -839,6 +840,7 @@ import { scrollToRun } from '@/lib/runAnchor';
 import { runScreenOf, type SearchScreen } from '@/lib/runScreen';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
 import { useTablePrefetch } from '@/composables/useTablePrefetch';
+import { useBottomBarRoom } from '@/composables/useBottomBarRoom';
 import { useGearCoverage } from '@/composables/useGearCoverage';
 import SiteTabs from '@/components/SiteTabs.vue';
 import StudyBox from '@/components/StudyBox.vue';
@@ -1008,6 +1010,14 @@ const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';
  */
 const initialRoute = routeFromLocation(window.location.search, window.location.hash);
 const { autoView, fastestDepth, compareView, scienceView } = storeToRefs(uiStore);
+/** Single run's fixed bar of totals (ChainSummaryBar.vue) and its fold tab, px: the Setup pill sits above them. */
+const singleRunBarRoom = useBottomBarRoom(computed(() => setupDockShown.value && plannerTab.value === 'automatic' && autoView.value === 'classic'));
+/** The room under the page for the pill; on Single run the bar's room on top, as the pill sits above the bar. */
+const pageBottomRoom = computed(() =>
+  singleRunBarRoom.value
+    ? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${singleRunBarRoom.value}px)`
+    : SETUP_DOCK_CLEARANCE
+);
 /** This browser's memory of the last tab (lib/siteNav.ts LAST_ROUTE_KEY): read once, written on every change. */
 function readLastRoute(): string | null {
   try {
