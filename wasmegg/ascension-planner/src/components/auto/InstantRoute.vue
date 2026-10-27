@@ -929,6 +929,7 @@ import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
+import { useAnswersStore } from '@/stores/answers';
 import { autoFollowsGoal, instantAutoFollowOf } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
@@ -936,7 +937,7 @@ import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { countsShown } from '@/search/instantCounts';
 import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
-import { pricingSetupKey, readPricing, recordPricing, snapPricing, type SnapPricing } from '@/lib/followEstimate';
+import { pricingSetupKey, readPricing, recordPricing, snapPricing, type PricingRecord, type SnapPricing } from '@/lib/followEstimate';
 import { MAX_BYTES as SNAP_MAX_BYTES } from '@/search/instantSnapshot';
 import MaxedWhatIf from './MaxedWhatIf.vue';
 import { accountOf } from '@/search/runSaves';
@@ -2546,9 +2547,14 @@ let answerPricing: SnapPricing | null = null;
 /** The same inputs kept at once for My runs, by account, save and setup (lib/followEstimate.ts `recordPricing`): the
  *  snapshot is only written when everything has finished, and My runs prices a followed route of any goal with them. */
 function keepPricing(): void {
+  const r = pricingRecordNow();
+  if (r) recordPricing(r);
+}
+/** The pricing record for the answer on screen (`keepPricing`; saved online with it, `offerCloud`), or null. */
+function pricingRecordNow(): PricingRecord | null {
   const m = snapMeta();
-  if (!answerPricing || !m) return;
-  recordPricing({
+  if (!answerPricing || !m) return null;
+  return {
     account: m.account,
     backupTime: m.backupTime,
     setup: pricingSetupKey({
@@ -2565,7 +2571,7 @@ function keepPricing(): void {
     tableTo: header.value?.to ?? null,
     at: Date.now(),
     pricing: answerPricing,
-  });
+  };
 }
 /** The tables there were when this run started (`tablesIdentity`), saved with its answer. */
 let runTables: string | null = null;
@@ -2615,10 +2621,23 @@ function saveSnapshot(id: number): void {
   if (snap && writeSnapshot(snapKey, snap)) {
     keptAnswer.value = result.value;
     noteMyRuns();
+    offerCloud(snap);
   }
   // The player's instant baseline for this goal and save (lib/instantBaseline.ts): My runs compares each run with it.
   const base = snap ? baselineOfSnapshot(snap) : null;
   if (base) recordBaseline(base);
+}
+/**
+ * THE ANSWER SAVED ONLINE (stores/answers.ts, lib/answersCloud.ts; Jordan, 27 Oct 2026): a fresh answer, once kept in
+ * this browser, with its pricing record, so a new browser shows it at once (`showStale`). Debounced, skipped when the
+ * same one is already online, never while a search runs; only here, never on a restore or a stale answer. The ID never
+ * goes (scrubbed before gzip; the key is the follow key).
+ */
+const answersCloud = useAnswersStore();
+function offerCloud(snap: InstantSnapshot): void {
+  const m = snap.meta;
+  if (!m || !snapKey) return;
+  answersCloud.offer({ goal: m.goal, backupTime: m.backupTime, snapKey, tables: runTables, at: snap.at, snap, pricing: pricingRecordNow() });
 }
 /** The answer on screen as a snapshot: plain copies, without the finder's spare routes (only for the
  *  polish). Null with no answer. */
@@ -2716,7 +2735,18 @@ function showStale(id: number): void {
   const m = snapMeta();
   const got = latestSnapshotFor<InstantSnapshot>({ key: snapKey, account: m?.account, goal: instantGoal(props.deadline, store.finalTE) });
   const s = got?.value;
-  if (!s || s.v !== 1 || !s.result || !s.header || id !== runs) return;
+  if (!s) {
+    // Nothing kept in this browser (a new browser, a private window): the account's answer saved online, if it comes
+    // in while this one is still being worked out (stores/answers.ts; quiet when there is none).
+    void answersCloud.fallbackFor(instantGoal(props.deadline, store.finalTE)).then(c => {
+      if (!c) return;
+      if (id !== runs || result.value || status.value !== 'loading') return;
+      applySnapshot(c.snap as InstantSnapshot, true);
+      staleOther = true;
+    });
+    return;
+  }
+  if (s.v !== 1 || !s.result || !s.header || id !== runs) return;
   applySnapshot(s, true);
   staleOther = true;
 }

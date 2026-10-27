@@ -297,6 +297,22 @@ export function staleRecordSources(
     .map(r => ({ url: r.url, pricing: r.pricing, tableTo: r.tableTo, ownGoal: false, at: r.at, meta: o.meta, stale: true as const }));
 }
 
+/**
+ * The pricing records in answers read back from online (stores/answers.ts): stale sources only (My runs' pricing
+ * meanwhile, in a browser that keeps none of the account's). Their setup is marked so one is never taken for this
+ * browser's own record of the same save and setup.
+ */
+export function cloudPricingRecords(read: readonly { pricing?: unknown }[]): PricingRecord[] {
+  const out: PricingRecord[] = [];
+  for (const a of read) {
+    const r = a.pricing as PricingRecord | null | undefined;
+    if (!r || typeof r.account !== 'string' || typeof r.url !== 'string' || typeof r.backupTime !== 'number' || typeof r.at !== 'number') continue;
+    const pricing = readPricing(r.pricing);
+    if (pricing) out.push({ ...r, setup: `cloud|${r.setup}`, pricing });
+  }
+  return out;
+}
+
 /** The exact sources' pick (`pickPricing`); where they need a record (`needsPricingRecord`), a stale source's pick
  *  meanwhile when one covers the route; else the exact pick as it was. */
 export function pickWithStale(

@@ -132,12 +132,14 @@ import {
   readPricing,
   readPricingRecords,
   recordSources,
+  cloudPricingRecords,
   staleRecordSources,
   type PickedPricing,
   type PricingSource,
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
 import { keepHeld, readHeld } from '@/lib/heldEstimate';
+import { useAnswersStore } from '@/stores/answers';
 import { useInstantCompute, type InstantComputeRequest } from './useInstantCompute';
 import { useBoardRunLegs, type BoardRunWant, type RunCsvFetch } from './useBoardRunLegs';
 import { fetchRunCsv } from '@/explorer/collector';
@@ -809,11 +811,16 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   }
   /** Other saves' and setups' records of this account that start at the save's TE (lib/followEstimate.ts
    *  `staleRecordSources`): only for pricing meanwhile, never counted as this save and setup's. */
+  /** The account's answers saved online (stores/answers.ts), read back only when nothing is kept here. */
+  const answers = useAnswersStore();
   function staleSources(): PricingSource[] {
     void recordsRead.value;
     const setup = pricingSetup.value;
     if (!setup || !storeReady.value) return [];
-    return staleRecordSources(readPricingRecords(), {
+    // A browser that keeps none of the account's records (a new one, a private window): the ones read back from online.
+    const local = readPricingRecords();
+    const records = local.some(r => r.account === account.value) ? local : [...local, ...cloudPricingRecords(answers.read())];
+    return staleRecordSources(records, {
       account: account.value,
       backupTime: saveSeconds.value,
       setup,
@@ -923,6 +930,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return { key: `${acct}|${backupTime}|${setup}|${final}`, account: acct, backupTime, setup, final, useHours: useHoursFromStores() };
   });
   const { state: instantCompute } = useInstantCompute(instantNeed, searchBusy, () => recordsRead.value++);
+  // A record is being worked out and nothing of the account's is kept here: the answer saved online, read once
+  // (stores/answers.ts; quiet without one), prices the route meanwhile (`staleSources`).
+  watch(
+    () => !!instantNeed.value && !staleSources().length,
+    want => {
+      if (want) void answers.newestAny();
+    },
+    { immediate: true }
+  );
   /** A goal's state while its record is worked out here, or why it couldn't be. */
   function instantStateFor(goalKey: GoalKey): Pick<FollowCard, 'estimating' | 'instantFailure'> | null {
     const st = instantCompute.value;

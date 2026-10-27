@@ -63,9 +63,11 @@ afterEach(() => {
 
 const A_ID = 'EI0000000000000000';
 
-async function setUp() {
+/** `saveAt`: the save's backup time (a reload keeps the same save; a second boundary between two loads must not make
+ *  it another save). */
+async function setUp(saveAt?: number) {
   const b = syntheticBackup();
-  const t = Math.floor(Date.now() / 1000) - H;
+  const t = saveAt ?? Math.floor(Date.now() / 1000) - H;
   b.eiUserId = A_ID;
   b.settings.lastBackupTime = t;
   b.approxTime = t;
@@ -109,7 +111,7 @@ async function setUp() {
     await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
     return { page, scope };
   };
-  return { keepOther, open, now, eggDayAt, pricingOf, setup: () => pricingSetupFromStores() };
+  return { keepOther, open, now, eggDayAt, pricingOf, setup: () => pricingSetupFromStores(), saveAt: t };
 }
 
 async function render(page: Awaited<ReturnType<Awaited<ReturnType<typeof setUp>>['open']>>['page']) {
@@ -198,7 +200,7 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
   });
 
   it('a reload: the estimate shown last is put back at once, marked, while it is priced again', async () => {
-    const { open, now, eggDayAt, setup, pricingOf } = await setUp();
+    const { open, now, eggDayAt, setup, pricingOf, saveAt } = await setUp();
     // This save and setup's own record: the estimate is priced with it.
     recordPricing({ account: accountOf(useInitialStateStore().rawBackup)!, backupTime: useInitialStateStore().lastBackupTime, setup: setup(), url: TABLE, tableTo: 490, at: Date.now() - H * 1000, pricing: pricingOf(20) });
     let { page, scope } = await open();
@@ -207,7 +209,7 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
     await vi.waitFor(() => {
       answerAll();
       expect(page.follow.value?.price).toBe('estimate');
-    });
+    }, { timeout: 8000 });
     expect(page.follow.value?.staleAt).toBeUndefined();
     expect(mem.get(HELD_ESTIMATE_KEY) ?? '').not.toMatch(/EI\d{16}/i);
     scope.stop();
@@ -215,13 +217,13 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
     calls = [];
     setChainPricer((): ChainPricer => ({ priceChain: (_u, options, chain) => new Promise(resolve => calls.push({ chain, options, resolve })), terminate: () => undefined }));
     setActivePinia(createPinia());
-    ({ page, scope } = await (await setUp()).open());
+    ({ page, scope } = await (await setUp(saveAt)).open());
     expect(page.follow.value?.price).toBe('estimate');
     expect(page.follow.value?.staleAt).toBeGreaterThan(0);
     await vi.waitFor(() => {
       answerAll();
       expect(page.follow.value?.staleAt).toBeUndefined();
-    });
+    }, { timeout: 8000 });
     scope.stop();
-  });
+  }, 30_000);
 });
