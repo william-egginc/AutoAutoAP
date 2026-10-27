@@ -16,7 +16,7 @@
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
     <div class="flex items-center justify-between gap-3">
-      <h3 class="text-slate-500 label">Saved runs</h3>
+      <h3 class="text-slate-500 label">{{ heading || 'Saved runs' }}</h3>
       <span class="text-small font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
     <p v-if="!listOnly" class="text-body text-slate-500 max-w-prose">
@@ -148,6 +148,8 @@ const props = defineProps<{
   listOnly?: boolean;
   /** My runs' "Saved on this device" is open: the badges may read the runs' bodies (one at a time). */
   paceActive?: boolean;
+  /** The list's heading: Custom's says "Saved for later", as its text does (Words, 26 Oct 2026); "Saved runs" else. */
+  heading?: string;
 }>();
 /** A run was opened: `full` when it is an Exhaustive run (it has a space), for My runs to show its screen. */
 const emit = defineEmits<{ opened: [run: { full: boolean }] }>();
