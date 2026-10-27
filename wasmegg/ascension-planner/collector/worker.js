@@ -67,6 +67,7 @@ import { handleWatch, isWatchRequest, watchCron } from './watch.js';
 import { handleFollow, isFollowRequest } from './follow.js';
 import { handlePrefs, isPrefsRequest } from './prefs.js';
 import { handleBigCsv, isBigCsvRequest } from './bigcsv.js';
+import { handleAnswers, isAnswersRequest } from './answers.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
@@ -3218,6 +3219,8 @@ export default {
     // Consent and Setup saved online (prefs.js): D1 as well, a separate endpoint so /follow stays as it was.
     if (isPrefsRequest(url)) return handlePrefs(request, env);
     // The full-detail CSV of a very large run, to R2 (bigcsv.js): D1 and R2, none of it touches SUBMISSIONS writes.
+    // The page's computed instant answer per account (answers.js): D1, a sibling of /follow.
+    if (isAnswersRequest(url)) return handleAnswers(request, env);
     if (isBigCsvRequest(url)) return handleBigCsv(request, env, ctx, { uploadToken, sameToken, findRow: bigCsvRow });
     // "Which build is in use" (buildcount.js): a daily count per page build in D1, nothing else.
     if (isBuildCountRequest(url)) return handleBuildCount(request, env);

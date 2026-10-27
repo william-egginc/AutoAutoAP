@@ -1186,3 +1186,25 @@ still goes there first. Contract for the app: `~/code/aaap-tools/notes/bigcsv-co
   `~/code/aaap-tools/notes/bigcsv-commands.md`). The free R2 plan holds 10 GB: about 27 files of 370 MB, which is why
   the budget is counted over the same 90 days.
 - **Without the binding** (an older collector, or R2 not set up) every `/bigcsv/*` route but status answers `503`.
+
+## Instant answers in the cloud (`/answers`, 27 Oct 2026)
+
+The page's computed instant answer and pricing record per account, 10 to 40 KB gzipped, kept online so another device
+shows it at once and then rechecks. Contract: `~/code/aaap-tools/notes/instantcloud-contract.md`; code: `answers.js`.
+A sibling of `/follow` (a follow value is 4 KB and `GET /follow` returns every goal), with the same key `k` (SHA-256 of
+`"aaap-follow-v1:"` + the ID in upper case, computed in the browser) and an opaque entry key `e` the app builds from the
+save hash, the Setup key and the table identity / rules.
+
+| route | what |
+|---|---|
+| `GET /answers?k=` | the entries without bodies: `{ entries: [{ e, at, bytes, updatedAt }], now }`, newest first |
+| `GET /answers/get?k=&e=` | the gzip bytes as sent (`application/octet-stream`; headers `x-answer-at`, `x-answer-updated`) |
+| `PUT /answers?k=&e=&at=` | the gzip bytes; replaces that entry (last write wins) |
+| `DELETE /answers?k=&e=` | removes one |
+
+- **The body is not inflated here** (CPU), so it cannot be scanned for a player ID: the app scrubs before compressing, as for
+  the CSV. Checked: gzip magic, at most 65,536 bytes (`413`; `411` without `content-length`), the query (any `EI` + 16 digits is `400`).
+- **Limits:** 8 entries per key (a ninth evicts the least recently written: `evicted: 1`), 30 writes an hour per key (`follow_rate`
+  under `answers|<key>`), 20,000 entries in all, `FOLLOW_LIMIT` per address. D1 (the `WATCH` binding), migration
+  `0006_answers.sql` (one table; the data is base64 text because D1 returns BLOBs as number arrays). No KV, no R2.
+- An older collector answers `/answers` with 404: the app treats it as "no cloud answers here".
