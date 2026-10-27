@@ -522,6 +522,14 @@
                 <span class="font-bold text-slate-700">0 keeps everything</span>, which on a run of hundreds of
                 thousands of routes is how a tab gets killed overnight.
               </p>
+              <p
+                v-if="spillLine"
+                class="text-body"
+                :class="spillLine.warn ? 'font-bold text-amber-700' : 'text-slate-500'"
+                data-testid="leg-spill-note"
+              >
+                {{ spillLine.text }}
+              </p>
             </div>
           </details>
         </div>
@@ -658,7 +666,8 @@
 
 <script setup lang="ts">
 import { useConsent } from '@/composables/useConsent';
-import { ThisDevice } from '@/search/device';
+import { ThisDevice, thisDevice } from '@/search/device';
+import { spillNote } from '@/lib/legSpillText';
 import SaveFileBar from './SaveFileBar.vue';
 import TabsToggle from './TabsToggle.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
@@ -846,6 +855,8 @@ function onAdvanced(e: Event): void {
   }
 }
 onUnmounted(() => heapTimer && clearInterval(heapTimer));
+/** The downloaded CSV's detail on disk (lib/legSpillText.ts `spillNote`). */
+const spillLine = computed(() => spillNote(store.legSpillInfo, thisDevice(), store.legDetailBudget));
 const mb = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(0)} MB`;
 const heldMb = computed(() => mb(store.legDetailBytes));
 const heapUsedMb = computed(() => (heap.value ? mb(heap.value.used) : ''));

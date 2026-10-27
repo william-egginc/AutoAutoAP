@@ -34,6 +34,25 @@ export interface ActionLeg {
   /** It carries on the farm in the save ('continue' or 'buildup': the farm is already laying), never a fresh start:
    *  never "Building up" (26 Oct 2026, a producing farm on Curiosity read "Building up until …"). */
   live?: boolean;
+  /** The simulated ascension is cut by time off (lib/followSim.ts SimLeg.timeOff): it ends at `from` with `te` (the home
+   *  farm is a prestige), and the rebuild starts at `to`. */
+  timeOff?: { from: number; to: number; te: number; rebuildBuildEnd?: number };
+}
+
+/** The part of a time-off leg from `now` on: before the time off, the ascension you are in (its own shifts, no
+ *  rebuild's); after it, the rebuild (a fresh start at `to`). The leg as it is without time off. */
+function partAt(leg: ActionLeg, now: number): ActionLeg {
+  const t = leg.timeOff;
+  if (!t) return leg;
+  if (now < t.from) return { ...leg, end: t.from, endTE: t.te, shifts: (leg.shifts ?? []).filter(s => s.at < t.from) };
+  return {
+    ...leg,
+    start: t.to,
+    live: false,
+    timeOff: undefined,
+    buildEnd: t.rebuildBuildEnd,
+    shifts: (leg.shifts ?? []).filter(s => s.at >= t.to),
+  };
 }
 
 /** A simulated leg's variant (search/types.ts LegSummary.key) carries on the farm in the save. */
@@ -44,8 +63,13 @@ export function continuesFarm(key: string | null | undefined): boolean {
 export type NextAction =
   | { kind: 'build'; until: number }
   | { kind: 'shift'; egg: string; at: number }
-  | { kind: 'prestige'; at: number; te: number | null }
-  | { kind: 'goal'; at: number; te: number };
+  /** `inTimeOff`: it would fall in a time off (the estimate knows none): said in amber, never as a plain time. */
+  | { kind: 'prestige'; at: number; te: number | null; inTimeOff?: { from: number; to: number } }
+  | { kind: 'goal'; at: number; te: number }
+  /** Time off starts: go to the home farm (a prestige), the ascension ending at `te`. */
+  | { kind: 'timeoff'; at: number; te: number }
+  /** In the time off: back at `at`, a prestige that starts the rebuild. */
+  | { kind: 'back'; at: number };
 
 const ok = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 
@@ -67,15 +91,32 @@ export function nextAction(o: {
   leg: ActionLeg | null | undefined;
   last: boolean;
   prestigeAt?: (t: number) => number;
+  /** Time off as absolute stretches: a prestige inside one is flagged. */
+  timeOff?: readonly { from: number; to: number }[] | null;
 }): NextAction | null {
-  const leg = o.leg;
-  if (!leg || !ok(leg.start) || !ok(leg.end)) return null;
+  const a = nextActionOf(o);
+  if (a?.kind !== 'prestige') return a;
+  const w = (o.timeOff ?? []).find(x => x.from <= a.at && a.at < x.to);
+  return w ? { ...a, inTimeOff: { from: w.from, to: w.to } } : a;
+}
+
+function nextActionOf(o: {
+  now: number;
+  leg: ActionLeg | null | undefined;
+  last: boolean;
+  prestigeAt?: (t: number) => number;
+}): NextAction | null {
+  if (!o.leg || !ok(o.leg.start) || !ok(o.leg.end)) return null;
+  const t = o.leg.timeOff;
+  if (t && o.now >= t.from && o.now < t.to) return { kind: 'back', at: t.to };
+  const leg = partAt(o.leg, o.now);
   if (o.now < leg.start) return { kind: 'prestige', at: leg.start, te: null };
   const until = buildUntil(leg);
   if (until !== null && o.now < until) return { kind: 'build', until };
   const next = (leg.shifts ?? []).find(s => ok(s.at) && s.at > o.now);
   if (next) return { kind: 'shift', egg: next.egg, at: next.at };
   const te = ok(leg.endTE) ? leg.endTE : leg.to;
+  if (t && o.now < t.from) return { kind: 'timeoff', at: t.from, te: t.te };
   if (o.last) return { kind: 'goal', at: leg.end, te };
   return { kind: 'prestige', at: o.prestigeAt ? o.prestigeAt(leg.end) : leg.end, te };
 }
@@ -86,12 +127,16 @@ export function nextActionWords(a: NextAction, when: (t: number) => string): str
   if (a.kind === 'build') return `Building up until about ${when(a.until)}`;
   if (a.kind === 'shift') return `Shift to ${virtueEggName(a.egg)} at ${when(a.at)}`;
   if (a.kind === 'goal') return `Reach ${a.te} TE at ${when(a.at)}`;
+  if (a.kind === 'timeoff') return `Your time off starts ${when(a.at)}: go to your home farm (this ascension ends at ${a.te} TE)`;
+  if (a.kind === 'back') return `Back from your time off: prestige at ${when(a.at)} to build again`;
+  if (a.inTimeOff)
+    return `Your time off starts ${when(a.inTimeOff.from)}: this ascension ends there (going to your home farm is a prestige); Fast prices the rest`;
   return `Prestige at ${when(a.at)}`;
 }
 
 /** One line of the Next shifts list. */
 export interface NextShiftLine {
-  kind: 'build' | 'shift' | 'prestige' | 'goal';
+  kind: 'build' | 'shift' | 'prestige' | 'goal' | 'timeoff' | 'back';
   /** The shift's egg (switched TO). */
   egg?: string;
   /** The moment: the shift, the prestige, the goal reached, or the build-up's end. */
@@ -100,6 +145,8 @@ export interface NextShiftLine {
   te?: number;
   /** From the simulation (exact), else the table (to the hour). */
   exact: boolean;
+  /** A prestige that would fall in a time off (the estimate knows none). */
+  inTimeOff?: boolean;
 }
 
 /**
@@ -109,12 +156,17 @@ export interface NextShiftLine {
  * and with the goal when it gets there. Prestige times: the next ascension's start (the table's, held already), or for
  * the simulated one `prestigeAt` of its end.
  */
-export function nextShifts(o: Parameters<typeof shiftLines>[0]): NextShiftLine[] {
+export function nextShifts(
+  o: Parameters<typeof shiftLines>[0] & { timeOff?: readonly { from: number; to: number }[] | null }
+): NextShiftLine[] {
+  const away = o.timeOff ?? [];
   // Never two lines in a row that say the same thing at the same minute.
-  return shiftLines(o).filter((l, i, all) => {
-    const p = all[i - 1];
-    return !p || !(p.kind === l.kind && p.egg === l.egg && Math.floor(p.at / 60) === Math.floor(l.at / 60));
-  });
+  return shiftLines(o)
+    .filter((l, i, all) => {
+      const p = all[i - 1];
+      return !p || !(p.kind === l.kind && p.egg === l.egg && Math.floor(p.at / 60) === Math.floor(l.at / 60));
+    })
+    .map(l => (l.kind === 'prestige' && away.some(w => w.from <= l.at && l.at < w.to) ? { ...l, inTimeOff: true } : l));
 }
 
 function shiftLines(o: {
@@ -135,13 +187,31 @@ function shiftLines(o: {
   for (let i = 0; i < legs.length; i++) {
     const leg = legs[i];
     const exact = !!leg.simulated;
-    if (i === 0 && leg.simulated) {
+    // Time off inside the ascension you are in: its end at the time off's start, and the rebuild from its end.
+    const t = leg.timeOff;
+    if (t) {
+      const before = partAt(leg, o.now);
+      if (o.now < t.from) {
+        for (const s of before.shifts ?? []) {
+          if (!ok(s.at) || s.at <= o.now) continue;
+          out.push({ kind: 'shift', egg: s.egg, at: s.at, exact });
+          if (++shifts >= max) return out;
+        }
+        out.push({ kind: 'timeoff', at: t.from, te: t.te, exact });
+      }
+      if (t.to > o.now) out.push({ kind: 'back', at: t.to, exact });
+      for (const s of leg.shifts ?? []) {
+        if (!ok(s.at) || s.at < t.to || s.at <= o.now) continue;
+        out.push({ kind: 'shift', egg: s.egg, at: s.at, exact });
+        if (++shifts >= max) return out;
+      }
+    } else if (i === 0 && leg.simulated) {
       const until = buildUntil(leg);
       // Not when its first shift is at the same moment (the minute shown): two lines with one time.
       const first = (leg.shifts ?? []).find(s => ok(s.at) && s.at > o.now);
       if (until !== null && o.now < until && !(first && Math.abs(first.at - until) < 60)) out.push({ kind: 'build', at: until, exact });
     }
-    for (const s of leg.shifts ?? []) {
+    for (const s of t ? [] : (leg.shifts ?? [])) {
       if (!ok(s.at) || s.at <= o.now) continue;
       out.push({ kind: 'shift', egg: s.egg, at: s.at, exact });
       if (++shifts >= max) return out;
@@ -171,5 +241,8 @@ export function nextShiftWords(l: NextShiftLine, when: (t: number, exact: boolea
   if (l.kind === 'build') return `Building up until ${t}`;
   if (l.kind === 'shift') return `Shift to ${virtueEggName(l.egg)} · ${t}`;
   if (l.kind === 'goal') return `${l.te} TE reached · ${t}`;
+  if (l.kind === 'timeoff') return `Time off: to your home farm at ${l.te} TE · ${t}`;
+  if (l.kind === 'back') return `Back: prestige to build again · ${t}`;
+  if (l.inTimeOff) return `Prestige at ${l.te} TE · ${t}, in your time off: Fast prices it`;
   return `Prestige at ${l.te} TE · ${t}`;
 }

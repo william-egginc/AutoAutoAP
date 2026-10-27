@@ -159,6 +159,9 @@ export interface DeadlineCallbacks {
   /** Handed once, as the search starts: the live log of every route priced (`PricedRoutes`), for a
    *  progress send's CSV so far. Read-only to the caller. */
   pricedSoFar?(all: PricedRoutes): void;
+  /** Each route priced (once a route), with its legs: for a leg spill (search/legSpill.ts), before the
+   *  search lets them go. */
+  onPriced?(key: string, legs: readonly LegSummary[]): void;
 }
 
 /**
@@ -576,7 +579,11 @@ export async function runDeadlineSearch(spec: DeadlineSpec, cb: DeadlineCallback
         const reachAt = r ? spec.planStart + r.seconds : NaN;
         const at = r ? ascendAt(reachAt) : NaN;
         // A chain twice in one batch (two sets' brackets on the same shape) is logged once.
-        if (!cache.has(key)) cache.set(key, all.add(key, reachAt, at));
+        if (!cache.has(key)) {
+          cache.set(key, all.add(key, reachAt, at));
+          // Every priced route's legs, for the full CSV (search/legSpill.ts): before they are let go.
+          if (r?.legs?.length) cb.onPriced?.(key, r.legs);
+        }
         const route = r && routeOf(r, reachAt, at);
         if (route) {
           const set = c.slice(0, -1).join(',');

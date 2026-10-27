@@ -12,8 +12,10 @@ import { usableTimeOff } from '@/search/timeOff';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffDates } from '@/search/timeOff';
 
-export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te'>, goal: 'fastest' | 'date', goalName = 'Egg Day'): string {
+export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te' | 'timeOff'>, goal: 'fastest' | 'date', goalName = 'Egg Day'): string {
   if (e.kind === 'shift') return shiftTitle(e, virtueEggName);
+  if (e.kind === 'prestige' && e.timeOff === 'leave') return `Time off starts: to your home farm at ${e.te} TE`;
+  if (e.kind === 'prestige' && e.timeOff === 'back') return `Back from time off: prestige, build toward ${e.te} TE again`;
   if (e.kind === 'prestige') return `Prestige at ${e.te} TE`;
   return goal === 'date' ? `${goalName} goal: ${e.te} TE` : `${e.te} TE reached`;
 }

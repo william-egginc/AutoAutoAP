@@ -122,7 +122,9 @@ import { useFollowStore } from '@/stores/follow';
 import { followPrice, type FollowResult, type FollowSnap } from '@/lib/followPrice';
 import {
   estimateKey,
+  needsPricingRecord,
   pickPricing,
+  recordFinalFor,
   planFromEstimate,
   pricingSetupKey,
   readPricing,
@@ -132,6 +134,9 @@ import {
   type PricingSource,
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
+import { useInstantCompute, type InstantComputeRequest } from './useInstantCompute';
+import { useBoardRunLegs, type BoardRunWant, type RunCsvFetch } from './useBoardRunLegs';
+import { fetchRunCsv } from '@/explorer/collector';
 import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
@@ -182,8 +187,12 @@ export interface FollowCard {
   price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none';
   /** No timeline yet: being estimated or about to be ('working'), waiting for a search to end ('waiting'), the route
    *  goes past the instant answer's data ('beyond'), no instant answer of this save and setup to price it with yet
-   *  ('nosource'), or the estimate failed ('failed'). Absent: priced. */
-  estimating?: 'working' | 'waiting' | 'beyond' | 'nosource' | 'failed';
+   *  ('nosource': only when working it out here failed, `instantFailure`), or the estimate failed ('failed'). With no
+   *  record yet, My runs works the instant answer's pricing out itself (composables/useInstantCompute.ts): 'instant'
+   *  while it does, 'instantwait' while a search runs. Absent: priced. */
+  estimating?: 'working' | 'waiting' | 'beyond' | 'nosource' | 'failed' | 'instant' | 'instantwait';
+  /** 'nosource': why the instant answer for this setup couldn't be worked out here (short, no IDs). */
+  instantFailure?: string;
   source: 'this-save' | 'setup-changed' | 'older-save' | 'history' | null;
   /** The save it was priced from, unix seconds (an older save's, or the history entry's); null when not known. */
   pricedSave: number | null;
@@ -229,6 +238,22 @@ export function useHoursFromStores(): boolean {
     !!store.availability &&
     insideHoursFor(true, isConstrained(store.availability), readInsideHoursChoice(), filters.inHours)
   );
+}
+
+/** The pricing record's setup key (lib/followEstimate.ts `pricingSetupKey`) from the stores, as InstantRoute.vue keeps it
+ *  (its first ascension is the store's `firstAscensionFor()`, the value `collectInputs` puts there; the zone the plan's). */
+export function pricingSetupFromStores(): string {
+  const store = useChainSearchStore();
+  return pricingSetupKey({
+    availability: store.availability,
+    timeOff: store.timeOff,
+    noPrestige: store.noPrestige,
+    useHours: useHoursFromStores(),
+    firstAscension: store.firstAscensionFor(),
+    zone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    deferShifts: !!store.deferShifts,
+    target: store.finalTE,
+  });
 }
 
 export function instantKeyFromStores(deadline: number | null, finalTE: number): string | null {
@@ -642,6 +667,26 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * account and goal (this save's own key first, then the index's), each with the TE its routes start from, then
    * Check exactly's history. Nothing is worked out here (a route with no timeline is estimated below).
    */
+  /**
+   * A FOLLOWED ROUTE FROM A RUN SENT FROM ANOTHER BROWSER (26 Oct 2026, composables/useBoardRunLegs.ts): the account's
+   * Leaderboard run of the followed route, its legs read once from its CSV, priced like a kept result (exact legs, the
+   * calendar's Add buttons) with "(sent from another browser)".
+   */
+  const boardWants = computed<BoardRunWant[]>(() =>
+    hasSave.value
+      ? planGoals.value.flatMap(pg => {
+          const f = follows.followed(pg.goal.key);
+          const g = goalOf(pg.goal);
+          return f ? [{ goalKey: pg.goal.key, goal: g.goal, target: g.target, deadline: g.deadline, chain: [...f.chain] }] : [];
+        })
+      : []
+  );
+  const boardCsvFetch = computed<RunCsvFetch | null>(() => {
+    const base = store.submitUrl ? store.leaderboardUrl.replace(/\/$/, '') : '';
+    return base ? (id: string) => fetchRunCsv(base, id) : null;
+  });
+  const { found: boardRuns } = useBoardRunLegs({ rows: o.myRows, wants: boardWants, currentTE: teSoFar, fetch: boardCsvFetch });
+
   function followPricedFor(sel: ReturnType<typeof plansByGoal>[number] | undefined) {
     const f = sel ? follows.followed(sel.goal.key) : null;
     if (!sel || !f || !hasSave.value) return null;
@@ -673,8 +718,22 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     // This save's Fast, Exact or Custom results for the goal (the store's, the one kept beyond the snapshot): a followed
     // route that is one of them keeps its timeline (lib/followPrice.ts step 0).
     const results: FollowResult[] = [];
+    const olderResultsFromBoard: FollowResult[] = [];
     const live = liveFor(g);
     if (live) results.push({ found: live, meta: { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }, check: currentSetup(sn.setup) });
+    // The account's Leaderboard run of this route, sent from another browser (`boardRuns`): this save's when its save is
+    // the loaded one (within ten minutes), else an older save's.
+    const run = boardRuns.value[sel.goal.key];
+    if (run) {
+      const same = run.save != null && Math.abs(run.save - saveSeconds.value) <= 600;
+      (same ? results : olderResultsFromBoard).push({
+        found: run.search,
+        meta: same
+          ? { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }
+          : { account: acct ?? '', goal: words, backupTime: run.save ?? 0 },
+        check: same ? currentSetup(sn.setup) : setupCheck(null, sn.setup, sn.today),
+      });
+    }
     const k = keptFor(g);
     if (k)
       results.push({
@@ -684,7 +743,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       });
     // The account's results for the goal kept from older saves (or this save under another setup): a followed route
     // that is one of them shows its timeline, said to be priced on that save.
-    const olderResults: FollowResult[] = [];
+    const olderResults: FollowResult[] = [...olderResultsFromBoard];
     for (const e of keptList.value) {
       if (!acct || e.account !== acct || e.goal !== words || e.search.at === k?.search.at) continue;
       olderResults.push({
@@ -725,16 +784,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * re-reads it once), and a reading that throws keeps the last good key with a console line.
    */
   const pricingSetupLast = { value: '' };
+  /** Bumped when My runs keeps a pricing record itself (`instantNeed`): the records are read again. */
+  const recordsRead = ref(0);
   const pricingSetup = computed(() =>
     readKept(
-      () =>
-        pricingSetupKey({
-          availability: store.availability,
-          timeOff: store.timeOff,
-          noPrestige: store.noPrestige,
-          useHours: useHoursFromStores(),
-          firstAscension: store.firstAscensionFor(),
-        }),
+      () => pricingSetupFromStores(),
       pricingSetupLast,
       err => console.warn('My runs: reading the setup for the follow estimate failed:', err instanceof Error ? err.message : String(err))
     )
@@ -747,6 +801,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** What this save's instant answer priced its routes with (`goalKey`'s own snapshot ranked first). */
   function pricingSourcesFor(goalKey: GoalKey): PricingSource[] {
     void kept.value;
+    // A record My runs kept itself (`instantNeed` below) is read again.
+    void recordsRead.value;
     const sources: PricingSource[] = [];
     keys.value.forEach(({ d, key }) => {
       const s = snapOf(instantSnapKey(key)) as (SnapLike & { pricing?: unknown; tableUrl?: unknown; header?: { to?: unknown } | null }) | null;
@@ -807,6 +863,53 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const otherRequests = computed(() => [...otherFollows.value.flatMap(o => (o.req ? [o.req] : [])), ...shiftRequests.value]);
   const searchBusy = computed(() => store.isRunning || store.deadlineRunning || store.resultSending);
   const { state: estimate, otherStates } = useFollowEstimate(estimateRequest, searchBusy, otherRequests);
+
+  /**
+   * MY RUNS NEVER WAITS FOR ANOTHER TAB (26 Oct 2026, composables/useInstantCompute.ts): a followed goal with no
+   * timeline whose route no pricing record of this save and setup reaches (a fresh browser, a Setup change) gets one
+   * worked out here, the instant answer's own way, in the background. One record prices every followed goal, so one
+   * request: up to the highest TE any of them needs. The TE a goal needs, or null when it needs none.
+   */
+  function recordNeedFor(fp: FollowPriced | null): number | null {
+    if (!fp || (fp.price.priced !== 'none' && fp.price.priced !== 'finish')) return null;
+    const chain = followedFromNow(fp.f.chain, teSoFar.value);
+    if (!needsPricingRecord(pricingSourcesFor(fp.sel.goal.key), chain, teSoFar.value)) return null;
+    return recordFinalFor(fp.g, chain);
+  }
+  /** The followed goals that need it, by goal key, with the TE each needs. */
+  const recordNeeds = computed(() => {
+    const out = new Map<GoalKey, number>();
+    if (!hasSave.value || !storeReady.value) return out;
+    const sel = recordNeedFor(followPriced.value);
+    if (sel != null && selectedGoal.value) out.set(selectedGoal.value, sel);
+    for (const o of otherFollows.value) {
+      const n = recordNeedFor(o.fp);
+      if (n != null) out.set(o.fp.sel.goal.key, n);
+    }
+    return out;
+  });
+  const instantNeed = computed<InstantComputeRequest | null>(() => {
+    const needs = [...recordNeeds.value.values()];
+    const acct = account.value;
+    const setup = pricingSetup.value;
+    // Only on the save as the Auto Planner sets it up, with Setup loaded (as the instant answer waits for them).
+    if (!needs.length || !acct || !setup || store.startWait || !store.setupLoaded) return null;
+    const final = Math.max(...needs);
+    if (!(final > Math.floor(teSoFar.value))) return null;
+    const backupTime = saveSeconds.value;
+    return { key: `${acct}|${backupTime}|${setup}|${final}`, account: acct, backupTime, setup, final, useHours: useHoursFromStores() };
+  });
+  const { state: instantCompute } = useInstantCompute(instantNeed, searchBusy, () => recordsRead.value++);
+  /** A goal's state while its record is worked out here, or why it couldn't be. */
+  function instantStateFor(goalKey: GoalKey): Pick<FollowCard, 'estimating' | 'instantFailure'> | null {
+    const st = instantCompute.value;
+    const req = instantNeed.value;
+    if (!st || !req || st.key !== req.key || !recordNeeds.value.has(goalKey)) return null;
+    if (st.status === 'working') return { estimating: 'instant' };
+    if (st.status === 'waiting') return { estimating: 'instantwait' };
+    if (st.status === 'failed') return { estimating: 'nosource', instantFailure: st.reason };
+    return null;
+  }
 
   /** The selected goal's followed route and its plan: priced from what is saved, else estimated (above). */
   const followState = computed<{ card: FollowCard; plan: CardPlan | null } | null>(() => {
@@ -881,15 +984,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     }
     /** While it is worked out, or why it can't be (Right now's Next step). */
     // Asked and not answered yet counts as working, so "working it out" shows the whole time.
+    const inst = asked ? null : instantStateFor(sel.goal.key);
     const estimating: FollowCard['estimating'] = asked
       ? est?.status === 'waiting'
         ? 'waiting'
         : est?.status === 'failed'
           ? 'failed'
           : 'working'
-      : pick && 'beyond' in pick
-        ? 'beyond'
-        : 'nosource';
+      : inst
+        ? inst.estimating
+        : pick && 'beyond' in pick
+          ? 'beyond'
+          : 'nosource';
+    const failure = inst?.instantFailure ? { instantFailure: inst.instantFailure } : {};
     if (price.priced === 'finish')
       return {
         card: {
@@ -902,11 +1009,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           finish: { end: price.end, endTE: price.endTE, at: price.at },
           ...(g.deadline && !finishesBefore(price.end, g.deadline) ? { missesDate: true } : {}),
           ...(estimating ? { estimating } : {}),
+          ...failure,
         },
         plan: null,
       };
     return {
-      card: { chain: price.chain, from: f.from, label: followedLabel(f), price: 'none', source: null, pricedSave: null, ...(estimating ? { estimating } : {}) },
+      card: { chain: price.chain, from: f.from, label: followedLabel(f), price: 'none', source: null, pricedSave: null, ...(estimating ? { estimating } : {}), ...failure },
       plan: null,
     };
   }
@@ -1089,6 +1197,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const st = currentSim.value;
     return st && st.key === simRequest.value?.key && (st.status === 'working' || st.status === 'waiting') ? st.status : null;
   });
+  /** The simulation failed: its short reason, and whether it is tried once more (Right now says so, never silently). */
+  const simFailure = computed(() => {
+    const st = currentSim.value;
+    return st?.status === 'failed' && st.key === simRequest.value?.key ? { reason: st.reason, retrying: !!st.retrying } : null;
+  });
   const cardPlan = computed<CardPlan | null>(() => {
     const c = basePlan.value;
     const r = shiftRequest.value;
@@ -1207,6 +1320,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return useHoursFromStores() ? (store.availability ?? null) : null;
   });
   const stepNoPrestige = computed(() => timeOffWindows(usableTimeOff(store.noPrestige ?? []), zone.value));
+  /** Time off as absolute stretches: the estimate prices none, so its rows that run into one are flagged. */
+  const stepTimeOff = computed(() => timeOffWindows(usableTimeOff(store.timeOff ?? []), zone.value));
   /** Every ascension of the plan and its shifts (Right now's Full timeline when the plan has no exact legs). */
   const ascensions = computed(() => {
     const p = cardPlan.value?.plan;
@@ -1216,13 +1331,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         ...l,
         ...(p.tableLegs?.[i]?.shifts ? { shifts: p.tableLegs[i].shifts } : {}),
         ...(p.tableLegs?.[i]?.simulated ? { simulated: true } : {}),
+        ...(p.tableLegs?.[i]?.timeOff ? { timeOff: p.tableLegs[i].timeOff } : {}),
         // The build-up line (lib/buildUpLine.ts): its variant (the simulated one's key, else the table's label) and rate.
         ...(p.tableLegs?.[i]?.variant ? { variant: p.tableLegs[i].variant } : {}),
         ...(p.tableLegs?.[i]?.label ? { label: p.tableLegs[i].label } : {}),
         ...(p.tableLegs?.[i]?.peakELR !== undefined ? { peakELR: p.tableLegs[i].peakELR } : {}),
       })),
       stepHours.value,
-      stepNoPrestige.value
+      stepNoPrestige.value,
+      stepTimeOff.value
     );
   });
   /** The plan's ascensions as lib/nextAction.ts reads them (the first simulated once it is in). */
@@ -1249,6 +1366,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
               simulated: true,
               ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
               ...(continuesFarm(leg.key) ? { live: true } : {}),
+              ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             },
           ]
         : [];
@@ -1262,6 +1380,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       ...(l.simulated ? { simulated: true } : {}),
       ...(l.buildEnd !== undefined ? { buildEnd: l.buildEnd } : {}),
       ...(continuesFarm(l.variant) ? { live: true } : {}),
+      ...(l.timeOff ? { timeOff: l.timeOff } : {}),
     }));
   });
   /** The selected followed route's pill without a timeline: the ascension you are in being worked out, or its next
@@ -1279,13 +1398,19 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const nextStep = computed<NextAction | null>(() => {
     const first = actionLegs.value[0];
     if (!first?.simulated) return null;
-    return nextAction({ now: now.value, leg: first, last: actionLegs.value.length === 1 && !moreThanKnown.value, prestigeAt: prestigeAtFrom });
+    return nextAction({
+      now: now.value,
+      leg: first,
+      last: actionLegs.value.length === 1 && !moreThanKnown.value,
+      prestigeAt: prestigeAtFrom,
+      timeOff: stepTimeOff.value,
+    });
   });
   /** NEXT SHIFTS (26 Oct 2026, lib/nextAction.ts `nextShifts`): the next 3 to 5 shifts under the Next step, the
    *  ascension you are in from the simulation, the later ones from the table, ending with a prestige inside the list. */
   const nextShiftLines = computed<NextShiftLine[]>(() =>
     actionLegs.value.length
-      ? nextShifts({ now: now.value, legs: actionLegs.value, prestigeAt: prestigeAtFrom, more: moreThanKnown.value })
+      ? nextShifts({ now: now.value, legs: actionLegs.value, prestigeAt: prestigeAtFrom, more: moreThanKnown.value, timeOff: stepTimeOff.value })
       : []
   );
   /** Shifts at the same minute are one row (Joo's H1 step, then K3): nowPlan `mergeSimultaneousShifts`. The
@@ -1295,7 +1420,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!cardPlan.value) return [];
     // Done by the save's state, not the clock alone: the egg it is on and its TE (nowPlan `planEvents`).
     const list = planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null);
-    const lines = instantSteps(stepLegsOf(cardPlan.value.plan), stepHours.value, stepNoPrestige.value);
+    const lines = instantSteps(stepLegsOf(cardPlan.value.plan), stepHours.value, stepNoPrestige.value, stepTimeOff.value);
     return mergeSimultaneousShifts(markPrestigeWaits(list, lines), zone.value);
   });
   const shownEvents = computed(() => tableEvents(events.value));
@@ -1550,6 +1675,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     shownEvents,
     ascensions,
     simWorking,
+    simFailure,
     simSlow,
     nextStep,
     nextShiftLines,

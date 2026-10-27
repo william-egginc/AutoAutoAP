@@ -34,8 +34,9 @@ import { hashID } from '@/lib/storage/db';
 import { FOLLOW_PREFIX } from '@/lib/follow';
 import { saveTEOf } from '@/lib/saveFreshness';
 import { accountOf } from '@/search/runSaves';
-import { PRICING_RECORD_KEY, pricingSetupKey, readPricingRecords, recordPricing, type SnapPricing } from '@/lib/followEstimate';
+import { PRICING_RECORD_KEY, readPricingRecords, recordPricing, type SnapPricing } from '@/lib/followEstimate';
 import { setChainPricer, type ChainPricer } from '@/composables/useFollowEstimate';
+import { setInstantComputer } from '@/composables/useInstantCompute';
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
@@ -60,7 +61,10 @@ beforeEach(() => {
   calls = [];
   setChainPricer((): ChainPricer => ({ priceChain: (_u, options, chain) => new Promise(resolve => calls.push({ chain, options, resolve })), terminate: () => undefined }));
 });
-afterEach(() => setChainPricer(null));
+afterEach(() => {
+  setChainPricer(null);
+  setInstantComputer(null);
+});
 
 const A_ID = 'EI0000000000000000';
 
@@ -75,7 +79,7 @@ async function jordan() {
   resolveColleggtibleContracts(b);
   loadAndSyncBackup(A_ID, markRaw(b), 'plan_next');
   rollUpPendingTE();
-  const { instantKeyFromStores, resetGoalChoice, useHoursFromStores, useNowPage } = await import('@/composables/useNowPage');
+  const { instantKeyFromStores, pricingSetupFromStores, resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
   resetGoalChoice();
   const store = useChainSearchStore();
   const now = Math.floor(Date.now() / 1000);
@@ -102,14 +106,7 @@ async function jordan() {
   const follows = useFollowStore();
   await vi.waitFor(() => expect(follows.partition).not.toBe(''));
   const te = saveTEOf(useInitialStateStore().rawBackup);
-  const setup = () =>
-    pricingSetupKey({
-      availability: store.availability,
-      timeOff: store.timeOff,
-      noPrestige: store.noPrestige,
-      useHours: useHoursFromStores(),
-      firstAscension: store.collectInputs().firstAscension,
-    });
+  const setup = () => pricingSetupFromStores();
   /** What InstantRoute.vue keeps the moment an answer is in (`keepPricing`). */
   const keep = (over: { setup?: string; backupTime?: number; final?: number } = {}) => {
     const pricing: SnapPricing = {
@@ -179,16 +176,16 @@ const route = (now: number, end: number): Route => ({
 });
 
 describe("Jordan's Egg Day follow: the estimate whenever this save has an instant answer", () => {
-  it('reproduced: an old-build snapshot and nothing else: it says so in plain words, with what to do (was the silent old line)', async () => {
+  it('reproduced: an old-build snapshot and nothing else: My runs works the instant answer out itself (26 Oct 2026; was "Open … once")', async () => {
     const { open } = await jordan();
     const { page, scope } = await open();
-    expect(page.follow.value).toMatchObject({ chain: [225, 300], price: 'none', estimating: 'nosource' });
+    expect(page.follow.value).toMatchObject({ chain: [225, 300], price: 'none', estimating: 'instant' });
     await nextTick();
     expect(calls).toHaveLength(0);
     const { text } = await render(page);
     expect(text).toContain('This route was set with different awake hours.');
-    expect(text).toContain("No timeline for your route yet: the instant answer hasn't been worked out for this save and setup");
-    expect(text).toContain('Open Highest TE by a date once so the instant answer can price it ›');
+    expect(text).toContain('Working out the instant answer for your setup…');
+    expect(text).not.toContain('Open Highest TE by a date once');
     expect(text).not.toContain('No timeline for your route on this save yet');
     scope.stop();
   });
@@ -231,7 +228,8 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
       const { page, scope } = await open();
       await nextTick();
       expect(calls, JSON.stringify(over)).toHaveLength(0);
-      expect(page.follow.value?.estimating).toBe('nosource');
+      // Not priced with it: this save and setup's is worked out here instead.
+      expect(page.follow.value?.estimating).toBe('instant');
       scope.stop();
     }
   });

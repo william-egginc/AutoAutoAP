@@ -94,7 +94,9 @@ import {
   buildChainsCsv,
   buildDeadlineCsv,
   chainsCsvChunks,
+  chainsCsvChunksFull,
   deadlineCsvChunks,
+  deadlineCsvChunksFull,
   pricedDeltaChunks,
   DEADLINE_LEG_ROUTES,
   type CsvMeta,
@@ -268,6 +270,9 @@ import {
   type SetsLearned,
 } from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
+import type { LegSpill } from '@/search/legSpill';
+import { lastSpillOpenFailure, openPageLegSpill } from '@/lib/legSpillOpfs';
+import { browserStorage, readLegDetailBudget, staleDownloadReason, writeLegDetailBudget, type SpillInfo } from '@/lib/legSpillText';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
 import { reviewContext, reviewLegs, reviewSetup, TE_MISMATCH_TOLERANCE, type HealthIssue } from '@/search/health';
 import {
@@ -3517,7 +3522,99 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * still holding detail. The kept set is the FASTEST ones, which is what that table shows, so in
    * practice the loss lands on chains nobody was going to open.
    */
-  const legDetailBudget = ref(DEFAULT_LEG_DETAIL_BUDGET);
+  // Remembered per browser (QA 26 Oct: a reload put it back to the default, and a carried-on run ran with it).
+  const legDetailBudget = ref(readLegDetailBudget(browserStorage()) ?? DEFAULT_LEG_DETAIL_BUDGET);
+  watch(legDetailBudget, n => writeLegDetailBudget(browserStorage(), Number(n)));
+
+  /**
+   * EVERY ROUTE'S LEGS ON DISK (search/legSpill.ts; Jordan, 26 Oct 2026). With a spill the platform sets
+   * (the CLI's file; the page's later), each priced route's legs are written to it before the budget
+   * above drops them, and the DOWNLOADED file (`streamFullCsv`) has every route's detail. Uploads keep
+   * their rule: legs for the top DEADLINE_LEG_ROUTES. Null: no spill, every file as before.
+   */
+  /** One a screen: the page can run Fastest and By a date at once. */
+  const legSpills: Record<'fastest' | 'deadline', LegSpill | null> = { fastest: null, deadline: null };
+  /** Entries already written to Fastest's spill (a re-priced route is a new entry, written again). */
+  let spilled = new WeakSet<CacheEntry>();
+  /** `kind` omitted: both (the CLI runs one search a process). */
+  function setLegSpill(s: LegSpill | null, kind?: 'fastest' | 'deadline'): void {
+    if (kind !== 'deadline') {
+      legSpills.fastest = s;
+      legSpillSet.fastest = !!s;
+      spilled = new WeakSet();
+    }
+    if (kind !== 'fastest') {
+      legSpills.deadline = s;
+      legSpillSet.deadline = !!s;
+    }
+  }
+  function spillNew(entries: readonly CacheEntry[]): void {
+    const spill = legSpills.fastest;
+    if (!spill) return;
+    for (const e of entries)
+      if (e.legs.length && !spilled.has(e)) {
+        spill.put(e.key, e.legs);
+        spilled.add(e);
+      }
+  }
+  /** A run's start: the spill cut back to its checkpoint's length (0: a fresh run) and its index rebuilt. */
+  /**
+   * How the page opens a screen's spill when a run starts (lib/legSpillOpfs.ts: an OPFS file per account
+   * and screen, null where the browser has none: then no spill, every file as before). The CLI sets its
+   * spill directly instead (it has no OPFS; `openPageLegSpill` answers null there).
+   */
+  let openLegSpill: ((kind: 'fastest' | 'deadline', partition: string, timezone: string) => Promise<LegSpill | null>) | null =
+    openPageLegSpill;
+  /** A spill set directly (the CLI's): kept as it is, never replaced by the opener. */
+  const legSpillSet: Record<'fastest' | 'deadline', boolean> = { fastest: false, deadline: false };
+  /** The account each screen's open spill is for: another account's run opens its own. */
+  const legSpillFor: Record<'fastest' | 'deadline', string> = { fastest: '', deadline: '' };
+  function setLegSpillOpener(open: typeof openLegSpill): void {
+    openLegSpill = open;
+  }
+  /** A finished Fastest run after a reload: its spill opened again at the checkpoint's length, for the
+   *  full download. Null when there is none (no disk, or a run from before spills). */
+  async function reopenFastestSpill(): Promise<LegSpill | null> {
+    const cp = resumable.value;
+    if (!openLegSpill || legSpillSet.fastest || !cp?.spillBytes || allEntries().length) return null;
+    const spill = await openLegSpill('fastest', partitionHash, planTimezone()).catch(() => null);
+    if (!spill) return null;
+    await spill.restore(cp.spillBytes).catch(() => null);
+    legSpills.fastest = spill;
+    legSpillFor.fastest = partitionHash;
+    return spill;
+  }
+  /** The last run's spill as Setup > Memory shows it (refreshed on the shortlist's beat and By a date's
+   *  progress): routes on disk, bytes, and why storing stopped (disk full). Null: no spill. */
+  const legSpillInfo = ref<SpillInfo | null>(null);
+  /** What each screen's spill holds, for Setup > Memory: routes, bytes, and why it stopped (disk full). */
+  function legSpillStatus(kind: 'fastest' | 'deadline'): { routes: number; bytes: number; stopped: string | null } | null {
+    const s = legSpills[kind];
+    return s ? { routes: s.count, bytes: s.bytes, stopped: s.stopped } : null;
+  }
+  /** Write what is new and make the spill durable; its length, for the checkpoint. */
+  async function commitSpill(entries: readonly CacheEntry[]): Promise<number> {
+    spillNew(entries);
+    return legSpills.fastest ? legSpills.fastest.commit() : 0;
+  }
+  async function restoreLegSpill(kind: 'fastest' | 'deadline', bytes: number | undefined): Promise<void> {
+    if (kind === 'fastest') spilled = new WeakSet();
+    // The page's: the account's own file, opened at its first run (the CLI sets its spill itself).
+    if (openLegSpill && !legSpillSet[kind] && partitionHash && legSpillFor[kind] !== partitionHash) {
+      await legSpills[kind]?.close().catch(() => {});
+      legSpills[kind] = await openLegSpill(kind, partitionHash, planTimezone()).catch(() => null);
+      legSpillFor[kind] = partitionHash;
+      // No spill here: Setup > Memory says why (no OPFS, another tab holds the file).
+      if (!legSpills[kind]) legSpillInfo.value = { routes: 0, bytes: 0, stopped: null, unavailable: lastSpillOpenFailure() ?? 'error' };
+    }
+    const spill = legSpills[kind];
+    if (!spill) return;
+    try {
+      await spill.restore(bytes ?? 0);
+    } catch (e) {
+      console.warn('chain search: could not reopen the leg spill', e);
+    }
+  }
 
   /** Chains currently holding per-leg detail, and a measured estimate of what that costs. */
   const legsHeld = ref(0);
@@ -3535,6 +3632,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   function pruneLegDetail(): void {
     const entries = [...liveCache, ...coarseCache];
+    // Every route's legs to disk first (when the run has a spill), so the budget drops only memory's copy.
+    spillNew(entries);
+    if (legSpills.fastest) {
+      legSpills.fastest.flush();
+      legSpillInfo.value = legSpillStatus('fastest');
+    }
     const { held } = applyLegBudget(entries, legDetailBudget.value);
     legsHeld.value = held;
     legDetailBytes.value = estimateLegBytes(entries, held);
@@ -5264,8 +5367,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             sendCsv: extras.sendCsv.value,
             sendDiagnostics: extras.sendDiagnostics.value,
           };
-        const out = await gzipChunksCapped(exportCsvChunks(), TABLE_LIMIT_BYTES, scrubIdentifiers).catch(() => null);
-        if (out?.ok) gz = out.body;
+        const table = await fastestUploadCsv().catch(() => null);
+        if (table && 'gz' in table) gz = table.gz;
+        else if (table) {
+          const out = await gzipChunksCapped(table, TABLE_LIMIT_BYTES, scrubIdentifiers).catch(() => null);
+          if (out?.ok) gz = out.body;
+        }
       }
       if (!payload || !key) return;
       // The run's own diagnostics, as they are now, for a send after a reload (bounded in size).
@@ -5872,6 +5979,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * through one giant string.
    */
   function* exportCsvChunks(opts: { partial?: CsvMeta['partial'] } = {}): Generator<string> {
+    const { entries, meta } = fastestCsvInput(opts);
+    yield* chainsCsvChunks(entries, meta);
+  }
+
+  /** What the chain-search CSV is written from: the run's entries and the meta block (one source for
+   *  every way the file is written). */
+  function fastestCsvInput(opts: { partial?: CsvMeta['partial'] } = {}): { entries: CacheEntry[]; meta: CsvMeta } {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
     // The entries' own start: the stored checkpoint's when they are its.
@@ -5883,7 +5997,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       | ReturnType<typeof getSimulationContext>['rawBackup']
       | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
-    yield* chainsCsvChunks(entries, {
+    const meta: CsvMeta = {
       ...(opts.partial ? { partial: opts.partial } : {}),
       planStart: csvStart,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -5906,7 +6020,75 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         { label: 'equipped in the backup', loadout: equipped },
         { label: 'best earnings set available', loadout: raw ? getOptimalEarningsSet(raw) : null },
       ],
-    });
+    };
+    return { entries, meta };
+  }
+
+  /**
+   * THE FULL CSV, streamed: the one function a full-detail download or a later uploader to other storage
+   * reads (Jordan, 26 Oct 2026). With the run's leg spill, every route's legs (`legRoutes`: only the top
+   * that many, for an upload to our collector, which keeps that rule); without one, the file as before.
+   * `kind`: the last Fastest run, or the last By a date run (then `legRoutes` caps only its kept routes'
+   * section; the every-route section is the full file's, so a By a date upload keeps
+   * `deadlineCsvChunksNow`). Text chunks; the caller gzips them
+   * (CompressionStream on the page, zlib in the CLI).
+   */
+  async function* streamFullCsv(
+    kind: 'fastest' | 'deadline',
+    opts: { legRoutes?: number; partial?: CsvMeta['partial'] } = {}
+  ): AsyncGenerator<string> {
+    if (kind === 'fastest') {
+      // A run just started has emptied its spill but priced nothing: the file would be the last run's
+      // checkpoint without its legs (QA 26 Oct). Say so instead.
+      const stale = staleDownloadReason({ ownRoutes: allEntries().length, running: isRunning.value });
+      if (stale) throw new Error(stale);
+      const { entries, meta } = fastestCsvInput(opts);
+      const spill = legSpills.fastest ?? (await reopenFastestSpill());
+      if (!spill) {
+        yield* chainsCsvChunks(entries, meta);
+        return;
+      }
+      spillNew(entries);
+      // The spill's cells are in the timezone the run had: the file says that one.
+      yield* chainsCsvChunksFull(entries, { ...meta, timezone: spill.timezone }, spill, opts.legRoutes ?? Infinity);
+      return;
+    }
+    const r = deadlineResult.value;
+    if (!r) return;
+    const spill = legSpills.deadline;
+    if (!spill || !deadlineAll.length || !deadlineAllPriced) {
+      yield* deadlineCsvChunksNow(opts.legRoutes !== undefined ? { legRoutes: opts.legRoutes } : {});
+      return;
+    }
+    yield* deadlineCsvChunksFull(
+      deadlineAll,
+      { ...deadlineCsvMeta(r, r.ceiling ?? r.lastHi), timezone: spill.timezone },
+      {
+        deadline: r.deadline,
+        priced: r.priced,
+        stoppedEarly: r.stoppedEarly,
+        ascendNeeded: r.ascendNeeded,
+        all: deadlineAllPriced,
+        ...(deadlineKept ? { kept: deadlineKept } : {}),
+      },
+      spill,
+      opts.legRoutes ?? DEADLINE_LEG_ROUTES
+    );
+  }
+
+  /**
+   * The Fastest table a send uploads: legs for the top DEADLINE_LEG_ROUTES routes (By a date's rule), from
+   * the run's leg spill where memory let them go, gzipped and scrubbed; fewer (a quarter, then none) when
+   * that is over the collector's limit. Without a spill, the file as it always was (memory's detail).
+   */
+  async function fastestUploadCsv(): Promise<Iterable<string> | { gz: ArrayBuffer }> {
+    const spill = legSpills.fastest ?? (await reopenFastestSpill());
+    if (!spill) return exportCsvChunks();
+    for (const legRoutes of [DEADLINE_LEG_ROUTES, Math.floor(DEADLINE_LEG_ROUTES / 4), 0]) {
+      const out = await gzipChunksCapped(streamFullCsv('fastest', { legRoutes }), TABLE_LIMIT_BYTES, scrubIdentifiers);
+      if (out.ok) return { gz: out.body };
+    }
+    return exportCsvChunks();
   }
 
   /** Suggested filename, so two exports from different runs do not collide in Downloads. */
@@ -5970,6 +6152,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           queue: searchSpace.value ? queueRecord(false) : null,
           // A staged run's limits, so a carry-on searches under them (they follow the instant answer).
           limits: searchSpace.value ? null : { min: runLimits.min, max: runLimits.max },
+          // The spill made durable first, so the checkpoint never claims more than is on disk.
+          ...(legSpills.fastest ? { spillBytes: await commitSpill(entries) } : {}),
         })
       );
       return true;
@@ -6231,9 +6415,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       partitionHash = await hashID(playerId);
       const saved = await loadCheckpoint(partitionHash, runFingerprint);
-      if (saved && (!saved.inputsKey || saved.inputsKey === startKey)) {
-        for (const e of restoreEntries(saved)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
+      const carry = !!saved && (!saved.inputsKey || saved.inputsKey === startKey);
+      if (carry) {
+        for (const e of restoreEntries(saved!)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
       }
+      await restoreLegSpill('fastest', carry ? saved!.spillBytes : 0);
     } catch (e) {
       console.warn('chain search: could not prepare storage', e);
     }
@@ -7087,7 +7273,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** A carry-on's checkpoint: its routes are replayed, and its parts appended to. Null: a fresh run. */
     seed: Pick<
       DeadlineCheckpoint,
-      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta'
+      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta' | 'spillBytes'
     > | null,
     /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
     accountIn?: AccountSnapshot,
@@ -7101,6 +7287,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunStartedAt = spec.startedAt ?? Date.now();
     deadlineRunCarryOns = seed ? (seed.carryOns ?? 0) + 1 : 0;
     deadlineCheckpointSize = { routes: seedCount, bytes: seed?.bytes ?? 0 };
+    // The leg spill cut back to the checkpoint's length (a fresh run: emptied).
+    await restoreLegSpill('deadline', seed ? seed.spillBytes : 0);
     // Until its result is saved, a run that ends is a run that failed (search/stepAway.ts `failed`).
     runEnd = 'failed';
     deadlineRunning.value = true;
@@ -7262,7 +7450,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       written = written.then(async () => {
         if (closed) return;
         try {
-          await appendDeadlineCheckpoint(partitionHash, writer, header, part);
+          // The spill made durable first, so the checkpoint never claims more than is on disk.
+          const spillBytes = legSpills.deadline ? await legSpills.deadline.commit() : undefined;
+          await appendDeadlineCheckpoint(
+            partitionHash,
+            writer,
+            spillBytes === undefined ? header : { ...header, spillBytes },
+            part
+          );
           deadlineCheckpointSize = { routes: header.count, bytes };
         } catch (e) {
           // Kept for the next write rather than lost.
@@ -7363,6 +7558,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           },
           onProgress: p => {
             deadlineProgress.value = p;
+            if (legSpills.deadline) {
+              legSpills.deadline.flush();
+              legSpillInfo.value = legSpillStatus('deadline');
+            }
             noteLegSample();
             noteLaterLegs();
           },
@@ -7375,6 +7574,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           pricedSoFar: all => {
             if (deadlineRunCsv) deadlineRunCsv.all = all;
           },
+          // ...and its legs to the spill, for the full download (search/legSpill.ts).
+          onPriced: (k, legs) => legSpills.deadline?.put(k, legs),
         }
       );
       // A carry-on's routes replayed from the checkpoint came back with four numbers a leg: the ones
@@ -8514,8 +8715,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // replayed chains (durations only - a checkpoint keeps legs for the best chain alone).
         liveCache = [...restoredCache];
         csvRows.value = liveCache.length;
+        await restoreLegSpill('fastest', resumeFrom.spillBytes);
         refreshShortlist(true);
-      }
+      } else await restoreLegSpill('fastest', 0);
     } catch (e) {
       console.warn('chain search: could not prepare storage', e);
     }
@@ -9424,6 +9626,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     legDetailBytes,
     exportCsv,
     exportCsvChunks,
+    streamFullCsv,
+    fastestUploadCsv,
+    setLegSpill,
+    setLegSpillOpener,
+    legSpillStatus,
+    legSpillInfo,
     buildRunSubmission,
     buildDeadlineSubmission,
     startSweep,

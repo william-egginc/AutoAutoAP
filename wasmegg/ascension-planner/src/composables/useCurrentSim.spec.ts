@@ -135,18 +135,30 @@ describe('useCurrentSim', () => {
     m.scope.stop();
   });
 
-  it('a failure says failed, warns once, and is not tried again for the key; no request: nothing', async () => {
+  it('a failure says why (name and message, no ID), is tried once more after a longer wait, then not again for the key', async () => {
+    setSimTiming({ delayMs: 0, retryMs: 50 });
     const m = mount(req());
     await flush();
-    runs[0].reject(new Error('worker died'));
+    runs[0].reject(new RangeError('Invalid time value'));
     await flush();
-    expect(m.state.value).toMatchObject({ status: 'failed' });
-    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(m.state.value).toMatchObject({ status: 'failed', reason: 'RangeError: Invalid time value', retrying: true });
+    expect(console.warn).toHaveBeenCalledWith('My runs: simulating the ascension you are in failed:', 'RangeError: Invalid time value');
+    // Once more, after the wait.
+    await new Promise(r => setTimeout(r, 80));
+    await flush();
+    expect(runs).toHaveLength(2);
+    runs[1].reject(new Error('worker died for EI1234567890123456'));
+    await flush();
+    expect(m.state.value).toMatchObject({ status: 'failed', reason: 'Error: worker died for EI…' });
+    expect((m.state.value as { retrying?: boolean }).retrying).toBeUndefined();
+    await new Promise(r => setTimeout(r, 80));
+    await flush();
+    expect(runs).toHaveLength(2);
     m.scope.stop();
     const again = mount(req());
     await flush();
     expect(again.state.value).toMatchObject({ status: 'failed' });
-    expect(runs).toHaveLength(1);
+    expect(runs).toHaveLength(2);
     again.request.value = null;
     await flush();
     expect(again.state.value).toBeNull();

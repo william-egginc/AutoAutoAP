@@ -56,6 +56,9 @@ export interface SearchCheckpoint {
   bestLegs: LegSummary[];
   /** `key,seconds` pairs — the cache, without per-leg detail. */
   durations: [string, number][];
+  /** The run's leg spill's length when this was written (search/legSpill.ts): a carry-on cuts the file
+   *  back to it. Absent: the run had none. */
+  spillBytes?: number;
   stage: string;
   detail: string;
   chainsDone: number;
@@ -574,6 +577,7 @@ export function buildCheckpoint(args: {
   watch?: WatchLinkState | null;
   queue?: SweepQueueRecord | null;
   limits?: { min: number; max: number } | null;
+  spillBytes?: number;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -597,6 +601,7 @@ export function buildCheckpoint(args: {
     ...(args.watch ? { watch: { ...args.watch } } : {}),
     ...(args.queue && readSweepQueue(args.queue) ? { queue: readSweepQueue(args.queue)! } : {}),
     ...(args.limits ? { limits: { min: args.limits.min, max: args.limits.max } } : {}),
+    ...(args.spillBytes !== undefined ? { spillBytes: args.spillBytes } : {}),
   };
 }
 

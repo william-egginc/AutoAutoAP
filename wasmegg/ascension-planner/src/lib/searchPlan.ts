@@ -29,6 +29,8 @@ export interface SnapSearch extends FoundResult {
   at: number;
   /** The plan start it was priced from, unix seconds. */
   planStart: number;
+  /** Read back from the Leaderboard: the run was sent from another browser (lib/boardRunPlan.ts). */
+  otherBrowser?: boolean;
 }
 
 /** What `liveSearchResult` reads of the chain-search store (InstantRoute and useNowPage hand it over). */
@@ -134,7 +136,7 @@ export function planFromSearch(
     legs: s.legs.length ? [...s.legs] : null,
     tableLegs: null,
     exact: true,
-    from: { level: s.level, at: s.at },
+    from: { level: s.level, at: s.at, ...(s.otherBrowser ? { otherBrowser: true } : {}) },
     instantTE: null,
     calculatedAt: s.at,
     planStart: Number.isFinite(s.planStart) ? s.planStart : null,

@@ -300,7 +300,7 @@
       <p class="label text-indigo-700">Next step</p>
       <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
            action and the first shifts (26 Oct 2026); the lines below say why the rest has no times. -->
-      <template v-if="!card && follow && (actionText || simWorking)">
+      <template v-if="!card && follow && (actionText || simWorking || simFailure)">
         <p v-if="actionText" class="text-body text-slate-800" data-testid="now-next-action" :data-kind="nextStep!.kind">
           <b>{{ actionText }}</b>
         </p>
@@ -314,6 +314,9 @@
           <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
+        <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
+          Could not work out your shifts: {{ simFailure.reason }}<template v-if="simFailure.retrying">{{ ' ' }}(trying once more in a minute)</template>
+        </p>
       </template>
       <template v-if="card">
         <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
@@ -326,6 +329,8 @@
           <span v-if="nextEvent && !rounded" class="ml-1.5 align-middle"><CalendarButton :events="[nextCal!]" label="Add to calendar" /></span>
         </p>
         <p v-else class="text-body text-slate-700">Nothing left in this plan: work out a new one.</p>
+        <!-- The next prestige of the estimate runs into time off or a no-prestige day it doesn't price: never a plain time. -->
+        <p v-if="!actionText && nextFlag" class="mt-0.5 text-body text-amber-800" data-testid="now-next-flag">{{ nextFlag }}</p>
         <p v-if="card.plan.estimated" class="mt-0.5 text-body text-slate-600 max-w-prose" data-testid="now-next-estimated">
           <template v-if="simulatedNow">The ascension you are in, simulated on your save; the rest of your route's steps, {{ ESTIMATE_WORDS }}.</template>
           <template v-else>Your route's steps, {{ ESTIMATE_WORDS }}.</template>
@@ -342,6 +347,9 @@
           <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
+        <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
+          Could not work out your shifts: {{ simFailure.reason }}<template v-if="simFailure.retrying">{{ ' ' }}(trying once more in a minute)</template>
+        </p>
         <p v-if="track?.kind === 'behind'" class="mt-1 text-body text-rose-800" data-testid="now-behind">
           {{ paceBadge }}.
           <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline" data-testid="now-behind-run-fast" @click="emit('recalc', recalcRequest)">Run Fast ›</button>
@@ -357,9 +365,24 @@
         <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data…</template>
         <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
       </p>
+      <!-- My runs works the instant answer for this setup out itself (composables/useInstantCompute.ts). -->
+      <p
+        v-else-if="follow && (follow.estimating === 'instant' || follow.estimating === 'instantwait')"
+        class="text-body text-slate-700 max-w-prose"
+        role="status"
+        data-testid="now-follow-instant"
+        :data-state="follow.estimating"
+      >
+        <template v-if="follow.estimating === 'instant'">Working out the instant answer for your setup…</template>
+        <template v-else>The instant answer for your setup is worked out once the search running now ends.</template>
+      </p>
       <p v-else-if="follow && follow.estimating === 'nosource'" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-nosource">
-        No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is
-        nothing to estimate it from.{{ ' ' }}<button
+        <template v-if="follow.instantFailure"
+          >No timeline for your route yet: the instant answer for your setup couldn't be worked out here ({{ follow.instantFailure }}).</template
+        ><template v-else
+          >No timeline for your route yet: the instant answer hasn't been worked out for this save and setup, so there is
+          nothing to estimate it from.</template
+        >{{ ' ' }}<button
           type="button"
           class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline sm:min-h-0"
           data-testid="now-follow-open-screen"
@@ -465,7 +488,7 @@ import AscensionList from './AscensionList.vue';
 import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { roundToHourIn } from '@/lib/nowWords';
 import { showDateTime } from '@/lib/displayTime';
-import type { AscensionStep } from '@/lib/instantSteps';
+import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
 import { dateAt, dayWords, relativeWords } from '@/lib/eventWhen';
 import { chainStops, followingLine, nextStepText } from '@/lib/nowWords';
 import { answerOptionWords, emptyGoalWords, followNoTimesWords, followOptionWords, nextGoalIndex, type GoalKey, type GoalOption } from '@/lib/planGoals';
@@ -547,6 +570,9 @@ const props = defineProps<{
   simWorking?: 'working' | 'waiting' | null;
   /** It has run over 20 s: "(can take a few minutes)". */
   simSlow?: boolean;
+  /** The simulation of the ascension you are in failed: why, and whether it is tried once more (useNowPage
+   *  `simFailure`); null or absent: none. */
+  simFailure?: { reason: string; retrying: boolean } | null;
   /** The next action from the simulated ascension (useNowPage `nextStep`); null or absent: the events' line. */
   nextStep?: NextAction | null;
   /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */
@@ -619,9 +645,13 @@ const followNote = computed(() => {
     return followNoTimesWords(
       f.estimating === 'working' || f.estimating === 'waiting'
         ? f.estimating
-        : f.estimating === 'beyond' || f.estimating === 'failed'
-          ? 'failed'
-          : 'none'
+        : f.estimating === 'instant' || f.estimating === 'instantwait'
+          ? f.estimating === 'instant'
+            ? 'working'
+            : 'waiting'
+          : f.estimating === 'beyond' || f.estimating === 'failed' || (f.estimating === 'nosource' && f.instantFailure)
+            ? 'failed'
+            : 'none'
     );
   if (f.price === 'estimate')
     return simulatedNow.value
@@ -712,6 +742,16 @@ const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextSt
 /** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
 const shiftLineText = (l: NextShiftLine) =>
   nextShiftWords(l, (t, exact) => showDateTime(exact ? t : roundToHourIn(t, props.zone), props.zone));
+/** The first prestige ahead that the estimate can't time (lib/instantSteps.ts flags), in words; '' when none. */
+const nextFlag = computed(() => {
+  const e = props.events.find(x => !x.past && x.kind === 'prestige' && !x.timeOff);
+  if (!e) return '';
+  if (e.cutByTimeOff)
+    return `Your time off ${timeOffDays(e.cutByTimeOff, props.zone)} comes first: this ascension ends when it starts (going to your home farm is a prestige). Fast prices the rest.`;
+  if (e.prestigeInTimeOff) return `That prestige falls in your time off ${timeOffDays(e.prestigeInTimeOff, props.zone)}: Fast prices it.`;
+  if (e.onNoPrestigeDay) return 'That prestige falls on a no-prestige day: it waits past your no-prestige days. Fast prices it.';
+  return '';
+});
 /** The calendar button's event: the first one ahead (a step not done yet is already due: nothing to add). */
 const nextEvent = computed(() => props.events.find(e => !e.past && !e.notDone && e.kind !== 'goal') ?? null);
 const nextCal = computed(() =>
@@ -752,7 +792,9 @@ const howText = computed(() => {
 const pill = computed(() => {
   const p = props.card?.plan;
   if (!p || (p.exact && !p.from)) return '';
-  return sourcePill(p.from?.level ?? null);
+  // A run read back from the Leaderboard (lib/boardRunPlan.ts): "from your Fast run (sent from another browser), …".
+  const words = sourcePill(p.from?.level ?? null);
+  return p.from?.otherBrowser ? words.replace(/ run,/, ' run (sent from another browser),') : words;
 });
 /** "done Oct 22 at 4:47 pm, your save of Oct 22 at 11:03 am, priced with your hours …" / "worked out ahead of time;
  *  times rounded to the hour". */

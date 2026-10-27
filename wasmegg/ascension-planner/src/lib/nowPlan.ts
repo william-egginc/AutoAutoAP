@@ -42,6 +42,9 @@ export interface SnapRoute {
     buildEnd?: number;
     /** Its variant (LegSummary.key): 'continue' or 'buildup' carry on the farm in the save. */
     variant?: string;
+    /** The simulated ascension is cut by time off (lib/followSim.ts SimLeg.timeOff): it ends at `from` with `te` (the
+     *  home farm is a prestige) and is built again from `to`. */
+    timeOff?: { from: number; to: number; te: number; rebuildBuildEnd?: number };
     /** The rate it produces at once its build-up is done, eggs per second: the table's (RouteLeg.peakELR, with the
      *  shifts), or the simulated leg's peak (LegSummary.maxELR). For the Full timeline's build-up line. */
     peakELR?: number;
@@ -101,7 +104,8 @@ export interface NowPlan {
   exact: boolean;
   /** A Fast, Exact or Custom result's plan (lib/searchPlan.ts): which level and when it was found (ms). Absent: the
    *  instant answer's (or an older snapshot's Check exactly). */
-  from?: { level: FoundLevel; at: number };
+  /** `otherBrowser`: the run was sent from another browser and read back from the Leaderboard (lib/boardRunPlan.ts). */
+  from?: { level: FoundLevel; at: number; otherBrowser?: boolean };
   /** A followed route priced on the instant answer's data on this page (lib/followEstimate.ts): the table's times,
    *  rounded like the instant answer's own. Absent otherwise. */
   estimated?: boolean;
@@ -349,6 +353,14 @@ export interface PlanEvent {
    *  `prestigeAt` rather than when the stop is reached (`at`): lib/instantSteps.ts, `markPrestigeWaits`. */
   wait?: 'hours' | 'days';
   prestigeAt?: number;
+  /** Time off cuts the ascension (lib/followSim.ts): 'leave' to the home farm when it starts (a prestige at `te`),
+   *  'back' when it ends (a prestige that builds toward `te` again). */
+  timeOff?: 'leave' | 'back';
+  /** lib/instantSteps.ts: the estimate runs this ascension into a time off (it really ends when the time off starts),
+   *  its prestige falls in one, or on a no-prestige day. */
+  cutByTimeOff?: { from: number; to: number };
+  prestigeInTimeOff?: { from: number; to: number };
+  onNoPrestigeDay?: boolean;
   /** Goal (By a date): hours to spare. */
   spareHours?: number | null;
   past: boolean;
@@ -391,6 +403,12 @@ export function planEvents(plan: NowPlan, nowSeconds: number, save: SaveDone | n
     plan.tableLegs.slice(0, n).forEach((leg, i) => {
       // The table's shifts when the estimate carried them (each after the build-up, to the hour).
       for (const sh of leg.shifts ?? []) if (Number.isFinite(sh.at)) out.push({ kind: 'shift', at: sh.at, asc: i + 1, egg: sh.egg });
+      // The ascension you are in cut by time off (lib/followSim.ts): to the home farm when it starts (a prestige, at the
+      // TE it has then), and back to build it again when it ends.
+      if (leg.timeOff) {
+        out.push({ kind: 'prestige', at: leg.timeOff.from, asc: i + 1, te: leg.timeOff.te, timeOff: 'leave' });
+        out.push({ kind: 'prestige', at: leg.timeOff.to, asc: i + 1, te: leg.to, timeOff: 'back' });
+      }
       if (!Number.isFinite(leg.end)) return;
       const te = leg.endTE ?? leg.to;
       if (i === n - 1 && plan.goal === 'fastest') out.push({ kind: 'goal', at: leg.end, asc: i + 1, te });
@@ -533,6 +551,7 @@ export function stepLegsOf(plan: NowPlan): StepLeg[] {
     end: l.end,
     ...(l.heldOpening ? { heldOpening: l.heldOpening } : {}),
     ...(l.wanted !== undefined ? { wanted: l.wanted } : {}),
+    ...(l.timeOff ? { timeOffKnown: true } : {}),
   }));
 }
 
@@ -540,9 +559,17 @@ export function stepLegsOf(plan: NowPlan): StepLeg[] {
  *  happens. The prestige ending ascension `asc` starts ascension `asc + 1`. */
 export function markPrestigeWaits(events: readonly PlanEvent[], lines: readonly StepLine[]): PlanEvent[] {
   return events.map(e => {
-    if (e.kind !== 'prestige') return e;
+    if (e.kind !== 'prestige' || e.timeOff) return e;
     const l = lines.find(x => x.asc === e.asc + 1);
-    return l?.wait ? { ...e, wait: l.wait, prestigeAt: l.prestigeAt } : e;
+    // The ascension it ends ran into a time off the estimate doesn't know, or the prestige lands in one or on a
+    // no-prestige day (lib/instantSteps.ts): said on the row, in amber.
+    const own = lines.find(x => x.asc === e.asc);
+    const flags = {
+      ...(own?.cutByTimeOff ? { cutByTimeOff: own.cutByTimeOff } : {}),
+      ...(l?.prestigeInTimeOff ? { prestigeInTimeOff: l.prestigeInTimeOff } : {}),
+      ...(l?.onNoPrestigeDay ? { onNoPrestigeDay: true } : {}),
+    };
+    return l?.wait ? { ...e, wait: l.wait, prestigeAt: l.prestigeAt, ...flags } : { ...e, ...flags };
   });
 }
 

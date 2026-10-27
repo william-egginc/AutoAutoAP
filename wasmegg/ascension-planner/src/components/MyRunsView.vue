@@ -48,6 +48,7 @@
         :shown-events="page.shownEvents.value"
         :ascensions="page.ascensions.value"
         :sim-working="page.simWorking.value"
+        :sim-failure="page.simFailure.value"
         :sim-slow="page.simSlow.value"
         :next-step="page.nextStep.value"
         :next-shift-lines="page.nextShiftLines.value"

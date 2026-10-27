@@ -14,7 +14,17 @@
         <span class="font-bold text-slate-800">A{{ l.asc }}</span>
         <template v-if="l.now">{{ ' ' }}· now, in the ascension you are in</template>
         <template v-else>
-          {{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ about(l.prestigeAt) }}</span>
+          <template v-if="l.prestigeInTimeOff"
+            >{{ ' ' }}· prestige <span class="text-amber-800 font-bold" data-testid="ascension-prestige-timeoff"
+              >falls in your time off {{ timeOffDays(l.prestigeInTimeOff, zone) }}: Fast prices it</span
+            ></template
+          >
+          <template v-else>{{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ about(l.prestigeAt) }}</span></template>
+          <template v-if="l.onNoPrestigeDay"
+            >{{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-no-prestige-day"
+              >on a no-prestige day: it waits past your no-prestige days (Fast prices it)</span
+            ></template
+          >
           <template v-if="l.wait === 'days'">
             {{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-waits-days">waits past your no-prestige days</span>
             (ready {{ about(l.readyAt!) }})
@@ -26,8 +36,16 @@
         </template>
         {{ ' ' }}→ <span class="font-bold">{{ l.stopTE }} TE</span> reached
         <span class="whitespace-nowrap">{{ l.simulated ? exact(l.reachedAt) : about(l.reachedAt) }}</span>
+        <p v-if="l.cutByTimeOff" class="mt-0.5 ml-4 text-body text-amber-800 break-words max-w-prose" data-testid="now-ascension-cut">
+          Runs into your time off {{ timeOffDays(l.cutByTimeOff, zone) }}: it ends when the time off starts (going to your
+          home farm is a prestige) and is built again after it. The instant answer doesn't price time off: Fast prices it.
+        </p>
+        <p v-if="l.timeOff" class="mt-0.5 ml-4 text-body text-amber-800 break-words max-w-prose" data-testid="now-ascension-timeoff">
+          Your time off starts {{ exact(l.timeOff.from) }}: this ascension ends there at {{ l.timeOff.te }} TE (going
+          to your home farm is a prestige), and is built again from {{ exact(l.timeOff.to) }}.
+        </p>
         <p v-if="l.buildUp" class="mt-0.5 ml-4 text-body text-slate-600 break-words" data-testid="now-ascension-buildup">{{ l.buildUp }}</p>
-        <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-body text-slate-600" data-testid="now-ascension-shifts">
+        <ul v-if="l.shifts.length" class="mt-0.5 ml-4 list-none pl-0 text-small text-slate-600" data-testid="now-ascension-shifts">
           <li v-for="(s, k) in l.shifts" :key="k" data-testid="now-ascension-shift">
             Shift to {{ virtueEggName(s.egg) }} · <span class="whitespace-nowrap">{{ l.simulated ? exact(s.at) : about(s.at) }}</span>
           </li>
@@ -50,7 +68,7 @@
 import { showDateTime } from '@/lib/displayTime';
 import { virtueEggName } from '@/lib/virtueEggs';
 import { roundToHourIn } from '@/lib/nowWords';
-import type { AscensionStep } from '@/lib/instantSteps';
+import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
 
 const props = defineProps<{
   lines: AscensionStep[];
