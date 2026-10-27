@@ -111,7 +111,7 @@
     <main>
       <p><a href="./">← Back to the planner</a></p>
       <h1>About and privacy</h1>
-      <p class="muted">Last updated Oct 26, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+      <p class="muted">Last updated Oct 27, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
 
       <section id="what">
         <h2>What this is</h2>
@@ -125,7 +125,8 @@
         <h2>What stays on your computer</h2>
         <p>
           The planner runs in your browser. Your plans, settings, runs saved for later and saved answers are kept in your browser's
-          own storage on your computer.
+          own storage on your computer. Your newest instant answers are also saved online (see
+          <a href="#answers">Your instant answers, saved online</a>).
         </p>
         <p class="note">
           That includes your game save and your player ID. The latest save is kept so the page opens quickly, and
@@ -174,11 +175,12 @@
           going. One exception: <b>Science › Submit a sweep</b> sends a public row and its CSV when you press
           <b>Submit this sweep</b>, without that tick.
         </p>
-        <!-- AUTO_FOLLOW_FIRST (src/lib/followPolicy.ts) and lib/buildCount.ts: these sentences go with that code. -->
+        <!-- AUTO_FOLLOW_FIRST (src/lib/followPolicy.ts), stores/answers.ts and lib/buildCount.ts: these sentences go with that code. -->
         <p>
-          Two things are sent without a press. The route you follow can be saved online by itself: the first answer for
+          Three things are sent without a press. The route you follow can be saved online by itself: the first answer for
           Fastest to 490 TE and for Egg Day 2027, when you follow nothing for that goal (see
-          <a href="#follow">The route you follow, saved online</a>). And each open copy of the page sends its version, at
+          <a href="#follow">The route you follow, saved online</a>). Each instant answer worked out on the page is saved
+          online (see <a href="#answers">Your instant answers, saved online</a>). And each open copy of the page sends its version, at
           most once a day, unless your browser sends Global Privacy Control or Do Not Track (see
           <a href="#version">Which version of the page you have open</a>).
           Your choices and Setup are saved online only when you change them, and read whenever you load an account (see
@@ -307,6 +309,36 @@
         </p>
       </section>
 
+      <!-- stores/answers.ts, lib/answersCloud.ts, collector/answers.js: these sentences go with that code. -->
+      <section id="answers">
+        <h2>Your instant answers, saved online</h2>
+        <p>
+          When an instant answer has been worked out and kept in this browser, it is also saved online, under the same
+          code made from your player ID that the route you follow uses. That is so another device or a private window,
+          which has no answer of its own yet, shows yours at once, marked "From &lt;time&gt;, checking…", while it works
+          the answer out again. My runs also uses it to price your route meanwhile. Anyone who knows your player ID can
+          make the same code, so they could read these answers, and change them.
+        </p>
+        <p>
+          What is stored: the answer as its box shows it (the route, its stops, times and TE, and the lines worked out
+          with it), which instant answer data it came from (for data made for your account, the gear it was made
+          for), the maxed gear what-if and your last Fast, Exact or Custom result for that goal if there are any, the
+          time of your save and each egg's TE in it, and how it was priced: your starting TE and start time, your first
+          ascensions, and the Setup it was worked out with (awake hours, whether shifts are held, time off, no prestige
+          days, the first ascension, your target TE and your time zone). Before it is packed, the planner replaces anything shaped like a player ID, and an answer that
+          still has one is not sent. Never your player ID, a name or your game save. If it is too big (over 64 KB
+          packed), the pricing and then the extras are left out; if it is still too big, it is not saved.
+        </p>
+        <p>
+          It is saved a few seconds after a new answer is kept, never while a search is running, and not again when the
+          same answer is already online. At most 30 are saved an hour. Up to 8 answers are kept for each account (one for
+          each goal, save and Setup); a ninth replaces the one saved longest ago. They are read only when this browser
+          has no answer for that goal, once per page load. There is no switch to turn it off. If the planner's server
+          can't be reached, nothing is shown from online, the answer is worked out as before and kept in this browser,
+          and it is not saved online until a later answer is.
+        </p>
+      </section>
+
       <!-- composables/useBoardRunLegs.ts, explorer/collector.ts fetchRunCsv: these sentences go with that code. -->
       <section id="readback">
         <h2>Your own run's CSV, read back</h2>
@@ -371,6 +403,10 @@
             <tr>
               <td>Your choices and Setup</td>
               <td>No time limit. The last 5 versions of each.</td>
+            </tr>
+            <tr>
+              <td>Your instant answers</td>
+              <td>No time limit. Up to 8 for each account; a new one replaces the one saved longest ago.</td>
             </tr>
             <tr>
               <td>Version counts</td>

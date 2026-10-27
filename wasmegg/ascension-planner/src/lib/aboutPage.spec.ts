@@ -76,7 +76,7 @@ describe('About and privacy page', () => {
     expect(upload).not.toMatch(/useConsent|consentAgreed/);
     if (AUTO_FOLLOW_FIRST)
       expect(text).toContain(
-        'Two things are sent without a press. The route you follow can be saved online by itself: the first answer for Fastest to 490 TE and for Egg Day 2027, when you follow nothing for that goal'
+        'Three things are sent without a press. The route you follow can be saved online by itself: the first answer for Fastest to 490 TE and for Egg Day 2027, when you follow nothing for that goal'
       );
     else expect(text).not.toContain('The route you follow can be saved online by itself');
     expect(text).toContain(
@@ -99,7 +99,7 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       'If you set them, the row also has your awake hours (the times of day you said you are awake, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
     );
-    expect(text).toContain('Last updated Oct 26, 2026.');
+    expect(text).toContain('Last updated Oct 27, 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
     const sub = read('src/search/submission.ts');
     expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
@@ -133,7 +133,7 @@ describe('About and privacy page', () => {
       "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which before Oct 23, 2026 held the price of the instant answer's own route)"
     );
     expect(text).toContain('They are anonymous, sent only with that consent, and never shown publicly.');
-    expect(text).toContain('Last updated Oct 26, 2026.');
+    expect(text).toContain('Last updated Oct 27, 2026.');
     expect(text).not.toContain('Keep sharing my checks');
   });
 
@@ -195,7 +195,7 @@ describe('About and privacy page', () => {
     );
     expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
     expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');
-    expect(text).toContain('Last updated Oct 26, 2026.');
+    expect(text).toContain('Last updated Oct 27, 2026.');
     // What it says must stay true: the key made in the browser from the ID, the value's fields, Follow the only write.
     const cloud = read('src/lib/followCloud.ts');
     expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aaap-follow-v1:';");
@@ -239,6 +239,50 @@ describe('About and privacy page', () => {
     );
     const setupShape = cloud.slice(cloud.indexOf('export interface CloudSetup {'), cloud.indexOf('export type CloudPrefValue'));
     expect(setupShape).not.toMatch(/leg|detail|budget|workers/i);
+  });
+
+  it('says each instant answer is saved online under the follow code, scrubbed, what it holds, 8 an account (27 Oct 2026)', () => {
+    expect(text).toContain('Each instant answer worked out on the page is saved online (see Your instant answers, saved online ).');
+    expect(text).toContain('Your newest instant answers are also saved online');
+    expect(text).toContain(
+      'When an instant answer has been worked out and kept in this browser, it is also saved online, under the same code made from your player ID that the route you follow uses. That is so another device or a private window, which has no answer of its own yet, shows yours at once, marked "From &lt;time&gt;, checking…", while it works the answer out again. My runs also uses it to price your route meanwhile. Anyone who knows your player ID can make the same code, so they could read these answers, and change them.'
+    );
+    expect(text).toContain(
+      "What is stored: the answer as its box shows it (the route, its stops, times and TE, and the lines worked out with it), which instant answer data it came from (for data made for your account, the gear it was made for), the maxed gear what-if and your last Fast, Exact or Custom result for that goal if there are any, the time of your save and each egg's TE in it, and how it was priced: your starting TE and start time, your first ascensions, and the Setup it was worked out with (awake hours, whether shifts are held, time off, no prestige days, the first ascension, your target TE and your time zone)."
+    );
+    expect(text).toContain(
+      'Before it is packed, the planner replaces anything shaped like a player ID, and an answer that still has one is not sent. Never your player ID, a name or your game save. If it is too big (over 64 KB packed), the pricing and then the extras are left out; if it is still too big, it is not saved.'
+    );
+    expect(text).toContain(
+      "It is saved a few seconds after a new answer is kept, never while a search is running, and not again when the same answer is already online. At most 30 are saved an hour. Up to 8 answers are kept for each account (one for each goal, save and Setup); a ninth replaces the one saved longest ago. They are read only when this browser has no answer for that goal, once per page load. There is no switch to turn it off. If the planner's server can't be reached, nothing is shown from online, the answer is worked out as before and kept in this browser, and it is not saved online until a later answer is."
+    );
+    expect(text).toContain('Your instant answers No time limit. Up to 8 for each account; a new one replaces the one saved longest ago.');
+    // What it says must stay true: the follow key, the scrub before gzip, the caps, the fields, the one write.
+    const cloud = read('src/lib/answersCloud.ts');
+    expect(cloud).toContain("import { hasPlayerId } from './followCloud';");
+    expect(cloud).toContain("return text.replace(/EI\\d{16}/gi, 'EI-');");
+    expect(cloud).toContain('const json = scrubIds(JSON.stringify(t));');
+    expect(cloud).toContain('if (hasPlayerId(json)) return null;');
+    expect(cloud).toContain('if (!text || hasPlayerId(text)) return null;');
+    expect(cloud).toContain('export const ANSWERS_MAX_GZ = 65_536;');
+    expect(cloud).toContain('export const ANSWERS_MAX_ENTRIES = 8;');
+    expect(cloud).toContain('export const ANSWERS_WRITES_PER_HOUR = 30;');
+    expect(cloud).toContain('export const ANSWERS_DEBOUNCE_MS = 5000;');
+    expect(cloud).toContain('if (a.pricing) tries.push({ ...a, pricing: null });');
+    expect(cloud).toContain("tries.push({ ...a, pricing: null, snap: { ...s, bracket: null, gains: [], whatIf: null, search: null } });");
+    expect(cloud).toContain('if (this.synced.get(e) === o.at) {');
+    expect(cloud).toContain('if (this.env.busy()) {');
+    const store = read('src/stores/answers.ts');
+    expect(store).toContain('return useFollowStore().cloudKey;');
+    expect(store).not.toMatch(/consent|useConsent/i);
+    expect(read('src/stores/follow.ts')).toContain("const k = id ? await followKey(id).catch(() => '') : '';");
+    const route = read('src/components/auto/InstantRoute.vue');
+    expect(route.match(/answersCloud\.offer\(/g)?.length).toBe(1);
+    expect(route).toContain('answersCloud.offer({ goal: m.goal, backupTime: m.backupTime, snapKey, tables: runTables, at: snap.at, snap, pricing: pricingRecordNow() });');
+    expect(route.indexOf('offerCloud(snap);')).toBeGreaterThan(route.indexOf('function saveSnapshot('));
+    expect(route).toContain("From {{ show(staleAt / 1000) }}{{ status === 'loading' ? ', checking…' : '' }}");
+    // The pricing record and the snapshot's account are hashes, never the ID.
+    expect(read('src/search/runSaves.ts')).toContain("return id ? hash53(`account:${id}`) : '';");
   });
 
   it('says where per-ascension detail is kept on disk, the 10-minute download copy, and what a send carries (26 Oct 2026)', () => {
