@@ -26,7 +26,8 @@ import { appendFileSync, createWriteStream, mkdirSync, writeFileSync } from 'nod
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { LegSpill } from '@/search/legSpill';
-import { FileSpillBackend } from './nodeLegSpill';
+import { FileSpillBackend, fileBigCsvSink } from './nodeLegSpill';
+import { bigCsvMessage } from '@/search/bigCsvUpload';
 import { queueCsvPath } from '@/search/cliDates';
 import { createGzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
@@ -55,6 +56,29 @@ import type { Milestone } from '@/search/milestones';
 import type { TimeOffDates } from '@/search/timeOff';
 import type { EffortTier } from '@/search/types';
 import type { FirstAscension } from '@/search/firstAscension';
+
+/** The full CSV's scrubbed gzip for the collector's private store, in an --out directory. */
+export const BIG_CSV_UPLOAD_FILE = 'run-full-upload.csv.gz';
+
+/** A big run's full CSV to the collector's private store, after its send (store `sendFullCsv`), said as it goes. */
+async function sendFullCsvNow(store: Store): Promise<void> {
+  let last = 0;
+  const stop = watch(
+    () => store.bigCsvState,
+    s => {
+      if (!s || Date.now() - last < 15000) return;
+      last = Date.now();
+      console.log(`  ${s.message} ${s.total ? `${(s.done / 1e6).toFixed(0)} of ${(s.total / 1e6).toFixed(0)} MB` : `${(s.done / 1e6).toFixed(0)} MB`}`);
+    },
+    { deep: true }
+  );
+  try {
+    const out = await store.sendFullCsv();
+    if (out && out.kind !== 'unavailable') console.log(`  ${bigCsvMessage(out)}`);
+  } finally {
+    stop();
+  }
+}
 
 /** The leg spill's file in an --out directory (search/legSpill.ts), beside the checkpoint. */
 export const LEG_SPILL_FILE = 'legs.spill';
@@ -120,6 +144,8 @@ export interface SiteRunOptions {
   submit: { nickname: string; csv: boolean; yes: boolean } | null;
   /** --diagnostics: send the run's diagnostics with the result, as the page's "Send diagnostics" tick. */
   diagnostics?: boolean;
+  /** --no-full-csv: don't send a big run's full CSV to the collector's private store after --submit. */
+  noFullCsv?: boolean;
   /** `--out DIR`: leave the table and a submission file here for `submit --from`. */
   out: { dir: string; nickname: string; csv: boolean; plainCsv: boolean } | null;
   /** A plain CSV at this path (`--csv`). */
@@ -422,6 +448,11 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
   } catch (e) {
     console.warn(`  (no leg spill: ${e instanceof Error ? e.message : String(e)}; the files keep legs for the top routes only)`);
   }
+
+  // A big run's full CSV after its --submit (search/bigCsvUpload.ts): made in --out DIR (else a temporary file),
+  // uploaded here in this command rather than in the background as the page does it.
+  const bigCsvPath = o.out ? join(o.out.dir, BIG_CSV_UPLOAD_FILE) : join(tmpdir(), `aaap-bigcsv-${process.pid}.csv.gz`);
+  store.setBigCsvPlatform({ sink: async () => (o.submit && !o.noFullCsv ? fileBigCsvSink(bigCsvPath) : null), auto: false });
 
   // Test knobs: AAP_LEG_DETAIL_BUDGET sets "Keep per-ascension detail for N routes" (Setup > Memory on the
   // page); AAP_MEMORY_LOG=FILE appends the heap, RSS and the spill's count every 15 s (a measured run).
@@ -747,6 +778,7 @@ async function runChains(
       console.log(`\n  sending to ${store.submitUrl}: ${store.bestChain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
       const res = await sendRunResult(store, o.submit.nickname, o.submit.csv, stage => console.log(`  ${stage}`), !!o.diagnostics);
       console.log(`\n  ${res.text}`);
+      if (res.ok) await sendFullCsvNow(store);
       if (!res.ok) worst = 1;
     }
     if (store.error) worst = 1;
@@ -910,6 +942,7 @@ async function runByDate(
         ? `\n  ${res.duplicate === 'exact' ? res.message : `Thanks! ${sentence(res.message)}`} It's on Compare > ${year ? `Egg Day ${year}` : 'By a date'}.`
         : `\n  Not sent: ${res.message}`
     );
+    if (res.ok && !res.quarantined) await sendFullCsvNow(store);
     return res.ok && !res.quarantined ? 0 : 1;
   }
   return store.error ? 1 : 0;

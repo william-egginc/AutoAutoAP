@@ -922,6 +922,7 @@
         <!-- CSV and a quick save are on the card (as on Fastest's); here, a save under a name of your own. -->
         <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
           <p v-if="downloadError" class="text-body font-bold text-red-700">{{ downloadError }}</p>
+          <BigCsvStatus />
           <p class="text-body text-slate-500 max-w-prose">
             Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
               >, on your save from {{ inPlannerZone(result.backupAt) }}</template
@@ -1056,6 +1057,7 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import BigCsvStatus from './BigCsvStatus.vue';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import FollowButton from '../FollowButton.vue';
 import { sourceOfLevel } from '@/lib/followCloud';

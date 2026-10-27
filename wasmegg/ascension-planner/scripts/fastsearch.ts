@@ -75,7 +75,11 @@ import { createPinia, setActivePinia } from 'pinia';
 setActivePinia(createPinia());
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { gunzipSync } from 'node:zlib';
+import { createGunzip, gunzipSync } from 'node:zlib';
+import { createReadStream } from 'node:fs';
+import { BIG_CSV_MIN_ROUTES, bigCsvMessage, gzipCsvTo, uploadBigCsv } from '@/search/bigCsvUpload';
+import { fileBigCsvSink } from './nodeLegSpill';
+import { scrubIdentifiers } from '@/search/submission';
 import { availableParallelism, cpus, homedir, totalmem } from 'node:os';
 import { join } from 'node:path';
 import { runSiteSearch, type SiteKind, type SiteRunOptions } from './siteRun';
@@ -587,6 +591,10 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
                             "baseline" (the command line has no instant answer) and no best so far.
   --diagnostics             With --submit: also send the run's diagnostics (the site's "Send
                             diagnostics" tick): a private field of the result, never in the CSV.
+  --no-full-csv             With --submit or submit: a run of over 100,000 routes also sends its full
+                            CSV (every route's legs, scrubbed, gzipped: DIR/run-full-upload.csv.gz)
+                            to the collector's private store for analysis, after the result; this
+                            keeps it to the board's table. Resumes an upload a broken link left.
   --nickname NAME           Credit a name (up to 40 characters). Anonymous without it. Also with --out.
   --collector URL           Where to send (default: the collector this build was made with, else the
                             public board).
@@ -2198,6 +2206,7 @@ function siteOptions(o: {
     ascendNeeded: has('ascend-needed'),
     submit: has('submit') ? { nickname, csv: withCsv, yes: has('yes') } : null,
     diagnostics: has('diagnostics'),
+    noFullCsv: has('no-full-csv'),
     out: has('out') && !has('dry-run') ? { dir: arg('out')!, nickname, csv: withCsv, plainCsv: has('plain-csv') } : null,
     csvPath: has('out') ? (has('csv') ? arg('csv')! : null) : resolveCsvPath(),
     top: +(arg('top', '10')!),
@@ -2247,6 +2256,18 @@ function chooseCollector(): string {
   (globalThis as any).__AAP_SUBMIT_URL__ = url;
   if (!given && !built) console.log(`sends go to the public board: ${url} (the default; --collector URL changes it)`);
   return url;
+}
+
+/** A gzipped CSV's text, a run of whole lines at a time (never an id split across two chunks). */
+async function* gunzipLines(path: string): AsyncGenerator<string> {
+  let carry = '';
+  for await (const buf of createReadStream(path).pipe(createGunzip())) {
+    const text = carry + (buf as Buffer).toString('utf8');
+    const cut = text.lastIndexOf('\n') + 1;
+    if (cut) yield text.slice(0, cut);
+    carry = text.slice(cut);
+  }
+  if (carry) yield carry;
 }
 
 async function submitCommand(): Promise<number> {
@@ -2342,6 +2363,16 @@ async function submitCommand(): Promise<number> {
     );
     if (res.ok && !res.quarantined) writeFileSync(sent, JSON.stringify({ at: new Date().toISOString(), message: res.message }, null, 2));
     else failed++;
+    // A big run's full CSV (DIR/run-full.csv.gz, every route's legs) to the collector's private store, with this
+    // row's final token, scrubbed and gzipped again into DIR/run-full-upload.csv.gz first.
+    const priced = Number((payload as { chainsPriced?: number }).chainsPriced);
+    const full = join(dir, 'run-full.csv.gz');
+    if (res.ok && !res.quarantined && res.id && res.uploadToken && priced > BIG_CSV_MIN_ROUTES && existsSync(full) && !has('no-full-csv')) {
+      console.log(`  ${name}: the full CSV to the private store (${priced.toLocaleString()} routes)`);
+      const source = await gzipCsvTo(gunzipLines(full), fileBigCsvSink(join(dir, 'run-full-upload.csv.gz')), scrubIdentifiers);
+      const out = await uploadBigCsv({ base: store.submitUrl.replace(/\/submit\/?$/, ''), id: res.id, token: res.uploadToken, source });
+      if (out.kind !== 'unavailable') console.log(`  ${bigCsvMessage(out)}`);
+    }
   }
   return failed ? 1 : 0;
 }
