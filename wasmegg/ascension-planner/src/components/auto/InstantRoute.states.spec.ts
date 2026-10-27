@@ -202,6 +202,7 @@ function ctxOf(s: State): Record<string, unknown> {
     runBusy: s.waiting,
     saveWaitText: s.saveWait ? 'Waiting for your save to load…' : '',
     savedAt: s.saved ? 1_792_000_000_000 : null,
+    staleAt: null,
     seeResult: () => {},
     setInsideHours: () => {},
     shareNote: null,
@@ -453,7 +454,7 @@ describe('the share Teleport lives as long as the card', () => {
     // After both sections: a sibling of the card, not inside it.
     expect(at).toBeGreaterThan(tpl.indexOf('data-testid="instant-no-table"'));
     expect(tpl.slice(at, tpl.indexOf('>', at))).toContain('v-if="instantUrl"');
-    expect(tpl).toContain('v-if="pointer && result && !noTable && !integrityHold"');
+    expect(tpl).toContain('v-if="pointer && result && !noTable && !integrityHold && !staleAt"');
   });
 });
 
@@ -584,3 +585,53 @@ describe('lines that come and go (UX review, 26 Oct 2026, items 3 and 7)', () =>
     expect(noBox).toContain('Pricing your route');
   });
 });
+
+describe('cached answers first, then recheck (Jordan, 27 Oct 2026)', () => {
+  const at = (answer: Answer, deadline: boolean): State => ({
+    answer,
+    status: 'loading',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+
+  it('the last answer drawn while it is worked out again, marked "From <time>, checking…" (role=status, small)', async () => {
+    for (const [answer, deadline] of [['date', true], ['fastest', false]] as const) {
+      const html = await draw(at(answer, deadline), { staleAt: 1_792_000_000_000 });
+      expect(html).toContain('data-testid="instant-box"');
+      const mark = html.slice(html.lastIndexOf('<p', html.indexOf('data-testid="instant-stale"')));
+      expect(mark.slice(0, mark.indexOf('</p>'))).toMatch(/role="status"/);
+      expect(mark.slice(0, mark.indexOf('</p>'))).toMatch(/text-small/);
+      expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000, checking…');
+      // One mark, not the old "previous one" sentence beside it.
+      expect(html).not.toContain('The answer below is the previous one');
+    }
+  });
+
+  it('while stale, Follow is held (stale on every Follow button) and the better-route prompt is not drawn', async () => {
+    for (const [answer, deadline] of [['date', true], ['fastest', false]] as const) {
+      const html = await draw(at(answer, deadline), { staleAt: 1_792_000_000_000 });
+      const follows = html.match(/data-part="FollowButton"[^>]*/g) ?? [];
+      expect(follows.length).toBeGreaterThan(0);
+      for (const f of follows) expect(f).toMatch(/stale="true"/);
+      expect(html).not.toContain('data-part="BetterRoutePrompt"');
+    }
+  });
+
+  it('fresh (no staleAt): no mark, Follow not held, the loading line as before', async () => {
+    const html = await draw(at('fastest', false));
+    expect(html).not.toContain('data-testid="instant-stale"');
+    expect(html.match(/data-part="FollowButton"[^>]*/g)?.join(' ') ?? '').not.toMatch(/stale="true"/);
+    expect(html).toContain('The answer below is the previous one until the new one is ready.');
+  });
+});
+
+function textOf(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}

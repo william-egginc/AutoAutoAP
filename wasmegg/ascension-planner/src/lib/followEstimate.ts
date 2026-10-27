@@ -69,6 +69,9 @@ export interface PricingSource {
   /** When the snapshot was saved, ms. */
   at: number;
   meta: SnapMeta | null;
+  /** Another save's or setup's record, used only while this save and setup's is worked out (`staleRecordSources`):
+   *  the estimate it gives is marked "From <time>, checking…". */
+  stale?: true;
 }
 
 export type PickedPricing =
@@ -274,4 +277,52 @@ export function recordSources(
   return records
     .filter(r => r.account === o.account && r.backupTime === o.backupTime && r.setup === o.setup)
     .map(r => ({ url: r.url, pricing: r.pricing, tableTo: r.tableTo, ownGoal: false, at: r.at, meta: o.meta }));
+}
+
+/**
+ * CACHED ANSWERS FIRST, THEN RECHECK (Jordan, 27 Oct 2026). While the record for this save and setup is worked out
+ * (composables/useInstantCompute.ts), the account's other records that start at the save's TE (another setup, or a
+ * newer save at the same TE: the first ascensions are from that TE) price the route meanwhile, newest first, marked
+ * stale. Never another account's, never another TE's, never the exact record (that one is `recordSources`).
+ */
+export function staleRecordSources(
+  records: readonly PricingRecord[],
+  o: { account: string | null; backupTime: number; setup: string; currentTE: number; meta: SnapMeta | null }
+): PricingSource[] {
+  if (!o.account) return [];
+  const te = Math.floor(o.currentTE);
+  return records
+    .filter(r => r.account === o.account && !(r.backupTime === o.backupTime && r.setup === o.setup) && r.pricing.options.startTE === te)
+    .sort((a, b) => b.at - a.at)
+    .map(r => ({ url: r.url, pricing: r.pricing, tableTo: r.tableTo, ownGoal: false, at: r.at, meta: o.meta, stale: true as const }));
+}
+
+/**
+ * The pricing records in answers read back from online (stores/answers.ts): stale sources only (My runs' pricing
+ * meanwhile, in a browser that keeps none of the account's). Their setup is marked so one is never taken for this
+ * browser's own record of the same save and setup.
+ */
+export function cloudPricingRecords(read: readonly { pricing?: unknown }[]): PricingRecord[] {
+  const out: PricingRecord[] = [];
+  for (const a of read) {
+    const r = a.pricing as PricingRecord | null | undefined;
+    if (!r || typeof r.account !== 'string' || typeof r.url !== 'string' || typeof r.backupTime !== 'number' || typeof r.at !== 'number') continue;
+    const pricing = readPricing(r.pricing);
+    if (pricing) out.push({ ...r, setup: `cloud|${r.setup}`, pricing });
+  }
+  return out;
+}
+
+/** The exact sources' pick (`pickPricing`); where they need a record (`needsPricingRecord`), a stale source's pick
+ *  meanwhile when one covers the route; else the exact pick as it was. */
+export function pickWithStale(
+  exact: readonly PricingSource[],
+  stale: readonly PricingSource[],
+  chain: readonly number[],
+  currentTE: number
+): PickedPricing {
+  const p = pickPricing(exact, chain, currentTE);
+  if ((p && 'source' in p) || !stale.length || !needsPricingRecord(exact, chain, currentTE)) return p;
+  const s = pickPricing(stale, chain, currentTE);
+  return s && 'source' in s ? s : p;
 }

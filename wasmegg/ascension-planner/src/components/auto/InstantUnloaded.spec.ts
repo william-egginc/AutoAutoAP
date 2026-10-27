@@ -108,7 +108,7 @@ describe('InstantRoute wiring: noTable is never set without a visible card', () 
     // `noTable` appears in the template only there, and in the share line, which lives beside the card (its
     // Teleport stays as long as the card; InstantRoute.states.spec.ts) and shows only with the answer section.
     expect(template.match(/noTable/g)).toHaveLength(2);
-    expect(template).toContain('v-if="pointer && result && !noTable && !integrityHold"');
+    expect(template).toContain('v-if="pointer && result && !noTable && !integrityHold && !staleAt"');
   });
   it('the only ways noTable is set: off, or from a load failure (whose card is the one above)', () => {
     const sets = script.match(/noTable\.value = [^;]+;/g) ?? [];

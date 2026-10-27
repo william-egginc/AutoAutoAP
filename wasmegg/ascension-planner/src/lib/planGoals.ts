@@ -258,17 +258,19 @@ export interface GoalFollow {
   end: number | null;
   /** By a date: it lands after the date. */
   late?: boolean;
+  /** Its times are from before (another setup's pricing, or the last page load's) while they are worked out again. */
+  checking?: true;
 }
 
 /** A followed route's state from Right now's follow card (useNowPage `FollowCard`) and its plan's finish. */
 export function goalFollowOf(
-  card: { price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none'; estimating?: string; instantFailure?: string; finish?: { end: number }; missesDate?: boolean },
+  card: { price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none'; estimating?: string; instantFailure?: string; finish?: { end: number }; missesDate?: boolean; staleAt?: number },
   planEnd: number | null,
   /** With no timeline: the ascension you are in, simulated on the save (lib/followSim.ts): being worked out, or its next
    *  prestige (26 Oct 2026). */
   current?: { working: boolean; prestigeAt: number | null } | null
 ): GoalFollow {
-  const late = card.missesDate ? { late: true } : {};
+  const late = { ...(card.missesDate ? { late: true } : {}), ...(card.staleAt ? { checking: true as const } : {}) };
   if (card.price === 'exact' || card.price === 'instant') return { times: 'timeline', end: planEnd, ...late };
   if (card.price === 'estimate') return { times: 'estimate', end: planEnd, ...late };
   if (card.price === 'finish') return { times: 'finish', end: card.finish?.end ?? null, ...late };
@@ -299,7 +301,7 @@ export function followOptionWords(f: GoalFollow, dayWords: (unix: number) => str
   if (f.times === 'working' || f.times === 'waiting' || f.times === 'none' || f.times === 'failed' || f.times === 'first' || f.end == null)
     return `following · ${followNoTimesWords(f.times === 'working' || f.times === 'waiting' || f.times === 'failed' || f.times === 'first' ? f.times : 'none')}`;
   const when = `lands ${f.times === 'estimate' ? 'about ' : ''}${dayWords(f.end)}`;
-  return `following · ${when}${f.late ? `, ${lateWords}` : ''}`;
+  return `following · ${when}${f.late ? `, ${lateWords}` : ''}${f.checking ? ' · checking…' : ''}`;
 }
 
 export function goalOptions(list: readonly GoalPlans[], zone: string): GoalOption[] {

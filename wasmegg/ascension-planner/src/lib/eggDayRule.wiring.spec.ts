@@ -141,7 +141,7 @@ describe('the words and the follow suggestions', () => {
       .map(b => b.replace(/\s+/g, ' '));
     // (Its summary for the route saved online beside it, 23 Oct 2026.)
     expect(unguarded).toEqual([
-      '<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" :finish="boxLead.end" :end-te="boxLead.chain[boxLead.chain.length - 1]" :plan-start="answerStart" />',
+      '<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" :stale="!!staleAt" :finish="boxLead.end" :end-te="boxLead.chain[boxLead.chain.length - 1]" :plan-start="answerStart" />',
     ]);
     const users = allSources().filter(f => /<FollowButton/.test(fs.readFileSync(f, 'utf8')));
     // The result cards (23 Oct 2026) take their follow from the screen: By a date's guarded above, Fastest's
