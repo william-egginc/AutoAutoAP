@@ -63,6 +63,15 @@
     >
       {{ START_WAIT_LABEL }}
     </p>
+    <!-- Cached answers first, then recheck (`staleAt`): the answer below is from before, until the fresh one is in. -->
+    <p
+      v-if="staleAt && result"
+      class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-small text-amber-900"
+      role="status"
+      data-testid="instant-stale"
+    >
+      From {{ show(staleAt / 1000) }}{{ status === 'loading' ? ', checking…' : '' }}
+    </p>
     <p v-if="saveWaitText" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-wait-save">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
       {{ saveWaitText }}
@@ -77,7 +86,7 @@
     </p>
     <p v-else-if="status === 'loading'" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      {{ loadingText }}{{ result ? ' The answer below is the previous one until the new one is ready.' : '' }}
+      {{ loadingText }}{{ result && !staleAt ? ' The answer below is the previous one until the new one is ready.' : '' }}
     </p>
     <!-- Below the table's lowest TE: where the answer would be, what to do instead (NoInstantAnswer.vue). -->
     <NoInstantAnswer
@@ -359,7 +368,7 @@
               >
                 Simulate this plan
               </button>
-              <FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer"
+              <FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer" :stale="!!staleAt"
                 :finish="dateBoxOf(result.byDate).end"
                 :end-te="dateBoxOf(result.byDate).endTE"
                 :plan-start="answerStart"
@@ -368,6 +377,7 @@
             </div>
             <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts). -->
             <BetterRoutePrompt
+              v-if="!staleAt"
               class="mt-2"
               :goal-key="followGoal"
               goal="date"
@@ -451,7 +461,7 @@
                       >
                         Simulate this plan
                       </button>
-                      <FollowButton v-if="rowFollowable(r)" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count"
+                      <FollowButton v-if="rowFollowable(r)" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
                         :finish="r.end"
                         :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
                         :plan-start="answerStart"
@@ -538,7 +548,7 @@
             >
               Simulate this plan
             </button>
-            <FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer"
+            <FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" :stale="!!staleAt"
               :finish="boxLead.end"
               :end-te="boxLead.chain[boxLead.chain.length - 1]"
               :plan-start="answerStart"
@@ -546,6 +556,7 @@
           </div>
           <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts). -->
           <BetterRoutePrompt
+            v-if="!staleAt"
             class="mt-2"
             :goal-key="followGoal"
             goal="fastest"
@@ -637,7 +648,7 @@
                       >
                         Simulate this plan
                       </button>
-                      <FollowButton v-if="r.chain.length" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count"
+                      <FollowButton v-if="r.chain.length" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
                         :finish="r.end"
                         :end-te="r.chain[r.chain.length - 1]"
                         :plan-start="answerStart"
@@ -761,7 +772,7 @@
        one update) throws in Vue 3.5 and stops the card's update half way (InstantGuard.spec.ts). -->
   <Teleport v-if="instantUrl" defer :to="shareTo || 'body'" :disabled="!shareTo">
     <InstantShareCheck
-      v-if="pointer && result && !noTable && !integrityHold"
+      v-if="pointer && result && !noTable && !integrityHold && !staleAt"
       v-model:share-this="shareThis"
       v-model:keep-sharing="keepSharing"
       :status="shareText"
@@ -897,6 +908,7 @@ import {
   instantGoal,
   instantKey,
   instantSnapKey,
+  latestSnapshotFor,
   patchSnapshot,
   readSnapshot,
   recallShown,
@@ -917,6 +929,7 @@ import type { TableHeader } from '@/search/precomputedTable';
 import { useInitialStateStore } from '@/stores/initialState';
 import { knownSiloSeconds, siloRunOutWords } from '@/lib/siloWords';
 import { useFollowStore } from '@/stores/follow';
+import { useAnswersStore } from '@/stores/answers';
 import { autoFollowsGoal, instantAutoFollowOf } from '@/lib/followPolicy';
 import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
@@ -924,7 +937,7 @@ import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
 import { countsShown } from '@/search/instantCounts';
 import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
-import { pricingSetupKey, readPricing, recordPricing, snapPricing, type SnapPricing } from '@/lib/followEstimate';
+import { pricingSetupKey, readPricing, recordPricing, snapPricing, type PricingRecord, type SnapPricing } from '@/lib/followEstimate';
 import { MAX_BYTES as SNAP_MAX_BYTES } from '@/search/instantSnapshot';
 import MaxedWhatIf from './MaxedWhatIf.vue';
 import { accountOf } from '@/search/runSaves';
@@ -1784,6 +1797,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     ++runs;
     ++bracketRuns;
     result.value = null;
+    staleAt.value = null;
     status.value = 'idle';
     return;
   }
@@ -1825,6 +1839,8 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (!result.value) {
       const prev = recallShown<InstantSnapshot>(snapKey);
       if (prev && savedAnswerFits(prev, GEAR_RULE, tablesNow)) applySnapshot(prev);
+      // Else the last one kept for this goal, marked as from before (`showStale`), rather than nothing.
+      else showStale(id);
     }
     waiting.value = true;
     savedAt.value = null;
@@ -1842,6 +1858,9 @@ async function run(force = false, goAhead = false): Promise<void> {
     result.value = null;
     return;
   }
+  // Never a blank while it is worked out (Jordan, 27 Oct 2026): the answer on screen stays, marked, or the last one
+  // kept for this goal is shown at once (`showStale`), until the fresh one replaces it.
+  showStale(id);
   status.value = 'loading';
   noTable.value = false;
   below.value = null;
@@ -1876,6 +1895,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     // Every TE from the player's up is needed, and the table starts where virtue players are.
     if (te < h.from) {
       result.value = null;
+      staleAt.value = null;
       status.value = 'error';
       below.value = { from: h.from, te };
       errorText.value = `The instant answer starts at TE ${h.from} and your route starts at ${te}, so there is no instant answer yet. The searches below work as always.`;
@@ -1951,6 +1971,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const raw = { ...found, ...polished };
     const answer = withinAscensions(raw, filterBounds(filters.value));
     result.value = answer;
+    staleAt.value = null;
     // The last answer's "Prestige by" line goes with it.
     prestige.value = null;
     prestigeStatus.value = 'idle';
@@ -1985,6 +2006,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (id !== runs) return;
     const message = err instanceof Error ? err.message : String(err);
     status.value = 'error';
+    dropStale();
     // No usable table on this site (missing, a web page in its place, or cut short): only the card
     // saying so (NoInstantAnswer.vue), and every search works exactly as without it.
     noTable.value = tableLoadFailed(message);
@@ -2525,9 +2547,14 @@ let answerPricing: SnapPricing | null = null;
 /** The same inputs kept at once for My runs, by account, save and setup (lib/followEstimate.ts `recordPricing`): the
  *  snapshot is only written when everything has finished, and My runs prices a followed route of any goal with them. */
 function keepPricing(): void {
+  const r = pricingRecordNow();
+  if (r) recordPricing(r);
+}
+/** The pricing record for the answer on screen (`keepPricing`; saved online with it, `offerCloud`), or null. */
+function pricingRecordNow(): PricingRecord | null {
   const m = snapMeta();
-  if (!answerPricing || !m) return;
-  recordPricing({
+  if (!answerPricing || !m) return null;
+  return {
     account: m.account,
     backupTime: m.backupTime,
     setup: pricingSetupKey({
@@ -2544,7 +2571,7 @@ function keepPricing(): void {
     tableTo: header.value?.to ?? null,
     at: Date.now(),
     pricing: answerPricing,
-  });
+  };
 }
 /** The tables there were when this run started (`tablesIdentity`), saved with its answer. */
 let runTables: string | null = null;
@@ -2594,10 +2621,23 @@ function saveSnapshot(id: number): void {
   if (snap && writeSnapshot(snapKey, snap)) {
     keptAnswer.value = result.value;
     noteMyRuns();
+    offerCloud(snap);
   }
   // The player's instant baseline for this goal and save (lib/instantBaseline.ts): My runs compares each run with it.
   const base = snap ? baselineOfSnapshot(snap) : null;
   if (base) recordBaseline(base);
+}
+/**
+ * THE ANSWER SAVED ONLINE (stores/answers.ts, lib/answersCloud.ts; Jordan, 27 Oct 2026): a fresh answer, once kept in
+ * this browser, with its pricing record, so a new browser shows it at once (`showStale`). Debounced, skipped when the
+ * same one is already online, never while a search runs; only here, never on a restore or a stale answer. The ID never
+ * goes (scrubbed before gzip; the key is the follow key).
+ */
+const answersCloud = useAnswersStore();
+function offerCloud(snap: InstantSnapshot): void {
+  const m = snap.meta;
+  if (!m || !snapKey) return;
+  answersCloud.offer({ goal: m.goal, backupTime: m.backupTime, snapKey, tables: runTables, at: snap.at, snap, pricing: pricingRecordNow() });
 }
 /** The answer on screen as a snapshot: plain copies, without the finder's spare routes (only for the
  *  polish). Null with no answer. */
@@ -2674,7 +2714,49 @@ function restoreSnapshot(tablesNow: string | null): boolean {
   keptAnswer.value = result.value;
   return true;
 }
-function applySnapshot(s: InstantSnapshot): void {
+/**
+ * CACHED ANSWERS FIRST, THEN RECHECK (Jordan, 27 Oct 2026: "answers recalculating with nothing shown"). When the answer
+ * is about to be worked out (a setup or save change, new tables or rules, a reload after a day): the answer on screen
+ * stays, marked "From <time>, checking…" (`staleAt`); with none, the last one kept in this browser for this goal (its
+ * own key's even when it no longer fits, else the newest of this account and goal: search/instantSnapshot.ts
+ * `latestSnapshotFor`) is drawn at once, marked the same. A stale answer is never kept, priced for My runs, followed on
+ * its own, shared or sent to By a date's search; Follow and Share wait for the fresh one. None at all (the first
+ * ever): the loading line as before.
+ */
+const staleAt = ref<number | null>(null);
+/** The stale answer on screen is another key's (not the answer on screen before this run). */
+let staleOther = false;
+function showStale(id: number): void {
+  if (result.value) {
+    staleAt.value = answerAt.value || Date.now();
+    return;
+  }
+  staleOther = false;
+  const m = snapMeta();
+  const got = latestSnapshotFor<InstantSnapshot>({ key: snapKey, account: m?.account, goal: instantGoal(props.deadline, store.finalTE) });
+  const s = got?.value;
+  if (!s) {
+    // Nothing kept in this browser (a new browser, a private window): the account's answer saved online, if it comes
+    // in while this one is still being worked out (stores/answers.ts; quiet when there is none).
+    void answersCloud.fallbackFor(instantGoal(props.deadline, store.finalTE)).then(c => {
+      if (!c) return;
+      if (id !== runs || result.value || status.value !== 'loading') return;
+      applySnapshot(c.snap as InstantSnapshot, true);
+      staleOther = true;
+    });
+    return;
+  }
+  if (s.v !== 1 || !s.result || !s.header || id !== runs) return;
+  applySnapshot(s, true);
+  staleOther = true;
+}
+/** The work failed: a stale answer of another key goes (it is not this setup's); the one on screen before stays. */
+function dropStale(): void {
+  if (staleAt.value !== null && staleOther) result.value = null;
+  staleAt.value = null;
+  staleOther = false;
+}
+function applySnapshot(s: InstantSnapshot, stale = false): void {
   header.value = s.header;
   tableUrl.value = s.tableUrl;
   ownChanged.value = s.ownChanged;
@@ -2690,17 +2772,21 @@ function applySnapshot(s: InstantSnapshot): void {
   if (prestige.value) cachePrestige(s.result, prestige.value);
   whatIfResult.value = s.whatIf ?? null;
   keptSearch.value = readSearch(s.search);
-  answerPricing = readPricing(s.pricing);
-  // A saved answer put back feeds My runs too (it is for this key: this save and setup).
-  keepPricing();
-  prestigeStatus.value = prestige.value ? 'done' : 'idle';
-  bracketStatus.value = 'done';
-  backgroundStatus.value = 'done';
-  status.value = 'done';
+  answerPricing = stale ? null : readPricing(s.pricing);
+  // A saved answer put back feeds My runs too (it is for this key: this save and setup); a stale one never.
+  if (!stale) keepPricing();
+  // A stale answer is only drawn: the run that is working the fresh one out keeps its own states.
+  if (!stale) {
+    prestigeStatus.value = prestige.value ? 'done' : 'idle';
+    bracketStatus.value = 'done';
+    backgroundStatus.value = 'done';
+    status.value = 'done';
+  }
   noTable.value = false;
   below.value = null;
-  savedAt.value = s.at;
-  if (props.deadline) emitRoutes(s.result);
+  savedAt.value = stale ? null : s.at;
+  staleAt.value = stale ? s.at : null;
+  if (props.deadline && !stale) emitRoutes(s.result);
 }
 
 // Again whenever what it depends on changes (a new save, a new plan start, another target).
@@ -2926,9 +3012,10 @@ watch(
   }
 );
 watch(
-  () => [shareThis.value, resultKey.value, status.value] as const,
-  ([on, k, st]) => {
-    if (on && k && st === 'done' && k !== sentKey) void shareResult(k);
+  () => [shareThis.value, resultKey.value, status.value, staleAt.value !== null] as const,
+  ([on, k, st, stale]) => {
+    // Never with a stale answer on screen (cached answers first): the fresh one goes.
+    if (on && k && st === 'done' && !stale && k !== sentKey) void shareResult(k);
   },
   { immediate: true }
 );

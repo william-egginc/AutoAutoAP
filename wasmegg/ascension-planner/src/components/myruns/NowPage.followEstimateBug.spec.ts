@@ -218,7 +218,7 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     scope.stop();
   });
 
-  it("another save's or another setup's record is never used", async () => {
+  it("another save's or another setup's record is never taken for this one's: it prices meanwhile, marked, while this one's is worked out (27 Oct 2026)", async () => {
     for (const over of [{ backupTime: 1 }, { setup: '["other"]' }]) {
       setActivePinia(createPinia());
       mem.clear();
@@ -226,10 +226,13 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
       const { keep, open } = await jordan();
       keep(over);
       const { page, scope } = await open();
-      await nextTick();
-      expect(calls, JSON.stringify(over)).toHaveLength(0);
-      // Not priced with it: this save and setup's is worked out here instead.
-      expect(page.follow.value?.estimating).toBe('instant');
+      // Priced with it at once (cached answers first, then recheck: NowPage.staleFirst.spec.ts), marked stale ...
+      await vi.waitFor(() => expect(calls, JSON.stringify(over)).toHaveLength(1));
+      calls[0].resolve(route(Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000) + 9 * D));
+      await vi.waitFor(() => expect(page.follow.value?.staleAt).toBeGreaterThan(0));
+      // ... and never counted as this save and setup's: its own is still asked for.
+      // (No route worker in this spec: the attempt fails quietly with a console line, proving it was asked.)
+      await vi.waitFor(() => expect(vi.mocked(console.warn).mock.calls.some(c => String(c[0]).includes('instant answer for your setup'))).toBe(true), { timeout: 4000 });
       scope.stop();
     }
   });
@@ -273,6 +276,6 @@ describe('the pricing record and the saved answers from before it', () => {
     expect(src).toMatch(/answerPricing = snapPricing\(polishOptions, target\.value\);\n\s+keepPricing\(\);/);
     expect(src.indexOf('keepPricing();')).toBeLessThan(src.indexOf('result.value = answer;'));
     const apply = src.slice(src.indexOf('function applySnapshot('));
-    expect(apply.slice(0, apply.indexOf('\n}'))).toMatch(/answerPricing = readPricing\(s\.pricing\);[\s\S]*keepPricing\(\);/);
+    expect(apply.slice(0, apply.indexOf('\n}'))).toMatch(/answerPricing = stale \? null : readPricing\(s\.pricing\);[\s\S]*if \(!stale\) keepPricing\(\);/);
   });
 });
