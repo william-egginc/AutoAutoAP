@@ -29,6 +29,15 @@ const ZONE = 'America/Los_Angeles';
 const H = 3600;
 let mem: Map<string, string>;
 let calls: { chain: number[]; resolve: (r: Route | null) => void }[];
+/**
+ * The save's backup time, fixed for the whole test (28 Oct 2026: "even a build-up leg kept under today's key" failed
+ * under load). A kept simulation is keyed on the save's backup time; stamped from the clock at each `save()`, a second
+ * ticking over between the first visit and the next gave the second save another key, so the record wasn't read and a
+ * simulation was scheduled that no stand-in answered.
+ */
+let saveAt: number;
+/** The waits are for answers, never for time: the ceiling only says how long a failing one takes to fail. */
+const WAIT = { timeout: 15_000, interval: 10 };
 
 beforeEach(() => {
   mem = new Map<string, string>();
@@ -42,6 +51,7 @@ beforeEach(() => {
   setActivePinia(createPinia());
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   calls = [];
+  saveAt = Math.floor(Date.now() / 1000) - H;
   setChainPricer(
     (): ChainPricer => ({
       priceChain: (_url: string, _o: PolishOptions, chain: number[]) =>
@@ -72,7 +82,7 @@ function save(farm?: {
       ...farm,
       commonResearch: [...b.farms[0].commonResearch, ...(farm.commonResearch ?? [])],
     });
-  const t = Math.floor(Date.now() / 1000) - H;
+  const t = saveAt;
   b.eiUserId = A_ID;
   b.settings.lastBackupTime = t;
   b.approxTime = t;
@@ -93,13 +103,13 @@ async function setup(farm?: Parameters<typeof save>[0]) {
     })
   );
   const follows = useFollowStore();
-  await vi.waitFor(() => expect(follows.partition).not.toBe(''));
+  await vi.waitFor(() => expect(follows.partition).not.toBe(''), WAIT);
   const scope = effectScope();
   const page = scope.run(() =>
     useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) })
   )!;
   page.selectGoal('fastest-490');
-  await vi.waitFor(() => expect(page.follow.value).not.toBeNull());
+  await vi.waitFor(() => expect(page.follow.value).not.toBeNull(), WAIT);
   return { page, scope, now };
 }
 
@@ -144,7 +154,7 @@ describe("pieha's state: mid-ascension on Curiosity, habs not all bought", () =>
     );
     const { page, scope, now } = await setup();
     // No instant answer kept for this save: the ascension you are in alone (lib/nextAction.ts, `more`).
-    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     expect(sims[0].chain).toEqual([226]);
     // Your setup says Soonest; the save's build isn't finished: the build-up, and no frozen farm as a candidate.
     expect(sims[0].inputs.firstAscension).toBe('buildup');
@@ -167,7 +177,7 @@ describe("pieha's state: mid-ascension on Curiosity, habs not all bought", () =>
       ],
       endEgg: { egg: 'kindness', te: 40 },
     } as LegSummary);
-    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('keepbuilding'));
+    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('keepbuilding'), WAIT);
     expect(page.nextStep.value).toEqual({ kind: 'keepbuilding', until: buildEnd, left: ['habs'] });
     const kinds = page.nextShiftLines.value.map(l => [l.kind, l.egg ?? null]);
     expect(kinds[0]).toEqual(['keepbuilding', null]);
@@ -232,12 +242,12 @@ describe("Jordan's producing farm (28 Oct 2026): four Chicken Universes, habs fu
       // Its shipping research done (each at its top: the levels are clamped).
       commonResearch: SHIPPING_RESEARCH.map(id => ({ id, level: 999 })),
     });
-    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     expect(sims[0].inputs.firstAscension).toBe('auto');
     expect(sims[0].inputs.continueMaxSeconds).toBeUndefined();
     // Even a build-up leg (Soonest may take one): the build isn't said.
     sims[0].resolve(buildupLeg(now, now + 17 * 24 * H, now + 16 * 24 * H));
-    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('shift'));
+    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('shift'), WAIT);
     expect(page.nextShiftLines.value.some(l => l.kind === 'keepbuilding')).toBe(false);
     const t = await cardText(page);
     expect(t).not.toContain('Keep building');
@@ -247,10 +257,10 @@ describe("Jordan's producing farm (28 Oct 2026): four Chicken Universes, habs fu
   it('shipping below laying (two small vehicles): Keep building: vehicles', async () => {
     const sims = stubSims();
     const { page, scope, now } = await setup({ habs: CU, habPopulation: FULL, vehicles: [9, 9], trainLength: [1, 1] });
-    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     expect(sims[0].inputs.firstAscension).toBe('buildup');
     sims[0].resolve(buildupLeg(now, now + 10 * H, now + 12 * H));
-    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('keepbuilding'));
+    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('keepbuilding'), WAIT);
     expect(page.nextStep.value).toEqual({ kind: 'keepbuilding', until: now + 10 * H, left: ['vehicles'] });
     expect(await cardText(page)).toMatch(/Next step Keep building: vehicles until about/);
     scope.stop();
@@ -259,10 +269,10 @@ describe("Jordan's producing farm (28 Oct 2026): four Chicken Universes, habs fu
   it('a build that ends after the first shift: no keep-building line, the shift first', async () => {
     const sims = stubSims();
     const { page, scope, now } = await setup({ habs: CU, habPopulation: FULL, vehicles: [9, 9], trainLength: [1, 1] });
-    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     // Jordan's: the build "until Nov 14, 10:00 AM", Humility Nov 13, 9:05 PM.
     sims[0].resolve(buildupLeg(now, now + 17 * 24 * H, now + 16 * 24 * H + 11 * H));
-    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('shift'));
+    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('shift'), WAIT);
     expect(page.nextShiftLines.value[0]).toMatchObject({ kind: 'shift', egg: 'humility' });
     expect(page.nextShiftLines.value.some(l => l.kind === 'keepbuilding')).toBe(false);
     scope.stop();
@@ -290,10 +300,10 @@ describe("Jordan's producing farm with records kept under the old rule", () => {
   async function keptNow(): Promise<{ kept: Kept; now: number }> {
     const sims = stubSims();
     const first = await setup(JORDAN);
-    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     const now = first.now;
     sims[0].resolve({ ...buildupLeg(now, now - H, now + 16 * 24 * H), key: 'continue' } as LegSummary);
-    await vi.waitFor(() => expect(first.page.nextStep.value?.kind).toBe('shift'));
+    await vi.waitFor(() => expect(first.page.nextStep.value?.kind).toBe('shift'), WAIT);
     first.scope.stop();
     const kept = JSON.parse(mem.get('aap-follow-sim') ?? '[]') as Kept[];
     expect(kept).toHaveLength(1);
@@ -324,11 +334,11 @@ describe("Jordan's producing farm with records kept under the old rule", () => {
     mem.set('aap-follow-sim', JSON.stringify([oldRule(kept, now, 'old')]));
     const sims = stubSims();
     const again = await setup(JORDAN);
-    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     expect(sims[0].inputs.firstAscension).toBe('auto');
     await noBuildLine(again.page);
     sims[0].resolve({ ...buildupLeg(now, now - H, now + 16 * 24 * H), key: 'continue' } as LegSummary);
-    await vi.waitFor(() => expect(again.page.nextStep.value?.kind).toBe('shift'));
+    await vi.waitFor(() => expect(again.page.nextStep.value?.kind).toBe('shift'), WAIT);
     await noBuildLine(again.page);
     again.scope.stop();
   });
@@ -338,7 +348,7 @@ describe("Jordan's producing farm with records kept under the old rule", () => {
     mem.set('aap-follow-sim', JSON.stringify([oldRule(kept, now, 'same')]));
     const sims = stubSims();
     const again = await setup(JORDAN);
-    await vi.waitFor(() => expect(again.page.nextStep.value?.kind).toBe('shift'));
+    await vi.waitFor(() => expect(again.page.nextStep.value?.kind).toBe('shift'), WAIT);
     expect(sims).toHaveLength(0);
     await noBuildLine(again.page);
     again.scope.stop();
@@ -444,13 +454,13 @@ describe("Jordan's producing farm with records kept under the old rule", () => {
     ).toBe(true);
     const sims = stubSims();
     const again = await setup(JORDAN);
-    await vi.waitFor(() => expect(again.page.follow.value?.staleAt).toBeGreaterThan(0));
-    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    await vi.waitFor(() => expect(again.page.follow.value?.staleAt).toBeGreaterThan(0), WAIT);
+    await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     expect(sims[0].inputs.firstAscension).toBe('auto');
     await noBuildLine(again.page);
     expect(await cardText(again.page)).toMatch(/From .+, checking…/);
     sims[0].resolve({ ...buildupLeg(now, now - H, now + 16 * 24 * H), key: 'continue' } as LegSummary);
-    await vi.waitFor(() => expect(again.page.nextStep.value?.kind).toBe('shift'));
+    await vi.waitFor(() => expect(again.page.nextStep.value?.kind).toBe('shift'), WAIT);
     await noBuildLine(again.page);
     again.scope.stop();
   });
