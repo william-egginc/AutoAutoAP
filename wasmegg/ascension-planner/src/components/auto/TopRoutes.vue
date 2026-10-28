@@ -90,8 +90,8 @@
           <li v-for="c in perCount" :key="c.ascensions">
             <button
               type="button"
-              class="grid min-h-[44px] w-full grid-cols-[6.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-1 text-left text-small hover:bg-slate-50 sm:min-h-[32px]"
-              :class="chosen?.ascensions === c.ascensions ? 'bg-slate-100' : ''"
+              class="grid min-h-[44px] w-full grid-cols-[6.5rem_minmax(0,1fr)_4.5rem] items-center gap-2 rounded-lg px-1 text-left text-small hover:bg-slate-50 sm:min-h-[32px]"
+              :class="chosen?.ascensions === c.ascensions ? 'bg-emerald-50 ring-1 ring-emerald-200' : ''"
               :aria-pressed="chosen?.ascensions === c.ascensions ? 'true' : 'false'"
               :aria-label="`${plural(c.ascensions, 'ascension')}: ${valueLabel(c)}, ${behindLabel(goal, c)}`"
               data-testid="top-routes-bar"
@@ -100,14 +100,14 @@
               @click="selected = c.ascensions"
             >
               <span class="text-slate-600">{{ plural(c.ascensions, 'ascension') }}</span>
-              <span class="relative block h-2 rounded-full bg-slate-100" aria-hidden="true">
+              <span class="relative block h-2 rounded-full bg-slate-200" aria-hidden="true">
                 <span
                   class="absolute top-1/2 block h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
                   :class="c.best ? 'bg-emerald-600' : 'bg-slate-400'"
                   :style="{ left: `${dotAt(c)}%` }"
                 ></span>
               </span>
-              <span class="tabular-nums" :class="c.best ? 'font-bold text-emerald-800' : 'text-slate-600'">{{
+              <span class="break-words text-right tabular-nums" :class="c.best ? 'font-bold text-emerald-800' : 'text-slate-600'">{{
                 goal === 'date' ? `${c.te} TE` : behindLabel(goal, c)
               }}</span>
             </button>
