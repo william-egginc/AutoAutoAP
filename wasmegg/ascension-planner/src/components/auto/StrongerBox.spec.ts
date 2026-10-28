@@ -102,8 +102,11 @@ describe('the screens (22 Oct layout: one search panel under the instant answer)
   it('By a date: run controls and results in each box, as on Fastest (no search "in hand")', () => {
     const t = read('DeadlinePanel.vue');
     expect(t.match(/<RunControls/g)).toHaveLength(1);
-    expect(t).toContain('<Teleport v-for="k in BY_DATE_KINDS" :key="`controls-${k}`" defer :to="TARGETS[k].controls">');
-    expect(t).toContain('<Teleport v-for="k in BY_DATE_KINDS" :key="`results-${k}`" defer :to="TARGETS[k].results">');
+    // Each box's own element, looked up when needed; in place when it is missing (DeadlinePanel.teleports.spec.ts).
+    for (const part of ['controls', 'results']) {
+      expect(t).toContain(`:key="\`${part}-\${k}\`"\n      :to="teleportTo(k, '${part}') ?? 'body'"\n      :disabled="!teleportTo(k, '${part}')"`);
+    }
+    expect(t).not.toMatch(/<Teleport[^>]*\bdefer\b/);
     for (const id of ['bd-around-controls', 'bd-around-results', 'bd-exh-controls', 'bd-exh-results'])
       expect(t).toContain(`id="${id}"`);
     expect(t.indexOf('<StrongerBox')).toBeLessThan(t.indexOf('id="exhaustive"'));

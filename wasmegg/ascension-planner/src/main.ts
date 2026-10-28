@@ -9,9 +9,12 @@ import 'tippy.js/dist/tippy.css';
 import 'tippy.js/themes/translucent.css';
 
 import App from './App.vue';
+import { installAppErrorLog } from './lib/appErrorLog';
 import './index.css';
 
 const app = createApp(App);
+// Errors nothing caught: one tagged line each, no ID (lib/appErrorLog.ts).
+installAppErrorLog(app);
 const pinia = createPinia();
 
 app.use(pinia);

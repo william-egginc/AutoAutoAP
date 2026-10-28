@@ -544,7 +544,15 @@
          holds one deadline run, so while one goes the other's Find is greyed out (store.busy). Two
          Stepping away? boxes, as on Fastest; StepAwayOptions makes one automatic carry-on decision per
          kind, and only the box of the unfinished run's kind can carry it on. -->
-    <Teleport v-for="k in BY_DATE_KINDS" :key="`controls-${k}`" defer :to="TARGETS[k].controls">
+    <!-- Not deferred, and never to the selector: the box's element, looked up once the page is drawn and again as the
+         controls or results are about to show (`teleportTo`, composables/useTeleportTarget.ts). A box not on the page:
+         they show here, under the search panel, never unseen (DeadlinePanel.teleports.spec.ts). -->
+    <Teleport
+      v-for="k in BY_DATE_KINDS"
+      :key="`controls-${k}`"
+      :to="teleportTo(k, 'controls') ?? 'body'"
+      :disabled="!teleportTo(k, 'controls')"
+    >
     <RunControls
       v-if="showControls(k)"
       :long-run="k === 'boxes' || stronger.level === 'thorough'"
@@ -749,7 +757,12 @@
 
     <!-- The results (RunResults.vue): the same order on every search screen. One answer in the store, shown
          in the box of the search that found it (`resultKind`), whatever the level. -->
-    <Teleport v-for="k in BY_DATE_KINDS" :key="`results-${k}`" defer :to="TARGETS[k].results">
+    <Teleport
+      v-for="k in BY_DATE_KINDS"
+      :key="`results-${k}`"
+      :to="teleportTo(k, 'results') ?? 'body'"
+      :disabled="!teleportTo(k, 'results')"
+    >
     <RunResults v-if="result && resultKind === k">
       <template #card>
         <!-- Say whose results these are (the Stronger check box has its own heading above Light). -->
@@ -1133,7 +1146,8 @@ import { durationLabel } from '@/composables/useRunClock';
 import { useRunDownloads } from '@/composables/useRunDownloads';
 import { useDateRowSliders } from '@/composables/useRowSliders';
 import { NAMES, fastestName } from '@/lib/siteNav';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type ShallowRef } from 'vue';
+import { useTeleportTarget } from '@/composables/useTeleportTarget';
 import { ascendNeededFor, boundsText, readAscendNeededChoice, writeAscendNeededChoice } from '@/search/instantFilters';
 import { isConstrained } from '@/search/availability';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
@@ -2833,6 +2847,25 @@ watch(
   () => (quickSaveNote.value = '')
 );
 onMounted(() => void store.loadDeadlineState(props.playerId));
+/**
+ * Where each box's run controls and results go (TARGETS: `#bd-around-*` in Fast and Exact, `#bd-exh-*` under
+ * Custom's boxes): the element, looked up after mount and each time they are about to show; null when it is not on
+ * the page, and then they show in place, under the search panel. Was a deferred Teleport to the selector, looked
+ * up once: a search panel that missed its first draw left them with no target (a throw in this panel's update) and
+ * one drawn again left them in the old element, unseen (teleport2, 27 Oct 2026).
+ */
+const teleportTargets = Object.fromEntries(
+  BY_DATE_KINDS.map(k => [
+    k,
+    {
+      controls: useTeleportTarget(() => TARGETS[k].controls, () => showControls(k)),
+      results: useTeleportTarget(() => TARGETS[k].results, () => !!result.value && resultKind.value === k),
+    },
+  ])
+) as Record<ByDateKind, Record<'controls' | 'results', ShallowRef<Element | null>>>;
+function teleportTo(k: ByDateKind, part: 'controls' | 'results'): Element | null {
+  return teleportTargets[k][part].value;
+}
 // The integrity check up front, as Fastest's panel has it: By a date must not depend on Fastest
 // having been opened for the notice beside Find (and Find's block) to show.
 useIntegrityProbe(() => props.playerId);
