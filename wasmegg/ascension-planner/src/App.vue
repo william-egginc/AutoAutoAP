@@ -1006,6 +1006,8 @@ const screenHasH1 = computed(
 );
 /** The pill's 1rem from the bottom, its height (56 px on a phone, about 45 px from sm up) and a margin, plus the safe area. */
 const SETUP_DOCK_CLEARANCE = 'calc(env(safe-area-inset-bottom, 0px) + 6rem)';
+/** Below 320 px the pill wraps its workers to a second row (SetupDock.vue, ux32-b): 3rem more room, else none. */
+const NARROW_PILL_ROOM = 'clamp(0px, (320px - 100vw) * 1000, 3rem)';
 
 /**
  * Which tab is open, and its address (lib/siteNav.ts). The address follows every change, so a
@@ -1019,8 +1021,8 @@ const singleRunBarRoom = useBottomBarRoom(computed(() => setupDockShown.value &&
 /** The room under the page for the pill; on Single run the bar's room on top, as the pill sits above the bar. */
 const pageBottomRoom = computed(() =>
   singleRunBarRoom.value
-    ? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${singleRunBarRoom.value}px)`
-    : SETUP_DOCK_CLEARANCE
+    ? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${NARROW_PILL_ROOM} + ${singleRunBarRoom.value}px)`
+    : `calc(${SETUP_DOCK_CLEARANCE} + ${NARROW_PILL_ROOM})`
 );
 /** This browser's memory of the last tab (lib/siteNav.ts LAST_ROUTE_KEY): read once, written on every change. */
 function readLastRoute(): string | null {
