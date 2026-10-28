@@ -8,7 +8,7 @@
 -->
 <template>
   <div class="space-y-1.5">
-    <label class="flex flex-wrap items-center gap-2 text-small text-slate-600">
+    <label class="flex flex-wrap min-w-0 max-w-full items-center gap-2 text-small text-slate-600">
       <span class="font-bold text-slate-800">When this tab is in the background:</span>
       <select
         :value="store.backgroundWorkers < store.workerBudget ? store.backgroundWorkers : 0"

@@ -7,16 +7,20 @@
 -->
 <template>
   <div ref="dock" class="fixed z-50" :style="dockStyle">
-    <!-- Opens on whichever side of the pill has room, wherever it has been dragged. -->
+    <!-- Opens on whichever side of the pill has room, wherever it has been dragged. Never scrolls sideways (ux31-a,
+         27 Oct 2026: on an iPhone it opened shifted left, "Setup" read as "p"): what is too wide is clipped, and
+         anything that scrolls it sideways (iOS bringing a focused box into view) is put back (keepLeft). -->
     <div
       v-if="ui.setupOpen"
-      class="absolute w-[min(94vw,46rem)] max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+      ref="panel"
+      class="absolute w-[min(94vw,46rem)] max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
       :class="[opensUp ? 'bottom-full mb-2' : 'top-full mt-2', alignRight ? 'right-0' : 'left-0']"
       role="dialog"
       aria-label="Setup"
+      @scroll="keepLeft"
     >
       <div
-        class="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5"
+        class="sticky top-0 z-10 min-w-0 flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-4 py-2.5"
       >
         <span class="text-body font-bold text-indigo-900">Setup</span>
         <button
@@ -131,6 +135,18 @@ const errors = computed(() => store.setupIssues.filter(i => i.level === 'error')
 function setWorkers(n: number): void {
   store.setWorkersByHand(Math.max(1, Math.min(store.machineThreads, Math.floor(n))));
 }
+
+/** The open panel: always at its left edge, on opening and after anything scrolls it sideways. */
+const panel = ref<HTMLElement | null>(null);
+function keepLeft(): void {
+  if (panel.value && panel.value.scrollLeft !== 0) panel.value.scrollLeft = 0;
+}
+watch(
+  () => ui.setupOpen,
+  open => {
+    if (open) void nextTick(() => panel.value && (panel.value.scrollLeft = 0));
+  }
+);
 
 /** Asked from a panel (a sweep's "add time off"): open, and scroll to the time off. */
 watch(

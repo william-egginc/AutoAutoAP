@@ -24,24 +24,24 @@
     </div>
     <p class="text-body text-slate-500" :data-testid="`${kind}-explain`">{{ words.explain }}</p>
     <div v-for="(row, i) in rows" :key="i" class="flex flex-wrap items-center gap-2">
-      <label class="flex items-center gap-1.5 text-small font-bold text-slate-600">
+      <label class="flex min-w-0 max-w-full items-center gap-1.5 text-small font-bold text-slate-600">
         From
         <input
           v-model="row.from"
           type="date"
           :disabled="store.isRunning"
-          class="rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
+          class="min-w-0 max-w-full rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
           @change="keepOrder(row)"
         />
       </label>
-      <label class="flex items-center gap-1.5 text-small font-bold text-slate-600">
+      <label class="flex min-w-0 max-w-full items-center gap-1.5 text-small font-bold text-slate-600">
         to
         <input
           v-model="row.to"
           type="date"
           :min="row.from"
           :disabled="store.isRunning"
-          class="rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
+          class="min-w-0 max-w-full rounded-md border-slate-300 text-body text-slate-800 disabled:opacity-50"
         />
       </label>
       <span class="text-small text-slate-400">{{ days(row) }}</span>

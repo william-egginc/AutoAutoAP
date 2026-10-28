@@ -18,7 +18,7 @@
        "too many boxes"): nothing unless the save has a problem, then the problems and Open setup. -->
   <section
     v-if="!issuesOnly || store.setupIssues.length"
-    class="text-left"
+    class="min-w-0 text-left"
     :class="
       docked
         ? ''
@@ -193,7 +193,7 @@
           <SaveFileBar v-if="initialState.playerId" :player-id="initialState.playerId" />
           <!-- What the plan starts from, besides the artifacts: leg 1 continues an already-built farm,
                and every later leg funds its own research out of earnings. -->
-          <dl class="grid grid-cols-2 gap-3 text-body border-t border-slate-100 pt-3">
+          <dl class="grid grid-cols-2 gap-3 text-body break-words border-t border-slate-100 pt-3">
             <div>
               <dt class="text-slate-400 label">Soul eggs</dt>
               <dd class="font-bold" :class="store.setupFacts.soulEggs > 0 ? 'text-slate-700' : 'text-rose-700'">
@@ -309,20 +309,20 @@
           </div>
           <div v-if="store.scheduleEnabled" class="pl-8 space-y-3">
             <div class="flex flex-wrap items-center gap-3">
-              <label class="flex items-center gap-2 text-small font-bold text-slate-600">
+              <label class="flex min-w-0 max-w-full items-center gap-2 text-small font-bold text-slate-600">
                 From
                 <select
                   v-model.number="store.availableFrom"
-                  class="max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
+                  class="min-w-0 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
                 </select>
               </label>
-              <label class="flex items-center gap-2 text-small font-bold text-slate-600">
+              <label class="flex min-w-0 max-w-full items-center gap-2 text-small font-bold text-slate-600">
                 to
                 <select
                   v-model.number="store.availableTo"
-                  class="max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
+                  class="min-w-0 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">
                     {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}
@@ -476,7 +476,7 @@
               {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'all' }} routes
             </summary>
             <div class="mt-3 space-y-3">
-              <dl class="grid grid-cols-2 gap-3 text-body">
+              <dl class="grid grid-cols-2 gap-3 text-body break-words">
                 <div>
                   <dt class="text-slate-400 label">Logical cores</dt>
                   <dd class="font-bold text-slate-700">{{ store.machineThreads }}</dd>
@@ -502,13 +502,13 @@
                 <span class="text-slate-400 label"
                   >Keep per-ascension detail for</span
                 >
-                <span class="flex items-center gap-2">
+                <span class="flex flex-wrap items-center gap-2">
                   <input
                     v-model.number="store.legDetailBudget"
                     type="number"
                     min="0"
                     step="500"
-                    class="w-32 rounded-lg border-slate-200 text-body font-bold text-slate-800"
+                    class="w-32 min-w-0 max-w-full rounded-lg border-slate-200 text-body font-bold text-slate-800"
                   />
                   <span class="text-small font-bold text-slate-500">fastest routes</span>
                 </span>

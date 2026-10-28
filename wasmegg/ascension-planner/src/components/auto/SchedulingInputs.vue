@@ -35,19 +35,19 @@
   <div v-else class="grid grid-cols-1 gap-4">
     <div class="space-y-2">
       <label class="text-slate-500 label ml-1">Start Time</label>
-      <div class="flex gap-3">
+      <div class="flex flex-wrap gap-3">
         <input
           :value="startDate"
           type="date"
           :min="formatUnixToDateInput(Date.now() / 1000 - 86400 * 7, timezone)"
-          class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+          class="flex-grow min-w-0 max-w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           @input="handleStartDateInput"
         />
         <input
           ref="startTimeInput"
           :value="startTime"
           type="time"
-          class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+          class="w-32 min-w-0 max-w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           @input="handleStartTimeInput"
         />
       </div>
@@ -60,12 +60,12 @@
 
     <div class="space-y-2">
       <label class="text-slate-500 label ml-1">Timezone</label>
-      <div class="flex gap-2">
-        <div class="relative flex-grow">
+      <div class="flex flex-wrap gap-2">
+        <div class="relative flex-grow min-w-0">
           <select
             ref="timezoneSelect"
             v-model="timezone"
-            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-5 pr-10 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+            class="w-full min-w-0 max-w-full bg-slate-50 border border-slate-200 rounded-xl pl-5 pr-10 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           >
             <option v-for="tz in allTimezones" :key="tz.value" :value="tz.value">
               {{ tz.label }}
