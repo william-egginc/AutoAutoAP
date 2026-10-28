@@ -131,13 +131,15 @@
           </span>
           </template>
         </ConsentBox>
-        <!-- The same two choices, and the same values, as the Submit section at the bottom: anonymous
-             unless the player picks otherwise, and the name box starts from their own nickname. -->
-        <ShareNameChoice
+        <!-- The one sharing line and its Change (SharingSummary.vue, ux29 #11), on the same values as the Submit
+             section at the bottom: anonymous unless the player picks otherwise. -->
+        <SharingSummary
+          ref="sweepSharing"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"
+          :on="sweepConsent"
           :disabled="store.isRunning"
-          class="pl-6 text-small text-slate-700"
+          class="pl-6 text-body text-slate-700"
           @nickname-typed="nicknameTouched = true"
         />
         <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="pl-6 text-small text-slate-700" />
@@ -182,12 +184,14 @@
           :ok="submitOk"
           :partial="submitPartial"
           :name-to-claim="nameToClaim"
+          :offer-name="offerName"
           :claiming="claiming"
           :pending-table="store.pendingTable?.source === 'fastest'"
           :retrying="retryingTable"
           quiet
           @claim="claim"
           @retry="retryTable"
+          @name-it="sweepSharing?.openForName()"
         />
         <!-- Said HERE as well as further down: the card's Start is at the top of a long page, and a
              refusal that only appears below the fold reads as "the button does nothing". -->
@@ -783,6 +787,7 @@
             ok: submitOk,
             partial: submitPartial,
             nameToClaim,
+            offerName,
             claiming,
             pendingTable: store.pendingTable?.source === 'fastest',
             retrying: retryingTable,
@@ -1086,6 +1091,7 @@
                 :opt-in="optIn"
                 :submit-url="store.submitUrl"
                 :name-to-claim="nameToClaim"
+                :offer-name="offerName"
                 :claiming="claiming"
                 :sending="submitting"
                 :already-submitted="store.alreadySubmitted"
@@ -1208,7 +1214,7 @@ import { useRunDownloads } from '@/composables/useRunDownloads';
 import CsvCard from './CsvCard.vue';
 import RunSendReport from './RunSendReport.vue';
 import RunResults from './RunResults.vue';
-import ShareNameChoice from './ShareNameChoice.vue';
+import SharingSummary from '../SharingSummary.vue';
 import EdgeWarning from './EdgeWarning.vue';
 import RunErrorNotes from './RunErrorNotes.vue';
 import RunControls from './RunControls.vue';
@@ -1270,6 +1276,8 @@ const sweepRequest =
   typeof window === 'undefined' || props.goal === 'deadline' ? null : parseSweepRequest(window.location.search);
 /** "I understand ... sent to the board automatically": the account's `scienceSweep` consent. */
 const sweepConsent = useConsent('scienceSweep').agreed;
+/** The sweep card's sharing line, for Put my name on it on a sweep sent anonymously (SharingSummary.vue). */
+const sweepSharing = ref<InstanceType<typeof SharingSummary> | null>(null);
 if (sweepRequest) {
   bandsText.value = sweepRequest.bands;
   minGap.value = sweepRequest.minGap;
@@ -1521,6 +1529,7 @@ const {
   retryingTable,
   retryTable,
   nameToClaim,
+  offerName,
   claiming,
   claim,
   submitting,

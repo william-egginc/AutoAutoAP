@@ -130,8 +130,9 @@ describe('FindBar', () => {
       expect(t).toContain('Also send diagnostics');
       expect(t).toContain('Tick this by default from now on');
       expect(t).toContain('you can still change these');
-      // The name for the send at the end, once agreed.
-      expect(t).toContain('Submit anonymously');
+      // The name for the send at the end, once agreed: the one sharing line and its Change (SharingSummary.vue).
+      expect(t).toContain('Sharing: on · anonymous · Change');
+      expect(t).not.toContain('Submit anonymously');
       // The consent wording is for starting, or for Send best so far asking: not repeated mid-run.
       expect(t).not.toContain('I acknowledge the following');
     });
@@ -158,11 +159,14 @@ describe('FindBar', () => {
       const extras = useShareExtras();
       extras.sendCsv.value = false;
       extras.sendDiagnostics.value = true;
-      expect(textOf(await renderWith({ optIn: true }))).toMatch(/CSV off · diagnostics on · anonymous/);
+      const off = textOf(await renderWith({ optIn: true }));
+      expect(off).toMatch(/CSV off · diagnostics on/);
+      expect(off).toContain('Sharing: on · anonymous');
       extras.sendCsv.value = true;
       extras.sendDiagnostics.value = false;
       const t = textOf(await renderWith({ optIn: true, anonymous: false, nickname: 'Fred' }));
-      expect(t).toMatch(/CSV on · diagnostics off · credited as Fred/);
+      expect(t).toMatch(/CSV on · diagnostics off/);
+      expect(t).toContain('Sharing: on · credited as Fred');
       expect(t).not.toContain('anonymous');
     });
 
@@ -200,7 +204,8 @@ describe('FindBar', () => {
 
     it('"Credit me as" with no name says anonymous in the summary', async () => {
       const t = textOf(await renderWith({ optIn: true, anonymous: false, nickname: '  ' }));
-      expect(t).toMatch(/diagnostics off · anonymous/);
+      expect(t).toContain('Sharing: on · anonymous');
+      expect(t).not.toContain('credited as');
     });
 
     it('with the box unticked: the full text and no summary', async () => {
@@ -222,8 +227,8 @@ describe('FindBar', () => {
     );
     expect(t).toContain('Tick the box below and it sends straight away');
     expect(t).toContain('Not sent yet: tick the box under Run to agree, and it sends straight away.');
-    // The name choice is there before the tick, since the tick sends.
-    expect(t).toMatch(/Submit anonymously.*Credit me as/);
+    // The name choice is there before the tick, since the tick sends: the sharing line and its one Change.
+    expect(t).toContain('Sharing: off · Change');
     store.endBestSoFar();
   });
 

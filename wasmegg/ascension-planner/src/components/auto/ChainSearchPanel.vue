@@ -492,6 +492,7 @@
           ok: submitOk,
           partial: submitPartial,
           nameToClaim,
+          offerName,
           claiming,
           pendingTable: store.pendingTable?.source === 'fastest',
           retrying: retryingTable,
@@ -985,6 +986,7 @@
               :opt-in="optIn"
               :submit-url="store.submitUrl"
               :name-to-claim="nameToClaim"
+              :offer-name="offerName"
               :claiming="claiming"
               :sending="submitting"
               :already-submitted="store.alreadySubmitted"
@@ -1354,6 +1356,7 @@ const {
   retryingTable,
   retryTable,
   nameToClaim,
+  offerName,
   claiming,
   claim,
   submitting,

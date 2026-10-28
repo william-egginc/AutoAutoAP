@@ -53,6 +53,18 @@
         }}</template>
       </button>
 
+      <!-- Sent anonymously and the setting has no name for it yet: the same words, and the press opens the one
+           sharing setting on "Credit me as" (SharingSummary.vue, ux29 #11); with a name chosen it is the rename above. -->
+      <button
+        v-if="submitUrl && !nameToClaim && offerName && openForName"
+        type="button"
+        class="inline-flex items-center min-h-[44px] sm:min-h-0 px-4 py-2 rounded-lg border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-white"
+        data-testid="name-it"
+        @click="openForName()"
+      >
+        Put my name on it
+      </button>
+
       <button
         type="button"
         :disabled="!optIn"
@@ -90,7 +102,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { inject, ref } from 'vue';
+import { OPEN_SHARING_FOR_NAME } from '@/lib/sharingLine';
 import SendingText from './SendingText.vue';
 import ShareStatus from './ShareStatus.vue';
 
@@ -100,6 +113,8 @@ defineProps<{
   submitUrl: string;
   /** The name Put my name on it would put on the stored row, or '' (useBoardSubmit `nameToClaim`). */
   nameToClaim: string;
+  /** The row went anonymously and no name is chosen yet (useBoardSubmit `offerName`). */
+  offerName?: boolean;
   claiming: boolean;
   sending: boolean;
   alreadySubmitted: boolean;
@@ -116,4 +131,6 @@ defineProps<{
 }>();
 const emit = defineEmits<{ claim: []; submit: []; save: []; retry: [] }>();
 const showPayload = ref(false);
+/** Share this result's sharing setting, opened on "Credit me as" (ShareResult.vue); absent outside it. */
+const openForName = inject(OPEN_SHARING_FOR_NAME, null);
 </script>

@@ -33,66 +33,18 @@
       <p class="text-body text-slate-600 break-words" data-testid="study-setup-summary">
         You said yes on {{ answeredOn }} for this account: {{ summary }}.
       </p>
-      <div v-if="changing" class="space-y-1.5" data-testid="study-setup-change">
-        <label
-          v-for="[k, words] in TICK_WORDS"
-          :key="k"
-          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
-        >
-          <input
-            :checked="liveTick(k)"
-            type="checkbox"
-            class="w-5 h-5 sm:w-4 sm:h-4 shrink-0 rounded border-indigo-300 text-indigo-600"
-            :data-testid="`study-setup-tick-${k}`"
-            @change="setStudyTick(k, ($event.target as HTMLInputElement).checked)"
-          />
-          <span class="break-words">{{ words }}</span>
-        </label>
-        <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-3">
-          <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
-          >
-            <input
-              v-model="creditShown"
-              type="radio"
-              value="name"
-              class="w-5 h-5 sm:w-4 sm:h-4 shrink-0 text-indigo-600"
-              data-testid="study-setup-credit-name"
-            />
-            Credit me as
-          </label>
-          <input
-            v-model="nickname"
-            type="text"
-            :maxlength="STUDY_NAME_MAX"
-            placeholder="nickname"
-            aria-label="Nickname"
-            class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-body font-bold text-slate-800"
-            :class="creditShown === 'anon' ? 'opacity-50' : ''"
-            data-testid="study-setup-nickname"
-            @input="capField"
-            @focus="creditShown = 'name'"
-            @change="creditShown = 'name'"
-          />
-          <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
-          >
-            <input
-              v-model="creditShown"
-              type="radio"
-              value="anon"
-              class="w-5 h-5 sm:w-4 sm:h-4 shrink-0 text-indigo-600"
-              data-testid="study-setup-credit-anon"
-            />
-            Stay anonymous
-          </label>
-        </div>
-        <p v-if="creditShown === 'name' && !nickname.trim()" class="text-body text-amber-700">
-          Type a name to be credited; until then you stay anonymous.
-        </p>
-        <p v-else-if="creditShown === 'anon' && nickname.trim()" class="text-body text-slate-500">
-          Anonymous; the name is kept for when you pick Credit me as.
-        </p>
+      <!-- The one setting (SharingChoices.vue), applied as it is changed. -->
+      <div v-if="changing" data-testid="study-setup-change">
+        <SharingChoices
+          :ticks="liveTicks"
+          :credit="creditShown"
+          :nickname="nickname"
+          testid="study-setup"
+          kept-note
+          @tick="setStudyTick"
+          @update:credit="(v: StudyCredit) => (creditShown = v)"
+          @update:nickname="(v: string) => (nickname = v)"
+        />
       </div>
       <div class="flex flex-col sm:flex-row gap-2">
         <button type="button" :class="BTN" data-testid="study-setup-changebtn" @click="changing = !changing">
@@ -150,10 +102,9 @@
 import { computed, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { showDay } from '@/lib/displayTime';
-import { TICK_WORDS, WITHDRAW_CONSENTS, capName, type StudyTicks } from '@/lib/study';
+import { WITHDRAW_CONSENTS, capName, type StudyCredit, type StudyTicks } from '@/lib/study';
 import { consentAgreed, consentState } from '@/composables/useConsent';
 import {
-  STUDY_NAME_MAX,
   knownName,
   setStudyCredit,
   setStudyTick,
@@ -164,6 +115,7 @@ import {
 } from '@/composables/useStudy';
 import { useShareNameStore } from '@/stores/shareName';
 import StudyForm from '../StudyForm.vue';
+import SharingChoices from '../SharingChoices.vue';
 
 const BTN =
   'w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-700 text-body font-bold hover:bg-indigo-50';
@@ -193,6 +145,12 @@ const answeredOn = computed(() => {
 /** Each tick as it stands for this account now (a share button's Withdraw shows here at once). Yes and the
  *  strip write all four, so each is a yes or a no once this account said yes. */
 const liveTick = (k: keyof StudyTicks): boolean => consentAgreed(TICK_CONSENT[k]);
+const liveTicks = computed<StudyTicks>(() => ({
+  share: liveTick('share'),
+  csv: liveTick('csv'),
+  diag: liveTick('diag'),
+  checks: liveTick('checks'),
+}));
 /** "runs shared" / "runs not shared", and so on: what the status line says for each. */
 const WORDS: Record<keyof StudyTicks, [string, string]> = {
   share: ['runs shared', 'runs not shared'],
@@ -206,15 +164,6 @@ const anySharing = computed(() => WITHDRAW_CONSENTS.some(id => consentAgreed(id)
 const said = (k: keyof StudyTicks): string => WORDS[k][liveTick(k) ? 0 : 1];
 const anonymous = computed(() => names.anonymousFor(account.value) ?? true);
 const nickname = ref('');
-/** A paste or a scripted set past the cap: the box shows the capped name at once (maxlength stops only keys). */
-function capField(e: Event): void {
-  const el = e.target as HTMLInputElement;
-  const c = capName(el.value);
-  if (c !== el.value) {
-    el.value = c;
-    nickname.value = c;
-  }
-}
 watch(
   () => [account.value, names.nameFor(account.value)] as const,
   () => (nickname.value = capName(knownName(account.value))),
@@ -223,7 +172,7 @@ watch(
 /** "Credit me as" picked here with no name typed yet: shown picked, and applied once a name is typed (until
  *  then the account stays anonymous, so the radios never show a choice that isn't the account's). */
 const wantName = ref(false);
-const creditShown = computed<'name' | 'anon'>({
+const creditShown = computed<StudyCredit>({
   get: () => (wantName.value || !anonymous.value ? 'name' : 'anon'),
   set: v => {
     wantName.value = v === 'name';

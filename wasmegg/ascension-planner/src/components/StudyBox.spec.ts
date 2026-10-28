@@ -361,13 +361,18 @@ describe('wiring', () => {
   });
 
   it('both name boxes cap a paste at once, not only typed keys (maxlength)', () => {
+    // One name box since ux29 #11 (SharingChoices.vue), shown by both: it caps on every input and reports the capped name.
+    const one = read('./SharingChoices.vue');
+    expect(one).toContain('@input="onName"');
+    expect(one).toContain('const c = capName(el.value);');
+    expect(one).toMatch(/if \(c !== el\.value\) el\.value = c;\s*emit\('update:nickname', c\);/);
+    expect(one).toContain(':maxlength="STUDY_NAME_MAX"');
     for (const f of ['./StudyForm.vue', './auto/StudySetup.vue']) {
       const src = read(f);
-      expect(src, f).toContain('@input="capField"');
-      expect(src, f).toContain('const c = capName(el.value);');
-      expect(src, f).toContain(':maxlength="STUDY_NAME_MAX"');
+      expect(src, f).toMatch(/<SharingChoices[\s\S]*?@update:nickname="\(v: string\) => \(nickname = v\)"/);
     }
     expect(read('./StudyForm.vue')).toContain('set: v => (typed.value = capName(v)),');
+    expect(read('./auto/StudySetup.vue')).toContain('() => (nickname.value = capName(knownName(account.value))),');
   });
 
   it('Setup has its section before Sharing, with a collector', () => {

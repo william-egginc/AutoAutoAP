@@ -204,6 +204,15 @@ export function useBoardSubmit(
 
   /** The name "Put my name on it" would put on the stored row, or '' when there is nothing to rename. */
   const nameToClaim = computed(() => store.nameToClaim(effectiveNickname.value));
+  /**
+   * The result on screen went to the board anonymously from this browser, and the setting would put no name on it
+   * (still anonymous, or no name typed): Put my name on it is still offered, and opens the sharing setting on
+   * "Credit me as" (SharingSummary.vue `openForName`, ux29 #11); once a name is chosen it is `nameToClaim`'s rename.
+   */
+  const offerName = computed(() => {
+    const rec = store.sentRecord;
+    return !!rec?.id && !rec.quarantined && !rec.nickname && !nameToClaim.value;
+  });
   const claiming = ref(false);
   async function claim(): Promise<void> {
     const id = store.sentRecord?.id;
@@ -258,6 +267,7 @@ export function useBoardSubmit(
     retryingTable,
     retryTable,
     nameToClaim,
+    offerName,
     claiming,
     claim,
     refuseDuplicate,
