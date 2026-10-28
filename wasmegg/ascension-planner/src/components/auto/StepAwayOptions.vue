@@ -29,6 +29,11 @@
       </button>
     </div>
     <p v-if="autoNote" class="font-bold text-amber-800">{{ autoNote }}</p>
+    <!-- The phone link not updating (search/watchLink.ts `watchFailingNote`): outside the fold, so it's in sight
+         while the run goes; gone once an update goes again. -->
+    <p v-if="phoneFailing" class="font-bold text-amber-800" role="status" data-testid="watch-phone-failing">
+      {{ phoneFailing }}
+    </p>
 
     <!-- The four options, folded to one row (lib/panelFold.ts `steppingAway`) unless a run is going; the countdown
          above stays outside, so a crash's carry-on is always in sight. -->
@@ -368,7 +373,7 @@ import {
 } from '@/search/stepAway';
 import { backgroundOpenTip, browserHelp, detectBrowser } from '@/lib/browserHelp';
 import { activeWatch, watchLinkAvailable, watchOptions } from '@/composables/useWatchLink';
-import { isNtfyTopic, newNtfyTopic, WATCH_LABEL_MAX } from '@/search/watchLink';
+import { isNtfyTopic, newNtfyTopic, WATCH_LABEL_MAX, watchFailingNote } from '@/search/watchLink';
 import {
   openWatcher,
   pingWatcher,
@@ -438,6 +443,11 @@ const phoneLine = computed(() => {
   return a.lastOkAt
     ? `Last update sent at ${clock12(a.lastOkAt)}. Next in about 5 minutes.`
     : 'Sending the first update...';
+});
+/** Updates to the phone link failing in a row, for this panel's own run only. */
+const phoneFailing = computed(() => {
+  const a = phoneLink.value;
+  return a && a.kind === props.kind ? watchFailingNote(a) : '';
 });
 /** The QR code, drawn here from the link (the qrcode library, loaded only when there is one). */
 const qrSvg = ref('');
