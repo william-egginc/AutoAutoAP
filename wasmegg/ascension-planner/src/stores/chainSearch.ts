@@ -8354,6 +8354,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     });
   }
   function blackBoxBeat(): void {
+    // "Watch this run from your phone": a heartbeat when one is due (composables/useWatchLink.ts). First, so
+    // nothing below can keep it from going; the run's progress events carry it too (`watchLinkNoteProgress`).
+    watchLinkTick();
     let b: blackBox.Beat | null = null;
     // What the run is really using: the live pool's size, or before the pool exists the count it is about
     // to be built at (`workersInPool` still holds the last run's, or the machine's default, until then,
@@ -8410,8 +8413,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         heapLimitMB: b.heapLimitMB,
         workersHeapMB: b.workersHeapMB,
       });
-    // "Watch this run from your phone": a heartbeat when one is due (composables/useWatchLink.ts).
-    watchLinkTick();
   }
   /**
    * Each kind of run that is going in ANOTHER tab or window of this browser right now
@@ -9491,7 +9492,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const chainRunKind = computed<'smart' | 'full'>(() => (searchSpace.value ? 'full' : 'smart'));
 
   // Keep the run's latest figures for the phone: they are gone from `runProgress` by the time the
-  // run's last word is built.
+  // run's last word is built. A progress change also sends the phone's beat when one is due, so a hidden
+  // tab whose timers are throttled still reports while its workers work.
   watch(runProgress, p => watchLinkNoteProgress(p && p.kind !== 'start-times' ? p : null), { flush: 'sync' });
 
   /** Stop whatever is running, keeping its best so far: one Stop for the bar, whichever kind it is. */
