@@ -15,7 +15,10 @@
  * UNSYNCED (23 Oct 2026): a Follow press whose save didn't get through (no collector yet, offline, 5xx, the hour's
  * limit) stays `sync: 'pending'`; the next load, after its read, saves it ONCE when nothing newer is saved online for
  * the goal (`syncPending`). 400 and 413 mark it 'unsyncable' (never tried again). A follow kept before the flag existed
- * is saved the same way only when nothing at all is saved online for its goal. NOT SAVED (Jordan, 23 Oct 2026: his
+ * is saved the same way only when nothing at all is saved online for its goal. NEWER HERE (ux34, Jordan's Chrome and
+ * Safari following different routes): a follow of this browser newer than the one saved online for its goal, whatever
+ * its mark, is written up once on the load (the collector keeps the last write without comparing `at`, so an older
+ * route can stand there), and "Save it online" reads first, so an old page never writes over a newer route. NOT SAVED (Jordan, 23 Oct 2026: his
  * Egg Day follow never reached the collector and nothing said so): while a follow is still not saved after the read,
  * Right now says so with "Save it online" (`notSaved`, `saveNow`).
  */
@@ -203,19 +206,25 @@ export const useFollowStore = defineStore('follow', () => {
 
   /** Follows already tried this visit (goal and `at`): one try per load, never a loop. */
   const tried = new Set<string>();
-  /** Save online, once, each follow of this browser that never got there, unless something newer is saved. */
+  /**
+   * Save online, once, each follow of this browser that never got there, unless something newer is saved. And, once
+   * per load, each follow of this browser NEWER than the one saved online for its goal, whatever its mark (ux34,
+   * Jordan's Chrome and Safari following different routes): the collector keeps the last write, never comparing `at`,
+   * so an older route can stand online (a stale page's save, a retry racing another browser's Follow) while this
+   * browser holds a newer one; left there, this browser keeps its own and every other browser keeps the older one.
+   */
   async function syncPending(p: string, cloud: Record<GoalKey, CloudValue>, taken: readonly GoalKey[]): Promise<void> {
     for (const [g, f] of Object.entries(mapOf(p))) {
-      if (taken.includes(g) || f.cloud || f.sync === 'synced' || f.sync === 'unsyncable') continue;
+      if (taken.includes(g) || f.sync === 'unsyncable') continue;
       const there = cloud[g];
-      // Something as new or newer online: this one got there (or lost to it). A follow kept before the flag too, so
+      // The same follow online (as new: not taken, so not newer): it got there. A follow kept before the flag too, so
       // Right now doesn't call it unsaved (`notSaved`).
       if (there && there.at >= f.at) {
-        markSync(p, g, f.at, 'synced');
+        if (!f.cloud && f.sync !== 'synced') markSync(p, g, f.at, 'synced');
         continue;
       }
-      // Kept before the flag: only when nothing at all is saved for the goal.
-      if (!f.sync && there) continue;
+      // Nothing online for the goal: only a follow that never got there (marked saved or read back: left alone).
+      if (!there && (f.cloud || f.sync === 'synced')) continue;
       const once = `${p}|${g}|${f.at}`;
       if (tried.has(once)) continue;
       tried.add(once);
@@ -419,8 +428,17 @@ export const useFollowStore = defineStore('follow', () => {
    *  route and `at`: the collector stores nothing new when it already has it). */
   async function saveNow(goalKey: GoalKey): Promise<SaveState | null> {
     const p = partition.value;
-    const f = p ? mapOf(p)[goalKey] : null;
-    if (!f) return null;
+    const was = p ? mapOf(p)[goalKey] : null;
+    if (!was) return null;
+    // The page may be old (ux34): read what is saved online first, so a newer route followed on another device since
+    // is followed here instead of being written over by this older one (the collector keeps the last write). The
+    // read's own retry leaves this follow to the press.
+    tried.add(`${p}|${goalKey}|${was.at}`);
+    await loadCloud(true);
+    if (partition.value !== p) return null;
+    const f = mapOf(p)[goalKey];
+    if (!f || f.at !== was.at) return saveState(goalKey);
+    if (f.cloud || f.sync === 'synced') return { state: 'saved', words: '' };
     return saveOnline(goalKey, f);
   }
 
