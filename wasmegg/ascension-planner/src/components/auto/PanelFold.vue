@@ -49,18 +49,27 @@ const props = withDefaults(
     running?: boolean;
     /** An unfinished run is saved here (lib/panelFold.ts FOLD_OPENS_WHEN). */
     unfinished?: boolean;
+    /** A long run was just started here (lib/panelFold.ts FOLD_OPENS_WHEN, composables/useStepAwayNudge.ts). */
+    longRun?: boolean;
     /** The test id of the <details> (its summary gets `-summary`); `fold-<section>` by default. */
     testid?: string;
     summaryClass?: string;
   }>(),
-  { hint: '', running: false, unfinished: false, testid: '', summaryClass: 'text-body text-slate-700' }
+  { hint: '', running: false, unfinished: false, longRun: false, testid: '', summaryClass: 'text-body text-slate-700' }
 );
+/** The player's own toggle (open or closed), for a screen that undoes an open it made (Stepping away?). */
+const emit = defineEmits<{ playerToggle: [open: boolean] }>();
 
 const id = computed(() => props.testid || `fold-${props.section}`);
 /** The player's own last toggle here (this browser), or null. */
 const remembered = ref<boolean | null>(readFoldToggle(props.section));
 const wanted = computed(() =>
-  foldOpen(props.section, { running: props.running, unfinished: props.unfinished, remembered: remembered.value })
+  foldOpen(props.section, {
+    running: props.running,
+    unfinished: props.unfinished,
+    longRun: props.longRun,
+    remembered: remembered.value,
+  })
 );
 const open = ref(wanted.value);
 // A run starting or ending (or a toggle elsewhere): back to what the rules say.
@@ -74,6 +83,7 @@ function onToggle(): void {
   open.value = now;
   remembered.value = now;
   rememberFoldToggle(props.section, now);
+  emit('playerToggle', now);
 }
 
 /** Open it (not remembered as the player's choice) and, unless the caller scrolls itself, bring it into view. */

@@ -751,6 +751,7 @@
              already sends itself, so it gets the button alone (no send tick), labelled as the card at the top labels it. -->
         <RunControls
           long-run
+          :estimate-seconds="hours * 3600"
           v-model:opt-in="optIn"
           v-model:anonymous="anonymous"
           v-model:nickname="nickname"

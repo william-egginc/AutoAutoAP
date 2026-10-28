@@ -468,6 +468,7 @@
            have walked away from. A run that is stopped early, fails, or finds nothing sends nothing. -->
       <RunControls
         :long-run="store.effort === 'thorough' || store.smartEstimate(store.effort).seconds > 7200"
+        :estimate-seconds="store.smartEstimate(store.effort).seconds"
         v-model:opt-in="optIn"
         v-model:anonymous="anonymous"
         v-model:nickname="nickname"

@@ -18,6 +18,7 @@ import FindBar from './FindBar.vue';
 import { PANEL_FOLD, foldKey, type FoldSection } from '@/lib/panelFold';
 import { reloadRunSends } from '@/lib/runSends';
 import { useChainSearchStore } from '@/stores/chainSearch';
+import { stepAwayNudge } from '@/composables/useStepAwayNudge';
 
 const SECTIONS = Object.keys(PANEL_FOLD) as FoldSection[];
 
@@ -129,12 +130,28 @@ describe('PanelFold', () => {
     expect(mem.has(foldKey('howWorkedOut'))).toBe(false);
   });
 
-  it('a run going opens Stepping away?, even after the player closed it', async () => {
+  it('a long run started opens Stepping away?, even after the player closed it; a run going alone does not (28 Oct 2026)', async () => {
     mem.set(foldKey('steppingAway'), '0');
-    const tag = (running: boolean) =>
-      render(PanelFold, { section: 'steppingAway', title: 'T', running }).then(h => detailsTag(h, 'fold-steppingAway'));
-    expect(isOpen(await tag(false))).toBe(false);
-    expect(isOpen(await tag(true))).toBe(true);
+    const tag = (p: Record<string, unknown>) =>
+      render(PanelFold, { section: 'steppingAway', title: 'T', ...p }).then(h => detailsTag(h, 'fold-steppingAway'));
+    expect(isOpen(await tag({}))).toBe(false);
+    expect(isOpen(await tag({ running: true }))).toBe(false);
+    expect(isOpen(await tag({ longRun: true }))).toBe(true);
+  });
+
+  it("tells the screen about the player's own toggle (playerToggle), not one the page made", async () => {
+    const seen: boolean[] = [];
+    await render(PanelFold, { section: 'steppingAway', title: 'T', longRun: true, onPlayerToggle: (o: boolean) => seen.push(o) }, {
+      file: 'PanelFold.vue',
+      run: s => {
+        // The page agrees with itself first (nothing), then the player closes it.
+        s.el = { open: true };
+        (s.onToggle as () => void)();
+        s.el = { open: false };
+        (s.onToggle as () => void)();
+      },
+    });
+    expect(seen).toEqual([false]);
   });
 });
 
@@ -150,20 +167,48 @@ describe('every foldable part reads lib/panelFold.ts', () => {
     expect(isOpen(detailsTag(opened, 'fold-whatItDoes'))).toBe(true);
   });
 
-  it('Stepping away?: one row, open by default (26 Oct 2026), closed only by the player and open again while a run is going; the crash countdown stays outside it', async () => {
+  it('Stepping away?: one row, closed by default (28 Oct 2026), and while a run goes; open when a long run of its own kind started (useStepAwayNudge); the crash countdown stays outside it', async () => {
     const props = { kind: 'smart', playerId: '', canCarryOn: false };
     const idle = await render(StepAwayOptions, props);
-    expect(isOpen(detailsTag(idle, 'fold-steppingAway'))).toBe(true);
-    mem.set(foldKey('steppingAway'), '0');
-    expect(isOpen(detailsTag(await render(StepAwayOptions, props), 'fold-steppingAway'))).toBe(false);
-    expect(isOpen(detailsTag(await withTable('steppingAway', 'folded', () => render(StepAwayOptions, { ...props, running: true })), 'fold-steppingAway'))).toBe(true);
-    mem.delete(foldKey('steppingAway'));
+    expect(isOpen(detailsTag(idle, 'fold-steppingAway'))).toBe(false);
     expect(idle).toContain('Stepping away?');
     expect(idle).toContain('Crash recovery, phone watch, progress uploads');
-    expect(isOpen(detailsTag(await render(StepAwayOptions, { ...props, running: true }), 'fold-steppingAway'))).toBe(true);
+    expect(isOpen(detailsTag(await render(StepAwayOptions, { ...props, running: true }), 'fold-steppingAway'))).toBe(false);
+    stepAwayNudge.value = 'smart';
+    try {
+      expect(isOpen(detailsTag(await render(StepAwayOptions, { ...props, running: true }), 'fold-steppingAway'))).toBe(true);
+      // Even after the player closed it on an earlier visit.
+      mem.set(foldKey('steppingAway'), '0');
+      expect(isOpen(detailsTag(await render(StepAwayOptions, { ...props, running: true }), 'fold-steppingAway'))).toBe(true);
+      mem.delete(foldKey('steppingAway'));
+      // Another screen's box (By a date) stays as it was.
+      expect(isOpen(detailsTag(await render(StepAwayOptions, { ...props, kind: 'deadline', running: true }), 'fold-steppingAway'))).toBe(false);
+    } finally {
+      stepAwayNudge.value = null;
+    }
+    // The player's own open is still kept.
+    mem.set(foldKey('steppingAway'), '1');
+    expect(isOpen(detailsTag(await render(StepAwayOptions, props), 'fold-steppingAway'))).toBe(true);
+    mem.delete(foldKey('steppingAway'));
     expect(isOpen(detailsTag(await withTable('steppingAway', 'open', () => render(StepAwayOptions, props)), 'fold-steppingAway'))).toBe(true);
     const src = fs.readFileSync(path.join(__dirname, 'StepAwayOptions.vue'), 'utf8');
     expect(src.indexOf('countdown > 0 && !countdownElsewhere')).toBeLessThan(src.indexOf('<PanelFold'));
+  });
+
+  it('Stepping away?: the player closing the box a long run opened is not undone for that run', async () => {
+    stepAwayNudge.value = 'sweep';
+    try {
+      await render(StepAwayOptions, { kind: 'sweep', playerId: '', canCarryOn: false, running: true }, {
+        file: 'PanelFold.vue',
+        run: s => {
+          s.el = { open: false };
+          (s.onToggle as () => void)();
+        },
+      });
+      expect(stepAwayNudge.value).toBe(null);
+    } finally {
+      stepAwayNudge.value = null;
+    }
   });
 
   it('the source: each section is a PanelFold, and the old hand-made folds are gone', () => {

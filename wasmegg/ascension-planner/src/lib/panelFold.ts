@@ -5,7 +5,7 @@
  * `foldOpen` below). Nothing else decides it.
  *
  * Rules on top of the table, in order:
- *   1. A trigger in FOLD_OPENS_WHEN that holds (a run going opens Stepping away?).
+ *   1. A trigger in FOLD_OPENS_WHEN that holds (a long run just started opens Stepping away?).
  *   2. The player's own toggle of that section, remembered in this browser (PanelFold.vue).
  *   3. The table.
  * The acknowledgement can never be skipped by folding it: Find and submit still needs the ticks, and pressing
@@ -25,14 +25,15 @@ export type FoldDefault = 'open' | 'folded';
 
 /**
  * THE SPLIT. Change a value here to move a section between open and folded. Jordan's defaults (26 Oct 2026, item 7):
- * the instant answer's "Every number of ascensions" and Stepping away? start open; Search settings stays folded (the
- * screen runs Fast unless the player opens it).
+ * the instant answer's "Every number of ascensions" starts open; Search settings stays folded (the screen runs Fast
+ * unless the player opens it). Stepping away? starts folded since 28 Oct 2026 (Jordan): it opens by itself when a run
+ * estimated at over an hour starts (composables/useStepAwayNudge.ts).
  */
 export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   whatItDoes: 'folded',
   searchSettings: 'folded',
   acknowledgement: 'folded',
-  steppingAway: 'open',
+  steppingAway: 'folded',
   countTable: 'open',
   howWorkedOut: 'folded',
 };
@@ -43,13 +44,17 @@ export interface FoldState {
   running?: boolean;
   /** An unfinished run is saved here and can be carried on. */
   unfinished?: boolean;
+  /** A run estimated at over an hour was just started here and Stepping away? isn't set up yet, nor closed by the
+   *  player since (composables/useStepAwayNudge.ts). */
+  longRun?: boolean;
   /** The player's own last toggle of this section (true open, false closed), or null / undefined if never. */
   remembered?: boolean | null;
 }
 
-/** Sections that open by themselves while a condition holds, whatever the table or the player's toggle says. */
-export const FOLD_OPENS_WHEN: Partial<Record<FoldSection, ('running' | 'unfinished')[]>> = {
-  steppingAway: ['running'],
+/** Sections that open by themselves while a condition holds, whatever the table or the player's toggle says. Stepping
+ *  away? opened for any run going until 28 Oct 2026; now only for a long one (`longRun`). */
+export const FOLD_OPENS_WHEN: Partial<Record<FoldSection, ('running' | 'unfinished' | 'longRun')[]>> = {
+  steppingAway: ['longRun'],
 };
 
 /** Whether `section` starts open in `state`. Pure. */

@@ -34,42 +34,39 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the default split (the review\'s proposal)', () => {
-  it('has every section; Jordan\'s defaults (26 Oct 2026): Every number of ascensions and Stepping away? open, the rest folded', () => {
+  it('has every section; Jordan\'s defaults (26 Oct 2026; Stepping away? folded since 28 Oct): Every number of ascensions open, the rest folded', () => {
     expect(Object.keys(PANEL_FOLD).sort()).toEqual([...SECTIONS].sort());
-    const open: FoldSection[] = ['steppingAway', 'countTable'];
+    const open: FoldSection[] = ['countTable'];
     for (const s of SECTIONS) expect(PANEL_FOLD[s], s).toBe(open.includes(s) ? 'open' : 'folded');
   });
   it('Search settings stays folded (Fast unless the player opens it)', () => {
     expect(PANEL_FOLD.searchSettings).toBe('folded');
     expect(foldOpen('searchSettings')).toBe(false);
   });
-  it('only a run going opens anything by itself: Stepping away?', () => {
-    expect(FOLD_OPENS_WHEN).toEqual({ steppingAway: ['running'] });
+  it('only a long run started opens anything by itself: Stepping away? (28 Oct 2026; any run going did before)', () => {
+    expect(FOLD_OPENS_WHEN).toEqual({ steppingAway: ['longRun'] });
   });
 });
 
 describe('foldOpen', () => {
   it('idle, nothing remembered: the table', () => {
-    for (const s of SECTIONS) expect(foldOpen(s), s).toBe(s === 'steppingAway' || s === 'countTable');
+    for (const s of SECTIONS) expect(foldOpen(s), s).toBe(s === 'countTable');
     for (const s of SECTIONS) expect(foldOpen(s, {}), s).toBe(PANEL_FOLD[s] === 'open');
   });
-  it('a run going opens Stepping away?, even where the table says folded; nothing else', () => {
-    for (const s of SECTIONS) expect(foldOpen(s, { running: true }), s).toBe(PANEL_FOLD[s] === 'open' || s === 'steppingAway');
-    const was = PANEL_FOLD.steppingAway;
-    try {
-      PANEL_FOLD.steppingAway = 'folded';
-      expect(foldOpen('steppingAway', { running: true })).toBe(true);
-      expect(foldOpen('steppingAway')).toBe(false);
-    } finally {
-      PANEL_FOLD.steppingAway = was;
-    }
+  it('a long run started opens Stepping away?, even where the table says folded; nothing else', () => {
+    for (const s of SECTIONS) expect(foldOpen(s, { longRun: true }), s).toBe(PANEL_FOLD[s] === 'open' || s === 'steppingAway');
+    expect(foldOpen('steppingAway', { longRun: true })).toBe(true);
+    expect(foldOpen('steppingAway')).toBe(false);
+  });
+  it('a run going alone no longer opens Stepping away? (28 Oct 2026)', () => {
+    for (const s of SECTIONS) expect(foldOpen(s, { running: true }), s).toBe(PANEL_FOLD[s] === 'open');
   });
   it('a remembered close of an open-by-default section wins (the player\'s choice over the default)', () => {
     expect(foldOpen('countTable', { remembered: false })).toBe(false);
     expect(foldOpen('steppingAway', { remembered: false })).toBe(false);
   });
-  it('a run going wins over the player having closed Stepping away?', () => {
-    expect(foldOpen('steppingAway', { running: true, remembered: false })).toBe(true);
+  it('a long run started wins over the player having closed Stepping away? before', () => {
+    expect(foldOpen('steppingAway', { longRun: true, remembered: false })).toBe(true);
   });
   it('an unfinished run alone opens nothing the table does not', () => {
     for (const s of SECTIONS) expect(foldOpen(s, { unfinished: true }), s).toBe(PANEL_FOLD[s] === 'open');
