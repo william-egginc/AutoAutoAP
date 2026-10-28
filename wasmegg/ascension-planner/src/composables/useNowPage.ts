@@ -1782,7 +1782,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     return { goal: 'fastest', key: sel?.key ?? null, name: null, tile: f.tile, target: f.target, stand: raceStand.value, standingLabel: `Fastest to ${f.target} TE` };
   });
 
-  /** "After this plan: about 9.7s soul eggs (3.0s spent on 48 shifts)" (lib/soulEggs.ts `soulEggsAfterLine`, 27 Oct
+  /** "Soul eggs left after this plan: about 9.7s (you'll spend about 3.0s on 48 shifts)" (lib/soulEggs.ts `soulEggsAfterLine`, 27 Oct
    *  2026): the planned shifts above at today's soul eggs. Null without the save's soul eggs or a planned count. */
   const soulEggsAfter = computed(() =>
     hasSave.value ? soulEggsAfterLine({ soulEggs: soulEggs.value, done: shiftsDone.value, planned: plannedShifts.value }) : null
