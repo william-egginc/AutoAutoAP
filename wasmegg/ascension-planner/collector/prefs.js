@@ -121,6 +121,12 @@ export function readSetup(v) {
     if (typeof v.timezone !== 'string' || !ZONE.test(v.timezone)) problems.push('timezone must be an IANA name of at most 64 characters');
     else out.timezone = v.timezone;
   }
+  if (v.progressSends !== undefined) {
+    const g = v.progressSends;
+    if (!g || typeof g !== 'object' || Array.isArray(g) || typeof g.on !== 'boolean' || !whole(g.everyHours, 1, 6))
+      problems.push('progressSends must be { on: true/false, everyHours: whole number 1 to 6 }');
+    else out.progressSends = { on: g.on, everyHours: g.everyHours };
+  }
   return finish(out, problems);
 }
 

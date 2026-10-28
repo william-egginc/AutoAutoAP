@@ -1151,7 +1151,7 @@ live never see a `consent` or `setup` goal.
 - **consent** (`readConsent`): `at` required (ms), `answeredAt`, `study` yes/no/later, `ticks` (up to 16 named booleans),
   `credit` name/anonymous, `nickname` (40 characters, only with credit name). **setup** (`readSetup`): `at` required,
   `hours` (`{start, end, days?, scheduleEnabled?}` or null), `timeOff` and `noPrestigeDays` (up to 16 `{from, to}`
-  texts each), `targetTE` (1 to 490 or null), `timezone`. Not the "This computer" settings. Unknown fields are dropped;
+  texts each), `targetTE` (1 to 490 or null), `timezone`, `progressSends` (`{ on: true/false, everyHours: whole 1 to 6 }`, optional; a bad shape is refused with the problem named progressSends). Not the "This computer" settings. Unknown fields are dropped;
   a bad field refuses the write (`400`, `problems`); a value over 4 KB is `413`.
 - **Limits:** 30 writes an hour per key (D1 `follow_rate` under `prefs|<key>`, apart from `/follow`'s), 5 versions per
   kind, a 6 KB body, `FOLLOW_LIMIT` per address (60 a minute, GET and PUT counted apart), 20,000 keys. An equal value is
