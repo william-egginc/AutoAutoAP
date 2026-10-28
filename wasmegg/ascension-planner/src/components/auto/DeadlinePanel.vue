@@ -338,7 +338,12 @@
     <!-- Custom is Exhaustive, unchanged: the chain editor, and its run controls and results. -->
     <template #custom>
     <section id="exhaustive" class="space-y-3 scroll-mt-24">
-      <p class="text-body text-slate-700" data-testid="custom-intro">{{ CUSTOM_INTRO }}</p>
+      <div class="max-w-prose space-y-1 text-body text-slate-700" data-testid="custom-intro">
+        <p>{{ CUSTOM_LEAD }}</p>
+        <ul class="list-disc space-y-0.5 pl-5">
+          <li v-for="line in CUSTOM_POINTS" :key="line">{{ line }}</li>
+        </ul>
+      </div>
       <ExhaustivePromise goal="deadline" />
       <template v-if="true">
         <h3 class="text-slate-500 label pt-1">The routes to try</h3>
@@ -1393,9 +1398,14 @@ const unfinishedChoice = computed<SearchChoice | null>(() => {
   if (!u || runKind.value) return null;
   return choiceForEffort(u.spec.simple ? u.spec.level ?? 'quick' : 'boxes');
 });
-/** Custom's first line (it is the Exhaustive search, unchanged): what it is for and how long it takes. */
-const CUSTOM_INTRO =
-  "For proving an answer, not for finding a much better one: it tries every route in the boxes you set (Custom), and nothing outside them, so its answer is proven for that space, and so far no search has beaten the instant answer's TE by a date. You set a band of TEs for each ascension, the last stop found to the exact TE. Big boxes take hours.";
+/** Custom's first lines (it is the Exhaustive search, unchanged): what it does, then one fact per bullet (ux35-e). */
+const CUSTOM_LEAD = 'Custom tries every route in the boxes you set, and nothing outside them.';
+const CUSTOM_POINTS = [
+  'It is for proving an answer, not for finding a much better one.',
+  "The answer is proven for those boxes only. So far no search has beaten the instant answer's TE by a date.",
+  'You set a range of TEs for each ascension. The last stop is found to the exact TE.',
+  'Big boxes take hours.',
+];
 /** The answer on screen, by box. */
 const resultKind = computed(() => kindOfSimple(result.value));
 /** The unfinished run, by box. */
