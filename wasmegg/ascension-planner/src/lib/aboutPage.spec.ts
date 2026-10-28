@@ -170,7 +170,9 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       "If it still isn't saved, My runs, Right now, says so under the route, with Save it online"
     );
-    expect(text).toContain('Nothing else saves it.');
+    expect(text).toContain(
+      'when a page loads, a route you follow in this browser that is newer than the one saved online for that goal is saved too, once, so the newest route you followed wins on every device. Nothing else saves it.'
+    );
     // The first answer becoming the follow (lib/followPolicy.ts, 24 Oct 2026): there exactly while the constant is on.
     const auto =
       'The first answer for Fastest to 490 TE and for Egg Day 2027 becomes the route you follow and is saved online, unless you already follow one.';
@@ -179,7 +181,7 @@ describe('About and privacy page', () => {
       expect(text).toContain(
         'That is the instant answer as its box shows it, or a Fast, Exact or Custom run that becomes your route on My runs, Right now, whichever comes first.'
       );
-      expect(text).toContain('Every other goal (another Highest TE by a date, a Fastest to N TE target of your own) is saved only when you press Follow this route');
+      expect(text).toContain('Every other goal (another Highest TE by a date, a Fastest to N TE target of your own) is saved when you press Follow this route');
       expect(text).toContain('so a route you follow on another device is never replaced. After that, a better answer only asks you');
     } else expect(text).not.toContain('The first answer for Fastest to 490 TE');
     expect(text).not.toContain('When you are not following another route for a goal');
