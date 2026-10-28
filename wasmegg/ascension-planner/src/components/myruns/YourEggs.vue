@@ -7,6 +7,8 @@
   (lib/shiftCost.ts); without a saved timeline it can't tell. With the instant answer's shifts only (26 Oct 2026) it
   counts the shifts listed plus each fresh ascension's build-up shifts, estimated (lib/openingShifts.ts, 27 Oct 2026),
   and says so.
+  THE CLOCK TIME (ux34-a): under each egg's line its day and time in the browser's format, from now or from the plan's
+  next shift to that egg (lib/nextTeEgg.ts `eggClockLines`), in both views.
   NEXT TE | TO GOAL (28 Oct 2026, pieha): a two-way switch; "to goal" gives every egg its time to the goal
   (lib/nextTeEgg.ts `eggGoalLines`). Remembered in this browser; "next TE" by default; no switch without a goal.
 -->
@@ -48,6 +50,7 @@
         </p>
         <p v-else-if="shiftLine(e.egg)" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-after-shift">{{ shiftLine(e.egg) }}</p>
         <p v-else class="text-body text-slate-500">{{ nextLine(e) }}</p>
+        <p v-if="clockLine(e.egg)" class="text-body tabular-nums text-slate-500 break-words" data-testid="now-egg-when">{{ clockLine(e.egg) }}</p>
       </div>
     </div>
     <p v-if="afterShift" class="mt-1.5 text-small text-slate-500 break-words" data-testid="now-eggs-after-shift-note">{{ afterShift.note }}</p>
@@ -90,6 +93,9 @@ const props = defineProps<{
   afterShift?: { lines: Record<string, string>; note: string } | null;
   /** Each egg's time to the goal, by egg (lib/nextTeEgg.ts `eggGoalLines`); empty or absent: no switch. */
   goalLines?: Record<string, string> | null;
+  /** Each egg's day and time beside its line, by view and egg (lib/nextTeEgg.ts `eggClockLines`, ux34-a): "next TE
+   *  about Wed, Oct 30 at 11:00 AM", "… if you shift now", "… after your planned shift here on …". */
+  clockLines?: { next: Record<string, string>; goal: Record<string, string> } | null;
   /** The view to start on (specs); absent: the one remembered in this browser. */
   view?: EggsView;
 }>();
@@ -108,6 +114,13 @@ function pick(v: EggsView): void {
 /** lib/farmFacts.ts `nextTeLine`: capped at about 10 years ("not at this rate"). */
 function nextLine(e: EggLine): string {
   return nextTeLine(e, props.now, props.saveSeconds);
+}
+
+/** The egg's day and time for the view shown; '' says nothing. */
+function clockLine(egg: string): string {
+  const c = props.clockLines;
+  if (!c) return '';
+  return (view.value === 'goal' && hasGoal.value ? c.goal[egg] : c.next[egg]) ?? '';
 }
 
 /** The egg's next TE after a shift to it; '' says nothing (the egg being laid, at the TE cap, no data). */
