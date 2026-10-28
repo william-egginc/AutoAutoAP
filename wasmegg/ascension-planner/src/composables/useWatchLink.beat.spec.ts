@@ -252,7 +252,7 @@ describe('the failing-sends note (search/watchLink.ts watchFailingNote)', () => 
   const base = {
     status: 'running' as const,
     lastOkAt: Date.UTC(2026, 9, 27, 10, 5) as number | null,
-    lastError: 'the collector said 503',
+    lastError: "the planner's server said 503",
   };
 
   it(`appears after ${WATCH_FAILS_NOTE} failures in a row, with the last time one went`, () => {
@@ -263,14 +263,14 @@ describe('the failing-sends note (search/watchLink.ts watchFailingNote)', () => 
     const h = when.getHours();
     const clock12 = `${h % 12 || 12}:${String(when.getMinutes()).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
     expect(note).toBe(
-      `Your phone link isn't updating: the last 3 updates didn't go (the collector said 503). The last one sent was at ${clock12}. It keeps trying every 5 minutes.`
+      `Your phone link isn't updating: the last 3 updates didn't go (the planner's server said 503). The last one sent was at ${clock12}. It keeps trying every 5 minutes.`
     );
     expect(note).toMatch(/\d{1,2}:\d{2} (am|pm)/);
   });
 
   it('says so when none has gone yet', () => {
     expect(watchFailingNote({ ...base, lastOkAt: null, fails: 4 })).toBe(
-      "Your phone link isn't updating: the last 4 updates didn't go (the collector said 503). None has gone yet. It keeps trying every 5 minutes."
+      "Your phone link isn't updating: the last 4 updates didn't go (the planner's server said 503). None has gone yet. It keeps trying every 5 minutes."
     );
   });
 
@@ -303,7 +303,7 @@ describe('the failing-sends note (search/watchLink.ts watchFailingNote)', () => 
       await settle();
       expect(watchFailingNote(activeWatch.value!) === '').toBe(i < 3);
     }
-    expect(watchFailingNote(activeWatch.value!)).toContain('the collector said 429');
+    expect(watchFailingNote(activeWatch.value!)).toContain("the planner's server said 429");
     answer = () => new Response('{}');
     clock = T0 + 4 * WATCH_EVERY_MS;
     watchLinkTick();
