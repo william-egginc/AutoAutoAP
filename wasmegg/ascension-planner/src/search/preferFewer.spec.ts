@@ -112,7 +112,7 @@ describe('choosePreferFewer: Fastest (margin in time)', () => {
 
 describe('choosePreferFewer: By a date (margin in TE)', () => {
   it('same TE: the fewest ascensions that reach the best TE', () => {
-    const same4 = date(4, 313, 0.2 * D, 47);
+    const same4 = date(4, 313, 1.2 * D, 47);
     const c = choosePreferFewer('date', [top5, date(4, 312, 1.5 * D), same4], te(0), top5)!;
     expect(c.chosen).toBe(same4);
     expect(c.costTE).toBe(0);
@@ -128,8 +128,8 @@ describe('choosePreferFewer: By a date (margin in TE)', () => {
 
   it('ties on the count: the higher TE, then the more spare', () => {
     const a = date(4, 312, 2 * D, null, 'a');
-    const b = date(4, 313, 0.5 * D, null, 'b');
-    const c = date(4, 313, 0.9 * D, null, 'c');
+    const b = date(4, 313, 1.1 * D, null, 'b');
+    const c = date(4, 313, 1.4 * D, null, 'c');
     expect(choosePreferFewer('date', [top5, a, b, c], te(2), top5)!.chosen).toBe(c);
   });
 
@@ -197,7 +197,7 @@ describe('preferFewerCopy', () => {
       line: '1 TE below the highest (313, 5 ascensions), and 1 fewer ascension: 13 fewer shifts.',
       muted: '',
     });
-    const same = choosePreferFewer('date', [top5, date(4, 313, 0.5 * D, 47)], te(0), top5);
+    const same = choosePreferFewer('date', [top5, date(4, 313, 1.5 * D, 47)], te(0), top5);
     expect(preferFewerCopy(same, 'date', te(0), show)).toEqual({
       chip: 'Fewest ascensions, same TE',
       what: 'The box shows the route with the fewest ascensions that reaches the same TE.',

@@ -900,10 +900,12 @@ import { isConstrained } from '@/search/availability';
 import { nearTieOf, type NearTie } from '@/search/nearTie';
 import {
   choosePreferFewer,
+  firstStopOf,
   preferFewerCopy,
   readPreferFewer,
   rememberPreferFewer,
   type PreferChoice,
+  type FirstStop,
   type PreferCopy,
   type PreferGoal,
   type PreferMargin,
@@ -2060,12 +2062,19 @@ interface DatePick {
   chain: number[];
   endTE: number;
   end: number;
+  /** Its first stop, for Prefer fewer's quick-first-stop rule (search/preferFewer.ts `firstStopOf`). */
+  first: FirstStop | null;
 }
 /** A route's last TE; 0 for one without legs (a saved answer read back without them), never a throw while drawing. */
 function lastEndTE(r: Route): number {
   return r.legs?.[r.legs.length - 1]?.endTE ?? 0;
 }
-const tableDate = (r: Route): DatePick => ({ chain: r.chain ?? [], endTE: lastEndTE(r), end: r.end });
+const tableDate = (r: Route): DatePick => ({
+  chain: r.chain ?? [],
+  endTE: lastEndTE(r),
+  end: r.end,
+  first: firstStopOf(r.legs, r.chain),
+});
 const spareOf = (d: DatePick) => (props.deadline ?? 0) - d.end;
 /** The box's "to spare" and whether it is tight: under a day, or inside the gear caveat's window when the form G's
  *  caveat shows ("Up to about 5 days later than shown", lib/spareLine.ts; Jordan, 26 Oct 2026). */
@@ -2211,7 +2220,13 @@ watch(preferMargin, () => {
 const fastestChoice = computed<PreferChoice<Route> | null>(() => {
   const best = lead.value;
   if (props.deadline || !result.value || !best) return null;
-  const rowOf = (r: Route): PreferRow<Route> => ({ item: r, ascensions: r.legs.length, finish: r.end, shifts: null });
+  const rowOf = (r: Route): PreferRow<Route> => ({
+    item: r,
+    ascensions: r.legs.length,
+    finish: r.end,
+    shifts: null,
+    first: firstStopOf(r.legs, r.chain),
+  });
   const others = rows.value.filter(r => r !== best).map(rowOf);
   const top = rowOf(best);
   return choosePreferFewer('fastest', [top, ...others], preferMargin.value, top);
@@ -2228,10 +2243,12 @@ const dateChoice = computed<PreferChoice<DatePick> | null>(() => {
     endTE: d.endTE,
     spare: deadline - d.end,
     shifts: null,
+    first: d.first,
   });
   const others = dateRows.value.map(tableDate).filter(d => key(d.chain) !== key(best.chain));
   const top = rowOf(best);
-  return choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top);
+  // Tight as the box's tag says it (gear caveat included): a best with room is never traded for a tight route.
+  return choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top, { gearCaveat: shiftedTable.value });
 });
 const preferChoice = computed<PreferChoice<unknown> | null>(() => (props.deadline ? dateChoice.value : fastestChoice.value));
 const preferCopy = computed<PreferCopy>(() =>

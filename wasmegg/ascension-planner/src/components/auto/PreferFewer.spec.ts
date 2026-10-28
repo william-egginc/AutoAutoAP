@@ -175,8 +175,12 @@ describe('InstantRoute wiring', () => {
   });
 
   it('numbers: the instant answer’s, with no shifts (none are said)', () => {
-    expect(route).toContain('const rowOf = (r: Route): PreferRow<Route> => ({ item: r, ascensions: r.legs.length, finish: r.end, shifts: null });');
-    expect(route).toMatch(/spare: deadline - d\.end,\s+shifts: null,/);
+    expect(route).toMatch(
+      /const rowOf = \(r: Route\): PreferRow<Route> => \(\{\s+item: r,\s+ascensions: r\.legs\.length,\s+finish: r\.end,\s+shifts: null,\s+first: firstStopOf\(r\.legs, r\.chain\),/
+    );
+    expect(route).toMatch(/spare: deadline - d\.end,\s+shifts: null,\s+first: d\.first,/);
+    // The box's tight test and its pick agree (gear caveat included; ux34-c).
+    expect(route).toContain("top, { gearCaveat: shiftedTable.value });");
     expect(route).not.toContain('shiftCount(');
   });
 });

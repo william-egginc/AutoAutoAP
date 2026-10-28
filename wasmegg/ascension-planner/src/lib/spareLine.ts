@@ -19,11 +19,19 @@ export interface SpareLine {
   tight: boolean;
 }
 
+/** Inside the gear caveat's window: the spare may be none on the player's gear. */
+const inGearWindow = (spareSeconds: number, gearCaveat: boolean) => gearCaveat && spareSeconds < GEAR_CAVEAT_DAYS * 86400;
+
+/** THE test for tight, the box's tag and Prefer fewer's pick alike (search/preferFewer.ts; ux34-c, 28 Oct 2026). */
+export function isTightSpare(spareSeconds: number, gearCaveat = false): boolean {
+  return spareSeconds < TIGHT_SECONDS || inGearWindow(spareSeconds, gearCaveat);
+}
+
 /** The spare as the box shows it; `gearCaveat`: the gear caveat with the days window shows for this answer. */
 export function spareLine(spareSeconds: number, gearCaveat: boolean, locale?: string): SpareLine {
-  const inWindow = gearCaveat && spareSeconds < GEAR_CAVEAT_DAYS * 86400;
+  const inWindow = inGearWindow(spareSeconds, gearCaveat);
   return {
     text: `${headlineGap(spareSeconds, locale)} to spare${inWindow ? ', maybe none on your gear' : ''}`,
-    tight: spareSeconds < TIGHT_SECONDS || inWindow,
+    tight: isTightSpare(spareSeconds, gearCaveat),
   };
 }
