@@ -58,8 +58,8 @@ export function soulEggWarning(p: SoulEggPlan): string {
 }
 
 /**
- * "Soul eggs left after this plan: about 9.8s (you'll spend about 2.9s on 47 shifts, about 24 of them build-up shifts,
- * estimated)" (My runs' Right now and its saved answer tile; worded 27 Oct 2026, Jordan):
+ * "You'll have about 10.4s soul eggs left when this plan is done (about 2.3s goes on 41 shifts · about 24 of the 41 are
+ * build-up shifts, estimated)" (My runs' Right now and its saved answer tile; worded plainer 28 Oct 2026, pieha):
  * today's soul eggs less the planned shifts' cost (`plannedShiftsCost` from the save's `done` shifts, as All planned
  * shifts prices them), each number as Single run writes its Spent / Remaining (`formatNumber(x, 1)`). `opening`: how
  * many of the shifts are the estimated build-up shifts (lib/openingShifts.ts). `amber` under SE_WARN_BELOW left, the
@@ -77,12 +77,10 @@ export function soulEggsAfterLine(p: {
   const spent = plannedShiftsCost(se, done, count);
   const left = Math.max(0, se - spent);
   const opening = p.planned.opening ?? 0;
-  const tail =
-    count === 0
-      ? 'no shifts planned'
-      : `you'll spend about ${formatNumber(spent, 1)} on ${count} shift${s(count)}${opening > 0 ? `, about ${opening} of them build-up shifts, estimated` : ''}`;
+  const est = opening > 0 ? ` · about ${opening} of the ${count} are build-up shifts, estimated` : '';
+  const tail = count === 0 ? 'no shifts planned' : `about ${formatNumber(spent, 1)} goes on ${count} shift${s(count)}${est}`;
   return {
-    text: `Soul eggs left after this plan: about ${formatNumber(left, 1)} (${tail})`,
+    text: `You'll have about ${formatNumber(left, 1)} soul eggs left when this plan is done (${tail})`,
     amber: soulEggsLeft(done, count, se) < SE_WARN_BELOW,
   };
 }

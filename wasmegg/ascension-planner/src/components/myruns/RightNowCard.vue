@@ -525,7 +525,7 @@ import type { FollowCard } from '@/composables/useNowPage';
 const props = defineProps<{
   card: CardPlan | null;
   onVirtue: boolean | null;
-  /** "Soul eggs left after this plan: about 9.7s (you'll spend about 3.0s on 48 shifts)" (useNowPage `soulEggsAfter`); null or absent:
+  /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (useNowPage `soulEggsAfter`); null or absent:
    *  none (no soul eggs in the save, or no planned count). */
   soulEggsAfter?: { text: string; amber: boolean } | null;
   currentEgg: string | null;

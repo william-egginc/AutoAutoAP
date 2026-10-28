@@ -96,7 +96,7 @@ const props = defineProps<{
   /** Right now's Run Fast button is on the page for this same goal: How sure gives no second one (ux review
    *  26 Oct, row 15: one Run Fast on My runs). */
   runFastAbove?: boolean;
-  /** "Soul eggs left after this plan: about 9.7s (you'll spend about 3.0s on 48 shifts)" (lib/soulEggs.ts `soulEggsAfterLine`), amber
+  /** "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)" (lib/soulEggs.ts `soulEggsAfterLine`), amber
    *  under a quarter left; given only when the answer is the route Right now follows. Null or absent: none. */
   soulEggsAfter?: { text: string; amber: boolean } | null;
 }>();
