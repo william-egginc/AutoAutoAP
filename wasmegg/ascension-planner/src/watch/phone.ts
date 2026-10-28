@@ -68,13 +68,28 @@ function draw(): void {
 
 let base: string | null = null;
 let link: { id: string; secret: string } | null = null;
-let busy = false;
+/** A read given up on after this long. */
+const READ_TIMEOUT_MS = 20_000;
+/**
+ * The read going now, if any. A read can be left with no answer and no error at all (a phone locked part-way
+ * through one): it used to keep the page "busy" for good, so it only redrew its old reading, "Last update"
+ * growing older and then "Not reporting" while the run kept reporting (ux35-f, 28 Oct 2026). So a read is
+ * given up on after READ_TIMEOUT_MS, and one that is older than that never blocks the next.
+ */
+let reading: { at: number; stop: AbortController | null } | null = null;
 
 async function load(): Promise<void> {
-  if (busy || !base || !link) return;
-  busy = true;
+  if (!base || !link) return;
+  if (reading && Date.now() - reading.at < READ_TIMEOUT_MS) return;
+  reading?.stop?.abort();
+  const mine = { at: Date.now(), stop: typeof AbortController !== 'undefined' ? new AbortController() : null };
+  reading = mine;
+  const giveUp = setTimeout(() => mine.stop?.abort(), READ_TIMEOUT_MS);
   try {
-    const res = await fetch(`${base}/watch?id=${encodeURIComponent(link.id)}`, { cache: 'no-store' });
+    const res = await fetch(`${base}/watch?id=${encodeURIComponent(link.id)}`, {
+      cache: 'no-store',
+      ...(mine.stop ? { signal: mine.stop.signal } : {}),
+    });
     if (res.status === 404) {
       last = null;
       show(
@@ -95,6 +110,8 @@ async function load(): Promise<void> {
     if (typeof body?.iv !== 'string' || typeof body.ct !== 'string' || typeof body.updated !== 'number')
       throw new Error('bad reply');
     const data = await openHeartbeat(link.secret, body.iv, body.ct);
+    // Given up on meanwhile, and a newer read has the page now.
+    if (reading !== mine) return;
     if (!data) {
       // The id is right but the secret isn't: a link cut short or mistyped.
       last = null;
@@ -107,13 +124,15 @@ async function load(): Promise<void> {
     last = { data, updated: body.updated, skew };
     draw();
   } catch {
+    if (reading !== mine && reading !== null) return;
     // Keep showing the last reading; say the check failed.
     if (last) {
       draw();
       $('p-updated').textContent += " (couldn't check just now)";
     } else show("Couldn't reach the server", 'warn', 'It tries again every minute.');
   } finally {
-    busy = false;
+    clearTimeout(giveUp);
+    if (reading === mine) reading = null;
   }
 }
 
@@ -147,6 +166,8 @@ function start(): void {
   if (tick) clearInterval(tick);
   poll = tick = null;
   last = null;
+  reading?.stop?.abort();
+  reading = null;
   link = parseWatchFragment(location.hash);
   if (!link) {
     show(INCOMPLETE, 'bad', INCOMPLETE_NOTE);
