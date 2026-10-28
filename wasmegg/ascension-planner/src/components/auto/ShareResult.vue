@@ -1,8 +1,8 @@
 <!--
   "Share this result": the box under every search's answer (Smart search, the Full sweep and By a
   date). One frame for all three: the heading, the screen's own words on what is sent and where
-  (`intro`), the consent tick with the screen's own wording (`consent`), and once ticked, anonymous
-  or "Credit me as", the CSV and diagnostics boxes (ShareExtras.vue) and anything else the screen
+  (`intro`), the consent tick with the screen's own wording (`consent`), and once ticked, the sharing
+  line with its one Change (SharingSummary.vue), the CSV and diagnostics boxes (ShareExtras.vue) and anything else the screen
   asks (`opted`). The buttons and the status line are the screen's (default slot, ShareStatus.vue):
   what a send does differs (the race to the target vs Compare's By a date tabs).
 
@@ -47,7 +47,7 @@
       withdrawn-text="Withdrawn: nothing more goes to the leaderboard from here until you agree again."
     >
       <template #summary>
-        <ConsentSummary :anonymous="anonymous" :nickname="nickname" :nickname-max="nicknameMax" />
+        <ConsentSummary />
       </template>
       <template #text>
         <!-- OPT IN, UNCHECKED. Nothing leaves the machine until this is deliberately ticked. -->
@@ -67,13 +67,6 @@
       <template #after>
         <!-- Credit, behind the opt-in like everything else that leaves the machine. -->
         <div v-if="optIn" class="space-y-2">
-          <ShareNameChoice
-            v-model:anonymous="anonymous"
-            v-model:nickname="nickname"
-            :nickname-max="nicknameMax"
-            class="text-small text-indigo-900"
-            @nickname-typed="emit('nicknameTyped')"
-          />
           <ShareExtras :csv-detail="csvDetail" />
           <!-- The same note box as Find and submit's (FindBar.vue), holding the run's own note: what it
                says here is what is sent, and what the CSV's header carries. -->
@@ -82,6 +75,18 @@
         </div>
       </template>
       <template #aside="{ folded }">
+        <!-- The one sharing line and its Change (SharingSummary.vue), folded or open, once agreed: the credit is
+             chosen there, not with radios of this box's own (ux29 #11). -->
+        <SharingSummary
+          v-if="optIn"
+          ref="sharing"
+          v-model:anonymous="anonymous"
+          v-model:nickname="nickname"
+          :on="optIn"
+          :nickname-max="nicknameMax"
+          class="text-body text-indigo-900"
+          @nickname-typed="emit('nicknameTyped')"
+        />
         <template v-if="folded">
           <details v-if="note !== undefined" class="text-small text-indigo-900" data-testid="share-note-fold">
             <summary class="cursor-pointer font-bold text-indigo-800">
@@ -98,11 +103,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { provide, ref, watch } from 'vue';
 import ConsentBox from './ConsentBox.vue';
 import ConsentSummary from './ConsentSummary.vue';
 import ShareExtras from './ShareExtras.vue';
-import ShareNameChoice from './ShareNameChoice.vue';
+import SharingSummary from '../SharingSummary.vue';
+import { OPEN_SHARING_FOR_NAME } from '@/lib/sharingLine';
 import RunNoteBox from './RunNoteBox.vue';
 
 withDefaults(
@@ -142,4 +148,8 @@ const asking = ref(false);
 watch(optIn, v => {
   if (v) asking.value = false;
 });
+/** Put my name on it on a row sent anonymously (BoardSubmitButtons.vue in the slot): the sharing line's setting,
+ *  open on "Credit me as". */
+const sharing = ref<InstanceType<typeof SharingSummary> | null>(null);
+provide(OPEN_SHARING_FOR_NAME, () => void sharing.value?.openForName());
 </script>

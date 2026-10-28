@@ -1,7 +1,8 @@
 <!--
   "Help improve the planner": what is sent, the four ticks (all off when it opens: tick to opt in; Yes needs at least one), the credit, and
   Yes / Yes to all (ticks every box and says yes) / No thanks (composables/useStudy.ts). The box above the tabs (StudyBox.vue) and Setup's Answer now
-  and Change (StudySetup.vue) show this same form. Nothing is set until Yes.
+  and Change (StudySetup.vue) show this same form. Nothing is set until Yes. The ticks and the credit are
+  SharingChoices.vue, their one copy in the app (Setup's Change and every sharing line's Change show it too).
 
   Phone (390 px): one column, every tap target at least 44 px tall, the name box full width.
   `compact` (StudyBox only, Jordan 26 Oct 2026: the box stays on top and open, so it is trimmed on phones; Setup's copy
@@ -51,70 +52,15 @@
       :class="folded ? 'hidden sm:block' : ''"
       data-testid="study-choices"
     >
-      <fieldset class="space-y-1 sm:space-y-1.5">
-        <legend class="sr-only">What to share</legend>
-        <label
-          v-for="[k, words] in TICK_WORDS"
-          :key="k"
-          class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
-        >
-          <input
-            v-model="ticks[k]"
-            type="checkbox"
-            class="w-5 h-5 sm:w-4 sm:h-4 shrink-0 rounded border-indigo-300 text-indigo-600"
-            :data-testid="`study-tick-${k}`"
-          />
-          <span class="break-words">{{ words }}</span>
-        </label>
-      </fieldset>
-      <p class="text-body text-slate-500" data-testid="study-untick-note">
-        Tick what you are happy to share; anything you leave unticked stays off.
-      </p>
-
-      <fieldset class="space-y-1 sm:space-y-1.5">
-        <legend class="text-slate-500 label">On the leaderboard</legend>
-        <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-3">
-          <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
-          >
-            <input
-              v-model="credit"
-              type="radio"
-              value="name"
-              class="w-5 h-5 sm:w-4 sm:h-4 shrink-0 text-indigo-600"
-              data-testid="study-credit-name"
-            />
-            Credit me as
-          </label>
-          <input
-            v-model="nickname"
-            type="text"
-            :maxlength="STUDY_NAME_MAX"
-            placeholder="nickname"
-            aria-label="Nickname"
-            class="w-full sm:w-48 min-h-[44px] sm:min-h-0 rounded-lg border-indigo-200 text-body font-bold text-slate-800"
-            :class="credit === 'anon' ? 'opacity-50' : ''"
-            data-testid="study-nickname"
-            @input="capField"
-            @focus="credit = 'name'"
-          />
-          <label
-            class="flex items-center gap-3 min-h-[44px] sm:min-h-0 cursor-pointer text-small font-bold text-slate-700"
-          >
-            <input
-              v-model="credit"
-              type="radio"
-              value="anon"
-              class="w-5 h-5 sm:w-4 sm:h-4 shrink-0 text-indigo-600"
-              data-testid="study-credit-anon"
-            />
-            Stay anonymous
-          </label>
-        </div>
-        <p v-if="credit === 'name' && !nickname.trim()" class="text-body text-amber-700">
-          Type a name to be credited; until then you stay anonymous.
-        </p>
-      </fieldset>
+      <!-- The one setting (SharingChoices.vue): the ticks and the credit, held here until Yes. -->
+      <SharingChoices
+        :ticks="ticks"
+        :credit="credit"
+        :nickname="nickname"
+        @tick="(k: keyof StudyTicks, v: boolean) => (ticks[k] = v)"
+        @update:credit="(v: StudyCredit) => (credit = v)"
+        @update:nickname="(v: string) => (nickname = v)"
+      />
     </div>
 
     <!-- Compact, under sm: Yes to all and No thanks side by side, the same size and weight (Yes to all ticks
@@ -174,9 +120,10 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { NAMES } from '@/lib/siteNav';
 import { BUTTON_TEXT } from './auto/resultCardStyle';
-import { DEFAULT_TICKS, TICK_WORDS, anyTick, capName, type StudyCredit } from '@/lib/study';
+import { DEFAULT_TICKS, TICK_WORDS, anyTick, capName, type StudyCredit, type StudyTicks } from '@/lib/study';
+import SharingChoices from './SharingChoices.vue';
 import { consentState } from '@/composables/useConsent';
-import { STUDY_NAME_MAX, answerNo, answerYes, defaultCredit, knownName, yesToAll } from '@/composables/useStudy';
+import { answerNo, answerYes, defaultCredit, knownName, yesToAll } from '@/composables/useStudy';
 import { useShareNameStore } from '@/stores/shareName';
 
 const props = defineProps<{
@@ -208,16 +155,6 @@ const nickname = computed<string>({
   get: () => capName(typed.value ?? knownName(account.value)),
   set: v => (typed.value = capName(v)),
 });
-/** A paste or a scripted set past the cap: the box shows the capped name at once (maxlength stops only keys). */
-function capField(e: Event): void {
-  const el = e.target as HTMLInputElement;
-  const c = capName(el.value);
-  if (c !== el.value) {
-    el.value = c;
-    nickname.value = c;
-  }
-}
-
 // The account's kept name and anonymous-or-named, read once (stores/shareName.ts). Another account loaded
 // while the form is open starts it again: a name or tick picked for the last account is never carried over.
 watch(

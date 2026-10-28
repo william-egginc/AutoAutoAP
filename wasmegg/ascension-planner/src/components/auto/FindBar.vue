@@ -161,7 +161,7 @@
       <!-- Already said yes (Yes to all, the ticks, Setup): stays folded, one line, never opened by Run. -->
       <template v-else-if="optIn" #extra
         ><span class="font-bold text-emerald-800" data-testid="sharing-on"
-          >Sharing: on, {{ anonymous || !nickname.trim() ? 'anonymous' : `as ${nickname.trim()}` }} · Change</span
+          >{{ sharingLine(true, anonymous, nickname, nicknameMax) }} · Change</span
         ></template
       >
       <div
@@ -182,7 +182,7 @@
           withdrawn-text="Withdrawn: nothing more goes to the leaderboard from here until you agree again."
         >
           <template #summary>
-            <ConsentSummary :anonymous="anonymous" :nickname="nickname" :nickname-max="nicknameMax" />
+            <ConsentSummary />
           </template>
           <template #before>
             <p v-if="(!running || asking) && !optIn" class="font-bold text-indigo-800">
@@ -235,16 +235,22 @@
             </template>
             <!-- The same two boxes as Share this result, on the same choices. -->
             <div class="ml-7"><ShareExtras :csv-detail="csvDetail" /></div>
-            <!-- Before the tick too while Send best so far asks: ticking sends, so the name is chosen first. -->
-            <ShareNameChoice
+            <!-- The note goes with the run as it starts; a run already going keeps the one it started with. -->
+            <RunNoteBox v-if="note !== undefined && !running" v-model="note" />
+          </template>
+          <!-- The one sharing line and its Change (SharingSummary.vue: the one setting, no radios of its own here),
+               folded or open. Before the tick too while Send best so far asks: ticking sends, so the name is chosen
+               first. -->
+          <template #aside>
+            <SharingSummary
               v-if="optIn || asking"
+              ref="sharing"
               v-model:anonymous="anonymous"
               v-model:nickname="nickname"
+              :on="optIn"
               :nickname-max="nicknameMax"
               @nickname-typed="emit('nicknameTyped')"
             />
-            <!-- The note goes with the run as it starts; a run already going keeps the one it started with. -->
-            <RunNoteBox v-if="note !== undefined && !running" v-model="note" />
           </template>
         </ConsentBox>
       </div>
@@ -266,7 +272,8 @@ import PanelFold from './PanelFold.vue';
 import { PANEL_FOLD } from '@/lib/panelFold';
 import { rememberRunSends, runSendsChoice, runSendsTicked } from '@/lib/runSends';
 import type { SearchOption } from '@/lib/searchOption';
-import ShareNameChoice from './ShareNameChoice.vue';
+import SharingSummary from '../SharingSummary.vue';
+import { sharingLine } from '@/lib/sharingLine';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { stepAwayOptions } from '@/composables/useStepAway';
 
@@ -420,6 +427,15 @@ function run(): void {
   }
   emit('find', props.showSubmit && ticked.value && optIn.value);
 }
+/** Put my name on it, for a row this run sent anonymously (RunSendReport.vue): Before you send open, its sharing
+ *  line's setting open on "Credit me as" (SharingSummary.vue). */
+const sharing = ref<InstanceType<typeof SharingSummary> | null>(null);
+async function openForName(): Promise<void> {
+  await ackFold.value?.show(false);
+  await sharing.value?.openForName();
+}
+defineExpose({ openForName });
+
 // Send best so far asking for the yes (here or on the run bar): the box must be in sight.
 watch(
   asking,

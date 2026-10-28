@@ -13,7 +13,9 @@ import { useShareIdentity } from './useShareResult';
 import { useFastestShare } from './useFastestShare';
 import { useShareNameStore } from '@/stores/shareName';
 import { renderHtml, textOf } from '@/test/renderComponent';
-import ShareNameChoice from '@/components/auto/ShareNameChoice.vue';
+import SharingSummary from '@/components/SharingSummary.vue';
+import { createSSRApp, h } from 'vue';
+import { renderToString } from 'vue/server-renderer';
 import FindBar from '@/components/auto/FindBar.vue';
 
 const A = 'EI1234567890123456';
@@ -57,13 +59,24 @@ function sentName(id = A): string {
   return got;
 }
 
-/** Before you send's two radios as rendered: which one is checked. */
+/** Before you send's sharing line with its Change open (SharingSummary.vue, the one setting since ux29 #11): which of
+ *  its two radios is checked. */
 async function radios(id = A): Promise<'anonymous' | 'credit'> {
   const who = useShareIdentity(() => id);
-  const html = await renderHtml(ShareNameChoice, { anonymous: who.anonymous.value, nickname: who.nickname.value }, {}, [pinia]);
+  const app = createSSRApp({
+    render: () => h(SharingSummary, { anonymous: who.anonymous.value, nickname: who.nickname.value, on: true }),
+  });
+  app.use(pinia);
+  app.mixin({
+    created(this: { $: { type: { __file?: string }; setupState: Record<string, unknown> } }) {
+      if (this.$.type.__file?.endsWith('/SharingSummary.vue')) Object.assign(this.$.setupState, { open: true });
+    },
+  });
+  const html = await renderToString(app);
   const inputs = html.match(/<input[^>]*type="radio"[^>]*>/g) ?? [];
   expect(inputs).toHaveLength(2);
-  return /checked/.test(inputs[0] ?? '') ? 'anonymous' : 'credit';
+  // "Credit me as" first, "Stay anonymous" second (SharingChoices.vue).
+  return /checked/.test(inputs[1] ?? '') ? 'anonymous' : 'credit';
 }
 
 beforeEach(() => {
@@ -85,7 +98,7 @@ describe('Help improve the planner → Before you send', () => {
     const bar = textOf(
       await renderHtml(FindBar, { findDisabled: false, running: false, optIn: true, anonymous: who.anonymous.value, nickname: who.nickname.value }, {}, [pinia])
     );
-    expect(bar).toContain(`Sharing: on, as ${NAME}`);
+    expect(bar).toContain(`Sharing: on · credited as ${NAME}`);
   });
 
   it('kept: after a reload, even before the header has the account\'s name back, it is still that name', async () => {

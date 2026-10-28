@@ -34,6 +34,7 @@
     </p>
 
     <FindBar
+      ref="findBar"
       v-model:opt-in="optIn"
       v-model:anonymous="anonymous"
       v-model:nickname="nickname"
@@ -63,12 +64,14 @@
       :ok="report.ok"
       :partial="report.partial"
       :name-to-claim="report.nameToClaim"
+      :offer-name="report.offerName"
       :claiming="report.claiming"
       :pending-table="report.pendingTable"
       :retrying="report.retrying"
       :quiet="report.quiet"
       @claim="emit('claim')"
       @retry="emit('retry')"
+      @name-it="findBar?.openForName()"
     />
     <!-- Finished results kept until sent (search/pendingSends.ts): "This result wasn't sent: Send it now",
          for a run that finished (and sent) while this panel was closed for another tab. -->
@@ -115,6 +118,8 @@ interface SendReport {
   ok?: boolean;
   partial?: boolean;
   nameToClaim?: string;
+  /** Sent anonymously, no name chosen yet: Put my name on it opens the sharing setting (FindBar.vue `openForName`). */
+  offerName?: boolean;
   claiming?: boolean;
   pendingTable?: boolean;
   retrying?: boolean;
@@ -195,6 +200,7 @@ const otherRun = computed<{ name: string; kind: 'smart' | 'full' } | null>(() =>
 });
 
 const stepAway = ref<InstanceType<typeof StepAwayOptions> | null>(null);
+const findBar = ref<InstanceType<typeof FindBar> | null>(null);
 /** Stepping away?'s Cancel for the automatic carry-on, for a screen that shows the countdown itself. */
 defineExpose({ cancel: () => stepAway.value?.cancel() });
 </script>

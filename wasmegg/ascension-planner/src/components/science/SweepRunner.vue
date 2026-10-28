@@ -211,26 +211,15 @@
             replace your older plans. In its last few seconds the sweep also re-prices your best three plans already on
             the Leaderboard from this save, and those are sent too.
           </p>
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 pl-6 text-small font-bold text-slate-700">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-              Submit anonymously
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
-              Credit me as
-            </label>
-            <input
-              v-model="nickname"
-              type="text"
-              maxlength="40"
-              placeholder="nickname"
-              aria-label="Nickname"
-              :disabled="anonymous"
-              class="w-40 rounded-md border-indigo-200 text-body font-normal text-slate-800 disabled:opacity-40"
-              @input="nicknameTouched = true"
-            />
-          </div>
+          <!-- The one sharing line and its Change (SharingSummary.vue, ux29 #11): the account's credit, as on every
+               screen; the agreement above stays this runner's own. -->
+          <SharingSummary
+            v-model:anonymous="anonymous"
+            v-model:nickname="nickname"
+            :on="consent"
+            class="pl-6 text-body text-slate-700"
+            @nickname-typed="nicknameTouched = true"
+          />
         </div>
         <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="text-small text-slate-700" />
 
@@ -381,6 +370,7 @@ import type { SweepRequest } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
 import IntegrityNotice from '@/components/auto/IntegrityNotice.vue';
 import ConsentBox from '@/components/auto/ConsentBox.vue';
+import SharingSummary from '@/components/SharingSummary.vue';
 import { useConsent } from '@/composables/useConsent';
 
 const props = defineProps<{

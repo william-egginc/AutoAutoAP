@@ -3,8 +3,8 @@
   sending (search/pendingSends.ts) that have not reached the board: the page went before the send
   landed, or nothing sent them. Each goes with its own payload and CSV, as the run left them, so it
   works after a reload and whatever save is loaded now. With the player's yes already given (Find and
-  submit, or a send that began) one click sends it; otherwise they tick to agree first, and choose
-  "Submit anonymously" or "Credit me as" as on the main share form.
+  submit, or a send that began) one click sends it; otherwise they tick to agree first, and the sharing line's
+  Change (SharingSummary.vue) holds the credit, the account's one setting as on every screen.
 -->
 <template>
   <p v-if="!shown.length && sentNote" class="text-body font-bold text-emerald-700" data-testid="unsent-sent">
@@ -84,47 +84,24 @@
             >
           </template>
           <template #after>
-            <div v-if="agreed[p.id]" class="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1">
-              <label class="flex items-center gap-2 cursor-pointer font-bold">
-                <input
-                  :checked="anonOf(p.id)"
-                  type="radio"
-                  :name="`unsent-name-${p.id}`"
-                  class="text-amber-700"
-                  :data-testid="`unsent-anonymous-${p.id}`"
-                  @change="anonymous[p.id] = true"
-                />
-                Submit anonymously
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer font-bold">
-                <input
-                  :checked="!anonOf(p.id)"
-                  type="radio"
-                  :name="`unsent-name-${p.id}`"
-                  class="text-amber-700"
-                  :data-testid="`unsent-named-${p.id}`"
-                  @change="anonymous[p.id] = false"
-                />
-                Credit me as
-              </label>
-              <input
-                :value="nameOf(p.id)"
-                type="text"
-                :maxlength="PENDING_NAME_MAX"
-                :disabled="anonOf(p.id)"
-                placeholder="nickname"
-                aria-label="Nickname"
-                class="rounded-lg border-amber-300 text-body font-bold text-slate-800 w-48 max-w-full disabled:opacity-40"
-                :data-testid="`unsent-nickname-${p.id}`"
-                @input="typeName(p.id, ($event.target as HTMLInputElement).value)"
-              />
-            </div>
+            <!-- The one sharing line and its Change (SharingSummary.vue, ux29 #11): the account's credit, as on every
+                 screen, rather than radios of this row's own. -->
+            <SharingSummary
+              v-if="agreed[p.id]"
+              :anonymous="anonOf()"
+              :nickname="nameOf()"
+              :on="true"
+              class="ml-6"
+              :data-testid="`unsent-sharing-${p.id}`"
+              @update:anonymous="(v: boolean) => sharedName.setAnonymous?.(v)"
+              @update:nickname="(v: string) => sharedName.set(v)"
+            />
             <p
-              v-if="agreed[p.id] && namedButBlank(p.id)"
+              v-if="agreed[p.id] && namedButBlank()"
               class="ml-6 font-bold text-rose-700"
               :data-testid="`unsent-name-warning-${p.id}`"
             >
-              Type a nickname to be credited, or choose Submit anonymously.
+              Type a nickname to be credited (Change, above), or pick Stay anonymous there.
             </p>
             <div v-if="agreed[p.id]" class="ml-6 space-y-1">
               <label v-if="p.csvGz" class="flex items-start gap-2 cursor-pointer">
@@ -177,7 +154,6 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { hashID } from '@/lib/storage/db';
 import {
   MAX_PENDING_SENDS,
-  PENDING_NAME_MAX,
   chosenConsent,
   type PendingConsent,
   type PendingKind,
@@ -189,6 +165,7 @@ import { sentence } from '@/utils/errors';
 import { onBoardLine } from '@/search/sentOnBoard';
 import SendingText from './SendingText.vue';
 import ConsentBox from './ConsentBox.vue';
+import SharingSummary from '../SharingSummary.vue';
 
 const props = defineProps<{
   /** This screen's kind; every kind when left out (My runs' "Not sent yet"). */
@@ -211,35 +188,28 @@ const agreed = reactive<Record<string, boolean>>({});
 const messages = reactive<Record<string, string>>({});
 const okIds = reactive<Record<string, boolean>>({});
 const sendingId = ref<string | null>(null);
-/** Each kept result's "Submit anonymously" / "Credit me as", once picked here; until then the account's
- *  choice from the screens (stores/shareName.ts), anonymous when there is none. */
-const anonymous = reactive<Record<string, boolean>>({});
-/** Each one's name box, once typed in; until then it follows the screen's (or the account's) name. */
-const names = reactive<Record<string, string>>({});
 /** Each one's "Send my CSV too" and "Also send diagnostics" ticks, once changed. */
 const csvs = reactive<Record<string, boolean>>({});
 const diags = reactive<Record<string, boolean>>({});
 const extras = useShareExtras();
 const accountName = useAccountName(() => props.playerId);
 
-const anonOf = (id: string): boolean => anonymous[id] ?? sharedName.getAnonymous?.() ?? true;
-const nameOf = (id: string): string => names[id] ?? (props.nickname?.trim() || accountName.value);
-/** A name typed here is the account's name everywhere (stores/shareName.ts), as in the screens' boxes. */
+/** The account's one credit (stores/shareName.ts): anonymous until picked. A name typed under Change is the
+ *  account's name everywhere, as in the screens' boxes. */
 const sharedName = useSharedName(() => props.playerId);
-function typeName(id: string, v: string): void {
-  names[id] = v;
-  sharedName.set(v);
-}
+const anonOf = (): boolean => sharedName.getAnonymous?.() ?? true;
+/** The screen's name box, else the account's typed name, else its own name. */
+const nameOf = (): string => props.nickname?.trim() || (sharedName.get() ?? accountName.value);
 const csvOf = (p: PendingSend): boolean => csvs[p.id] ?? true;
 /** Starts from the saved "Tick this by default" preference, as the main form does. */
 const diagOf = (id: string): boolean => diags[id] ?? extras.diagnosticsByDefault.value;
 /** "Credit me as" picked with no name typed. */
-const namedButBlank = (id: string): boolean => !anonOf(id) && !nameOf(id).trim();
+const namedButBlank = (): boolean => !anonOf() && !nameOf().trim();
 const consentFor = (p: PendingSend): PendingConsent | undefined =>
   chosenConsent(p, {
     agreed: !!agreed[p.id],
-    anonymous: anonOf(p.id),
-    nickname: nameOf(p.id),
+    anonymous: anonOf(),
+    nickname: nameOf(),
     sendCsv: csvOf(p),
     sendDiagnostics: diagOf(p.id),
   });

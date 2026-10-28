@@ -277,13 +277,13 @@ describe('Run with the send ticked still needs the ticks (Find and submit until 
     expect(html).not.toContain('data-testid="acknowledge-hint"');
   });
 
-  it('already said yes: stays folded with one line "Sharing: on, anonymous · Change", never popped open by Run', async () => {
+  it('already said yes: stays folded with one line "Sharing: on · anonymous · Change", never popped open by Run', async () => {
     const html = await render(FindBar, { ...base, optIn: true });
-    expect(html).toMatch(/data-testid="sharing-on">Sharing: on, anonymous · Change</);
+    expect(html).toMatch(/data-testid="sharing-on">Sharing: on · anonymous · Change</);
     expect(html).not.toContain('data-testid="ticks-needed"');
     expect(html).not.toMatch(/<details[^>]*data-fold="acknowledgement"[^>]*\bopen\b/);
     const named = await render(FindBar, { ...base, optIn: true, anonymous: false, nickname: 'Williamthe5thc' });
-    expect(named).toContain('Sharing: on, as Williamthe5thc · Change');
+    expect(named).toContain('Sharing: on · credited as Williamthe5thc · Change');
     const src = fs.readFileSync(path.join(__dirname, 'FindBar.vue'), 'utf8');
     // Only when the ticks are needed does the asking watch open it.
     expect(src).toContain('if (a && !optIn.value) void ackFold.value?.show(false);');
