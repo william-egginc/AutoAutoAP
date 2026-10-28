@@ -21,6 +21,7 @@ import type { BoardRow } from './leaderboardRank';
 import { gapWords } from './searchPlan';
 import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
 import type { FoundLevel } from './searchPointer';
+import { compactDuration } from './duration';
 
 export const BASELINE_KEY = 'aap-instant-baselines';
 export const MAX_BASELINES = 200;
@@ -227,10 +228,9 @@ export function baselineDiff(run: RunVsBaseline, base: Pick<RowBaseline, 'end' |
   return { words: te !== 0 && !spareWords ? head : `${head}${spareWords}`, tone };
 }
 
-/** "40 min", "0.28 days" (as the instant card's "1.46 days to spare"). */
+/** "40m", "6h 43m" (as the instant card's "1d 11h to spare"; lib/duration). */
 function spareGap(seconds: number): string {
-  if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))} min`;
-  return `${(seconds / 86400).toFixed(2)} days`;
+  return compactDuration(Math.max(60, seconds));
 }
 
 /** "vs your instant baseline: 1.2 days sooner (Fast)"; "their" for another player's run. */

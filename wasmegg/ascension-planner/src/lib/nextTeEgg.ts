@@ -34,6 +34,7 @@ import { calculateIHR } from '@/calculations/internalHatcheryRate';
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
 import { nextTEThreshold } from '@/lib/truthEggs';
 import { dateAt } from './eventWhen';
+import { compactDuration } from './duration';
 import { NEXT_TE_CAP_DAYS, type FarmInput } from './farmFacts';
 
 /** Above this many TE in all the habs are taken as full straight after a shift (Jordan, 26 Oct 2026). */
@@ -144,19 +145,9 @@ export function eggNextTeSeconds(o: {
   return Number.isFinite(t) ? t : null;
 }
 
-/** "~25 min", "~18 h 30 m", "~2 d 4 h" (whole hours from two days). */
+/** "~25m", "~18h 30m", "~2d 4h" (lib/duration). */
 export function aboutWords(seconds: number): string {
-  const min = Math.max(1, Math.round(seconds / 60));
-  if (min < 60) return `~${min} min`;
-  if (seconds < 2 * 86400) {
-    const h = Math.floor(min / 60);
-    const m = min - h * 60;
-    return m ? `~${h} h ${m} m` : `~${h} h`;
-  }
-  const hours = Math.round(seconds / 3600);
-  const d = Math.floor(hours / 24);
-  const h = hours - d * 24;
-  return h ? `~${d} d ${h} h` : `~${d} d`;
+  return `~${compactDuration(Math.max(60, seconds))}`;
 }
 
 /** The line under an egg the player isn't on; null: say nothing (no time). */

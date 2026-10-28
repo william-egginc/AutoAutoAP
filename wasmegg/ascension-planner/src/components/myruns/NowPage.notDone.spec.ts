@@ -105,7 +105,7 @@ describe('a step due before now that the save hasn’t done', () => {
     expect(ev[0]).toMatchObject({ kind: 'shift', egg: 'curiosity', past: false, notDone: true, next: true });
     expect(ev[1]).toMatchObject({ egg: 'humility', past: false, next: false });
     expect(ev[1].notDone).toBeUndefined();
-    expect(howFar(ev[0], NOW, ZONE)).toBe('not done yet, due 1 h ago');
+    expect(howFar(ev[0], NOW, ZONE)).toBe('not done yet, due 1h ago');
     expect(nextStepText(ev, 'fastest', NOW, ZONE)).toBe(`${NOT_DONE}, then Humility Oct 23 at 4:06 PM`);
   });
 
@@ -128,7 +128,7 @@ describe('a step due before now that the save hasn’t done', () => {
     expect(ev[1]).toMatchObject({ egg: 'humility', next: true });
     const html = await renderHtml(RightNowCard, cardProps(ON_CURIOSITY));
     const t = textOf(html);
-    expect(t).toContain('Next step Shift to Humility Oct 23 at 4:06 PM (in 4 days), then Kindness Oct 24 at 12:07 PM');
+    expect(t).toContain('Next step Shift to Humility Oct 23 at 4:06 PM (in 4d 19h), then Kindness Oct 24 at 12:07 PM');
     expect(t).not.toContain('Not done yet');
     expect(html).toContain('data-testid="now-event-past"');
     expect(t).toContain('passed');
@@ -139,7 +139,7 @@ describe('a step due before now that the save hasn’t done', () => {
     expect(ev[0]).toMatchObject({ egg: 'curiosity', past: false, next: true });
     expect(ev[0].notDone).toBeUndefined();
     expect(nextStepText(ev, 'fastest', SAVE + H, ZONE)).toBe(
-      'Shift to Curiosity today at 8:03 PM (in 30 min), then Humility Oct 23 at 4:06 PM'
+      'Shift to Curiosity today at 8:03 PM (in 30m), then Humility Oct 23 at 4:06 PM'
     );
   });
 

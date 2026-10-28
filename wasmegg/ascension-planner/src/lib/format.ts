@@ -3,6 +3,7 @@
  * Pure functions for converting values to display strings.
  */
 import { formatMoment } from './clock';
+import { compactDuration } from './duration';
 
 /**
  * Converts an absolute Unix timestamp in SECONDS into a `Date`, rounding to the nearest millisecond
@@ -455,39 +456,20 @@ export function plural(n: number, one: string, many = `${one}s`): string {
 }
 
 /**
- * A gap between two finishes, rounded for a dense table (UX review, 25 Oct 2026: "+3302.72 days" promised a
- * precision the instant answer doesn't have): "40 min", "17 h", "3.4 days", "312 days", and from a year on, years:
- * "9 years" (3,303 days), "1.5 years". Numbers use the browser's own separators.
+ * A gap between two finishes for a dense table (UX review, 25 Oct 2026: "+3302.72 days" promised a precision the
+ * instant answer doesn't have), in the one compact duration (lib/duration, ux29-d): "40m", "17h", "3d 10h", "312d",
+ * "9 years". Sign dropped (the caller says sooner/later). `locale` is kept for callers; the words are compact.
  */
-export function roundedGap(seconds: number, locale?: string): string {
-  const s = Math.abs(seconds);
-  const days = s / 86400;
-  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min`;
-  if (s < 48 * 3600) return `${Math.round(s / 3600)} h`;
-  if (days < 10) return `${(Math.round(days * 10) / 10).toLocaleString(locale)} days`;
-  if (days < 365) return `${Math.round(days).toLocaleString(locale)} days`;
-  const years = Math.round((days / 365.25) * 10) / 10;
-  return `${years.toLocaleString(locale)} year${years === 1 ? '' : 's'}`;
+export function roundedGap(seconds: number, _locale?: string): string {
+  return compactDuration(Math.max(60, Math.abs(seconds)));
 }
 
 /**
- * A span in the answer's headline ("5.5 days to spare", "in 1,858 days (5.1 years)"; the UX review of 26 Oct 2026,
- * item 4: the headline showed "5.50 days" and "1857.95 days"). Under an hour minutes, under a day hours, under 10
- * days one decimal ("1 day", "5.5 days"), then whole days, and from a year on the days with the years beside them.
- * Rounded as `roundedGap` rounds the counts table; a negative span keeps its sign.
+ * A span in the answer's headline ("5d 12h to spare", "in 5.1 years"; the UX review of 26 Oct 2026, item 4: the
+ * headline showed "5.50 days" and "1857.95 days"), in the one compact duration (lib/duration, ux29-d). Under a
+ * minute reads "1m"; a negative span keeps its sign.
  */
-export function headlineGap(seconds: number, locale?: string): string {
+export function headlineGap(seconds: number, _locale?: string): string {
   const sign = seconds < 0 ? '−' : '';
-  const s = Math.abs(seconds);
-  const days = s / 86400;
-  if (s < 3600) return `${sign}${Math.max(1, Math.round(s / 60))} min`;
-  if (s < 86400) return `${sign}${Math.round(s / 3600)} h`;
-  if (days < 10) {
-    const d = Math.round(days * 10) / 10;
-    return `${sign}${d.toLocaleString(locale)} ${d === 1 ? 'day' : 'days'}`;
-  }
-  const whole = `${sign}${Math.round(days).toLocaleString(locale)} days`;
-  if (days < 365) return whole;
-  const years = Math.round((days / 365.25) * 10) / 10;
-  return `${whole} (${years.toLocaleString(locale)} year${years === 1 ? '' : 's'})`;
+  return `${sign}${compactDuration(Math.max(60, Math.abs(seconds)))}`;
 }

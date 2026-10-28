@@ -73,7 +73,7 @@ describe('oneMoreTEHint', () => {
   it('stopped early with more spare than one TE: the hint, with what one TE costs', () => {
     const h = oneMoreTEHint({ route: route(247, 3.2 * D), stoppedEarly: true });
     expect(h?.text).toBe(
-      "A better route may exist: this run stopped early with 3.2 days spare, more than one TE's worth (one more TE costs about 51 h here). Let it finish, or widen the boxes."
+      "A better route may exist: this run stopped early with 3d 5h spare, more than one TE's worth (one more TE costs about 2d 3h here). Let it finish, or widen the boxes."
     );
   });
 
@@ -81,7 +81,7 @@ describe('oneMoreTEHint', () => {
     expect(oneMoreTEHint({ route: route(247, 40 * H), stoppedEarly: true })).toBeNull();
     // 40 h spare against the run's own 30 h: yes.
     expect(oneMoreTEHint({ route: route(247, 40 * H), stoppedEarly: true, runCost: 30 * H })?.text).toContain(
-      'with 40.0 h spare'
+      'with 40h spare'
     );
   });
 
@@ -91,10 +91,10 @@ describe('oneMoreTEHint', () => {
 
   it("a finished Simple run with narrow boxes, or a best route on its box's edge: widen the boxes", () => {
     expect(oneMoreTEHint({ route: route(247, 3 * D), stoppedEarly: false, narrow: true })?.text).toBe(
-      "A better route may exist: this run's boxes were narrow, and it has 3.0 days spare, more than one TE's worth (one more TE costs about 51 h here). Widen the boxes."
+      "A better route may exist: this run's boxes were narrow, and it has 3d spare, more than one TE's worth (one more TE costs about 2d 3h here). Widen the boxes."
     );
     expect(oneMoreTEHint({ route: route(247, 3 * D), stoppedEarly: false, onEdge: true })?.text).toContain(
-      'its best route is on the edge of its box, with 3.0 days spare'
+      'its best route is on the edge of its box, with 3d spare'
     );
   });
 

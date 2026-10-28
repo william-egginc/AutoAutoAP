@@ -137,14 +137,14 @@ describe('the save strip with the server’s answer', () => {
 
   it('newer on the server: a Load it button', async () => {
     const html = await renderHtml(SaveAgeStrip, { strip, loading: false, server: { kind: 'newer', serverSeconds: NOW - 300 }, now: NOW });
-    expect(textOf(html)).toBe(`Your save is from Oct 24 at 10:09 AM (12 h ago). Times below may have drifted. ${NEWER_ON_SERVER} ›`);
+    expect(textOf(html)).toBe(`Your save is from Oct 24 at 10:09 AM (12h ago). Times below may have drifted. ${NEWER_ON_SERVER} ›`);
     expect(html).toContain('data-testid="now-save-fresh"');
   });
 
   it('the newest on the server: no reload, the reason, and the tip', async () => {
     const html = await renderHtml(SaveAgeStrip, { strip, loading: false, server: { kind: 'newest', serverSeconds: LOADED }, now: NOW });
     const t = textOf(html);
-    expect(t).toContain('This is the newest save on the server (synced 12 h ago). Open the game to update it.');
+    expect(t).toContain('This is the newest save on the server (synced 12h ago). Open the game to update it.');
     expect(t).toContain(WHY_OUT_OF_DATE.summary);
     expect(t).toContain('Force close the game and open it again so it syncs');
     expect(t).not.toContain('Load a fresh save');

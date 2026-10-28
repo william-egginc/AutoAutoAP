@@ -34,33 +34,33 @@ describe('formatDuration', () => {
 describe('roundedGap: a dense table rounds (UX review, 25 Oct 2026)', () => {
   const D = 86400;
   it('minutes, hours, days, then years', () => {
-    expect(roundedGap(40 * 60, 'en-US')).toBe('40 min');
-    expect(roundedGap(10, 'en-US')).toBe('1 min');
-    expect(roundedGap(17.4 * 3600, 'en-US')).toBe('17 h');
-    expect(roundedGap(3.44 * D, 'en-US')).toBe('3.4 days');
-    expect(roundedGap(312.6 * D, 'en-US')).toBe('313 days');
+    expect(roundedGap(40 * 60, 'en-US')).toBe('40m');
+    expect(roundedGap(10, 'en-US')).toBe('1m');
+    expect(roundedGap(17.4 * 3600, 'en-US')).toBe('17h 24m');
+    expect(roundedGap(3.44 * D, 'en-US')).toBe('3d 11h');
+    expect(roundedGap(312.6 * D, 'en-US')).toBe('313d');
     expect(roundedGap(3302.72 * D, 'en-US')).toBe('9 years');
     expect(roundedGap(548 * D, 'en-US')).toBe('1.5 years');
     expect(roundedGap(366 * D, 'en-US')).toBe('1 year');
-    expect(roundedGap(-2 * 3600, 'en-US')).toBe('2 h');
+    expect(roundedGap(-2 * 3600, 'en-US')).toBe('2h');
   });
-  it("follows the browser's number format", () => {
-    expect(roundedGap(3.44 * D, 'de-DE')).toBe('3,4 days');
+  it('the compact words in any locale (lib/duration, ux29-d)', () => {
+    expect(roundedGap(3.44 * D, 'de-DE')).toBe('3d 11h');
   });
 });
 
 describe('headlineGap: the answer\'s headline rounds (UX review, 26 Oct 2026, item 4)', () => {
   const D = 86400;
-  it('no 2-decimal days: one decimal under 10 days, whole days over, years beside the days from a year on', () => {
-    expect(headlineGap(5.5 * D, 'en-US')).toBe('5.5 days');
-    expect(headlineGap(5.0 * D, 'en-US')).toBe('5 days');
-    expect(headlineGap(1.02 * D, 'en-US')).toBe('1 day');
-    expect(headlineGap(12.6 * D, 'en-US')).toBe('13 days');
-    expect(headlineGap(1857.95 * D, 'en-US')).toBe('1,858 days (5.1 years)');
+  it('the compact duration (lib/duration, ux29-d): days and hours under 10 days, whole days, then years', () => {
+    expect(headlineGap(5.5 * D, 'en-US')).toBe('5d 12h');
+    expect(headlineGap(5.0 * D, 'en-US')).toBe('5d');
+    expect(headlineGap(1.02 * D, 'en-US')).toBe('24h 29m');
+    expect(headlineGap(12.6 * D, 'en-US')).toBe('13d');
+    expect(headlineGap(1857.95 * D, 'en-US')).toBe('5.1 years');
   });
-  it('under a day in hours, under an hour in minutes; a negative span keeps its sign', () => {
-    expect(headlineGap(17.4 * 3600, 'en-US')).toBe('17 h');
-    expect(headlineGap(40 * 60, 'en-US')).toBe('40 min');
-    expect(headlineGap(-2 * 3600, 'en-US')).toBe('−2 h');
+  it('under 48 h in hours and minutes, under an hour in minutes; a negative span keeps its sign', () => {
+    expect(headlineGap(17.4 * 3600, 'en-US')).toBe('17h 24m');
+    expect(headlineGap(40 * 60, 'en-US')).toBe('40m');
+    expect(headlineGap(-2 * 3600, 'en-US')).toBe('−2h');
   });
 });

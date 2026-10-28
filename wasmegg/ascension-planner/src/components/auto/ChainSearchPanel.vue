@@ -329,6 +329,8 @@
         :elsewhere="!store.resumable.complete && !!store.runElsewhere[store.resumable.space ? 'sweep' : 'smart']"
         :carry-label="store.resumable.complete ? 'Show its result' : 'Carry on from where it stopped'"
         :disabled="store.busy"
+        :banner="!store.resumable.complete"
+        :run-key="store.resumable.updatedAt"
         discardable
         @carry-on="run(true)"
         @discard="store.discardCheckpoint()"

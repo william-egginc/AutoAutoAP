@@ -1,22 +1,22 @@
 /**
  * An upcoming (or past) event the way a player reads it on the My runs "Right now" card (Jordan, 17 Oct):
  * the calendar day, the clock time and how far away it is, all at once:
- *   "today at 2:40 pm, in 1 h 20 m" · "tomorrow at 9:00 am, in 18 h" · "Oct 20 at 4:00 pm, in 2 days" ·
- *   "Jul 14 at 11:25 pm, in 271 days" · "today at 11:05 am, 3 h ago".
+ *   "today at 2:40 pm, in 1h 20m" · "tomorrow at 9:00 am, in 18h" · "Oct 20 at 4:00 pm, in 2d 4h" ·
+ *   "Jul 14 at 11:25 pm, in 271d" · "today at 11:05 am, 3h ago".
  * Pure: `now` is a parameter, the zone is the planner's; dates and clock times in the browser's own format, like
  * the rest of the app (lib/clock.ts). The examples here are en-US's, which writes "2:40 PM".
  */
 
 import { calendarOf, formatClock, formatMoment } from './clock';
+import { compactDuration } from './duration';
 
-const DAY = 86400;
 
 export interface EventWhen {
   /** 'today' | 'tomorrow' | 'yesterday' | 'Oct 20' (the year only when it is not this year: 'Oct 20, 2027'). */
   day: string;
   /** '2:40 pm'. */
   clock: string;
-  /** 'in 1 h 20 m' · 'in 2 days' · '3 h ago' · 'now'. */
+  /** 'in 1h 20m' · 'in 2d 4h' · '3h ago' · 'now'. */
   relative: string;
   /** Seconds from now (negative: past). */
   seconds: number;
@@ -39,23 +39,10 @@ function dayDistance(a: Parts, b: Parts): number {
   return Math.round(t(a.ymd) - t(b.ymd));
 }
 
-/** 'in 1 h 20 m', 'in 18 h', 'in 33 h' (hours up to 2 days), 'in 2 days', '45 min ago', '30 h ago', 'now'. */
+/** 'in 1h 20m', 'in 18h', 'in 33h' (hours up to 2 days), 'in 2d 4h', '45m ago', '30h ago', 'now' (lib/duration). */
 export function relativeWords(seconds: number): string {
-  const abs = Math.abs(seconds);
-  if (abs < 60) return 'now';
-  let body: string;
-  if (abs < 3600) body = `${Math.round(abs / 60)} min`;
-  else if (abs < DAY) {
-    const h = Math.floor(abs / 3600);
-    const m = Math.round((abs - h * 3600) / 60);
-    body = m === 0 || m === 60 ? `${m === 60 ? h + 1 : h} h` : `${h} h ${m} m`;
-  } else if (abs < 2 * DAY) {
-    // Under two days, hours (Jordan, 16 Oct: "in 1 day" for 33 h hid most of a day).
-    body = `${Math.round(abs / 3600)} h`;
-  } else {
-    const d = Math.floor(abs / DAY);
-    body = `${d} day${d === 1 ? '' : 's'}`;
-  }
+  if (Math.abs(seconds) < 60) return 'now';
+  const body = compactDuration(seconds);
   return seconds > 0 ? `in ${body}` : `${body} ago`;
 }
 
@@ -126,20 +113,10 @@ export function dayClockWords(at: number | null | undefined, zone: string): stri
   }
 }
 
-/** "3 hours ago", "45 minutes ago", "1 hour ago", "3 days ago", "just now" (the save-age strip's words). */
+/** "3h ago", "45m ago", "3d 2h ago", "just now" (the save-age strip's words; lib/duration). */
 export function agoLong(seconds: number): string {
   const s = Math.max(0, seconds);
-  if (s < 60) return 'just now';
-  if (s < 3600) {
-    const m = Math.round(s / 60);
-    return `${m} minute${m === 1 ? '' : 's'} ago`;
-  }
-  if (s < 48 * 3600) {
-    const h = Math.round(s / 3600);
-    return `${h} hour${h === 1 ? '' : 's'} ago`;
-  }
-  const d = Math.floor(s / DAY);
-  return `${d} days ago`;
+  return s < 60 ? 'just now' : `${compactDuration(s)} ago`;
 }
 
 /**

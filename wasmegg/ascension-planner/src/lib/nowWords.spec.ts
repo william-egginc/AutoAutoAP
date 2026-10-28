@@ -15,10 +15,10 @@ describe('the Right now card’s words', () => {
   });
 
   it('how far, with the day word for today and tomorrow', () => {
-    expect(howFar(ev({ at: NOW + 80 * 60 }), NOW, ZONE)).toBe('today, in 1 h 20 m');
-    expect(howFar(ev({ at: NOW + 18 * 3600 + 35 * 60 }), NOW, ZONE)).toBe('tomorrow, in 18 h 35 m');
-    expect(howFar(ev({ at: NOW + 2 * 86400 }), NOW, ZONE)).toBe('in 2 days');
-    expect(howFar(ev({ at: NOW + 271 * 86400, kind: 'goal', spareHours: 16.8 }), NOW, ZONE)).toBe('in 271 days · 16.8 h spare');
+    expect(howFar(ev({ at: NOW + 80 * 60 }), NOW, ZONE)).toBe('today, in 1h 20m');
+    expect(howFar(ev({ at: NOW + 18 * 3600 + 35 * 60 }), NOW, ZONE)).toBe('tomorrow, in 18h 35m');
+    expect(howFar(ev({ at: NOW + 2 * 86400 }), NOW, ZONE)).toBe('in 2d');
+    expect(howFar(ev({ at: NOW + 271 * 86400, kind: 'goal', spareHours: 16.8 }), NOW, ZONE)).toBe('in 271d · 16h 48m spare');
     expect(howFar(ev({ past: true }), NOW, ZONE)).toBe('passed');
   });
 
@@ -33,12 +33,12 @@ describe('the Right now card’s words', () => {
       NOW,
       ZONE
     );
-    expect(t).toBe('Shift to Humility today at 4:00 PM (in 1 h 20 m), then Kindness tomorrow at 9:15 AM');
+    expect(t).toBe('Shift to Humility today at 4:00 PM (in 1h 20m), then Kindness tomorrow at 9:15 AM');
     expect(nextStepText([], 'fastest', NOW, ZONE)).toBe('');
   });
 
   it('calculated when, and how long ago', () => {
-    expect(whenAgo(NOW - 2 * 3600, NOW, ZONE)).toBe('Oct 15 at 12:40 PM (2 h ago)');
+    expect(whenAgo(NOW - 2 * 3600, NOW, ZONE)).toBe('Oct 15 at 12:40 PM (2h ago)');
   });
 });
 

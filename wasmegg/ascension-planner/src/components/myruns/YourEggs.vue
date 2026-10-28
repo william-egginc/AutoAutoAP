@@ -56,7 +56,7 @@ const props = defineProps<{
   saveSeconds: number;
   /** The planner's time zone, for "empty since" (the browser's when not given). */
   zone?: string;
-  /** Each egg the player isn't on: "next TE in ~2 d 4 h after you shift here", by egg, and the note on where from
+  /** Each egg the player isn't on: "next TE in ~2d 4h after you shift here", by egg, and the note on where from
    *  (lib/nextTeEgg.ts). It stands in for the egg's "N% to the next TE · after a shift" line; an egg left out (at the
    *  TE cap, no data) keeps that line. */
   afterShift?: { lines: Record<string, string>; note: string } | null;

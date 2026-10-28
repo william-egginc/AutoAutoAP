@@ -31,6 +31,7 @@
  * better; a route that cannot be priced is never better than one that can.
  */
 import type { ChainResult } from './types';
+import { compactDuration } from '@/lib/duration';
 
 /** Whole hours to wait before each prestige, entry i after stop i (length = stops - 1). */
 export type Waits = number[];
@@ -302,26 +303,24 @@ export async function searchWaits(chain: number[], price: WaitPricer, o: WaitSea
   return { chain: [...chain], baseSeconds, singles, combined, priced: cache.size, bound, stopped };
 }
 
-/** Hours, as a player reads them: "3.6 h", "40 h", "25 min". */
+/** A span as a player reads it: "3h 36m", "40h", "25m" (lib/duration). */
 export function hoursText(seconds: number): string {
-  const h = seconds / 3600;
-  if (h < 1) return `${Math.max(1, Math.round(seconds / 60))} min`;
-  return `${h < 100 ? Math.round(h * 10) / 10 : Math.round(h)} h`;
+  return compactDuration(Math.max(60, seconds));
 }
 
 /** "Off by 2 h costs 40 h" for a needle, or null when nothing nearby loses enough to mention. */
 export function needleText(n: NeedleWarning | null, chosenHours: number, minLossSeconds = 3600): string | null {
   if (!n || n.lossSeconds < minLossSeconds) return null;
   const off = Math.abs(n.hours - chosenHours);
-  const which = n.hours === 0 ? 'prestiging at once' : `waiting ${n.hours} h`;
-  return `very sensitive: ${which} (off by ${off} h) costs ${hoursText(n.lossSeconds)}`;
+  const which = n.hours === 0 ? 'prestiging at once' : `waiting ${n.hours}h`;
+  return `very sensitive: ${which} (off by ${off}h) costs ${hoursText(n.lossSeconds)}`;
 }
 
 /** "2 h later costs 92 h" / "1 h sooner costs 18 h" (prestiging that much off the time shown). */
 export function slipText(n: NeedleWarning | null, chosenHours: number): string | null {
   if (!n || n.lossSeconds <= 0) return null;
   const off = n.hours - chosenHours;
-  return `${Math.abs(off)} h ${off > 0 ? 'later' : 'sooner'} costs ${hoursText(n.lossSeconds)}`;
+  return `${Math.abs(off)}h ${off > 0 ? 'later' : 'sooner'} costs ${hoursText(n.lossSeconds)}`;
 }
 
 /** Shown above the suggestions when they were priced without the player's hours. */
@@ -338,8 +337,8 @@ export interface WaitLines {
 /** Why a wait that wins is still not suggested, or null when it is. */
 function holdBack(gainSeconds: number, risk: NeedleWarning | null, chosenHours: number): string | null {
   const v = waitVerdict(gainSeconds, risk);
-  if (v === 'tooSmall') return `waiting ${chosenHours} h gains only ${hoursText(gainSeconds)}`;
-  if (v === 'tooRisky') return `waiting ${chosenHours} h gains ${hoursText(gainSeconds)}, but ${slipText(risk, chosenHours)}`;
+  if (v === 'tooSmall') return `waiting ${chosenHours}h gains only ${hoursText(gainSeconds)}`;
+  if (v === 'tooRisky') return `waiting ${chosenHours}h gains ${hoursText(gainSeconds)}, but ${slipText(risk, chosenHours)}`;
   return null;
 }
 
@@ -352,7 +351,7 @@ export function waitLines(r: WaitReport, show: (t: number) => string): WaitLines
     if (!s.bestHours || s.gainSeconds <= 0) return { stop: s.stop, text: `${atOnce} No wait helps.`, warn: null, wait: false };
     const why = holdBack(s.gainSeconds, s.risk, s.bestHours);
     if (why) return { stop: s.stop, text: `${atOnce} (${capital(why)}.)`, warn: null, wait: false };
-    const at = s.reachedAt != null ? `prestige at ${show(s.reachedAt + s.bestHours * 3600)} (wait ${s.bestHours} h)` : `wait ${s.bestHours} h`;
+    const at = s.reachedAt != null ? `prestige at ${show(s.reachedAt + s.bestHours * 3600)} (wait ${s.bestHours}h)` : `wait ${s.bestHours}h`;
     return {
       stop: s.stop,
       text: `After ${s.stop}${reached}: ${at}. Finishes ${hoursText(s.gainSeconds)} sooner.`,
@@ -376,8 +375,8 @@ export function waitLines(r: WaitReport, show: (t: number) => string): WaitLines
         .map((w, i) =>
           w > 0
             ? c.reachedAt[i] != null
-              ? `after ${r.chain[i]}, prestige at ${show(c.reachedAt[i]! + w * 3600)} (wait ${w} h)`
-              : `wait ${w} h after ${r.chain[i]}`
+              ? `after ${r.chain[i]}, prestige at ${show(c.reachedAt[i]! + w * 3600)} (wait ${w}h)`
+              : `wait ${w}h after ${r.chain[i]}`
             : null
         )
         .filter((x): x is string => !!x);

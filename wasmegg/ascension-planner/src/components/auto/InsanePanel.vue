@@ -298,6 +298,7 @@
         v-if="goal === 'fastest' && store.crashedRun && !store.isRunning && queueAt < 0"
         :title="store.crashedQueue ? 'Unfinished queue found' : 'Unfinished run found'"
         :elsewhere="store.runElsewhere.sweep"
+        :run-key="store.crashedRun.updatedAt"
         :carry-label="
           store.crashedQueue
             ? `Carry on the queue (box ${store.crashedQueue.next + 1} of ${store.crashedQueue.record.chains.length})`

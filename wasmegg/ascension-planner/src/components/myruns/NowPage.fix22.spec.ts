@@ -174,7 +174,7 @@ describe('the next TE under two days: hours', () => {
         saveSeconds: SAVE,
       })
     );
-    expect(t).toContain('next TE in 33 h');
+    expect(t).toContain('next TE in 33h');
   });
 });
 
