@@ -4,9 +4,14 @@
  * "Already on the Leaderboard (sent at 10:48 AM), nothing new stored". The account's own rows (GET /mine,
  * stores/chainSearch.ts `mineRows`) are compared with what the send would carry (search/sentOnBoard.ts).
  * With no rows read (offline, no collector, no code for the account) every surface is as it was.
+ *
+ * The clock is fixed (Date only) at local noon, and the rows' sent times are set from it, so the line reads
+ * "sent at" for a row from earlier today and "sent on" for one from an earlier day whatever the real date
+ * (the spec failed once the real clock passed midnight after a fixture sent "today"). A row from an earlier
+ * day is still on the board: the line shows either way.
  */
 import fs from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
@@ -36,10 +41,36 @@ const payload = {
   level: 'exhaustive',
   deadline: 1_793_000_000,
 } as unknown as Submission;
-const sentRow = { ...(payload as unknown as BoardRow), id: 'row1', receivedAt: '2026-10-27T15:48:00Z', yours: true } as BoardRow;
+/** Local noon, in whatever zone the run is in. */
+const NOW = new Date(2026, 9, 28, 12, 0).getTime();
+const HOUR = 3_600_000;
+function rowSent(msAgo: number): BoardRow {
+  const receivedAt = new Date(NOW - msAgo).toISOString();
+  return { ...(payload as unknown as BoardRow), id: 'row1', receivedAt, yours: true } as BoardRow;
+}
+/** 10:00 am today, 10:00 am yesterday (Oct 27), five days before (Oct 23). */
+const sentToday = rowSent(2 * HOUR);
+const sentYesterday = rowSent(26 * HOUR);
+const sentDaysAgo = rowSent(5 * 24 * HOUR + 2 * HOUR);
+const sentCases = [
+  ['earlier today', sentToday, /\(sent at .+\)/],
+  ['yesterday', sentYesterday, /\(sent on Oct 27 at .+\)/],
+  ['days ago', sentDaysAgo, /\(sent on Oct 23 at .+\)/],
+] as const;
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
+  // The header's names (lib/stores/eids.ts) are read from localStorage, which node lacks.
+  vi.stubGlobal('localStorage', {});
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("By a date's Share this result", () => {
-  function share(rows: BoardRow[] | null) {
+  function share(rows: BoardRow[] | null, sentRow: BoardRow = sentToday) {
     const loads: number[] = [];
     const store = {
       leaderboardUrl: 'https://collector.example/',
@@ -57,9 +88,10 @@ describe("By a date's Share this result", () => {
     );
     return { s, loads };
   }
-  it('a result whose row is already on the board: the line, before any press', () => {
-    const { s, loads } = share([sentRow]);
-    expect(s.onBoardLine.value).toMatch(/^Already on the Leaderboard \(sent at .+\)$/);
+  it.each(sentCases)('a result whose row is already on the board (sent %s): the line, before any press', (_, row, when) => {
+    const { s, loads } = share([row], row);
+    expect(s.onBoardLine.value).toMatch(/^Already on the Leaderboard \(sent .+\)$/);
+    expect(s.onBoardLine.value).toMatch(when);
     expect(s.shareMessage.value).toBe('');
     // The rows are asked for as the result shows (once per account: the store keeps them).
     expect(loads.length).toBeGreaterThan(0);
@@ -111,17 +143,18 @@ describe('Fastest: Share this result', () => {
 });
 
 describe("My runs' Send it now", () => {
-  it('a kept result already on the board: the line, no Send it now', async () => {
+  it.each(sentCases)('a kept result already on the board (sent %s): the line, no Send it now', async (_, row, when) => {
     const p = createPinia();
     setActivePinia(p);
     const store = useChainSearchStore();
     store.pendingSends = [
       { id: 'k1', kind: 'deadline', key: 'deadline:1', label: '313 TE by Oct 30, 2026', createdAt: Date.now(), payload, consent: null },
     ];
-    store.mineRows = [sentRow];
+    store.mineRows = [row];
     const html = await renderHtml(UnsentResults, { playerId: 'EI1234567890123456' }, {}, [p]);
     const text = textOf(html);
-    expect(text).toMatch(/Already on the Leaderboard \(sent at .+\)/);
+    expect(text).toMatch(/Already on the Leaderboard \(sent .+\)/);
+    expect(text).toMatch(when);
     expect(text).not.toContain('Send it now');
     expect(text).not.toContain("This result wasn't sent");
   });
