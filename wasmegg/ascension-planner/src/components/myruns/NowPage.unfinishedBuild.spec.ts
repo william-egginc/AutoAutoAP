@@ -58,8 +58,20 @@ afterEach(() => {
 });
 
 const A_ID = 'EI0000000000000000';
-function save() {
+/** `farm`: the virtue farm's habs, population and vehicles in place of the synthetic save's. */
+function save(farm?: {
+  habs: number[];
+  habPopulation: number[];
+  vehicles: number[];
+  trainLength: number[];
+  commonResearch?: { id: string; level: number }[];
+}) {
   const b = syntheticBackup();
+  if (farm)
+    Object.assign(b.farms[0], {
+      ...farm,
+      commonResearch: [...b.farms[0].commonResearch, ...(farm.commonResearch ?? [])],
+    });
   const t = Math.floor(Date.now() / 1000) - H;
   b.eiUserId = A_ID;
   b.settings.lastBackupTime = t;
@@ -68,8 +80,8 @@ function save() {
   return markRaw(b);
 }
 
-async function setup() {
-  loadAndSyncBackup(A_ID, save(), 'plan_next');
+async function setup(farm?: Parameters<typeof save>[0]) {
+  loadAndSyncBackup(A_ID, save(farm), 'plan_next');
   rollUpPendingTE();
   const { resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
   resetGoalChoice();
@@ -121,7 +133,7 @@ async function cardText(page: Awaited<ReturnType<typeof setup>>['page']) {
   );
 }
 
-describe("pieha's state: mid-ascension on Curiosity, vehicles and habs not all bought", () => {
+describe("pieha's state: mid-ascension on Curiosity, habs not all bought", () => {
   it('simulated as the build-up carried on from the save (never a frozen farm), and Next step and Next shifts start with Keep building', async () => {
     const sims: { inputs: SearchInputs; chain: number[]; resolve: (l: LegSummary | null) => void }[] = [];
     setSimRunner(
@@ -149,22 +161,110 @@ describe("pieha's state: mid-ascension on Curiosity, vehicles and habs not all b
       startTime: now - H,
       buildPhaseEndTime: buildEnd,
       shifts: [
-        { at: now + 2 * H, egg: 'kindness', fromEgg: 'curiosity' },
-        { at: buildEnd, egg: 'curiosity', fromEgg: 'kindness' },
+        { at: buildEnd, egg: 'kindness', fromEgg: 'curiosity' },
         { at: now + 30 * H, egg: 'humility', fromEgg: 'curiosity' },
         { at: now + 30 * H, egg: 'kindness', fromEgg: 'humility' },
       ],
       endEgg: { egg: 'kindness', te: 40 },
     } as LegSummary);
     await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('keepbuilding'));
-    expect(page.nextStep.value).toEqual({ kind: 'keepbuilding', until: buildEnd, left: ['vehicles', 'habs'] });
+    expect(page.nextStep.value).toEqual({ kind: 'keepbuilding', until: buildEnd, left: ['habs'] });
     const kinds = page.nextShiftLines.value.map(l => [l.kind, l.egg ?? null]);
     expect(kinds[0]).toEqual(['keepbuilding', null]);
     expect(kinds[1]).toEqual(['shift', 'kindness']);
     const t = await cardText(page);
-    expect(t).toMatch(/Next step Keep building: vehicles and habs until about [A-Z][a-z]{2} \d{1,2}, \d{4}/);
-    expect(t).toMatch(/Next shifts Keep building: vehicles and habs until about [^·]*Shift to Kindness · about/);
+    expect(t).toMatch(/Next step Keep building: habs until about [A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    expect(t).toMatch(/Next shifts Keep building: habs until about [^·]*Shift to Kindness · about/);
     expect(t).not.toMatch(/Next step (Shift to Curiosity|Prestige)/);
+    scope.stop();
+  });
+});
+
+/** A stand-in leg of the build-up kind ending its build at `buildEnd`, Humility then Kindness after it. */
+function buildupLeg(now: number, buildEnd: number, firstShift: number): LegSummary {
+  return {
+    key: 'buildup',
+    endTE: 226,
+    durationSeconds: 40 * H,
+    maxELR: 1e12,
+    endTime: now + 39 * H,
+    tier13Unlocked: false,
+    startTime: now - H,
+    buildPhaseEndTime: buildEnd,
+    shifts: [
+      { at: firstShift, egg: 'humility', fromEgg: 'curiosity' },
+      { at: firstShift, egg: 'kindness', fromEgg: 'humility' },
+    ],
+    endEgg: { egg: 'kindness', te: 40 },
+  } as LegSummary;
+}
+function stubSims() {
+  const sims: { inputs: SearchInputs; resolve: (l: LegSummary | null) => void }[] = [];
+  setSimRunner(
+    (): SimRunner => ({
+      run: inputs => new Promise(resolve => sims.push({ inputs, resolve })),
+      terminate: () => undefined,
+    })
+  );
+  return sims;
+}
+const CU = [18, 18, 18, 18];
+const SHIPPING_RESEARCH = [
+  'lightweight_boxes',
+  'driver_training',
+  'super_alloy',
+  'quantum_storage',
+  'hover_upgrades',
+  'dark_containment',
+  'neural_net_refine',
+  'hyper_portalling',
+];
+const FULL = [1e10, 1e10, 1e10, 1e10];
+
+describe("Jordan's producing farm (28 Oct 2026): four Chicken Universes, habs full, a few slots short of a full hyperloop", () => {
+  it('delivery limited by laying: built; no forced build-up, no keep-building line', async () => {
+    const sims = stubSims();
+    const { page, scope, now } = await setup({
+      habs: CU,
+      habPopulation: FULL,
+      vehicles: [...Array(13).fill(11), 11, 10, 9, 9],
+      trainLength: [...Array(13).fill(10), 6, 5, 5, 3],
+      // Its shipping research done (each at its top: the levels are clamped).
+      commonResearch: SHIPPING_RESEARCH.map(id => ({ id, level: 999 })),
+    });
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    expect(sims[0].inputs.firstAscension).toBe('auto');
+    expect(sims[0].inputs.continueMaxSeconds).toBeUndefined();
+    // Even a build-up leg (Soonest may take one): the build isn't said.
+    sims[0].resolve(buildupLeg(now, now + 17 * 24 * H, now + 16 * 24 * H));
+    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('shift'));
+    expect(page.nextShiftLines.value.some(l => l.kind === 'keepbuilding')).toBe(false);
+    const t = await cardText(page);
+    expect(t).not.toContain('Keep building');
+    scope.stop();
+  });
+
+  it('shipping below laying (two small vehicles): Keep building: vehicles', async () => {
+    const sims = stubSims();
+    const { page, scope, now } = await setup({ habs: CU, habPopulation: FULL, vehicles: [9, 9], trainLength: [1, 1] });
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    expect(sims[0].inputs.firstAscension).toBe('buildup');
+    sims[0].resolve(buildupLeg(now, now + 10 * H, now + 12 * H));
+    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('keepbuilding'));
+    expect(page.nextStep.value).toEqual({ kind: 'keepbuilding', until: now + 10 * H, left: ['vehicles'] });
+    expect(await cardText(page)).toMatch(/Next step Keep building: vehicles until about/);
+    scope.stop();
+  });
+
+  it('a build that ends after the first shift: no keep-building line, the shift first', async () => {
+    const sims = stubSims();
+    const { page, scope, now } = await setup({ habs: CU, habPopulation: FULL, vehicles: [9, 9], trainLength: [1, 1] });
+    await vi.waitFor(() => expect(sims).toHaveLength(1));
+    // Jordan's: the build "until Nov 14, 10:00 AM", Humility Nov 13, 9:05 PM.
+    sims[0].resolve(buildupLeg(now, now + 17 * 24 * H, now + 16 * 24 * H + 11 * H));
+    await vi.waitFor(() => expect(page.nextStep.value?.kind).toBe('shift'));
+    expect(page.nextShiftLines.value[0]).toMatchObject({ kind: 'shift', egg: 'humility' });
+    expect(page.nextShiftLines.value.some(l => l.kind === 'keepbuilding')).toBe(false);
     scope.stop();
   });
 });

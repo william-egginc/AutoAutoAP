@@ -6,14 +6,13 @@
  */
 import { describe, expect, it } from 'vitest';
 import { nextAction, nextActionWords, nextShiftWords, nextShifts, type ActionLeg } from './nextAction';
-import { buildLeft, buildLeftWords } from './saveBuild';
-import type { CurrentFarmState } from '@/types';
+import { buildLeftWords } from './saveBuild';
 
 const H = 3600;
 const T0 = Date.parse('2027-01-04T17:00:00Z') / 1000;
 
-/** pieha's state: the build-up carried on from the save ('buildup', live), its build phase ending at +20 h, a Kindness
- *  shift first (K2: the vehicles), then C3 back to Curiosity at the build's end, H1 and K3. */
+/** pieha's state: the build-up carried on from the save ('buildup', live), its build phase ending at +20 h, its first
+ *  shift there (a shift before it drops the line: lib/saveBuild.producing.spec.ts), then H1 and K3. */
 const building: ActionLeg = {
   to: 226,
   endTE: 226,
@@ -24,7 +23,6 @@ const building: ActionLeg = {
   live: true,
   building: ['vehicles', 'habs'],
   shifts: [
-    { at: T0 + 2 * H, egg: 'kindness' },
     { at: T0 + 20 * H, egg: 'curiosity' },
     { at: T0 + 40 * H, egg: 'humility' },
     { at: T0 + 40 * H + 60, egg: 'kindness' },
@@ -49,8 +47,8 @@ describe('Next step with the build unfinished', () => {
     const { building: _b, ...done } = building;
     expect(nextAction({ now: T0 + H, leg: done, last: false })).toEqual({
       kind: 'shift',
-      egg: 'kindness',
-      at: T0 + 2 * H,
+      egg: 'curiosity',
+      at: T0 + 20 * H,
     });
   });
   it('words', () => {
@@ -69,7 +67,6 @@ describe('Next shifts with the build unfinished', () => {
     const l = nextShifts({ now: T0 + H, legs: [building], more: true });
     expect(l.map(x => [x.kind, x.egg ?? null])).toEqual([
       ['keepbuilding', null],
-      ['shift', 'kindness'],
       ['shift', 'curiosity'],
       ['shift', 'humility'],
       ['shift', 'kindness'],
@@ -87,29 +84,7 @@ describe('Next shifts with the build unfinished', () => {
   });
 });
 
-describe("the save's build: what is unfinished (lib/saveBuild.ts)", () => {
-  const farm = (habs: (number | null)[], vehicles: [number | null, number][]): CurrentFarmState =>
-    ({
-      eggType: 50,
-      habs,
-      vehicles: vehicles.map(([vehicleId, trainLength]) => ({ vehicleId, trainLength })),
-      commonResearches: {},
-    }) as unknown as CurrentFarmState;
-  const fullFleet = Array.from({ length: 17 }, () => [11, 10] as [number, number]);
-  it('every hab a Chicken Universe and every vehicle slot a full hyperloop: finished', () => {
-    expect(buildLeft(farm([18, 18, 18, 18], fullFleet))).toEqual([]);
-  });
-  it("pieha's: vehicles not all bought", () => {
-    expect(buildLeft(farm([18, 18, 18, 18], fullFleet.slice(0, 12)))).toEqual(['vehicles']);
-    expect(buildLeft(farm([18, 18, 18, 18], [...fullFleet.slice(0, 16), [11, 7]]))).toEqual(['vehicles']);
-  });
-  it('habs not all Chicken Universes (an empty slot too)', () => {
-    expect(buildLeft(farm([12, 12, 13, null], fullFleet))).toEqual(['habs']);
-    expect(buildLeft(farm([12, 12, 13, null], [[9, 5]]))).toEqual(['vehicles', 'habs']);
-  });
-  it('no farm: null', () => {
-    expect(buildLeft(null)).toBeNull();
-  });
+describe("the save's build (lib/saveBuild.ts; what is unfinished: saveBuild.producing.spec.ts)", () => {
   it('words', () => {
     expect(buildLeftWords(['vehicles', 'habs'])).toBe('vehicles and habs');
     expect(buildLeftWords(['habs'])).toBe('habs');

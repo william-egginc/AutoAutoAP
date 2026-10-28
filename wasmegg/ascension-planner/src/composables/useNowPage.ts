@@ -1244,6 +1244,38 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     },
     { immediate: true }
   );
+  /** The save's three sets, worked out once per save (store `readInventory`: pure, a few ms). Here, before the
+   *  simulation's request reads them through `fullHabRates`. */
+  const inventory = shallowRef<{ equipped: EquippedArtifact[] | null; earnings: EquippedArtifact[] | null; production: EquippedArtifact[] | null } | null>(null);
+  watch(
+    [raw, storeHasSave, storeReady],
+    ([r, here]) => {
+      if (!r || !here) {
+        inventory.value = null;
+        return;
+      }
+      try {
+        const inv = store.readInventory();
+        inventory.value = { equipped: inv.equippedNow, earnings: inv.earnings, production: inv.elr };
+      } catch {
+        inventory.value = null;
+      }
+    },
+    { immediate: true }
+  );
+  /** The save's farm at full habs (lib/nextTeEgg.ts `shiftRates`): laying, shipping-limited delivery and the hatchery
+   *  rate. Your eggs' after-shift times and whether the vehicles are finished (lib/saveBuild.ts) read it. */
+  const fullHabRates = computed(() =>
+    hasSave.value && onVirtue.value
+      ? shiftRates({
+          farm: farm.value,
+          epic: initial.epicResearchLevels,
+          colleggtibles: initial.colleggtibleModifiers,
+          equipped: inventory.value?.equipped ?? initial.artifactLoadout,
+          totalTe: teByEgg.value.reduce((a, b) => a + b, 0),
+        })
+      : null
+  );
   /**
    * THE CURRENT ASCENSION SIMULATED ON THE LIVE SAVE (26 Oct 2026, lib/followSim.ts): the followed route's first
    * ascension, when its plan has the table's times, simulated once per save, route and setup in one chain worker
@@ -1256,8 +1288,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * are in. When the save's build isn't finished (lib/saveBuild.ts) the ascension you are in IS the build carried on:
    * simulated as 'buildup' with finishing without buying left out (`continueMaxSeconds` 0), unless Your setup says
    * Prestige now (a fresh start, its own choice). Its setup key says so, so a record kept the other way isn't read.
+   * Vehicles count as unfinished only when the farm can't ship what it lays at full habs (28 Oct 2026, Jordan's
+   * producing farm read "Keep building: vehicles" for 17 days).
    */
-  const saveBuildLeft = computed(() => (hasSave.value && onVirtue.value ? buildLeft(farm.value) : null));
+  const saveBuildLeft = computed(() => (hasSave.value && onVirtue.value ? buildLeft(farm.value, fullHabRates.value) : null));
   const simRequest = computed<SimRequest | null>(() => {
     // Any followed route without exact legs, whether the table's estimate is in, being worked out or couldn't be made
     // (26 Oct 2026: a route the estimate couldn't price still gets its Next step from the ascension you are in).
@@ -1554,24 +1588,6 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
 
   // -------------------------------------------------------------------------------------- the gear
 
-  /** The save's three sets, worked out once per save (store `readInventory`: pure, a few ms). */
-  const inventory = shallowRef<{ equipped: EquippedArtifact[] | null; earnings: EquippedArtifact[] | null; production: EquippedArtifact[] | null } | null>(null);
-  watch(
-    [raw, storeHasSave, storeReady],
-    ([r, here]) => {
-      if (!r || !here) {
-        inventory.value = null;
-        return;
-      }
-      try {
-        const inv = store.readInventory();
-        inventory.value = { equipped: inv.equippedNow, earnings: inv.earnings, production: inv.elr };
-      } catch {
-        inventory.value = null;
-      }
-    },
-    { immediate: true }
-  );
   function clothedOf(set: EquippedArtifact[] | null): number | null {
     if (!set || !hasSave.value) return null;
     try {
@@ -1665,13 +1681,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const afterShift = computed<{ lines: Record<string, string>; note: string } | null>(() => {
     if (!hasSave.value || !onVirtue.value) return null;
     const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
-    const rates = shiftRates({
-      farm: farm.value,
-      epic: initial.epicResearchLevels,
-      colleggtibles: initial.colleggtibleModifiers,
-      equipped: inventory.value?.equipped ?? initial.artifactLoadout,
-      totalTe,
-    });
+    const rates = fullHabRates.value;
     const lines = afterShiftLines({ eggs: eggs.value, delivered: saveEggCountsOf(raw.value).delivered, totalTe, rates });
     if (!Object.keys(lines).length) return null;
     return { lines, note: afterShiftNote(totalTe, saveSeconds.value, now.value, zone.value) };

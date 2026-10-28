@@ -94,6 +94,10 @@ function buildUntil(leg: ActionLeg): number | null {
 /** The save's build carried on in this leg: until its build phase ends (null when not, or already past it). */
 function keepBuildingUntil(leg: ActionLeg, now: number): number | null {
   if (!leg.building?.length || !ok(leg.buildEnd) || !(leg.buildEnd > leg.start) || !(now < leg.buildEnd)) return null;
+  // Never a build that ends after the first shift ahead (28 Oct 2026, Jordan: "Keep building … until Nov 14" over
+  // "Shift to Humility · Nov 13"): the build isn't what comes first, so no line; the shifts say it.
+  const first = (leg.shifts ?? []).find(s => ok(s.at) && s.at > now);
+  if (first && leg.buildEnd > first.at) return null;
   return leg.buildEnd;
 }
 

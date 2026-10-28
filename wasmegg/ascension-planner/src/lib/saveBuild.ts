@@ -1,48 +1,35 @@
 /**
  * IS THE SAVE'S BUILD FINISHED? (27 Oct 2026, pieha and Jordan: mid-ascension with not all vehicles bought, Right now
- * said "Shift to Curiosity" and the delivery loop, no build-up.) What the standard build buys toward (auto/buildUp.ts:
- * every hab a Chicken Universe, every vehicle slot a full hyperloop), read from the save's virtue farm
- * (lib/farmFacts.ts `saveFarmOf`). The vehicle slots and train length are the most the research allows, not the
- * farm's own research so far: a farm whose fleet research isn't done isn't built either. Silos are bought within a
- * budget, not to a count, so they never make a build unfinished. Pure.
+ * said "Shift to Curiosity" and the delivery loop, no build-up.) Read from the save's virtue farm (lib/farmFacts.ts
+ * `saveFarmOf`) and its rates at full habs (lib/nextTeEgg.ts `shiftRates`):
+ *
+ *   habs      unfinished while any hab isn't a Chicken Universe (the standard build's target, auto/buildUp.ts)
+ *   vehicles  unfinished only while the farm can't ship what it lays at full habs (shipping below laying)
+ *
+ * LOOSENED (28 Oct 2026, Jordan: a producing farm on Curiosity at 196 TE, habs full, a few slots short of a full
+ * hyperloop, read "Keep building: vehicles until about Nov 14" for 17 days). A farm whose delivery is limited by
+ * laying, not shipping, is built, whatever its slots. Without the rates, vehicles never count. Silos are bought within
+ * a budget, not to a count, so they never make a build unfinished. Pure.
  */
 import { CHICKEN_UNIVERSE_ID } from '@/calculations/habPurchasePlan';
-import { HYPERLOOP_ID } from '@/calculations/vehiclePurchasePlan';
-import {
-  calculateMaxTrainLength,
-  calculateMaxVehicleSlots,
-  getFleetSizeResearches,
-  getGravitonCouplingResearch,
-} from '@/calculations/shippingCapacity';
-import type { CurrentFarmState, ResearchLevels } from '@/types';
+import type { CurrentFarmState } from '@/types';
+import type { ShiftRates } from './nextTeEgg';
 
 /** What the build still has to buy, in the order the words say it. */
 export type BuildPart = 'vehicles' | 'habs';
 
-/** Every fleet-size and graviton coupling research at its top level. */
-function fleetResearchMaxed(): ResearchLevels {
-  const levels: ResearchLevels = {};
-  for (const r of getFleetSizeResearches()) levels[r.id] = r.maxLevel;
-  const g = getGravitonCouplingResearch();
-  if (g) levels[g.id] = g.maxLevel;
-  return levels;
-}
+/** Shipping is below laying when delivery at full habs (min of the two) is short of laying by more than this share. */
+const SHIP_SHORT = 1e-6;
 
 /** The parts of the save's build not finished yet ([] when finished); null without a virtue farm. */
-export function buildLeft(farm: Pick<CurrentFarmState, 'habs' | 'vehicles'> | null | undefined): BuildPart[] | null {
+export function buildLeft(
+  farm: Pick<CurrentFarmState, 'habs'> | null | undefined,
+  rates: Pick<ShiftRates, 'maxHabs' | 'perChicken' | 'maxElr'> | null | undefined
+): BuildPart[] | null {
   if (!farm) return null;
   const left: BuildPart[] = [];
-  const max = fleetResearchMaxed();
-  const slots = calculateMaxVehicleSlots(max);
-  const train = calculateMaxTrainLength(max);
-  const vehicles = farm.vehicles ?? [];
-  for (let i = 0; i < slots; i++) {
-    const v = vehicles[i];
-    if (!v || v.vehicleId !== HYPERLOOP_ID || !((v.trainLength ?? 1) >= train)) {
-      left.push('vehicles');
-      break;
-    }
-  }
+  const laying = rates ? rates.perChicken * rates.maxHabs : NaN;
+  if (rates && laying > 0 && rates.maxElr < laying * (1 - SHIP_SHORT)) left.push('vehicles');
   const habs = farm.habs ?? [];
   if (habs.length < 4 || habs.slice(0, 4).some(h => h !== CHICKEN_UNIVERSE_ID)) left.push('habs');
   return left;
