@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { eggLines, farmFacts, nextTeLine, NEXT_TE_CAP_DAYS } from './farmFacts';
+import { getThresholdForTE } from './truthEggs';
 
 describe('your eggs from the save', () => {
   it('each egg’s lifetime TE, the way to the next, and when the egg being laid gets it', () => {
@@ -25,10 +26,13 @@ describe('your eggs from the save', () => {
     const lines = eggLines(d, {}, 'integrity', 1e6, 2);
     expect(lines[1].goalInSeconds).toBeCloseTo((7e10 - 5.5e9) / 1e6, 3);
     expect(lines[0].goalInSeconds).toBeNull();
-    // No goal known, the goal reached, or more TE than the egg has: none.
+    // No goal known, or the goal reached: none.
     expect(eggLines(d, {}, 'integrity', 1e6)[1].goalInSeconds).toBeNull();
     expect(eggLines(d, {}, 'integrity', 1e6, 0)[1].goalInSeconds).toBeNull();
-    expect(eggLines(d, {}, 'integrity', 1e6, 500)[1].goalInSeconds).toBeNull();
+    // More TE than the egg has left (ux35-a, pieha): to its last TE, the rest from the other eggs.
+    expect(eggLines(d, {}, 'integrity', 1e6, 500)[1].goalInSeconds).toBeCloseTo((getThresholdForTE(98) - 5.5e9) / 1e6, 3);
+    // No TE left on the egg: none.
+    expect(eggLines({ ...d, integrity: getThresholdForTE(98) }, {}, 'integrity', 1e6, 5)[1].goalInSeconds).toBeNull();
   });
 
   it('nothing for a save with no virtue farm', () => {

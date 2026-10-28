@@ -242,10 +242,12 @@
           </div>
         </details>
 
+        <!-- Amber only with something unsent; "none yet" is the plain card (ux35-a, 28 Oct 2026). -->
         <details
           v-if="hasBoard"
           :open="open.unsent"
-          class="rounded-xl border border-amber-200 bg-amber-50/40 p-4"
+          class="rounded-xl border p-4"
+          :class="unsentCount > 0 ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-white'"
           data-testid="my-runs-part-unsent"
           @toggle="sync('unsent', $event)"
         >

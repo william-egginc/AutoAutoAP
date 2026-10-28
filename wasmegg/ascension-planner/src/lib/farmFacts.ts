@@ -160,6 +160,17 @@ export interface EggLine {
   goalInSeconds?: number | null;
 }
 
+/**
+ * The TE an egg is to reach for the goal (ux35-a, 28 Oct 2026, pieha): its thresholds passed plus the TE still to earn,
+ * at most its last TE. A goal bigger than one egg's room (Fastest to 490 at 350 TE: 140 left, 28 on each egg) takes
+ * this egg to its last TE and the rest from the others, as the route does; setting the whole TE left against one
+ * egg's room said "more TE than this egg has left" on every egg. Null: no goal, or no TE left on this egg.
+ */
+export function eggGoalTE(passed: number, goalTeLeft: number | null): number | null {
+  if (goalTeLeft == null || !(goalTeLeft > 0) || passed >= TE_BREAKPOINTS.length) return null;
+  return Math.min(TE_BREAKPOINTS.length, passed + Math.ceil(goalTeLeft));
+}
+
 /** The five eggs in the save's order. */
 export function eggLines(
   delivered: Partial<Record<string, number>>,
@@ -179,9 +190,8 @@ export function eggLines(
     const current = egg === currentEgg;
     const nextInSeconds = current && elr && elr > 0 && Number.isFinite(hi) ? (hi - d) / elr : null;
     // To goal: the egg's own thresholds (each TE costs more eggs than the last), not TE left × the next TE's time.
-    const need = goalTeLeft != null && goalTeLeft > 0 ? passed + Math.ceil(goalTeLeft) : 0;
-    const goalInSeconds =
-      current && elr && elr > 0 && need > passed && need <= TE_BREAKPOINTS.length ? (getThresholdForTE(need) - d) / elr : null;
+    const need = eggGoalTE(passed, goalTeLeft);
+    const goalInSeconds = current && elr && elr > 0 && need != null ? (getThresholdForTE(need) - d) / elr : null;
     return { egg, te, progress, current, nextInSeconds, goalInSeconds };
   });
 }

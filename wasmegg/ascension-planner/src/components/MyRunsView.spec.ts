@@ -71,6 +71,9 @@ describe('MyRunsView', () => {
     expect(partTag(empty, 'my-runs-part-saved')).not.toContain(' open');
     expect(partTag(empty, 'my-runs-part-unsent')).not.toContain(' open');
     expect(textOf(empty)).toContain('Not sent yet · none yet');
+    // Nothing unsent: the plain, calm card, never the warning colour (ux35-a item 2).
+    expect(partTag(empty, 'my-runs-part-unsent')).not.toMatch(/amber|orange/);
+    expect(partTag(empty, 'my-runs-part-unsent')).toContain('border-slate-200 bg-white');
 
     const store = useChainSearchStore();
     store.pendingSends = [
@@ -86,6 +89,8 @@ describe('MyRunsView', () => {
     const kept = await renderHtml(MyRunsView, { playerId: 'P' }, {}, [pinia]);
     expect(partTag(kept, 'my-runs-part-unsent')).toContain(' open');
     expect(textOf(kept)).toContain('Not sent yet (1)');
+    // Something unsent: the warning colour.
+    expect(partTag(kept, 'my-runs-part-unsent')).toContain('border-amber-200 bg-amber-50/40');
     // Every kind: a By a date result shows here (UnsentResults without a kind).
     expect(textOf(kept)).toContain("This result wasn't sent to the leaderboard: 320 TE by Jul 14, 2027 9:00 AM");
   });

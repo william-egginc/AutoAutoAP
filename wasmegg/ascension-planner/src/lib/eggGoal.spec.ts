@@ -5,7 +5,7 @@
  * choice is remembered in this browser; "next TE" by default.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { eggGoalLines, readEggsView, writeEggsView, EGGS_VIEW_KEY } from './nextTeEgg';
+import { aboutWords, eggClockLines, eggGoalLines, readEggsView, writeEggsView, EGGS_VIEW_KEY } from './nextTeEgg';
 import { eggLines } from './farmFacts';
 import { getThresholdForTE } from './truthEggs';
 import { renderHtml, textOf } from '@/test/renderComponent';
@@ -35,8 +35,8 @@ describe('eggGoalLines: every egg, to the goal', () => {
     expect(need / 2e12).toBeGreaterThan(0);
     expect(Object.keys(l).sort()).toEqual(['curiosity', 'humility', 'integrity', 'kindness', 'resilience']);
   });
-  it("past the egg's last TE: says so; over about 10 years: not at this rate", () => {
-    expect(lines({ kind: 'te', teLeft: 500 }).kindness).toBe('to goal: more TE than this egg has left');
+  it("more than the egg's room: to its last TE (pieha, below); over about 10 years: not at this rate", () => {
+    expect(lines({ kind: 'te', teLeft: 500 }).kindness).toMatch(/^to goal about .+ after you shift here$/);
     const slow = eggGoalLines({
       eggs: eggLines(delivered, {}, 'curiosity', 1e-3, 60),
       delivered,
@@ -53,6 +53,82 @@ describe('eggGoalLines: every egg, to the goal', () => {
     expect(l.kindness).toMatch(/^to goal: 412 TE .+, in ~5d 3h$/);
     expect(l.curiosity).toBe(l.kindness);
     expect(lines(null)).toEqual({});
+  });
+});
+
+/**
+ * PIEHA'S CASE (ux35-a, 28 Oct 2026): following Fastest to 490 TE at 350 TE (70 on each egg), 140 TE still to earn.
+ * No egg can give all 140 (98 at most each), but every egg has room for its own part: the route takes each to 98.
+ * Every egg said "to goal: more TE than this egg has left" (the whole TE left was set against one egg's room); each
+ * egg's goal is the TE it still holds, up to the TE left. Only an egg with no TE left says so.
+ */
+describe("eggGoalLines: a goal bigger than one egg's room (pieha)", () => {
+  const at70 = getThresholdForTE(70);
+  const d70 = { curiosity: at70, kindness: at70, integrity: at70, humility: at70, resilience: at70 };
+  it('following 490 at 350 TE: every egg with room gets a time to its last TE, not "more TE than this egg has left"', () => {
+    const eggs = eggLines(d70, {}, 'curiosity', 1e15, 140);
+    const l = eggGoalLines({
+      eggs,
+      delivered: d70,
+      totalTe: 350,
+      rates,
+      goal: { kind: 'te', teLeft: 140 },
+      now: NOW,
+      saveSeconds: NOW,
+    });
+    expect(eggs[0].goalInSeconds).toBeCloseTo((getThresholdForTE(98) - at70) / 1e15, 3);
+    expect(l.curiosity).toMatch(/^to goal about .+ at this rate$/);
+    for (const egg of ['kindness', 'integrity', 'humility', 'resilience']) {
+      expect(l[egg]).not.toBe('to goal: more TE than this egg has left');
+      expect(l[egg]).toMatch(/^to goal about .+ after you shift here$/);
+    }
+    // Kindness at the after-shift rate (habs full over 100 TE): its 98th TE's threshold, less what it has.
+    const t = (getThresholdForTE(98) - at70) / rates.maxElr;
+    expect(l.kindness).toBe(`to goal about ${aboutWords(t)} after you shift here`);
+  });
+  it("a smaller goal still fits in one egg: the TE left, not the egg's last TE", () => {
+    const eggs = eggLines(d70, {}, 'curiosity', 1e15, 5);
+    const l = eggGoalLines({
+      eggs,
+      delivered: d70,
+      totalTe: 350,
+      rates,
+      goal: { kind: 'te', teLeft: 5 },
+      now: NOW,
+      saveSeconds: NOW,
+    });
+    expect(l.kindness).toBe(
+      `to goal about ${aboutWords((getThresholdForTE(75) - at70) / rates.maxElr)} after you shift here`
+    );
+  });
+  it('an egg with no TE left (98) says so; the clock lines time the others', () => {
+    const d = { ...d70, kindness: getThresholdForTE(98) };
+    const eggs = eggLines(d, {}, 'curiosity', 1e15, 112);
+    const l = eggGoalLines({
+      eggs,
+      delivered: d,
+      totalTe: 378,
+      rates,
+      goal: { kind: 'te', teLeft: 112 },
+      now: NOW,
+      saveSeconds: NOW,
+    });
+    expect(l.kindness).toBe('to goal: more TE than this egg has left');
+    expect(l.integrity).toMatch(/^to goal about .+ after you shift here$/);
+    const c = eggClockLines({
+      eggs,
+      delivered: d,
+      totalTe: 378,
+      rates,
+      teLeft: 112,
+      now: NOW,
+      saveSeconds: NOW,
+      zone: 'America/Los_Angeles',
+      shifts: [],
+    });
+    expect(c.goal.integrity).toMatch(/^to goal about .+ if you shift now$/);
+    expect(c.goal.curiosity).toMatch(/^to goal about /);
+    expect(c.goal.kindness).toBeUndefined();
   });
 });
 
