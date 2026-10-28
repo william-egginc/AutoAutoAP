@@ -44,6 +44,19 @@ export const PREFS_TIMEOUT_MS = 10_000;
 export const SYNCED_CONSENTS = ['leaderboard', 'sendCsv', 'diagnosticsDefault', 'keepSharingChecks', 'shareBaseline'] as const;
 export type SyncedConsent = (typeof SYNCED_CONSENTS)[number];
 
+/**
+ * "SEND MY PROGRESS EVERY N HOURS" WITH THE SETUP: OFF (Jordan, 28 Oct 2026, ux35-d). Stepping away?'s fourth tick and
+ * its interval would go in the Setup value as `progressSends: { on: boolean, everyHours: whole 1 to 6 }`, but the
+ * contract's Setup (prefs-contract.md v1) has no such field and the collector DROPS unknown Setup fields (its
+ * `readSetup` keeps only the fields it lists), so it would never come back. Until the collector keeps that field, this
+ * stays off: nothing of it is built, sent or read, and the tick and interval stay in this browser as before. Switch it
+ * on (one word) once the collector's Setup keeps `progressSends`. An object so the specs can switch it on against a
+ * fake collector (as they do PANEL_FOLD).
+ */
+export const SYNC_PROGRESS_SENDS = { enabled: false };
+/** The hours "Send my progress every" offers (search/stepAway.ts AUTO_EVERY_MIN, in hours). */
+export const PROGRESS_SENDS_HOURS: readonly number[] = [1, 2, 3, 4, 5, 6];
+
 // ----------------------------------------------------------------------------------------- shapes
 
 /** The Consent value (contract). */
@@ -70,6 +83,12 @@ export interface CloudHours {
   scheduleEnabled?: boolean;
 }
 
+/** "Send my progress every N hours" as the Setup value would keep it (`SYNC_PROGRESS_SENDS`; not in the contract). */
+export interface CloudProgressSends {
+  on: boolean;
+  everyHours: number;
+}
+
 /** The Setup value (contract, with the two changes the collector adopted on 26 Oct: `noPrestigeDays` shaped like
  *  `timeOff`, and `days` and `scheduleEnabled` inside `hours`). */
 export interface CloudSetup {
@@ -79,6 +98,8 @@ export interface CloudSetup {
   noPrestigeDays?: CloudRange[];
   targetTE?: number | null;
   timezone?: string;
+  /** Only while `SYNC_PROGRESS_SENDS` is on (not in the contract yet). */
+  progressSends?: CloudProgressSends;
 }
 
 export type CloudPrefValue = CloudConsent | CloudSetup;
@@ -113,6 +134,9 @@ export interface SetupNow {
   noPrestige: TimeOffDates[];
   finalTE: number;
   timezone: string;
+  /** "Send my progress every": the tick (the account's `autoSend` consent) and the interval in minutes
+   *  (stepAwayOptions `autoSendEveryMin`). Only while `SYNC_PROGRESS_SENDS` is on. */
+  progressSends?: { on: boolean; everyMin: number };
 }
 
 // ----------------------------------------------------------------------------------------- rules
@@ -127,6 +151,10 @@ const ZONE = /^[A-Za-z0-9_+\-/]{1,64}$/;
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/g;
 const pad2 = (h: number) => String(h).padStart(2, '0');
+const okProgress = (v: unknown): v is CloudProgressSends => {
+  const x = v as Record<string, unknown> | null;
+  return !!x && typeof x === 'object' && !Array.isArray(x) && typeof x.on === 'boolean' && PROGRESS_SENDS_HOURS.includes(x.everyHours as number);
+};
 const bytes = (s: string) => new TextEncoder().encode(s).length;
 
 /** A name as the collector keeps it: control characters dropped, at most 40 characters (counted as a player sees them). */
@@ -189,6 +217,10 @@ export function buildSetupValue(s: SetupNow, at: number): CloudSetup | null {
     targetTE: Number.isInteger(s.finalTE) && s.finalTE >= 1 && s.finalTE <= 490 ? s.finalTE : null,
   };
   if (typeof s.timezone === 'string' && ZONE.test(s.timezone)) value.timezone = s.timezone;
+  if (SYNC_PROGRESS_SENDS.enabled && s.progressSends) {
+    const p = { on: !!s.progressSends.on, everyHours: s.progressSends.everyMin / 60 };
+    if (okProgress(p)) value.progressSends = p;
+  }
   return fits(value) ? value : null;
 }
 
@@ -246,6 +278,7 @@ export function prefsProblems(kind: PrefsKind, v: unknown): string[] {
     if (x.targetTE !== undefined && x.targetTE !== null && !(Number.isInteger(x.targetTE) && (x.targetTE as number) >= 1 && (x.targetTE as number) <= 490))
       p.push('targetTE');
     if (x.timezone !== undefined && (typeof x.timezone !== 'string' || !ZONE.test(x.timezone))) p.push('timezone');
+    if (x.progressSends !== undefined && !okProgress(x.progressSends)) p.push('progressSends');
   }
   return p;
 }
@@ -289,6 +322,7 @@ export function readSetupValue(v: unknown): CloudSetup | null {
   if (x.targetTE === null) out.targetTE = null;
   else if (Number.isInteger(x.targetTE) && (x.targetTE as number) >= 1 && (x.targetTE as number) <= 490) out.targetTE = x.targetTE as number;
   if (typeof x.timezone === 'string' && ZONE.test(x.timezone)) out.timezone = x.timezone;
+  if (SYNC_PROGRESS_SENDS.enabled && okProgress(x.progressSends)) out.progressSends = { on: x.progressSends.on, everyHours: x.progressSends.everyHours };
   return out;
 }
 
@@ -310,6 +344,7 @@ export function setupFromCloud(v: CloudSetup): Partial<SetupNow> {
   if (v.noPrestigeDays) out.noPrestige = v.noPrestigeDays.map(w => ({ from: w.from, to: w.to }));
   if (typeof v.targetTE === 'number') out.finalTE = v.targetTE;
   if (v.timezone) out.timezone = v.timezone;
+  if (v.progressSends) out.progressSends = { on: v.progressSends.on, everyMin: v.progressSends.everyHours * 60 };
   return out;
 }
 

@@ -17,6 +17,8 @@
  *  - The ID: only `accountHash` and `prefsKey` take it (plus the "Credit me as" store, which keys its memory by it);
  *    the URL and the value hold only the key and the choices (lib/prefsCloud.ts refuses any value with an ID).
  *  - Not synced: the workers, the memory cap and the other "This computer" settings, hold shifts, first ascension.
+ *    "Send my progress every N hours" (Stepping away?) is written to go with the Setup but stays OFF until the collector
+ *    keeps it (lib/prefsCloud.ts `SYNC_PROGRESS_SENDS`).
  */
 import { defineStore, getActivePinia } from 'pinia';
 import { computed, ref, watch } from 'vue';
@@ -26,9 +28,12 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useShareNameStore } from '@/stores/shareName';
 import { accountHash } from '@/lib/accountHash';
 import { applySavedConsent, consentState } from '@/composables/useConsent';
+import { stepAwayOptions } from '@/composables/useStepAway';
+import { readAutoEveryMin } from '@/search/stepAway';
 import { applySavedStudy, knownName, studyState } from '@/composables/useStudy';
 import {
   SYNCED_CONSENTS,
+  SYNC_PROGRESS_SENDS,
   buildConsentValue,
   buildSetupValue,
   cloudIsNewer,
@@ -185,10 +190,20 @@ export const usePrefsStore = defineStore('prefs', () => {
     return { study, answeredAt: study ? rec.at : 0, ticks, credit, nickname: credit === 'name' ? name : '' };
   }
 
+  /** "Send my progress every": the tick as remembered for the account (a this-visit-only yes is never kept, here or
+   *  online) and its interval. Undefined while `SYNC_PROGRESS_SENDS` is off. */
+  function progressSendsNow(): SetupNow['progressSends'] {
+    if (!SYNC_PROGRESS_SENDS.enabled) return undefined;
+    const r = consentState.records.autoSend;
+    return { on: !!r && r.agreed && r.remember, everyMin: stepAwayOptions.value.autoSendEveryMin };
+  }
+
   function setupNow(): SetupNow | null {
     const s = searchStore();
     if (!s) return null;
+    const progressSends = progressSendsNow();
     return {
+      ...(progressSends ? { progressSends } : {}),
       scheduleEnabled: !!s.scheduleEnabled,
       fromHour: s.availableFrom,
       toHour: s.availableTo,
@@ -265,9 +280,16 @@ export const usePrefsStore = defineStore('prefs', () => {
   function applySetup(v: CloudSetup): void {
     const s = searchStore();
     if (!s) return;
-    const p = setupFromCloud(v);
+    const { progressSends, ...p } = setupFromCloud(v);
     applying++;
     try {
+      // Send my progress every (only while SYNC_PROGRESS_SENDS is on: off, `progressSends` is never read): the tick as a
+      // remembered choice that sends nothing by itself, and the interval in this browser's Stepping away? options.
+      if (progressSends && SYNC_PROGRESS_SENDS.enabled) {
+        applySavedConsent('autoSend', progressSends.on, v.at);
+        const every = readAutoEveryMin(progressSends.everyMin);
+        if (stepAwayOptions.value.autoSendEveryMin !== every) stepAwayOptions.value = { ...stepAwayOptions.value, autoSendEveryMin: every };
+      }
       // In one go (crash2, 26 Oct 2026: in a fresh browser this lands while the instant answer is up): checked, the
       // time zone first, muted field by field, then remembered in this browser once (chainSearch `applyOnlineSetup`).
       if (s.applyOnlineSetup) {
@@ -525,7 +547,17 @@ export const usePrefsStore = defineStore('prefs', () => {
     () => {
       const s = searchStore();
       if (!s) return '';
-      return JSON.stringify([s.scheduleEnabled, s.availableFrom, s.availableTo, s.availableDays, s.timeOff, s.noPrestige, s.finalTE, planner()?.timezone]);
+      return JSON.stringify([
+        s.scheduleEnabled,
+        s.availableFrom,
+        s.availableTo,
+        s.availableDays,
+        s.timeOff,
+        s.noPrestige,
+        s.finalTE,
+        planner()?.timezone,
+        progressSendsNow() ?? null,
+      ]);
     },
     (now, was) => {
       const s = searchStore();
