@@ -1,7 +1,7 @@
 /**
  * The Custom boxes' help (By a date's Custom tab, DeadlinePanel.vue), rewritten for flow (Jordan, ux35-e, 28 Oct
  * 2026: "reads as a wall of text"): a short lead line, the syntax as a Format example, and the start-timing note
- * folded under "Why times can differ". Every fact the old paragraphs gave is still in the rendered text (the list is
+ * folded under "Why times differ from the instant answer". Every fact the old paragraphs gave is still in the rendered text (the list is
  * in aaap-tools/notes/ux35-e.md), and the numbers still come from the same computations.
  */
 import fs from 'node:fs';
@@ -32,7 +32,7 @@ const TIMING_FACTS: Record<string, string> = {
   'C1 starts the moment the last one ends': 'starts each fresh ascension the moment the last one ends',
   'C2 with awake hours, when next available': 'with your awake hours set, as soon as you are next available',
   'C3 instant answer: next whole hour': 'the instant answer starts it on the next whole hour inside your awake hours',
-  'C4 can move by days': 'can move the same route by days',
+  'C4 can move by days': 'the gap can be days',
   'C5 measured Oct 24, 2026': 'one route measured on oct 24, 2026 moved 6.3 days',
   'C6 without hours, about an hour': 'without awake hours, the two differ by up to about an hour per ascension',
 };
@@ -118,20 +118,20 @@ describe('the last stop line keeps its facts and its numbers', () => {
   });
 });
 
-describe('"Why times can differ": the start-timing note, folded', () => {
+describe('"Why times differ from the instant answer": the start-timing note, folded', () => {
   it('each fact of the old note is inside the fold', async () => {
     const html = await renderHtml(StartTimingNote);
     const body = lower(textOf(html.slice(html.indexOf('</summary>'))));
     for (const [fact, phrase] of Object.entries(TIMING_FACTS)) expect(body, fact).toContain(lower(phrase));
   });
-  it('a native <details>, closed by default, its summary "Why times can differ" and 44 px tall', async () => {
+  it('a native <details>, closed by default, its summary "Why times differ from the instant answer" and 44 px tall', async () => {
     const html = await renderHtml(StartTimingNote);
     const open = html.slice(0, html.indexOf('>') + 1);
     expect(open).toMatch(/^<details/);
     expect(open).not.toMatch(/\sopen[\s>=]/);
     const summary = html.match(/<summary class="([^"]*)"[^>]*>([\s\S]*?)<\/summary>/);
     expect(summary).not.toBeNull();
-    expect(textOf(summary![2])).toMatch(/^Why times can differ/);
+    expect(textOf(summary![2])).toMatch(/^Why times differ from the instant answer/);
     expect(summary![1]).toContain('min-h-[44px]');
   });
   it('both places in the panel use it, under their old conditions, and the old paragraphs are gone', () => {

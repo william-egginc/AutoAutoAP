@@ -8,7 +8,7 @@
     <summary
       class="flex min-h-[44px] cursor-pointer select-none items-center gap-1 font-bold text-slate-500 hover:text-slate-700"
     >
-      Why times can differ
+      Why times differ from the instant answer
       <span aria-hidden="true" class="start-timing-chevron leading-none text-slate-400">›</span>
     </summary>
     <ul class="list-disc space-y-0.5 pb-1 pl-5">
@@ -19,8 +19,7 @@
       <li>The instant answer starts it on the next whole hour inside your awake hours.</li>
       <li>Without awake hours, the two differ by up to about an hour per ascension.</li>
       <li>
-        With your awake hours set, that can move the same route by days: one route measured on Oct 24, 2026 moved 6.3
-        days.
+        With your awake hours set, the gap can be days: one route measured on Oct 24, 2026 moved 6.3 days.
       </li>
     </ul>
   </details>
