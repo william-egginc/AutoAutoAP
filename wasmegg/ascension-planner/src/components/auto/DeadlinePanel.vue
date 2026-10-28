@@ -14,6 +14,7 @@
       title="Unfinished Highest TE by a date search"
       :elsewhere="store.runElsewhere.deadline"
       :can-carry-on="store.deadlineUnfinished.saveKept"
+      :run-key="store.deadlineUnfinished.updatedAt"
       discardable
       @carry-on="resume"
       @discard="store.discardDeadlineRun(playerId)"

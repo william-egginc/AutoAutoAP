@@ -339,6 +339,9 @@
         :elsewhere="blockedBy && plannerTab === 'automatic' ? { running: blockedBy, here: hereLabel } : null"
         @show="showRun"
       />
+      <!-- After a reload mid-run, "Your last run stopped: Resume / Dismiss" floats at the top of the Auto Planner too
+           (ResumeBanner.vue, ux29-d): Resume is the panel box's own Carry on; never while a run is going. -->
+      <ResumeBanner v-if="plannerTab === 'automatic' && !showRunBar && !myRunsRunning" class="mt-4" />
       <!-- A Science sweep, run in place (SweepRunner.vue): a window over the page, so the figures and
            Start sit where the sweep was clicked rather than on another screen. -->
       <SweepRunner
@@ -836,6 +839,7 @@ import { useMyRunsShown } from '@/composables/useMyRunsShown';
 import { myRunsTab } from '@/lib/myRunsShown';
 import { safeAsyncComponent } from '@/lib/import';
 import RunProgressBar from '@/components/auto/RunProgressBar.vue';
+import ResumeBanner from '@/components/auto/ResumeBanner.vue';
 import { scrollToRun } from '@/lib/runAnchor';
 import { runScreenOf, type SearchScreen } from '@/lib/runScreen';
 import { usePlanStartForm } from '@/composables/usePlanStartForm';
