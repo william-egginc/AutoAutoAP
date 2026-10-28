@@ -18,6 +18,8 @@
         simulated.
       </p>
     </div>
+    <!-- The save's age, a newer save on the server and Load latest save (ux29 item 4; quiet when it is fresh). -->
+    <AutoSaveStrip screen="by-date" />
     <!-- Folded under the title, like Fastest's explainer (the user, 12 Oct: it sat in the middle of the page). -->
     <details class="rounded-xl border border-slate-200 bg-white" data-testid="by-date-how">
       <summary class="cursor-pointer px-4 py-3 text-body font-bold text-slate-500">
@@ -42,6 +44,7 @@
 import { NAMES } from '@/lib/siteNav';
 import { safeAsyncComponent } from '@/lib/import';
 import YourSetup from './YourSetup.vue';
+import AutoSaveStrip from './AutoSaveStrip.vue';
 
 defineProps<{ playerId: string }>();
 const emit = defineEmits<{ goal: [goal: 'fastest' | 'deadline'] }>();

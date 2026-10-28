@@ -7,12 +7,15 @@
   The save on the server versus the save loaded here (lib/serverSave.ts, 25 Oct 2026): once the page knows the
   server's save time, a newer one there gets "A newer save is on the server · Load it", and a loaded save that is
   already the newest says so instead of offering a reload that would change nothing, with why it is old.
+
+  The Auto Planner screens show it too (auto/AutoSaveStrip.vue, ux29 item 4): `slim`, their own `testid`, and
+  `loadWords` "Load latest save" (Setup's button) in place of the age's own link words.
 -->
 <template>
   <div
-    class="rounded-xl border px-3 py-2 text-body"
-    :class="strip ? TONE[strip.tone] : 'border-slate-200 bg-slate-50 text-slate-700'"
-    data-testid="now-save-strip"
+    class="rounded-xl border px-3 text-body"
+    :class="[strip ? TONE[strip.tone] : 'border-slate-200 bg-slate-50 text-slate-700', slim ? 'py-1' : 'py-2']"
+    :data-testid="testid"
     :data-tone="strip?.tone ?? 'none'"
     :data-server="server.kind"
   >
@@ -26,7 +29,7 @@
       </details>
     </template>
     <button v-else type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline disabled:opacity-50" data-testid="now-save-fresh" :disabled="loading" @click="emit('fresh')">
-      {{ loading ? 'Loading your save…' : !strip ? 'Load your save' : server.kind === 'newer' ? NEWER_ON_SERVER : strip.link }}<template v-if="!loading"> ›</template>
+      {{ loading ? 'Loading your save…' : !strip ? 'Load your save' : server.kind === 'newer' ? NEWER_ON_SERVER : loadWords || strip.link }}<template v-if="!loading"> ›</template>
     </button>
   </div>
 </template>
@@ -35,10 +38,26 @@
 import type { SaveStrip } from '@/lib/saveFreshness';
 import { NEWER_ON_SERVER, WHY_OUT_OF_DATE, newestOnServerLine, type ServerSaveState } from '@/lib/serverSave';
 
-withDefaults(defineProps<{ strip: SaveStrip | null; loading: boolean; server?: ServerSaveState; now?: number }>(), {
-  server: () => ({ kind: 'unknown' }),
-  now: () => Math.floor(Date.now() / 1000),
-});
+withDefaults(
+  defineProps<{
+    strip: SaveStrip | null;
+    loading: boolean;
+    server?: ServerSaveState;
+    now?: number;
+    testid?: string;
+    /** The Auto Planner screens' one-line strip (auto/AutoSaveStrip.vue). */
+    slim?: boolean;
+    /** The button's words when the server has nothing newer known; the age's own link words without. */
+    loadWords?: string;
+  }>(),
+  {
+    server: () => ({ kind: 'unknown' }),
+    now: () => Math.floor(Date.now() / 1000),
+    testid: 'now-save-strip',
+    slim: false,
+    loadWords: '',
+  }
+);
 const emit = defineEmits<{ fresh: [] }>();
 const TONE = {
   ok: 'border-slate-200 bg-slate-50 text-slate-700',
