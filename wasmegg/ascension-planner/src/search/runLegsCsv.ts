@@ -12,9 +12,14 @@
 import { readCsv } from '@/lib/csvParse';
 import type { LegSummary } from './types';
 
-/** `YYYY-MM-DD HH:MM` in `zone` to unix seconds (the inverse of search/csv.ts `formatInZone`); null when unreadable. */
+/**
+ * `YYYY-MM-DD HH:MM` in `zone` to unix seconds (the inverse of search/csv.ts `formatInZone`); null when unreadable.
+ * ISO 8601's `YYYY-MM-DDTHH:MM` reads too (ux29 item 7, 27 Oct 2026: a form Excel keeps as text, should the CSV
+ * ever be written that way), so a file written either way reads here. A time in the fall-back day's repeated
+ * hour reads as its first pass: the cell has no offset.
+ */
 export function unixFromZoned(text: string | undefined, zone: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec((text ?? '').trim());
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/.exec((text ?? '').trim());
   if (!m) return null;
   const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) / 1000;
   let fmt: Intl.DateTimeFormat;
@@ -88,7 +93,7 @@ export function legsFromRunCsv(text: string, chain: readonly number[]): LegSumma
     for (const part of (r.shift_times_local ?? '').split(';')) {
       const s = part.trim();
       if (!s) continue;
-      const m = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) ([a-z]+)$/.exec(s);
+      const m = /^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}) ([a-z]+)$/.exec(s);
       const at = m ? unixFromZoned(m[1], zone) : null;
       if (!m || at === null) return null;
       shifts.push({ at, egg: m[2] });

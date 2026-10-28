@@ -499,6 +499,10 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   for (const h of head) note(h);
   if (meta.partial) note(partialLine(meta.partial));
   note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
+  // ux29 item 7 (27 Oct 2026): Excel turns these cells into dates and shows them in its own date format, which a
+  // column it never widens on opening a CSV can't hold, so they read ########. The cells are right and stay as they
+  // are (the board's runs, search/runLegsCsv.ts and the analysis scripts read them); this line says so.
+  note(`times (the columns ending _local) are YYYY-MM-DD HH:MM (24-hour) in ${tz}. ######## in Excel means the column is too narrow for its date format: widen it.`);
   // Which simulator priced these routes (search/simVersion.ts), so a file can be matched to its code.
   note(`simulator ${SIM_VERSION}`);
   note(`plan start ${formatInZone(meta.planStart, tz)}`);
