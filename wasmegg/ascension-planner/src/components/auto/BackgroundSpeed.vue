@@ -12,7 +12,7 @@
       <span class="font-bold text-slate-800">When this tab is in the background:</span>
       <select
         :value="store.backgroundWorkers < store.workerBudget ? store.backgroundWorkers : 0"
-        class="rounded-md border-slate-300 py-1 text-body font-bold text-slate-800"
+        class="min-w-0 max-w-full rounded-md border-slate-300 py-1 text-body font-bold text-slate-800"
         @change="set(($event.target as HTMLSelectElement).value)"
       >
         <option :value="0">keep full speed ({{ store.workerBudget }} workers)</option>

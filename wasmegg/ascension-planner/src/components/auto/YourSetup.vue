@@ -313,7 +313,7 @@
                 From
                 <select
                   v-model.number="store.availableFrom"
-                  class="rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
+                  class="max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
                 </select>
@@ -322,7 +322,7 @@
                 to
                 <select
                   v-model.number="store.availableTo"
-                  class="rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
+                  class="max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">
                     {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}

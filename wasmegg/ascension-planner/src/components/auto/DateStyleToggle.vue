@@ -1,8 +1,10 @@
-<!-- How dates and hours are shown on this site, in this browser (lib/displayTime.ts). -->
+<!-- How dates and hours are shown on this site, in this browser (lib/displayTime.ts). The select may shrink below
+     its longest option (min-w-0, max-w-full): on a 390 px phone that option set it 412 px wide in a 363 px Setup panel,
+     which scrolled sideways (ux29 item 6, 27 Oct 2026). -->
 <template>
-  <label class="flex flex-wrap items-center gap-2 text-small text-slate-600">
+  <label class="flex min-w-0 flex-wrap items-center gap-2 text-small text-slate-600">
     <span class="font-bold text-slate-700">Show dates as</span>
-    <select v-model="dateStyle" class="rounded-md border-slate-300 py-1 text-body font-bold text-slate-800">
+    <select v-model="dateStyle" class="min-w-0 max-w-full rounded-md border-slate-300 py-1 text-body font-bold text-slate-800">
       <option value="local">{{ example('local') }} (your browser's format)</option>
       <option value="iso">{{ example('iso') }}</option>
     </select>
