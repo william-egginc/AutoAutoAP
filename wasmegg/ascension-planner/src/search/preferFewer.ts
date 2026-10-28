@@ -14,6 +14,12 @@
  * the box leads with the next-fewest that is not tight, else the best. When the best is tight itself nothing changes.
  * Tight is the box's own test (lib/spareLine.ts `isTightSpare`).
  *
+ * A dropped first stop that only finishes the current ascension soon is not an ascension saved (Jordan, 28 Oct 2026:
+ * "same TE" swapped 197 218 247 285 313, a prestige at 197 two days out, for 218 247 277 313, the current ascension
+ * kept going for two months; it ends either way). When the best's first stop is quick (`quickFirstStop`) and a route
+ * does not open with a quick stop of its own, it saves one ascension less than its count says; a route that saves
+ * nothing then is not "fewer", and the box keeps the best's stop.
+ *
  * The saving is only what was counted: ascensions (and so prestiges) always; shifts only when both routes'
  * simulated legs kept their shifts (Check exactly's), else nothing is said about shifts.
  *
@@ -49,6 +55,54 @@ export const sameMargin = (a: PreferMargin, b: PreferMargin): boolean =>
     (a.kind === 'time' && b.kind === 'time' && a.seconds === b.seconds) ||
     (a.kind === 'te' && b.kind === 'te' && a.te === b.te));
 
+/**
+ * A route's first stop, from its first leg (search/routeFinder.ts RouteLeg): `from` the TE it starts at (the save's TE),
+ * `to` the stop, `start` when it starts (the plan start) and `end` when it ends. Absent fields are not known.
+ */
+export interface FirstStop {
+  from?: number;
+  to: number;
+  start?: number;
+  end?: number;
+}
+
+/** A first stop at most this many TE above the save's TE only finishes the current ascension (196 to 197, 198). */
+export const QUICK_FIRST_STOP_TE = 2;
+/** ...or one that ends at most this long after the plan start (196 to 197 is about 2 days). */
+export const QUICK_FIRST_STOP_SECONDS = 3 * 86400;
+
+/**
+ * The first stop only finishes the current ascension soon: within `QUICK_FIRST_STOP_TE` of the save's TE, OR ending
+ * within `QUICK_FIRST_STOP_SECONDS` of the plan start (either one is enough). False when neither can be told.
+ */
+export function quickFirstStop(f: FirstStop | null | undefined): boolean {
+  if (!f || !Number.isFinite(f.to)) return false;
+  if (f.from !== undefined && Number.isFinite(f.from) && f.to - f.from <= QUICK_FIRST_STOP_TE) return true;
+  return (
+    f.start !== undefined &&
+    f.end !== undefined &&
+    Number.isFinite(f.start) &&
+    Number.isFinite(f.end) &&
+    f.end - f.start <= QUICK_FIRST_STOP_SECONDS
+  );
+}
+
+/** The first stop of a route's legs (the first leg's `from`, `to`/`endTE`, `start`, `end`); null without legs. */
+export function firstStopOf(
+  legs: readonly { from?: number; to?: number; endTE?: number; start?: number; end?: number }[] | null | undefined,
+  chain?: readonly number[]
+): FirstStop | null {
+  const l = Array.isArray(legs) ? legs[0] : undefined;
+  const to = l?.to ?? chain?.[0] ?? l?.endTE;
+  if (to === undefined || !Number.isFinite(to)) return null;
+  return {
+    to,
+    ...(l?.from !== undefined ? { from: l.from } : {}),
+    ...(l?.start !== undefined ? { start: l.start } : {}),
+    ...(l?.end !== undefined ? { end: l.end } : {}),
+  };
+}
+
 /** One route the box could lead with. `item` is the caller's own row, handed back as is. */
 export interface PreferRow<T> {
   item: T;
@@ -61,6 +115,8 @@ export interface PreferRow<T> {
   spare?: number;
   /** Shifts over the whole route, from its simulated legs (`shiftCount`); null when not known. */
   shifts: number | null;
+  /** Its first stop (`firstStopOf`), for the quick-first-stop rule; left out, the rule does not apply to it. */
+  first?: FirstStop | null;
 }
 
 export interface PreferChoice<T> {
@@ -76,6 +132,7 @@ export interface PreferChoice<T> {
   costSeconds: number;
   /** By a date: how many TE below the highest (0 for the best). */
   costTE: number;
+  /** Counted as saved: a quick first stop of the best's that the chosen drops is not one (`quickFirstStop`). */
   ascensionsFewer: number;
   /** One prestige per ascension. */
   prestigesFewer: number;
@@ -83,6 +140,8 @@ export interface PreferChoice<T> {
   shiftsFewer: number | null;
   /** By a date: a route with fewer ascensions inside the margin was passed over because it is tight and the best is not. */
   skippedTight: boolean;
+  /** A route with fewer stops only dropped the best's quick first stop, so it was not counted as fewer. */
+  keptFirstStop: boolean;
 }
 
 /** What the caller knows beyond the rows. */
@@ -125,10 +184,16 @@ export function choosePreferFewer<T>(
     prestigesFewer: 0,
     shiftsFewer: null,
     skippedTight: false,
+    keptFirstStop: false,
   };
   if (margin.kind === 'off') return plain;
-  const fewer = rows.filter(r => r !== top && r.ascensions < top.ascensions);
-  if (!fewer.length) return { ...plain, state: 'only' };
+  // Ascensions a route saves on the best: one less when the best opens with a quick stop and the route does not.
+  const topQuick = quickFirstStop(top.first);
+  const saving = (r: PreferRow<T>) =>
+    top.ascensions - r.ascensions - (topQuick && r.first && !quickFirstStop(r.first) ? 1 : 0);
+  const keptFirstStop = rows.some(r => r !== top && r.ascensions < top.ascensions && saving(r) <= 0);
+  const fewer = rows.filter(r => r !== top && saving(r) > 0);
+  if (!fewer.length) return { ...plain, state: 'only', keptFirstStop };
   const inside = (r: PreferRow<T>): boolean => {
     if (goal === 'fastest') return margin.kind === 'time' && r.finish - top.finish <= Math.max(0, margin.seconds);
     if (margin.kind !== 'te') return false;
@@ -147,11 +212,10 @@ export function choosePreferFewer<T>(
       skippedTight = true;
       continue;
     }
-    if (!chosen || r.ascensions < chosen.ascensions || (r.ascensions === chosen.ascensions && better(goal, r, chosen)))
-      chosen = r;
+    if (!chosen || saving(r) > saving(chosen) || (saving(r) === saving(chosen) && better(goal, r, chosen))) chosen = r;
   }
-  if (!chosen) return { ...plain, state: 'none', skippedTight };
-  const n = top.ascensions - chosen.ascensions;
+  if (!chosen) return { ...plain, state: 'none', skippedTight, keptFirstStop };
+  const n = saving(chosen);
   const shifts = top.shifts !== null && chosen.shifts !== null ? top.shifts - chosen.shifts : null;
   return {
     state: 'fewer',
@@ -163,6 +227,7 @@ export function choosePreferFewer<T>(
     prestigesFewer: n,
     shiftsFewer: shifts !== null && shifts > 0 ? shifts : null,
     skippedTight,
+    keptFirstStop,
   };
 }
 
@@ -285,7 +350,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export interface BoxRouteLike {
   chain: number[];
   end: number;
-  legs?: { endTE?: number; to?: number }[] | null;
+  legs?: { endTE?: number; to?: number; from?: number; start?: number; end?: number }[] | null;
 }
 
 /**
@@ -315,6 +380,7 @@ export function boxRouteOf<R extends BoxRouteLike>(
     finish: r.end,
     ...(goal === 'date' ? { endTE: endTE(r), ...(deadline !== null ? { spare: deadline - r.end } : {}) } : {}),
     shifts: null,
+    first: firstStopOf(r.legs, r.chain),
   });
   const k = best.chain.join(',');
   const others = (rows ?? []).filter(
