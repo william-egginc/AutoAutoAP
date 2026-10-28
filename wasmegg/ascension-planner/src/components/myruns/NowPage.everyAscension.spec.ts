@@ -225,7 +225,7 @@ describe('All planned shifts (YourEggs.vue)', () => {
   it('counted from the instant answer\'s shifts: says the new ascensions\' first hours are left out', async () => {
     const t = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: { count: 12, cost: 1e18, partial: true } }));
     expect(t).toContain('12 shifts');
-    expect(t).toContain("at today's soul eggs · the shifts listed, without each new ascension's first hours");
+    expect(t).toContain("(at today's prices), the shifts listed, without each new ascension's first hours");
   });
   it("with none listed: Can't tell", async () => {
     const t = textOf(await renderHtml(YourEggs, { ...base, plannedShifts: null }));

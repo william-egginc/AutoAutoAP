@@ -4,7 +4,9 @@
   26 Oct 2026), and the farm's facts. The silos are estimated to now
   (lib/farmNow.ts): time left, or empty since when. "All planned shifts" counts the
   saved plan's shifts after the save and prices them with the shift-cost formula at today's soul eggs
-  (lib/shiftCost.ts); without a saved timeline it can't tell. With the instant answer's shifts only (26 Oct 2026) it
+  (lib/shiftCost.ts), worded by lib/soulEggs.ts `plannedShiftsWords` ("41 shifts" / "will cost about 2.3s soul eggs (at
+  today's prices), about 18 of them build-up shifts (estimated)", ux34-a), the same figures as Right now's soul eggs
+  line; without a saved timeline it can't tell. With the instant answer's shifts only (26 Oct 2026) it
   counts the shifts listed plus each fresh ascension's build-up shifts, estimated (lib/openingShifts.ts, 27 Oct 2026),
   and says so.
   THE CLOCK TIME (ux34-a): under each egg's line its day and time in the browser's format, from now or from the plan's
@@ -72,6 +74,7 @@ import { formatSiloTime } from '@/stores/silos';
 import { nextTeLine, type EggLine, type FarmFacts } from '@/lib/farmFacts';
 import { siloNow, siloNowWords } from '@/lib/farmNow';
 import { readEggsView, writeEggsView, type EggsView } from '@/lib/nextTeEgg';
+import { plannedShiftsWords } from '@/lib/soulEggs';
 
 const props = defineProps<{
   eggs: EggLine[];
@@ -146,16 +149,7 @@ const tiles = computed(() => [
   { id: 'shifts', label: 'Shifts done', value: String(props.shiftsDone), note: '' },
   { id: 'next-cost', label: 'Next shift cost', value: props.nextShiftCost != null ? se(props.nextShiftCost) : '—', note: '' },
   props.plannedShifts
-    ? {
-        id: 'planned',
-        label: 'All planned shifts',
-        value: `${props.plannedShifts.count} shift${props.plannedShifts.count === 1 ? '' : 's'} · about ${se(props.plannedShifts.cost)}`,
-        note: props.plannedShifts.opening
-          ? `at today's soul eggs · includes about ${props.plannedShifts.opening} build-up shifts (estimated)`
-          : props.plannedShifts.partial
-            ? "at today's soul eggs · the shifts listed, without each new ascension's first hours"
-            : "at today's soul eggs",
-      }
+    ? { id: 'planned', label: 'All planned shifts', ...plannedShiftsWords(props.plannedShifts) }
     : { id: 'planned', label: 'All planned shifts', value: "Can't tell", note: 'no saved plan with its timeline' },
   silosTile.value,
   { id: 'habs', label: 'Habs', value: props.facts ? `${Math.round(props.facts.habFull * 100)}% full` : '—', note: '' },

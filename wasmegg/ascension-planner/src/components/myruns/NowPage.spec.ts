@@ -311,7 +311,7 @@ describe('your eggs and Try next', () => {
         saveSeconds: NOW,
       })
     );
-    expect(t).toMatch(/All planned shifts 19 shifts · about 61\.0\S* soul eggs at today's soul eggs/);
+    expect(t).toMatch(/All planned shifts 19 shifts will cost about 61\.0\S* soul eggs \(at today's prices\)/);
   });
 
   it('Try next opens screens set up, at most four', async () => {
