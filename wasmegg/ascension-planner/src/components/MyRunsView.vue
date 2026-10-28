@@ -87,6 +87,7 @@
         :facts="page.facts.value"
         :after-shift="page.afterShift.value"
         :goal-lines="page.goalLines.value"
+        :clock-lines="page.clockLines.value"
         :shifts-done="page.shiftsDone.value"
         :next-shift-cost="page.nextShiftCost.value"
         :planned-shifts="page.plannedShifts.value"

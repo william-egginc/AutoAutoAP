@@ -68,13 +68,16 @@ export function soulEggWarning(p: SoulEggPlan): string {
 export function soulEggsAfterLine(p: {
   soulEggs: number | null | undefined;
   done: number | null | undefined;
-  planned: { count: number; opening?: number } | null | undefined;
+  /** `cost`: the planned shifts' cost as All planned shifts has it (useNowPage `plannedShifts`, the one source); absent:
+   *  priced here the same way. */
+  planned: { count: number; cost?: number; opening?: number } | null | undefined;
 }): { text: string; amber: boolean } | null {
   const se = p.soulEggs;
   if (se == null || !(se > 0) || !p.planned || !Number.isFinite(p.planned.count)) return null;
   const count = Math.max(0, Math.floor(p.planned.count));
   const done = Math.max(0, Math.floor(p.done ?? 0));
-  const spent = plannedShiftsCost(se, done, count);
+  const given = p.planned.cost;
+  const spent = given != null && Number.isFinite(given) && given >= 0 ? given : plannedShiftsCost(se, done, count);
   const left = Math.max(0, se - spent);
   const opening = p.planned.opening ?? 0;
   const est = opening > 0 ? ` · about ${opening} of the ${count} are build-up shifts, estimated` : '';
@@ -82,5 +85,29 @@ export function soulEggsAfterLine(p: {
   return {
     text: `You'll have about ${formatNumber(left, 1)} soul eggs left when this plan is done (${tail})`,
     amber: soulEggsLeft(done, count, se) < SE_WARN_BELOW,
+  };
+}
+
+/**
+ * The All planned shifts tile on Your eggs (ux34-a, 28 Oct 2026, plainer): "41 shifts" over "will cost about 2.3s soul
+ * eggs (at today's prices), about 18 of them build-up shifts (estimated)". The same count and cost as
+ * `soulEggsAfterLine` above (both from useNowPage `plannedShifts`), the cost written as it writes it. `opening`: the
+ * estimated build-up shifts included (lib/openingShifts.ts); `partial`: only the instant answer's shifts, none added.
+ */
+export function plannedShiftsWords(p: { count: number; cost: number; opening?: number; partial?: boolean }): { value: string; note: string } {
+  const count = Math.max(0, Math.floor(p.count));
+  if (count === 0) return { value: 'no shifts planned', note: '' };
+  const opening = Math.max(0, Math.floor(p.opening ?? 0));
+  const tail =
+    opening > 0
+      ? count === 1
+        ? ', a build-up shift (estimated)'
+        : `, about ${opening} of them ${opening === 1 ? 'a build-up shift' : 'build-up shifts'} (estimated)`
+      : p.partial
+        ? ", the shifts listed, without each new ascension's first hours"
+        : '';
+  return {
+    value: `${count} shift${s(count)}`,
+    note: `will cost about ${formatNumber(p.cost, 1)} soul eggs (at today's prices)${tail}`,
   };
 }

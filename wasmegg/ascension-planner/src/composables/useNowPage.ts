@@ -97,7 +97,7 @@ import {
   type PricedSetup,
 } from '@/lib/currentAnswer';
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
-import { afterShiftLines, afterShiftNote, eggGoalLines, shiftRates } from '@/lib/nextTeEgg';
+import { afterShiftLines, afterShiftNote, eggClockLines, eggGoalLines, shiftRates } from '@/lib/nextTeEgg';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { soulEggsAfterLine } from '@/lib/soulEggs';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
@@ -1711,6 +1711,24 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       saveSeconds: saveSeconds.value,
     });
   });
+  /** Each egg's day and time beside its line, both views (ux34-a, lib/nextTeEgg.ts `eggClockLines`): from now, or from
+   *  the plan's next shift to that egg in Next shifts. The "to goal" times for a Fastest to N TE goal only. */
+  const clockLines = computed<{ next: Record<string, string>; goal: Record<string, string> } | null>(() => {
+    if (!hasSave.value || !onVirtue.value) return null;
+    const shown = shownTile.value;
+    const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
+    return eggClockLines({
+      eggs: eggs.value,
+      delivered: saveEggCountsOf(raw.value).delivered,
+      totalTe,
+      rates: fullHabRates.value,
+      teLeft: shown.goal === 'fastest' && shown.target > totalTe ? shown.target - totalTe : null,
+      now: now.value,
+      saveSeconds: saveSeconds.value,
+      zone: zone.value,
+      shifts: nextShiftLines.value,
+    });
+  });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
@@ -1875,6 +1893,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     facts,
     afterShift,
     goalLines,
+    clockLines,
     phase,
     startInfo,
     eggs,

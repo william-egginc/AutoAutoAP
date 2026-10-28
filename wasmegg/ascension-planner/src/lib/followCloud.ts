@@ -1,8 +1,9 @@
 /**
  * THE FOLLOWED ROUTE, SAVED ONLINE (Jordan, 23 Oct 2026; contract aaap-tools/notes/follow-contract.md v1). Pressing
  * "Follow this route" (any screen) keeps the route in this browser (lib/follow.ts) AND saves it on the collector, so
- * another device shows the same route when the player enters their ID. Nothing else writes it: no write on a result,
- * on a load or on a takeover. Loading an account reads the saved routes back; the newer of the browser's and the
+ * another device shows the same route when the player enters their ID. Nothing else writes it (no write on a result
+ * or on a takeover), except that a load writes up, once, a follow of this browser newer than the saved one (ux34,
+ * stores/follow.ts `syncPending`) or one whose save never got through. Loading an account reads the saved routes back; the newer of the browser's and the
  * saved one (by the client's own `at`, when Follow was pressed) is the one followed.
  *
  * The collector never sees the player ID: the key is SHA-256 of "aaap-follow-v1:" + the ID in UPPER case, lowercase
@@ -222,7 +223,8 @@ export function followedFromCloud(v: CloudValue): Followed {
 /**
  * NEWER WINS (by the client's `at`, never the collector's clock): each saved goal replaces the browser's when the
  * browser has none for it or an older one, unless the player un-followed it here after it was saved (`gone`, when).
- * A browser follow that is newer stays and is NOT written back (only Follow writes). `taken`: the goals replaced.
+ * A browser follow that is newer stays (stores/follow.ts `syncPending` writes it up once on the load, ux34). `taken`:
+ * the goals replaced.
  */
 export function mergeCloud(
   local: FollowMap,
