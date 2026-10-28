@@ -1,7 +1,8 @@
 /**
  * The followed route saved online, in the store (stores/follow.ts, lib/followCloud.ts): read once when an account is
- * loaded, newer wins both ways, written ONLY on a Follow press (or Restore), un-follow kept here, quiet failures, the
- * hour's limit in words, Earlier versions. A fake chain-search store (same id) holds the collector URL; fetch is a fake.
+ * loaded, newer wins both ways (a newer follow here is written up on load, ux34), otherwise written only on a Follow
+ * press (or Restore), un-follow kept here, quiet failures, the hour's limit in words, Earlier versions. A fake
+ * chain-search store (same id) holds the collector URL; fetch is a fake.
  * Ids: placeholders only.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -80,12 +81,13 @@ describe('loading an account', () => {
     expect(puts()).toEqual([]);
   });
 
-  it('newer wins the other way: a newer route here stays, and is NOT written back', async () => {
+  it('newer wins the other way: a newer route here stays, and is written up once (ux34: else the other browsers keep the older one)', async () => {
     mem.set(`${FOLLOW_PREFIX}${await hashID(ID)}`, JSON.stringify({ 'fastest-490': { chain: [200, 490], from: 'typed', at: AT + 60_000 } }));
-    answer = cloudGoals({ race490: { value: { chain: [222, 490], planStart: T, source: 'fast', at: AT }, version: 1, updatedAt: AT } });
+    answer = (_u, m) => (m === 'PUT' ? { status: 200, body: { ok: true, version: 2 } } : { status: 200, body: { goals: { race490: { value: { chain: [222, 490], planStart: T, source: 'fast', at: AT }, version: 1, updatedAt: AT } }, now: AT } });
     const follows = await loadAccount();
     expect(follows.followed('fastest-490')?.chain).toEqual([200, 490]);
-    expect(puts()).toEqual([]);
+    await vi.waitFor(() => expect(puts()).toHaveLength(1));
+    expect(JSON.parse(puts()[0].body!).value).toMatchObject({ chain: [200, 490], at: AT + 60_000 });
   });
 
   it('a failure (offline, 429, 500) is quiet: nothing changes, Setup says it couldn\'t reach it', async () => {
@@ -431,15 +433,17 @@ describe("Jordan's Egg Day follow that never reached the collector (23 Oct 2026)
     expect((await kept()).sync).toBe('synced');
   });
 
-  it('a pre-flag follow while an OLDER route is saved online: not written on its own, said to be unsaved; a newer one online counts as saved', async () => {
+  it('a pre-flag follow while an OLDER route is saved online: written up once (ux34), then saved; the same one online counts as saved', async () => {
     mem.set(`${FOLLOW_PREFIX}${await hashID(ID)}`, JSON.stringify({ [EGG]: preFlag }));
     answer = okPut({ eggday2027: { value: { chain: [200, 250, 300], planStart: T, source: 'fast', at: AT - 60_000 }, version: 1, updatedAt: AT } });
     let follows = await loadAccount();
-    await new Promise(r => setTimeout(r, 20));
-    expect(puts()).toEqual([]);
+    await vi.waitFor(() => expect(puts()).toHaveLength(1));
+    expect(JSON.parse(puts()[0].body!).value).toMatchObject({ chain: [197, 228, 257, 285, 313], at: AT });
     expect(follows.followed(EGG)?.chain).toEqual([197, 228, 257, 285, 313]);
-    expect(follows.notSaved(EGG)).toBe(true);
-    // The same route online (or a newer one): saved, nothing said.
+    await vi.waitFor(async () => expect((await kept()).sync).toBe('synced'));
+    expect(follows.notSaved(EGG)).toBe(false);
+    // Kept as before the flag again, the same route online: saved, nothing written, nothing said.
+    mem.set(`${FOLLOW_PREFIX}${await hashID(ID)}`, JSON.stringify({ [EGG]: preFlag }));
     answer = okPut({ eggday2027: { value: { ...preFlag, at: AT } , version: 2, updatedAt: AT } });
     follows = await reload();
     await vi.waitFor(async () => expect((await kept()).sync).toBe('synced'));
