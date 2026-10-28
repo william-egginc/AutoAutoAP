@@ -79,7 +79,12 @@
         <template #custom>
           <!-- Custom is Exhaustive: its boxes, run controls and results (InsanePanel.vue), unchanged. -->
           <section id="exhaustive" class="space-y-3 scroll-mt-24">
-            <p class="text-body text-slate-700" data-testid="custom-intro">{{ CUSTOM_INTRO }}</p>
+            <div class="max-w-prose space-y-1 text-body text-slate-700" data-testid="custom-intro">
+              <p>{{ CUSTOM_LEAD }}</p>
+              <ul class="list-disc space-y-0.5 pl-5">
+                <li v-for="line in CUSTOM_POINTS" :key="line">{{ line }}</li>
+              </ul>
+            </div>
             <ExhaustivePromise goal="fastest" />
             <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
           </section>
@@ -209,8 +214,13 @@ const ChainSearchPanel = safeAsyncComponent(() => import('./ChainSearchPanel.vue
 const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
 /** Custom's first line (it is the Exhaustive search, unchanged): what it is for and how long it takes. */
-const CUSTOM_INTRO =
-  "For proving an answer, not for finding a much better one: it tries every route in the boxes you set (Custom), and nothing outside them, so its answer is proven for that space. In players' runs so far it found routes minutes to hours sooner, not days, at about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.";
+const CUSTOM_LEAD = 'Custom tries every route in the boxes you set, and nothing outside them.';
+const CUSTOM_POINTS = [
+  'It is for proving an answer, not for finding a much better one.',
+  'The answer is proven for those boxes only.',
+  "In players' runs so far it found routes minutes to hours sooner, not days.",
+  'It takes about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.',
+];
 
 /** The address and the tab: #/auto/fastest/full (a sweep link, an old ?insane=1 link, Check exactly)
  *  opens Exhaustive, and a tab picked by hand changes the address (@pick above). Opened on the plain
