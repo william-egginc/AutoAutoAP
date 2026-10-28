@@ -32,10 +32,10 @@ import { calculateLayRate } from '@/calculations/layRate';
 import { calculateShippingCapacity } from '@/calculations/shippingCapacity';
 import { calculateIHR } from '@/calculations/internalHatcheryRate';
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
-import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold, TE_BREAKPOINTS } from '@/lib/truthEggs';
+import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold } from '@/lib/truthEggs';
 import { dateAt } from './eventWhen';
 import { compactDuration } from './duration';
-import { NEXT_TE_CAP_DAYS, type EggLine, type FarmInput } from './farmFacts';
+import { eggGoalTE, NEXT_TE_CAP_DAYS, type EggLine, type FarmInput } from './farmFacts';
 
 /** Above this many TE in all the habs are taken as full straight after a shift (Jordan, 26 Oct 2026). */
 export const RAMP_TE_LIMIT = 100;
@@ -188,10 +188,11 @@ export function afterShiftLines(o: {
 /**
  * YOUR EGGS, TO GOAL (28 Oct 2026, pieha: the total time to the goal, not only the next TE). Every egg's line in the
  * "to goal" view, by egg:
- *   Fastest to N TE (`teLeft`, the goal's TE less the save's): if every TE still to earn came from this egg, by its own
+ *   Fastest to N TE (`teLeft`, the goal's TE less the save's): if every TE still to earn came from this egg, up to its
+ *     last TE (farmFacts `eggGoalTE`: a bigger goal takes it to its last TE, the rest from the others), by its own
  *     thresholds: the egg being laid at the save's rate (farmFacts `goalInSeconds`), "to goal about 4d 5h at this
  *     rate"; every other egg from a shift to it (the after-shift model above), "to goal about 4d 5h after you shift
- *     here". Past the egg's last TE, or over about 10 years, it says so.
+ *     here". An egg with no TE left, or over about 10 years, says so.
  *   By a date: the plan's finish, the same for every egg ("to goal: 412 TE <when>, in ~5d 3h").
  * Empty without a goal (or a By a date goal without a plan). Pure.
  */
@@ -218,8 +219,8 @@ export function eggGoalLines(o: {
   if (!(g.teLeft > 0)) return out;
   for (const e of o.eggs) {
     const d = o.delivered[e.egg] ?? 0;
-    const need = countTEThresholdsPassed(d) + Math.ceil(g.teLeft);
-    if (need > TE_BREAKPOINTS.length) {
+    const need = eggGoalTE(countTEThresholdsPassed(d), g.teLeft);
+    if (need == null) {
       out[e.egg] = 'to goal: more TE than this egg has left';
       continue;
     }
@@ -285,8 +286,8 @@ export function eggClockLines(o: {
     const t = eggNextTeSeconds({ delivered: d, current: false, population: 0, totalTe: o.totalTe, rates: o.rates });
     if (t != null && Number.isFinite(t) && t <= cap && when(from + t)) next[e.egg] = `next TE about ${when(from + t)}${tail}`;
     if (o.teLeft != null && o.teLeft > 0 && o.rates) {
-      const need = countTEThresholdsPassed(d) + Math.ceil(o.teLeft);
-      if (need > TE_BREAKPOINTS.length) continue;
+      const need = eggGoalTE(countTEThresholdsPassed(d), o.teLeft);
+      if (need == null) continue;
       const tg = goalAfterShiftSeconds(d, need, o.totalTe, o.rates);
       if (Number.isFinite(tg) && tg <= cap && when(from + tg)) goal[e.egg] = `to goal about ${when(from + tg)}${tail}`;
     }
