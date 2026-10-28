@@ -64,7 +64,10 @@ describe('Simulate this plan (simulateRoute)', () => {
     const store = mods.chain.useChainSearchStore();
     store.setFirstAscension('continue');
     // Priced under Prestige now: its build, though Your setup says Continue now.
-    const fresh = mods.sim.instantSimulate({ legs: [{ label: '3-sale-tier13' }] }, { start: START, firstAscension: 'fresh' });
+    const fresh = mods.sim.instantSimulate(
+      { legs: [{ label: '3-sale-tier13' }] },
+      { start: START, firstAscension: 'fresh' }
+    );
     mods.sim.simulateRoute([218, 247, 277, 313], 'by-date', fresh.opts);
     expect(store.classicFirstPick()).toEqual({ 0: '3-sale-tier13' });
     // Priced under Fastest with a build-up A1: no pick (Classic's own fastest), not Your setup's Continue.

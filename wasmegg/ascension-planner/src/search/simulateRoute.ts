@@ -20,7 +20,13 @@ import { NAMES } from '@/lib/siteNav';
 export function simulateRoute(
   chain: number[],
   back: 'fastest' | 'by-date',
-  opts: { start?: number; legs?: LegSummary[]; firstAscension?: FirstAscension; firstKey?: VariantKey; from?: string } = {}
+  opts: {
+    start?: number;
+    legs?: LegSummary[];
+    firstAscension?: FirstAscension;
+    firstKey?: VariantKey;
+    from?: string;
+  } = {}
 ): void {
   const store = useChainSearchStore();
   const ui = useUIStore();
