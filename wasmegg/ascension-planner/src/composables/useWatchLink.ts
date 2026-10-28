@@ -203,7 +203,7 @@ function post(a: ActiveWatch, retry = false, statusOnly = false): void {
         activeWatch.value = { ...activeWatch.value, lastOkAt: at, lastError: '', fails: 0 };
         return;
       }
-      failed(a.link.id, `the collector said ${res.status}`);
+      failed(a.link.id, `the planner's server said ${res.status}`);
       if (res.status === 429 && retry) {
         const wait = Math.min(120, Math.max(1, Number(res.headers.get('retry-after')) || 60));
         if (retryTimer) clearTimeout(retryTimer);
