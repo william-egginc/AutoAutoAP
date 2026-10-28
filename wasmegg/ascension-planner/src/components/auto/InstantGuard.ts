@@ -10,7 +10,8 @@
  * never shows.
  *
  * What threw is kept (lib/renderGuard.ts `cardErrorOf`: name, message, where, 3 stack lines, no ID, no URL query):
- * one tagged console line, and a closed "Details" fold in the message (crash2, 26 Oct 2026).
+ * one tagged console line, and a closed "Details" fold in the message (crash2, 26 Oct 2026). Details keeps the first
+ * throw until Show it again; each later one still gets its console line (ux29-c, 27 Oct 2026).
  */
 import { defineComponent, getCurrentInstance, h, onErrorCaptured, ref } from 'vue';
 import { INSTANT_FAILED, cardErrorLog, cardErrorOf, cardErrorText, isRenderFailure, type CardError } from '@/lib/renderGuard';
@@ -28,7 +29,9 @@ export default defineComponent({
       if (!self || instance?.$parent !== self || !isRenderFailure(info)) return;
       const e = cardErrorOf(err, info);
       console.error(cardErrorLog(e));
-      caught.value = e;
+      // The FIRST throw is what went wrong: an update stopped half way throws again on the next one (Chrome, ux29-c:
+      // "reading 'nextSibling'", then "reading 'emitsOptions'"), and Details showed only that later one.
+      if (!caught.value) caught.value = e;
       failed.value = true;
       return false;
     });
