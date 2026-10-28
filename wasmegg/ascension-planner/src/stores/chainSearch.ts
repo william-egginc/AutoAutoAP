@@ -9183,12 +9183,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * plan"): `start`, the plan start it was priced from (instead of `planStartUsed`, the last run's),
    * and `legs`, its simulated ascensions (for time off), since it is in none of this run's caches.
    * `firstAscension`: the setting the route was priced under (a saved By a date answer's own), which
-   * then decides Classic's A1 pick (`classicFirstPick`) instead of Your setup's setting now.
+   * then decides Classic's A1 pick (`classicFirstPick`) instead of Your setup's setting now. `firstKey`: the build
+   * the route's A1 took, when it has no `legs` (the instant answer's routes).
    */
   function applyChain(
     chain: number[],
     alsoGenerate = false,
-    opts?: { start?: number; legs?: LegSummary[]; firstAscension?: FirstAscension }
+    opts?: { start?: number; legs?: LegSummary[]; firstAscension?: FirstAscension; firstKey?: VariantKey }
   ): void {
     const planner = useAutoPlannerStore();
     // Results priced on a run's own older save, with the latest save loaded since ("Load my latest
@@ -9263,10 +9264,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // itself, so leaving it in would ask for it twice.
     seedOverride.value = chain.filter(v => v !== finalTE.value).join(' ');
     // The build the search took for A1, for Classic's pick under Prestige now (`classicFirstPick`).
-    appliedFirstLeg = legs[0]?.key
+    // `firstKey`: the instant answer's A1, for a route with no legs here (search/simulateRoute.ts `instantSimulate`).
+    const firstKey = legs[0]?.key ?? opts?.firstKey;
+    appliedFirstLeg = firstKey
       ? {
           targets: (planner.targetTE || '').trim().split(/\s+/).join(' '),
-          key: legs[0].key,
+          key: firstKey,
           mode: opts?.firstAscension ?? usedSettings().firstAscension,
           ...(opts?.firstAscension ? { own: true } : {}),
         }

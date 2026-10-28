@@ -193,6 +193,7 @@ function ctxOf(s: State): Record<string, unknown> {
     pressRun: () => {},
     prestige: null,
     boxPrestige: null,
+    boxSimulateNote: '',
     prestigeFlag: { enabled: { value: false }, beta: true },
     prestigeStatus: 'idle',
     result,

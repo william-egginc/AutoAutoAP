@@ -375,6 +375,9 @@
                 :deadline="deadline"
               />
             </div>
+            <p v-if="boxSimulateNote" class="text-small text-emerald-900/70" data-testid="box-simulate-note">
+              {{ boxSimulateNote }}
+            </p>
             <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts). -->
             <BetterRoutePrompt
               v-if="!staleAt"
@@ -554,6 +557,9 @@
               :plan-start="answerStart"
             />
           </div>
+          <p v-if="boxSimulateNote" class="text-small text-emerald-900/70" data-testid="box-simulate-note">
+            {{ boxSimulateNote }}
+          </p>
           <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts). -->
           <BetterRoutePrompt
             v-if="!staleAt"
@@ -922,7 +928,8 @@ import {
   type SnapWhatIf,
 } from '@/search/instantSnapshot';
 import { savedAnswerFits, tablesIdentity } from '@/search/instantTables';
-import { simulateRoute } from '@/search/simulateRoute';
+import { instantSimulate, simulateRoute } from '@/search/simulateRoute';
+import type { FirstAscension } from '@/search/firstAscension';
 import InstantSteps from './InstantSteps.vue';
 import { NAMES, SIMULATE_TITLE, simulateNote } from '@/lib/siteNav';
 import NoInstantAnswer from './NoInstantAnswer.vue';
@@ -1982,6 +1989,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     prestige.value = null;
     prestigeStatus.value = 'idle';
     answerStart.value = inputs.planStart;
+    answerFirst.value = inputs.firstAscension ?? null;
     ms.value = performance.now() - t0;
     status.value = 'done';
     if (props.deadline) emitRoutes(answer);
@@ -2088,8 +2096,21 @@ const answerStart = ref(0);
  * from (search/simulateRoute.ts).
  */
 function openPlan(chain: number[]): void {
-  simulateRoute(chain, props.deadline ? 'by-date' : 'fastest', answerStart.value ? { start: answerStart.value } : {});
+  const { opts } = instantSimulate(routeOf(chain), { start: answerStart.value, firstAscension: answerFirst.value });
+  simulateRoute(chain, props.deadline ? 'by-date' : 'fastest', opts);
 }
+/** The first-ascension setting the answer on screen was priced under (null for a saved answer put back: not kept). */
+const answerFirst = ref<FirstAscension | null>(null);
+/** The answer's route with these stops, wherever it is shown (the boxes, the rows), for its legs. */
+function routeOf(chain: readonly number[]): Route | null {
+  const found = result.value;
+  if (!found) return null;
+  const want = key(chain);
+  const all = [found.best, found.byDate, ...dateRowsOf(found), ...fastestRowsOf(found)];
+  return all.find((r): r is Route => !!r && key(r.chain) === want) ?? null;
+}
+/** Under the box's Simulate this plan: Single run can't continue a build-up, so its dates for this route run later. */
+const boxSimulateNote = computed(() => instantSimulate(boxRoute.value, {}).note);
 /** "Follow this route": the goal My runs' Right now follows it for (lib/follow.ts). */
 const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
 /** When the answer on screen was worked out (ms; a snapshot's own time when restored): a route followed before it is
