@@ -105,6 +105,10 @@ describe('how often it checks', () => {
 
 /** A running build known only by its build time (no notes of its own). */
 const built = (builtAt: string, noteAts: string[] = []) => ({ builtAt, noteAts });
+/** The listed notes as "text" for an older one and "text (new)" for one newer than the tab (UX35-b). */
+/** One listed note, newer than the tab. */
+const n = (note: string) => ({ at: '2026-10-06T15:00:00Z', note, isNew: true });
+const listed = (r: ReturnType<typeof releaseFrom>) => r.notes.map(n => (n.isNew ? `${n.note} (new)` : n.note));
 
 describe('how much an update matters', () => {
   const live = (since: string, note = '') => ({
@@ -141,14 +145,14 @@ describe('how much an update matters', () => {
   });
 
   it('never drops from a reload back to a small note', () => {
-    const reload = { level: 'essential' as const, notes: ['fixes'], more: 0 };
-    expect(raiseLevel(reload, { level: 'small', notes: ['wording'], more: 0 }).level).toBe('essential');
+    const reload = { level: 'essential' as const, notes: [n('fixes')], more: 0 };
+    expect(raiseLevel(reload, { level: 'small', notes: [n('wording')], more: 0 }).level).toBe('essential');
     expect(raiseLevel({ level: 'small', notes: [], more: 0 }, reload).level).toBe('essential');
     expect(raiseLevel(null, { level: 'small', notes: [], more: 0 }).level).toBe('small');
   });
 
   it('takes the notes from the newest check, even when it keeps the higher level', () => {
-    const reload = { level: 'essential' as const, notes: ['old'], more: 2 };
+    const reload = { level: 'essential' as const, notes: [n('old')], more: 2 };
     expect(raiseLevel(reload, { level: 'small', notes: [], more: 0 })).toEqual({
       level: 'essential',
       notes: [],
@@ -163,25 +167,30 @@ describe('how much an update matters', () => {
       { at: '2026-10-05T20:00:00Z', note: 'older tweak', level: 'small' },
     ];
     const v = { release: { reloadIfBuiltBefore: '2026-10-01T00:00:00Z', note: 'tweak', history } };
-    expect(releaseFrom(v, built('2026-10-05T21:00:00Z'))).toEqual({
-      level: 'big',
-      notes: ['tweak', 'heat map'],
-      more: 0,
-    });
-    expect(releaseFrom(v, built('2026-10-06T10:00:00Z'))).toEqual({ level: 'small', notes: ['tweak'], more: 0 });
-    expect(releaseFrom(v, built('2026-10-06T16:00:00Z'))).toEqual({ level: 'small', notes: [], more: 0 });
+    const a = releaseFrom(v, built('2026-10-05T21:00:00Z'));
+    expect(a.level).toBe('big');
+    expect(listed(a)).toEqual(['tweak (new)', 'heat map (new)', 'older tweak']);
+    // The heat map is older than this tab: it is listed, but does not make the update big.
+    const b = releaseFrom(v, built('2026-10-06T10:00:00Z'));
+    expect(b.level).toBe('small');
+    expect(listed(b)).toEqual(['tweak (new)', 'heat map', 'older tweak']);
+    const c = releaseFrom(v, built('2026-10-06T16:00:00Z'));
+    expect(c.level).toBe('small');
+    expect(listed(c)).toEqual(['tweak', 'heat map', 'older tweak']);
   });
 
   it('essential beats big: a tab older than reloadIfBuiltBefore is asked to reload', () => {
     const history = [{ at: '2026-10-06T04:00:00Z', note: 'heat map', level: 'big' }];
     const v = { release: { reloadIfBuiltBefore: '2026-10-06T00:00:00Z', note: 'heat map', history } };
-    expect(releaseFrom(v, built('2026-10-05T00:00:00Z'))).toEqual({ level: 'essential', notes: ['heat map'], more: 0 });
+    const r = releaseFrom(v, built('2026-10-05T00:00:00Z'));
+    expect(r.level).toBe('essential');
+    expect(listed(r)).toEqual(['heat map (new)']);
   });
 
   it('levels only go up: small < big < essential', () => {
-    const small = { level: 'small' as const, notes: ['s'], more: 0 };
-    const big = { level: 'big' as const, notes: ['b'], more: 0 };
-    const essential = { level: 'essential' as const, notes: ['e'], more: 0 };
+    const small = { level: 'small' as const, notes: [n('s')], more: 0 };
+    const big = { level: 'big' as const, notes: [n('b')], more: 0 };
+    const essential = { level: 'essential' as const, notes: [n('e')], more: 0 };
     expect(raiseLevel(big, small).level).toBe('big');
     expect(raiseLevel(small, big).level).toBe('big');
     expect(raiseLevel(essential, big).level).toBe('essential');
@@ -202,18 +211,25 @@ describe('the stale note (26 Oct 2026)', () => {
   ];
   const v = { release: { reloadIfBuiltBefore: '2026-10-17T23:00:00Z', note: history[0].note, history } };
 
-  it('a tab built after every note lists nothing, and never falls back to the top-level note', () => {
-    expect(releaseFrom(v, built('2026-10-25T18:00:00Z'))).toEqual({ level: 'small', notes: [], more: 0 });
+  it('a tab built after every note tags none "New", and never falls back to the top-level note', () => {
+    const r = releaseFrom(v, built('2026-10-25T18:00:00Z'));
+    expect(r.level).toBe('small');
+    expect(listed(r)).toEqual([history[0].note, history[1].note]);
   });
 
-  it('a Release 5 tab, built before the note’s go-live time but carrying it, lists nothing', () => {
+  it('a Release 5 tab, built before the note’s go-live time but carrying it, tags none "New"', () => {
     const r5 = built(
       '2026-10-22T21:00:00Z',
       history.map(h => h.at)
     );
-    expect(releaseFrom(v, r5)).toEqual({ level: 'small', notes: [], more: 0 });
-    // The same tab by build time alone would have listed Release 5’s own note.
-    expect(releaseFrom(v, built('2026-10-22T21:00:00Z')).notes).toEqual([history[0].note]);
+    const r = releaseFrom(v, r5);
+    expect(r.level).toBe('small');
+    expect(listed(r)).toEqual([history[0].note, history[1].note]);
+    // The same tab by build time alone would have tagged Release 5’s own note "New".
+    expect(listed(releaseFrom(v, built('2026-10-22T21:00:00Z')))).toEqual([
+      `${history[0].note} (new)`,
+      history[1].note,
+    ]);
   });
 
   it('a Release 5 tab lists a Release 6 note once one is live', () => {
@@ -227,10 +243,17 @@ describe('the stale note (26 Oct 2026)', () => {
           history.map(h => h.at)
         )
       )
-    ).toEqual({
-      level: 'small',
-      notes: ['Release 6 note'],
-      more: 0,
-    });
+    ).toMatchObject({ level: 'small', more: 0 });
+    expect(
+      listed(
+        releaseFrom(
+          v6,
+          built(
+            '2026-10-22T21:00:00Z',
+            history.map(h => h.at)
+          )
+        )
+      )
+    ).toEqual(['Release 6 note (new)', history[0].note, history[1].note]);
   });
 });
