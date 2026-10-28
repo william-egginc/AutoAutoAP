@@ -11,9 +11,10 @@
   <!-- A SMALL update (wording, looks): a small note in the corner, dismissible for good. Players
        asked for the difference: the same loud banner on every deploy taught them to ignore it, and
        they could not tell a real fix from a wording change (2026-09-25).
-       Every level lists ONLY the release notes newer than this tab's build (lib/updateNotes.ts), at
-       most five plus "+N more"; with none it says just "Small update available" and lists nothing
-       (26 Oct 2026: tabs listed Release 5's note, which they already had). -->
+       Every level lists the release notes newest first, each with its date, at most five plus
+       "+N more"; the ones newer than this tab's build are tagged "New" (lib/updateNotes.ts), the older
+       ones are listed plain (UX35-b, 28 Oct 2026). With no notes at all it says just "Small update
+       available" and lists nothing. -->
   <div
     v-if="available && release.level === 'small' && !dismissed"
     class="fixed top-3 right-3 z-[1100] w-[min(92vw,22rem)] rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-lg"
@@ -21,17 +22,23 @@
     data-testid="update-banner-small"
   >
     <p class="text-body max-w-prose">
-      <span class="font-bold text-slate-900">Small update available</span>.{{ ' '
-      }}<template v-if="hasNotes">New:</template
-      ><template v-else
-        >No need to reload now; you will get it next time you open the page.<template v-if="note"
+      <span class="font-bold text-slate-900">Small update available</span>.<template v-if="!hasNotes"
+        >{{ ' ' }}No need to reload now; you will get it next time you open the page.<template v-if="note"
           >{{ ' ' }}If you reload anyway, {{ note }}.</template
         ></template
       >
     </p>
-    <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-body" data-testid="update-notes">
-      <li v-for="(n, i) in shown" :key="i">{{ n }}</li>
-      <li v-if="more > 0" class="list-none -ml-4 text-slate-500">+{{ more }} more</li>
+    <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-body space-y-0.5" data-testid="update-notes">
+      <li v-for="n in shown" :key="n.at" data-testid="update-note">
+        <span class="tabular-nums text-slate-500">{{ n.date }}</span
+        >{{ ' '
+        }}<template v-if="n.isNew"
+          ><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label" data-testid="update-note-new"
+            >New</span
+          >{{ ' ' }}</template
+        >{{ n.note }}
+      </li>
+      <li v-if="more > 0" class="list-none -ml-4 text-slate-500 tabular-nums">+{{ more }} more</li>
     </ul>
     <p v-if="hasNotes" class="mt-1 text-body max-w-prose">
       No need to reload now; you will get it next time you open the page.<template v-if="note"
@@ -70,9 +77,17 @@
     <div class="text-body flex-1 min-w-[14rem]">
       <span class="font-bold">New on the planner</span><template v-if="hasNotes">:</template
       ><template v-else>.</template>
-      <ul v-if="hasNotes" class="mt-1 list-disc pl-4" data-testid="update-notes">
-        <li v-for="(n, i) in shown" :key="i">{{ n }}</li>
-        <li v-if="more > 0" class="list-none -ml-4 text-sky-800">+{{ more }} more</li>
+      <ul v-if="hasNotes" class="mt-1 list-disc pl-4 space-y-0.5" data-testid="update-notes">
+        <li v-for="n in shown" :key="n.at" data-testid="update-note">
+          <span class="tabular-nums text-sky-800">{{ n.date }}</span
+          >{{ ' '
+          }}<template v-if="n.isNew"
+            ><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label" data-testid="update-note-new"
+              >New</span
+            >{{ ' ' }}</template
+          >{{ n.note }}
+        </li>
+        <li v-if="more > 0" class="list-none -ml-4 text-sky-800 tabular-nums">+{{ more }} more</li>
       </ul>
       <p class="mt-1">You’ll get it next time you open the page, or reload when convenient.</p>
     </div>
@@ -104,13 +119,21 @@
   >
     <!-- The fix comes first, and the notes (release.ts) are what else is new: they are usually a
          feature list, and read as the fix it said the new Explorer views were something this tab
-         could run into (review, 2026-09-27). The advice is its own sentence. -->
+         could run into (review, 2026-09-27). The advice is its own sentence. The list has no lead-in
+         ("Also new:" until 28 Oct 2026): it now holds older notes too, and "New" tags the newer ones. -->
     <div class="text-body font-bold flex-1 min-w-[14rem]">
-      Please reload: this tab is missing a fix from a newer version.{{ advice
-      }}<template v-if="hasNotes">{{ ' ' }}Also new:</template>
-      <ul v-if="hasNotes" class="mt-1 list-disc pl-4 font-normal" data-testid="update-notes">
-        <li v-for="(n, i) in shown" :key="i">{{ n }}</li>
-        <li v-if="more > 0" class="list-none -ml-4">+{{ more }} more</li>
+      Please reload: this tab is missing a fix from a newer version.{{ advice }}
+      <ul v-if="hasNotes" class="mt-1 list-disc pl-4 font-normal space-y-0.5" data-testid="update-notes">
+        <li v-for="n in shown" :key="n.at" data-testid="update-note">
+          <span class="tabular-nums text-amber-800">{{ n.date }}</span
+          >{{ ' '
+          }}<template v-if="n.isNew"
+            ><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label" data-testid="update-note-new"
+              >New</span
+            >{{ ' ' }}</template
+          >{{ n.note }}
+        </li>
+        <li v-if="more > 0" class="list-none -ml-4 tabular-nums">+{{ more }} more</li>
       </ul>
     </div>
     <div class="flex items-center gap-2">
@@ -137,6 +160,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useNewVersion } from '@/composables/useNewVersion';
+import { localZone, noteDate } from '@/lib/updateNotes';
 
 const props = defineProps<{
   /** The page's own HTML, relative to it: `./` for the planner, `./explorer.html` for the Explorer. */
@@ -152,12 +176,23 @@ const TAP = 'inline-flex items-center justify-center min-h-[44px] sm:min-h-0';
 
 const { available, release } = useNewVersion(props.pageUrl, props.entry);
 
-/** The notes newer than this tab's build, each without a trailing full stop (the list has none). */
-const shown = computed(() => release.value.notes.map(n => n.trim().replace(/[.\s]+$/, '')).filter(Boolean));
+/** The notes, newest first, each with its date in the player's zone and without a trailing full stop (the list has
+ *  none); `isNew` when newer than this tab's build. */
+const shown = computed(() => {
+  const zone = localZone();
+  return release.value.notes
+    .map(n => ({ ...n, note: n.note.trim().replace(/[.\s]+$/, ''), date: noteDate(n.at, zone) }))
+    .filter(n => n.note);
+});
 const hasNotes = computed(() => shown.value.length > 0);
 const more = computed(() => release.value.more);
-/** Which notes the big banner showed: dismissing it holds until a newer note arrives. */
-const notesKey = computed(() => `${shown.value.join('\n')}|${more.value}`);
+/** Which newer notes the big banner showed: dismissing it holds until a newer note arrives. */
+const notesKey = computed(() =>
+  shown.value
+    .filter(n => n.isNew)
+    .map(n => n.at)
+    .join('|')
+);
 
 /** The advice as a sentence of its own, capitalised, after the ones before it. In the text itself, not
  *  a template: a leading space alone in a `<template>` is dropped when the page is compiled. */

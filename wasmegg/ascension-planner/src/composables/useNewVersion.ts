@@ -28,7 +28,7 @@
  */
 import { onMounted, onUnmounted, ref } from 'vue';
 import { buildIdFrom, startBuildCount } from '@/lib/buildCount';
-import { notesNewerThan, type RunningBuild } from '@/lib/updateNotes';
+import { listNotes, type ListedNote, type RunningBuild } from '@/lib/updateNotes';
 
 /** The hashed entry script for `entry` (`index`, `explorer`) named in this HTML, or null. */
 export function entryScriptIn(html: string, entry: string): string | null {
@@ -52,10 +52,11 @@ export type ReleaseLevel = 'small' | 'big' | 'essential';
 
 export interface ReleaseInfo {
   level: ReleaseLevel;
-  /** The release notes newer than this tab's build (lib/updateNotes.ts), newest first, at most MAX_SHOWN; empty
-   *  when there are none, and then the banner says only "Small update available" (or asks for the reload). */
-  notes: string[];
-  /** How many more newer notes did not fit ("+N more"). */
+  /** The release notes (lib/updateNotes.ts), newest first, at most MAX_SHOWN, each marked whether it is newer than
+   *  this tab's build ("New"); empty only when version.json has none, and then the banner says only "Small update
+   *  available" (or asks for the reload). */
+  notes: ListedNote[];
+  /** How many more notes did not fit ("+N more"). */
   more: number;
 }
 
@@ -76,22 +77,22 @@ export const RUNNING_BUILD: RunningBuild = {
  * A version.json without the marker (from before this existed), or a tab that does not know its
  * own build time, counts as "essential": the only kind of notice there used to be.
  *
- * The notes are ONLY the history entries newer than this tab's build (lib/updateNotes.ts). The
- * top-level `release.note` is never shown: it is always the newest entry, so a tab that already had
- * every note listed that one anyway -- the stale "Joo’s latest planner..." Release 5 note in tabs
- * running Release 5 or later (26 Oct 2026).
+ * The notes are the history entries, newest first, each marked whether it is newer than this tab's
+ * build (lib/updateNotes.ts): the banner lists them all and tags the newer ones "New" (UX35-b, 28 Oct
+ * 2026). Only a newer note can make the update big. The top-level `release.note` is never shown: it is
+ * always the newest entry, which a tab running Release 5 or later already had (26 Oct 2026).
  */
 export function releaseFrom(versionJson: unknown, running: RunningBuild = RUNNING_BUILD): ReleaseInfo {
   const r = versionJson && typeof versionJson === 'object' ? (versionJson as LiveEntries).release : null;
   if (!r || typeof r !== 'object') return { level: 'essential', notes: [], more: 0 };
   const since = (r as { reloadIfBuiltBefore?: unknown }).reloadIfBuiltBefore;
-  const newer = notesNewerThan((r as { history?: unknown }).history, running);
-  const notes = newer.shown.map(h => h.note);
-  const more = newer.more;
+  const listed = listNotes((r as { history?: unknown }).history, running);
+  const notes = listed.shown;
+  const more = listed.more;
   const ownBuildTime = running?.builtAt ?? '';
   if (typeof since !== 'string' || !since || !ownBuildTime) return { level: 'essential', notes, more };
   if (ownBuildTime < since) return { level: 'essential', notes, more };
-  return { level: newer.anyBig ? 'big' : 'small', notes, more };
+  return { level: listed.anyBig ? 'big' : 'small', notes, more };
 }
 
 const RANK: Record<ReleaseLevel, number> = { small: 0, big: 1, essential: 2 };
