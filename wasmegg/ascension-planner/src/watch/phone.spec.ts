@@ -131,6 +131,41 @@ describe('the phone page', () => {
     expect(fetches).toHaveLength(4);
   });
 
+  it('a read that never answers (the phone locked part-way through one) does not stop the page reading', async () => {
+    // ux35-f: with no answer and no error, the page used to stay "busy" for good and only redraw its old
+    // reading, its "Last update" growing older (and then "Not reporting") while the run kept reporting.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
+    let hang = true;
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      fetches.push(url);
+      if (!hang) return reply();
+      return new Promise<Response>((_, reject) =>
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('The operation was aborted.', 'AbortError'))
+        )
+      );
+    });
+    await startAt(`#${ID}.${SECRET}`);
+    expect(fetches).toHaveLength(1);
+    hang = false;
+    await vi.advanceTimersByTimeAsync(60_000);
+    await settle();
+    expect(fetches).toHaveLength(2);
+    expect(els['p-title'].textContent).toBe('Running');
+    // Coming back into view reads at once too, even with a read left hanging from before.
+    hang = true;
+    await vi.advanceTimersByTimeAsync(60_000);
+    visibility = 'hidden';
+    docListeners.visibilitychange();
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    hang = false;
+    visibility = 'visible';
+    docListeners.visibilitychange();
+    await settle();
+    expect(fetches).toHaveLength(4);
+    expect(els['p-title'].textContent).toBe('Running');
+  });
+
   it('the plain status wins over the sealed one (a page that closed sends only that)', async () => {
     const sealed = await sealHeartbeat(SECRET, hb);
     reply = async () => new Response(JSON.stringify({ ...sealed, status: 'stopped', updated: T0, now: T0 }));
