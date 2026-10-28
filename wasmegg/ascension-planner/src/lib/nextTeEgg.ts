@@ -32,10 +32,10 @@ import { calculateLayRate } from '@/calculations/layRate';
 import { calculateShippingCapacity } from '@/calculations/shippingCapacity';
 import { calculateIHR } from '@/calculations/internalHatcheryRate';
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
-import { nextTEThreshold } from '@/lib/truthEggs';
+import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold, TE_BREAKPOINTS } from '@/lib/truthEggs';
 import { dateAt } from './eventWhen';
 import { compactDuration } from './duration';
-import { NEXT_TE_CAP_DAYS, type FarmInput } from './farmFacts';
+import { NEXT_TE_CAP_DAYS, type EggLine, type FarmInput } from './farmFacts';
 
 /** Above this many TE in all the habs are taken as full straight after a shift (Jordan, 26 Oct 2026). */
 export const RAMP_TE_LIMIT = 100;
@@ -183,4 +183,78 @@ export function afterShiftLines(o: {
     if (line) out[e.egg] = line;
   }
   return out;
+}
+
+/**
+ * YOUR EGGS, TO GOAL (28 Oct 2026, pieha: the total time to the goal, not only the next TE). Every egg's line in the
+ * "to goal" view, by egg:
+ *   Fastest to N TE (`teLeft`, the goal's TE less the save's): if every TE still to earn came from this egg, by its own
+ *     thresholds: the egg being laid at the save's rate (farmFacts `goalInSeconds`), "to goal about 4d 5h at this
+ *     rate"; every other egg from a shift to it (the after-shift model above), "to goal about 4d 5h after you shift
+ *     here". Past the egg's last TE, or over about 10 years, it says so.
+ *   By a date: the plan's finish, the same for every egg ("to goal: 412 TE <when>, in ~5d 3h").
+ * Empty without a goal (or a By a date goal without a plan). Pure.
+ */
+export function eggGoalLines(o: {
+  eggs: readonly EggLine[];
+  delivered: Partial<Record<string, number>>;
+  totalTe: number;
+  rates: ShiftRates | null;
+  goal: { kind: 'te'; teLeft: number } | { kind: 'date'; endTE: number; finish: number; zone: string } | null;
+  now: number;
+  saveSeconds: number;
+}): Record<string, string> {
+  const out: Record<string, string> = {};
+  const g = o.goal;
+  if (!g) return out;
+  const since = Math.max(0, o.now - o.saveSeconds);
+  const cap = NEXT_TE_CAP_DAYS * 86400;
+  if (g.kind === 'date') {
+    if (!Number.isFinite(g.finish) || !(g.finish > o.now)) return out;
+    const line = `to goal: ${g.endTE} TE ${dateAt(g.finish, o.now, g.zone)}, in ~${compactDuration(g.finish - o.now)}`;
+    for (const e of o.eggs) out[e.egg] = line;
+    return out;
+  }
+  if (!(g.teLeft > 0)) return out;
+  for (const e of o.eggs) {
+    const d = o.delivered[e.egg] ?? 0;
+    const need = countTEThresholdsPassed(d) + Math.ceil(g.teLeft);
+    if (need > TE_BREAKPOINTS.length) {
+      out[e.egg] = 'to goal: more TE than this egg has left';
+      continue;
+    }
+    if (e.current) {
+      if (e.goalInSeconds == null) continue;
+      const left = e.goalInSeconds - since;
+      out[e.egg] = left > cap ? 'to goal: not at this rate (over 10 years)' : `to goal about ${aboutWords(left)} at this rate`;
+      continue;
+    }
+    const r = o.rates;
+    if (!r) continue;
+    const remaining = Math.max(0, getThresholdForTE(need) - d);
+    const t = o.totalTe > RAMP_TE_LIMIT ? remaining / r.maxElr : rampSeconds(remaining, { ...r, pop0: 0 });
+    if (!Number.isFinite(t) || t > cap) out[e.egg] = 'to goal after you shift here: not at this rate (over 10 years)';
+    else out[e.egg] = `to goal about ${aboutWords(t)} after you shift here`;
+  }
+  return out;
+}
+
+/** Your eggs' view, remembered in this browser: 'next' (next TE, the default) or 'goal'. */
+export type EggsView = 'next' | 'goal';
+export const EGGS_VIEW_KEY = 'aap-eggs-view';
+
+export function readEggsView(): EggsView {
+  try {
+    return localStorage.getItem(EGGS_VIEW_KEY) === 'goal' ? 'goal' : 'next';
+  } catch {
+    return 'next';
+  }
+}
+
+export function writeEggsView(v: EggsView): void {
+  try {
+    localStorage.setItem(EGGS_VIEW_KEY, v);
+  } catch {
+    // Not kept: the page still shows it.
+  }
 }

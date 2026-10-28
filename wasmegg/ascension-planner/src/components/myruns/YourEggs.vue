@@ -7,10 +7,34 @@
   (lib/shiftCost.ts); without a saved timeline it can't tell. With the instant answer's shifts only (26 Oct 2026) it
   counts the shifts listed plus each fresh ascension's build-up shifts, estimated (lib/openingShifts.ts, 27 Oct 2026),
   and says so.
+  NEXT TE | TO GOAL (28 Oct 2026, pieha): a two-way switch; "to goal" gives every egg its time to the goal
+  (lib/nextTeEgg.ts `eggGoalLines`). Remembered in this browser; "next TE" by default; no switch without a goal.
 -->
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white p-4" data-testid="now-eggs">
-    <p class="text-body font-bold text-slate-500">Your eggs · from your save</p>
+    <div class="flex flex-wrap items-center gap-2">
+      <p class="text-body font-bold text-slate-500">Your eggs · from your save</p>
+      <div
+        v-if="hasGoal"
+        class="ml-auto inline-flex rounded-lg border border-slate-300 overflow-hidden"
+        role="group"
+        aria-label="Show for each egg"
+        data-testid="now-eggs-view"
+      >
+        <button
+          v-for="o in VIEWS"
+          :key="o.value"
+          type="button"
+          class="min-h-[44px] px-3 text-body"
+          :class="view === o.value ? 'bg-indigo-600 text-white font-bold' : 'bg-white text-slate-700 hover:bg-slate-50'"
+          :aria-pressed="view === o.value ? 'true' : 'false'"
+          :data-view="o.value"
+          @click="pick(o.value)"
+        >
+          {{ o.label }}
+        </button>
+      </div>
+    </div>
     <div class="mt-2 grid grid-cols-1 sm:grid-cols-5 gap-2.5">
       <div v-for="e in eggs" :key="e.egg" data-testid="now-egg">
         <p class="text-body" :class="e.current ? 'font-bold text-slate-900' : 'text-slate-700'">
@@ -19,7 +43,10 @@
         <div class="h-1.5 rounded bg-slate-100 overflow-hidden my-1" role="img" :aria-label="`${Math.round(e.progress * 100)}% to the next TE`">
           <div class="h-1.5 bg-indigo-500" :style="{ width: `${Math.round(e.progress * 100)}%` }" />
         </div>
-        <p v-if="shiftLine(e.egg)" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-after-shift">{{ shiftLine(e.egg) }}</p>
+        <p v-if="view === 'goal' && hasGoal" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-to-goal">
+          {{ goalLines?.[e.egg] || nextLine(e) }}
+        </p>
+        <p v-else-if="shiftLine(e.egg)" class="text-body tabular-nums text-slate-600 break-words" data-testid="now-egg-after-shift">{{ shiftLine(e.egg) }}</p>
         <p v-else class="text-body text-slate-500">{{ nextLine(e) }}</p>
       </div>
     </div>
@@ -35,12 +62,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { formatNumber } from '@/lib/format';
 import { virtueEggName } from '@/lib/virtueEggs';
 import { formatSiloTime } from '@/stores/silos';
 import { nextTeLine, type EggLine, type FarmFacts } from '@/lib/farmFacts';
 import { siloNow, siloNowWords } from '@/lib/farmNow';
+import { readEggsView, writeEggsView, type EggsView } from '@/lib/nextTeEgg';
 
 const props = defineProps<{
   eggs: EggLine[];
@@ -60,7 +88,22 @@ const props = defineProps<{
    *  (lib/nextTeEgg.ts). It stands in for the egg's "N% to the next TE · after a shift" line; an egg left out (at the
    *  TE cap, no data) keeps that line. */
   afterShift?: { lines: Record<string, string>; note: string } | null;
+  /** Each egg's time to the goal, by egg (lib/nextTeEgg.ts `eggGoalLines`); empty or absent: no switch. */
+  goalLines?: Record<string, string> | null;
+  /** The view to start on (specs); absent: the one remembered in this browser. */
+  view?: EggsView;
 }>();
+
+const VIEWS: { value: EggsView; label: string }[] = [
+  { value: 'next', label: 'next TE' },
+  { value: 'goal', label: 'to goal' },
+];
+const view = ref<EggsView>(props.view ?? readEggsView());
+const hasGoal = computed(() => !!props.goalLines && Object.keys(props.goalLines).length > 0);
+function pick(v: EggsView): void {
+  view.value = v;
+  writeEggsView(v);
+}
 
 /** lib/farmFacts.ts `nextTeLine`: capped at about 10 years ("not at this rate"). */
 function nextLine(e: EggLine): string {

@@ -97,7 +97,7 @@ import {
   type PricedSetup,
 } from '@/lib/currentAnswer';
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
-import { afterShiftLines, afterShiftNote, shiftRates } from '@/lib/nextTeEgg';
+import { afterShiftLines, afterShiftNote, eggGoalLines, shiftRates } from '@/lib/nextTeEgg';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
 import { soulEggsAfterLine } from '@/lib/soulEggs';
 import { dateStanding, raceStanding, type Standing } from '@/lib/standing';
@@ -1686,6 +1686,31 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!Object.keys(lines).length) return null;
     return { lines, note: afterShiftNote(totalTe, saveSeconds.value, now.value, zone.value) };
   });
+  /** Your eggs' "to goal" view (28 Oct 2026, pieha; lib/nextTeEgg.ts `eggGoalLines`): every egg's time to the goal
+   *  picked on Right now. Fastest to N TE: its TE left; By a date: the plan's finish (none without a plan). */
+  const goalLines = computed<Record<string, string>>(() => {
+    if (!hasSave.value || !onVirtue.value) return {};
+    const shown = shownTile.value;
+    const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
+    const p = cardPlan.value?.plan;
+    const goal =
+      shown.goal === 'fastest'
+        ? shown.target > totalTe
+          ? { kind: 'te' as const, teLeft: shown.target - totalTe }
+          : null
+        : p
+          ? { kind: 'date' as const, endTE: p.endTE, finish: planFinish(p), zone: zone.value }
+          : null;
+    return eggGoalLines({
+      eggs: eggs.value,
+      delivered: saveEggCountsOf(raw.value).delivered,
+      totalTe,
+      rates: fullHabRates.value,
+      goal,
+      now: now.value,
+      saveSeconds: saveSeconds.value,
+    });
+  });
   const shiftsDone = computed(() => (raw.value as { virtue?: { shiftCount?: number | null } } | null)?.virtue?.shiftCount ?? 0);
   const soulEggs = computed(() => (raw.value as { game?: { soulEggsD?: number | null } } | null)?.game?.soulEggsD ?? 0);
   const nextShiftCost = computed(() => (raw.value ? nextShiftCostAt(soulEggs.value, shiftsDone.value) : null));
@@ -1849,6 +1874,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     gear,
     facts,
     afterShift,
+    goalLines,
     phase,
     startInfo,
     eggs,
