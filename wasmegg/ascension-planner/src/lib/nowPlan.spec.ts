@@ -216,8 +216,7 @@ describe('planFromSnapshot: the route the green box shows (Prefer fewer, 26 Oct 
   });
 
   it('a date: the route with the fewest ascensions reaching the same TE; Off: the highest TE', () => {
-    // Every route has over a day to spare: none is tight (a tight one is not picked over a best with room, ux34-c).
-    const deadline = T0 + 80 * H;
+    const deadline = T0 + 60 * H;
     const date: SnapLike = {
       ...race,
       result: {
@@ -231,13 +230,13 @@ describe('planFromSnapshot: the route the green box shows (Prefer fewer, 26 Oct 
     expect(same.chain).toEqual([194, 200]);
     expect(same.endTE).toBe(200);
     expect(same.instantTE).toBe(200);
-    expect(same.spareHours).toBe(35);
+    expect(same.spareHours).toBe(15);
     expect(same.runnerUp).toBeNull();
     // Within 1 TE: the 1-ascension route at 199.
     expect(planFromSnapshot(date, 'date', deadline, { kind: 'te', te: 1 })!.chain).toEqual([199]);
     const off = planFromSnapshot(date, 'date', deadline, PREFER_OFF)!;
     expect(off.chain).toEqual([188, 194, 200]);
-    expect(off.spareHours).toBe(50);
+    expect(off.spareHours).toBe(30);
   });
 
   it('by default the margin stored for the screen (the defaults without one): within 12 h, same TE; a stored Off', () => {

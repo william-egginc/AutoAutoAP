@@ -9,10 +9,8 @@
  * better one (Fastest: sooner; By a date: higher TE, then more spare). By a date "same TE" is a margin of 0 TE:
  * the fewest ascensions that reach the best TE with any spare above 0.
  *
- * Never a tight route for one with room (ux34-c, 28 Oct 2026; Egg Day's "same TE" picked 218 247 277 313 with 9 h to
- * spare over 197 218 247 285 313 with 25 h): By a date, when the best is not tight, a tight route is not offered, so
- * the box leads with the next-fewest that is not tight, else the best. When the best is tight itself nothing changes.
- * Tight is the box's own test (lib/spareLine.ts `isTightSpare`).
+ * A tight route is picked like any other (ux35-c, 28 Oct 2026: ux34-c's "never a tight route for one with room" was a
+ * misunderstanding and is gone); Egg Day's 197 218 247 285 313 is kept by the quick-first-stop rule below.
  *
  * A dropped first stop that only finishes the current ascension soon is not an ascension saved (Jordan, 28 Oct 2026:
  * "same TE" swapped 197 218 247 285 313, a prestige at 197 two days out, for 218 247 277 313, the current ascension
@@ -26,7 +24,6 @@
  * Pure: no Vue, no stores (the storage helpers guard every localStorage access).
  */
 import type { LegSummary } from './types';
-import { isTightSpare } from '@/lib/spareLine';
 
 export type PreferGoal = 'fastest' | 'date';
 
@@ -138,16 +135,8 @@ export interface PreferChoice<T> {
   prestigesFewer: number;
   /** Null when either route's shifts are not known, or when the chosen route does not have fewer. */
   shiftsFewer: number | null;
-  /** By a date: a route with fewer ascensions inside the margin was passed over because it is tight and the best is not. */
-  skippedTight: boolean;
   /** A route with fewer stops only dropped the best's quick first stop, so it was not counted as fewer. */
   keptFirstStop: boolean;
-}
-
-/** What the caller knows beyond the rows. */
-export interface PreferOptions {
-  /** The gear caveat with its days window shows for this answer (lib/spareLine.ts): tight then reaches into it. */
-  gearCaveat?: boolean;
 }
 
 const teOf = (r: PreferRow<unknown>) => r.endTE ?? 0;
@@ -169,8 +158,7 @@ export function choosePreferFewer<T>(
   goal: PreferGoal,
   rows: readonly PreferRow<T>[],
   margin: PreferMargin,
-  best?: PreferRow<T> | null,
-  options: PreferOptions = {}
+  best?: PreferRow<T> | null
 ): PreferChoice<T> | null {
   const top = best ?? rows.reduce<PreferRow<T> | null>((a, r) => (!a || better(goal, r, a) ? r : a), null);
   if (!top) return null;
@@ -183,7 +171,6 @@ export function choosePreferFewer<T>(
     ascensionsFewer: 0,
     prestigesFewer: 0,
     shiftsFewer: null,
-    skippedTight: false,
     keptFirstStop: false,
   };
   if (margin.kind === 'off') return plain;
@@ -201,20 +188,12 @@ export function choosePreferFewer<T>(
     if (r.spare !== undefined && r.spare <= 0) return false;
     return teOf(r) >= teOf(top) - Math.max(0, margin.te);
   };
-  const tight = (r: PreferRow<T>) => r.spare !== undefined && isTightSpare(r.spare, options.gearCaveat);
-  // By a date only: a best with room is never traded for a tight route (a best of unknown spare: nothing changes).
-  const guard = goal === 'date' && top.spare !== undefined && !tight(top);
-  let skippedTight = false;
   let chosen: PreferRow<T> | null = null;
   for (const r of fewer) {
     if (!inside(r)) continue;
-    if (guard && tight(r)) {
-      skippedTight = true;
-      continue;
-    }
     if (!chosen || saving(r) > saving(chosen) || (saving(r) === saving(chosen) && better(goal, r, chosen))) chosen = r;
   }
-  if (!chosen) return { ...plain, state: 'none', skippedTight, keptFirstStop };
+  if (!chosen) return { ...plain, state: 'none', keptFirstStop };
   const n = saving(chosen);
   const shifts = top.shifts !== null && chosen.shifts !== null ? top.shifts - chosen.shifts : null;
   return {
@@ -226,7 +205,6 @@ export function choosePreferFewer<T>(
     ascensionsFewer: n,
     prestigesFewer: n,
     shiftsFewer: shifts !== null && shifts > 0 ? shifts : null,
-    skippedTight,
     keptFirstStop,
   };
 }
@@ -357,16 +335,14 @@ export interface BoxRouteLike {
  * The route the green box shows, from a saved answer's routes (Jordan, 26 Oct 2026: My runs' Right now and the
  * instant baseline follow the box, not the best): `best` (Fastest `result.best`, By a date `result.byDate`) and the
  * rows per count (`byAscensions` / `byDateByAscensions`), chosen with `margin` as InstantRoute's box does (By a date
- * the spare is to `deadline`, tight as the box's test). The best with the margin Off, when nothing fits, or without a
- * best. `options.gearCaveat`: as `choosePreferFewer`; a saved answer does not keep it, so it is off unless given.
+ * the spare is to `deadline`). The best with the margin Off, when nothing fits, or without a best.
  */
 export function boxRouteOf<R extends BoxRouteLike>(
   goal: PreferGoal,
   best: R | null | undefined,
   rows: readonly (R | null | undefined)[] | null | undefined,
   margin: PreferMargin,
-  deadline: number | null = null,
-  options: PreferOptions = {}
+  deadline: number | null = null
 ): R | null {
   if (!best || !Array.isArray(best.chain) || !best.chain.length) return best ?? null;
   if (margin.kind === 'off') return best;
@@ -387,7 +363,7 @@ export function boxRouteOf<R extends BoxRouteLike>(
     (r): r is R => !!r && Array.isArray(r.chain) && r.chain.length > 0 && Number.isFinite(r.end) && r.chain.join(',') !== k
   );
   const top = rowOf(best);
-  const choice = choosePreferFewer(goal, [top, ...others.map(rowOf)], margin, top, options);
+  const choice = choosePreferFewer(goal, [top, ...others.map(rowOf)], margin, top);
   return choice?.state === 'fewer' ? choice.chosen.item : best;
 }
 

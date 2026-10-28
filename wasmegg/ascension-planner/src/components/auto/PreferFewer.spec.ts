@@ -179,8 +179,8 @@ describe('InstantRoute wiring', () => {
       /const rowOf = \(r: Route\): PreferRow<Route> => \(\{\s+item: r,\s+ascensions: r\.legs\.length,\s+finish: r\.end,\s+shifts: null,\s+first: firstStopOf\(r\.legs, r\.chain\),/
     );
     expect(route).toMatch(/spare: deadline - d\.end,\s+shifts: null,\s+first: d\.first,/);
-    // The box's tight test and its pick agree (gear caveat included; ux34-c).
-    expect(route).toContain("top, { gearCaveat: shiftedTable.value });");
+    // No tight rule in the pick (ux35-c): the box's tight tag does not reach choosePreferFewer.
+    expect(route).toContain("choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top);");
     expect(route).not.toContain('shiftCount(');
   });
 });
