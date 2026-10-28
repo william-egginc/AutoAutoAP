@@ -157,7 +157,17 @@ describe('the words and the follow suggestions', () => {
       'components/auto/RouteResultCard.vue',
       'components/auto/SavedAnswers.vue',
       'components/auto/SavedRuns.vue',
+      'components/auto/TopRoutes.vue',
     ]);
+    // More routes (TopRoutes.vue, item 12, 27 Oct 2026): each Follow behind `canFollow`, which By a date feeds with
+    // `followableAnswer` on the route as the result keeps it.
+    const top = src('components/auto/TopRoutes.vue');
+    expect(top.match(/<FollowButton\s+v-if="canFollow\((r|chosen)\)"/g)).toHaveLength(2);
+    expect(top).toContain('return !!props.follow && (!props.followable || props.followable(r));');
+    expect(src('components/auto/DeadlinePanel.vue')).toContain(':followable="dateTopFollowable"');
+    expect(src('components/auto/DeadlinePanel.vue')).toContain(
+      "return !!res && followableAnswer(dateRoutesByKey.value.get(r.chain.join(',')), res.deadline);"
+    );
     expect(src('components/auto/ByDateRouteCard.vue')).toContain('<FollowButton\n            v-if="follow"');
   });
 });

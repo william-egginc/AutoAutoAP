@@ -995,6 +995,17 @@
                 (going to the home farm is a prestige), and a rebuild starts after it.
               </p>
             </RouteResultCard>
+            <!-- More than the single best (TopRoutes.vue, item 12): the best 5 priced and the best per ascension count,
+                 closed by default; Simulate goes through the card's own `buildPlan`. -->
+            <TopRoutes
+              v-if="ownRun && !store.isRunning && store.bestDays > 0 && store.pricedCount > 1"
+              goal="fastest"
+              :routes="() => store.topPricedRoutes"
+              :zone="autoPlannerStore.timezone || plannerTzFallback"
+              :follow="customFollow"
+              :busy="store.busy"
+              @simulate="buildPlan"
+            />
           </template>
           <!-- When to start this route: Science › When should I start? (StartTimeCard.vue), opened on it. Not for a
              player already on virtue (lib/onVirtue.ts): their first ascension has started. -->
@@ -1174,6 +1185,7 @@ import { NICKNAME_MAX, useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import TopRoutes from './TopRoutes.vue';
 import RouteExtras from './RouteExtras.vue';
 import SoulEggWarning from '../SoulEggWarning.vue';
 import { queueCountLine } from '@/lib/queueCount';
@@ -2215,8 +2227,9 @@ const goal = computed<'fastest' | 'deadline'>({
 });
 
 /** Into the Auto Planner with this run's best chain -- time off worked in -- and build it there. */
-function buildPlan(): void {
-  store.applyChain([...store.bestChain]);
+/** Simulate this plan: the card's best, or a route from More routes (TopRoutes.vue). */
+function buildPlan(chain: readonly number[] = store.bestChain): void {
+  store.applyChain([...chain]);
   store.generateWhenPlannerOpens = true;
   ui.openPlannerRequested++;
 }
