@@ -20,6 +20,9 @@
       </p>
     </div>
 
+    <!-- The save's age, a newer save on the server and Load latest save (ux29 item 4; quiet when it is fresh). -->
+    <AutoSaveStrip screen="fastest" />
+
     <!-- One order on both search screens: the instant answer, then the two ways to search, one shown at a
          time (SearchPanel.vue: Fast | Exact | Custom, 22 Oct; was two tabs, Allan, 14 Oct). Your setup is the
          floating Setup button (SetupDock.vue): here only the save's problems, if any. "When should I
@@ -107,6 +110,7 @@ import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
 import ExhaustivePromise from './ExhaustivePromise.vue';
 import YourSetup from './YourSetup.vue';
+import AutoSaveStrip from './AutoSaveStrip.vue';
 import { useUIStore } from '@/stores/ui';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import { formatHours } from '@/search/exhaustive';
