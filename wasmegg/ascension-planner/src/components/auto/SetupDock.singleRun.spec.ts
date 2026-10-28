@@ -81,7 +81,8 @@ describe('the Setup pill on Single run', () => {
       "useBottomBarRoom(computed(() => setupDockShown.value && plannerTab.value === 'automatic' && autoView.value === 'classic'))"
     );
     // The page's room under its content grows by the bar's, so its last lines scroll clear of the bar and the pill.
-    expect(app).toContain('? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${singleRunBarRoom.value}px)`');
+    // (Plus the second row's room when the pill wraps below 320 px, SetupDock.narrow.spec.ts.)
+    expect(app).toContain('? `calc(env(safe-area-inset-bottom, 0px) + 6rem + ${NARROW_PILL_ROOM} + ${singleRunBarRoom.value}px)`');
     const bar = readFileSync('src/components/auto/ChainSummaryBar.vue', 'utf8');
     expect(bar).toContain(`class="${SINGLE_RUN_BAR} fixed bottom-0 left-0 right-0`);
   });

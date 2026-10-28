@@ -9,11 +9,12 @@
   <div ref="dock" class="fixed z-50" :style="dockStyle">
     <!-- Opens on whichever side of the pill has room, wherever it has been dragged. Never scrolls sideways (ux31-a,
          27 Oct 2026: on an iPhone it opened shifted left, "Setup" read as "p"): what is too wide is clipped, and
-         anything that scrolls it sideways (iOS bringing a focused box into view) is put back (keepLeft). -->
+         anything that scrolls it sideways (iOS bringing a focused box into view) is put back (keepLeft). At most the
+         screen less the pill's 1rem and 4 px, else with larger text (a bigger rem) it started off the left edge (ux32-b). -->
     <div
       v-if="ui.setupOpen"
       ref="panel"
-      class="absolute w-[min(94vw,46rem)] max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
+      class="absolute w-[min(94vw,calc(100vw-1rem-4px),46rem)] max-h-[70vh] overflow-y-auto overflow-x-hidden rounded-2xl border-2 border-indigo-200 bg-white shadow-[0_16px_40px_rgba(0,0,0,0.3)]"
       :class="[opensUp ? 'bottom-full mb-2' : 'top-full mt-2', alignRight ? 'right-0' : 'left-0']"
       role="dialog"
       aria-label="Setup"
@@ -38,10 +39,15 @@
          Auto Planner's 56rem column instead of over its right edge (UX review 26 Oct, #18: it covered "Every number
          of ascensions ›"). On My runs it stays the full one-row pill at every width (Jordan, 26 Oct 2026: players turn
          the workers down mid-run): from xl its summary wraps at 13rem and the pill is at most 27rem wide. My runs keeps
-         its full width and the pill floats over it (draggable); App.vue's bottom room lets the last lines clear it. -->
+         its full width and the pill floats over it (draggable); App.vue's bottom room lets the last lines clear it.
+         One row is 297 px; below about 313 px (an iPhone with Safari's text size up) it ran off the left edge, drag
+         handle first (ux32-b, 28 Oct 2026). It now wraps instead, the workers together on a second row, never wider
+         than the screen less 2rem; its 1.75rem corners are a pill on one row and still round on two. On My runs Setup
+         and its summary take what the row leaves (basis-0 grow), so the summary wraps under Setup and the workers stay
+         on the row while Setup's longest word fits; − and + never shrink below 44 px (at 342 px they were 34), nor the gear. -->
     <div
-      class="flex items-center gap-1 rounded-full bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5"
-      :class="stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:max-w-[27rem] xl:rounded-2xl'"
+      class="flex flex-wrap items-center justify-center gap-1 rounded-[1.75rem] bg-indigo-600 text-white shadow-xl pl-1 pr-2 py-1.5 max-w-[calc(100vw-2rem)]"
+      :class="stacked ? 'xl:w-40 xl:flex-wrap xl:justify-center xl:rounded-2xl' : 'xl:flex-nowrap xl:max-w-[27rem] xl:rounded-2xl'"
       data-testid="setup-dock-pill"
     >
       <!-- Drag it anywhere (the user, 30 Sept); where it was left is remembered. Double-click puts it back. -->
@@ -56,12 +62,13 @@
       <button
         type="button"
         class="relative flex items-center gap-1.5 min-h-[44px] sm:min-h-0 rounded-full px-2.5 py-1 hover:bg-white/15"
+        :class="summary ? 'basis-0 grow xl:basis-auto xl:grow-0' : ''"
         :aria-expanded="ui.setupOpen"
         aria-label="Setup"
         :title="ui.setupOpen ? 'Close Setup' : 'Open Setup'"
         @click="ui.setupOpen = !ui.setupOpen"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -80,30 +87,34 @@
           :title="`${errors} problem${errors > 1 ? 's' : ''} with your save`"
         ></span>
       </button>
-      <span class="w-px h-5 bg-white/30" :class="stacked ? 'xl:hidden' : ''" aria-hidden="true"></span>
+      <!-- Below 320 px the workers wrap to a second row, where the divider would only end the first. -->
+      <span class="w-px h-5 bg-white/30 max-[319px]:hidden" :class="stacked ? 'xl:hidden' : ''" aria-hidden="true"></span>
       <span v-if="stacked" class="hidden xl:block basis-full h-0" aria-hidden="true"></span>
-      <!-- Workers, adjustable folded: a running search resizes to it within about a minute. -->
-      <button
-        type="button"
-        class="w-11 h-11 sm:w-6 sm:h-6 rounded-full hover:bg-white/15 font-bold disabled:opacity-40"
-        :disabled="store.workerBudget <= 1"
-        aria-label="Fewer workers"
-        @click="setWorkers(store.workerBudget - 1)"
-      >
-        −
-      </button>
-      <span class="text-small font-bold tabular-nums whitespace-nowrap" :title="`Workers ${thisDevice()} gives the searches`"
-        >{{ store.workerBudget }}/{{ store.machineThreads }} workers</span
-      >
-      <button
-        type="button"
-        class="w-11 h-11 sm:w-6 sm:h-6 rounded-full hover:bg-white/15 font-bold disabled:opacity-40"
-        :disabled="store.workerBudget >= store.machineThreads"
-        aria-label="More workers"
-        @click="setWorkers(store.workerBudget + 1)"
-      >
-        +
-      </button>
+      <!-- Workers, adjustable folded: a running search resizes to it within about a minute. One group, so they wrap
+           together. -->
+      <span class="flex items-center gap-1" data-testid="setup-dock-workers">
+        <button
+          type="button"
+          class="w-11 h-11 sm:w-6 sm:h-6 shrink-0 rounded-full hover:bg-white/15 font-bold disabled:opacity-40"
+          :disabled="store.workerBudget <= 1"
+          aria-label="Fewer workers"
+          @click="setWorkers(store.workerBudget - 1)"
+        >
+          −
+        </button>
+        <span class="text-small font-bold tabular-nums whitespace-nowrap" :title="`Workers ${thisDevice()} gives the searches`"
+          >{{ store.workerBudget }}/{{ store.machineThreads }} workers</span
+        >
+        <button
+          type="button"
+          class="w-11 h-11 sm:w-6 sm:h-6 shrink-0 rounded-full hover:bg-white/15 font-bold disabled:opacity-40"
+          :disabled="store.workerBudget >= store.machineThreads"
+          aria-label="More workers"
+          @click="setWorkers(store.workerBudget + 1)"
+        >
+          +
+        </button>
+      </span>
     </div>
   </div>
 </template>
