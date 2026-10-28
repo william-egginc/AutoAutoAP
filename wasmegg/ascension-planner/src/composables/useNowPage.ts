@@ -148,6 +148,7 @@ import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
+import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
@@ -1248,7 +1249,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * ascension, when its plan has the table's times, simulated once per save, route and setup in one chain worker
    * (composables/useCurrentSim.ts, never while a search runs). The request carries a builder: the evaluator's inputs
    * are read from the stores once, in the run, never here.
+   *
+   * AN UNFINISHED BUILD (27 Oct 2026, pieha: mid-ascension, not all vehicles bought, Next step "Shift to Curiosity"
+   * then the delivery loop, no build-up). The first-ascension rule was Your setup's (Soonest: finish without buying,
+   * carry on the build or prestige, whichever ends first), so a frozen farm's delivery loop could be the ascension you
+   * are in. When the save's build isn't finished (lib/saveBuild.ts) the ascension you are in IS the build carried on:
+   * simulated as 'buildup' with finishing without buying left out (`continueMaxSeconds` 0), unless Your setup says
+   * Prestige now (a fresh start, its own choice). Its setup key says so, so a record kept the other way isn't read.
    */
+  const saveBuildLeft = computed(() => (hasSave.value && onVirtue.value ? buildLeft(farm.value) : null));
   const simRequest = computed<SimRequest | null>(() => {
     // Any followed route without exact legs, whether the table's estimate is in, being worked out or couldn't be made
     // (26 Oct 2026: a route the estimate couldn't price still gets its Next step from the ascension you are in).
@@ -1259,12 +1268,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const route = followedFromNow(p ? p.chain : fs.card.chain, teSoFar.value);
     if (!route.length) return null;
     const useHours = useHoursFromStores();
+    const building = !!saveBuildLeft.value?.length && store.firstAscension !== 'fresh';
     const setup = simSetupKey({
       availability: store.availability,
       useHours,
       timeOff: store.timeOff,
       noPrestige: store.noPrestige,
-      firstAscension: store.firstAscension,
+      firstAscension: building ? 'buildup, build unfinished' : store.firstAscension,
       deferShifts: !!store.deferShifts,
     });
     const backupTime = saveSeconds.value;
@@ -1276,8 +1286,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       setup,
       inputs: () => {
         const i = store.collectInputs();
+        // The build carried on (above), unless the plan starts too late to continue the save (firstAscensionFor).
+        const carryOn = building && i.firstAscension !== 'fresh' ? { firstAscension: 'buildup' as const, continueMaxSeconds: 0 } : {};
         // One ascension, not the whole route: no dated milestones to meet; the hours only as the answers use them.
-        return { ...i, milestones: [], ...(useHours ? {} : { availability: null }) };
+        return { ...i, ...carryOn, milestones: [], ...(useHours ? {} : { availability: null }) };
       },
     };
   });
@@ -1440,6 +1452,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   });
   /** The route goes on past the legs known (no plan: only the simulated ascension). */
   const moreThanKnown = computed(() => !cardPlan.value && (simRequest.value?.route.length ?? 0) > 1);
+  /** The simulated ascension you are in carries on the save's unfinished build: what is left (lib/nextAction.ts
+   *  "Keep building"). Only a 'buildup' leg builds; a 'continue' leg buys nothing. */
+  const keepBuilding = (variant: string | null | undefined): Pick<ActionLeg, 'building'> =>
+    variant === 'buildup' && saveBuildLeft.value?.length ? { building: [...saveBuildLeft.value] } : {};
   const actionLegs = computed<ActionLeg[]>(() => {
     const p = cardPlan.value?.plan;
     // No timeline for the route: the ascension you are in alone, once simulated.
@@ -1456,12 +1472,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
               simulated: true,
               ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
               ...(continuesFarm(leg.key) ? { live: true } : {}),
+              ...keepBuilding(leg.key),
               ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             },
           ]
         : [];
     if (p.legs) return [];
-    return (p.tableLegs ?? []).slice(0, p.chain.length).map(l => ({
+    return (p.tableLegs ?? []).slice(0, p.chain.length).map((l, i) => ({
       to: l.to,
       endTE: l.endTE,
       start: l.start,
@@ -1470,6 +1487,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       ...(l.simulated ? { simulated: true } : {}),
       ...(l.buildEnd !== undefined ? { buildEnd: l.buildEnd } : {}),
       ...(continuesFarm(l.variant) ? { live: true } : {}),
+      ...(i === 0 && l.simulated ? keepBuilding(l.variant) : {}),
       ...(l.timeOff ? { timeOff: l.timeOff } : {}),
     }));
   });

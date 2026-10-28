@@ -5,6 +5,9 @@
  *   before the ascension starts      "Prestige at <time>" (a fresh start the simulation waits for)
  *   in the build-up                  "Building up until about <time>": the time before its first shift (a leg that
  *                                    continues the ascension as it is has no build-up)
+ *   the save's build unfinished      "Keep building: vehicles and habs until about <time>": the build-up carried on
+ *                                    from the save (27 Oct 2026, pieha), until its build phase ends; first in the
+ *                                    Next shifts list too, then the shifts
  *   between shifts                   "Shift to <egg> at <time>"
  *   after the last shift             "Prestige at <time>" (held for the hours and no-prestige days), or on the
  *                                    route's last ascension "Reach <TE> TE at <time>"
@@ -17,6 +20,7 @@
  * Pure: `now` and the prestige rule are parameters.
  */
 import { virtueEggName } from './virtueEggs';
+import { buildLeftWords } from './saveBuild';
 
 /** One ascension as these read it: the simulated one (`simulated`) or the table's. */
 export interface ActionLeg {
@@ -34,6 +38,9 @@ export interface ActionLeg {
   /** It carries on the farm in the save ('continue' or 'buildup': the farm is already laying), never a fresh start:
    *  never "Building up" (26 Oct 2026, a producing farm on Curiosity read "Building up until …"). */
   live?: boolean;
+  /** The save's build isn't finished (lib/saveBuild.ts `buildLeft`: 'vehicles', 'habs') and this leg carries it on
+   *  ('buildup'): "Keep building" until `buildEnd`. */
+  building?: string[];
   /** The simulated ascension is cut by time off (lib/followSim.ts SimLeg.timeOff): it ends at `from` with `te` (the home
    *  farm is a prestige), and the rebuild starts at `to`. */
   timeOff?: { from: number; to: number; te: number; rebuildBuildEnd?: number };
@@ -49,6 +56,7 @@ function partAt(leg: ActionLeg, now: number): ActionLeg {
     ...leg,
     start: t.to,
     live: false,
+    building: undefined,
     timeOff: undefined,
     buildEnd: t.rebuildBuildEnd,
     shifts: (leg.shifts ?? []).filter(s => s.at >= t.to),
@@ -62,6 +70,8 @@ export function continuesFarm(key: string | null | undefined): boolean {
 
 export type NextAction =
   | { kind: 'build'; until: number }
+  /** The save's build carried on: what is left to buy, until the build phase ends. */
+  | { kind: 'keepbuilding'; until: number; left: string[] }
   | { kind: 'shift'; egg: string; at: number }
   /** `inTimeOff`: it would fall in a time off (the estimate knows none): said in amber, never as a plain time. */
   | { kind: 'prestige'; at: number; te: number | null; inTimeOff?: { from: number; to: number } }
@@ -79,6 +89,12 @@ function buildUntil(leg: ActionLeg): number | null {
   if (leg.live || !ok(leg.buildEnd) || !(leg.buildEnd > leg.start)) return null;
   const first = (leg.shifts ?? []).find(s => ok(s.at));
   return first ? first.at : leg.buildEnd;
+}
+
+/** The save's build carried on in this leg: until its build phase ends (null when not, or already past it). */
+function keepBuildingUntil(leg: ActionLeg, now: number): number | null {
+  if (!leg.building?.length || !ok(leg.buildEnd) || !(leg.buildEnd > leg.start) || !(now < leg.buildEnd)) return null;
+  return leg.buildEnd;
 }
 
 /**
@@ -111,6 +127,8 @@ function nextActionOf(o: {
   if (t && o.now >= t.from && o.now < t.to) return { kind: 'back', at: t.to };
   const leg = partAt(o.leg, o.now);
   if (o.now < leg.start) return { kind: 'prestige', at: leg.start, te: null };
+  const keep = keepBuildingUntil(leg, o.now);
+  if (keep !== null) return { kind: 'keepbuilding', until: keep, left: [...leg.building!] };
   const until = buildUntil(leg);
   if (until !== null && o.now < until) return { kind: 'build', until };
   const next = (leg.shifts ?? []).find(s => ok(s.at) && s.at > o.now);
@@ -125,6 +143,7 @@ function nextActionOf(o: {
  *  "Reach 490 TE at …". `when` formats a moment (lib/displayTime.ts `showDateTime`). */
 export function nextActionWords(a: NextAction, when: (t: number) => string): string {
   if (a.kind === 'build') return `Building up until about ${when(a.until)}`;
+  if (a.kind === 'keepbuilding') return `Keep building: ${buildLeftWords(a.left)} until about ${when(a.until)}`;
   if (a.kind === 'shift') return `Shift to ${virtueEggName(a.egg)} at ${when(a.at)}`;
   if (a.kind === 'goal') return `Reach ${a.te} TE at ${when(a.at)}`;
   if (a.kind === 'timeoff') return `Your time off starts ${when(a.at)}: go to your home farm (this ascension ends at ${a.te} TE)`;
@@ -136,7 +155,7 @@ export function nextActionWords(a: NextAction, when: (t: number) => string): str
 
 /** One line of the Next shifts list. */
 export interface NextShiftLine {
-  kind: 'build' | 'shift' | 'prestige' | 'goal' | 'timeoff' | 'back';
+  kind: 'build' | 'keepbuilding' | 'shift' | 'prestige' | 'goal' | 'timeoff' | 'back';
   /** The shift's egg (switched TO). */
   egg?: string;
   /** The moment: the shift, the prestige, the goal reached, or the build-up's end. */
@@ -147,6 +166,8 @@ export interface NextShiftLine {
   exact: boolean;
   /** A prestige that would fall in a time off (the estimate knows none). */
   inTimeOff?: boolean;
+  /** 'keepbuilding': what the save's build still has to buy. */
+  left?: string[];
 }
 
 /**
@@ -205,6 +226,9 @@ function shiftLines(o: {
         out.push({ kind: 'shift', egg: s.egg, at: s.at, exact });
         if (++shifts >= max) return out;
       }
+    } else if (i === 0 && leg.simulated && keepBuildingUntil(leg, o.now) !== null) {
+      // The save's build carried on: said first, then every shift (those made while building too).
+      out.push({ kind: 'keepbuilding', at: leg.buildEnd!, left: [...leg.building!], exact });
     } else if (i === 0 && leg.simulated) {
       const until = buildUntil(leg);
       // Not when its first shift is at the same moment (the minute shown): two lines with one time.
@@ -239,6 +263,7 @@ function shiftLines(o: {
 export function nextShiftWords(l: NextShiftLine, when: (t: number, exact: boolean) => string): string {
   const t = `about ${when(l.at, l.exact)}`;
   if (l.kind === 'build') return `Building up until ${t}`;
+  if (l.kind === 'keepbuilding') return `Keep building: ${buildLeftWords(l.left ?? [])} until ${t}`;
   if (l.kind === 'shift') return `Shift to ${virtueEggName(l.egg)} · ${t}`;
   if (l.kind === 'goal') return `${l.te} TE reached · ${t}`;
   if (l.kind === 'timeoff') return `Time off: to your home farm at ${l.te} TE · ${t}`;
