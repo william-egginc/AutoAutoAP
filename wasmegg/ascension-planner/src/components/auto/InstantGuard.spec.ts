@@ -250,6 +250,41 @@ describe('InstantGuard keeps what went wrong', () => {
     expect(cardErrorOf(new Error('x'.repeat(1000))).message.length).toBeLessThanOrEqual(300);
   });
 
+  // ux29-c (27 Oct 2026): in Chrome the card's update threw "reading 'nextSibling'" and, stopped half way, the next
+  // one threw "reading 'emitsOptions'"; Details showed only the second, which says nothing about the cause.
+  it('a second throw: Details keeps the first, both get their console line; Show it again starts over', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const which = ref<'first' | 'second' | 'none'>('first');
+    const Card = defineComponent({
+      setup: () => () => {
+        if (which.value === 'first') throw new TypeError("Cannot read properties of null (reading 'nextSibling')");
+        if (which.value === 'second') throw new TypeError("Cannot read properties of null (reading 'emitsOptions')");
+        return h('section', 'Instant answer: 312 TE');
+      },
+    });
+    const { root } = mount(Card);
+    await nextTick();
+    which.value = 'second';
+    await nextTick();
+    await nextTick();
+    const text = textOf(byTestId(root, 'instant-failed-error')!);
+    expect(text).toContain("(reading 'nextSibling')");
+    expect(text).not.toContain('emitsOptions');
+    expect(spy.mock.calls.map(c => String(c[0]))).toEqual([
+      "[instant] card could not be drawn: TypeError: Cannot read properties of null (reading 'nextSibling')",
+      "[instant] card could not be drawn: TypeError: Cannot read properties of null (reading 'emitsOptions')",
+    ]);
+    (byTestId(root, 'instant-failed-again')!.props.onClick as () => void)();
+    await nextTick();
+    expect(textOf(byTestId(root, 'instant-failed-error')!)).toContain("(reading 'emitsOptions')");
+    which.value = 'none';
+    (byTestId(root, 'instant-failed-again')!.props.onClick as () => void)();
+    await nextTick();
+    expect(byTestId(root, 'instant-failed')).toBeNull();
+    expect(textOf(root)).toBe('Instant answer: 312 TE');
+    spy.mockRestore();
+  });
+
   it('scrubErrorText: every ID and every URL query goes, the rest stays', () => {
     expect(scrubErrorText(`no save for ${ID} or ei0000000000000001`)).toBe('no save for EI… or EI…');
     expect(scrubErrorText('GET https://c.example/prefs?k=abc123&x=1 failed')).toBe('GET https://c.example/prefs failed');

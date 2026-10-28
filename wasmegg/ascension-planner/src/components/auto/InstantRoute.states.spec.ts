@@ -209,6 +209,7 @@ function ctxOf(s: State): Record<string, unknown> {
     shareText: '',
     shareThis: false,
     shareTo: '#search-share-by-date',
+    shareEl: null,
     shiftedTable: true,
     show: (unix: number) => `t${unix}`,
     showFinish: (unix: number) => `t${unix}`,

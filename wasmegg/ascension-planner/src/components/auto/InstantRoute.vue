@@ -769,8 +769,12 @@
   <!-- "Share this result" for that search result (search/instantRecord.ts), at the bottom of the search panel
        when the screen has one (`shareTo`). The Teleport itself lives as long as the card: only what is in it comes and
        goes. A deferred Teleport removed before it reached its target (an answer, or the integrity hold, changing within
-       one update) throws in Vue 3.5 and stops the card's update half way (InstantGuard.spec.ts). -->
-  <Teleport v-if="instantUrl" defer :to="shareTo || 'body'" :disabled="!shareTo">
+       one update) throws in Vue 3.5 and stops the card's update half way (InstantGuard.spec.ts). Not deferred, and
+       never to a selector: `shareEl` is the panel's element, looked up once the page is drawn and again as the line
+       is about to show (composables/useShareTarget.ts); none found, and the line shows under the answer. A Teleport
+       looks a selector up once, and a panel missing at that moment left it with no target, so the line showing
+       later threw inside the card's update (ux29-c, 27 Oct 2026: InstantShareTarget.spec.ts). -->
+  <Teleport v-if="instantUrl" :to="shareEl ?? 'body'" :disabled="!shareEl">
     <InstantShareCheck
       v-if="pointer && result && !noTable && !integrityHold && !staleAt"
       v-model:share-this="shareThis"
@@ -972,6 +976,7 @@ import { bracketHeadline, bracketLine, type BracketLineInput } from '@/lib/brack
 import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
 import { baselineOfSnapshot, recordBaseline } from '@/lib/instantBaseline';
 import { instantLiveText } from '@/lib/liveStatus';
+import { useShareTarget } from '@/composables/useShareTarget';
 
 const props = defineProps<{
   /** Highest TE by a date: the unix second. Without it, the fastest route to the target. */
@@ -2955,6 +2960,13 @@ watch(searchFound, f => {
 });
 /** "Fast found 312 TE on your account." (lib/searchPointer.ts), or null. */
 const pointer = computed(() => pointerOf(props.deadline ? 'date' : 'fastest', searchFound.value, show));
+/** Where "Share this result" goes: the search panel's element (`shareTo`), looked up after mount and again each time
+ *  the line is about to show; null (the line under the answer) when the panel isn't on the page. The same condition
+ *  as the line's own `v-if` in the template. */
+const shareShown = computed(
+  () => !!(pointer.value && result.value && !noTable.value && !integrityHold.value && !staleAt.value)
+);
+const shareEl = useShareTarget(() => props.shareTo, shareShown);
 /** "See it ↓": the part of the search panel that holds the result, shown, then scrolled to its result card. */
 function seeResult(): void {
   const f = searchFound.value;
