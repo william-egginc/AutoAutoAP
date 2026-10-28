@@ -2210,7 +2210,8 @@ const dateChoice = computed<PreferChoice<DatePick> | null>(() => {
   });
   const others = dateRows.value.map(tableDate).filter(d => key(d.chain) !== key(best.chain));
   const top = rowOf(best);
-  return choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top);
+  // Tight as the box's tag says it (gear caveat included): a best with room is never traded for a tight route.
+  return choosePreferFewer('date', [top, ...others.map(rowOf)], preferMargin.value, top, { gearCaveat: shiftedTable.value });
 });
 const preferChoice = computed<PreferChoice<unknown> | null>(() => (props.deadline ? dateChoice.value : fastestChoice.value));
 const preferCopy = computed<PreferCopy>(() =>
