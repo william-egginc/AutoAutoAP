@@ -824,6 +824,18 @@
         </p>
         <!-- Its top routes with when each stop and egg happens, on My runs › Your latest run (LatestRunView.vue). -->
         <DigDeeperLink v-if="best && !store.deadlineRunning" detail="its top 50 routes and when each stop and egg happens" />
+        <!-- More than the single best (TopRoutes.vue, item 12): the best 5 kept and the best per ascension count. -->
+        <TopRoutes
+          v-if="best && !store.deadlineRunning && result.routes.length + result.byStops.length > 1"
+          goal="date"
+          :routes="dateTopRoutes"
+          :zone="plannerZone"
+          :deadline="result.deadline"
+          :follow="dateRowFollow"
+          :followable="dateTopFollowable"
+          :busy="store.busy"
+          @simulate="simulateDateRoute"
+        />
       </template>
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
       <p
@@ -1178,6 +1190,8 @@ import {
 import { formatBand, formatHours } from '@/search/exhaustive';
 import { spareLabel, summariseByDate } from '@/search/deadlineSummary';
 import ByDateRouteCard from './ByDateRouteCard.vue';
+import TopRoutes from './TopRoutes.vue';
+import type { PricedRoute } from '@/lib/topRoutes';
 import { oneMoreTEHint } from '@/search/oneMoreTE';
 import { byDateSimulate } from '@/search/byDateSimulate';
 import { readFirstAscension } from '@/search/firstAscension';
@@ -2912,6 +2926,30 @@ function simulateResult(): void {
 function simulateLive(): void {
   const s = liveSim.value;
   if (s) simulateRoute(s.chain, 'by-date', s.opts);
+}
+
+/** More routes (TopRoutes.vue, item 12): the result's kept routes and its best per stop count, by their stops. */
+const dateRoutesByKey = computed(() => {
+  const m = new Map<string, SavedDeadlineResult['routes'][number]>();
+  const r = result.value as SavedDeadlineResult | null;
+  if (r) for (const x of [...r.routes, ...r.byStops]) if (!m.has(x.chain.join(','))) m.set(x.chain.join(','), x);
+  return m;
+});
+function dateTopRoutes(): PricedRoute[] {
+  return [...dateRoutesByKey.value.values()].map(x => ({ chain: x.chain, finish: x.reachAt, hasLegs: hasLegs(x) }));
+}
+/** Follow only a route that makes the date, as the card's and Best for each number of ascensions'. */
+function dateTopFollowable(r: { chain: readonly number[] }): boolean {
+  const res = result.value;
+  return !!res && followableAnswer(dateRoutesByKey.value.get(r.chain.join(',')), res.deadline);
+}
+/** Simulate this plan on one of them: the same path as the card's (search/byDateSimulate.ts, the run's plan start). */
+function simulateDateRoute(chain: number[]): void {
+  const r = result.value as SavedDeadlineResult | null;
+  const route = dateRoutesByKey.value.get(chain.join(','));
+  if (!r || !route) return;
+  const s = byDateSimulate(route, { planStart: r.planStart, firstAscension: r.settings ? readFirstAscension(r.settings) : null });
+  simulateRoute(s.chain, 'by-date', s.opts);
 }
 
 /** What the shown result says about its run: time, workers, the space (and, on Advanced, the boxes). */

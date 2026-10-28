@@ -629,6 +629,17 @@
                 @check="chain => emit('checkExactly', chain)"
               />
             </RouteResultCard>
+            <!-- More than the single best (TopRoutes.vue, item 12): the best 5 priced and the best per ascension count,
+                 closed by default; Simulate goes through the card's own `use`. -->
+            <TopRoutes
+              v-if="!store.isRunning && store.bestDays > 0 && store.pricedCount > 1"
+              goal="fastest"
+              :routes="() => store.topPricedRoutes"
+              :zone="autoPlannerStore.timezone || plannerTzFallback"
+              :follow="fastFollow"
+              :busy="store.busy"
+              @simulate="chain => use(chain, true)"
+            />
 
             <p
               v-if="store.continueWarning && !store.isRunning"
@@ -1096,6 +1107,7 @@ import { useFastestShare } from '@/composables/useFastestShare';
 import BoardSubmitButtons from './BoardSubmitButtons.vue';
 import SavedRuns from './SavedRuns.vue';
 import RouteResultCard from './RouteResultCard.vue';
+import TopRoutes from './TopRoutes.vue';
 import RouteExtras from './RouteExtras.vue';
 import SoulEggWarning from '../SoulEggWarning.vue';
 import WaitBeforePrestige from './WaitBeforePrestige.vue';

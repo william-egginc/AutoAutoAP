@@ -344,6 +344,7 @@ import { useUIStore } from './ui';
 import { thisDevice } from '@/search/device';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
 import { readStoredJson, isPlainRecord } from '@/lib/safeStorage';
+import { keptForTop, type PricedRoute } from '@/lib/topRoutes';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -3346,6 +3347,30 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const shortlist = ref<ShortlistRow[]>([]);
   let lastShortlistAt = 0;
 
+  /**
+   * More than the single best (item 12, 27 Oct 2026; lib/topRoutes.ts, TopRoutes.vue under the result card): the
+   * best few routes priced and the best for each number of ascensions, read off the priced routes this run kept
+   * (`allEntries()`, the CSV's rows) plus the best itself. Lazy: built only while a screen reads it (the section is
+   * closed by default), and again on the shortlist's beat (`topBeat`) or when the best moves. Never re-searches.
+   */
+  const topBeat = ref(0);
+  const topPricedRoutes = computed<PricedRoute[]>(() => {
+    void topBeat.value;
+    const start = resultsPlanStart();
+    const target = finalTE.value;
+    const routes: PricedRoute[] = [];
+    for (const e of allEntries()) {
+      if (!(e.seconds > 0)) continue;
+      const chain = e.key.split(',').map(Number);
+      if (chain[chain.length - 1] !== target) continue;
+      routes.push({ chain, finish: start + e.seconds, hasLegs: e.legs.length > 0 });
+    }
+    if (bestChain.value.length && bestDays.value > 0 && bestChain.value[bestChain.value.length - 1] === target) {
+      routes.push({ chain: [...bestChain.value], finish: start + bestDays.value * 86400, hasLegs: bestLegs.value.length > 0 });
+    }
+    return keptForTop(routes, 'fastest');
+  });
+
   /** Which preset view the runners-up table is showing. Persisted for the session only: it is a
    *  way of looking at one run's results, not a setting that should outlive the run. */
   const shortlistView = ref<ViewId>('balanced');
@@ -3671,6 +3696,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     let priced = 0;
     for (const e of entries) if (e.seconds > 0) priced++;
     pricedCount.value = priced;
+    topBeat.value++;
     if (chartLive()) {
       heat.value = heatSnapshot(heatGrid);
       // Past the limit, no point list unless asked for: dropping it frees the old copy too.
@@ -9746,6 +9772,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runLog,
     csvRows,
     shortlist,
+    topPricedRoutes,
     pricedChains,
     pricedCount,
     chartsWanted,
