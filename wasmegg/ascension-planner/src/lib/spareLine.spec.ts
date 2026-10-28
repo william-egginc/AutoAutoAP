@@ -6,16 +6,16 @@ const D = 86400;
 
 describe('By a date: the spare and when it is tight (UX review 26 Oct 2026, item 2)', () => {
   it('tight with the gear caveat at 3 days to spare, and says it may be none', () => {
-    expect(spareLine(3 * D, true, 'en-US')).toEqual({ text: '3 days to spare, maybe none on your gear', tight: true });
+    expect(spareLine(3 * D, true, 'en-US')).toEqual({ text: '3d to spare, maybe none on your gear', tight: true });
   });
   it('not tight with the caveat at 8 days', () => {
-    expect(spareLine(8 * D, true, 'en-US')).toEqual({ text: '8 days to spare', tight: false });
+    expect(spareLine(8 * D, true, 'en-US')).toEqual({ text: '8d to spare', tight: false });
   });
   it('not tight at 3 days without the caveat', () => {
-    expect(spareLine(3 * D, false, 'en-US')).toEqual({ text: '3 days to spare', tight: false });
+    expect(spareLine(3 * D, false, 'en-US')).toEqual({ text: '3d to spare', tight: false });
   });
   it('still tight under a day, caveat or not', () => {
-    expect(spareLine(17 * 3600, false, 'en-US')).toEqual({ text: '17 h to spare', tight: true });
+    expect(spareLine(17 * 3600, false, 'en-US')).toEqual({ text: '17h to spare', tight: true });
     expect(spareLine(17 * 3600, true, 'en-US').tight).toBe(true);
     expect(TIGHT_SECONDS).toBe(D);
   });

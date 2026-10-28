@@ -38,7 +38,7 @@ describe('what the player is told', () => {
     const note = describeSaveAge(SYNC, SYNC + 40 * H, 12 * H)!;
     expect(note.level).toBe('warning');
     expect(note.severe).toBe(true);
-    expect(note.text).toMatch(/Your save is 40 h old, longer than your silos hold/);
+    expect(note.text).toMatch(/Your save is 40h old, longer than your silos hold/);
     expect(note.text).toMatch(/won't be accurate/);
     expect(note.text).toMatch(/Force a sync/);
   });
@@ -52,8 +52,8 @@ describe('what the player is told', () => {
   });
 
   it('a stale save in days, as everywhere else ("25 days old", never "25d old")', () => {
-    expect(describeSaveAge(SYNC, SYNC + 25 * 24 * H, 12 * H)!.text).toMatch(/^Your save is 25 days old, longer/);
-    expect(describeSaveAge(SYNC + 42 * 60, SYNC, 12 * H)!.text).toMatch(/^Starts 42 min before your last sync/);
+    expect(describeSaveAge(SYNC, SYNC + 25 * 24 * H, 12 * H)!.text).toMatch(/^Your save is 25d old, longer/);
+    expect(describeSaveAge(SYNC + 42 * 60, SYNC, 12 * H)!.text).toMatch(/^Starts 42m before your last sync/);
   });
 
   it('says nothing without a save to compare with', () => {
@@ -63,16 +63,16 @@ describe('what the player is told', () => {
 });
 
 describe('one age style (ux review 26 Oct, row 19)', () => {
-  it('14 min, 5 h, 25 days; "ago" with just now under a minute', () => {
-    expect(ageWords(30)).toBe('under a minute');
-    expect(ageWords(14 * 60)).toBe('14 min');
-    expect(ageWords(59.7 * 60)).toBe('1 h');
-    expect(ageWords(5 * H)).toBe('5 h');
-    expect(ageWords(47 * H)).toBe('47 h');
-    expect(ageWords(25 * 24 * H + 5 * H)).toBe('25 days');
-    expect(ageWords(-3 * H)).toBe('3 h');
+  it('14m, 5h, 25d (lib/duration); "ago" with just now under a minute', () => {
+    expect(ageWords(30)).toBe('<1m');
+    expect(ageWords(14 * 60)).toBe('14m');
+    expect(ageWords(59.7 * 60)).toBe('1h');
+    expect(ageWords(5 * H)).toBe('5h');
+    expect(ageWords(47 * H)).toBe('47h');
+    expect(ageWords(25 * 24 * H + 5 * H)).toBe('25d');
+    expect(ageWords(-3 * H)).toBe('3h');
     expect(ageAgo(20)).toBe('just now');
-    expect(ageAgo(14 * 60)).toBe('14 min ago');
-    expect(ageAgo(3 * 24 * H)).toBe('3 days ago');
+    expect(ageAgo(14 * 60)).toBe('14m ago');
+    expect(ageAgo(3 * 24 * H)).toBe('3d ago');
   });
 });

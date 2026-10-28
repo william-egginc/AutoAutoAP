@@ -285,7 +285,7 @@ describe('describeCutoff (the display rules)', () => {
     };
     const line = describeCutoff(c, { ...base, mode: 'fastest', deadline: undefined });
     expect(line.text).toBe(
-      `Next: prestige by ${show(hourOf(P, 5) - HOUR)}. Waiting longer costs about 7 days.`
+      `Next: prestige by ${show(hourOf(P, 5) - HOUR)}. Waiting longer costs about 7d.`
     );
     expect(line.tight).toBe(false);
   });
@@ -299,7 +299,7 @@ describe('describeCutoff (the display rules)', () => {
       dropOutcome: { te: 490, end: E + 17.4 * 86400 },
     };
     const line = describeCutoff(c, { ...base, firstStop: 205, mode: 'fastest', deadline: undefined, show: () => 'Feb 23, 2027, 7 PM' });
-    expect(line.text).toBe('Next: prestige at 205 TE around Feb 23, 2027, 7 PM. Waiting longer costs about 17 days.');
+    expect(line.text).toBe('Next: prestige at 205 TE around Feb 23, 2027, 7 PM. Waiting longer costs about 17d.');
     const never = describeCutoff({ ...c, dropOutcome: { te: 489, end: null } }, { ...base, mode: 'fastest', deadline: undefined });
     expect(never.text).toContain("Waiting longer doesn't reach 490 TE.");
   });

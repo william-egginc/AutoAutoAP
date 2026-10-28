@@ -36,6 +36,7 @@ import type {
   TailOptions,
 } from './routeFinder';
 import type { Availability } from './availabilitySchedule';
+import { compactDuration } from '@/lib/duration';
 
 /** What the routes are for: the fastest route to a TE, or the highest TE by a date (unix second). */
 export type Goal = { kind: 'fastest'; target: number } | { kind: 'date'; deadline: number };
@@ -450,9 +451,9 @@ export function bestOf(goal: Goal, list: readonly (Priced | null | undefined)[])
   return best;
 }
 
-/** How `a` compares to `b`, in words: "0.42 days sooner", "1 TE higher", "0.30 days more to spare". */
+/** How `a` compares to `b`, in words: "10h 5m sooner", "1 TE higher", "7h 12m more to spare" (lib/duration). */
 export function compareText(goal: Goal, a: Priced, b: Priced | null): string {
-  const d = (s: number) => `${(Math.abs(s) / 86400).toFixed(2)} days`;
+  const d = (s: number) => compactDuration(Math.max(60, Math.abs(s)));
   if (!b) return '';
   if (goal.kind === 'fastest') {
     const gap = b.end - a.end;

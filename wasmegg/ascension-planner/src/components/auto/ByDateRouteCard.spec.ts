@@ -32,7 +32,7 @@ describe('ByDateRouteCard', () => {
     const html = await renderHtml(ByDateRouteCard, props(), { default: () => 'Stopped early.' });
     const t = textOf(html);
     expect(t).toMatch(/^Highest by .*2027/);
-    expect(t).toMatch(/166 197 223 247 247 TE reached .*2027.*, 27\.3 h to spare/);
+    expect(t).toMatch(/166 197 223 247 247 TE reached .*2027.*, 27h 18m to spare/);
     expect(t).toContain('Stopped early.');
     // Laid out as Fastest's leg table: Ascension, to TE, Start, Finish, Days.
     expect(t).toMatch(/Ascension → TE Start Finish Days A1 166 .* 30\.00 A2 197 .* 80\.00 A3 223 .* 70\.00 A4 247 .* 48\.90/);
@@ -179,9 +179,9 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
 
 describe('spareLabel', () => {
   it('minutes, hours under two days, then days', () => {
-    expect(spareLabel(40 * 60)).toBe('40 min');
-    expect(spareLabel(27.3 * 3600)).toBe('27.3 h');
-    expect(spareLabel(3.5 * 86400)).toBe('3.5 days');
+    expect(spareLabel(40 * 60)).toBe('40m');
+    expect(spareLabel(27.3 * 3600)).toBe('27h 18m');
+    expect(spareLabel(3.5 * 86400)).toBe('3d 12h');
   });
 });
 

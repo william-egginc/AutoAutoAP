@@ -94,18 +94,18 @@ describe('the next TE per egg', () => {
 
 describe('the words', () => {
   it('rounded: minutes under an hour, hours and minutes under two days, days and whole hours after', () => {
-    expect(aboutWords(25 * 60)).toBe('~25 min');
-    expect(aboutWords(59.7 * 60)).toBe('~1 h');
-    expect(aboutWords(18 * H + 28 * 60 + 10)).toBe('~18 h 28 m');
-    expect(aboutWords(47 * H)).toBe('~47 h');
-    expect(aboutWords(2 * D + 4 * H + 20 * 60)).toBe('~2 d 4 h');
-    expect(aboutWords(12 * D + 23.6 * H)).toBe('~13 d');
-    expect(afterShiftLine(2 * D + 4 * H)).toBe('next TE in ~2 d 4 h after you shift here');
+    expect(aboutWords(25 * 60)).toBe('~25m');
+    expect(aboutWords(59.7 * 60)).toBe('~1h');
+    expect(aboutWords(18 * H + 28 * 60 + 10)).toBe('~18h 28m');
+    expect(aboutWords(47 * H)).toBe('~47h');
+    expect(aboutWords(2 * D + 4 * H + 20 * 60)).toBe('~2d 4h');
+    expect(aboutWords(12 * D + 23.6 * H)).toBe('~13d');
+    expect(afterShiftLine(2 * D + 4 * H)).toBe('next TE in ~2d 4h after you shift here');
   });
 
   it('over 10 years: not at this rate; no time: nothing', () => {
     expect(afterShiftLine(3651 * D)).toBe('next TE after you shift here: not at this rate (over 10 years)');
-    expect(afterShiftLine(3649 * D)).toMatch(/^next TE in ~3649 d/);
+    expect(afterShiftLine(3649 * D)).toMatch(/^next TE in ~10 years/);
     expect(afterShiftLine(null)).toBeNull();
   });
 
@@ -185,7 +185,7 @@ describe('Your eggs with several eggs (server render)', () => {
     saveSeconds: NOW,
     zone: ZONE,
     afterShift: {
-      lines: { curiosity: 'next TE in ~2 d 4 h after you shift here', resilience: 'next TE in ~25 min after you shift here' },
+      lines: { curiosity: 'next TE in ~2d 4h after you shift here', resilience: 'next TE in ~25m after you shift here' },
       note: 'After a shift: … · estimated from your save of Oct 15 at 2:40 PM',
     },
   };
@@ -193,10 +193,10 @@ describe('Your eggs with several eggs (server render)', () => {
   it('a line under each egg the player is not on; the egg being laid keeps its words; nothing for an egg without one', async () => {
     const html = await renderHtml(YourEggs, props);
     const t = textOf(html);
-    expect(t).toContain('next TE in 18 h 28 m at your save\'s rate');
+    expect(t).toContain('next TE in 18h 28m at your save\'s rate');
     expect(t).toContain('Curiosity 41 TE');
-    expect(t).toContain('next TE in ~2 d 4 h after you shift here');
-    expect(t).toContain('next TE in ~25 min after you shift here');
+    expect(t).toContain('next TE in ~2d 4h after you shift here');
+    expect(t).toContain('next TE in ~25m after you shift here');
     expect(html.match(/data-testid="now-egg-after-shift"/g)?.length).toBe(2);
     // The time line stands in for "N% to the next TE · after a shift"; Humility, with no time, keeps it.
     expect(t).not.toContain('60% to the next TE');

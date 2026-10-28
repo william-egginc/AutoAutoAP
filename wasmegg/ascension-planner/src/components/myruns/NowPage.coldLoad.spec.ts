@@ -99,7 +99,7 @@ describe('My runs on a cold load', () => {
 
     // 2. The draft and the stored save: the strip reads the save; nothing else shows the draft's state.
     restoreDraft(backup);
-    expect(page.strip.value?.text).toMatch(/^Your save is from .+ \(2 h ago\)\.$/);
+    expect(page.strip.value?.text).toMatch(/^Your save is from .+ \(2h ago\)\.$/);
     expect(page.saveWaiting.value).toBe(true);
     expect(page.hasSave.value).toBe(false);
     expect(page.currentEgg.value).toBeNull(); // never the draft's Integrity
@@ -137,14 +137,14 @@ describe('My runs on a cold load', () => {
     restoreDraft(backup);
     r = await render();
     expect(r.t).not.toContain('No save loaded');
-    expect(r.t).toMatch(/Your save is from .+ \(2 h ago\)\./);
+    expect(r.t).toMatch(/Your save is from .+ \(2h ago\)\./);
     expect(r.html).toContain('data-testid="now-save-waiting"');
     expect(r.html).not.toContain('data-testid="now-card"');
     expect(r.t).not.toContain('159 TE so far');
 
     loadSave(backup);
     r = await render();
-    expect(r.t).toMatch(/Your save is from .+ \(2 h ago\)\./);
+    expect(r.t).toMatch(/Your save is from .+ \(2h ago\)\./);
     expect(r.html).not.toContain('data-testid="now-save-waiting"');
     expect(r.html).toContain('data-testid="now-card"');
     expect(r.t).toContain('Curiosity');

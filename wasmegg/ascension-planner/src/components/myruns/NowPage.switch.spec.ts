@@ -118,7 +118,7 @@ describe('My runs after switching accounts: every value follows the new save', (
     // 1. B's save fetched, the stores still A's (the moment before loadFromBackup): nothing of A's shows as B's.
     useInitialStateStore().rawBackup = b;
     expect(page.saveSeconds.value).toBe(secondsOf(b));
-    expect(page.strip.value?.text).toMatch(/\(1 h ago\)\.$/);
+    expect(page.strip.value?.text).toMatch(/\(1h ago\)\.$/);
     expect(page.hasSave.value).toBe(false);
     expect(page.teSoFar.value).toBe(0);
     expect(page.currentEgg.value).toBeNull();

@@ -313,10 +313,10 @@ describe('the card', () => {
     expect(t).toContain('(instant answer)');
     expect(t).toContain('Prestige at 197 TE Oct 28 at around 4:00 AM');
     expect(t).toContain('Wed, Oct 28 at around 4:00 AM');
-    expect(t).toContain('in 5 days');
+    expect(t).toContain('in 5d 17h');
     expect(t).toContain('Egg Day 2027 goal: 313 TE');
     expect(t).toMatch(/Jul 14, 2027 at \d+:00 AM/);
-    expect(t).toMatch(/\d+\.\d h spare \(instant\)/);
+    expect(t).toMatch(/\d+h( \d+m)? spare \(instant\)/);
     expect(t).toContain('The instant answer keeps when each ascension ends, not each shift: run Fast for the shifts on your account.');
     // No Run Fast on the card (one path per card, 25 Oct 2026): the events point at Try next in plain words.
     expect(t).toContain('From the instant answer, rounded to the hour. For exact times on your account, use a run from Try next below.');
@@ -337,7 +337,7 @@ describe('the card', () => {
     expect(t).toContain('Wed, Oct 28 at 4:12 AM');
     expect(t).toContain('Add to calendar');
     expect(t).toContain('＋ Add');
-    expect(t).toMatch(/goal: 312 TE .* h spare/);
+    expect(t).toMatch(/goal: 312 TE .*\dh( \d+m)? spare/);
     expect(t).not.toContain('(instant)');
     expect(t).not.toContain('Run Fast again');
   });

@@ -103,10 +103,10 @@ describe('which plan drives Right now (lib/searchPlan.ts)', () => {
     expect(takesOver('later')).toBe(false);
     expect(takesOver('misses-date')).toBe(false);
     expect(keepWords('later', 'Exact', { end: inst.end + 22 * 60 }, inst, 'date')).toBe(
-      'Your Exact run finishes 22 min later than the instant answer, so Right now follows the instant answer.'
+      'Your Exact run finishes 22m later than the instant answer, so Right now follows the instant answer.'
     );
     expect(replaceWords('sooner', { end: inst.end - 1.2 * D }, inst)).toBe(
-      'Finishes 1.2 days sooner than the instant answer for the same goal:'
+      'Finishes 28h 48m sooner than the instant answer for the same goal:'
     );
   });
 
@@ -185,9 +185,9 @@ describe('which plan drives Right now (lib/searchPlan.ts)', () => {
     expect(replaceWords('makes-date', { end: 0 }, { end: 0 })).toBe(
       'Makes the date on your account, so it replaces the instant answer for the same goal:'
     );
-    expect(gapWords(22 * 60)).toBe('22 min');
-    expect(gapWords(5 * H)).toBe('5 h');
-    expect(gapWords(1.5 * D)).toBe('1.5 days');
+    expect(gapWords(22 * 60)).toBe('22m');
+    expect(gapWords(5 * H)).toBe('5h');
+    expect(gapWords(1.5 * D)).toBe('36h');
   });
 });
 

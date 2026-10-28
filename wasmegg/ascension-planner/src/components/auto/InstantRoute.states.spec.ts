@@ -532,21 +532,21 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
 
   it('By a date: the spare rounded, amber with "tight" only when spareLine says so', async () => {
     const plain = await draw(at('date', true), { dateSpare: spareLine(8 * D, true, 'en-US') });
-    expect(plain).toContain('8 days to spare');
+    expect(plain).toContain('8d to spare');
     expect(plain).not.toContain('data-testid="box-tight"');
     const caveat = await draw(at('date', true), { dateSpare: spareLine(3 * D, true, 'en-US') });
-    expect(caveat).toContain('3 days to spare, maybe none on your gear');
+    expect(caveat).toContain('3d to spare, maybe none on your gear');
     expect(caveat).toContain('data-testid="box-tight"');
     expect(caveat).toMatch(/text-amber-700[^>]*data-testid="box-spare"|data-testid="box-spare"[^>]*text-amber-700/);
     const none = await draw(at('date', true), { dateSpare: spareLine(3 * D, false, 'en-US') });
     expect(none).not.toContain('data-testid="box-tight"');
   });
 
-  it('Fastest: "in N days" without two decimals; no "worked out ahead" badge, the "instant answer" tag stays', async () => {
+  it('Fastest: "in 5.1 years", compact (ux29-d); no "worked out ahead" badge, the "instant answer" tag stays', async () => {
     const html = await draw(at('fastest', false), {
       boxLead: { chain: [210, 260, 300], legs: [{ endTE: 210 }, { endTE: 260 }, { endTE: 300 }], end: 1, seconds: 1857.95 * D },
     });
-    expect(html).toContain('in 1,858 days (5.1 years)');
+    expect(html).toContain('in 5.1 years');
     expect(html.toLowerCase()).not.toContain('worked out ahead</span');
     expect(html).toContain('data-testid="box-instant"');
   });

@@ -142,8 +142,8 @@ describe('the switch', () => {
     expect(radio('fastest-490')).toContain('min-h-[44px]');
     expect(html).toMatch(/class="flex flex-wrap gap-2" data-testid="now-goal-switch"/);
     const t = textOf(html);
-    expect(t).toContain('Fastest to 490 TE calculated 3 h ago');
-    expect(t).toContain('Egg Day 2027 calculated 1 h ago');
+    expect(t).toContain('Fastest to 490 TE calculated 3h ago');
+    expect(t).toContain('Egg Day 2027 calculated 1h ago');
     // The switch sits above the rest of the card.
     expect(html.indexOf('now-goal-switch')).toBeLessThan(html.indexOf('data-testid="now-next"'));
   });

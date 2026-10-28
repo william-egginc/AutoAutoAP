@@ -1630,7 +1630,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const eggs = computed(() => {
     if (!hasSave.value) return [];
     const { delivered, earned } = saveEggCountsOf(raw.value);
-    return eggLines(delivered, earned, currentEgg.value, facts.value?.elr ?? null);
+    // "to goal" beside next TE (ux29-d): Fastest to N TE's own target only; a By a date goal has no TE to reach.
+    const shown = shownTile.value;
+    const totalTe = teByEgg.value.reduce((a, b) => a + b, 0);
+    const teLeft = shown.goal === 'fastest' && shown.target > totalTe ? shown.target - totalTe : null;
+    return eggLines(delivered, earned, currentEgg.value, facts.value?.elr ?? null, teLeft);
   });
   /** Each egg the player isn't on: its next TE after a shift to it (lib/nextTeEgg.ts), by egg, and the one note under
    *  them. The save's farm at full habs, the habs refilling at the hatchery rate at or below 100 TE in all. */

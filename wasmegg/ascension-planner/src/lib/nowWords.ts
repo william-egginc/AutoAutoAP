@@ -11,6 +11,7 @@ import { formatHourOfDay, formatMoment } from './clock';
 import { usableTimeOff } from '@/search/timeOff';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { TimeOffDates } from '@/search/timeOff';
+import { compactDuration } from './duration';
 
 export function eventTitle(e: Pick<PlanEvent, 'kind' | 'egg' | 'eggs' | 'te' | 'timeOff'>, goal: 'fastest' | 'date', goalName = 'Egg Day'): string {
   if (e.kind === 'shift') return shiftTitle(e, virtueEggName);
@@ -86,16 +87,16 @@ export function howFar(
   }
   const w = eventWhen(at, nowSeconds, zone);
   if (!w) return '';
-  const rel = rounded && /^in \d+ (h|min)/.test(w.relative) ? w.relative.replace(/^in /, 'in about ') : w.relative;
+  const rel = rounded && /^in \d+[hm]\b/.test(w.relative) ? w.relative.replace(/^in /, 'in about ') : w.relative;
   const base = w.day === 'today' || w.day === 'tomorrow' ? `${w.day}, ${rel}` : rel;
   const spare =
     e.kind === 'goal' && typeof e.spareHours === 'number' ? ` · ${spareWords(e.spareHours)} spare${rounded ? ' (instant)' : ''}` : '';
   return base + spare;
 }
 
-/** "16.8 h", "2.1 days". */
+/** "16h 48m", "2d 2h" (lib/duration); a negative spare reads its size (the caller says behind). */
 export function spareWords(hours: number): string {
-  return hours >= 48 ? `${(hours / 24).toFixed(1)} days` : `${hours.toFixed(1)} h`;
+  return compactDuration(hours * 3600);
 }
 
 const lower = (x: string) => x.charAt(0).toLowerCase() + x.slice(1);

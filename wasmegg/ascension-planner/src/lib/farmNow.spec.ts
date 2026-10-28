@@ -16,8 +16,8 @@ describe('the silos now', () => {
     const s = siloNow({ siloSeconds: 24 * H, saveSeconds: SAVE, nowSeconds: SAVE + 10 * H })!;
     expect(s).toEqual({ capacitySeconds: 24 * H, leftSeconds: 14 * H, emptyAt: SAVE + 24 * H, empty: false });
     const w = siloNowWords(s, SAVE, SAVE + 10 * H, ZONE);
-    expect(w.line).toBe('Silos: about 14 h left (estimated from your save of Oct 25 at 10:09 AM)');
-    expect(w.value).toBe('about 14 h left');
+    expect(w.line).toBe('Silos: about 14h left (estimated from your save of Oct 25 at 10:09 AM)');
+    expect(w.value).toBe('about 14h left');
     expect(w.note).toBe('of 24h · estimated from your save of Oct 25 at 10:09 AM');
   });
 

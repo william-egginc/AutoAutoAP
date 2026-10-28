@@ -90,7 +90,7 @@ const cardProps = (o: Record<string, unknown> = {}) => {
 describe('the save-age strip', () => {
   it('green, amber, red, and none', async () => {
     const ok = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 3 * H, NOW, ZONE), loading: false });
-    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 AM (3 h ago). Load a fresh one ›');
+    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 AM (3h ago). Load a fresh one ›');
     expect(ok).toContain('data-tone="ok"');
     const bad = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 80 * H, NOW, ZONE), loading: false });
     expect(bad).toContain('data-tone="bad"');
@@ -104,18 +104,18 @@ describe('the Right now card', () => {
   it('the plan, its egg, the next step and the events with dates, times and distances', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     const t = textOf(html);
-    expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 12:40 PM (2 h ago) (simulator check)');
+    expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 12:40 PM (2h ago) (simulator check)');
     expect(t).toContain('Integrity');
     expect(t).toContain('ascension 1 of 2 · 186 TE so far');
     expect(t).toContain('Made from your latest save'); // R6: one wording with My runs' saved plans (lib/planPace.ts)
-    expect(t).toContain('Shift to Humility today at 4:00 PM (in 1 h 20 m), then Kindness tomorrow at 9:15 AM');
+    expect(t).toContain('Shift to Humility today at 4:00 PM (in 1h 20m), then Kindness tomorrow at 9:15 AM');
     // The picture is named by the egg's name, as FloatingStats does (a numeric name did not load).
     expect(html).toContain('egginc/egg_integrity.png');
     // The table: the passed shift greyed, the next highlighted, the prestige, the goal.
     expect(html).toContain('data-testid="now-event-past"');
     expect(html).toContain('data-testid="now-event-next"');
     expect(t).toContain('Thu, Oct 15 at 4:00 PM');
-    expect(t).toContain('today, in 1 h 20 m');
+    expect(t).toContain('today, in 1h 20m');
     expect(t).toContain('Prestige at 198 TE');
     expect(t).toContain('490 TE reached');
     expect(t).toContain('Add all 3 upcoming to calendar');
@@ -223,8 +223,8 @@ describe('a saved-answer tile', () => {
     const t = textOf(html);
     expect(t).toContain('Egg Day 2027 · saved answer');
     expect(t).toContain('248 TE');
-    expect(t).toContain('16.8 h spare · 161 198 218 248');
-    expect(t).toContain('Calculated Oct 10 at 2:40 PM (5 days ago) · from your save of Oct 10 at 2:20 PM · instant answer');
+    expect(t).toContain('16h 48m spare · 161 198 218 248');
+    expect(t).toContain('Calculated Oct 10 at 2:40 PM (5d ago) · from your save of Oct 10 at 2:20 PM · instant answer');
     expect(t).toContain('How sure: Medium Instant answer, 5 days old. Run Fast ›');
     expect(t).toContain('Older save than the one you loaded. Work it out again ›');
     expect(t).toContain('Egg Day: 3rd of 12 named players');
@@ -286,13 +286,13 @@ describe('your eggs and Try next', () => {
       })
     );
     expect(t).toContain('Curiosity 41 TE');
-    expect(t).toContain('next TE in 2 h');
+    expect(t).toContain('next TE in 2h');
     // Another egg without an after-shift time (none passed here, lib/nextTeEgg.ts) keeps its line.
     expect(t).toContain('60% to the next TE · after a shift');
     expect(t).toContain('Shifts done 214');
     expect(t).toContain("All planned shifts Can't tell");
     // Estimated to now (lib/farmNow.ts): 3 h since the save, 17h 20m held.
-    expect(t).toContain('Silos about 14 h left of 17h 20m · estimated from your save of Oct 15 at 11:40 AM');
+    expect(t).toContain('Silos about 14h 20m left of 17h 20m · estimated from your save of Oct 15 at 11:40 AM');
     expect(t).toContain('Habs 72% full');
     expect(t).toContain('Clothed TE 212 (equipped 198)');
   });

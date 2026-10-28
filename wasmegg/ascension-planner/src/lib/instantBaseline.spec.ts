@@ -128,21 +128,21 @@ describe('the baseline log (this browser)', () => {
 describe('the words (wireframe B1)', () => {
   const base = { end: Date.UTC(2028, 1, 9, 22, 0) / 1000, endTE: 490 };
   it('Fastest: sooner, later, the same', () => {
-    expect(baselineDiff({ goal: 'fastest', end: base.end - 1.2 * D, endTE: 490 }, base)).toEqual({ words: '1.2 days sooner', tone: 'better' });
-    expect(baselineDiff({ goal: 'fastest', end: base.end + 22 * 60, endTE: 490 }, base)).toEqual({ words: '22 min later', tone: 'worse' });
+    expect(baselineDiff({ goal: 'fastest', end: base.end - 1.2 * D, endTE: 490 }, base)).toEqual({ words: '28h 48m sooner', tone: 'better' });
+    expect(baselineDiff({ goal: 'fastest', end: base.end + 22 * 60, endTE: 490 }, base)).toEqual({ words: '22m later', tone: 'worse' });
     expect(baselineDiff({ goal: 'fastest', end: base.end + 20, endTE: 490 }, base).words).toBe('same finish');
     expect(baselineLine({ goal: 'fastest', end: base.end - 1.5 * D, endTE: 490 }, base, 'Exact', 'their')).toEqual({
       lead: 'vs their instant answer:',
-      words: '1.5 days sooner',
+      words: '36h sooner',
       tail: '(Exact)',
       tone: 'better',
     });
   });
   it('By a date: the TE first, then the spare', () => {
     const b = { end: 1000 * D, endTE: 313 };
-    expect(baselineDiff({ goal: 'date', end: 1000 * D - 0.28 * D, endTE: 312 }, b).words).toBe('−1 TE (313 → 312), 0.28 days more spare');
+    expect(baselineDiff({ goal: 'date', end: 1000 * D - 0.28 * D, endTE: 312 }, b).words).toBe('−1 TE (313 → 312), 6h 43m more spare');
     expect(baselineDiff({ goal: 'date', end: 1000 * D, endTE: 314 }, { ...b, endTE: 313 }).words).toBe('+1 TE (313 → 314)');
-    expect(baselineDiff({ goal: 'date', end: 1000 * D - 40 * 60, endTE: 313 }, b)).toEqual({ words: 'same TE, 40 min more spare', tone: 'better' });
+    expect(baselineDiff({ goal: 'date', end: 1000 * D - 40 * 60, endTE: 313 }, b)).toEqual({ words: 'same TE, 40m more spare', tone: 'better' });
   });
 });
 
@@ -182,8 +182,8 @@ describe('board rows', () => {
     const lines = compareLines(exact, [exact, fast, slowerFast, otherPlayer, otherBaseline]);
     expect(lines.map(l => [l.label, l.thisRun, l.diff, l.end == null ? 'not run' : 'run'])).toEqual([
       ['Instant answer', false, '', 'run'],
-      ['Fast', false, '1.2 days sooner', 'run'],
-      ['Exact', true, '1.5 days sooner', 'run'],
+      ['Fast', false, '28h 50m sooner', 'run'],
+      ['Exact', true, '36h sooner', 'run'],
       ['Custom', false, '', 'not run'],
     ]);
     // No baseline on the row: no list at all.

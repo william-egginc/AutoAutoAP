@@ -20,6 +20,7 @@ import { finishesBefore, lateMarker, type DeadlineKind } from './eggDayRule';
 import { foundLevel, type FoundLevel, type FoundResult } from './searchPointer';
 import { planFromSnapshot, type NowPlan, type SnapLike } from './nowPlan';
 import type { SnapMeta } from '@/search/instantSnapshot';
+import { compactDuration } from './duration';
 
 /** A finished search result for one goal, as the snapshot keeps it. */
 export interface SnapSearch extends FoundResult {
@@ -192,15 +193,9 @@ export function searchTakeover(
 /** Whether that reason means the result drives Right now. */
 export const takesOver = (t: Takeover): boolean => t === 'makes-date' || t === 'sooner' || t === 'simulated' || t === 'no-instant';
 
-/** "1.2 days", "22 min", "5 h" (a gap between two finishes). */
+/** "1d 5h", "22m", "5h" (a gap between two finishes; lib/duration). */
 export function gapWords(seconds: number): string {
-  const s = Math.abs(seconds);
-  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min`;
-  if (s < 24 * 3600) {
-    const h = Math.round((s / 3600) * 10) / 10;
-    return `${h % 1 === 0 ? h.toFixed(0) : h.toFixed(1)} h`;
-  }
-  return `${(s / 86400).toFixed(1)} days`;
+  return compactDuration(Math.max(60, Math.abs(seconds)));
 }
 
 /** The pill: "from the instant answer" or "from your Fast run, on your account". */

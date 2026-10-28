@@ -10,6 +10,7 @@
  * the save no longer describes the farm. That gets a warning, never a silent guess.
  */
 import { formatSiloTime, totalAwayTime } from '@/stores/silos';
+import { compactDuration } from './duration';
 
 /** Seconds of time away the silos hold: silo count x the per-silo time Silo Capacity research sets. */
 export function siloSeconds(
@@ -36,20 +37,14 @@ const NEWER_SYNC = " If you've opened the game since then and have a newer sync,
 
 /**
  * A save's age in the one style every save-age line uses (ux review 26 Oct, row 19: Setup said "Save from 14 min
- * ago" and "Your save is 42m old", the stale warning "25d old", My runs "14 minutes ago"): `14 min`, `5 h`,
- * `25 days`. Under a minute: `under a minute`. Sign ignored.
+ * ago" and "Your save is 42m old", the stale warning "25d old", My runs "14 minutes ago"): now the one
+ * compact duration (lib/duration, ux29-d): `14m`, `5h`, `25d`. Under a minute: `<1m`. Sign ignored.
  */
 export function ageWords(seconds: number): string {
-  const s = Math.abs(seconds);
-  if (s < 60) return 'under a minute';
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m} min`;
-  const h = s / 3600;
-  if (h < 48) return `${Math.round(h)} h`;
-  return `${Math.floor(h / 24)} days`;
+  return compactDuration(seconds);
 }
 
-/** `14 min ago`, `5 h ago`, `25 days ago`; `just now` under a minute. */
+/** `14m ago`, `5h ago`, `25d ago`; `just now` under a minute. */
 export function ageAgo(seconds: number): string {
   return Math.abs(seconds) < 60 ? 'just now' : `${ageWords(seconds)} ago`;
 }

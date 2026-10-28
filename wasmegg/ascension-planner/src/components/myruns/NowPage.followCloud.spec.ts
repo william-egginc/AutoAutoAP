@@ -185,7 +185,7 @@ describe('Right now: a better result with and without a followed route', () => {
     // Followed once already: the Fast result is offered, never followed on its own. Simulated against the instant
     // answer's estimate, so offered without calling it better (lib/searchPlan.ts simulatedOverEstimate).
     expect(text).toContain(
-      "Your Fast run, simulated on your account, gets 239 TE, 2.5 days to spare; the route you follow is the instant answer's estimate (238 TE, 2.0 days to spare). Do you want to follow the Fast run's route?"
+      "Your Fast run, simulated on your account, gets 239 TE, 2d 12h to spare; the route you follow is the instant answer's estimate (238 TE, 2d to spare). Do you want to follow the Fast run's route?"
     );
     await new Promise(r => setTimeout(r, 20));
     expect(follows.followed(goalKey)?.chain).toEqual([200, 238]);
@@ -211,7 +211,7 @@ describe('Right now: a better result with and without a followed route', () => {
     const pinia = getActivePinia()!;
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [pinia]));
     expect(text).toContain(
-      "This is a better route than the one you're following (this one: 239 TE, 2.5 days to spare; yours: 238 TE, 1.0 days to spare). Do you want to follow it?"
+      "This is a better route than the one you're following (this one: 239 TE, 2d 12h to spare; yours: 238 TE, 24h to spare). Do you want to follow it?"
     );
     expect(text).toContain('Follow it');
     expect(text).toContain('Keep mine');
@@ -250,7 +250,7 @@ describe('Right now: a better result with and without a followed route', () => {
     expect(page.betterRoute.value?.candidate).toMatchObject({ chain: [201, 239], source: 'fast' });
     const html = await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]);
     expect(textOf(html)).toContain(
-      "This is a better route than the one you're following (this one: 239 TE, 2.5 days to spare; yours: 238 TE, 1.0 days to spare). Do you want to follow it?"
+      "This is a better route than the one you're following (this one: 239 TE, 2d 12h to spare; yours: 238 TE, 24h to spare). Do you want to follow it?"
     );
     expect(html).toContain('data-testid="better-route-follow"');
     expect(html).toContain('data-testid="better-route-keep"');
@@ -370,7 +370,7 @@ describe('the prompt and Earlier versions on their own', () => {
     const shown = async (p: Record<string, unknown> = props) => textOf(await renderHtml(BetterRoutePrompt, p, {}, [pinia]));
     // Unpriced (typed): the instant answer asks, with the reported words.
     keep({ from: 'typed', source: 'manual' });
-    expect(await shown()).toMatch(/^This is a better route than the one you're following \(this one: 314 TE, 9\.7 h to spare; yours: 313 TE, 1\.4 days to spare\)/);
+    expect(await shown()).toMatch(/^This is a better route than the one you're following \(this one: 314 TE, 9h 42m to spare; yours: 313 TE, 33h 36m to spare\)/);
     // Picked on the instant card, but a Fast run of this account kept the same route: priced, nothing asked.
     keep({ from: 'answer', source: 'instant' });
     const fast: SnapSearch = { chain: route, end: deadline - 1.4 * D, endTE: 313, at: Date.now() - 60_000, level: 'Fast', planStart: now } as never;

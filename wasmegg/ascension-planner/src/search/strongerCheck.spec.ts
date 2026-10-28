@@ -247,8 +247,8 @@ describe('ranking', () => {
     expect(beats(FAST, p([490], 100_000), p([490], 100_100))).toBe(true);
     expect(beats(FAST, p([490], 100_000), p([490], 100_030))).toBe(false);
     expect(beats(FAST, p([490], 100_000), null)).toBe(true);
-    expect(compareText(FAST, p([490], 100_000), p([490], 100_000 + 86400 * 0.5))).toBe('0.50 days sooner');
-    expect(compareText(FAST, p([490], 100_000 + 86400), p([490], 100_000))).toBe('1.00 days later');
+    expect(compareText(FAST, p([490], 100_000), p([490], 100_000 + 86400 * 0.5))).toBe('12h sooner');
+    expect(compareText(FAST, p([490], 100_000 + 86400), p([490], 100_000))).toBe('24h later');
   });
 
   it('by a date: making it first, then TE, then spare', () => {
@@ -261,8 +261,8 @@ describe('ranking', () => {
     expect(beats(DATE, p([201, 247], DEADLINE - 2 * 86400), made247)).toBe(true);
     expect(bestOf(DATE, [late249, made247, made248, null])).toBe(made248);
     expect(compareText(DATE, made248, made247)).toBe('1 TE higher');
-    expect(compareText(DATE, p([201, 247], DEADLINE - 2 * 86400), made247)).toBe('1.00 days more to spare');
-    expect(compareText(DATE, late249, made247)).toBe('misses the date by 0.04 days');
+    expect(compareText(DATE, p([201, 247], DEADLINE - 2 * 86400), made247)).toBe('24h more to spare');
+    expect(compareText(DATE, late249, made247)).toBe('misses the date by 1h');
   });
 });
 

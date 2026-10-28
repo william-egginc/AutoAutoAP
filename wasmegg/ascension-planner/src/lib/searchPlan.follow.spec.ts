@@ -89,7 +89,7 @@ describe('the prompt', () => {
   });
   it('By a date says TE and spare', () => {
     expect(betterRouteWords('date', DEADLINE, { end: DEADLINE - 2.5 * D, endTE: 241 }, { end: DEADLINE + 3 * H, endTE: 240 }, when)).toBe(
-      "This is a better route than the one you're following (this one: 241 TE, 2.5 days to spare; yours: 240 TE, lands after the date). Do you want to follow it?"
+      "This is a better route than the one you're following (this one: 241 TE, 2d 12h to spare; yours: 240 TE, lands after the date). Do you want to follow it?"
     );
   });
   it('not shown: no followed route, the same route, not newer than the follow, not better, or Keep mine pressed', () => {
@@ -136,7 +136,7 @@ describe('an instant answer never asks about a PRICED follow (Jordan, 23 Oct 202
   it('the same instant answer against an UNPRICED follow (typed, a board row, an older instant answer) still asks', () => {
     for (const source of ['manual', 'instant', null]) expect(followIsPriced({ source, chain: route, results: [] })).toBe(false);
     expect(followPrompt(base(false))?.words).toBe(
-      "This is a better route than the one you're following (this one: 314 TE, 9.7 h to spare; yours: 313 TE, 1.4 days to spare). Do you want to follow it?"
+      "This is a better route than the one you're following (this one: 314 TE, 9h 42m to spare; yours: 313 TE, 33h 36m to spare). Do you want to follow it?"
     );
   });
   it('a Fast, Exact or Custom result that is better asks against a priced follow too (the existing rules)', () => {
@@ -201,7 +201,7 @@ describe('a simulated result against an instant-sourced follow', () => {
     const date = { ...base, goalKey: `date-${DEADLINE}`, goal: 'date' as const, deadline: DEADLINE, followed: f, candidate: c };
     expect(betterThanFollowed('date', DEADLINE, c, f.finish)).toBe(false);
     expect(followPrompt(date)?.words).toBe(
-      "Your Fast run, simulated on your account, gets 310 TE, 3 h to spare; the route you follow is the instant answer's estimate (312 TE, 2.0 days to spare). Do you want to follow the Fast run's route?"
+      "Your Fast run, simulated on your account, gets 310 TE, 3h to spare; the route you follow is the instant answer's estimate (312 TE, 2d to spare). Do you want to follow the Fast run's route?"
     );
     expect(followPrompt({ ...date, candidate: { ...c, end: DEADLINE + H } })).toBeNull();
   });
