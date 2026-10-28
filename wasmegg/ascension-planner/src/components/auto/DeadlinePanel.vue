@@ -424,25 +424,16 @@
                   lastTooHigh
                     ? LAST_TOO_HIGH
                     : lastRange
-                    ? `starts at ${lastRange[0]}-${lastRange[1]} and looks higher or lower if the answer is outside it; found to the exact TE`
+                    ? lastStopHint(lastRange)
                     : 'give it a rough range, e.g. 300-340'
                 }}
               </span>
             </template>
           </RoutesToTry>
-          <p class="text-body text-slate-500 max-w-prose">
-            Each box is one range of TEs per ascension before the last, like {{ fastestName(store.finalTE) }} ›
-            {{ NAMES.fullFirst }}'s, separated by <span class="tabular-nums">;</span>. A range is
-            <span class="tabular-nums">lo-hi:step</span>, a single value, or several values with commas. Boxes with
-            other ascension counts all run from the same click, and a 1- or 2-ascension box costs next to nothing.
-            <template v-if="suggestFrom">{{ suggestFrom }}</template>
-          </p>
-          <p v-if="instantSets.length" class="text-small text-slate-500" data-test="handoff-note">
-            This search starts each fresh ascension the moment the last one ends, or with your awake hours set, as soon as you
-            are next available; the instant answer starts it on the next whole hour inside your awake hours. With your awake hours
-            set, that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). Without awake
-            hours, the two differ by up to about an hour per ascension.
-          </p>
+          <!-- What a box holds: a lead line, then a Format example (CustomBoxesHelp.vue, ux35-e). -->
+          <CustomBoxesHelp :final-te="store.finalTE" :from="suggestFrom" />
+          <!-- Why this search's times can differ from the instant answer's, folded (StartTimingNote.vue). -->
+          <StartTimingNote v-if="instantSets.length" data-test="handoff-note" />
         </template>
 
         <!-- Let it pick: the guided search (seed, grid, homing in). -->
@@ -852,16 +843,10 @@
         />
       </template>
       <!-- Where Advanced's box already says this (above, with the chains) it is not repeated here. -->
-      <p
+      <StartTimingNote
         v-if="best && (result.simple || mode !== 'space' || !instantSets.length)"
-        class="text-small text-slate-500"
         data-test="start-timing-note"
-      >
-        This search starts each fresh ascension the moment the last one ends, or with your awake hours set, as soon as you
-        are next available; the instant answer starts it on the next whole hour inside your awake hours. With your awake hours set,
-        that can move the same route by days (one route measured on Oct 24, 2026 moved 6.3 days). Without awake hours, the
-        two differ by up to about an hour per ascension.
-      </p>
+      />
       <!-- The best route on the edge of its box (the Full sweep's check, bandCheck.ts): a wider box may
            find better. -->
       <EdgeWarning
@@ -1172,6 +1157,9 @@ import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stor
 import StrongerBox from './StrongerBox.vue';
 import PanelFold from './PanelFold.vue';
 import ExhaustivePromise from './ExhaustivePromise.vue';
+import CustomBoxesHelp from './CustomBoxesHelp.vue';
+import StartTimingNote from './StartTimingNote.vue';
+import { lastStopHint } from './customBoxesText';
 import {
   BY_DATE_KINDS as BY_DATE_KIND_LIST,
   BY_DATE_TARGETS,
