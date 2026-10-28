@@ -145,7 +145,7 @@ import { useInstantCompute, type InstantComputeRequest } from './useInstantCompu
 import { useBoardRunLegs, type BoardRunWant, type RunCsvFetch } from './useBoardRunLegs';
 import { fetchRunCsv } from '@/explorer/collector';
 import { readKept } from '@/search/instantScale';
-import { ascensionSteps, instantSteps } from '@/lib/instantSteps';
+import { ascensionSteps, instantSteps, prestigeAfterSimulated, withStayLine } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
 import { buildLeft } from '@/lib/saveBuild';
@@ -1428,8 +1428,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const ascensions = computed(() => {
     const p = cardPlan.value?.plan;
     if (!p || p.legs) return [];
-    return ascensionSteps(
-      stepLegsOf(p).map((l, i) => ({
+    // A1 simulated: the next prestige from its end, to the minute (lib/instantSteps.ts); with no shifts left in it,
+    // what to do until then (`withStayLine`).
+    const steps = ascensionSteps(
+      prestigeAfterSimulated(stepLegsOf(p).map((l, i) => ({
         ...l,
         ...(p.tableLegs?.[i]?.shifts ? { shifts: p.tableLegs[i].shifts } : {}),
         ...(p.tableLegs?.[i]?.simulated ? { simulated: true } : {}),
@@ -1438,11 +1440,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         ...(p.tableLegs?.[i]?.variant ? { variant: p.tableLegs[i].variant } : {}),
         ...(p.tableLegs?.[i]?.label ? { label: p.tableLegs[i].label } : {}),
         ...(p.tableLegs?.[i]?.peakELR !== undefined ? { peakELR: p.tableLegs[i].peakELR } : {}),
-      })),
+      })), prestigeAtFrom),
       stepHours.value,
       stepNoPrestige.value,
       stepTimeOff.value
     );
+    return withStayLine(steps, now.value, currentEgg.value);
   });
   /** The plan's ascensions as lib/nextAction.ts reads them (the first simulated once it is in). */
   /** The simulated ascension, when it is in for the followed route. */
@@ -1528,7 +1531,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!cardPlan.value) return [];
     // Done by the save's state, not the clock alone: the egg it is on and its TE (nowPlan `planEvents`).
     const list = planEvents(cardPlan.value.plan, now.value, hasSave.value ? { egg: currentEgg.value, te: teSoFar.value } : null);
-    const lines = instantSteps(stepLegsOf(cardPlan.value.plan), stepHours.value, stepNoPrestige.value, stepTimeOff.value);
+    const p = cardPlan.value.plan;
+    // The prestige after the simulated A1 from its end (lib/instantSteps.ts `prestigeAfterSimulated`), as on the Full timeline.
+    const legs = stepLegsOf(p).map((l, i) => (p.tableLegs?.[i]?.simulated ? { ...l, simulated: true } : l));
+    const lines = instantSteps(prestigeAfterSimulated(legs, prestigeAtFrom), stepHours.value, stepNoPrestige.value, stepTimeOff.value);
     return mergeSimultaneousShifts(markPrestigeWaits(list, lines), zone.value);
   });
   const shownEvents = computed(() => tableEvents(events.value));

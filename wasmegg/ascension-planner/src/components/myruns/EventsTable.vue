@@ -35,7 +35,7 @@
             <!-- Every ascension's prestige is listed (26 Oct 2026); one that waits says why and when it happens. -->
             <p v-if="e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past" class="text-small text-amber-800" data-testid="now-event-wait">
               {{ e.wait === 'days' ? 'Waits past your no-prestige days' : 'Waits for your hours' }}: prestige
-              {{ whenAt(e.prestigeAt) }}
+              {{ whenAt(e, e.prestigeAt) }}
             </p>
             <!-- What the instant estimate doesn't price (lib/instantSteps.ts): said in amber, Fast prices it. -->
             <p v-if="e.kind === 'prestige' && !e.past && e.cutByTimeOff" class="text-small text-amber-800" data-testid="now-event-cut">
@@ -105,10 +105,12 @@ const props = defineProps<{
   /** The instant answer's times (estimates): rounded to the hour, no calendar buttons. */
   rounded?: boolean;
 }>();
-const when = (e: PlanEvent) => whenWords(e, props.goal, props.now, props.zone, !!props.rounded);
-const far = (e: PlanEvent) => howFar(e, props.now, props.zone, !!props.rounded, props.goal);
+/** Rounded to the hour: the instant answer's times, never the ascension you are in simulated on the save (`exact`). */
+const roundedFor = (e: PlanEvent) => !!props.rounded && !e.exact;
+const when = (e: PlanEvent) => whenWords(e, props.goal, props.now, props.zone, roundedFor(e));
+const far = (e: PlanEvent) => howFar(e, props.now, props.zone, roundedFor(e), props.goal);
 /** When a waiting prestige happens, in the row's own words (rounded like the row). */
-const whenAt = (at: number) => whenWords({ at, kind: 'prestige' }, props.goal, props.now, props.zone, !!props.rounded);
+const whenAt = (e: PlanEvent, at: number) => whenWords({ at, kind: 'prestige' }, props.goal, props.now, props.zone, roundedFor(e));
 
 const device = thisDevice();
 const title = (e: PlanEvent) =>

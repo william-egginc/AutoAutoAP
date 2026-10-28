@@ -13,6 +13,7 @@ import { nextPrestigeAt, noPrestigeAt, usableNoPrestige } from '@/search/noPrest
 import type { TimeOffWindow } from '@/search/types';
 import { buildUpLine, type BuildUpLeg } from './buildUpLine';
 import { estimatedOpening } from './openingShifts';
+import { virtueEggName } from './virtueEggs';
 
 export interface StepLeg {
   from: number;
@@ -149,6 +150,20 @@ export interface AscensionStep extends StepLine {
   /** Time off cuts it (the simulated ascension, lib/followSim.ts): to the home farm at `from` with `te`, built again
    *  from `to`. */
   timeOff?: { from: number; to: number; te: number };
+  /** Its prestige follows the simulated ascension before it (`prestigeAfterSimulated`): to the minute, not the
+   *  instant answer's hour. */
+  prestigeExact?: boolean;
+  /** The ascension you are in, simulated, with no shifts left (`withStayLine`): stay on `egg` until `at`, its prestige
+   *  (or on the route's last ascension, its TE reached). */
+  stay?: StayLine;
+}
+
+/** "No shifts left: stay on <egg> until you prestige at about <time>" (`stayWords`). */
+export interface StayLine {
+  egg: string | null;
+  at: number;
+  kind: 'prestige' | 'goal';
+  te: number;
 }
 
 /**
@@ -181,9 +196,56 @@ export function ascensionSteps(
       ...line,
       shifts: (list[i].shifts ?? []).filter(s => Number.isFinite(s.at)).map(s => ({ at: s.at, egg: s.egg })),
       simulated: !!list[i].simulated,
+      ...(list[i - 1]?.simulated ? { prestigeExact: true } : {}),
       ...(buildUp ? { buildUp } : {}),
       ...(opening > 0 ? { openingShifts: opening } : {}),
       ...(list[i].timeOff ? { timeOff: { from: list[i].timeOff!.from, to: list[i].timeOff!.to, te: list[i].timeOff!.te } } : {}),
     };
   });
+}
+
+/**
+ * THE SIMULATED ASCENSION'S PRESTIGE, TO THE MINUTE (27 Oct 2026, Jordan: the Full timeline's times were off from hour
+ * rounding). The ascension after a simulated one (lib/followSim.ts) starts at that one's simulated end, held by
+ * `prestigeAt` (the hours and no-prestige days, search/noPrestige.ts `nextPrestigeAt`), not at the instant answer's
+ * start (the table's end of it, to the hour), as Next shifts already time it (lib/nextAction.ts). The legs as they are
+ * otherwise.
+ */
+export function prestigeAfterSimulated<L extends { start: number; end: number; simulated?: boolean }>(
+  legs: readonly L[],
+  prestigeAt: (t: number) => number
+): L[] {
+  return legs.map((l, i) => {
+    const prev = legs[i - 1];
+    if (!prev?.simulated || !Number.isFinite(prev.end)) return l;
+    const at = prestigeAt(prev.end);
+    return Number.isFinite(at) ? { ...l, start: at } : l;
+  });
+}
+
+/**
+ * NO SHIFTS LEFT (27 Oct 2026, Jordan): the ascension you are in (A1, simulated on the save) with no shift after `now`
+ * says what to do instead of an empty line: stay on the egg of its last shift (else the egg the save is on, `egg`)
+ * until its prestige, the next ascension's start; on the route's last ascension, until its TE is reached. Nothing for
+ * an ascension from the instant answer (its shifts aren't known), one not started yet, or one cut by time off.
+ */
+export function withStayLine(steps: readonly AscensionStep[], now: number, egg: string | null | undefined): AscensionStep[] {
+  const first = steps[0];
+  if (!first?.simulated || first.timeOff || now < first.prestigeAt) return [...steps];
+  if (first.shifts.some(s => s.at > now)) return [...steps];
+  const last = first.shifts.filter(s => s.at <= now).pop();
+  const next = steps[1];
+  const stay: StayLine = next
+    ? { egg: last?.egg ?? egg ?? null, at: next.prestigeAt, kind: 'prestige', te: first.stopTE }
+    : { egg: last?.egg ?? egg ?? null, at: first.reachedAt, kind: 'goal', te: first.stopTE };
+  if (!(now < stay.at)) return [...steps];
+  return [{ ...first, stay }, ...steps.slice(1)];
+}
+
+/** "No shifts left: stay on Kindness until you prestige at about <when>", "… until you reach 226 TE at about <when>". */
+export function stayWords(s: StayLine, when: (t: number) => string): string {
+  const on = s.egg ? `stay on ${virtueEggName(s.egg)}` : 'stay on the egg you are on';
+  return s.kind === 'prestige'
+    ? `No shifts left: ${on} until you prestige at about ${when(s.at)}`
+    : `No shifts left: ${on} until you reach ${s.te} TE at about ${when(s.at)}`;
 }

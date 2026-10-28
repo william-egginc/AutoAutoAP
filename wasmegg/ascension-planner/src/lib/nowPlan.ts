@@ -365,6 +365,9 @@ export interface PlanEvent {
   onNoPrestigeDay?: boolean;
   /** Goal (By a date): hours to spare. */
   spareHours?: number | null;
+  /** From the ascension you are in simulated on the save (lib/followSim.ts): to the minute even when the rest of the
+   *  plan is the instant answer's, rounded to the hour (27 Oct 2026, Jordan). */
+  exact?: boolean;
   past: boolean;
   /** Its time has passed but the save doesn't show it done yet (still on the egg before the shift, short of the
    *  prestige's TE): not `past`, shown as "Not done yet", and Next step leads with it. */
@@ -403,18 +406,19 @@ export function planEvents(plan: NowPlan, nowSeconds: number, save: SaveDone | n
     });
   } else if (plan.tableLegs) {
     plan.tableLegs.slice(0, n).forEach((leg, i) => {
+      const x = leg.simulated ? { exact: true } : {};
       // The table's shifts when the estimate carried them (each after the build-up, to the hour).
-      for (const sh of leg.shifts ?? []) if (Number.isFinite(sh.at)) out.push({ kind: 'shift', at: sh.at, asc: i + 1, egg: sh.egg });
+      for (const sh of leg.shifts ?? []) if (Number.isFinite(sh.at)) out.push({ kind: 'shift', at: sh.at, asc: i + 1, egg: sh.egg, ...x });
       // The ascension you are in cut by time off (lib/followSim.ts): to the home farm when it starts (a prestige, at the
       // TE it has then), and back to build it again when it ends.
       if (leg.timeOff) {
-        out.push({ kind: 'prestige', at: leg.timeOff.from, asc: i + 1, te: leg.timeOff.te, timeOff: 'leave' });
-        out.push({ kind: 'prestige', at: leg.timeOff.to, asc: i + 1, te: leg.to, timeOff: 'back' });
+        out.push({ kind: 'prestige', at: leg.timeOff.from, asc: i + 1, te: leg.timeOff.te, timeOff: 'leave', ...x });
+        out.push({ kind: 'prestige', at: leg.timeOff.to, asc: i + 1, te: leg.to, timeOff: 'back', ...x });
       }
       if (!Number.isFinite(leg.end)) return;
       const te = leg.endTE ?? leg.to;
-      if (i === n - 1 && plan.goal === 'fastest') out.push({ kind: 'goal', at: leg.end, asc: i + 1, te });
-      else out.push({ kind: 'prestige', at: leg.end, asc: i + 1, te });
+      if (i === n - 1 && plan.goal === 'fastest') out.push({ kind: 'goal', at: leg.end, asc: i + 1, te, ...x });
+      else out.push({ kind: 'prestige', at: leg.end, asc: i + 1, te, ...x });
     });
   }
   if (plan.goal === 'date' && plan.deadline)

@@ -4,8 +4,9 @@
   it (lib/instantSteps.ts): when its prestige happens (marked when it waits for the hours or past a no-prestige day)
   and when its stop is reached; under each, its build-up in one line (lib/buildUpLine.ts: the opening's shifts are not in
   the table), how many shifts that opening makes (estimated, lib/openingShifts.ts) and its shifts. The table's shifts come from its replay (search/legShifts.ts),
-  each after the build-up, to the hour; the current ascension's, once simulated on the live save, are exact. Nothing
-  is worked out here.
+  each after the build-up, to the hour; the current ascension's, once simulated on the live save, are exact, and so is
+  the prestige after it (27 Oct 2026: from its simulated end, never the table's hour); with no shifts left in it, "No
+  shifts left: stay on <egg> until you prestige at about <time>". Nothing is worked out here.
 -->
 <template>
   <div class="text-body text-slate-700" data-testid="now-ascensions">
@@ -19,7 +20,9 @@
               >falls in your time off {{ timeOffDays(l.prestigeInTimeOff, zone) }}: Fast prices it</span
             ></template
           >
-          <template v-else>{{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ about(l.prestigeAt) }}</span></template>
+          <template v-else
+            >{{ ' ' }}· prestige <span class="whitespace-nowrap font-bold">{{ l.prestigeExact ? exact(l.prestigeAt) : about(l.prestigeAt) }}</span></template
+          >
           <template v-if="l.onNoPrestigeDay"
             >{{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-no-prestige-day"
               >on a no-prestige day: it waits past your no-prestige days (Fast prices it)</span
@@ -27,11 +30,11 @@
           >
           <template v-if="l.wait === 'days'">
             {{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-waits-days">waits past your no-prestige days</span>
-            (ready {{ about(l.readyAt!) }})
+            (ready {{ l.prestigeExact ? exact(l.readyAt!) : about(l.readyAt!) }})
           </template>
           <template v-else-if="l.wait === 'hours'">
             {{ ' ' }}<span class="text-amber-800 font-bold" data-testid="ascension-waits-hours">waits for your hours</span>
-            (ready {{ about(l.readyAt!) }})
+            (ready {{ l.prestigeExact ? exact(l.readyAt!) : about(l.readyAt!) }})
           </template>
         </template>
         {{ ' ' }}→ <span class="font-bold">{{ l.stopTE }} TE</span> reached
@@ -57,7 +60,9 @@
             {{ l.simulated ? 'worked out on your save, to the minute' : 'from the instant answer, to the hour' }}
           </li>
         </ul>
-        <p v-else class="ml-4 text-body text-slate-500" data-testid="now-ascension-no-shifts">{{ noShifts(l) }}</p>
+        <p v-else-if="!l.stay" class="ml-4 text-body text-slate-500" data-testid="now-ascension-no-shifts">{{ noShifts(l) }}</p>
+        <!-- The ascension you are in with no shifts left: what to do until its prestige (lib/instantSteps.ts withStayLine). -->
+        <p v-if="l.stay" class="mt-0.5 ml-4 text-body text-slate-700" data-testid="now-ascension-stay">{{ stayWords(l.stay, exact) }}</p>
       </li>
     </ol>
     <p class="mt-1.5 text-body text-slate-500 max-w-prose" data-testid="now-ascensions-note">
@@ -72,7 +77,7 @@
 import { showDateTime } from '@/lib/displayTime';
 import { virtueEggName } from '@/lib/virtueEggs';
 import { roundToHourIn } from '@/lib/nowWords';
-import { timeOffDays, type AscensionStep } from '@/lib/instantSteps';
+import { stayWords, timeOffDays, type AscensionStep } from '@/lib/instantSteps';
 
 const props = defineProps<{
   lines: AscensionStep[];
