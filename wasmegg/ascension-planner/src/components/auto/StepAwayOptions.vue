@@ -30,15 +30,19 @@
     </div>
     <p v-if="autoNote" class="font-bold text-amber-800">{{ autoNote }}</p>
 
-    <!-- The four options, folded to one row (lib/panelFold.ts `steppingAway`) unless a run is going; the countdown
-         above stays outside, so a crash's carry-on is always in sight. -->
+    <!-- The four options, folded to one row (lib/panelFold.ts `steppingAway`) unless the player opens it, or Run
+         started a run of this kind estimated at over an hour and the box isn't set up (composables/useStepAwayNudge.ts);
+         the countdown above stays outside, so a crash's carry-on is always in sight. -->
     <PanelFold
+      ref="fold"
       section="steppingAway"
       title="Stepping away?"
       hint="Crash recovery, phone watch, progress uploads"
       :running="running"
       :unfinished="canCarryOn || countdown > 0"
+      :long-run="nudged"
       summary-class="text-small text-slate-500"
+      @player-toggle="onFoldToggle"
     >
       <div class="space-y-2 pt-1">
         <!-- Each option is one of the account's consents (ConsentBox.vue, composables/useConsent.ts): remembered
@@ -356,6 +360,7 @@ import { hashID } from '@/lib/storage/db';
 import ConsentBox from './ConsentBox.vue';
 import PanelFold from './PanelFold.vue';
 import { useConsent } from '@/composables/useConsent';
+import { dismissStepAwayNudge, stepAwayNudge } from '@/composables/useStepAwayNudge';
 import {
   agoShort,
   autoCarryOnVerdict,
@@ -387,13 +392,27 @@ const props = defineProps<{
   /** The panel shows the countdown (and its Cancel) in its own single offer to carry on, so this box
    *  doesn't draw a second one. It gets the seconds left through `countdown`. */
   countdownElsewhere?: boolean;
-  /** A run of this panel's is going: the options open (lib/panelFold.ts). */
+  /** A run of this panel's is going (lib/panelFold.ts; it no longer opens the options by itself since 28 Oct 2026). */
   running?: boolean;
 }>();
 const emit = defineEmits<{ 'carry-on': []; countdown: [seconds: number] }>();
 
 const store = useChainSearchStore();
 const options = stepAwayOptions;
+
+// ------------------------------------------------------------------ opened by a long run
+
+/** Run started a long run of this kind and the box isn't set up: open (composables/useStepAwayNudge.ts). */
+const nudged = computed(() => stepAwayNudge.value === props.kind);
+const fold = ref<InstanceType<typeof PanelFold> | null>(null);
+// Opened as Run is pressed: brought into view, centred so the floating run bar doesn't cover it.
+watch(nudged, on => {
+  if (on) void fold.value?.show();
+});
+/** The player closed the box a long run opened: it stays closed for that run. */
+function onFoldToggle(open: boolean): void {
+  if (!open) dismissStepAwayNudge(props.kind);
+}
 /** The four ticks: the account's consents (composables/useConsent.ts); `options` follows them. */
 const carryOn = useConsent('carryOn').agreed;
 const watchTab = useConsent('watchTab').agreed;

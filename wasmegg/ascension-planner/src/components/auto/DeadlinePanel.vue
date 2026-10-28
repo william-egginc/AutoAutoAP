@@ -556,6 +556,7 @@
     <RunControls
       v-if="showControls(k)"
       :long-run="k === 'boxes' || stronger.level === 'thorough'"
+      :estimate-seconds="runEstimateSeconds(k)"
       ref="stepAway"
       v-model:opt-in="shareOptIn"
       v-model:anonymous="shareAnonymous"
@@ -1603,6 +1604,13 @@ const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>((
   }
   return out;
 });
+/** The estimate each box shows before Run, in seconds (0: none yet): Nearby routes' level estimate, the boxes'
+ *  Est. time. A long one opens Stepping away? as Run is pressed (RunControls.vue `estimateSeconds`). */
+function runEstimateSeconds(k: ByDateKind): number {
+  if (k === 'boxes') return plannedLegs.value ? plan.value.seconds : 0;
+  const sp = simpleSpace.value;
+  return sp ? simplePlanOf(sp, store.workerBudget, store.deadlineWorkerSeconds || weightedSecondsPerLeg(sp)).seconds : 0;
+}
 /** The boxes an automatic widening round runs next (search/autoWiden.ts): the last round's, one of
  *  them widened. Only while the fallback goes; null otherwise. */
 const simpleNext = ref<{ chains: { asc: number; text: string }[]; lastBox: string } | null>(null);

@@ -51,7 +51,7 @@
       :best-so-far-kind="kind === 'by-date' ? 'deadline' : 'fastest'"
       :blocked-by="otherRun?.name"
       :blocked-kind="otherRun?.kind"
-      @find="andSubmit => emit('find', andSubmit)"
+      @find="onFind"
       @stop="emit('stop')"
       @nickname-typed="emit('nicknameTyped')"
     />
@@ -80,7 +80,7 @@
     <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
     <StepAwayOptions
       ref="stepAway"
-      :kind="kind === 'by-date' ? 'deadline' : kind === 'full' ? 'sweep' : 'smart'"
+      :kind="stepAwayKind"
       :player-id="playerId"
       :running="running"
       :can-carry-on="canCarryOn"
@@ -109,6 +109,8 @@ import RunSaveNotice from './RunSaveNotice.vue';
 import RunSendReport from './RunSendReport.vue';
 import SafariNotice from './SafariNotice.vue';
 import StepAwayOptions from './StepAwayOptions.vue';
+import { nudgeStepAway } from '@/composables/useStepAwayNudge';
+import type { RunKind } from '@/search/stepAway';
 import UnsentResults from './UnsentResults.vue';
 
 /** RunSendReport's inputs: whether this panel made the automatic send, and how it went. */
@@ -154,6 +156,9 @@ const props = withDefaults(
     /** A long run is about to start (By a date, Exhaustive, Very high, or over about 2 hours): with
      *  more than MANY_WORKERS workers, warn about the browser's memory. */
     longRun?: boolean;
+    /** The run's estimate the screen shows, seconds (null or absent: none). Over an hour (useStepAwayNudge.ts
+     *  LONG_RUN_SECONDS), Run also opens Stepping away? unless it is set up. */
+    estimateSeconds?: number | null;
   }>(),
   {
     stopping: false,
@@ -165,6 +170,7 @@ const props = withDefaults(
     runSaveNotice: true,
     integrityNotice: true,
     deadlineOffer: false,
+    estimateSeconds: null,
   }
 );
 const emit = defineEmits<{
@@ -198,6 +204,14 @@ const otherRun = computed<{ name: string; kind: 'smart' | 'full' } | null>(() =>
   if (k === props.kind) return null;
   return { name: k === 'smart' ? NAMES.smart : NAMES.full, kind: k };
 });
+
+/** Stepping away?'s name for this screen's runs. */
+const stepAwayKind = computed<RunKind>(() => (props.kind === 'by-date' ? 'deadline' : props.kind === 'full' ? 'sweep' : 'smart'));
+/** Run pressed: the screen starts the run, then a long one opens Stepping away? (never holding the run up). */
+function onFind(andSubmit: boolean): void {
+  emit('find', andSubmit);
+  nudgeStepAway(stepAwayKind.value, props.estimateSeconds);
+}
 
 const stepAway = ref<InstanceType<typeof StepAwayOptions> | null>(null);
 const findBar = ref<InstanceType<typeof FindBar> | null>(null);
