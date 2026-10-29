@@ -780,6 +780,7 @@
           :simulate-note="resultSim?.note"
           :can-share="collectorConfigured"
           can-csv
+          :csv-every="store.csvHasEveryRoute('deadline')"
           can-save
           :saving="quickSaving"
           :note="quickSaveNote"

@@ -145,7 +145,7 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
   it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
     expect(textOf(html)).toMatch(
-      /Simulate this plan Share CSV ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
+      /Simulate this plan Share Download CSV \(top routes\) ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
     );
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],
@@ -216,7 +216,7 @@ describe('Follow this route on the result cards (23 Oct 2026)', () => {
   it('By a date: the finished answer has "Follow this route" for its goal; the best so far and a card without it have none', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ follow, simulate: true, canCsv: true }));
     expect(html).toMatch(/data-testid="follow-route" data-goal="eggday-2027"/);
-    expect(textOf(html)).toMatch(/Simulate this plan Follow this route CSV/);
+    expect(textOf(html)).toMatch(/Simulate this plan Follow this route Download CSV/);
     expect(await renderHtml(ByDateRouteCard, props({ follow, running: true, simulate: true }))).not.toContain('follow-route');
     expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('follow-route');
   });

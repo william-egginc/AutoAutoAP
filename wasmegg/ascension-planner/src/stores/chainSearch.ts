@@ -3627,6 +3627,24 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const s = legSpills[kind];
     return s ? { routes: s.count, bytes: s.bytes, stopped: s.stopped } : null;
   }
+  /**
+   * Whether a screen's CSV download (`streamFullCsv`) has every priced route's per-ascension detail: its spill
+   * is open and stored them all (not stopped by a full disk), and for By a date its own finished run's list of
+   * every route. Else the top routes' detail (the card's button says which, components/auto/csvButton.ts). A
+   * Fastest run carried over a reload says top routes, though its spill may reopen at the click.
+   */
+  function csvHasEveryRoute(kind: 'fastest' | 'deadline'): boolean {
+    // Read so a template showing this follows a run (the spill is set before either changes).
+    if (kind === 'fastest') {
+      void isRunning.value;
+      void csvRows.value;
+      const s = legSpills.fastest;
+      return !!s && !s.stopped;
+    }
+    void deadlineResult.value;
+    const s = legSpills.deadline;
+    return !!s && !s.stopped && deadlineAll.length > 0 && !!deadlineAllPriced;
+  }
   /** Write what is new and make the spill durable; its length, for the checkpoint. */
   async function commitSpill(entries: readonly CacheEntry[]): Promise<number> {
     spillNew(entries);
@@ -9848,6 +9866,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setLegSpill,
     setLegSpillOpener,
     legSpillStatus,
+    csvHasEveryRoute,
     legSpillInfo,
     buildRunSubmission,
     buildDeadlineSubmission,

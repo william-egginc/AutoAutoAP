@@ -133,8 +133,15 @@
           <button v-if="canShare" type="button" :class="SECONDARY_BUTTON" data-testid="by-date-share" @click="toShare">
             Share
           </button>
-          <button v-if="canCsv" type="button" :class="SECONDARY_BUTTON" data-testid="by-date-csv" @click="emit('csv')">
-            CSV ↓
+          <button
+            v-if="canCsv"
+            type="button"
+            :class="SECONDARY_BUTTON"
+            data-testid="by-date-csv"
+            :title="csv.title"
+            @click="emit('csv')"
+          >
+            {{ csv.text }}
           </button>
           <button
             v-if="canSave"
@@ -213,6 +220,7 @@ import FollowButton from '../FollowButton.vue';
 import type { ResultFollow } from '@/lib/follow';
 import RouteExtras from './RouteExtras.vue';
 import RouteTimeline from './RouteTimeline.vue';
+import { csvButton } from './csvButton';
 import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
@@ -235,9 +243,11 @@ const props = defineProps<{
   /** One line under that button, e.g. that Your plan prices a build-up first ascension differently. */
   simulateNote?: string;
   /** The rest of the row, as on Fastest's card: Share (scrolls to Share this result), CSV ↓ (emits
-   *  `csv`), Save answer (emits `save`). Finished answers only. */
+   *  `csv`; named for what the file holds, csvButton.ts), Save answer (emits `save`). Finished answers only. */
   canShare?: boolean;
   canCsv?: boolean;
+  /** The CSV has every route's per-ascension detail (store `csvHasEveryRoute`): its button says so. */
+  csvEvery?: boolean;
   canSave?: boolean;
   saving?: boolean;
   /** A line after the buttons: what the last click did. */
@@ -255,6 +265,8 @@ const props = defineProps<{
   follow?: ResultFollow | null;
 }>();
 const emit = defineEmits<{ simulate: []; csv: []; save: [] }>();
+
+const csv = computed(() => csvButton(!!props.csvEvery));
 
 /** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
  *  page (SearchPanel.vue), so the one laid out is this card's. */
