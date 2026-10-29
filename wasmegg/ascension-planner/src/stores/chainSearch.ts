@@ -6238,6 +6238,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     state: 'building' | 'uploading' | 'done' | 'failed' | 'stopped';
     done: number;
     total: number;
+    /** Kept: the size the collector has, as the line says it (the download button gives the same). */
+    bytes?: number;
     message: string;
   } | null>(null);
   let bigCsvBusy: Promise<BigCsvOutcome | null> | null = null;
@@ -6275,6 +6277,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
                 state: out.kind === 'kept' ? 'done' : out.kind === 'stopped' ? 'stopped' : 'failed',
                 done: source.size,
                 total: source.size,
+                ...(out.kind === 'kept' ? { bytes: out.bytes } : {}),
                 message: bigCsvMessage(out),
               };
         if (out.kind === 'kept' || out.kind === 'unavailable' || out.kind === 'refused') bigCsvRow = null;

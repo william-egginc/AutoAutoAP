@@ -212,3 +212,37 @@ export async function openBigCsvSink(): Promise<BigCsvSink | null> {
     return null;
   }
 }
+
+/** That file as the last upload left it (closed by the worker), or null when it is not here. */
+async function bigCsvGzFile(): Promise<File | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) return null;
+  try {
+    const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle(LEG_SPILL_DIR);
+    return await (await dir.getFileHandle(BIG_CSV_FILE)).getFile();
+  } catch {
+    return null;
+  }
+}
+
+/** The kept full CSV's .csv.gz still on this computer: its size, or null (cleared, or never made here). */
+export async function bigCsvGzSize(): Promise<number | null> {
+  return (await bigCsvGzFile())?.size ?? null;
+}
+
+/**
+ * Save that .csv.gz as `filename` (Jordan, 28 Oct 2026: the full CSV kept on the collector, for the player too),
+ * when it is still the file uploaded (`bytes` long). False: gone, or a newer run's file in its place.
+ */
+export async function saveBigCsvGz(filename: string, bytes: number): Promise<boolean> {
+  const file = await bigCsvGzFile();
+  if (!file || file.size !== bytes) return false;
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_FILE_TTL_MS);
+  return true;
+}
