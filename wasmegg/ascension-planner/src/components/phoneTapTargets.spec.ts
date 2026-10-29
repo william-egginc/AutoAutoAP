@@ -30,7 +30,8 @@ describe('the instant card on a phone', () => {
   });
   it('Follow this route: the boxes use the 44 px primary button, the counts rows get 44 px too', () => {
     expect(src.match(/<FollowButton primary|<FollowButton v-if="boxFollowable" primary/g)).toHaveLength(2);
-    expect(src.match(/<FollowButton v-if="(?:rowFollowable\(r\)|r\.chain\.length)" class="min-h-\[44px\] sm:min-h-0"/g)).toHaveLength(2);
+    // The counts rows' Follow is the primary (44 px) one too since 29 Oct 2026 (resultCardStyle.ts `ROUTE_ACTIONS`).
+    expect(src.match(/<FollowButton v-if="(?:rowFollowable\(r\)|r\.chain\.length)" primary :class="ROUTE_ACTION"/g)).toHaveLength(2);
     expect(read('FollowButton.vue')).toContain("primary ? 'min-h-[44px] sm:min-h-0");
   });
   it('the pointer link (See it ↓) and Show more ascension counts', () => {
