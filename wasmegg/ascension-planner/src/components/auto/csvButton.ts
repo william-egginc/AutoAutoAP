@@ -4,8 +4,8 @@
  * run priced; each ascension's detail is there for the top routes, or for every route when the run kept them
  * all on this computer (store `csvHasEveryRoute`). Drafts for Words.
  */
-export const CSV_TOP_ROUTES = 'Download CSV (top routes) ↓';
-export const CSV_EVERY_ROUTE = 'Download CSV (every route) ↓';
+export const CSV_TOP_ROUTES = 'Download CSV (detail for top routes) ↓';
+export const CSV_EVERY_ROUTE = 'Download CSV (detail for every route) ↓';
 
 export function csvButton(every: boolean): { text: string; title: string } {
   return every

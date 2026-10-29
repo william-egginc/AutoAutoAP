@@ -45,7 +45,7 @@ beforeEach(() => {
 describe('useFullCsvGz', () => {
   it('the button names the file and its size, as the kept line does', () => {
     // draft wording (Words reviews)
-    expect(fullCsvGzButton(MB118)).toBe('Download the full CSV (118 MB, .csv.gz) ↓');
+    expect(fullCsvGzButton(MB118)).toBe('Download the full CSV you sent (118 MB, .csv.gz) ↓');
     expect(FULL_CSV_GZ_NAME).toBe('run-full.csv.gz');
   });
 
@@ -101,7 +101,7 @@ describe('BigCsvStatus', () => {
     useFullCsvGz().onDisk.value = true;
     const html = await render();
     expect(textOf(html)).toBe(
-      "The full CSV (every route's per-ascension detail, 118 MB) is kept privately for analysis. Download the full CSV (118 MB, .csv.gz) ↓"
+      "The full CSV (every route's per-ascension detail, 118 MB) is kept privately for analysis. Download the full CSV you sent (118 MB, .csv.gz) ↓"
     );
     expect(html).toContain('data-testid="full-csv-gz"');
     expect(html).toMatch(/min-h-\[44px\]/);
@@ -115,7 +115,7 @@ describe('BigCsvStatus', () => {
     expect(html).not.toContain('full-csv-gz"');
     expect(textOf(html)).toContain(fullCsvGone());
     // "this computer" / "this phone" from search/device.ts, as everywhere else
-    expect(fullCsvGone()).toMatch(/^The full CSV is no longer on this (computer|phone|tablet): /);
+    expect(fullCsvGone()).toMatch(/^The full CSV you sent is no longer on this (computer|phone|tablet): /);
   });
 
   it('no button while the file is made or uploaded, or after a failed upload', async () => {

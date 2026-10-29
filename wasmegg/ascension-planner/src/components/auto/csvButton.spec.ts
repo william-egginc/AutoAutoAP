@@ -40,8 +40,8 @@ beforeEach(() => {
 
 describe('the CSV button names what it holds', () => {
   it('top routes, or every route when the run kept them all (draft wording)', () => {
-    expect(CSV_TOP_ROUTES).toBe('Download CSV (top routes) ↓');
-    expect(CSV_EVERY_ROUTE).toBe('Download CSV (every route) ↓');
+    expect(CSV_TOP_ROUTES).toBe('Download CSV (detail for top routes) ↓');
+    expect(CSV_EVERY_ROUTE).toBe('Download CSV (detail for every route) ↓');
     expect(csvButton(false).text).toBe(CSV_TOP_ROUTES);
     expect(csvButton(true).text).toBe(CSV_EVERY_ROUTE);
     expect(csvButton(false).title).toMatch(/every route priced.*top routes/i);
@@ -50,11 +50,11 @@ describe('the CSV button names what it holds', () => {
 
   it('By a date: the card shows the named button, still emitting csv', async () => {
     const top = await renderHtml(ByDateRouteCard, { route, deadline: DEADLINE, zone: 'UTC', canCsv: true });
-    expect(textOf(top)).toContain('Download CSV (top routes) ↓');
+    expect(textOf(top)).toContain('Download CSV (detail for top routes) ↓');
     expect(textOf(top)).not.toMatch(/(^|\s)CSV ↓/);
     expect(top.replace(/&#39;/g, "'")).toContain(`title="${csvButton(false).title}"`);
     const every = await renderHtml(ByDateRouteCard, { route, deadline: DEADLINE, zone: 'UTC', canCsv: true, csvEvery: true });
-    expect(textOf(every)).toContain('Download CSV (every route) ↓');
+    expect(textOf(every)).toContain('Download CSV (detail for every route) ↓');
     const src = read('ByDateRouteCard.vue');
     expect(src).toMatch(/data-testid="by-date-csv"\s+:title="csv\.title"\s+@click="emit\('csv'\)"/);
   });
@@ -94,8 +94,8 @@ describe('Fastest (Fast, Exact, Custom): the same named button in the same place
     renderHtml(RouteResultCard, { chain: [212, 280, 490], days: 760.5, finalTE: 490, endLabel: 'Feb 15, 2029', running: false, canSave: true, ...over });
 
   it('Share, then the named CSV button, then Save run, as on By a date', async () => {
-    expect(textOf(await fast())).toMatch(/Share Download CSV \(top routes\) ↓ Save run/);
-    expect(textOf(await fast({ csvEvery: true }))).toMatch(/Share Download CSV \(every route\) ↓ Save run/);
+    expect(textOf(await fast())).toMatch(/Share Download CSV \(detail for top routes\) ↓ Save run/);
+    expect(textOf(await fast({ csvEvery: true }))).toMatch(/Share Download CSV \(detail for every route\) ↓ Save run/);
     expect(read('RouteResultCard.vue')).toMatch(/data-testid="fastest-csv"\s+:title="csv\.title"\s+@click="emit\('csv'\)"/);
   });
 

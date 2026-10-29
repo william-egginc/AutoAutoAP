@@ -16,12 +16,12 @@ export const FULL_CSV_GZ_NAME = 'run-full.csv.gz';
 
 /** The button, with the size the kept line gives (search/bigCsvUpload.ts `bigCsvMessage`). Draft. */
 export function fullCsvGzButton(bytes: number): string {
-  return `Download the full CSV (${(bytes / 1e6).toFixed(0)} MB, .csv.gz) ↓`;
+  return `Download the full CSV you sent (${(bytes / 1e6).toFixed(0)} MB, .csv.gz) ↓`;
 }
 
 /** In place of the button when the file is not here any more ("this phone" on a phone, search/device.ts). Draft. */
 export function fullCsvGone(): string {
-  return `The full CSV is no longer on ${thisDevice()}: this browser's site data was cleared, or a newer run's full CSV replaced it.`;
+  return `The full CSV you sent is no longer on ${thisDevice()}: this browser's site data was cleared, or a newer run's full CSV replaced it.`;
 }
 
 /** The kept file is here (true), gone (false), or not looked for yet (null). One for the page: one kept file. */

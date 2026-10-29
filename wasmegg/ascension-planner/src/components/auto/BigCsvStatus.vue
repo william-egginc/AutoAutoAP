@@ -2,7 +2,7 @@
   A very large run's full CSV on its way to the collector's private store (store `sendFullCsv`,
   search/bigCsvUpload.ts): made, then uploaded by parts in the background after the run's final send.
   Nothing when there is none (most runs, or a collector without the store).
-  Once kept, the same .csv.gz is still on this computer: "Download the full CSV" saves it as run-full.csv.gz
+  Once kept, the same .csv.gz is still on this computer: "Download the full CSV you sent" saves it as run-full.csv.gz
   (composables/useFullCsvGz.ts), or one line says it is gone.
 -->
 <template>

@@ -145,7 +145,7 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
   it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
     expect(textOf(html)).toMatch(
-      /Simulate this plan Share Download CSV \(top routes\) ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
+      /Simulate this plan Share Download CSV \(detail for top routes\) ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
     );
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],

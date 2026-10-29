@@ -144,22 +144,24 @@
           v-if="privateCsv(row.id)"
           type="button"
           class="inline-block mt-2 font-bold text-indigo-700 underline hover:text-indigo-900 text-left"
+          title="Every route's summary, and each ascension's detail for the top 20,000 routes"
           @click="hide!.downloadCsv(row.id)"
         >
           {{
             row.provisional
-              ? 'Download the CSV so far (.csv.gz, the run is still going) ↓'
-              : 'Download the full CSV (.csv.gz) ↓'
+              ? 'Download the Leaderboard CSV so far (.csv.gz, the run is still going) ↓'
+              : 'Download the Leaderboard CSV (.csv.gz) ↓'
           }}
         </button>
         <a
           v-else
           :href="csvHref(row.id)"
           class="inline-block mt-2 font-bold text-indigo-700 underline hover:text-indigo-900"
+          title="Every route's summary, and each ascension's detail for the top 20,000 routes"
           >{{
             row.provisional
-              ? 'Download the CSV so far (.csv.gz, the run is still going) ↓'
-              : 'Download the full CSV (.csv.gz) ↓'
+              ? 'Download the Leaderboard CSV so far (.csv.gz, the run is still going) ↓'
+              : 'Download the Leaderboard CSV (.csv.gz) ↓'
           }}</a
         >
       </template>
