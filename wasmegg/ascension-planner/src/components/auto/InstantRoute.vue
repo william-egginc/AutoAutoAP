@@ -452,24 +452,27 @@
                     <span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>
                   </td>
                   <td class="py-1.5 pr-2 text-slate-600 whitespace-nowrap align-top">{{ show(r.end) }}</td>
-                  <!-- The route, with its buttons beside it when the card has room and under it when not. -->
+                  <!-- The route wrapping in its own column, its two buttons one block of the same width on every
+                       row: beside it on a wide card, under it on a narrow one (resultCardStyle.ts `ROUTE_ACTIONS`). -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
-                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span class="tabular-nums text-slate-800">{{ r.chain.join(' ') }}</span>
-                      <button
-                        type="button"
-                        :class="[SECONDARY_BUTTON, 'whitespace-nowrap']"
-                        :title="SIMULATE_TITLE"
-                        @click="openPlan(r.chain)"
-                      >
-                        Simulate this plan
-                      </button>
-                      <FollowButton v-if="rowFollowable(r)" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
-                        :finish="r.end"
-                        :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
-                        :plan-start="answerStart"
-                        :deadline="deadline"
-                      />
+                    <div :class="ROUTE_CELL">
+                      <span :class="ROUTE_TEXT">{{ r.chain.join(' ') }}</span>
+                      <div :class="ROUTE_ACTIONS">
+                        <button
+                          type="button"
+                          :class="[SECONDARY_BUTTON, ROUTE_ACTION]"
+                          :title="SIMULATE_TITLE"
+                          @click="openPlan(r.chain)"
+                        >
+                          Simulate this plan
+                        </button>
+                        <FollowButton v-if="rowFollowable(r)" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
+                          :finish="r.end"
+                          :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
+                          :plan-start="answerStart"
+                          :deadline="deadline"
+                        />
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -641,24 +644,26 @@
                       >{{ nearTie(r)!.text }}</span
                     >
                   </td>
-                  <!-- The route, with its buttons beside it when the card has room and under it when not. -->
+                  <!-- The route and its two buttons, as By a date's above (resultCardStyle.ts `ROUTE_ACTIONS`). -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
-                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span class="tabular-nums text-slate-800">{{ r.chain.join(' ') }}</span>
-                      <button
-                        type="button"
-                        :class="[SECONDARY_BUTTON, 'whitespace-nowrap']"
-                        :disabled="r.chain.length < 2"
-                        :title="SIMULATE_TITLE"
-                        @click="openPlan(r.chain)"
-                      >
-                        Simulate this plan
-                      </button>
-                      <FollowButton v-if="r.chain.length" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
-                        :finish="r.end"
-                        :end-te="r.chain[r.chain.length - 1]"
-                        :plan-start="answerStart"
-                      />
+                    <div :class="ROUTE_CELL">
+                      <span :class="ROUTE_TEXT">{{ r.chain.join(' ') }}</span>
+                      <div :class="ROUTE_ACTIONS">
+                        <button
+                          type="button"
+                          :class="[SECONDARY_BUTTON, ROUTE_ACTION]"
+                          :disabled="r.chain.length < 2"
+                          :title="SIMULATE_TITLE"
+                          @click="openPlan(r.chain)"
+                        >
+                          Simulate this plan
+                        </button>
+                        <FollowButton v-if="r.chain.length" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
+                          :finish="r.end"
+                          :end-te="r.chain[r.chain.length - 1]"
+                          :plan-start="answerStart"
+                        />
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -793,7 +798,7 @@
 </template>
 
 <script setup lang="ts">
-import { SECONDARY_BUTTON } from './resultCardStyle';
+import { ROUTE_ACTION, ROUTE_ACTIONS, ROUTE_CELL, ROUTE_TEXT, SECONDARY_BUTTON } from './resultCardStyle';
 import { formatClock } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { spareLine } from '@/lib/spareLine';

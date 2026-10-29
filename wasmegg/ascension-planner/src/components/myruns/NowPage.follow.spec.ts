@@ -234,8 +234,8 @@ describe('Follow this route buttons', () => {
     expect(route).toContain(
       '<FollowButton v-if="boxFollowable" primary :chain="dateBoxOf(result.byDate).chain" :goal-key="followGoal" from="answer"'
     );
-    expect(route).toContain('<FollowButton v-if="r.chain.length" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count"');
-    expect(route).toContain('<FollowButton v-if="rowFollowable(r)" class="min-h-[44px] sm:min-h-0" :chain="r.chain" :goal-key="followGoal" from="count"');
+    expect(route).toContain('<FollowButton v-if="r.chain.length" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count"');
+    expect(route).toContain('<FollowButton v-if="rowFollowable(r)" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count"');
     expect(route).toContain('const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));');
     expect(read('../auto/SavedAnswers.vue')).toContain(':goal-key="screenGoalKey(a.result.deadline, a.result.te)"');
     expect(read('../auto/SavedRuns.vue')).toContain(':goal-key="`fastest-${run.finalTE}`"');

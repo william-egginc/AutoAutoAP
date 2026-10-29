@@ -2,7 +2,8 @@
  * The instant answer's counts tables fit a desktop card (18 Oct 2026: at a ~1570 px window, a ~1000 px card,
  * By a date's Route column and Simulate buttons were cut off behind a scroll that also carried the intro).
  * No DOM here, so the template is read: only the table scrolls, and only below its minimum width (phones);
- * every wide cell may wrap; the Simulate button sits in the route's cell, beside it or under it.
+ * every wide cell may wrap; the Simulate button sits in the route's cell, beside it or under it (since 29 Oct 2026
+ * one block with Follow, the same width on every row: routeRowActions.spec.ts).
  *
  * Since 23 Oct 2026 (wireframes/price-route-v2) the lists show instant numbers only, four columns: By a date
  * Ascensions, TE · spare, Reached, Route; Fastest Ascensions, Reaches, Behind (with the near-tie line's 9rem),
@@ -73,16 +74,17 @@ describe('the counts tables fit the card', () => {
         expect(table).not.toContain('whitespace-nowrap');
       });
 
-      it('four columns, instant numbers only: the buttons live in the route cell, in a wrapping row', () => {
+      it('four columns, instant numbers only: the buttons live in the route cell, in their own block', () => {
         expect(card().match(/<th /g)).toHaveLength(4);
         expect(card()).not.toContain('colspan');
         expect(card()).not.toContain('Exact, your account');
         const route = card().slice(card().indexOf('data-testid="counts-route"'));
         const cell = route.slice(0, route.indexOf('</td>'));
-        expect(cell).toContain('flex flex-wrap');
+        expect(cell).toContain('<div :class="ROUTE_ACTIONS">');
         expect(cell).toContain('Simulate this plan');
-        // The route in the body font with tabular figures: no mono anywhere (Jordan, 26 Oct 2026).
-        expect(cell).toContain('tabular-nums');
+        // The route in the body font with tabular figures (resultCardStyle.ts `ROUTE_TEXT`): no mono anywhere
+        // (Jordan, 26 Oct 2026).
+        expect(cell).toContain('<span :class="ROUTE_TEXT">');
         expect(cell).not.toContain('font-mono');
         expect(cell).not.toMatch(/<td[^>]*whitespace-nowrap/);
       });
