@@ -33,6 +33,9 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
+  { at: '2026-10-27T00:30:07Z', note: 'The phone watch keeps reporting and warns you when its updates fail; Stepping away starts closed and opens on long runs; Custom help is now short bullets' },
+  { at: '2026-10-27T00:30:06Z', note: "CSV buttons say what they hold, and a big run's full CSV you sent can be downloaded again; Same TE picks the fewest ascensions" },
+  { at: '2026-10-27T00:30:05Z', note: "Fixed: the eggs' to goal times; Not sent yet is orange only when something is unsent. This list of updates now shows the newest first, with dates" },
   { at: '2026-10-27T00:30:04Z', note: 'One Run button (Run Fast, Run Exact or Run Custom) with a tick to send the result to the Leaderboard; Prefer fewer is on by default, and your old pick is reset', level: 'big' },
   { at: '2026-10-27T00:30:03Z', note: 'Your Setup and sharing choices are saved online, so other devices show them; No prestige days now sit beside Awake hours and Time off in Setup', level: 'big' },
   { at: '2026-10-27T00:30:02Z', note: 'Follow this route is saved online, so other devices show it; Earlier versions keeps the last 5, and Restore brings one back', level: 'big' },
