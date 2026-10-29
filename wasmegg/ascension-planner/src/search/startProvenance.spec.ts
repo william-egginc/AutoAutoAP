@@ -279,11 +279,14 @@ describe('the page sets the save up for the instant answer (App.vue)', () => {
       app.indexOf("watch(playerId, () => (autoSetUpFor = ''));")
     );
     expect(fn).toContain("plannerTab.value !== 'automatic'");
-    expect(fn).toContain('const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}`;');
+    expect(fn).toContain('if (!needsSaveSetUp(wait, initialStateStore.setupSource)) return;');
+    // Once per account, save and Manual plan opened (spec-manualleak): a plan opened later is set up again.
+    expect(fn).toContain('const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}|${plansOpened}`;');
+    expect(app).toContain("if (name === 'hydrate') plansOpened++;");
     expect(fn).toContain('autoSetUpFor === forSave || searchActive.value || uiStore.runSaveLoaded');
     expect(fn).toContain('setUpFromSaveInHand() : prepareAutoPlanner()');
     expect(app).toContain(
-      'watch([plannerTab, playerId, loading, () => chainSearchStore.startWait], setUpForInstantAnswer);'
+      'watch([plannerTab, playerId, loading, () => chainSearchStore.startWait, searchActive], setUpForInstantAnswer);'
     );
   });
 });

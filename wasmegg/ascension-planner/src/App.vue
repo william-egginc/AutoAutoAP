@@ -810,6 +810,7 @@ import ThePlayerIdForm from 'ui/components/PlayerIdForm.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { backupSecondsOf, saveTEOf } from '@/lib/saveFreshness';
+import { needsSaveSetUp } from '@/search/saveStart';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import { useUIStore } from '@/stores/ui';
@@ -1926,14 +1927,25 @@ watch([plannerTab, playerId, loading, storesSetUpFromSave], loadSaveForMyRuns);
  * newer save loaded underneath without a set-up (the header's refresh, a stale tab). So set them up then: from the
  * save in hand after a switch, else as entering the Auto Planner does. Once per account and save, after the page's
  * own restore, never under a search or over a save the player picked.
+ *
+ * And after a Manual plan is opened from the library or a file (spec-manualleak, 28 Oct 2026): it fills the same
+ * stores with its own start and a redacted save with no time ('no-save'), which nothing set up again, so the Auto
+ * Planner sat on the plan's start (search/saveStart.ts `needsSaveSetUp`). Once per plan opened, and again when a
+ * search that was running ends (it held the stores as they were).
  */
 let autoSetUpFor = '';
+/** Manual plans opened (initialState `hydrate`), so each one is set up again once. Counted here, on our side. */
+let plansOpened = 0;
+initialStateStore.$onAction(({ name }) => {
+  if (name === 'hydrate') plansOpened++;
+});
 function setUpForInstantAnswer(): void {
   if (!myRunsReady || plannerTab.value !== 'automatic' || !playerId.value || loading.value) return;
   const wait = chainSearchStore.startWait;
-  if (wait !== 'draft' && wait !== 'switch' && wait !== 'not-set-up' && wait !== 'other-account') return;
-  // Once per account and save: a newer save loaded underneath (a stale tab) is set up again, a failed set-up isn't retried.
-  const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}`;
+  if (!needsSaveSetUp(wait, initialStateStore.setupSource)) return;
+  // Once per account, save and plan opened: a newer save loaded underneath (a stale tab) is set up again, a failed
+  // set-up isn't retried.
+  const forSave = `${playerId.value}|${backupSecondsOf(initialStateStore.rawBackup)}|${plansOpened}`;
   if (autoSetUpFor === forSave || searchActive.value || uiStore.runSaveLoaded) return;
   autoSetUpFor = forSave;
   const raw = initialStateStore.rawBackup;
@@ -1941,7 +1953,7 @@ function setUpForInstantAnswer(): void {
   void (inHand ? setUpFromSaveInHand() : prepareAutoPlanner());
 }
 watch(playerId, () => (autoSetUpFor = ''));
-watch([plannerTab, playerId, loading, () => chainSearchStore.startWait], setUpForInstantAnswer);
+watch([plannerTab, playerId, loading, () => chainSearchStore.startWait, searchActive], setUpForInstantAnswer);
 
 /** What we need to check's Run this sweep, on the Science tab: open its window. */
 function openSweep(request: SweepRequest): void {
