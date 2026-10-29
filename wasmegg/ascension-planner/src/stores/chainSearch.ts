@@ -144,6 +144,14 @@ import {
   type StartWait,
 } from '@/search/startProvenance';
 import { backupSecondsOf } from '@/lib/saveFreshness';
+import {
+  keepSaveStart,
+  saveStartFor,
+  startInputsOf,
+  storesHoldPlan,
+  PLAN_NOT_SAVE,
+  type SaveStart,
+} from '@/search/saveStart';
 import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
@@ -2206,6 +2214,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (useUIStore().loading || actions.isPlanInitializing || actions.isRecalculating || actions.pendingRecalculate) {
       return SAVE_STILL_LOADING;
     }
+    // A Manual plan opened from the library or a file holds the stores (search/saveStart.ts): never search from it.
+    if (useUIStore().screenPlayerId && storesHoldPlan({ source: useInitialStateStore().setupSource })) return PLAN_NOT_SAVE;
     if (useInitialStateStore().rawBackup && Math.abs(plannerTE.value - backupTE.value) > TE_MISMATCH_TOLERANCE) {
       return `Your planner (${plannerTE.value} TE) doesn't match your loaded save (${backupTE.value} TE) yet. Wait a moment, or reload your save, then try again.`;
     }
@@ -3298,16 +3308,53 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     );
   }
 
-  function collectInputs(): SearchInputs {
-    const initialStateStore = useInitialStateStore();
+  /**
+   * The save's own start, kept apart from the shared stores (search/saveStart.ts, spec-manualleak): a Manual plan
+   * opened from the library or a file refills those stores with ITS start, and the Auto Planner must still price
+   * from the save. Taken every time the inputs are read off stores set up from the save, and the moment they are
+   * (a sync watch, so a plan opened straight after a set-up still finds it). Never written to or sent anywhere.
+   * A plain `let`, not a ref: `collectInputs` is read inside computeds (the gear stamp), and a write there would
+   * re-run them. Whoever reads it reacts to `setupSource` instead, which is what decides whether it is used.
+   */
+  let keptSaveStart: SaveStart | null = null;
+  function liveStart() {
     const baseState = createBaseEngineState(null);
-    return {
+    const start = {
       context: getSimulationContext(),
       baseState,
-      currentFarmState: initialStateStore.currentFarmState,
-      planStart: planStart.value,
+      currentFarmState: useInitialStateStore().currentFarmState,
       // From the state the workers price, never from a second source (see `currentTE`).
       currentTE: pricedTE(baseState),
+    };
+    if (startWait.value === '' && useUIStore().screenPlayerId) {
+      keptSaveStart = keepSaveStart(start, useInitialStateStore().playerId);
+    }
+    return start;
+  }
+  watch(
+    startWait,
+    w => {
+      if (w === '') liveStart();
+    },
+    { flush: 'sync' }
+  );
+  /** The kept save start while the stores hold a Manual plan for the account on screen, else null. */
+  function saveStartNow(): SaveStart | null {
+    const init = useInitialStateStore();
+    return saveStartFor(keptSaveStart, {
+      screenPlayerId: useUIStore().screenPlayerId,
+      source: init.setupSource,
+      hasData: init.hasData,
+    });
+  }
+
+  function collectInputs(): SearchInputs {
+    // While the stores hold a Manual plan, the save's own start (search/saveStart.ts), copied afresh per call.
+    const kept = saveStartNow();
+    const start = kept ? startInputsOf(kept) : liveStart();
+    return {
+      ...start,
+      planStart: planStart.value,
       final: finalTE.value,
       firstAscension: firstAscensionFor(),
       availability: availability.value,
@@ -3792,13 +3839,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const saveAgeNote = computed(() => {
     const iss = useInitialStateStore();
-    const farm = iss.currentFarmState as { lastStepTime?: number; numSilos?: number } | null;
-    const approx = (iss.rawBackup as { approxTime?: number } | null)?.approxTime;
+    // The save's farm while the stores hold a Manual plan (search/saveStart.ts), never the plan's.
+    const kept = saveStartNow();
+    const farm = (kept ? kept.currentFarmState : iss.currentFarmState) as { lastStepTime?: number; numSilos?: number } | null;
+    const approx = kept ? kept.approxTime : (iss.rawBackup as { approxTime?: number } | null)?.approxTime;
     const sync = farm?.lastStepTime && farm.lastStepTime > 1e9 ? farm.lastStepTime : (approx ?? null);
     return describeSaveAge(
       sync,
       planStart.value,
-      siloSeconds(farm?.numSilos, iss.epicResearchLevels?.['silo_capacity']),
+      siloSeconds(farm?.numSilos, kept ? kept.siloLevel : iss.epicResearchLevels?.['silo_capacity']),
       !!farm
     );
   });
@@ -9825,6 +9874,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runKindUsed,
     buildRunDiagnostics,
     setupIssues,
+    saveAgeNote,
     setupFacts,
     backupTE,
     plannerTE,
