@@ -27,10 +27,11 @@ export type FoldDefault = 'open' | 'folded';
  * THE SPLIT. Change a value here to move a section between open and folded. Jordan's defaults (26 Oct 2026, item 7):
  * the instant answer's "Every number of ascensions" starts open; Search settings stays folded (the screen runs Fast
  * unless the player opens it). Stepping away? starts folded since 28 Oct 2026 (Jordan): it opens by itself when a run
- * estimated at over an hour starts (composables/useStepAwayNudge.ts).
+ * estimated at over an hour starts (composables/useStepAwayNudge.ts). "What this does" starts open since 29 Oct 2026
+ * (Jordan, Release 6); a player who closes it still finds it closed next time (their toggle, rule 2).
  */
 export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
-  whatItDoes: 'folded',
+  whatItDoes: 'open',
   searchSettings: 'folded',
   acknowledgement: 'folded',
   steppingAway: 'folded',

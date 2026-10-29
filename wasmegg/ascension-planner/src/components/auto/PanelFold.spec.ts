@@ -96,19 +96,19 @@ describe('PanelFold', () => {
   it("opens where the player opened it last time, per section", async () => {
     mem.set(foldKey('acknowledgement'), '1');
     expect(isOpen(detailsTag(await render(PanelFold, { section: 'acknowledgement', title: 'T' }), 'fold-acknowledgement'))).toBe(true);
-    expect(isOpen(detailsTag(await render(PanelFold, { section: 'whatItDoes', title: 'T' }), 'fold-whatItDoes'))).toBe(false);
+    expect(isOpen(detailsTag(await render(PanelFold, { section: 'howWorkedOut', title: 'T' }), 'fold-howWorkedOut'))).toBe(false);
   });
 
   it("remembers the player's toggle, and not one the page made", async () => {
     // The player opens it: the browser's toggle with the <details> open while the page had it closed.
-    await render(PanelFold, { section: 'whatItDoes', title: 'T' }, {
+    await render(PanelFold, { section: 'acknowledgement', title: 'T' }, {
       file: 'PanelFold.vue',
       run: s => {
         s.el = { open: true };
         (s.onToggle as () => void)();
       },
     });
-    expect(mem.get(foldKey('whatItDoes'))).toBe('1');
+    expect(mem.get(foldKey('acknowledgement'))).toBe('1');
     // Closing one that starts open (Every number of ascensions, 26 Oct 2026) is kept too.
     await render(PanelFold, { section: 'countTable', title: 'T' }, {
       file: 'PanelFold.vue',
@@ -156,15 +156,15 @@ describe('PanelFold', () => {
 });
 
 describe('every foldable part reads lib/panelFold.ts', () => {
-  it('What this does (StrongerBox), the promise inside it: folded by default, open when the table says so', async () => {
+  it('What this does (StrongerBox), the promise inside it: open by default (29 Oct 2026), folded when the table says so', async () => {
     const html = await render(StrongerBox, { goal: 'fastest' });
-    expect(isOpen(detailsTag(html, 'fold-whatItDoes'))).toBe(false);
+    expect(isOpen(detailsTag(html, 'fold-whatItDoes'))).toBe(true);
     expect(html.match(/<details/g)).toHaveLength(1);
     expect(html.indexOf('data-testid="level-note"')).toBeGreaterThan(html.indexOf('data-testid="fold-whatItDoes"'));
     expect(html.indexOf('data-testid="stronger-promise"')).toBeGreaterThan(html.indexOf('data-testid="level-note"'));
     expect(html.indexOf('data-testid="stronger-promise"')).toBeLessThan(html.indexOf('</details>'));
-    const opened = await withTable('whatItDoes', 'open', () => render(StrongerBox, { goal: 'date' }));
-    expect(isOpen(detailsTag(opened, 'fold-whatItDoes'))).toBe(true);
+    const folded = await withTable('whatItDoes', 'folded', () => render(StrongerBox, { goal: 'date' }));
+    expect(isOpen(detailsTag(folded, 'fold-whatItDoes'))).toBe(false);
   });
 
   it('Stepping away?: one row, closed by default (28 Oct 2026), and while a run goes; open when a long run of its own kind started (useStepAwayNudge); the crash countdown stays outside it', async () => {
