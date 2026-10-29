@@ -1,0 +1,6 @@
+# Copy to config.toml (needs Python 3.11+), or use the same names as environment variables.
+save_path    = "C:/path/to/your-save-file"   # read in place, never copied
+tables_dir   = "C:/path/to/precompute"                       # folder with table.bin and table-v2.bin
+node         = "node"
+timezone     = "America/Denver"
+planner_dir  = "C:/path/to/AutoAutoAP/wasmegg/ascension-planner"  # only for building dist/

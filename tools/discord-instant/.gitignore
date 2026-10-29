@@ -1,0 +1,10 @@
+# never publish saves, tables, builds, secrets or local config
+*.json
+dist/
+*.bin
+*.gz
+config.toml
+.env
+.venv/
+__pycache__/
+.pytest_cache/
