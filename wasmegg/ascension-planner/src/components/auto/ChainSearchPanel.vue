@@ -563,6 +563,7 @@
               "
               @build="use(store.bestChain, true)"
               @fill="use(store.bestChain)"
+              :csv-every="store.csvHasEveryRoute('fastest')"
               @csv="downloadCsv"
               @save="save"
             >

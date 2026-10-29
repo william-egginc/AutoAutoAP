@@ -9,6 +9,7 @@ import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import ByDateRouteCard from './ByDateRouteCard.vue';
+import RouteResultCard from './RouteResultCard.vue';
 import { CSV_EVERY_ROUTE, CSV_TOP_ROUTES, csvButton } from './csvButton';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -85,5 +86,30 @@ describe('the CSV button names what it holds', () => {
     await spill.commit().catch(() => {});
     expect(spill.stopped).not.toBeNull();
     expect(store.csvHasEveryRoute('fastest')).toBe(false);
+  });
+});
+
+describe('Fastest (Fast, Exact, Custom): the same named button in the same place', () => {
+  const fast = (over = {}) =>
+    renderHtml(RouteResultCard, { chain: [212, 280, 490], days: 760.5, finalTE: 490, endLabel: 'Feb 15, 2029', running: false, canSave: true, ...over });
+
+  it('Share, then the named CSV button, then Save run, as on By a date', async () => {
+    expect(textOf(await fast())).toMatch(/Share Download CSV \(top routes\) ↓ Save run/);
+    expect(textOf(await fast({ csvEvery: true }))).toMatch(/Share Download CSV \(every route\) ↓ Save run/);
+    expect(read('RouteResultCard.vue')).toMatch(/data-testid="fastest-csv"\s+:title="csv\.title"\s+@click="emit\('csv'\)"/);
+  });
+
+  it('Fast / Exact and Custom pass the run\'s detail and keep the same handler', () => {
+    for (const panel of ['ChainSearchPanel.vue', 'InsanePanel.vue']) {
+      const src = read(panel);
+      expect(src).toContain(`:csv-every="store.csvHasEveryRoute('fastest')"`);
+      expect(src).toContain('@csv="downloadCsv"');
+    }
+  });
+
+  it('the full CSV (.csv.gz) sits with the kept line on every screen: one component under each result', () => {
+    expect(read('CsvCard.vue')).toContain('<BigCsvStatus />');
+    expect(read('DeadlinePanel.vue')).toContain('<BigCsvStatus />');
+    for (const panel of ['ChainSearchPanel.vue', 'InsanePanel.vue']) expect(read(panel)).toMatch(/<CsvCard\b/);
   });
 });

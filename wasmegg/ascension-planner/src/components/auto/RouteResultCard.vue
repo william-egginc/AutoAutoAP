@@ -78,9 +78,11 @@
       <button
         type="button"
         :class="SECONDARY_BUTTON"
+        data-testid="fastest-csv"
+        :title="csv.title"
         @click="emit('csv')"
       >
-        CSV ↓
+        {{ csv.text }}
       </button>
       <button
         v-if="canSave"
@@ -106,8 +108,10 @@ import ResultCardFrame from './ResultCardFrame.vue';
 import FollowButton from '../FollowButton.vue';
 import type { ResultFollow } from '@/lib/follow';
 import { CARD_NOTE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
+import { csvButton } from './csvButton';
+import { computed } from 'vue';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     chain: number[];
     days: number;
@@ -120,6 +124,8 @@ withDefaults(
     busy?: boolean;
     canFill?: boolean;
     canSave?: boolean;
+    /** The CSV has every route's per-ascension detail (store `csvHasEveryRoute`): its button says so. */
+    csvEvery?: boolean;
     saving?: boolean;
     /** Where the answer came from, when it wasn't this depth: the two share one store, so the
      *  Smart search screen shows a Full sweep's result until Smart search runs, and vice versa. */
@@ -142,6 +148,7 @@ withDefaults(
     busy: false,
     canFill: false,
     canSave: false,
+    csvEvery: false,
     saving: false,
     note: '',
     lastRun: '',
@@ -151,6 +158,8 @@ withDefaults(
   }
 );
 const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();
+/** The CSV button, named for what the file holds (csvButton.ts). */
+const csv = computed(() => csvButton(props.csvEvery));
 
 /** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
  *  page (SearchPanel.vue), so the one laid out is this card's. */

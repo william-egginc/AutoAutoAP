@@ -931,6 +931,7 @@
               can-save
               :saving="saving"
               @build="buildPlan"
+              :csv-every="store.csvHasEveryRoute('fastest')"
               @csv="downloadCsv"
               @save="save"
               :last-run="lastRunLabel"
