@@ -11,7 +11,7 @@
     <!-- The option picked (Fast or Exact), in three plain lines: what it does, how long, what it can and
          can't find; then, amber like the other promise boxes, what it promises and what it doesn't. One fold,
          "What this does" (lib/panelFold.ts `whatItDoes`; 26 Oct 2026: it and "What this does and does not
-         promise" said the same things twice), each point once. Folded by default. -->
+         promise" said the same things twice), each point once. Open by default since 29 Oct 2026; the player's close is remembered. -->
     <PanelFold
       section="whatItDoes"
       title="What this does"
