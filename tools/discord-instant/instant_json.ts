@@ -19,7 +19,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { firstAscensionFromFlags } from '@/search/firstAscension';
-import { readTable, type Table } from '@/search/precomputedTable';
+import { readTable, parseCompositeUrl, type Table } from '@/search/precomputedTable';
 import { tableAtUrl, firstLegsOn } from '@/search/tableUrlLoad';
 import { chooseInstantTable, instantFirstLegs, instantPricingOptions, instantScaleOf } from '@/search/instantCompute';
 import { buildUpTailParamsV2 } from '@/search/leg';
@@ -136,7 +136,10 @@ async function setup() {
     const found = await findRoutes({ table: lookup, final, maxAscensions, ...opts });
     return { ...found, ...polishFound(lookup, opts, found) };
   };
-  return { store, inputs, inv, te, start, final, lookup, choice, maxedUrl, optionsFor, solve };
+  // Which table the site's own check picked (as precompute.ts instant2): the player's own, a gear table, the
+  // maxed one moved to their gear (form G), or the maxed one as it is.
+  const tableKind = choice.gearShifted ? 'shifted' : choice.url === maxedUrl ? 'maxed' : parseCompositeUrl(choice.url) ? 'gear' : 'own';
+  return { store, inputs, inv, te, start, final, lookup, choice, maxedUrl, optionsFor, solve, tableKind, scale };
 }
 
 type Ctx = Awaited<ReturnType<typeof setup>>;
@@ -186,6 +189,7 @@ async function instantMode() {
   const out = {
     saveTE: c.te, planStart: c.start, goalName: name, goal, deadline, final: c.final,
     prefer: arg('prefer', 'same'),
+    tableKind: c.tableKind, scale: +c.scale.toFixed(4),
     best: a.best ? packRoute(a.best, deadline) : null,
     chosen: shown ? packRoute(shown, deadline) : null,
     preferred: a.preferred,
@@ -293,7 +297,7 @@ async function myrunsMode() {
       : `Fastest to ${c.final} TE: reached ${dateAt(plan.end, now, zone)}, in ${compactDuration(plan.end - now)}`;
 
   const out = {
-    goal, goalLine, saveTE: teSoFar, onVirtue,
+    goal, goalLine, saveTE: teSoFar, onVirtue, tableKind: c.tableKind, scale: +c.scale.toFixed(4),
     saveWhen: dateAt(saveSeconds, now, zone),
     chain: plan.chain, ascensionNow: steps.length ? 1 : 0, preferred: a.preferred,
     nextStep: nextEv ? evText(nextEv) : null,

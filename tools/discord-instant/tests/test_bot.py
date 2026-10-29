@@ -101,7 +101,7 @@ def test_myruns_content():
 
 def test_footer_link_and_help():
     rep = bot.build_instant_report(fx.instant(), TZ, fx.NOW)
-    assert rep["footer"].startswith("Proof of concept")
+    assert rep["footer"].startswith("Beta") and rep["footer"].endswith(bot.SITE_URL)
     assert rep["url"] == "https://egg-beta.williamstest.fyi/ascension-planner/"
     names = [f["name"] for f in bot.help_embed()["fields"]]
     assert names == ["/instant", "/myruns", "/next", "/help"]
@@ -230,3 +230,54 @@ def test_every_command_is_user_installable_and_eid_aware():
 def test_dry_run_never_takes_an_id_on_the_command_line():
     src = Path(bot.__file__).read_text()
     assert '"--eid"' not in src and "add_argument(\"--eid\"" not in src
+
+
+def test_every_reply_carries_the_beta_footer():
+    one = "Beta \u00b7 answers can be off; check the site for your exact plan \u2192 https://egg-beta.williamstest.fyi/ascension-planner/"
+    assert bot.FOOTER == one
+    embeds = (bot.instant_embeds(bot.build_instant_report(fx.instant(), TZ, fx.NOW))
+              + bot.build_myruns_embeds(fx.myruns(), TZ, fx.NOW) + [bot.build_next_embed(fx.myruns(), TZ), bot.help_embed()])
+    assert all(e["footer"] == one for e in embeds)
+
+
+def test_saved_save_is_owner_only():
+    assert bot.may_use_saved_save(111, "111") and bot.may_use_saved_save("111", " 111 ")
+    assert not bot.may_use_saved_save(222, "111")
+    assert not bot.may_use_saved_save(111, "") and not bot.may_use_saved_save(111, None or "")
+    assert "player ID" in bot.NEED_EID and not ID.search(bot.NEED_EID)
+
+
+def test_private_defaults():
+    assert bot.effective_private(None, None, from_save=True) is True      # owner, saved save: private
+    assert bot.effective_private(False, None, from_save=True) is False    # unless private:false
+    assert bot.effective_private(False, FAKE, from_save=True) is True     # an eid always wins
+    assert bot.effective_private(None, None, from_save=False) is False    # /help and the like stay public
+
+
+def test_non_owner_never_reaches_the_planner():
+    src = Path(bot.__file__).read_text()
+    # every data command asks owner_only() before any planner run when there is no eid
+    assert src.count("if not eid and not await owner_only(interaction):") == 3
+    assert src.index("owner_only(interaction)") < src.index("await reply(interaction, private, lambda")
+
+
+def test_table_notes_follow_the_sites_check():
+    d = fx.myruns()
+    d["tableKind"] = "maxed"
+    assert "Assumes maxed gear; your real times may be later." in all_text(bot.build_myruns_embeds(d, TZ, fx.NOW))
+    assert "Assumes maxed gear" in all_text([bot.build_next_embed(d, TZ)])
+    i = fx.instant()
+    i["tableKind"] = "maxed"
+    assert "Assumes maxed gear" in all_text(bot.instant_embeds(bot.build_instant_report(i, TZ, fx.NOW)))
+    d["tableKind"] = "shifted"
+    assert "moved to your gear" in all_text(bot.build_myruns_embeds(d, TZ, fx.NOW))
+    for kind in ("own", "gear"):
+        d["tableKind"] = kind
+        assert "Assumes maxed" not in all_text(bot.build_myruns_embeds(d, TZ, fx.NOW))
+
+
+def test_register_globally_only_and_clear_flag():
+    src = Path(bot.__file__).read_text()
+    assert "copy_global_to" not in src
+    assert "tree.clear_commands(guild=guild)" in src and "await self.tree.sync(guild=guild)" in src
+    assert "--clear-guild-commands" in src

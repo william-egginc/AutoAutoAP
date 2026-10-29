@@ -4,3 +4,5 @@ tables_dir   = "C:/path/to/precompute"                       # folder with table
 node         = "node"
 timezone     = "America/Denver"
 planner_dir  = "C:/path/to/AutoAutoAP/wasmegg/ascension-planner"  # only for building dist/
+owner_id     = "123456789012345678"   # your Discord user id: only you may use save_path without an eid
+guild_id     = ""                      # only for: python bot.py --clear-guild-commands

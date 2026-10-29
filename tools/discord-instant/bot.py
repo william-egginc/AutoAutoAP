@@ -36,10 +36,7 @@ except ImportError:  # pragma: no cover
 
 HERE = Path(__file__).resolve().parent
 SITE_URL = "https://egg-beta.williamstest.fyi/ascension-planner/"
-FOOTER = (
-    "Proof of concept \u00b7 instant answers are worked out ahead of time; "
-    "run Fast/Exact on egg-beta for your exact account"
-)
+FOOTER = "Beta \u00b7 answers can be off; check the site for your exact plan \u2192 " + SITE_URL
 GOALS = {"eggday": "Highest TE by Egg Day", "fastest": "Fastest to 490 TE", "date": "Highest TE by a date"}
 PLAYER_ID = re.compile(r"EI\d{16}")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -79,9 +76,23 @@ def valid_eid(eid: Optional[str]) -> bool:
     return bool(eid) and bool(re.fullmatch(r"EI\d{16}", eid.strip()))
 
 
-def effective_private(private: bool, eid: Optional[str]) -> bool:
-    """A reply about someone's own account is always private, whatever `private` says."""
-    return True if eid else bool(private)
+def effective_private(private: Optional[bool], eid: Optional[str], from_save: bool = False) -> bool:
+    """Whose data decides: an eid reply is always private; the owner's saved save is private unless the owner
+    says private:false; everything else is public unless private:true."""
+    if eid:
+        return True
+    if from_save:
+        return private is not False
+    return bool(private)
+
+
+NEED_EID = ("Give your player ID in the eid option and I will use your own save. "
+            "This reply is only visible to you, and the ID is never stored or shown.")
+
+
+def may_use_saved_save(user_id, owner_id: str) -> bool:
+    """SAVE_PATH is the owner's: only the configured OWNER_ID may use it without an eid."""
+    return bool(owner_id) and str(user_id) == str(owner_id).strip()
 
 
 def am_pm(text: str) -> str:
@@ -114,7 +125,8 @@ def load_config(env=None, toml_path: Optional[Path] = None) -> dict:
         "NODE": get("NODE", "node"),
         "TIMEZONE": get("TIMEZONE", "America/Denver"),
         "TIMEOUT": int(get("TIMEOUT", "180")),
-        "GUILD_ID": get("GUILD_ID"),
+        "GUILD_ID": get("GUILD_ID"),  # only used by --clear-guild-commands
+        "OWNER_ID": get("OWNER_ID"),  # the one Discord user id allowed to use SAVE_PATH without an eid
     }
 
 
@@ -265,6 +277,9 @@ def build_instant_report(data: dict, tz: str = "America/Denver", now: Optional[f
     step = next_step_text(chosen.get("next"), tz)
     if step:
         notes.append(f"Next step: {step}")
+    tn = table_note(data)
+    if tn:
+        notes.append(tn)
     return {
         "title": f"{data['goalName']}",
         "headline": headline,
@@ -274,6 +289,19 @@ def build_instant_report(data: dict, tz: str = "America/Denver", now: Optional[f
         "footer": FOOTER,
         "url": SITE_URL,
     }
+
+
+NOTE_A1 = "A1 is from the instant answer, not a simulation of your live farm; times are rounded to the hour."
+
+
+def table_note(d: dict) -> Optional[str]:
+    """The site's own table check (chooseInstantTable / instantScaleOf): say when no table fits this account."""
+    kind = d.get("tableKind")
+    if kind == "maxed":
+        return "Assumes maxed gear; your real times may be later."
+    if kind == "shifted":
+        return "No table built on your exact gear: uses the maxed table moved to your gear, as the site does; your real times may be later."
+    return None
 
 
 def next_step_text(nxt: Optional[dict], tz: str) -> Optional[str]:
@@ -322,6 +350,10 @@ def build_myruns_embeds(d: dict, tz: str = "America/Denver", now: Optional[float
         lines.append("Route chosen with Prefer fewer (same TE), as the site's green box does.")
     step = d.get("nextStep")
     lines.append(f"**Next step:** {step['what']} \u00b7 {step['when']}" if step else "**Next step:** none left in the plan")
+    tn = table_note(d)
+    if tn:
+        lines.append(tn)
+    lines.append(NOTE_A1)
     desc = [clean("\n".join(lines))]
     shifts = []
     for e in d["nextShifts"]:
@@ -337,10 +369,8 @@ def build_myruns_embeds(d: dict, tz: str = "America/Denver", now: Optional[float
         "name": "Prestiges (A1 is the farm you are in)",
         "value": code_block(table_text(("", "TE", "Prestige at", "In"), rows, ["l", "l", "l", "r"])),
     })
-    note = ("A1 comes from the instant answer, not a simulation of your live farm, so its times are rounded "
-            "to the hour. Run Fast/Exact on egg-beta for exact times.")
     first = {"title": clean(f"Right now \u00b7 {d['goalName'] if 'goalName' in d else GOALS['eggday' if d['goal'] == 'date' else 'fastest']}")[:256],
-             "description": desc[0][:EMBED_DESC_MAX], "fields": fields, "footer": note, "url": SITE_URL}
+             "description": desc[0][:EMBED_DESC_MAX], "fields": fields, "footer": FOOTER, "url": SITE_URL}
     # Your eggs
     egg_lines = []
     for e in d["eggs"]:
@@ -350,6 +380,8 @@ def build_myruns_embeds(d: dict, tz: str = "America/Denver", now: Optional[float
             body.append(e["clock"])
         egg_lines.append(clean(head + "\n" + "\n".join(body)))
     f = d["facts"]
+    if d.get("afterShiftNote"):
+        egg_lines.append(clean(d["afterShiftNote"]))
     tiles = [f"Shifts done: {f['shiftsDone']}", f"Next shift cost: {f['nextShiftCost']}"]
     if f.get("planned"):
         tiles.append(f"Planned shifts: {f['planned']['value']}, {f['planned']['note']}")
@@ -363,7 +395,7 @@ def build_myruns_embeds(d: dict, tz: str = "America/Denver", now: Optional[float
         "title": "Your eggs \u00b7 from your save",
         "description": clean("\n\n".join(egg_lines))[:EMBED_DESC_MAX],
         "fields": [{"name": "Facts", "value": clean("\n".join(tiles))[:EMBED_FIELD_MAX]}],
-        "footer": clean(d.get("afterShiftNote") or "")[:2048] or None,
+        "footer": FOOTER,
         "url": SITE_URL,
     }
     return [first, eggs_embed]
@@ -379,8 +411,10 @@ def build_next_embed(d: dict, tz: str = "America/Denver") -> dict:
     if not lines:
         lines = ["Nothing left in the plan."]
     lines.append(f"\n{d['goalLine']}")
+    if table_note(d):
+        lines.append(table_note(d))
     return {"title": "Next step", "description": clean("\n".join(lines))[:EMBED_DESC_MAX], "fields": [],
-            "footer": "Proof of concept \u00b7 from the instant answer, rounded to the hour", "url": SITE_URL}
+            "footer": FOOTER, "url": SITE_URL}
 
 
 def next_for(cfg: dict, goal: str, eid: Optional[str] = None) -> list:
@@ -490,6 +524,29 @@ def to_discord(e: dict):
     return emb
 
 
+def clear_guild_commands(cfg: dict) -> None:
+    """One-time clean-up: remove the guild-scoped copies of the commands for GUILD_ID, then exit."""
+    if discord is None:
+        raise SystemExit("discord.py is not installed (pip install -r requirements.txt).")
+    token = os.environ.get("DISCORD_TOKEN")
+    if not token or not cfg["GUILD_ID"].isdigit():
+        raise SystemExit("Set DISCORD_TOKEN and GUILD_ID (digits) first (see README).")
+
+    class Cleaner(discord.Client):
+        def __init__(self):
+            super().__init__(intents=discord.Intents.none())
+            self.tree = app_commands.CommandTree(self)
+
+        async def setup_hook(self):
+            guild = discord.Object(id=int(cfg["GUILD_ID"]))
+            self.tree.clear_commands(guild=guild)
+            await self.tree.sync(guild=guild)
+            print("Guild-scoped commands removed; the global ones stay.")
+            await self.close()
+
+    Cleaner().run(token)
+
+
 def run_bot(cfg: dict) -> None:
     if discord is None:
         raise SystemExit("discord.py is not installed (pip install -r requirements.txt).")
@@ -505,16 +562,12 @@ def run_bot(cfg: dict) -> None:
 
         async def setup_hook(self):
             self.busy = asyncio.Lock()  # one planner run at a time
-            if cfg["GUILD_ID"]:  # instant in your own server...
-                guild = discord.Object(id=int(cfg["GUILD_ID"]))
-                self.tree.copy_global_to(guild=guild)
-                await self.tree.sync(guild=guild)
-            await self.tree.sync()  # ...and globally, which is what user installs and DMs use
+            await self.tree.sync()  # globally only: what servers, user installs and DMs all use
 
     bot = Bot()
 
-    async def reply(interaction, private: bool, make, eid: Optional[str] = None):
-        private = effective_private(private, eid)
+    async def reply(interaction, private, make, eid: Optional[str] = None):
+        private = effective_private(private, eid, from_save=not eid)
         await interaction.response.defer(thinking=True, ephemeral=private)
         try:
             async with bot.busy:
@@ -530,6 +583,13 @@ def run_bot(cfg: dict) -> None:
         await interaction.response.send_message("That does not look like a player ID.", ephemeral=True)
         return True
 
+    async def owner_only(interaction) -> bool:
+        """Without an eid only the owner may use the saved save; anyone else is asked for theirs, privately."""
+        if may_use_saved_save(interaction.user.id, cfg["OWNER_ID"]):
+            return True
+        await interaction.response.send_message(NEED_EID, ephemeral=True)
+        return False
+
     goal_choices = [app_commands.Choice(name=GOALS[k], value=k) for k in ("eggday", "fastest", "date")]
     EID_HELP = "Your own player ID (reply is then private); leave out to use the bot owner's save"
     # Installable on a server or on a user's own account, usable anywhere, DMs included.
@@ -540,14 +600,14 @@ def run_bot(cfg: dict) -> None:
     @everywhere
     @app_commands.describe(goal="What to aim for", date="For 'Highest TE by a date': YYYY-MM-DD",
                            prefer="Prefer fewer ascensions: same TE (default) or off",
-                           private="Reply only to you", eid=EID_HELP)
+                           private="Reply only to you (default for the owner's own save)", eid=EID_HELP)
     @app_commands.choices(goal=goal_choices, prefer=[
         app_commands.Choice(name="same TE (default)", value="same"),
         app_commands.Choice(name="off", value="off"),
     ])
     async def instant(interaction: discord.Interaction, goal: Optional[app_commands.Choice[str]] = None,
                       date: Optional[str] = None, prefer: Optional[app_commands.Choice[str]] = None,
-                      private: bool = False, eid: Optional[str] = None):
+                      private: Optional[bool] = None, eid: Optional[str] = None):
         g = goal.value if goal else "eggday"
         p = prefer.value if prefer else "same"
         if eid and not valid_eid(eid):
@@ -559,37 +619,43 @@ def run_bot(cfg: dict) -> None:
             except ValueError as e:
                 await interaction.response.send_message(str(e), ephemeral=True)
                 return
+        if not eid and not await owner_only(interaction):
+            return
         await reply(interaction, private, lambda: instant_for(cfg, g, date, p, eid), eid)
 
     @bot.tree.command(name="myruns", description="My runs: Right now and Your eggs")
     @everywhere
-    @app_commands.describe(goal="Which plan (default Egg Day)", private="Reply only to you", eid=EID_HELP)
+    @app_commands.describe(goal="Which plan (default Egg Day)", private="Reply only to you (default for the owner's own save)", eid=EID_HELP)
     @app_commands.choices(goal=[c for c in goal_choices if c.value != "date"])
     async def myruns(interaction: discord.Interaction, goal: Optional[app_commands.Choice[str]] = None,
-                     private: bool = False, eid: Optional[str] = None):
+                     private: Optional[bool] = None, eid: Optional[str] = None):
         g = goal.value if goal else "eggday"
         if eid and not valid_eid(eid):
             await bad_eid(interaction)
+            return
+        if not eid and not await owner_only(interaction):
             return
         await reply(interaction, private, lambda: myruns_for(cfg, g, eid), eid)
 
     @bot.tree.command(name="next", description="Just the next step and the one after it")
     @everywhere
-    @app_commands.describe(goal="Which plan (default Egg Day)", private="Reply only to you", eid=EID_HELP)
+    @app_commands.describe(goal="Which plan (default Egg Day)", private="Reply only to you (default for the owner's own save)", eid=EID_HELP)
     @app_commands.choices(goal=[c for c in goal_choices if c.value != "date"])
     async def next_cmd(interaction: discord.Interaction, goal: Optional[app_commands.Choice[str]] = None,
-                       private: bool = False, eid: Optional[str] = None):
+                       private: Optional[bool] = None, eid: Optional[str] = None):
         g = goal.value if goal else "eggday"
         if eid and not valid_eid(eid):
             await bad_eid(interaction)
+            return
+        if not eid and not await owner_only(interaction):
             return
         await reply(interaction, private, lambda: next_for(cfg, g, eid), eid)
 
     @bot.tree.command(name="help", description="List the AutoAutoAP commands")
     @everywhere
     @app_commands.describe(private="Reply only to you")
-    async def help_cmd(interaction: discord.Interaction, private: bool = False):
-        await interaction.response.send_message(embed=to_discord(help_embed()), ephemeral=private)
+    async def help_cmd(interaction: discord.Interaction, private: Optional[bool] = None):
+        await interaction.response.send_message(embed=to_discord(help_embed()), ephemeral=bool(private))
 
     bot.run(token)
 
@@ -600,9 +666,14 @@ def main(argv=None) -> int:
     ap.add_argument("--goal", choices=list(GOALS), default="eggday")
     ap.add_argument("--date", help="for --goal date: YYYY-MM-DD")
     ap.add_argument("--prefer", choices=["same", "off"], default="same")
+    ap.add_argument("--clear-guild-commands", action="store_true",
+                    help="remove the guild-scoped copies of the commands for GUILD_ID, then exit")
     args = ap.parse_args(argv)
     cfg = load_config()
     eid = os.environ.get("DRY_RUN_EID") or None  # a dry run never takes an id on the command line
+    if args.clear_guild_commands:
+        clear_guild_commands(cfg)
+        return 0
     if args.dry_run:
         if args.dry_run == "help":
             embeds = [help_embed()]

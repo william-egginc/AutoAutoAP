@@ -10,16 +10,17 @@ Discord slash commands that behave like the planner's CLI, with NO searches: onl
 | `/next goal private` | Only the next step and the one after it, with their times. |
 | `/help` | Lists the commands. |
 
-Replies are public unless you set `private:true`. Tables are cut to 40 characters a line so they do not wrap
+Replies are public unless you set `private:true`, except that anything from the owner's saved save defaults to private and anything with an `eid` is always private. Every reply carries a one-line beta notice with the site link. Tables are cut to 40 characters a line so they do not wrap
 on a phone (routes show first and last stop; the `#` column is the ascension count, `>` marks the route the
 site's green box leads with).
 
 Every command also takes an optional `eid` (a player ID, `EI` and 16 digits). With it the bot loads that player's
 save from the Egg, Inc. server the way the site does (`lib/saveLoad.ts` `requestSave`) and the reply is **always
-private**, whatever `private` says. Without it the bot uses `SAVE_PATH`, the bot owner's save. The ID goes to the
+private**, whatever `private` says. Without it the bot uses `SAVE_PATH`, the bot owner's save, but only for `OWNER_ID`; anyone else is asked for their `eid`. The ID goes to the
 planner process on stdin only (not in its arguments), is never logged, echoed, cached or written to disk, and
-every error text is scrubbed of it. Players other than the owner are answered from the shared maxed table (the
-site fetches a player's own table itself; the bot does not). Times use the bot's `TIMEZONE`.
+every error text is scrubbed of it. The bot picks the table with the site's own check (`chooseInstantTable`, `instantScaleOf`): if no table
+fits the player's gear the reply says "Assumes maxed gear; your real times may be later" (or that the maxed
+table was moved to their gear, as the site does). The site fetches a player's own table itself; the bot does not. Times use the bot's `TIMEZONE`.
 
 ## How it works
 
@@ -54,6 +55,9 @@ masked to `EI...` on everything printed or sent.
      precompute folder (the same files the site loads). A player's own table is fetched by the site, not by
      this bot, so the bot answers from the shared maxed table unless you also put such a file there yourself
      (do not publish those files)
+   - `OWNER_ID`: your Discord user id (Developer Mode, right-click yourself, Copy User ID). Without an `eid`,
+     `SAVE_PATH` is used ONLY for this user, and the reply defaults to private (`private:false` makes it public).
+     Everyone else without an `eid` gets a private reply asking for theirs. Unset: nobody uses `SAVE_PATH`.
    - `NODE` (default `node`), `TIMEZONE` (default `America/Denver`), `TIMEOUT` (seconds, default 180)
 5. Try it without Discord:
    ```
@@ -72,12 +76,12 @@ masked to `EI...` on everything printed or sent.
    ```
    set DISCORD_TOKEN=your-token
    ```
-8. Commands are always synced globally (user installs and DMs use that; it can take up to an hour to show). For
-   instant availability on your own server also set `GUILD_ID` (the server then shows the commands twice until you
-   unset it) (right-click the server, Copy Server ID, with
-   Developer Mode on).
+8. Commands are registered globally only (servers, user installs and DMs all use that; a new command can take up
+   to an hour to show). If an earlier version left guild-scoped copies in your server (you see each command
+   twice), remove them once with your server's id, then restart normally:
    ```
    set GUILD_ID=123456789012345678
+   .venv\Scripts\python bot.py --clear-guild-commands
    .venv\Scripts\python bot.py
    ```
 9. Type `/instant`, `/myruns` or `/help` in the server. A run takes about 10 to 30 seconds; runs are queued one at a time.
