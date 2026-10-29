@@ -93,7 +93,7 @@ describe('buttons, column heads and notes have one definition (resultCardStyle.t
   it('InstantRoute, ChainSearchPanel, ByDateRouteCard and the Help box use them', () => {
     const instant = read('components/auto/InstantRoute.vue');
     expect(instant.match(/:class="SECONDARY_BUTTON"/g)).toHaveLength(2);
-    expect(instant.match(/:class="\[SECONDARY_BUTTON, 'whitespace-nowrap'\]"/g)).toHaveLength(2);
+    expect(instant.match(/:class="\[SECONDARY_BUTTON, ROUTE_ACTION\]"/g)).toHaveLength(2);
     const panel = read('components/auto/ChainSearchPanel.vue');
     expect(panel).toContain('<table :class="LEG_TABLE">');
     expect(panel).toContain('<tr :class="LEG_HEAD">');

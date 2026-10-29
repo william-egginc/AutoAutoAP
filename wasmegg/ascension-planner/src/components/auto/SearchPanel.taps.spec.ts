@@ -27,14 +27,17 @@ const detailsTag = (html: string, id: string) =>
   html.match(new RegExp(`<details[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
 const isOpen = (tag: string) => /\sopen(=|\s|>)/.test(tag);
 
-describe("Custom's promise box, closed by default like Fast and Exact's", () => {
-  it('closed on a first visit, for both goals and for Fast / Exact', async () => {
+describe("Custom's promise box, closed by default (Fast and Exact's What this does starts open since 29 Oct 2026)", () => {
+  it('closed on a first visit, for both goals; Fast / Exact open', async () => {
     for (const goal of ['fastest', 'deadline'] as const)
       expect(isOpen(detailsTag(await renderHtml(ExhaustivePromise, { goal }), 'exhaustive-promise'))).toBe(false);
-    expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal: 'date' }), 'fold-whatItDoes'))).toBe(false);
+    expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal: 'date' }), 'fold-whatItDoes'))).toBe(true);
   });
   it('opens when the player opened it last time; each box remembers its own state', async () => {
     mem.set('aap-exhaustive-promise-closed', '0');
+    expect(isOpen(detailsTag(await renderHtml(ExhaustivePromise, { goal: 'fastest' }), 'exhaustive-promise'))).toBe(true);
+    expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal: 'fastest' }), 'fold-whatItDoes'))).toBe(true);
+    mem.set('aap.fold.whatItDoes', '0');
     expect(isOpen(detailsTag(await renderHtml(ExhaustivePromise, { goal: 'fastest' }), 'exhaustive-promise'))).toBe(true);
     expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal: 'fastest' }), 'fold-whatItDoes'))).toBe(false);
   });
