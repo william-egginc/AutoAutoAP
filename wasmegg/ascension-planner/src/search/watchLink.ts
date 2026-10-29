@@ -24,6 +24,7 @@
  */
 
 import { NAMES } from '@/lib/siteNav';
+import { clock12 } from './stepAway';
 
 /** A heartbeat this often while the run goes (and at once on start, end, stop, failure). */
 export const WATCH_EVERY_MS = 5 * 60_000;
@@ -363,6 +364,28 @@ export function buildHeartbeat(a: {
 export function heartbeatDue(a: { event: 'start' | 'tick' | 'end'; now: number; lastTryAt: number | null }): boolean {
   if (a.event !== 'tick') return true;
   return a.lastTryAt === null || a.now - a.lastTryAt >= WATCH_EVERY_MS;
+}
+
+/** Heartbeats that didn't go, in a row, before the run's page says so (3 is about 15 minutes: when the phone
+ *  starts saying "Not reporting"). */
+export const WATCH_FAILS_NOTE = 3;
+
+/**
+ * The run page's amber note when the phone link isn't updating: `fails` heartbeats in a row didn't go
+ * (composables/useWatchLink.ts counts them; one that goes clears the count). '' when there's nothing to say.
+ */
+export function watchFailingNote(a: {
+  status: WatchStatus;
+  fails: number;
+  lastOkAt: number | null;
+  lastError: string;
+}): string {
+  if (a.status !== 'running' || !(a.fails >= WATCH_FAILS_NOTE)) return '';
+  return [
+    `Your phone link isn't updating: the last ${a.fails} updates didn't go${a.lastError ? ` (${a.lastError})` : ''}.`,
+    a.lastOkAt ? `The last one sent was at ${clock12(a.lastOkAt)}.` : 'None has gone yet.',
+    'It keeps trying every 5 minutes.',
+  ].join(' ');
 }
 
 /**

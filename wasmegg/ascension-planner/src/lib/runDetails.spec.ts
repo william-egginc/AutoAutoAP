@@ -30,10 +30,10 @@ describe('runDetailLine', () => {
         legs: 5210,
       })
     ).toBe(
-      '9 min so far · first guess 11 min for 7 workers, 4 now · more than the ~1,200 routes estimated · estimated from the first 40 sets · 5,210 legs simulated'
+      '9 min so far · first guess 11 min for 7 workers, 4 now · more than the ~1,200 routes estimated · estimated from the first 40 sets · 5,210 ascensions simulated'
     );
     expect(runDetailLine({ kind: 'by-date', elapsed: '1 min', done: 10, estimated: 1200, legs: 1 })).toBe(
-      '1 min so far · 1 leg simulated'
+      '1 min so far · 1 ascension simulated'
     );
   });
 

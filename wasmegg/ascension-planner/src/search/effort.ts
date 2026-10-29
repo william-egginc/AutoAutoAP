@@ -77,12 +77,14 @@ export const EFFORT_NOTES: Record<EffortTier, EffortNote> = {
       '+ tries one ascension fewer or one more, and again from there while the count keeps changing (within your limits), then fine-tunes again. ' +
       'The count check adds roughly 10 to 15% more routes.',
     accuracy:
-      'Matched the best of all 4,913 plans tested in full around it, on 1 account. ' +
-      'The other accounts have no proven answer to check against.',
+      'Matched the best of all 4,913 routes tested in full around it, on 1 account, in a box that kept its first two ' +
+      'stops, its number of ascensions and its final target fixed. ' +
+      'Outside that box, and on the other accounts, there is no proven answer to check against.',
     warning: null,
   },
   thorough: {
-    label: 'Very high',
+    // The glossary of 25 Oct 2026 retires "Very high" as a player word: the stored level stays `thorough`.
+    label: 'Exact (wider)',
     cliDuration: '7–13 h',
     typicalTime: 'About 1.5-2.5 hours on an 8-core computer, 45 minutes to 1.5 hours on 16.',
     adds: '+ every combination of each group of three neighbouring stops.',

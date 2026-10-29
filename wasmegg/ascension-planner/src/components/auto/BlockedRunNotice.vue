@@ -5,8 +5,8 @@
 -->
 <template>
   <div v-if="blocked" class="rounded-xl border border-slate-300 bg-slate-50 p-4 space-y-2" data-testid="blocked-run">
-    <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Unfinished run can't continue</h3>
-    <p class="text-[11px] text-slate-700 leading-relaxed">
+    <h3 class="text-slate-700 label">Unfinished run can't continue</h3>
+    <p class="text-body text-slate-700 max-w-prose">
       A run on this machine stopped after pricing
       <span class="font-bold">{{ plural(blocked.record.durations.length, 'route') }}</span>
       ({{ ago(blocked.record.updatedAt) }}), but <span class="font-bold">{{ blocked.changes.join('; ') }}</span
@@ -21,7 +21,7 @@
     </p>
     <button
       type="button"
-      class="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700"
+      class="text-body font-bold text-slate-500 hover:text-slate-700"
       @click="store.discardCheckpoint()"
     >
       Discard it

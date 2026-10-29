@@ -9,6 +9,15 @@
  * better one (Fastest: sooner; By a date: higher TE, then more spare). By a date "same TE" is a margin of 0 TE:
  * the fewest ascensions that reach the best TE with any spare above 0.
  *
+ * A tight route is picked like any other (ux35-c, 28 Oct 2026: ux34-c's "never a tight route for one with room" was a
+ * misunderstanding and is gone); Egg Day's 197 218 247 285 313 is kept by the quick-first-stop rule below.
+ *
+ * A dropped first stop that only finishes the current ascension soon is not an ascension saved (Jordan, 28 Oct 2026:
+ * "same TE" swapped 197 218 247 285 313, a prestige at 197 two days out, for 218 247 277 313, the current ascension
+ * kept going for two months; it ends either way). When the best's first stop is quick (`quickFirstStop`) and a route
+ * does not open with a quick stop of its own, it saves one ascension less than its count says; a route that saves
+ * nothing then is not "fewer", and the box keeps the best's stop.
+ *
  * The saving is only what was counted: ascensions (and so prestiges) always; shifts only when both routes'
  * simulated legs kept their shifts (Check exactly's), else nothing is said about shifts.
  *
@@ -43,6 +52,54 @@ export const sameMargin = (a: PreferMargin, b: PreferMargin): boolean =>
     (a.kind === 'time' && b.kind === 'time' && a.seconds === b.seconds) ||
     (a.kind === 'te' && b.kind === 'te' && a.te === b.te));
 
+/**
+ * A route's first stop, from its first leg (search/routeFinder.ts RouteLeg): `from` the TE it starts at (the save's TE),
+ * `to` the stop, `start` when it starts (the plan start) and `end` when it ends. Absent fields are not known.
+ */
+export interface FirstStop {
+  from?: number;
+  to: number;
+  start?: number;
+  end?: number;
+}
+
+/** A first stop at most this many TE above the save's TE only finishes the current ascension (196 to 197, 198). */
+export const QUICK_FIRST_STOP_TE = 2;
+/** ...or one that ends at most this long after the plan start (196 to 197 is about 2 days). */
+export const QUICK_FIRST_STOP_SECONDS = 3 * 86400;
+
+/**
+ * The first stop only finishes the current ascension soon: within `QUICK_FIRST_STOP_TE` of the save's TE, OR ending
+ * within `QUICK_FIRST_STOP_SECONDS` of the plan start (either one is enough). False when neither can be told.
+ */
+export function quickFirstStop(f: FirstStop | null | undefined): boolean {
+  if (!f || !Number.isFinite(f.to)) return false;
+  if (f.from !== undefined && Number.isFinite(f.from) && f.to - f.from <= QUICK_FIRST_STOP_TE) return true;
+  return (
+    f.start !== undefined &&
+    f.end !== undefined &&
+    Number.isFinite(f.start) &&
+    Number.isFinite(f.end) &&
+    f.end - f.start <= QUICK_FIRST_STOP_SECONDS
+  );
+}
+
+/** The first stop of a route's legs (the first leg's `from`, `to`/`endTE`, `start`, `end`); null without legs. */
+export function firstStopOf(
+  legs: readonly { from?: number; to?: number; endTE?: number; start?: number; end?: number }[] | null | undefined,
+  chain?: readonly number[]
+): FirstStop | null {
+  const l = Array.isArray(legs) ? legs[0] : undefined;
+  const to = l?.to ?? chain?.[0] ?? l?.endTE;
+  if (to === undefined || !Number.isFinite(to)) return null;
+  return {
+    to,
+    ...(l?.from !== undefined ? { from: l.from } : {}),
+    ...(l?.start !== undefined ? { start: l.start } : {}),
+    ...(l?.end !== undefined ? { end: l.end } : {}),
+  };
+}
+
 /** One route the box could lead with. `item` is the caller's own row, handed back as is. */
 export interface PreferRow<T> {
   item: T;
@@ -55,6 +112,8 @@ export interface PreferRow<T> {
   spare?: number;
   /** Shifts over the whole route, from its simulated legs (`shiftCount`); null when not known. */
   shifts: number | null;
+  /** Its first stop (`firstStopOf`), for the quick-first-stop rule; left out, the rule does not apply to it. */
+  first?: FirstStop | null;
 }
 
 export interface PreferChoice<T> {
@@ -70,11 +129,14 @@ export interface PreferChoice<T> {
   costSeconds: number;
   /** By a date: how many TE below the highest (0 for the best). */
   costTE: number;
+  /** Counted as saved: a quick first stop of the best's that the chosen drops is not one (`quickFirstStop`). */
   ascensionsFewer: number;
   /** One prestige per ascension. */
   prestigesFewer: number;
   /** Null when either route's shifts are not known, or when the chosen route does not have fewer. */
   shiftsFewer: number | null;
+  /** A route with fewer stops only dropped the best's quick first stop, so it was not counted as fewer. */
+  keptFirstStop: boolean;
 }
 
 const teOf = (r: PreferRow<unknown>) => r.endTE ?? 0;
@@ -109,10 +171,16 @@ export function choosePreferFewer<T>(
     ascensionsFewer: 0,
     prestigesFewer: 0,
     shiftsFewer: null,
+    keptFirstStop: false,
   };
   if (margin.kind === 'off') return plain;
-  const fewer = rows.filter(r => r !== top && r.ascensions < top.ascensions);
-  if (!fewer.length) return { ...plain, state: 'only' };
+  // Ascensions a route saves on the best: one less when the best opens with a quick stop and the route does not.
+  const topQuick = quickFirstStop(top.first);
+  const saving = (r: PreferRow<T>) =>
+    top.ascensions - r.ascensions - (topQuick && r.first && !quickFirstStop(r.first) ? 1 : 0);
+  const keptFirstStop = rows.some(r => r !== top && r.ascensions < top.ascensions && saving(r) <= 0);
+  const fewer = rows.filter(r => r !== top && saving(r) > 0);
+  if (!fewer.length) return { ...plain, state: 'only', keptFirstStop };
   const inside = (r: PreferRow<T>): boolean => {
     if (goal === 'fastest') return margin.kind === 'time' && r.finish - top.finish <= Math.max(0, margin.seconds);
     if (margin.kind !== 'te') return false;
@@ -123,11 +191,10 @@ export function choosePreferFewer<T>(
   let chosen: PreferRow<T> | null = null;
   for (const r of fewer) {
     if (!inside(r)) continue;
-    if (!chosen || r.ascensions < chosen.ascensions || (r.ascensions === chosen.ascensions && better(goal, r, chosen)))
-      chosen = r;
+    if (!chosen || saving(r) > saving(chosen) || (saving(r) === saving(chosen) && better(goal, r, chosen))) chosen = r;
   }
-  if (!chosen) return { ...plain, state: 'none' };
-  const n = top.ascensions - chosen.ascensions;
+  if (!chosen) return { ...plain, state: 'none', keptFirstStop };
+  const n = saving(chosen);
   const shifts = top.shifts !== null && chosen.shifts !== null ? top.shifts - chosen.shifts : null;
   return {
     state: 'fewer',
@@ -138,6 +205,7 @@ export function choosePreferFewer<T>(
     ascensionsFewer: n,
     prestigesFewer: n,
     shiftsFewer: shifts !== null && shifts > 0 ? shifts : null,
+    keptFirstStop,
   };
 }
 
@@ -192,9 +260,15 @@ const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? on
 export interface PreferCopy {
   /** On the box's header when it leads with a different route: "Fewest ascensions within 1 day". */
   chip: string;
+  /**
+   * One plain sentence first in the note under the box, saying what the box shows while Prefer fewer picked another
+   * route: "The box shows the route with the fewest ascensions that finishes within 12 h of the fastest." (Jordan's
+   * defaults, 26 Oct 2026: with a margin on by default, a player who never set it is told why.)
+   */
+  what: string;
   /** Under the box's numbers, cost first, then the saving. */
   line: string;
-  /** "No route with fewer ascensions is within 1 day." */
+  /** "No route with fewer ascensions is within 1 day." Not shown since 26 Oct 2026 (PreferFewerNote.vue). */
   muted: string;
 }
 
@@ -208,7 +282,7 @@ export function preferFewerCopy<T>(
   margin: PreferMargin,
   show: (unix: number) => string
 ): PreferCopy {
-  const none: PreferCopy = { chip: '', line: '', muted: '' };
+  const none: PreferCopy = { chip: '', what: '', line: '', muted: '' };
   if (!choice || margin.kind === 'off') return none;
   const m = marginWords(margin);
   const same = margin.kind === 'te' && margin.te === 0;
@@ -225,6 +299,12 @@ export function preferFewerCopy<T>(
   if (goal === 'fastest') parts.push(count(choice.prestigesFewer, 'fewer prestige', 'fewer prestiges'));
   const saving = parts.length ? `${fewer}: ${parts.join(', ')}` : fewer;
   const chip = same ? 'Fewest ascensions, same TE' : `Fewest ascensions within ${m}`;
+  const what =
+    goal === 'fastest'
+      ? `The box shows the route with the fewest ascensions that finishes within ${m} of the fastest.`
+      : same
+        ? 'The box shows the route with the fewest ascensions that reaches the same TE.'
+        : `The box shows the route with the fewest ascensions that ends within ${m} of the highest TE.`;
   let line: string;
   if (goal === 'fastest') {
     const when = show(choice.best.finish);
@@ -239,43 +319,134 @@ export function preferFewerCopy<T>(
         ? `${trim(choice.costTE)} TE below the highest (${te}, ${count(choice.best.ascensions, 'ascension')}), and ${saving}.`
         : `Same TE as the highest (${te}), with ${saving}.`;
   }
-  return { chip, line, muted: '' };
+  return { chip, what, line, muted: '' };
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** A saved route as the snapshot keeps it (search/routeFinder.ts Route), as far as `boxRouteOf` reads it. */
+export interface BoxRouteLike {
+  chain: number[];
+  end: number;
+  legs?: { endTE?: number; to?: number; from?: number; start?: number; end?: number }[] | null;
+}
+
+/**
+ * The route the green box shows, from a saved answer's routes (Jordan, 26 Oct 2026: My runs' Right now and the
+ * instant baseline follow the box, not the best): `best` (Fastest `result.best`, By a date `result.byDate`) and the
+ * rows per count (`byAscensions` / `byDateByAscensions`), chosen with `margin` as InstantRoute's box does (By a date
+ * the spare is to `deadline`). The best with the margin Off, when nothing fits, or without a best.
+ */
+export function boxRouteOf<R extends BoxRouteLike>(
+  goal: PreferGoal,
+  best: R | null | undefined,
+  rows: readonly (R | null | undefined)[] | null | undefined,
+  margin: PreferMargin,
+  deadline: number | null = null
+): R | null {
+  if (!best || !Array.isArray(best.chain) || !best.chain.length) return best ?? null;
+  if (margin.kind === 'off') return best;
+  const endTE = (r: R) => {
+    const last = Array.isArray(r.legs) ? r.legs[r.legs.length - 1] : undefined;
+    return last?.endTE ?? last?.to ?? r.chain[r.chain.length - 1];
+  };
+  const rowOf = (r: R): PreferRow<R> => ({
+    item: r,
+    ascensions: r.chain.length,
+    finish: r.end,
+    ...(goal === 'date' ? { endTE: endTE(r), ...(deadline !== null ? { spare: deadline - r.end } : {}) } : {}),
+    shifts: null,
+    first: firstStopOf(r.legs, r.chain),
+  });
+  const k = best.chain.join(',');
+  const others = (rows ?? []).filter(
+    (r): r is R => !!r && Array.isArray(r.chain) && r.chain.length > 0 && Number.isFinite(r.end) && r.chain.join(',') !== k
+  );
+  const top = rowOf(best);
+  const choice = choosePreferFewer(goal, [top, ...others.map(rowOf)], margin, top);
+  return choice?.state === 'fewer' ? choice.chosen.item : best;
+}
 
 /** Remembered per browser, one value per screen. */
 export interface PreferSetting {
   fastest: PreferMargin;
   date: PreferMargin;
 }
-export const PREFER_KEY = 'aap-prefer-fewer';
-const DEFAULTS: PreferSetting = { fastest: PREFER_OFF, date: PREFER_OFF };
+/**
+ * A new key (Jordan, 26 Oct 2026): before the defaults, picking on one screen saved Off for the other too, so a player
+ * who ever touched a chip had Off stored for both, which can't be told apart from a real Off. Everyone starts on the
+ * defaults once: the old key is never read and is removed (`dropOldPreferKeys`); a pick made from now on is kept here.
+ */
+export const PREFER_KEY = 'aap-prefer-fewer-v2';
+/** Keys of earlier builds, discarded once. */
+export const PREFER_OLD_KEYS: readonly string[] = ['aap-prefer-fewer'];
 
-function validMargin(v: unknown, kind: 'time' | 'te'): PreferMargin {
+/** Removes the earlier builds' picks. Never throws (blocked storage, or one without removeItem). */
+export function dropOldPreferKeys(): void {
+  for (const k of PREFER_OLD_KEYS) {
+    try {
+      if (localStorage.getItem(k) !== null) localStorage.removeItem(k);
+    } catch {
+      // Nothing to do: the old key is never read anyway.
+    }
+  }
+}
+/**
+ * Jordan's defaults (26 Oct 2026, item 7), for a screen the player has never set: Fastest to 490 (and every other race
+ * target) within 12 h of the fastest; By a date (Egg Day too) the same TE. A choice the player made always wins.
+ */
+export const PREFER_DEFAULTS: PreferSetting = {
+  fastest: { kind: 'time', seconds: 12 * 3600 },
+  date: { kind: 'te', te: 0 },
+};
+
+/** A stored margin for that screen, Off included; undefined for one never set or not readable (the default then). */
+function validMargin(v: unknown, kind: 'time' | 'te'): PreferMargin | undefined {
   const m = v as Partial<{ kind: string; seconds: number; te: number }> | null;
-  if (!m || typeof m !== 'object') return PREFER_OFF;
+  if (!m || typeof m !== 'object') return undefined;
+  if (m.kind === 'off') return PREFER_OFF;
   if (kind === 'time' && m.kind === 'time' && typeof m.seconds === 'number' && Number.isFinite(m.seconds) && m.seconds > 0)
     return { kind: 'time', seconds: m.seconds };
   if (kind === 'te' && m.kind === 'te' && typeof m.te === 'number' && Number.isFinite(m.te) && m.te >= 0)
     return { kind: 'te', te: m.te };
-  return PREFER_OFF;
+  return undefined;
 }
 
-export function readPreferFewer(): PreferSetting {
+/** Only what the player picked, per screen (a screen never set is absent). Never throws. */
+export function readPreferPicked(): Partial<PreferSetting> {
+  dropOldPreferKeys();
   try {
     const v = JSON.parse(localStorage.getItem(PREFER_KEY) ?? 'null') as Partial<PreferSetting> | null;
-    if (!v || typeof v !== 'object') return { ...DEFAULTS };
-    return { fastest: validMargin(v.fastest, 'time'), date: validMargin(v.date, 'te') };
+    if (!v || typeof v !== 'object') return {};
+    const out: Partial<PreferSetting> = {};
+    const fastest = validMargin(v.fastest, 'time');
+    const date = validMargin(v.date, 'te');
+    if (fastest) out.fastest = fastest;
+    if (date) out.date = date;
+    return out;
   } catch {
-    return { ...DEFAULTS };
+    return {};
   }
 }
 
-export function writePreferFewer(s: PreferSetting): void {
+/** The setting each screen uses: the player's pick, else the default. */
+export function readPreferFewer(): PreferSetting {
+  return { ...PREFER_DEFAULTS, ...readPreferPicked() };
+}
+
+/** Writes what is given as is (only the screens in it are remembered). */
+export function writePreferFewer(s: Partial<PreferSetting>): void {
   try {
     localStorage.setItem(PREFER_KEY, JSON.stringify(s));
   } catch {
     // Private windows and blocked storage: the setting lasts for this visit only.
   }
+}
+
+/**
+ * The player picked `margin` on one screen: remember that screen only, so the other keeps following its default
+ * until it is picked there too.
+ */
+export function rememberPreferFewer(goal: PreferGoal, margin: PreferMargin): void {
+  writePreferFewer({ ...readPreferPicked(), [goal]: margin });
 }

@@ -3,6 +3,7 @@ import type { Action } from '@/types/actions/meta';
 import type { AscensionSummary } from './types';
 import type { VariantKey, VariantResult } from '@/stores/autoPlanner';
 import type { AutoLoadoutInputs } from './loadout/types';
+import { packExportedPlan } from '@/lib/planExportPack';
 
 interface ExportedPlanGoal {
   type: 'te' | 'date';
@@ -113,6 +114,7 @@ export function triggerPlanExport(plan: ExportedPlan) {
   const endTE = lastVariant?.summary.endTE ?? 0;
 
   const filename = `Auto_AP_${dateStr}_${x}-ascensions_${startTE}_to_${endTE}.json`;
-  const content = JSON.stringify(plan);
+  // Packed (lib/planExportPack.ts): a 2-ascension export was 56-65 MB of repeated snapshots; PlanLibrary unpacks.
+  const content = JSON.stringify(packExportedPlan(plan));
   downloadFile(filename, content, 'application/json');
 }

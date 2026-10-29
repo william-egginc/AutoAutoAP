@@ -20,6 +20,18 @@ export const SAVE_UNREACHABLE = "Couldn't load your save. Check your connection 
 /** The server answered, and has no account under that player ID. */
 export const ID_NOT_FOUND = "That player ID wasn't found. Check it and try again.";
 
+/** Entering the Auto Planner couldn't fetch a fresh save (App.vue `prepareAutoPlanner`; the last good one is used). */
+export const LATEST_SAVE_FAILED = "Couldn't load your latest save.";
+
+/**
+ * The page's error line once a fresh save has loaded (QA 24 Oct 2026, Safari: after a successful Try again the button
+ * went but "Couldn't load your latest save." stayed until a reload, so the retry looked failed). A save-load failure
+ * is cleared; any other error (from something else) stays.
+ */
+export function errorAfterSaveLoaded(current: string): string {
+  return current === LATEST_SAVE_FAILED || current === SAVE_UNREACHABLE ? '' : current;
+}
+
 export type SaveLoadKind = 'unreachable' | 'not-found';
 
 /** A failed save load. Its message is already in player words. */

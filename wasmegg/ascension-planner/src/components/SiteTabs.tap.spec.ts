@@ -42,9 +42,9 @@ describe('Auto Planner sub-tabs (App.vue)', () => {
     app.indexOf('<div v-else-if="plannerTab === \'science\'"')
   );
 
-  it('Single run, Fastest, Highest TE by a date and My runs: at least 44 px below sm, old size from sm', () => {
+  it('Fastest, Highest TE by a date and Single run: at least 44 px below sm, old size from sm', () => {
     const buttons = nav.match(/<button\b[\s\S]*?>/g) ?? [];
-    expect(buttons).toHaveLength(2); // the v-for and My runs
+    expect(buttons).toHaveLength(1); // the v-for (My runs is a top tab only since 26 Oct 2026)
     for (const b of buttons) {
       expect(b).toContain('min-h-[44px] sm:min-h-0');
       expect(b).toContain('py-2 -mb-px border-b-2');

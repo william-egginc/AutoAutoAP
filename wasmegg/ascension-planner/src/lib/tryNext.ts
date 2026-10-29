@@ -22,7 +22,7 @@ import { deadlineKind, finishesBefore, lateMarker } from './eggDayRule';
 export const MAX_PILLS = 4;
 
 export interface Pill {
-  id: 'eggday-fast' | 'exact-race' | 'exhaustive' | 'check-fastest' | 'check-eggday';
+  id: 'eggday-fast' | 'exact-race' | 'exhaustive';
   label: string;
   open: MyRunsOpen;
 }
@@ -51,10 +51,8 @@ export function tryNextPills(fastest: { tile: Tile; target: number }, eggDay: Ti
       label: f ? `Custom (around ${f.chain.length} ascensions)` : 'Custom',
       open: { auto: 'fastest', depth: 'full', tab: 'exhaustive', target: fastest.target },
     });
-  if (e?.how === 'instant')
-    pills.push({ id: 'check-eggday', label: 'Check exactly (Egg Day)', open: { auto: 'by-date', byDate: { eggDay: true } } });
-  if (f?.how === 'instant')
-    pills.push({ id: 'check-fastest', label: `Check exactly (${fastest.target})`, open: { auto: 'fastest', depth: 'smart', target: fastest.target } });
+  // The "Check exactly (Egg Day)" and "Check exactly (490)" pills went with Check exactly (23 Oct 2026): an instant
+  // answer's next step is Egg Day, Fast or Exact on the race route above.
   return pills.slice(0, MAX_PILLS);
 }
 

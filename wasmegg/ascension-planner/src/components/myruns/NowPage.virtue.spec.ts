@@ -25,8 +25,8 @@ import { useStartTimesStore } from '@/stores/startTimes';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 const ZONE = 'America/Denver';
-const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 pm Denver
-const START = Date.UTC(2026, 9, 31, 0, 0) / 1000; // Oct 30, 6:00 pm Denver
+const NOW = Date.UTC(2026, 9, 15, 20, 40) / 1000; // Thu Oct 15, 2:40 PM Denver
+const START = Date.UTC(2026, 9, 31, 0, 0) / 1000; // Oct 30, 6:00 PM Denver
 const H = 3600;
 
 beforeEach(() => {
@@ -81,14 +81,14 @@ const card: CardPlan = {
   goal: { goal: 'fastest', target: 490, deadline: null },
   state: 'this-save',
   key: 'fastest-490',
-  name: 'Race to 490',
+  name: 'Fastest to 490 TE',
 };
 const options: GoalOption[] = [
   {
     key: 'fastest-490',
     kind: 'race',
-    label: 'Race to 490',
-    name: 'Race to 490',
+    label: 'Fastest to 490 TE',
+    name: 'Fastest to 490 TE',
     deadline: null,
     state: 'plan',
     calculatedAt: plan.calculatedAt,
@@ -140,7 +140,7 @@ const offProps = (o: Record<string, unknown> = {}) => {
     shownEvents: tableEvents(events),
     startInfo: startLines(
       [
-        { key: 'fastest-490', name: 'Race to 490', goal: 'fastest', target: 490, plan: freshPlan },
+        { key: 'fastest-490', name: 'Fastest to 490 TE', goal: 'fastest', target: 490, plan: freshPlan },
         { key: 'eggday-2027', name: 'Egg Day 2027', goal: 'date', target: 490, plan: null },
       ],
       NOW,
@@ -171,9 +171,9 @@ describe('not on virtue yet', () => {
   it('the future plan as exploration, from what each goal saved; the switch, the route and the timeline stay', async () => {
     const html = await renderHtml(RightNowCard, offProps());
     const t = textOf(html);
-    expect(t).toContain('If you start Oct 30 at 6:00 pm: 490 on Nov 20 at 1:00 pm (Race to 490, Check exactly)');
+    expect(t).toContain('If you start Oct 30 at 6:00 PM: 490 on Nov 20 at 1:00 PM (Fastest to 490 TE, simulator check)');
     expect(t).toContain('Egg Day 2027: no start time is priced yet');
-    expect(t).toContain('If you start then: Following 198 → 490 (Race to 490)');
+    expect(t).toContain('If you start then: Following 198 → 490 (Fastest to 490 TE)');
     expect(html).toContain('data-testid="now-goal-switch"');
     expect(t).toContain('Full timeline');
   });
@@ -251,30 +251,23 @@ describe('the corner badge and the gear', () => {
         match,
       });
     expect(textOf(await g('earnings'))).toContain('Equipped now = your earnings set');
-    expect(textOf(await g('production'))).toContain('Equipped now = your production set');
+    expect(textOf(await g('production'))).toContain('Equipped now = your delivery set');
     expect(textOf(await g('mix'))).toContain('Equipped now = a mix');
     expect(textOf(await g(null))).toContain('Equipped now');
     expect(read('RightNowCard.vue')).toContain(':match="gear.match ?? null"');
   });
 });
 
-describe('Recalculate', () => {
-  it('a button on Right now with a line saying what it does', async () => {
-    const t = textOf(await renderHtml(RightNowCard, cardProps()));
-    expect(t).toContain('Recalculate Opens Fastest to 490 TE with your save and runs Check exactly');
-    const d = textOf(
-      await renderHtml(
-        RightNowCard,
-        cardProps({
-          card: { ...card, goal: { goal: 'date', target: 490, deadline: 1815753600 } },
-          selectedGoal: 'eggday-2027',
-        })
-      )
+describe('Run Fast (was Recalculate)', () => {
+  it('no Run Fast button on Right now any more (25 Oct 2026, one path per card: Try next has the runs)', async () => {
+    const html = await renderHtml(RightNowCard, cardProps());
+    expect(html).not.toContain('data-testid="now-recalc"');
+    expect(textOf(html)).not.toContain('Opens Fastest to 490 TE with your save and Fast selected');
+    const d = await renderHtml(
+      RightNowCard,
+      cardProps({ card: { ...card, goal: { goal: 'date', target: 490, deadline: 1815753600 } }, selectedGoal: 'eggday-2027' })
     );
-    expect(d).toContain('Opens Highest TE by a date with your save and runs Check exactly');
-    // Without a plan there is nothing to recalculate: "Work it out ›" is there.
-    const empty = await renderHtml(RightNowCard, cardProps({ card: null, events: [], shownEvents: [], track: null }));
-    expect(empty).not.toContain('data-testid="now-recalc"');
+    expect(textOf(d)).not.toContain('Opens Highest TE by a date with your save and Fast selected');
   });
 
   it("emits the goal's screen and its words; App loads a fresh save when 6 h old, opens, then asks", async () => {
@@ -291,19 +284,14 @@ describe('Recalculate', () => {
     const appSrc = read('../../App.vue');
     expect(appSrc).toContain('@recalc="recalcFromMyRuns"');
     expect(appSrc).toMatch(
-      /if \(needsFreshSave\(backupSecondsOf\(initialStateStore\.rawBackup\), Date\.now\(\) \/ 1000\)\) \{\s*const why = await prepareAutoPlanner\(\);[\s\S]*?openFromMyRuns\(req\.open\);\s*uiStore\.askExact\(req\.goal, req\.chain\);/
+      /if \(needsFreshSave\(backupSecondsOf\(initialStateStore\.rawBackup\), Date\.now\(\) \/ 1000\)\) \{\s*const why = await prepareAutoPlanner\(\);[\s\S]*?openFromMyRuns\(fastOpen\(req\.open\)\);/
     );
   });
 
-  it('the ask: counted, and answered by InstantRoute with its Check exactly action', () => {
-    const ui = useUIStore();
-    ui.askExact('target 490');
-    ui.askExact('target 490');
-    expect(ui.exactAsk).toEqual({ goal: 'target 490', n: 2 });
+  it('no ask any more: the ui store has no exactAsk and InstantRoute reads none (23 Oct 2026)', () => {
+    expect('exactAsk' in useUIStore()).toBe(false);
     const route = read('../auto/InstantRoute.vue');
-    expect(route).toContain('goal: instantGoal(props.deadline, store.finalTE),');
-    expect(route).toMatch(
-      /if \(step === 'none' \|\| step === 'wait'\) return;[\s\S]*?ui\.exactAsk = null;\s*if \(step === 'run'\) checkAgain\(\);/
-    );
+    expect(route).not.toContain('exactAsk');
+    expect(route).not.toContain('checkAgain');
   });
 });

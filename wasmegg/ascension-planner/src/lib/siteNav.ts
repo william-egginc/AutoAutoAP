@@ -83,13 +83,13 @@ export const NAMES = {
    *  the search that starts from the instant answer (was Simple: Fastest's Smart search, By a date's
    *  Simple routes) and the one over boxes you set (was Advanced: Fastest's Full sweep, By a date's
    *  chain editor). Batch 3 called them Simple and Advanced. */
-  smart: 'Nearby routes',
-  full: 'Exhaustive',
+  smart: 'Fast and Exact',
+  full: 'Custom',
   /** The older names, kept in brackets on first mention so regulars aren't lost. */
   smartWas: 'Simple',
   fullWas: 'Advanced',
-  smartFirst: 'Nearby routes (was Simple)',
-  fullFirst: 'Exhaustive (was Advanced)',
+  smartFirst: 'Fast and Exact',
+  fullFirst: 'Custom',
   /** The study box above the tabs (StudyBox.vue) and its section in Setup (StudySetup.vue), 21 Oct 2026. */
   study: 'Help improve the planner',
   /** Where its choices change: the Setup button (SetupDock.vue) on the Auto Planner and My runs. */
@@ -107,7 +107,7 @@ export function simulateNote(button = 'Simulate this plan'): string {
 export const SIMULATE_TITLE = `Opens this route in ${NAMES.classic} (Joo's original planner) and simulates every shift on your save`;
 
 /** The exhaustive way's full title, as the chooser names it. */
-export const EXHAUSTIVE_TITLE = 'Exhaustive: every route in boxes you set';
+export const EXHAUSTIVE_TITLE = 'Custom: every route in boxes you set';
 
 /** Fastest's name at the Final target TE ("Fastest to 490 TE" by default; `NAMES.fastest` is that default). */
 export function fastestName(finalTE?: number): string {
@@ -121,6 +121,41 @@ export const DEFAULT_ROUTE: Required<SiteRoute> = {
   compare: 'eggday',
   science: 'how',
 };
+
+/**
+ * Where a NEW player lands once their save is in (Jordan, 25 Oct 2026, the UX review's item 2/A): the
+ * instant answer, on Auto Planner › Highest TE by a date with Egg Day picked, rather than the Manual
+ * Planner's empty cards. App.vue also presets Egg Day on that screen (lib/byDateForm.ts).
+ */
+export const FIRST_LOAD_ROUTE: Required<SiteRoute> = { ...DEFAULT_ROUTE, section: 'auto', auto: 'by-date' };
+
+/** The browser's memory of the last tab (its hash), so a returning player opening the bare address
+ *  lands where they left off. */
+export const LAST_ROUTE_KEY = 'aap.lastRoute';
+
+/** The last tab remembered, or null when there is none (or what is stored isn't a tab's address). */
+export function storedRoute(stored: string | null | undefined): Required<SiteRoute> | null {
+  return stored && stored.startsWith('#/') ? routeFromLocation('', stored) : null;
+}
+
+/**
+ * How the page opens, before any save is loaded:
+ * - the address names a tab (a link, a reload): that tab, for anyone;
+ * - else the browser remembers a last tab (a returning player): that tab;
+ * - else the default (the Manual Planner shell under the ID box), and `newPlayer` says whether the
+ *   first save that loads should take them to FIRST_LOAD_ROUTE. A player is new when nothing says
+ *   otherwise: no tab in the address, none remembered, and no player ID saved in this browser.
+ */
+export function openingRoute(p: {
+  fromUrl: Required<SiteRoute> | null;
+  stored: string | null | undefined;
+  savedPlayerId: string | null | undefined;
+}): { route: Required<SiteRoute> | null; newPlayer: boolean } {
+  if (p.fromUrl) return { route: p.fromUrl, newPlayer: false };
+  const kept = storedRoute(p.stored);
+  if (kept) return { route: kept, newPlayer: false };
+  return { route: null, newPlayer: !p.savedPlayerId };
+}
 
 /** `#/auto/fastest/full` for a route. The sub-parts only where the section has them. */
 export function hashFor(r: SiteRoute): string {
@@ -154,7 +189,8 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
       return { ...DEFAULT_ROUTE, section, science };
     }
     if (section === 'auto') {
-      const auto: AutoView = sub === 'fastest' || sub === 'by-date' ? sub : 'classic';
+      // A bare #/auto opens the first sub-tab, Fastest to 490 TE; Single run keeps its own address, #/auto/classic.
+      const auto: AutoView = sub === 'by-date' ? 'by-date' : sub === 'classic' ? 'classic' : 'fastest';
       return {
         ...DEFAULT_ROUTE,
         section: 'auto',

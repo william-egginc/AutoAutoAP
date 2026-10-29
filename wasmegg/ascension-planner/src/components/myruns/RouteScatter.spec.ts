@@ -4,68 +4,140 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderHtml, textOf } from '@/test/renderComponent';
-import type { BoardRow } from '@/lib/leaderboardRank';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import RouteScatter from './RouteScatter.vue';
 import PerfectSetGaps from './PerfectSetGaps.vue';
 import GearBlock from './GearBlock.vue';
+import { FIXTURE_DATED, FIXTURE_RACES, FIXTURE_ROWS, fixtureBase, race } from './routeScatter.fixture';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
-const EGG_DAY = 1_815_840_000;
-const race = (finalTE: number, chain: number[], days: number, extra: Partial<BoardRow> = {}): BoardRow => ({
-  id: `r${finalTE}-${chain.join('-')}-${days}`,
-  chain,
-  finalTE,
-  durationDays: days,
-  startUtc: '2026-10-01T00:00:00Z',
-  submittedAt: '2026-10-01T00:00:00Z',
-  timezone: 'UTC',
-  ...extra,
-});
-const base = { eggDayAt: EGG_DAY, eggDayYear: 2027, zone: 'UTC' };
+const heatOf = (html: string) => html.match(/data-testid="my-runs-heat"[\s\S]*?data-testid="my-runs-heat-line"/)?.[0] ?? '';
+const counts = (html: string) => [...heatOf(html).matchAll(/data-count="(\d+)"/g)].map(m => Number(m[1]));
+const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
+const ylabels = (html: string) =>
+  [...html.matchAll(/data-testid="my-runs-heat-ylabel"[^>]*>([^<]*)</g)].map(m => m[1].trim());
+const quickCount = FIXTURE_RACES.filter(r => r.level === 'quick').length;
 
-describe('Your routes at a glance', () => {
-  it('folded, with the count; the summary sentence, the controls, a point per route, the best ringed, the key', async () => {
-    const html = await renderHtml(RouteScatter, {
-      ...base,
-      rows: [
-        race(490, [200, 300, 490], 12.5, { level: 'normal', yours: true }),
-        race(490, [300, 490], 11, { level: 'thorough' }),
-      ],
-      savedRuns: [{ id: 's', savedAt: 1, finalTE: 490, effort: 'quick', bestChain: [100, 490], bestDays: 13 }],
-    });
+describe('Your routes at a glance: the heat map', () => {
+  it('folded, with the count; the summary, the goal select, a cell per bin, the best starred, the legend, the list', async () => {
+    const html = await renderHtml(RouteScatter, { ...fixtureBase, rows: FIXTURE_ROWS });
     const t = textOf(html);
-    expect(html).toContain('data-testid="my-runs-scatter"');
     expect(html).not.toMatch(/<details[^>]*data-testid="my-runs-scatter"[^>]*\sopen/);
-    expect(t).toContain('Your routes at a glance (3 routes, 1 goal)');
-    expect(t).toContain(
-      '3 routes for Race to 490. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 am. Across them: 2 to 3 ascensions, 11.0 to 13.0 days.'
-    );
-    expect(t).toContain('Race to 490 (3)');
-    expect(t).toContain('Ascensions');
+    expect(t).toContain('Your routes at a glance (31 routes, 2 goals)');
+    expect(t).toMatch(/25 routes for Fastest to 490 TE\. The best takes 10\.5 days/);
+    // The goal select, unchanged: the busiest goal first picked, every goal listed with its count.
+    expect(html).toMatch(/<select[^>]*min-h-\[44px\][^>]*data-testid="my-runs-scatter-goal"/);
+    expect(t).toContain('Egg Day 2027 (6)');
+    expect(t).toContain('Fastest to 490 TE (25)');
+    // Every route counted once; the legend names the busiest cell.
+    expect(sum(counts(html))).toBe(25);
+    const max = Math.max(...counts(html));
+    expect(t).toContain(`fewer routes more routes (most in one cell: ${max})`);
+    expect(t).toContain('Best route');
+    // Finish date up, ascensions across; the best cell starred, exactly once.
     expect(t).toContain('Finish date');
-    expect(t).not.toContain('Hours to spare'); // a race is drawn in days
-    expect(t).toContain('Days to finish (lower is sooner)');
-    expect(html.match(/r="12"/g)).toHaveLength(3); // one hit area per point
-    expect(html).toContain('data-testid="my-runs-scatter-best"');
-    expect(html).toMatch(/<svg[^>]*role="img"[^>]*tabindex="0"/);
-    for (const k of [
-      'Fast',
-      'Exact',
-      'Very high',
-      'Sent from this browser',
-      'Maybe you',
-      'Saved on this computer',
-      'Best',
-    ])
-      expect(t).toContain(k);
+    expect(t).toContain('Ascensions');
+    expect(html.match(/data-testid="my-runs-heat-best"/g)).toHaveLength(1);
+    expect(heatOf(html).match(/★/g)).toHaveLength(1);
+    expect(html.match(/data-testid="my-runs-heat-xlabel"/g)!.length).toBe(5); // 2 to 6 ascensions
+    const rowsN = ylabels(html).length;
+    expect(rowsN).toBeGreaterThanOrEqual(6);
+    expect(rowsN).toBeLessThanOrEqual(10);
+    // The latest finish on top, the earliest at the bottom.
+    const ms = ylabels(html).map(l => Date.parse(`${l}, 2026 UTC`));
+    expect([...ms].sort((a, b) => b - a)).toEqual(ms);
+    // Each cell with routes is a button saying its count and its best, with the same words as a tooltip.
+    const cells = [...html.matchAll(/<button[^>]*data-testid="my-runs-heat-(?:cell|best)"[^>]*>/g)].map(m => m[0]);
+    expect(cells.length).toBeGreaterThan(3);
+    for (const c of cells) {
+      const label = c.match(/aria-label="([^"]*)"/)![1];
+      expect(label).toMatch(/^\d+ routes?, best \d+( → \d+)+; \d+ ascensions?, finishing /);
+      expect(c).toContain(`title="${label}"`);
+      expect(c).toContain('min-h-[28px]');
+    }
+    // The level chips: on, with their counts.
+    for (const k of ['Fast', 'Exact', 'Exact (wider)']) expect(t).toContain(k);
+    expect(html).toMatch(/data-testid="my-runs-heat-level-quick"[^>]*>|aria-pressed="true"[^>]*data-testid="my-runs-heat-level-quick"/);
+    expect(html).not.toMatch(/aria-pressed="false"[^>]*data-testid="my-runs-heat-level/);
+    // The line under the map says how to use it until a cell is picked.
+    expect(t).toContain('to see how many routes it holds and the best of them.');
     expect(t).toContain('The same routes as a list');
     expect(t).toContain('Every run is also in Your runs below, with its filters.');
   });
 
+  it('a date goal: TE up, the lowest TE at the bottom', async () => {
+    const html = await renderHtml(RouteScatter, { ...fixtureBase, rows: FIXTURE_DATED });
+    const t = textOf(html);
+    expect(t).toContain('TE reached');
+    expect(sum(counts(html))).toBe(6);
+    const tes = ylabels(html).map(l => Number(l.split('–')[0]));
+    expect(tes[0]).toBeGreaterThan(tes[tes.length - 1]);
+    expect([...tes].sort((a, b) => b - a)).toEqual(tes);
+    const best = html.match(/<button[^>]*data-testid="my-runs-heat-best"[^>]*>/)![0];
+    expect(best).toMatch(/aria-label="1 route, best 200 → 226 → 281; 3 ascensions, TE 28\d/);
+  });
+
+  it('the level chips filter what is counted; all off says so', async () => {
+    const html = await renderHtml(RouteScatter, { ...fixtureBase, rows: FIXTURE_ROWS, startLevelsOff: ['quick'] });
+    expect(sum(counts(html))).toBe(25 - quickCount);
+    expect(html).toMatch(/aria-pressed="false"[^>]*data-testid="my-runs-heat-level-quick"/);
+    expect(html).toMatch(/aria-pressed="true"[^>]*data-testid="my-runs-heat-level-normal"/);
+    // The goal's count in the select is all its routes, whatever is filtered.
+    expect(textOf(html)).toContain('Fastest to 490 TE (25)');
+    const none = await renderHtml(RouteScatter, {
+      ...fixtureBase,
+      rows: FIXTURE_ROWS,
+      startLevelsOff: ['quick', 'normal', 'thorough'],
+    });
+    expect(textOf(none)).toContain('No routes to show: every level is switched off. Switch one back on below.');
+    expect(none).not.toContain('data-testid="my-runs-heat"');
+    expect(none).toContain('data-testid="my-runs-heat-levels"'); // the chips stay, to switch back on
+    expect(textOf(none)).toContain('The same routes as a list');
+    const comp = read('RouteScatter.vue');
+    expect(comp).toContain('@click="toggleLevel(l.level)"');
+  });
+
+  it('a picked cell: its count, where it sits and its best route under the map, with a 44 px clear button', async () => {
+    const t = textOf(await renderHtml(RouteScatter, { ...fixtureBase, rows: FIXTURE_ROWS, startOnBest: true }));
+    expect(t).toMatch(/\d+ routes? · \d+ ascensions?, finishing [^.]+\. ★ Best route\. Best in this cell: \d+( → \d+)+ /);
+    expect(t).not.toContain('Best · ');
+    expect(t).toContain('10.5 days');
+    const html = await renderHtml(RouteScatter, { ...fixtureBase, rows: FIXTURE_ROWS, startOnBest: true });
+    expect(html).toMatch(/data-testid="my-runs-heat-clear"/);
+    expect(html).toMatch(/class="[^"]*min-w-\[44px\][^"]*"[^>]*aria-label="Clear the selected cell"/);
+  });
+
+  it('one route: one cell, starred; a run saved here without a finish is left out with a note', async () => {
+    const html = await renderHtml(RouteScatter, {
+      ...fixtureBase,
+      rows: [race(490, [300, 490], 11, { level: 'thorough' })],
+      savedRuns: [{ id: 's', savedAt: 1, finalTE: 490, effort: 'quick', bestChain: [100, 490], bestDays: 13 }],
+    });
+    expect(counts(html)).toEqual([1]);
+    expect(html.match(/data-testid="my-runs-heat-best"/g)).toHaveLength(1);
+    expect(textOf(html)).toContain('1 saved on this computer has no finish date, so it is left out of this view.');
+    expect(textOf(html)).toContain('Exact (wider)');
+    expect(textOf(html)).not.toContain('Very high');
+  });
+
+  it('a Custom saved run is Custom, not the slider level it was saved with (23 Oct 2026)', async () => {
+    const t = textOf(
+      await renderHtml(RouteScatter, {
+        ...fixtureBase,
+        rows: [race(490, [200, 300, 490], 12.5, { level: 'normal', yours: true })],
+        savedRuns: [
+          { id: 'x', savedAt: 1, finalTE: 490, effort: 'thorough', bestChain: [100, 490], bestDays: 13, space: { kind: 'box' } },
+        ],
+      })
+    );
+    const chips = t.slice(t.indexOf('Levels:'));
+    expect(chips).toContain('Custom');
+    expect(chips).not.toContain('Exact (wider)');
+  });
+
   it('loading and empty say so in one line', async () => {
-    expect(textOf(await renderHtml(RouteScatter, { ...base, rows: null }))).toContain('Your runs are still loading.');
-    expect(textOf(await renderHtml(RouteScatter, { ...base, rows: [] }))).toContain(
+    expect(textOf(await renderHtml(RouteScatter, { ...fixtureBase, rows: null }))).toContain('Your runs are still loading.');
+    expect(textOf(await renderHtml(RouteScatter, { ...fixtureBase, rows: [] }))).toContain(
       'No routes of yours yet: runs you send or save show here.'
     );
   });
@@ -81,41 +153,36 @@ describe('Your routes at a glance', () => {
       'RouteScatter.vue',
       'PerfectSetGaps.vue',
       '../../lib/routeScatter.ts',
+      '../../lib/heatBins.ts',
       '../../lib/perfectSet.ts',
     ]) {
       const src = read(f);
       expect(src, f).not.toMatch(/fetch\(|new Worker|createChainSearchPool|findRoutes\(|startSearch|runExact|echarts/);
     }
-    // Closed on a phone, open on a wide screen; the hover card reacts to pointer, tap and the keys.
+    // Closed on a phone, open on a wide screen; a cell reacts to the pointer, a tap and keyboard focus.
     const comp = read('RouteScatter.vue');
     expect(comp).toContain("matchMedia('(max-width: 639px)')");
-    expect(comp).toMatch(/@pointerenter=/);
-    expect(comp).toMatch(/@click="onPlotClick"/);
-    expect(comp).toMatch(/nearestPoint\(drawn\.value/);
-    expect(comp).toMatch(/@keydown="onKey"/);
+    expect(comp).toMatch(/@mouseenter=/);
+    expect(comp).toMatch(/@focus=/);
+    expect(comp).toMatch(/@click="tap\(c\.row, c\.col\)"/);
+    expect(comp).toContain('@keydown.esc="clearSel"');
     expect(comp).toContain('aria-live="polite"');
   });
 });
 
 describe('Your routes at a glance on a phone', () => {
   const comp = read('RouteScatter.vue');
-  it('bigger marks and 22 px hit areas under 640 px, desktop sizes kept', () => {
-    expect(comp).toMatch(/dot = computed\(\(\) => \(narrow\.value \? 6\.4 : 4\.5\)\)/);
-    expect(comp).toMatch(/hitR = computed\(\(\) => \(narrow\.value \? 22 : 12\)\)/);
-    expect(comp).toContain(':r="hitR"');
+  it('the grid shrinks to fit 390 px: flexible columns, short y labels, 28 px cells (the line under the map is the reader)', () => {
+    expect(comp).toContain('repeat(${heat.cols.length}, minmax(0, 1fr))');
+    expect(comp).toContain('max-w-[4.75rem]');
+    expect(comp.match(/min-h-\[28px\]/g)!.length).toBeGreaterThanOrEqual(2);
   });
-  it('the card goes under the picture on a phone, with a 44 px clear button; the hover card stays above on a wide screen', () => {
-    expect(comp).toMatch(/v-if="activeCard && !narrow"\s+class="pointer-events-none absolute/);
-    expect(comp).toMatch(/v-if="activeCard && narrow"/);
-    expect(comp).toContain('data-testid="my-runs-scatter-card-close"');
-    expect(comp).toContain('w-11 min-w-[44px]');
-    expect(comp).toContain('@click="clearActive"');
-  });
-  it('the Goal select and the toggle buttons are 44 px tall on a phone', async () => {
-    expect(comp.match(/min-h-\[44px\]/g)!.length).toBeGreaterThanOrEqual(3);
-    const html = await renderHtml(RouteScatter, { ...base, rows: [race(490, [300, 490], 11)] });
+  it('the Goal select, the level chips and the clear button are 44 px tall on a phone', async () => {
+    const html = await renderHtml(RouteScatter, { ...fixtureBase, rows: FIXTURE_ROWS });
     expect(html).toMatch(/<select[^>]*min-h-\[44px\]/);
-    expect(html).toMatch(/<button[^>]*min-h-\[44px\][^>]*my-runs-scatter-x-asc|<button[^>]*my-runs-scatter-x-asc/);
+    expect(html).toMatch(/<button[^>]*min-h-\[44px\][^>]*data-testid="my-runs-heat-level-quick"/);
+    expect(comp).toContain('w-11 min-w-[44px]');
+    expect(comp).toContain('@click="clearSel"');
   });
 });
 

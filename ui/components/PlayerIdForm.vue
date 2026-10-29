@@ -1,7 +1,7 @@
 <template>
   <form class="mx-4 sm:mx-auto sm:max-w-xs sm:w-full mt-2 mb-4 space-y-1" @submit.prevent="submit">
     <div>
-      <label for="email" class="sr-only">Player ID</label>
+      <label for="playerId" class="sr-only">Player ID</label>
       <div class="flex items-center gap-2">
         <button
           v-if="activeEid"
@@ -24,6 +24,7 @@
           placeholder="Player ID"
           @focus="onFocus"
           @blur="onBlur"
+          @paste="onPaste"
         />
       </div>
       <div v-if="eids.size <= 1" class="text-center">
@@ -79,7 +80,7 @@
     <div>
       <button
         type="submit"
-        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+        class="w-full flex items-center justify-center min-h-[44px] py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         :class="{ 'cursor-not-allowed': !submittable }"
         :disabled="!submittable"
         @mousedown.prevent
@@ -95,7 +96,7 @@ import { defineComponent, toRefs, watch } from 'vue';
 
 import BaseInfo from './BaseInfo.vue';
 import BaseInput from './BaseInput.vue';
-import { useEidInput } from '../composables/eid_input';
+import { pastedPlayerId, useEidInput } from '../composables/eid_input';
 import { PlayerIdSchema } from 'lib/schema';
 
 export default defineComponent({
@@ -107,6 +108,11 @@ export default defineComponent({
     playerId: {
       type: String,
       default: '',
+    },
+    /** Load straight away when a whole valid ID is pasted into the box (once per paste). */
+    loadOnPaste: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: {
@@ -144,6 +150,16 @@ export default defineComponent({
       load(resolveSubmit());
     };
 
+    // Pasting a whole valid ID loads it, once per paste: the pasted text is checked as it comes off the
+    // clipboard, so nothing watches the box and nothing can fire twice. Anything else pastes as usual.
+    const onPaste = (event: ClipboardEvent) => {
+      if (!props.loadOnPaste) return;
+      const eid = pastedPlayerId(event.clipboardData?.getData('text') ?? '');
+      if (!eid) return;
+      event.preventDefault();
+      load(eid);
+    };
+
     // Clicking a recent-ID pill loads that player.
     const loadEid = (eid: string) => {
       load(eid);
@@ -157,6 +173,7 @@ export default defineComponent({
       onBlur,
       submittable,
       submit,
+      onPaste,
       loadEid,
       eids,
       eidsStore,

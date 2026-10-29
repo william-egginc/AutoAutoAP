@@ -18,7 +18,7 @@
     <template #description>
       Automatically buys any research that takes
       <span
-        class="font-mono font-bold text-brand-primary bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm mx-0.5"
+        class="tabular-nums font-bold text-brand-primary bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm mx-0.5"
         >{{ displayDuration }}</span
       >
       or less to save, as soon as it becomes affordable.
@@ -33,7 +33,7 @@
           class="input-premium pl-3 pr-10"
         />
         <div
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 group-focus-within:text-brand-primary transition-colors uppercase tracking-widest pointer-events-none"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-primary transition-colors label pointer-events-none"
         >
           Time
         </div>
@@ -41,7 +41,7 @@
 
       <button
         :disabled="isInvalid"
-        class="btn-premium w-full text-[10px]"
+        class="btn-premium w-full text-body"
         :class="alwaysOn ? 'btn-primary' : 'btn-secondary'"
         @click="emit('update:alwaysOn', !alwaysOn)"
       >

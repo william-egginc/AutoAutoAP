@@ -4,11 +4,19 @@
  *
  * Module-level, like useStepAway.ts: the link belongs to the page's run, not to whichever panel is on
  * screen. The chain-search store drives it (`watchLinkRunStarted`, `watchLinkTick` on every black-box
- * beat, `watchLinkRunEnded`) and keeps `currentWatchLink()` in the run's checkpoint, so a carry-on
- * after a crash or a reload hands the same key back (`watchLinkRunStarted(kind, carried)`).
+ * beat, `watchLinkNoteProgress` on every change of the run's progress, `watchLinkRunEnded`) and keeps
+ * `currentWatchLink()` in the run's checkpoint, so a carry-on after a crash or a reload hands the same key
+ * back (`watchLinkRunStarted(kind, carried)`).
  *
- * FIRE AND FORGET. Every post is a single `fetch` that nothing awaits; a failure is noted for the box
- * and otherwise ignored. The search never waits on any of it.
+ * TWO DRIVERS, ONE BEAT (ux35-f, 28 Oct 2026). The black-box beat is a 15 s page timer, and a hidden tab's
+ * timers are what browsers throttle or stop (Chrome's intensive throttling, Edge's sleeping tabs and
+ * efficiency mode) while the workers' results keep arriving: Jordan's phone read "Not reporting, last
+ * update 10 h ago" with the run still going. So the run's own progress carries the beat too. Both go
+ * through `heartbeatDue` on the one `lastTryAt`, so it is still one post per 5 minutes per run.
+ *
+ * FIRE AND FORGET. Every post is a single `fetch` that nothing awaits; a failure is noted (and counted in
+ * a row, for the run page's note: search/watchLink.ts `watchFailingNote`) and the next beat tries again.
+ * The search never waits on any of it.
  */
 import { plainError } from '@/lib/plainError';
 import { ref, watch } from 'vue';
@@ -38,6 +46,8 @@ export interface ActiveWatch {
   lastOkAt: number | null;
   /** Why the last one didn't go, '' when it did. */
   lastError: string;
+  /** Heartbeats in a row that didn't go (refused, offline, or no answer by the next); 0 once one goes. */
+  fails: number;
   /** The last ntfy progress note, ms. */
   lastNtfyAt: number | null;
   /** The run's progress as last seen while it ran. The store clears its own the moment the run ends,
@@ -70,6 +80,11 @@ export interface WatchDeps {
 
 let deps: WatchDeps | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
+/** The heartbeat still waiting for an answer, if any: when the next goes first, it counts as failed. */
+let pending: { id: string } | null = null;
+/** A beat from a progress event is waiting for its microtask. */
+let beatQueued = false;
+const NO_ANSWER = 'no answer from the server';
 
 const now = () => (deps?.now ?? Date.now)();
 const doFetch: typeof fetch = (...a) => (deps?.fetch ?? fetch)(...a);
@@ -84,6 +99,8 @@ export function resetWatchLink(): void {
   activeWatch.value = null;
   if (retryTimer) clearTimeout(retryTimer);
   retryTimer = null;
+  pending = null;
+  beatQueued = false;
 }
 
 /** Whether this build can offer the phone link at all (it needs a collector). */
@@ -143,11 +160,24 @@ function heartbeat(a: ActiveWatch): wl.WatchHeartbeat {
  * (finished, stopped) is not lost to the rate limit. `statusOnly`: just the plain status, sent at once
  * with no encryption to wait for (the page is closing, and may be gone before WebCrypto answers).
  */
+/** One that didn't go: noted, and counted in a row. */
+function failed(id: string, why: string): void {
+  const cur = activeWatch.value;
+  if (cur?.link.id === id) activeWatch.value = { ...cur, lastError: why, fails: (cur.fails ?? 0) + 1 };
+}
+
 function post(a: ActiveWatch, retry = false, statusOnly = false): void {
   const base = deps?.collector();
   if (!base) return;
   const at = now();
   a.lastTryAt = at;
+  // The last one never answered (a hung request is a failure too, or the note would never show).
+  if (pending?.id === a.link.id) failed(a.link.id, NO_ANSWER);
+  const mine = { id: a.link.id };
+  pending = mine;
+  const settled = () => {
+    if (pending === mine) pending = null;
+  };
   const plain = { id: a.link.id, status: a.status, ...(a.link.topic ? { notify: a.link.topic } : {}) };
   const send = (body: string) =>
     // No content-type header: a text/plain POST needs no CORS preflight. `keepalive` lets the last
@@ -161,17 +191,19 @@ function post(a: ActiveWatch, retry = false, statusOnly = false): void {
           .sealHeartbeat(a.link.secret, heartbeat(a), deps?.random)
           .then(sealed => send(JSON.stringify({ ...plain, ...sealed })));
   } catch (e) {
-    a.lastError = e instanceof Error ? e.message : String(e);
+    settled();
+    failed(a.link.id, plainError(e));
     return;
   }
   void p.then(
     res => {
+      settled();
       if (activeWatch.value?.link.id !== a.link.id) return;
       if (res.ok) {
-        activeWatch.value = { ...activeWatch.value, lastOkAt: at, lastError: '' };
+        activeWatch.value = { ...activeWatch.value, lastOkAt: at, lastError: '', fails: 0 };
         return;
       }
-      activeWatch.value = { ...activeWatch.value, lastError: `the collector said ${res.status}` };
+      failed(a.link.id, `the planner's server said ${res.status}`);
       if (res.status === 429 && retry) {
         const wait = Math.min(120, Math.max(1, Number(res.headers.get('retry-after')) || 60));
         if (retryTimer) clearTimeout(retryTimer);
@@ -183,8 +215,8 @@ function post(a: ActiveWatch, retry = false, statusOnly = false): void {
       }
     },
     e => {
-      if (activeWatch.value?.link.id === a.link.id)
-        activeWatch.value = { ...activeWatch.value, lastError: plainError(e) };
+      settled();
+      failed(a.link.id, plainError(e));
     }
   );
 }
@@ -218,6 +250,7 @@ function begin(kind: wl.WatchRunKind, carried: wl.WatchLinkState | null, keepCur
   else link = linkFromOptions({ id: wl.newWatchId(deps?.random), secret: wl.newWatchSecret(deps?.random) }, t);
   if (retryTimer) clearTimeout(retryTimer);
   retryTimer = null;
+  pending = null;
   const a: ActiveWatch = {
     link,
     kind,
@@ -226,6 +259,7 @@ function begin(kind: wl.WatchRunKind, carried: wl.WatchLinkState | null, keepCur
     lastTryAt: null,
     lastOkAt: null,
     lastError: '',
+    fails: 0,
     last: null,
     endedAt: null,
     lastNtfyAt: carried || (keepCurrent && prev?.link.id === link.id) ? (prev?.lastNtfyAt ?? null) : null,
@@ -254,28 +288,53 @@ export function watchLinkRunStarted(
   begin(kind, carried, keepCurrent);
 }
 
-/** The store's progress whenever it changes (null when the run has ended): kept for the last word. */
-export function watchLinkNoteProgress(p: wl.ProgressLike | null): void {
+/** The run's progress as last seen, for the last word. */
+function keepProgress(p: wl.ProgressLike | null): void {
   const a = activeWatch.value;
   if (!p || !a || a.status !== 'running') return;
   a.last = { ...p, best: p.best ? { ...p.best, chain: [...p.best.chain] } : null };
 }
 
-/** Every black-box beat while the run goes: posts when one is due, and the ntfy progress note. */
-export function watchLinkTick(): void {
+/**
+ * The store's progress whenever it changes (null when the run has ended): kept for the last word, and a
+ * beat when one is due. The workers' results keep coming in a hidden tab whose timers are throttled or
+ * stopped, so this is what keeps the phone up to date there. In a microtask: the store calls this
+ * synchronously, part-way through updating its figures.
+ */
+export function watchLinkNoteProgress(p: wl.ProgressLike | null): void {
+  keepProgress(p);
   const a = activeWatch.value;
-  if (!a || a.status !== 'running' || !deps) return;
-  const t = now();
-  watchLinkNoteProgress(deps.progress());
-  if (wl.heartbeatDue({ event: 'tick', now: t, lastTryAt: a.lastTryAt })) post(a);
-  const o = watchOptions.value;
-  if (
-    a.link.topic &&
-    o.ntfy &&
-    wl.ntfyProgressDue({ now: t, everyMin: o.ntfyEveryMin, lastAt: a.lastNtfyAt, startedAt: a.link.startedAt })
-  ) {
-    activeWatch.value = { ...a, lastNtfyAt: t };
-    notify(a, wl.ntfyMessage(heartbeat(a), 'progress', o.ntfyDetails));
+  if (!p || !a || a.status !== 'running' || !deps || beatQueued) return;
+  if (!wl.heartbeatDue({ event: 'tick', now: now(), lastTryAt: a.lastTryAt })) return;
+  beatQueued = true;
+  queueMicrotask(() => {
+    beatQueued = false;
+    watchLinkTick();
+  });
+}
+
+/** Every black-box beat while the run goes (and a progress event once one is due): posts when one is due,
+ *  and the ntfy progress note. Never throws: the store's beat goes on to other things after it. */
+export function watchLinkTick(): void {
+  try {
+    const a = activeWatch.value;
+    if (!a || a.status !== 'running' || !deps) return;
+    const t = now();
+    keepProgress(deps.progress());
+    if (wl.heartbeatDue({ event: 'tick', now: t, lastTryAt: a.lastTryAt })) post(a);
+    const o = watchOptions.value;
+    if (
+      a.link.topic &&
+      o.ntfy &&
+      wl.ntfyProgressDue({ now: t, everyMin: o.ntfyEveryMin, lastAt: a.lastNtfyAt, startedAt: a.link.startedAt })
+    ) {
+      // The current one (the post may have just counted a failure into it), not `a` as it was.
+      const cur = activeWatch.value ?? a;
+      activeWatch.value = { ...cur, lastNtfyAt: t };
+      notify(a, wl.ntfyMessage(heartbeat(a), 'progress', o.ntfyDetails));
+    }
+  } catch {
+    // the next beat tries again
   }
 }
 
@@ -283,7 +342,7 @@ export function watchLinkTick(): void {
 export function watchLinkRunEnded(how: 'finished' | 'stopped' | 'failed'): void {
   const a = activeWatch.value;
   if (!a || a.status !== 'running') return;
-  watchLinkNoteProgress(deps?.progress() ?? null);
+  keepProgress(deps?.progress() ?? null);
   const ended: ActiveWatch = { ...a, status: how, endedAt: now() };
   activeWatch.value = ended;
   post(ended, true);

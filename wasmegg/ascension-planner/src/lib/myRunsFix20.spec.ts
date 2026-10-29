@@ -127,7 +127,7 @@ describe('each cause, with its "A run of yours isn’t here?" answer', () => {
   it('a row from a TE above the save’s: out, and the answer says to load a fresh save', () => {
     const r = pc(300, { backupTE: 195, currentTE: 195 });
     expect(mine(r, look())).toBe(false);
-    expect(why(r)).toContain('above your save’s 191');
+    expect(why(r)).toContain("above your save's 191");
     expect(why(r)).toContain('load a fresh save');
   });
 
@@ -172,7 +172,7 @@ describe('the Egg Day and Fastest tiles prefer the newest answer for the loaded 
     expect(tile.answer?.endTE).toBe(309);
     expect(tile.answer?.source).toBe('board');
     expect(tile.olderSave).toBe(false);
-    expect(sourceWords(tile.answer!)).toBe('from your board run sent from another browser');
+    expect(sourceWords(tile.answer!)).toBe('from your Leaderboard run sent from another browser');
     const html = await renderHtml(SavedTile, {
       tile,
       goal: 'date',
@@ -183,10 +183,10 @@ describe('the Egg Day and Fastest tiles prefer the newest answer for the loaded 
       standing: '',
       standingLabel: 'Egg Day',
     });
-    expect(textOf(html)).toContain('Exhaustive · from your board run sent from another browser');
+    expect(textOf(html)).toContain('Custom · from your Leaderboard run sent from another browser');
     // This browser's own board run says so too, without "another browser".
     const own = buildTile({ ...base, goal: 'date', target: 490, deadline: EGG_DAY, board: [pc(309, { yours: true })], saved: [old] });
-    expect(sourceWords(own.answer!)).toBe('from your board run');
+    expect(sourceWords(own.answer!)).toBe('from your Leaderboard run');
     // Without the PC row, the old answer still shows, flagged as an older save.
     const alone = buildTile({ ...base, goal: 'date', target: 490, deadline: EGG_DAY, board: [], saved: [old] });
     expect(alone.answer?.source).toBe('saved');
@@ -220,6 +220,6 @@ describe('the Egg Day and Fastest tiles prefer the newest answer for the loaded 
     const tile = buildTile({ ...base, goal: 'fastest', target: 490, deadline: null, board: [sep19, oct13], saved: [] });
     expect(tile.answer?.chain).toEqual(oct13.chain);
     expect(tile.olderSave).toBe(true);
-    expect(sourceWords(tile.answer!)).toBe('from your board run sent from another browser');
+    expect(sourceWords(tile.answer!)).toBe('from your Leaderboard run sent from another browser');
   });
 });

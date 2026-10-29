@@ -5,7 +5,7 @@
   Leaderboard › Your latest run (#/compare/latest) until 16 Oct 2026; that address lands on My runs too.
 -->
 <template>
-  <p class="text-[11px] text-slate-600" data-testid="dig-deeper">
+  <p class="text-body text-slate-600" data-testid="dig-deeper">
     <a :href="MY_RUNS_HASH" class="font-bold text-indigo-700 underline hover:text-indigo-900" @click="askYourRuns()"
       >Dig deeper into your plan ›</a
     >

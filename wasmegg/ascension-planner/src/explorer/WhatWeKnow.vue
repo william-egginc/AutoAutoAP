@@ -16,8 +16,8 @@
   <section class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
     <div class="space-y-0.5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="text-lg font-black text-slate-900">What we know so far</h2>
-        <span v-if="stats" class="text-[10px] font-bold text-slate-500" data-testid="know-header">
+        <h2 class="text-title font-bold text-slate-900">What we know so far</h2>
+        <span v-if="stats" class="text-small font-bold text-slate-500" data-testid="know-header">
           {{ plural(stats.runsTo490, 'run') }} to 490 TE · {{ plural(stats.accounts, 'account') }}<template v-if="stats.te">
             · TE {{ stats.te.min }}-{{ stats.te.max }}</template
           >
@@ -27,26 +27,27 @@
             ></template
           >
         </span>
-        <span v-else class="text-[10px] font-bold text-slate-400">Counting the board…</span>
+        <span v-else class="text-small font-bold text-slate-400">Counting the Leaderboard…</span>
       </div>
-      <p class="text-[12px] text-slate-700 leading-relaxed max-w-3xl">
+      <p class="text-body text-slate-700 max-w-3xl">
         What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
         ascensions pay off and where the stops land. How the planner itself works, and how its numbers were checked, is
         on
-        <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline">Science › How it works</a
-        ><template v-else>Science › How it works</template>.
+        <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline"
+          >{{ NAMES.science }} › {{ NAMES.how }}</a
+        ><template v-else>{{ NAMES.science }} › {{ NAMES.how }}</template>.
       </p>
-      <p class="text-[10px] text-slate-500">
-        Findings checked {{ FINDINGS_CHECKED }}, on the simulator the site ran before 21 Oct 2026. They have not been
+      <p class="text-small text-slate-500">
+        Findings checked {{ FINDINGS_CHECKED }}, on the simulator the site ran before Oct 21, 2026. They have not been
         checked again on the newer one yet.
       </p>
     </div>
 
-    <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-[12px] text-slate-800 leading-relaxed">
-      <p class="text-[10px] font-black text-emerald-700 uppercase tracking-widest">The short answer</p>
+    <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-body text-slate-800">
+      <p class="text-emerald-700 label">The short answer</p>
       <p>
-        <b>Use the instant answer, then Check exactly.</b> It finds your fastest route (or the highest TE by a date) for
-        your gear in seconds, and Check exactly prices it with the full simulator.
+        <b>Use the instant answer, then a Fast search.</b> It finds your fastest route (or the highest TE by a date) for
+        your gear in seconds, and Fast prices routes near it with the full simulator.
       </p>
       <p>
         <b>Plan for 5 to 7 ascensions.</b>
@@ -57,38 +58,45 @@
       </p>
       <p><b>Ascend at the time the plan shows,</b> and run the instant answer again after each ascension.</p>
       <p>
-        <b>Halfway through a build?</b> Leave the first ascension on Fastest (Your setup): it now weighs finishing the
+        <b>Halfway through a build?</b> Leave the first ascension on Soonest (Setup): it now weighs finishing the
         build against prestiging now.
       </p>
       <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>
     </div>
 
-    <p class="text-[11px] text-slate-500 leading-relaxed">
-      Tap a finding to open it. The header counts are worked out from the board each time the page loads; the findings
-      were checked on the date above. The charts and tables further down are live too and show dates in your timezone.
+    <p class="text-body text-slate-500 max-w-prose">
+      Tap a finding to open it. The header counts are worked out from the Leaderboard each time the page loads. The charts and
+      tables further down are live too and show dates in your timezone.
     </p>
 
-    <div class="space-y-1.5 text-[12px] text-slate-700 leading-relaxed">
+    <div class="space-y-1.5 text-body text-slate-700">
       <details v-for="(f, i) in findings" :key="f.id" class="finding rounded-lg border border-emerald-100 bg-white">
         <summary class="finding-summary flex cursor-pointer items-start gap-2 px-3 py-2 font-bold text-slate-800">
           <span
-            class="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-800"
+            class="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-small font-bold text-emerald-800"
             aria-hidden="true"
             >{{ i + 1 }}</span
           >
           <span class="flex-1">{{ f.headline }}</span>
-          <span class="finding-chevron mt-0.5 text-[10px] text-slate-400" aria-hidden="true">&#9662;</span>
+          <span class="finding-chevron mt-0.5 text-small text-slate-400" aria-hidden="true">&#9662;</span>
         </summary>
         <div class="px-3 pb-3 pl-10 text-slate-700 space-y-2">
+          <!-- How far the hour holds (the math review's second check, 24 Oct 2026, findings 3 and 10): with hours off,
+               on an instant answer built for the account's gear or for fully maxed gear. With hours on, main's route
+               played at the instant answer's own times landed +134.6, +24.8, +153.9 and +0.3 h from it. The form G's
+               per-ascension figure is GearCaveat.vue's. -->
           <p v-if="f.id === 'match'">
-            Each ascension lands within about an hour of the full simulator; a whole route can move by a day or two if
-            an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so use Check exactly
-            for the final word. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
-            Check exactly, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
+            With awake hours off, each ascension lands within about an hour of the full simulator; a whole route can move
+            by a day or two if an ascension falls near a sale-timed cliff (the instant answer ascends on the hour), so
+            use a Fast search for the final word. With awake hours on it can be days out: in 4 checks on one account (24
+            Oct), the route played at the instant answer's own times finished 25 to 154 hours later than shown in 3 of
+            them. {{ HOURS_NOTE }} When the answer is the fully maxed one adjusted to your gear's rate, each ascension is
+            about 1-2% off. On 10 Oct, three shared checks from one account had every ascension within 0.09% of
+            the full simulator, every route within 1.5 hours, and the same pick each time. Checked earlier on Fliris (32 of
             34 ascensions within 30 minutes), Halceyx (median within 0.3 hours on ~2,400 ascensions), Allan (4 routes
-            within an hour) and every new run that week. For the accounts it has precomputed on their own gear (10 so
+            within an hour) and every new run that week. For the accounts it has an instant answer built for on their own gear (10 so
             far) it reproduces their submitted runs to a median of 0.15% or better. On maxed gear, for an account with
-            weaker gear, it can be far off: a 21 Oct comparison of 84 board runs found it far too hopeful on 18 of them
+            weaker gear, it can be far off: a 21 Oct comparison of 84 Leaderboard runs found it far too hopeful on 18 of them
             (Science › How it works, section 6).
           </p>
           <p v-else-if="f.id === 'wider'">
@@ -108,7 +116,7 @@
           <template v-else-if="f.id === 'count'">
             <p>Finish brought forward by one more ascension (the instant answer's best routes):</p>
             <div class="overflow-x-auto">
-              <table class="text-[11px] tabular-nums border-collapse">
+              <table class="text-small tabular-nums border-collapse">
                 <thead>
                   <tr class="text-left text-slate-500">
                     <th class="py-1 pr-4 font-bold">from TE</th>
@@ -124,7 +132,7 @@
               </table>
             </div>
             <p>
-              The board's runs agree. The last stop before 490 sits around 280 with 2-3 ascensions and 285-335 with 5-7.
+              The Leaderboard's runs agree. The last stop before 490 sits around 280 with 2-3 ascensions and 285-335 with 5-7.
             </p>
           </template>
           <template v-else-if="f.id === 'eggday'">
@@ -153,22 +161,22 @@
             not because it priced them wrongly.
           </p>
           <p v-else-if="f.id === 'stall'">
-            Under roughly 218-225 CTE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
-            more than a week, and the instant answer shows no routes for one. Every account on the board is above
+            Under roughly 218-225 Clothed TE it sits on Integrity saving up for habs; the planner won't run a plan that stalls
+            more than a week, and the instant answer shows no routes for one. Every account on the Leaderboard is above
             it<template v-if="stats && stats.lowestCte !== null"> (lowest {{ cteText(stats.lowestCte) }})</template>. A
-            full T4L earnings set with T4 Lunar stones adds +128.7 to CTE.
+            full T4L earnings set with T4 Lunar stones adds +128.7 to Clothed TE.
           </p>
           <p v-else-if="f.id === 'gear'">
             Waiting time scales with your delivery rate: a set at 94% of the best waits about 6% longer. The earnings
             set matters only while research is still being bought: nothing from about TE 340 up, most around TE 190-216,
-            where tier 13 opens. The site uses an instant answer built for your exact gear when there is one, or the
-            closest, and tells you which.
+            where tier 13 opens. The site uses an instant answer built for your own gear when there is a current one.
+            Otherwise it moves the maxed answer to your gear (the adjusted answer), and tells you which.
           </p>
           <p v-else-if="f.id === 'sale'">
             Every build ends at the Saturday 9:00 am (Pacific) sale. A third sale week pays on long jumps below about TE
-            300 (up to 33 days on the final leg from 225-270, up to 194 days from 120-150), but never on short jumps or
-            from about TE 300 up. Tier 13 is offered from TE 190. Starting a leg a few hours either side of the sale can
-            move it by days, which is why the best stops are so sharp.
+            300 (up to 33 days on the final ascension from 225-270, up to 194 days from 120-150), but never on short jumps or
+            from about TE 300 up. Tier 13 is offered from TE 190. Starting an ascension a few hours either side of the sale
+            can move it by days, which is why the best stops are so sharp.
           </p>
           <p v-else-if="f.id === 'buildup'">
             Finishing the build without buying anything more (Finish without buying, Joo's "Continue Asc.") keeps the farm's half-built
@@ -188,23 +196,23 @@
       </details>
     </div>
 
-    <details class="rounded-lg border border-emerald-200 bg-white p-3 text-[12px] text-slate-700 leading-relaxed">
-      <summary class="cursor-pointer text-[10px] font-black text-emerald-700 uppercase tracking-widest">
+    <details class="rounded-lg border border-emerald-200 bg-white p-3 text-body text-slate-700">
+      <summary class="cursor-pointer text-body font-bold text-emerald-700">
         What we need next
       </summary>
       <div class="mt-2 space-y-1.5">
-        <p class="text-[11px] text-slate-500">
+        <p class="text-body text-slate-500">
           These are the asks on the
           <a v-if="scienceHref" :href="scienceHref" class="font-bold text-indigo-700 underline">Science tab</a
           ><template v-else>Science tab</template>.
         </p>
         <p>
           <b>Egg Day "Highest TE by a date" runs:</b> 1-4 ascensions at every TE, 5 at ±3 TE around the instant answer's
-          route, 6 at ±2. They check the instant answer leg by leg and measure how often it misses.
+          route, 6 at ±2. They check the instant answer ascension by ascension and measure how often it misses.
         </p>
         <p>
           <b>The six gear sets on the Science tab</b> (epic earnings set, rare earnings set, rare/common delivery set,
-          epic everything, rare everything, legendary set on T3 stones). Nothing on the board covers earnings bonuses
+          epic everything, rare everything, legendary set on T3 stones). Nothing on the Leaderboard covers earnings bonuses
           between 63 and 115, or weak delivery with a full earnings set. Every account so far has a T4L Lunar totem and
           a T4L Demeters necklace.
         </p>
@@ -222,10 +230,12 @@
 
 <script setup lang="ts">
 import { plural } from '@/lib/format';
+import { NAMES } from '@/lib/siteNav';
+import { HOURS_NOTE } from '@/lib/hoursNote';
 import type { KnowStats } from './knowStats';
 
 /** The date the analyst last checked the findings against the board. */
-const FINDINGS_CHECKED = '10 Oct 2026';
+const FINDINGS_CHECKED = 'Oct 10, 2026';
 
 defineProps<{
   /** Counted from the loaded runs; absent until the board has answered. */
@@ -237,7 +247,10 @@ defineProps<{
 }>();
 
 const findings = [
-  { id: 'match', headline: 'The instant answer lands within about an hour of the full simulator on each ascension.' },
+  {
+    id: 'match',
+    headline: 'With awake hours off, the instant answer lands within about an hour of the full simulator on each ascension.',
+  },
   { id: 'wider', headline: 'Wider searches would have found faster routes.' },
   { id: 'misses', headline: 'The instant answer rarely misses, but it can.' },
   { id: 'count', headline: 'More ascensions help, then level off.' },

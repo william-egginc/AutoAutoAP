@@ -37,7 +37,7 @@ describe('LongerRouteHint', () => {
     useInstantSummaryStore().fastest = { chain: SEVEN, seconds: 28.5 * 86400, exact: false };
     const html = await renderHtml(LongerRouteHint, props, {}, [pinia]);
     expect(textOf(html)).toBe(
-      'The instant answer has a route with 7 ascensions that may finish about 1.5 days sooner (163 195 216 248 280 318 490). Add a box with 7 ascensions Check exactly'
+      'The instant answer has a route with 7 ascensions that may finish about 1.5 days sooner (163 195 216 248 280 318 490). Add a box with 7 ascensions Price this route'
     );
   });
 
@@ -45,11 +45,11 @@ describe('LongerRouteHint', () => {
     result();
     useInstantSummaryStore().fastest = { chain: SEVEN, seconds: 28.5 * 86400, exact: false };
     expect(textOf(await renderHtml(LongerRouteHint, { ...props, mode: 'start' }, {}, [pinia]))).toContain(
-      'Start from 7 ascensions Check exactly'
+      'Start from 7 ascensions Price this route'
     );
     const noAdd = textOf(await renderHtml(LongerRouteHint, { ...props, canAdd: false }, {}, [pinia]));
     expect(noAdd).not.toContain('Add a box');
-    expect(noAdd).toContain('Check exactly');
+    expect(noAdd).toContain('Price this route');
   });
 
   it('on Smart search, stays quiet about a count the run searched and names the limit past it', async () => {

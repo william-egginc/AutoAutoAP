@@ -6,13 +6,13 @@
     - the instant answer has a faster route (InstantRoute.vue, through stores/instantSummary.ts), or
     - the best route uses the most ascensions that were searched, so it sits at the edge.
   Each note has a button that sets up that ascension count (the screen says how: a chain on the Full
-  sweep, a starting chain on Smart search), and the instant answer's note also has "Check exactly".
+  sweep, a starting chain on Smart search), and the instant answer's note also has "Price this route" (was "Check exactly" until 23 Oct 2026).
   Nothing runs by itself: the player presses Find.
 -->
 <template>
   <div
     v-if="hints.length"
-    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-3 text-[11px] text-amber-900 leading-relaxed"
+    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-3 text-body text-amber-900"
     data-test="longer-route-hint"
   >
     <div v-for="h in hints" :key="h.kind" class="space-y-1.5" :data-test="`longer-route-${h.kind}`">
@@ -22,7 +22,7 @@
           v-if="canAdd"
           type="button"
           :disabled="disabled"
-          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800 disabled:opacity-40"
           @click="add(h.count)"
         >
           {{ mode === 'start' ? `Start from ${h.count} ascensions` : `Add a box with ${h.count} ascensions` }}
@@ -31,17 +31,17 @@
           v-if="h.kind === 'instant' && h.chain && h.chain.length > 1"
           type="button"
           :disabled="disabled"
-          class="px-3 py-1.5 rounded-lg border border-amber-700 text-amber-900 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-lg border border-amber-700 text-amber-900 text-body font-bold hover:bg-amber-100 disabled:opacity-40"
           title="Prices this route with the full simulator, in Exhaustive"
           @click="check(h.chain)"
         >
-          Check exactly
+          Price this route
         </button>
       </div>
-      <p v-if="done[h.count]" class="text-[10px] text-amber-800/90" data-test="longer-route-done">
+      <p v-if="done[h.count]" class="text-small text-amber-800/90" data-test="longer-route-done">
         {{ done[h.count] }}
       </p>
-      <p v-if="h.kind === 'instant' && checked" class="text-[10px] text-amber-800/90">{{ checked }}</p>
+      <p v-if="h.kind === 'instant' && checked" class="text-small text-amber-800/90">{{ checked }}</p>
     </div>
   </div>
 </template>
@@ -103,7 +103,7 @@ watch(
 function check(chain: number[]): void {
   emit('check', chain);
   if (props.mode === 'chain')
-    checked.value = 'Set the first box to this route. Press Find to price it with the full simulator.';
+    checked.value = 'Set the first box to this route. Press Run Custom to price it with the full simulator.';
 }
 
 function add(count: number): void {

@@ -427,18 +427,26 @@ export function getLocalTimestampInTimezone(dateStr: string, timeStr: string, ti
 /**
  * Calculates the offset in seconds (Wall Clock - UTC) for a timezone at a specific UTC timestamp.
  */
+/** One formatter per time zone: making one is most of the cost of a call (the instant answer's held
+ *  replay asks for the player's hours hundreds of thousands of times). The same answers. */
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+
 export function getTimezoneOffsetAt(timezone: string, timestampSeconds: number): number {
     const d = new Date(timestampSeconds * 1000);
-    const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: timezone,
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        hour12: false,
-    });
+    let formatter = offsetFormatters.get(timezone);
+    if (!formatter) {
+        formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: false,
+        });
+        offsetFormatters.set(timezone, formatter);
+    }
     const parts = formatter.formatToParts(d);
     const get = (t: string) => parseInt(parts.find(p => p.type === t)!.value);
 

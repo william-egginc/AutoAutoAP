@@ -36,7 +36,7 @@
       </div>
 
       <!-- Shift Name -->
-      <div v-if="!isCollapsed" class="text-lg font-bold text-slate-800 tracking-tight leading-none mb-1 shadow-sm">
+      <div v-if="!isCollapsed" class="text-title font-bold text-slate-800 leading-none mb-1 shadow-sm">
         {{ shiftName }}
       </div>
     </button>
@@ -54,13 +54,13 @@
         v-if="dates"
         class="w-full bg-white/30 rounded-xl border border-white/40 p-2.5 mb-3 flex flex-col items-center shadow-inner"
       >
-        <div class="text-[9px] font-black text-slate-900 uppercase tracking-widest text-center">
+        <div class="text-slate-900 label text-center">
           {{ formatDateTime(dates.start) }}
         </div>
-        <div class="text-xs font-mono-premium font-bold text-slate-900 my-1 tracking-tight">
+        <div class="text-small tabular-nums font-bold text-slate-900 my-1">
           {{ isNaN(dates.end.getTime()) ? 'Not reachable' : formatShiftDuration(dates.duration) }}
         </div>
-        <div class="text-[9px] font-black text-slate-900 uppercase tracking-widest text-center">
+        <div class="text-slate-900 label text-center">
           {{ formatDateTime(dates.end) }}
         </div>
       </div>
@@ -69,8 +69,8 @@
       <div class="flex flex-col gap-2.5 w-full">
         <!-- Habs -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Habs</span>
-          <span class="font-mono-premium text-[11px] font-bold text-slate-700">
+          <span class="text-slate-400 label">Habs</span>
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ habsDisplay }}
           </span>
         </div>
@@ -79,8 +79,8 @@
 
         <!-- IHR -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">IHR</span>
-          <span class="font-mono-premium text-[11px] font-bold text-slate-700">
+          <span class="text-slate-400 label">IHR</span>
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(offlineIhrHr) }}
           </span>
         </div>
@@ -89,8 +89,8 @@
 
         <!-- Lay Rate -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Lay Rate</span>
-          <span class="font-mono-premium text-[11px] font-bold text-slate-700">
+          <span class="text-slate-400 label">Lay Rate</span>
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(layRateHr) }}
           </span>
         </div>
@@ -99,8 +99,8 @@
 
         <!-- Shipping -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Shipping</span>
-          <span class="font-mono-premium text-[11px] font-bold text-slate-700">
+          <span class="text-slate-400 label text-center">Shipping</span>
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(shippingHr) }}
           </span>
         </div>
@@ -109,8 +109,8 @@
 
         <!-- ELR -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Delivery</span>
-          <span class="font-mono-premium text-[11px] font-bold text-slate-700">
+          <span class="text-slate-400 label">Delivery</span>
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatRate(elrHr) }}
           </span>
         </div>
@@ -119,10 +119,10 @@
 
         <!-- Offline Earnings -->
         <div class="flex flex-col items-center">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-none mb-0.5"
+          <span class="text-slate-400 label text-center leading-none mb-0.5"
             >Offline Earnings</span
           >
-          <span class="font-mono-premium text-[11px] font-bold text-slate-700">
+          <span class="tabular-nums text-small font-bold text-slate-700">
             {{ formatMoney(offlineEarningsHr) }}
           </span>
         </div>
@@ -132,7 +132,7 @@
         <!-- Bank -->
         <div class="flex flex-col items-center">
           <span
-            class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center leading-none mb-0.5"
+            class="flex items-center gap-1 text-slate-400 label text-center leading-none mb-0.5"
           >
             Bank
             <button
@@ -151,7 +151,7 @@
             </button>
           </span>
           <div class="flex items-center gap-1">
-            <span class="font-mono-premium text-[11px] font-bold text-slate-700">
+            <span class="tabular-nums text-small font-bold text-slate-700">
               {{ formatNumber(Math.max(0, snapshot.bankValue), 3) }}
             </span>
             <img :src="iconURL('egginc/icon_virtue_gem.png', 32)" class="w-3 h-3" alt="Gems" />
@@ -166,6 +166,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { ref, computed } from 'vue';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
@@ -318,20 +319,12 @@ const dates = computed(() => {
 });
 
 /**
- * Format date/time as: Feb 7, 9:14 PM
+ * Format date/time as: Sat, Feb 7, 9:14 PM in en-US (lib/clock.ts)
  */
 function formatDateTime(date: Date): string {
   // Past what a Date can hold (a wait priced at billions of days): no real end time.
   if (isNaN(date.getTime())) return 'Not reachable';
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  };
-  return date.toLocaleString('en-US', options);
+  return formatMoment(date.getTime(), { weekday: true, year: 'never' });
 }
 
 /**

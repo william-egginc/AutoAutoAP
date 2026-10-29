@@ -75,7 +75,11 @@ import { createPinia, setActivePinia } from 'pinia';
 setActivePinia(createPinia());
 
 import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { gunzipSync } from 'node:zlib';
+import { createGunzip, gunzipSync } from 'node:zlib';
+import { createReadStream } from 'node:fs';
+import { BIG_CSV_MIN_ROUTES, bigCsvMessage, gzipCsvTo, uploadBigCsv } from '@/search/bigCsvUpload';
+import { fileBigCsvSink } from './nodeLegSpill';
+import { scrubIdentifiers } from '@/search/submission';
 import { availableParallelism, cpus, homedir, totalmem } from 'node:os';
 import { join } from 'node:path';
 import { runSiteSearch, type SiteKind, type SiteRunOptions } from './siteRun';
@@ -109,6 +113,7 @@ import { CONTINUE_MAX_SECONDS, CONTINUE_PIN_MAX_SECONDS, CONTINUE_WARN_SECONDS, 
 import { firstAscensionFromFlags, type FirstAscension } from '@/search/firstAscension';
 import { INTEGRITY_BLOCK_SECONDS, INTEGRITY_WARN_SECONDS, describeDuration, integrityMessage, longContinueMessage } from '@/search/rules';
 import { describeTimeOff, timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
+import { parseDateRanges } from '@/search/cliDates';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { runChainSearch, type CacheEntry, type EvaluateBatch } from '@/search/driver';
 import { findStartingChain } from '@/search/coarse';
@@ -477,7 +482,7 @@ ACCOUNT  (one is required)
 
 THE SITE'S SEARCHES  (Auto Planner > Fastest route and Highest TE by a date)
   --effort TIER             Smart search: homes in from a starting route. fast, exact or thorough
-                            (the slider's Fast / Exact / Very high; quick|normal work too). Default
+                            (the site's Fast / Exact; thorough is the retired Very high; quick|normal work too). Default
                             exact. 'balanced' was retired on the site (it ran the same steps as
                             Exact) and runs Exact here, with a note. Needs --seed or --find-seed.
   --bands "a-b:s; c-d:s"    Full sweep: prices every route with one checkpoint in each band, as
@@ -547,14 +552,19 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
                             the Full sweep replaying every chain it priced, By a date from its saved
                             routes. The first run pins its plan start in DIR, so the run is the same
                             one; a different command in the same DIR is refused.
+                            Also DIR/run-full.csv.gz: every route's per-ascension detail (run.csv.gz
+                            keeps the site's rule, detail for the top routes only). The detail is
+                            kept on disk as the run goes, in DIR/legs.spill (about the size of the
+                            plain CSV); delete it once the files are written if you need the room.
   --fresh                   With --out: throw away DIR's checkpoint and start again.
   --dry-run                 Say what would run (spaces, chain counts, about how long) and stop.
   --yes                     Start a box above 100,000 routes without asking. Without it a real run
                             asks "Continue? [y/N]" first (a second time above 500,000 routes), once,
                             on the whole run's box; with input that is not a terminal it stops and
                             says to add --yes. --dry-run never asks.
-  --plain-csv               With --out: also write run.csv, uncompressed.
-  --no-submit-csv           With --out/--submit: leave the table out of the send.
+  --plain-csv               With --out: also write run.csv, uncompressed (every route's detail).
+  --no-submit-csv           With --out/--submit/submit: leave the table out of the send (and run.csv.gz
+                            out of DIR; run-full.csv.gz and --plain-csv's run.csv are still written).
   --jobs N                  Worker threads. Default: your cores minus one, at most 12 (see the
                             line printed at the start). Each worker holds roughly 0.1-0.25 GB of
                             simulator memory, and a long sweep keeps every priced chain in the main
@@ -562,9 +572,11 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
                             limit for a very big space with NODE_OPTIONS=--max-old-space-size=8192.
 
   fastsearch submit --from DIR [--collector URL] [--nickname NAME | --anonymous] [--dry-run] [--yes]
-                            Send what --out left (DIR, or every chain-K-Nasc/ inside it): the same
-                            summary POST and CSV upload the site does, with the run's own save time
-                            and TE, so it is not filed as a what-if. --dry-run posts nothing and
+                            Send what --out left (DIR, or every chain-K-Nasc/ inside it): the summary
+                            POST and CSV upload the site does, with the run's own save time and TE
+                            (so it is not filed as a what-if) and the re-checks worked out when DIR
+                            was written. A result the board keeps off the leaderboard (quarantined)
+                            says so and counts as not sent. --dry-run posts nothing and
                             says what would go. A result sent once is not sent again without --again.
                             It prints where it is sending and what first; to any collector that is
                             not on this machine (the build's own included) it stops, "Not sent. Add
@@ -573,7 +585,16 @@ OFFLINE: FILES, CHECKPOINTS, SENDING LATER
   Sending the result  (the site's Share / Find and submit)
   --submit                  Send it to the board when the search finishes (stopped early with
                             Ctrl+C, it still sends what it has, marked partial). Includes the CSV and
-                            the re-checks of your earlier plans, which need the network.
+                            the re-checks of your earlier plans, which need the network. The CSV
+                            carries per-ascension detail for the top 20,000 routes (fewer when it is
+                            over the board's limit), as the site sends it. No shared instant
+                            "baseline" (the command line has no instant answer) and no best so far.
+  --diagnostics             With --submit: also send the run's diagnostics (the site's "Send
+                            diagnostics" tick): a private field of the result, never in the CSV.
+  --no-full-csv             With --submit or submit: a run of over 100,000 routes also sends its full
+                            CSV (every route's legs, scrubbed, gzipped: DIR/run-full-upload.csv.gz)
+                            to the collector's private store for analysis, after the result; this
+                            keeps it to the board's table. Resumes an upload a broken link left.
   --nickname NAME           Credit a name (up to 40 characters). Anonymous without it. Also with --out.
   --collector URL           Where to send (default: the collector this build was made with, else the
                             public board).
@@ -614,10 +635,14 @@ WHEN YOU CAN PLAY  (changes which route wins, not just the display)
   --time-off DATE[:DATE]    Days off the virtue farm, repeatable (2027-07-14, or 2027-08-01:2027-08-07).
                             The ascension in progress ends; coming back is a complete rebuild.
                             Not with --stages or --grid.
+  --no-prestige DATE[:DATE] Your setup's no-prestige days, repeatable, the same form: you play, but no
+                            prestige is scheduled then; one that falls on them waits for the next
+                            allowed time, the farm laying up to its silos meanwhile. Not with --stages
+                            or --grid.
 
 WHEN THE PLAN STARTS
   --start-date YYYY-MM-DD   (default today)
-  --start-time HH:MM        (default the current hour)
+  --start-time HH:MM        (default now, to the minute, as the page)
   --timezone IANA           (default this machine's)
   --first-ascension auto|buildup|continue|fresh
                             What leg 1 does with the ascension in progress, as on the site (Your
@@ -635,9 +660,32 @@ WHEN THE PLAN STARTS
 OUTPUT
   --jobs N                  Worker threads (site searches; default cores-1) or processes (this
                             script's tools; default 1).
-  --csv FILE                Where the plain CSV of every route priced goes. Defaults to
-                            fastsearch-<timestamp>.csv (without --out); --no-csv writes none. For the
-                            tools, --out FILE is the same thing.
+  --csv FILE                Where the plain CSV of every route priced goes, with every route's
+                            per-ascension detail. Defaults to
+                            fastsearch-<timestamp>.csv (without --out); --no-csv writes none. A
+                            queue of chains (--suggest, --neighbours, --widen) writes one a chain,
+                            FILE-chain-K-Nasc.csv. For the tools, --out FILE is the same thing
+                            (--stages/--grid write their own wide format, at most 8 legs a route).
+
+FILES IN --out DIR
+  run.csv.gz                The table a send uploads (legs for the top 20,000 routes).
+  run-full.csv.gz           Every route's per-ascension detail (the site's download).
+  run.csv                   The same, uncompressed (--plain-csv).
+  submission.json           What a send would post (submit --from sends it).
+  legs.spill                Every priced route's legs on disk as the run goes (search/legSpill.ts),
+                            about the size of run.csv; the next run in DIR empties it, a carry-on
+                            keeps it. Delete it when the files are written if you need the room.
+                            A queue keeps one per chain-K-Nasc/.
+  checkpoint/, run.json, last-progress.txt
+                            The carry-on state, the pinned plan start and the last progress line.
+
+ENVIRONMENT
+  AAP_LEG_DETAIL_BUDGET=N   The site's "Keep per-ascension detail for N routes" (Setup > Memory):
+                            how many routes keep their legs in memory (the rest are on disk).
+  AAP_WORKER_HEAP_MB=N      Each worker thread's heap limit.             (default 2048)
+  AAP_HEAP_STOP_SHARE=F     Stop as Ctrl+C does once the main heap passes this share of its limit.
+                                                                         (default 0.8)
+  AAP_MEMORY_LOG=FILE       Append the heap, RSS and the leg spill's size every 15 s (a measured run).
   --top N                   Runners-up to print.                      (default 10)
 
 WHAT-IF  (neither edits the save; never with --submit)
@@ -823,6 +871,9 @@ const FORCE_CONTINUE = FIRST_ASCENSION === 'continue';
 /** Set once in main() from --time-off; read by planInputs and the CSV header. */
 let TIME_OFF_DATES: TimeOffDates[] = [];
 let TIME_OFF_WINDOWS: TimeOffWindow[] = [];
+/** Set once in main() from --no-prestige (Your setup's no-prestige days); read by planInputs and the site modes. */
+let NO_PRESTIGE_DATES: TimeOffDates[] = [];
+let NO_PRESTIGE_WINDOWS: TimeOffWindow[] = [];
 
 /** `runLeg`'s no-farm notice, printed once per process. */
 let warnedNoContinue = false;
@@ -1145,6 +1196,9 @@ function planInputs(o: {
     milestones: o.milestones,
     deferShifts: o.deferShifts,
     timeOff: TIME_OFF_WINDOWS,
+    // No prestige on these days (search/noPrestige.ts): every prestige waits past them, the farm laying up to
+    // its silos meanwhile (the evaluator reads the save's silo seconds), as the page prices them.
+    ...(NO_PRESTIGE_WINDOWS.length ? { noPrestige: NO_PRESTIGE_WINDOWS } : {}),
   };
 }
 
@@ -2055,6 +2109,7 @@ function dateChains(o: { currentTE: number }): {
       }
     });
   } else {
+    if (arg('asc') === undefined) console.log(defaultsNote('by-date'));
     const counts = [...new Set((arg('asc', '4') ?? '4').split(',').map(t => Math.floor(+t.trim())))].filter(n => n >= 1 && n <= 8);
     if (!counts.length) throw new Error('--asc: ascension counts from 1 to 8, e.g. 3,4,5');
     const halfWidth = +(arg('width', '10')!);
@@ -2111,6 +2166,7 @@ function siteOptions(o: {
     deadline = getLocalTimestampInTimezone(m[1], m[2], o.tz);
   }
   const { chains, lastRange } = kind === 'by-date' ? dateChains({ currentTE: o.currentTE }) : { chains: null, lastRange: null };
+  if (kind === 'smart' && arg('min-prestiges') === undefined && arg('max-prestiges') === undefined) console.log(defaultsNote('fastest'));
   const THOROUGH: Record<string, number> = { quick: 500, light: 1500, standard: 3000, thorough: 6000, very: 12000 };
   const thorough = (arg('thoroughness', 'standard') ?? 'standard').toLowerCase();
   if (!(thorough in THOROUGH)) throw new Error('--thoroughness: quick, light, standard, thorough or very');
@@ -2129,6 +2185,7 @@ function siteOptions(o: {
     deferShifts: o.deferShifts,
     milestones: o.milestones,
     timeOff: TIME_OFF_DATES,
+    noPrestige: NO_PRESTIGE_DATES,
     firstAscension: FIRST_ASCENSION,
     effort: effortTier(),
     seed,
@@ -2148,6 +2205,8 @@ function siteOptions(o: {
     maxShapes: THOROUGH[thorough],
     ascendNeeded: has('ascend-needed'),
     submit: has('submit') ? { nickname, csv: withCsv, yes: has('yes') } : null,
+    diagnostics: has('diagnostics'),
+    noFullCsv: has('no-full-csv'),
     out: has('out') && !has('dry-run') ? { dir: arg('out')!, nickname, csv: withCsv, plainCsv: has('plain-csv') } : null,
     csvPath: has('out') ? (has('csv') ? arg('csv')! : null) : resolveCsvPath(),
     top: +(arg('top', '10')!),
@@ -2197,6 +2256,18 @@ function chooseCollector(): string {
   (globalThis as any).__AAP_SUBMIT_URL__ = url;
   if (!given && !built) console.log(`sends go to the public board: ${url} (the default; --collector URL changes it)`);
   return url;
+}
+
+/** A gzipped CSV's text, a run of whole lines at a time (never an id split across two chunks). */
+async function* gunzipLines(path: string): AsyncGenerator<string> {
+  let carry = '';
+  for await (const buf of createReadStream(path).pipe(createGunzip())) {
+    const text = carry + (buf as Buffer).toString('utf8');
+    const cut = text.lastIndexOf('\n') + 1;
+    if (cut) yield text.slice(0, cut);
+    carry = text.slice(cut);
+  }
+  if (carry) yield carry;
 }
 
 async function submitCommand(): Promise<number> {
@@ -2286,11 +2357,36 @@ async function submitCommand(): Promise<number> {
     const res = await store.sendSubmission(payload, csv, { partition: file.partition, resultKey: file.resultKey });
     const year = payload.deadline !== undefined ? eggDayYearOf(payload.deadline) : null;
     const tail = file.kind === 'by-date' ? ` It's on Compare > ${year ? `Egg Day ${year}` : 'By a date'}.` : '';
-    console.log(`  ${res.ok ? (res.duplicate === 'exact' ? res.message : `Thanks! ${sentence(res.message)}`) + tail : `Not sent: ${res.message}`}`);
-    if (res.ok) writeFileSync(sent, JSON.stringify({ at: new Date().toISOString(), message: res.message }, null, 2));
+    // Kept off the board (quarantined) is an answer, not a send that worked: said as the page and siteRun say it.
+    console.log(
+      `  ${res.quarantined ? res.message : res.ok ? (res.duplicate === 'exact' ? res.message : `Thanks! ${sentence(res.message)}`) + tail : `Not sent: ${res.message}`}`
+    );
+    if (res.ok && !res.quarantined) writeFileSync(sent, JSON.stringify({ at: new Date().toISOString(), message: res.message }, null, 2));
     else failed++;
+    // A big run's full CSV (DIR/run-full.csv.gz, every route's legs) to the collector's private store, with this
+    // row's final token, scrubbed and gzipped again into DIR/run-full-upload.csv.gz first.
+    const priced = Number((payload as { chainsPriced?: number }).chainsPriced);
+    const full = join(dir, 'run-full.csv.gz');
+    if (res.ok && !res.quarantined && res.id && res.uploadToken && priced > BIG_CSV_MIN_ROUTES && existsSync(full) && !has('no-full-csv')) {
+      console.log(`  ${name}: the full CSV to the private store (${priced.toLocaleString()} routes)`);
+      const source = await gzipCsvTo(gunzipLines(full), fileBigCsvSink(join(dir, 'run-full-upload.csv.gz')), scrubIdentifiers);
+      const out = await uploadBigCsv({ base: store.submitUrl.replace(/\/submit\/?$/, ''), id: res.id, token: res.uploadToken, source });
+      if (out.kind !== 'unavailable') console.log(`  ${bigCsvMessage(out)}`);
+    }
   }
   return failed ? 1 : 0;
+}
+
+/**
+ * What the command line picks where the page would follow its instant answer (CLI parity, 26 Oct 2026): the page
+ * sets Fastest's Limits to 3 .. its count + 1 (lib/limitsFollow.ts `limitsFromBest`, the count Prefer fewer
+ * leads with) and By a date's box to `boxCountFromBest`; the command line has no instant answer, so it says
+ * which fixed default it used.
+ */
+function defaultsNote(kind: 'fastest' | 'by-date'): string {
+  return kind === 'fastest'
+    ? '  limits 5-8 ascensions (the command line\'s default; the page sets them from its instant answer, 3 to its count + 1: pass --min-prestiges / --max-prestiges to match it)'
+    : '  4 ascensions (the command line\'s default; the page starts from its instant answer\'s count: pass --asc to match it)';
 }
 
 async function main() {
@@ -2474,14 +2570,16 @@ async function main() {
   // Both defaults read the clock in --timezone. toISOString() is UTC, so pairing it with the local
   // hour put an evening run a day into the future (22:00 Denver on the 22nd became "the 23rd 22:00").
   const nowParts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' })
+    new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
       .formatToParts(new Date())
       .map(p => [p.type, p.value])
   );
   // With --out, the first run's start is kept in the directory, so running the same command again
   // prices against the same clock and finds its checkpoint.
   const startDate = arg('start-date') ?? pinned?.startDate ?? `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
-  const startTime = arg('start-time') ?? pinned?.startTime ?? nowParts.hour + ':00';
+  // Now, to the minute, as the page starts a plan with no start boxes (it used to be the hour, up to 59
+  // minutes before the page's start: another catch-up, other hours, another first-ascension clock).
+  const startTime = arg('start-time') ?? pinned?.startTime ?? `${nowParts.hour}:${nowParts.minute ?? '00'}`;
   if (outRecord) {
     const dir = arg('out')!;
     const first = pinned?.createdAt ?? new Date().toISOString();
@@ -2540,6 +2638,14 @@ async function main() {
     if (!planMode && !has('worker')) throw new Error('--time-off needs --exhaustive or --effort (the shared evaluator)');
     TIME_OFF_WINDOWS = timeOffWindows(TIME_OFF_DATES, tz);
     console.log('time off from virtue: ' + describeTimeOff(TIME_OFF_DATES) + ' (each ends the ascension in progress; a rebuild follows)');
+  }
+  // --no-prestige: Your setup's no-prestige days (search/noPrestige.ts): the player is on the farm but no
+  // prestige is scheduled then; a prestige that falls on one waits for the next allowed time.
+  NO_PRESTIGE_DATES = parseDateRanges(argAll('no-prestige'), 'no-prestige');
+  if (NO_PRESTIGE_DATES.length) {
+    if (!planMode && !has('worker')) throw new Error('--no-prestige needs --exhaustive or a site search (the shared evaluator)');
+    NO_PRESTIGE_WINDOWS = timeOffWindows(NO_PRESTIGE_DATES, tz);
+    console.log('no prestige on: ' + describeTimeOff(NO_PRESTIGE_DATES) + ' (a prestige then waits for the next allowed time)');
   }
   const inputs = planInputs({ planStart, currentTE, final, availability, milestones: usable, deferShifts });
 

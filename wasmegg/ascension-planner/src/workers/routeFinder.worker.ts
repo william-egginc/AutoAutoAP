@@ -6,9 +6,10 @@
  * The table (search/precomputedTable.ts) is fetched here on the first request and kept for the
  * worker's life, so a second search (another start time, another target) costs no download.
  */
-import { compositeTable, parseCompositeUrl, type Table } from '@/search/precomputedTable';
+import type { Table } from '@/search/precomputedTable';
+import { firstLegsOn, tableAtUrl } from '@/search/tableUrlLoad';
 import { fetchTable } from '@/search/tableFetch';
-import { expandArrivals, firstLegOptions, polishFound } from '@/search/routeFinder';
+import { expandArrivals, polishFound, priceChain } from '@/search/routeFinder';
 import { estimateProfile } from '@/search/prestigeBy';
 import { SweepCache } from '@/search/sweepCache';
 import type { RouteWorkerRequest, RouteWorkerResponse } from './routeFinder.protocol';
@@ -21,16 +22,13 @@ let cacheKey = '';
 let table: Promise<Table> | null = null;
 let tableUrl = '';
 
+/** Kept by URL: an own or gear table's `.v2` name (tableGear.ts v2TableName) is another URL from its plain one, so
+ *  the file read under one name is never reused for the other. */
 function load(url: string): Promise<Table> {
   if (!table || tableUrl !== url) {
     tableUrl = url;
-    // A gear table below a TE and the maxed one from it (precomputedTable.ts compositeUrl).
-    const c = parseCompositeUrl(url);
-    table = c
-      ? Promise.all([fetchTable(c.low), fetchTable(c.high)]).then(([low, high]) =>
-          compositeTable(low, high, c.split, c.scale)
-        )
-      : fetchTable(url);
+    // The URL's kinds (composite, the form G, one table) read as the command line reads them (search/tableUrlLoad.ts).
+    table = tableAtUrl(url, fetchTable);
     // A failed load is retried on the next request rather than remembered.
     table.catch(() => (table = null));
   }
@@ -50,24 +48,7 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
         reply({ kind: 'header', id: m.id, header: t.header });
         return;
       case 'first-legs':
-        reply({
-          kind: 'first-legs',
-          id: m.id,
-          firstLegs: firstLegOptions({
-            table: t.lookup,
-            startTE: m.startTE,
-            start: m.start,
-            final: m.final,
-            deliveryScale: m.deliveryScale,
-            delivered: m.delivered,
-            cont: m.cont,
-            buildUp: m.buildUp ?? null,
-            freshLive: m.freshLive ?? null,
-            firstAscension: m.firstAscension,
-            pinSeconds: m.pinSeconds,
-            maxContinueSeconds: m.maxContinueSeconds,
-          }),
-        });
+        reply({ kind: 'first-legs', id: m.id, firstLegs: firstLegsOn(t, m) });
         return;
       case 'expand': {
         // One cache per table and settings, kept across a search's steps (and the next search with
@@ -87,6 +68,9 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
       case 'polish':
         reply({ kind: 'polish', id: m.id, found: polishFound(t.lookup, m.options, m.found) });
         return;
+      case 'price-chain':
+        reply({ kind: 'price-chain', id: m.id, route: priceChain(t.lookup, m.options, m.chain) });
+        return;
       case 'prestige-estimate':
         reply({ kind: 'prestige-estimate', id: m.id, outcomes: estimateProfile(t.lookup, m.request) });
         return;
@@ -95,3 +79,6 @@ ctx.onmessage = async (event: MessageEvent<RouteWorkerRequest>) => {
     reply({ kind: 'error', id: m.id, message: err instanceof Error ? err.message : String(err) });
   }
 };
+
+// Up: the pool stops waiting on a worker that never says so (search/routePool.ts ROUTE_WORKER_START_MS).
+reply({ kind: 'ready', id: 0 });

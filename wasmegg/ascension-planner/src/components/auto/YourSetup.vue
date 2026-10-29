@@ -18,7 +18,7 @@
        "too many boxes"): nothing unless the save has a problem, then the problems and Open setup. -->
   <section
     v-if="!issuesOnly || store.setupIssues.length"
-    class="text-left"
+    class="min-w-0 text-left"
     :class="
       docked
         ? ''
@@ -37,7 +37,7 @@
       :aria-expanded="ui.setupOpen"
       @click="ui.setupOpen = !ui.setupOpen"
     >
-      <span class="flex items-center gap-2 text-sm font-black text-indigo-900">
+      <span class="flex items-center gap-2 text-body font-bold text-indigo-900">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             stroke-linecap="round"
@@ -46,26 +46,29 @@
             d="M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-1 3.4.9 2.4 2.4a1.7 1.7 0 001.1 2.6c1.8.4 1.8 3 0 3.4a1.7 1.7 0 00-1.1 2.6c1 1.5-.9 3.4-2.4 2.4a1.7 1.7 0 00-2.6 1.1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5 1-3.4-.9-2.4-2.4a1.7 1.7 0 00-1.1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 001.1-2.6c-1-1.5.9-3.4 2.4-2.4a1.7 1.7 0 002.6-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        Your setup
+        Setup
       </span>
-      <span class="text-[12px] text-slate-600"
+      <span class="text-small text-slate-600"
         >Plan starts <span class="font-bold text-slate-900">{{ startLabel }}</span></span
       >
-      <span class="text-[12px] text-slate-600"
+      <span class="text-small text-slate-600"
         >First ascension <span class="font-bold text-slate-900">{{ firstLabel }}</span></span
       >
-      <span class="text-[12px] text-slate-600"
-        >Awake <span class="font-bold text-slate-900">{{ awakeLabel }}</span></span
+      <span class="text-small text-slate-600"
+        >Awake hours <span class="font-bold text-slate-900">{{ awakeLabel }}</span></span
       >
-      <span class="text-[12px] text-slate-600"
+      <span class="text-small text-slate-600"
         >Time off <span class="font-bold text-slate-900">{{ timeOffCount || 'none' }}</span></span
       >
-      <span class="text-[12px] text-slate-600"
+      <span v-if="noPrestigeCount" class="text-small text-slate-600" data-testid="setup-no-prestige"
+        >No prestige days <span class="font-bold text-slate-900">{{ noPrestigeCount }}</span></span
+      >
+      <span class="text-small text-slate-600"
         ><span class="font-bold text-slate-900">{{ store.workerBudget }} of {{ store.machineThreads }}</span>
         workers</span
       >
       <span
-        class="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest"
+        class="ml-auto px-3 py-1.5 rounded-lg label"
         :class="ui.setupOpen ? 'border border-indigo-300 text-indigo-700 bg-white' : 'bg-indigo-600 text-white'"
         >{{ ui.setupOpen ? 'Close setup' : 'Edit setup' }}</span
       >
@@ -75,17 +78,17 @@
     <template v-if="!docked && !issuesOnly">
       <p
         v-if="store.setupIsRemembered"
-        class="text-[11px] text-slate-500"
+        class="text-body text-slate-500"
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours, hold
-        shifts, time off and first ascension. ·
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your awake hours (and
+        whether shifts wait for them), time off, no prestige days and first ascension. ·
         <button
           type="button"
-          class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
+          class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, hold shifts on, no time off, first ascension Fastest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no prestige days, first ascension Soonest'"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -103,7 +106,7 @@
       <p
         v-for="(issue, k) in store.setupIssues"
         :key="k"
-        class="text-[11px] font-semibold leading-relaxed"
+        class="text-body font-bold"
         :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
       >
         {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
@@ -111,7 +114,7 @@
       <button
         v-if="issuesOnly"
         type="button"
-        class="mt-1 px-3 py-1.5 min-h-[44px] sm:min-h-0 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest"
+        class="mt-1 px-3 py-1.5 min-h-[44px] sm:min-h-0 rounded-lg bg-indigo-600 text-white text-body font-bold"
         @click="ui.setupOpen = true"
       >
         Open setup
@@ -119,24 +122,37 @@
     </div>
 
     <div v-if="docked" class="p-4 space-y-4">
-      <p class="text-[11px] text-slate-500">
+      <p class="text-body text-slate-500 max-w-prose">
         One setup for all three Auto Planner screens: change it here and {{ NAMES.classic }}, {{ fastestName(store.finalTE) }} and
         {{ NAMES.byDate }} all use it.
       </p>
 
+      <!-- The three kinds of "not now" (Jordan, 24 Oct 2026), side by side so none is read as another. -->
+      <ul class="text-body text-slate-500 list-disc pl-5" data-testid="setup-not-now">
+        <li><span class="font-bold text-slate-700">Awake hours:</span> on the virtue farm, but shifts and prestiges wait for them; the farm keeps laying while they wait.</li>
+        <li>
+          <span class="font-bold text-slate-700">No prestige days:</span> stay on virtue; a prestige waits for the
+          next allowed time; shifts still happen.
+        </li>
+        <li>
+          <span class="font-bold text-slate-700">Time off:</span> off the virtue farm, on the home farm, nothing earned on virtue; rebuild when
+          you return.
+        </li>
+      </ul>
+
       <p
         v-if="store.setupIsRemembered"
-        class="text-[11px] text-slate-500"
+        class="text-body text-slate-500"
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your hours, hold
-        shifts, time off and first ascension. ·
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your awake hours (and
+        whether shifts wait for them), time off, no prestige days and first ascension. ·
         <button
           type="button"
-          class="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
+          class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, hold shifts on, no time off, first ascension Fastest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no prestige days, first ascension Soonest'"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -146,25 +162,29 @@
 
       <p
         v-if="locked"
-        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold text-amber-800 leading-relaxed"
+        class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-body font-bold text-amber-800"
       >
-        A search is running, so the plan start, your hours and time off are locked: they change which route is fastest,
+        A search is running, so the plan start, your awake hours, no prestige days and time off are locked: they change which route is fastest,
         and the routes already priced used the old ones. Stop the search (your best so far is kept), change them, and
-        start again. The computer settings still work.
+        press Run again. The computer settings still work.
       </p>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- The six cards flow in two balanced columns from md up (CSS columns, each card kept whole), so a card
+           opened tall ("Memory · detail kept" in This computer) doesn't leave a blank beside it, as a grid row
+           did (26 Oct 2026). One column on a phone, in the same order. The full-width cards follow in a grid. -->
+      <div class="-mb-4 md:columns-2 md:gap-4" data-testid="setup-columns">
         <!-- Your save -->
-        <div class="rounded-xl border border-slate-200 p-4 space-y-2">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Your save</h3>
-          <p class="text-sm font-bold text-slate-800">
+        <div class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2">
+          <h3 class="text-slate-500 label">Your save</h3>
+          <p class="text-body font-bold text-slate-800">
             {{ initialState.nickname || 'Your account' }} · TE {{ store.currentTE }}
           </p>
-          <p class="text-[11px] text-slate-500">{{ saveAgeLabel }}</p>
+          <p class="text-body text-slate-500">{{ saveAgeLabel }}</p>
           <button
             type="button"
             :disabled="store.busy || ui.loading"
-            class="px-3 py-1.5 rounded-lg border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            class="min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-slate-300 text-body font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            data-testid="setup-load-latest"
             @click="ui.backupRetryRequested++"
           >
             Load latest save
@@ -173,16 +193,16 @@
           <SaveFileBar v-if="initialState.playerId" :player-id="initialState.playerId" />
           <!-- What the plan starts from, besides the artifacts: leg 1 continues an already-built farm,
                and every later leg funds its own research out of earnings. -->
-          <dl class="grid grid-cols-2 gap-3 text-[11px] border-t border-slate-100 pt-3">
+          <dl class="grid grid-cols-2 gap-3 text-body break-words border-t border-slate-100 pt-3">
             <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Soul eggs</dt>
+              <dt class="text-slate-400 label">Soul eggs</dt>
               <dd class="font-bold" :class="store.setupFacts.soulEggs > 0 ? 'text-slate-700' : 'text-rose-700'">
                 {{ formatSoulEggs(store.setupFacts.soulEggs) }}
               </dd>
             </div>
             <!-- Both, side by side: a reported failure was exactly these two disagreeing. -->
             <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Starting TE</dt>
+              <dt class="text-slate-400 label">Starting TE</dt>
               <dd
                 class="font-bold"
                 :class="
@@ -196,20 +216,20 @@
               </dd>
             </div>
             <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Epic research</dt>
+              <dt class="text-slate-400 label">Epic research</dt>
               <dd class="font-bold text-slate-700">
                 {{ store.setupFacts.epicAtMax }} / {{ store.setupFacts.epicTotal }} maxed
               </dd>
             </div>
             <div>
-              <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Colleggtibles</dt>
+              <dt class="text-slate-400 label">Colleggtibles</dt>
               <dd class="font-bold text-slate-700">{{ store.setupFacts.colleggtibles }}</dd>
             </div>
           </dl>
           <p
             v-for="(issue, k) in saveCardIssues"
             :key="k"
-            class="text-[11px] font-semibold leading-relaxed"
+            class="text-body font-bold"
             :class="issue.level === 'error' ? 'text-rose-700' : 'text-amber-700'"
           >
             {{ issue.level === 'error' ? '✕' : '!' }} {{ issue.message }}
@@ -217,19 +237,19 @@
         </div>
 
         <!-- When the plan starts -->
-        <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When the plan starts</h3>
+        <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0">
+          <h3 class="text-slate-500 label">When the plan starts</h3>
           <SchedulingInputs />
           <!-- An unset start means "now", which moves on every reload, and plan start is part of the
                run fingerprint: a checkpoint saved before a refresh stops matching. -->
-          <p v-if="store.planStartIsNow" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
+          <p v-if="store.planStartIsNow" class="text-body font-bold text-amber-700 max-w-prose">
             No start set, so the plan is timed from right now, and that moves every time you reload. Set a date and time
             before a long run.
           </p>
           <!-- First ascension: what happens to the ascension you're on. Your plan's A1 dropdown is the same setting
                ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
           <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">First ascension</h3>
+            <h3 class="text-slate-500 label">First ascension</h3>
             <label
               v-for="c in FIRST_ASCENSION_CHOICES"
               :key="c.value"
@@ -237,16 +257,16 @@
               :class="firstChoice === c.value ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
             >
               <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
-              <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="text-body text-slate-600">
                 <span class="block font-bold text-slate-800">{{ c.label }}</span>
                 {{ c.blurb }}
               </span>
             </label>
-            <p v-if="store.firstAscensionFromClassic" class="text-[11px] text-slate-500 leading-relaxed">
+            <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-500 max-w-prose">
               Set from A1's dropdown in {{ NAMES.classic }} ({{ FIRST_ASCENSION_WORDS[store.firstAscensionFromClassic] }}).
               Choosing here changes it there too.
             </p>
-            <p v-if="startTooFar" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
+            <p v-if="startTooFar" class="text-body font-bold text-amber-700 max-w-prose">
               The plan starts more than an hour from now, so there's no current ascension to continue then: the first
               ascension starts fresh, as in {{ NAMES.classic }}.
             </p>
@@ -256,21 +276,21 @@
         <!-- When you can play -->
         <fieldset
           :disabled="locked"
-          class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
+          class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
           :class="screen === 'classic' ? 'opacity-60' : ''"
         >
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">When you can play</h3>
-          <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
-            {{ NAMES.classic }} doesn't plan around awake hours yet. The two searches do.
+          <h3 class="text-slate-500 label">Awake hours</h3>
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
+            {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
           </p>
           <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
-          <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="When you can prestige">
+          <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Awake hours">
             <label
               class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer"
               :class="!store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
             >
               <input v-model="store.scheduleEnabled" type="radio" :value="false" class="mt-0.5 text-indigo-600" />
-              <span class="text-[11px] text-slate-600 leading-relaxed">
+              <span class="text-body text-slate-600">
                 <span class="block font-bold text-slate-800">Any hour</span>
                 The plan prestiges the moment each stop is reached, day or night. Fastest on paper.
               </span>
@@ -280,29 +300,29 @@
               :class="store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
             >
               <input v-model="store.scheduleEnabled" type="radio" :value="true" class="mt-0.5 text-indigo-600" />
-              <span class="text-[11px] text-slate-600 leading-relaxed">
-                <span class="block font-bold text-slate-800">Let me pick my hours</span>
-                Prestiges and egg shifts wait for your next hour. You are still on the virtue farm while you wait, so TE
-                keeps collecting.
+              <span class="text-body text-slate-600">
+                <span class="block font-bold text-slate-800">Awake hours</span>
+                Prestiges and egg shifts wait for your next awake hour. You are still on the virtue farm while you wait, and
+                the farm keeps laying.
               </span>
             </label>
           </div>
           <div v-if="store.scheduleEnabled" class="pl-8 space-y-3">
             <div class="flex flex-wrap items-center gap-3">
-              <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+              <label class="flex min-w-0 max-w-full items-center gap-2 text-small font-bold text-slate-600">
                 From
                 <select
                   v-model.number="store.availableFrom"
-                  class="rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50"
+                  class="min-w-0 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">{{ showHour(h - 1) }}</option>
                 </select>
               </label>
-              <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+              <label class="flex min-w-0 max-w-full items-center gap-2 text-small font-bold text-slate-600">
                 to
                 <select
                   v-model.number="store.availableTo"
-                  class="rounded-lg border-slate-200 text-sm font-bold text-slate-800 disabled:bg-slate-50"
+                  class="min-w-0 max-w-full rounded-lg border-slate-200 text-base sm:text-body font-bold text-slate-800 disabled:bg-slate-50"
                 >
                   <option v-for="h in 24" :key="h - 1" :value="h - 1">
                     {{ showHour(h - 1) }}{{ h - 1 < store.availableFrom ? ' (next day)' : '' }}
@@ -318,18 +338,18 @@
                   :key="h - 1"
                   class="h-3 flex-1 rounded-sm"
                   :class="hourAwake(h - 1) ? 'bg-indigo-500' : 'bg-slate-200'"
-                  :title="showHour(h - 1) + (hourAwake(h - 1) ? ': can prestige' : ': away')"
+                  :title="showHour(h - 1) + (hourAwake(h - 1) ? ': awake' : ': asleep')"
                 ></span>
               </div>
-              <div class="flex justify-between text-[9px] text-slate-400 mt-0.5">
+              <div class="flex justify-between text-small text-slate-400 mt-0.5">
                 <span>{{ showHour(0) }}</span
                 ><span>{{ showHour(6) }}</span
                 ><span>{{ showHour(12) }}</span
                 ><span>{{ showHour(18) }}</span
                 ><span>{{ showHour(23) }}</span>
               </div>
-              <p class="text-[10px] text-slate-500 mt-1">
-                Hours are in the plan's timezone ({{ zone }}). Blue is when the plan may prestige. Days you can play:
+              <p class="text-small text-slate-500 mt-1">
+                Hours are in the plan's timezone ({{ zone }}). Blue is your awake hours: shifts and prestiges happen only then. Days you are awake:
               </p>
             </div>
             <div class="flex flex-wrap gap-1">
@@ -337,7 +357,8 @@
                 v-for="(label, day) in DAY_LABELS"
                 :key="day"
                 type="button"
-                class="px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md text-body font-bold disabled:opacity-50"
+                data-testid="setup-day"
                 :class="
                   store.availableDays.includes(day)
                     ? 'bg-slate-800 text-white'
@@ -349,35 +370,48 @@
               </button>
             </div>
             <!-- Ticked but describing no restriction at all reads as a constraint and isn't one. -->
-            <p v-if="store.scheduleIsEmpty" class="text-[11px] font-semibold text-amber-700">
+            <p v-if="store.scheduleIsEmpty" class="text-body font-bold text-amber-700 max-w-prose">
               Every day, all hours: that's no restriction at all, and it's recorded as no schedule.
             </p>
-            <p v-else-if="!store.availableDays.length" class="text-[11px] font-semibold text-amber-700">
+            <p v-else-if="!store.availableDays.length" class="text-body font-bold text-amber-700">
               No days picked. Pick at least one, or nothing can be scheduled.
             </p>
-            <p v-else class="text-[11px] text-slate-500">{{ scheduleText(store.availability) }}.</p>
+            <p v-else class="text-body text-slate-500">{{ scheduleText(store.availability) }}.</p>
             <!-- Picking hours means the shifts wait for them too (the user, 5 Oct: the hours should be obvious), so
                  the old "Hold egg shifts for my hours too" box is gone. Only a run or link saved with it off can
                  still be in that state; say so, with a way back. -->
-            <p v-if="!store.deferShifts" class="text-[11px] font-semibold text-amber-700">
-              This plan was saved with egg shifts not waiting for your hours.
-              <button type="button" class="underline font-bold" @click="store.deferShifts = true">
+            <p v-if="!store.deferShifts" class="text-body font-bold text-amber-700 max-w-prose">
+              This plan was saved with egg shifts not waiting for your awake hours.
+              <button type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 underline font-bold" @click="store.deferShifts = true">
                 Make them wait too
               </button>
             </p>
           </div>
         </fieldset>
 
+        <!-- No prestige on these days (search/noPrestige.ts): the second kind of "not now". -->
+        <fieldset
+          :disabled="locked"
+          class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2 min-w-0"
+          :class="screen === 'classic' ? 'opacity-60' : ''"
+          data-testid="setup-no-prestige-days"
+        >
+          <TimeOffEditor kind="noPrestige" />
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
+            {{ NAMES.classic }} doesn't plan around no prestige days yet. The searches do.
+          </p>
+        </fieldset>
+
         <!-- Time off -->
-        <fieldset :disabled="locked" class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
+        <fieldset :disabled="locked" class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-2 min-w-0">
           <div id="your-setup-time-off" class="scroll-mt-4"></div>
           <TimeOffEditor />
-          <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700 leading-relaxed">
-            {{ NAMES.classic }} only plans around time off in a plan sent from a search (Build this plan on
-            {{ fastestName(store.finalTE) }}, or Simulate this plan on {{ NAMES.byDate }}). A route typed in here goes
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700 max-w-prose">
+            {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
+            {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
           </p>
-          <p v-else class="text-[11px] text-slate-500 leading-relaxed">
+          <p v-else class="text-body text-slate-500 max-w-prose">
             The searches price every route with the time off in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
             {{ NAMES.insights }} keeps runs with time off apart from the rest, since they answer a different
             question.
@@ -386,18 +420,20 @@
 
         <!-- This computer -->
         <div
-          class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
+          class="mb-4 break-inside-avoid rounded-xl border border-slate-200 p-4 space-y-3 min-w-0"
           :class="screen === 'classic' ? 'opacity-60' : ''"
+          data-testid="setup-this-computer"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ ThisDevice() }}</h3>
+            <h3 class="text-slate-500 label">{{ ThisDevice() }}</h3>
             <div class="flex flex-wrap gap-1">
               <button
                 v-for="p in PROFILES"
                 :key="p.id"
                 type="button"
                 :disabled="store.isRunning"
-                class="px-2.5 py-1 rounded-md border text-[10px] font-black uppercase tracking-widest disabled:opacity-40"
+                class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border text-body font-bold disabled:opacity-40"
+                data-testid="setup-profile"
                 :class="
                   activeProfile === p.id
                     ? 'border-slate-800 bg-slate-800 text-white'
@@ -410,14 +446,14 @@
               </button>
             </div>
           </div>
-          <p v-if="screen === 'classic'" class="text-[11px] font-semibold text-amber-700">
+          <p v-if="screen === 'classic'" class="text-body font-bold text-amber-700">
             Not used by {{ NAMES.classic }}: it builds one plan, no search.
           </p>
           <WorkerSlider />
           <BackgroundSpeed />
           <label class="flex items-start gap-3 cursor-pointer">
             <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Keep my computer awake while a search runs.</span> If it sleeps,
               every worker freezes until you wake it. It can't stop a laptop sleeping when the lid is closed.
             </span>
@@ -428,56 +464,56 @@
               type="checkbox"
               class="mt-0.5 rounded border-slate-300 text-indigo-600"
             />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Let the instant answer run during a search.</span> It uses more
               memory, so a big run could crash. Unticked, it warns you first.
             </span>
           </label>
 
           <details class="rounded-lg border border-dashed border-slate-200 px-3 py-2" @toggle="onAdvanced">
-            <summary class="cursor-pointer text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            <summary class="cursor-pointer text-body font-bold text-slate-500">
               Memory · detail kept for
-              {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'every' }} routes
+              {{ store.legDetailBudget ? store.legDetailBudget.toLocaleString() : 'all' }} routes
             </summary>
             <div class="mt-3 space-y-3">
-              <dl class="grid grid-cols-2 gap-3 text-[11px]">
+              <dl class="grid grid-cols-2 gap-3 text-body break-words">
                 <div>
-                  <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Logical cores</dt>
+                  <dt class="text-slate-400 label">Logical cores</dt>
                   <dd class="font-bold text-slate-700">{{ store.machineThreads }}</dd>
                 </div>
                 <div>
-                  <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Reported RAM</dt>
+                  <dt class="text-slate-400 label">Reported RAM</dt>
                   <dd class="font-bold text-slate-700">{{ deviceMemoryLabel }}</dd>
                 </div>
                 <div>
-                  <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tab heap limit</dt>
+                  <dt class="text-slate-400 label">Tab heap limit</dt>
                   <dd class="font-bold text-slate-700">{{ heapLimitMb || 'not reported' }}</dd>
                 </div>
                 <div>
-                  <dt class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Heap in use</dt>
+                  <dt class="text-slate-400 label">Heap in use</dt>
                   <dd class="font-bold text-slate-700">{{ heapUsedMb || 'not reported' }}</dd>
                 </div>
               </dl>
-              <p class="text-[11px] text-slate-500 leading-relaxed">
+              <p class="text-body text-slate-500 max-w-prose">
                 Cores is the only hardware figure a web page gets accurately. Reported RAM is rounded and capped by the
                 browser on purpose, which is why the worker count is yours to choose rather than detected.
               </p>
               <label class="block space-y-1">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                <span class="text-slate-400 label"
                   >Keep per-ascension detail for</span
                 >
-                <span class="flex items-center gap-2">
+                <span class="flex flex-wrap items-center gap-2">
                   <input
                     v-model.number="store.legDetailBudget"
                     type="number"
                     min="0"
                     step="500"
-                    class="w-32 rounded-lg border-slate-200 text-sm font-bold text-slate-800"
+                    class="w-32 min-w-0 max-w-full rounded-lg border-slate-200 text-body font-bold text-slate-800"
                   />
-                  <span class="text-[11px] font-bold text-slate-500">fastest routes</span>
+                  <span class="text-small font-bold text-slate-500">fastest routes</span>
                 </span>
               </label>
-              <p class="text-[11px] text-slate-500 leading-relaxed">
+              <p class="text-body text-slate-500 max-w-prose">
                 Holding detail for
                 <span class="font-bold text-slate-700">{{ store.legsHeld.toLocaleString() }}</span> routes ({{
                   heldMb
@@ -486,10 +522,20 @@
                 <span class="font-bold text-slate-700">0 keeps everything</span>, which on a run of hundreds of
                 thousands of routes is how a tab gets killed overnight.
               </p>
+              <p
+                v-if="spillLine"
+                class="text-body"
+                :class="spillLine.warn ? 'font-bold text-amber-700' : 'text-slate-500'"
+                data-testid="leg-spill-note"
+              >
+                {{ spillLine.text }}
+              </p>
             </div>
           </details>
         </div>
+      </div>
 
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- What artifacts it will use: the same on every screen. -->
         <div class="rounded-xl border border-slate-200 p-4 min-w-0 md:col-span-2">
           <SimulationSetup />
@@ -499,36 +545,83 @@
              tabs is gone (StudySetup.vue). Only with a collector, as the box. -->
         <StudySetup v-if="store.submitUrl" />
 
-        <!-- Sharing: a mirror of "Keep sharing my checks" under the instant answer (the same setting,
-             composables/useInstantShare.ts; search/instantRecord.ts). Off by default. Only with a collector. -->
+        <!-- Sharing: a mirror of "Share my search results" under a search's result (the same setting,
+             composables/useInstantShare.ts; search/instantRecord.ts; was "Keep sharing my checks" until 23 Oct 2026).
+             Off by default. Only with a collector. -->
         <div
           v-if="canShareInstant"
           class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2"
           data-testid="share-instant"
         >
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sharing</h3>
+          <h3 class="text-slate-500 label">Sharing</h3>
           <label class="flex items-start gap-3 cursor-pointer">
             <input v-model="shareInstantOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Keep sharing my checks</span>
-              (anonymous; helps make the instant answer more accurate). After each Check exactly, at most once an hour
-              per save, this browser sends the routes, the instant answer's and the exact times, your TE and Clothed TE,
-              a summary of your gear, your plan start, timezone, save time and settings, where the check started from
-              (how your save was loaded, its claimed and pending TE, eggs and a short code for the save), and the app
-              version. It goes
+            <span class="text-body text-slate-600">
+              <span class="font-bold text-slate-800">Share my search results</span>
+              (anonymous; helps make the instant answer more accurate). After each Fast, Exact or Custom search, at most
+              once an hour per save, this browser sends its result's route and times beside the instant answer's for the
+              same goal, your TE and Clothed TE, a summary of your gear, your plan start, timezone, save time and
+              settings, where your save was loaded from (its claimed and pending TE, eggs and a short code for the
+              save), and the app version. It goes
               with this browser's anonymous code for your account, never your player ID or your save. Kept privately by
-              the planner's maintainer for 6 months, never shown on the board. The same box is under the instant answer,
-              with "Share this check" for just one.
+              the planner's maintainer for 6 months, never shown on the Leaderboard. The same box is under a search's result,
+              with "Share this result" for just one.
             </span>
           </label>
-          <p class="text-[11px] text-slate-500 leading-relaxed">
-            Sending a result to the board, its CSV and diagnostics are separate choices, under Find and submit.
+          <!-- "Share my instant baseline with my runs" (the `shareBaseline` consent, lib/instantBaseline.ts): the same
+               box as on My runs. -->
+          <label class="flex items-start gap-3 cursor-pointer" data-testid="share-baseline">
+            <input v-model="shareBaselineOn" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
+            <span class="text-body text-slate-600">
+              <span class="font-bold text-slate-800">Share my instant answer with my runs</span>
+              (public, with the run). Each run you send to the Leaderboard also carries your instant answer for it: the
+              route (the stops), the finish date, the TE, and when it was worked out, shown on your public run so others
+              can compare. Same rules as sending a run: never your player ID, never your save. The same box is on My runs.
+            </span>
+          </label>
+          <!-- The followed route saved online (lib/followCloud.ts, stores/follow.ts): no choice here, it is how Follow
+               works (Jordan, 23 Oct 2026); about.html says the same. -->
+          <p class="text-body text-slate-600 max-w-prose" data-testid="follow-online">
+            <span class="font-bold text-slate-800">The route you follow is saved online</span> under a code made from
+            your player ID, so another device shows your route when you enter your ID there. Anyone who knows your player
+            ID can see it. It holds the route, the goal, when you set it, the awake hours window you used, the time of your save
+            and the simulator version: never your player ID or a name. It is saved when you press Follow this route,
+            Follow it or Restore.<!-- AUTO_FOLLOW_FIRST (lib/followPolicy.ts): this part goes with the constant. --><span
+              v-if="AUTO_FOLLOW_FIRST"
+              data-testid="follow-online-auto"
+            >
+              The first answer for {{ fastestName(store.finalTE) }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online,
+              unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.</span
+            >
+            The last 5 versions for each goal are kept: open Earlier versions under the route on My runs, Right now, and
+            press Restore.
+            <span v-if="follows.cloudStatus === 'unreachable'" class="block mt-0.5 text-amber-800" role="status" data-testid="follow-online-unreachable">{{
+              UNREACHABLE_NOTE
+            }}</span>
+          </p>
+          <!-- Your choices and Setup saved online (lib/prefsCloud.ts, stores/prefs.ts); about.html says the same. -->
+          <p class="text-body text-slate-600 max-w-prose" data-testid="prefs-online">
+            <span class="font-bold text-slate-800">Your choices and Setup are saved online</span>: your consent choices and
+            your Setup (awake hours, time off, no prestige days, target TE and time zone) are saved under the same code as
+            the route you follow, made from your player ID. Anyone who knows your player ID can read and change them. Never
+            the ID itself, and a name only if you chose to be credited by name. The last 5 versions of each are kept, and at
+            most 30 changes an hour are saved.
+          </p>
+          <!-- "Which build is in use" (lib/buildCount.ts): no choice here; Global Privacy Control or Do Not Track turns
+               it off. about.html says the same. -->
+          <p class="text-body text-slate-600 max-w-prose" data-testid="build-count">
+            <span class="font-bold text-slate-800">The page's version</span> is sent to the planner's server at most once a day:
+            just the version, nothing else, so the maintainer knows when old versions are still in use. Global Privacy Control or Do
+            Not Track turns it off.
+          </p>
+          <p class="text-body text-slate-500 max-w-prose">
+            Sending a result to the Leaderboard, its CSV and diagnostics are separate choices, in Before you send under Run.
           </p>
         </div>
 
         <!-- Experimental: off for players until there is data to back it, on by default on the beta site (composables/usePrestigeBy.ts). -->
         <div class="rounded-xl border border-slate-200 p-4 space-y-2 min-w-0 md:col-span-2" data-testid="experimental">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Experimental</h3>
+          <h3 class="text-slate-500 label">Experimental</h3>
           <label class="flex items-start gap-3 cursor-pointer">
             <input
               v-model="prestigeBy.stored.value"
@@ -536,7 +629,7 @@
               class="mt-0.5 rounded border-slate-300 text-indigo-600"
               data-testid="prestige-by-box"
             />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
+            <span class="text-body text-slate-600">
               <span class="font-bold text-slate-800">Prestige by…</span> A line under the instant answer saying how long
               your next prestige can wait before the answer gets worse, and what it gets after that. Still being
               checked, so it can be wrong.
@@ -553,16 +646,16 @@
               class="mt-0.5 rounded border-slate-300 text-indigo-600"
               data-testid="prestige-by-record"
             />
-            <span class="text-[11px] text-slate-600 leading-relaxed">
-              <span class="font-bold text-slate-800">Include it in checks I share</span>, so it can be checked against
-              what happens. Only with "Share this check" ticked; nothing more is sent than the prediction itself.
+            <span class="text-body text-slate-600">
+              <span class="font-bold text-slate-800">Include it in results I share</span>, so it can be checked against
+              what happens. Only with "Share this result" ticked; nothing more is sent than the prediction itself.
             </span>
           </label>
         </div>
 
         <!-- How the site shows things -->
         <div class="rounded-xl border border-slate-200 p-4 space-y-3 min-w-0 md:col-span-2">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">How the site shows things</h3>
+          <h3 class="text-slate-500 label">How the site shows things</h3>
           <DateStyleToggle />
           <TabsToggle />
         </div>
@@ -572,7 +665,9 @@
 </template>
 
 <script setup lang="ts">
-import { ThisDevice } from '@/search/device';
+import { useConsent } from '@/composables/useConsent';
+import { ThisDevice, thisDevice } from '@/search/device';
+import { spillNote } from '@/lib/legSpillText';
 import SaveFileBar from './SaveFileBar.vue';
 import TabsToggle from './TabsToggle.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
@@ -587,6 +682,10 @@ import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import { useInstantShare } from '@/composables/useInstantShare';
 import { usePrestigeBy } from '@/composables/usePrestigeBy';
 import { instantUrlOf } from '@/search/instantRecord';
+import { useFollowStore } from '@/stores/follow';
+import { CLOUD_EGG_DAY_YEAR, UNREACHABLE_NOTE } from '@/lib/followCloud';
+import { AUTO_FOLLOW_FIRST } from '@/lib/followPolicy';
+import { ageAgo } from '@/lib/saveAge';
 import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
 import SchedulingInputs from './SchedulingInputs.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
@@ -607,9 +706,13 @@ defineProps<{
 
 const store = useChainSearchStore();
 const instantDuringSearch = useInstantDuringSearch();
-/** "Keep sharing my checks" (mirrors the instant answer box): only where a collector is configured to take them. */
+/** "Share my search results" (mirrors the box under a search's result): only where a collector is configured to take them. */
 const { on: shareInstantOn } = useInstantShare();
+/** "Share my instant baseline with my runs" (composables/useConsent.ts `shareBaseline`). */
+const { agreed: shareBaselineOn } = useConsent('shareBaseline');
 const canShareInstant = !!instantUrlOf(store.submitUrl);
+/** The followed route saved online: Sharing's note when it couldn't be read on load. */
+const follows = useFollowStore();
 /** Experimental: the "Prestige by" line (?prestigeBy=1 for one visit, or this box). */
 const prestigeBy = usePrestigeBy();
 // Choosing "Let me pick my hours" holds the egg shifts for those hours as well. The player's choosing only:
@@ -647,6 +750,7 @@ const awakeLabel = computed(() =>
   store.scheduleEnabled && !store.scheduleIsEmpty ? scheduleText(store.availability) : 'any hour'
 );
 const timeOffCount = computed(() => usableTimeOff(store.timeOff).length);
+const noPrestigeCount = computed(() => usableTimeOff(store.noPrestige).length);
 
 /** Your setup's First ascension, which also sets A1's pick in Your plan (store `setFirstAscension`). */
 const firstChoice = computed<FirstAscension>({
@@ -664,16 +768,8 @@ const startTooFar = computed(
 const saveAgeLabel = computed(() => {
   const at = initialState.rawBackup?.approxTime;
   if (!at) return 'No save loaded yet.';
-  const mins = Math.max(0, Math.round((Date.now() / 1000 - at) / 60));
-  const age =
-    mins < 1
-      ? 'just now'
-      : mins < 60
-        ? `${mins} min ago`
-        : mins < 48 * 60
-          ? `${Math.round(mins / 60)} h ago`
-          : `${Math.round(mins / 1440)} days ago`;
-  return `Save from ${age} (${showDateTime(at, zone.value)}).`;
+  // The one save age on Setup (lib/saveAge.ts `ageAgo`, the style every save-age line uses).
+  return `Save from ${ageAgo(Math.max(0, Date.now() / 1000 - at))} (${showDateTime(at, zone.value)}).`;
 });
 
 /** Problems with the save, for its card. Not the save-age note: Start time, beside it, already says
@@ -759,6 +855,8 @@ function onAdvanced(e: Event): void {
   }
 }
 onUnmounted(() => heapTimer && clearInterval(heapTimer));
+/** The downloaded CSV's detail on disk (lib/legSpillText.ts `spillNote`). */
+const spillLine = computed(() => spillNote(store.legSpillInfo, thisDevice(), store.legDetailBudget));
 const mb = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(0)} MB`;
 const heldMb = computed(() => mb(store.legDetailBytes));
 const heapUsedMb = computed(() => (heap.value ? mb(heap.value.used) : ''));

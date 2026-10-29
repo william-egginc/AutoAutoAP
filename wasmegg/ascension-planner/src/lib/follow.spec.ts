@@ -141,7 +141,7 @@ describe('a typed route', () => {
     });
     expect(parseTypedRoute('197 222 500', { currentTE: 190, target: null })).toEqual({ error: 'The last stop can be 490 at most.' });
     expect(parseTypedRoute('197 222', { currentTE: 190, target: 490 })).toEqual({
-      error: 'This race ends at 490: make that the last stop.',
+      error: 'Fastest to 490 TE ends at 490: make that the last stop.',
     });
     expect(parseTypedRoute('150 180', { currentTE: 190, target: null })).toEqual({ error: 'Every stop is at or below your 190 TE now.' });
     expect(parseTypedRoute('197.5 222', { currentTE: 190, target: null })).toEqual({ error: 'Each stop is a whole number of TE.' });
@@ -150,3 +150,15 @@ describe('a typed route', () => {
     expect(followedFromNow([180, 197, 222, 490], 200)).toEqual([222, 490]);
   });
 });
+
+describe('a board row\'s summary for Follow (own runs)', () => {
+  it('its finish, TE and start from the row\'s own times; a By a date row\'s last ascension', async () => {
+    const { boardRowSummary } = await import('./follow');
+    const race = { chain: [222, 490], durationDays: 9, finalTE: 490, startUtc: '2026-10-20T00:00:00Z', endUtc: '2026-10-29T00:00:00Z' };
+    expect(boardRowSummary(race as never)).toEqual({ finish: Date.UTC(2026, 9, 29) / 1000, endTE: 490, planStart: Date.UTC(2026, 9, 20) / 1000 });
+    const date = { ...race, chain: [200, 240], finalTE: 240, deadline: 1800000000, deadlineAscendAt: 1799990000 };
+    expect(boardRowSummary(date as never)).toMatchObject({ finish: 1799990000, endTE: 240, deadline: 1800000000 });
+    expect(boardRowSummary({ chain: [300], durationDays: 1, finalTE: 300 } as never)).toEqual({ endTE: 300 });
+  });
+});
+

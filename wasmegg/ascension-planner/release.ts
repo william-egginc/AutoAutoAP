@@ -33,14 +33,17 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-10-27T20:52:45Z', note: 'Release 6 arrives Thursday, Oct 29 at about 4 pm Pacific (T+7). Want it early? It’s on egg-beta: egg-beta.williamstest.fyi/ascension-planner', level: 'big' },
-  { at: '2026-10-23T00:30:00Z', note: 'New: Joo’s latest planner with an artifact and stone editor; one Stronger check panel (Fast, Exact, Custom); Egg Day picks finish before Egg Day; hours ahead or behind on My runs', level: 'big' },
+  { at: '2026-10-29T23:00:07Z', note: 'Release 6: new instant answers, My runs shows your next step and shifts, your Setup and followed route are saved online, and one Run button', level: 'big' },
+  { at: '2026-10-29T23:00:06Z', note: 'New instant answers (some numbers will move), and new gear tables make them more exact for more gear sets; the Silos tile estimates time left' },
+  { at: '2026-10-29T23:00:05Z', note: 'My runs shows your Next step and Next shifts from your live save, a timeline with a build-up line for each ascension, and a check for a newer save; Your routes at a glance is a heat map' },
+  { at: '2026-10-29T23:00:04Z', note: 'Your Setup and sharing choices and the route you follow are saved online, so other devices show them; Earlier versions keeps the last 5, and Restore brings one back' },
+  { at: '2026-10-29T23:00:03Z', note: 'One Run button (Run Fast, Run Exact or Run Custom) with a tick to send the result to the Leaderboard; Prefer fewer is on by default, and your old pick is reset' },
+  { at: '2026-10-29T23:00:02Z', note: "Opening a Manual plan no longer changes the Auto Planner's answers; the eggs' to goal times are fixed; Not sent yet is orange only when something is unsent; Same TE picks the fewest ascensions" },
+  { at: '2026-10-29T23:00:01Z', note: 'The phone watch keeps reporting and warns you when its updates fail; Stepping away starts closed and opens on long runs; the CSV buttons say what they hold, plus a download for the full CSV you sent' },
+  { at: '2026-10-29T23:00:00Z', note: 'No prestige days now sit beside Awake hours and Time off in Setup; Custom help is now short bullets; the Help box has Yes to all; this list of updates shows the newest first, with dates' },
+  { at: '2026-10-23T00:30:00Z', note: 'Joo’s latest planner with an artifact and stone editor; one Search panel (Fast, Exact, Custom); Egg Day picks finish before Egg Day; hours ahead or behind on My runs', level: 'big' },
   { at: '2026-10-22T15:20:20Z', note: 'Big update today at 4 pm Pacific (T+7). Please refresh this page before then; if a long run needs more time, message Williamthe5thc on Discord.', level: 'big' },
-  { at: '2026-10-20T00:37:44Z', note: 'New: prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster By a date searches, a My runs route chart', level: 'big' },
-  { at: '2026-10-16T21:26:50Z', note: 'My runs: switch between Race to 490 and Egg Day, follow any route you like, a Producing or Building badge with your rate, and Recalculate; with your hours on, checks now try the next-best route too' },
-  { at: '2026-10-16T15:15:49Z', note: 'New on My runs: where you are now, your next shifts with dates and calendar reminders, your saved answers with how sure they are, and each ascension step by step like Single run', level: 'big' },
-  { at: '2026-10-16T02:31:45Z', note: 'New: My runs tab; Compare is now Leaderboard; arrows show when each stop and egg shift happens; maxed-gear what-if; Light results can be shared; your setup and choices are remembered', level: 'big' },
-  { at: '2026-10-15T04:52:00Z', note: 'Your name choice is remembered; the running notice sits in the run bar; other options and charts moved to Compare, Your latest run; tags on the level buttons' },
+  { at: '2026-10-20T00:37:44Z', note: 'prefer fewer ascensions, try waiting before each prestige, a quick estimate for low-TE accounts, big searches ask first, faster Highest TE by a date searches, a My runs route chart', level: 'big' },
 ];
 
 export default {

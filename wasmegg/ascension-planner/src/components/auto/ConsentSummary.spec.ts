@@ -13,10 +13,10 @@ const render = async (props: Record<string, unknown>) => textOf(await renderHtml
 
 describe('ConsentSummary', () => {
   it("says what was agreed and the extras (the ✓ and Change are the consent box's, ConsentBox.vue)", async () => {
-    const html = await renderHtml(ConsentSummary, { anonymous: true, nickname: '' });
+    const html = await renderHtml(ConsentSummary, {});
     const t = textOf(html);
     expect(t).toContain('You agreed to share runs on the leaderboard');
-    expect(t).toContain('CSV on · diagnostics off · anonymous');
+    expect(t).toContain('CSV on · diagnostics off');
     expect(html).not.toContain('data-testid="consent-change"');
   });
 
@@ -24,23 +24,12 @@ describe('ConsentSummary', () => {
     const extras = useShareExtras();
     extras.sendCsv.value = false;
     extras.sendDiagnostics.value = true;
-    expect(await render({ anonymous: true, nickname: '' })).toContain('CSV off · diagnostics on');
+    expect(await render({})).toContain('CSV off · diagnostics on');
   });
 
-  it('credits the nickname when not anonymous', async () => {
-    const t = await render({ anonymous: false, nickname: 'Fred' });
-    expect(t).toContain('credited as Fred');
+  it('says nothing of the credit: the sharing line under it says it once (SharingSummary.vue, ux29 #11)', async () => {
+    const t = await render({});
     expect(t).not.toContain('anonymous');
-  });
-
-  it('counts a blank nickname as anonymous', async () => {
-    const t = await render({ anonymous: false, nickname: '   ' });
-    expect(t).toContain('anonymous');
     expect(t).not.toContain('credited as');
-  });
-
-  it('cuts a nickname longer than nicknameMax', async () => {
-    expect(await render({ anonymous: false, nickname: 'Frederick', nicknameMax: 4 })).toContain('credited as Fred');
-    expect(await render({ anonymous: false, nickname: 'Frederick', nicknameMax: 4 })).not.toContain('Frederick');
   });
 });

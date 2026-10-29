@@ -164,7 +164,7 @@ describe('GET /csv with the code (a hidden run of yours)', () => {
     const down = vi.fn(async () => {
       throw new TypeError('Failed to fetch');
     });
-    await expect(fetchOwnCsv({ base: BASE, id: 'ab12', token: CODE, fetch: down })).rejects.toThrow(/reach the board/);
+    await expect(fetchOwnCsv({ base: BASE, id: 'ab12', token: CODE, fetch: down })).rejects.toThrow(/reach the leaderboard/);
     const f = fakeFetch(200, {});
     await expect(fetchOwnCsv({ base: BASE, id: 'ab12', token: null, fetch: f })).rejects.toThrow(/no code/);
     expect(f).not.toHaveBeenCalled();

@@ -2,11 +2,11 @@
   <div class="space-y-4">
     <!-- Current Egg Indicator -->
     <div
-      class="hidden sm:flex items-center gap-2 text-sm p-2 rounded-lg border transition-colors"
+      class="hidden sm:flex items-center gap-2 text-body p-2 rounded-lg border transition-colors"
       :class="isEditingPastGroup ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'"
     >
       <span
-        class="text-[10px] font-bold uppercase tracking-widest px-1"
+        class="label px-1"
         :class="isEditingPastGroup ? 'text-blue-500' : 'text-gray-400'"
       >
         {{ isEditingPastGroup ? 'Editing' : 'Current Egg' }}
@@ -19,12 +19,12 @@
             :alt="effectiveEgg"
           />
         </div>
-        <span class="text-xs font-bold" :class="eggTextColorClass">
+        <span class="text-small font-bold" :class="eggTextColorClass">
           {{ currentEggName }}
         </span>
       </div>
       <span class="text-gray-300 mx-1">/</span>
-      <span class="text-xs font-semibold text-gray-500 tracking-tight">{{ availableActionLabel }}</span>
+      <span class="text-small font-bold text-gray-500">{{ availableActionLabel }}</span>
     </div>
 
     <!-- Tab buttons -->
@@ -38,7 +38,7 @@
         <button
           v-for="tab in availableTabs"
           :key="tab.id"
-          class="px-4 py-2 text-sm font-medium transition-colors relative whitespace-nowrap shrink-0"
+          class="px-4 py-2 text-body font-normal transition-colors relative whitespace-nowrap shrink-0"
           :class="activeTab === tab.id ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'"
           @click="activeTab = tab.id"
         >

@@ -97,10 +97,10 @@ describe('ShareResult compact', () => {
 
   it('"Credit me as" with a name: the summary credits it; with none, anonymous', async () => {
     expect(textOf(await renderWith({ compact: true, optIn: true, anonymous: false, nickname: 'Willsalt' }))).toContain(
-      'credited as Willsalt'
+      'Sharing: on · credited as Willsalt · Change'
     );
-    expect(textOf(await renderWith({ compact: true, optIn: true, anonymous: false, nickname: '' }))).toMatch(
-      /diagnostics (on|off) · anonymous/
+    expect(textOf(await renderWith({ compact: true, optIn: true, anonymous: false, nickname: '' }))).toContain(
+      'Sharing: on · anonymous · Change'
     );
   });
 

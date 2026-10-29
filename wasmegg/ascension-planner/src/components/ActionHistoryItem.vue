@@ -41,9 +41,9 @@
       <!-- Name -->
       <div
         class="flex-1 min-w-0 font-bold truncate flex items-center gap-1.5"
-        :class="[compact ? 'text-[10px]' : 'text-xs sm:text-sm', isStartAction ? 'text-slate-800' : 'text-slate-700']"
+        :class="[compact ? 'text-small' : 'text-small sm:text-body', isStartAction ? 'text-slate-800' : 'text-slate-700']"
       >
-        <span v-if="eggType" class="text-[9px] uppercase font-black text-slate-400 tracking-widest">
+        <span v-if="eggType" class="label text-slate-400">
           {{ action.type === 'start_ascension' ? 'Start:' : 'Egg:' }}
         </span>
         <span :class="{ 'text-slate-900': eggType }">
@@ -56,20 +56,20 @@
         <span
           v-if="savingDuration > 0 || (isPurchaseAction && action.cost > 0)"
           v-tippy="timeToSaveTitle"
-          class="text-[8px] font-black text-rose-500 uppercase tracking-widest"
+          class="text-rose-500 label"
         >
           Save {{ savingDurationFormatted }}
         </span>
         <span
           v-if="waitDuration > 0"
           v-tippy="timeToSaveTitle"
-          class="text-[8px] font-black text-slate-400 uppercase tracking-widest"
+          class="text-slate-400 label"
         >
           Wait {{ waitDurationFormatted }}
         </span>
         <span
           v-if="action.totalTimeSeconds < 1 && action.cost < 0.5 && Math.abs(action.bankDelta) < 0.5"
-          class="text-[8px] font-black text-slate-300 uppercase tracking-widest"
+          class="text-slate-300 label"
         >
           0s
         </span>
@@ -163,15 +163,15 @@
     <div v-if="!compact" class="flex items-start justify-between gap-2 ml-[2rem] sm:ml-[2.25rem]">
       <div class="flex-1 min-w-0">
         <!-- Description -->
-        <div
-          class="text-[9px] uppercase tracking-widest font-black opacity-60 text-slate-500 mt-0.5"
-          v-html="effectDescription"
-        ></div>
+        <!-- Text, never HTML: a plan file can carry any payload (red team 21 Oct 2026, data-inputs #6). -->
+        <div class="label opacity-60 text-slate-500 mt-0.5">
+          {{ effectDescription }}
+        </div>
 
         <!-- Deltas -->
         <div
           v-if="!isStartAction || isContinued"
-          class="text-[8px] mt-1 hidden sm:flex flex-wrap gap-x-3 gap-y-0.5 font-black tracking-wider"
+          class="text-small mt-1 hidden sm:flex flex-wrap gap-x-3 gap-y-0.5 font-bold"
         >
           <span v-if="action.eggValueDelta" :class="deltaClass(action.eggValueDelta)"
             >Val {{ formatDelta(action.eggValueDelta) }}</span
@@ -210,19 +210,19 @@
       <div v-if="!isStartAction" class="shrink-0 text-right">
         <template v-if="action.type === 'shift'">
           <div class="flex items-center gap-1 justify-end mt-0.5">
-            <span class="text-xs font-bold text-slate-700 font-mono-premium">{{ formatNumber(action.cost, 3) }}</span>
+            <span class="text-small font-bold text-slate-700 tabular-nums">{{ formatNumber(action.cost, 3) }}</span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3" alt="SE" />
           </div>
         </template>
         <template v-else-if="action.type === 'modify_bank'">
           <div class="flex items-center gap-0.5 justify-end mt-0.5">
             <span
-              class="text-xs font-bold font-mono-premium"
+              class="text-small font-bold tabular-nums"
               :class="
                 action.bankDelta >= 0.5
-                  ? 'text-emerald-600 font-black'
+                  ? 'text-emerald-600 font-bold'
                   : action.bankDelta <= -0.5
-                    ? 'text-rose-500 font-black'
+                    ? 'text-rose-500 font-bold'
                     : 'text-slate-300'
               "
             >
@@ -239,12 +239,12 @@
         <template v-else>
           <div class="flex items-center gap-0.5 justify-end mt-0.5">
             <span
-              class="text-xs font-bold font-mono-premium"
+              class="text-small font-bold tabular-nums"
               :class="[
                 action.cost >= 0.5
                   ? 'text-slate-800'
                   : action.bankDelta >= 0.5
-                    ? 'text-emerald-600 font-black'
+                    ? 'text-emerald-600 font-bold'
                     : 'text-slate-300',
               ]"
             >
@@ -264,6 +264,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed } from 'vue';
 import { iconURL } from 'lib';
 import type {
@@ -487,15 +488,7 @@ const absoluteEndTime = computed(() => {
  */
 const timeToSaveTitle = computed(() => {
   const date = absoluteEndTime.value;
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+  return formatMoment(date.getTime(), { weekday: true });
 });
 
 const reconciliationStatus = computed(() => {

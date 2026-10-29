@@ -218,7 +218,7 @@ describe('reset and what is kept', () => {
     store.scheduleEnabled = true;
     settle();
     const blob = await blobOf(A);
-    expect(Object.keys(blob).sort()).toEqual(['at', 'firstAscension', 'holdShifts', 'hours', 'timeOff', 'v']);
+    expect(Object.keys(blob).sort()).toEqual(['at', 'firstAscension', 'holdShifts', 'hours', 'noPrestige', 'timeOff', 'v']);
     expect(JSON.stringify(blob)).not.toMatch(/planStart|timezone|final|milestone|worker|level/i);
   });
 });

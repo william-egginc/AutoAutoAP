@@ -80,7 +80,7 @@ describe('B1: Kind = All with the default filters lists every run', () => {
         { ...DEFAULT_MY_RUNS_FILTERS, kind: 'race', target: 490, hours: 'awake', stops: '200, 250' },
         2027
       )
-    ).toEqual(['Race to 490', 'planned around awake hours', 'stops 200 250']);
+    ).toEqual(['Fastest to 490 TE', 'planned around awake hours', 'stops 200 250']);
     expect(
       activeFilterWords({ ...DEFAULT_MY_RUNS_FILTERS, kind: 'eggday', hours: 'any', ascensions: 1 }, 2027)
     ).toEqual(['Egg Day 2027', 'any time of day', '1 ascension']);
@@ -181,7 +181,7 @@ describe('"A run of yours isn\'t here?"', () => {
   });
 
   it('says why each kind of row is or is not listed', () => {
-    expect(join(whyNotMine(null, ctx))).toContain('No run on the public board has that id');
+    expect(join(whyNotMine(null, ctx))).toContain('No run on the public Leaderboard has that id');
     expect(join(whyNotMine({ ...egg(248, 'x'), yours: true }, ctx))).toContain('this browser sent it');
     expect(join(whyNotMine(egg(248, 'x'), ctx))).toContain('maybe you');
     expect(join(whyNotMine(egg(248, 'x', { nickname: 'AltName', acct: 'pc0000000001' }), ctx))).toContain(
@@ -193,7 +193,7 @@ describe('"A run of yours isn\'t here?"', () => {
     expect(join(whyNotMine(egg(248, 'x', { artifacts: GEAR_OCT10 }), ctx))).toContain(
       'it has T4E Necklace; your save has T4L Necklace'
     );
-    expect(join(whyNotMine(egg(248, 'x', { backupTE: 200 }), ctx))).toContain('above your save’s 190');
+    expect(join(whyNotMine(egg(248, 'x', { backupTE: 200 }), ctx))).toContain("above your save's 190");
     expect(join(whyNotMine(egg(248, 'x', { artifacts: GEAR_OCT10 }), { ...ctx, saveKey: null }))).toContain(
       'Load your save'
     );

@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SCRIPT_ORIGINS, securityTxt } from './securityHeaders';
+import { AUTO_FOLLOW_FIRST } from './followPolicy';
 
 const root = new URL('../../', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
@@ -63,6 +64,26 @@ describe('About and privacy page', () => {
     expect(securityTxt()).toMatch(/Contact: https:\/\/github\.com\/.+\/issues/);
   });
 
+  it('says what goes without the leaderboard tick or without a press: a sweep upload, auto-follow, the version (25 Oct 2026)', () => {
+    expect(text).not.toContain('only when you press a button');
+    expect(text).toContain(
+      'One exception: Science › Submit a sweep sends a public row and its CSV when you press Submit this sweep'
+    );
+    expect(text).toContain('Submit this sweep , without that tick.');
+    // Science › Submit a sweep (explorer/SweepUpload.vue): the row to /submit, then its CSV, with no consent in between.
+    const upload = read('src/explorer/SweepUpload.vue');
+    expect(upload).toContain('res = await fetch(`${props.base}/submit`, {');
+    expect(upload).not.toMatch(/useConsent|consentAgreed/);
+    if (AUTO_FOLLOW_FIRST)
+      expect(text).toContain(
+        'Three things are sent without a press. The route you follow can be saved online by itself: the first answer for Fastest to 490 TE and for Egg Day 2027, when you follow nothing for that goal'
+      );
+    else expect(text).not.toContain('The route you follow can be saved online by itself');
+    expect(text).toContain(
+      'And each open copy of the page sends its version, at most once a day, unless your browser sends Global Privacy Control or Do Not Track'
+    );
+  });
+
   it('names the study record and what it holds, and says it is never sent (22 Oct 2026)', () => {
     expect(text).toContain(
       'This browser keeps your answer in a record called aap.study . It holds the answer (yes, no thanks or withdrawn), when you answered, the ticks, whether you chose a name or to stay anonymous, and a scrambled tag for each account that answered, made in this browser so it never shows the player ID. It holds no player ID and no name, and it is never sent.'
@@ -76,9 +97,9 @@ describe('About and privacy page', () => {
 
   it('says a public row has the hours, the time off and the start weekday, as the collector keeps them', () => {
     expect(text).toContain(
-      'If you set them, the row also has your hours (the times of day you said you can play, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
+      'If you set them, the row also has your awake hours (the times of day you said you are awake, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
     );
-    expect(text).toContain('Last updated 22 Oct 2026.');
+    expect(text).toContain('Last updated Oct 27, 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
     const sub = read('src/search/submission.ts');
     expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
@@ -101,5 +122,242 @@ describe('About and privacy page', () => {
     const worker = read('collector/worker.js');
     expect(worker.slice(worker.indexOf('function pickSubmission('))).toContain('start: startBlock(s.start),');
     expect(worker).toContain("const START_SOURCES = ['fresh', 'stored', 'file', 'draft', 'switch'];");
+  });
+
+  it('says what the instant answer and the private search results send (23 Oct 2026)', () => {
+    expect(text).toContain(
+      'If you tick "Share my instant answer with my runs" (on My runs), a row you send also has your instant answer for that run: the route (the stops), the finish date, the TE, and when it was worked out. It is shown on your public run so others can compare. Without that tick it is not sent.'
+    );
+    expect(read('src/stores/chainSearch.ts')).toContain("if (payload.baseline || !consentAgreed('shareBaseline')) return payload;");
+    expect(text).toContain(
+      "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which before Oct 23, 2026 held the price of the instant answer's own route)"
+    );
+    expect(text).toContain('They are anonymous, sent only with that consent, and never shown publicly.');
+    expect(text).toContain('Last updated Oct 27, 2026.');
+    expect(text).not.toContain('Keep sharing my checks');
+  });
+
+  it('says each open page sends only its version, at most once a day, kept as a count for 30 days (24 Oct 2026)', () => {
+    expect(text).toContain(
+      'Each open copy of the planner tells our server which version it is, at most once a day: just the version, nothing else. We keep only a count per version per day, for 30 days, so we know when old versions are still in use. If your browser sends Global Privacy Control or Do Not Track, nothing is sent.'
+    );
+    expect(text).toContain('Version counts 30 days, then deleted.');
+    // What it says must stay true: the page sends the build id alone, once a day, not with GPC or DNT ...
+    const page = read('src/lib/buildCount.ts');
+    expect(page).toContain('body: build,');
+    expect(page).toContain("referrerPolicy: 'no-referrer',");
+    expect(page).toContain('if (store && sentOn(raw, build!, day)) return stop();');
+    expect(page).toContain('if (nav.globalPrivacyControl === true) return true;');
+    // ... and the collector keeps a count per day and build, 30 days, nothing else.
+    expect(read('collector/migrations/0003_buildcount.sql').replace(/--.*\n/g, '').replace(/\s+/g, ' ').trim()).toBe(
+      'CREATE TABLE IF NOT EXISTS build_counts ( day TEXT NOT NULL, build TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, build) ) WITHOUT ROWID;'
+    );
+    expect(read('collector/buildcount.js')).toContain('export const BUILD_KEEP_DAYS = 30;');
+    const setup = read('src/components/auto/YourSetup.vue').replace(/\s+/g, ' ');
+    expect(setup).toContain(
+      'is sent to the planner\'s server at most once a day: just the version, nothing else, so the maintainer knows when old versions are still in use. Global Privacy Control or Do Not Track turns it off.'
+    );
+  });
+
+  it('says the route you follow is saved online under a code made from the ID, what is stored and how to restore (23 Oct 2026)', () => {
+    expect(text).toContain(
+      'the route you follow for that goal is saved online, under a code made from your player ID. That is so another device shows your route when you enter your ID there'
+    );
+    expect(text).toContain('Anyone who knows your player ID can make the same code, so they can see the route you follow, and change it.');
+    expect(text).toContain(
+      "If it couldn't be saved when you pressed it (you were offline, say), it is saved once the next time your account is loaded, unless a newer one is saved online by then."
+    );
+    expect(text).toContain(
+      "If it still isn't saved, My runs, Right now, says so under the route, with Save it online"
+    );
+    expect(text).toContain(
+      'when a page loads, a route you follow in this browser that is newer than the one saved online for that goal is saved too, once, so the newest route you followed wins on every device. Nothing else saves it.'
+    );
+    // The first answer becoming the follow (lib/followPolicy.ts, 24 Oct 2026): there exactly while the constant is on.
+    const auto =
+      'The first answer for Fastest to 490 TE and for Egg Day 2027 becomes the route you follow and is saved online, unless you already follow one.';
+    if (AUTO_FOLLOW_FIRST) {
+      expect(text).toContain(auto);
+      expect(text).toContain(
+        'That is the instant answer as its box shows it, or a Fast, Exact or Custom run that becomes your route on My runs, Right now, whichever comes first.'
+      );
+      expect(text).toContain('Every other goal (another Highest TE by a date, a Fastest to N TE target of your own) is saved when you press Follow this route');
+      expect(text).toContain('so a route you follow on another device is never replaced. After that, a better answer only asks you');
+    } else expect(text).not.toContain('The first answer for Fastest to 490 TE');
+    expect(text).not.toContain('When you are not following another route for a goal');
+    const setup = read('src/components/auto/YourSetup.vue');
+    expect(setup).toContain('It is saved when you press Follow this route,');
+    expect(setup).toContain('v-if="AUTO_FOLLOW_FIRST"');
+    expect(setup.replace(/\s+/g, ' ')).toContain(
+      'The first answer for {{ fastestName(store.finalTE) }} and for Egg Day {{ CLOUD_EGG_DAY_YEAR }} becomes the route you follow and is saved online, unless you already follow one; other goals are saved when you press Follow. After that, a better answer only asks you.'
+    );
+    expect(text).not.toContain('not loading your account');
+    expect(text).toContain(
+      'What is stored: the route (the stops), the goal, when you set it, where it came from (the instant answer, a Fast, Exact or Custom run, or picked by hand), when the plan starts and when it finishes, its TE and time to spare, the awake hours window you used, the time of your save, and the simulator and planner version. Never your player ID or a name. Your days, time off and no prestige days are not stored.'
+    );
+    expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
+    expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');
+    expect(text).toContain('Last updated Oct 27, 2026.');
+    // What it says must stay true: the key made in the browser from the ID, the value's fields, Follow the only write.
+    const cloud = read('src/lib/followCloud.ts');
+    expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aaap-follow-v1:';");
+    expect(cloud).toContain("const id = (playerId ?? '').trim().toUpperCase();");
+    expect(cloud).toContain('export const FOLLOW_VERSIONS = 5;');
+    for (const f of ['chain', 'planStart', 'source', 'at', 'finish', 'endTE', 'spareSeconds', 'hours', 'saveTime', 'simVersion', 'build'])
+      expect(cloud).toMatch(new RegExp(`\\n  ${f}\\??: `));
+    expect(cloud).not.toMatch(/\n  (label|name|playerId|eiUserId)\??: /);
+    const store = read('src/stores/follow.ts');
+    expect(store.match(/putFollow\(/g)?.length).toBe(1);
+    expect(store.indexOf('putFollow(')).toBeGreaterThan(store.indexOf('async function saveOnline('));
+    // follow() and Right now's "Save it online" (saveNow, a press): the only two saves of a goal's route besides the
+    // next load's one retry.
+    expect(store.match(/saveOnline\(goalKey, f\)/g)?.length).toBe(2);
+  });
+  it('says your choices and Setup are saved online under the follow code, who can read them, and the limits (26 Oct 2026)', () => {
+    // The Collector chat's draft (aaap-tools/notes/prefs-about-draft.md).
+    expect(text).toContain(
+      'Your sharing choices (the Help improve the planner answer, what you agreed to send, and whether you are credited by a name or stay anonymous) and your Setup (awake hours and the days they apply to, time off, no prestige days, your target TE and your time zone) are saved online, under the same code made from your player ID that the route you follow uses.'
+    );
+    expect(text).toContain('Anyone who knows your player ID can make the same code, so they could read these choices, and change them.');
+    expect(text).toContain(
+      'What is stored: the answers and ticks, the name you chose to be credited by (only if you chose a name), when you answered, and the Setup values above. Never your player ID. The settings for This computer (workers, memory, the per-ascension detail) and the Stepping away? choices are not stored. The last 5 versions of each are kept, and at most 30 changes an hour are saved.'
+    );
+    expect(text).toContain('Your choices and Setup are saved online only when you change them, and read whenever you load an account');
+    expect(text).toContain('Your choices and Setup No time limit. The last 5 versions of each.');
+    const setup = read('src/components/auto/YourSetup.vue').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    expect(setup).toContain(
+      'Your choices and Setup are saved online : your consent choices and your Setup (awake hours, time off, no prestige days, target TE and time zone) are saved under the same code as the route you follow, made from your player ID. Anyone who knows your player ID can read and change them. Never the ID itself, and a name only if you chose to be credited by name. The last 5 versions of each are kept, and at most 30 changes an hour are saved.'
+    );
+    // What it says must stay true: the follow key, the 5 versions, the 30 an hour, no "This computer" settings.
+    const cloud = read('src/lib/prefsCloud.ts');
+    expect(cloud).toContain('export const prefsKey = followKey;');
+    expect(cloud).toContain('export const PREFS_VERSIONS = 5;');
+    expect(cloud).toContain('export const PREFS_WRITES_PER_HOUR = 30;');
+    expect(cloud).not.toMatch(/\n  (workers|memory|memoryCap|playerId|eiUserId)\??: /);
+    expect(cloud).toContain("if (c.credit === 'name' && name) value.nickname = name;");
+    // Only the sharing consents go online (not the Stepping away? ones), and Setup has no field for the detail setting.
+    expect(cloud).toContain(
+      "export const SYNCED_CONSENTS = ['leaderboard', 'sendCsv', 'diagnosticsDefault', 'keepSharingChecks', 'shareBaseline'] as const;"
+    );
+    const setupShape = cloud.slice(cloud.indexOf('export interface CloudSetup {'), cloud.indexOf('export type CloudPrefValue'));
+    expect(setupShape).not.toMatch(/leg|detail|budget|workers/i);
+  });
+
+  it('says each instant answer is saved online under the follow code, scrubbed, what it holds, 8 an account (27 Oct 2026)', () => {
+    expect(text).toContain('Each instant answer worked out on the page is saved online (see Your instant answers, saved online ).');
+    expect(text).toContain('Your newest instant answers are also saved online');
+    expect(text).toContain(
+      'When an instant answer is kept in this browser (worked out, or shown again from what it kept), it is also saved online, under the same code made from your player ID that the route you follow uses. That is so another device or a private window, which has no answer of its own yet, shows yours at once, marked "From &lt;time&gt;, checking…", while it works the answer out again. My runs also uses it to price your route meanwhile. Anyone who knows your player ID can make the same code, so they could read these answers, and change them.'
+    );
+    expect(text).toContain(
+      "What is stored: the answer as its box shows it (the route, its stops, times and TE, and the lines worked out with it), which instant answer data it came from (for data made for your account, the gear it was made for), the maxed gear what-if and your last Fast, Exact or Custom result for that goal if there are any, the time of your save and each egg's TE in it, and how it was priced: your starting TE and start time, your first ascensions, and the Setup it was worked out with (awake hours, whether shifts are held, time off, no prestige days, the first ascension, your target TE and your time zone)."
+    );
+    expect(text).toContain(
+      'Before it is packed, the planner replaces anything shaped like a player ID, and an answer that still has one is not sent. Never your player ID, a name or your game save. If it is too big (over 64 KB packed), the pricing and then the extras are left out; if it is still too big, it is not saved.'
+    );
+    expect(text).toContain(
+      "It is saved a few seconds after a new answer is kept, never while a search is running, and not again when the same answer is already online. At most 30 are saved an hour. Up to 8 answers are kept for each account (one for each goal, save and Setup); a ninth replaces the one saved longest ago. They are read only when this browser has no answer for that goal, once per page load. There is no switch to turn it off. If the planner's server can't be reached, nothing is shown from online, the answer is worked out as before and kept in this browser, and it is not saved online until a later answer is."
+    );
+    expect(text).toContain('Your instant answers No time limit. Up to 8 for each account; a new one replaces the one saved longest ago.');
+    // What it says must stay true: the follow key, the scrub before gzip, the caps, the fields, the one write.
+    const cloud = read('src/lib/answersCloud.ts');
+    expect(cloud).toContain("import { hasPlayerId } from './followCloud';");
+    expect(cloud).toContain("return text.replace(/EI\\d{16}/gi, 'EI-');");
+    expect(cloud).toContain('const json = scrubIds(JSON.stringify(t));');
+    expect(cloud).toContain('if (hasPlayerId(json)) return null;');
+    expect(cloud).toContain('if (!text || hasPlayerId(text)) return null;');
+    expect(cloud).toContain('export const ANSWERS_MAX_GZ = 65_536;');
+    expect(cloud).toContain('export const ANSWERS_MAX_ENTRIES = 8;');
+    expect(cloud).toContain('export const ANSWERS_WRITES_PER_HOUR = 30;');
+    expect(cloud).toContain('export const ANSWERS_DEBOUNCE_MS = 5000;');
+    expect(cloud).toContain('if (a.pricing) tries.push({ ...a, pricing: null });');
+    expect(cloud).toContain("tries.push({ ...a, pricing: null, snap: { ...s, bracket: null, gains: [], whatIf: null, search: null } });");
+    expect(cloud).toContain('if (this.synced.get(e) === o.at) {');
+    expect(cloud).toContain('if (this.env.busy()) {');
+    const store = read('src/stores/answers.ts');
+    expect(store).toContain('return useFollowStore().cloudKey;');
+    expect(store).not.toMatch(/consent|useConsent/i);
+    expect(read('src/stores/follow.ts')).toContain("const k = id ? await followKey(id).catch(() => '') : '';");
+    const route = read('src/components/auto/InstantRoute.vue');
+    expect(route.match(/answersCloud\.offer\(/g)?.length).toBe(1);
+    expect(route).toContain('answersCloud.offer({ goal: m.goal, backupTime: m.backupTime, snapKey, tables: runTables, at: snap.at, snap, pricing: pricingRecordNow() });');
+    expect(route.indexOf('offerCloud(snap);')).toBeGreaterThan(route.indexOf('function saveSnapshot('));
+    expect(route).toContain("From {{ show(staleAt / 1000) }}{{ status === 'loading' ? ', checking…' : '' }}");
+    // The pricing record and the snapshot's account are hashes, never the ID.
+    expect(read('src/search/runSaves.ts')).toContain("return id ? hash53(`account:${id}`) : '';");
+  });
+
+  it('says where per-ascension detail is kept on disk, the 10-minute download copy, and what a send carries (26 Oct 2026)', () => {
+    expect(text).toContain(
+      "A search's per-ascension detail is kept in a file in this browser, so the downloaded CSV can have every route's detail, not only the fastest routes set by Keep per-ascension detail for N fastest routes (Setup › This computer)."
+    );
+    expect(text).toContain(
+      'There is one file for each account and screen, named like aaap-legs/legs-fastest-&lt;code&gt;.spill . The code is made from your player ID, not the ID itself.'
+    );
+    expect(text).toContain('Download CSV writes the full file through this storage too, and that copy is removed 10 minutes later.');
+    expect(text).toContain('Nothing in these files leaves your computer, except what a send includes');
+    expect(text).toContain('The command line keeps its own file, legs.spill , on the computer it runs on.');
+    expect(text).toContain(
+      'The CSV of the routes the search priced, with each route\'s total time. It has the per-ascension times for the top 20,000 routes only (5,000, or none, if the file would be too big to send), not the full file that Download CSV saves.'
+    );
+    expect(text).not.toContain('The CSV of every route the search priced');
+    // What it says must stay true: the file names, the 10 minutes, and the 20,000 / 5,000 / none of a send.
+    expect(read('src/workers/legSpill.protocol.ts')).toContain("export const LEG_SPILL_DIR = 'aaap-legs';");
+    expect(read('src/lib/legSpillOpfs.ts')).toContain('return `legs-${kind}-${partitionHash.slice(0, 32)}.spill`;');
+    expect(read('src/lib/legSpillText.ts')).toContain('export const DOWNLOAD_FILE_TTL_MS = 10 * 60_000;');
+    expect(read('src/search/csv.ts')).toContain('export const DEADLINE_LEG_ROUTES = 20000;');
+    const store = read('src/stores/chainSearch.ts');
+    expect(store.match(/for \(const legRoutes of \[DEADLINE_LEG_ROUTES, Math\.floor\(DEADLINE_LEG_ROUTES \/ 4\), 0\]\)/g)?.length).toBe(2);
+    expect(read('scripts/siteRun.ts')).toContain('legs.spill');
+  });
+
+  it("says what My runs' quiet save check sends: the same request as loading a save, through the relay (26 Oct 2026)", () => {
+    expect(text).toContain(
+      "My runs also checks, quietly, whether the game's server has a newer save than the one loaded. It makes the same request as loading your save: your player ID goes through the same relay to the game's server, and your save comes back. The planner keeps only the save's time, and only until you close or reload the page."
+    );
+    expect(text).toContain(
+      'It checks once per page load for each account, and not when you are offline or your save is under 10 minutes old. Nothing goes to the planner\'s own server.'
+    );
+    // What it says must stay true: Load's own request, only the time kept, the 10 minutes.
+    const check = read('src/lib/serverSave.ts');
+    expect(check).toContain('const { backup } = await requestSave(playerId, o.request ? { request: o.request } : {});');
+    expect(check).toContain('known.set(hash, { checkedAt: Math.floor(o.nowSeconds), serverBackupTime: t });');
+    expect(check).toContain('export const QUIET_CHECK_MIN_AGE_S = 10 * 60;');
+    expect(check).toContain("export const NEWER_ON_SERVER = 'A newer save is on the server · Load it';");
+    expect(text).toContain('unless you press A newer save is on the server · Load it');
+  });
+
+  it("says My runs reads your own run's CSV back by the row's id, never the player ID (26 Oct 2026)", () => {
+    expect(text).toContain(
+      "If the route you follow comes from a Fast, Exact or Custom run you sent from another browser, My runs reads that run's CSV back from the planner's server, once per page load, to get its exact per-ascension times. It asks by the run's row ID on the Leaderboard, never by your player ID."
+    );
+    expect(text).toContain("If the run has no CSV, or it can't be read, My runs shows the estimate instead.");
+    // What it says must stay true: the fetch takes a row id only.
+    expect(read('src/composables/useBoardRunLegs.ts')).toContain('fetchCsv(row.id)');
+    expect(read('src/explorer/collector.ts')).toContain('const res = await fetch(`${base}/csv?id=${encodeURIComponent(id)}`, { signal });');
+  });
+  it("pins what the About page says about the collector's /answers: 8 an account, 30 writes an hour, no time limit, never the player ID (27 Oct 2026)", () => {
+    expect(text).toContain('Up to 8 answers are kept for each account');
+    expect(text).toContain('At most 30 are saved an hour.');
+    expect(text).toContain('No time limit. Up to 8 for each account; a new one replaces the one saved longest ago.');
+    const answers = read('collector/answers.js');
+    // The limits: 64 KB gzipped, 8 an account, 20,000 in all, and the same 30 writes an hour as the follow route.
+    expect(answers).toContain('export const ANSWER_MAX_BYTES = 65_536;');
+    expect(answers).toContain('export const ANSWER_MAX_ENTRIES = 8;');
+    expect(answers).toContain('export const ANSWER_MAX_TOTAL = 20_000;');
+    expect(answers).toContain('FOLLOW_WRITES_PER_HOUR');
+    expect(read('collector/follow.js')).toContain('export const FOLLOW_WRITES_PER_HOUR = 30;');
+    // A ninth entry replaces the one written longest ago (the least recently written goes), and is never refused for room.
+    expect(answers).toContain('DELETE FROM answers WHERE key = ? AND e NOT IN (SELECT e FROM answers WHERE key = ? ORDER BY updated DESC, e LIMIT ?)');
+    // No time limit: the only deletes are that eviction and the app's explicit DELETE; no cron or other file removes answers.
+    expect(answers.match(/DELETE FROM answers/g)).toHaveLength(2);
+    expect(read('collector/worker.js')).not.toMatch(/DELETE FROM answers/);
+    expect(read('collector/prefs.js')).not.toMatch(/DELETE FROM answers/);
+    // The player ID is refused anywhere in the query, and only the key (64 hex characters) is accepted.
+    expect(answers).toContain('if (PLAYER_ID.test(url.search)) return bad([');
+    expect(answers).toContain('k must be 64 lowercase hex characters');
+    // The body is gzip and is not inflated by the collector: the app scrubs before it compresses.
+    expect(answers).toContain('body[0] !== 0x1f || body[1] !== 0x8b');
+    expect(answers).toContain('the app scrubs before it compresses');
   });
 });

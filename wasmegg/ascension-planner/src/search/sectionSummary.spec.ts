@@ -8,7 +8,7 @@ describe('routeLine', () => {
   });
   it('By a date: the TE and the spare; a run going says so; nothing yet says so', () => {
     expect(routeLine('date', { chain: [161, 248], end: 0, endTE: 248, spare: 30 * 3600, running: true }, show)).toBe(
-      '248 TE · 30.0 h spare · 2 ascensions (so far, still running)'
+      '248 TE · 30h spare · 2 ascensions (so far, still running)'
     );
     expect(routeLine('date', null, show)).toBe('not run yet');
   });

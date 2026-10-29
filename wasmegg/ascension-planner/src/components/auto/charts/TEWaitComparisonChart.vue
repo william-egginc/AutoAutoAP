@@ -1,11 +1,11 @@
 <template>
-  <div v-if="rays.length === 0" class="px-4 py-10 text-center text-[10px] font-bold text-slate-400">
+  <div v-if="rays.length === 0" class="px-4 py-10 text-center text-small font-bold text-slate-400">
     No variant in this comparison has a TE-wait phase to compare.
   </div>
   <template v-else>
     <EChart :option="option" height="420px" />
     <div
-      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-2 pt-2 text-[8px] font-bold text-slate-400 uppercase tracking-wide"
+      class="flex flex-wrap items-center gap-x-4 gap-y-1 px-2 pt-2 text-small font-bold text-slate-400"
     >
       <span class="flex items-center gap-1"
         ><span class="inline-block w-3 border-t-2 border-slate-400" /> Simulated</span
@@ -23,14 +23,14 @@
     </div>
 
     <div v-if="neverCrossing.length" class="mx-2 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-      <div class="text-[8px] font-black uppercase tracking-wider text-amber-700 mb-1">Never crosses</div>
+      <div class="label text-amber-700 mb-1">Never crosses</div>
       <ul class="space-y-0.5">
-        <li v-for="note in neverCrossing" :key="`${note.a}-${note.b}`" class="text-[10px] font-bold text-amber-800">
+        <li v-for="note in neverCrossing" :key="`${note.a}-${note.b}`" class="text-small font-bold text-amber-800">
           <span :style="{ color: variantColor(note.leader) }">{{ variantLabel(note.leader) }}</span>
           stays ahead of
           <span :style="{ color: variantColor(note.other) }">{{ variantLabel(note.other) }}</span>
           for the entire comparison —
-          <span class="font-medium normal-case">{{ note.explanation }}</span>
+          <span class="font-normal normal-case">{{ note.explanation }}</span>
         </li>
       </ul>
     </div>
@@ -45,6 +45,7 @@ import type { VariantKey, VariantResult } from '@/stores/autoPlanner';
 import { VIRTUE_EGG_NAMES } from '@/types/actions/virtue';
 import { useVirtueStore } from '@/stores/virtue';
 import { formatAbsoluteTime, formatNumber } from '@/lib/format';
+import { esc } from '@/lib/charts/tooltip';
 import {
   VARIANT_KEY_ORDER,
   variantColor,
@@ -226,20 +227,20 @@ const option = computed<ChartOption>(() => {
         const params = rawParams as ChartTooltipParams;
         if (params.componentType === 'markLine') {
           const dateStr = formatAbsoluteTime(0, params.data!.xAxis!, 'UTC');
-          return `<b>${params.data!.markerLabel}</b><br/>${dateStr}`;
+          return `<b>${esc(params.data!.markerLabel)}</b><br/>${esc(dateStr)}`;
         }
         if (params.componentType === 'markPoint') {
           const timeMs = params.data!.coord![0];
           const dateStr = formatAbsoluteTime(0, timeMs, 'UTC');
           if (params.data!.kind === 'te') {
-            return `<b>${params.data!.egg} #${params.data!.perEggTE}, ${params.data!.grandTotalTE} Total</b><br/>${dateStr}`;
+            return `<b>${esc(params.data!.egg)} #${esc(params.data!.perEggTE)}, ${esc(params.data!.grandTotalTE)} Total</b><br/>${esc(dateStr)}`;
           }
-          return `<b>${params.data!.markerLabel}</b><br/>${dateStr}`;
+          return `<b>${esc(params.data!.markerLabel)}</b><br/>${esc(dateStr)}`;
         }
         const timeMs = params.value?.[0];
         if (timeMs === undefined) return '';
         const dateStr = formatAbsoluteTime(0, timeMs, 'UTC');
-        return `<b>${params.seriesName}</b><br/>${formatNumber(params.value![1], 3)} eggs<br/>${dateStr}`;
+        return `<b>${esc(params.seriesName)}</b><br/>${esc(formatNumber(params.value![1], 3))} eggs<br/>${esc(dateStr)}`;
       },
     },
     legend: {

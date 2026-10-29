@@ -8,18 +8,49 @@
  *                     its legs when they were kept, when it was worked out, its runner-up gap.
  *   planEvents        the shifts, prestiges and the goal, each with past / not done yet / next flags.
  *   onTrack           a newer save against where the plan (made from an older one) expected it (lib/planPace.ts).
- *   shiftsAfter       how many shifts the plan has after a moment (the "all planned shifts" tile).
+ *   shiftsAfter       how many shifts the plan lists after a moment.
+ *   plannedShiftsAfter  those plus each fresh ascension's estimated build-up shifts (the "all planned shifts" tile).
  *
- * Pure: no Vue, no stores; `now` is always a parameter.
+ * Pure: no Vue, no stores; `now` is always a parameter. The one read: `planFromSnapshot`'s Prefer fewer margin, by
+ * default the one stored for the screen (search/preferFewer.ts, guarded), when the caller does not pass it.
  */
 import type { LegSummary } from '@/search/types';
 import type { SnapMeta, SnapWhatIf } from '@/search/instantSnapshot';
+import type { FoundLevel } from './searchPointer';
+import type { StepLeg, StepLine } from './instantSteps';
 import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './planPace';
+import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
+import { estimatedOpening } from './openingShifts';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
 export interface SnapRoute {
   chain: number[];
-  legs: { from?: number; to: number; endTE: number; start: number; end: number; label?: string }[];
+  legs: {
+    from?: number;
+    to: number;
+    endTE: number;
+    start: number;
+    end: number;
+    label?: string;
+    /** Each shift after the build-up from the table's replay (search/legShifts.ts, RouteLeg.shifts): My runs'
+     *  estimate asks for them; a snapshot's own routes have none. */
+    shifts?: { at: number; egg: string }[];
+    /** routeFinder.ts RouteLeg's held opening: the prestige into it waited for a morning where its opening fits. */
+    heldOpening?: 'morning' | 'uncertain';
+    wanted?: number;
+    /** The current ascension simulated on the live save (lib/followSim.ts `withCurrentSim`): its start, end and
+     *  shifts are exact, and `buildEnd` is when its build phase ends. */
+    simulated?: boolean;
+    buildEnd?: number;
+    /** Its variant (LegSummary.key): 'continue' or 'buildup' carry on the farm in the save. */
+    variant?: string;
+    /** The simulated ascension is cut by time off (lib/followSim.ts SimLeg.timeOff): it ends at `from` with `te` (the
+     *  home farm is a prestige) and is built again from `to`. */
+    timeOff?: { from: number; to: number; te: number; rebuildBuildEnd?: number };
+    /** The rate it produces at once its build-up is done, eggs per second: the table's (RouteLeg.peakELR, with the
+     *  shifts), or the simulated leg's peak (LegSummary.maxELR). For the Full timeline's build-up line. */
+    peakELR?: number;
+  }[];
   end: number;
   seconds?: number;
 }
@@ -53,6 +84,9 @@ export interface SnapLike {
   answerStart?: number;
   meta?: SnapMeta;
   whatIf?: SnapWhatIf | null;
+  /** The last Fast, Exact or Custom result for this goal and save (lib/searchPlan.ts `SnapSearch`; since 23 Oct
+   *  2026). Read with `readSearch`. */
+  search?: unknown;
 }
 
 export interface NowPlan {
@@ -67,8 +101,16 @@ export interface NowPlan {
   legs: LegSummary[] | null;
   /** The table's legs (prestige times only), for when `legs` is null. */
   tableLegs: SnapRoute['legs'] | null;
-  /** The lead is Check exactly's (the simulator on the account), not only the instant answer's. */
+  /** The simulator's times on the account (a search's result, or before 23 Oct 2026 Check exactly's), not only the
+   *  instant answer's. */
   exact: boolean;
+  /** A Fast, Exact or Custom result's plan (lib/searchPlan.ts): which level and when it was found (ms). Absent: the
+   *  instant answer's (or an older snapshot's Check exactly). */
+  /** `otherBrowser`: the run was sent from another browser and read back from the Leaderboard (lib/boardRunPlan.ts). */
+  from?: { level: FoundLevel; at: number; otherBrowser?: boolean };
+  /** A followed route priced on the instant answer's data on this page (lib/followEstimate.ts): the table's times,
+   *  rounded like the instant answer's own. Absent otherwise. */
+  estimated?: boolean;
   /** By a date: the instant answer's own TE for the date (Check exactly confirms it when equal). */
   instantTE: number | null;
   /** When it was worked out, ms. */
@@ -93,8 +135,18 @@ export interface NowPlan {
 const key = (chain: readonly number[]) => chain.join(',');
 const lastTE = (r: SnapRoute) => r.legs[r.legs.length - 1]?.endTE ?? r.chain[r.chain.length - 1] ?? 0;
 
-/** The lead route of a saved answer, or null when it has none. */
-export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date', deadline: number | null = null): NowPlan | null {
+/**
+ * The lead route of a saved answer, or null when it has none. From the instant answer: the route its green box shows
+ * (Jordan, 26 Oct 2026), Prefer fewer's pick under `margin` (by default the one stored for the screen), with no
+ * runner-up when that is not the best (a choice, not the planner's ranking). Check exactly's prices, on answers saved
+ * before 23 Oct 2026, keep their own soonest / highest TE.
+ */
+export function planFromSnapshot(
+  snap: SnapLike | null,
+  goal: 'fastest' | 'date',
+  deadline: number | null = null,
+  margin: PreferMargin = readPreferFewer()[goal]
+): NowPlan | null {
   if (!snap?.result) return null;
   const exactOf = (chain: readonly number[]) => snap.exact?.[key(chain)] ?? null;
   const common = {
@@ -127,9 +179,11 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
         ...common,
       };
     }
-    const best = snap.result.best;
+    const top = snap.result.best;
+    const best = boxRouteOf('fastest', top, routes, margin);
     if (!best) return null;
-    const others = routes.filter(r => key(r.chain) !== key(best.chain)).sort((a, b) => a.end - b.end);
+    const picked = best !== top;
+    const others = picked ? [] : routes.filter(r => key(r.chain) !== key(best.chain)).sort((a, b) => a.end - b.end);
     return {
       goal,
       deadline: null,
@@ -175,30 +229,33 @@ export function planFromSnapshot(snap: SnapLike | null, goal: 'fastest' | 'date'
     };
   }
   if (!table) return null;
-  const others = (snap.result.byDateByAscensions ?? []).filter(
-    (r): r is SnapRoute => !!r && key(r.chain) !== key(table.chain)
-  );
-  const sameTE = others.filter(r => lastTE(r) >= lastTE(table)).sort((a, b) => a.end - b.end);
+  // The route the box shows (Prefer fewer's pick under `margin`); no runner-up when it is not the best.
+  const box = boxRouteOf('date', table, snap.result.byDateByAscensions, margin, deadline) ?? table;
+  const others =
+    box !== table
+      ? []
+      : (snap.result.byDateByAscensions ?? []).filter((r): r is SnapRoute => !!r && key(r.chain) !== key(table.chain));
+  const sameTE = others.filter(r => lastTE(r) >= lastTE(box)).sort((a, b) => a.end - b.end);
   // Check exactly ran (a row per count) and every count missed the date (null): the table's route is late on the
   // account, at its own exact price when it has one.
   const byK = Object.values(snap.dateExactByK ?? {});
   const missed = byK.length > 0 && byK.every(d => d == null);
-  const priced = exactOf(table.chain);
+  const priced = exactOf(box.chain);
   const timed = priced && Number.isFinite(priced.end) && deadline != null && priced.end > deadline;
   const accountEnd = missed ? (timed ? priced.end : Infinity) : undefined;
   return {
     goal,
     deadline,
-    chain: [...table.chain],
-    end: table.end,
-    endTE: lastTE(table),
+    chain: [...box.chain],
+    end: box.end,
+    endTE: lastTE(box),
     legs: null,
-    tableLegs: table.legs ?? null,
+    tableLegs: box.legs ?? null,
     exact: false,
-    instantTE: lastTE(table),
-    spareHours: spare(table.end),
+    instantTE: lastTE(box),
+    spareHours: spare(box.end),
     ...(accountEnd !== undefined ? { accountEnd } : {}),
-    runnerUpHours: sameTE.length ? Math.max(0, (sameTE[0].end - table.end) / 3600) : others.length ? Infinity : null,
+    runnerUpHours: sameTE.length ? Math.max(0, (sameTE[0].end - box.end) / 3600) : others.length ? Infinity : null,
     runnerUp: sameTE.length ? { chain: [...sameTE[0].chain], end: sameTE[0].end, endTE: lastTE(sameTE[0]) } : null,
     ...common,
   };
@@ -242,6 +299,44 @@ export function planFromExactChain(
   };
 }
 
+/**
+ * One route's plan from a snapshot's INSTANT answer, for a route the player follows (lib/followPrice.ts): the goal's
+ * lead when it is that route, else the table's own row for it (Fastest one per count, By a date the lead and one per
+ * count). The table's times (prestige times only, `exact` false: Right now rounds them, no calendar). Null when the
+ * instant answer has no such route. No runner-up: it is the player's pick, not the planner's.
+ */
+export function planFromInstantChain(
+  snap: SnapLike | null,
+  chain: readonly number[],
+  goal: 'fastest' | 'date',
+  deadline: number | null = null
+): NowPlan | null {
+  if (!snap?.result || !chain.length) return null;
+  const lead = planFromSnapshot(snap, goal, deadline);
+  if (lead && !lead.exact && key(lead.chain) === key(chain)) return { ...lead, runnerUpHours: null, runnerUp: null };
+  const rows = goal === 'fastest' ? [snap.result.best, ...(snap.result.byAscensions ?? [])] : [snap.result.byDate ?? null, ...(snap.result.byDateByAscensions ?? [])];
+  const r = rows.find((x): x is SnapRoute => !!x && Array.isArray(x.chain) && key(x.chain) === key(chain) && Number.isFinite(x.end));
+  if (!r) return null;
+  return {
+    goal,
+    deadline: goal === 'date' ? deadline : null,
+    chain: [...r.chain],
+    end: r.end,
+    endTE: lastTE(r),
+    legs: null,
+    tableLegs: r.legs ?? null,
+    exact: false,
+    instantTE: goal === 'date' ? lastTE(r) : null,
+    spareHours: goal === 'date' && deadline ? (deadline - r.end) / 3600 : null,
+    runnerUpHours: null,
+    runnerUp: null,
+    calculatedAt: snap.at,
+    planStart: typeof snap.answerStart === 'number' ? snap.answerStart : null,
+    meta: snap.meta ?? null,
+    whatIf: snap.whatIf ?? null,
+  };
+}
+
 // ------------------------------------------------------------------------------------- events
 
 export interface PlanEvent {
@@ -256,8 +351,23 @@ export interface PlanEvent {
   eggs?: string[];
   /** Prestige: the TE it prestiges at. Goal: the goal's TE. */
   te?: number;
+  /** Prestige: it waits for the player's hours ('hours') or past a no-prestige day ('days'), and happens at
+   *  `prestigeAt` rather than when the stop is reached (`at`): lib/instantSteps.ts, `markPrestigeWaits`. */
+  wait?: 'hours' | 'days';
+  prestigeAt?: number;
+  /** Time off cuts the ascension (lib/followSim.ts): 'leave' to the home farm when it starts (a prestige at `te`),
+   *  'back' when it ends (a prestige that builds toward `te` again). */
+  timeOff?: 'leave' | 'back';
+  /** lib/instantSteps.ts: the estimate runs this ascension into a time off (it really ends when the time off starts),
+   *  its prestige falls in one, or on a no-prestige day. */
+  cutByTimeOff?: { from: number; to: number };
+  prestigeInTimeOff?: { from: number; to: number };
+  onNoPrestigeDay?: boolean;
   /** Goal (By a date): hours to spare. */
   spareHours?: number | null;
+  /** From the ascension you are in simulated on the save (lib/followSim.ts): to the minute even when the rest of the
+   *  plan is the instant answer's, rounded to the hour (27 Oct 2026, Jordan). */
+  exact?: boolean;
   past: boolean;
   /** Its time has passed but the save doesn't show it done yet (still on the egg before the shift, short of the
    *  prestige's TE): not `past`, shown as "Not done yet", and Next step leads with it. */
@@ -296,10 +406,19 @@ export function planEvents(plan: NowPlan, nowSeconds: number, save: SaveDone | n
     });
   } else if (plan.tableLegs) {
     plan.tableLegs.slice(0, n).forEach((leg, i) => {
+      const x = leg.simulated ? { exact: true } : {};
+      // The table's shifts when the estimate carried them (each after the build-up, to the hour).
+      for (const sh of leg.shifts ?? []) if (Number.isFinite(sh.at)) out.push({ kind: 'shift', at: sh.at, asc: i + 1, egg: sh.egg, ...x });
+      // The ascension you are in cut by time off (lib/followSim.ts): to the home farm when it starts (a prestige, at the
+      // TE it has then), and back to build it again when it ends.
+      if (leg.timeOff) {
+        out.push({ kind: 'prestige', at: leg.timeOff.from, asc: i + 1, te: leg.timeOff.te, timeOff: 'leave', ...x });
+        out.push({ kind: 'prestige', at: leg.timeOff.to, asc: i + 1, te: leg.to, timeOff: 'back', ...x });
+      }
       if (!Number.isFinite(leg.end)) return;
       const te = leg.endTE ?? leg.to;
-      if (i === n - 1 && plan.goal === 'fastest') out.push({ kind: 'goal', at: leg.end, asc: i + 1, te });
-      else out.push({ kind: 'prestige', at: leg.end, asc: i + 1, te });
+      if (i === n - 1 && plan.goal === 'fastest') out.push({ kind: 'goal', at: leg.end, asc: i + 1, te, ...x });
+      else out.push({ kind: 'prestige', at: leg.end, asc: i + 1, te, ...x });
     });
   }
   if (plan.goal === 'date' && plan.deadline)
@@ -392,6 +511,74 @@ export function shiftTitle(e: Pick<PlanEvent, 'egg' | 'eggs'>, eggName: (egg: st
   return [head, ...rest.map(x => `straight to ${eggName(x)}`)].join(', then ');
 }
 
+/**
+ * The table's shifts of `route` (the same route priced again with its shifts, search/legShifts.ts) put on the plan's
+ * table legs, each only where that leg is the same one (same stop, start and end within ten minutes). The plan as it
+ * was when none fits, it has exact legs, or its legs already list shifts.
+ */
+export function withTableShifts(
+  plan: NowPlan,
+  route:
+    | { legs: readonly { to: number; start: number; end: number; shifts?: { at: number; egg: string }[]; peakELR?: number }[] }
+    | null
+    | undefined
+): NowPlan {
+  if (!plan.tableLegs || plan.legs || !route?.legs?.length) return plan;
+  let any = false;
+  const tableLegs = plan.tableLegs.map((l, i) => {
+    const r = route.legs[i];
+    if (!r || r.to !== l.to || !(Math.abs(r.start - l.start) <= 600) || !(Math.abs(r.end - l.end) <= 600)) return l;
+    // Its shifts, and the rate its build produces at (the Full timeline's build-up line), where the leg has none yet.
+    const shifts = !l.shifts?.length && r.shifts?.length ? r.shifts.map(sh => ({ at: sh.at, egg: sh.egg })) : null;
+    const rate = l.peakELR === undefined && (r.peakELR ?? 0) > 0 ? r.peakELR : undefined;
+    if (!shifts && rate === undefined) return l;
+    any = true;
+    return { ...l, ...(shifts ? { shifts } : {}), ...(rate !== undefined ? { peakELR: rate } : {}) };
+  });
+  return any ? { ...plan, tableLegs } : plan;
+}
+
+/** The plan's ascensions as lib/instantSteps.ts reads them: the exact legs, else the table's. */
+export function stepLegsOf(plan: NowPlan): StepLeg[] {
+  const n = plan.chain.length;
+  if (plan.legs)
+    return plan.legs.slice(0, n).flatMap((l, i) => {
+      const start = l.startTime ?? l.endTime - l.durationSeconds;
+      const prev = plan.legs![i - 1];
+      return Number.isFinite(start) && Number.isFinite(l.endTime)
+        ? [{ from: prev ? prev.endTE : 0, to: plan.chain[i], endTE: l.endTE, start, end: l.endTime }]
+        : [];
+    });
+  return (plan.tableLegs ?? []).slice(0, n).map(l => ({
+    from: l.from ?? 0,
+    to: l.to,
+    endTE: l.endTE ?? l.to,
+    start: l.start,
+    end: l.end,
+    ...(l.heldOpening ? { heldOpening: l.heldOpening } : {}),
+    ...(l.wanted !== undefined ? { wanted: l.wanted } : {}),
+    ...(l.timeOff ? { timeOffKnown: true } : {}),
+  }));
+}
+
+/** Each prestige that waits (lib/instantSteps.ts: the line of the ascension it starts) marked with why and when it
+ *  happens. The prestige ending ascension `asc` starts ascension `asc + 1`. */
+export function markPrestigeWaits(events: readonly PlanEvent[], lines: readonly StepLine[]): PlanEvent[] {
+  return events.map(e => {
+    if (e.kind !== 'prestige' || e.timeOff) return e;
+    const l = lines.find(x => x.asc === e.asc + 1);
+    // The ascension it ends ran into a time off the estimate doesn't know, or the prestige lands in one or on a
+    // no-prestige day (lib/instantSteps.ts): said on the row, in amber.
+    const own = lines.find(x => x.asc === e.asc);
+    const flags = {
+      ...(own?.cutByTimeOff ? { cutByTimeOff: own.cutByTimeOff } : {}),
+      ...(l?.prestigeInTimeOff ? { prestigeInTimeOff: l.prestigeInTimeOff } : {}),
+      ...(l?.onNoPrestigeDay ? { onNoPrestigeDay: true } : {}),
+    };
+    return l?.wait ? { ...e, wait: l.wait, prestigeAt: l.prestigeAt, ...flags } : { ...e, ...flags };
+  });
+}
+
 /** The plan's ascension the clock is in (1-based), 0 before the plan starts, the last one after it ends. */
 export function ascensionAt(plan: NowPlan, nowSeconds: number): number {
   const ends = plan.legs
@@ -405,7 +592,9 @@ export function ascensionAt(plan: NowPlan, nowSeconds: number): number {
 
 /**
  * The events the card's table shows: the last one passed (greyed), then what is ahead up to and including the
- * next prestige (or the goal), at most `max` ahead, then the goal row when it is not among them.
+ * next prestige (or the goal), at most `max` ahead, then EVERY later ascension's prestige (26 Oct 2026, Jordan: the
+ * table showed only the next prestige and the goal, two rows; their shifts are in the Full timeline), then the goal
+ * row when it is not among them.
  */
 export function tableEvents(events: readonly PlanEvent[], max = 6): PlanEvent[] {
   const past = events.filter(e => e.past && e.kind !== 'goal');
@@ -416,17 +605,46 @@ export function tableEvents(events: readonly PlanEvent[], max = 6): PlanEvent[] 
     shown.push(e);
     if (e.kind === 'prestige' || shown.length - (past.length ? 1 : 0) >= max) break;
   }
+  const last = shown[shown.length - 1];
+  for (const e of ahead) if (e.kind === 'prestige' && !shown.includes(e) && (!last || e.at >= last.at)) shown.push(e);
   const goal = events.find(e => e.kind === 'goal');
   if (goal && !shown.includes(goal)) shown.push(goal);
   return shown;
 }
 
-/** How many shifts the plan makes after `afterSeconds` (from the exact legs); null without them. */
+/** The plan's prestiges (each ascension's end, as `planEvents` has them: Fastest's last stop is the goal, not a
+ *  prestige), with the TE each prestiges at; from the exact legs, else the table's. Past ones included. */
+export function planPrestiges(plan: NowPlan): { at: number; te: number }[] {
+  return planEvents(plan, 0)
+    .filter(e => e.kind === 'prestige' && Number.isFinite(e.at))
+    .map(e => ({ at: e.at, te: e.te ?? 0 }));
+}
+
+/** How many shifts the plan makes after `afterSeconds`: from the exact legs, else the shifts the table's legs list
+ *  (search/legShifts.ts: each after the build-up, so the openings' are not counted); null when neither lists any. */
 export function shiftsAfter(plan: NowPlan, afterSeconds: number): number | null {
-  if (!plan.legs) return null;
+  const legs = plan.legs ?? (plan.tableLegs?.some(l => Array.isArray(l.shifts) && l.shifts.length) ? plan.tableLegs : null);
+  if (!legs) return null;
   let n = 0;
-  for (const leg of plan.legs.slice(0, plan.chain.length)) for (const sh of leg.shifts ?? []) if (sh.at > afterSeconds) n++;
+  for (const leg of legs.slice(0, plan.chain.length)) for (const sh of leg.shifts ?? []) if (sh.at > afterSeconds) n++;
   return n;
+}
+
+/**
+ * The "all planned shifts" count (27 Oct 2026, Jordan: it said 24 where Single run said +48): the shifts listed after
+ * `afterSeconds` (`shiftsAfter`) plus, on the table's legs, each fresh ascension's build-up shifts the table leaves
+ * out (lib/openingShifts.ts `estimatedOpening`: the simulator's standard opening, 6), for each one that starts at or
+ * after `afterSeconds` (an ascension already under way when the save was taken has its opening behind it). Exact legs
+ * list every shift: nothing added. Null when nothing is listed (as `shiftsAfter`).
+ */
+export function plannedShiftsAfter(plan: NowPlan, afterSeconds: number): { count: number; listed: number; opening: number } | null {
+  const listed = shiftsAfter(plan, afterSeconds);
+  if (listed == null) return null;
+  let opening = 0;
+  if (!plan.legs)
+    for (const leg of (plan.tableLegs ?? []).slice(0, plan.chain.length))
+      if (Number.isFinite(leg.start) && leg.start >= afterSeconds) opening += estimatedOpening(leg);
+  return { count: listed + opening, listed, opening };
 }
 
 // ----------------------------------------------------------------------------------- on track

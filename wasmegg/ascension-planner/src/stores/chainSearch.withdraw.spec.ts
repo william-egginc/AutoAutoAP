@@ -120,7 +120,7 @@ describe('withdrawing the agreement mid-run', () => {
     const bodies = collector();
     consent.setConsent('leaderboard', false);
     const res = await s.sendBestSoFar();
-    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box under Find to agree first.' });
+    expect(res).toEqual({ ok: false, text: 'Not sent: tick the box under Run to agree first.' });
     expect(bodies).toHaveLength(0);
     s.endBestSoFar();
   });
@@ -234,8 +234,8 @@ describe('the panels read the live gates, not the click (source)', () => {
       expect(src).not.toMatch(/(optIn|shareOptIn)\.value = true;/);
     }
   });
-  it('the instant answer stops sharing the check on screen when "Keep sharing" is withdrawn', () => {
+  it('the instant answer stops sharing the result on screen when "Share my search results" is withdrawn', () => {
     const src = read('../components/auto/InstantRoute.vue');
-    expect(src).toMatch(/\(\) => share\.on\.value,\s*v => \{\s*shareThis\.value = v;/);
+    expect(src).toMatch(/\(\) => share\.on\.value,\s*v => \{\s*shareThis\.value = v && freshResult\(\);/);
   });
 });

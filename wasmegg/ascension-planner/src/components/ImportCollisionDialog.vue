@@ -21,11 +21,11 @@
               />
             </svg>
           </div>
-          <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">Name Collision</h3>
+          <h3 class="text-slate-800 label">Name Collision</h3>
         </div>
 
         <div class="p-6">
-          <p class="text-sm font-medium text-slate-600 leading-relaxed">
+          <p class="text-body font-normal text-slate-600 max-w-prose">
             A plan named <strong class="text-slate-900">"{{ planName }}"</strong> already exists in your library. How
             would you like to proceed?
           </p>
@@ -46,8 +46,8 @@
                 </svg>
               </div>
               <div>
-                <div class="text-sm font-bold text-slate-800">Overwrite</div>
-                <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                <div class="text-body font-bold text-slate-800">Overwrite</div>
+                <div class="text-body text-slate-400 font-normal">
                   Replace the existing plan with the imported one
                 </div>
               </div>
@@ -68,8 +68,8 @@
                 </svg>
               </div>
               <div>
-                <div class="text-sm font-bold text-slate-800">Keep Both (Rename)</div>
-                <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                <div class="text-body font-bold text-slate-800">Keep Both (Rename)</div>
+                <div class="text-body text-slate-400 font-normal">
                   Save as "{{ renamedName }}"
                 </div>
               </div>
@@ -85,8 +85,8 @@
                 </svg>
               </div>
               <div>
-                <div class="text-sm font-bold text-slate-800">Skip</div>
-                <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                <div class="text-body font-bold text-slate-800">Skip</div>
+                <div class="text-body text-slate-400 font-normal">
                   Don't import this plan
                 </div>
               </div>
@@ -100,14 +100,14 @@
               type="checkbox"
               class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
             />
-            <label for="apply-to-all" class="text-xs font-medium text-slate-500 cursor-pointer select-none">
+            <label for="apply-to-all" class="text-small font-normal text-slate-500 cursor-pointer select-none">
               Apply to all remaining collisions ({{ remainingCount }})
             </label>
           </div>
 
           <div class="mt-6 flex justify-end">
             <button
-              class="btn-premium btn-ghost px-6 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+              class="btn-premium btn-ghost px-6 py-2 text-body font-bold text-slate-400 hover:text-slate-600 transition-colors"
               @click="$emit('cancel')"
             >
               Cancel Import

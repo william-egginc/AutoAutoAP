@@ -14,7 +14,6 @@
  *    message, Put my name on it, Retry the table, the rechecks worked out once consent is given,
  *    and the guard against sending a result twice. Each screen still says HOW it sends (`send`).
  *  - `useByDateShare`: the By a date send, to Compare's Egg Day or By a date tab.
- *  - `useLightShare`: Light's result (search/lightResult.ts), Fastest or By a date, as its own row.
  */
 import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from 'vue';
 import { useShareNameStore } from '@/stores/shareName';
@@ -22,6 +21,7 @@ import { useEidsStore } from 'lib';
 import { sentence } from '@/utils/errors';
 import { NAMES } from '@/lib/siteNav';
 import { eggDayYearOf } from '@/lib/eggDay';
+import { onBoardLine as onBoardLineOf } from '@/search/sentOnBoard';
 import { useShareConsent } from './useShareConsent';
 import { useShareExtras } from './useShareExtras';
 import type { useChainSearchStore } from '@/stores/chainSearch';
@@ -41,6 +41,12 @@ export interface ShareIdentity {
   /** The player typed in the name box: it stops following the account's name. Set it true after
    *  each keystroke (the boxes' `nicknameTyped`): what is in the box becomes the shared name. */
   nicknameTouched: WritableComputedRef<boolean>;
+  /** A run's own name for its own send (a carried-on run, or one that owes the board the row its best so far
+   *  started: '' for anonymous), on this screen only. It never changes the account's choice (it used to: a run
+   *  whose best so far went anonymously turned the account to Submit anonymously, Jordan 26 Oct 2026). The
+   *  player's own pick, or `dropCarried`, ends it. */
+  carryName(name: string): void;
+  dropCarried(): void;
 }
 
 /** The account's shared name (stores/shareName.ts): undefined until one is typed. */
@@ -67,9 +73,16 @@ export function createShareIdentity(
   optIn: Ref<boolean> = ref(false)
 ): ShareIdentity {
   const ownAnonymous = ref<boolean | undefined>(undefined);
+  /** A run's own name (`carryName`): this screen's, until the player picks or it is dropped. */
+  const carried = ref<string | null>(null);
   const anonymous = computed<boolean>({
-    get: () => (shared?.getAnonymous ? shared.getAnonymous() : ownAnonymous.value) ?? true,
-    set: v => (shared?.setAnonymous ? shared.setAnonymous(v) : (ownAnonymous.value = v)),
+    get: () =>
+      carried.value !== null ? !carried.value : ((shared?.getAnonymous ? shared.getAnonymous() : ownAnonymous.value) ?? true),
+    set: v => {
+      carried.value = null;
+      if (shared?.setAnonymous) shared.setAnonymous(v);
+      else ownAnonymous.value = v;
+    },
   });
   const own = ref<string | undefined>(undefined);
   const name: SharedName = shared ?? { get: () => own.value, set: v => (own.value = v) };
@@ -77,8 +90,9 @@ export function createShareIdentity(
   const local = ref<string | null>(null);
   const typed = ref(false);
   const nickname = computed<string>({
-    get: () => local.value ?? name.get() ?? accountName.value,
+    get: () => carried.value || (local.value ?? name.get() ?? accountName.value),
     set: v => {
+      carried.value = null;
       if (typed.value) {
         local.value = null;
         name.set(v);
@@ -95,7 +109,14 @@ export function createShareIdentity(
       }
     },
   });
-  return { optIn, anonymous, nickname, nicknameTouched };
+  return {
+    optIn,
+    anonymous,
+    nickname,
+    nicknameTouched,
+    carryName: n => (carried.value = n.trim()),
+    dropCarried: () => (carried.value = null),
+  };
 }
 
 /** The account's shared "Credit me as" name (stores/shareName.ts), loaded from this browser. */
@@ -183,6 +204,15 @@ export function useBoardSubmit(
 
   /** The name "Put my name on it" would put on the stored row, or '' when there is nothing to rename. */
   const nameToClaim = computed(() => store.nameToClaim(effectiveNickname.value));
+  /**
+   * The result on screen went to the board anonymously from this browser, and the setting would put no name on it
+   * (still anonymous, or no name typed): Put my name on it is still offered, and opens the sharing setting on
+   * "Credit me as" (SharingSummary.vue `openForName`, ux29 #11); once a name is chosen it is `nameToClaim`'s rename.
+   */
+  const offerName = computed(() => {
+    const rec = store.sentRecord;
+    return !!rec?.id && !rec.quarantined && !rec.nickname && !nameToClaim.value;
+  });
   const claiming = ref(false);
   async function claim(): Promise<void> {
     const id = store.sentRecord?.id;
@@ -237,6 +267,7 @@ export function useBoardSubmit(
     retryingTable,
     retryTable,
     nameToClaim,
+    offerName,
     claiming,
     claim,
     refuseDuplicate,
@@ -277,6 +308,25 @@ export function useByDateShare(
       retryingTable.value = false;
     }
   }
+  /**
+   * "Already on the Leaderboard (sent at 10:48 AM)" when this answer's row is already there, known on load from
+   * the account's rows (stores/chainSearch.ts `deadlineOnBoard`; Jordan, 27 Oct 2026: the box offered Send for
+   * a run already on the board). '' otherwise, and while the rows are not read (offline, no collector): Send as
+   * before. A send made this visit says so itself (`sentKey`).
+   */
+  const onBoardLine = computed(() => {
+    if (!collectorConfigured.value || sentKey.value === resultKey.value) return '';
+    const row = store.deadlineOnBoard(best.value);
+    return row ? onBoardLineOf(row) : '';
+  });
+  watch(
+    () => !!best.value && collectorConfigured.value,
+    show => {
+      if (show) void store.loadMineRows();
+    },
+    { immediate: true }
+  );
+
   /** The leaderboard tab this answer goes on: Egg Day has its own. */
   const shareTab = computed(() => {
     const y = result.value ? eggDayYearOf(result.value.deadline) : null;
@@ -330,94 +380,8 @@ export function useByDateShare(
     sentKey,
     shareTab,
     share,
+    onBoardLine,
   };
 }
 
 /** The parts of the chain search store Light's send reads (stores/chainSearch.ts). */
-export type LightShareStore = Pick<Store, 'leaderboardUrl' | 'lightSent' | 'sendLightResult' | 'retryTable' | 'pendingTable'>;
-
-/**
- * Light's send (LightShare.vue): Light's result (search/lightResult.ts) to the board as its own row, with
- * `level: 'light'`. Only on a press, only with the account's agreement as it is at that moment (a withdraw
- * stops it), and once per result (store `lightSent`, remembered in this browser).
- */
-export function useLightShare(store: LightShareStore, identity: ShareIdentity, result: Ref<LightResult | null>) {
-  const { sendCsv, diagnosticsGo } = useShareExtras();
-  const collectorConfigured = computed(() => store.leaderboardUrl.replace(/\/$/, '') !== '');
-  const sharing = ref(false);
-  const shareMessage = ref('');
-  const shareOk = ref(true);
-  const sharePartial = computed(() => /\bbut\b/.test(shareMessage.value));
-  /** Sent from this browser (this visit or an earlier one): Send locks. */
-  const sent = computed(() => store.lightSent(result.value));
-  /** Where it lands: the race (Fastest), or Compare's By a date / Egg Day tab. */
-  const shareTab = computed(() => {
-    const g = result.value?.goal;
-    if (!g || g.kind !== 'date') return '';
-    const y = eggDayYearOf(g.deadline);
-    return y ? `Egg Day ${y}` : 'By a date';
-  });
-  const retryingTable = ref(false);
-  async function retryTable(): Promise<void> {
-    if (retryingTable.value) return;
-    retryingTable.value = true;
-    try {
-      const res = await store.retryTable('light');
-      shareOk.value = res.ok;
-      shareMessage.value = res.ok ? `Thanks! ${sentence(res.message)}` : `Not sent: ${res.message}`;
-    } finally {
-      retryingTable.value = false;
-    }
-  }
-  async function share(note?: string): Promise<void> {
-    const r = result.value;
-    if (!r || sharing.value) return;
-    // Read live: a withdraw since the box was drawn stops the send.
-    if (!identity.optIn.value) {
-      shareOk.value = false;
-      shareMessage.value = 'Not sent: agree to share on the leaderboard first.';
-      return;
-    }
-    if (sent.value) {
-      shareOk.value = true;
-      shareMessage.value = 'Already on the board: this result was sent from this browser.';
-      return;
-    }
-    sharing.value = true;
-    shareOk.value = true;
-    shareMessage.value = '';
-    try {
-      const name = identity.anonymous.value ? '' : identity.nickname.value.trim().slice(0, 40);
-      const res = await store.sendLightResult({
-        result: r,
-        nickname: name,
-        ...(note !== undefined ? { note } : {}),
-        sendCsv: sendCsv.value,
-        diagnostics: diagnosticsGo.value,
-      });
-      shareOk.value = res.ok && !res.quarantined;
-      const where = shareTab.value ? `${NAMES.compare}'s ${shareTab.value} tab` : NAMES.compare;
-      shareMessage.value = res.quarantined
-        ? res.message
-        : res.ok
-          ? res.duplicate === 'exact'
-            ? res.message
-            : `Thanks! ${sentence(res.message)} It's on the ${where}.`
-          : `Not sent: ${res.message}`;
-    } finally {
-      sharing.value = false;
-    }
-  }
-  return {
-    collectorConfigured,
-    sharing,
-    shareMessage,
-    shareOk,
-    sharePartial,
-    sent,
-    shareTab,
-    retryingTable,
-    retryTable,
-    share,
-  };
-}

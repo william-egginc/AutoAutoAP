@@ -48,17 +48,17 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
-        <span class="text-[11px] font-black text-slate-700 uppercase tracking-widest">The problem</span>
-        <span class="text-[10px] font-bold text-slate-400 normal-case tracking-normal ml-auto">
+        <span class="text-body font-bold text-slate-700">The problem</span>
+        <span class="text-small font-bold text-slate-400 normal-case tracking-normal ml-auto">
           and why it is hard
         </span>
       </button>
 
-      <div v-show="open.how" id="cs-how" class="px-4 pb-5 pt-1 space-y-4 text-xs text-slate-600 leading-relaxed">
+      <div v-show="open.how" id="cs-how" class="px-4 pb-5 pt-1 space-y-4 text-body text-slate-600">
         <p>
           You reach a Truth Egg target by ascending to a stop, prestiging, ascending to a higher one, and so on. That
           list of stops is a route:
-          <code class="font-mono-premium text-slate-800">195 219 248 286 327 490</code>. You pick them and the game does
+          <code class="tabular-nums text-slate-800">195 219 248 286 327 490</code>. You pick them and the game does
           the rest. The plans players have sent in run two to three years, and two routes to the same target can finish
           <span class="font-bold text-slate-800">weeks apart</span>: in players' every-TE runs, moving one stop by a
           single TE, with the rest left where they are, changed the finish by typically about 2.5% of the plan. Finding
@@ -72,11 +72,11 @@
             current 177 and a final 490 there are 312 to pick from:
           </p>
           <div class="overflow-x-auto">
-            <table class="w-full text-[11px] font-mono-premium">
+            <table class="w-full text-small tabular-nums">
               <thead>
-                <tr class="text-slate-400 uppercase tracking-widest text-[9px] font-black">
-                  <th class="text-left py-1.5 pr-4 font-black">Route length</th>
-                  <th class="text-right py-1.5 font-black">Possible routes</th>
+                <tr class="text-slate-400 label">
+                  <th class="text-left py-1.5 pr-4 font-bold">Route length</th>
+                  <th class="text-right py-1.5 font-bold">Possible routes</th>
                 </tr>
               </thead>
               <tbody class="text-slate-700">
@@ -90,8 +90,8 @@
             </table>
           </div>
           <p class="mt-3">
-            Scoring one route means simulating every leg of it: research purchases, hab and vehicle upgrades, twelve egg
-            switches, sale timing. That takes several seconds of one core. Even at one second each, the 2.09 × 10<sup
+            Scoring one route means simulating every ascension of it: research purchases, hab and vehicle upgrades, twelve egg
+            shifts, sale timing. That takes several seconds of one core. Even at one second each, the 2.09 × 10<sup
               >15</sup
             >
             routes would take <span class="font-bold text-slate-800">tens of millions of years</span>
@@ -104,19 +104,19 @@
           <p class="mb-3">
             The figure below is one box on one account, priced almost in full:
             {{ DISTRIBUTION.n.toLocaleString() }} of its 10,416 routes of the form
-            <code class="font-mono-premium text-slate-800">195 X₂ X₃ X₄ 490</code> (3 could not be priced). So its
+            <code class="tabular-nums text-slate-800">195 X₂ X₃ X₄ 490</code> (3 could not be priced). So its
             winner is all but <span class="font-bold text-slate-800">proven</span> the best in that box. No search
             picked it.
           </p>
           <ChainMathFigure kind="distribution">
             Best to worst spans {{ (DISTRIBUTION.worst - DISTRIBUTION.best).toFixed(1) }} days. Only
-            <span class="font-semibold text-slate-700"
+            <span class="font-bold text-slate-700"
               >{{ plural(DISTRIBUTION.within1, 'route') }} ({{
                 ((100 * DISTRIBUTION.within1) / DISTRIBUTION.n).toFixed(2)
               }}%)</span
             >
             land within a day of the best, and the whole top 100 fits inside
-            <span class="font-semibold text-slate-700">{{ DISTRIBUTION.top100Span }} days</span>. Picking stops by feel
+            <span class="font-bold text-slate-700">{{ DISTRIBUTION.top100Span }} days</span>. Picking stops by feel
             drops you somewhere in the middle of that hump, about a week behind.
           </ChainMathFigure>
         </div>
@@ -125,23 +125,23 @@
           <p class="font-bold text-slate-800 mb-2">What 109 runs from players have shown (29 Sept)</p>
           <ul class="space-y-2 list-disc list-outside pl-4">
             <li>
-              <span class="font-semibold text-slate-700">Trying only some TEs misses the best plan.</span> Every 5th TE
+              <span class="font-bold text-slate-700">Trying only some TEs misses the best plan.</span> Every 5th TE
               ends up 2 to 12 days slower, on average, than every TE; every 2nd TE, 0.4 to 6 days. That is why this
               search sweeps every TE around each stop in its later stages.
             </li>
             <li>
-              <span class="font-semibold text-slate-700">More ascensions help, then level off.</span> A 3rd brought the
+              <span class="font-bold text-slate-700">More ascensions help, then level off.</span> A 3rd brought the
               finish forward 34 to 245 days on the accounts that tried 2 and 3; past 5, the search matters about as much
               as the count. The plan that finishes first has 5 to 7 ascensions on 9 of the 13 accounts.
             </li>
             <li>
-              <span class="font-semibold text-slate-700">Some of it is predictable.</span> With up to 4 ascensions, the
+              <span class="font-bold text-slate-700">Some of it is predictable.</span> With up to 4 ascensions, the
               last TE you ascend at is about 275 to 297 on nearly every account, whatever it starts from, and the
               planner's suggested starting route uses that. The exact TEs still differ account by account, so they have
               to be searched.
             </li>
             <li>
-              <span class="font-semibold text-slate-700">The best plan can move from one day to the next,</span> so a
+              <span class="font-bold text-slate-700">The best plan can move from one day to the next,</span> so a
               fresh search before each ascension is worth it.
             </li>
           </ul>
@@ -193,8 +193,8 @@
         >
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
         </svg>
-        <span class="text-[11px] font-black text-slate-700 uppercase tracking-widest">The algorithm</span>
-        <span class="text-[10px] font-bold text-slate-400 normal-case tracking-normal ml-auto">
+        <span class="text-body font-bold text-slate-700">The algorithm</span>
+        <span class="text-small font-bold text-slate-400 normal-case tracking-normal ml-auto">
           and where it goes wrong
         </span>
       </button>
@@ -202,7 +202,7 @@
       <div
         v-show="open.algorithm"
         id="cs-algorithm"
-        class="px-4 pb-5 pt-1 space-y-5 text-xs text-slate-600 leading-relaxed"
+        class="px-4 pb-5 pt-1 space-y-5 text-body text-slate-600"
       >
         <div>
           <p class="font-bold text-slate-800 mb-2">The shape comes from the sale calendar</p>
@@ -213,8 +213,8 @@
           </p>
           <ChainMathFigure kind="sawtooth">
             Every tooth is one missed sale. The best value in a sweep always sat at a
-            <span class="font-semibold text-slate-700">run-end</span>, meaning the last Truth Egg before a jump:
-            <span class="font-semibold text-slate-700"
+            <span class="font-bold text-slate-700">run-end</span>, meaning the last Truth Egg before a jump:
+            <span class="font-bold text-slate-700"
               >{{ SAWTOOTH_STATS.runEndHits }} times out of {{ SAWTOOTH_STATS.runEndTotal }}</span
             >
             fully swept prefixes in the box. Jumps have a median size of {{ SAWTOOTH_STATS.jumpMedianDays }} days across
@@ -234,7 +234,7 @@
           <p class="font-bold text-slate-800 mb-2">Zoomed out, it is not a bowl</p>
           <ChainMathFigure kind="wide">
             The same kind of sweep on a shorter route (195 231 X 490), across 86 values of the last stop. The left
-            side drops in <span class="font-semibold text-slate-700">ledges of 10 to 50 days</span> as whole ascensions
+            side drops in <span class="font-bold text-slate-700">ledges of 10 to 50 days</span> as whole ascensions
             reshuffle. It falls, rises and falls again, so a search that stops at the first upturn stops too early. The
             floor is a broad plain around 283 to 290. Pushing the last stop up to 340 costs 37.4 days: the final
             ascension pays for a full rebuild and then has less time to earn. That's why, by default, the search keeps the
@@ -245,18 +245,18 @@
         <div>
           <p class="font-bold text-slate-800 mb-2">What the search actually runs</p>
           <p class="mb-3">
-            It moves stops one at a time, then tries neighbouring pairs (and on Very high, triples) in every
+            It moves stops one at a time, then tries neighbouring pairs (and on Exact (wider), triples) in every
             combination. Each effort level adds a step to the one below; Fast, the default, stops after the nudges and then gives the other ascension counts in your limits one quick pass each. You
-            can stop whenever you like and keep the best route priced so far. One catch: Very high does triples before the one-more-or-fewer step, so stopping
+            can stop whenever you like and keep the best route priced so far. One catch: Exact (wider) does triples before the one-more-or-fewer step, so stopping
             it early gets you the pairs' answer plus whatever the triples found, without the count check.
           </p>
           <ol class="space-y-2 list-decimal list-outside pl-4">
             <li v-for="stage in STAGES" :key="stage.name">
-              <span class="font-semibold text-slate-700">{{ stage.name }}:</span> {{ stage.what }}
+              <span class="font-bold text-slate-700">{{ stage.name }}:</span> {{ stage.what }}
             </li>
           </ol>
           <p class="mt-3">
-            On a 7-ascension route, Very high prices about 11,062 routes. That's roughly
+            On a 7-ascension route, Exact (wider) prices about 11,062 routes. That's roughly
             <span class="font-bold text-slate-800">one in a hundred million</span> of the 7-ascension routes out there.
             It gets away with it because the sale calendar already chops the range into pieces small enough to sweep.
           </p>
@@ -267,15 +267,15 @@
           <p class="mb-3">
             The search only looks 8 TE either side of each stop, so it can't reach a better plan further away, and it
             can't tell when it's stuck near the wrong one. The figure below shows what that costs. Each column is a
-            different <span class="font-semibold text-slate-700">first stop</span>, and its height is the best route
+            different <span class="font-bold text-slate-700">first stop</span>, and its height is the best route
             reachable from there. These are routes to 320, with the same
             {{ SEED_SENSITIVITY.cells.toLocaleString() }}-route box priced under every column, so they compare directly.
           </p>
           <ChainMathFigure kind="seed">
             Starting at {{ seed.bestX1 }} reaches {{ seed.bestDays }} days. Starting at {{ seed.worstX1 }} cannot do
-            better than {{ seed.worstDays }}, a <span class="font-semibold text-slate-700">{{ seed.spread }}-day</span>
+            better than {{ seed.worstDays }}, a <span class="font-bold text-slate-700">{{ seed.spread }}-day</span>
             penalty settled before the search runs at all. The penalty is also
-            <span class="font-semibold text-slate-700">jagged rather than bowl-shaped</span>, so there is nothing to
+            <span class="font-bold text-slate-700">jagged rather than bowl-shaped</span>, so there is nothing to
             follow downhill: 191 beats its neighbour 192 by 10 days, and 192 is 10 days worse than 194.
           </ChainMathFigure>
           <p class="mt-3">
@@ -288,7 +288,7 @@
             twice from different starting routes and compare, or use {{ NAMES.fullFirst }}, which prices every route in
             a space you choose.
           </p>
-          <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800">
+          <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-body text-amber-800">
             What you get is a strong local best. Nobody has proven it's the best overall, and the search can't tell you
             how far off it might be. The accuracy figures for each effort level come from three accounts, and only one
             of those has a proven best to check against. That's also why there are no confidence percentages here: three
@@ -303,7 +303,7 @@
     </section>
 
     <!-- The ask for runs is the Science tab now; one line points there. -->
-    <p class="px-1 text-[11px] text-slate-500 leading-relaxed">
+    <p class="px-1 text-body text-slate-500 max-w-prose">
       Want to help work out the rules? The sweeps we still need, one per open question, are on
       <a href="#/science/check" class="font-bold text-indigo-700 underline">{{ NAMES.science }} › {{ NAMES.check }}</a>.
     </p>
@@ -363,7 +363,7 @@ const STAGES = [
     what: 'try every combination of each neighbouring pair (17 × 17), for moves that only pay off together.',
   },
   {
-    name: 'Triples (Very high only)',
+    name: 'Triples (Exact (wider) only)',
     what: 'the same for each group of three neighbours (13 × 13 × 13).',
   },
   {

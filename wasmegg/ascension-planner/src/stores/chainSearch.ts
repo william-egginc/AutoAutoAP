@@ -34,11 +34,13 @@ import {
   type SetupGroup,
   type SetupValues,
 } from '@/lib/setupMemory';
+import { isKnownZone, type SetupNow } from '@/lib/prefsCloud';
 import { plannedCountChecks, runChainSearch, type CacheEntry } from '@/search/driver';
 import { findStartingChain, planCoarseGrid } from '@/search/coarse';
 import { teByEggFor } from '@/search/teByEgg';
 import { lastTECostFrom } from '@/search/oneMoreTE';
-import { createChainSearchPool, type ChainSearchPool, type PoolFault } from '@/search/pool';
+import { createChainSearchPool, WorkerLostError, type ChainSearchPool, type PoolFault } from '@/search/pool';
+import { probeLimit } from '@/search/instantIntegrity';
 import type { BuildParams } from '@/search/precomputedLeg';
 import { contention, sweepSeconds, timeWeightedWorkers, workerSecondsFromRate, workerSecondsPerChain } from '@/search/speed';
 import { addChainSample, sweepTimeLeft, type SweepTimeLeft } from '@/search/sweepEstimate';
@@ -92,7 +94,9 @@ import {
   buildChainsCsv,
   buildDeadlineCsv,
   chainsCsvChunks,
+  chainsCsvChunksFull,
   deadlineCsvChunks,
+  deadlineCsvChunksFull,
   pricedDeltaChunks,
   DEADLINE_LEG_ROUTES,
   type CsvMeta,
@@ -140,6 +144,14 @@ import {
   type StartWait,
 } from '@/search/startProvenance';
 import { backupSecondsOf } from '@/lib/saveFreshness';
+import {
+  keepSaveStart,
+  saveStartFor,
+  startInputsOf,
+  storesHoldPlan,
+  PLAN_NOT_SAVE,
+  type SaveStart,
+} from '@/search/saveStart';
 import { currentPlans, recheckChains, type RecheckRun } from '@/search/rechecks';
 import { accountKeyOf, type BoardRow, type Plan } from '@/lib/leaderboardRank';
 import { describeAvailability, isConstrained, nextAvailable, type Availability } from '@/search/availability';
@@ -186,7 +198,8 @@ import {
   type DeltaState,
 } from '@/search/csvDelta';
 import { useShareExtras } from '@/composables/useShareExtras';
-import { consentDeclined, consentWithdrawals } from '@/composables/useConsent';
+import { consentAgreed, consentDeclined, consentWithdrawals } from '@/composables/useConsent';
+import { findBaseline, readBaselines, rowBackupTime, rowBaselineOf, rowGoalWords } from '@/lib/instantBaseline';
 import {
   dropPendingSend,
   keepPendingSend,
@@ -265,6 +278,17 @@ import {
   type SetsLearned,
 } from '@/search/deadlineEstimate';
 import { applyLegBudget, estimateLegBytes } from '@/search/legBudget';
+import type { LegSpill } from '@/search/legSpill';
+import { lastSpillOpenFailure, openBigCsvSink, openPageLegSpill } from '@/lib/legSpillOpfs';
+import {
+  BIG_CSV_MIN_ROUTES,
+  bigCsvMessage,
+  gzipCsvTo,
+  uploadBigCsv,
+  type BigCsvOutcome,
+  type BigCsvSink,
+} from '@/search/bigCsvUpload';
+import { browserStorage, readLegDetailBudget, staleDownloadReason, writeLegDetailBudget, type SpillInfo } from '@/lib/legSpillText';
 import { summariseEpicResearch, summariseColleggtibles } from '@/search/progression';
 import { reviewContext, reviewLegs, reviewSetup, TE_MISMATCH_TOLERANCE, type HealthIssue } from '@/search/health';
 import {
@@ -276,8 +300,11 @@ import {
   type SubmissionFlag,
 } from '@/search/rules';
 import { existingOwnerToken, ownerToken } from '@/search/owner';
+import { fetchMineRows } from '@/search/myBoardRows';
+import { sentRowFor } from '@/search/sentOnBoard';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
+import { nextPrestigeAt } from '@/search/noPrestige';
 import {
   DEFAULT_FIRST_ASCENSION,
   firstAscensionAt,
@@ -324,6 +351,8 @@ import { useInitialStateStore } from './initialState';
 import { useUIStore } from './ui';
 import { thisDevice } from '@/search/device';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
+import { readStoredJson, isPlainRecord } from '@/lib/safeStorage';
+import { keptForTop, type PricedRoute } from '@/lib/topRoutes';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -441,7 +470,7 @@ const SUBMIT_TIMEOUT_MS = 90_000;
 const TABLE_LIMIT_BYTES = PROGRESS_CSV_LIMIT_BYTES;
 
 function tableTooLargeMessage(size: string): string {
-  return `sent, but the table is too large for the board (${size} compressed, limit ${sizeLabel(TABLE_LIMIT_BYTES)}). The summary is in. Keep the table with Download CSV and send the file to whoever runs the board; retrying will not help.`;
+  return `sent, but the table is too large for the Leaderboard (${size} compressed, limit ${sizeLabel(TABLE_LIMIT_BYTES)}). The summary is in. Keep the table with Download CSV and send the file to whoever runs the Leaderboard; retrying will not help.`;
 }
 
 /** What the progress bar shows for the run going now (see `runProgress`). */
@@ -615,6 +644,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   /** Time off from the virtue farm, as whole local dates (search/timeOff.ts). Each stretch ends the
    *  ascension in progress, and the player comes back to a complete rebuild. */
   const timeOff = ref<TimeOffDates[]>([]);
+  /** No prestige on these days (search/noPrestige.ts), whole local dates like time off: the player stays on the
+   *  virtue farm and a prestige that would fall on one waits for the next allowed moment. */
+  const noPrestige = ref<TimeOffDates[]>([]);
   /**
    * The tag the CURRENT RESULT was run under, captured when an exhaustive run starts. `sweepTag`
    * itself only says a link was followed; a staged search started afterwards, or a sweep whose
@@ -761,6 +793,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       },
       holdShifts: deferShifts.value,
       timeOff: timeOff.value.map(w => ({ from: w.from, to: w.to })),
+      noPrestige: noPrestige.value.map(w => ({ from: w.from, to: w.to })),
       firstAscension: firstAscensionChoice.value,
     };
   }
@@ -774,6 +807,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availableDays.value = [...v.hours.days];
       deferShifts.value = v.holdShifts;
       timeOff.value = v.timeOff.map(w => ({ ...w }));
+      noPrestige.value = (v.noPrestige ?? []).map(w => ({ ...w }));
       firstAscensionChoice.value = v.firstAscension;
     });
   }
@@ -797,12 +831,74 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   /** A setting changed: remembered when the player changed it (not muted, an account loaded and read). */
   function noteSetupEdit(group: SetupGroup): void {
-    if (setupMute > 0 || !setupKeyNow || !setupLoaded.value) return;
+    if (setupMute > 0) return;
+    rememberSetupGroups([group]);
+  }
+  /** These groups remembered as they stand now (debounced write), once an account is loaded and read. */
+  function rememberSetupGroups(groups: readonly SetupGroup[]): void {
+    if (!groups.length || !setupKeyNow || !setupLoaded.value) return;
     const now = setupNow();
     if (setupPending && setupPending.key !== setupKeyNow) flushSetupWrite();
-    setupPending = { key: setupKeyNow, edits: { ...setupPending?.edits, [group]: now[group] } };
+    const edits: Partial<SetupValues> = { ...setupPending?.edits };
+    for (const g of groups) (edits as Record<SetupGroup, unknown>)[g] = now[g];
+    setupPending = { key: setupKeyNow, edits };
     if (setupTimer) clearTimeout(setupTimer);
     setupTimer = setTimeout(flushSetupWrite, 400);
+  }
+
+  /**
+   * YOUR SETUP READ BACK FROM ONLINE (stores/prefs.ts; crash2, 26 Oct 2026: a fresh browser gets the whole Setup
+   * after the page has drawn, while the instant answer is up). Put in place in one go: checked first (an unknown time
+   * zone or an hour out of range is left as it is), the time zone before the hours, time off and no-prestige days that
+   * are read in it, every field muted (no half-applied Setup reaches a `sync` watcher as the player's edit), then
+   * remembered in this browser once, as the player's own edit would be. Returns whether anything changed.
+   */
+  function applyOnlineSetup(p: Partial<SetupNow>): boolean {
+    const groups = new Set<SetupGroup>();
+    let changed = false;
+    const planner = useAutoPlannerStore();
+    const hour = (h: number | undefined) => (h !== undefined && Number.isInteger(h) && h >= 0 && h <= 23 ? h : undefined);
+    const from = hour(p.fromHour);
+    const to = hour(p.toHour);
+    const days = Array.isArray(p.days) ? [...new Set(p.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b) : undefined;
+    const range = (w: { from: string; to: string }) => !!w && typeof w.from === 'string' && typeof w.to === 'string';
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    muteSetupMemory(() => {
+      if (p.timezone && isKnownZone(p.timezone) && planner.timezone !== p.timezone) {
+        planner.timezone = p.timezone;
+        changed = true;
+      }
+      if (p.scheduleEnabled !== undefined && scheduleEnabled.value !== p.scheduleEnabled) {
+        scheduleEnabled.value = p.scheduleEnabled;
+        groups.add('hours');
+      }
+      if (from !== undefined && availableFrom.value !== from) {
+        availableFrom.value = from;
+        groups.add('hours');
+      }
+      if (to !== undefined && availableTo.value !== to) {
+        availableTo.value = to;
+        groups.add('hours');
+      }
+      if (days && !same(days, availableDays.value)) {
+        availableDays.value = days;
+        groups.add('hours');
+      }
+      if (p.timeOff && !same(p.timeOff, timeOff.value)) {
+        timeOff.value = p.timeOff.filter(range).map(w => ({ from: w.from, to: w.to }));
+        groups.add('timeOff');
+      }
+      if (p.noPrestige && !same(p.noPrestige, noPrestige.value)) {
+        noPrestige.value = p.noPrestige.filter(range).map(w => ({ from: w.from, to: w.to }));
+        groups.add('noPrestige');
+      }
+      if (p.finalTE !== undefined && Number.isInteger(p.finalTE) && p.finalTE >= 1 && p.finalTE <= 490 && finalTE.value !== p.finalTE) {
+        finalTE.value = p.finalTE;
+        changed = true;
+      }
+    });
+    rememberSetupGroups([...groups]);
+    return changed || groups.size > 0;
   }
   // `sync`: the mute is read at the moment of the change, not after the restore that made it has ended.
   watch([scheduleEnabled, availableFrom, availableTo, availableDays], () => noteSetupEdit('hours'), {
@@ -811,6 +907,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   });
   watch(deferShifts, () => noteSetupEdit('holdShifts'), { flush: 'sync' });
   watch(timeOff, () => noteSetupEdit('timeOff'), { flush: 'sync', deep: true });
+  watch(noPrestige, () => noteSetupEdit('noPrestige'), { flush: 'sync', deep: true });
   watch(firstAscensionChoice, () => noteSetupEdit('firstAscension'), { flush: 'sync' });
 
   /**
@@ -1226,7 +1323,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const bestSoFarSending = ref(false);
   /**
    * How the last Send best so far went, for the bar and the screen. Cleared when a run begins.
-   * `pending`: not an outcome but what to do next ("tick the box under Find"), shown in neither
+   * `pending`: not an outcome but what to do next ("tick the box in Before you send"), shown in neither
    * green nor red.
    */
   const bestSoFarStatus = ref<{ ok: boolean; text: string; pending?: boolean } | null>(null);
@@ -1351,7 +1448,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       bestSoFarStatus.value = {
         ok: false,
         pending: true,
-        text: 'Not sent yet: tick the box under Find to agree, and it sends straight away.',
+        text: 'Not sent yet: tick the box under Run to agree, and it sends straight away.',
       };
   }
   /** Resolves once any best-so-far send in flight has its answer, so a final send that follows
@@ -1427,7 +1524,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const bestSoFarAutoLine = computed(() => {
     const run = bestSoFar.value;
     if (!run || !stepAwayOptions.value.autoSendBest) return '';
-    if (!run.consent) return 'Waiting for your OK in the box under Find.';
+    if (!run.consent) return 'Waiting for your OK in the box under Run.';
     const i = autoInput();
     return i ? autoStatusLine(i) : '';
   });
@@ -1564,6 +1661,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const runEndedAt = ref(0);
   /** When the chain result on screen was found (ms): a run's end, or an opened saved run's save. */
   const chainResultAt = ref(0);
+  /** The save the shown result priced, its own time in seconds (0: not known); for the card's "ran on ... on your save of ..." line. */
+  const chainRunSaveAt = ref(0);
   /**
    * Whose that result (or the run going now) is: the partition hash of the player ID it ran for
    * (lib/accountHash.ts), '' when unknown. My runs › Your latest run shows it only on that account (16 Oct
@@ -1777,18 +1876,27 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     integrityLowTe.value = null;
     integrityChecking.value = true;
     let probe: ChainSearchPool | null = null;
-    try {
+    let over = false;
+    const work = (async () => {
       probe = await createChainSearchPool(collectInputs(), { size: 1 });
-      const wait = await probe.integrityWait();
+      // Given up on before the pool was made: it goes at once.
+      if (over) probe.terminate();
+      return probe.integrityWait();
+    })();
+    try {
+      // Bounded (search/instantIntegrity.ts INTEGRITY_PROBE_MS): the instant answer is held back while this runs.
+      const wait = await probeLimit(work);
       if (integrityKey === key) {
         integrityWait.value = wait;
         // LOW-TE OPENING (auto/lowTeOpening.ts)
-        integrityLowTe.value = probe.integrityLowTe?.() ?? null;
+        integrityLowTe.value = (probe as ChainSearchPool | null)?.integrityLowTe?.() ?? null;
       }
     } catch {
       // Not worth a message: Start runs the same check again and reports properly.
+      work.catch(() => {});
     } finally {
-      probe?.terminate();
+      over = true;
+      (probe as ChainSearchPool | null)?.terminate();
       if (integrityKey === key) integrityChecking.value = false;
     }
   }
@@ -2106,6 +2214,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (useUIStore().loading || actions.isPlanInitializing || actions.isRecalculating || actions.pendingRecalculate) {
       return SAVE_STILL_LOADING;
     }
+    // A Manual plan opened from the library or a file holds the stores (search/saveStart.ts): never search from it.
+    if (useUIStore().screenPlayerId && storesHoldPlan({ source: useInitialStateStore().setupSource })) return PLAN_NOT_SAVE;
     if (useInitialStateStore().rawBackup && Math.abs(plannerTE.value - backupTE.value) > TE_MISMATCH_TOLERANCE) {
       return `Your planner (${plannerTE.value} TE) doesn't match your loaded save (${backupTE.value} TE) yet. Wait a moment, or reload your save, then try again.`;
     }
@@ -2308,6 +2418,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     availability: Availability | null;
     deferShifts: boolean;
     timeOff: TimeOffDates[];
+    /** No prestige on these days (absent on settings kept before 24 Oct 2026: none). */
+    noPrestige?: TimeOffDates[];
   }
   const runSettingsUsed = ref<RunSettings | null>(null);
   function snapshotSettings(): RunSettings {
@@ -2317,6 +2429,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       availability: availability.value ? (JSON.parse(JSON.stringify(availability.value)) as Availability) : null,
       deferShifts: deferShifts.value,
       timeOff: JSON.parse(JSON.stringify(timeOff.value)) as TimeOffDates[],
+      noPrestige: JSON.parse(JSON.stringify(noPrestige.value)) as TimeOffDates[],
     };
   }
   /** The finished or running search's own settings, else the live ones. */
@@ -2530,6 +2643,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     integrityLowTe.value = null;
     openedRun.value = summary;
     chainResultAt.value = summary.savedAt || 0;
+    chainRunSaveAt.value = runSaveFor(summary.inputsKey)?.backupAt ?? summary.save?.backupAt ?? 0;
     chainOwnerSeq++;
     chainResultOwner.value = owner;
     // Its own start, for "Build this plan": that pins the planner to `planStartUsed`, which still
@@ -2617,6 +2731,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // Windows end at the start of the day after the last one away.
       to: formatInZone(w.to - 1, tz).slice(0, 10),
     }));
+    noPrestige.value = (set.noPrestige ?? []).map(w => ({
+      from: formatInZone(w.from, tz).slice(0, 10),
+      to: formatInZone(w.to - 1, tz).slice(0, 10),
+    }));
   }
 
   /** "Carrying on puts back: the final target; the time off" -- what a resume would change, if anything. */
@@ -2696,7 +2814,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const { initPlanFuture } = await import('@/lib/modes/planFuture');
         await initPlanFuture(playerId, inputs.context.rawBackup);
       } catch (e) {
-        error.value = `This run's stored save could not be loaded (${describeRunError(e)}). Reload your save and start again.`;
+        error.value = `This run's stored save could not be loaded (${describeRunError(e)}). Reload your save and press Run again.`;
         return null;
       }
     }
@@ -2785,7 +2903,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!run) return 'no run is loaded';
     if (run.complete) return 'this run finished, so there is nothing left to price';
     if (!run.space) {
-      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same bands and start again, and anything it already priced will be replayed';
+      return 'this run was saved before the space was recorded, so there is nothing to continue from. Set the same ranges and press Run Custom again, and anything it already priced will be replayed';
     }
     if (!currentPlayerId) return 'no player id, so there is no way to check the run is still valid';
     // With its own save stored, the run carries on with that save, not the current one; only the
@@ -2948,6 +3066,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
+      noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     });
   }
 
@@ -3189,22 +3308,60 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     );
   }
 
-  function collectInputs(): SearchInputs {
-    const initialStateStore = useInitialStateStore();
+  /**
+   * The save's own start, kept apart from the shared stores (search/saveStart.ts, spec-manualleak): a Manual plan
+   * opened from the library or a file refills those stores with ITS start, and the Auto Planner must still price
+   * from the save. Taken every time the inputs are read off stores set up from the save, and the moment they are
+   * (a sync watch, so a plan opened straight after a set-up still finds it). Never written to or sent anywhere.
+   * A plain `let`, not a ref: `collectInputs` is read inside computeds (the gear stamp), and a write there would
+   * re-run them. Whoever reads it reacts to `setupSource` instead, which is what decides whether it is used.
+   */
+  let keptSaveStart: SaveStart | null = null;
+  function liveStart() {
     const baseState = createBaseEngineState(null);
-    return {
+    const start = {
       context: getSimulationContext(),
       baseState,
-      currentFarmState: initialStateStore.currentFarmState,
-      planStart: planStart.value,
+      currentFarmState: useInitialStateStore().currentFarmState,
       // From the state the workers price, never from a second source (see `currentTE`).
       currentTE: pricedTE(baseState),
+    };
+    if (startWait.value === '' && useUIStore().screenPlayerId) {
+      keptSaveStart = keepSaveStart(start, useInitialStateStore().playerId);
+    }
+    return start;
+  }
+  watch(
+    startWait,
+    w => {
+      if (w === '') liveStart();
+    },
+    { flush: 'sync' }
+  );
+  /** The kept save start while the stores hold a Manual plan for the account on screen, else null. */
+  function saveStartNow(): SaveStart | null {
+    const init = useInitialStateStore();
+    return saveStartFor(keptSaveStart, {
+      screenPlayerId: useUIStore().screenPlayerId,
+      source: init.setupSource,
+      hasData: init.hasData,
+    });
+  }
+
+  function collectInputs(): SearchInputs {
+    // While the stores hold a Manual plan, the save's own start (search/saveStart.ts), copied afresh per call.
+    const kept = saveStartNow();
+    const start = kept ? startInputsOf(kept) : liveStart();
+    return {
+      ...start,
+      planStart: planStart.value,
       final: finalTE.value,
       firstAscension: firstAscensionFor(),
       availability: availability.value,
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
+      noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     };
   }
 
@@ -3236,6 +3393,30 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const shortlist = ref<ShortlistRow[]>([]);
   let lastShortlistAt = 0;
+
+  /**
+   * More than the single best (item 12, 27 Oct 2026; lib/topRoutes.ts, TopRoutes.vue under the result card): the
+   * best few routes priced and the best for each number of ascensions, read off the priced routes this run kept
+   * (`allEntries()`, the CSV's rows) plus the best itself. Lazy: built only while a screen reads it (the section is
+   * closed by default), and again on the shortlist's beat (`topBeat`) or when the best moves. Never re-searches.
+   */
+  const topBeat = ref(0);
+  const topPricedRoutes = computed<PricedRoute[]>(() => {
+    void topBeat.value;
+    const start = resultsPlanStart();
+    const target = finalTE.value;
+    const routes: PricedRoute[] = [];
+    for (const e of allEntries()) {
+      if (!(e.seconds > 0)) continue;
+      const chain = e.key.split(',').map(Number);
+      if (chain[chain.length - 1] !== target) continue;
+      routes.push({ chain, finish: start + e.seconds, hasLegs: e.legs.length > 0 });
+    }
+    if (bestChain.value.length && bestDays.value > 0 && bestChain.value[bestChain.value.length - 1] === target) {
+      routes.push({ chain: [...bestChain.value], finish: start + bestDays.value * 86400, hasLegs: bestLegs.value.length > 0 });
+    }
+    return keptForTop(routes, 'fastest');
+  });
 
   /** Which preset view the runners-up table is showing. Persisted for the session only: it is a
    *  way of looking at one run's results, not a setting that should outlive the run. */
@@ -3423,7 +3604,117 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * still holding detail. The kept set is the FASTEST ones, which is what that table shows, so in
    * practice the loss lands on chains nobody was going to open.
    */
-  const legDetailBudget = ref(DEFAULT_LEG_DETAIL_BUDGET);
+  // Remembered per browser (QA 26 Oct: a reload put it back to the default, and a carried-on run ran with it).
+  const legDetailBudget = ref(readLegDetailBudget(browserStorage()) ?? DEFAULT_LEG_DETAIL_BUDGET);
+  watch(legDetailBudget, n => writeLegDetailBudget(browserStorage(), Number(n)));
+
+  /**
+   * EVERY ROUTE'S LEGS ON DISK (search/legSpill.ts; Jordan, 26 Oct 2026). With a spill the platform sets
+   * (the CLI's file; the page's later), each priced route's legs are written to it before the budget
+   * above drops them, and the DOWNLOADED file (`streamFullCsv`) has every route's detail. Uploads keep
+   * their rule: legs for the top DEADLINE_LEG_ROUTES. Null: no spill, every file as before.
+   */
+  /** One a screen: the page can run Fastest and By a date at once. */
+  const legSpills: Record<'fastest' | 'deadline', LegSpill | null> = { fastest: null, deadline: null };
+  /** Entries already written to Fastest's spill (a re-priced route is a new entry, written again). */
+  let spilled = new WeakSet<CacheEntry>();
+  /** `kind` omitted: both (the CLI runs one search a process). */
+  function setLegSpill(s: LegSpill | null, kind?: 'fastest' | 'deadline'): void {
+    if (kind !== 'deadline') {
+      legSpills.fastest = s;
+      legSpillSet.fastest = !!s;
+      spilled = new WeakSet();
+    }
+    if (kind !== 'fastest') {
+      legSpills.deadline = s;
+      legSpillSet.deadline = !!s;
+    }
+  }
+  function spillNew(entries: readonly CacheEntry[]): void {
+    const spill = legSpills.fastest;
+    if (!spill) return;
+    for (const e of entries)
+      if (e.legs.length && !spilled.has(e)) {
+        spill.put(e.key, e.legs);
+        spilled.add(e);
+      }
+  }
+  /** A run's start: the spill cut back to its checkpoint's length (0: a fresh run) and its index rebuilt. */
+  /**
+   * How the page opens a screen's spill when a run starts (lib/legSpillOpfs.ts: an OPFS file per account
+   * and screen, null where the browser has none: then no spill, every file as before). The CLI sets its
+   * spill directly instead (it has no OPFS; `openPageLegSpill` answers null there).
+   */
+  let openLegSpill: ((kind: 'fastest' | 'deadline', partition: string, timezone: string) => Promise<LegSpill | null>) | null =
+    openPageLegSpill;
+  /** A spill set directly (the CLI's): kept as it is, never replaced by the opener. */
+  const legSpillSet: Record<'fastest' | 'deadline', boolean> = { fastest: false, deadline: false };
+  /** The account each screen's open spill is for: another account's run opens its own. */
+  const legSpillFor: Record<'fastest' | 'deadline', string> = { fastest: '', deadline: '' };
+  function setLegSpillOpener(open: typeof openLegSpill): void {
+    openLegSpill = open;
+  }
+  /** A finished Fastest run after a reload: its spill opened again at the checkpoint's length, for the
+   *  full download. Null when there is none (no disk, or a run from before spills). */
+  async function reopenFastestSpill(): Promise<LegSpill | null> {
+    const cp = resumable.value;
+    if (!openLegSpill || legSpillSet.fastest || !cp?.spillBytes || allEntries().length) return null;
+    const spill = await openLegSpill('fastest', partitionHash, planTimezone()).catch(() => null);
+    if (!spill) return null;
+    await spill.restore(cp.spillBytes).catch(() => null);
+    legSpills.fastest = spill;
+    legSpillFor.fastest = partitionHash;
+    return spill;
+  }
+  /** The last run's spill as Setup > Memory shows it (refreshed on the shortlist's beat and By a date's
+   *  progress): routes on disk, bytes, and why storing stopped (disk full). Null: no spill. */
+  const legSpillInfo = ref<SpillInfo | null>(null);
+  /** What each screen's spill holds, for Setup > Memory: routes, bytes, and why it stopped (disk full). */
+  function legSpillStatus(kind: 'fastest' | 'deadline'): { routes: number; bytes: number; stopped: string | null } | null {
+    const s = legSpills[kind];
+    return s ? { routes: s.count, bytes: s.bytes, stopped: s.stopped } : null;
+  }
+  /**
+   * Whether a screen's CSV download (`streamFullCsv`) has every priced route's per-ascension detail: its spill
+   * is open and stored them all (not stopped by a full disk), and for By a date its own finished run's list of
+   * every route. Else the top routes' detail (the card's button says which, components/auto/csvButton.ts). A
+   * Fastest run carried over a reload says top routes, though its spill may reopen at the click.
+   */
+  function csvHasEveryRoute(kind: 'fastest' | 'deadline'): boolean {
+    // Read so a template showing this follows a run (the spill is set before either changes).
+    if (kind === 'fastest') {
+      void isRunning.value;
+      void csvRows.value;
+      const s = legSpills.fastest;
+      return !!s && !s.stopped;
+    }
+    void deadlineResult.value;
+    const s = legSpills.deadline;
+    return !!s && !s.stopped && deadlineAll.length > 0 && !!deadlineAllPriced;
+  }
+  /** Write what is new and make the spill durable; its length, for the checkpoint. */
+  async function commitSpill(entries: readonly CacheEntry[]): Promise<number> {
+    spillNew(entries);
+    return legSpills.fastest ? legSpills.fastest.commit() : 0;
+  }
+  async function restoreLegSpill(kind: 'fastest' | 'deadline', bytes: number | undefined): Promise<void> {
+    if (kind === 'fastest') spilled = new WeakSet();
+    // The page's: the account's own file, opened at its first run (the CLI sets its spill itself).
+    if (openLegSpill && !legSpillSet[kind] && partitionHash && legSpillFor[kind] !== partitionHash) {
+      await legSpills[kind]?.close().catch(() => {});
+      legSpills[kind] = await openLegSpill(kind, partitionHash, planTimezone()).catch(() => null);
+      legSpillFor[kind] = partitionHash;
+      // No spill here: Setup > Memory says why (no OPFS, another tab holds the file).
+      if (!legSpills[kind]) legSpillInfo.value = { routes: 0, bytes: 0, stopped: null, unavailable: lastSpillOpenFailure() ?? 'error' };
+    }
+    const spill = legSpills[kind];
+    if (!spill) return;
+    try {
+      await spill.restore(bytes ?? 0);
+    } catch (e) {
+      console.warn('chain search: could not reopen the leg spill', e);
+    }
+  }
 
   /** Chains currently holding per-leg detail, and a measured estimate of what that costs. */
   const legsHeld = ref(0);
@@ -3441,6 +3732,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   function pruneLegDetail(): void {
     const entries = [...liveCache, ...coarseCache];
+    // Every route's legs to disk first (when the run has a spill), so the budget drops only memory's copy.
+    spillNew(entries);
+    if (legSpills.fastest) {
+      legSpills.fastest.flush();
+      legSpillInfo.value = legSpillStatus('fastest');
+    }
     const { held } = applyLegBudget(entries, legDetailBudget.value);
     legsHeld.value = held;
     legDetailBytes.value = estimateLegBytes(entries, held);
@@ -3464,6 +3761,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     let priced = 0;
     for (const e of entries) if (e.seconds > 0) priced++;
     pricedCount.value = priced;
+    topBeat.value++;
     if (chartLive()) {
       heat.value = heatSnapshot(heatGrid);
       // Past the limit, no point list unless asked for: dropping it frees the old copy too.
@@ -3541,13 +3839,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    */
   const saveAgeNote = computed(() => {
     const iss = useInitialStateStore();
-    const farm = iss.currentFarmState as { lastStepTime?: number; numSilos?: number } | null;
-    const approx = (iss.rawBackup as { approxTime?: number } | null)?.approxTime;
+    // The save's farm while the stores hold a Manual plan (search/saveStart.ts), never the plan's.
+    const kept = saveStartNow();
+    const farm = (kept ? kept.currentFarmState : iss.currentFarmState) as { lastStepTime?: number; numSilos?: number } | null;
+    const approx = kept ? kept.approxTime : (iss.rawBackup as { approxTime?: number } | null)?.approxTime;
     const sync = farm?.lastStepTime && farm.lastStepTime > 1e9 ? farm.lastStepTime : (approx ?? null);
     return describeSaveAge(
       sync,
       planStart.value,
-      siloSeconds(farm?.numSilos, iss.epicResearchLevels?.['silo_capacity']),
+      siloSeconds(farm?.numSilos, kept ? kept.siloLevel : iss.epicResearchLevels?.['silo_capacity']),
       !!farm
     );
   });
@@ -4122,6 +4422,70 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return clean && clean !== (rec.nickname ?? '') ? clean : '';
   }
 
+  // ------------------------------------------------------------------------- already on the board, on load
+  //
+  // A result this browser already put on the Leaderboard is said so before Send is pressed (Jordan, 27 Oct
+  // 2026: By a date offered "Send 313 TE by this date" for a run already there, and only the press said so).
+  // By a date's sends are not remembered in this browser (`rememberSent` is Fastest's and Light's), and a
+  // kept result can land without its copy being dropped, so the account's own rows are read: GET /mine with
+  // this browser's code (search/sentOnBoard.ts compares them as the collector does). Read once per account
+  // and visit, and again after a send; never with no code (none is minted here). Not read, nothing changes.
+
+  /** The account's rows sent with this browser's code, or null until read (or unreadable). */
+  const mineRows = ref<BoardRow[] | null>(null);
+  /** The partition `mineRows` was read for ('' for none yet, or to read again). */
+  let mineFor = '';
+  let mineLoad: Promise<void> | null = null;
+  async function loadMineRows(): Promise<void> {
+    if (!submitUrl) return;
+    const partition = await accountPartition();
+    if (!partition) return;
+    if (mineFor === partition) return mineLoad ?? undefined;
+    if (mineFor) mineRows.value = null;
+    mineFor = partition;
+    const token = existingOwnerToken(partition);
+    if (!token) return;
+    const load = fetchMineRows(submitUrl.replace(/\/submit\/?$/, ''), token).then(rows => {
+      if (mineFor === partition && rows) mineRows.value = rows;
+    });
+    mineLoad = load.finally(() => {
+      if (mineLoad === load) mineLoad = null;
+    });
+    return mineLoad;
+  }
+  /** Rows that could be this result: this browser's, the same route and time. Cheap, before a payload is built. */
+  function mineLike(chain: readonly number[], days: number): boolean {
+    const d = Math.round(days * 1e4);
+    const c = chain.join(' ');
+    return !!mineRows.value?.some(
+      r => r.yours === true && (r.chain ?? []).join(' ') === c && Math.round((r.durationDays ?? NaN) * 1e4) === d
+    );
+  }
+  /** Fastest's result on screen, when its row is already on the board. */
+  const fastestOnBoard = computed<BoardRow | null>(() => {
+    if (!mineRows.value || isRunning.value || !(bestDays.value > 0) || !mineLike(bestChain.value, bestDays.value))
+      return null;
+    try {
+      return sentRowFor(buildRunSubmission(''), mineRows.value);
+    } catch {
+      return null;
+    }
+  });
+  /** By a date's `route` (of the result on screen), when its row is already on the board. */
+  function deadlineOnBoard(route: DeadlineRoute | null): BoardRow | null {
+    const r = deadlineResult.value;
+    if (!route || !r || !mineRows.value || !mineLike(route.chain, (route.reachAt - r.planStart) / 86400)) return null;
+    try {
+      return sentRowFor(buildDeadlineSubmission(route, ''), mineRows.value);
+    } catch {
+      return null;
+    }
+  }
+  /** A kept result (Send it now) whose row is already on the board. */
+  function pendingOnBoard(p: PendingSend): BoardRow | null {
+    return sentRowFor(p.payload, mineRows.value);
+  }
+
   // ------------------------------------------------------------------------- re-checks
   //
   // Schema 7's `rechecks` (search/rechecks.ts has the why): the player's best three current plans
@@ -4411,6 +4775,20 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return timing ? { ...payload, timing } : payload;
   }
 
+  /**
+   * "Share my instant baseline with my runs" (lib/instantBaseline.ts): the instant answer logged in this browser for
+   * the run's goal and save, added to the row. Nothing when the box isn't ticked or no baseline is logged.
+   */
+  function withBaseline(payload: Submission): Submission {
+    if (payload.baseline || !consentAgreed('shareBaseline')) return payload;
+    const e = findBaseline(readBaselines(), {
+      account: accountOf(useInitialStateStore().rawBackup) || null,
+      goal: rowGoalWords(payload),
+      backupTime: rowBackupTime(payload),
+    });
+    return e ? { ...payload, baseline: rowBaselineOf(e) } : payload;
+  }
+
   async function sendSubmission(
     payload: Submission,
     /**
@@ -4449,7 +4827,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
      *  left unsent), `message` says so with the code to quote, and `id` is that code. */
     quarantined?: boolean;
   }> {
-    if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    if (!submitUrl) return { ok: false, message: "the planner's server is not configured" };
+    // The instant baseline, when the player shares it (never for a result sent from a file: another save's).
+    if (!saved) payload = withBaseline(payload);
     // A payload whose start contradicts its own save is never sent, from any screen or the command
     // line: the board would file it under a TE the route was not priced from.
     const contradiction = startContradictsSave(payload);
@@ -4592,7 +4972,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           const wait = Math.max(1, detail.retryAfter ?? 3600);
           return {
             ok: false,
-            message: `the board takes at most 48 progress sends a day from one account; more after midnight UTC, in ${aboutIn(wait * 1000)}.`,
+            message: `the Leaderboard takes at most 48 progress sends a day from one account; more after midnight UTC, in ${aboutIn(wait * 1000)}.`,
             tooSoon: true,
             dailyCap: true,
             retryAfter: wait,
@@ -4610,7 +4990,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         }
         if (res.status === 429) return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter) };
         const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : '';
-        return { ok: false, message: `collector said ${res.status}${why}` };
+        return { ok: false, message: `the planner's server said ${res.status}${why}` };
       }
       reply = ((await res.json().catch(() => ({}))) ?? {}) as SubmitReply;
     } catch {
@@ -4621,8 +5001,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message: ctrl.signal.aborted
-          ? `the board didn't answer within ${Math.round(SUBMIT_TIMEOUT_MS / 1000)} seconds. Your results are still here; press it again in a while.`
-          : 'could not reach the collector (check your connection). Your results are still here. Press Submit again once you are back online, or use Save the file instead to keep a copy.',
+          ? `the Leaderboard didn't answer within ${Math.round(SUBMIT_TIMEOUT_MS / 1000)} seconds. Your results are still here; press it again in a while.`
+          : "could not reach the planner's server (check your connection). Your results are still here. Press Submit again once you are back online, or use Save the file instead to keep a copy.",
       };
     } finally {
       clearTimeout(answerTimer);
@@ -4655,8 +5035,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!provisional && payload.replaces) markProvisionalDone(payload.replaces);
     if (!provisional && payload.replaces && provisionalRows.value[kind]?.id === payload.replaces)
       setProvisional(kind, null);
-    // The board has a new row of this account's: the next run's rechecks should see it.
+    // The board has a new row of this account's: the next run's rechecks should see it, and so should the
+    // next "already on the board" (`loadMineRows` reads again).
     recheckFetch = null;
+    mineFor = '';
 
     // Said with every success message, because a run that went to the flagged board will not appear
     // on the main one, and without this it looks lost.
@@ -4665,11 +5047,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         ? ' It replaced the best so far you sent before.'
         : ' It replaced the best so far you sent during the run.'
       : reply.replaceRefused
-        ? ` The best so far you sent earlier is still on the board (${reply.replaceRefused}).`
+        ? ` The best so far you sent earlier is still on the Leaderboard (${reply.replaceRefused}).`
         : '';
     const note =
       (flagged?.length
-        ? ` It went to the flagged board (${flagged.join(', ')}), shown anonymously; the Route Explorer shows it to you as yours in this browser.`
+        ? ` It went to the flagged Leaderboard (${flagged.join(', ')}), shown anonymously; Insights shows it to you as yours in this browser.`
         : '') + replacedNote;
     // A copy the collector caught is said as a plain note, not an error and not a thank-you for
     // something that stored nothing (see `duplicateMessage`).
@@ -4695,7 +5077,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (duplicate === 'exact' && !uploadToken) return done(lead + note);
     if (!id) return done(`${lead} (no id came back, so the CSV was skipped)${note}`);
     // The collector only accepts a CSV carrying the token its /submit answer signed for this id.
-    if (!uploadToken) return done(`${lead} (the collector does not take CSVs, so it was skipped)${note}`);
+    if (!uploadToken) return done(`${lead} (the planner's server does not take CSVs, so it was skipped)${note}`);
     // A table's outcome is written to follow "sent". A result from another search IS a send, so it
     // reads on from that lead; for a result already on the board it is what happened to THAT row's
     // missing table ("its missing CSV was added"), never "nothing new stored - sent, with the CSV".
@@ -4720,13 +5102,26 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         token: uploadToken,
         body,
       };
+      // A very large run's final send: its full CSV goes to the collector's private store too, with this
+      // row's token (search/bigCsvUpload.ts). Not for a result sent from a file, nor a light send.
+      if (!saved && !provisional && Number((payload as { chainsPriced?: number }).chainsPriced) > BIG_CSV_MIN_ROUTES)
+        bigCsvRow = { kind: deadlineSend ? 'deadline' : 'fastest', id, token: uploadToken };
     } catch {
       return done(
         withTable({ message: 'sent, but the table could not be compressed in this browser, so it was skipped' }) + note
       );
     }
     const table = await postTable();
-    return { ok: table.ok, message: withTable(table) + note, ...(duplicate ? { duplicate } : {}), id };
+    // The page sends the full CSV in the background (the result is in already); the CLI awaits it itself.
+    if (bigCsvRow && bigCsvAuto) void sendFullCsv();
+    return {
+      ok: table.ok,
+      message: withTable(table) + note,
+      ...(duplicate ? { duplicate } : {}),
+      id,
+      // A result sent from a file (the CLI's submit --from): the row's final token, for its full CSV upload.
+      ...(saved && !saved.light ? { uploadToken } : {}),
+    };
   }
 
   /**
@@ -4830,9 +5225,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       case 'too-big':
         return { kind: 'too-big', bytes };
       case 'no-parts':
-        return { kind: 'failed', why: `the board doesn't take a CSV over ${sizeLabel(CSV_PART_BYTES)} yet` };
+        return { kind: 'failed', why: `the Leaderboard doesn't take a CSV over ${sizeLabel(CSV_PART_BYTES)} yet` };
       case 'refused':
-        return { kind: 'failed', why: 'the board answered 403' };
+        return { kind: 'failed', why: 'the Leaderboard answered 403' };
       default:
         return { kind: 'failed', why: up.why };
     }
@@ -4967,7 +5362,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const p = runProgress.value;
     if (bestSoFarSending.value) return { ok: false, text: 'Already sending.' };
     if (!run) return say(false, 'This run cannot send its best so far.');
-    if (!run.consent) return say(false, 'Not sent: tick the box under Find to agree first.');
+    if (!run.consent) return say(false, 'Not sent: tick the box under Run to agree first.');
     if (!p?.best || (p.kind === 'by-date') !== (run.kind === 'deadline'))
       return say(false, 'Nothing found yet to send.');
     // One every 30 minutes (BEST_SO_FAR_GAP_MS): each send costs the collector several KV writes.
@@ -5048,7 +5443,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const evidence = csv.kind === 'sent' ? ` Its CSV so far (${sizeLabel(csv.bytes)}) was stored with it.` : '';
         return say(false, `${res.message}${evidence}`, { quarantined: true });
       }
-      const flaggedNote = /flagged board/.test(res.message) ? ' It went to the flagged board.' : '';
+      const flaggedNote = /flagged (board|Leaderboard)/i.test(res.message) ? ' It went to the flagged Leaderboard.' : '';
       const as = payload.nickname ? ` as ${payload.nickname}` : ' anonymously';
       const carried = [
         csv.kind === 'sent' ? `the CSV so far (${sizeLabel(csv.bytes)})` : '',
@@ -5126,17 +5521,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         const intent = deadlineSubmitIntent();
         if (intent)
           consent = { nickname: intent.nickname, sendCsv: intent.sendCsv, sendDiagnostics: intent.sendDiagnostics };
-        for (const legRoutes of [DEADLINE_LEG_ROUTES, Math.floor(DEADLINE_LEG_ROUTES / 4), 0]) {
-          const out = await gzipChunksCapped(
-            deadlineCsvChunksNow({ legRoutes }),
-            TABLE_LIMIT_BYTES,
-            scrubIdentifiers
-          ).catch(() => null);
-          if (out?.ok) {
-            gz = out.body;
-            break;
-          }
-        }
+        gz = (await deadlineUploadGz()) ?? undefined;
       } else {
         if (!(bestDays.value > 0)) return;
         key = safeResultKey();
@@ -5154,8 +5539,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             sendCsv: extras.sendCsv.value,
             sendDiagnostics: extras.sendDiagnostics.value,
           };
-        const out = await gzipChunksCapped(exportCsvChunks(), TABLE_LIMIT_BYTES, scrubIdentifiers).catch(() => null);
-        if (out?.ok) gz = out.body;
+        const table = await fastestUploadCsv().catch(() => null);
+        if (table && 'gz' in table) gz = table.gz;
+        else if (table) {
+          const out = await gzipChunksCapped(table, TABLE_LIMIT_BYTES, scrubIdentifiers).catch(() => null);
+          if (out?.ok) gz = out.body;
+        }
       }
       if (!payload || !key) return;
       // The run's own diagnostics, as they are now, for a send after a reload (bounded in size).
@@ -5268,6 +5657,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * The workers are gone by now and the instant answer is kept asleep (`beginResultSend`); the CSV is
    * the kept one when the run kept it, else streamed into gzip. Never throws.
    */
+  /**
+   * This Fastest result with its re-checks, for a send later from a file (the command line's --out
+   * submission.json, sent by `fastsearch submit --from`), as `sendSubmission` adds them to this run's send now.
+   */
+  async function withRechecks(payload: Submission): Promise<Submission> {
+    if (payload.rechecks?.length || payload.provisional) return payload;
+    const named = !!payload.nickname?.trim();
+    const rechecks =
+      rechecksFor(safeResultKey(), named) ?? (await computeRechecks(RECHECK_BUDGET_MS))[named ? 'named' : 'anonymous'];
+    return rechecks.length ? { ...payload, rechecks } : payload;
+  }
+
   async function sendDeadlineAnswer(o: {
     route: DeadlineRoute;
     nickname: string;
@@ -5313,11 +5714,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   }): Promise<{ ok: boolean; message: string; duplicate?: 'exact' | 'result'; quarantined?: boolean }> {
     try {
       if (lightSent(o.result))
-        return { ok: true, duplicate: 'exact', message: 'Already on the board: this result was sent from this browser.' };
+        return { ok: true, duplicate: 'exact', message: 'Already on the Leaderboard: this result was sent from this browser.' };
       let payload = buildLightSubmission(o.result, o.nickname, o.note);
       if (!payload) return { ok: false, message: 'Nothing to send yet.' };
       const problems = validateSubmission(payload);
-      if (problems.length) return { ok: false, message: `this result can't go on the board (${problems.join('; ')}).` };
+      if (problems.length) return { ok: false, message: `this result can't go on the Leaderboard (${problems.join('; ')}).` };
       if (o.diagnostics) {
         try {
           const parsed = JSON.parse(
@@ -5362,7 +5763,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * so nobody can put their name on another player's run. Resolves to a message; never throws.
    */
   async function claimName(id: string, nickname: string): Promise<{ ok: boolean; message: string }> {
-    if (!submitUrl) return { ok: false, message: 'no collector configured' };
+    if (!submitUrl) return { ok: false, message: "the planner's server is not configured" };
     const name = cleanName(nickname);
     if (!name) return { ok: false, message: 'type the name to put on it first.' };
     const partition = await accountPartition();
@@ -5371,7 +5772,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message:
-          'this browser has no code for the account, so it cannot show the collector the run is yours (it was sent from another browser, or site data was cleared).',
+          "this browser has no code for the account, so it cannot show the planner's server the run is yours (it was sent from another browser, or site data was cleared).",
       };
     }
     let res: Response;
@@ -5385,7 +5786,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message:
-          'could not reach the collector (check your connection). Nothing changed. Try again once you are back online.',
+          "could not reach the planner's server (check your connection). Nothing changed. Try again once you are back online.",
       };
     }
     if (res.ok) {
@@ -5411,7 +5812,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return {
         ok: false,
         message:
-          "the board would not rename it: it was not stored with this browser's code for the account (sent from another browser, or before codes existed).",
+          "the Leaderboard would not rename it: it was not stored with this browser's code for the account (sent from another browser, or before codes existed).",
       };
     }
     if (res.status === 404) {
@@ -5422,15 +5823,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       if (age >= 0 && age < CLAIM_CATCH_UP_MS) {
         return {
           ok: false,
-          message: 'the board has not caught up with that send yet. Nothing is lost. Try again in a minute.',
+          message: 'the Leaderboard has not caught up with that send yet. Nothing is lost. Try again in a minute.',
         };
       }
-      return { ok: false, message: 'the board does not have that run (or this collector cannot rename runs yet).' };
+      return { ok: false, message: "the Leaderboard does not have that run (or the planner's server cannot rename runs yet)." };
     }
     if (res.status === 429)
       return { ok: false, message: tooManySubmissionsMessage(detail.retryAfter).replace('press Submit', 'press it') };
     const why = detail.problems?.length ? `: ${detail.problems.join('; ')}` : detail.error ? `: ${detail.error}` : '';
-    return { ok: false, message: `collector said ${res.status}${why}` };
+    return { ok: false, message: `the planner's server said ${res.status}${why}` };
   }
 
   /**
@@ -5505,7 +5906,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // A collector from before parts: nothing was stored, and the token stays good for when it is updated.
       return {
         ok: true,
-        message: `sent, but the board doesn't take a table over ${sizeLabel(CSV_PART_BYTES)} yet (${mb} compressed). The summary is in. Keep the table with Download CSV; Retry the table works once the board is updated.`,
+        message: `sent, but the Leaderboard doesn't take a table over ${sizeLabel(CSV_PART_BYTES)} yet (${mb} compressed). The summary is in. Keep the table with Download CSV; Retry the table works once the Leaderboard is updated.`,
       };
     }
     if (up.kind === 'already') {
@@ -5762,6 +6163,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * through one giant string.
    */
   function* exportCsvChunks(opts: { partial?: CsvMeta['partial'] } = {}): Generator<string> {
+    const { entries, meta } = fastestCsvInput(opts);
+    yield* chainsCsvChunks(entries, meta);
+  }
+
+  /** What the chain-search CSV is written from: the run's entries and the meta block (one source for
+   *  every way the file is written). */
+  function fastestCsvInput(opts: { partial?: CsvMeta['partial'] } = {}): { entries: CacheEntry[]; meta: CsvMeta } {
     const own = allEntries();
     const entries = own.length ? own : resumable.value ? restoreEntries(resumable.value) : [];
     // The entries' own start: the stored checkpoint's when they are its.
@@ -5773,7 +6181,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       | ReturnType<typeof getSimulationContext>['rawBackup']
       | null;
     const equipped = raw ? getArtifactLoadoutFromBackup(raw) : null;
-    yield* chainsCsvChunks(entries, {
+    const meta: CsvMeta = {
       ...(opts.partial ? { partial: opts.partial } : {}),
       planStart: csvStart,
       timezone: useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -5796,7 +6204,159 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         { label: 'equipped in the backup', loadout: equipped },
         { label: 'best earnings set available', loadout: raw ? getOptimalEarningsSet(raw) : null },
       ],
-    });
+    };
+    return { entries, meta };
+  }
+
+  /**
+   * THE FULL CSV, streamed: the one function a full-detail download or a later uploader to other storage
+   * reads (Jordan, 26 Oct 2026). With the run's leg spill, every route's legs (`legRoutes`: only the top
+   * that many, for an upload to our collector, which keeps that rule); without one, the file as before.
+   * `kind`: the last Fastest run, or the last By a date run (then `legRoutes` caps only its kept routes'
+   * section; the every-route section is the full file's, so a By a date upload keeps
+   * `deadlineCsvChunksNow`). Text chunks; the caller gzips them
+   * (CompressionStream on the page, zlib in the CLI).
+   */
+  async function* streamFullCsv(
+    kind: 'fastest' | 'deadline',
+    opts: { legRoutes?: number; partial?: CsvMeta['partial'] } = {}
+  ): AsyncGenerator<string> {
+    if (kind === 'fastest') {
+      // A run just started has emptied its spill but priced nothing: the file would be the last run's
+      // checkpoint without its legs (QA 26 Oct). Say so instead.
+      const stale = staleDownloadReason({ ownRoutes: allEntries().length, running: isRunning.value });
+      if (stale) throw new Error(stale);
+      const { entries, meta } = fastestCsvInput(opts);
+      const spill = legSpills.fastest ?? (await reopenFastestSpill());
+      if (!spill) {
+        yield* chainsCsvChunks(entries, meta);
+        return;
+      }
+      spillNew(entries);
+      // The spill's cells are in the timezone the run had: the file says that one.
+      yield* chainsCsvChunksFull(entries, { ...meta, timezone: spill.timezone }, spill, opts.legRoutes ?? Infinity);
+      return;
+    }
+    const r = deadlineResult.value;
+    if (!r) return;
+    const spill = legSpills.deadline;
+    if (!spill || !deadlineAll.length || !deadlineAllPriced) {
+      yield* deadlineCsvChunksNow(opts.legRoutes !== undefined ? { legRoutes: opts.legRoutes } : {});
+      return;
+    }
+    yield* deadlineCsvChunksFull(
+      deadlineAll,
+      { ...deadlineCsvMeta(r, r.ceiling ?? r.lastHi), timezone: spill.timezone },
+      {
+        deadline: r.deadline,
+        priced: r.priced,
+        stoppedEarly: r.stoppedEarly,
+        ascendNeeded: r.ascendNeeded,
+        all: deadlineAllPriced,
+        ...(deadlineKept ? { kept: deadlineKept } : {}),
+      },
+      spill,
+      opts.legRoutes ?? DEADLINE_LEG_ROUTES
+    );
+  }
+
+  /**
+   * The Fastest table a send uploads: legs for the top DEADLINE_LEG_ROUTES routes (By a date's rule), from
+   * the run's leg spill where memory let them go, gzipped and scrubbed; fewer (a quarter, then none) when
+   * that is over the collector's limit. Without a spill, the file as it always was (memory's detail).
+   */
+  async function fastestUploadCsv(): Promise<Iterable<string> | { gz: ArrayBuffer }> {
+    const spill = legSpills.fastest ?? (await reopenFastestSpill());
+    if (!spill) return exportCsvChunks();
+    for (const legRoutes of [DEADLINE_LEG_ROUTES, Math.floor(DEADLINE_LEG_ROUTES / 4), 0]) {
+      const out = await gzipChunksCapped(streamFullCsv('fastest', { legRoutes }), TABLE_LIMIT_BYTES, scrubIdentifiers);
+      if (out.ok) return { gz: out.body };
+    }
+    return exportCsvChunks();
+  }
+
+  /**
+   * The By a date table a kept send or the CLI's run.csv.gz uploads: legs for the top DEADLINE_LEG_ROUTES routes,
+   * then a quarter of them, then none, until the gzip fits the collector's limit; null when even that is over.
+   */
+  async function deadlineUploadGz(): Promise<ArrayBuffer | null> {
+    for (const legRoutes of [DEADLINE_LEG_ROUTES, Math.floor(DEADLINE_LEG_ROUTES / 4), 0]) {
+      const out = await gzipChunksCapped(deadlineCsvChunksNow({ legRoutes }), TABLE_LIMIT_BYTES, scrubIdentifiers).catch(
+        () => null
+      );
+      if (out?.ok) return out.body;
+    }
+    return null;
+  }
+
+  // ------------------------------------------------------------------ the full CSV to the private store
+  /** The last final send of a run over BIG_CSV_MIN_ROUTES: its row and FINAL upload token (memory only). */
+  let bigCsvRow: { kind: 'fastest' | 'deadline'; id: string; token: string } | null = null;
+  /** The page starts the upload by itself after the send; the command line awaits `sendFullCsv`. */
+  let bigCsvAuto = true;
+  /** Where the gzipped file is made: the page's OPFS (lib/legSpillOpfs.ts), the CLI's file. */
+  let bigCsvSinkOf: () => Promise<BigCsvSink | null> = openBigCsvSink;
+  function setBigCsvPlatform(o: { sink: () => Promise<BigCsvSink | null>; auto: boolean }): void {
+    bigCsvSinkOf = o.sink;
+    bigCsvAuto = o.auto;
+  }
+  /** How the full CSV's upload stands, for the panel. */
+  const bigCsvState = ref<{
+    state: 'building' | 'uploading' | 'done' | 'failed' | 'stopped';
+    done: number;
+    total: number;
+    /** Kept: the size the collector has, as the line says it (the download button gives the same). */
+    bytes?: number;
+    message: string;
+  } | null>(null);
+  let bigCsvBusy: Promise<BigCsvOutcome | null> | null = null;
+  /**
+   * The full CSV (store `streamFullCsv`, every route's legs, scrubbed) of the last big run sent, gzipped into the
+   * platform's file and uploaded to the collector's private store, resuming an open upload. Null: nothing to send
+   * (no big run sent, or no disk for the file). One at a time.
+   */
+  function sendFullCsv(): Promise<BigCsvOutcome | null> {
+    if (bigCsvBusy) return bigCsvBusy;
+    const row = bigCsvRow;
+    if (!row || !submitUrl) return Promise.resolve(null);
+    bigCsvBusy = (async () => {
+      try {
+        const sink = await bigCsvSinkOf();
+        if (!sink) return null;
+        bigCsvState.value = { state: 'building', done: 0, total: 0, message: 'Making the full CSV...' };
+        const source = await gzipCsvTo(streamFullCsv(row.kind), sink, scrubIdentifiers, n => {
+          if (bigCsvState.value) bigCsvState.value = { ...bigCsvState.value, done: n };
+        });
+        bigCsvState.value = { state: 'uploading', done: 0, total: source.size, message: 'Uploading the full CSV...' };
+        const out = await uploadBigCsv({
+          base: submitUrl.replace(/\/submit\/?$/, ''),
+          id: row.id,
+          token: row.token,
+          source,
+          onProgress: (done, total) => {
+            bigCsvState.value = { state: 'uploading', done, total, message: 'Uploading the full CSV...' };
+          },
+        });
+        bigCsvState.value =
+          out.kind === 'unavailable'
+            ? null
+            : {
+                state: out.kind === 'kept' ? 'done' : out.kind === 'stopped' ? 'stopped' : 'failed',
+                done: source.size,
+                total: source.size,
+                ...(out.kind === 'kept' ? { bytes: out.bytes } : {}),
+                message: bigCsvMessage(out),
+              };
+        if (out.kind === 'kept' || out.kind === 'unavailable' || out.kind === 'refused') bigCsvRow = null;
+        return out;
+      } catch (e) {
+        bigCsvState.value = { state: 'failed', done: 0, total: 0, message: bigCsvMessage({ kind: 'failed', why: plainError(e) }) };
+        return { kind: 'failed', why: plainError(e) } as BigCsvOutcome;
+      } finally {
+        bigCsvBusy = null;
+      }
+    })();
+    return bigCsvBusy;
   }
 
   /** Suggested filename, so two exports from different runs do not collide in Downloads. */
@@ -5860,6 +6420,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           queue: searchSpace.value ? queueRecord(false) : null,
           // A staged run's limits, so a carry-on searches under them (they follow the instant answer).
           limits: searchSpace.value ? null : { min: runLimits.min, max: runLimits.max },
+          // The spill made durable first, so the checkpoint never claims more than is on disk.
+          ...(legSpills.fastest ? { spillBytes: await commitSpill(entries) } : {}),
         })
       );
       return true;
@@ -5944,7 +6506,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         return {
           chains: [],
           error:
-            'No routes: the bands leave nothing strictly increasing once the minimum gap and your current TE are applied.',
+            'No routes: the ranges leave nothing strictly increasing once the minimum gap and your current TE are applied.',
         };
       }
       return { chains, error: null };
@@ -6028,7 +6590,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chainsDone.value = 0;
     chainsReplayed.value = 0;
     runLog.value = spec.bands?.length
-      ? [`--- exhaustive: ${spec.bands.length} bands, ${spec.bands.length + 1} ascensions`]
+      ? [`--- exhaustive: ${spec.bands.length} ranges, ${spec.bands.length + 1} ascensions`]
       : [`--- exhaustive: ${spec.minAsc}-${spec.maxAsc} ascensions`];
     if (minGap) runLog.value.push(`minimum gap ${minGap} TE between stops`);
     runLog.value.push(`${chains.length.toLocaleString()} routes, no pruning`);
@@ -6097,6 +6659,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runTEUsed = startInputs.currentTE;
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
+    chainRunSaveAt.value = backupSecondsOf(runBackupUsed);
     runSeedUsed = [];
     runCounts.value = null;
     chainsEstimated.value = chains.length;
@@ -6120,9 +6683,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       partitionHash = await hashID(playerId);
       const saved = await loadCheckpoint(partitionHash, runFingerprint);
-      if (saved && (!saved.inputsKey || saved.inputsKey === startKey)) {
-        for (const e of restoreEntries(saved)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
+      const carry = !!saved && (!saved.inputsKey || saved.inputsKey === startKey);
+      if (carry) {
+        for (const e of restoreEntries(saved!)) if (e.seconds > 0) alreadyPriced.set(e.key, e);
       }
+      await restoreLegSpill('fastest', carry ? saved!.spillBytes : 0);
     } catch (e) {
       console.warn('chain search: could not prepare storage', e);
     }
@@ -6162,7 +6727,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (blocking.length || moved) {
       error.value = blocking.length
         ? blocking[0].message
-        : 'Your plan start or settings changed while the run was starting. Check them, then press Start again.';
+        : 'Your plan start or settings changed while the run was starting. Check them, then press Run.';
       errorBeforeStart.value = true;
       isRunning.value = false;
       stage.value = 'idle';
@@ -6274,13 +6839,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         : 'failed';
       if (options.recheck && !stopRequested.value && bestDays.value > 0 && pool) {
         const finalStage = stage.value;
-        stage.value = 're-checking your earlier plans for the board';
+        stage.value = 're-checking your earlier plans for the Leaderboard';
         await recheckBeforeTheEnd(pool);
         stage.value = finalStage;
       }
     } catch (e) {
-      error.value = describeRunError(e);
-      stage.value = 'failed';
+      if (!(await endOnLostWorker(e))) {
+        error.value = describeRunError(e);
+        stage.value = 'failed';
+      }
     } finally {
       runEndedAt.value = Date.now();
       chainResultAt.value = runEndedAt.value;
@@ -6442,6 +7009,26 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * the default each run starts with, so an error anywhere reads as one.
    */
   let runEnd: 'finished' | 'stopped' | 'failed' = 'failed';
+  /**
+   * A worker was lost mid-run (pool.ts `WorkerLostError`: it crashed, sent an unreadable reply, or went
+   * silent). With a route already found the run ends as if stopped, keeping that best route and the
+   * routes priced, and says a worker stopped; with none it is still a failure. Red team 21 Oct 2026,
+   * data-inputs #5: the run froze, and Stop & keep best never finished.
+   */
+  async function endOnLostWorker(e: unknown): Promise<boolean> {
+    if (!(e instanceof WorkerLostError) || !(bestDays.value > 0)) return false;
+    stoppedEarly.value = true;
+    if (searchSpace.value) searchSpace.value.stoppedEarly = true;
+    stage.value = 'stopped';
+    runLog.value.push(`--- a search worker stopped: ${e.message.slice(0, 160)}`);
+    runNotes.value = [
+      ...runNotes.value,
+      'A search worker stopped, so the search ended early with the best route it had found. Press Run again to carry on: the routes already priced are kept.',
+    ];
+    refreshShortlist(true);
+    runEnd = (await persist(liveCache, true, false)) ? 'stopped' : 'failed';
+    return true;
+  }
   /**
    * A finished run's own send to the board is on its way (or about to be): the instant answer keeps
    * its route workers asleep until it is done (InstantRoute.vue), so the CSV is built and compressed
@@ -6845,7 +7432,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       return;
     }
     if (!(spec.deadline > inputs.planStart)) {
-      error.value = 'The deadline is before the plan starts.';
+      error.value = 'The date is before the plan starts.';
       return;
     }
     const key = runSaveKey(inputs);
@@ -6901,7 +7488,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       const inputs = await loadRunInputs(partitionHash, cp.inputsKey);
       if (!inputs) {
-        error.value = `This search's save is no longer stored on ${thisDevice()}, so it can't carry on. Start it again.`;
+        error.value = `This search's save is no longer stored on ${thisDevice()}, so it can't carry on. Press Run again.`;
         return;
       }
       ready = [cp, inputs, (cp.account as AccountSnapshot | undefined) ?? accountFromStoredSave(inputs)];
@@ -6954,7 +7541,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** A carry-on's checkpoint: its routes are replayed, and its parts appended to. Null: a fresh run. */
     seed: Pick<
       DeadlineCheckpoint,
-      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta'
+      'entries' | 'parts' | 'version' | 'runId' | 'partsWritten' | 'carryOns' | 'bytes' | 'count' | 'csvDelta' | 'spillBytes'
     > | null,
     /** The account the run is priced on (see `prepareDeadline`, `resumeDeadline`). */
     accountIn?: AccountSnapshot,
@@ -6968,6 +7555,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     deadlineRunStartedAt = spec.startedAt ?? Date.now();
     deadlineRunCarryOns = seed ? (seed.carryOns ?? 0) + 1 : 0;
     deadlineCheckpointSize = { routes: seedCount, bytes: seed?.bytes ?? 0 };
+    // The leg spill cut back to the checkpoint's length (a fresh run: emptied).
+    await restoreLegSpill('deadline', seed ? seed.spillBytes : 0);
     // Until its result is saved, a run that ends is a run that failed (search/stepAway.ts `failed`).
     runEnd = 'failed';
     deadlineRunning.value = true;
@@ -7129,7 +7718,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       written = written.then(async () => {
         if (closed) return;
         try {
-          await appendDeadlineCheckpoint(partitionHash, writer, header, part);
+          // The spill made durable first, so the checkpoint never claims more than is on disk.
+          const spillBytes = legSpills.deadline ? await legSpills.deadline.commit() : undefined;
+          await appendDeadlineCheckpoint(
+            partitionHash,
+            writer,
+            spillBytes === undefined ? header : { ...header, spillBytes },
+            part
+          );
           deadlineCheckpointSize = { routes: header.count, bytes };
         } catch (e) {
           // Kept for the next write rather than lost.
@@ -7215,7 +7811,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           ...(spec.refine === false ? { refine: false } : {}),
           ...(spec.bands?.length ? { bands: spec.bands } : {}),
           ...(spec.bandSets?.length ? { bandSets: runBandSets(spec) } : {}),
-          ...(spec.ascendNeeded && schedule ? { ascendAt: (t: number) => nextAvailable(t, schedule) } : {}),
+          // The claim is a prestige: inside the hours and not on a no-prestige day (search/noPrestige.ts).
+          ...(spec.ascendNeeded && schedule
+            ? { ascendAt: (t: number) => nextPrestigeAt(t, schedule, inputs.noPrestige) }
+            : {}),
         },
         {
           evaluate: async (chains, onResult) => {
@@ -7227,6 +7826,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           },
           onProgress: p => {
             deadlineProgress.value = p;
+            if (legSpills.deadline) {
+              legSpills.deadline.flush();
+              legSpillInfo.value = legSpillStatus('deadline');
+            }
             noteLegSample();
             noteLaterLegs();
           },
@@ -7239,6 +7842,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           pricedSoFar: all => {
             if (deadlineRunCsv) deadlineRunCsv.all = all;
           },
+          // ...and its legs to the spill, for the full download (search/legSpill.ts).
+          onPriced: (k, legs) => legSpills.deadline?.put(k, legs),
         }
       );
       // A carry-on's routes replayed from the checkpoint came back with four numbers a leg: the ones
@@ -7246,7 +7851,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       // for their peak delivery, starts, shifts and leg-1 rival before anything is saved or sent.
       // A run stopped by hand wants its answer now: its top ten, not fifty.
       if (seedCount) {
-        deadlineProgress.value = { ...deadlineProgress.value!, stage: "filling in the best routes' legs" };
+        deadlineProgress.value = { ...deadlineProgress.value!, stage: "filling in the best routes' ascensions" };
         const top = out.routes.slice(0, out.stoppedEarly ? 10 : REPRICE_TOP_ROUTES);
         await repriceReplayedRoutes([...top, ...out.byStops.values()], chains =>
           workers.evaluate(chains, undefined, { spreadOut: true, memo }).then(r => {
@@ -7633,14 +8238,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const DEADLINE_RATIO_KEY = 'aap.deadlineRoutesPerSetByShape';
   const deadlineRoutesPerSetByShape = ref<Record<string, number>>(
     (() => {
-      try {
-        const raw = JSON.parse(localStorage.getItem(DEADLINE_RATIO_KEY) ?? '{}') as Record<string, unknown>;
-        const out: Record<string, number> = {};
-        for (const [k, v] of Object.entries(raw ?? {})) if (usableRatio(v)) out[k] = usableRatio(v);
-        return out;
-      } catch {
-        return {};
-      }
+      // Garbage falls back to none and keeps a `.bad` copy (safeStorage.ts).
+      const raw = readStoredJson(DEADLINE_RATIO_KEY, () => ({}), isPlainRecord);
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(raw)) if (usableRatio(v)) out[k] = usableRatio(v);
+      return out;
     })()
   );
   /** The remembered routes per set for a space of this shape, or 0. */
@@ -7822,6 +8424,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     });
   }
   function blackBoxBeat(): void {
+    // "Watch this run from your phone": a heartbeat when one is due (composables/useWatchLink.ts). First, so
+    // nothing below can keep it from going; the run's progress events carry it too (`watchLinkNoteProgress`).
+    watchLinkTick();
     let b: blackBox.Beat | null = null;
     // What the run is really using: the live pool's size, or before the pool exists the count it is about
     // to be built at (`workersInPool` still holds the last run's, or the machine's default, until then,
@@ -7878,8 +8483,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         heapLimitMB: b.heapLimitMB,
         workersHeapMB: b.workersHeapMB,
       });
-    // "Watch this run from your phone": a heartbeat when one is due (composables/useWatchLink.ts).
-    watchLinkTick();
   }
   /**
    * Each kind of run that is going in ANOTHER tab or window of this browser right now
@@ -8050,6 +8653,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
 
   function stopDeadline(): void {
     deadlineStop = true;
+    deadlinePool?.hurry?.();
     stepAwayStopPressed();
   }
 
@@ -8332,6 +8936,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runTEUsed = startInputs.currentTE;
     accountUsed = accountFields(startInputs.currentTE);
     runBackupUsed = getSimulationContext().rawBackup ?? null;
+    chainRunSaveAt.value = backupSecondsOf(runBackupUsed);
     // A carry-on starts from its own run's seed, not whatever the instant answer suggests by now:
     // the replayed chains are that seed's search, and another seed is another search.
     const kept = resumeFrom?.seedChain;
@@ -8379,8 +8984,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         // replayed chains (durations only - a checkpoint keeps legs for the best chain alone).
         liveCache = [...restoredCache];
         csvRows.value = liveCache.length;
+        await restoreLegSpill('fastest', resumeFrom.spillBytes);
         refreshShortlist(true);
-      }
+      } else await restoreLegSpill('fastest', 0);
     } catch (e) {
       console.warn('chain search: could not prepare storage', e);
     }
@@ -8577,13 +9183,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           : 'done';
       if (options.recheck && !outcome.stoppedEarly && bestDays.value > 0 && pool) {
         const finalStage = stage.value;
-        stage.value = 're-checking your earlier plans for the board';
+        stage.value = 're-checking your earlier plans for the Leaderboard';
         await recheckBeforeTheEnd(pool);
         stage.value = finalStage;
       }
     } catch (e) {
-      error.value = describeRunError(e);
-      stage.value = 'failed';
+      if (!(await endOnLostWorker(e))) {
+        error.value = describeRunError(e);
+        stage.value = 'failed';
+      }
     } finally {
       runEndedAt.value = Date.now();
       chainResultAt.value = runEndedAt.value;
@@ -8607,6 +9215,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  screen at that moment is already a usable answer — that is the property the UI advertises. */
   function stop(): void {
     stopRequested.value = true;
+    // Never wait on a worker that is gone: one silent for 45 s is let go (pool.ts `hurry`).
+    pool?.hurry?.();
     stepAwayStopPressed();
     stage.value = 'stopping after the current batch...';
     // A queued Full sweep stops after this chain whichever Stop was pressed (the panel's, or the
@@ -8644,12 +9254,13 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * plan"): `start`, the plan start it was priced from (instead of `planStartUsed`, the last run's),
    * and `legs`, its simulated ascensions (for time off), since it is in none of this run's caches.
    * `firstAscension`: the setting the route was priced under (a saved By a date answer's own), which
-   * then decides Classic's A1 pick (`classicFirstPick`) instead of Your setup's setting now.
+   * then decides Classic's A1 pick (`classicFirstPick`) instead of Your setup's setting now. `firstKey`: the build
+   * the route's A1 took, when it has no `legs` (the instant answer's routes).
    */
   function applyChain(
     chain: number[],
     alsoGenerate = false,
-    opts?: { start?: number; legs?: LegSummary[]; firstAscension?: FirstAscension }
+    opts?: { start?: number; legs?: LegSummary[]; firstAscension?: FirstAscension; firstKey?: VariantKey }
   ): void {
     const planner = useAutoPlannerStore();
     // Results priced on a run's own older save, with the latest save loaded since ("Load my latest
@@ -8711,17 +9322,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       planner.timeOffCuts = null;
       if (usableTimeOff(timeOff.value).length && !legs.length) {
         applyNote.value =
-          "This route's leg detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Use one of the top routes, or re-run to price it again.";
+          "This route's ascension detail isn't kept (only the fastest routes keep it), so the plan can't show where your time off cuts it. Use one of the top routes, or re-run to price it again.";
       }
+    }
+    // NO PRESTIGE ON THESE DAYS (search/noPrestige.ts): the search held these prestiges; the plan builder does not
+    // hold them yet, so say so rather than show dates that run ahead of the search's.
+    const heldForDays = olderResults ? 0 : legs.filter(l => (l.noPrestigeWaitSeconds ?? 0) > 0).length;
+    if (heldForDays) {
+      applyNote.value = `${applyNote.value ? `${applyNote.value} ` : ''}The search held ${heldForDays === 1 ? 'a prestige' : `${heldForDays} prestiges`} for your no-prestige days; this plan prestiges as soon as each stop is reached, so its dates can run ahead of the search's.`;
     }
     // The seed box keeps the checkpoints WITHOUT the final target: `seedChain` appends `finalTE`
     // itself, so leaving it in would ask for it twice.
     seedOverride.value = chain.filter(v => v !== finalTE.value).join(' ');
     // The build the search took for A1, for Classic's pick under Prestige now (`classicFirstPick`).
-    appliedFirstLeg = legs[0]?.key
+    // `firstKey`: the instant answer's A1, for a route with no legs here (search/simulateRoute.ts `instantSimulate`).
+    const firstKey = legs[0]?.key ?? opts?.firstKey;
+    appliedFirstLeg = firstKey
       ? {
           targets: (planner.targetTE || '').trim().split(/\s+/).join(' '),
-          key: legs[0].key,
+          key: firstKey,
           mode: opts?.firstAscension ?? usedSettings().firstAscension,
           ...(opts?.firstAscension ? { own: true } : {}),
         }
@@ -8918,6 +9537,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       milestones: activeMilestones.value,
       deferShifts: deferShifts.value,
       timeOff: timeOffWindows(timeOff.value, planTimezone()),
+      noPrestige: timeOffWindows(noPrestige.value, planTimezone()),
     })
   );
   const chainLiveKey = ref('');
@@ -8942,7 +9562,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   const chainRunKind = computed<'smart' | 'full'>(() => (searchSpace.value ? 'full' : 'smart'));
 
   // Keep the run's latest figures for the phone: they are gone from `runProgress` by the time the
-  // run's last word is built.
+  // run's last word is built. A progress change also sends the phone's beat when one is due, so a hidden
+  // tab whose timers are throttled still reports while its workers work.
   watch(runProgress, p => watchLinkNoteProgress(p && p.kind !== 'start-times' ? p : null), { flush: 'sync' });
 
   /** Stop whatever is running, keeping its best so far: one Stop for the bar, whichever kind it is. */
@@ -8962,7 +9583,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * The Limits box follows the instant answer (Jordan, 14 Oct: Allan's Fast ran inside 5-8 while the
    * instant answer's best was 4): the fields the player has not set read 3 to one more than its count
    * (`limitsCount`: the route its box leads with under Prefer fewer, else the fastest, `suggestedCount`,
-   * which InstantRoute sets fastest first, by the exact check once in, under its "At most N ascensions";
+   * which InstantRoute sets fastest first, by the exact check once in, under its ascensions range ("From … to …");
    * Jordan, 22 Oct 2026, it was two either side). Only while nothing runs or is being carried on: a run keeps the
    * limits it started with, and the next idle moment catches up.
    */
@@ -8991,6 +9612,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     chainRunLive,
     dateRunLive,
     chainResultAt,
+    chainRunSaveAt,
     chainResultOwner,
     stopRun,
     provisionalRows,
@@ -9052,6 +9674,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     sweepTag,
     runNote,
     timeOff,
+    noPrestige,
     errorBeforeStart,
     runNotes,
     pin,
@@ -9092,6 +9715,11 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runCost,
     alreadySubmitted,
     sentRecord,
+    mineRows,
+    loadMineRows,
+    fastestOnBoard,
+    deadlineOnBoard,
+    pendingOnBoard,
     nameToClaim,
     chainsEstimated,
     bestChain,
@@ -9126,6 +9754,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setupRemembered,
     setupIsRemembered,
     loadSetupFor,
+    applyOnlineSetup,
     resetSetupToDefaults,
     muteSetupMemory,
     setupMuted,
@@ -9218,6 +9847,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runLog,
     csvRows,
     shortlist,
+    topPricedRoutes,
     pricedChains,
     pricedCount,
     chartsWanted,
@@ -9244,6 +9874,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     runKindUsed,
     buildRunDiagnostics,
     setupIssues,
+    saveAgeNote,
     setupFacts,
     backupTE,
     plannerTE,
@@ -9275,6 +9906,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     legDetailBytes,
     exportCsv,
     exportCsvChunks,
+    streamFullCsv,
+    fastestUploadCsv,
+    deadlineUploadGz,
+    sendFullCsv,
+    setBigCsvPlatform,
+    bigCsvState,
+    withRechecks,
+    setLegSpill,
+    setLegSpillOpener,
+    legSpillStatus,
+    csvHasEveryRoute,
+    legSpillInfo,
     buildRunSubmission,
     buildDeadlineSubmission,
     startSweep,

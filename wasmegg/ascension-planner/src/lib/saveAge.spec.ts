@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catchUpSeconds, describeSaveAge, siloSeconds } from './saveAge';
+import { ageAgo, ageWords, catchUpSeconds, describeSaveAge, siloSeconds } from './saveAge';
 
 const SYNC = 1_790_000_000;
 const H = 3600;
@@ -29,15 +29,16 @@ describe('what the player is told', () => {
     expect(describeSaveAge(SYNC, SYNC + 60, 12 * H)?.level).toBe('ok');
     const note = describeSaveAge(SYNC, SYNC + 5 * H, 12 * H)!;
     expect(note.level).toBe('ok');
-    expect(note.text).toMatch(/5h old/);
-    expect(note.text).toMatch(/caught up/);
+    // No age: Setup's save card says it once (ux review 26 Oct, row 19: "Your save is 42m old" beside it).
+    expect(note.text).not.toMatch(/\bold\b/);
+    expect(note.text).toMatch(/caught up from your save to the plan start/);
   });
 
   it('warns in red when the save is older than the silos hold: the answers are off, so force a sync', () => {
     const note = describeSaveAge(SYNC, SYNC + 40 * H, 12 * H)!;
     expect(note.level).toBe('warning');
     expect(note.severe).toBe(true);
-    expect(note.text).toMatch(/40h old, longer than your silos hold/);
+    expect(note.text).toMatch(/Your save is 40h old, longer than your silos hold/);
     expect(note.text).toMatch(/won't be accurate/);
     expect(note.text).toMatch(/Force a sync/);
   });
@@ -47,10 +48,31 @@ describe('what the player is told', () => {
     expect(note.level).toBe('ok');
     expect(note.text).toMatch(/nothing to catch up/);
     expect(note.text).not.toMatch(/silos/);
+    expect(note.text).not.toMatch(/\bold\b/);
+  });
+
+  it('a stale save in days, as everywhere else ("25 days old", never "25d old")', () => {
+    expect(describeSaveAge(SYNC, SYNC + 25 * 24 * H, 12 * H)!.text).toMatch(/^Your save is 25d old, longer/);
+    expect(describeSaveAge(SYNC + 42 * 60, SYNC, 12 * H)!.text).toMatch(/^Starts 42m before your last sync/);
   });
 
   it('says nothing without a save to compare with', () => {
     expect(describeSaveAge(null, SYNC, 12 * H)).toBeNull();
     expect(describeSaveAge(0, SYNC, 12 * H)).toBeNull();
+  });
+});
+
+describe('one age style (ux review 26 Oct, row 19)', () => {
+  it('14m, 5h, 25d (lib/duration); "ago" with just now under a minute', () => {
+    expect(ageWords(30)).toBe('<1m');
+    expect(ageWords(14 * 60)).toBe('14m');
+    expect(ageWords(59.7 * 60)).toBe('1h');
+    expect(ageWords(5 * H)).toBe('5h');
+    expect(ageWords(47 * H)).toBe('47h');
+    expect(ageWords(25 * 24 * H + 5 * H)).toBe('25d');
+    expect(ageWords(-3 * H)).toBe('3h');
+    expect(ageAgo(20)).toBe('just now');
+    expect(ageAgo(14 * 60)).toBe('14m ago');
+    expect(ageAgo(3 * 24 * H)).toBe('3d ago');
   });
 });

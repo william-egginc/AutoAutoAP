@@ -2,6 +2,8 @@
  * Formatting utility functions.
  * Pure functions for converting values to display strings.
  */
+import { formatMoment } from './clock';
+import { compactDuration } from './duration';
 
 /**
  * Converts an absolute Unix timestamp in SECONDS into a `Date`, rounding to the nearest millisecond
@@ -230,7 +232,7 @@ export function formatDuration(seconds: number): string {
  * @returns Formatted absolute time string
  *
  * @example
- * formatAbsoluteTime(3600) // e.g., "Tue, Feb 24, 5:43 PM"
+ * formatAbsoluteTime(3600) // e.g., "Tue, Feb 24, 5:43 PM" (en-US)
  */
 export function formatAbsoluteTime(seconds: number, baseTimestamp?: number, timeZone?: string): string {
   if (!isFinite(seconds)) return '∞';
@@ -242,15 +244,8 @@ export function formatAbsoluteTime(seconds: number, baseTimestamp?: number, time
   const date = new Date(Math.round(start + seconds * 1000));
   // Finite but past what a Date can hold (a wait of billions of days): '∞', not 'Invalid Date'.
   if (isNaN(date.getTime())) return '∞';
-  return date.toLocaleString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone,
-  });
+  // The one clock (lib/clock.ts), in the browser's own format like every other panel.
+  return formatMoment(date.getTime(), { zone: timeZone, weekday: true, year: 'never' }) || '∞';
 }
 
 /**
@@ -458,4 +453,23 @@ export function formatUnixToTimeInput(timestamp: number, tz: string): string {
 /** "1 chain", "2 chains" (counts get thousands separators). Pass `many` for an irregular plural. */
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n.toLocaleString()} ${n === 1 ? one : many}`;
+}
+
+/**
+ * A gap between two finishes for a dense table (UX review, 25 Oct 2026: "+3302.72 days" promised a precision the
+ * instant answer doesn't have), in the one compact duration (lib/duration, ux29-d): "40m", "17h", "3d 10h", "312d",
+ * "9 years". Sign dropped (the caller says sooner/later). `locale` is kept for callers; the words are compact.
+ */
+export function roundedGap(seconds: number, _locale?: string): string {
+  return compactDuration(Math.max(60, Math.abs(seconds)));
+}
+
+/**
+ * A span in the answer's headline ("5d 12h to spare", "in 5.1 years"; the UX review of 26 Oct 2026, item 4: the
+ * headline showed "5.50 days" and "1857.95 days"), in the one compact duration (lib/duration, ux29-d). Under a
+ * minute reads "1m"; a negative span keeps its sign.
+ */
+export function headlineGap(seconds: number, _locale?: string): string {
+  const sign = seconds < 0 ? '−' : '';
+  return `${sign}${compactDuration(Math.max(60, Math.abs(seconds)))}`;
 }

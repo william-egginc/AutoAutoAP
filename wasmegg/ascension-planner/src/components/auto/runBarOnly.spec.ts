@@ -37,7 +37,7 @@ describe('the run bar is the only progress', () => {
 
   it("the bar carries the rest under a folded Details (lib/runDetails.ts), and keeps its buttons", () => {
     const bar = read('RunProgressBar.vue');
-    expect(bar).toContain('<details v-if="details" class="text-[10px] text-white/60" data-testid="run-bar-details">');
+    expect(bar).toContain('<details v-if="details" class="text-small text-white/60" data-testid="run-bar-details">');
     expect(bar).toContain('runDetailLine(');
     expect(bar).toContain('data-testid="run-bar-show"');
     expect(bar).toContain('data-testid="run-bar-best-so-far"');
@@ -48,7 +48,7 @@ describe('the run bar is the only progress', () => {
 });
 
 describe('the result names its hours and time off (item 10)', () => {
-  const line = 'Priced with your hours 9 am to 1 am, no time off';
+  const line = 'Priced with awake hours 9 am to 1 am, no time off';
 
   it("Fastest's card says it once finished, not while running", async () => {
     const base = { chain: [212, 280, 490], days: 760.5, finalTE: 490, endLabel: 'Feb 15, 2029', pricedWith: line };
@@ -78,9 +78,7 @@ describe('the result names its hours and time off (item 10)', () => {
     expect(deadline).not.toContain('with the hours and time off in Your setup');
     expect(deadline).toContain('result.value?.settings ? pricedWithLine(result.value.settings)');
     expect(deadline).toContain('{{ resultPricedWith }}.');
-    const instant = read('InstantRoute.vue');
-    // The check's own inputs, kept as `exactSetup` (fix 22: the history and the snapshot record them too).
-    expect(instant).toMatch(/exactSetup = \{\s+availability: inputs\.availability \?/);
-    expect(instant).toContain('exactPricedWith.value = pricedWithLine(exactSetup);');
+    // The instant answer has no priced-with line since 23 Oct 2026: it prices nothing (no Check exactly).
+    expect(read('InstantRoute.vue')).not.toContain('pricedWithLine(');
   });
 });

@@ -1,9 +1,10 @@
 /**
  * My runs' save-age strip (spec "myruns-now" section 1): how old the loaded save is, because every time on the page
- * comes from it. Green under `SAVE_AMBER_HOURS`, amber to `SAVE_RED_HOURS`, red past it (Jordan, 15 Oct 2026: 6 h
+ * comes from it. Neutral (slate, not answer-green) under `SAVE_AMBER_HOURS`, amber to `SAVE_RED_HOURS`, red past it (Jordan, 15 Oct 2026: 6 h
  * and 24 h, "we will see what players think"). Pure: the clock is a parameter.
  */
-import { agoLong, dateAt } from './eventWhen';
+import { dateAt } from './eventWhen';
+import { ageAgo, ageWords } from './saveAge';
 import { countTEThresholdsPassed } from './truthEggs';
 
 /** Past this many hours the strip turns amber: the times below may have drifted. */
@@ -24,8 +25,8 @@ export function saveStrip(backupSeconds: number | null | undefined, nowSeconds: 
   const age = nowSeconds - backupSeconds;
   const when = dateAt(backupSeconds, nowSeconds, zone);
   if (age >= SAVE_RED_HOURS * 3600) {
-    const days = Math.floor(age / 86400);
-    const old = days >= 2 ? `${days} days old` : `${Math.round(age / 3600)} hours old`;
+    // One age style with Setup and the stale-save warning (lib/saveAge.ts `ageWords`: "30 h", "3 days").
+    const old = `${ageWords(age)} old`;
     return {
       tone: 'bad',
       text: `Your save is ${old} (${when}). The times below are from that save and probably wrong now: some of them have already passed.`,
@@ -35,10 +36,10 @@ export function saveStrip(backupSeconds: number | null | undefined, nowSeconds: 
   if (age >= SAVE_AMBER_HOURS * 3600)
     return {
       tone: 'warn',
-      text: `Your save is from ${when} (${agoLong(age)}). Times below may have drifted.`,
+      text: `Your save is from ${when} (${ageAgo(age)}). Times below may have drifted.`,
       link: 'Load a fresh save',
     };
-  return { tone: 'ok', text: `Your save is from ${when} (${agoLong(age)}).`, link: 'Load a fresh one' };
+  return { tone: 'ok', text: `Your save is from ${when} (${ageAgo(age)}).`, link: 'Load a fresh one' };
 }
 
 /** What the save itself says, read straight from it (the raw backup), not from the planner's stores. */

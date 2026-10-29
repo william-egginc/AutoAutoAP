@@ -36,10 +36,13 @@ describe('a missing file', () => {
   });
 
   it('InstantRoute: that heading and a Retry that runs again; the below-range card keeps its own heading', () => {
-    expect(noTableSection).toContain(':heading="TABLE_LOAD_FAILED"');
+    // The card is InstantUnloaded.vue (its heading, Retry or Reload: InstantUnloaded.spec.ts).
+    expect(noTableSection).toContain('<InstantUnloaded :older="olderPage" @retry="run(true)"');
     expect(noTableSection).not.toContain('noInstantHeading(null)');
-    expect(noTableSection).toContain('data-testid="instant-retry"');
-    expect(noTableSection).toContain('@click="run(true)"');
+    const card = read('InstantUnloaded.vue');
+    expect(card).toContain(':heading="older ? TABLE_OLDER_PAGE : TABLE_LOAD_FAILED"');
+    expect(card).toContain('data-testid="instant-retry"');
+    expect(card).toContain("@click=\"emit('retry')\"");
     expect(template).toContain(':heading="noInstantHeading(below.from)"');
     expect(instant).toContain('noTable.value = tableLoadFailed(message);');
   });

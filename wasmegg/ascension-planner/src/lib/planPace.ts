@@ -420,9 +420,9 @@ export function paceWords(s: PaceState, nowSeconds: number, zone: string, o: { f
           : `${gapWords(s.hours)} ${s.kind === 'ahead' ? 'ahead' : 'behind'}`;
       const parts = [
         `Plan expected ${s.expected} TE by ${clockWords(s.saveTime, nowSeconds, zone)}; you had ${s.actual}.`,
-        `Plan: ascension ${s.planAsc} of ${s.stops} by then · you: stop ${s.stopsReached} of ${s.stops} reached.`,
+        `Plan: ascension ${s.planAsc} of ${s.stops} by then · you: ascension ${s.stopsReached} of ${s.stops}.`,
         s.rough ? 'Rough: compared ascension by ascension.' : '',
-        s.estimate ? 'The plan is an instant answer, not checked exactly.' : '',
+        s.estimate ? 'The plan is an instant answer, an estimate not simulated on your account.' : '',
         s.onVirtue ? '' : 'Not on your virtue farm in this save.',
         s.startNote ? `This plan was set to start ${clockWords(s.startNote, nowSeconds, zone)}.` : '',
         FORECAST_WORDS,

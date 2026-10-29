@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ei } from 'lib';
-import { ID_NOT_FOUND, SAVE_TIMEOUT_MS, SAVE_UNREACHABLE, SaveLoadError, requestSave, saveFrom } from './saveLoad';
+import { ID_NOT_FOUND, LATEST_SAVE_FAILED, SAVE_TIMEOUT_MS, SAVE_UNREACHABLE, SaveLoadError, errorAfterSaveLoaded, requestSave, saveFrom } from './saveLoad';
 
 const ID = 'EI1234567890123456';
 const SAVE = { game: { eggsOfProphecy: 1 }, approxTime: 1_760_000_000 } as unknown as ei.IBackup;
@@ -126,5 +126,17 @@ describe('wiring', () => {
     expect(fb).not.toContain('requestFirstContact');
     expect(app).not.toContain('requestFirstContact');
     expect(app).toContain('await requestSave(playerId.value)');
+  });
+});
+
+describe('errorAfterSaveLoaded (QA 24 Oct 2026: the line stayed after a Try again that worked)', () => {
+  it('clears a save-load failure once a fresh save is in', () => {
+    expect(errorAfterSaveLoaded(LATEST_SAVE_FAILED)).toBe('');
+    expect(errorAfterSaveLoaded(SAVE_UNREACHABLE)).toBe('');
+    expect(errorAfterSaveLoaded('')).toBe('');
+  });
+  it('keeps any other error', () => {
+    expect(errorAfterSaveLoaded("Couldn't reset. Try again.")).toBe("Couldn't reset. Try again.");
+    expect(errorAfterSaveLoaded(ID_NOT_FOUND)).toBe(ID_NOT_FOUND);
   });
 });

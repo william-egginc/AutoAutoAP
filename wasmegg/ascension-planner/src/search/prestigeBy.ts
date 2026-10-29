@@ -29,18 +29,23 @@
  * the line says "on the hour" instead.
  */
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { roundedGap } from '@/lib/format';
 import { isAvailable, nextAvailable, type Availability } from './availability';
-import { pacificHourOfWeek, rebase, sweepTails, type BuildParams } from './precomputedLeg';
+import { pacificHourOfWeek, rebase, type BuildParams } from './precomputedLeg';
 import {
+  creditWait,
   nextHour,
   priceChain,
   startInSale,
+  sweepLeg,
+  tailOptionsOf,
   type BuildLookup,
   type FirstLeg,
   type FoundRoutes,
   type PolishOptions,
   type PricedPrefix,
   type Route,
+  type TailOptions,
 } from './routeFinder';
 
 export type PrestigeMode = 'date' | 'fastest';
@@ -177,6 +182,9 @@ export interface EstimateRequest {
   /** "Works inside my hours": each prestige after this one waits for these hours, as the finder
    *  holds it (routeFinder.ts FindOptions `hours`). This one is the player's, at the hour tried. */
   playHours?: Availability;
+  /** How each leg's tail is priced, as the answer's (InstantRoute.vue `instantTail`: the simulator's order, and with
+   *  "hold each shift" every shift waiting for `playHours`). Left out: the simulator's order, shifts not held. */
+  tail?: TailOptions;
 }
 
 /** Where a prestige `h` hours late starts: the time, the TE and the eggs. */
@@ -192,7 +200,8 @@ export function startStateAt(
 /**
  * The last ascension from (te, t, eggs) to the highest TE it reaches by the deadline, priced as the
  * finder prices one (on the next whole hour, or late from its own hour inside the sale): one sweep of
- * every checkpoint up to `top` per build.
+ * every checkpoint up to `top` per build, held as the finder holds it (`sweepLeg`: with `holdShifts`
+ * each shift waits for `shiftHours`, in the simulator's order; the math review, 24 Oct 2026, finding 4).
  */
 function highestByDeadline(
   table: BuildLookup,
@@ -203,7 +212,11 @@ function highestByDeadline(
   top: number,
   scale: number,
   /** The player's hours, when this ascension starts with a prestige that waits for them. */
-  hours?: Availability
+  hours?: Availability,
+  /** How the tail is priced (the request's `tail`). */
+  tail: TailOptions = {},
+  /** The player's hours its shifts wait for with `holdShifts` (also when the prestige is the player's own). */
+  shiftHours?: Availability
 ): Outcome | null {
   const options: { start: number; lateBy: number; builds: BuildParams[] }[] = [];
   const at = hours ? nextHour(nextAvailable(nextHour(t), hours)) : nextHour(t);
@@ -215,7 +228,7 @@ function highestByDeadline(
   for (const o of options)
     for (const b of o.builds) {
       const moved = rebase(scale === 1 ? b : { ...b, peakELR: b.peakELR * scale }, te, eggs);
-      const sw = sweepTails(moved, top, o.lateBy, te + 1);
+      const sw = sweepLeg(moved, top, o.lateBy, te + 1, o.start, shiftHours, tail);
       for (let i = sw.seconds.length - 1; i >= 0; i--) {
         const s = sw.seconds[i];
         if (Number.isNaN(s)) continue;
@@ -243,6 +256,8 @@ export function estimateAt(table: BuildLookup, req: EstimateRequest, h: number):
     startDelivered: s.delivered,
     deliveryScale: req.deliveryScale,
     ...(req.playHours ? { hours: req.playHours } : {}),
+    // Held as the answer is (InstantRoute.vue passes `instantTail`), not on the unheld table alone.
+    ...tailOptionsOf(req.tail ?? {}),
   };
   const memo = new Map<string, PricedPrefix | null>();
   const chains = dedupe(req.candidates.map(c => c.filter(x => x > s.startTE)));
@@ -273,10 +288,26 @@ export function estimateAt(table: BuildLookup, req: EstimateRequest, h: number):
         const m = memo.get(k);
         if (!m) continue;
         at = { t: m.t, te: m.te, eggs: m.eggs };
+        // While that prestige waits for the player the farm lays on (`creditWaits`), as priceChain and the finder have it.
+        if (req.playHours && o.creditWaits !== false) {
+          const c = creditWait(at.te, at.t, at.eggs, m.egg, m.rate, req.playHours);
+          at = { t: at.t, te: c.te, eggs: c.delivered };
+        }
       }
       // The last ascension starts with a prestige that waits for the hours, unless it is the player's.
       const hold = prefix.length ? req.playHours : undefined;
-      const last = highestByDeadline(table, at.te, at.t, at.eggs, deadline, req.final, req.deliveryScale, hold);
+      const last = highestByDeadline(
+        table,
+        at.te,
+        at.t,
+        at.eggs,
+        deadline,
+        req.final,
+        req.deliveryScale,
+        hold,
+        o,
+        req.playHours
+      );
       best = better('date', best, last)!;
     }
   return best;
@@ -316,11 +347,19 @@ export function splitHours(from: number, to: number, n: number): [number, number
 /** The candidate routes in a finder's answer, as the checkpoints after the prestige: each count's
  *  route and (`others`) the other routes it kept, without the first stop when the first ascension is
  *  the player's own (continue or build-up) rather than a fresh one. */
-export function candidatesOf(found: FoundRoutes, mode: PrestigeMode, freshFirst: boolean, others = true): number[][] {
-  const routes: (Route | null)[] =
+export function candidatesOf(
+  found: FoundRoutes,
+  mode: PrestigeMode,
+  freshFirst: boolean,
+  others = true,
+  /** Only routes with at most this many ascensions (the box's own count when Prefer fewer picked it). */
+  maxAscensions: number | null = null
+): number[][] {
+  const all: (Route | null)[] =
     mode === 'date'
       ? [found.byDate, ...found.byDateByAscensions, ...(others ? (found.dateAlternatives ?? []).flat() : [])]
       : [found.best, ...found.byAscensions, ...(others ? (found.alternatives ?? []).flat() : [])];
+  const routes = maxAscensions === null ? all : all.filter(r => !r || r.chain.length <= maxAscensions);
   return dedupe(routes.filter((r): r is Route => !!r).map(r => (freshFirst ? [...r.chain] : r.chain.slice(1))));
 }
 
@@ -542,8 +581,15 @@ export function prestigePlan(o: {
   siloSeconds: number;
   /** 'frozen': the farm adds nothing while it waits (the cautious model). */
   eggs?: 'frozen' | 'silo' | 'laying';
+  /**
+   * The route the green box shows when Prefer fewer picked one other than the best (search/preferFewer.ts; Jordan,
+   * 26 Oct 2026): the line keeps ITS outcome, and only routes with at most its ascensions are priced again (a later
+   * prestige that only keeps it on a longer route would undo the pick). Left out: the best, every route, as before.
+   */
+  boxRoute?: Route | null;
 }): PrestigePlan | null {
-  const route = o.mode === 'date' ? o.found.byDate : o.found.best;
+  const box = o.boxRoute ?? null;
+  const route = box ?? (o.mode === 'date' ? o.found.byDate : o.found.best);
   if (!route?.legs.length) return null;
   const first = route.legs[0];
   const own = first.label === 'continue' || first.label === 'buildup';
@@ -561,8 +607,10 @@ export function prestigePlan(o: {
     startTE: own ? first.endTE : Math.floor(o.startTE),
     delivered: own ? [...f!.delivered] : [...o.saveDelivered],
     laying,
-    keep: outcomeOf(o.found, o.mode, o.startTE),
-    candidates: candidatesOf(o.found, o.mode, !own),
+    keep: box ? outcomeOf({ best: box, byDate: box }, o.mode, o.startTE) : outcomeOf(o.found, o.mode, o.startTE),
+    candidates: box
+      ? dedupe([[...(own ? box.chain.slice(1) : box.chain)], ...candidatesOf(o.found, o.mode, !own, true, box.chain.length)])
+      : candidatesOf(o.found, o.mode, !own),
   };
 }
 
@@ -596,12 +644,6 @@ export interface PrestigeLine {
   farOff?: string;
 }
 
-function span(seconds: number): string {
-  const h = Math.round(seconds / 3600);
-  if (h < 48) return `${h} h`;
-  return `${(seconds / 86400).toFixed(1)} days`;
-}
-
 /**
  * THE DISPLAY RULES. Shown only when the next prestige is within ~7 days or the window to keep the
  * answer is under ~48 h (a far-off prestige with days of room has nothing to say yet), and only for a
@@ -622,30 +664,31 @@ export function describeCutoff(c: Cutoff, ctx: LineContext): PrestigeLine {
   const narrow = latestHour - ctx.prestigeAt < SHOW_WINDOW_SECONDS;
   if (!soon && !narrow) return { ...none, farOff: ctx.show(byHour) };
   const right = byHour < ctx.prestigeAt;
+  // THE WORDS (UX review 26 Oct 2026, item 8): one short sentence on when, one on what waiting costs. The numbers are
+  // the same as before; the long "(… at the latest, on the hour). After that: …" form is gone.
+  // "Next: prestige at 205 TE around Feb 23, 2027, 7 PM. Waiting longer costs about 17 days."
+  const latest = ctx.show(latestHour);
   const lead = right
     ? ctx.fresh
-      ? 'Prestige now'
-      : `Prestige as soon as you reach ${ctx.firstStop} TE`
-    : `Prestige by ${ctx.show(byHour)}`;
-  const latest = `${ctx.show(latestHour)} at the latest, on the hour`;
+      ? `Next: prestige now, by ${latest} at the latest`
+      : `Next: prestige at ${ctx.firstStop} TE around ${latest}`
+    : `Next: prestige by ${ctx.show(byHour)}`;
   let text: string;
+  const d = c.dropOutcome;
   if (ctx.mode === 'date') {
-    text = `${lead} to ${c.kind === 'unsure' ? 'be sure of' : 'keep'} ${c.keep.te} TE (${latest}).`;
-    const d = c.dropOutcome;
+    text = `${lead} to ${c.kind === 'unsure' ? 'be sure of' : 'keep'} ${c.keep.te} TE.`;
     if (c.kind === 'drop' && d) {
-      text += ` After that: ${d.te}`;
+      text += ` Waiting longer: ${d.te} TE`;
       if (c.next && c.next.until > (c.drop ?? 0))
-        text += ` (until about ${ctx.show(hourOf(ctx.prestigeAt, c.next.until))}), then ${c.next.then.te}`;
-      else if (c.next) text += `, then ${c.next.then.te}`;
+        text += `, ${c.next.then.te} TE after about ${ctx.show(hourOf(ctx.prestigeAt, c.next.until))}`;
+      else if (c.next) text += `, then ${c.next.then.te} TE`;
       text += '.';
     }
   } else {
-    const on = c.keep.end !== null ? ` on ${ctx.show(c.keep.end)}` : '';
-    text = `${lead} to ${c.kind === 'unsure' ? 'be sure to reach' : 'still reach'} ${ctx.final} TE${on} (${latest}).`;
-    const d = c.dropOutcome;
+    text = c.kind === 'unsure' ? `${lead} to be sure of reaching ${ctx.final} TE on time.` : `${lead}.`;
     if (c.kind === 'drop' && d?.end != null && c.keep.end !== null)
-      text += ` After that: ${ctx.show(d.end)} (${span(d.end - c.keep.end)} later).`;
-    else if (c.kind === 'drop' && d && d.end === null) text += ` After that it doesn't reach ${ctx.final}.`;
+      text += ` Waiting longer costs about ${roundedGap(d.end - c.keep.end)}.`;
+    else if (c.kind === 'drop' && d && d.end === null) text += ` Waiting longer doesn't reach ${ctx.final} TE.`;
   }
   return { show: true, text, tight, byHour, latestHour, spareSeconds };
 }

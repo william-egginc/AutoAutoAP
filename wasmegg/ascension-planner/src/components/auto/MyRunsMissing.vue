@@ -6,8 +6,9 @@
   Nothing is fetched: it reads the rows LeaderboardPanel already has.
 -->
 <template>
-  <details class="rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-[11px]" data-testid="my-runs-missing">
-    <summary class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-500">
+  <details class="rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-body" data-testid="my-runs-missing">
+    <!-- 44 px tall on a phone (ux review 26 Oct, row 12: it was 264×15), as it was from sm up. -->
+    <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-slate-500" data-testid="my-runs-missing-summary">
       A run of yours isn’t here?
     </summary>
     <div class="mt-2 space-y-2">
@@ -22,7 +23,7 @@
         autocomplete="off"
         placeholder="e.g. 1a2b3c4d"
         aria-label="The run’s id"
-        class="w-40 rounded-lg border-slate-300 text-xs font-mono py-1.5"
+        class="w-40 rounded-lg border-slate-300 text-body tabular-nums py-1.5"
         data-testid="my-runs-missing-id"
       />
       <div v-if="answers.length" class="space-y-2" aria-live="polite">
@@ -32,7 +33,7 @@
           class="rounded-md bg-slate-50 px-2 py-1.5"
           data-testid="my-runs-missing-answer"
         >
-          <p v-if="a.label" class="font-mono font-bold text-slate-600">{{ a.label }}</p>
+          <p v-if="a.label" class="tabular-nums font-bold text-slate-600">{{ a.label }}</p>
           <p v-for="(line, i) in a.lines" :key="i" class="text-slate-600 leading-relaxed">{{ line }}</p>
         </div>
       </div>

@@ -33,8 +33,10 @@ import type {
   FoundRoutes,
   PolishOptions,
   Route,
+  TailOptions,
 } from './routeFinder';
 import type { Availability } from './availabilitySchedule';
+import { compactDuration } from '@/lib/duration';
 
 /** What the routes are for: the fastest route to a TE, or the highest TE by a date (unix second). */
 export type Goal = { kind: 'fastest'; target: number } | { kind: 'date'; deadline: number };
@@ -203,9 +205,9 @@ export function sourceLabel(r: EarlierRoute, showMs: (unixMs: number) => string)
     case 'last-search':
       return 'your last search here';
     case 'board':
-      return when ? `your board run, sent ${when}` : 'your board run';
+      return when ? `your Leaderboard run, sent ${when}` : 'your Leaderboard run';
     case 'board-other':
-      return when ? `your board run, sent ${when} from another browser` : 'your board run, sent from another browser';
+      return when ? `your Leaderboard run, sent ${when} from another browser` : 'your Leaderboard run, sent from another browser';
     case 'saved-search':
       return when ? `your saved search, ${when}` : 'your saved search';
     case 'saved-answer':
@@ -226,7 +228,7 @@ export function earlierFromText(routes: readonly EarlierRoute[]): string {
   const here = n('board');
   const other = n('board-other');
   if (here + other) {
-    const runs = here + other === 1 ? 'your board run' : 'your board runs';
+    const runs = here + other === 1 ? 'your Leaderboard run' : 'your Leaderboard runs';
     parts.push(
       !other ? runs : !here ? `${runs} sent from another browser` : `${runs}, ${other} of them sent from another browser`
     );
@@ -449,9 +451,9 @@ export function bestOf(goal: Goal, list: readonly (Priced | null | undefined)[])
   return best;
 }
 
-/** How `a` compares to `b`, in words: "0.42 days sooner", "1 TE higher", "0.30 days more to spare". */
+/** How `a` compares to `b`, in words: "10h 5m sooner", "1 TE higher", "7h 12m more to spare" (lib/duration). */
 export function compareText(goal: Goal, a: Priced, b: Priced | null): string {
-  const d = (s: number) => `${(Math.abs(s) / 86400).toFixed(2)} days`;
+  const d = (s: number) => compactDuration(Math.max(60, Math.abs(s)));
   if (!b) return '';
   if (goal.kind === 'fastest') {
     const gap = b.end - a.end;
@@ -489,6 +491,8 @@ export interface FindContext {
   firstLegs: FirstLeg[];
   deliveryScale: number;
   hours: Availability | null;
+  /** How the instant answer priced its tails (routeFinder.ts `TailOptions`): a search from here does the same. */
+  tail?: TailOptions;
   maxAscensions: number | null;
   expand: (items: ArrivalItem[], settings: ExpandSettings) => Promise<Candidate[]>;
   polish: (options: PolishOptions, found: FoundRoutes) => Promise<FoundRoutes>;

@@ -45,13 +45,13 @@ describe('A run of yours isn’t here?', () => {
       'as “AltName” from another browser or site'
     );
     expect(textOf(await renderHtml(MyRunsMissing, { ...props, initialId: 'eeee3333' }))).toContain(
-      'Its gear differs from your save’s: it has T4E Necklace; your save has T4L Necklace.'
+      "Its gear differs from your save's: it has T4E Necklace; your save has T4L Necklace."
     );
   });
 
   it('an id no row has', async () => {
     expect(textOf(await renderHtml(MyRunsMissing, { ...props, initialId: '999999' }))).toContain(
-      'No run on the public board has that id.'
+      'No run on the public Leaderboard has that id.'
     );
   });
 });

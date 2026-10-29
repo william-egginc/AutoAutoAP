@@ -8,7 +8,7 @@
     <template #description>
       Buys any research that takes
       <span
-        class="font-mono font-bold text-brand-primary bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm mx-0.5"
+        class="tabular-nums font-bold text-brand-primary bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-sm mx-0.5"
         >{{ displayDuration }}</span
       >
       or less to save, right now.
@@ -23,7 +23,7 @@
           class="input-premium pl-3 pr-10"
         />
         <div
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 group-focus-within:text-brand-primary transition-colors uppercase tracking-widest pointer-events-none"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-primary transition-colors label pointer-events-none"
         >
           Time
         </div>
@@ -31,7 +31,7 @@
 
       <button
         :disabled="isInvalid || loading || applying"
-        class="btn-premium btn-primary w-full text-[10px] inline-flex items-center justify-center gap-1.5"
+        class="btn-premium btn-primary w-full text-body inline-flex items-center justify-center gap-1.5"
         @click="emit('buy', parsedSeconds)"
       >
         <InlineSpinner v-if="applying" class="w-3 h-3" />

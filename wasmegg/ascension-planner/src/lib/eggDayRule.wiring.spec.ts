@@ -72,13 +72,10 @@ describe('the picks', () => {
 });
 
 describe('the summary, the line and the chart', () => {
-  it('the Egg Day and By a date cards and the Egg Day step split with splitOnTime; "misses the date" is gone', () => {
+  it('the summary\u2019s cards and Egg Day step are gone (24 Oct 2026); "misses the date" never came back', () => {
     const t = src('lib/myRunsDashboard.ts');
-    const cards = fn(t, 'buildCards');
-    expect(cards).toContain('const egg = cardLine(eggSplit.onTime, eggDayAt);');
-    expect(cards).toContain('const date = cardLine(dateSplit.onTime, eggDayAt);');
-    expect(cards.match(/splitOnTime\(/g)).toHaveLength(3);
-    expect(fn(t, 'buildSteps')).toContain('const hasEgg = eggLines.onTime.length > 0 || eggSaved.onTime.length > 0');
+    expect(t).not.toContain('function buildCards');
+    expect(fn(t, 'buildSteps')).not.toContain('No Egg Day');
     expect(t).not.toContain('misses the date');
   });
 
@@ -107,7 +104,8 @@ describe('the words and the follow suggestions', () => {
   it('My runs’ components use the helper’s words, not their own', () => {
     expect(src('components/myruns/RightNowCard.vue')).toContain('noRouteInTimeWords(lateKind.value, selectedOption.value?.late?.seconds ?? null)');
     expect(src('components/myruns/RightNowCard.vue')).not.toContain('lands after the date');
-    expect(src('components/myruns/SavedTile.vue')).toContain("noRouteInTimeWords('eggday', props.tile.late?.seconds ?? null)");
+    // Egg Day's tile, or another date's when that date is picked on Right now (24 Oct 2026).
+    expect(src('components/myruns/SavedTile.vue')).toContain("noRouteInTimeWords(props.open ? 'date' : 'eggday', props.tile.late?.seconds ?? null)");
     expect(src('components/auto/MyRunsList.vue')).toContain("lateMarker(l.kind === 'eggday' ? 'eggday' : 'date')");
     expect(src('components/auto/MyRunsList.vue')).not.toContain('misses the date');
   });
@@ -121,30 +119,55 @@ describe('the words and the follow suggestions', () => {
       ['components/auto/SavedAnswers.vue', 'followableAnswer(a.result.routes[0], a.result.deadline)'],
       ['components/auto/InstantRoute.vue', '<FollowButton v-if="rowFollowable(r)"'],
       ['components/auto/InstantRoute.vue', '<FollowButton v-if="boxFollowable"'],
+      // By a date's result card and its Best for each stop count rows (23 Oct 2026).
+      ['components/auto/DeadlinePanel.vue', 'if (!c || !r || !g || !followableAnswer(best.value, r.deadline)) return null;'],
+      ['components/auto/DeadlinePanel.vue', 'v-if="dateRowFollow && followableAnswer(r, result.deadline)"'],
     ];
     for (const [f, s] of guarded) expect(src(f), f).toContain(s);
     const follow = src('lib/follow.ts');
     expect(fn(follow, 'followableRow')).toContain('madeDeadline(row)');
     expect(fn(follow, 'followableAnswer')).toContain('finishesBefore(at, deadline)');
     const route = src('components/auto/InstantRoute.vue');
-    // The box's route as it shows it (lib/boxPick.ts: the instant answer's while Check exactly runs).
-    expect(route).toContain('if (dateExactShown.value) return finishesBefore(dateExactShown.value.end, deadline);');
-    expect(route).toContain('return !d || !props.deadline || finishesBefore(d.end, props.deadline);');
+    // The box's route as it shows it (the instant answer's, or Prefer fewer's pick), and each count's own route.
+    expect(route).toContain('return finishesBefore(dateBoxOf(found.byDate).end, deadline);');
+    expect(route).toContain('return !props.deadline || finishesBefore(r.end, props.deadline);');
   });
 
   it('no FollowButton anywhere else on a By a date route (the rest are Fastest’s)', () => {
     const route = src('components/auto/InstantRoute.vue');
     // The two unguarded ones are Fastest's (its box lead and its count rows).
-    const unguarded = (route.match(/<FollowButton(?! v-if="(rowFollowable|boxFollowable))[^>]*>/g) ?? []).filter(b => !b.includes('v-if="r.chain.length"'));
-    expect(unguarded).toEqual(['<FollowButton class="mt-1 ml-2" primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" />']);
+    const unguarded = (route.match(/<FollowButton(?! v-if="(rowFollowable|boxFollowable))[^>]*>/g) ?? [])
+      .filter(b => !b.includes('v-if="r.chain.length"'))
+      .map(b => b.replace(/\s+/g, ' '));
+    // (Its summary for the route saved online beside it, 23 Oct 2026.)
+    expect(unguarded).toEqual([
+      '<FollowButton primary :chain="boxLead.chain" :goal-key="followGoal" from="answer" :stale="!!staleAt" :finish="boxLead.end" :end-te="boxLead.chain[boxLead.chain.length - 1]" :plan-start="answerStart" />',
+    ]);
     const users = allSources().filter(f => /<FollowButton/.test(fs.readFileSync(f, 'utf8')));
+    // The result cards (23 Oct 2026) take their follow from the screen: By a date's guarded above, Fastest's
+    // (ChainSearchPanel, InsanePanel) a race.
     expect(users.map(f => path.relative(path.resolve(__dirname, '..'), f)).sort()).toEqual([
+      'components/auto/ByDateRouteCard.vue',
+      'components/auto/DeadlinePanel.vue',
+      'components/auto/InsanePanel.vue',
       'components/auto/InstantRoute.vue',
       'components/auto/LeaderboardPanel.vue',
       'components/auto/LeaderboardPlanList.vue',
       'components/auto/MyRunsList.vue',
+      'components/auto/RouteResultCard.vue',
       'components/auto/SavedAnswers.vue',
       'components/auto/SavedRuns.vue',
+      'components/auto/TopRoutes.vue',
     ]);
+    // More routes (TopRoutes.vue, item 12, 27 Oct 2026): each Follow behind `canFollow`, which By a date feeds with
+    // `followableAnswer` on the route as the result keeps it.
+    const top = src('components/auto/TopRoutes.vue');
+    expect(top.match(/<FollowButton\s+v-if="canFollow\((r|chosen)\)"/g)).toHaveLength(2);
+    expect(top).toContain('return !!props.follow && (!props.followable || props.followable(r));');
+    expect(src('components/auto/DeadlinePanel.vue')).toContain(':followable="dateTopFollowable"');
+    expect(src('components/auto/DeadlinePanel.vue')).toContain(
+      "return !!res && followableAnswer(dateRoutesByKey.value.get(r.chain.join(',')), res.deadline);"
+    );
+    expect(src('components/auto/ByDateRouteCard.vue')).toContain('<FollowButton\n            v-if="follow"');
   });
 });

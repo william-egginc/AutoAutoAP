@@ -60,6 +60,25 @@ const other = (p: NowPlan, goalKey: string, recorded: PricedSetup | null, goalIn
 });
 
 describe('goal keys and the goal list', () => {
+  it('each By a date goal a pill of its own, named by its date; a custom race by its target (24 Oct 2026)', () => {
+    const FEB10 = MAR3 - 21 * 86400;
+    const list = goalDefs({
+      ownTarget: 490,
+      raceTarget: 490,
+      eggDay: EGG_DAY,
+      otherDates: [MAR3, FEB10, MAR3],
+      otherTargets: [312],
+      dayWords: t => (t === FEB10 ? 'Feb 10, 2027' : 'Mar 3, 2027'),
+    });
+    expect(list.map(g => [g.key, g.label])).toEqual([
+      ['fastest-490', 'Fastest to 490 TE'],
+      ['fastest-312', 'Fastest to 312 TE'],
+      ['eggday-2027', 'Egg Day 2027'],
+      [`date-${FEB10}`, 'By Feb 10, 2027'],
+      [`date-${MAR3}`, 'By Mar 3, 2027'],
+    ]);
+  });
+
   it('fastest-<target>, eggday-<year>, date-<unix>', () => {
     expect(goalKeyOf('fastest', 490, null, EGG_DAY)).toBe('fastest-490');
     expect(goalKeyOf('date', 490, EGG_DAY.at, EGG_DAY)).toBe('eggday-2027');
@@ -68,14 +87,14 @@ describe('goal keys and the goal list', () => {
 
   it('Race to your own target first; Fastest to 490 beside it only when the target differs; other dates optional', () => {
     expect(goals.map(g => [g.key, g.label, g.name, !!g.optional])).toEqual([
-      ['fastest-490', 'Race to 490', 'Race to 490', false],
+      ['fastest-490', 'Fastest to 490 TE', 'Fastest to 490 TE', false],
       ['eggday-2027', 'Egg Day 2027', 'Egg Day 2027', false],
-      [`date-${MAR3}`, 'By a date', 'By Mar 3, 2027', true],
+      [`date-${MAR3}`, 'By Mar 3, 2027', 'By Mar 3, 2027', true],
     ]);
     const mine = goalDefs({ ownTarget: 450, raceTarget: 490, eggDay: EGG_DAY, otherDates: [EGG_DAY.at], dayWords: String });
     expect(mine.map(g => [g.key, g.label, !!g.optional])).toEqual([
-      ['fastest-450', 'Race to 450', false],
-      ['fastest-490', 'Race to 490', true],
+      ['fastest-450', 'Fastest to 450 TE', false],
+      ['fastest-490', 'Fastest to 490 TE', true],
       ['eggday-2027', 'Egg Day 2027', false],
     ]);
   });

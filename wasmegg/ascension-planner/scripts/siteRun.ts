@@ -22,8 +22,13 @@
  * The scripts/pc harness (zz_e2e_fine.spec.ts) proved the store runs under Node this way; this is the
  * same idea without vitest.
  */
-import { createWriteStream, mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, createWriteStream, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { LegSpill } from '@/search/legSpill';
+import { FileSpillBackend, fileBigCsvSink } from './nodeLegSpill';
+import { bigCsvMessage } from '@/search/bigCsvUpload';
+import { queueCsvPath } from '@/search/cliDates';
 import { createGzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import { Worker as NodeWorker } from 'node:worker_threads';
@@ -51,6 +56,34 @@ import type { Milestone } from '@/search/milestones';
 import type { TimeOffDates } from '@/search/timeOff';
 import type { EffortTier } from '@/search/types';
 import type { FirstAscension } from '@/search/firstAscension';
+
+/** The full CSV's scrubbed gzip for the collector's private store, in an --out directory. */
+export const BIG_CSV_UPLOAD_FILE = 'run-full-upload.csv.gz';
+
+/** A big run's full CSV to the collector's private store, after its send (store `sendFullCsv`), said as it goes. */
+async function sendFullCsvNow(store: Store): Promise<void> {
+  let last = 0;
+  const stop = watch(
+    () => store.bigCsvState,
+    s => {
+      if (!s || Date.now() - last < 15000) return;
+      last = Date.now();
+      console.log(`  ${s.message} ${s.total ? `${(s.done / 1e6).toFixed(0)} of ${(s.total / 1e6).toFixed(0)} MB` : `${(s.done / 1e6).toFixed(0)} MB`}`);
+    },
+    { deep: true }
+  );
+  try {
+    const out = await store.sendFullCsv();
+    if (out && out.kind !== 'unavailable') console.log(`  ${bigCsvMessage(out)}`);
+  } finally {
+    stop();
+  }
+}
+
+/** The leg spill's file in an --out directory (search/legSpill.ts), beside the checkpoint. */
+export const LEG_SPILL_FILE = 'legs.spill';
+/** The full download in an --out directory: every route's legs, gzipped. */
+export const FULL_CSV_FILE = 'run-full.csv.gz';
 
 export type SiteKind = 'smart' | 'full' | 'by-date';
 
@@ -81,6 +114,8 @@ export interface SiteRunOptions {
   deferShifts: boolean;
   milestones: Milestone[];
   timeOff: TimeOffDates[];
+  /** Your setup's no-prestige days (search/noPrestige.ts), whole local dates. */
+  noPrestige?: TimeOffDates[];
   /** What leg 1 does with the ascension in progress (search/firstAscension.ts). */
   firstAscension: FirstAscension;
   /** Smart search. */
@@ -107,6 +142,10 @@ export interface SiteRunOptions {
   ascendNeeded: boolean;
   /** Send the result when it finishes (stopped early, it still sends: the board marks it partial). */
   submit: { nickname: string; csv: boolean; yes: boolean } | null;
+  /** --diagnostics: send the run's diagnostics with the result, as the page's "Send diagnostics" tick. */
+  diagnostics?: boolean;
+  /** --no-full-csv: don't send a big run's full CSV to the collector's private store after --submit. */
+  noFullCsv?: boolean;
   /** `--out DIR`: leave the table and a submission file here for `submit --from`. */
   out: { dir: string; nickname: string; csv: boolean; plainCsv: boolean } | null;
   /** A plain CSV at this path (`--csv`). */
@@ -169,7 +208,7 @@ function days(seconds: number): string {
 
 /** Chunks of text to a gzip file, one at a time, so a table of hundreds of thousands of chains never
  *  exists as one string. Resolves when the file is closed. */
-async function writeGzip(path: string, chunks: Iterable<string>): Promise<void> {
+async function writeGzip(path: string, chunks: Iterable<string> | AsyncIterable<string>): Promise<void> {
   const gz = createGzip();
   const file = createWriteStream(path);
   const done = new Promise<void>((resolve, reject) => {
@@ -178,20 +217,20 @@ async function writeGzip(path: string, chunks: Iterable<string>): Promise<void> 
     gz.on('error', reject);
   });
   gz.pipe(file);
-  for (const chunk of chunks) {
+  for await (const chunk of chunks) {
     if (!gz.write(chunk)) await new Promise<void>(r => gz.once('drain', () => r()));
   }
   gz.end();
   await done;
 }
 
-async function writePlain(path: string, chunks: Iterable<string>): Promise<void> {
+async function writePlain(path: string, chunks: Iterable<string> | AsyncIterable<string>): Promise<void> {
   const file = createWriteStream(path);
   const done = new Promise<void>((resolve, reject) => {
     file.on('finish', resolve);
     file.on('error', reject);
   });
-  for (const chunk of chunks) {
+  for await (const chunk of chunks) {
     if (!file.write(chunk)) await new Promise<void>(r => file.once('drain', () => r()));
   }
   file.end();
@@ -233,6 +272,7 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
   store.deferShifts = o.deferShifts;
   store.milestones = o.milestones;
   store.timeOff = o.timeOff;
+  store.noPrestige = o.noPrestige ?? [];
   store.effort = o.effort;
   store.seedOverride = o.seed.join(' ');
   store.findSeedFirst = o.findSeed;
@@ -394,18 +434,71 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
   process.on('beforeExit', onBeforeExit);
   process.on('exit', onExit);
 
+  // EVERY ROUTE'S LEGS ON DISK (search/legSpill.ts): beside the checkpoint with --out, so a carried-on run
+  // keeps them; else a temporary file, deleted at the end. The downloaded files (--csv, run.csv,
+  // run-full.csv.gz) have every route's legs; run.csv.gz and sends keep the collector's rule.
+  const spillPath = o.out
+    ? join(o.out.dir, LEG_SPILL_FILE)
+    : join(tmpdir(), `aaap-legs-${process.pid}-${Date.now()}.spill`);
+  let spill: LegSpill | null = null;
+  try {
+    if (o.out) mkdirSync(o.out.dir, { recursive: true });
+    spill = new LegSpill(new FileSpillBackend(spillPath), o.tz);
+    store.setLegSpill(spill);
+  } catch (e) {
+    console.warn(`  (no leg spill: ${e instanceof Error ? e.message : String(e)}; the files keep legs for the top routes only)`);
+  }
+
+  // A big run's full CSV after its --submit (search/bigCsvUpload.ts): made in --out DIR (else a temporary file),
+  // uploaded here in this command rather than in the background as the page does it.
+  const bigCsvPath = o.out ? join(o.out.dir, BIG_CSV_UPLOAD_FILE) : join(tmpdir(), `aaap-bigcsv-${process.pid}.csv.gz`);
+  store.setBigCsvPlatform({ sink: async () => (o.submit && !o.noFullCsv ? fileBigCsvSink(bigCsvPath) : null), auto: false });
+
+  // Test knobs: AAP_LEG_DETAIL_BUDGET sets "Keep per-ascension detail for N routes" (Setup > Memory on the
+  // page); AAP_MEMORY_LOG=FILE appends the heap, RSS and the spill's count every 15 s (a measured run).
+  const legBudget = Number(process.env.AAP_LEG_DETAIL_BUDGET);
+  if (legBudget > 0) store.legDetailBudget = legBudget;
+  const memLog = process.env.AAP_MEMORY_LOG;
+  const memTimer = memLog
+    ? setInterval(() => {
+        const m = process.memoryUsage();
+        appendFileSync(
+          memLog,
+          JSON.stringify({ t: Date.now(), heapMB: Math.round(m.heapUsed / 1048576), rssMB: Math.round(m.rss / 1048576), spilled: spill?.count ?? 0, spillMB: Math.round((spill?.bytes ?? 0) / 1048576), legsHeld: store.legsHeld, priced: store.chainsDone }) + '\n'
+        );
+      }, 15000)
+    : null;
+  memTimer?.unref();
+
+  // The page also reads Setup saved online (hours, time off, no-prestige days, timezone, the target): here the
+  // flags are the whole setup.
+  console.log('  setup from the flags only (Setup saved on the site is not read here)');
+
   o.onStatus?.('running');
   try {
     const code =
       o.kind === 'by-date'
         ? await runByDate(o, store, show, partition)
-        : await runChains(o, store, show, partition);
+        : await runChains(o, store, show, partition, async path => {
+            // A queue of chains: each its own spill in its own directory, so a carry-on of one never cuts
+            // another's records.
+            store.setLegSpill(null);
+            await spill?.close().catch(() => {});
+            spill = new LegSpill(new FileSpillBackend(path), o.tz);
+            store.setLegSpill(spill);
+          });
     o.onStatus?.(store.error || code ? 'failed' : store.stoppedEarly || store.deadlineResult?.stoppedEarly ? 'stopped' : 'done');
     return code;
   } catch (e) {
     o.onStatus?.('failed');
     throw e;
   } finally {
+    if (memTimer) clearInterval(memTimer);
+    store.setLegSpill(null);
+    if (spill) {
+      if (spill.stopped) console.log(`  leg detail on disk stopped early: ${spill.stopped}`);
+      await spill.close(!o.out).catch(() => {});
+    }
     console.error = consoleError;
     console.warn = consoleWarn;
     finished = true;
@@ -569,7 +662,9 @@ async function runChains(
   o: SiteRunOptions,
   store: Store,
   show: (unix: number) => string,
-  partition: string
+  partition: string,
+  /** Point the leg spill at a chain's own directory (a queue with --out). */
+  respill?: (path: string) => Promise<void>
 ): Promise<number> {
   const spaces: (FullSweep | null)[] = o.kind === 'full' ? o.sweeps : [null];
   if (o.kind === 'full') {
@@ -583,6 +678,13 @@ async function runChains(
     const space = spaces[k];
     if (spaces.length > 1) {
       console.log(`\n=== chain ${k + 1} of ${spaces.length}: ${space!.asc} ascension${space!.asc === 1 ? '' : 's'}${space!.auto ? ' (a neighbouring count, added like Suggest a space does)' : ''}`);
+    }
+    if (spaces.length > 1 && o.out && respill) {
+      const d = chainDir(o.out.dir, k, spaces.length, space!.asc);
+      mkdirSync(d, { recursive: true });
+      await respill(join(d, LEG_SPILL_FILE)).catch(e =>
+        console.warn(`  (no leg spill for this chain: ${e instanceof Error ? e.message : String(e)})`)
+      );
     }
     // The sweep's own name, only for the space it names (the site clears it as soon as the box is edited).
     store.sweepTag = space?.tag ? { preset: space.tag, bands: space.bandsText, minGap: space.minGap } : null;
@@ -603,13 +705,14 @@ async function runChains(
             console.log(`  checkpoint found: ${cp.durations.length.toLocaleString()} chains already priced${cp.complete ? ' (a finished run: they replay at no cost)' : ''}; carrying on`);
           }
         }
-        await store.start(o.account, { recheck: !!o.submit, resume });
+        // Re-checks for a send now or later (--out's submission.json), as the page sends them with every result.
+        await store.start(o.account, { recheck: !!o.submit || !!o.out, resume });
       } else {
         const n = current!.asc;
         await store.startExhaustive(
           o.account,
           { lo: 0, hi: 0, step: 1, minAsc: n, maxAsc: n, minGap: current!.minGap, ...(n > 1 ? { bands: current!.bands.map(b => [...b]) } : {}) },
-          { recheck: !!o.submit && spaces.length === 1 }
+          { recheck: (!!o.submit || !!o.out) && spaces.length === 1 }
         );
         // The winner on the first or last value of its band, with room to go further.
         const sp = store.searchSpace;
@@ -657,9 +760,11 @@ async function runChains(
       console.log('\n  next best:');
       for (const row of rows) console.log(`    ${days(row.seconds)}  +${days(row.gapSeconds)}   ${row.chain.join(' ')}`);
     }
-    if (o.csvPath && spaces.length === 1) {
-      await writePlain(o.csvPath, store.exportCsvChunks());
-      console.log(`\n  every chain priced -> ${o.csvPath}`);
+    if (o.csvPath) {
+      // A queue: one file a chain beside the one named (it used to write none at all).
+      const path = queueCsvPath(o.csvPath, k, spaces.length, current?.asc ?? store.bestChain.length);
+      await writePlain(path, store.streamFullCsv('fastest'));
+      console.log(`\n  every chain priced -> ${path}`);
     }
     let dir: string | null = null;
     if (o.out) {
@@ -671,8 +776,9 @@ async function runChains(
     if (o.submit && !store.error) {
       // The site's own send (search/sendRun.ts): summary, then the table, with its re-checks.
       console.log(`\n  sending to ${store.submitUrl}: ${store.bestChain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
-      const res = await sendRunResult(store, o.submit.nickname, o.submit.csv, stage => console.log(`  ${stage}`));
+      const res = await sendRunResult(store, o.submit.nickname, o.submit.csv, stage => console.log(`  ${stage}`), !!o.diagnostics);
       console.log(`\n  ${res.text}`);
+      if (res.ok) await sendFullCsvNow(store);
       if (!res.ok) worst = 1;
     }
     if (store.error) worst = 1;
@@ -697,19 +803,32 @@ async function writeRunFiles(
   if (!o.out) return;
   mkdirSync(dir, { recursive: true });
   const nickname = o.out.nickname;
-  const payload = kind === 'chains' ? store.buildRunSubmission(nickname) : route ? store.buildDeadlineSubmission(route, nickname) : null;
+  // Fastest's with its re-checks, which the page sends with every result (submit --from sends them as they are).
+  const built = kind === 'chains' ? store.buildRunSubmission(nickname) : route ? store.buildDeadlineSubmission(route, nickname) : null;
+  const payload = built && kind === 'chains' ? await store.withRechecks(built) : built;
   const csvFile = join(dir, CSV_FILE);
+  // run.csv.gz is what a send uploads (the collector's rule: legs for the top 20,000 routes, fewer when the
+  // gzip is over the limit, as the page sends it); the plain run.csv and run-full.csv.gz are the downloads,
+  // every route's legs from the leg spill, written with or without --no-submit-csv.
+  const fullKind = kind === 'chains' ? 'fastest' : 'deadline';
   if (o.out.csv) {
     if (kind === 'chains') {
-      await writeGzip(csvFile, store.exportCsvChunks());
-      if (o.out.plainCsv) await writePlain(join(dir, 'run.csv'), store.exportCsvChunks());
+      const table = await store.fastestUploadCsv();
+      if ('gz' in table) writeFileSync(csvFile, new Uint8Array(table.gz));
+      else await writeGzip(csvFile, table);
+      console.log(`\n  table -> ${csvFile}`);
     } else {
-      const text = scrubIdentifiers(store.deadlineCsv());
-      await writeGzip(csvFile, [text]);
-      if (o.out.plainCsv) writeFileSync(join(dir, 'run.csv'), text);
+      const gz = await store.deadlineUploadGz();
+      if (gz) {
+        writeFileSync(csvFile, new Uint8Array(gz));
+        console.log(`\n  table -> ${csvFile}`);
+      } else console.error(`\n  no ${CSV_FILE}: the table is over the collector's limit even without legs`);
     }
-    console.log(`\n  table -> ${csvFile}`);
   }
+  if (o.out.plainCsv) await writePlain(join(dir, 'run.csv'), store.streamFullCsv(fullKind));
+  const fullFile = join(dir, FULL_CSV_FILE);
+  await writeGzip(fullFile, store.streamFullCsv(fullKind));
+  console.log(`  every route's legs -> ${fullFile}`);
   if (!payload) {
     console.error('\n  no submission file: nothing to send');
     return;
@@ -796,7 +915,7 @@ async function runByDate(
     console.log(`    ${route.chain.join(' ')}   ${route.chain[route.chain.length - 1]} on ${show(route.reachAt)}`);
   }
   if (o.csvPath) {
-    writeFileSync(o.csvPath, store.deadlineCsv());
+    await writePlain(o.csvPath, store.streamFullCsv('deadline'));
     console.log(`\n  routes -> ${o.csvPath}`);
   }
   if (o.out) await writeRunFiles(o, store, 'by-date', o.out.dir, partition, best);
@@ -807,7 +926,13 @@ async function runByDate(
       return 1;
     }
     console.log(`\n  sending to ${store.submitUrl}: ${payload.chain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
-    const res = await store.sendSubmission(payload, o.submit.csv ? store.deadlineCsv() : undefined);
+    // The page's own By a date send (Share): the table streamed and capped, black box marks, its diagnostics.
+    const res = await store.sendDeadlineAnswer({
+      route: best,
+      nickname: o.submit.nickname,
+      sendCsv: o.submit.csv,
+      diagnostics: !!o.diagnostics,
+    });
     const year = eggDayYearOf(r.deadline);
     // Worded as the site's Share says it (DeadlinePanel.vue `share`).
     console.log(
@@ -817,6 +942,7 @@ async function runByDate(
         ? `\n  ${res.duplicate === 'exact' ? res.message : `Thanks! ${sentence(res.message)}`} It's on Compare > ${year ? `Egg Day ${year}` : 'By a date'}.`
         : `\n  Not sent: ${res.message}`
     );
+    if (res.ok && !res.quarantined) await sendFullCsvNow(store);
     return res.ok && !res.quarantined ? 0 : 1;
   }
   return store.error ? 1 : 0;

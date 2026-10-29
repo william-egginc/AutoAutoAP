@@ -12,9 +12,9 @@
       rows="2"
       placeholder="e.g. testing 3 sales on the first ascension"
       aria-label="Note on this run"
-      class="mt-1 block w-full rounded-lg border-indigo-200 text-sm font-normal text-slate-800 disabled:opacity-40"
+      class="mt-1 block w-full rounded-lg border-indigo-200 text-body font-normal text-slate-800 disabled:opacity-40"
     ></textarea>
-    <span class="block text-right text-xs text-slate-500">{{ note.length }} / {{ MAX_NOTE }}</span>
+    <span class="block text-right text-small text-slate-500">{{ note.length }} / {{ MAX_NOTE }}</span>
   </label>
 </template>
 

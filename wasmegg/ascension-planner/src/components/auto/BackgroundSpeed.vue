@@ -8,21 +8,21 @@
 -->
 <template>
   <div class="space-y-1.5">
-    <label class="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+    <label class="flex flex-wrap min-w-0 max-w-full items-center gap-2 text-small text-slate-600">
       <span class="font-bold text-slate-800">When this tab is in the background:</span>
       <select
         :value="store.backgroundWorkers < store.workerBudget ? store.backgroundWorkers : 0"
-        class="rounded-md border-slate-300 py-1 text-[11px] font-bold text-slate-800"
+        class="min-w-0 max-w-full rounded-md border-slate-300 py-1 text-body font-bold text-slate-800"
         @change="set(($event.target as HTMLSelectElement).value)"
       >
         <option :value="0">keep full speed ({{ store.workerBudget }} workers)</option>
         <option v-for="n in slower" :key="n" :value="n">slow to {{ n }} worker{{ n === 1 ? '' : 's' }}</option>
       </select>
     </label>
-    <p class="text-[10px] text-slate-500 leading-relaxed">
+    <p class="text-small text-slate-500">
       Lets the search keep going at a lower draw while you use the computer for something else, and go back to full
       speed when you return. Takes effect within about a minute, and no route in progress is lost.
-      <span class="font-semibold text-slate-600">{{ BROWSER_ADVICE[browser] }}</span>
+      <span class="font-bold text-slate-600">{{ BROWSER_ADVICE[browser] }}</span>
     </p>
   </div>
 </template>

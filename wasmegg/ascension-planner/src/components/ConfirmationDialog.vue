@@ -21,11 +21,11 @@
               />
             </svg>
           </div>
-          <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">{{ title }}</h3>
+          <h3 class="text-slate-800 label">{{ title }}</h3>
         </div>
 
         <div class="p-6">
-          <p v-if="message" class="text-sm font-medium text-slate-600 leading-relaxed">
+          <p v-if="message" class="text-body font-normal text-slate-600">
             {{ message }}
           </p>
           
@@ -33,13 +33,13 @@
 
           <div class="mt-8 flex justify-end gap-3">
             <button
-              class="btn-premium btn-ghost px-6 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+              class="btn-premium btn-ghost px-6 py-2 text-body font-bold text-slate-400 hover:text-slate-600 transition-colors"
               @click="$emit('cancel')"
             >
               {{ cancelLabel }}
             </button>
             <button
-               class="btn-premium px-8 py-2 text-xs font-black uppercase tracking-widest shadow-lg"
+               class="btn-premium px-8 py-2 text-body font-bold shadow-lg"
                :class="variant === 'danger' ? 'bg-red-600 border-red-500 text-white hover:bg-red-700 shadow-red-500/20' : 'btn-primary shadow-blue-500/20'"
                @click="$emit('confirm')"
              >

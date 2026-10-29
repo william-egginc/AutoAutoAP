@@ -14,14 +14,14 @@
           </div>
           <div>
             <div class="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2">
-              <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-slate-800 leading-none">
+              <h3 class="text-title font-bold text-slate-800 leading-none">
                 A{{ index + 1 }} of {{ total }}
-                <span v-if="index === 0" class="ml-1 sm:ml-2 text-[8px] sm:text-[10px] font-bold text-slate-400 capitalize opacity-70">
-                  — {{ summary.strategyLabel === 'Continue current' ? 'Continue current ascension' : 'Prestige Now' }}
+                <span v-if="index === 0" class="ml-1 sm:ml-2 text-small font-bold text-slate-400 capitalize opacity-70">
+                  — {{ summary.strategyLabel === 'Continue current' ? 'Continue current ascension' : 'Prestige now' }}
                 </span>
               </h3>
               <span v-if="!isEditingEndTime" class="flex items-center gap-1">
-                <span class="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-none">{{ formatTimeRange(summary.startTime, summary.endTime) }}</span>
+                <span class="text-slate-400 label leading-none">{{ formatTimeRange(summary.startTime, summary.endTime) }}</span>
                 <button
                   v-tippy="hasEndTimeOverride ? 'Edit overridden end time' : 'Override end time'"
                   class="text-slate-300 hover:text-indigo-500 transition-colors flex-shrink-0"
@@ -33,12 +33,12 @@
                 </button>
                 <span
                   v-if="hasEndTimeOverride"
-                  class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 text-[7px] font-black uppercase tracking-wider leading-none"
+                  class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 label leading-none"
                 >Overridden</span>
                 <span
                   v-if="hasLoadoutOverride"
                   v-tippy="'This ascension uses its own artifacts & stones — see View details'"
-                  class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 text-[7px] font-black uppercase tracking-wider leading-none flex items-center gap-0.5"
+                  class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 label leading-none flex items-center gap-0.5"
                 >
                   <img :src="iconURL('egginc/afx_quantum_metronome_4.png', 32)" class="w-2.5 h-2.5" alt="" />
                   Artifacts
@@ -51,32 +51,32 @@
               <input
                 v-model="editEndDate"
                 type="date"
-                class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all w-36"
+                class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all w-36"
               />
               <input
                 v-model="editEndTime"
                 type="time"
-                class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all w-28"
+                class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all w-28"
               />
               <button
-                class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-wider rounded-lg transition-all"
+                class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-body font-bold rounded-lg transition-all"
                 @click="saveEndTimeOverride"
               >Save</button>
               <button
-                class="px-2 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-500 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all"
+                class="px-2 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-500 text-body font-bold rounded-lg transition-all"
                 @click="cancelEditingEndTime"
               >Cancel</button>
               <button
                 v-if="hasEndTimeOverride"
-                class="px-2 py-1 bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200/50 text-slate-500 hover:text-rose-600 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all"
+                class="px-2 py-1 bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200/50 text-slate-500 hover:text-rose-600 text-body font-bold rounded-lg transition-all"
                 @click="resetEndTimeOverride"
               >Reset to Auto</button>
             </div>
-            <div v-if="endTimeEditError" class="text-[8px] sm:text-[9px] font-bold text-rose-500 mt-1">{{ endTimeEditError }}</div>
+            <div v-if="endTimeEditError" class="text-small font-bold text-rose-500 mt-1">{{ endTimeEditError }}</div>
 
             <div v-if="displayComparisons.length > 0" class="flex flex-wrap gap-2 mt-1">
               <div v-for="(comp, ci) in displayComparisons" :key="ci"
-                class="px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm w-fit"
+                class="px-1.5 py-0.5 rounded text-small font-bold flex items-center gap-1 shadow-sm w-fit"
                 :class="comp.message ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'">
                 <svg v-if="!comp.message" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -94,7 +94,7 @@
         <div class="flex items-center gap-2 flex-wrap ml-[38px] sm:ml-[44px]">
           <button
             @click="isExpanded = !isExpanded"
-            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-[9px] font-black text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wider group shadow-sm flex-shrink-0"
+            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-500 hover:text-indigo-600 transition-colors group shadow-sm flex-shrink-0"
           >
             <span>{{ isExpanded ? 'Hide details' : 'View details' }}</span>
             <svg
@@ -110,7 +110,7 @@
           <div class="relative flex-shrink-0" ref="dropdownRef">
             <button
               @click.stop="isDropdownOpen = !isDropdownOpen"
-              class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-[9px] font-black text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wider shadow-sm"
+              class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-500 hover:text-indigo-600 transition-colors shadow-sm"
             >
               <span>{{ activeVariantShortLabel }}</span>
               <svg class="w-3 h-3 transition-transform duration-200" :class="isDropdownOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,7 +124,7 @@
             >
               <div v-for="row in variantRows" :key="row.saleCount" class="flex items-center gap-1 px-1">
                 <button
-                  class="flex-1 text-left px-2 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors flex items-center gap-1.5 rounded-lg"
+                  class="flex-1 text-left px-2 py-1.5 text-body font-bold transition-colors flex items-center gap-1.5 rounded-lg"
                   :class="
                     (row.plainKey ?? row.tier13Key) === activeVariantKey
                       ? 'bg-indigo-50 text-indigo-600'
@@ -148,7 +148,7 @@
                 <button
                   v-if="row.tier13Key && row.plainKey"
                   v-tippy="'Also unlocks Tier 13 research'"
-                  class="px-1.5 py-1 text-[8px] font-black uppercase tracking-wider rounded-md border transition-colors flex-shrink-0"
+                  class="px-1.5 py-1 text-body font-bold rounded-md border transition-colors flex-shrink-0"
                   :class="
                     row.tier13Key === activeVariantKey
                       ? 'bg-amber-50 text-amber-600 border-amber-200'
@@ -166,7 +166,7 @@
                 <span v-if="!continueAvailable" v-tippy="continueDisabledTooltip" class="block">
                   <button
                     disabled
-                    class="w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 opacity-40 cursor-not-allowed text-slate-500"
+                    class="w-full text-left px-3 py-1.5 text-body font-bold flex items-center gap-1.5 opacity-40 cursor-not-allowed text-slate-500"
                   >
                     <span class="w-2.5 flex-shrink-0" />
                     Continue Asc.
@@ -174,7 +174,7 @@
                 </span>
                 <button
                   v-else
-                  class="w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors flex items-center gap-1.5"
+                  class="w-full text-left px-3 py-1.5 text-body font-bold transition-colors flex items-center gap-1.5"
                   :class="
                     activeVariantKey === 'continue'
                       ? 'bg-indigo-50 text-indigo-600'
@@ -201,7 +201,7 @@
           <button
             v-if="variantRows.length > 1 || continueAvailable"
             v-tippy="'Compare all variants side by side'"
-            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-[9px] font-black text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wider shadow-sm flex-shrink-0"
+            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-500 hover:text-indigo-600 transition-colors shadow-sm flex-shrink-0"
             @click="isComparisonOpen = true"
           >
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +220,7 @@
             @click="emit('saveSingleToLibrary')"
             :disabled="isSavingSingle"
             v-tippy="saveSingleSuccess ? 'Saved to plan library!' : 'Save to plan library'"
-            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-[9px] font-black text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wider shadow-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200/50 rounded-lg text-body font-bold text-slate-500 hover:text-indigo-600 transition-colors shadow-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg v-if="isSavingSingle" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
@@ -240,29 +240,29 @@
       <div class="grid grid-cols-4 gap-x-1.5 sm:gap-x-3 gap-y-2 mb-3.5">
         <!-- TE Progress -->
         <div class="space-y-0.5">
-          <div class="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-1 sm:gap-1.5">
+          <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
             <div class="w-1 h-1 rounded-full bg-emerald-500"></div>
             TE Progress
           </div>
           <div class="flex items-baseline gap-0.5 sm:gap-1.5">
-            <span class="text-sm sm:text-xl font-mono-premium font-black text-slate-400">{{ summary.startTE }}</span>
+            <span class="text-body sm:text-title tabular-nums font-bold text-slate-400">{{ summary.startTE }}</span>
             <svg class="w-1.5 h-1.5 sm:w-3.5 sm:h-3.5 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
-            <span class="text-base sm:text-2xl font-mono-premium font-black text-emerald-600">{{ summary.endTE }}</span>
+            <span class="text-body sm:text-headline tabular-nums font-black text-emerald-600">{{ summary.endTE }}</span>
           </div>
-          <div class="text-[8px] sm:text-[9px] font-black text-emerald-500/80 uppercase tracking-tight mt-0.5">+{{ summary.teGained }}</div>
+          <div class="text-emerald-500/80 label mt-0.5">+{{ summary.teGained }}</div>
         </div>
 
         <!-- Peak ELR -->
         <div class="space-y-0.5">
-          <div class="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-1 sm:gap-1.5">
+          <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
             <div class="w-1 h-1 rounded-full bg-indigo-500"></div>
             <span class="sm:hidden">Delivery</span><span class="hidden sm:inline">Delivery Rate</span>
           </div>
           <div class="flex items-center gap-0.5 sm:gap-1.5">
-            <span class="text-[11px] sm:text-xl font-mono-premium font-black text-indigo-600">{{ formatNumber(summary.maxELR * 3600, 3) }}</span>
-            <span class="text-[6px] sm:text-[9px] font-black text-slate-400 uppercase">/HR</span>
+            <span class="text-small sm:text-title tabular-nums font-bold text-indigo-600">{{ formatNumber(summary.maxELR * 3600, 3) }}</span>
+            <span class="text-slate-400 label">/HR</span>
           </div>
           <div v-if="summary.alternativeELRs && summary.alternativeELRs.length > 0" class="flex flex-col gap-0.5 mt-0.5">
             <div
@@ -271,34 +271,34 @@
               class="flex items-baseline gap-0.5 sm:gap-1"
             >
               <span
-                class="text-[7px] sm:text-[10px] font-mono-premium font-bold"
+                class="text-small tabular-nums font-bold"
                 :class="alt.isActive ? 'text-indigo-500' : 'text-slate-400'"
               >{{ formatNumber(alt.elr * 3600, 3) }}</span>
-              <span class="text-[6px] sm:text-[8px] font-black uppercase tracking-wide" :class="alt.isActive ? 'text-indigo-400' : 'text-slate-300'">/hr</span>
-              <span class="text-[6px] sm:text-[8px] font-black uppercase tracking-wide" :class="alt.isActive ? 'text-indigo-500' : 'text-slate-400'">{{ alt.label }}<span v-if="alt.isActive"> (used)</span></span>
+              <span class="label" :class="alt.isActive ? 'text-indigo-400' : 'text-slate-300'">/hr</span>
+              <span class="label" :class="alt.isActive ? 'text-indigo-500' : 'text-slate-400'">{{ alt.label }}<span v-if="alt.isActive"> (used)</span></span>
             </div>
           </div>
         </div>
 
         <!-- Total Duration -->
         <div class="space-y-0.5">
-          <div class="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-1 sm:gap-1.5">
+          <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
             <div class="w-1 h-1 rounded-full bg-indigo-600"></div>
             Duration
           </div>
           <div class="flex items-center gap-1 sm:gap-1.5">
-            <span class="text-sm sm:text-xl font-mono-premium font-black text-indigo-600">{{ formatDuration(summary.totalDurationSeconds) }}</span>
+            <span class="text-body sm:text-title tabular-nums font-bold text-indigo-600">{{ formatDuration(summary.totalDurationSeconds) }}</span>
           </div>
         </div>
 
         <!-- Longest Single TE Wait -->
         <div v-if="summary.lastTEDurationSeconds > 0" class="space-y-0.5">
-          <div class="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-1 sm:gap-1.5">
+          <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
             <div class="w-1 h-1 rounded-full bg-indigo-400"></div>
             Last TE Wait
           </div>
           <div class="flex items-center gap-1 sm:gap-1.5">
-            <span class="text-sm sm:text-xl font-mono-premium font-black text-indigo-500">{{ formatDuration(summary.lastTEDurationSeconds) }}</span>
+            <span class="text-body sm:text-title tabular-nums font-bold text-indigo-500">{{ formatDuration(summary.lastTEDurationSeconds) }}</span>
           </div>
         </div>
       </div>
@@ -310,7 +310,7 @@
           <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          <span class="text-[9px] font-black uppercase tracking-wider leading-tight">{{ warning }}</span>
+          <span class="label leading-tight">{{ warning }}</span>
         </div>
       </div>
 
@@ -320,22 +320,22 @@
         <div v-if="loadoutEditorValue" class="bg-slate-50/50 border border-slate-100 rounded-xl p-2 sm:p-3 space-y-2">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-              <h4 class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Artifacts &amp; Stones</h4>
+              <h4 class="text-slate-500 label">Artifacts &amp; Stones</h4>
               <span
                 v-if="hasLoadoutOverride"
-                class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 text-[7px] font-black uppercase tracking-wider leading-none"
+                class="px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 label leading-none"
               >Overridden</span>
-              <span v-else class="text-[8px] font-bold text-slate-400">As used in C1 and H1</span>
+              <span v-else class="text-small font-bold text-slate-400">As used in C1 and H1</span>
             </div>
             <div class="flex items-center gap-1.5">
               <button
                 v-if="isLoadoutDirty"
-                class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-wider rounded-lg transition-all"
+                class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-body font-bold rounded-lg transition-all"
                 @click="emit('overrideLoadout', loadoutEditorValue)"
               >Apply</button>
               <button
                 v-if="hasLoadoutOverride"
-                class="px-2 py-1 bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200/50 text-slate-500 hover:text-rose-600 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all"
+                class="px-2 py-1 bg-slate-50 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200/50 text-slate-500 hover:text-rose-600 text-body font-bold rounded-lg transition-all"
                 @click="emit('overrideLoadout', null)"
               >Remove override</button>
             </div>
@@ -353,39 +353,39 @@
         <div class="grid grid-cols-3 gap-x-1.5 sm:gap-x-4 gap-y-2 bg-slate-50/50 border border-slate-100 rounded-xl p-2 sm:p-3">
           <!-- SE Cost -->
           <div class="space-y-0.5">
-            <div class="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-1 sm:gap-1.5">
+            <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
               <div class="w-1 h-1 rounded-full bg-rose-500"></div>
               SE Consumed
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl font-mono-premium font-black text-rose-600">{{ formatNumber(summary.totalShiftCost, 3) }}</span>
+              <span class="text-body sm:text-title tabular-nums font-bold text-rose-600">{{ formatNumber(summary.totalShiftCost, 3) }}</span>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3 sm:w-4 sm:h-4 opacity-80" alt="SE" />
             </div>
           </div>
 
           <!-- Ending SE Balance -->
           <div class="space-y-0.5">
-            <div class="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-1 sm:gap-1.5">
+            <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
               <div class="w-1 h-1 rounded-full bg-slate-400"></div>
               Ending SE Balance
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl font-mono-premium font-black" :class="summary.endSoulEggs < 0 ? 'text-rose-600' : 'text-slate-600'">
+              <span class="text-body sm:text-title tabular-nums font-bold" :class="summary.endSoulEggs < 0 ? 'text-rose-600' : 'text-slate-600'">
                 {{ formatNumber(summary.endSoulEggs, 3) }}
               </span>
               <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3 h-3 sm:w-4 sm:h-4 opacity-40" alt="SE" />
             </div>
-            <div class="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-tight">shift count: {{ summary.endShiftCount }}</div>
+            <div class="text-slate-400 label">shift count: {{ summary.endShiftCount }}</div>
           </div>
 
           <!-- Total Eggs Delivered -->
           <div class="space-y-0.5">
-            <div class="text-[7px] sm:text-[9px] font-black text-slate-400 uppercase tracking-wide flex items-center gap-1 sm:gap-1.5">
+            <div class="text-slate-400 label flex items-center gap-1 sm:gap-1.5">
               <div class="w-1 h-1 rounded-full bg-slate-400"></div>
               Eggs Delivered
             </div>
             <div class="flex items-center gap-1 sm:gap-1.5">
-              <span class="text-sm sm:text-xl font-mono-premium font-black text-slate-600">
+              <span class="text-body sm:text-title tabular-nums font-bold text-slate-600">
                 {{ formatNumber(Object.values(summary.eggsDelivered).reduce((s, n) => s + n, 0), 3) }}
               </span>
             </div>
@@ -404,16 +404,16 @@
               <div class="space-y-0 sm:space-y-0.5 text-center sm:text-left">
                 <!-- TE Count -->
                 <div class="flex items-center justify-center sm:justify-start gap-0.5 sm:gap-1">
-                  <span class="text-[10px] sm:text-base font-mono-premium font-black text-slate-800 leading-none">
+                  <span class="text-small sm:text-body tabular-nums font-bold text-slate-800 leading-none">
                     {{ summary.finalTE[egg] || 0 }}
                   </span>
-                  <span v-if="summary.teEarned[egg]" class="text-[7px] sm:text-[8px] font-black text-emerald-500 leading-none">
+                  <span v-if="summary.teEarned[egg]" class="text-small font-bold text-emerald-500 leading-none">
                     (+{{ summary.teEarned[egg] }})
                   </span>
                 </div>
 
                 <!-- Eggs Delivered -->
-                <div class="text-[7px] sm:text-[8px] font-bold text-slate-400 font-mono-premium leading-none">
+                <div class="text-small font-bold text-slate-400 tabular-nums leading-none">
                   {{ formatNumber(summary.eggsDelivered[egg], 3) }}
                 </div>
               </div>
@@ -449,6 +449,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { formatNumber, formatDuration, formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -728,26 +729,10 @@ const formatTimeRange = (start: number, end: number) => {
   const s = new Date(Math.round(start * 1000));
   const e = new Date(Math.round(end * 1000));
 
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    // Without this, `toLocaleString` falls back to the browser's own local timezone rather than the
-    // plan's configured one (`props.timezone`, the same zone the Start Time form and the end-time
-    // editor both read/write through) — whenever those two differ, this display and the editor it
-    // opens would silently disagree by the zones' offset.
-    timeZone: props.timezone,
-  };
-
-  return `${s.toLocaleString('en-US', options)} — ${e.toLocaleString('en-US', options)}`;
+  // In the plan's configured zone (`props.timezone`, the same zone the Start Time form and the end-time
+  // editor both read/write through), not the browser's: whenever those two differ, this display and the
+  // editor it opens would otherwise silently disagree by the zones' offset.
+  const show = (d: Date) => formatMoment(d.getTime(), { zone: props.timezone, weekday: true });
+  return `${show(s)} — ${show(e)}`;
 };
 </script>
-
-<style scoped>
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-</style>

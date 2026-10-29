@@ -33,7 +33,7 @@
 
       <div class="flex flex-col gap-1.5">
         <button
-          class="btn-premium btn-primary w-full text-[10px] disabled:opacity-20 inline-flex items-center justify-center gap-1.5"
+          class="btn-premium btn-primary w-full text-body disabled:opacity-20 inline-flex items-center justify-center gap-1.5"
           :disabled="!canBuyUntilSaleWarning || saleAwareLoading || saleAwareApplying"
           @click="$emit('buy-until-sale-warning')"
         >
@@ -67,7 +67,7 @@
         Buys earnings and delivery research during this sale to maximize delivery rate.
       </template>
       <button
-        class="btn-premium btn-primary w-full text-[10px] disabled:opacity-20 inline-flex items-center justify-center gap-1.5"
+        class="btn-premium btn-primary w-full text-body disabled:opacity-20 inline-flex items-center justify-center gap-1.5"
         :disabled="!canBuyUntilSaleDeadline || saleEndsLoading || saleEndsApplying"
         @click="$emit('buy-until-sale-deadline')"
       >

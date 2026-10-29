@@ -4,7 +4,7 @@
 -->
 <template>
   <label class="block space-y-1">
-    <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
+    <span class="flex items-baseline justify-between text-body font-bold text-slate-700">
       <span>How much of {{ thisDevice() }} to use</span>
       <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
     </span>
@@ -16,14 +16,14 @@
       class="w-full accent-indigo-600"
       @input="setWorkers(($event.target as HTMLInputElement).value)"
     />
-    <span class="block text-[10px] text-slate-500">
+    <span class="block text-small text-slate-500">
       Fewer workers keep the computer usable and quieter; more finish sooner, up to a point (on the one 20-thread PC
       we measured, 12 workers were as fast as 19). You can move it during a run too: the
       change takes effect within about a minute, and no route in progress is lost.
     </span>
     <span
       v-if="store.longRunNote"
-      class="block text-[10px] font-semibold text-amber-800"
+      class="block text-small font-bold text-amber-800"
       data-testid="long-run-workers"
     >
       <template v-if="store.longRunNote.kind === 'default'">{{ longRunLine(store.longRunNote.workers) }}</template>

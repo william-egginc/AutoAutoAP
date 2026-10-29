@@ -66,12 +66,12 @@ describe('saved-answer tiles', () => {
     expect(t.answer?.saveSeconds).toBe(SAVE);
     expect(t.olderSave).toBe(false);
     expect(t.sure?.level).toBe('high');
-    expect(howWords(t.answer!)).toBe('Check exactly');
+    expect(howWords(t.answer!)).toBe('simulator check');
   });
 
   it('the table only: Medium, never High', () => {
     const t = buildTile(base({ snapshot: plan({ exact: false }) }));
-    expect(t.sure).toMatchObject({ level: 'medium', action: 'check' });
+    expect(t.sure).toMatchObject({ level: 'medium', action: 'fast' });
     expect(howWords(t.answer!)).toBe('instant answer');
   });
 

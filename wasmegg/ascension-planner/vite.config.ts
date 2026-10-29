@@ -40,7 +40,8 @@ import {
  * `release` (from release.ts) says whether a tab built before a given time needs to reload: players
  * asked for the difference between a real fix and a wording change -- the same loud banner on every
  * deploy taught them to ignore it (2026-09-25). Each bundle carries its own build time
- * (__BUILD_TIME__) to compare with.
+ * (__BUILD_TIME__) to compare with, plus the `at` of every note it already carries
+ * (__BUILD_NOTE_ATS__), so the banner lists only the notes it does not (src/lib/updateNotes.ts).
  */
 const BUILD_TIME = new Date().toISOString();
 
@@ -60,7 +61,10 @@ function versionFile(): Plugin {
           ...entries,
           release: {
             reloadIfBuiltBefore: release.reloadIfBuiltBefore,
-            note: release.note.slice(0, 200),
+            // Empty on purpose (26 Oct 2026): tabs built before lib/updateNotes.ts fall back to this note when no
+            // history entry is newer than their build, and it is always the newest entry, which such a tab
+            // already has -- the stale Release 5 note. Empty, they say just "Small update available".
+            note: '',
             history: release.history
               .slice(0, 8)
               .map(h => ({ at: h.at, note: h.note.slice(0, 200), ...(h.level === 'big' ? { level: 'big' } : {}) })),
@@ -144,8 +148,8 @@ function warnIfReleaseStale(): Plugin {
             .toString()
             .trim();
           this.warn(
-            `release.ts is older than ${n} commit(s) in src/: open tabs will be shown its old note ` +
-              `("${release.note.slice(0, 60)}..."). Update its note, and reloadIfBuiltBefore if a fix ships.`
+            `release.ts is older than ${n} commit(s) in src/: open tabs will get no note for them (newest is ` +
+              `"${release.note.slice(0, 60)}..."). Add a note if players will notice, and reloadIfBuiltBefore if a fix ships.`
           );
         }
       } catch {
@@ -534,7 +538,10 @@ export default defineConfig(({ mode }) => {
       watcherIsolation(),
       collectorEarlyStart(env.VITE_SUBMIT_URL),
     ],
-    define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
+    define: {
+      __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+      __BUILD_NOTE_ATS__: JSON.stringify(release.history.map(h => h.at)),
+    },
     build: {
       chunkSizeWarningLimit: 2000,
       // TWO PAGES, ONE BUILD. `explorer.html` is the Chain Explorer: a static reader of the

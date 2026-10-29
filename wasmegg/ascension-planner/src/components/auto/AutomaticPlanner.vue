@@ -13,7 +13,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight">Auto-AP</h2>
+          <h2 class="text-title font-bold text-slate-900">Auto-AP</h2>
         </div>
 
         <div class="space-y-8 relative">
@@ -26,7 +26,7 @@
               class="flex items-center gap-3 bg-white px-6 py-3 rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-500/10"
             >
               <div class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-              <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest"
+              <span class="text-indigo-600 label"
                 >Form locked while calculating...</span
               >
             </div>
@@ -46,22 +46,22 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                   </svg>
                 </div>
-                <h3 class="text-xs font-black text-slate-700 uppercase tracking-wider">Ascension Targets</h3>
+                <h3 class="text-slate-700 label">Ascension Targets</h3>
               </div>
               <div class="space-y-1.5">
-                <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Target TE(s)</label>
+                <label class="text-slate-500 label px-1">Target TE(s)</label>
                 <div class="flex items-center gap-3">
                   <div class="relative flex-1">
                     <input
                       ref="targetInput"
                       v-model="targetTE"
                       type="text"
-                      class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:border-indigo-500/50 transition-all pr-10"
+                      class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-body font-bold text-slate-900 outline-none focus:border-indigo-500/50 transition-all pr-10"
                       placeholder="e.g. 300 400 490"
                       @input="handleTargetTEInput"
                       @keydown.enter="runGenerate()"
                     />
-                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-black text-[10px]">
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-small">
                       TE
                     </div>
                   </div>
@@ -75,7 +75,7 @@
                     <img :src="iconURL('egginc-extras/silo.png', 64)" class="w-5 h-5 object-contain" alt="silo" />
                   </button>
                 </div>
-                <p class="text-[10px] font-bold text-slate-400 leading-relaxed px-1 mt-2">
+                <p class="text-small font-bold text-slate-400 px-1 mt-2">
                   Enter several target TEs separated by spaces to generate a whole multi-ascension route at once.
                 </p>
               </div>
@@ -85,7 +85,7 @@
 
         <div
           v-if="showLowClothedTEWarning"
-          class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex gap-3"
+          class="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl text-body text-amber-800 flex gap-3"
         >
           <svg
             class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500"
@@ -112,7 +112,7 @@
         <div v-if="ui.runSaveLoaded" class="mt-4"><RunSaveNotice /></div>
 
         <button
-          class="btn-premium btn-primary w-full py-4 mt-8 text-sm shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
+          class="btn-premium btn-primary w-full py-4 mt-8 text-body shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
           :disabled="isGenerating"
           @click="runGenerate()"
         >
@@ -122,47 +122,47 @@
 
         <div
           v-if="ascensionChain.length === 0"
-          class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2"
+          class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-body text-amber-800 space-y-2"
         >
-          <p class="font-bold uppercase tracking-wide text-amber-700">
+          <p class="font-bold text-amber-700">
             Before you generate: a few assumptions to know about
           </p>
           <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
             <li>
-              <span class="font-semibold">Habs are always full.</span> Most reliable from around 100 TE, once filling
+              <span class="font-bold">Habs are always full.</span> Most reliable from around 100 TE, once filling
               habs takes no real time.
             </li>
             <li>
-              <span class="font-semibold">Artifacts and stones come from Artifacts &amp; Stones.</span> It starts from
+              <span class="font-bold">Artifacts and stones come from Artifacts &amp; Stones.</span> It starts from
               your inventory, and you can change it there or per ascension.
             </li>
             <li>
-              <span class="font-semibold">No downtime between ascensions.</span> Each ascension is assumed to start the
+              <span class="font-bold">No downtime between ascensions.</span> Each ascension is assumed to start the
               moment the previous one ends. A plan built from a {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }} result keeps
-              that search's time off.
+              that search's time off from virtue.
             </li>
-            <li><span class="font-semibold">You never sleep.</span> Auto-AP doesn't plan around your awake hours.</li>
+            <li><span class="font-bold">You never sleep.</span> Auto-AP doesn't plan around your awake hours.</li>
           </ul>
           <p class="text-amber-600 leading-relaxed">Treat this as a starting point. Your actual results may vary.</p>
 
           <div class="border-t border-amber-200 pt-3 mt-1">
-            <p class="font-bold uppercase tracking-wide text-amber-700 mb-2">How each ascension runs</p>
+            <p class="label text-amber-700 mb-2">How each ascension runs</p>
             <ul class="space-y-1.5 list-disc list-inside leading-relaxed">
               <li>
-                <span class="font-semibold">Opening (C1, K1, I1):</span> Research for 30 minutes, the best vehicles, then
+                <span class="font-bold">Opening (C1, K1, I1):</span> Research for 30 minutes, the best vehicles, then
                 the best habs it can buy in 4 hours. If that can't max the habs, it repeats C1, K1, I1 until it can.
               </li>
               <li>
-                <span class="font-semibold">C2 / K2 / R1:</span> Finishes fleet size and Graviton Coupling, maxes
+                <span class="font-bold">C2 / K2 / R1:</span> Finishes fleet size and Graviton Coupling, maxes
                 Hyperloops and train cars, then buys silos. A shift that would buy nothing is left out.
               </li>
               <li>
-                <span class="font-semibold">C3:</span> Rides one to three weekly research sales, buying earnings research
+                <span class="font-bold">C3:</span> Rides one to three weekly research sales, buying earnings research
                 first and Delivery Rate research in the final sale.
               </li>
-              <li><span class="font-semibold">H1:</span> Equips the best delivery set for your research at that point.</li>
+              <li><span class="font-bold">H1:</span> Equips the best delivery set for your research at that point.</li>
               <li>
-                <span class="font-semibold">K3, then C4 / I2 / R2 / H2:</span> Waits on each virtue egg until the TE goal
+                <span class="font-bold">K3, then C4 / I2 / R2 / H2:</span> Waits on each virtue egg until the TE goal
                 is reached.
               </li>
             </ul>
@@ -175,11 +175,11 @@
     <!-- Results Section -->
     <div v-if="ascensionChain.length > 0" class="max-w-4xl mx-auto space-y-6 pb-24 relative px-4 sm:px-0">
       <div class="flex flex-col sm:flex-row justify-between items-center gap-4 px-4">
-        <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Generated Roadmap</h2>
+        <h2 class="text-title font-bold text-slate-800">Generated Roadmap</h2>
         <div class="flex flex-wrap justify-center items-center gap-3">
           <button
             :disabled="isGenerating"
-            class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-body font-bold rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
             @click="copySummary"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +194,7 @@
           </button>
           <button
             :disabled="isGenerating || isSavingToLibrary"
-            class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
+            class="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 text-body font-bold rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-600"
             @click="saveToLibrary"
           >
             <svg v-if="isSavingToLibrary" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -222,7 +222,7 @@
           </button>
           <button
             :disabled="isGenerating || isExporting"
-            class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+            class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-body font-bold rounded-xl transition-all shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
             @click="exportCurrentPlan"
           >
             <svg v-if="isExporting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -247,10 +247,10 @@
       <div
         v-if="fromInstant"
         ref="planStart"
-        class="mb-3 scroll-mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-[12px] text-emerald-900 flex flex-wrap items-center gap-x-3 gap-y-1"
+        class="mb-3 scroll-mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-body text-emerald-900 flex flex-wrap items-center gap-x-3 gap-y-1"
       >
         <span
-          >Simulated <b class="font-mono-premium">{{ routeText(fromInstant.chain) }}</b> from
+          >Simulated <b class="tabular-nums">{{ routeText(fromInstant.chain) }}</b> from
           {{ fromInstant.from ?? 'the instant answer' }}. Each ascension's View details lists its steps and
           purchases.</span
         >
@@ -304,24 +304,24 @@
       <!-- Time off worked into this plan by the chain search's Apply (stores/autoPlanner.ts). -->
       <div
         v-if="timeOffInPlan.length"
-        class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-[11px] text-sky-900 leading-relaxed"
+        class="mt-4 p-3 rounded-xl border border-sky-200 bg-sky-50 text-body text-sky-900"
       >
-        <span class="font-black uppercase tracking-wide">Includes your time off.</span>
-        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Build this plan or Simulate this plan
+        <span class="font-bold">Includes your time away from virtue (time off).</span>
+        {{ timeOffInPlan.join(' ') }} If you change the Target TE or the start, this is dropped. Press Simulate this plan
         on the search again to put it back.
       </div>
       <div
         v-if="timeOffDroppedFor"
-        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-body text-amber-900"
       >
-        <span class="font-black uppercase tracking-wide">Time off left out.</span>
-        It was worked into this route for a plan starting {{ timeOffDroppedFor }}, and the start is now
-        {{ autoPlannerStore.startDate }} {{ autoPlannerStore.startTime }} (a newer save moves it up), so this plan farms
+        <span class="font-bold">Time away from virtue left out.</span>
+        It was worked into this route for a plan starting {{ boxStart(timeOffDroppedFor) }}, and the start is now
+        {{ boxStart(`${autoPlannerStore.startDate} ${autoPlannerStore.startTime}`) }} (a newer save moves it up), so this plan farms
         straight through it. Search again, or re-apply from the search, to put it back.
       </div>
       <div
         v-if="olderSaveNote"
-        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-[11px] text-amber-900 leading-relaxed"
+        class="mt-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-body text-amber-900"
       >
         {{ olderSaveNote }}
       </div>
@@ -339,8 +339,8 @@
     >
       <div class="w-6 h-6 border-3 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin"></div>
       <div class="space-y-0.5 pr-2">
-        <div class="text-[10px] font-black uppercase tracking-widest text-indigo-400">Updating Roadmap</div>
-        <div class="text-xs font-bold text-slate-200 font-mono-premium">{{ generateProgress || 'Calculating...' }}</div>
+        <div class="label text-indigo-400">Updating Roadmap</div>
+        <div class="text-small font-bold text-slate-200 tabular-nums">{{ generateProgress || 'Calculating...' }}</div>
       </div>
     </div>
 
@@ -386,8 +386,10 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import { routeText } from '@/search/simulateRoute';
 import { showDateTime } from '@/lib/displayTime';
+import { boxStartWords } from '@/lib/boxStartWords';
 import { useEarningsClothedTE } from '@/composables/useEarningsClothedTE';
 import { loadAutoPlannerSchedule, saveAutoPlannerSchedule } from '@/lib/autoPlannerFormCache';
+import { planStartOwner } from '@/composables/useBackupPlanStart';
 import { isTestingEnvironment } from '@/lib/isTestingEnvironment';
 import { iconURL } from 'lib';
 import VirtueProgressSection from './VirtueProgressSection.vue';
@@ -453,6 +455,7 @@ watch([timezone, startDate, startTime, startTimeOverride, targetTE, deferForEarn
     startDate: startDate.value,
     startTime: startTime.value,
     startTimeOverride: startTimeOverride.value,
+    startAccount: planStartOwner(),
     targetTE: targetTE.value,
     deferForEarningsMode: deferForEarningsMode.value,
     timeOffCuts: autoPlannerStore.timeOffCuts ? JSON.parse(JSON.stringify(autoPlannerStore.timeOffCuts)) : null,
@@ -558,6 +561,10 @@ const timeOffDroppedFor = computed(() => {
   if (!c || !c.start || c.targets !== plannerTargets.value) return '';
   return c.start !== `${autoPlannerStore.startDate} ${autoPlannerStore.startTime}` ? c.start : '';
 });
+/** A start as the boxes hold it ("2026-10-24 14:30"), in words: "Oct 24, 2026, 2:30 pm" (lib/boxStartWords.ts). */
+function boxStart(box: string): string {
+  return boxStartWords(box, autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+}
 const timeOffInPlan = computed(() => {
   const c = autoPlannerStore.timeOffCuts;
   if (!c || c.targets !== plannerTargets.value) return [];
@@ -635,15 +642,12 @@ const handleTargetTEInput = (e: Event) => {
 
 <style scoped>
 .btn-premium {
-  @apply rounded-2xl font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3;
+  @apply rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3;
 }
 .btn-primary {
   @apply bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 .section-premium {
   @apply bg-white rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-700;
-}
-.font-mono-premium {
-  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
 }
 </style>

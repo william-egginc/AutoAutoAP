@@ -23,16 +23,16 @@
          around them names them rather than saying "left" and "right". -->
     <div v-if="bars.length" class="grid gap-3 md:grid-cols-2">
       <div>
-        <h4 class="px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery set</h4>
+        <h4 class="px-1 text-slate-400 label">Delivery set</h4>
         <EChart :option="deliveryOption" :height="`${chartHeight}px`" />
       </div>
       <div>
-        <h4 class="px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Earnings set</h4>
+        <h4 class="px-1 text-slate-400 label">Earnings set</h4>
         <EChart :option="earningsOption" :height="`${chartHeight}px`" />
       </div>
     </div>
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">No run here recorded its artifact sets.</p>
-    <p class="text-[10px] text-slate-400 leading-relaxed px-1">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">No run here recorded its artifact sets.</p>
+    <p class="text-small text-slate-400 px-1">
       Delivery score is √(lay × hab × shipping) over the same for T4L metronome, compass and gusset plus a 3-slot fourth
       piece, all eleven sockets T4. Grey marks are the best peak as a share of {{ PERFECT_QPH }} q/hr; an arrow means it
       went past {{ PERFECT_QPH }} q/hr and is drawn at the edge. The earnings set's worth is exact when colleggtibles
@@ -121,7 +121,7 @@ const deliveryOption = computed<ChartOption>(() => ({
           const i = (raw as { dataIndex: number }).dataIndex;
           const b = bars.value[i];
           const peak =
-            b.gear.peakQph === null ? 'no run to 490 TE with leg detail' : `${b.gear.peakQph.toFixed(2)} q/hr`;
+            b.gear.peakQph === null ? 'no run to 490 TE with ascension detail' : `${b.gear.peakQph.toFixed(2)} q/hr`;
           return `<b>${esc(b.label)}</b><br/>delivery score ${esc(((b.gear.delivery ?? 0) * 100).toFixed(1))}%<br/>best peak on a run to 490 TE: ${esc(peak)}`;
         },
       },

@@ -17,9 +17,10 @@
  * the oldest is evicted, because the alternative is discovering the quota is full at the end of a
  * three-hour run.
  *
- * Per-leg summaries are kept for the best chain only, the same trade `persistence.ts` makes and
- * for the same reason: keeping them for every cached chain multiplies the record by about six for
- * information nothing reads.
+ * Per-leg summaries: the checkpoint in `persistence.ts` keeps them for the best chain only, because keeping
+ * them for every cached chain multiplies the record by about six. A saved run is different: `saveRun` stores
+ * the entries as they are in memory at that moment, so it keeps leg detail for whatever the 'Keep per-ascension
+ * detail for N routes' limit (search/legBudget.ts) still held; routes past the limit are saved without it.
  */
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
 import type { CacheEntry } from './driver';

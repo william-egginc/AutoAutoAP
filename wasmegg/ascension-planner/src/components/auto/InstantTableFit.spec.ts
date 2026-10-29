@@ -4,10 +4,9 @@
  * No DOM here, so the template is read: only the table scrolls, and only below its minimum width (phones);
  * every wide cell may wrap; the Simulate button sits in the route's cell, beside it or under it.
  *
- * The width budget this leaves (min-content, 12 px text): By a date ~550 px (Ascensions ~95, Instant answer
- * ~70, Exact with the at-once line's 9rem ~150, Spare with "tight" ~110, the route cell's button ~125);
- * Fastest ~640 px (its date column and the near-tie line's 9rem). Both under a 1100 px window's card; the
- * 32rem floor keeps a phone's sideways scroll instead of crushing the columns.
+ * Since 23 Oct 2026 (wireframes/price-route-v2) the lists show instant numbers only, four columns: By a date
+ * Ascensions, TE · spare, Reached, Route; Fastest Ascensions, Reaches, Behind (with the near-tie line's 9rem),
+ * Route. Below 30rem (phones) each count is a stacked row (`.counts-stack`, wireframe v1): no sideways scroll.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -55,49 +54,61 @@ describe('the counts tables fit the card', () => {
         const sc = scroller();
         expect(sc.startsWith('<div class="overflow-x-auto" data-testid="counts-scroll">')).toBe(true);
         expect(sc).toContain('<table');
-        expect(sc).not.toContain('Exact = the full simulator');
         expect(sc).not.toContain('<MaxedWhatIf');
         // Nothing after the table inside the scroller.
         expect(sc).toMatch(/<\/table>\s*<\/div>$/);
       });
 
-      it('the intro sits above the scroller, in the card', () => {
-        const intro = card().indexOf('Exact = the full simulator');
+      it('the heading sits above the scroller, in the card', () => {
+        const intro = card().indexOf('Every number of ascensions');
         expect(intro).toBeGreaterThan(0);
         expect(intro).toBeLessThan(card().indexOf('data-testid="counts-scroll"'));
       });
 
-      it('the table wraps: no nowrap on it, a 32rem floor for phones', () => {
+      it('the table wraps: no nowrap on it; a table from 30rem up, stacked rows below (phones)', () => {
         const table = card().match(/<table [^>]*>/)![0];
-        expect(table).toContain('min-w-[32rem]');
+        expect(table).toContain('min-[30rem]:min-w-[30rem]');
+        expect(table).toContain('counts-stack');
         expect(table).toContain('w-full');
         expect(table).not.toContain('whitespace-nowrap');
       });
 
-      it('five columns: the Simulate button lives in the route cell, in a wrapping row', () => {
-        expect(card().match(/<th /g)).toHaveLength(5);
-        expect(card()).not.toContain('colspan="6"');
-        expect(card()).toContain('colspan="5"');
+      it('four columns, instant numbers only: the buttons live in the route cell, in a wrapping row', () => {
+        expect(card().match(/<th /g)).toHaveLength(4);
+        expect(card()).not.toContain('colspan');
+        expect(card()).not.toContain('Exact, your account');
         const route = card().slice(card().indexOf('data-testid="counts-route"'));
         const cell = route.slice(0, route.indexOf('</td>'));
         expect(cell).toContain('flex flex-wrap');
         expect(cell).toContain('Simulate this plan');
-        expect(cell).toContain('font-mono-premium');
+        // The route in the body font with tabular figures: no mono anywhere (Jordan, 26 Oct 2026).
+        expect(cell).toContain('tabular-nums');
+        expect(cell).not.toContain('font-mono');
         expect(cell).not.toMatch(/<td[^>]*whitespace-nowrap/);
       });
 
-      it('the at-once line wraps inside a bounded width', () => {
-        const line = card().match(/<span\s+v-if="atOnceText\([^"]*\)"\s+class="([^"]*)"/)![1];
-        expect(line).toContain('whitespace-normal');
-        expect(line).toMatch(/max-w-\[13rem\]/);
-        expect(line).toMatch(/min-w-\[9rem\]/);
+      it('no at-once line and no exact column (23 Oct 2026)', () => {
+        expect(card()).not.toContain('atOnceText');
+        expect(card()).not.toContain('at-once-line');
+        expect(card()).not.toContain('instant-row-expand');
       });
     });
   }
 
-  it('Fastest: the exact time and the near-tie line may wrap too', () => {
+  it('Fastest: the near-tie line may wrap', () => {
     const fast = cards[1];
-    expect(fast).toContain('class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-[10px] leading-snug"');
-    expect(fast).toMatch(/<td\s+class="py-1\.5 pr-2 align-top"\s+:class="r === exactBest/);
+    expect(fast).toContain('class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"');
+  });
+});
+
+describe('the counts list on a phone: stacked rows below 30rem (wireframe v1)', () => {
+  const style = src.slice(src.indexOf('<style scoped>'));
+  it('below 30rem: no header, each row a grid, the count on the left, the rest stacked on the right', () => {
+    expect(style).toContain('@media (max-width: 29.99rem)');
+    expect(style).toMatch(/\.counts-stack thead \{\s*display: none;/);
+    expect(style).toMatch(/\.counts-stack tr \{\s*display: grid;\s*grid-template-columns: 2\.25rem minmax\(0, 1fr\);/);
+    expect(style).toMatch(/\.counts-stack td:first-child \{\s*grid-column: 1;\s*grid-row: 1 \/ span 3;/);
+    // Four cells: the count, then three stacked (TE and spare or finish, when or behind, the route).
+    for (const c of cards) expect(c.match(/<td /g)).toHaveLength(4);
   });
 });

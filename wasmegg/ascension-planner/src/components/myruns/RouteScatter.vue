@@ -1,12 +1,17 @@
 <!--
-  "Your routes at a glance" (Q9, 18 Oct 2026): the account's routes as points, one goal at a time, from what My runs
-  already holds (the board rows LeaderboardPanel hands up, the runs and answers saved on this device). Nothing is
-  fetched or priced (lib/routeScatter.ts). Inline SVG, no chart library.
+  "Your routes at a glance" (Q9, 18 Oct 2026; a heat map since 26 Oct): the account's routes, one goal at a time,
+  from what My runs already holds (the board rows LeaderboardPanel hands up, the runs and answers saved on this
+  device). Nothing is fetched or priced (lib/routeScatter.ts gathers, lib/heatBins.ts bins). No chart library.
 
-  x: ascensions or finish date. y: a race's days to finish; a date's TE reached or hours to spare. Colour is the
-  search level (one blue, Light lightest to Exhaustive darkest), shape is where the run is from; the best is ringed.
-  Hover, tap or the arrow keys (the picture takes focus) show a route and its numbers; the summary sentence and
-  "The same routes as a list" carry the same data without the picture. Folded; closed on a phone.
+  Across: ascensions, one column per count. Up: a Fastest goal's finish date, a date goal's TE, in bins, lowest
+  at the bottom. A cell's colour is how many routes it holds (one blue, light to dark, with its legend); the
+  goal's best is starred and outlined. The legend's level chips switch which levels' routes are counted.
+
+  Each cell with routes is a button (aria-label "N routes, best 226 → 277 → 490; ..."), at least 28 px tall:
+  smaller than the 44 px rule, since 12 columns must fit a 390 px phone, so the line under the map is the main
+  reader. Pointing at a cell (desktop), tapping it or focusing it fills that line; a tap keeps it until tapped
+  again or cleared. The summary sentence and "The same routes as a list" carry the same data without the map.
+  Folded; closed on a phone.
 -->
 <template>
   <details
@@ -15,14 +20,14 @@
     data-testid="my-runs-scatter"
     @toggle="open = ($event.target as HTMLDetailsElement).open"
   >
-    <summary class="cursor-pointer text-[11px] font-black uppercase tracking-widest text-slate-500">
-      Your routes at a glance<span class="ml-2 font-semibold normal-case tracking-normal text-slate-500">{{
+    <summary class="cursor-pointer text-body font-bold text-slate-500">
+      Your routes at a glance<span class="ml-2 font-bold normal-case tracking-normal text-slate-500">{{
         countWords
       }}</span>
     </summary>
 
     <div class="mt-3 space-y-2">
-      <p v-if="!built.goals.length" class="text-[12px] text-slate-600" data-testid="my-runs-scatter-empty">
+      <p v-if="!built.goals.length" class="text-body text-slate-600" data-testid="my-runs-scatter-empty">
         {{
           boardFailed
             ? boardErrorText(boardFailed, 'myruns')
@@ -32,238 +37,164 @@
         }}
       </p>
       <template v-else>
-        <!-- The controls: one row above the picture. -->
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[12px]" data-testid="my-runs-scatter-controls">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-small" data-testid="my-runs-scatter-controls">
           <label class="flex items-center gap-1.5">
             <span class="text-slate-500">Goal</span>
             <select
               v-model="goalKey"
-              class="min-h-[44px] rounded-lg border-slate-200 py-1 pl-2 pr-7 text-[12px] font-bold text-slate-700 sm:min-h-0"
+              class="min-h-[44px] rounded-lg border-slate-200 py-1 pl-2 pr-7 text-body font-bold text-slate-700 sm:min-h-0"
               data-testid="my-runs-scatter-goal"
             >
               <option v-for="g in built.goals" :key="g.key" :value="g.key">{{ g.label }} ({{ g.count }})</option>
             </select>
           </label>
-          <div role="group" aria-label="Across" class="flex gap-1">
-            <button
-              v-for="x in X_CHOICES"
-              :key="x"
-              type="button"
-              :class="pill(xAxis === x)"
-              :aria-pressed="xAxis === x"
-              :data-testid="`my-runs-scatter-x-${x}`"
-              @click="xAxis = x"
-            >
-              {{ X_NAMES[x] }}
-            </button>
-          </div>
-          <div v-if="view.goal?.kind === 'date'" role="group" aria-label="Up" class="flex gap-1">
-            <button
-              v-for="y in Y_CHOICES"
-              :key="y"
-              type="button"
-              :class="pill(yAxis === y)"
-              :aria-pressed="yAxis === y"
-              :data-testid="`my-runs-scatter-y-${y}`"
-              @click="yAxis = y"
-            >
-              {{ Y_NAMES[y] }}
-            </button>
-          </div>
         </div>
 
-        <p class="text-[12px] text-slate-700 leading-relaxed" data-testid="my-runs-scatter-summary">{{ summary }}</p>
+        <p class="text-body text-slate-700" data-testid="my-runs-scatter-summary">
+          {{ heat.empty ? emptyText : summary }}
+        </p>
 
-        <div v-if="view.shown.length" class="relative" data-testid="my-runs-scatter-plot">
-          <svg
-            :viewBox="`0 0 ${W} ${H}`"
-            class="block w-full h-auto select-none rounded-lg bg-[#fcfcfb] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-            role="img"
-            tabindex="0"
-            :aria-label="`${summary} Use the arrow keys to step through the routes.`"
-            @keydown="onKey"
-            @click="onPlotClick"
-            @pointerleave="!pinned && (active = null)"
-          >
-            <!-- Grid and axes: hairlines, recessive. -->
-            <g>
-              <line
-                v-for="t in yTicks"
-                :key="`gy${t}`"
-                :x1="L"
-                :x2="W - R"
-                :y1="py(t)"
-                :y2="py(t)"
-                stroke="#e1e0d9"
-                stroke-width="1"
-              />
-              <line :x1="L" :x2="W - R" :y1="H - B" :y2="H - B" stroke="#c3c2b7" stroke-width="1" />
-              <text
-                v-for="t in yTicks"
-                :key="`ty${t}`"
-                :x="L - 6"
-                :y="py(t) + 3.5"
-                text-anchor="end"
-                font-size="10"
-                fill="#898781"
-                style="font-variant-numeric: tabular-nums"
-              >
-                {{ tickText(t, view.y, zone) }}
-              </text>
-              <text
-                v-for="t in xTicks"
-                :key="`tx${t}`"
-                :x="px(t)"
-                :y="H - B + 14"
-                text-anchor="middle"
-                font-size="10"
-                fill="#898781"
-                style="font-variant-numeric: tabular-nums"
-              >
-                {{ tickText(t, view.x, zone) }}
-              </text>
-              <text :x="(L + W - R) / 2" :y="H - 4" text-anchor="middle" font-size="10" fill="#52514e">
-                {{ X_NAMES[view.x] }}
-              </text>
-              <text :x="L" :y="10" font-size="10" fill="#52514e">{{ Y_NAMES[view.y] }}</text>
-            </g>
-            <!-- The points, worst first so the best are drawn on top. -->
-            <g v-for="d in drawn" :key="d.p.id" :data-from="d.p.from" :data-level="d.p.level">
-              <rect
-                v-if="d.p.from === 'saved'"
-                :x="d.x - dot"
-                :y="d.y - dot"
-                :width="dot * 2"
-                :height="dot * 2"
-                :transform="`rotate(45 ${d.x} ${d.y})`"
-                :fill="LEVEL_COLOURS[d.p.level]"
-                stroke="#fcfcfb"
-                stroke-width="2"
-              />
-              <circle
-                v-else
-                :cx="d.x"
-                :cy="d.y"
-                :r="dot"
-                :fill="d.p.from === 'maybe' ? '#fcfcfb' : LEVEL_COLOURS[d.p.level]"
-                :stroke="d.p.from === 'maybe' ? LEVEL_COLOURS[d.p.level] : '#fcfcfb'"
-                stroke-width="2"
-              />
-              <circle
-                v-if="active === d.p.id"
-                :cx="d.x"
-                :cy="d.y"
-                :r="dot + 3.5"
-                fill="none"
-                stroke="#4f46e5"
-                stroke-width="2"
-              />
-              <!-- The hit area: bigger than the mark (22 px across on a phone). A tap picks the nearest point (onPlotClick). -->
-              <circle
-                :cx="d.x"
-                :cy="d.y"
-                :r="hitR"
-                fill="transparent"
-                class="cursor-pointer"
-                @pointerenter="!narrow && !pinned && (active = d.p.id)"
-              />
-            </g>
-            <g v-if="bestDrawn" pointer-events="none" data-testid="my-runs-scatter-best">
-              <circle :cx="bestDrawn.x" :cy="bestDrawn.y" :r="dot + 4.5" fill="none" stroke="#0b0b0b" stroke-width="1.5" />
-              <text
-                :x="bestDrawn.x + (bestDrawn.x > W - 60 ? -12 : 12)"
-                :y="bestDrawn.y - 8"
-                :text-anchor="bestDrawn.x > W - 60 ? 'end' : 'start'"
-                font-size="10"
-                font-weight="700"
-                fill="#0b0b0b"
-              >
-                Best
-              </text>
-            </g>
-          </svg>
-
-          <!-- The card for the route under the pointer, tapped or stepped to. Text only (escaped). -->
+        <div v-if="!heat.empty" data-testid="my-runs-scatter-plot">
+          <!-- The map: a CSS grid, y labels in the first column, the highest bin on top. -->
           <div
-            v-if="activeCard && !narrow"
-            class="pointer-events-none absolute z-10 max-w-[18rem] rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] leading-snug text-slate-600 shadow-lg"
-            :style="activeCard.style"
-            data-testid="my-runs-scatter-card"
+            role="group"
+            :aria-label="`Heat map: ${Y_TITLE[scale]} up, ascensions across. ${summary}`"
+            class="grid max-w-3xl gap-[2px] sm:gap-[3px]"
+            :style="{ gridTemplateColumns: `auto repeat(${heat.cols.length}, minmax(0, 1fr))` }"
+            data-testid="my-runs-heat"
+            @mouseleave="!pinned && (sel = null)"
+            @keydown.esc="clearSel"
           >
-            <p class="font-mono-premium font-bold text-slate-900 break-words">{{ activeCard.lines[0] }}</p>
-            <p v-for="(l, k) in activeCard.lines.slice(1)" :key="k">{{ l }}</p>
+            <span class="col-span-full pb-1 text-small font-bold text-slate-500" data-testid="my-runs-heat-ytitle">{{
+              Y_TITLE[scale]
+            }}</span>
+            <template v-for="ri in rowOrder" :key="`r${ri}`">
+              <span
+                class="flex max-w-[4.75rem] items-center justify-end pr-1 text-right text-small leading-tight text-slate-500 sm:max-w-none sm:pr-2"
+                style="font-variant-numeric: tabular-nums"
+                data-testid="my-runs-heat-ylabel"
+                >{{ heat.rows[ri].label }}</span
+              >
+              <template v-for="c in heat.cells[ri]" :key="`c${ri}-${c.col}`">
+                <button
+                  v-if="c.count"
+                  type="button"
+                  class="relative flex min-h-[28px] items-center justify-center rounded-[3px] text-small font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 sm:min-h-[34px]"
+                  :class="[
+                    isBest(c) ? 'outline outline-2 outline-offset-[-2px] outline-[#0b0b0b]' : '',
+                    isSel(c) ? 'ring-2 ring-indigo-500 ring-offset-1' : '',
+                  ]"
+                  :style="cellStyle(c.count)"
+                  :aria-label="cellWords(c)"
+                  :title="cellWords(c)"
+                  :aria-pressed="pinned && isSel(c)"
+                  :data-testid="isBest(c) ? 'my-runs-heat-best' : 'my-runs-heat-cell'"
+                  :data-count="c.count"
+                  @mouseenter="!pinned && (sel = { row: c.row, col: c.col })"
+                  @focus="!pinned && (sel = { row: c.row, col: c.col })"
+                  @click="tap(c.row, c.col)"
+                >
+                  <span v-if="isBest(c)" aria-hidden="true" class="mr-0.5">★</span>{{ c.count }}
+                </button>
+                <span
+                  v-else
+                  class="min-h-[28px] rounded-[3px] border border-dashed border-slate-200 sm:min-h-[34px]"
+                  aria-hidden="true"
+                  data-testid="my-runs-heat-empty"
+                ></span>
+              </template>
+            </template>
+            <span aria-hidden="true"></span>
+            <span
+              v-for="col in heat.cols"
+              :key="`x${col.label}`"
+              class="pt-1 text-center text-small text-slate-500"
+              style="font-variant-numeric: tabular-nums"
+              data-testid="my-runs-heat-xlabel"
+              >{{ col.label }}</span
+            >
+            <span aria-hidden="true"></span>
+            <span
+              class="text-center text-small font-bold text-slate-500"
+              :style="{ gridColumn: `span ${heat.cols.length}` }"
+              >Ascensions</span
+            >
           </div>
-          <!-- On a phone the card sits under the picture, in the flow, so it never covers a point. -->
+
+          <!-- The selected cell, in words: the main reader on a phone. -->
           <div
-            v-if="activeCard && narrow"
-            class="mt-2 flex items-start gap-2 rounded-lg border border-slate-200 bg-white pl-3 text-[11px] leading-snug text-slate-600"
-            data-testid="my-runs-scatter-card"
+            class="mt-2 flex min-h-[44px] items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 pl-3 text-body text-slate-600"
+            data-testid="my-runs-heat-line"
           >
-            <div class="min-w-0 flex-1 py-2">
-              <p class="font-mono-premium font-bold text-slate-900 break-words">{{ activeCard.lines[0] }}</p>
-              <p v-for="(l, k) in activeCard.lines.slice(1)" :key="k">{{ l }}</p>
+            <div class="min-w-0 flex-1 py-2" aria-live="polite">
+              <template v-if="selLine">
+                <p class="font-bold text-slate-900">{{ selLine.head }}</p>
+                <p class="tabular-nums font-bold text-slate-900 break-words">{{ selLine.route }}</p>
+                <p v-for="(l, k) in selLine.more" :key="k">{{ l }}</p>
+              </template>
+              <p v-else>{{ hint }}</p>
             </div>
             <button
+              v-if="selLine && pinned"
               type="button"
-              class="flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 items-center justify-center rounded-lg text-[18px] font-bold text-slate-500"
-              aria-label="Clear the selected route"
-              data-testid="my-runs-scatter-card-close"
-              @click="clearActive"
+              class="flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 items-center justify-center rounded-lg text-title font-bold text-slate-500"
+              aria-label="Clear the selected cell"
+              data-testid="my-runs-heat-clear"
+              @click="clearSel"
             >
               ×
             </button>
           </div>
-          <p class="sr-only" aria-live="polite">{{ activeCard ? activeCard.lines.join('. ') : '' }}</p>
         </div>
 
-        <!-- The key: colour is the level, shape is where the run is from. -->
-        <div
-          class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600"
-          data-testid="my-runs-scatter-key"
-        >
-          <span v-for="l in levelsShown" :key="l" class="flex items-center gap-1">
-            <svg width="10" height="10" aria-hidden="true">
-              <circle cx="5" cy="5" r="4.5" :fill="LEVEL_COLOURS[l]" /></svg
-            >{{ levelName(l) }}
-          </span>
-          <span v-for="f in fromsShown" :key="f" class="flex items-center gap-1">
-            <svg width="12" height="12" aria-hidden="true">
-              <rect
-                v-if="f === 'saved'"
-                x="2.5"
-                y="2.5"
-                width="7"
-                height="7"
-                transform="rotate(45 6 6)"
-                fill="#52514e"
-              />
-              <circle
-                v-else
-                cx="6"
-                cy="6"
-                r="4"
-                :fill="f === 'maybe' ? '#fff' : '#52514e'"
-                stroke="#52514e"
-                stroke-width="1.5"
-              /></svg
-            >{{ fromName(f) }}
-          </span>
-          <span class="flex items-center gap-1">
-            <svg width="14" height="14" aria-hidden="true">
-              <circle cx="7" cy="7" r="6" fill="none" stroke="#0b0b0b" stroke-width="1.5" /></svg
-            >Best
-          </span>
+        <!-- The legend: the colour scale, the best, and the level chips that filter the map. -->
+        <div class="space-y-2 text-body text-slate-600" data-testid="my-runs-scatter-key">
+          <div v-if="!heat.empty" class="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="my-runs-heat-scale">
+            <span class="flex items-center gap-1">
+              <span>fewer routes</span>
+              <span
+                v-for="(s, k) in HEAT_STEPS"
+                :key="k"
+                class="inline-block h-3 w-4 rounded-[2px] border border-slate-300"
+                :style="{ background: s.fill }"
+                aria-hidden="true"
+              ></span>
+              <span>more routes</span>
+            </span>
+            <span data-testid="my-runs-heat-max">(most in one cell: {{ heat.max }})</span>
+            <span class="flex items-center gap-1">
+              <span
+                class="inline-flex h-4 w-5 items-center justify-center rounded-[2px] outline outline-2 outline-offset-[-2px] outline-[#0b0b0b] text-small"
+                aria-hidden="true"
+                >★</span
+              >Best route
+            </span>
+          </div>
+          <div role="group" aria-label="Levels counted" class="flex flex-wrap items-center gap-1.5" data-testid="my-runs-heat-levels">
+            <span class="text-slate-500">Levels:</span>
+            <button
+              v-for="l in levelsIn"
+              :key="l.level"
+              type="button"
+              :class="pill(!levelOff.has(l.level))"
+              :aria-pressed="!levelOff.has(l.level)"
+              :data-testid="`my-runs-heat-level-${l.level}`"
+              @click="toggleLevel(l.level)"
+            >
+              {{ levelName(l.level) }}{{ ' ' }}<span class="font-bold opacity-70">{{ l.count }}</span>
+            </button>
+          </div>
         </div>
-        <p v-for="n in notes" :key="n" class="text-[11px] text-slate-500" data-testid="my-runs-scatter-note">{{ n }}</p>
+        <p v-for="n in notes" :key="n" class="text-body text-slate-500" data-testid="my-runs-scatter-note">{{ n }}</p>
 
         <details
           class="rounded-lg border border-slate-100 p-2"
           data-testid="my-runs-scatter-list"
           @toggle="listOpen = ($event.target as HTMLDetailsElement).open"
         >
-          <summary class="cursor-pointer text-[11px] font-bold text-indigo-700">The same routes as a list</summary>
+          <summary class="cursor-pointer text-body font-bold text-indigo-700">The same routes as a list</summary>
           <div v-if="listOpen" class="mt-2 overflow-x-auto">
-            <table class="min-w-full text-left text-[11px] text-slate-700">
+            <table class="min-w-full text-left text-small text-slate-700">
               <thead class="text-slate-500">
                 <tr>
                   <th class="py-1 pr-3 font-bold">Route</th>
@@ -280,7 +211,7 @@
               </thead>
               <tbody style="font-variant-numeric: tabular-nums">
                 <tr v-for="p in view.shown" :key="p.id" class="border-t border-slate-100">
-                  <td class="py-1 pr-3 font-mono-premium whitespace-nowrap">{{ p.chain.join(' → ') }}</td>
+                  <td class="py-1 pr-3 tabular-nums whitespace-nowrap">{{ p.chain.join(' → ') }}</td>
                   <td class="py-1 pr-3">{{ p.asc }}</td>
                   <td v-if="view.goal?.kind === 'race'" class="py-1 pr-3">
                     {{ p.days != null ? p.days.toFixed(1) : '' }}
@@ -297,7 +228,7 @@
             </table>
           </div>
         </details>
-        <p class="text-[11px] text-slate-500">Every run is also in Your runs below, with its filters.</p>
+        <p class="text-body text-slate-500">Every run is also in Your runs below, with its filters.</p>
       </template>
     </div>
   </details>
@@ -308,32 +239,23 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import { boardErrorText, type BoardReadKind } from '@/search/myBoardRows';
 import {
-  FROM_ORDER,
-  LEVEL_COLOURS,
   LEVEL_ORDER,
-  X_NAMES,
-  Y_NAMES,
-  ascTicks,
+  bestOrder,
   buildScatter,
-  dateTicks,
   defaultGoal,
   fromName,
   levelName,
-  nearestPoint,
-  niceTicks,
   pointLines,
   scatterNotes,
   scatterSummary,
   scatterView,
-  tickText,
   whenText,
-  xOf,
-  yOf,
+  type PointLevel,
   type SavedAnswerLike,
   type SavedRunLike,
-  type ScatterX,
-  type ScatterY,
+  type ScatterPoint,
 } from '@/lib/routeScatter';
+import { HEAT_STEPS, heatBins, heatStep, type HeatCell, type HeatScale } from '@/lib/heatBins';
 
 const props = withDefaults(
   defineProps<{
@@ -348,21 +270,23 @@ const props = withDefaults(
     /** Why the leaderboard could not be read (null when it was): with nothing to plot, say so rather than "none
      *  yet" (QA break-it #3). */
     boardFailed?: BoardReadKind | null;
+    /** Specs and screenshots: levels switched off from the start, and the best cell picked from the start. */
+    startLevelsOff?: readonly PointLevel[];
+    startOnBest?: boolean;
   }>(),
-  { savedRuns: () => [], savedAnswers: () => [], startOpen: false, boardFailed: null }
+  {
+    savedRuns: () => [],
+    savedAnswers: () => [],
+    startOpen: false,
+    boardFailed: null,
+    startLevelsOff: () => [],
+    startOnBest: false,
+  }
 );
 
-const X_CHOICES: ScatterX[] = ['asc', 'finish'];
-const Y_CHOICES: ScatterY[] = ['te', 'spare'];
-const W = 640;
-const H = 300;
-const L = 44;
-const R = 16;
-const T = 18;
-const B = 34;
+const Y_TITLE: Record<HeatScale, string> = { finish: 'Finish date', te: 'TE reached' };
 
 const open = ref(props.startOpen);
-// A phone (under 640 px): the plot gets bigger marks and touch areas, and the card goes under it.
 const narrow = ref(false);
 let narrowQuery: MediaQueryList | null = null;
 const onNarrow = () => {
@@ -376,9 +300,6 @@ onMounted(() => {
   if (!props.startOpen) open.value = !narrow.value;
 });
 onBeforeUnmount(() => narrowQuery?.removeEventListener?.('change', onNarrow));
-// Marks and hit areas in the picture's units (it is 640 wide, about 324 px on a phone, so 1 unit is about 0.5 px there).
-const dot = computed(() => (narrow.value ? 6.4 : 4.5));
-const hitR = computed(() => (narrow.value ? 22 : 12));
 const listOpen = ref(false);
 
 const savedCount = computed(() => props.savedRuns.length + props.savedAnswers.length);
@@ -393,7 +314,7 @@ const built = computed(() =>
   })
 );
 const goalKey = ref<string | null>(null);
-// The goal with the most points, until the player picks one that still has points.
+// The goal with the most routes, until the player picks one that still has routes.
 watch(
   () => built.value.goals,
   goals => {
@@ -401,13 +322,56 @@ watch(
   },
   { immediate: true }
 );
-const xAxis = ref<ScatterX>('asc');
-const yAxis = ref<ScatterY>('te');
+const goal = computed(() => built.value.goals.find(g => g.key === goalKey.value) ?? null);
+const scale = computed<HeatScale>(() => (goal.value?.kind === 'race' ? 'finish' : 'te'));
+
+// ---------------------------------------------------------------------------------------- level filter
+
+/** The levels switched off in the legend (kept across goals). */
+const levelOff = ref<Set<PointLevel>>(new Set(props.startLevelsOff));
+const levelsIn = computed(() => {
+  const mine = built.value.points.filter(p => p.goal === goalKey.value);
+  return LEVEL_ORDER.map(level => ({ level, count: mine.filter(p => p.level === level).length })).filter(l => l.count);
+});
+function toggleLevel(l: PointLevel): void {
+  const next = new Set(levelOff.value);
+  if (next.has(l)) next.delete(l);
+  else next.add(l);
+  levelOff.value = next;
+}
+const counted = computed(() => built.value.points.filter(p => !levelOff.value.has(p.level)));
+
+// --------------------------------------------------------------------------------------------- the map
+
 const view = computed(() =>
-  scatterView(built.value.goals, built.value.points, goalKey.value, xAxis.value, yAxis.value)
+  scatterView(
+    built.value.goals,
+    counted.value,
+    goalKey.value,
+    scale.value === 'finish' ? 'finish' : 'asc',
+    'te',
+    Number.POSITIVE_INFINITY
+  )
 );
+const heat = computed(() =>
+  heatBins<ScatterPoint>(view.value.shown, {
+    scale: scale.value,
+    asc: p => p.asc,
+    y: p => (scale.value === 'finish' ? p.finish : p.te),
+    better: bestOrder(goal.value?.kind ?? 'race'),
+    zone: props.zone,
+  })
+);
+/** Top row first: the highest bin on top, the lowest at the bottom. */
+const rowOrder = computed(() => heat.value.rows.map((_, k) => heat.value.rows.length - 1 - k));
 const summary = computed(() => scatterSummary(view.value, props.zone));
 const notes = computed(() => scatterNotes(view.value, built.value.missed));
+/** Every level with routes switched off, or nothing in the goal that can be placed (the notes say why). */
+const emptyText = computed(() =>
+  levelsIn.value.every(l => levelOff.value.has(l.level))
+    ? 'No routes to show: every level is switched off. Switch one back on below.'
+    : 'No routes to show.'
+);
 const countWords = computed(() => {
   const n = built.value.points.length;
   if (!built.value.goals.length) {
@@ -418,138 +382,64 @@ const countWords = computed(() => {
 });
 
 const pill = (on: boolean) =>
-  `min-h-[44px] rounded-lg border px-3 py-1 text-[12px] font-bold sm:min-h-0 sm:px-2.5 ${
+  `min-h-[44px] rounded-lg border px-3 py-1 text-body font-bold sm:min-h-0 sm:px-2.5 ${
     on
       ? 'border-indigo-400 bg-indigo-50 text-indigo-900'
-      : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300'
+      : 'border-slate-200 bg-white text-slate-400 line-through hover:border-indigo-300'
   }`;
 
-// ------------------------------------------------------------------------------------------- scales
-
-const xs = computed(() => view.value.shown.map(p => xOf(p, view.value.x) as number));
-const ys = computed(() => view.value.shown.map(p => yOf(p, view.value.y) as number));
-const xDomain = computed<[number, number]>(() => {
-  const lo = Math.min(...xs.value);
-  const hi = Math.max(...xs.value);
-  if (view.value.x === 'asc') return [lo - 0.5, hi + 0.5];
-  const pad = Math.max((hi - lo) * 0.05, 3_600_000);
-  return [lo - pad, hi + pad];
-});
-const yDomain = computed<[number, number]>(() => {
-  const lo = Math.min(...ys.value);
-  const hi = Math.max(...ys.value);
-  const pad = Math.max((hi - lo) * 0.08, view.value.y === 'te' ? 1 : 0.1);
-  return [lo - pad, hi + pad];
-});
-const px = (v: number) => {
-  const [a, b] = xDomain.value;
-  return L + ((v - a) / (b - a || 1)) * (W - L - R);
-};
-const py = (v: number) => {
-  const [a, b] = yDomain.value;
-  return H - B - ((v - a) / (b - a || 1)) * (H - B - T);
-};
-const xTicks = computed(() => {
-  const [a, b] = xDomain.value;
-  return view.value.x === 'asc' ? ascTicks(Math.ceil(a), Math.floor(b)) : dateTicks(a, b);
-});
-const yTicks = computed(() => {
-  const [a, b] = yDomain.value;
-  const t = niceTicks(a, b, 5);
-  return view.value.y === 'te' ? t.filter(v => Number.isInteger(v)) : t;
-});
-
-/** A small steady nudge across for routes on the same ascension count, so equal points don't hide each other. */
-function jitter(id: string): number {
-  let h = 0;
-  for (let k = 0; k < id.length; k++) h = (h * 31 + id.charCodeAt(k)) | 0;
-  return ((Math.abs(h) % 1000) / 1000 - 0.5) * 0.36;
+function cellStyle(count: number): Record<string, string> {
+  const s = heatStep(count, heat.value.max);
+  const step = HEAT_STEPS[s ?? 0];
+  return { background: step.fill, color: step.ink };
 }
-const drawn = computed(() =>
-  view.value.shown
-    .map(p => ({
-      p,
-      x: px((xOf(p, view.value.x) as number) + (view.value.x === 'asc' ? jitter(p.id) : 0)),
-      y: py(yOf(p, view.value.y) as number),
-    }))
-    .reverse()
+const isBest = (c: HeatCell<ScatterPoint>) =>
+  !!heat.value.bestAt && heat.value.bestAt.row === c.row && heat.value.bestAt.col === c.col;
+const cellPlace = (c: HeatCell<ScatterPoint>) => {
+  const col = heat.value.cols[c.col];
+  const row = heat.value.rows[c.row];
+  const asc = col.lo === col.hi ? `${col.lo} ${col.lo === 1 ? 'ascension' : 'ascensions'}` : `${col.label} ascensions`;
+  return `${asc}, ${scale.value === 'finish' ? `finishing ${row.range}` : row.range}`;
+};
+function cellWords(c: HeatCell<ScatterPoint>): string {
+  const n = `${c.count} ${c.count === 1 ? 'route' : 'routes'}`;
+  return `${n}, best ${c.best?.chain.join(' → ') ?? ''}; ${cellPlace(c)}${isBest(c) ? '. The best of all' : ''}`;
+}
+
+// ----------------------------------------------------------------------------------- hover, tap, focus
+
+const sel = ref<{ row: number; col: number } | null>(props.startOnBest ? heat.value.bestAt : null);
+const pinned = ref(!!sel.value);
+watch(heat, () => clearSel());
+const isSel = (c: HeatCell<ScatterPoint>) => !!sel.value && sel.value.row === c.row && sel.value.col === c.col;
+function tap(row: number, col: number): void {
+  if (pinned.value && sel.value?.row === row && sel.value?.col === col) {
+    clearSel();
+    return;
+  }
+  sel.value = { row, col };
+  pinned.value = true;
+}
+function clearSel(): void {
+  sel.value = null;
+  pinned.value = false;
+}
+const hint = computed(() =>
+  narrow.value
+    ? 'Tap a cell to see how many routes it holds and the best of them.'
+    : 'Point at, click or tab to a cell to see how many routes it holds and the best of them.'
 );
-const bestDrawn = computed(() => drawn.value.find(d => d.p.id === view.value.best?.id) ?? null);
-const levelsShown = computed(() => LEVEL_ORDER.filter(l => view.value.shown.some(p => p.level === l)));
-const fromsShown = computed(() => FROM_ORDER.filter(f => view.value.shown.some(p => p.from === f)));
-
-// ------------------------------------------------------------------------------- hover, tap, keys
-
-const active = ref<string | null>(null);
-const pinned = ref(false);
-watch(view, () => {
-  active.value = null;
-  pinned.value = false;
-});
-function tap(id: string): void {
-  if (pinned.value && active.value === id) {
-    pinned.value = false;
-    active.value = null;
-    return;
-  }
-  active.value = id;
-  pinned.value = true;
-}
-function clearActive(): void {
-  active.value = null;
-  pinned.value = false;
-}
-/** A tap or click on the picture picks the point nearest to it (in the picture's units), not whichever hit circle is on top. */
-function onPlotClick(e: MouseEvent): void {
-  const svg = e.currentTarget as SVGSVGElement | null;
-  const box = svg?.getBoundingClientRect();
-  if (!box || !box.width || !box.height) return;
-  const x = ((e.clientX - box.left) / box.width) * W;
-  const y = ((e.clientY - box.top) / box.height) * H;
-  const hit = nearestPoint(drawn.value, x, y, hitR.value);
-  if (hit) tap(hit.p.id);
-}
-/** Left and right step through the routes across the picture; Escape lets go. */
-function onKey(e: KeyboardEvent): void {
-  const order = [...drawn.value].sort((a, b) => a.x - b.x || a.y - b.y);
-  if (!order.length) return;
-  if (e.key === 'Escape') {
-    active.value = null;
-    pinned.value = false;
-    return;
-  }
-  const step =
-    e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
-  if (!step && e.key !== 'Home' && e.key !== 'End') return;
-  e.preventDefault();
-  const at = order.findIndex(d => d.p.id === active.value);
-  const next =
-    e.key === 'Home'
-      ? 0
-      : e.key === 'End'
-        ? order.length - 1
-        : at < 0
-          ? step > 0
-            ? 0
-            : order.length - 1
-          : Math.min(order.length - 1, Math.max(0, at + step));
-  active.value = order[next].p.id;
-  pinned.value = true;
-}
-const activeCard = computed(() => {
-  const d = drawn.value.find(x => x.p.id === active.value);
-  const goal = view.value.goal;
-  if (!d || !goal) return null;
-  const left = (d.x / W) * 100;
-  const top = (d.y / H) * 100;
-  const style: Record<string, string> = {
-    top: `calc(${top}% + 12px)`,
-    ...(left > 55 ? { right: `calc(${100 - left}% + 8px)` } : { left: `calc(${left}% + 8px)` }),
+const selLine = computed(() => {
+  const s = sel.value;
+  const g = goal.value;
+  const c = s ? heat.value.cells[s.row]?.[s.col] : null;
+  if (!c || !c.best || !g) return null;
+  // The overall best is said once, as the legend's "★ Best route", not again before the route.
+  const lines = pointLines(c.best, g, props.zone);
+  return {
+    head: `${c.count} ${c.count === 1 ? 'route' : 'routes'} · ${cellPlace(c)}.${isBest(c) ? ' ★ Best route.' : ''} Best in this cell:`,
+    route: lines[0],
+    more: lines.slice(1),
   };
-  if (top > 60) {
-    delete style.top;
-    style.bottom = `calc(${100 - top}% + 12px)`;
-  }
-  return { lines: pointLines(d.p, goal, props.zone, d.p.id === view.value.best?.id), style };
 });
 </script>

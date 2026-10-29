@@ -10,8 +10,8 @@
   <div class="space-y-2">
     <!-- Flex, not inline: Vue drops the whitespace between v-for siblings, so inline nowrap spans had
          no place to wrap and pushed a phone's page sideways. -->
-    <p v-if="countBests.length" class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px] text-slate-600">
-      <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Best per ascension count</span>
+    <p v-if="countBests.length" class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-body text-slate-600">
+      <span class="text-slate-400 label">Best per ascension count</span>
       <span
         v-for="b in countBests"
         :key="b.ascensions"
@@ -23,22 +23,22 @@
         "
       >
         <b class="text-slate-700">{{ b.ascensions }}</b
-        >: <span class="font-mono-premium">{{ b.chain.join(' ') }}</span> {{ b.days.toFixed(2) }} d
+        >: <span class="tabular-nums">{{ b.chain.join(' ') }}</span> {{ b.days.toFixed(2) }} d
         <span class="text-slate-400">({{ behindText(b.days - countBestDays, b.days === countBestDays) }})</span>
       </span>
-      <span v-if="countBests.some(b => b.partial)" class="text-[10px] text-slate-400">
+      <span v-if="countBests.some(b => b.partial)" class="text-small text-slate-400">
         from the part of the table read, so a count whose plans were all among the slowest is missing
       </span>
     </p>
 
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
       <div class="flex flex-wrap items-center gap-1.5">
-        <span class="mr-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Show</span>
+        <span class="mr-1 text-slate-400 label">Show</span>
         <button
           v-for="l in PLAN_LIMITS"
           :key="l"
           type="button"
-          class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2 py-0.5 rounded-md text-body font-bold border transition-colors"
           :class="
             limit === l
               ? 'bg-slate-900 text-white border-slate-900'
@@ -52,18 +52,18 @@
       </div>
       <label
         v-if="counts.length > 1"
-        class="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest"
+        class="flex items-center gap-1.5 text-slate-400 label"
       >
         Ascensions
         <select
           v-model="count"
-          class="rounded-md border-slate-300 py-0.5 pl-2 pr-7 text-[11px] font-bold normal-case tracking-normal text-slate-700"
+          class="rounded-md border-slate-300 py-0.5 pl-2 pr-7 text-body font-bold normal-case tracking-normal text-slate-700"
         >
           <option :value="'all'">All</option>
           <option v-for="n in counts" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
-      <label class="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+      <label class="flex items-center gap-1.5 text-slate-400 label">
         Stop TE
         <input
           v-model="filterText"
@@ -71,16 +71,16 @@
           autocomplete="off"
           spellcheck="false"
           placeholder="280 or 275-285"
-          class="w-36 rounded-md border-slate-300 py-0.5 text-[11px] font-mono-premium normal-case tracking-normal text-slate-700 placeholder:text-slate-300"
+          class="w-36 rounded-md border-slate-300 py-0.5 text-body tabular-nums normal-case tracking-normal text-slate-700 placeholder:text-slate-300"
           title="Plans with a stop at this TE, or in this range. Several, separated by spaces, must all hold: 230 275-285 is a stop at 230 and one in 275-285."
         />
       </label>
     </div>
-    <p v-if="filterError" class="text-[10px] font-bold text-amber-800">
+    <p v-if="filterError" class="text-small font-bold text-amber-800">
       {{ filterError }} Showing every plan until then.
     </p>
 
-    <p class="text-[11px] text-slate-600 leading-relaxed">
+    <p class="text-body text-slate-600 max-w-prose">
       This table holds <b>{{ plansText(total) }}</b
       ><template v-if="counts.length === 1"> at {{ plural(counts[0], 'ascension') }}</template>.
       <template v-if="truncated"
@@ -90,19 +90,19 @@
       <template v-if="narrowed">{{ plansText(view.matched) }} match{{ view.matched === 1 ? 'es' : '' }}. </template>
       {{ shownText }}
     </p>
-    <p v-if="href" class="text-[11px]">
+    <p v-if="href" class="text-body">
       <a
         :href="href"
         class="font-bold text-indigo-700 underline hover:text-indigo-900"
-        title="The run's whole table as the collector stores it: one row per ascension of every plan, with each leg's strategy, dates and delivery. A .csv.gz file, which every operating system opens."
+        title="The run's whole table as the planner's server stores it: one row per ascension of every plan, with each ascension's strategy, dates and delivery. A .csv.gz file, which every operating system opens."
         >Download all {{ plansText(total) }} (.csv.gz) ↓</a
       >
     </p>
 
     <div class="overflow-x-auto">
-      <table class="text-[11px] tabular-nums">
+      <table class="text-small tabular-nums">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+          <tr class="text-slate-400 label whitespace-nowrap">
             <th class="text-right py-1 pr-5" :aria-sort="ariaSort('rank')">
               <button
                 type="button"
@@ -140,13 +140,13 @@
         <tbody class="divide-y divide-slate-100">
           <tr v-for="p in view.rows" :key="p.rank" class="hover:bg-slate-50">
             <td class="py-1 pr-5 text-right text-slate-400">{{ p.rank.toLocaleString() }}</td>
-            <td class="py-1 pr-5 font-mono-premium text-slate-700 whitespace-nowrap">{{ p.chain.join(' ') }}</td>
+            <td class="py-1 pr-5 tabular-nums text-slate-700 whitespace-nowrap">{{ p.chain.join(' ') }}</td>
             <td class="py-1 pr-5 text-right text-slate-500">{{ p.ascensions }}</td>
             <td class="py-1 pr-5 text-right font-bold text-slate-700 whitespace-nowrap">{{ p.days.toFixed(2) }} d</td>
             <td class="py-1 pr-5 text-right whitespace-nowrap">
               <span
                 v-if="p.rank === 1"
-                class="rounded bg-emerald-100 px-1 text-[9px] font-black text-emerald-800"
+                class="rounded bg-emerald-100 px-1 text-small font-bold text-emerald-800"
                 title="The fastest plan in this run's table"
                 >best</span
               >
@@ -165,7 +165,7 @@
 
     <nav
       v-if="limit === 'all' && view.pages > 1"
-      class="flex flex-wrap items-center gap-1 text-[10px] font-bold"
+      class="flex flex-wrap items-center gap-1 text-small font-bold"
       aria-label="Pages of plans"
     >
       <button type="button" :class="pageButtonClass(false)" :disabled="view.page === 0" @click="page = view.page - 1">
@@ -327,7 +327,7 @@ function sortArrow(by: PlanSortKey): string {
 }
 
 function sortHeadClass(by: PlanSortKey): string {
-  return `uppercase tracking-widest [text-align:inherit] hover:text-slate-600 ${sort.value.by === by ? 'text-slate-700' : ''}`;
+  return `label [text-align:inherit] hover:text-slate-600 ${sort.value.by === by ? 'text-slate-700' : ''}`;
 }
 
 function pageButtonClass(current: boolean): string {

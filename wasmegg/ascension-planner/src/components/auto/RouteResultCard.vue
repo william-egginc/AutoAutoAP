@@ -1,6 +1,8 @@
 <!--
   The answer, the same way on both depths of Fastest route (the unified layout, phase 3): the
-  route, how long it takes and when it lands, and the same row of things to do with it. Smart search
+  route, how long it takes and when it lands, and the same row of things to do with it. Its main
+  button is "Simulate this plan", the instant answer's name for the same action (glossary, 25 Oct 2026:
+  it was "Build this plan"; the fill-only button was "Just fill it in"). Smart search
   and the Full sweep each had their own card with its own buttons ("Use this chain and build the
   plan", "Build this plan in the Auto Planner") in different places on the page.
 
@@ -16,16 +18,20 @@
       ><template v-if="claim && !running">: {{ claim }}</template>
     </template>
     <template #headline>
-      <div v-if="source" class="text-[10px] font-bold text-emerald-700/80">{{ source }}</div>
-      <div class="font-mono-premium text-lg sm:text-xl font-black text-slate-900 break-words">
+      <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
+      <p v-if="ranLine && !running" class="text-body font-bold text-emerald-900/80" data-testid="ran-line">
+        {{ ranLine }}
+      </p>
+      <div v-if="source" class="text-small font-bold text-emerald-700/80">{{ source }}</div>
+      <div class="tabular-nums text-title font-bold text-slate-900 break-words">
         {{ chain.join(' ') }}
       </div>
     </template>
     <template #aside>
-      <div class="text-lg font-black text-slate-900 tabular-nums">
+      <div class="text-title font-bold text-slate-900 tabular-nums">
         {{ days > 0 ? `${days.toFixed(3)} d` : 'pricing…' }}
       </div>
-      <div v-if="days > 0" class="text-[11px] font-bold text-emerald-800">reaches {{ finalTE }} on {{ endLabel }}</div>
+      <div v-if="days > 0" class="text-small font-bold text-emerald-800">reaches {{ finalTE }} on {{ endLabel }}</div>
     </template>
 
     <slot />
@@ -39,15 +45,28 @@
         :class="PRIMARY_BUTTON"
         @click="emit('build')"
       >
-        Build this plan
+        Simulate this plan
       </button>
+      <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
+      <FollowButton
+        v-if="follow"
+        primary
+        :chain="chain"
+        :goal-key="follow.goalKey"
+        from="saved"
+        :source="follow.source"
+        :finish="follow.finish"
+        :end-t-e="follow.endTE"
+        :plan-start="follow.planStart"
+        :deadline="follow.deadline ?? null"
+      />
       <button
         v-if="canFill"
         type="button"
         :class="SECONDARY_BUTTON"
         @click="emit('fill')"
       >
-        Just fill it in
+        Fill in Target TEs only
       </button>
       <button
         type="button"
@@ -59,9 +78,11 @@
       <button
         type="button"
         :class="SECONDARY_BUTTON"
+        data-testid="fastest-csv"
+        :title="csv.title"
         @click="emit('csv')"
       >
-        CSV ↓
+        {{ csv.text }}
       </button>
       <button
         v-if="canSave"
@@ -72,9 +93,9 @@
       >
         {{ saving ? 'Saving...' : 'Save run' }}
       </button>
-      <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
-      <p class="w-full text-[10px] text-emerald-900/70" data-testid="build-plan-note">
-        {{ simulateNote('Build this plan') }}
+      <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
+      <p class="w-full text-small text-emerald-900/70" data-testid="build-plan-note">
+        {{ simulateNote() }}
       </p>
     </template>
   </ResultCardFrame>
@@ -84,9 +105,13 @@
 import { simulateNote } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import ResultCardFrame from './ResultCardFrame.vue';
+import FollowButton from '../FollowButton.vue';
+import type { ResultFollow } from '@/lib/follow';
 import { CARD_NOTE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
+import { csvButton } from './csvButton';
+import { computed } from 'vue';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     chain: number[];
     days: number;
@@ -99,6 +124,8 @@ withDefaults(
     busy?: boolean;
     canFill?: boolean;
     canSave?: boolean;
+    /** The CSV has every route's per-ascension detail (store `csvHasEveryRoute`): its button says so. */
+    csvEvery?: boolean;
     saving?: boolean;
     /** Where the answer came from, when it wasn't this depth: the two share one store, so the
      *  Smart search screen shows a Full sweep's result until Smart search runs, and vice versa. */
@@ -108,8 +135,12 @@ withDefaults(
     /** Not from a run in this visit on these settings: when it was found ("Oct 11, 2026, 4:15 PM"),
      *  and the heading says "Your last run · ..." ('' for a live one). */
     lastRun?: string;
+    /** "This Fast search ran on Oct 23 at 6:43 pm, on your save of Oct 23 at 1:03 am, and found 307 TE." (lib/lastRunLine.ts). */
+    ranLine?: string;
     /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
     pricedWith?: string;
+    /** "Follow this route" for the finished result (lib/follow.ts `ResultFollow`); absent: no button. */
+    follow?: ResultFollow | null;
   }>(),
   {
     claim: '',
@@ -117,13 +148,18 @@ withDefaults(
     busy: false,
     canFill: false,
     canSave: false,
+    csvEvery: false,
     saving: false,
     note: '',
     lastRun: '',
+    ranLine: '',
     pricedWith: '',
+    follow: null,
   }
 );
 const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();
+/** The CSV button, named for what the file holds (csvButton.ts). */
+const csv = computed(() => csvButton(props.csvEvery));
 
 /** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
  *  page (SearchPanel.vue), so the one laid out is this card's. */

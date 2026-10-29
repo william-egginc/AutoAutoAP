@@ -9,8 +9,8 @@ describe('compareRows', () => {
     const rows = compareRows('fastest', { instant: f(1000), stronger: f(900), exhaustive: null });
     expect(rows.map(r => [r.label, r.best, !!r.entry])).toEqual([
       ['Instant answer', false, true],
-      ['Stronger check', true, true],
-      ['Exhaustive', false, false],
+      ['Search', true, true],
+      ['Custom', false, false],
     ]);
   });
   it('By a date: the highest TE, then the most spare', () => {

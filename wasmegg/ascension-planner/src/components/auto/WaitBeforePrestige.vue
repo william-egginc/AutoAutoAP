@@ -1,11 +1,11 @@
 <template>
   <!-- "Try waiting before each prestige" (search/delays.ts; aaap-tools/partial-te-2026-10.md): on request
        only, since it prices the route a few hundred times with the full simulator. -->
-  <div class="mt-2 text-[11px] text-slate-700" data-testid="wait-before-prestige">
+  <div class="mt-2 text-body text-slate-700" data-testid="wait-before-prestige">
     <button
       v-if="status !== 'running'"
       type="button"
-      class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed"
+      class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-body font-bold hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed"
       :disabled="disabled"
       :title="`Prices this route with a wait of 1 to 24 hours before each prestige: about ${legs} ascensions on the full simulator`"
       data-testid="wait-try"
@@ -13,7 +13,7 @@
     >
       {{ status === 'done' ? 'Try waiting again' : 'Try waiting before each prestige' }}
     </button>
-    <p v-if="status === 'idle'" class="mt-1 text-[10px] text-slate-500">
+    <p v-if="status === 'idle'" class="mt-1 text-small text-slate-500">
       Keeping the old farm laying for a few hours before you prestige can sometimes finish sooner. This prices
       {{ chain.join(' ') }} with each wait from 1 to 24 hours (about {{ legs }} ascensions on the full simulator, several
       minutes or more).
@@ -29,7 +29,7 @@
     <div v-if="lines" class="mt-1 space-y-0.5" data-testid="wait-result">
       <p v-if="!pricedOnHours" class="mb-1 font-bold text-amber-700" data-testid="wait-any-hour">{{ ANY_HOUR_WARNING }}</p>
       <p v-if="report && report.baseSeconds !== null" class="text-slate-500">
-        Prestiging at once{{ deadline ? ', with ' + spareText(report.baseSeconds) + ' to spare' : '' }}, as Check exactly prices it.
+        Prestiging at once{{ deadline ? ', with ' + spareText(report.baseSeconds) + ' to spare' : '' }}, as the full simulator prices it.
       </p>
       <template v-for="s in lines.singles" :key="s.stop">
         <p :class="s.wait ? 'font-bold text-emerald-800' : 'text-slate-600'">{{ s.text }}</p>
@@ -38,7 +38,7 @@
       <p v-if="lines.together" class="pt-1 font-bold text-emerald-900" data-testid="wait-together">{{ lines.together }}</p>
       <p v-for="w in lines.togetherWarns" :key="w" class="pl-3 text-amber-700">{{ w }}</p>
       <p v-if="report?.stopped" class="text-slate-500">Stopped early: this is what was priced so far.</p>
-      <p class="pt-1 text-[10px] text-slate-400">
+      <p class="pt-1 text-small text-slate-400">
         While you wait, the farm keeps laying the egg it ended on, and those eggs carry into your next ascension. Stops
         stay whole TE: prestiging before one always costs more than it saves. A wait an hour or two off can lose far more
         than it gains, so a wait is suggested only when it gains more than half an hour and being 2 h off costs less
@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatWeekday } from '@/lib/clock';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { showDateTime } from '@/lib/displayTime';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
@@ -81,15 +82,11 @@ let planStart = 0;
 
 const legs = computed(() => waitSearchLegs(props.chain.length));
 const lines = computed(() => (report.value ? waitLines(report.value, prestigeTime) : null));
-/** "Thu Oct 29, 2026, 10:34 PM": the weekday, then the date as the player reads dates. */
+/** "Thu Oct 29, 2026, 10:34 PM": the weekday, then the date as the player reads dates (lib/clock.ts). */
 function prestigeTime(t: number): string {
-  let day = '';
-  try {
-    day = new Intl.DateTimeFormat(undefined, { timeZone: props.zone, weekday: 'short' }).format(new Date(t * 1000)) + ' ';
-  } catch {
-    // An unknown zone: the date alone.
-  }
-  return day + showDateTime(t, props.zone);
+  // An unknown zone: the date alone.
+  const day = formatWeekday(t * 1000, props.zone);
+  return (day ? `${day} ` : '') + showDateTime(t, props.zone);
 }
 /** Whether the last run was priced with the player's hours, the shifts waiting for them (Setup). Without
  *  them, waits that win at any hour usually lose once the shifts wait (aaap-tools/notes/delay.md). */

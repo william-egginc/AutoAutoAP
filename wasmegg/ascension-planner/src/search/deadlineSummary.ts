@@ -6,6 +6,7 @@
  */
 import { formatBand } from './exhaustive';
 import type { SavedDeadlineResult } from './deadlineStore';
+import { compactDuration } from '@/lib/duration';
 
 /** `45 s`, `5 min 40 s`, `1 h 12 min`: exact enough to compare runs, unlike `durationLabel`. */
 export function tookDuration(seconds: number): string {
@@ -21,11 +22,9 @@ export function tookDuration(seconds: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-/** A route's time to spare before the deadline: `40 min`, `27.3 h`, `3.5 days`. */
+/** A route's time to spare before the deadline: `40m`, `27h 18m`, `3d 12h` (lib/duration). */
 export function spareLabel(seconds: number): string {
-  if (seconds < 3600) return `${Math.max(0, Math.round(seconds / 60))} min`;
-  if (seconds < 2 * 86400) return `${(seconds / 3600).toFixed(1)} h`;
-  return `${(seconds / 86400).toFixed(1)} days`;
+  return compactDuration(Math.max(0, seconds));
 }
 
 export type SearchedSummary = Pick<
@@ -74,7 +73,7 @@ export function summariseByDate(r: SearchedSummary): ByDateSummary {
   const widths = simpleWidths(r.bandSets);
   const how = r.simple
     ? `around the instant answer's routes${widths ? `, ${widths} TE` : ''}`
-    : 'Exhaustive, in your own boxes';
+    : 'Custom, in your own boxes';
   parts.push(`${parts.length ? 'searched' : 'Searched'} ${sets} (${how})`);
   parts.push(`${r.priced.toLocaleString('en-US')} route${r.priced === 1 ? '' : 's'} priced`);
 

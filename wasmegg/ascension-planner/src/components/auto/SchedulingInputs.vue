@@ -5,67 +5,67 @@
        store (set when the save loads, and again by Single run's Generate and this card's Now button),
        shown as it is rather than as a ticking clock the searches would not follow. -->
   <div v-if="!startTimeOverride" class="space-y-2">
-    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
+    <label class="text-slate-500 label ml-1">Start Time</label>
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-baseline gap-2 flex-wrap px-1">
-        <span class="text-sm font-black text-slate-800 tabular-nums">{{ startLabel }}</span>
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Now</span>
+        <span class="text-body font-bold text-slate-800 tabular-nums">{{ startLabel }}</span>
+        <span class="text-slate-400 label">Now</span>
       </div>
       <div class="flex gap-2">
         <button
           @click="setStartTimeToNow"
           title="Start from the current time"
-          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-indigo-100 active:scale-95 whitespace-nowrap"
+          class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-body font-bold rounded-xl transition-all shadow-md shadow-indigo-100 active:scale-95 whitespace-nowrap"
         >
           Now
         </button>
         <button
           @click="addOverride"
-          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 active:scale-95 whitespace-nowrap"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-xl transition-all border border-slate-200 active:scale-95 whitespace-nowrap"
         >
           Override
         </button>
       </div>
     </div>
-    <p v-if="backupHint" class="text-[10px] font-bold leading-relaxed px-1" :class="backupHint.class">
+    <p v-if="backupHint" class="text-small font-bold px-1" :class="backupHint.class">
       {{ backupHint.text }}
     </p>
   </div>
 
   <div v-else class="grid grid-cols-1 gap-4">
     <div class="space-y-2">
-      <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Time</label>
-      <div class="flex gap-3">
+      <label class="text-slate-500 label ml-1">Start Time</label>
+      <div class="flex flex-wrap gap-3">
         <input
           :value="startDate"
           type="date"
           :min="formatUnixToDateInput(Date.now() / 1000 - 86400 * 7, timezone)"
-          class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+          class="flex-grow min-w-0 max-w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           @input="handleStartDateInput"
         />
         <input
           ref="startTimeInput"
           :value="startTime"
           type="time"
-          class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+          class="w-32 min-w-0 max-w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           @input="handleStartTimeInput"
         />
       </div>
       <!-- The default is the backup's own timestamp, which is not obvious from a date box that
            simply has a time in it. Said here so "why is this not now?" has an answer in place. -->
-      <p v-if="backupHint" class="text-[10px] font-bold leading-relaxed px-1" :class="backupHint.class">
+      <p v-if="backupHint" class="text-small font-bold px-1" :class="backupHint.class">
         {{ backupHint.text }}
       </p>
     </div>
 
     <div class="space-y-2">
-      <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Timezone</label>
-      <div class="flex gap-2">
-        <div class="relative flex-grow">
+      <label class="text-slate-500 label ml-1">Timezone</label>
+      <div class="flex flex-wrap gap-2">
+        <div class="relative flex-grow min-w-0">
           <select
             ref="timezoneSelect"
             v-model="timezone"
-            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-5 pr-10 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
+            class="w-full min-w-0 max-w-full bg-slate-50 border border-slate-200 rounded-xl pl-5 pr-10 py-2.5 text-base sm:text-body font-bold text-slate-700 outline-none focus:border-indigo-500/50 bg-white transition-all"
           >
             <option v-for="tz in allTimezones" :key="tz.value" :value="tz.value">
               {{ tz.label }}
@@ -74,7 +74,7 @@
         </div>
         <button
           @click="removeOverride"
-          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 flex items-center justify-center active:scale-95 whitespace-nowrap"
+          class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-body font-bold rounded-xl transition-all border border-slate-200 flex items-center justify-center active:scale-95 whitespace-nowrap"
         >
           Remove Override
         </button>
@@ -84,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -97,20 +98,11 @@ const { startDate, startTime, timezone, startTimeOverride } = storeToRefs(useAut
 const initialStateStore = useInitialStateStore();
 const virtueStore = useVirtueStore();
 
-// The start held in the store, as a date and time in the plan's timezone (12-hour, from the locale).
+// The start held in the store, as a date and time in the plan's timezone (the browser's own format, lib/clock.ts).
 const startLabel = computed(() => {
   if (!startDate.value || !startTime.value) return 'Not set';
   const at = getLocalTimestampInTimezone(startDate.value, startTime.value, timezone.value);
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: timezone.value,
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  }).format(at * 1000);
+  return formatMoment(at * 1000, { zone: timezone.value, weekday: true, zoneName: true });
 });
 
 const startTimeInput = ref<HTMLInputElement | null>(null);

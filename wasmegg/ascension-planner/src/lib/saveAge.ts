@@ -10,6 +10,7 @@
  * the save no longer describes the farm. That gets a warning, never a silent guess.
  */
 import { formatSiloTime, totalAwayTime } from '@/stores/silos';
+import { compactDuration } from './duration';
 
 /** Seconds of time away the silos hold: silo count x the per-silo time Silo Capacity research sets. */
 export function siloSeconds(
@@ -34,12 +35,18 @@ export interface SaveAgeNote {
 
 const NEWER_SYNC = " If you've opened the game since then and have a newer sync, this might not be accurate.";
 
-/** `45m`, `6h`, `3d`. */
-function short(seconds: number): string {
-  const h = Math.abs(seconds) / 3600;
-  if (h < 1) return `${Math.round(h * 60)}m`;
-  if (h < 48) return `${Math.round(h)}h`;
-  return `${Math.round(h / 24)}d`;
+/**
+ * A save's age in the one style every save-age line uses (ux review 26 Oct, row 19: Setup said "Save from 14 min
+ * ago" and "Your save is 42m old", the stale warning "25d old", My runs "14 minutes ago"): now the one
+ * compact duration (lib/duration, ux29-d): `14m`, `5h`, `25d`. Under a minute: `<1m`. Sign ignored.
+ */
+export function ageWords(seconds: number): string {
+  return compactDuration(seconds);
+}
+
+/** `14m ago`, `5h ago`, `25d ago`; `just now` under a minute. */
+export function ageAgo(seconds: number): string {
+  return Math.abs(seconds) < 60 ? 'just now' : `${ageWords(seconds)} ago`;
 }
 
 /**
@@ -58,7 +65,8 @@ export function describeSaveAge(
   if (!hasVirtueFarm && gap >= 15 * 60) {
     return {
       level: 'ok',
-      text: `Your save is ${short(gap)} old and has no virtue farm in progress, so there is nothing to catch up: the plan starts with a fresh ascension.`,
+      // No age here: Setup's save card says it once ("Save from 14 min ago", ux review 26 Oct, row 19).
+      text: `Your save has no virtue farm in progress, so there is nothing to catch up: the plan starts with a fresh ascension.`,
     };
   }
   const silos = formatSiloTime(Math.round(silo / 60));
@@ -71,18 +79,19 @@ export function describeSaveAge(
   if (gap < 0) {
     return {
       level: 'warning',
-      text: `Starts ${short(gap)} before your last sync, so the plan begins before the farm state it uses existed.`,
+      text: `Starts ${ageWords(gap)} before your last sync, so the plan begins before the farm state it uses existed.`,
     };
   }
   if (gap <= silo) {
     return {
       level: 'ok',
-      text: `Your save is ${short(gap)} old. The farm is caught up to the plan start at its current rate, the way the game credits time away (your silos hold ${silos}).${NEWER_SYNC} Anything you bought since is not in it; sync and reload if you have played.`,
+      // No age here either (the save card has it); the gap runs to the plan start, which may be later than now.
+      text: `The farm is caught up from your save to the plan start at its current rate, the way the game credits time away (your silos hold ${silos}).${NEWER_SYNC} Anything you bought since is not in it; sync and reload if you have played.`,
     };
   }
   return {
     level: 'warning',
     severe: true,
-    text: `Your save is ${short(gap)} old, longer than your silos hold (${silos}), so the answers here won't be accurate. Force a sync: open Egg, Inc., let it sync, then reload this page (or press Load latest save).`,
+    text: `Your save is ${ageWords(gap)} old, longer than your silos hold (${silos}), so the answers here won't be accurate. Force a sync: open Egg, Inc., let it sync, then reload this page (or press Load latest save).`,
   };
 }

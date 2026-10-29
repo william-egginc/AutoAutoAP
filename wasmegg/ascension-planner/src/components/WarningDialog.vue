@@ -21,18 +21,18 @@
               />
             </svg>
           </div>
-          <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">{{ title || 'Warning' }}</h3>
+          <h3 class="text-slate-800 label">{{ title || 'Warning' }}</h3>
         </div>
 
         <div class="p-6">
-          <p class="text-sm font-medium text-slate-600 leading-relaxed">
+          <p class="text-body font-normal text-slate-600">
             {{ message }}
           </p>
 
           <div class="mt-8 flex justify-end gap-3">
             <template v-if="title === 'New Version Available'">
               <button
-                class="btn-premium btn-primary px-8 py-2 text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20"
+                class="btn-premium btn-primary px-8 py-2 text-body font-bold shadow-lg shadow-blue-500/20"
                 @click="reload"
               >
                 Refresh Page
@@ -40,7 +40,7 @@
             </template>
             <template v-else>
               <button
-                class="btn-premium btn-primary px-8 py-2 text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-500/20"
+                class="btn-premium btn-primary px-8 py-2 text-body font-bold shadow-lg shadow-blue-500/20"
                 @click="close"
               >
                 Understood

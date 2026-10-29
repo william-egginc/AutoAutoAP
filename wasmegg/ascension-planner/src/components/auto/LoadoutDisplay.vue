@@ -21,7 +21,7 @@
     >
       <div class="flex items-center gap-2.5">
         <span
-          class="text-[10px] font-black text-slate-400 w-5 h-5 shrink-0 flex items-center justify-center bg-white/60 rounded-full shadow-inner"
+          class="text-small font-bold text-slate-400 w-5 h-5 shrink-0 flex items-center justify-center bg-white/60 rounded-full shadow-inner"
           >{{ i + 1 }}</span
         >
         <img
@@ -30,12 +30,12 @@
           :alt="artifact(slot.artifactId)!.label"
           class="w-7 h-7 object-contain shrink-0"
         />
-        <span class="text-xs font-bold text-slate-800 truncate">
+        <span class="text-small font-bold text-slate-800 truncate">
           {{ artifact(slot.artifactId)?.label ?? 'empty slot' }}
         </span>
         <span
           v-if="artifact(slot.artifactId)"
-          class="ml-auto shrink-0 text-[9px] font-black uppercase tracking-widest text-slate-600 bg-white/70 border border-white rounded-full px-2 py-0.5"
+          class="ml-auto shrink-0 label text-slate-600 bg-white/70 border border-white rounded-full px-2 py-0.5"
         >
           {{ artifact(slot.artifactId)!.effect }}
         </span>
@@ -49,12 +49,12 @@
           :title="stone(id)?.effect"
         >
           <img v-if="stone(id)" :src="iconURL(stone(id)!.iconPath, 64)" :alt="stone(id)!.label" class="w-4 h-4" />
-          <span class="text-[10px] font-bold text-slate-600">{{ stone(id)?.label }}</span>
+          <span class="text-small font-bold text-slate-600">{{ stone(id)?.label }}</span>
         </span>
       </div>
     </div>
 
-    <p v-if="!filled.length" class="text-[11px] text-slate-400 italic">nothing equipped</p>
+    <p v-if="!filled.length" class="text-body text-slate-400 italic">nothing equipped</p>
   </div>
 </template>
 

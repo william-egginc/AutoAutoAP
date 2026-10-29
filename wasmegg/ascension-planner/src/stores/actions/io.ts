@@ -10,7 +10,9 @@ import { useFuelTankStore } from '@/stores/fuelTank';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useNotesStore } from '@/stores/notes';
 import { useSilosStore } from '@/stores/silos';
-import { createEmptySnapshot, type VirtueEgg, type Action, type CalculationsSnapshot } from '@/types';
+import { createEmptySnapshot, generateActionId, type VirtueEgg, type Action, type CalculationsSnapshot } from '@/types';
+import { isKnownActionType } from '@/lib/actions/executor';
+import { parseJsonStrict } from '@/lib/uploadGuard';
 import { MAX_TE, clampTECount, countTEThresholdsPassed, teGainedOf } from '@/lib/truthEggs';
 import { redactBackupForStorage } from '@/lib/artifacts';
 
@@ -99,10 +101,80 @@ export function exportPlanLogic(actions: Action[], initialSnapshot?: Calculation
   downloadFile(filename, jsonString, 'application/json');
 }
 
+const LOOSE = { maxDepth: 64, maxString: Infinity, maxArray: Infinity, maxKeys: Infinity };
+
+/** A plan file that cannot be read in. Thrown before any store is touched, so the current plan stays. */
+export class PlanImportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PlanImportError';
+  }
+}
+
+/**
+ * The checks a file passes before anything is changed: JSON, the plan shape, and only action types this
+ * planner knows (an unknown one threw "reading 'getDisplayName'" while the list drew).
+ */
+export function parsePlanFile(jsonString: string, upload = false): any {
+  let data: any;
+  try {
+    // No __proto__-style keys and finite numbers always (lib/uploadGuard.ts); the size limits only for an
+    // upload, so a draft or library plan saved here with a long note still opens.
+    data = parseJsonStrict(jsonString, 'This plan file', upload ? {} : LOOSE);
+  } catch (e) {
+    throw new PlanImportError(e instanceof Error ? e.message : 'This file is not a plan file (it is not JSON).');
+  }
+  const isObj = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
+  if (!isObj(data) || !data.version || !Array.isArray(data.actions) || !isObj(data.initialState)) {
+    throw new PlanImportError('This file is not a plan file (no version, actions or initial state).');
+  }
+  for (const a of data.actions) {
+    if (!isObj(a) || !isKnownActionType(a.type)) {
+      throw new PlanImportError(`This plan has a step this planner doesn't know (${String(a?.type).slice(0, 40)}).`);
+    }
+    if (a.payload !== undefined && !isObj(a.payload)) {
+      throw new PlanImportError(`This plan has a damaged ${a.type} step.`);
+    }
+    if (a.payload === undefined) a.payload = {};
+    if (!Array.isArray(a.dependsOn)) a.dependsOn = [];
+    if (!Array.isArray(a.dependents)) a.dependents = [];
+    if (typeof a.id !== 'string' || !a.id) a.id = generateActionId();
+  }
+  return data;
+}
+
+/**
+ * A plan from a file with its results dropped, so it is recalculated rather than trusted (red team 21 Oct
+ * 2026, data-inputs #7: a file's last `endState.te` of 99999 showed "TE GAINED +-9972"). Own saves (the
+ * library's, the draft) keep theirs; a file never does. Returns the same object, changed.
+ */
+export function dropFileResults<T>(data: T): T {
+  const actions = (data as { actions?: unknown } | null)?.actions;
+  if (Array.isArray(actions)) for (const a of actions) if (a && typeof a === 'object') delete (a as { endState?: unknown }).endState;
+  return data;
+}
+
+/** Per-egg TE (or eggs delivered) from a file: finite, whole and within 0..max, egg by egg. */
+function clampPerEgg(v: unknown, max: number): Record<string, number> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [egg, n] of Object.entries(v as Record<string, unknown>)) {
+    if (egg === '__proto__' || egg === 'constructor' || egg === 'prototype') continue;
+    out[egg] = max === Infinity ? (typeof n === 'number' && isFinite(n) && n >= 0 ? n : 0) : clampTECount(n, max, 0);
+  }
+  return out;
+}
+
 export function importPlanLogic(jsonString: string) {
-  const data = JSON.parse(jsonString);
-  if (!data.version || !data.actions || !data.initialState) {
-    throw new Error('Invalid plan file format');
+  const data = parsePlanFile(jsonString);
+  // TE from a file is held to what the game allows (0..98 per egg), as everywhere else.
+  if (data.initialState.initialTeEarned) data.initialState.initialTeEarned = clampPerEgg(data.initialState.initialTeEarned, MAX_TE);
+  if (data.initialState.initialEggsDelivered)
+    data.initialState.initialEggsDelivered = clampPerEgg(data.initialState.initialEggsDelivered, Infinity);
+  if (data.truthEggsState && typeof data.truthEggsState === 'object') {
+    if (data.truthEggsState.teEarned) data.truthEggsState.teEarned = clampPerEgg(data.truthEggsState.teEarned, MAX_TE);
+    if (data.truthEggsState.eggsDelivered)
+      data.truthEggsState.eggsDelivered = clampPerEgg(data.truthEggsState.eggsDelivered, Infinity);
   }
 
   const initialStateStore = useInitialStateStore();

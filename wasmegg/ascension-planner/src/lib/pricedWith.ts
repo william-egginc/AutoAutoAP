@@ -35,19 +35,19 @@ function dayRuns(days: number[]): string {
   return out.join(', ');
 }
 
-/** "your hours 9 am to 1 am on Mon–Fri", or "any hour". */
+/** "awake hours 9 am to 1 am on Mon–Fri", or "any hour". */
 export function hoursWords(a: Availability | null | undefined): string {
   if (!isConstrained(a)) return 'any hour';
   const days = validDays(a);
   const on = days.length && days.length < 7 ? ` on ${dayRuns(days)}` : '';
-  if (a.fromHour === a.toHour) return `your hours all day${on}`;
-  return `your hours ${hour12(a.fromHour)} to ${hour12(a.toHour)}${on}`;
+  if (a.fromHour === a.toHour) return `awake hours all day${on}`;
+  return `awake hours ${hour12(a.fromHour)} to ${hour12(a.toHour)}${on}`;
 }
 
 /** The hours alone, short: "any hour", "9 am–1 am", "9 am–11 pm on Mon–Fri", "all day on Sat, Sun". */
 export function hoursShort(a: Availability | null | undefined): string {
   return hoursWords(a)
-    .replace(/^your hours /, '')
+    .replace(/^awake hours /, '')
     .replace(/^(\d+ [ap]m) to (\d+ [ap]m)/, '$1–$2');
 }
 

@@ -4,9 +4,10 @@
  * collector's private `POST /instant` (collector/worker.js "instant answer records").
  *
  * WHY. Most players only use the instant answer, so the board learns nothing from them. With this
- * ticked (the instant answer's "Share this check", or "Keep sharing my checks" for every check;
- * composables/useInstantShare.ts) a finished Check exactly sends ONE record: the instant answer's route, the
- * full simulator's times for it on the player's account, and what the answer was built on. The
+ * ticked ("Share this result" under a search's result, or "Share my search results" for every one;
+ * composables/useInstantShare.ts) a finished Fast, Exact or Custom search sends ONE record: the instant answer's
+ * route, the search's best route with the full simulator's times on the player's account (`exact`, `exactFrom`), and
+ * what the answer was built on. (Until 23 Oct 2026 `exact` was Check exactly's price of the instant answer's routes.) The
  * analyst uses them for the instant answer's accuracy across gear and TE, which gear to build the
  * next instant answers for, half-built farms, and prestige windows from repeat checks of one save.
  *
@@ -119,6 +120,8 @@ export interface InstantRecord {
   settings?: {
     firstAscension?: FirstAscension;
     maxAscensions?: number | null;
+    /** The ascensions range's lower end (24 Oct 2026). */
+    minAscensions?: number | null;
     inHours?: boolean;
     window?: string | null;
     holdShifts?: boolean;
@@ -142,6 +145,9 @@ export interface InstantRecord {
     firstLegOtherHours?: number;
     legs?: ExactLegOut[];
   } | null;
+  /** Which search found `exact` (23 Oct 2026, "Share this result"): Fast, Exact or Custom. Before, `exact` was Check
+   *  exactly's price of the instant answer's routes. A collector that doesn't know it drops it like any unknown field. */
+  exactFrom?: 'fast' | 'exact' | 'custom';
   /** By a date: how late the instant answer's own route arrives on the account (when it misses). */
   exactMissedByHours?: number;
   /** The farm the plan continues against a fresh build's peak delivery (Q/h). */
@@ -297,7 +303,7 @@ export function noteSent(st: StorageLike | null, slot: string, sig: string, now:
 
 /** A player id must never leave the page: refuse a record whose text holds one. */
 export function holdsPlayerId(rec: InstantRecord): boolean {
-  return /EI\d{16}/.test(JSON.stringify(rec));
+  return /EI\d{16}/i.test(JSON.stringify(rec));
 }
 
 export type InstantSendResult = 'sent' | 'skipped' | 'failed';

@@ -2,7 +2,7 @@
      things. Both off by default; with no collector both boxes are greyed out, since there is no board to show. -->
 <template>
   <div class="space-y-1" data-testid="tabs-toggle">
-    <p class="text-[11px] text-slate-500 leading-relaxed">{{ TABS_HIDDEN_NOTE }}</p>
+    <p class="text-body text-slate-500">{{ TABS_HIDDEN_NOTE }}</p>
     <label
       v-for="t in ROWS"
       :key="t.id"
@@ -17,7 +17,7 @@
         :disabled="!collector"
         @change="setTabPref(t.id, ($event.target as HTMLInputElement).checked)"
       />
-      <span class="text-[11px] text-slate-600 leading-relaxed">
+      <span class="text-body text-slate-600">
         <span class="font-bold text-slate-800">{{ t.label }}</span>
         <span class="block">{{ collector ? t.what : NO_COLLECTOR }}</span>
       </span>
@@ -41,7 +41,7 @@ const ROWS: { id: OptionalTab; label: string; what: string }[] = [
   {
     id: 'leaderboard',
     label: `Show the ${NAMES.compare} tab`,
-    what: 'Everyone’s shared runs: Egg Day, the race to 490 and the charts.',
+    what: "Everyone’s shared runs: Egg Day, Fastest to 490 TE and the charts.",
   },
   {
     id: 'science',

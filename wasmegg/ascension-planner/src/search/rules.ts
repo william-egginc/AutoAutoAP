@@ -70,7 +70,7 @@ export function describeDuration(seconds: number): string {
 
 export function longContinueMessage(days: number): string {
   return (
-    `Leg 1 keeps your current ascension going for ${Math.round(days)} days, over three months on one farm. ` +
+    `Ascension 1 keeps your current ascension going for ${Math.round(days)} days, over three months on one farm. ` +
     `A fresh 1, 2 and 3-sale start were all checked and none was faster, so it stands. ` +
     `Who do you think you are, some SE-hungry alien thug?`
   );
@@ -181,5 +181,5 @@ export function integrityMessage(seconds: number, cte?: CteParts | null): string
             `closer to that.`)
     : `A fresh ascension on this account sits on the Integrity shift for ${wait} before it can afford its habs ` +
         `(a healthy account is through it in under an hour). The plan runs, but that wait is in every date it gives, ` +
-        `and a result will go to the flagged board rather than the main one.`;
+        `and a result will go to the flagged Leaderboard rather than the main one.`;
 }

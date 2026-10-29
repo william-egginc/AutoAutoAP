@@ -56,6 +56,9 @@ export interface SearchCheckpoint {
   bestLegs: LegSummary[];
   /** `key,seconds` pairs — the cache, without per-leg detail. */
   durations: [string, number][];
+  /** The run's leg spill's length when this was written (search/legSpill.ts): a carry-on cuts the file
+   *  back to it. Absent: the run had none. */
+  spillBytes?: number;
   stage: string;
   detail: string;
   chainsDone: number;
@@ -202,6 +205,7 @@ export function fingerprintRun(args: {
   milestones?: Milestone[] | null;
   deferShifts?: boolean;
   timeOff?: TimeOffWindow[] | null;
+  noPrestige?: TimeOffWindow[] | null;
 }): string {
   const parts = [
     args.playerId,
@@ -218,6 +222,8 @@ export function fingerprintRun(args: {
   if (ms) parts.push(ms);
   // Only when set, so every checkpoint written before time off existed still matches.
   if (args.timeOff?.length) parts.push('off:' + args.timeOff.map(w => `${w.from}-${w.to}`).join(','));
+  // No prestige on these days (search/noPrestige.ts): likewise only when set.
+  if (args.noPrestige?.length) parts.push('np:' + args.noPrestige.map(w => `${w.from}-${w.to}`).join(','));
   return parts.join('|');
 }
 
@@ -274,6 +280,7 @@ export interface FingerprintSettings {
   deferShifts: boolean | null;
   milestones: { te: number; by: number }[];
   timeOff: { from: number; to: number }[];
+  noPrestige: { from: number; to: number }[];
 }
 
 /**
@@ -293,15 +300,19 @@ export function fingerprintSettings(fp: string): FingerprintSettings | null {
     deferShifts: null,
     milestones: [],
     timeOff: [],
+    noPrestige: [],
   };
+  const windows = (text: string) =>
+    text
+      .split(',')
+      .map(w => w.split('-').map(Number))
+      .filter(w => w.length === 2 && w.every(Number.isFinite))
+      .map(([from, to]) => ({ from, to }));
   for (const part of parts.slice(5)) {
     if (part.startsWith('off:')) {
-      out.timeOff = part
-        .slice(4)
-        .split(',')
-        .map(w => w.split('-').map(Number))
-        .filter(w => w.length === 2 && w.every(Number.isFinite))
-        .map(([from, to]) => ({ from, to }));
+      out.timeOff = windows(part.slice(4));
+    } else if (part.startsWith('np:')) {
+      out.noPrestige = windows(part.slice(3));
     } else if (part.startsWith('ms')) {
       out.milestones = part
         .slice(2)
@@ -351,10 +362,12 @@ function tailChanges(a: string[], b: string[]): string[] {
   const tail = (parts: string[], pick: (p: string) => boolean) => parts.slice(5).filter(pick).join('|');
   const isOff = (p: string) => p.startsWith('off:');
   const isMs = (p: string) => p.startsWith('ms');
-  const isAvail = (p: string) => !isOff(p) && !isMs(p);
+  const isNp = (p: string) => p.startsWith('np:');
+  const isAvail = (p: string) => !isOff(p) && !isMs(p) && !isNp(p);
   if (tail(a, isAvail) !== tail(b, isAvail)) out.push('the availability schedule changed');
   if (tail(a, isMs) !== tail(b, isMs)) out.push('the TE milestones changed');
   if (tail(a, isOff) !== tail(b, isOff)) out.push('the time off changed');
+  if (tail(a, isNp) !== tail(b, isNp)) out.push('the no-prestige days changed');
   return out;
 }
 
@@ -564,6 +577,7 @@ export function buildCheckpoint(args: {
   watch?: WatchLinkState | null;
   queue?: SweepQueueRecord | null;
   limits?: { min: number; max: number } | null;
+  spillBytes?: number;
 }): SearchCheckpoint {
   const bestKey = args.bestChain.join(',');
   return {
@@ -587,6 +601,7 @@ export function buildCheckpoint(args: {
     ...(args.watch ? { watch: { ...args.watch } } : {}),
     ...(args.queue && readSweepQueue(args.queue) ? { queue: readSweepQueue(args.queue)! } : {}),
     ...(args.limits ? { limits: { min: args.limits.min, max: args.limits.max } } : {}),
+    ...(args.spillBytes !== undefined ? { spillBytes: args.spillBytes } : {}),
   };
 }
 

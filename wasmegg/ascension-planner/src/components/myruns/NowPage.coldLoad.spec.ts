@@ -99,7 +99,7 @@ describe('My runs on a cold load', () => {
 
     // 2. The draft and the stored save: the strip reads the save; nothing else shows the draft's state.
     restoreDraft(backup);
-    expect(page.strip.value?.text).toMatch(/^Your save is from .+ \(2 hours ago\)\.$/);
+    expect(page.strip.value?.text).toMatch(/^Your save is from .+ \(2h ago\)\.$/);
     expect(page.saveWaiting.value).toBe(true);
     expect(page.hasSave.value).toBe(false);
     expect(page.currentEgg.value).toBeNull(); // never the draft's Integrity
@@ -137,14 +137,14 @@ describe('My runs on a cold load', () => {
     restoreDraft(backup);
     r = await render();
     expect(r.t).not.toContain('No save loaded');
-    expect(r.t).toMatch(/Your save is from .+ \(2 hours ago\)\./);
+    expect(r.t).toMatch(/Your save is from .+ \(2h ago\)\./);
     expect(r.html).toContain('data-testid="now-save-waiting"');
     expect(r.html).not.toContain('data-testid="now-card"');
     expect(r.t).not.toContain('159 TE so far');
 
     loadSave(backup);
     r = await render();
-    expect(r.t).toMatch(/Your save is from .+ \(2 hours ago\)\./);
+    expect(r.t).toMatch(/Your save is from .+ \(2h ago\)\./);
     expect(r.html).not.toContain('data-testid="now-save-waiting"');
     expect(r.html).toContain('data-testid="now-card"');
     expect(r.t).toContain('Curiosity');
@@ -172,6 +172,8 @@ describe('the cold load, in the source', () => {
     const board = fs.readFileSync(path.resolve(__dirname, '../auto/LeaderboardPanel.vue'), 'utf8');
     expect(board).toContain('const myTE = computed(() => saveTEOf(initialState.rawBackup));');
     const view = fs.readFileSync(path.resolve(__dirname, '../MyRunsView.vue'), 'utf8');
-    expect(view).toContain('teNow: saveTEOf(initialState.rawBackup),');
+    // Next steps (reworked 24 Oct 2026) read no TE at all: the save's own time, as Right now reads it.
+    expect(view).toContain('saveSeconds: page.hasSave.value ? page.saveSeconds.value : 0,');
+    expect(view).not.toContain('teNow');
   });
 });

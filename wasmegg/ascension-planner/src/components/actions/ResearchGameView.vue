@@ -8,14 +8,14 @@
       <!-- Tier Header -->
       <div class="px-4 py-2 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
         <div class="flex items-center gap-2 flex-1 cursor-pointer" @click="toggleTier(tier)">
-          <span class="font-medium text-gray-900">Tier {{ tier }}</span>
+          <span class="font-normal text-gray-900">Tier {{ tier }}</span>
           <span
             v-if="!tierSummaries[tier]?.isUnlocked"
-            class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold uppercase tracking-wide shadow-sm"
+            class="bg-red-100 text-red-700 px-2 py-0.5 rounded label shadow-sm"
           >
             Locked ({{ tierSummaries[tier]?.purchasesNeeded ?? '?' }} more)
           </span>
-          <span v-else class="text-[10px] text-gray-400 font-medium uppercase">
+          <span v-else class="text-gray-400 label">
             {{ tierSummaries[tier]?.purchasedLevels ?? 0 }} / {{ tierSummaries[tier]?.totalLevels ?? 0 }}
           </span>
         </div>
@@ -23,13 +23,13 @@
           <!-- Max Tier button -->
           <button
             v-if="tierSummaries[tier]?.isUnlocked && !isTierMaxed(tier)"
-            class="btn-premium text-xs py-1 px-2"
+            class="btn-premium text-body py-1 px-2"
             :class="isResearchSaleActive && (baseTimestamp / 1000 + viewTimes.tierSeconds[tier] > researchSaleDeadline) ? 'btn-danger bg-amber-500 hover:bg-amber-600 border-amber-600' : 'btn-secondary'"
             @click.stop="$emit('max-tier', tier)"
             v-tippy="deadlineWarningTooltip(viewTimes.tierSeconds[tier])"
           >
             Max Tier
-            <span v-if="viewTimes.tiers[tier]" class="ml-1 text-[9px] opacity-70">({{ viewTimes.tiers[tier] }})</span>
+            <span v-if="viewTimes.tiers[tier]" class="ml-1 text-small opacity-70">({{ viewTimes.tiers[tier] }})</span>
           </button>
           <svg
             class="w-5 h-5 text-gray-400 transition-transform cursor-pointer"

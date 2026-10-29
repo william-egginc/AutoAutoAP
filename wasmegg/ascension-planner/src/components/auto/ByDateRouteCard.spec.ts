@@ -1,4 +1,5 @@
 /** By a date's route card (ByDateRouteCard.vue): the finished answer, and the best so far mid-run. */
+import { formatMoment } from '@/lib/clock';
 import { describe, expect, it } from 'vitest';
 import { h } from 'vue';
 import ByDateRouteCard from './ByDateRouteCard.vue';
@@ -31,7 +32,7 @@ describe('ByDateRouteCard', () => {
     const html = await renderHtml(ByDateRouteCard, props(), { default: () => 'Stopped early.' });
     const t = textOf(html);
     expect(t).toMatch(/^Highest by .*2027/);
-    expect(t).toMatch(/166 197 223 247 247 TE reached .*2027.*, 27\.3 h to spare/);
+    expect(t).toMatch(/166 197 223 247 247 TE reached .*2027.*, 27h 18m to spare/);
     expect(t).toContain('Stopped early.');
     // Laid out as Fastest's leg table: Ascension, to TE, Start, Finish, Days.
     expect(t).toMatch(/Ascension → TE Start Finish Days A1 166 .* 30\.00 A2 197 .* 80\.00 A3 223 .* 70\.00 A4 247 .* 48\.90/);
@@ -89,13 +90,13 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     // The last leg ends 27.3 h before the deadline. The farm is on kindness: 2.3e17 eggs at 1e12 a second
     // (63.9 h), a date and time in the planner's zone, 12-hour. The other eggs need a shift first.
     const end = DEADLINE - 27.3 * 3600;
-    const at = (s: number) => new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(s * 1000));
+    const at = (s: number) => formatMoment(s * 1000, { zone: 'UTC' });
     expect(t).toContain('Curiosity 50 after a shift');
     expect(t).toMatch(new RegExp(`Kindness · laying 49 ${at(end + 2.3e5).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     expect(html).toMatch(/title="310\.00q eggs to go, after a shift to this egg, which starts the farm again from one chicken"/);
     // After the deadline: said so, and never as a TE the answer could have had (15 Oct 2026, Halceyx).
     expect(t).toMatch(
-      /Laying on after the last stop, your next TE \(Kindness, at the final rate of 3\.60q eggs an hour\) would come about .*2027.*, after the deadline, so it isn't counted\./
+      /Laying on after the last stop, your next TE \(Kindness, at the final rate of 3\.60q eggs an hour\) would come about .*2027.*, after the date, so it isn't counted\./
     );
   });
 
@@ -144,7 +145,7 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
   it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
     expect(textOf(html)).toMatch(
-      /Simulate this plan Share CSV ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
+      /Simulate this plan Share Download CSV \(detail for top routes\) ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
     );
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],
@@ -156,7 +157,7 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
     });
     const classOf = (h: string, text: string) => h.match(new RegExp(`class="([^"]*)"[^>]*>\\s*${text}`))?.[1];
     expect(classOf(html, 'Simulate this plan')).toContain('bg-emerald-700');
-    expect(classOf(html, 'Simulate this plan')).toBe(classOf(fast, 'Build this plan'));
+    expect(classOf(html, 'Simulate this plan')).toBe(classOf(fast, 'Simulate this plan'));
     expect(classOf(html, 'Share')).toContain('border-emerald-300');
     expect(classOf(html, 'Share')).toBe(classOf(fast, 'Share'));
   });
@@ -178,9 +179,9 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
 
 describe('spareLabel', () => {
   it('minutes, hours under two days, then days', () => {
-    expect(spareLabel(40 * 60)).toBe('40 min');
-    expect(spareLabel(27.3 * 3600)).toBe('27.3 h');
-    expect(spareLabel(3.5 * 86400)).toBe('3.5 days');
+    expect(spareLabel(40 * 60)).toBe('40m');
+    expect(spareLabel(27.3 * 3600)).toBe('27h 18m');
+    expect(spareLabel(3.5 * 86400)).toBe('3d 12h');
   });
 });
 
@@ -192,7 +193,7 @@ describe('RouteResultCard (Fastest): last run and the Build note', () => {
     );
     const live = textOf(await renderHtml(RouteResultCard, { ...base, running: false }));
     expect(live).toMatch(/^Fastest found/);
-    expect(live).toContain("Build this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives");
+    expect(live).toContain("Simulate this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives");
     // While running: still the best so far, never "Your last run".
     expect(textOf(await renderHtml(RouteResultCard, { ...base, running: true, lastRun: 'x' }))).toMatch(/^Best so far/);
   });
@@ -207,5 +208,24 @@ describe('RouteResultCard (Fastest) mid-run', () => {
     expect(
       textOf(await renderHtml(RouteResultCard, { ...base, running: false }, { default: () => h('i') }))
     ).not.toContain('can still improve');
+  });
+});
+
+describe('Follow this route on the result cards (23 Oct 2026)', () => {
+  const follow = { goalKey: 'eggday-2027', source: 'fast' as const, finish: DEADLINE - 27.3 * 3600, endTE: 247, planStart: DEADLINE - 300 * 86400, deadline: DEADLINE };
+  it('By a date: the finished answer has "Follow this route" for its goal; the best so far and a card without it have none', async () => {
+    const html = await renderHtml(ByDateRouteCard, props({ follow, simulate: true, canCsv: true }));
+    expect(html).toMatch(/data-testid="follow-route" data-goal="eggday-2027"/);
+    expect(textOf(html)).toMatch(/Simulate this plan Follow this route Download CSV/);
+    expect(await renderHtml(ByDateRouteCard, props({ follow, running: true, simulate: true }))).not.toContain('follow-route');
+    expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('follow-route');
+  });
+  it('Fastest: the finished answer has it after Build this plan; mid-run none', async () => {
+    const base = { chain: [166, 197, 223, 490], days: 30.5, finalTE: 490, endLabel: 'Feb 15, 2029, 9:22 PM', running: false };
+    const f = { goalKey: 'fastest-490', source: 'exact' as const, finish: 1_900_000_000, endTE: 490, planStart: 1_897_000_000 };
+    const html = await renderHtml(RouteResultCard, { ...base, follow: f });
+    expect(html).toMatch(/data-testid="follow-route" data-goal="fastest-490"/);
+    expect(textOf(html)).toMatch(/Simulate this plan Follow this route Share/);
+    expect(await renderHtml(RouteResultCard, { ...base, running: true, follow: f })).not.toContain('follow-route');
   });
 });

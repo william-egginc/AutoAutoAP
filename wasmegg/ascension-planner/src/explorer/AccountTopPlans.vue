@@ -24,10 +24,10 @@
   <div class="space-y-3">
     <div v-if="accounts.length" class="flex flex-wrap items-end gap-3">
       <label class="space-y-1">
-        <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Account</span>
+        <span class="block text-slate-400 label">Account</span>
         <span class="flex items-center gap-1.5">
           <AccountDot :index="colourIndex" :size="10" />
-          <select v-model="account" class="rounded-lg border border-slate-200 px-2 py-1.5 text-[12px] bg-white">
+          <select v-model="account" class="rounded-lg border border-slate-200 px-2 py-1.5 text-body bg-white">
             <option v-for="a in accounts" :key="a.key" :value="a.key">
               {{ a.label }} · {{ a.stored }} table{{ a.stored === 1 ? '' : 's' }}
             </option>
@@ -37,7 +37,7 @@
       <button
         v-if="!loading"
         type="button"
-        class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg text-body font-bold bg-indigo-600 text-white disabled:opacity-40"
         :disabled="!tables.load.length || (!!shown && !shown.cancelled)"
         @click="load"
       >
@@ -48,22 +48,22 @@
         }}
       </button>
       <template v-else>
-        <span class="text-[11px] font-bold text-slate-600 py-1.5" role="status">Loading {{ progress }}…</span>
+        <span class="text-small font-bold text-slate-600 py-1.5" role="status">Loading {{ progress }}…</span>
         <button
           type="button"
-          class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-300 text-slate-600 bg-white hover:border-slate-400"
+          class="px-3 py-1.5 rounded-lg text-body font-bold border border-slate-300 text-slate-600 bg-white hover:border-slate-400"
           @click="cancel"
         >
           Cancel
         </button>
       </template>
       <div v-if="shown?.top.plans.length" class="ml-auto flex items-center gap-1.5">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Top</span>
+        <span class="text-slate-400 label">Top</span>
         <button
           v-for="n in LIMITS"
           :key="n"
           type="button"
-          class="px-2 py-0.5 rounded-md text-[10px] font-bold border transition-colors"
+          class="px-2 py-0.5 rounded-md text-small font-bold border transition-colors"
           :class="
             limit === n
               ? 'bg-slate-700 text-white border-slate-700'
@@ -76,12 +76,12 @@
         </button>
       </div>
     </div>
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
       No account has a table stored for a run to {{ finalTE }} TE yet.
     </p>
 
     <!-- What goes in, and what does not. -->
-    <p v-if="accounts.length" class="text-[10px] text-slate-500 leading-relaxed px-1">
+    <p v-if="accounts.length" class="text-small text-slate-500 px-1">
       <span>{{ inputs.head }}</span>
       <template v-if="tables.left.length">
         <span>{{ '; left out: ' }}</span>
@@ -103,20 +103,20 @@
     </p>
     <ul
       v-if="openLeftItem"
-      class="mx-1 list-disc space-y-0.5 rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-6 pr-2 text-[10px] text-slate-600"
+      class="mx-1 list-disc space-y-0.5 rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-6 pr-2 text-small text-slate-600"
       :aria-label="`Why ${leftOutText(openLeftItem)} left out`"
     >
       <li v-for="(why, k) in openLeftItem.reasons" :key="k">{{ why }}</li>
     </ul>
-    <p v-if="error" class="text-[11px] font-semibold text-rose-700 px-1">{{ error }}</p>
+    <p v-if="error" class="text-body font-bold text-rose-700 px-1">{{ error }}</p>
 
     <template v-if="shown && view">
-      <p class="text-[10px] text-slate-500 leading-relaxed px-1">
+      <p class="text-small text-slate-500 px-1">
         <b v-if="view.partial" class="text-slate-700">{{ view.partial }}</b> {{ view.summary }}
       </p>
 
-      <div v-if="view.perCount.length > 1" class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1 text-[10px]">
-        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Earliest at each count</span>
+      <div v-if="view.perCount.length > 1" class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1 text-small">
+        <span class="text-slate-400 label">Earliest at each count</span>
         <span v-for="p in view.perCount" :key="p.ascensions" :title="`${p.chain} · ${p.finishTitle}`">
           <b class="text-slate-700">{{ p.ascensions }} asc</b>
           <span class="ml-1 text-slate-600">{{ p.after }}</span>
@@ -124,9 +124,9 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full text-[11px]">
+        <table class="w-full text-small">
           <thead>
-            <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <tr class="text-slate-400 label">
               <th class="text-right py-1 pr-3">#</th>
               <th class="text-left py-1 pr-3">Plan</th>
               <th class="text-right py-1 pr-3">Asc</th>
@@ -145,13 +145,13 @@
             <tr v-for="p in view.rows" :key="p.key" class="align-top">
               <td class="py-1.5 pr-3 text-right tabular-nums text-slate-400">{{ p.rank }}</td>
               <td class="py-1.5 pr-3 whitespace-nowrap" :title="p.chainTitle">
-                <span class="font-mono text-slate-800"
+                <span class="tabular-nums text-slate-800"
                   ><template v-for="(c, k) in p.route" :key="k"
                     >{{ k ? ' ' : '' }}<s v-if="c.passed" class="text-slate-400">{{ c.te }}</s
                     ><template v-else>{{ c.te }}</template></template
                   ></span
                 >
-                <span v-if="p.measurements > 1" class="ml-1 text-[9px] font-bold text-slate-400"
+                <span v-if="p.measurements > 1" class="ml-1 text-small font-bold text-slate-400"
                   >×{{ p.measurements }}</span
                 >
                 <!-- Under the route on a phone, so the tags do not push the dates off the screen. -->
@@ -159,7 +159,7 @@
                   ><span
                     v-for="t in p.tags"
                     :key="t"
-                    class="mr-1 sm:mr-0 sm:ml-1 rounded bg-sky-100 px-1 font-sans text-[9px] font-black text-sky-800"
+                    class="mr-1 sm:mr-0 sm:ml-1 rounded bg-sky-100 px-1 font-sans text-small font-bold text-sky-800"
                     >{{ t }}</span
                   ></span
                 >
@@ -171,22 +171,22 @@
               </td>
               <td
                 class="py-1.5 pr-3 text-right whitespace-nowrap tabular-nums"
-                :class="p.earliest ? 'font-black text-emerald-700' : 'text-slate-600'"
+                :class="p.earliest ? 'font-bold text-emerald-700' : 'text-slate-600'"
               >
                 {{ p.after }}
               </td>
               <td class="py-1.5 pr-3 whitespace-nowrap" :title="p.runTitle">
                 <span class="whitespace-nowrap text-slate-600">{{ p.planned }}</span>
-                <span class="text-[10px] text-slate-400"> · {{ p.how }}</span>
+                <span class="text-small text-slate-400"> · {{ p.how }}</span>
               </td>
-              <td class="py-1.5 whitespace-nowrap text-[10px]" :title="p.saveTitle">
+              <td class="py-1.5 whitespace-nowrap text-small" :title="p.saveTitle">
                 <span v-if="p.save" class="font-bold text-slate-500">{{ p.save }}</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p v-if="view.anchorNote" class="text-[10px] text-slate-500 leading-relaxed px-1">{{ view.anchorNote }}</p>
+      <p v-if="view.anchorNote" class="text-small text-slate-500 px-1">{{ view.anchorNote }}</p>
     </template>
   </div>
 </template>
@@ -341,7 +341,7 @@ async function load(): Promise<void> {
     if (isAbort(e)) {
       if (result.value) result.value = { ...result.value, cancelled: true };
     } else {
-      error.value = describeFetchError(e, 'the collector');
+      error.value = describeFetchError(e, "the planner's server");
       if (result.value) result.value = { ...result.value, cancelled: true };
     }
   } finally {

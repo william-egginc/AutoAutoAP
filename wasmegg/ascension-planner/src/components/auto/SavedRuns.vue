@@ -16,10 +16,10 @@
 <template>
   <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
     <div class="flex items-center justify-between gap-3">
-      <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Saved runs</h3>
-      <span class="text-[10px] font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
+      <h3 class="text-slate-500 label">{{ heading || 'Saved runs' }}</h3>
+      <span class="text-small font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
-    <p v-if="!listOnly" class="text-[11px] text-slate-500 leading-relaxed">
+    <p v-if="!listOnly" class="text-body text-slate-500 max-w-prose">
       Kept in this browser, per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with
       the save it started with while that save is kept here, and puts its target, schedule, time off and plan start
       back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped. Each run also
@@ -31,31 +31,31 @@
         v-model="label"
         type="text"
         placeholder="Name this run (optional)"
-        class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-sm text-slate-800"
+        class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-body text-slate-800"
       />
       <button
         type="button"
         :disabled="store.bestDays <= 0 || store.isRunning || saving"
-        class="px-4 py-2 rounded-lg bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-40"
+        class="px-4 py-2 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
         @click="save"
       >
-        {{ saving ? 'Saving...' : 'Save this run' }}
+        {{ saving ? 'Saving…' : 'Save this run' }}
       </button>
     </div>
 
-    <p v-if="note" class="text-[11px] font-semibold text-amber-700 leading-relaxed">{{ note }}</p>
+    <p v-if="note" class="text-body font-bold text-amber-700">{{ note }}</p>
 
-    <p v-if="!store.savedRuns.length" class="text-[11px] text-slate-400">Nothing saved yet.</p>
+    <p v-if="!store.savedRuns.length" class="text-body text-slate-400">Nothing saved yet.</p>
     <div v-else class="divide-y divide-slate-100">
       <div v-for="run in store.savedRuns" :key="run.id" class="flex flex-wrap items-center gap-3 py-2">
         <div class="flex-1 min-w-[14rem]">
-          <div class="text-xs font-bold text-slate-800">
+          <div class="text-small font-bold text-slate-800">
             {{ run.label }}
-            <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 text-[9px] font-black uppercase text-slate-500">{{
+            <span class="ml-1 px-1.5 py-0.5 rounded bg-slate-100 label text-slate-500">{{
               run.space ? NAMES.full : NAMES.smart
             }}</span>
           </div>
-          <div class="text-[10px] text-slate-400 font-mono-premium">
+          <div class="text-small text-slate-400 tabular-nums">
             {{ run.bestChain.join(' ') }} · {{ run.bestDays.toFixed(3) }} d · {{ plural(run.chainsPriced, 'route') }}<template
               v-if="!run.complete"
             >
@@ -69,6 +69,7 @@
             class="mt-1"
             :words="pace.paceOf({ kind: 'run', run, goalKey: `fastest-${run.finalTE}` })"
           />
+          <BaselineChip v-if="listOnly && baselineOf(run)" class="mt-1" :line="baselineOf(run)" />
         </div>
         <!-- Resume, not just Open: an unfinished sweep holds every chain it priced, and without this
              the only way to use them was to retype the space and let the search rediscover them. -->
@@ -76,14 +77,14 @@
           v-if="canResume && !run.complete && run.space"
           type="button"
           :disabled="store.busy || resuming !== ''"
-          class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700 disabled:opacity-40"
           @click="resume(run.id)"
         >
           {{ resuming === run.id ? 'Carrying on…' : 'Carry on' }}
         </button>
         <button
           type="button"
-          class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"
+          class="px-3 py-1.5 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"
           :disabled="store.busy || store.sweepQueue.at >= 0"
           title="Opening a run replaces the results on screen, so it's off while a run is going"
           @click="open(run.id)"
@@ -96,10 +97,14 @@
           :goal-key="`fastest-${run.finalTE}`"
           from="saved"
           :label="run.label"
+          :source="sourceOfLevel(foundLevel({ custom: !!run.space, effort: run.effort }))"
+          :finish="runFinish(run)"
+          :end-te="run.finalTE"
+          :plan-start="fingerprintPlanStart(run.fingerprint)"
         />
         <button
           type="button"
-          class="px-3 py-1.5 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-red-300 hover:text-red-600"
+          class="px-3 py-1.5 rounded-md border border-slate-300 text-body font-bold text-slate-500 hover:border-red-300 hover:text-red-600"
           @click="store.deleteSavedRun(playerId, run.id)"
         >
           Delete
@@ -125,9 +130,15 @@ import { NAMES } from '@/lib/siteNav';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import EntrySaveActions from './EntrySaveActions.vue';
 import FollowButton from '../FollowButton.vue';
+import { sourceOfLevel } from '@/lib/followCloud';
 import SaveFileBar from './SaveFileBar.vue';
 import PaceBadge from '../myruns/PaceBadge.vue';
 import { usePlanPace } from '@/composables/usePlanPace';
+import BaselineChip from '../myruns/BaselineChip.vue';
+import { useBaselines } from '@/composables/useBaselines';
+import { fingerprintPlanStart } from '@/search/persistence';
+import { foundLevel } from '@/lib/searchPointer';
+import type { RunSummary } from '@/search/runLibrary';
 
 const props = defineProps<{
   playerId: string;
@@ -137,6 +148,8 @@ const props = defineProps<{
   listOnly?: boolean;
   /** My runs' "Saved on this device" is open: the badges may read the runs' bodies (one at a time). */
   paceActive?: boolean;
+  /** The list's heading: Custom's says "Saved for later", as its text does (Words, 26 Oct 2026); "Saved runs" else. */
+  heading?: string;
 }>();
 /** A run was opened: `full` when it is an Exhaustive run (it has a space), for My runs to show its screen. */
 const emit = defineEmits<{ opened: [run: { full: boolean }] }>();
@@ -153,6 +166,25 @@ const pace = usePlanPace({
   active: () => !!props.listOnly && !!props.paceActive,
   entries: () => store.savedRuns.map(run => ({ kind: 'run' as const, run, goalKey: `fastest-${run.finalTE}` })),
 });
+
+/** "vs your instant baseline: 1.2 days sooner (Fast)" (My runs, wireframe B1): the instant answer for the run's
+ *  target and save, logged here (lib/instantBaseline.ts); null without one or without the run's start. */
+/** A saved run's finish: its plan start (from its fingerprint) plus its best days; null when either is unknown. */
+function runFinish(run: RunSummary): number | null {
+  const start = fingerprintPlanStart(run.fingerprint);
+  return start && run.bestDays > 0 ? Math.round(start + run.bestDays * 86400) : null;
+}
+const baselines = props.listOnly ? useBaselines() : null;
+function baselineOf(run: RunSummary) {
+  const start = fingerprintPlanStart(run.fingerprint);
+  if (!baselines || !start) return null;
+  return baselines.lineFor({
+    goal: `target ${run.finalTE}`,
+    backupTime: run.save?.backupAt ?? null,
+    run: { goal: 'fastest', end: start + run.bestDays * 86400, endTE: run.finalTE },
+    level: run.space ? 'Custom' : foundLevel({ custom: false, effort: String(run.effort) }),
+  });
+}
 
 const label = ref('');
 const saving = ref(false);

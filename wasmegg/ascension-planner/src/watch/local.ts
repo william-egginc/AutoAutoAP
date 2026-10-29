@@ -145,7 +145,7 @@ let standDown = false;
 let seenRunning: number | undefined;
 
 const WAITING = 'Waiting for a run to start.';
-const WAITING_DETAIL = "Keep this tab open; press Find on the run's page.";
+const WAITING_DETAIL = "Keep this tab open; press Run on the run's page.";
 
 function check(): void {
   if (standDown) return;
@@ -174,14 +174,14 @@ function check(): void {
         WAITING,
         'done',
         m?.status === 'running'
-          ? `${WAITING_DETAIL} The last run here went quiet ${age} ago, before this tab opened, so this tab won't reopen it. Carry it on in the planner, or press Find for a new run, and this tab will watch it.`
+          ? `${WAITING_DETAIL} The last run here went quiet ${age} ago, before this tab opened, so this tab won't reopen it. Carry it on in the planner, or press Run for a new run, and this tab will watch it.`
           : WAITING_DETAIL
       );
       return;
     case 'watching':
       if (m!.status === 'failed')
         show('The run stopped with an error; reopened it.', 'warn', 'Waiting for it to carry on by itself.');
-      else show('Watching.', 'ok', `Last heartbeat ${age} ago.`);
+      else show('Watching.', 'ok', `Last heard from the run ${age} ago.`);
       return;
     case 'reopen':
       reopen(m!.url);
@@ -203,7 +203,7 @@ function check(): void {
       show(
         m!.status === 'failed' ? 'The run stopped with an error again.' : 'The run has gone quiet again.',
         'warn',
-        `It was reopened 3 times in the last hour, so this tab won't reopen it again until ${clock12(nextReopenAllowedAt(m!.reopens, now))}.${m!.status === 'failed' ? '' : ` Last heartbeat ${age} ago.`}`
+        `It was reopened 3 times in the last hour, so this tab won't reopen it again until ${clock12(nextReopenAllowedAt(m!.reopens, now))}.${m!.status === 'failed' ? '' : ` Last heard from the run ${age} ago.`}`
       );
       return;
     case 'finished':

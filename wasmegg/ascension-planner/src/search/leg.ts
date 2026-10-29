@@ -22,6 +22,8 @@ import { runBuildUpUntilC3 } from '@/auto/buildUp';
 import { MAX_OPENING_ROUNDS } from '@/auto/lowTeOpening';
 import { isResearchSaleActive } from '@/lib/events';
 import { paramsOf } from './tableBuild';
+import { paramsAndExtrasOf } from './tableV2Build';
+import type { BuildWithExtras } from './tableV2';
 import { heldSecondsOf, holdForPlayer } from '@/auto/hold';
 import { isConstrained, nextAvailable } from './availability';
 import { pickVariant, type VariantKey, type VariantResult } from '@/stores/autoPlanner';
@@ -662,6 +664,23 @@ export function buildUpTailParams(inputs: SearchInputs, startTime: number): Buil
 }
 
 /**
+ * `buildUpTailParams` with table version 2's extras (search/tableV2.ts), for the instant answer's held
+ * replay (routeFinder.ts `TailOptions.holdShifts`): the build up to C3 as the search simulates it (its
+ * shifts held for the player's hours, as `buildUpBuild` does), and from H1 on unheld, as a table cell
+ * is, so the replay holds H1, K3 and the tail's shifts itself. Empty without a farm in the save.
+ */
+export function buildUpTailParamsV2(inputs: SearchInputs, startTime: number): BuildWithExtras[] {
+  const base = cloneBaseState(inputs);
+  const b = buildUpBuild(inputs, base, startTime, inputs.currentTE);
+  if (!b) return [];
+  const { holdUntil: _held, ...ctx } = b.ctx;
+  return b.variants.map(v => {
+    const pe = paramsAndExtrasOf({ ctx, preC3: b.preC3, variants: b.variants }, v, startTime);
+    return { ...pe.params, extras: pe.extras };
+  });
+}
+
+/**
  * Continue current ascension as the precomputed tail takes it (search/precomputedLeg.ts): no build
  * and no sale, the farm's own delivery rate, and its eggs after the catch-up `runContinueCurrent`
  * credits from the last sync to the plan start. `tailTo` on this gives continue's time to any
@@ -722,9 +741,13 @@ export function saveSiloSeconds(inputs: SearchInputs): number {
  * `k3`). The best set the player's whole inventory can wear there, through the simulator's own rate
  * function: at that research nearly every stone goes to lay rate, so the set a save shows (chosen at
  * today's research) would understate everyone (scripts/precompute.ts --verify-table --as). 1 without
- * a save to read.
+ * a save to read. It reads the save's context only (the backup, epic research, colleggtibles), not the
+ * setup: the instant card asks for it without collecting the whole setup (search/instantScale.ts).
  */
-export function instantDeliveryScale(inputs: SearchInputs, k3: NonNullable<TableHeader['k3']>): number {
+export function instantDeliveryScale(
+  inputs: Pick<SearchInputs, 'context'>,
+  k3: NonNullable<TableHeader['k3']>
+): number {
   const ctx = inputs.context;
   const raw = ctx.rawBackup;
   if (!raw) return 1;

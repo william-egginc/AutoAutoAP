@@ -4,12 +4,8 @@ import type { BoardRow } from './leaderboardRank';
 import {
   LEVEL_COLOURS,
   SCATTER_CAP,
-  ascTicks,
   buildScatter,
-  dateTicks,
   defaultGoal,
-  nearestPoint,
-  niceTicks,
   pointLines,
   scatterNotes,
   scatterSummary,
@@ -62,7 +58,7 @@ describe('buildScatter', () => {
         dated(EGG_DAY, 260, [100, 200, 260], 3),
       ],
     });
-    expect(b.goals.map(g => g.label)).toEqual(['Egg Day 2027', 'By Jan 15', 'Race to 300', 'Race to 490']);
+    expect(b.goals.map(g => g.label)).toEqual(['Egg Day 2027', 'By Jan 15', 'Fastest to 300 TE', 'Fastest to 490 TE']);
     const p = b.points.find(x => x.te === 490)!;
     expect(p).toMatchObject({ from: 'yours', level: 'normal', asc: 3, days: 12.5, spareHours: null });
     expect(p.finish).toBe(Date.parse('2026-10-01T00:00:00Z') + 12.5 * 86_400_000);
@@ -177,11 +173,11 @@ describe('scatterView', () => {
   it('the race summary and the hover card, in plain words with 12-hour times', () => {
     const v = scatterView(b.goals, b.points, 'race:490', 'asc', 'te');
     expect(scatterSummary(v, ZONE)).toBe(
-      '4 routes for Race to 490. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 am. Across them: 2 to 4 ascensions, 11.0 to 13.0 days.'
+      '4 routes for Fastest to 490 TE. The best takes 11.0 days with 2 ascensions, finishing Oct 12 at 12:00 AM. Across them: 2 to 4 ascensions, 11.0 to 13.0 days.'
     );
     expect(pointLines(v.best!, v.goal!, ZONE, true)).toEqual([
       'Best · 300 → 490',
-      '2 ascensions · 11.0 days · finishes Oct 12 at 12:00 am',
+      '2 ascensions · 11.0 days · finishes Oct 12 at 12:00 AM',
       'Level not recorded · Maybe you',
     ]);
     const saved = v.shown.find(p => p.from === 'saved')!;
@@ -201,8 +197,8 @@ describe('scatterView', () => {
     expect(pointLines(v.best!, v.goal!, ZONE)).toEqual([
       '100 → 250',
       '2 ascensions · TE 250 · 5.0 h to spare',
-      'Last ascension Jan 15 at 3:00 am',
-      'Exhaustive · Sent from this browser',
+      'Last ascension Jan 15 at 3:00 AM',
+      'Custom · Sent from this browser',
     ]);
   });
 
@@ -211,34 +207,8 @@ describe('scatterView', () => {
   });
 });
 
-describe('axes', () => {
-  it('round ticks, whole ascensions, day ticks', () => {
-    expect(niceTicks(0, 10, 5)).toEqual([0, 2, 4, 6, 8, 10]);
-    expect(niceTicks(244.2, 251.7, 5)).toEqual([246, 248, 250]);
-    expect(ascTicks(2, 5)).toEqual([2, 3, 4, 5]);
-    const DAY = 86_400_000;
-    expect(dateTicks(DAY * 10 + 5, DAY * 14)).toEqual([DAY * 11, DAY * 12, DAY * 13, DAY * 14]);
-    expect(whenText(Date.parse('2026-10-21T14:40:00Z'), ZONE)).toBe('Oct 21 at 2:40 pm');
-  });
-});
-
-describe('nearestPoint', () => {
-  const pts = [
-    { id: 'a', x: 100, y: 100 },
-    { id: 'b', x: 110, y: 100 },
-    { id: 'c', x: 300, y: 200 },
-  ];
-  it('picks the closest of overlapping points, whatever the order', () => {
-    expect(nearestPoint(pts, 108, 101, 22)?.id).toBe('b');
-    expect(nearestPoint(pts, 102, 99, 22)?.id).toBe('a');
-    expect(nearestPoint([...pts].reverse(), 102, 99, 22)?.id).toBe('a');
-  });
-  it('null when nothing is within reach, and on no points', () => {
-    expect(nearestPoint(pts, 200, 150, 22)).toBeNull();
-    expect(nearestPoint([], 1, 1, 22)).toBeNull();
-  });
-  it('reach is inclusive; a tie goes to the later (drawn on top) point', () => {
-    expect(nearestPoint(pts, 322, 200, 22)?.id).toBe('c');
-    expect(nearestPoint(pts, 105, 100, 22)?.id).toBe('b');
+describe('whenText', () => {
+  it('a moment in the browser\'s own format, 12-hour in en-US', () => {
+    expect(whenText(Date.parse('2026-10-21T14:40:00Z'), ZONE)).toBe('Oct 21 at 2:40 PM');
   });
 });

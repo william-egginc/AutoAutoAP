@@ -85,6 +85,13 @@ export interface SearchInputs {
    * to a complete rebuild: a fresh ascension toward the same checkpoint. Null/absent means none.
    */
   timeOff?: TimeOffWindow[] | null;
+  /**
+   * No prestige on these days (search/noPrestige.ts), absolute unix seconds like `timeOff`: the player stays on the
+   * virtue farm, and a prestige that would fall inside one waits for the next allowed moment (inside the hours when
+   * they are set). The farm keeps laying meanwhile, up to what its silos hold; shifts are unaffected. Null/absent
+   * means none, and a run without them prices exactly as before.
+   */
+  noPrestige?: TimeOffWindow[] | null;
 }
 
 /**
@@ -155,6 +162,9 @@ export interface LegSummary {
    *  `EvaluateChainOptions.delays`, search/delays.ts), seconds; the farm keeps laying through it. Absent
    *  when none. The prestige is at `endTime + plannedWaitSeconds + sleepDelaySeconds`. */
   plannedWaitSeconds?: number;
+  /** Of `sleepDelaySeconds`, the part a no-prestige day added (SearchInputs.noPrestige): the prestige waited past
+   *  where the player's hours alone would have let it happen. Absent when none. */
+  noPrestigeWaitSeconds?: number;
   /** Total seconds this leg's SHIFTS were held back waiting for the availability window, when
    *  `deferShifts` is on. Zero otherwise. Separate from `sleepDelaySeconds` (the prestige wait)
    *  because they are different costs: one is you not being there to tap prestige, the other is

@@ -5,12 +5,14 @@
   upcoming shift and prestige (not the goal); on a phone When and How far sit under the title with the button. Nothing is worked out here.
   A step whose time has passed but the save doesn't show done (lib/nowPlan.ts `notDone`) stays, in amber, as "Not done
   yet: shift to Curiosity (due 8:03 pm)", with no calendar button.
+  `rounded` (the instant answer drives Right now, wireframe R1): times to the hour, "at around 3:00 pm", "in about
+  28 h", and no calendar buttons at all (rounded times in a calendar would look exact).
 -->
 <template>
   <div data-testid="now-events">
-    <table class="w-full text-[12px] sm:text-[13px]">
+    <table class="w-full text-small">
       <thead>
-        <tr class="text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">
+        <tr class="label text-slate-500 text-left">
           <th class="py-1.5 pr-1 w-5"></th>
           <th class="py-1.5 pr-2">What</th>
           <th class="py-1.5 pr-2 hidden sm:table-cell">When</th>
@@ -28,19 +30,36 @@
         >
           <td class="py-2 pr-1" aria-hidden="true">{{ e.kind === 'shift' ? '⇄' : e.kind === 'prestige' ? '↑' : '⚑' }}</td>
           <td class="py-2 pr-2">
-            <span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
-            <p v-if="e.past && e.kind === 'prestige'" class="text-[11px] text-amber-800">
+            <span v-if="e.kind === 'prestige' && !e.timeOff" class="text-slate-500" data-testid="now-event-asc">A{{ e.asc }} ends ·{{ ' ' }}</span
+            ><span :class="e.next ? 'font-bold' : ''">{{ title(e) }}</span>
+            <!-- Every ascension's prestige is listed (26 Oct 2026); one that waits says why and when it happens. -->
+            <p v-if="e.kind === 'prestige' && e.wait && e.prestigeAt && !e.past" class="text-small text-amber-800" data-testid="now-event-wait">
+              {{ e.wait === 'days' ? 'Waits past your no-prestige days' : 'Waits for your hours' }}: prestige
+              {{ whenAt(e, e.prestigeAt) }}
+            </p>
+            <!-- What the instant estimate doesn't price (lib/instantSteps.ts): said in amber, Fast prices it. -->
+            <p v-if="e.kind === 'prestige' && !e.past && e.cutByTimeOff" class="text-small text-amber-800" data-testid="now-event-cut">
+              Runs into your time off {{ timeOffDays(e.cutByTimeOff, zone) }}: the ascension ends when it starts (going to
+              your home farm is a prestige). Fast prices it.
+            </p>
+            <p v-else-if="e.kind === 'prestige' && !e.past && e.prestigeInTimeOff" class="text-small text-amber-800" data-testid="now-event-in-timeoff">
+              Falls in your time off {{ timeOffDays(e.prestigeInTimeOff, zone) }}: Fast prices it.
+            </p>
+            <p v-if="e.kind === 'prestige' && !e.past && e.onNoPrestigeDay" class="text-small text-amber-800" data-testid="now-event-no-prestige-day">
+              Falls on a no-prestige day: it waits past your no-prestige days. Fast prices it.
+            </p>
+            <p v-if="e.past && e.kind === 'prestige'" class="text-small text-amber-800">
               The plan had you prestige {{ dateAt(e.at, now, zone, true) }}: load a newer save.
             </p>
-            <p class="sm:hidden text-[12px]">
-              {{ dateAt(e.at, now, zone, true) }}{{ ' · ' }}<b>{{ howFar(e, now, zone) }}</b>
+            <p class="sm:hidden text-small">
+              {{ when(e) }}{{ ' · ' }}<b>{{ far(e) }}</b>
             </p>
             <div v-if="addable(e)" class="mt-1 sm:hidden">
               <CalendarButton :events="[calOf(e)]" label="Add" />
             </div>
           </td>
-          <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">{{ dateAt(e.at, now, zone, true) }}</td>
-          <td class="py-2 pr-2 font-bold hidden sm:table-cell">{{ howFar(e, now, zone) }}</td>
+          <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">{{ when(e) }}</td>
+          <td class="py-2 pr-2 font-bold hidden sm:table-cell">{{ far(e) }}</td>
           <td class="py-2 hidden sm:table-cell text-right">
             <CalendarButton v-if="addable(e)" :events="[calOf(e)]" label="Add" align-right />
           </td>
@@ -50,9 +69,13 @@
     <div v-if="upcoming.length > 1" class="mt-2">
       <CalendarButton :events="upcoming.map(calOf)" :label="`Add all ${upcoming.length} upcoming to calendar`" primary />
     </div>
-    <p v-if="upcoming.length" class="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
+    <p v-if="rounded" class="mt-1.5 text-body text-slate-500 max-w-prose" data-testid="now-events-rounded">
+      <!-- Plain words, no link (ux review 26 Oct, row 15; 25 Oct 2026: the card's Run Fast went, Try next has the runs). -->
+      From the instant answer, rounded to the hour. For exact times on your account, use a run from Try next below.
+    </p>
+    <p v-else-if="upcoming.length" class="mt-1.5 text-body text-slate-500 max-w-prose">
       Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
-      nothing is sent. If the plan changes, add them again after a new check.
+      nothing is sent. If the plan changes, add them again after a new run.
     </p>
   </div>
 </template>
@@ -61,10 +84,11 @@
 import { computed } from 'vue';
 import CalendarButton from './CalendarButton.vue';
 import { dateAt } from '@/lib/eventWhen';
-import { eventTitle, howFar, notDoneTitle } from '@/lib/nowWords';
+import { eventTitle, howFar, notDoneTitle, whenWords } from '@/lib/nowWords';
 import { planCalEvent } from '@/lib/calendarEvents';
 import { virtueEggName } from '@/lib/virtueEggs';
 import type { PlanEvent } from '@/lib/nowPlan';
+import { timeOffDays } from '@/lib/instantSteps';
 import { thisDevice } from '@/search/device';
 
 const props = defineProps<{
@@ -78,12 +102,20 @@ const props = defineProps<{
   calculatedWhen: string;
   /** "Following 197 → 222 → … (Egg Day 2027)": each calendar event says it. */
   following?: string;
+  /** The instant answer's times (estimates): rounded to the hour, no calendar buttons. */
+  rounded?: boolean;
 }>();
+/** Rounded to the hour: the instant answer's times, never the ascension you are in simulated on the save (`exact`). */
+const roundedFor = (e: PlanEvent) => !!props.rounded && !e.exact;
+const when = (e: PlanEvent) => whenWords(e, props.goal, props.now, props.zone, roundedFor(e));
+const far = (e: PlanEvent) => howFar(e, props.now, props.zone, roundedFor(e), props.goal);
+/** When a waiting prestige happens, in the row's own words (rounded like the row). */
+const whenAt = (e: PlanEvent, at: number) => whenWords({ at, kind: 'prestige' }, props.goal, props.now, props.zone, roundedFor(e));
 
 const device = thisDevice();
 const title = (e: PlanEvent) =>
   e.notDone ? notDoneTitle(e, props.goal, props.now, props.zone, props.goalName) : eventTitle(e, props.goal, props.goalName);
-const addable = (e: PlanEvent) => !e.past && !e.notDone && e.kind !== 'goal';
+const addable = (e: PlanEvent) => !props.rounded && !e.past && !e.notDone && e.kind !== 'goal';
 const upcoming = computed(() => props.events.filter(addable));
 function calOf(e: PlanEvent) {
   return planCalEvent(e, {

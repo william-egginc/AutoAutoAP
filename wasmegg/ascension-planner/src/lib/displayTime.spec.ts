@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { showDateTime, showHour, showSchedule } from './displayTime';
+import { formatHourOfDay, formatMoment } from './clock';
 
 describe('dates and hours as the player reads them', () => {
   const t = Date.UTC(2027, 2, 18, 17, 15) / 1000; // 11:15 in Denver
@@ -7,11 +8,21 @@ describe('dates and hours as the player reads them', () => {
     expect(showDateTime(t, 'America/Denver', 'iso')).toBe('2027-03-18 11:15');
     expect(showHour(9, 'iso')).toBe('09:00');
   });
-  it("otherwise the browser's format, with the month spelled out", () => {
-    const s = showDateTime(t, 'America/Denver', 'local');
-    expect(s).toMatch(/Mar/);
-    expect(s).toMatch(/2027/);
-    expect(s).toMatch(/11:15/);
+  it("otherwise the browser's format through the one clock, with the month spelled out (lib/clock.ts)", () => {
+    expect(showDateTime(t, 'America/Denver', 'local')).toBe(formatMoment(t * 1000, { zone: 'America/Denver' }));
+    expect(showDateTime(t, 'America/Denver', 'local')).toMatch(/Mar/);
+    expect(showHour(9, 'local')).toBe(formatHourOfDay(9));
+    expect(showDateTime(Date.UTC(2040, 0, 1) / 1000, 'UTC', 'local', { dateOnlyWhenFar: true })).toBe(
+      formatMoment(Date.UTC(2040, 0, 1), { zone: 'UTC', dateOnly: true })
+    );
+  });
+  it('shortTime: the hour alone when on the hour (the Prestige-by line, UX review 26 Oct 2026, item 8)', () => {
+    const seven = Date.UTC(2027, 1, 24, 3) / 1000; // 7 PM in Los Angeles
+    expect(showDateTime(seven, 'America/Los_Angeles', 'local', { shortTime: true })).toBe(
+      formatMoment(seven * 1000, { zone: 'America/Los_Angeles', shortTime: true })
+    );
+    expect(showDateTime(seven, 'America/Los_Angeles', 'local', { shortTime: true })).not.toMatch(/:00/);
+    expect(showDateTime(t, 'America/Denver', 'local', { shortTime: true })).toMatch(/:15/);
   });
   it('says when the hours run past midnight', () => {
     expect(showSchedule({ days: [], fromHour: 9, toHour: 1, timezone: 'America/Denver' }, 'iso')).toBe(
@@ -27,6 +38,6 @@ describe('a calendar day', () => {
   it('spells the month out, or stays ISO', async () => {
     const { showDay } = await import('./displayTime');
     expect(showDay('2026-09-29', 'iso')).toBe('2026-09-29');
-    expect(showDay('2026-09-29', 'local')).toMatch(/Sep.*29|29.*Sep/);
+    expect(showDay('2026-09-29', 'local')).toBe(formatMoment(Date.UTC(2026, 8, 29), { zone: 'UTC', dateOnly: true }));
   });
 });

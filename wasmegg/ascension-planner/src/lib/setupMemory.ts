@@ -1,6 +1,6 @@
 /**
  * YOUR SETUP, REMEMBERED PER ACCOUNT (batch 16, item 8): the hours ("Let me pick my hours", from, to,
- * days), hold shifts, time off and first ascension, kept in this browser under the account's partition
+ * days), hold shifts, time off (away from virtue), the no-prestige days and first ascension, kept in this browser under the account's partition
  * hash (`aap-setup:<sha-256 of the player ID>`, the same hashing as stores/shareName.ts), never under the
  * player ID. One JSON blob an account, with when it was written.
  *
@@ -25,22 +25,26 @@ export interface RememberedSetup {
   hours: { on: boolean; from: number; to: number; days: number[] };
   holdShifts: boolean;
   timeOff: TimeOffDates[];
+  /** No prestige on these days (search/noPrestige.ts), whole local dates like time off. Absent in a blob written
+   *  before 24 Oct 2026: none. */
+  noPrestige: TimeOffDates[];
   firstAscension: FirstAscension;
   /** When it was written, ms. */
   at: number;
 }
 
 /** The parts the player edits, one group each: an edit writes only its own group. */
-export type SetupGroup = 'hours' | 'holdShifts' | 'timeOff' | 'firstAscension';
+export type SetupGroup = 'hours' | 'holdShifts' | 'timeOff' | 'noPrestige' | 'firstAscension';
 export type SetupValues = Omit<RememberedSetup, 'v' | 'at'>;
 
 /** The store's own defaults (stores/chainSearch.ts): any hour (7 am to 11 pm when picked, every day),
- *  hold shifts on, no time off, first ascension Fastest. */
+ *  hold shifts on, no time off, no no-prestige days, first ascension Soonest. */
 export function setupDefaults(): SetupValues {
   return {
     hours: { on: false, from: 7, to: 23, days: [0, 1, 2, 3, 4, 5, 6] },
     holdShifts: true,
     timeOff: [],
+    noPrestige: [],
     firstAscension: DEFAULT_FIRST_ASCENSION,
   };
 }
@@ -72,16 +76,19 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
   const days = Array.isArray(h.days)
     ? [...new Set(h.days.filter((x): x is number => Number.isInteger(x) && x >= 0 && x <= 6))].sort((a, b) => a - b)
     : d.hours.days;
-  const timeOff = Array.isArray(o.timeOff)
-    ? (o.timeOff as unknown[])
-        .filter((w): w is TimeOffDates => {
-          const x = w as Partial<TimeOffDates> | null;
-          return !!x && typeof x.from === 'string' && typeof x.to === 'string' && YMD.test(x.from) && YMD.test(x.to);
-        })
-        .map(w => ({ from: w.from, to: w.to }))
-        // Already over: dropped, so a trip from last month doesn't quietly change every answer.
-        .filter(w => !(YMD.test(today) && w.to < today))
-    : d.timeOff;
+  const dates = (v: unknown, fallback: TimeOffDates[]): TimeOffDates[] =>
+    Array.isArray(v)
+      ? (v as unknown[])
+          .filter((w): w is TimeOffDates => {
+            const x = w as Partial<TimeOffDates> | null;
+            return !!x && typeof x.from === 'string' && typeof x.to === 'string' && YMD.test(x.from) && YMD.test(x.to);
+          })
+          .map(w => ({ from: w.from, to: w.to }))
+          // Already over: dropped, so a trip from last month doesn't quietly change every answer.
+          .filter(w => !(YMD.test(today) && w.to < today))
+      : fallback;
+  const timeOff = dates(o.timeOff, d.timeOff);
+  const noPrestige = dates(o.noPrestige, d.noPrestige);
   return {
     v: 1,
     hours: {
@@ -92,6 +99,7 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
     },
     holdShifts: typeof o.holdShifts === 'boolean' ? o.holdShifts : d.holdShifts,
     timeOff,
+    noPrestige,
     firstAscension: isFirstAscension(o.firstAscension) ? o.firstAscension : d.firstAscension,
     at: typeof o.at === 'number' && Number.isFinite(o.at) ? o.at : 0,
   };
@@ -99,7 +107,8 @@ export function parseSetup(raw: string | null | undefined, today: string): Remem
 
 /** The same values (the time it was written aside). */
 export function sameSetup(a: SetupValues, b: SetupValues): boolean {
-  const pick = (s: SetupValues) => JSON.stringify([s.hours, s.holdShifts, s.timeOff, s.firstAscension]);
+  const pick = (s: SetupValues) =>
+    JSON.stringify([s.hours, s.holdShifts, s.timeOff, s.firstAscension, s.noPrestige ?? []]);
   return pick(a) === pick(b);
 }
 
@@ -117,6 +126,7 @@ export function mergeSetup(base: SetupValues, edits: Partial<SetupValues>, at: n
       : { ...base.hours, days: [...base.hours.days] },
     holdShifts: edits.holdShifts ?? base.holdShifts,
     timeOff: (edits.timeOff ?? base.timeOff).map(w => ({ from: w.from, to: w.to })),
+    noPrestige: (edits.noPrestige ?? base.noPrestige ?? []).map(w => ({ from: w.from, to: w.to })),
     firstAscension: edits.firstAscension ?? base.firstAscension,
     at,
   };

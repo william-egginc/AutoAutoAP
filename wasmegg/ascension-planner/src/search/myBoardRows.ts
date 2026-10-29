@@ -94,7 +94,7 @@ async function boardJson<T>(res: Response): Promise<T> {
   try {
     return (await res.json()) as T;
   } catch (e) {
-    throw new BoardReadError('read', 'the leaderboard sent something that is not the board', { cause: e });
+    throw new BoardReadError('read', 'the leaderboard sent something that is not Leaderboard data', { cause: e });
   }
 }
 
@@ -135,7 +135,7 @@ export async function fetchAllRows(
     if (!res.ok) throw new BoardReadError('read', `the leaderboard answered ${res.status}`);
     const data = await boardJson<{ rows?: BoardRow[]; builtAt?: number }>(res);
     if (!data || typeof data !== 'object')
-      throw new BoardReadError('read', 'the leaderboard sent something that is not the board');
+      throw new BoardReadError('read', 'the leaderboard sent something that is not Leaderboard data');
     const rows = normalizeBoardRows<BoardRow>(data.rows);
     return { rows, cut: typeof data.builtAt !== 'number' && o.cap !== undefined && rows.length >= o.cap };
   }, o);

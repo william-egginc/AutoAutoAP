@@ -3,8 +3,9 @@
  *
  * Deploy this and point the app's `VITE_SUBMIT_URL` at `https://<worker>/submit`. Everything
  * lives in one Worker plus one KV namespace, because the whole dataset is a few thousand small
- * JSON objects and reaching for a database would be borrowing trouble. (The one exception is the
- * phone watch in watch.js, which keeps its rows in a small D1 database.)
+ * JSON objects and reaching for a database would be borrowing trouble. (The exceptions are the
+ * phone watch in watch.js, the followed routes in follow.js and the daily build counts in
+ * buildcount.js, which keep their rows in a small D1 database.)
  *
  *   POST /submit       one submission, validated, stored, rate-limited by IP. A copy of a result
  *                      already on the board is caught here and not stored twice (see "duplicates").
@@ -63,6 +64,11 @@
  */
 
 import { handleWatch, isWatchRequest, watchCron } from './watch.js';
+import { handleFollow, isFollowRequest } from './follow.js';
+import { handlePrefs, isPrefsRequest } from './prefs.js';
+import { handleBigCsv, isBigCsvRequest } from './bigcsv.js';
+import { handleAnswers, isAnswersRequest } from './answers.js';
+import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
 // 2: `artifacts` became a list of labels (best piece per family) instead of `{label, count}` for
 // every tier owned; see src/search/submission.ts. Rows already in KV at schema 1 keep their old
@@ -583,6 +589,37 @@ function startBlock(v) {
   return out;
 }
 
+/**
+ * The instant baseline a run is shown against (23 Oct 2026; optional, no schema bump), on board rows only and
+ * only when the player ticked "Share my instant baseline with my runs": the instant answer's route for the
+ * same save, so a run can say how far it beat it. All or nothing: a block with a missing or bad field is dropped
+ * whole (half a baseline says nothing), never the row.
+ *   chain   up to BASELINE_MAX_STOPS whole TE stops, 0-490, strictly increasing
+ *   end     when the route ends, unix seconds
+ *   endTE   the TE it ends at, a whole number 0-490
+ *   at      when the baseline was worked out, ms since 1970 (optional; dropped if out of range)
+ * At most BASELINE_MAX_BYTES as JSON. Stored on the row itself (not `extra:`), so /all, /mine and the snapshot carry it.
+ */
+const BASELINE_MAX_STOPS = 12;
+const BASELINE_MAX_BYTES = 300;
+function baselineBlock(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const chain = v.chain;
+  if (
+    !Array.isArray(chain) ||
+    !chain.length ||
+    chain.length > BASELINE_MAX_STOPS ||
+    !chain.every((x, i) => Number.isInteger(x) && x >= 0 && x <= 490 && (i === 0 || x > chain[i - 1]))
+  )
+    return undefined;
+  const end = within(v.end, MAX.DEADLINE_FROM, MAX.DEADLINE_TO);
+  const endTE = Number.isInteger(v.endTE) ? within(v.endTE, 0, 490) : undefined;
+  if (end === undefined || endTE === undefined) return undefined;
+  const at = Number.isInteger(v.at) ? within(v.at, MAX.DEADLINE_FROM * 1000, MAX.DEADLINE_TO * 1000) : undefined;
+  const out = { chain: chain.slice(), end: Math.round(end), endTE, ...(at !== undefined ? { at } : {}) };
+  return JSON.stringify(out).length > BASELINE_MAX_BYTES ? undefined : out;
+}
+
 /** Which sweep preset a run came from. Short labels only; the bands are the ones typed into the panel. */
 function sweepTag(t) {
   if (!t || typeof t !== 'object') return undefined;
@@ -854,6 +891,8 @@ function pickSubmission(s) {
     simVersion: simStamp(s.simVersion),
     // Where the run started from (22 Oct 2026, `startBlock`): optional, no schema bump; a bad field is dropped.
     start: startBlock(s.start),
+    // The shared instant baseline (23 Oct 2026, `baselineBlock`): optional, all or nothing.
+    baseline: baselineBlock(s.baseline),
     startUtc: isoStamp(s.startUtc),
     endUtc: isoStamp(s.endUtc),
     rechecks: recheckList(s.rechecks, s.finalTE),
@@ -877,7 +916,7 @@ function pickSubmission(s) {
 
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,POST,OPTIONS',
+  'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
   'access-control-allow-headers': 'content-type,x-upload-token,x-owner-token,x-delta-token',
 };
 
@@ -1316,17 +1355,13 @@ const LIST_MAX_PAGES = 20;
  * (or a /submit) can settle both boards in one request. A normal settle reads a handful; only the first
  * build (no snapshot: a deploy that bumps SNAP_VERSION, or `snap:<board>` deleted by hand) reads every
  * row, and past this it stores what it has with `settleAt` due at once, so the next read carries on where
- * it stopped. 700 (was 300, 22 Oct 2026) so a board of up to about 700 rows rebuilds in ONE read; the
- * flagged board's own settle is held to FLAG_SETTLE_MAX_GETS, so both boards rebuilding in one request
- * stay at 900 reads plus a few lists and writes, under the 1,000. CPU is the risk: measured in Node (M-series
- * Mac, warm) on the live board's rows (3 KB median) copied, a rebuild from nothing takes about 45-60 ms for
- * 700 rows against 18-28 ms for 300 (the old cap), both past the Free plan's nominal 10 ms a request.
- * Rebuilds of ~300 have gone through live, so the limit is not applied strictly to one request, but a
- * rebuild twice as long is likelier to be cut off ("exceeded CPU"). A cut-off rebuild stores nothing, and
- * a board with no snapshot is rebuilt inside the read itself, so every read of that board would then fail
- * the same way: if a rebuild is ever cut off, lower this again (300 rebuilds in steps, as before).
+ * it stopped. KEPT AT 300 (a 700 was tried on 22 Oct 2026 and backed out on the orchestrator's word): CPU is
+ * the limit, not operations. Measured in Node, a rebuild from nothing takes about 18-28 ms for 300 rows and
+ * 45-60 ms for 700, both past the Free plan's nominal 10 ms a request; 300 has gone through live, and a
+ * rebuild cut off for CPU stores nothing and fails every read of that board. The cost: a board past 300
+ * rows needs two reads to rebuild (see README, "After deleting a snapshot").
  */
-const SETTLE_MAX_GETS = 700;
+const SETTLE_MAX_GETS = 300;
 /** The flagged board's share of a request's reads when both boards settle at once (see SETTLE_MAX_GETS). */
 const FLAG_SETTLE_MAX_GETS = 200;
 /** A snapshot write refused (KV takes one write a second per key) is tried once more after this. */
@@ -2322,6 +2357,17 @@ async function rowPlace(env, ctx, id, boards = {}) {
   return null;
 }
 
+/** A board row's stored record by id (for the big-CSV checks): one snapshot read and one row read, or null. */
+async function bigCsvRow(env, ctx, id) {
+  const place = await rowPlace(env, ctx, id);
+  if (!place) return null;
+  try {
+    return JSON.parse((await env.SUBMISSIONS.get(place.key)) || 'null');
+  } catch {
+    return null;
+  }
+}
+
 // ------------------------------------------------------------------ the CSV in parts
 //
 // A big run's gzipped CSV can pass the 8 MB a request (MAX.CSV_BYTES): an overnight 154k-route run's
@@ -2635,6 +2681,10 @@ const INSTANT_RECORD = IV.obj(
       )
     ),
     exactMissedByHours: IV.num(0, 1e6),
+    // Which search the record's `exact` came from (23 Oct 2026): the player's Fast, Exact or Custom search.
+    // Absent on a record from before: its `exact` was Check exactly's price. A known field with any other
+    // value refuses the record, like every enum here.
+    exactFrom: IV.oneOf(['fast', 'exact', 'custom']),
     buildGap: IV.obj({
       contQph: IV.num(0, 1e9),
       freshQph: IV.num(0, 1e9),
@@ -3164,6 +3214,16 @@ export default {
     // ------------------------------------------------------------------- watch
     // "Watch this run from your phone" (watch.js): D1, not KV, so none of this touches SUBMISSIONS.
     if (isWatchRequest(url)) return handleWatch(request, env);
+    // "Follow in the cloud" (follow.js): D1 too, none of it touches SUBMISSIONS.
+    if (isFollowRequest(url)) return handleFollow(request, env);
+    // Consent and Setup saved online (prefs.js): D1 as well, a separate endpoint so /follow stays as it was.
+    if (isPrefsRequest(url)) return handlePrefs(request, env);
+    // The full-detail CSV of a very large run, to R2 (bigcsv.js): D1 and R2, none of it touches SUBMISSIONS writes.
+    // The page's computed instant answer per account (answers.js): D1, a sibling of /follow.
+    if (isAnswersRequest(url)) return handleAnswers(request, env);
+    if (isBigCsvRequest(url)) return handleBigCsv(request, env, ctx, { uploadToken, sameToken, findRow: bigCsvRow });
+    // "Which build is in use" (buildcount.js): a daily count per page build in D1, nothing else.
+    if (isBuildCountRequest(url)) return handleBuildCount(request, env);
 
     // ------------------------------------------------------------------ submit
     if (url.pathname === '/submit' && request.method === 'POST') {
@@ -4124,14 +4184,17 @@ export default {
   },
 
   /** The cron trigger (wrangler.toml): the watch rows' 15-minute stale note, and once an hour the
-   *  7-day clean-up (D1); and once an hour, at :30, the KV sweep (see "the sweep"). */
+   *  7-day clean-up and the build counts' 30-day clean-up (D1); and once an hour, at :30, the KV sweep
+   *  (see "the sweep"). */
   async scheduled(event, env, ctx) {
     const at = typeof event?.scheduledTime === 'number' ? event.scheduledTime : Date.now();
+    const prune = new Date(at).getUTCMinutes() < 5;
     ctx.waitUntil(
       watchCron(env, at, fetch, {
-        prune: new Date(at).getUTCMinutes() < 5,
+        prune,
       }).catch(() => undefined)
     );
+    if (prune) ctx.waitUntil(buildCountSweep(env, at).catch(() => undefined));
     // The sweep (see "the sweep"): once an hour, at :30, one prefix a time. KV, not D1.
     const minute = new Date(at).getUTCMinutes();
     if (minute >= 30 && minute < 35 && env.SUBMISSIONS) ctx.waitUntil(sweepGarbage(env, at).catch(() => undefined));

@@ -20,8 +20,10 @@
  * An availability schedule does not break any of that: a leg's start time is a deterministic
  * function of its prefix with or without one, so the prefix is still the whole cache key.
  */
-import { runLeg, LAST_DATEABLE_SECONDS, type LegResult } from './leg';
+import { runLeg, LAST_DATEABLE_SECONDS, farmLaying, saveSiloSeconds, type LegResult } from './leg';
 import { countUnavailable, isConstrained, nextAvailable } from './availability';
+import { creditedWaitSeconds, nextPrestigeAt, noPrestigeAt, usableNoPrestige } from './noPrestige';
+import { EGG_ORDER } from './precomputedLeg';
 import { meetsAll, usableMilestones } from './milestones';
 import { computeTEEarned } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
@@ -29,6 +31,7 @@ import { isResearchSaleActive } from '@/lib/events';
 import { VIRTUE_EGGS } from '@/types';
 import type { EngineState } from '@/engine/types';
 import type { ChainResult, SearchInputs } from './types';
+import { readFirstAscension } from './firstAscension';
 
 /** Entries to hold before evicting the oldest, unless the caller sets its own (`MemoSettings`). A
  *  full descent pass over a 6-checkpoint chain touches well under this, so for Smart search and the
@@ -120,6 +123,18 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
   const deferShifts = !!inputs.deferShifts;
   // Sorted once; empty costs nothing per leg, like the schedule.
   const timeOff = [...(inputs.timeOff ?? [])].filter(w => w.to > w.from).sort((x, y) => x.from - y.from);
+  // No prestige on these days (search/noPrestige.ts): empty costs nothing, and without them every prestige instant
+  // below is the hours' own (`nextAvailable`), exactly as before.
+  const noPrestige = usableNoPrestige(inputs.noPrestige);
+  // What the save's silos hold: the cap on the farm's laying while a no-prestige day holds a prestige.
+  const silo = noPrestige.length ? saveSiloSeconds(inputs) : Infinity;
+  /** The first moment at or after `t` a prestige may happen: inside the hours, not on a no-prestige day. */
+  const allowed = (t: number): number =>
+    noPrestige.length ? nextPrestigeAt(t, schedule, noPrestige) : schedule ? nextAvailable(t, schedule) : t;
+  // The first leg with continue pinned off-and-on: continuing the ascension in progress needs no prestige, so on a
+  // no-prestige day leg 1 compares that with a fresh start held to the next allowed time (`priceStep`).
+  const continueOnly: SearchInputs | null =
+    noPrestige.length && readFirstAscension(inputs) !== 'fresh' ? { ...inputs, firstAscension: 'buildup' } : null;
 
   /** Drop the least recently used until at most `keep` are left. */
   function shrinkTo(keep: number): void {
@@ -148,16 +163,33 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
     allowContinue: boolean,
     te: number,
     idx: number,
-    endOverride?: number
+    endOverride?: number,
+    legInputs: SearchInputs = inputs
   ): LegResult | null {
     legSims++;
     let leg: LegResult | null;
     try {
-      leg = runLeg(inputs, state, start, target, allowContinue, te, idx, endOverride);
+      leg = runLeg(legInputs, state, start, target, allowContinue, te, idx, endOverride);
     } catch {
       leg = null;
     }
     return leg && leg.summary.endTime < LAST_DATEABLE_SECONDS ? leg : null;
+  }
+
+  /**
+   * The save's farm laying while a fresh first ascension waits out a no-prestige day (`priceStep`): its own rate on
+   * the egg it is on (leg.ts `farmLaying`), for at most what its silos hold. The state unchanged without a farm.
+   */
+  function layWhileHeld(state: EngineState, te: number, from: number, to: number): { state: EngineState; te: number } {
+    const lay = to > from ? farmLaying(inputs, from) : null;
+    if (!lay || !(lay.rate > 0)) return { state, te };
+    const egg = EGG_ORDER[lay.egg] as keyof EngineState['eggsDelivered'];
+    const before = state.eggsDelivered[egg] || 0;
+    const after = before + lay.rate * Math.min(to - from, lay.capSeconds);
+    const eggsDelivered = { ...state.eggsDelivered, [egg]: after };
+    const teEarned = { ...state.teEarned, [egg]: Math.max(state.teEarned[egg] || 0, countTEThresholdsPassed(after)) };
+    const total = Object.values(teEarned).reduce((n, x) => n + (x || 0), 0);
+    return { state: { ...state, eggsDelivered, teEarned, te: total }, te: Math.max(te, total) };
   }
 
   /**
@@ -175,28 +207,53 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
     target: number,
     first: boolean,
     te0: number,
-    idx: number
+    idx: number,
+    legInputs: SearchInputs = inputs,
+    /** Priced as asked, without the no-prestige hold at the start (the hold's own calls). */
+    asAsked = false
   ): Segment[] | null {
+    // NO PRESTIGE AT THE START (search/noPrestige.ts). A plan starting on a no-prestige day may still continue the
+    // ascension in progress (no prestige in that), but a fresh first ascension is a prestige: it waits for the next
+    // allowed time, the save's farm laying meanwhile (up to its silos), and the sooner of the two is leg 1.
+    if (first && !asAsked && noPrestige.length && noPrestigeAt(start, noPrestige)) {
+      const asked = priceStep(state0, start, target, true, te0, idx, inputs, true);
+      if (!asked || asked[0].key === 'continue' || asked[0].key === 'buildup') return asked;
+      const cont = continueOnly ? priceStep(state0, start, target, true, te0, idx, continueOnly, true) : null;
+      const contOk = cont && (cont[0].key === 'continue' || cont[0].key === 'buildup') ? cont : null;
+      const at = allowed(start);
+      const laid = layWhileHeld(state0, te0, start, at);
+      const held = at > start ? priceStep(laid.state, at, target, false, laid.te, idx, inputs, true) : null;
+      const end = (x: Segment[] | null) => (x ? x[x.length - 1].summary.endTime : Infinity);
+      const pick = end(contOk) <= end(held) ? contOk : held;
+      if (!pick) return null;
+      // Leg 1's record of the other kinds stays the one the plan start priced (`rival`, `firstLegEnds`).
+      const r = asked[0];
+      return [
+        { ...pick[0], ...(r.rival && !pick[0].rival ? { rival: r.rival } : {}), ...(r.firstLegEnds ? { firstLegEnds: r.firstLegEnds } : {}) },
+        ...pick.slice(1),
+      ];
+    }
     const segs: Segment[] = [];
     let state = state0;
     let t = start;
     let te = te0;
     let restarted = false;
     for (let guard = 0; guard <= timeOff.length + 1; guard++) {
-      const away = timeOff.find(w => w.from <= t && t < w.to);
-      if (away) {
-        t = schedule ? nextAvailable(away.to, schedule) : away.to;
+      // Back on virtue: the rebuild starts with a prestige, so inside the hours and not on a no-prestige day. Past
+      // every stretch that time falls in: overlapping or back-to-back stretches (as given, not merged) are one.
+      for (let away = timeOff.find(w => w.from <= t && t < w.to); away; away = timeOff.find(w => w.from <= t && t < w.to)) {
+        t = allowed(away.to);
         restarted = true;
       }
       const allowContinue = first && !restarted;
-      const whole = safeLeg(state, t, target, allowContinue, te, idx);
+      const whole = safeLeg(state, t, target, allowContinue, te, idx, undefined, legInputs);
       if (!whole) return null;
       const cutBy = timeOff.find(w => w.from > t && w.from < whole.summary.endTime);
       if (!cutBy) {
         segs.push(restarted ? { ...whole, timeOff: 'restarted' } : whole);
         return segs;
       }
-      const cut = safeLeg(state, t, target, allowContinue, te, idx, cutBy.from);
+      const cut = safeLeg(state, t, target, allowContinue, te, idx, cutBy.from, legInputs);
       if (cut && cut.summary.endTE > te) {
         // Between two stretches of time off a leg is both: started after one, cut by the next.
         segs.push({ ...cut, timeOff: 'stopped', ...(restarted ? { afterTimeOff: true as const } : {}) });
@@ -244,11 +301,8 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
         const before = delays.slice(0, i);
         return before.some(d => d > 0) ? `|d${before.join(',')}` : '';
       };
-      // The next whole hour, still inside the player's hours.
-      const onTheHour = (t: number) => {
-        const h = Math.ceil(t / 3600) * 3600;
-        return schedule ? nextAvailable(h, schedule) : h;
-      };
+      // The next whole hour, still inside the player's hours (and not on a no-prestige day).
+      const onTheHour = (t: number) => allowed(Math.ceil(t / 3600) * 3600);
       // Of two ways to price this step, the one whose last segment ends sooner (null loses).
       const sooner = (a: Segment[] | null, b: Segment[] | null) => {
         if (!a) return b;
@@ -342,8 +396,11 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
           const isFinalLeg = i === chain.length - 1 && s === segs.length - 1;
           // A planned wait (opts.delays) only after the step's last segment, and never after time off.
           const wait = s === segs.length - 1 && !stopped && !isFinalLeg ? delayAt(i) : 0;
-          const handoff =
+          // Where the hours alone would let the player prestige, and where they may (a no-prestige day can hold it
+          // further: search/noPrestige.ts). Without no-prestige days the two are the same instant.
+          const hoursEnd =
             schedule && !isFinalLeg && !stopped ? nextAvailable(rawEnd + wait, schedule) : rawEnd + wait;
+          const handoff = !isFinalLeg && !stopped ? allowed(rawEnd + wait) : rawEnd + wait;
 
           legs.push({
             key: leg.key,
@@ -368,6 +425,7 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
             shifts,
             sleepDelaySeconds: handoff - rawEnd - wait,
             ...(wait > 0 ? { plannedWaitSeconds: wait } : {}),
+            ...(handoff > hoursEnd ? { noPrestigeWaitSeconds: handoff - hoursEnd } : {}),
             shiftDelaySeconds: shiftDelay,
             ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             ...(leg.afterTimeOff ? { afterTimeOff: true as const } : {}),
@@ -384,11 +442,12 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
           // Waiting to prestige until the player is back: they are still on the farm, so it keeps
           // laying the egg the leg ended on, at the leg's peak rate, and those eggs and any TE they
           // pass carry into the next ascension. Not after time off (they left the farm) and not
-          // after the final leg (nothing follows it).
+          // after the final leg (nothing follows it). A wait a no-prestige day made longer lays only
+          // until the silos run out (`creditedWaitSeconds`): the player may be away all day.
           if (handoff > rawEnd && !stopped && !isFinalLeg) {
             const egg = leg.lastEgg as keyof EngineState['eggsDelivered'];
             const before = state.eggsDelivered[egg] || 0;
-            const laid = computeTEEarned(before, leg.summary.maxELR, handoff - rawEnd);
+            const laid = computeTEEarned(before, leg.summary.maxELR, creditedWaitSeconds(rawEnd, hoursEnd, handoff, silo));
             if (laid.finalEggsDelivered > before) {
               const eggsDelivered = { ...state.eggsDelivered, [egg]: laid.finalEggsDelivered };
               const teEarned = { ...state.teEarned, [egg]: countTEThresholdsPassed(laid.finalEggsDelivered) };

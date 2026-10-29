@@ -11,6 +11,7 @@ import { resolveColleggtibleContracts } from 'lib';
 import { requestSave } from '@/lib/saveLoad';
 import type { ei } from 'lib';
 import { hashID, saveMetadata } from '@/lib/storage/db';
+import { noteServerSave } from '@/lib/serverSave';
 
 export interface BackupResult {
   /** The raw protobuf backup from the server */
@@ -36,6 +37,8 @@ export async function fetchPlayerBackup(playerId: string): Promise<BackupResult>
 
   // Persist to IndexedDB for offline access / cross-session reuse
   const pHash = await hashID(playerId);
+  // The server's save time is this save's now: My runs' strip needs no quiet check (lib/serverSave.ts).
+  noteServerSave(pHash, backup);
   try {
     await saveMetadata(pHash, 'rawBackup', backup);
   } catch (dbErr) {

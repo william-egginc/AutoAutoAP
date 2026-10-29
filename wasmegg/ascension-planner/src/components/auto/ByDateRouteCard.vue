@@ -22,13 +22,17 @@
       <!-- The same headline and aside as Fastest's card (RouteResultCard.vue): the route, then the number
            and when it lands on the right. -->
       <template #headline>
-        <div class="font-mono-premium text-lg sm:text-xl font-black text-slate-900 break-words">
+        <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
+        <p v-if="ranLine && !running" class="text-body font-bold text-emerald-900/80" data-testid="ran-line">
+          {{ ranLine }}
+        </p>
+        <div class="tabular-nums text-title font-bold text-slate-900 break-words">
           {{ route.chain.join(' ') }}
         </div>
       </template>
       <template #aside>
-        <div class="text-lg font-black text-slate-900 tabular-nums">{{ lastStop }} TE</div>
-        <div class="text-[11px] font-bold text-emerald-800">
+        <div class="text-title font-bold text-slate-900 tabular-nums">{{ lastStop }} TE</div>
+        <div class="text-body font-bold text-emerald-800">
           reached {{ when(route.reachAt) }}, {{ spareLabel(route.spare) }} to spare
         </div>
       </template>
@@ -46,7 +50,9 @@
         no-rate
         green
       />
-      <p v-if="!legs.length && running" class="text-[10px] text-emerald-900/70" data-testid="by-date-card-no-legs">
+      <!-- What a screen adds under the route's details (DeadlinePanel: "Try waiting before each prestige"). -->
+      <slot v-if="!running" name="extras" />
+      <p v-if="!legs.length && running" class="text-small text-emerald-900/70" data-testid="by-date-card-no-legs">
         The time of each stop comes with the finished result.
       </p>
       <!-- TE per egg when the route ends, and when each egg's next TE would come at the final delivery rate
@@ -55,9 +61,9 @@
            a guess, and a dash with its reason when the rate or the end time isn't known. -->
       <div v-if="eggs" class="space-y-1" data-testid="by-date-te-per-egg">
         <div class="overflow-x-auto">
-          <table class="text-[11px] tabular-nums whitespace-nowrap">
+          <table class="text-small tabular-nums whitespace-nowrap">
             <thead>
-              <tr class="text-left text-[9px] font-black uppercase tracking-widest text-emerald-700">
+              <tr :class="LEG_HEAD">
                 <th class="pr-4 py-1">TE per egg</th>
                 <th class="pr-4 py-1">TE</th>
                 <th class="pr-4 py-1" :title="NEXT_TE_TITLE">Next TE</th>
@@ -69,7 +75,7 @@
                   {{ VIRTUE_EGG_NAMES[r.egg]
                   }}<span
                     v-if="r.laying"
-                    class="text-[9px] text-emerald-700/80"
+                    class="text-small text-emerald-700/80"
                     title="The egg the farm is on at the end"
                   >
                     · laying</span
@@ -88,18 +94,18 @@
         <p v-if="nextAfterDeadline" :class="CARD_NOTE" data-testid="by-date-next-te">
           Laying on after the last stop, your next TE ({{ VIRTUE_EGG_NAMES[nextAfterDeadline.egg] }}, at the final rate
           of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour) would come about {{ when(nextAfterDeadline.at) }},
-          after the deadline, so it isn't counted.
+          after the date, so it isn't counted.
         </p>
       </div>
       <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->
       <p v-if="pricedWith && !running" :class="CARD_NOTE" data-testid="priced-with">{{ pricedWith }}.</p>
-      <p v-if="simulate && simulateNote" class="text-[10px] text-emerald-900/70" data-testid="by-date-simulate-note">
+      <p v-if="simulate && simulateNote" class="text-small text-emerald-900/70" data-testid="by-date-simulate-note">
         {{ simulateNote }}
       </p>
       <!-- The same row as Fastest's card, in the same order: the main action (Simulate this plan, as
            the instant answer's rows: this route in Single run (NAMES.classic), search/simulateRoute.ts), Share, CSV, Save.
            Mid-run only Simulate (the rest belong to the finished answer). -->
-      <template v-if="simulate || canShare || canCsv || canSave" #actions>
+      <template v-if="simulate || canShare || canCsv || canSave || (follow && !running)" #actions>
         <button
           v-if="simulate"
           type="button"
@@ -111,11 +117,31 @@
           Simulate this plan
         </button>
         <template v-if="!running">
+          <!-- Follow this route (Jordan, 23 Oct 2026): this result, for Right now and saved online. -->
+          <FollowButton
+            v-if="follow"
+            primary
+            :chain="route.chain"
+            :goal-key="follow.goalKey"
+            from="saved"
+            :source="follow.source"
+            :finish="follow.finish"
+            :end-t-e="follow.endTE"
+            :plan-start="follow.planStart"
+            :deadline="follow.deadline ?? null"
+          />
           <button v-if="canShare" type="button" :class="SECONDARY_BUTTON" data-testid="by-date-share" @click="toShare">
             Share
           </button>
-          <button v-if="canCsv" type="button" :class="SECONDARY_BUTTON" data-testid="by-date-csv" @click="emit('csv')">
-            CSV ↓
+          <button
+            v-if="canCsv"
+            type="button"
+            :class="SECONDARY_BUTTON"
+            data-testid="by-date-csv"
+            :title="csv.title"
+            @click="emit('csv')"
+          >
+            {{ csv.text }}
           </button>
           <button
             v-if="canSave"
@@ -127,9 +153,9 @@
           >
             {{ saving ? 'Saving...' : 'Save answer' }}
           </button>
-          <span v-if="note" class="text-[11px] font-semibold text-emerald-800">{{ note }}</span>
+          <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
         </template>
-        <p v-if="simulate" class="w-full text-[10px] text-emerald-900/70" data-testid="simulate-plan-note">
+        <p v-if="simulate" class="w-full text-small text-emerald-900/70" data-testid="simulate-plan-note">
           {{ simulateLine() }}
         </p>
       </template>
@@ -149,7 +175,7 @@
         <tbody>
           <template v-for="(leg, i) in legs" :key="i">
           <tr :class="LEG_ROW">
-            <td class="py-1.5 pr-3 font-black text-slate-700 whitespace-nowrap">
+            <td class="py-1.5 pr-3 font-bold text-slate-700 whitespace-nowrap">
               <!-- The sub-arrow: this ascension's eggs, first and last shift and TE (RouteTimeline.vue). -->
               <button
                 v-if="leg.shifts?.length"
@@ -190,8 +216,11 @@ import { SIMULATE_TITLE, simulateNote as simulateLine } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import { computed, ref, watch } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';
+import FollowButton from '../FollowButton.vue';
+import type { ResultFollow } from '@/lib/follow';
 import RouteExtras from './RouteExtras.vue';
 import RouteTimeline from './RouteTimeline.vue';
+import { csvButton } from './csvButton';
 import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
@@ -214,9 +243,11 @@ const props = defineProps<{
   /** One line under that button, e.g. that Your plan prices a build-up first ascension differently. */
   simulateNote?: string;
   /** The rest of the row, as on Fastest's card: Share (scrolls to Share this result), CSV ↓ (emits
-   *  `csv`), Save answer (emits `save`). Finished answers only. */
+   *  `csv`; named for what the file holds, csvButton.ts), Save answer (emits `save`). Finished answers only. */
   canShare?: boolean;
   canCsv?: boolean;
+  /** The CSV has every route's per-ascension detail (store `csvHasEveryRoute`): its button says so. */
+  csvEvery?: boolean;
   canSave?: boolean;
   saving?: boolean;
   /** A line after the buttons: what the last click did. */
@@ -224,12 +255,18 @@ const props = defineProps<{
   /** Not from a run in this visit on these settings: when it was found; the heading says
    *  "Your last run · ...". */
   lastRun?: string;
+  /** "This Fast search ran on Oct 23 at 6:43 pm, on your save of Oct 23 at 1:03 am, and found 307 TE." (lib/lastRunLine.ts). */
+  ranLine?: string;
   /** The run's measured cost of one more TE above the last stop, seconds (`lastTECost`). */
   runCost?: number | null;
   /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
   pricedWith?: string;
+  /** "Follow this route" for the finished result (lib/follow.ts `ResultFollow`); absent: no button. */
+  follow?: ResultFollow | null;
 }>();
 const emit = defineEmits<{ simulate: []; csv: []; save: [] }>();
+
+const csv = computed(() => csvButton(!!props.csvEvery));
 
 /** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
  *  page (SearchPanel.vue), so the one laid out is this card's. */

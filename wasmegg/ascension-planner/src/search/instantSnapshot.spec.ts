@@ -73,6 +73,20 @@ describe('snapshotUsable', () => {
     expect(snapshotUsable({ ownChanged: 'earnings set', gearRule: 2 }, 3)).toBe(false);
     expect(snapshotUsable({ ownChanged: 'earnings set', gearRule: 3 }, 3)).toBe(true);
   });
+  it('works one out again that was read from the version 1 maxed table (table.bin, before table-v2.bin)', () => {
+    for (const url of [
+      '/ascension-planner/precompute/table.bin',
+      'gearshift:/ascension-planner/precompute/table.bin|1,2,3,4',
+      '/ascension-planner/precompute/gear-ab.bin|/ascension-planner/precompute/table.bin|340|0.9',
+    ])
+      expect(snapshotUsable({ ownChanged: '', tableUrl: url }, 3), url).toBe(false);
+    for (const url of [
+      '/ascension-planner/precompute/table-v2.bin',
+      'gearshift:/ascension-planner/precompute/table-v2.bin|1,2,3,4',
+      '/ascension-planner/precompute/acct-ab.bin',
+    ])
+      expect(snapshotUsable({ ownChanged: '', tableUrl: url }, 3), url).toBe(true);
+  });
   it('has nothing to show for no snapshot', () => {
     expect(snapshotUsable(null, 3)).toBe(false);
   });

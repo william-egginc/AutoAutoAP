@@ -7,8 +7,8 @@
         </svg>
       </div>
       <div class="space-y-1">
-        <h4 class="text-sm font-black text-rose-800 uppercase tracking-tight">Simulation Failed</h4>
-        <p class="text-xs font-bold text-rose-600/80 leading-relaxed">{{ message }}</p>
+        <h4 class="text-body font-bold text-rose-800">Simulation Failed</h4>
+        <p class="text-body font-bold text-rose-600/80">{{ message }}</p>
       </div>
     </div>
   </div>

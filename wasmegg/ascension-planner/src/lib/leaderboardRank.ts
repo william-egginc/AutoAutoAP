@@ -173,6 +173,14 @@ export interface BoardRow {
   deadline?: number;
   /** Schema 8: when the route's last ascension can be made (awake hours counted), unix seconds. */
   deadlineAscendAt?: number;
+  /** By a date's Simple ('simple') or boxes ('advanced') mode, when sent. */
+  mode?: string;
+  /**
+   * The player's instant baseline (lib/instantBaseline.ts, 23 Oct 2026): the instant answer for the run's goal and
+   * save, sent only with "Share my instant baseline with my runs". The collector must keep it on the row (until then
+   * it is dropped like any unknown field, and the board shows no comparison).
+   */
+  baseline?: { chain: number[]; end: number; endTE: number; at?: number };
   /**
    * The player, exactly (phase 2): 12 hex characters of an HMAC of the sender's owner code. Only on
    * rows that carry a name AND were sent with a code, never on an anonymous row, so the board links
@@ -2372,7 +2380,7 @@ export function settingTagTitle(tag: string): string {
   if (tag.startsWith('starts ')) {
     return (
       'When this plan starts. Another run of this route to this target, from the same save and with the same ' +
-      'settings, starts at a different time. A different start shifts every leg and the finish.'
+      'settings, starts at a different time. A different start shifts every ascension and the finish.'
     );
   }
   if (tag === 'finishes current run first' || tag === 'prestiges now') {
@@ -2400,9 +2408,9 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
         : r.mode === 'advanced' || r.simple === false
           ? NAME_EXHAUSTIVE
           : null;
-    // A Nearby routes answer that records its level (15 Oct 2026): "Nearby routes · Exact".
+    // A Fast or Exact answer that records its level (15 Oct 2026): "Exact".
     const tier = mode === NAME_AROUND && row.level ? TIER_NAMES[row.level] : undefined;
-    if (tier) return `${NAME_AROUND} · ${tier}`;
+    if (tier) return tier;
     return mode ?? (row.effort || 'unknown');
   }
   return effortText(row.effort);
@@ -2410,21 +2418,21 @@ export function foundByText(row: Pick<BoardRow, 'space' | 'effort' | 'recheckOf'
 
 /** The two ways to search as the board names them (decision A, 12 Oct 2026: they were Simple and
  *  Advanced). Short, for the Effort column. */
-const NAME_AROUND = 'Nearby routes';
-const NAME_EXHAUSTIVE = 'Exhaustive';
+const NAME_AROUND = 'Fast or Exact';
+const NAME_EXHAUSTIVE = 'Custom';
 /** What was the Stronger check's Light level (no longer named to players, 22 Oct 2026): the instant answer's
  *  routes priced at once and your earlier routes, after Check exactly. */
-const NAME_LIGHT = 'Checked at once';
+const NAME_LIGHT = 'Instant answer';
 
 /** A sent effort tier's name on the planner's slider. */
-const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Very high', balanced: 'Balanced (retired)' };
+const TIER_NAMES: Record<string, string> = { quick: 'Fast', normal: 'Exact', thorough: 'Exact (wider)', balanced: 'Balanced (retired)' };
 
 /** A sent effort tier for display: Smart search is "Simple". Rows sent before Balanced was retired
  *  still say 'balanced'. A tier this build does not know is shown as sent. */
 export function effortText(effort: string | undefined): string {
   if (!effort) return 'unknown';
   const name = TIER_NAMES[effort];
-  return name ? `${NAME_AROUND} · ${name}` : effort;
+  return name ?? effort;
 }
 
 /** Who sent a run, as All runs shows it: the name as typed minus invisible characters. */

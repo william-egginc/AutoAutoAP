@@ -11,10 +11,13 @@ import type {
   Candidate,
   ExpandSettings,
   FirstLeg,
+  TailOptions,
   FoundRoutes,
   PolishOptions,
+  Route,
 } from '@/search/routeFinder';
 import type { EstimateRequest, Outcome } from '@/search/prestigeBy';
+import type { Availability } from '@/search/availability';
 
 /** Load the table (once) and say what it is. */
 export interface HeaderRequest {
@@ -24,7 +27,7 @@ export interface HeaderRequest {
 }
 
 /** The player's first ascension to every checkpoint (search/routeFinder.ts `firstLegOptions`). */
-export interface FirstLegsRequest {
+export interface FirstLegsRequest extends TailOptions {
   kind: 'first-legs';
   id: number;
   url: string;
@@ -44,6 +47,9 @@ export interface FirstLegsRequest {
   firstAscension: FirstAscension;
   pinSeconds: number;
   maxContinueSeconds: number;
+  /** "Works inside my hours" (FirstLegOptions.hours), and the egg the save's farm is on. */
+  hours?: Availability | null;
+  contEgg?: number;
 }
 
 /** One step of the route search for a share of the arrivals (`expandArrivals`). */
@@ -64,6 +70,16 @@ export interface PolishRequest {
   found: FoundRoutes;
 }
 
+/** One route priced on the table as the finder prices it (routeFinder.ts `priceChain`): a route the player follows,
+ *  on My runs' Right now (lib/followEstimate.ts). */
+export interface PriceChainRequest {
+  kind: 'price-chain';
+  id: number;
+  url: string;
+  options: PolishOptions;
+  chain: number[];
+}
+
 /** The experimental "Prestige by" estimate for a run of hours (search/prestigeBy.ts `estimateProfile`). */
 export interface PrestigeEstimateRequest {
   kind: 'prestige-estimate';
@@ -77,6 +93,7 @@ export type RouteWorkerRequest =
   | FirstLegsRequest
   | ExpandRequest
   | PolishRequest
+  | PriceChainRequest
   | PrestigeEstimateRequest;
 
 export type RouteWorkerResponse =
@@ -84,5 +101,8 @@ export type RouteWorkerResponse =
   | { kind: 'first-legs'; id: number; firstLegs: FirstLeg[] }
   | { kind: 'expand'; id: number; candidates: Candidate[] }
   | { kind: 'polish'; id: number; found: FoundRoutes }
+  | { kind: 'price-chain'; id: number; route: Route | null }
   | { kind: 'prestige-estimate'; id: number; outcomes: Outcome[] }
-  | { kind: 'error'; id: number; message: string };
+  | { kind: 'error'; id: number; message: string }
+  /** Sent once when the worker's script has run (search/routePool.ts ROUTE_WORKER_START_MS). */
+  | { kind: 'ready'; id: 0 };

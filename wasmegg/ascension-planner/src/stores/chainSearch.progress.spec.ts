@@ -169,7 +169,7 @@ describe('a progress send', () => {
     let res = await s.sendBestSoFar();
     expect(res.ok).toBe(true);
     expect(csvs).toHaveLength(0);
-    expect(res.text).toMatch(/The CSV so far wasn't sent: the board doesn't take one mid-run yet\.$/);
+    expect(res.text).toMatch(/The CSV so far wasn't sent: the Leaderboard doesn't take one mid-run yet\.$/);
     // Too big for the board: the row and diagnostics stand, and the line says so.
     s.provisionalRows = { fastest: null, deadline: null };
     ({ csvs } = collector([{ ok: true, id: 'bbbb0002', uploadToken: 't' }], 413));
@@ -183,7 +183,7 @@ describe('a progress send', () => {
     s.provisionalRows = { fastest: null, deadline: null };
     ({ csvs } = collector([{ ok: true, id: 'cccc0003', uploadToken: 't' }], 500));
     res = await s.sendBestSoFar();
-    expect(res.text).toMatch(/didn't upload \(the board answered 500\); the next send tries again\.$/);
+    expect(res.text).toMatch(/didn't upload \(the Leaderboard answered 500\); the next send tries again\.$/);
     expect(s.bestSoFarAuto.lastKey).toBeNull();
     s.endBestSoFar();
   });
@@ -215,7 +215,7 @@ describe('a progress send', () => {
     const res = await s.sendBestSoFar();
     expect(res).toMatchObject({ ok: false, tooSoon: true, dailyCap: true, retryAfter: 5 * 3600 });
     expect(res.text).toBe(
-      'Not sent: the board takes at most 48 progress sends a day from one account; more after midnight UTC, in about 5 h.'
+      'Not sent: the Leaderboard takes at most 48 progress sends a day from one account; more after midnight UTC, in about 5 h.'
     );
     expect(s.provisionalRows.fastest).toBeNull();
     s.endBestSoFar();

@@ -7,28 +7,31 @@
  * connection or a 2G one; never an error: a file that fails is simply fetched when the panel opens.
  */
 import { isSmallDevice } from './device';
-import { isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket';
+import { tableSimMismatch } from './simVersion';
+import { MAXED_TABLE_FILE, isMaxed, pickBracket, type Gear, type TableEntry } from './tableBracket';
 
 /** The files to fetch for a player, in order: their own table if the site has one; else the table of
  *  their gear and the maxed one; else the maxed one and then the nearest tables above and below. */
 export function prefetchPlan(o: {
   entries: TableEntry[];
-  /** The player's own table's file name (tableGear.ts `tableName`), and their gear's: the names to
-   *  try, in the order the page tries them (`gearTableNames`: v3, v2 canonical, then legacy). */
-  own: string | null;
+  /** The player's own table's file names and their gear's: the names to try, in the order the page tries
+   *  them (tableGear.ts `ownTableNames`: the `.v2` name, then the plain one; `gearTableFiles`: each `.v2` name,
+   *  then the plain ones, each as v3, v2 canonical, then legacy). */
+  own: string | string[] | null;
   gear: string | string[] | null;
   /** Their earnings bonus and delivery k, for the nearest tables; null when unknown. */
   player: Gear | null;
   te: number;
 }): string[] {
   const usable = o.entries.filter(e => e.from <= o.te);
-  const has = (f: string | null) => !!f && usable.some(e => e.file === f);
-  if (has(o.own)) return [o.own!];
+  const list = (f: string | string[] | null) => (Array.isArray(f) ? f : f ? [f] : []);
+  const own = list(o.own).find(f => usable.some(e => e.file === f));
+  if (own) return [own];
   // A gear table under the first name the page will fetch it by: its file or one of its aliases.
   const listed = (f: string) => usable.some(e => e.file === f || e.aliases?.includes(f));
-  const gear = (Array.isArray(o.gear) ? o.gear : o.gear ? [o.gear] : []).find(listed);
-  if (gear) return [gear, 'table.bin'];
-  const out = ['table.bin'];
+  const gear = list(o.gear).find(listed);
+  if (gear) return [gear, MAXED_TABLE_FILE];
+  const out = [MAXED_TABLE_FILE];
   if (o.player && !isMaxed(o.player)) {
     const { above, below } = pickBracket(usable, o.player);
     for (const e of [above, below]) if (e && !out.includes(e.file)) out.push(e.file);
@@ -77,8 +80,12 @@ export async function prefetchFiles(
  *  'gear' (built on a board account with exactly their gear, under either of `gearTableNames`), or
  *  'none' (it estimates from the maxed table and its neighbours). The Science tab's gear cards say it. */
 export type GearCoverage = 'own' | 'gear' | 'none';
-export function gearCoverage(entries: TableEntry[], own: string | null, gear: string[]): GearCoverage {
-  if (own && entries.some(e => e.file === own)) return 'own';
+export function gearCoverage(all: TableEntry[], own: string | string[] | null, gear: string[]): GearCoverage {
+  // Only files the instant answer would use: one stamped with another simulator (or none) is skipped there
+  // (InstantRoute.vue `tableSimMismatch`), so it must not read as "has an instant answer" here.
+  const entries = all.filter(e => !tableSimMismatch(e));
+  const owns = Array.isArray(own) ? own : own ? [own] : [];
+  if (owns.some(f => entries.some(e => e.file === f))) return 'own';
   if (gear.some(f => entries.some(e => e.file === f || e.aliases?.includes(f)))) return 'gear';
   return 'none';
 }

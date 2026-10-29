@@ -22,7 +22,7 @@
         v-for="mode in ZOOMS"
         :key="mode.id"
         type="button"
-        class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+        class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
         :class="
           zoom === mode.id
             ? 'bg-slate-900 text-white border-slate-900'
@@ -33,58 +33,58 @@
       >
         {{ mode.label }}
       </button>
-      <span v-if="zoom === 'short' && above" class="text-[10px] font-bold text-slate-500">
-        {{ above }} longer leg{{ above === 1 ? '' : 's' }} (mostly the last leg to the target) above {{ SHORT_TE }} TE,
+      <span v-if="zoom === 'short' && above" class="text-small font-bold text-slate-500">
+        {{ above }} longer ascension{{ above === 1 ? '' : 's' }} (mostly the last ascension to the target) above {{ SHORT_TE }} TE,
         not drawn; they are in the table below
       </span>
     </div>
 
     <EChart v-if="legs.length" :option="option" height="380px" />
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
-      No run here that still stands carried per-leg detail past its first leg.
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
+      No run here that still stands carried per-ascension detail past its first ascension.
     </p>
 
     <div
       v-if="legs.length"
-      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-500"
+      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"
       aria-label="How to read the marks"
     >
-      <span>Colour and shape are the sale plan, not an account; the legend counts legs.</span>
+      <span>Colour and shape are the sale plan, not an account; the legend counts ascensions.</span>
       <span class="inline-flex items-center gap-1">
         <span
           class="inline-block w-3 h-3 rounded-full border-[1.5px] border-slate-800 bg-slate-300"
           aria-hidden="true"
         />
-        larger, ringed: the leg unlocks research tier 13 ({{ tier13 }} of {{ legs.length }})
+        larger, ringed: the ascension unlocks research tier 13 ({{ tier13 }} of {{ legs.length }})
       </span>
     </div>
 
     <!-- The title sits above the scroll box, not in a <caption>: a caption is as wide as the table, so on a
          phone it ran off the right edge and needed a sideways scroll to read. -->
-    <p v-if="legs.length" class="text-[9px] font-black text-slate-400 uppercase tracking-widest" aria-hidden="true">
-      The commonest sale plan, by where the leg starts and how much it climbs
+    <p v-if="legs.length" class="text-small font-bold text-slate-400" aria-hidden="true">
+      The commonest sale plan, by where the ascension starts and how much it climbs
     </p>
     <div v-if="legs.length" class="overflow-x-auto">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <caption class="sr-only">
-          The commonest sale plan, by where the leg starts and how much it climbs
+          The commonest sale plan, by where the ascension starts and how much it climbs
         </caption>
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <tr class="text-slate-400 label">
             <th class="text-left py-1 pr-3">Starts at (TE)</th>
             <th v-for="g in summary.gains" :key="g.label" class="text-left py-1 pr-3">Climbs {{ g.label }} TE</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="(band, i) in summary.starts" :key="band.label">
-            <th scope="row" class="text-left font-mono-premium font-normal text-slate-600 py-1 pr-3 whitespace-nowrap">
+            <th scope="row" class="text-left tabular-nums font-normal text-slate-600 py-1 pr-3 whitespace-nowrap">
               {{ band.label }}
             </th>
             <td
               v-for="(cell, k) in summary.cells[i]"
               :key="k"
               class="py-1 pr-3 whitespace-nowrap"
-              :title="cell ? cellTitle(cell) : 'No leg here'"
+              :title="cell ? cellTitle(cell) : 'No ascension here'"
             >
               <template v-if="cell">
                 <span
@@ -97,18 +97,18 @@
                 >
                 <b class="text-slate-700">{{ topText(cell) }}</b>
                 <span class="ml-1 text-slate-500">{{ Math.round(cell.share * 100) }}%</span>
-                <span class="ml-1 text-[10px] text-slate-400">n {{ cell.n }}</span>
+                <span class="ml-1 text-small text-slate-400">n {{ cell.n }}</span>
               </template>
               <span v-else class="text-slate-300">—</span>
             </td>
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 px-1 text-[10px] text-slate-500 leading-relaxed max-w-3xl">
-        n counts legs; a leg one account sent in several runs counts once. A share under two thirds, or an n of one or
+      <p class="mt-1 px-1 text-small text-slate-500 max-w-3xl">
+        n counts ascensions; an ascension one account sent in several runs counts once. A share under two thirds, or an n of one or
         two, is only a weak tendency. Hover a cell for every plan in it and how many accounts it comes from. This is
         which plan the planner picked for the winning routes, not by how much it won: the runs only keep the plan that
-        won each leg.
+        won each ascension.
       </p>
     </div>
   </div>
@@ -154,8 +154,8 @@ type Zoom = 'short' | 'all';
 const zoom = ref<Zoom>('short');
 const SHORT_TE = 100;
 const ZOOMS: { id: Zoom; label: string }[] = [
-  { id: 'short', label: `Legs up to ${SHORT_TE} TE` },
-  { id: 'all', label: 'Every leg' },
+  { id: 'short', label: `Ascensions up to ${SHORT_TE} TE` },
+  { id: 'all', label: 'Every ascension' },
 ];
 
 const viewZone = localZone();
@@ -179,7 +179,7 @@ function topText(cell: SaleCell): string {
 }
 
 function cellTitle(cell: SaleCell): string {
-  return `${saleCellBreakdown(cell)} · ${cell.n} leg${cell.n === 1 ? '' : 's'} from ${cell.accounts} account${cell.accounts === 1 ? '' : 's'}`;
+  return `${saleCellBreakdown(cell)} · ${cell.n} ascension${cell.n === 1 ? '' : 's'} from ${cell.accounts} account${cell.accounts === 1 ? '' : 's'}`;
 }
 
 /** What the tooltip reads off a mark. */
@@ -210,7 +210,7 @@ function tipOf(l: SaleLeg): Tip {
     days,
     peak: Number.isFinite(l.peakQph) ? `${l.peakQph.toFixed(2)} q/hr` : 'not recorded',
     strategy: l.tier13 ? `${l.plan}, unlocks research tier 13` : l.plan,
-    shared: l.runs > 1 ? `The same leg is in ${l.runs} of this account's standing runs; drawn once.` : '',
+    shared: l.runs > 1 ? `The same ascension is in ${l.runs} of this account's standing runs; drawn once.` : '',
   };
 }
 
@@ -274,7 +274,7 @@ const option = computed<ChartOption>(() => {
         const shared = t.shared ? `<br/><span style="color:#64748b">${esc(t.shared)}</span>` : '';
         return (
           `<b>${esc(t.account)}</b><br/>` +
-          `leg ${esc(t.leg)}: ${esc(t.from)} → ${esc(t.to)} TE (+${esc(t.to - t.from)}) · ${esc(t.strategy)}<br/>` +
+          `ascension ${esc(t.leg)}: ${esc(t.from)} → ${esc(t.to)} TE (+${esc(t.to - t.from)}) · ${esc(t.strategy)}<br/>` +
           `${esc(t.days)} · peak delivery ${esc(t.peak)}<br/>` +
           `<span style="color:#94a3b8">${esc(t.chain)}</span>${shared}`
         );
@@ -282,7 +282,7 @@ const option = computed<ChartOption>(() => {
     },
     xAxis: {
       type: 'value',
-      name: 'TE the leg starts at',
+      name: 'TE the ascension starts at',
       nameLocation: 'middle',
       nameGap: 26,
       nameTextStyle: AXIS_LABEL,
@@ -295,7 +295,7 @@ const option = computed<ChartOption>(() => {
     },
     yAxis: {
       type: 'value',
-      name: 'TE gained in the leg',
+      name: 'TE gained in the ascension',
       nameTextStyle: AXIS_LABEL,
       min: 0,
       max: short ? SHORT_TE : undefined,

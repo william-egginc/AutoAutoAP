@@ -1,7 +1,7 @@
 /**
  * Right now's "which plan" switch and the route followed (Jordan, 16 Oct 2026), server-rendered and through
  * useNowPage with the synthetic saves (ids EI0000000000000000 and EI1234567890123456, never printed):
- *   - the switch: a radiogroup of the goals (Race to 490 | Egg Day 2027 | By a date), 44 px, wrapping; an empty goal
+ *   - the switch: a radiogroup of the goals (Fastest to 490 TE | Egg Day 2027 | By a date), 44 px, wrapping; an empty goal
  *     says so with "Work it out ›" opening that goal's screen;
  *   - the default is the goal checked last; a pick is kept for this account and save, and falls back after a switch;
  *   - the events table, Next step, the timeline, the calendar and the route line follow the selected goal;
@@ -81,8 +81,8 @@ const options = (o: Partial<Record<'race' | 'egg', GoalOption['state']>> = {}): 
   {
     key: 'fastest-490',
     kind: 'race',
-    label: 'Race to 490',
-    name: 'Race to 490',
+    label: 'Fastest to 490 TE',
+    name: 'Fastest to 490 TE',
     deadline: null,
     state: o.race ?? 'plan',
     calculatedAt: (NOW - 3 * H) * 1000,
@@ -142,8 +142,8 @@ describe('the switch', () => {
     expect(radio('fastest-490')).toContain('min-h-[44px]');
     expect(html).toMatch(/class="flex flex-wrap gap-2" data-testid="now-goal-switch"/);
     const t = textOf(html);
-    expect(t).toContain('Race to 490 calculated 3 h ago');
-    expect(t).toContain('Egg Day 2027 calculated 1 h ago');
+    expect(t).toContain('Fastest to 490 TE calculated 3h ago');
+    expect(t).toContain('Egg Day 2027 calculated 1h ago');
     // The switch sits above the rest of the card.
     expect(html.indexOf('now-goal-switch')).toBeLessThan(html.indexOf('data-testid="now-next"'));
   });
@@ -204,11 +204,11 @@ describe('the route followed', () => {
     expect(before).not.toContain('data-stop="now"');
   });
 
-  it('a Race plan says "(Race to 490)"; the calendar events of the table carry the line', async () => {
+  it('a Race plan says "(Fastest to 490 TE)"; the calendar events of the table carry the line', async () => {
     const t = textOf(
-      await renderHtml(RightNowCard, cardProps({ card: { ...card, plan: { ...datePlan, goal: 'fastest', deadline: null, chain: [197, 490] }, goal: { goal: 'fastest', target: 490, deadline: null }, key: 'fastest-490', name: 'Race to 490' }, selectedGoal: 'fastest-490' }))
+      await renderHtml(RightNowCard, cardProps({ card: { ...card, plan: { ...datePlan, goal: 'fastest', deadline: null, chain: [197, 490] }, goal: { goal: 'fastest', target: 490, deadline: null }, key: 'fastest-490', name: 'Fastest to 490 TE' }, selectedGoal: 'fastest-490' }))
     );
-    expect(t).toContain('Following 197 → 490 (Race to 490)');
+    expect(t).toContain('Following 197 → 490 (Fastest to 490 TE)');
     expect(read('RightNowCard.vue')).toContain(':following="following"');
     expect(read('RightNowCard.vue')).toMatch(/planCalEvent\(nextEvent\.value, \{[\s\S]*?following: following\.value/);
     expect(read('EventsTable.vue')).toMatch(/planCalEvent\(e, \{[\s\S]*?following: props\.following/);
@@ -281,9 +281,10 @@ describe('the page: the default is the goal checked last, the pick follows every
     const scope = effectScope();
     const page = scope.run(() => useNowPage({ myRows: ref<BoardRow[] | null>([]), boardRows: ref<BoardRow[] | null>([]) }))!;
     expect(page.goalChoices.value.map(g => [g.key, g.label, g.state])).toEqual([
-      [`fastest-${target}`, `Race to ${target}`, 'plan'],
+      [`fastest-${target}`, `Fastest to ${target} TE`, 'plan'],
       [`eggday-${year}`, `Egg Day ${year}`, 'plan'],
-      [`date-${MAR}`, 'By a date', 'plan'],
+      // Named by its date, month first ("By Mar 16, 2027"; was "By a date" for every date).
+      [`date-${MAR}`, expect.stringMatching(/^By [A-Z][a-z]{2} \d{1,2}, \d{4}$/), 'plan'],
     ]);
     // Egg Day was checked last.
     expect(page.selectedGoal.value).toBe(`eggday-${year}`);
@@ -295,7 +296,7 @@ describe('the page: the default is the goal checked last, the pick follows every
     // Race picked: the plan, the events (table, Next step, calendar) and the timeline's chain are Race's.
     page.selectGoal(`fastest-${target}`);
     expect(page.cardPlan.value?.goal.goal).toBe('fastest');
-    expect(page.cardPlan.value?.name).toBe(`Race to ${target}`);
+    expect(page.cardPlan.value?.name).toBe(`Fastest to ${target} TE`);
     expect(page.cardPlan.value?.plan.chain).toEqual([192, target]);
     expect(page.events.value.find(e => e.kind === 'shift')?.egg).toBe('humility');
     expect(page.shownEvents.value.some(e => e.kind === 'goal' && e.te === target)).toBe(true);
@@ -357,6 +358,6 @@ describe('source: everything on the card follows the selected goal', () => {
     expect(card).toContain(':chain="card.plan.chain"');
     expect(card).toContain(':legs="card.plan.legs"');
     expect(card).toContain(':events="shownEvents"');
-    expect(card).toContain('nextStepText(props.events, props.card.goal.goal, props.now, props.zone)');
+    expect(card).toContain('nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value)');
   });
 });

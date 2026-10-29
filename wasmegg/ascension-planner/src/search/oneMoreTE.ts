@@ -80,9 +80,9 @@ export function oneMoreTECost(route: DeadlineRoute, runCost?: number | null): TE
   return null;
 }
 
-/** "51 h": hours, as the measured cost is said, up to five days. */
+/** "51h", "5d 3h": the measured cost, in the one compact duration (lib/duration). */
 function costLabel(seconds: number): string {
-  return seconds < 5 * 86400 ? `${Math.max(1, Math.round(seconds / H))} h` : spareLabel(seconds);
+  return spareLabel(Math.max(60, seconds));
 }
 
 export interface OneMoreTEHint {

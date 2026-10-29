@@ -31,7 +31,7 @@ const DEFAULT_MINUTES = 15;
 
 /** Anything shaped like a player ID (EI and 16 digits) taken out. */
 export function scrub(text: string): string {
-  return text.replace(/EI\d{16}/g, '[id]');
+  return text.replace(/EI\d{16}/gi, '[id]');
 }
 
 /** RFC 5545 TEXT escaping. */

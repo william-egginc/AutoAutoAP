@@ -37,7 +37,8 @@ describe('the heading', () => {
     expect(instant).toContain('below.value = { from: h.from, te };');
     expect(instantTemplate).toContain(':heading="noInstantHeading(below.from)"');
     // A file that couldn't be loaded says so (InstantRoute.unloaded.spec.ts), not "for your TE".
-    expect(instantTemplate).toContain(':heading="TABLE_LOAD_FAILED"');
+    expect(instantTemplate).toContain('<InstantUnloaded :older="olderPage"');
+    expect(read('InstantUnloaded.vue')).toContain(':heading="older ? TABLE_OLDER_PAGE : TABLE_LOAD_FAILED"');
     expect(instantTemplate).not.toMatch(/below TE 120/);
   });
 });
@@ -61,7 +62,7 @@ describe('the card', () => {
     expect(text).toContain(
       `The quick estimate is on Highest TE by a date: pick a date there and press ${QUICK_ESTIMATE_LABEL}.`
     );
-    expect(text).toContain('Nearby routes below still runs here, starting from a route spaced out from your TE.');
+    expect(text).toContain('The Fast and Exact search below still runs here, starting from a route spaced out from your TE.');
     expect(text).toContain('Open Highest TE by a date');
     expect(html).toMatch(/class="min-h-\[44px\][^"]*"[^>]*data-testid="instant-none-open-by-date"/);
   });
@@ -81,7 +82,7 @@ describe('InstantRoute shows the card in place of the old note', () => {
     const error = instantTemplate.indexOf('v-else-if="status === \'error\'"\n');
     expect(card).toBeGreaterThan(0);
     expect(card).toBeLessThan(error);
-    expect(instantTemplate).toContain('v-if="status !== \'loading\' && !atTarget && lowTeNote && !below"');
+    expect(instantTemplate).toContain('v-if="status !== \'loading\' && !atTarget && lowTeNote && !below && !boxShown"');
     // A new answer clears it.
     expect(instant).toMatch(/noTable\.value = false;\n {2}below\.value = null;/);
   });
@@ -159,7 +160,7 @@ describe('the reason it is greyed out', () => {
   const ok = { setupLoaded: true, busy: false, blocked: false, canStart: true, issue: '' };
   it('can start', () => expect(quickEstimateIssue(ok)).toBe(''));
   it('Your setup still loading comes first', () =>
-    expect(quickEstimateIssue({ ...ok, setupLoaded: false, busy: true })).toBe('Waiting for your setup to load…'));
+    expect(quickEstimateIssue({ ...ok, setupLoaded: false, busy: true })).toBe('Waiting for Setup to load…'));
   it('another run', () =>
     expect(quickEstimateIssue({ ...ok, busy: true })).toBe('Another search is running; this can start once it ends.'));
   it('a save problem', () =>
@@ -173,9 +174,9 @@ describe('the reason it is greyed out', () => {
 });
 
 describe('notes say one thing', () => {
-  it('after the estimate: Widen and run again when there is an edge, else Exhaustive', () => {
+  it('after the estimate: Widen and run again when there is an edge, else Custom', () => {
     expect(quickEstimateNote(true)).toBe('This is a quick estimate: Widen and run again looks further.');
-    expect(quickEstimateNote(false)).toBe('This is a quick estimate: Exhaustive looks further, in boxes you set.');
+    expect(quickEstimateNote(false)).toBe('This is a quick estimate: Custom looks further, in boxes you set.');
   });
 
   it('the folded Instant answer line says none, not "working out…" forever', () => {

@@ -36,15 +36,36 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { resolvePlanStart } from '@/lib/planStartTime';
 import { formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
 import { getLocalTimestampInTimezone } from '@/lib/events';
+import { accountOf } from '@/search/runSaves';
 
 let startDefaulted = false;
 /** The date/time this module last wrote as a placeholder, or null once a human has touched it. */
 let provisional: { date: string; time: string } | null = null;
 
+/**
+ * PER ACCOUNT (red team 21 Oct 2026, data-inputs #10). The start is one setting in the store and one key in
+ * the browser, so account A's start (or its override) carried over to account B, and a save stamped in
+ * 2100 left every later plan dated 2099. Now the start belongs to the account whose save set it (`owner`,
+ * a hash from runSaves.ts `accountOf`, never the id): another account's save drops the override and starts
+ * now, and a save time in the future counts as now.
+ */
+let owner = '';
+/** The account the current start belongs to ('' before any save), saved with the start (planStartForm). */
+export function planStartOwner(): string {
+  return owner;
+}
+/** Set the owner of a start restored from the browser (usePlanStartForm), before any save loads. */
+export function setPlanStartOwner(account: string | undefined): void {
+  owner = account ?? '';
+}
+/** How far past now a save's time may be before it counts as now (clock skew, a crafted save). */
+const FUTURE_SLACK_SECONDS = 86400;
+
 /** Testing hook: forget that a default was taken. Not used by the app. */
 export function resetBackupPlanStart(): void {
   startDefaulted = false;
   provisional = null;
+  owner = '';
 }
 
 export function useBackupPlanStart(): void {
@@ -63,10 +84,24 @@ export function useBackupPlanStart(): void {
     provisional !== null && provisional.date === startDate.value && provisional.time === startTime.value;
 
   watch(
-    () => initialStateStore.rawBackup?.approxTime,
-    approxTime => {
-      const backupSeconds = typeof approxTime === 'number' ? approxTime : null;
+    () => [initialStateStore.rawBackup?.approxTime, accountOf(initialStateStore.rawBackup)] as const,
+    ([approxTime, account]) => {
+      const nowSeconds = Date.now() / 1000;
+      const stamped = typeof approxTime === 'number' ? approxTime : null;
+      // A save "from the future" (2100 in the red team's test) is taken as now.
+      const backupSeconds = stamped !== null && stamped > nowSeconds + FUTURE_SLACK_SECONDS ? nowSeconds : stamped;
       const usableBackup = backupSeconds !== null && Number.isFinite(backupSeconds) && backupSeconds > 0;
+      // Another account's save: the start (and an override) belonged to the account before.
+      if (account && owner && account !== owner) {
+        owner = account;
+        autoPlannerStore.startTimeOverride = false;
+        if (usableBackup) {
+          write(Math.max(nowSeconds, backupSeconds), false);
+          startDefaulted = true;
+        }
+        return;
+      }
+      if (account) owner = account;
       if (startDefaulted) {
         // A newer save loaded in the same session (the header's refresh): a start before it would
         // ask the simulator to begin before its state existed, so move up to it, the same rule as a

@@ -12,6 +12,9 @@
   send one. With the player's yes already given (Find and submit, or the screen's box) it sends from
   here; without it, it goes to the run's screen, where the box asks first and ticking it sends. Every
   outcome -- sent, too soon, refused, an error, or "tick the box" -- is said under the bar.
+
+  Not a live region itself (its figures change every second): RunAnnouncer.vue says the progress to a screen
+  reader at most every 10 s, and when the run ends.
 -->
 <template>
   <div
@@ -19,11 +22,9 @@
     data-run-bar
     class="sticky z-40 max-w-full overflow-hidden rounded-2xl bg-slate-900 text-white shadow-[0_12px_32px_rgba(0,0,0,0.35)] px-4 py-3 space-y-2"
     style="top: calc(env(safe-area-inset-top, 0px) + 0.5rem)"
-    role="status"
-    aria-live="polite"
   >
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <p class="flex-[1_1_18rem] min-w-0 text-[12px] font-bold leading-snug break-words">
+      <p class="flex-[1_1_18rem] min-w-0 text-body font-bold break-words">
         {{ kindLabel }} · <template v-if="p.chain">{{ queueCountLine({ chain: p.chain, done: p.done, total: p.total, queueTotal: p.queueTotal ?? null }) }}</template
         ><template v-else>{{ p.done.toLocaleString()
         }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit }}</template
@@ -37,7 +38,7 @@
       <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
         <button
           type="button"
-          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/20"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white/10 text-body font-bold hover:bg-white/20"
           data-testid="run-bar-show"
           @click="emit('show')"
         >
@@ -45,8 +46,8 @@
         </button>
         <span
           v-if="store.submitsWhenDone"
-          class="flex-1 sm:flex-none whitespace-nowrap text-center px-3 py-1.5 rounded-lg bg-indigo-500/30 text-[10px] font-black uppercase tracking-widest"
-          title="It shares its result on the leaderboard when it finishes (Find and submit)"
+          class="flex-1 sm:flex-none whitespace-nowrap text-center px-3 py-1.5 rounded-lg bg-indigo-500/30 label"
+          title="It shares its result on the Leaderboard when it finishes (started with the send ticked)"
         >
           Submits when done
         </span>
@@ -54,7 +55,7 @@
           v-if="bestSoFarHere"
           type="button"
           :disabled="!p.best || store.bestSoFarSending || store.bestSoFarWait > 0"
-          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-400 disabled:opacity-50"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-body font-bold hover:bg-indigo-400 disabled:opacity-50"
           :title="
             store.bestSoFarWait > 0
               ? `You can send again in ${store.bestSoFarWait} min`
@@ -68,7 +69,7 @@
         <button
           type="button"
           :disabled="stopping"
-          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 disabled:opacity-60"
+          class="flex-1 sm:flex-none whitespace-nowrap px-3 py-1.5 rounded-lg bg-white text-slate-900 text-body font-bold hover:bg-slate-100 disabled:opacity-60"
           @click="stop"
         >
           <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop &amp; keep best</template>
@@ -83,12 +84,12 @@
       ></div>
       <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
     </div>
-    <p v-if="stopping" class="text-[10px] text-white/70 leading-snug" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
-    <p v-if="p.stage" class="text-[10px] text-white/60 truncate">{{ p.stage }}</p>
+    <p v-if="stopping" class="text-small text-white/70" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
+    <p v-if="p.stage" class="text-small text-white/60 truncate">{{ p.stage }}</p>
     <!-- What the screen's own progress block used to add (lib/runDetails.ts; the in-page header, bar and time
          line went on 16 Oct 2026, so this bar is the one progress display). Folded: the line above is enough
          most of the time. -->
-    <details v-if="details" class="text-[10px] text-white/60" data-testid="run-bar-details">
+    <details v-if="details" class="text-small text-white/60" data-testid="run-bar-details">
       <summary class="cursor-pointer select-none font-bold text-white/70 hover:text-white">Details</summary>
       <p class="mt-1 break-words leading-snug">{{ details }}</p>
     </details>
@@ -96,15 +97,15 @@
          progress line, so it floats with the bar instead of an amber box pushing the page down (the user, 15 Oct). -->
     <p
       v-if="props.elsewhere"
-      class="rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-[11px] leading-snug text-amber-100"
+      class="rounded-lg bg-amber-400/15 px-2.5 py-1.5 text-body text-amber-100"
       data-testid="run-bar-elsewhere"
     >
-      <span class="font-black">{{ props.elsewhere.running }} is running.</span> Stop it (Stop &amp; keep best, here), or
+      <span class="font-bold">{{ props.elsewhere.running }} is running.</span> Stop it (Stop &amp; keep best, here), or
       wait until it's done, to use {{ props.elsewhere.here }}.
     </p>
     <p
       v-if="bestSoFarHere && (store.bestSoFarStatus || store.bestSoFarWait > 0)"
-      class="text-[10px] font-semibold"
+      class="text-small font-bold"
       :class="
         !store.bestSoFarStatus || store.bestSoFarStatus.pending
           ? 'text-amber-200'

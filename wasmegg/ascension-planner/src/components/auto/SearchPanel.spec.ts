@@ -141,21 +141,25 @@ describe('default and remembered choice, per screen', () => {
 });
 
 describe('the card', () => {
-  it('one card: Stronger check, its intro, Light status, then Fast | Exact | Custom with time here and purpose lines', async () => {
+  it('one card: Search, its intro, Light status, then Fast | Exact | Custom with time here and purpose lines', async () => {
     const t = textOf(await render());
     expect(t).toMatch(
-      /^Stronger check How it works › Checks the instant answer harder, with the full simulator on your save\. Pick how hard to look; your choice is remembered\. Fast/
+      /^Search How it works › Checks the instant answer harder, with the full simulator on your save\. Pick how hard to look; your choice is remembered\. Fast/
     );
     expect(t).toContain(
-      "Fast ~18 min here most likely best Exact ~1.7 h here a second opinion Custom you set the boxes to prove it in your boxes"
+      "Fast ~18 min here usually close to the best Exact ~1.7 h here a second opinion Custom you set the boxes to prove it in your boxes"
     );
     expect(t).toContain('NEARBY BODY');
     expect(t).toContain('CUSTOM BODY');
     expect(t).not.toMatch(/\bLight\b/);
   });
-  it('"What this does and does not promise" once: one per option, in parts never shown together (source)', () => {
+  it('the promise once: one per option, in parts never shown together (source)', () => {
     const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
-    expect(read('StrongerBox.vue').match(/What this does and does not promise\s*<\/summary>/g)).toHaveLength(1);
+    // Fast and Exact's is the amber part of their one "What this does" fold since 26 Oct 2026 (lib/panelFold.ts).
+    const box = read('StrongerBox.vue');
+    expect(box).not.toContain('What this does and does not promise');
+    expect(box.match(/title="What this does"/g)).toHaveLength(1);
+    expect(box.match(/data-testid="stronger-promise"/g)).toHaveLength(1);
     expect(read('SearchPanel.vue')).not.toMatch(/does not promise\s*</);
     for (const f of ['FastestRoute.vue', 'DeadlinePanel.vue']) {
       const s = read(f);
@@ -175,6 +179,14 @@ describe('the card', () => {
     expect(optTag(html, 'exact')).toMatch(dis);
     expect(optTag(html, 'custom')).toMatch(dis);
     expect(mem.get(searchOptionKey('by-date'))).toBeUndefined();
+  });
+  it('says Stopping, not Running, once Stop is pressed (the run ends when its workers finish their routes; 23 Oct 2026)', async () => {
+    const pill = (html: string) => textOf(html.match(/<span[^>]*data-testid="search-panel-running"[^>]*>[\s\S]*?<\/span>/)?.[0] ?? '');
+    expect(pill(await render({ running: true }))).toBe('Running');
+    expect(pill(await render({ running: true, stopping: true }))).toBe('Stopping');
+    const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
+    expect(read('FastestRoute.vue')).toContain(':stopping="store.isRunning && store.stopRequested"');
+    expect(read('DeadlinePanel.vue')).toContain(':stopping="stopAsked"');
   });
   it('keeps the panels as the reveal helpers find them (data-search-tab-panel, screen, tab)', async () => {
     const html = await render({ screen: 'fastest' });
@@ -197,7 +209,7 @@ describe('Very high, inside Exact (lib/veryHigh.ts)', () => {
   });
   it.runIf(SHOW_VERY_HIGH)('on: a tick box with its time, what it is for and one sentence of what it does', async () => {
     const t = textOf(await exact('fastest'));
-    expect(t).toContain("Very high · ~6.8 h here · if you're curious");
+    expect(t).toContain("Exact (wider) · ~6.8 h here · if you're curious");
     expect(t).toContain('Also tries every group of three stops together.');
     expect(t).not.toContain('For a full sweep, use Custom.');
   });
@@ -205,7 +217,7 @@ describe('Very high, inside Exact (lib/veryHigh.ts)', () => {
     const html = await exact('fastest');
     expect(html).not.toContain('data-testid="very-high-box"');
     expect(textOf(html)).toContain('For a full sweep, use Custom.');
-    expect(textOf(html)).not.toContain('This run used Very high.');
+    expect(textOf(html)).not.toContain('This run used Exact (wider).');
   });
   it('the box markup is still there behind the constant (source), so it comes back in one line', () => {
     const src = fs.readFileSync(path.resolve(__dirname, 'StrongerBox.vue'), 'utf8');
@@ -215,19 +227,20 @@ describe('Very high, inside Exact (lib/veryHigh.ts)', () => {
   });
   it.runIf(!SHOW_VERY_HIGH)('off: a Very high run still shows, on Exact, saying it used Very high', async () => {
     const t = textOf(await exact('date', 'thorough'));
-    expect(t).toContain('This run used Very high. For a full sweep, use Custom.');
-    expect(t).toContain('With Very high: the same as Fast, with two more TE either side');
+    expect(t).toContain('This run used Exact (wider). For a full sweep, use Custom.');
+    expect(t).toContain('Exact (wider): the same as Fast, with two more TE either side');
   });
-  it('Exact says first that it is a wider search, not the exact price', async () => {
-    for (const g of ['fastest', 'date'] as const)
-      expect(textOf(await exact(g))).toContain(
-        'What it does A wider search than Fast, not the exact price (that is Check exactly).'
-      );
+  it('Exact says first that it is a wider search, priced the same way (no Check exactly since 23 Oct 2026)', async () => {
+    for (const g of ['fastest', 'date'] as const) {
+      const t = textOf(await exact(g));
+      expect(t).toContain('What it does A wider search than Fast; its times are priced the same way, with the full simulator.');
+      expect(t).not.toContain('Check exactly');
+    }
   });
   it('Fast shows no Very high line', async () => {
     useStrongerStore().level = 'quick';
     const t = textOf(await renderHtml(StrongerBox, { goal: 'date', estimates }, {}, [pinia]));
-    expect(t).not.toContain('Very high');
+    expect(t).not.toContain('Exact (wider)');
     expect(t).not.toContain('For a full sweep');
   });
 });

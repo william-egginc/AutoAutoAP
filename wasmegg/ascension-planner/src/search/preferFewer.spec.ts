@@ -5,9 +5,15 @@ import {
   laterWords,
   marginWords,
   preferFewerCopy,
+  PREFER_DEFAULTS,
   PREFER_KEY,
   PREFER_OFF,
+  FASTEST_PRESETS,
+  DATE_PRESETS,
   readPreferFewer,
+  readPreferPicked,
+  rememberPreferFewer,
+  sameMargin,
   shiftCount,
   writePreferFewer,
   type PreferMargin,
@@ -155,6 +161,7 @@ describe('preferFewerCopy', () => {
     const c = choosePreferFewer('fastest', FAST, within(D), best5);
     expect(preferFewerCopy(c, 'fastest', within(D), show)).toEqual({
       chip: 'Fewest ascensions within 1 day',
+      what: 'The box shows the route with the fewest ascensions that finishes within 1 day of the fastest.',
       line: 'Half a day slower than the fastest (Feb 18, 2029, 3:00 PM), and 1 fewer ascension: 13 fewer shifts, 1 fewer prestige.',
       muted: '',
     });
@@ -169,6 +176,7 @@ describe('preferFewerCopy', () => {
     const c = choosePreferFewer('fastest', [fast(5, 0, null), blind], within(12 * H));
     expect(preferFewerCopy(c, 'fastest', within(12 * H), show)).toEqual({
       chip: 'Fewest ascensions within 12 h',
+      what: 'The box shows the route with the fewest ascensions that finishes within 12 h of the fastest.',
       line: '~3 h slower than the fastest (Feb 18, 2029, 3:00 PM), and 1 fewer ascension: 1 fewer prestige.',
       muted: '',
     });
@@ -185,12 +193,14 @@ describe('preferFewerCopy', () => {
     const low = choosePreferFewer('date', [top5, date(4, 312, 1.5 * D, 47)], te(1), top5);
     expect(preferFewerCopy(low, 'date', te(1), show)).toEqual({
       chip: 'Fewest ascensions within 1 TE',
+      what: 'The box shows the route with the fewest ascensions that ends within 1 TE of the highest TE.',
       line: '1 TE below the highest (313, 5 ascensions), and 1 fewer ascension: 13 fewer shifts.',
       muted: '',
     });
     const same = choosePreferFewer('date', [top5, date(4, 313, 0.5 * D, 47)], te(0), top5);
     expect(preferFewerCopy(same, 'date', te(0), show)).toEqual({
       chip: 'Fewest ascensions, same TE',
+      what: 'The box shows the route with the fewest ascensions that reaches the same TE.',
       line: 'Same TE as the highest (313), with 1 fewer ascension: 13 fewer shifts.',
       muted: '',
     });
@@ -204,6 +214,7 @@ describe('preferFewerCopy', () => {
     const c = choosePreferFewer('fastest', FAST, within(6 * H), best5);
     expect(preferFewerCopy(c, 'fastest', within(6 * H), show)).toEqual({
       chip: '',
+      what: '',
       line: '',
       muted: 'No route with fewer ascensions is within 6 h.',
     });
@@ -214,7 +225,7 @@ describe('preferFewerCopy', () => {
   });
 
   it('off, or the best already has the fewest: nothing', () => {
-    const empty = { chip: '', line: '', muted: '' };
+    const empty = { chip: '', what: '', line: '', muted: '' };
     expect(preferFewerCopy(choosePreferFewer('fastest', FAST, PREFER_OFF, best5), 'fastest', PREFER_OFF, show)).toEqual(empty);
     expect(preferFewerCopy(choosePreferFewer('fastest', [three, best5], within(D), three), 'fastest', within(D), show)).toEqual(empty);
     expect(preferFewerCopy(null, 'fastest', within(D), show)).toEqual(empty);
@@ -262,8 +273,15 @@ describe('shiftCount', () => {
 
 describe('the setting, per browser', () => {
   afterEach(() => vi.unstubAllGlobals());
+  const DEF = { fastest: within(12 * H), date: te(0) };
 
-  it('starts Off for both screens without storage, and survives a blocked one', () => {
+  it('defaults (Jordan, 26 Oct 2026): Fastest within 12 h, By a date and Egg Day the same TE; both are chips', () => {
+    expect(PREFER_DEFAULTS).toEqual(DEF);
+    expect(FASTEST_PRESETS.find(p => sameMargin(p.margin, PREFER_DEFAULTS.fastest))?.label).toBe('within 12 h');
+    expect(DATE_PRESETS.find(p => sameMargin(p.margin, PREFER_DEFAULTS.date))?.label).toBe('same TE');
+  });
+
+  it('starts at the defaults without storage, and survives a blocked one', () => {
     vi.stubGlobal('localStorage', {
       getItem: () => {
         throw new Error('blocked');
@@ -272,24 +290,127 @@ describe('the setting, per browser', () => {
         throw new Error('blocked');
       },
     });
-    expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: PREFER_OFF });
+    expect(readPreferFewer()).toEqual(DEF);
     expect(() => writePreferFewer({ fastest: within(D), date: te(1) })).not.toThrow();
+    expect(() => rememberPreferFewer('fastest', PREFER_OFF)).not.toThrow();
   });
 
-  it('comes back as written under its own key, separately per screen; bad values are Off', () => {
+  it('comes back as written under its own key, separately per screen; bad values are the default', () => {
     const store = new Map<string, string>();
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => void store.set(k, v),
     });
-    expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: PREFER_OFF });
+    expect(readPreferFewer()).toEqual(DEF);
     writePreferFewer({ fastest: within(D), date: te(0) });
-    expect(PREFER_KEY).toBe('aap-prefer-fewer');
-    expect(store.has('aap-prefer-fewer')).toBe(true);
+    expect(PREFER_KEY).toBe('aap-prefer-fewer-v2');
+    expect(store.has('aap-prefer-fewer-v2')).toBe(true);
     expect(readPreferFewer()).toEqual({ fastest: within(D), date: te(0) });
     store.set(PREFER_KEY, '{"fastest":{"kind":"te","te":1},"date":{"kind":"te","te":-2}}');
-    expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: PREFER_OFF });
+    expect(readPreferFewer()).toEqual(DEF);
     store.set(PREFER_KEY, 'not json');
+    expect(readPreferFewer()).toEqual(DEF);
+  });
+
+  it('a remembered choice always wins over the default, Off included', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    });
+    store.set(PREFER_KEY, JSON.stringify({ fastest: PREFER_OFF, date: PREFER_OFF }));
     expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: PREFER_OFF });
+    store.set(PREFER_KEY, JSON.stringify({ fastest: within(2 * D) }));
+    expect(readPreferFewer()).toEqual({ fastest: within(2 * D), date: te(0) });
+  });
+
+  it('picking on one screen remembers that screen only: the other keeps its default', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    });
+    rememberPreferFewer('fastest', PREFER_OFF);
+    expect(readPreferPicked()).toEqual({ fastest: PREFER_OFF });
+    expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: te(0) });
+    rememberPreferFewer('date', te(2));
+    expect(readPreferPicked()).toEqual({ fastest: PREFER_OFF, date: te(2) });
+    expect(JSON.parse(store.get(PREFER_KEY)!)).toEqual({ fastest: PREFER_OFF, date: te(2) });
+  });
+});
+
+describe('the one-time reset to the defaults (26 Oct 2026)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const DEF = { fastest: within(12 * H), date: te(0) };
+  const memory = () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    return store;
+  };
+
+  it('the old Off for both screens is ignored and cleared once: everyone starts on the defaults', () => {
+    const store = memory();
+    store.set('aap-prefer-fewer', JSON.stringify({ fastest: PREFER_OFF, date: PREFER_OFF }));
+    expect(readPreferFewer()).toEqual(DEF);
+    expect(store.has('aap-prefer-fewer')).toBe(false);
+    // Any old pick, not just Off: discarded once.
+    store.set('aap-prefer-fewer', JSON.stringify({ fastest: within(2 * D) }));
+    expect(readPreferFewer()).toEqual(DEF);
+  });
+
+  it('a pick made after the change persists across reloads (the old key never comes back)', () => {
+    const store = memory();
+    store.set('aap-prefer-fewer', JSON.stringify({ fastest: within(D), date: te(1) }));
+    rememberPreferFewer('fastest', PREFER_OFF);
+    expect(store.has('aap-prefer-fewer')).toBe(false);
+    // A reload: only storage is left.
+    expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: te(0) });
+    rememberPreferFewer('date', te(2));
+    expect(readPreferFewer()).toEqual({ fastest: PREFER_OFF, date: te(2) });
+    expect(JSON.parse(store.get(PREFER_KEY)!)).toEqual({ fastest: PREFER_OFF, date: te(2) });
+  });
+
+  it('a corrupt value under the new key falls to the default; storage without removeItem never throws', () => {
+    const store = memory();
+    store.set(PREFER_KEY, '{"fastest":');
+    expect(readPreferFewer()).toEqual(DEF);
+    store.set(PREFER_KEY, JSON.stringify({ fastest: { kind: 'time', seconds: 'x' }, date: { kind: 'zz' } }));
+    expect(readPreferFewer()).toEqual(DEF);
+    const plain = new Map<string, string>([['aap-prefer-fewer', '{}']]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => plain.get(k) ?? null, setItem: () => {} });
+    expect(() => readPreferFewer()).not.toThrow();
+    expect(readPreferFewer()).toEqual(DEF);
+  });
+});
+
+describe('within 12 h, the Fastest default, on a made-up set of routes', () => {
+  // The fastest is 7 ascensions; 6 is 5 h behind, 5 is exactly 12 h behind, 4 is 12 h and a minute behind.
+  const r7 = fast(7, 0, null, 'r7');
+  const r6 = fast(6, 5 * H, null, 'r6');
+  const r5 = fast(5, 12 * H, null, 'r5');
+  const r4 = fast(4, 12 * H + 60, null, 'r4');
+  const r8 = fast(8, 1 * H, null, 'r8');
+  const ROUTES = [r8, r4, r6, r7, r5];
+
+  it('the box shows the fewest ascensions finishing within 12 h of the fastest (12 h itself counts)', () => {
+    const c = choosePreferFewer('fastest', ROUTES, PREFER_DEFAULTS.fastest)!;
+    expect(c.best).toBe(r7);
+    expect(c.state).toBe('fewer');
+    expect(c.chosen).toBe(r5);
+    expect(c.costSeconds).toBe(12 * H);
+    expect(c.ascensionsFewer).toBe(2);
+    const words = preferFewerCopy(c, 'fastest', PREFER_DEFAULTS.fastest, show);
+    expect(words.chip).toBe('Fewest ascensions within 12 h');
+    expect(words.what).toBe('The box shows the route with the fewest ascensions that finishes within 12 h of the fastest.');
+  });
+
+  it('nothing with fewer ascensions within 12 h: the fastest stays', () => {
+    const c = choosePreferFewer('fastest', [r7, r4, r8], PREFER_DEFAULTS.fastest)!;
+    expect(c.state).toBe('none');
+    expect(c.chosen).toBe(r7);
   });
 });

@@ -14,10 +14,12 @@ import { calculateShippingCapacity } from '@/calculations/shippingCapacity';
 import { calculateEffectiveLayRate } from '@/calculations/effectiveLayRate';
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
-import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold } from '@/lib/truthEggs';
+import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold, TE_BREAKPOINTS } from '@/lib/truthEggs';
 import { totalAwayTime } from '@/stores/silos';
 import type { CurrentFarmState, ResearchLevels, VehicleSlot } from '@/types';
 import { SAVE_EGG_ORDER } from './nowPlan';
+import { relativeWords } from './eventWhen';
+import { compactDuration } from './duration';
 
 /** The farm fields of a save read here (ei.IBackup's, loosely). */
 interface RawFarm {
@@ -100,6 +102,8 @@ export interface FarmFacts {
   elr: number;
   /** Minutes of time away the silos hold. */
   siloMinutes: number;
+  /** The farm's last step in the save (unix seconds; the silos were full then), 0 without one. lib/farmNow.ts. */
+  stepSeconds?: number;
 }
 
 /** Null without a virtue farm in the save. */
@@ -137,6 +141,7 @@ export function farmFacts(i: FarmInput): FarmFacts | null {
     habFull: cap > 0 ? Math.min(1, farm.population / cap) : 0,
     elr: elr.effectiveLayRate,
     siloMinutes: totalAwayTime(Math.max(1, farm.numSilos || 1), i.epic['silo_capacity'] || 0),
+    stepSeconds: farm.lastStepTime || 0,
   };
 }
 
@@ -150,6 +155,20 @@ export interface EggLine {
   current: boolean;
   /** Seconds after the save the next TE comes at the save's rate (the egg being laid only); null otherwise. */
   nextInSeconds: number | null;
+  /** Seconds after the save the goal comes if every TE still to earn came from this egg at the save's rate (the egg
+   *  being laid, with a goal given; ux29-d): null when unknown, reached, or past the egg's last threshold. */
+  goalInSeconds?: number | null;
+}
+
+/**
+ * The TE an egg is to reach for the goal (ux35-a, 28 Oct 2026, pieha): its thresholds passed plus the TE still to earn,
+ * at most its last TE. A goal bigger than one egg's room (Fastest to 490 at 350 TE: 140 left, 28 on each egg) takes
+ * this egg to its last TE and the rest from the others, as the route does; setting the whole TE left against one
+ * egg's room said "more TE than this egg has left" on every egg. Null: no goal, or no TE left on this egg.
+ */
+export function eggGoalTE(passed: number, goalTeLeft: number | null): number | null {
+  if (goalTeLeft == null || !(goalTeLeft > 0) || passed >= TE_BREAKPOINTS.length) return null;
+  return Math.min(TE_BREAKPOINTS.length, passed + Math.ceil(goalTeLeft));
 }
 
 /** The five eggs in the save's order. */
@@ -157,7 +176,9 @@ export function eggLines(
   delivered: Partial<Record<string, number>>,
   earned: Partial<Record<string, number>>,
   currentEgg: string | null,
-  elr: number | null
+  elr: number | null,
+  /** TE still to earn for the goal (the goal's TE less the save's), when one is known. */
+  goalTeLeft: number | null = null
 ): EggLine[] {
   return SAVE_EGG_ORDER.map(egg => {
     const d = delivered[egg] ?? 0;
@@ -168,6 +189,31 @@ export function eggLines(
     const progress = Number.isFinite(hi) && hi > lo ? Math.min(1, Math.max(0, (d - lo) / (hi - lo))) : 1;
     const current = egg === currentEgg;
     const nextInSeconds = current && elr && elr > 0 && Number.isFinite(hi) ? (hi - d) / elr : null;
-    return { egg, te, progress, current, nextInSeconds };
+    // To goal: the egg's own thresholds (each TE costs more eggs than the last), not TE left × the next TE's time.
+    const need = eggGoalTE(passed, goalTeLeft);
+    const goalInSeconds = current && elr && elr > 0 && need != null ? (getThresholdForTE(need) - d) / elr : null;
+    return { egg, te, progress, current, nextInSeconds, goalInSeconds };
   });
+}
+
+/** Past this many days a next TE "at the save's rate" is no time to plan by (ux review 26 Oct, row 15: "next TE in
+ *  57308 days"): said as "not at this rate" instead. About 10 years. */
+export const NEXT_TE_CAP_DAYS = 3650;
+
+/**
+ * The line under an egg on Your eggs. Only the egg being laid gets a time; the others' next TE comes after a shift
+ * (never timed "at the final rate"). `nowSeconds - saveSeconds` has already passed since the save. With a goal
+ * (`goalInSeconds`, ux29-d): "next TE in 3h 20m · to goal about 4d 5h at this rate"; none over about 10 years.
+ */
+export function nextTeLine(e: EggLine, nowSeconds: number, saveSeconds: number): string {
+  const pct = `${Math.round(e.progress * 100)}% to the next TE`;
+  if (!e.current) return `${pct} · after a shift`;
+  if (e.nextInSeconds == null) return pct;
+  const left = e.nextInSeconds - Math.max(0, nowSeconds - saveSeconds);
+  if (left <= 0) return 'next TE likely reached since your save';
+  if (left > NEXT_TE_CAP_DAYS * 86400) return 'next TE: not at this rate (over 10 years)';
+  const goalLeft = e.goalInSeconds != null ? e.goalInSeconds - Math.max(0, nowSeconds - saveSeconds) : null;
+  if (goalLeft != null && goalLeft > left && goalLeft <= NEXT_TE_CAP_DAYS * 86400)
+    return `next TE ${relativeWords(left)} · to goal about ${compactDuration(goalLeft)} at this rate`;
+  return `next TE ${relativeWords(left)} at your save's rate`;
 }

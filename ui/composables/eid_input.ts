@@ -15,6 +15,13 @@ import { PlayerIdSchema } from 'lib/schema';
 // reloading the previously active player. The owning component supplies the
 // actual load side effect (save/navigate/emit) and calls `commit` once a load
 // has been initiated.
+// The ID to load when `text` is pasted into the box: the whole paste, trimmed, when it is a valid player ID;
+// otherwise null, and the paste goes in as usual.
+export function pastedPlayerId(text: string): string | null {
+  const eid = text.trim();
+  return PlayerIdSchema.safeParse(eid).success ? eid : null;
+}
+
 export function useEidInput(initialEid: string) {
   const eidsStore = useEidsStore();
 

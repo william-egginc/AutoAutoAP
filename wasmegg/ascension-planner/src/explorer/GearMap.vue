@@ -25,14 +25,14 @@
           <EChart :option="option" :height="`${CHART_HEIGHT}px`" />
         </div>
         <div
-          class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-500"
+          class="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"
           aria-label="How to read the marks"
         >
           <span class="inline-flex items-center gap-1.5">
             <span>delivery score</span>
             <span class="inline-flex flex-col">
               <span class="block h-2 w-32 rounded-sm" :style="{ background: rampGradient }" />
-              <span class="flex justify-between text-[9px] font-semibold text-slate-400 tabular-nums">
+              <span class="flex justify-between text-small font-bold text-slate-400 tabular-nums">
                 <span>≤{{ Math.round(DELIVERY_RAMP_DOMAIN[0] * 100) }}%</span>
                 <span>{{ Math.round(((DELIVERY_RAMP_DOMAIN[0] + DELIVERY_RAMP_DOMAIN[1]) / 2) * 100) }}%</span>
                 <span>{{ Math.round(DELIVERY_RAMP_DOMAIN[1] * 100) }}%</span>
@@ -43,7 +43,7 @@
           <span
             ><span aria-hidden="true" class="text-[#2a78d6]">○</span> worked out afterwards (assumes a Pro permit)</span
           >
-          <span><span aria-hidden="true" class="text-slate-400">- - -</span> CTE = TE + 100, 115, 129</span>
+          <span><span aria-hidden="true" class="text-slate-400">- - -</span> Clothed TE = TE + 100, 115, 129</span>
           <span class="inline-flex items-center gap-1">
             <span aria-hidden="true" class="inline-block h-2.5 w-4 rounded-sm" :style="{ background: STALL_FILL }" />
             first ascension stalls
@@ -54,14 +54,14 @@
           </span>
         </div>
 
-        <p v-if="summary" class="text-[11px] text-slate-600 leading-relaxed max-w-3xl px-1">
+        <p v-if="summary" class="text-body text-slate-600 max-w-3xl px-1">
           Every account's earnings set adds between +{{ summary.setMin.toFixed(1) }} and +{{
             summary.setMax.toFixed(1)
           }}
           TE, so all {{ summary.accounts }} sit on one narrow diagonal: an account with more TE also has more Clothed
           TE, and these runs cannot yet say whether a plan follows the gear or the TE. And
           <template v-if="summary.atOrUnderStall === 0">
-            no account is at or under the stall band (the lowest is at CTE {{ Math.round(summary.cteMin) }}), so nothing
+            no account is at or under the stall band (the lowest is at Clothed TE {{ Math.round(summary.cteMin) }}), so nothing
             here shows how plans behave where a first ascension starts to stall.
           </template>
           <template v-else>
@@ -70,19 +70,19 @@
           </template>
         </p>
 
-        <p v-if="missing.length" class="text-[10px] text-slate-400 px-1">
+        <p v-if="missing.length" class="text-small text-slate-400 px-1">
           Not drawn:
           <template v-for="(m, i) in missing" :key="m.key">{{ i ? '; ' : '' }}{{ m.label }} ({{ m.reason }})</template>.
         </p>
 
-        <details v-if="points.length" class="px-1 text-[11px]">
-          <summary class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-slate-400">
+        <details v-if="points.length" class="px-1 text-small">
+          <summary class="cursor-pointer text-body font-bold text-slate-400">
             The numbers
           </summary>
           <div class="overflow-x-auto pt-1">
-            <table class="w-full text-[11px]">
+            <table class="w-full text-small">
               <thead>
-                <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                <tr class="text-slate-400 label">
                   <th class="text-left py-1 pr-3">Account</th>
                   <th class="text-right py-1 pr-3">TE</th>
                   <th class="text-right py-1 pr-3">Clothed TE</th>
@@ -110,8 +110,8 @@
         </details>
       </div>
 
-      <aside class="space-y-2 text-[11px]">
-        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Gear data still wanted</p>
+      <aside class="space-y-2 text-body">
+        <p class="label text-slate-400">Gear data still wanted</p>
         <p v-if="!needList.length" class="text-slate-500">Every gear ask has enough accounts.</p>
         <ul v-else class="space-y-1.5">
           <li
@@ -121,20 +121,20 @@
           >
             <div class="flex items-baseline justify-between gap-2">
               <span class="font-bold text-slate-800 leading-snug">{{ need.title }}</span>
-              <span class="shrink-0 text-[10px] font-semibold text-slate-500 tabular-nums"
+              <span class="shrink-0 text-small font-bold text-slate-500 tabular-nums"
                 >{{ need.have }} of {{ need.want }}</span
               >
             </div>
-            <p class="text-[10px] text-slate-500 leading-snug">{{ need.where }}</p>
+            <p class="text-small text-slate-500">{{ need.where }}</p>
           </li>
         </ul>
-        <p class="text-[10px] text-slate-400 leading-snug">
+        <p class="text-small text-slate-400">
           Counted in accounts, from finished searches to 490 only; each ask drops off once enough accounts have covered
-          it. What to run for each is under What we need to check, on the planner's Science tab.
+          it. What to run for each is under {{ NAMES.check }}, on the planner's {{ NAMES.science }} tab.
         </p>
       </aside>
     </div>
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">No run here recorded a Clothed TE to place.</p>
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">No run here recorded a Clothed TE to place.</p>
   </div>
 </template>
 
@@ -144,6 +144,7 @@ import EChart from '@/components/charts/EChart.vue';
 import type { ChartOption, ChartSeriesOption } from '@/lib/charts/echarts';
 import { esc } from '@/lib/charts/tooltip';
 import type { Account } from './analysis';
+import { NAMES } from '@/lib/siteNav';
 import { dataNeeds } from './needs';
 import {
   DELIVERY_RAMP,

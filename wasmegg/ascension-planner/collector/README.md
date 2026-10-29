@@ -269,17 +269,17 @@ first read after that settles the board once: it lists the rows and the CSV ids,
 snapshot lacks or whose name the key metadata says changed, flips `hasCsv` where a table arrived,
 and clears `settleAt`. With no writes there are no rebuilds (a snapshot untouched for a day is
 settled once as a backstop). Building from nothing — the first read after deploying a version that
-changes the snapshot, or after `snap:<board>` is deleted by hand — reads at most 700 rows of the main
+changes the snapshot, or after `snap:<board>` is deleted by hand — reads at most 300 rows of the main
 board (200 of the flagged one) per request and carries on at the next read, so a request that rebuilds
-both stays under the Free plan's 1,000 KV operations. Up to about 700 rows a rebuild finishes in one read
-(it was 300 until 22 Oct 2026). The cost is CPU: about 45-60 ms for 700 rows measured in Node, against
-18-28 ms for 300, both past the Free plan's nominal 10 ms; if a rebuild is ever cut off for CPU, that
-board's reads fail until `SETTLE_MAX_GETS` is lowered again. A settle also drops a row that
+both stays under the Free plan's 1,000 KV operations. A board past 300 rows takes two reads to rebuild.
+The limit is CPU, not operations: about 18-28 ms for 300 rows measured in Node, 45-60 ms for 700 (tried on
+22 Oct 2026 and kept at 300), both past the Free plan's nominal 10 ms; if a rebuild is ever cut off for CPU,
+that board's reads fail until `SETTLE_MAX_GETS` is lowered again. A settle also drops a row that
 KV no longer lists, once it is more than 10 minutes old (a newer row may just not be listed yet): a
 replaced provisional row that a racing patch put back, or a row deleted by hand. So after deleting
 rows by hand there is nothing else to do; after *changing* one, still delete `snap:sub` /
 `snap:flag` and the next read rebuilds it. **After deleting a snapshot (as `fix-hide-bad-rows.sh`
-does), `/all` may need two reads**: a board past 700 rows (a flagged board past 200) is rebuilt over
+does), `/all` may need two reads**: a board past 300 rows (a flagged board past 200) is rebuilt over
 more than one read, and the first answers with the rows it has read so far. Read `/all` again before
 checking the board, and before deleting a snapshot again: a delete in between starts the rebuild over.
 
@@ -588,6 +588,15 @@ seconds, between 2020 and 2100, required and checked) and `deadlineAscendAt` (wh
 ascension can be made with the player's hours counted; it cannot be after the deadline). Only a
 By a date run sends 8, and its `chain` may be a single checkpoint; every other run still sends 7.
 
+**The instant baseline** (`baseline`, 23 Oct 2026; optional on any schema, no schema bump, so an app that sends it
+works with an older collector, which drops it): `{ chain, end, endTE, at? }`, the instant answer's route for the
+same save, sent on a board row only when the player ticked "Share my instant baseline with my runs", so a run can
+say how far it beat the instant answer. `chain` is up to 12 whole TE stops, 0 to 490, strictly increasing; `end` is
+unix seconds (2020 to 2100); `endTE` a whole number 0 to 490; `at` (optional) the time it was worked out, in
+milliseconds. All or nothing (`baselineBlock` in worker.js): a block with a missing or bad field, or over 300 bytes
+as JSON, is dropped whole and the row kept. Stored on the row itself (not under `extra:<id>`), so `/all`, `/mine`
+and the board snapshot carry it, and it is public like the rest of the row: nothing in it names the account.
+
 **Where a run started** (`start`, 22 Oct 2026; optional on any schema, no schema bump, so an app that sends
 it works with an older collector, which drops it): so a row like Allan's "36 h faster" (an instant answer
 worked out on a restored Manual draft, or a plan sent from a tab left open for days) can be told from the
@@ -671,7 +680,8 @@ answer and its exact check, for the analyst:
   awake window, held shifts, "also try ascending at once", time off and dated milestones (counts);
 - `instant`: the instant answer's route, each stop's arrival, build (sales, tier 13) and, By a date,
   the spare; `rows`: every row shown, instant answer against exact;
-- `exact`: the exact check's route leg by leg (start, days, strategy, sales, tier 13, peak delivery,
+- `exactFrom` (23 Oct 2026, optional): `fast`, `exact` or `custom`, which search `exact` came from. Any other value refuses the record.
+- `exact`: from the UI of 23 Oct 2026, the best result of the player's Fast, Exact or Custom search (`exactFrom` says which); before that it was Check exactly's price. The route leg by leg (start, days, strategy, sales, tier 13, peak delivery,
   shift holds and prestige delays) with leg 1's `firstLeg` and `firstLegOtherHours`;
 - `buildGap`: the farm the plan would continue (its peak delivery now) against the first fresh
   build's peak in the exact route, and the ratio (under ~0.85: a half-built farm);
@@ -1068,3 +1078,133 @@ Branch spec-collector2 (from egg-beta2-int 8fd474e0). Specs: `hardening2.spec.js
   or parts, never. `/hide` drops this data centre's copy.
 - **Not done:** rewriting formula cells (`= + - @`) in served CSVs. The Worker serves the stored gzip as is
   (no CPU to inflate and re-pack megabytes on the Free plan); the guard belongs in the app's CSV exporter.
+
+## Follow in the cloud (`/follow`, 23 Oct 2026)
+
+A cloud save of each player's FOLLOWED route, so entering the player ID on any device loads it. The app's
+contract (key, JSON shapes, errors) is `~/code/aaap-tools/notes/follow-contract.md`; the code is `follow.js`.
+
+| endpoint | what |
+|---|---|
+| `GET /follow?k=` | every goal for a key: `{ goals: { <goal>: { value, version, updatedAt } }, now }`; an unknown key is `goals: {}` |
+| `PUT /follow` | `{ k, goal, value }`, written only when the player presses Follow; `{ ok, version, updatedAt, unchanged? }` |
+| `GET /follow/history?k=&goal=` | the last 5 versions of one goal, newest first; a restore is a PUT of an old value |
+
+- **The key** `k` is SHA-256(`"aaap-follow-v1:"` + the player ID in upper case), lowercase hex, computed in the
+  browser. The collector never sees the ID and refuses (`400`) any body or query that holds `EI` + 16 digits.
+  Anyone who knows the ID can compute the key, read the route and write over it: Jordan's design ("one less
+  setup"), so the damage is bounded instead.
+- **D1, not KV** (KV's 1,000 writes a day belong to the board): the `WATCH` binding (aaap-watch), migration
+  `migrations/0002_follow.sql` (tables `follows` and `follow_rate`). A write is an insert, a prune and one budget
+  upsert, about 3 rows of D1's 100,000 a day; a read is a few rows of 5,000,000.
+- **Limits:** 30 writes an hour per key (one upsert on `follow_rate`, no read; `429` with `retryAfter`), the last 5
+  versions per goal, 8 goals per key, 20,000 keys, a 6 KB body (`413`) and a 4 KB value (`413`), plus the
+  `FOLLOW_LIMIT` edge binding (60 a minute per address for GET and PUT each; none without the binding).
+- **Validation** is a whitelist (`readValue`): chain (1 to 16 whole stops, 0 to 490, increasing), planStart, source,
+  `at` required; finish, endTE, spareSeconds, hours (`{start,end,timezone?}` or null), saveTime, simVersion, build
+  optional; a bad field refuses the write with its name (`400`, `problems`), an unknown field is dropped. A value
+  equal to the latest is not stored again (`unchanged: true`).
+- **Newer wins** is the client's job: it compares its local `at` with the cloud value's `at`. CORS is as for the rest
+  (`*`; the preflight allows `PUT` and `content-type`).
+- **Deploy:** apply the migration to the database first (`wrangler d1 migrations apply <db> --remote`), then deploy the
+  Worker. The migration only creates tables.
+
+## Which build is in use (`/v`, 24 Oct 2026)
+
+Each open copy of the page tells the collector which build it is, at most once a day, so the maintainer knows when
+old builds are still open. The code is `buildcount.js`; the page side is `src/lib/buildCount.ts`.
+
+| endpoint | what |
+|---|---|
+| `POST /v` | body: the build id as plain text (`index-BGv8tSVu`, the hashed entry script the page loaded); `{ ok, counted }` |
+
+- **What is kept:** one row per (UTC day, build) in D1 `build_counts` (`day`, `build`, `n`), migration
+  `migrations/0003_buildcount.sql`. No address, no header, no time beyond the day. The cron deletes days more than
+  30 days back on its hourly clean-up (minutes 0 to 4, beside the watch rows').
+- **What the page sends:** the build id alone, with no referrer and no cookies (`no-cors` keepalive POST), at most
+  once a UTC day per build per browser (a localStorage stamp; once per page load where storage is blocked), only
+  after the page has been visible 5 seconds, never offline, and nothing at all with Global Privacy Control or Do Not
+  Track on. A failure is ignored.
+- **Validation:** the body must be exactly one id, `^[a-z]{1,16}-[A-Za-z0-9_-]{6,16}$` (33 characters at most, so a
+  player ID's 18 cannot fit), else `400`; a body over 64 bytes is `413`.
+- **Limits:** the `BUILD_LIMIT` edge binding, 10 a minute per address (the address is the binding's key only, never
+  stored; none without the binding), and at most 200 different builds a day: past that a new build is not counted
+  (`counted: false`), builds already seen that day still are. A count is one upsert.
+- **Reading it:** `npx wrangler@4 d1 execute aaap-watch --remote --command "SELECT day, build, n FROM build_counts ORDER BY day DESC, n DESC"`.
+- **Deploy:** apply the migration first (`wrangler d1 migrations apply aaap-watch --remote`), then deploy the Worker.
+  The migration only creates a table.
+
+## Prefs in the cloud (`/prefs`, 26 Oct 2026)
+
+Each account's consent choices and Setup, saved online so that entering the player ID on any device loads them
+(Jordan's design and trade-off as for `/follow`: the key is SHA-256 of `"aaap-follow-v1:"` + the ID in upper case,
+anyone with the ID can read and write them). Contract: `~/code/aaap-tools/notes/prefs-contract.md`; code: `prefs.js`.
+A separate endpoint, not reserved goals in `/follow`, so `/follow` answers exactly as before and the clients already
+live never see a `consent` or `setup` goal.
+
+| endpoint | what |
+|---|---|
+| `GET /prefs?k=` | `{ prefs: { consent?, setup? }, now }`, each `{ value, version, updatedAt }`; a kind never saved is absent |
+| `PUT /prefs` | `{ k, kind: 'consent' \| 'setup', value }`; `{ ok, version, updatedAt, unchanged? }` |
+| `GET /prefs/history?k=&kind=` | the last 5 versions of a kind, newest first; a restore is a PUT of an old value |
+
+- **consent** (`readConsent`): `at` required (ms), `answeredAt`, `study` yes/no/later, `ticks` (up to 16 named booleans),
+  `credit` name/anonymous, `nickname` (40 characters, only with credit name). **setup** (`readSetup`): `at` required,
+  `hours` (`{start, end, days?, scheduleEnabled?}` or null), `timeOff` and `noPrestigeDays` (up to 16 `{from, to}`
+  texts each), `targetTE` (1 to 490 or null), `timezone`. Not the "This computer" settings. Unknown fields are dropped;
+  a bad field refuses the write (`400`, `problems`); a value over 4 KB is `413`.
+- **Limits:** 30 writes an hour per key (D1 `follow_rate` under `prefs|<key>`, apart from `/follow`'s), 5 versions per
+  kind, a 6 KB body, `FOLLOW_LIMIT` per address (60 a minute, GET and PUT counted apart), 20,000 keys. An equal value is
+  not stored again. Any `EI` + 16 digits is refused. Last write wins by the client's `at`; the server keeps every write.
+- **D1** (`WATCH`, migration `migrations/0004_prefs.sql`, one new table `prefs`; nothing existing changes). Apply the
+  migration to the database first, then deploy; an older collector answers `/prefs` with 404.
+
+## Big CSVs (`/bigcsv/*`, 26 Oct 2026)
+
+The FULL-detail `.csv.gz` of a very large run (about 800k routes, 300 to 370 MB gzipped) kept in a private R2 bucket
+(`aaap-bigcsv`, binding `BIGCSV`). `/csv` (KV) is unchanged: the summary of every route plus the top ~20k routes' legs
+still goes there first. Contract for the app: `~/code/aaap-tools/notes/bigcsv-contract.md`; code: `bigcsv.js`.
+
+| route | what |
+|---|---|
+| `POST /bigcsv/start?id=&bytes=&partSize=` | open an R2 multipart upload, or resume the open one |
+| `PUT /bigcsv/part?id=&n=` | one part, streamed straight to R2 (5 to 90 MB; every part `partSize` except the last; `content-length` required) |
+| `GET /bigcsv/parts?id=` | the parts the server has (the resume call) |
+| `POST /bigcsv/complete?id=` | assemble; checks the size and the gzip magic (`422` and deleted if wrong) |
+| `POST /bigcsv/abort?id=` | drop an open upload |
+| `GET /bigcsv/status?id=` | public: `{ kept, bytes, at }`, never the file |
+| `GET`/`DELETE /bigcsv/admin?id=` | the maintainer: download (`Range` works) or delete, header `x-admin-token` = secret `BIGCSV_ADMIN_TOKEN` (`404` without it) |
+
+- **Auth and caps:** the row's FINAL upload token (`x-upload-token`, as `/csv`); the row must be on a board and have priced
+  more than 100,000 routes (`422` otherwise); one per row (`409`); 3 per account (owner code) in 30 days and a 9 GB byte
+  budget over 90 days (`429`); a file up to 4 GiB; `UPLOAD_LIMITER` per address. No player ID in the object name
+  (`bigcsv/<row id>.csv.gz`) or its metadata (row id, bytes, parts, time).
+- **D1, not KV:** the R2 binding cannot list a multipart upload's parts, so `bigcsv` and `bigcsv_parts` (migration
+  `0005_bigcsv.sql`) hold each upload's state and part etags; that is also what makes an upload resumable. No KV writes.
+- **Private:** nothing serves the object except the admin route. The board row can say "full CSV kept" from `/bigcsv/status`.
+- **Retention:** 90 days by an R2 lifecycle rule, plus unfinished uploads aborted after 1 day (commands in the note
+  `~/code/aaap-tools/notes/bigcsv-commands.md`). The free R2 plan holds 10 GB: about 27 files of 370 MB, which is why
+  the budget is counted over the same 90 days.
+- **Without the binding** (an older collector, or R2 not set up) every `/bigcsv/*` route but status answers `503`.
+
+## Instant answers in the cloud (`/answers`, 27 Oct 2026)
+
+The page's computed instant answer and pricing record per account, 10 to 40 KB gzipped, kept online so another device
+shows it at once and then rechecks. Contract: `~/code/aaap-tools/notes/instantcloud-contract.md`; code: `answers.js`.
+A sibling of `/follow` (a follow value is 4 KB and `GET /follow` returns every goal), with the same key `k` (SHA-256 of
+`"aaap-follow-v1:"` + the ID in upper case, computed in the browser) and an opaque entry key `e` the app builds from the
+save hash, the Setup key and the table identity / rules.
+
+| route | what |
+|---|---|
+| `GET /answers?k=` | the entries without bodies: `{ entries: [{ e, at, bytes, updatedAt }], now }`, newest first |
+| `GET /answers/get?k=&e=` | the gzip bytes as sent (`application/octet-stream`; headers `x-answer-at`, `x-answer-updated`) |
+| `PUT /answers?k=&e=&at=` | the gzip bytes; replaces that entry (last write wins) |
+| `DELETE /answers?k=&e=` | removes one |
+
+- **The body is not inflated here** (CPU), so it cannot be scanned for a player ID: the app scrubs before compressing, as for
+  the CSV. Checked: gzip magic, at most 65,536 bytes (`413`; `411` without `content-length`), the query (any `EI` + 16 digits is `400`).
+- **Limits:** 8 entries per key (a ninth evicts the least recently written: `evicted: 1`), 30 writes an hour per key (`follow_rate`
+  under `answers|<key>`), 20,000 entries in all, `FOLLOW_LIMIT` per address. D1 (the `WATCH` binding), migration
+  `0006_answers.sql` (one table; the data is base64 text because D1 returns BLOBs as number arrays). No KV, no R2.
+- An older collector answers `/answers` with 404: the app treats it as "no cloud answers here".

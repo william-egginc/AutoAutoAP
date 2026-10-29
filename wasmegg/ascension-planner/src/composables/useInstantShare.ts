@@ -1,17 +1,18 @@
 /**
- * "Keep sharing my checks": the opt-in for instant answer records (search/instantRecord.ts), OFF by
- * default. With it ticked, every finished Check exactly sends one record; without it, the player can
- * still tick "Share this check" for one check, on the instant answer.
+ * "Share my search results" (was "Keep sharing my checks" until 23 Oct 2026): the opt-in for instant answer
+ * records (search/instantRecord.ts), OFF by default. With it ticked, every Fast, Exact or Custom result found in
+ * the visit sends one record beside the instant answer; without it, the player can still tick "Share this result"
+ * for one result, at the bottom of the search panel.
  *
  * The account's `keepSharingChecks` consent (composables/useConsent.ts): remembered per account, not
- * per browser. The box under the instant answer (InstantShareCheck.vue) and the mirror in Your setup ›
- * Sharing are the same consent. A check reads it as it finishes, so a withdraw stops the next send.
+ * per browser. The box under a search's result (InstantShareCheck.vue) and the mirror in Your setup ›
+ * Sharing are the same consent. A result reads it as it lands, so a withdraw stops the next send.
  */
 import { computed, type WritableComputedRef } from 'vue';
 import { consentAgreed, setConsent } from './useConsent';
 
 export interface InstantShare {
-  /** Ticked: each finished Check exactly sends one record. */
+  /** Ticked: each search result found in the visit sends one record. */
   on: WritableComputedRef<boolean>;
 }
 

@@ -30,16 +30,20 @@ export const HIGH_RUNNER_UP_FASTEST_HOURS = 24;
 export const TIE_HOURS = 0.05;
 
 export type SureLevel = 'high' | 'medium' | 'low';
-/** A search's strength, weakest first ('quick' is Fast, 'normal' Exact, 'thorough' Very high). */
+/** A search's strength, weakest first ('quick' is Fast, 'normal' Exact, 'thorough' the retired Very high, said
+ *  "Exact (wider)": the glossary of 25 Oct 2026 retires "Very high" as a player word; old runs keep their own colour). */
 export type SearchLevel = 'light' | 'quick' | 'normal' | 'thorough' | 'exhaustive';
 const RANK: Record<SearchLevel, number> = { light: 0, quick: 1, normal: 2, thorough: 3, exhaustive: 4 };
 export const LEVEL_WORDS: Record<SearchLevel, string> = {
-  light: 'Checked at once',
+  light: 'Instant answer',
   quick: 'Fast',
   normal: 'Exact',
-  thorough: 'Very high',
-  exhaustive: 'Exhaustive',
+  thorough: 'Exact (wider)',
+  exhaustive: 'Custom',
 };
+
+/** "a Fast", "an Exact", "an Instant answer": the article for a level word. */
+const aOrAn = (w: string) => `${/^[AEIOU]/i.test(w) ? 'an' : 'a'} ${w}`;
 
 export interface SureInput {
   goal: 'fastest' | 'date';
@@ -75,8 +79,8 @@ export interface Sure {
   level: SureLevel;
   /** "Instant answer, 5 days old" (shown after "How sure: Medium"). */
   reason: string;
-  /** The button beside it: Check exactly (By a date's instant answer) or a short Fast search (Fastest's). */
-  action?: 'check' | 'fast';
+  /** The button beside it: a short Fast search (Check exactly for By a date's instant answer until 23 Oct 2026). */
+  action?: 'fast';
 }
 
 function age(days: number): string {
@@ -101,18 +105,18 @@ export function behindWords(runner: number, i: Pick<SureInput, 'runnerUpChain' |
 const atLeast = (l: SearchLevel | null | undefined, min: SearchLevel) => !!l && RANK[l] >= RANK[min];
 
 export function howSure(i: SureInput): Sure {
-  const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'Check exactly' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
+  const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'simulator check' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
   // Low.
   if (i.olderSimulator) return { level: 'low', reason: 'priced by an older simulator' };
-  if (i.hoursChanged) return { level: 'low', reason: 'priced before your hours changed' };
+  if (i.hoursChanged) return { level: 'low', reason: 'priced before your awake hours changed' };
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };
   if (i.ageDays > STALE_DAYS) return { level: 'low', reason: `${what}, ${age(i.ageDays)}` };
   if (i.teMoved) return { level: 'low', reason: 'your TE has moved since' };
   // High.
   if (i.how === 'search' && i.level === 'exhaustive' && i.exhaustiveComplete)
-    return { level: 'high', reason: 'Exhaustive checked every route in its boxes' };
-  if (i.agreeing === 'exhaustive') return { level: 'high', reason: 'a finished Exhaustive run agrees' };
+    return { level: 'high', reason: 'Custom checked every route in its boxes' };
+  if (i.agreeing === 'exhaustive') return { level: 'high', reason: 'a finished Custom run agrees' };
   const runner = i.runnerUpHours;
   if (i.goal === 'date') {
     const spareOk = typeof i.spareHours === 'number' && i.spareHours >= HIGH_SPARE_HOURS;
@@ -120,16 +124,16 @@ export function howSure(i: SureInput): Sure {
     if (i.how !== 'instant' && i.exactConfirmsTE && spareOk && runnerOk)
       return {
         level: 'high',
-        reason: `Check exactly confirms ${i.te ?? 'the'} TE, ${hours(i.spareHours!)} to spare, the next route ${
+        reason: `the full simulator confirms ${i.te ?? 'the'} TE, ${hours(i.spareHours!)} to spare, the next route ${
           runner === Infinity ? 'makes less TE' : `${hours(runner!)} behind`
         }`,
       };
     if (atLeast(i.agreeing, 'quick') || (i.how === 'search' && atLeast(i.level, 'quick')))
-      return { level: 'high', reason: `a ${LEVEL_WORDS[(i.agreeing ?? i.level)!]} search agrees on ${i.te ?? 'the'} TE` };
+      return { level: 'high', reason: `${aOrAn(LEVEL_WORDS[(i.agreeing ?? i.level)!])} search agrees on ${i.te ?? 'the'} TE` };
   } else {
     const strong = atLeast(i.agreeing, 'normal') ? i.agreeing! : i.how === 'search' && atLeast(i.level, 'normal') ? i.level! : null;
     if (strong && runner != null && runner > HIGH_RUNNER_UP_FASTEST_HOURS)
-      return { level: 'high', reason: `${strong === 'thorough' ? 'a' : 'an'} ${LEVEL_WORDS[strong]} search agrees; the next route is ${hours(runner)} behind` };
+      return { level: 'high', reason: `${aOrAn(LEVEL_WORDS[strong])} search agrees; the next route is ${hours(runner)} behind` };
     if (strong)
       return {
         level: 'medium',
@@ -143,9 +147,9 @@ export function howSure(i: SureInput): Sure {
   if (i.how === 'instant')
     return i.goal === 'fastest'
       ? { level: 'medium', reason: `instant answer, ${age(i.ageDays)}; a short search usually finds a sooner route`, action: 'fast' }
-      : { level: 'medium', reason: `instant answer, ${age(i.ageDays)}`, action: 'check' };
+      : { level: 'medium', reason: `instant answer, ${age(i.ageDays)}`, action: 'fast' };
   if (i.goal === 'fastest') return { level: 'medium', reason: `${what} done; a short search usually finds a sooner route`, action: 'fast' };
-  if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'Check exactly done; it moved the instant answer’s TE' };
+  if (i.how === 'check' && i.exactConfirmsTE === false) return { level: 'medium', reason: 'simulator check done; it moved the instant answer’s TE' };
   if (typeof i.spareHours === 'number' && i.spareHours < HIGH_SPARE_HOURS)
     return { level: 'medium', reason: `${what} done; only ${hours(i.spareHours)} to spare` };
   if (runner != null && runner !== Infinity && runner <= HIGH_RUNNER_UP_DATE_HOURS)

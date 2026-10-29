@@ -218,8 +218,8 @@ describe('describeCutoff (the display rules)', () => {
     expect(line.latestHour).toBe(Date.parse('2026-11-27T22:00:00Z') / 1000); // 3 pm MST
     expect(line.byHour).toBe(line.latestHour - HOUR);
     expect(line.text).toBe(
-      `Prestige by ${show(line.byHour)} to keep 248 TE (${show(line.latestHour)} at the latest, on the hour). ` +
-        `After that: 247 (until about ${show(hourOf(P, 60))}), then 246.`
+      `Next: prestige by ${show(line.byHour)} to keep 248 TE. ` +
+        `Waiting longer: 247 TE, 246 TE after about ${show(hourOf(P, 60))}.`
     );
   });
 
@@ -262,9 +262,9 @@ describe('describeCutoff (the display rules)', () => {
 
   it('says prestige right away when even the next hour is the last that keeps it', () => {
     const line = describeCutoff(drop(0, 15), base);
-    expect(line.text.startsWith('Prestige as soon as you reach 161 TE to keep 248 TE')).toBe(true);
+    expect(line.text).toBe(`Next: prestige at 161 TE around ${show(line.latestHour)} to keep 248 TE. Waiting longer: 247 TE.`);
     const fresh = describeCutoff(drop(0, 15), { ...base, fresh: true });
-    expect(fresh.text.startsWith('Prestige now to keep 248 TE')).toBe(true);
+    expect(fresh.text.startsWith(`Next: prestige now, by ${show(fresh.latestHour)} at the latest to keep 248 TE.`)).toBe(true);
   });
 
   it('says "to be sure of" when the lookups ran out', () => {
@@ -272,7 +272,7 @@ describe('describeCutoff (the display rules)', () => {
     const line = describeCutoff(unsure, base);
     expect(line.show).toBe(true);
     expect(line.text).toContain('to be sure of 248 TE');
-    expect(line.text).not.toContain('After that');
+    expect(line.text).not.toContain('Waiting longer');
   });
 
   it('Fastest: the date it still reaches, and how much later after that', () => {
@@ -285,10 +285,23 @@ describe('describeCutoff (the display rules)', () => {
     };
     const line = describeCutoff(c, { ...base, mode: 'fastest', deadline: undefined });
     expect(line.text).toBe(
-      `Prestige by ${show(hourOf(P, 5) - HOUR)} to still reach 490 TE on ${show(E)} (${show(hourOf(P, 5))} at the latest, on the hour). ` +
-        `After that: ${show(E + 7 * 86400)} (7.0 days later).`
+      `Next: prestige by ${show(hourOf(P, 5) - HOUR)}. Waiting longer costs about 7d.`
     );
     expect(line.tight).toBe(false);
+  });
+
+  it("the review's example: right away at the first stop, 17.4 days later after that (UX review 26 Oct 2026, item 8)", () => {
+    const E = DEADLINE;
+    const c: Cutoff = {
+      ...drop(0, 0),
+      keep: { te: 490, end: E },
+      lastKeepOutcome: { te: 490, end: E },
+      dropOutcome: { te: 490, end: E + 17.4 * 86400 },
+    };
+    const line = describeCutoff(c, { ...base, firstStop: 205, mode: 'fastest', deadline: undefined, show: () => 'Feb 23, 2027, 7 PM' });
+    expect(line.text).toBe('Next: prestige at 205 TE around Feb 23, 2027, 7 PM. Waiting longer costs about 17d.');
+    const never = describeCutoff({ ...c, dropOutcome: { te: 489, end: null } }, { ...base, mode: 'fastest', deadline: undefined });
+    expect(never.text).toContain("Waiting longer doesn't reach 490 TE.");
   });
 
   it('keeps a prediction record that matches the line', () => {
@@ -589,6 +602,37 @@ describe('prestigePlan (the prestige the line is about)', () => {
     expect(plan.laying).toEqual(farm);
     expect(plan.candidates).toEqual([[170, 490]]);
     expect(plan.keep).toEqual({ te: 490, end: T0 + 9e6 });
+  });
+
+  it('the box’s route (Prefer fewer picked it, 26 Oct 2026): its outcome is kept, longer routes are not priced', () => {
+    // Fastest: 3 ascensions the fastest, 2 ascensions 10 h later (the box under within 12 h).
+    const r3 = routeOf([leg(170, '2-sale', T0, T0 + 9e5), leg(300, '2-sale', T0 + 9e5, T0 + 5e6), leg(490, '2-sale', T0 + 5e6, T0 + 9e6)]);
+    const r2 = routeOf([leg(200, '2-sale', T0, T0 + 2e6), leg(490, '2-sale', T0 + 2e6, T0 + 9e6 + 36000)]);
+    const found: FoundRoutes = { best: r3, byAscensions: [null, null, r2, r3], byDate: null, byDateByAscensions: [] };
+    const base = { mode: 'fastest' as const, found, firstLegs: [], planStart: T0, startTE: 141, saveDelivered: save, farm, siloSeconds: 3600 };
+    const plain = prestigePlan(base)!;
+    expect(plain.keep).toEqual({ te: 490, end: T0 + 9e6 });
+    expect(plain.candidates).toEqual([[170, 300, 490], [200, 490]]);
+    const boxed = prestigePlan({ ...base, boxRoute: r2 })!;
+    expect(boxed.keep).toEqual({ te: 490, end: T0 + 9e6 + 36000 });
+    expect(boxed.candidates).toEqual([[200, 490]]);
+    expect(boxed.firstStop).toBe(200);
+    // By a date, same TE: the box's 2-ascension route, kept at its own TE and end.
+    const d3 = routeOf([leg(170, '2-sale', T0, T0 + 9e5), leg(200, '2-sale', T0 + 9e5, T0 + 5e6), leg(248, '2-sale', T0 + 5e6, DEADLINE - 9e5)]);
+    const d2 = routeOf([leg(190, '2-sale', T0, T0 + 2e6), leg(248, '2-sale', T0 + 2e6, DEADLINE - 9e4)]);
+    const df: FoundRoutes = { best: null, byAscensions: [], byDate: d3, byDateByAscensions: [null, null, d2, d3] };
+    const dated = prestigePlan({ ...base, mode: 'date', found: df, boxRoute: d2 })!;
+    expect(dated.keep).toEqual({ te: 248, end: DEADLINE - 9e4 });
+    expect(dated.candidates).toEqual([[190, 248]]);
+    expect(prestigePlan({ ...base, mode: 'date', found: df })!.keep).toEqual({ te: 248, end: DEADLINE - 9e5 });
+  });
+
+  it('candidatesOf with a cap: only routes with at most that many ascensions', () => {
+    const r3 = routeOf([leg(170, 'a', T0, T0 + 1), leg(300, 'a', T0 + 1, T0 + 2), leg(490, 'a', T0 + 2, T0 + 3)]);
+    const r2 = routeOf([leg(200, 'a', T0, T0 + 1), leg(490, 'a', T0 + 1, T0 + 4)]);
+    const found: FoundRoutes = { best: r3, byAscensions: [null, null, r2, r3], byDate: null, byDateByAscensions: [] };
+    expect(candidatesOf(found, 'fastest', true, true, 2)).toEqual([[200, 490]]);
+    expect(candidatesOf(found, 'fastest', false, true, 3)).toEqual([[300, 490], [490]]);
   });
 
   it('no route: no plan', () => {

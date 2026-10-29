@@ -218,7 +218,7 @@ describe("resuming under the run's own plan start", () => {
     });
     expect(fingerprintChanges(fingerprintRun(base), changed)).toEqual([
       'the final target was 490, now 500',
-      'the first ascension was Continue Asc., now Fastest',
+      'the first ascension was Continue Asc., now Soonest',
       'the availability schedule changed',
       'the TE milestones changed',
       'the time off changed',
@@ -421,6 +421,7 @@ describe('putting a run’s settings back from its fingerprint', () => {
       deferShifts: true,
       milestones: [{ te: 250, by: 1_800_000_000 }],
       timeOff: [{ from: 1_795_000_000, to: 1_795_600_000 }],
+      noPrestige: [],
     });
     const plain = fingerprintRun({ playerId: 'EI1', planStart: 1, currentTE: 137, final: 490, forceContinue: true });
     expect(fingerprintSettings(plain)).toMatchObject({

@@ -43,7 +43,7 @@
           v-for="mode in MODES"
           :key="mode.id"
           type="button"
-          class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+          class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
           :class="
             metric === mode.id
               ? 'bg-slate-900 text-white border-slate-900'
@@ -54,8 +54,8 @@
           {{ mode.label }}
         </button>
       </div>
-      <span v-if="!withLegs.length" class="text-[10px] font-bold text-amber-700">
-        No run at this count carried per-leg detail.
+      <span v-if="!withLegs.length" class="text-small font-bold text-amber-700">
+        No run at this count carried per-ascension detail.
       </span>
     </div>
 
@@ -67,7 +67,7 @@
       :entries="legendEntries"
       label="Accounts: click to hide or show"
     />
-    <p class="text-[10px] text-slate-400 leading-relaxed px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
+    <p class="text-small text-slate-400 px-1">{{ MODES.find(m => m.id === metric)?.hint }}</p>
   </div>
 </template>
 
@@ -95,13 +95,13 @@ const metric = ref<Metric>('days');
 const MODES: { id: Metric; label: string; hint: string }[] = [
   {
     id: 'days',
-    label: 'Days per leg',
-    hint: 'How long each ascension takes, on a log scale so the short legs are not flattened by the long ones: each labelled gridline is ten times the one below. The last leg before the target is usually the biggest single block in the plan, which is what makes the last stop the value worth arguing about. Leg 1 (hollow point, dashed line) is the rest of the ascension in progress when the plan starts, so it is shorter when the plan is made later; compare legs 2 onward.',
+    label: 'Days per ascension',
+    hint: 'How long each ascension takes, on a log scale so the short ascensions are not flattened by the long ones: each labelled gridline is ten times the one below. The last ascension before the target is usually the biggest single block in the plan, which is what makes the last stop the value worth arguing about. Ascension 1 (hollow point, dashed line) is the rest of the ascension in progress when the plan starts, so it is shorter when the plan is made later; compare ascensions 2 onward.',
   },
   {
     id: 'rate',
     label: 'Peak delivery',
-    hint: 'Peak delivery rate each leg reaches, in q/hr, on a log scale so equal steps are equal gains in percent. It should climb leg over leg as research carries forward. That climb is why chaining beats one long ascension, and a line that has flattened belongs to an account that would do as well with fewer ascensions. Leg 1 (hollow point, dashed line) depends on how far into the ascension in progress the plan starts; compare legs 2 onward.',
+    hint: 'Peak delivery rate each ascension reaches, in q/hr, on a log scale so equal steps are equal gains in percent. It should climb ascension over ascension as research carries forward. That climb is why chaining beats one long ascension, and a line that has flattened belongs to an account that would do as well with fewer ascensions. Ascension 1 (hollow point, dashed line) depends on how far into the ascension in progress the plan starts; compare ascensions 2 onward.',
   },
 ];
 
@@ -201,12 +201,12 @@ const option = computed<ChartOption>(() => {
               : ' (depends on how far into the ascension in progress the plan starts)';
         // Escaped throughout: the heading carries a submitted nickname and d[2] carries the leg's
         // strategy string, both free text, and this becomes innerHTML. See charts/tooltip.ts.
-        return `<b>${esc(d[3])}</b><br/>leg ${esc(d[0])}: ${esc(value)}${esc(note)}<br/><span style="color:#94a3b8">${esc(d[2])}</span>`;
+        return `<b>${esc(d[3])}</b><br/>ascension ${esc(d[0])}: ${esc(value)}${esc(note)}<br/><span style="color:#94a3b8">${esc(d[2])}</span>`;
       },
     },
     xAxis: {
       type: 'value',
-      name: 'leg',
+      name: 'ascension',
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle: AXIS_LABEL,

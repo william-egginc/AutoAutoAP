@@ -8,7 +8,7 @@
 <template>
   <div
     v-if="words && (words.badge || words.detail)"
-    class="w-full flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]"
+    class="w-full flex flex-wrap items-center gap-x-2 gap-y-1 text-body"
     :class="words.greyed ? 'opacity-60' : ''"
     data-testid="pace-badge"
     :data-tone="tone"

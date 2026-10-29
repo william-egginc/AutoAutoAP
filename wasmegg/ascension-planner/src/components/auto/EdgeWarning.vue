@@ -6,7 +6,7 @@
 -->
 <template>
   <div
-    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-[11px] text-amber-900 leading-relaxed"
+    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-body text-amber-900"
     data-test="edge-warning"
   >
     <p v-for="line in lines" :key="line">{{ line }}</p>
@@ -14,12 +14,12 @@
       <button
         type="button"
         :disabled="disabled"
-        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-amber-800 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800 disabled:opacity-40"
         @click="emit('widen')"
       >
         Widen and run again
       </button>
-      <p class="text-[10px] text-amber-800/80"><slot /></p>
+      <p class="text-small text-amber-800/80"><slot /></p>
     </template>
   </div>
 </template>

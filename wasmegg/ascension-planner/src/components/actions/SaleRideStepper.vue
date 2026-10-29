@@ -1,23 +1,23 @@
 <template>
   <div class="flex items-center justify-between gap-2 px-0.5">
     <div class="flex flex-col leading-tight">
-      <span class="text-[9px] text-slate-500">100% ROI by</span>
-      <span class="text-[10px] font-mono text-slate-700">{{ deadlineLabel }}</span>
+      <span class="text-small text-slate-500">100% ROI by</span>
+      <span class="text-small tabular-nums text-slate-700">{{ deadlineLabel }}</span>
     </div>
     <div class="flex items-center gap-1.5">
       <button
-        class="w-5 h-5 rounded bg-slate-100 text-slate-600 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+        class="w-5 h-5 rounded bg-slate-100 text-slate-600 text-small font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
         :disabled="saleCount <= 1"
         aria-label="Ride one fewer sale"
         @click="$emit('decrement')"
       >
         −
       </button>
-      <span class="text-[10px] text-slate-500 w-14 text-center">
+      <span class="text-small text-slate-500 w-14 text-center">
         {{ saleCount }} sale{{ saleCount === 1 ? '' : 's' }}
       </span>
       <button
-        class="w-5 h-5 rounded bg-slate-100 text-slate-600 text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
+        class="w-5 h-5 rounded bg-slate-100 text-slate-600 text-small font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-200"
         :disabled="saleCount >= cap"
         aria-label="Ride one more sale"
         @click="$emit('increment')"

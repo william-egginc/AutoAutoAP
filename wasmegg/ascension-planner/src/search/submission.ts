@@ -24,6 +24,7 @@
  *
  * The nickname is optional and free text; nothing is derived from the account.
  */
+import { formatClock, formatMoment } from '../lib/clock';
 import type { SubmissionFlag } from './rules';
 import type { InventoryCount, LoadoutSlot } from './csv';
 import type { ColleggtibleSummary, EpicResearchSummary } from './progression';
@@ -462,6 +463,13 @@ export interface Submission {
   integrityMinutes?: number;
   /** Time away from the virtue farm the plan was built around, as whole local dates. */
   timeOff?: { from: string; to: string }[];
+  /**
+   * The player's instant baseline for this run (lib/instantBaseline.ts, 23 Oct 2026): the instant answer for the same
+   * goal and save, its route, finish (or last stop, unix seconds) and TE. Added at the send only with "Share my
+   * instant baseline with my runs" (the `shareBaseline` consent). A collector that doesn't know it keeps it under
+   * `extra:<id>` and the board row doesn't carry it.
+   */
+  baseline?: { chain: number[]; end: number; endTE: number; at?: number };
 
   /**
    * "Send best so far" (9 Oct 2026): the best of a run that is still going. The run's final send
@@ -652,7 +660,7 @@ export interface RunCost {
  * An id is a bearer token: the API will return the whole save to anyone holding it.
  */
 export function scrubIdentifiers(text: string): string {
-  return text.replace(/EI\d{16}/g, 'EI[redacted]');
+  return text.replace(/EI\d{16}/gi, 'EI[redacted]');
 }
 
 /** Longest run note the collector stores. */
@@ -715,17 +723,17 @@ export const QUARANTINE_REASONS: Record<string, string> = {
   'target-not-last': "the route doesn't end at the target",
   'ascensions-disagree': "the number of ascensions doesn't match the route",
   'first-checkpoint-reached': 'the first stop is not above the starting TE',
-  'legs-disagree': "the legs don't match the route",
-  'leg-not-positive': 'a leg takes no time',
-  'legs-sum': "the legs don't add up to the total",
-  'impossible-te-jump': 'a leg gains TE faster than any farm can',
+  'legs-disagree': "the ascensions don't match the route",
+  'leg-not-positive': 'an ascension takes no time',
+  'legs-sum': "the ascensions don't add up to the total",
+  'impossible-te-jump': 'an ascension gains TE faster than any farm can',
   'too-fast': 'the plan gains TE faster than any farm can',
-  'no-delivery': 'every leg shows no delivery at all',
+  'no-delivery': 'every ascension shows no delivery at all',
   'delivery-collapse': 'delivery falls by more than half as TE rises',
   'finish-before-start': 'the plan finishes before it starts',
   'times-disagree': "the start and finish don't match the total",
   'start-out-of-range': 'the plan starts more than a year from now',
-  'after-deadline': 'the answer finishes after its own deadline',
+  'after-deadline': 'the answer finishes after its own date',
   'save-age': 'the save is too far from the plan start',
   'too-many-today': 'too many results from this account in the last 24 hours',
 };
@@ -781,8 +789,7 @@ export interface DuplicateNote {
  */
 export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote = {}, now = Date.now()): string {
   if (kind === 'result') return 'sent (the same answer as your earlier run, from another search)';
-  const when = sentAtText(note.firstAt, now);
-  const lead = `Already on the board${when ? ` (sent ${when})` : ''}`;
+  const lead = alreadyOnBoardText(note.firstAt, now);
   const clauses: string[] = [];
   if (note.renamed) clauses.push(`your name is on it now (${note.renamed})`);
   if (note.table?.landed === 'new') {
@@ -796,21 +803,28 @@ export function duplicateMessage(kind: 'exact' | 'result', note: DuplicateNote =
   const sent = note.sent?.trim() ?? '';
   if (sent && !note.renamed && note.stored !== sent) {
     if (note.stored === undefined) text += '; the name on it was not changed';
-    else if (note.stored) text += `. It is on the board as ${note.stored}: press Put my name on it to make it ${sent}`;
-    else text += `. It is on the board without a name: press Put my name on it to add ${sent}`;
+    else if (note.stored) text += `. It is on the Leaderboard as ${note.stored}: press Put my name on it to make it ${sent}`;
+    else text += `. It is on the Leaderboard without a name: press Put my name on it to add ${sent}`;
   }
   return text;
 }
 
-/** `at 7:46 pm` today, `on 24 Sep at 7:46 pm` before, in this browser's own zone; '' when unreadable. */
+/** "Already on the Leaderboard (sent at 10:48 AM)": the lead of an exact copy's answer, and what a share box says
+ *  on load for a result already there (search/sentOnBoard.ts). `firstAt` is when the stored row arrived. */
+export function alreadyOnBoardText(firstAt: string | undefined, now = Date.now()): string {
+  const when = sentAtText(firstAt, now);
+  return `Already on the Leaderboard${when ? ` (sent ${when})` : ''}`;
+}
+
+/** `at 7:46 PM` today, `on Sep 24 at 7:46 PM` before (en-US), in this browser's own zone (lib/clock.ts); '' when
+ *  unreadable. */
 function sentAtText(iso: string | undefined, now: number): string {
   const t = iso ? Date.parse(iso) : NaN;
   if (!Number.isFinite(t)) return '';
   const day = (ms: number) =>
     new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(ms);
-  const time = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }).format(t);
-  if (day(t) === day(now)) return `at ${time}`;
-  return `on ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(t)} at ${time}`;
+  if (day(t) === day(now)) return `at ${formatClock(t)}`;
+  return `on ${formatMoment(t, { year: 'never', at: true })}`;
 }
 
 /** `2026-09-09 19:04` in `timezone`, or '' for a missing instant. Never `1970-01-01`. */

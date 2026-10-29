@@ -33,6 +33,8 @@ import type { LegSummary } from '@/search/types';
 import { checkFinalLegRate, deliveryScore, slotsFromLabels, type RateCheck } from '@/search/virtueScore';
 import type { CollectorRow } from './collector';
 import { readFirstAscension, type FirstAscension } from '@/search/firstAscension';
+import { readCsv } from '@/lib/csvParse';
+import { UploadError, checkDiagnostics, parseJsonStrict } from '@/lib/uploadGuard';
 
 /** The sweeps players are asked to run, in per-checkpoint bands mode. See collector/README.md. */
 export interface SweepPreset {
@@ -185,10 +187,11 @@ const COLUMN_HEADER = 'rank,chain,prestiges,total_days,gap_days,leg,target_te,st
  * A chain CSV, read for what an upload needs: the header facts, the rank-1 chain with its legs,
  * and enough of the rest to tell whether the file is whole.
  *
- * Throws with a readable message when it is not a chain CSV at all; everything else comes back as
- * data for `checkUpload` to judge. Scans by index for the reason `parseRunCsv` does.
+ * Throws with a readable message when it is not a chain CSV at all, or a cell is damaged (a number that
+ * is not one, a stop outside 0-490); everything else comes back as data for `checkUpload` to judge.
  */
 export function readUploadCsv(text: string): UploadCsv {
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
   // A By a date run's CSV (search/csv.ts `deadlineCsvChunks`): its rank rows and summary lines are
   // not a chain table, and its result goes to Compare's By a date tabs, not this board.
   if (text.startsWith('# highest TE by ')) {
@@ -220,66 +223,76 @@ export function readUploadCsv(text: string): UploadCsv {
   let lastChain = '';
   let lastDays = -Infinity;
   const seen = new Set<string>();
+  // Checked as read (lib/uploadGuard.ts): numbers finite and in range, the route stops real TE, text short.
+  const bad = (line: number, what: string) =>
+    new UploadError(`Line ${line} of the CSV has ${what}, so it was not written by the planner or has been damaged.`);
+  const numAt = (cells: string[], k: number, lo: number, hi: number, line: number, name: string, blankOk = true): number => {
+    const t = cells[k] ?? '';
+    if (t === '' && blankOk) return NaN;
+    const v = Number(t);
+    if (!Number.isFinite(v) || v < lo || v > hi) throw bad(line, `a damaged ${name} (${t.slice(0, 20)})`);
+    return v;
+  };
 
-  let i = 0;
-  const n = text.length;
-  while (i < n) {
-    let end = text.indexOf('\n', i);
-    if (end === -1) end = n;
-    const line = text[end - 1] === '\r' ? text.slice(i, end - 1) : text.slice(i, end);
-    i = end + 1;
-    if (!line) continue;
-
-    if (line.charCodeAt(0) === 35 /* # */) {
-      let m: RegExpExecArray | null;
-      if ((m = /^# plan start (.+)$/.exec(line))) out.planStartLocal = m[1].trim();
-      else if ((m = /current TE (\d+)\s*->\s*final target (\d+)/.exec(line))) {
-        out.currentTE = Number(m[1]);
-        out.finalTE = Number(m[2]);
-      } else if ((m = /^# effort (\w+); force-continue (on|off)(?:; first-ascension (\w+))?/.exec(line))) {
-        out.effort = m[1];
-        out.firstAscension = readFirstAscension({ firstAscension: m[3], forceContinue: m[2] === 'on' });
-      } else if ((m = /^# chains priced (\d+)/.exec(line))) out.chainsStated = Number(m[1]);
-      else if ((m = /^# Local times are ([^.\s]+)\./.exec(line))) out.timezone = m[1];
-      else if ((m = /^#\s+virtue inventory: (.*)$/.exec(line))) readInventory(m[1], out);
-      else if (/^# in progress, /.test(line)) out.partial = true;
-      continue;
-    }
-    if (line.startsWith(COLUMN_HEADER)) {
-      sawColumns = true;
-      continue;
-    }
-    const code = line.charCodeAt(0);
-    if (code < 48 || code > 57) continue;
-
-    const cells = line.split(',');
-    const chainText = cells[1];
-    const days = Number(cells[3]);
-    if (chainText !== lastChain) {
-      if (!seen.has(chainText)) {
-        seen.add(chainText);
-        out.daysByChain.set(chainText, days);
-        if (days + 1e-6 < lastDays) out.outOfOrder++;
-        lastDays = days;
-      }
-      lastChain = chainText;
-    }
-    if (cells[0] === '1') {
-      if (!out.best) out.best = { chain: chainText.split(' ').map(Number), days, legs: [] };
-      // Rank 1's per-leg rows. Columns are fixed by search/csv.ts; the only quoted cell is the
-      // last one (shift times), which is to the right of everything read here.
-      if (cells[5]) {
-        out.best.legs.push({
-          targetTE: Number(cells[6]),
-          strategy: cells[7],
-          days: Number(cells[13]),
-          peakQph: Number(cells[14]),
-          prestigeDelayHours: Number(cells[16]) || 0,
-          shiftHoldHours: Number(cells[17]) || 0,
-        });
-      }
-    }
-  }
+  // The one CSV reader (lib/csvParse.ts): quoted cells, commas and line breaks inside quotes, BOM, CRLF.
+  readCsv(
+    text,
+    {
+      comment(line) {
+        let m: RegExpExecArray | null;
+        if ((m = /^# plan start (.+)$/.exec(line))) out.planStartLocal = m[1].trim().slice(0, 40);
+        else if ((m = /current TE (\d+)\s*->\s*final target (\d+)/.exec(line))) {
+          out.currentTE = Number(m[1]);
+          out.finalTE = Number(m[2]);
+        } else if ((m = /^# effort (\w+); force-continue (on|off)(?:; first-ascension (\w+))?/.exec(line))) {
+          out.effort = m[1].slice(0, 20);
+          out.firstAscension = readFirstAscension({ firstAscension: m[3], forceContinue: m[2] === 'on' });
+        } else if ((m = /^# chains priced (\d+)/.exec(line))) out.chainsStated = Number(m[1]);
+        else if ((m = /^# Local times are ([^.\s]+)\./.exec(line))) out.timezone = m[1].slice(0, 64);
+        else if ((m = /^#\s+virtue inventory: (.*)$/.exec(line))) readInventory(m[1].slice(0, 4000), out);
+        else if (/^# in progress, /.test(line)) out.partial = true;
+      },
+      record(cells, line) {
+        if (cells[0] === 'rank' && cells.slice(0, 8).join(',') + ',' === COLUMN_HEADER) {
+          sawColumns = true;
+          return;
+        }
+        const code = (cells[0] ?? '').charCodeAt(0);
+        if (!(code >= 48 && code <= 57)) return;
+        const rank = numAt(cells, 0, 1, 1e8, line, 'rank', false);
+        const chainText = cells[1] ?? '';
+        const stops = chainText.split(' ');
+        if (!chainText || stops.length > 40 || stops.some(t => !/^\d{1,3}$/.test(t) || Number(t) > 490))
+          throw bad(line, 'a damaged route');
+        const days = numAt(cells, 3, 0, 100_000, line, 'total_days', false);
+        if (chainText !== lastChain) {
+          if (!seen.has(chainText)) {
+            seen.add(chainText);
+            out.daysByChain.set(chainText, days);
+            if (days + 1e-6 < lastDays) out.outOfOrder++;
+            lastDays = days;
+          }
+          lastChain = chainText;
+        }
+        if (rank === 1) {
+          if (!out.best) out.best = { chain: stops.map(Number), days, legs: [] };
+          if (cells[5]) {
+            if ((cells[7] ?? '').length > 64) throw bad(line, 'a strategy name too long to be one');
+            if (out.best.legs.length >= 40) throw bad(line, 'more legs than a route can have');
+            out.best.legs.push({
+              targetTE: numAt(cells, 6, 0, 490, line, 'target_te', false),
+              strategy: cells[7] ?? '',
+              days: numAt(cells, 13, 0, 100_000, line, 'leg_days'),
+              peakQph: numAt(cells, 14, 0, 1e30, line, 'peak delivery'),
+              prestigeDelayHours: numAt(cells, 16, 0, 1e6, line, 'prestige delay') || 0,
+              shiftHoldHours: numAt(cells, 17, 0, 1e6, line, 'shift hold') || 0,
+            });
+          }
+        }
+      },
+    },
+    { maxRows: 3_000_000 }
+  );
   if (!sawColumns) throw new Error('That CSV has no column header row, so it was not written by the planner.');
   out.chainsFound = seen.size;
   return out;
@@ -326,12 +339,8 @@ export interface Diagnostics {
 }
 
 export function readDiagnostics(text: string): Diagnostics {
-  let d: unknown;
-  try {
-    d = JSON.parse(text);
-  } catch {
-    throw new Error('The diagnostics file is not valid JSON; it may have been cut off while saving.');
-  }
+  // Strict JSON (lib/uploadGuard.ts): no __proto__-style keys, finite numbers, bounded sizes.
+  const d = parseJsonStrict(text, 'The diagnostics file');
   if (
     !d ||
     typeof d !== 'object' ||
@@ -339,6 +348,7 @@ export function readDiagnostics(text: string): Diagnostics {
   ) {
     throw new Error('That JSON is not a chain-search diagnostics file (chain-search-diagnostics-*.json).');
   }
+  checkDiagnostics(d);
   return d as Diagnostics;
 }
 
@@ -400,13 +410,13 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
   }
   if (!diag.loadout?.delivery?.length)
     warnings.push('No delivery set in the diagnostics, so the delivery score and the bug check are skipped.');
-  if (!csv.best?.legs.length) warnings.push('The best route has no per-leg rows, so the graphs cannot place it.');
+  if (!csv.best?.legs.length) warnings.push('The best route has no per-ascension rows, so the graphs cannot place it.');
 
   const legs = (csv.best?.legs ?? []).map(l => ({ peakDeliveryQph: l.peakQph }));
   const rate = csv.best ? checkFinalLegRate(csv.best.chain, legs, diag.loadout?.delivery) : null;
   if (rate?.suspect) {
     warnings.push(
-      `The final leg peaks at ${rate.measuredQph.toFixed(2)} q/hr where this gear should reach about ${rate.expectedQph.toFixed(2)}. ` +
+      `The final ascension peaks at ${rate.measuredQph.toFixed(2)} q/hr where this gear should reach about ${rate.expectedQph.toFixed(2)}. ` +
         'That is the signature of the old "delivery set used for earnings research" bug. It will be stored, and flagged.'
     );
   }
@@ -422,7 +432,7 @@ export function checkUpload(csv: UploadCsv, diag: Diagnostics, existing: Collect
     );
     if (hit) {
       duplicateOf = hit.id;
-      errors.push(`This run is already in the collector (id ${hit.id}).`);
+      errors.push(`This run is already on the planner's server (id ${hit.id}).`);
     }
   }
   return { errors, warnings, rate, duplicateOf };

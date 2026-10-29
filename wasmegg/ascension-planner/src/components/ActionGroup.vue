@@ -21,7 +21,7 @@
 
         <!-- Egg icon + headerText -->
         <div class="flex flex-col items-center gap-0.5">
-          <span class="text-[17px] font-black text-slate-800 uppercase tracking-tighter leading-none">{{ headerText }}</span>
+          <span class="text-title font-bold text-slate-800 leading-none">{{ headerText }}</span>
           <div
             class="flex-shrink-0 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden group-hover:scale-110 transition-transform"
             :class="compact ? 'w-6 h-6 p-0.5' : 'w-7 h-7 sm:w-8 sm:h-8 p-1'"
@@ -37,14 +37,14 @@
         <!-- Time info -->
         <div class="text-left shrink-0">
           <div
-            class="text-[9px] sm:text-[10px] font-black text-slate-700 tracking-widest leading-none"
+            class="text-small font-bold text-slate-700 leading-none"
             :class="compact ? 'mb-0.5' : 'mb-1'"
           >
             {{ formattedTimestamp }}
           </div>
           <div class="flex flex-col items-start gap-0.5">
-            <div class="text-[9px] sm:text-[10px] font-bold text-slate-400 tracking-tight">Time: {{ formattedTimeElapsed }}</div>
-            <div class="text-[9px] sm:text-[10px] font-black text-slate-900 tracking-widest">
+            <div class="text-small font-bold text-slate-400">Time: {{ formattedTimeElapsed }}</div>
+            <div class="text-small font-bold text-slate-900">
               {{ formatNumber(props.eggsDelivered, 3) }} Eggs
             </div>
           </div>
@@ -56,7 +56,7 @@
         <div class="flex items-center gap-3">
           <!-- Shift info -->
           <div v-if="isShiftAction && headerAction.cost > 0" class="flex items-center gap-1 opacity-80">
-            <span class="text-[9px] sm:text-[10px] font-bold text-slate-700 font-mono-premium">
+            <span class="text-small font-bold text-slate-700 tabular-nums">
               {{ formatNumber(headerAction.cost, 3) }}
             </span>
             <img :src="iconURL('egginc/egg_soul.png', 32)" class="w-3.5 h-3.5" alt="SE" />
@@ -97,7 +97,7 @@
             v-tippy="'Finish editing'"
             @click="$emit('stop-editing')"
           >
-            <span class="text-[9px] font-black uppercase tracking-widest">Done</span>
+            <span class="text-body font-bold">Done</span>
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
             </svg>
@@ -163,6 +163,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { ref, computed, watch, nextTick } from 'vue';
 import { iconURL } from 'lib';
 import { useActionsStore } from '@/stores/actions';
@@ -291,19 +292,9 @@ const shiftReconciliationStatus = computed(() => {
 });
 
 /**
- * Format the period timestamp as "Mon Jan 5, 2:30 PM"
+ * Format the period timestamp as "Mon, Jan 5, 2:30 PM" in en-US (lib/clock.ts)
  */
-const formattedTimestamp = computed(() => {
-  const date = props.periodTimestamp;
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-});
+const formattedTimestamp = computed(() => formatMoment(props.periodTimestamp.getTime(), { weekday: true, year: 'never' }));
 
 /**
  * Format the time elapsed in a human-readable way.

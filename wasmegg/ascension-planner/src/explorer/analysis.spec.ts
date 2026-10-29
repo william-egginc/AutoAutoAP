@@ -263,7 +263,7 @@ describe('compareCounts', () => {
     expect(series.points.map(p => p.behind)).toEqual([expect.closeTo(6.5, 6), expect.closeTo(0, 6)]);
     expect(series.points[1].finish).toBe(START + 800.6 * DAY_MS);
     expect(series).toMatchObject({ anchor: 'account', anchorFinish: START + 800.6 * DAY_MS });
-    expect(series.label).toContain('exhaustive');
+    expect(series.label).toContain('Custom');
   });
 
   /** An exhaustive run on day `n` that timed each count in `days` ({ascensions: days}) from one save. */
@@ -1329,7 +1329,7 @@ describe('searchedOf', () => {
       },
     });
     const s = searchedOf(r);
-    expect(s.how).toBe('Exhaustive · M3');
+    expect(s.how).toBe('Custom · M3');
     expect(s.where).toBe('181-191:5; 215-218:1 · gap 10');
     // Where a line may wrap: after each band, never inside one at its hyphen.
     expect(s.pieces).toEqual(['181-191:5;', '215-218:1', '· gap 10']);
@@ -1363,7 +1363,7 @@ describe('searchedOf', () => {
       space: { ...box, minGap: 0, bands: [[195], [300]], chainsPriced: 1, chains: 4, stoppedEarly: true },
     });
     const s = searchedOf(r);
-    expect(s.how).toBe('Exhaustive · partial');
+    expect(s.how).toBe('Custom · partial');
     expect(s.where).toBe('195; 300');
     expect(s.title).toContain('Stopped after 1 of the 4 plans');
     expect(s.title).toContain('not a proof');
@@ -1379,10 +1379,10 @@ describe('searchedOf', () => {
     const space = { ...box, minGap: 0, bands, chains: 12, chainsPriced: 0 };
     const done = searchedOf(row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, chainsPriced: 12, space }));
     expect(done.finished).toBe(true);
-    expect(done.how).toBe('Exhaustive');
+    expect(done.how).toBe('Custom');
     const cut = searchedOf(row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, chainsPriced: 5, space }));
     expect(cut.finished).toBe(false);
-    expect(cut.how).toBe('Exhaustive · partial');
+    expect(cut.how).toBe('Custom · partial');
     expect(cut.title).toContain('It recorded pricing only 5 of the 12 plans');
   });
 
@@ -1390,7 +1390,7 @@ describe('searchedOf', () => {
     const s = searchedOf(
       row({ chain: [200, 300, 490], currentTE: 180, finalTE: 490, effort: 'thorough', chainsPriced: 5806 })
     );
-    expect(s.how).toBe('Nearby routes · Very high');
+    expect(s.how).toBe('Exact (wider)');
     expect(s.where).toBe('');
     expect(s.title).toContain('5,806 plans priced');
   });
@@ -1514,7 +1514,7 @@ describe('searchGrade', () => {
       step: Infinity,
       steps: [],
       penalty: null,
-      text: 'staged (Nearby routes · Very high)',
+      text: 'staged (Exact (wider))',
     });
     const cut = searchGrade(
       row({
@@ -1701,7 +1701,7 @@ describe('rateCheckOf', () => {
     expect(rateCheckOf(row({ ...base, legs: legsTo(11.9) })).state).toBe('clean');
     const noSet = rateCheckOf(row({ ...base, delivery: undefined, legs: legsTo(3) }));
     expect(noSet).toMatchObject({ state: 'unchecked', why: expect.stringMatching(/delivery set/) });
-    expect(rateCheckOf(row({ ...base, legs: [] }))).toMatchObject({ why: expect.stringMatching(/per-leg/) });
+    expect(rateCheckOf(row({ ...base, legs: [] }))).toMatchObject({ why: expect.stringMatching(/per-ascension/) });
     expect(rateCheckOf(row({ ...base, chain: [169, 490], legs: legsTo(3.68) }))).toMatchObject({
       state: 'unchecked',
       why: expect.stringMatching(/under 190/),

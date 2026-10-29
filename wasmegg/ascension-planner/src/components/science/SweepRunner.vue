@@ -36,9 +36,9 @@
     >
       <div class="flex items-start justify-between gap-3">
         <div class="space-y-0.5">
-          <p class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Run a sweep</p>
-          <h2 id="sweep-runner-title" class="text-base font-black text-slate-900">{{ request.label }}</h2>
-          <p class="text-[11px] text-slate-500">
+          <p class="text-indigo-500 label">Run a sweep</p>
+          <h2 id="sweep-runner-title" class="text-title font-bold text-slate-900">{{ request.label }}</h2>
+          <p class="text-body text-slate-500">
             {{ bandsInWords
             }}<template v-if="request.minGap > 0"> · targets at least {{ request.minGap }} TE apart</template
             ><template v-if="request.firstAscension !== null">
@@ -48,7 +48,7 @@
         </div>
         <button
           type="button"
-          class="shrink-0 px-2 py-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-lg leading-none"
+          class="shrink-0 px-2 py-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-title leading-none"
           aria-label="Close"
           @click="close"
         >
@@ -56,24 +56,24 @@
         </button>
       </div>
 
-      <p class="rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-600">{{ SCIENCE_SWEEP_NOTE }}</p>
+      <p class="rounded-lg bg-slate-50 px-3 py-2 text-body text-slate-600">{{ SCIENCE_SWEEP_NOTE }}</p>
 
       <!-- Another search has the computer. Nothing here can start, and getting ready would reset
            the planner under it, so this waits. -->
       <div
         v-if="otherRunGoing"
-        class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900 space-y-1"
+        class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-body text-amber-900 space-y-1"
       >
         <p class="font-bold">Another search is running.</p>
         <p>
-          One search at a time: they share {{ thisDevice() }}'s workers. Let it finish, or stop it from the bar at the top of
+          One search at a time: they share {{ thisDevice() }}’s workers. Let it finish, or stop it from the bar at the top of
           the page, then open this sweep again.
         </p>
       </div>
 
       <!-- 1. Getting ready -->
       <template v-else-if="phase === 'confirm'">
-        <p class="text-[12px] text-slate-700 leading-relaxed">
+        <p class="text-body text-slate-700 max-w-prose">
           To work out the figures, this loads your latest save and sets the planner up from it, the same as opening the
           {{ NAMES.auto }} does. That clears the plan in the planner now
           <b>({{ planSteps }} step{{ planSteps === 1 ? '' : 's' }})</b>.
@@ -81,32 +81,32 @@
         <div class="flex flex-wrap gap-2">
           <button
             type="button"
-            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500"
+            class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500"
             @click="getReady"
           >
             Load my save and continue
           </button>
           <button
             type="button"
-            class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+            class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-body font-bold hover:bg-slate-50"
             @click="close"
           >
             Cancel
           </button>
         </div>
       </template>
-      <p v-else-if="phase === 'preparing'" class="text-[12px] text-slate-600 flex items-center gap-2">
+      <p v-else-if="phase === 'preparing'" class="text-body text-slate-600 flex items-center gap-2">
         <span class="inline-block w-3 h-3 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
         Loading your latest save…
       </p>
       <div
         v-else-if="phase === 'not-ready'"
-        class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-800 space-y-2"
+        class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-small text-red-800 space-y-2"
       >
         <p>{{ notReadyText }}</p>
         <button
           type="button"
-          class="px-3 py-1.5 rounded-md bg-white border border-red-200 text-[10px] font-black uppercase tracking-widest hover:bg-red-100"
+          class="px-3 py-1.5 rounded-md bg-white border border-red-200 text-body font-bold hover:bg-red-100"
           @click="getReady"
         >
           Try again
@@ -115,46 +115,46 @@
 
       <!-- 2. The figures, and Start -->
       <template v-else-if="phase === 'ready'">
-        <div class="grid gap-2 grid-cols-2 sm:grid-cols-4 text-[11px]">
+        <div class="grid gap-2 grid-cols-2 sm:grid-cols-4 text-body">
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Routes</div>
+            <div class="label text-slate-400">Routes</div>
             <div class="font-bold text-slate-800">{{ chainCount.toLocaleString() }}</div>
           </div>
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">Ascensions</div>
+            <div class="label text-slate-400">Ascensions</div>
             <div class="font-bold text-slate-800">{{ ascensions }}</div>
           </div>
           <div class="rounded-lg bg-slate-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">From → to</div>
+            <div class="label text-slate-400">From → to</div>
             <div class="font-bold text-slate-800">TE {{ Math.floor(store.currentTE) }} → {{ store.finalTE }}</div>
           </div>
           <div class="rounded-lg bg-indigo-50 px-3 py-2">
-            <div class="text-[9px] font-black uppercase tracking-widest text-indigo-400">About how long</div>
-            <div class="font-black text-indigo-900">{{ chainCount ? roughly(hours) : '—' }}</div>
+            <div class="label text-indigo-400">About how long</div>
+            <div class="font-bold text-indigo-900">{{ chainCount ? roughly(hours) : '—' }}</div>
           </div>
         </div>
-        <p class="text-[10px] text-slate-400 -mt-2">
+        <p class="text-small text-slate-400 -mt-2">
           The time is {{ measuredCost ? `from ${thisDevice()}’s own measured speed` : speedSource }}, on the workers
           below. Real runs often go faster: plans that share their first ascensions share the work.
         </p>
 
         <p
           v-if="!chainCount"
-          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] font-semibold text-amber-800"
+          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body font-bold text-amber-800"
         >
           {{ NO_FIT_TEXT }} From TE {{ Math.floor(store.currentTE) }} its ascension ranges leave no room above where
           your save is.
         </p>
         <p
           v-else-if="tooBig"
-          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] font-semibold text-amber-800"
+          class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-body font-bold text-amber-800"
         >
           That is longer than most people will leave a tab open. It can still be run, and stopping it early sends what
           it has, marked partial.
         </p>
 
         <label class="block space-y-1">
-          <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
+          <span class="flex items-baseline justify-between text-body font-bold text-slate-700">
             <span>How much of {{ thisDevice() }} to use</span>
             <span>{{ store.workerBudget }} of {{ store.machineThreads }} workers</span>
           </span>
@@ -167,15 +167,15 @@
             class="w-full accent-indigo-600"
             @input="setWorkers(($event.target as HTMLInputElement).value)"
           />
-          <span class="block text-[10px] text-slate-500">
+          <span class="block text-small text-slate-500">
             Fewer keep the computer usable and quieter; more finish sooner. It can be changed during the run too, from
             this window.
           </span>
         </label>
 
-        <p v-if="timeOffText" class="text-[11px] text-slate-600">
+        <p v-if="timeOffText" class="text-body text-slate-600 max-w-prose">
           Planned around your time off (<b>{{ timeOffText }}</b
-          >). It still prices every route, but the result goes on the board with the time-off runs and won’t fill this
+          >). It still prices every route, but the result goes on the Leaderboard with the time-off runs and won’t fill this
           gap.
         </p>
 
@@ -186,66 +186,55 @@
             v-model="consent"
             consent-id="scienceSweep"
             testid="sweep-consent"
-            label-class="text-[11px] text-slate-700"
-            summary-class="text-[11px] text-slate-700"
-            withdrawn-text="Withdrawn: this sweep's result will not be sent."
+            label-class="text-body text-slate-700"
+            summary-class="text-body text-slate-700"
+            withdrawn-text="Withdrawn: this sweep’s result will not be sent."
           >
             <template #summary>
-              <span>You agreed the sweep is sent to the board automatically when it finishes</span>
+              <span>You agreed the sweep is sent to the Leaderboard automatically when it finishes</span>
             </template>
             <template #text>
               <span>
               I understand it takes about <b>{{ roughly(hours) }}</b
               >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
-              <b>sent to the board automatically</b>, tagged {{ request.preset }}.
+              <b>sent to the Leaderboard automatically</b>, tagged {{ request.preset }}.
               <button type="button" class="font-bold text-indigo-700 underline" @click="showWhat = !showWhat">
                 What gets sent?
               </button>
             </span>
             </template>
           </ConsentBox>
-          <p v-if="showWhat" class="pl-6 text-[11px] text-slate-500 leading-relaxed">
+          <p v-if="showWhat" class="pl-6 text-body text-slate-500 max-w-prose">
             The route, its timings and the full CSV, with your artifact inventory, time zone and local plan start, plus a
             random code this browser keeps for the account (never your player ID, and never shown). The code folds
             repeated sends together, lets you put your name on a run sent anonymously, and lets your own later runs
             replace your older plans. In its last few seconds the sweep also re-prices your best three plans already on
-            the board from this save, and those are sent too.
+            the Leaderboard from this save, and those are sent too.
           </p>
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 pl-6 text-[11px] font-bold text-slate-700">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input v-model="anonymous" type="radio" :value="true" class="text-indigo-600" />
-              Submit anonymously
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input v-model="anonymous" type="radio" :value="false" class="text-indigo-600" />
-              Credit me as
-            </label>
-            <input
-              v-model="nickname"
-              type="text"
-              maxlength="40"
-              placeholder="nickname"
-              aria-label="Nickname"
-              :disabled="anonymous"
-              class="w-40 rounded-md border-indigo-200 text-[12px] font-normal text-slate-800 disabled:opacity-40"
-              @input="nicknameTouched = true"
-            />
-          </div>
+          <!-- The one sharing line and its Change (SharingSummary.vue, ux29 #11): the account's credit, as on every
+               screen; the agreement above stays this runner's own. -->
+          <SharingSummary
+            v-model:anonymous="anonymous"
+            v-model:nickname="nickname"
+            :on="consent"
+            class="pl-6 text-body text-slate-700"
+            @nickname-typed="nicknameTouched = true"
+          />
         </div>
-        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="text-[11px] text-slate-700" />
+        <RunNoteBox v-model="store.runNote" :disabled="store.isRunning" class="text-small text-slate-700" />
 
         <IntegrityNotice />
         <div class="flex flex-wrap items-center gap-3">
           <button
             type="button"
             :disabled="!canStart"
-            class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-40"
+            class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500 disabled:opacity-40"
             @click="start"
           >
             Start and submit when done
           </button>
-          <span v-if="!consent && chainCount" class="text-[10px] text-slate-500">Tick “I understand” first.</span>
-          <span v-if="store.saveNotReady" class="text-[10px] font-semibold text-amber-700">{{
+          <span v-if="!consent && chainCount" class="text-small text-slate-500">Tick “I understand” first.</span>
+          <span v-if="store.saveNotReady" class="text-small font-bold text-amber-700">{{
             store.saveNotReady
           }}</span>
         </div>
@@ -254,7 +243,7 @@
       <!-- 3. Running, sending, done -->
       <template v-else-if="run">
         <div v-if="run.phase !== 'done'" class="space-y-2">
-          <div class="flex flex-wrap items-baseline justify-between gap-2 text-[12px]">
+          <div class="flex flex-wrap items-baseline justify-between gap-2 text-small">
             <span class="font-bold text-slate-800">
               <SendingText v-if="run.phase === 'sending'" text="Sending the result" />
               <template v-else-if="run.phase === 'starting' || !store.chainsEstimated">Starting…</template>
@@ -262,7 +251,7 @@
                 {{ pricedSoFar.toLocaleString() }} of {{ plural(store.chainsEstimated, 'route') }}
               </template>
             </span>
-            <span v-if="run.phase === 'running' && leftLabel" class="text-[11px] text-slate-500"
+            <span v-if="run.phase === 'running' && leftLabel" class="text-small text-slate-500"
               >about {{ leftLabel }} left</span
             >
           </div>
@@ -274,13 +263,13 @@
             ></div>
             <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
           </div>
-          <p v-if="store.bestDays > 0 && run.phase === 'running'" class="text-[11px] text-slate-600">
-            Best so far: <span class="font-mono-premium">{{ store.bestChain.join(' → ') }}</span
+          <p v-if="store.bestDays > 0 && run.phase === 'running'" class="text-body text-slate-600">
+            Best so far: <span class="tabular-nums">{{ store.bestChain.join(' → ') }}</span
             >, done {{ finishDate }}.
           </p>
 
           <label v-if="run.phase === 'running'" class="block space-y-1">
-            <span class="flex items-baseline justify-between text-[11px] font-bold text-slate-700">
+            <span class="flex items-baseline justify-between text-small font-bold text-slate-700">
               <span>Workers</span>
               <span>{{ store.workerBudget }} of {{ store.machineThreads }}</span>
             </span>
@@ -299,29 +288,29 @@
             <button
               type="button"
               :disabled="stopping"
-              class="px-4 py-2 rounded-lg bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-50"
+              class="px-4 py-2 rounded-lg bg-slate-900 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-50"
               @click="stop"
             >
               <SendingText v-if="stopping" text="Stopping" /><template v-else>Stop and send what it has</template>
             </button>
-            <span class="text-[10px] text-slate-500">
+            <span class="text-small text-slate-500">
               You can close this window and look around: it keeps going, with its progress at the top of every tab.
             </span>
           </div>
         </div>
 
         <div v-else class="space-y-3">
-          <p v-if="store.bestDays > 0" class="text-[12px] text-slate-800">
+          <p v-if="store.bestDays > 0" class="text-body text-slate-800 max-w-prose">
             <template v-if="store.stoppedEarly"
               >Stopped early, after {{ plural(store.chainsDone, 'route') }}.
             </template>
             <template v-else>Done: every route in the sweep was priced. </template>
-            The fastest was <span class="font-mono-premium font-bold">{{ store.bestChain.join(' → ') }}</span
+            The fastest was <span class="tabular-nums font-bold">{{ store.bestChain.join(' → ') }}</span
             >, done {{ finishDate }} ({{ store.bestDays.toFixed(2) }} days).
           </p>
           <p
             v-if="run.report"
-            class="rounded-lg border px-3 py-2 text-[11px]"
+            class="rounded-lg border px-3 py-2 text-body"
             :class="
               !run.report.ok
                 ? 'bg-red-50 border-red-200 text-red-800'
@@ -335,20 +324,20 @@
           <div class="flex flex-wrap gap-2">
             <button
               type="button"
-              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500"
+              class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500"
               @click="emit('show-result')"
             >
               See it in {{ NAMES.full }}
             </button>
             <button
               type="button"
-              class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+              class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-body font-bold hover:bg-slate-50"
               @click="dismiss"
             >
               Close
             </button>
           </div>
-          <p class="text-[10px] text-slate-400">
+          <p class="text-small text-slate-400">
             {{ fastestName(store.finalTE) }} › {{ NAMES.fullFirst }} has the whole result: the table, the CSV, building
             the plan, and sending it again by hand if this send didn’t go through.
           </p>
@@ -359,6 +348,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
 import { thisDevice } from '@/search/device';
 import { confirmBigBox } from '@/composables/useBigBoxConfirm';
 import { plural } from '@/lib/format';
@@ -380,6 +370,7 @@ import type { SweepRequest } from '@/search/sweepRequest';
 import { describeFirstAscension } from '@/search/firstAscension';
 import IntegrityNotice from '@/components/auto/IntegrityNotice.vue';
 import ConsentBox from '@/components/auto/ConsentBox.vue';
+import SharingSummary from '@/components/SharingSummary.vue';
 import { useConsent } from '@/composables/useConsent';
 
 const props = defineProps<{
@@ -629,15 +620,11 @@ const leftLabel = computed(() => {
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 const finishDate = computed(() =>
   store.bestDays > 0
-    ? new Intl.DateTimeFormat(undefined, {
-        timeZone: zone.value,
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      }).format(new Date((store.planStart + store.bestDays * 86400) * 1000))
+    ? formatMoment((store.planStart + store.bestDays * 86400) * 1000, {
+        zone: zone.value,
+        weekday: true,
+        dateOnlyWhenFar: true,
+      })
     : ''
 );
 

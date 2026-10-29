@@ -1,5 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { isSmallDevice } from './device';
+import { checkWorkers, isSafari, isSmallDevice, releaseRouteWorkers, SAFARI_CHECK_WORKERS } from './device';
 
 const desktop = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/129.0 Safari/537.36';
 describe('isSmallDevice', () => {
@@ -36,5 +38,54 @@ describe('isPhone (12 Oct 2026)', () => {
     expect(isPhone({ userAgent: 'Mozilla/5.0 (Macintosh)' }, coarse(390))).toBe(true);
     expect(isPhone({ userAgent: 'Mozilla/5.0 (Macintosh)' }, coarse(1024))).toBe(false);
     expect(isPhone({ userAgent: 'Mozilla/5.0 (Windows NT 10.0)' }, fine(390))).toBe(false);
+  });
+});
+
+describe('isSafari', () => {
+  it('is Safari on the Mac and iOS, never Chrome, Edge, Firefox or Android', () => {
+    const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
+    expect(isSafari({ userAgent: mac })).toBe(true);
+    expect(isSafari({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1' })).toBe(true);
+    const chrome = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+    expect(isSafari({ userAgent: chrome })).toBe(false);
+    expect(isSafari({ userAgent: chrome + ' Edg/130.0' })).toBe(false);
+    expect(isSafari({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 CriOS/130 Mobile Safari/604.1' })).toBe(false);
+    expect(isSafari({ userAgent: 'Mozilla/5.0 (Linux; Android 14) Mobile Safari' })).toBe(false);
+    expect(isSafari({})).toBe(false);
+  });
+});
+
+describe('checkWorkers', () => {
+  it('holds Check exactly and Light to three workers on Safari, as asked elsewhere', () => {
+    expect(SAFARI_CHECK_WORKERS).toBe(3);
+    expect(checkWorkers(4, true)).toBe(3);
+    expect(checkWorkers(2, true)).toBe(2);
+    expect(checkWorkers(4, false)).toBe(4);
+    expect(checkWorkers(0, false)).toBe(1);
+  });
+});
+
+describe('releaseRouteWorkers (Safari, 24 Oct 2026)', () => {
+  const at = (answer: string, polish: string, prestige: string, safari = true) =>
+    releaseRouteWorkers({ safari, answer, polish, prestige });
+  it('on Safari, once the answer, the polish and Prestige by are all done, in that order', () => {
+    expect(at('loading', 'idle', 'idle')).toBe(false);
+    expect(at('done', 'running', 'idle')).toBe(false);
+    expect(at('done', 'done', 'running')).toBe(false);
+    expect(at('done', 'done', 'done')).toBe(true);
+    // No "Prestige by" (off, or nothing to work out), a failed one, a failed answer: nothing left for them.
+    expect(at('done', 'done', 'idle')).toBe(true);
+    expect(at('done', 'done', 'error')).toBe(true);
+    expect(at('error', 'idle', 'idle')).toBe(true);
+  });
+  it('never on other browsers', () => {
+    expect(at('done', 'done', 'done', false)).toBe(false);
+  });
+  it('InstantRoute lets the pool sleep on it, before the watch that starts the nearest tables after Prestige by', () => {
+    const vue = fs.readFileSync(path.resolve(__dirname, '../components/auto/InstantRoute.vue'), 'utf8');
+    const release = vue.indexOf('releaseRouteWorkers({');
+    expect(release).toBeGreaterThan(0);
+    expect(vue.slice(release, release + 400)).toMatch(/free => \{\s*if \(free\) pool\?\.sleep\(\);/);
+    expect(release).toBeLessThan(vue.indexOf("() => prestigeStatus.value === 'running',"));
   });
 });

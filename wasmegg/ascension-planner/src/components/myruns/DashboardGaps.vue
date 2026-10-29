@@ -1,7 +1,7 @@
 <!--
-  My runs' Next steps (lib/myRunsDashboard.ts `buildSteps`): what to do about your runs, each item with a
-  one-line reason and one button. The first few show; the rest fold under "n more". Nothing to flag: one
-  calm line. No runs at all: the Egg Day item and a line on how runs get here.
+  My runs' Next steps (lib/myRunsDashboard.ts `buildSteps`, reworked 24 Oct 2026): only what changes what to do, each
+  item with a one-line reason and one button. The first few show; the rest fold under "n more". Nothing to do: one
+  calm line.
 -->
 <template>
   <section
@@ -9,67 +9,47 @@
     aria-label="Next steps"
     data-testid="my-runs-steps"
   >
-    <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-700">Next steps</h3>
-    <p v-if="state.loading" class="text-[11px] text-slate-500" data-testid="my-runs-steps-loading">
-      Checking your runs on the board…
-    </p>
-    <p
-      v-if="!state.loading && !state.steps.length"
-      class="text-[11px] text-emerald-800 font-semibold"
-      data-testid="my-runs-steps-none"
-    >
-      Nothing to flag: your runs look current.
+    <p v-if="!state.steps.length" class="text-body text-emerald-800 font-bold" data-testid="my-runs-steps-none">
+      Nothing to change: keep following your route.
     </p>
     <ul v-if="shown.length" class="space-y-2">
       <li v-for="s in shown" :key="s.id" v-bind="itemAttrs(s)">
         <div class="min-w-0 flex gap-2">
-          <span aria-hidden="true" class="mt-0.5 text-[11px]" :class="s.info ? 'text-slate-400' : 'text-emerald-700'">{{
-            s.info ? 'ⓘ' : '☐'
-          }}</span>
+          <span aria-hidden="true" class="mt-0.5 text-small text-emerald-700">☐</span>
           <div class="min-w-0">
-            <p class="text-[12px] font-bold text-slate-900 leading-snug">{{ s.text }}</p>
-            <p class="text-[11px] text-slate-600 leading-snug">{{ s.reason }}</p>
+            <p class="text-body font-bold text-slate-900">{{ s.text }}</p>
+            <p class="text-body text-slate-600">{{ s.reason }}</p>
           </div>
         </div>
-        <button type="button" :class="buttonClass(s)" :data-testid="`my-runs-step-${s.id}-button`" @click="act(s)">
+        <button type="button" :class="BUTTON" :data-testid="`my-runs-step-${s.id}-button`" @click="act(s)">
           {{ s.button }}
         </button>
       </li>
     </ul>
     <details v-if="more.length" data-testid="my-runs-steps-more">
-      <summary class="cursor-pointer text-[10px] font-black uppercase tracking-widest text-emerald-800">
+      <summary class="cursor-pointer text-body font-bold text-emerald-800">
         {{ more.length }} more
       </summary>
       <ul class="mt-2 space-y-2">
         <li v-for="s in more" :key="s.id" v-bind="itemAttrs(s)">
           <div class="min-w-0 flex gap-2">
-            <span
-              aria-hidden="true"
-              class="mt-0.5 text-[11px]"
-              :class="s.info ? 'text-slate-400' : 'text-emerald-700'"
-              >{{ s.info ? 'ⓘ' : '☐' }}</span
-            >
+            <span aria-hidden="true" class="mt-0.5 text-small text-emerald-700">☐</span>
             <div class="min-w-0">
-              <p class="text-[12px] font-bold text-slate-900 leading-snug">{{ s.text }}</p>
-              <p class="text-[11px] text-slate-600 leading-snug">{{ s.reason }}</p>
+              <p class="text-body font-bold text-slate-900">{{ s.text }}</p>
+              <p class="text-body text-slate-600">{{ s.reason }}</p>
             </div>
           </div>
-          <button type="button" :class="buttonClass(s)" :data-testid="`my-runs-step-${s.id}-button`" @click="act(s)">
+          <button type="button" :class="BUTTON" :data-testid="`my-runs-step-${s.id}-button`" @click="act(s)">
             {{ s.button }}
           </button>
         </li>
       </ul>
     </details>
-    <p v-if="state.noRuns" class="text-[11px] text-slate-600 leading-relaxed" data-testid="my-runs-steps-guide">
-      Nothing here yet. Run a search on {{ fastestName() }} or {{ NAMES.byDate }}, then share it or save it: it shows up
-      here.
-    </p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { NAMES, fastestName } from '@/lib/siteNav';
 import { STEPS_SHOWN, type DashAction, type DashStep, type DashSteps } from '@/lib/myRunsDashboard';
 
 const props = defineProps<{ state: DashSteps }>();
@@ -85,14 +65,9 @@ function itemAttrs(s: DashStep) {
   };
 }
 
-function buttonClass(s: DashStep): string {
-  return [
-    'self-start sm:self-auto shrink-0 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest',
-    s.info
-      ? 'border border-slate-300 text-slate-600 hover:border-slate-400'
-      : 'bg-emerald-600 text-white hover:bg-emerald-700',
-  ].join(' ');
-}
+/** 44 px tall on a phone (a tap target), compact beside the text from `sm` up. */
+const BUTTON =
+  'self-start sm:self-auto shrink-0 min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md text-body font-bold bg-emerald-600 text-white hover:bg-emerald-700';
 
 function act(s: DashStep): void {
   emit('act', s.action);

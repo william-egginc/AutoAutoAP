@@ -61,6 +61,9 @@ export interface SnapWhatIf {
   /** The player's own instant answer it was compared with. */
   mineEnd: number | null;
   mineTE: number;
+  /** By a date: when maxed gear reaches the player's own TE (`mineTE`), the fastest route to it on the maxed table, unix
+   *  seconds; null when none. Absent before 25 Oct 2026 (My runs' "With a perfect set" line then says nothing). */
+  sameEnd?: number | null;
 }
 
 function readIndex(st: StorageLike): IndexEntry[] {
@@ -136,6 +139,48 @@ export function readSnapIndex(st: StorageLike | null = defaultStorage()): IndexE
   return st ? readIndex(st) : [];
 }
 
+/** How old an answer may be and still be shown while the answer is worked out again (marked "From <time>,
+ *  checking…"): never put back as the answer, only shown until the fresh one is in. */
+export const STALE_MAX_AGE_MS = 30 * 24 * 3600_000;
+
+function readStale<T extends { at: number }>(key: string, now: number, st: StorageLike): T | null {
+  try {
+    const v = JSON.parse(st.getItem(SNAP_PREFIX + key) ?? 'null') as (T & { result?: unknown; header?: unknown }) | null;
+    if (!v || typeof v.at !== 'number' || now - v.at > STALE_MAX_AGE_MS || v.at > now + 3600_000) return null;
+    return v.result && v.header ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * CACHED ANSWERS FIRST, THEN RECHECK (Jordan, 27 Oct 2026: "answers recalculating with nothing shown"). The answer to
+ * show while the one for `key` is worked out again: `key`'s own even when it no longer fits (over a day old, other
+ * tables, older rules), else the newest of the same account and goal under any other key (another setup, save or
+ * table identity: stale, but better than blank). Up to STALE_MAX_AGE_MS old; null when there is none (the first ever:
+ * the loading line as before). `readSnapshot`, the exact path, is unchanged.
+ */
+export function latestSnapshotFor<T extends { at: number }>(
+  o: { key: string | null; account: string | null | undefined; goal: string },
+  now = Date.now(),
+  st: StorageLike | null = defaultStorage()
+): { key: string; value: T } | null {
+  if (!st) return null;
+  if (o.key) {
+    const own = readStale<T>(o.key, now, st);
+    if (own) return { key: o.key, value: own };
+  }
+  if (!o.account) return null;
+  const list = readIndex(st)
+    .filter(e => e.key !== o.key && e.meta?.account === o.account && e.meta?.goal === o.goal)
+    .sort((a, b) => b.at - a.at);
+  for (const e of list) {
+    const v = readStale<T>(e.key, now, st);
+    if (v) return { key: e.key, value: v };
+  }
+  return null;
+}
+
 /**
  * Merge `patch` into the snapshot saved under `key` (its `at` and index place kept). False when there is none
  * or it could not be written. For the maxed what-if, worked out after the answer was saved.
@@ -175,8 +220,14 @@ export function removeSnapshot(key: string | null, st: StorageLike | null = defa
  * would then be the maxed table's when the player's own fits. Such an answer is worked out again.
  * One with no gear note stands: every newer rule matches whatever an older one matched.
  */
-export function snapshotUsable(s: { ownChanged?: string; gearRule?: number } | null, gearRule: number): boolean {
+export function snapshotUsable(
+  s: { ownChanged?: string; gearRule?: number; tableUrl?: string } | null,
+  gearRule: number
+): boolean {
   if (!s) return false;
+  // Read from the version 1 maxed table (precompute/table.bin, before it moved to table-v2.bin): worked out again,
+  // and never taken for the player's own (InstantRoute `own` is any table but the maxed one's URL).
+  if (typeof s.tableUrl === 'string' && /(^|\/)table\.bin(\||$)/.test(s.tableUrl)) return false;
   return !s.ownChanged || (s.gearRule ?? 1) >= gearRule;
 }
 
@@ -218,11 +269,17 @@ export interface InstantKeyInput {
   epic: unknown;
   availability: unknown;
   timeOff: unknown;
+  /** No prestige on these days (Your setup, whole dates): keyed only when some are set, so every answer saved
+   *  without them keeps its key, and one worked out without them is never shown for a setup with them. */
+  noPrestige?: readonly unknown[] | null;
   milestones: unknown;
   firstAscension: string | null | undefined;
   /** "Works inside my hours" in effect. */
   useHours: boolean;
   maxAscensions: number | null;
+  /** The ascensions range's lower end (24 Oct 2026): keyed only when set, so every answer saved under "At most N"
+   *  keeps its key, and one worked out under other bounds is never put back. */
+  minAscensions?: number | null;
 }
 
 /** The first ascension as the boolean it was (true Continue Asc., false Fastest), so answers saved under those
@@ -252,8 +309,14 @@ export function instantKey(i: InstantKeyInput): string {
     artifacts: i.artifacts,
     stones: i.stones,
     epic: i.epic,
-    setup: [i.availability, i.timeOff, i.milestones, keyFirst(i.firstAscension ?? 'auto')],
-    filters: [i.useHours, i.maxAscensions],
+    setup: [
+      i.availability,
+      i.timeOff,
+      i.milestones,
+      keyFirst(i.firstAscension ?? 'auto'),
+      ...(i.noPrestige?.length ? [{ noPrestige: i.noPrestige }] : []),
+    ],
+    filters: [i.useHours, i.maxAscensions, ...(i.minAscensions != null ? [{ min: i.minAscensions }] : [])],
   };
   // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
   const text = JSON.stringify(parts);

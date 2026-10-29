@@ -55,12 +55,14 @@ export function accountOf(rawBackup: unknown): string {
 export function encode(value: unknown): string {
   return JSON.stringify(value, (_k, v) => (typeof v === 'number' && !Number.isFinite(v) ? { __num: String(v) } : v));
 }
+/** `encode`'s numbers back (a JSON.parse reviver). */
+export function reviveNumbers(_k: string, v: unknown): unknown {
+  return v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 1 && typeof (v as { __num?: unknown }).__num === 'string'
+    ? Number((v as { __num: string }).__num)
+    : v;
+}
 export function decode<T>(text: string): T {
-  return JSON.parse(text, (_k, v) =>
-    v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 1 && typeof v.__num === 'string'
-      ? Number(v.__num)
-      : v
-  ) as T;
+  return JSON.parse(text, reviveNumbers) as T;
 }
 
 /**

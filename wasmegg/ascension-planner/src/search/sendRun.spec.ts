@@ -16,6 +16,8 @@ function fakeStore() {
       blackBoxEnd: vi.fn(),
       diagnosticsLine: () => JSON.stringify({ browser: 'chrome on mac', cores: 8 }),
       exportCsvChunks: vi.fn(() => ['c', 'sv']),
+      // The upload's table (no leg spill here: the in-memory chunks, as the store hands them back).
+      fastestUploadCsv: vi.fn(async () => ['c', 'sv']),
       sendSubmission: async (p: Record<string, unknown>, csv?: Iterable<string>) => {
         sent.push({ payload: p, csv: csv ? [...csv].join('') : undefined });
         return { ok: true, message: 'ok' };

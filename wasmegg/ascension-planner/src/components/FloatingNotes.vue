@@ -33,12 +33,12 @@
         </svg>
         <span
           v-if="isCollapsed && notesStore.notes.length > 0"
-          class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow ring-2 ring-white"
+          class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-small font-bold leading-none shadow ring-2 ring-white"
         >{{ notesStore.notes.length > 99 ? '99+' : notesStore.notes.length }}</span>
       </div>
 
       <!-- Title -->
-      <div v-if="!isCollapsed" class="text-lg font-bold text-slate-800 tracking-tight leading-none mb-1 shadow-sm">
+      <div v-if="!isCollapsed" class="text-title font-bold text-slate-800 leading-none mb-1 shadow-sm">
         Plan Notes
       </div>
     </button>
@@ -74,7 +74,7 @@
             <template v-if="editingId === note.id">
               <textarea
                 v-model="editDraft"
-                class="w-full bg-white/80 border border-yellow-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-400 focus:outline-none resize-y min-h-[80px]"
+                class="w-full bg-white/80 border border-yellow-300 rounded-lg p-2 text-body focus:ring-2 focus:ring-yellow-400 focus:outline-none resize-y min-h-[80px]"
                 rows="3"
                 @keydown.enter.ctrl="saveEdit"
                 @keydown.enter.meta="saveEdit"
@@ -82,13 +82,13 @@
                 :ref="(el) => { if (el) (el as HTMLTextAreaElement).focus() }"
               ></textarea>
               <div class="flex justify-end gap-2 mt-2">
-                <button @click="cancelEdit" class="text-xs text-slate-500 hover:text-slate-700 px-2 py-1">Cancel</button>
-                <button @click="saveEdit" class="text-xs font-bold text-white bg-yellow-500 hover:bg-yellow-600 rounded px-2 py-1 shadow-sm">Save</button>
+                <button @click="cancelEdit" class="text-body text-slate-500 hover:text-slate-700 px-2 py-1">Cancel</button>
+                <button @click="saveEdit" class="text-body font-bold text-white bg-yellow-500 hover:bg-yellow-600 rounded px-2 py-1 shadow-sm">Save</button>
               </div>
             </template>
             <template v-else>
               <div 
-                class="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed min-h-[20px]"
+                class="text-body text-slate-800 whitespace-pre-wrap min-h-[20px]"
                 :class="{ 'line-through text-slate-500': note.completed }"
               >{{ note.text }}</div>
               
@@ -123,7 +123,7 @@
         <textarea
           v-model="newNoteText"
           placeholder="Add a new note..."
-          class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 focus:outline-none resize-y transition-all min-h-[80px]"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-body focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 focus:outline-none resize-y transition-all min-h-[80px]"
           rows="3"
           @keydown.enter.ctrl="addNewNote"
           @keydown.enter.meta="addNewNote"
@@ -131,7 +131,7 @@
         <button
           @click="addNewNote"
           :disabled="!newNoteText.trim()"
-          class="mt-2 w-full py-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold text-xs uppercase tracking-widest rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          class="mt-2 w-full py-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold text-body rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         >
           Add Note
         </button>

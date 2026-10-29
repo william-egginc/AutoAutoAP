@@ -27,36 +27,34 @@
 <template>
   <div class="space-y-4" data-testid="latest-run">
     <div v-if="shown === 'none'" class="rounded-xl border border-slate-200 bg-white p-4 space-y-1.5" data-testid="latest-run-empty">
-      <p v-if="store.isRunning && fastestMine && want !== 'date'" class="text-xs text-slate-700">
+      <p v-if="store.isRunning && fastestMine && want !== 'date'" class="text-body text-slate-700 max-w-prose">
         Your run on {{ fastestName(store.finalTE) }} has started: its other options and charts show here as its
         routes are priced.
       </p>
-      <p v-else-if="store.deadlineRunning && dateMine && want !== 'fastest'" class="text-xs text-slate-700">
+      <p v-else-if="store.deadlineRunning && dateMine && want !== 'fastest'" class="text-body text-slate-700">
         Your {{ NAMES.byDate }} run has started: its routes show here when it finishes.
       </p>
-      <p v-else-if="want === 'date'" class="text-xs text-slate-700" data-testid="latest-run-none-date">
+      <p v-else-if="want === 'date'" class="text-body text-slate-700 max-w-prose" data-testid="latest-run-none-date">
         No {{ NAMES.byDate }} run yet on this account: run one on
         <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
         and its routes show here.
       </p>
-      <p v-else-if="want === 'fastest'" class="text-xs text-slate-700" data-testid="latest-run-none-fastest">
-        No {{ fastestName(store.finalTE) }} run yet on this account: run Nearby routes or Exhaustive on it and its routes
+      <p v-else-if="want === 'fastest'" class="text-body text-slate-700 max-w-prose" data-testid="latest-run-none-fastest">
+        No {{ fastestName(store.finalTE) }} run yet on this account: run Fast, Exact or Custom on it and its routes
         show here.
       </p>
-      <p v-else class="text-xs text-slate-700">
+      <p v-else class="text-body text-slate-700 max-w-prose">
         Run a search on {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }} and its routes show here, each with
         when every stop and egg happens.
       </p>
-      <p class="text-[11px] text-slate-500 leading-relaxed">
-        Either way of searching counts ({{ NAMES.smart }} or {{ NAMES.full }}). The pricing that follows Check exactly
-        isn't a search: it prices the instant answer's own routes, so its results are on the instant answer's rows
-        (open a row's arrow after Check exactly) and on the Stronger check's lines.
+      <p class="text-body text-slate-500">
+        Fast, Exact and Custom all count.
       </p>
     </div>
 
     <!-- By a date's run going now: its top routes so far (moved off By a date's progress, 16 Oct 2026). -->
     <template v-else-if="shown === 'date' && !dateResult">
-      <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="latest-run-date-running">
+      <p class="text-body text-slate-600 max-w-prose" data-testid="latest-run-date-running">
         Your
         <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
         run is going<template v-if="store.deadlineProgress"
@@ -92,7 +90,7 @@
 
     <!-- By a date's run: its best route for each stop count and its top 50, each with its arrow. -->
     <template v-else-if="shown === 'date' && dateResult">
-      <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="latest-run-from-date">
+      <p class="text-body text-slate-600 max-w-prose" data-testid="latest-run-from-date">
         From your
         <a :href="byDateHash" class="font-bold text-indigo-700 underline hover:text-indigo-900">{{ NAMES.byDate }}</a>
         run ({{ dateResult.simple ? NAMES.smart : NAMES.full }}, by {{ when(dateResult.deadline) }})<template
@@ -107,7 +105,7 @@
         ><template v-else-if="dateResult.stoppedEarly">, stopped early</template>.
       </p>
       <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4" data-testid="latest-run-by-date">
-        <p class="text-[11px] text-slate-500 leading-relaxed">
+        <p class="text-body text-slate-500 max-w-prose">
           Open a route's arrow for when each stop is reached, then an ascension's for when each egg is shifted and the TE
           it reaches.
         </p>
@@ -149,7 +147,7 @@
     </template>
 
     <template v-else>
-      <p class="text-[11px] text-slate-600 leading-relaxed" data-testid="latest-run-from">
+      <p class="text-body text-slate-600 max-w-prose" data-testid="latest-run-from">
         From your {{ runName }} run on
         <a :href="backHash" class="font-bold text-indigo-700 underline hover:text-indigo-900"
           >{{ fastestName(store.finalTE) }}</a
@@ -162,23 +160,23 @@
            nudged by one TE all over the cache, and ten of those is a useless menu. -->
       <div v-if="store.pricedCount > 1" data-testid="other-options" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div class="flex items-center justify-between gap-3">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          <h3 class="text-slate-500 label">
             Other options worth considering
           </h3>
           <button
             v-if="!store.isRunning"
             type="button"
-            class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
+            class="text-body font-bold text-slate-400 hover:text-slate-600"
             @click="store.rebuildShortlist()"
           >
             Refresh
           </button>
         </div>
 
-        <p class="text-[11px] text-slate-500 leading-relaxed">
+        <p class="text-body text-slate-500 max-w-prose">
           Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
           half a day slower for one fewer ascension may well be the trade you want. Pick on the
-          <span class="font-semibold">finish date</span>, not the day count: durations from different plan starts are
+          <span class="font-bold">finish date</span>, not the day count: durations from different plan starts are
           not comparable.
         </p>
 
@@ -189,7 +187,7 @@
             v-for="v in VIEWS"
             :key="v.id"
             type="button"
-            class="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors"
+            class="px-2.5 py-1 rounded-lg border text-body font-bold transition-colors"
             :class="
               store.shortlistView === v.id
                 ? 'bg-slate-800 border-slate-800 text-white'
@@ -201,38 +199,38 @@
           </button>
         </div>
 
-        <p class="text-[11px] text-slate-500 leading-relaxed">{{ activeView?.hint }}</p>
+        <p class="text-body text-slate-500">{{ activeView?.hint }}</p>
 
         <!-- A single-axis sweep prices dozens of chains that are all the same plan nudged by a few
              TE, so "A good mix" can legitimately have nothing to add beyond the leader. The whole
              section used to vanish in that case, which reads as a bug rather than as an answer. -->
         <p
           v-if="store.shortlist.length <= 1"
-          class="text-[11px] text-slate-500 leading-relaxed rounded-lg border border-slate-200 bg-slate-50 p-3"
+          class="text-body text-slate-500 rounded-lg border border-slate-200 bg-slate-50 p-3"
         >
           Nothing else here is a genuinely different plan: every other route this run priced is the same shape moved
           by a few TE, or more than five days behind. That is normal for a run that only swept one stop, and for one
-          stopped early. Switch to <span class="font-semibold">Fastest</span> to see the quickest of the
+          stopped early. Switch to <span class="font-bold">Fastest</span> to see the quickest of the
           {{ store.pricedCount }}, fastest first.
         </p>
         <div v-else class="overflow-x-auto" data-testid="shortlist">
-          <table class="w-full text-xs">
+          <table class="w-full text-small">
             <thead>
-              <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest text-left">
+              <tr class="text-slate-400 label text-left">
                 <th class="py-2 pr-3">Route</th>
                 <th class="py-2 pr-3">Ascensions</th>
                 <th class="py-2 pr-3">Finishes</th>
                 <th class="py-2 pr-3">Behind</th>
                 <th v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
-                  {{ store.deferShifts ? 'Cost of your hours' : 'Night shifts' }}
+                  {{ store.deferShifts ? 'Cost of awake hours' : 'Night shifts' }}
                   <HelpTip v-if="store.deferShifts">
                     How much of this option's length is waiting for you: prestiges plus the twelve shifts per
-                    ascension, all held until you are available. It is the part of the finish date your schedule is
+                    ascension, all held until your awake hours. It is the part of the finish date your schedule is
                     responsible for, and the number that actually differs between these options. The night-shift count
                     cannot differ, because holding the shifts drives it to zero for every row.
                   </HelpTip>
                   <HelpTip v-else>
-                    Shifts landing outside your hours. You are not holding them, so they are reported and free. This
+                    Shifts landing outside your awake hours. You are not holding them, so they are reported and free. This
                     is the count you would have to get up for.
                   </HelpTip>
                 </th>
@@ -247,7 +245,7 @@
                   <!-- The caret sits with the chain it opens, not off at the far right past six
                        other columns. Same move as the leg table's A1 caret, for the same reason. -->
                   <!-- A long route wraps at its spaces (not the Why column, not off the side). -->
-                  <td class="py-2 pr-3 font-mono font-bold text-slate-700 min-w-[10rem]">
+                  <td class="py-2 pr-3 tabular-nums font-bold text-slate-700 min-w-[10rem]">
                     <!-- Every row: one without its legs can have them worked out (search/legsOnDemand.ts). -->
                     <button
                       type="button"
@@ -262,8 +260,11 @@
                   </td>
                   <td class="py-2 pr-3 font-bold text-slate-600">{{ row.prestiges }}</td>
                   <td class="py-2 pr-3 text-slate-600 whitespace-nowrap">{{ finishInstant(row.seconds) }}</td>
-                  <td class="py-2 pr-3 text-slate-500 whitespace-nowrap">
-                    {{ row.gapSeconds < 1 ? '—' : '+' + (row.gapSeconds / 86400).toFixed(2) + ' d' }}
+                  <td
+                    class="py-2 pr-3 text-slate-500 whitespace-nowrap"
+                    :title="row.gapSeconds < 1 ? undefined : '+' + (row.gapSeconds / 86400).toFixed(2) + ' days'"
+                  >
+                    {{ row.gapSeconds < 1 ? '—' : '+' + roundedGap(row.gapSeconds) }}
                   </td>
                   <!-- null, not 0: a replayed chain has no legs to count, and "0" would be a claim. -->
                   <td v-if="store.scheduleEnabled" class="py-2 pr-3 whitespace-nowrap">
@@ -284,7 +285,7 @@
                   <td class="py-2 text-right whitespace-nowrap">
                     <button
                       type="button"
-                      class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                      class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
                       @click="use(row.chain, true)"
                     >
                       Use
@@ -297,7 +298,7 @@
                     <RouteTimeline v-if="row.legs.length" :chain="row.chain" :legs="row.legs" :zone="zone" />
                     <!-- No legs kept (past the run's leg budget, or a saved run reopened): worked out on one
                          worker when asked (search/legsOnDemand.ts), from the run's plan start. -->
-                    <div v-else class="space-y-1.5 text-[11px]" data-testid="legs-on-demand">
+                    <div v-else class="space-y-1.5 text-small" data-testid="legs-on-demand">
                       <template v-if="demandOf(row)?.state === 'done'">
                         <p v-if="driftOf(row)" class="text-amber-800" data-testid="legs-on-demand-drift">{{ driftOf(row) }}</p>
                         <RouteTimeline :chain="row.chain" :legs="demandOf(row)!.legs" :zone="zone" />
@@ -325,7 +326,7 @@
                         </p>
                         <button
                           type="button"
-                          class="px-2.5 py-1 rounded-md border border-slate-300 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-40"
+                          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-40"
                           :disabled="anythingRunning"
                           :title="anythingRunning ? 'After the search or check that is running' : 'Simulates this route on one worker'"
                           data-testid="legs-on-demand-start"
@@ -335,12 +336,12 @@
                         </button>
                       </template>
                     </div>
-                    <p class="text-[10px] text-slate-400 leading-relaxed">
+                    <p class="text-small text-slate-400">
                       Open an ascension for its eggs: when the farm first moves onto each, and the TE it has when it
                       last moves off it.
                       <template v-if="store.scheduleEnabled && store.deferShifts">
-                        Every shift has already been moved into your hours, which is what this option's
-                        <span class="font-semibold">cost</span> above paid for.
+                        Every shift has already been moved into your awake hours, which is what this option's
+                        <span class="font-bold">cost</span> above paid for.
                       </template>
                     </p>
                   </td>
@@ -350,8 +351,8 @@
           </table>
         </div>
 
-        <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-relaxed">
-          Every view above reads the <span class="font-semibold">{{ store.csvRows.toLocaleString() }}</span>
+        <p class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          Every view above reads the <span class="font-bold">{{ store.csvRows.toLocaleString() }}</span>
           routes this run priced, so switching costs nothing and re-simulates nothing. A route missing from all of
           them was almost certainly never evaluated rather than evaluated and beaten: the search stays in its own
           neighbourhood. Download the CSV for the full list.
@@ -362,10 +363,10 @@
            meant finishing a three-hour run and opening a spreadsheet. -->
       <div v-if="store.pricedCount" data-testid="search-shape" class="p-4 rounded-xl border border-slate-200 bg-white space-y-4">
         <div class="flex items-center justify-between gap-3">
-          <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">The shape of this search</h3>
+          <h3 class="text-slate-500 label">The shape of this search</h3>
           <button
             type="button"
-            class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
+            class="text-body font-bold text-slate-400 hover:text-slate-600"
             @click="store.setChartShown(!store.chartShown)"
           >
             {{ store.chartShown ? 'Hide' : 'Show' }}
@@ -378,14 +379,14 @@
           <!-- Nearby routes only: the words are about its stages (descent); Exhaustive never showed it. -->
           <div
             v-if="store.chainRunKind === 'smart'"
-            class="rounded-lg border p-3 text-[11px] leading-relaxed"
+            class="rounded-lg border p-3 text-body"
             :class="
               runOutcome.tone === 'good'
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
                 : 'border-amber-200 bg-amber-50 text-amber-900'
             "
           >
-            <span class="font-bold uppercase tracking-wide">{{ runOutcome.title }}:</span>
+            <span class="label">{{ runOutcome.title }}:</span>
             {{ runOutcome.detail }}
           </div>
 
@@ -395,7 +396,7 @@
     </template>
 
     <!-- The other search's run, when there is one too: the view shows the newest, this switches. -->
-    <p v-if="other && want === undefined" class="text-[11px] text-slate-500" data-testid="latest-run-other">
+    <p v-if="other && want === undefined" class="text-body text-slate-500" data-testid="latest-run-other">
       <button type="button" class="font-bold text-indigo-700 underline hover:text-indigo-900" @click="pick = other">
         Show your {{ other === 'date' ? NAMES.byDate : fastestName(store.finalTE) }} run instead
       </button>
@@ -405,6 +406,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatMoment } from '@/lib/clock';
+import { roundedGap } from '@/lib/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
@@ -615,15 +618,7 @@ const runOutcome = computed<{ title: string; detail: string; tone: 'good' | 'war
 function finishInstant(seconds: number): string {
   if (!seconds) return '—';
   const tz = autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: tz,
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date((store.planStart + seconds) * 1000));
+  return formatMoment((store.planStart + seconds) * 1000, { zone: tz, weekday: true, dateOnlyWhenFar: true });
 }
 
 /** Why a runner-up is on the list, in words. A bare ranking invites "so why is #4 here?". */
@@ -659,7 +654,7 @@ const onDemand = createLegsOnDemand(createChainSearchPool);
 const stronger = useStrongerStore();
 /** The plan start the run's routes were priced from. */
 const runStart = computed(() => store.planStartUsed || store.planStart);
-const anythingRunning = computed(() => store.busy || stronger.exact.running);
+const anythingRunning = computed(() => store.busy);
 watch(anythingRunning, on => on && onDemand.cancel());
 onBeforeUnmount(() => onDemand.cancel());
 function demandOf(row: ShortlistRow): LegsOnDemand | undefined {

@@ -55,7 +55,8 @@ export interface IntegrityRequest {
 }
 
 /** "Continue my build-up" as the instant answer's tails, one per sale variant, timed from the plan
- *  start (`buildUpTailParams` in search/leg.ts): a few seconds of simulation, so it runs here. */
+ *  start (`buildUpTailParamsV2` in search/leg.ts, with table version 2's extras): a few seconds of
+ *  simulation, so it runs here. */
 export interface BuildUpTailsRequest {
   kind: 'buildup-tails';
   requestId: number;

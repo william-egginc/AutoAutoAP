@@ -136,19 +136,19 @@ describe("Light's candidate list and its order", () => {
 
   it('says where they came from', () => {
     const r = earlierRoutes({ goal: DATE, currentTE: TE_NOW, board, exclude });
-    expect(earlierFromText(r)).toBe('from your board runs, 2 of them sent from another browser');
+    expect(earlierFromText(r)).toBe('from your Leaderboard runs, 2 of them sent from another browser');
     expect(earlierFromText(r.filter(x => x.source === 'board-other'))).toBe(
-      'from your board runs sent from another browser'
+      'from your Leaderboard runs sent from another browser'
     );
     expect(
       earlierFromText([
         { chain: [1], source: 'board-other' },
         { chain: [2], source: 'saved-answer' },
       ])
-    ).toBe('from your board run sent from another browser and your saved answer');
+    ).toBe('from your Leaderboard run sent from another browser and your saved answer');
     expect(earlierFromText([])).toBe('');
     expect(sourceLabel(r[0], t => `T${t}`)).toBe(
-      `your board run, sent T${Date.parse('2026-10-17T12:00:00Z')} from another browser`
+      `your Leaderboard run, sent T${Date.parse('2026-10-17T12:00:00Z')} from another browser`
     );
   });
 
@@ -228,12 +228,8 @@ describe("readMyBoardRows: one fetch layer, the board's /all reused for a minute
 });
 
 describe('the sources wire through', () => {
-  it('StrongerCheck.vue reads the board through search/myBoardRows.ts, not /mine on its own', async () => {
+  it('the board panel reads the account\'s runs through search/myBoardRows.ts (StrongerCheck.vue, gone 23 Oct 2026, did too)', async () => {
     const fs = await import('node:fs');
-    const src = fs.readFileSync(new URL('../components/auto/StrongerCheck.vue', import.meta.url), 'utf8');
-    expect(src).toContain('readMyBoardRows(');
-    expect(src).toContain('lookAlikeFor(');
-    expect(src).not.toMatch(/fetch\(`\$\{root\}\/mine`/);
     const board = fs.readFileSync(new URL('../components/auto/LeaderboardPanel.vue', import.meta.url), 'utf8');
     expect(board).toContain('rememberAll(root.value, rows)');
     expect(board).toContain('lookAlikeFor(');

@@ -9,8 +9,9 @@
   <div class="space-y-2">
     <svg
       v-if="heat"
+      ref="svgEl"
       :viewBox="`0 0 ${W} ${H}`"
-      class="w-full h-auto select-none"
+      class="w-full h-auto select-none tabular-nums"
       role="img"
       :aria-label="`Heat map of ${chainCount(heat.total)}: last stop against days`"
       @mouseleave="hover = null"
@@ -30,7 +31,7 @@
       </g>
       <!-- fastest per column -->
       <g>
-        <circle v-for="d in bestDots" :key="d.k" :cx="d.x" :cy="d.y" r="2.5" fill="#0f172a" />
+        <circle v-for="d in bestDots" :key="d.k" :cx="d.x" :cy="d.y" r="3" fill="#0f172a" />
       </g>
       <rect
         v-if="hover"
@@ -49,9 +50,9 @@
         v-for="t in xTicks"
         :key="'x' + t.v"
         :x="t.p"
-        :y="H - B + 14"
+        :y="H - B + lay.xLabelY"
         text-anchor="middle"
-        font-size="10"
+        :font-size="lay.fontSize"
         fill="#64748b"
       >
         {{ t.v }}
@@ -60,29 +61,32 @@
         v-for="t in yTicks"
         :key="'y' + t.v"
         :x="L - 6"
-        :y="t.p + 3"
+        :y="t.p + lay.fontSize / 3"
         text-anchor="end"
-        font-size="10"
+        :font-size="lay.fontSize"
         fill="#64748b"
       >
         {{ t.v }}
       </text>
-      <text :x="(L + W - R) / 2" :y="H - 4" text-anchor="middle" font-size="10" fill="#94a3b8">last stop (TE)</text>
+      <text :x="(L + W - R) / 2" :y="lay.xTitleY" text-anchor="middle" :font-size="lay.fontSize" fill="#94a3b8">
+        last stop (TE)
+      </text>
       <text
-        :x="12"
+        :x="lay.yTitleX"
         :y="T + plotH / 2"
         text-anchor="middle"
-        font-size="10"
+        dominant-baseline="central"
+        :font-size="lay.fontSize"
         fill="#94a3b8"
-        :transform="`rotate(-90 12 ${T + plotH / 2})`"
+        :transform="`rotate(-90 ${lay.yTitleX} ${T + plotH / 2})`"
       >
         days
       </text>
     </svg>
-    <p v-else class="px-4 py-10 text-center text-[10px] font-bold text-slate-400">
+    <p v-else class="px-4 py-10 text-center text-small font-bold text-slate-400">
       Nothing priced yet. This fills in as the search reports batches.
     </p>
-    <p class="text-[11px] text-slate-500 px-1 min-h-[1.25rem]">
+    <p class="text-body text-slate-500 px-1 min-h-[1.25rem] max-w-prose">
       <template v-if="hover">
         Last stop {{ hover.xLo === hover.xHi ? hover.xLo : `${hover.xLo}–${hover.xHi}` }} TE, {{ hover.yLo.toFixed(1) }}–{{ hover.yHi.toFixed(1) }} days:
         <span class="font-bold text-slate-700">{{ chainCount(hover.count) }}</span>
@@ -95,28 +99,55 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { chainCount, heatView, integerTicks, type HeatSnapshot } from '@/lib/chartThin';
+import { FALLBACK_WIDTH, X_GAPS, Y_GAPS, heatLayout } from './heatLayout';
 
 const props = defineProps<{ heat: HeatSnapshot | null }>();
 
-const W = 600;
-const H = 260;
-const L = 52;
-const R = 10;
-const T = 8;
-const B = 34;
-const plotW = W - L - R;
-const plotH = H - T - B;
+// The frame follows the drawn width (heatLayout.ts: one unit is one px, so labels are 12 px on a phone too).
+const svgEl = ref<SVGSVGElement | null>(null);
+const drawnWidth = ref(FALLBACK_WIDTH);
+let resize: ResizeObserver | null = null;
+function measure() {
+  const w = svgEl.value?.getBoundingClientRect().width ?? 0;
+  if (w > 0 && Math.abs(w - drawnWidth.value) >= 1) drawnWidth.value = w;
+}
+function observe(el: SVGSVGElement | null) {
+  resize?.disconnect();
+  if (!el || typeof ResizeObserver === 'undefined') return;
+  resize = new ResizeObserver(measure);
+  resize.observe(el);
+  measure();
+}
+onMounted(() => observe(svgEl.value));
+// The svg comes and goes with `heat` (v-if): watch the ref so a later first batch is measured too.
+watch(svgEl, el => observe(el));
+onBeforeUnmount(() => resize?.disconnect());
+
+/** The y labels' longest text ("12.5"), so the left margin fits it. */
+const yLabelChars = computed(() => {
+  const v = view.value;
+  return v ? Math.max(...ticks(v.yMin, v.yMax, Y_GAPS, 1).map(t => String(t).length)) : 4;
+});
+const lay = computed(() => heatLayout(drawnWidth.value, yLabelChars.value));
+const W = computed(() => lay.value.W);
+const H = computed(() => lay.value.H);
+const L = computed(() => lay.value.L);
+const R = computed(() => lay.value.R);
+const T = computed(() => lay.value.T);
+const B = computed(() => lay.value.B);
+const plotW = computed(() => lay.value.plotW);
+const plotH = computed(() => lay.value.plotH);
 
 // The axes span the data plus any padding for a range too narrow to draw (heatView); a cell is one
 // bin of that range, so a single column or a single chain is a small box, not the whole plot.
 const view = computed(() => (props.heat ? heatView(props.heat) : null));
-const cellW = computed(() => (props.heat && view.value ? (plotW * props.heat.xw) / (view.value.xMax - view.value.xMin) : 0));
-const cellH = computed(() => (props.heat && view.value ? (plotH * props.heat.yw) / (view.value.yMax - view.value.yMin) : 0));
+const cellW = computed(() => (props.heat && view.value ? (plotW.value * props.heat.xw) / (view.value.xMax - view.value.xMin) : 0));
+const cellH = computed(() => (props.heat && view.value ? (plotH.value * props.heat.yw) / (view.value.yMax - view.value.yMin) : 0));
 function xPos(x: number): number {
   const v = view.value!;
-  return L + ((x - v.xMin) / (v.xMax - v.xMin)) * plotW;
+  return L.value + ((x - v.xMin) / (v.xMax - v.xMin)) * plotW.value;
 }
 
 /** Indigo, light to dark. */
@@ -168,7 +199,7 @@ const cells = computed<Cell[]>(() => {
 
 function yPos(days: number): number {
   const v = view.value!;
-  return T + plotH - ((days - v.yMin) / (v.yMax - v.yMin)) * plotH;
+  return T.value + plotH.value - ((days - v.yMin) / (v.yMax - v.yMin)) * plotH.value;
 }
 
 const bestDots = computed(() => {
@@ -190,11 +221,11 @@ function ticks(lo: number, hi: number, n: number, digits: number): number[] {
 
 const xTicks = computed(() => {
   const v = view.value;
-  return v ? integerTicks(v.xMin, v.xMax).map(t => ({ v: t, p: xPos(t) })) : [];
+  return v ? integerTicks(v.xMin, v.xMax, X_GAPS).map(t => ({ v: t, p: xPos(t) })) : [];
 });
 
 const yTicks = computed(() => {
   const v = view.value;
-  return v ? ticks(v.yMin, v.yMax, 4, 1).map(t => ({ v: t, p: yPos(t) })) : [];
+  return v ? ticks(v.yMin, v.yMax, Y_GAPS, 1).map(t => ({ v: t, p: yPos(t) })) : [];
 });
 </script>

@@ -16,7 +16,7 @@ describe('byDateSimulate', () => {
   it("the route, the run's plan start, its legs and its own first-ascension setting", () => {
     const s = byDateSimulate(route(), { planStart: START, firstAscension: 'fresh' });
     expect(s.chain).toEqual([166, 197, 247]);
-    expect(s.opts).toMatchObject({ start: START, firstAscension: 'fresh', from: 'your By a date search' });
+    expect(s.opts).toMatchObject({ start: START, firstAscension: 'fresh', from: 'your Highest TE by a date search' });
     expect(s.opts.legs?.[0].key).toBe('2-sale-tier13');
     expect(s.note).toBe('');
   });
@@ -32,7 +32,7 @@ describe('byDateSimulate', () => {
     const bare = { ...route(), legs: [] };
     expect(byDateSimulate(bare, { planStart: START, firstAscension: 'buildup' }).note).toBe(BUILDUP_NOTE);
     const s = byDateSimulate(bare, { planStart: 0, firstAscension: null });
-    expect(s.opts).toEqual({ from: 'your By a date search' });
+    expect(s.opts).toEqual({ from: 'your Highest TE by a date search' });
     expect(s.note).toBe('');
   });
 });

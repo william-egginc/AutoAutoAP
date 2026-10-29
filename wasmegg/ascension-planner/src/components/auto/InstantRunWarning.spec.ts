@@ -9,9 +9,9 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 
 describe('InstantRunWarning', () => {
   it('says what was asked, with its three choices', async () => {
-    const check = textOf(await renderHtml(InstantRunWarning, { at: 'check-fastest', check: true }));
-    expect(check).toContain('A search is running. Checking exactly now runs extra workers alongside it');
-    expect(check).toContain("Run it anyway Don't ask again, just warn me Cancel");
+    const anyway = textOf(await renderHtml(InstantRunWarning, { at: 'anyway' }));
+    expect(anyway).toContain('A search is running. Working out the instant answer now runs extra workers alongside it');
+    expect(anyway).toContain("Run it anyway Don't ask again, just warn me Cancel");
     const again = textOf(await renderHtml(InstantRunWarning, { at: 'again' }));
     expect(again).toContain('Working out the instant answer now runs extra workers');
   });
@@ -26,9 +26,9 @@ describe('InstantRunWarning', () => {
   });
 
   it('shows at the spot that asked, and only there', () => {
-    const spots: WarnAt[] = ['again', 'anyway', 'check-date', 'check-fastest'];
+    const spots: WarnAt[] = ['again', 'anyway'];
     for (const at of spots) {
-      const ask = { force: at === 'again', check: at.startsWith('check'), at };
+      const ask = { force: at === 'again', at };
       expect(spots.filter(s => warnHere(ask, s))).toEqual([at]);
     }
     expect(spots.some(s => warnHere(null, s))).toBe(false);
@@ -40,8 +40,6 @@ describe('InstantRunWarning', () => {
     const presses: [string, WarnAt][] = [
       ["pressRun(true, 'again')", 'again'],
       ["pressRun(false, 'anyway')", 'anyway'],
-      ["pressCheck('check-date')", 'check-date'],
-      ["pressCheck('check-fastest')", 'check-fastest'],
     ];
     for (const [press, at] of presses) {
       const button = template.indexOf(press);
@@ -54,8 +52,9 @@ describe('InstantRunWarning', () => {
       expect(between.match(/<\/button>/g)?.length ?? 0, at).toBeLessThanOrEqual(2);
       expect(/press(Run|Check)\(/.test(between.slice(press.length)), at).toBe(false);
     }
-    // One warning per spot, no leftover one at the top of the card.
-    expect(template.match(/<InstantRunWarning/g)).toHaveLength(4);
+    // One warning per spot, no leftover one at the top of the card. (Check exactly's two went with it, 23 Oct 2026.)
+    expect(template.match(/<InstantRunWarning/g)).toHaveLength(2);
+    expect(template).not.toContain('pressCheck(');
     expect(template).not.toContain('v-if="confirming"');
   });
 });

@@ -23,7 +23,7 @@ describe('how sure', () => {
     expect(howSure(date({ how: 'instant', ageDays: 5, spareHours: 30, runnerUpHours: 99 }))).toEqual({
       level: 'medium',
       reason: 'instant answer, 5 days old',
-      action: 'check',
+      action: 'fast',
     });
     const f = howSure(fast({ how: 'instant', ageDays: 13.9, runnerUpHours: 99 }));
     expect(f.level).toBe('medium');
@@ -38,19 +38,19 @@ describe('how sure', () => {
     expect(howSure(date({ exactConfirmsTE: true, spareHours: 16.8, runnerUpHours: Infinity })).reason).toContain('makes less TE');
     expect(howSure(date({ exactConfirmsTE: true, spareHours: 5.9, runnerUpHours: 3 })).level).toBe('medium');
     expect(howSure(date({ exactConfirmsTE: true, spareHours: 16.8, runnerUpHours: 2.4 })).reason).toBe(
-      'Check exactly done; the next route is only 2.4 h behind'
+      'simulator check done; the next route is only 2.4 h behind'
     );
     expect(howSure(date({ exactConfirmsTE: false, spareHours: 16.8, runnerUpHours: 9 })).level).toBe('medium');
     expect(howSure(date({ exactConfirmsTE: true, spareHours: 16.8, runnerUpHours: null })).level).toBe('medium');
   });
 
-  it('or a search that agrees, or a finished Exhaustive', () => {
+  it('or a search that agrees, or a finished Custom', () => {
     expect(howSure(date({ how: 'instant', agreeing: 'quick', spareHours: 10 }))).toEqual({
       level: 'high',
       reason: 'a Fast search agrees on 248 TE',
     });
     expect(howSure(fast({ how: 'search', level: 'exhaustive', exhaustiveComplete: true })).reason).toBe(
-      'Exhaustive checked every route in its boxes'
+      'Custom checked every route in its boxes'
     );
     expect(howSure(fast({ agreeing: 'normal', runnerUpHours: 30 })).level).toBe('high');
     expect(howSure(fast({ agreeing: 'normal', runnerUpHours: 20 })).level).toBe('medium');
@@ -61,9 +61,9 @@ describe('how sure', () => {
   it('Low first: older simulator, other hours, little spare, old, TE moved', () => {
     const high = { exactConfirmsTE: true, spareHours: 16.8, runnerUpHours: 3 };
     expect(howSure(date({ ...high, olderSimulator: true })).reason).toBe('priced by an older simulator');
-    expect(howSure(date({ ...high, hoursChanged: true })).reason).toBe('priced before your hours changed');
+    expect(howSure(date({ ...high, hoursChanged: true })).reason).toBe('priced before your awake hours changed');
     expect(howSure(date({ ...high, spareHours: 1.2 })).reason).toBe('only 1.2 h to spare');
-    expect(howSure(date({ ...high, ageDays: 20 })).reason).toBe('Check exactly, 20 days old');
+    expect(howSure(date({ ...high, ageDays: 20 })).reason).toBe('simulator check, 20 days old');
     expect(howSure(date({ ...high, teMoved: true })).reason).toBe('your TE has moved since');
   });
 });

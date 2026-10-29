@@ -12,7 +12,7 @@
 <template>
   <div
     v-if="own && message && !running"
-    class="rounded-lg border px-3 py-2 text-[11px] space-y-2"
+    class="rounded-lg border px-3 py-2 text-small space-y-2"
     :class="
       !ok
         ? 'bg-red-50 border-red-200 text-red-800'
@@ -23,21 +23,32 @@
     data-testid="run-send-report"
   >
     <p><b>Submitted automatically.</b> {{ message }}</p>
-    <div v-if="nameToClaim || pendingTable" class="flex flex-wrap gap-2">
+    <div v-if="nameToClaim || offerName || pendingTable" class="flex flex-wrap gap-2">
       <button
         v-if="nameToClaim"
         type="button"
         :disabled="claiming"
-        class="px-3 py-1.5 rounded-lg border border-current text-[10px] font-black uppercase tracking-widest hover:bg-white/60 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg border border-current text-body font-bold hover:bg-white/60 disabled:opacity-40"
         @click="emit('claim')"
       >
         {{ claiming ? 'Renaming...' : 'Put my name on it' }}
+      </button>
+      <!-- Sent anonymously and no name chosen yet: the press opens the one sharing setting on "Credit me as"
+           (SharingSummary.vue, ux29 #11); once a name is chosen, the rename above. -->
+      <button
+        v-else-if="offerName"
+        type="button"
+        class="inline-flex items-center min-h-[44px] sm:min-h-0 px-3 py-1.5 rounded-lg border border-current text-body font-bold hover:bg-white/60"
+        data-testid="name-it"
+        @click="emit('nameIt')"
+      >
+        Put my name on it
       </button>
       <button
         v-if="pendingTable"
         type="button"
         :disabled="retrying"
-        class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 disabled:opacity-40"
+        class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-body font-bold hover:bg-amber-50 disabled:opacity-40"
         @click="emit('retry')"
       >
         <SendingText v-if="retrying" text="Sending the table" /><template v-else>Retry the table</template>
@@ -61,6 +72,8 @@ withDefaults(
     ok?: boolean;
     partial?: boolean;
     nameToClaim?: string;
+    /** Sent anonymously and no name chosen yet (useBoardSubmit `offerName`): Put my name on it opens the setting. */
+    offerName?: boolean;
     claiming?: boolean;
     pendingTable?: boolean;
     retrying?: boolean;
@@ -72,11 +85,12 @@ withDefaults(
     ok: true,
     partial: false,
     nameToClaim: '',
+    offerName: false,
     claiming: false,
     pendingTable: false,
     retrying: false,
     quiet: false,
   }
 );
-const emit = defineEmits<{ claim: []; retry: [] }>();
+const emit = defineEmits<{ claim: []; retry: []; nameIt: [] }>();
 </script>

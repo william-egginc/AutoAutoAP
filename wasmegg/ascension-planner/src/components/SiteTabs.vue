@@ -22,9 +22,9 @@
           type="button"
           :class="[
             i < 2 ? 'col-span-3' : (SECOND_ROW[tabs.length - 2] ?? 'col-span-2'),
-            current === t.tab ? t.on : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50',
+            current === t.tab ? t.on : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50',
           ]"
-          class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 lg:px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider sm:tracking-[0.15em] transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 text-center leading-tight"
+          class="min-w-0 min-h-[44px] sm:min-h-0 px-2 sm:px-4 lg:px-6 py-2.5 rounded-xl label transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 text-center leading-tight"
           :aria-current="current === t.tab ? 'page' : undefined"
           @click="emit('select', t.id)"
         >
@@ -40,7 +40,7 @@
           {{ t.label }}
           <span
             v-if="t.id === 'auto'"
-            class="shrink-0 bg-indigo-500 text-[8px] px-1.5 py-0.5 rounded-md sm:ml-1 border border-indigo-400/30"
+            class="shrink-0 bg-indigo-500 text-small px-1.5 py-0.5 rounded-md sm:ml-1 border border-indigo-400/30"
             :class="current === t.tab ? 'text-white' : 'text-white/90'"
             >BETA</span
           >

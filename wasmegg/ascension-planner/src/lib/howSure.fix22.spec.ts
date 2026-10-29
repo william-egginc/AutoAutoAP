@@ -18,11 +18,11 @@ describe('a runner-up that ties', () => {
   });
 
   it('the Egg Day tile: "Exact check done; another route ties it", never "0.0 h behind"', () => {
-    expect(howSure(date({ runnerUpHours: 0.02 })).reason).toBe('Check exactly done; another route ties it');
+    expect(howSure(date({ runnerUpHours: 0.02 })).reason).toBe('simulator check done; another route ties it');
     expect(howSure(date({ runnerUpHours: 0, runnerUpSame: true, runnerUpChain: [160, 248] })).reason).toBe(
-      'Check exactly done; another route ties it exactly (160 248)'
+      'simulator check done; another route ties it exactly (160 248)'
     );
-    expect(howSure(date({ runnerUpHours: 1 })).reason).toBe('Check exactly done; the next route is only 1.0 h behind');
+    expect(howSure(date({ runnerUpHours: 1 })).reason).toBe('simulator check done; the next route is only 1.0 h behind');
     // Fastest's search line too.
     expect(howSure({ goal: 'fastest', how: 'search', level: 'normal', ageDays: 0.1, runnerUpHours: 0.01 }).reason).toBe(
       'Exact search; another route ties it'
@@ -53,6 +53,6 @@ describe('a runner-up that ties', () => {
       board: null,
       saved: [],
     });
-    expect(tile.sure?.reason).toBe('Check exactly done; another route ties it exactly (150 200 248)');
+    expect(tile.sure?.reason).toBe('simulator check done; another route ties it exactly (150 200 248)');
   });
 });

@@ -3,7 +3,7 @@
        implementation for every chain row on the Full sweep and By a date (RoutesToTry.vue). The parent
        owns the positions; the first stop is always tried at every TE. Anything after the sliders (By a
        date's "move every chain's sliders together") goes in the default slot, on the same line. -->
-  <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-small text-slate-500">
     <span v-if="lead" class="font-bold text-slate-600">{{ lead }}</span>
     <label class="flex items-center gap-1.5">
       <input

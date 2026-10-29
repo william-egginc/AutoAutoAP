@@ -15,14 +15,14 @@
             />
           </svg>
         </div>
-        <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Resilience Summary</span>
+        <span class="text-slate-400 label">Resilience Summary</span>
         <div v-if="activeArtifactSet === 'earnings'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black font-mono-premium text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
-          <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
+          <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyOfflineEarnings, 3) }}</span>
+          <span class="label text-slate-400">/hr</span>
         </div>
         <div v-else-if="activeArtifactSet === 'elr'" class="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/50">
-          <span class="text-[9px] font-black font-mono-premium text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
-          <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">/hr</span>
+          <span class="text-small font-bold tabular-nums text-slate-700">{{ formatNumber(hourlyELR, 3) }}</span>
+          <span class="label text-slate-400">/hr</span>
         </div>
       </div>
 
@@ -33,24 +33,24 @@
         :class="compact ? 'gap-x-3 gap-y-1' : 'gap-x-6 gap-y-2'"
       >
         <div class="flex flex-col items-end">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Silos</span>
+          <span class="text-slate-400 label leading-none mb-1">Silos</span>
           <div class="flex items-center gap-1.5">
-            <span class="text-sm font-mono-premium font-black text-slate-900">{{ silosPurchased }}</span>
-            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{{
+            <span class="text-body tabular-nums font-bold text-slate-900">{{ silosPurchased }}</span>
+            <span class="text-slate-500 label">{{
               silosPurchased === 1 ? 'Silo' : 'Silos'
             }}</span>
           </div>
         </div>
 
         <div class="flex flex-col items-end">
-          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1"
+          <span class="text-slate-400 label leading-none mb-1"
             >Offline Time</span
           >
-          <span class="text-sm font-mono-premium font-black text-slate-900">{{ formattedAwayTime }}</span>
+          <span class="text-body tabular-nums font-bold text-slate-900">{{ formattedAwayTime }}</span>
         </div>
       </div>
 
-      <div v-else class="text-[11px] text-slate-400 italic font-medium">
+      <div v-else class="text-small text-slate-400 italic font-normal">
         No silos purchased in this {{ hideHeader ? 'date range' : 'shift' }}
       </div>
     </div>

@@ -44,7 +44,7 @@ export async function sendRunResult(
   if (store.alreadySubmitted) {
     const rec = store.sentRecord;
     if (rec?.quarantined) return { ok: false, text: quarantineMessage(rec.id ?? '') };
-    return { ok: true, text: 'Already on the board: this result was sent from here before.' };
+    return { ok: true, text: 'Already on the Leaderboard: this result was sent from here before.' };
   }
   onStage('Preparing your result...');
   try {
@@ -55,7 +55,8 @@ export async function sendRunResult(
     // Black box: a page that dies while building or sending the table says so on the next visit.
     store.blackBoxMark('submit', includeCsv ? 'building the CSV' : 'building the result');
     // Chunks, compressed as they are made (stores/chainSearch.ts `sendSubmission`): never one big string.
-    const csv = includeCsv ? store.exportCsvChunks() : undefined;
+    // Legs for the top routes from the run's leg spill when it has one (store `fastestUploadCsv`).
+    const csv = includeCsv ? await store.fastestUploadCsv() : undefined;
     store.blackBoxMark('submit', csv ? 'sending (the CSV is built as it goes)' : 'sending');
     onStage('Sending...');
     const res = await store.sendSubmission(withPrivateDiagnostics(store, payload, withDiagnostics), csv);

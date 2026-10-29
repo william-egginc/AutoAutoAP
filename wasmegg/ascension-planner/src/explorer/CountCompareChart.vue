@@ -49,7 +49,7 @@
         v-for="mode in ZOOMS"
         :key="mode.id"
         type="button"
-        class="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border transition-colors"
+        class="px-2.5 py-1 rounded-md text-body font-bold border transition-colors"
         :class="
           zoom === mode.id
             ? 'bg-slate-900 text-white border-slate-900'
@@ -60,7 +60,7 @@
       >
         {{ mode.label }}
       </button>
-      <span v-if="zoom === 'near' && clipped" class="text-[10px] font-bold text-slate-500">
+      <span v-if="zoom === 'near' && clipped" class="text-small font-bold text-slate-500">
         {{ clipped }} point{{ clipped === 1 ? '' : 's' }} above {{ NEAR_DAYS }} days, drawn as ↑ at the top edge
       </span>
     </div>
@@ -72,20 +72,20 @@
       :entries="legendEntries"
       label="Lines: click to hide or show"
     />
-    <p v-else class="px-4 py-8 text-center text-[11px] text-slate-400">
+    <p v-else class="px-4 py-8 text-center text-body text-slate-400">
       No account here has submitted two different ascension counts against this target yet, so there is nothing to
-      compare. One exhaustive run covering a range of counts would answer it outright.
+      compare. One Custom run covering a range of counts would answer it outright.
     </p>
     <div
       v-if="comparisons.length"
-      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-[10px] font-bold text-slate-500"
+      class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-small font-bold text-slate-500"
       aria-label="How to read the lines and markers"
     >
-      <span>—— one exhaustive run: every count timed from one save</span>
+      <span>—— one Custom run: every count timed from one save</span>
       <span>- - - the account's runs that still stand: the earliest finish at each count</span>
       <span><span aria-hidden="true">●</span> a finished box at every TE</span>
       <span><span aria-hidden="true">○</span> a finished box that stepped over TEs</span>
-      <span><span aria-hidden="true">⊗</span> a Nearby routes search, or a box it did not finish</span>
+      <span><span aria-hidden="true">⊗</span> a Fast or Exact search, or a box it did not finish</span>
       <span v-if="zoom === 'near'"
         ><span aria-hidden="true">↑</span> above {{ NEAR_DAYS }} days (value on hover or tap)</span
       >
@@ -94,9 +94,9 @@
     <!-- The same lines as numbers, one row per line, with each step between neighbouring counts
          weighed against how the two sides were searched. -->
     <div v-if="comparisons.length" class="overflow-x-auto">
-      <table class="w-full text-[11px]">
+      <table class="w-full text-small">
         <thead>
-          <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          <tr class="text-slate-400 label">
             <th class="text-left py-1 pr-3">Account</th>
             <th class="text-left py-1 pr-3">Finishes first</th>
             <th class="text-left py-1 pr-3">Other counts tried, days after it</th>
@@ -110,16 +110,16 @@
               <b class="text-slate-700">{{ line.label }}</b>
               <!-- Says which line this row is: an account can have both, and the two can disagree,
                    because one is a single run from one save and the other the best of several runs. -->
-              <div class="text-[10px] text-slate-400" :title="line.sourceTitle">{{ line.source }}</div>
+              <div class="text-small text-slate-400" :title="line.sourceTitle">{{ line.source }}</div>
             </td>
             <td class="py-1.5 pr-3 whitespace-nowrap">
               <b class="text-slate-700">{{ plural(line.best.ascensions, 'ascension') }}</b>
-              <div class="text-[10px] text-slate-500">
+              <div class="text-small text-slate-500">
                 {{ finishDateText(line.best.finish, viewZone) }} · {{ line.best.search.text }}
               </div>
               <!-- Under Proofs only, or on a line from one run, the account's earliest finish can be a
                    run that is not on this line. -->
-              <div v-if="line.best.behind >= SAME_FINISH_DAYS" class="text-[10px] text-slate-400">
+              <div v-if="line.best.behind >= SAME_FINISH_DAYS" class="text-small text-slate-400">
                 {{ daysText(line.best.behind) }} after
                 {{ line.ownAnchor ? "this run's best count" : "the account's earliest finish" }}
               </div>
@@ -129,13 +129,13 @@
                 <b class="text-slate-600">{{ p.ascensions }}</b
                 >:
                 {{ behindText(p.behind - line.best.behind) }}
-                <span class="text-[10px] text-slate-400">· {{ p.search.text }}</span>
+                <span class="text-small text-slate-400">· {{ p.search.text }}</span>
               </div>
             </td>
             <td class="py-1.5 whitespace-nowrap">
               <div v-for="s in line.steps" :key="`${s.from}-${s.to}`">
                 <span class="text-slate-600">{{ s.from }}→{{ s.to }}</span>
-                <span class="text-[10px] text-slate-400">
+                <span class="text-small text-slate-400">
                   · {{ s.gap < SAME_FINISH_DAYS ? 'same finish' : `${s.better} first by ${daysText(s.gap)}` }} ·
                 </span>
                 <b :class="VERDICT[s.verdict].class">{{ VERDICT[s.verdict].text }}</b>
@@ -144,11 +144,11 @@
           </tr>
         </tbody>
       </table>
-      <p class="mt-1 px-1 text-[10px] text-slate-500 leading-relaxed max-w-3xl">
+      <p class="mt-1 px-1 text-small text-slate-500 max-w-3xl">
         <b class="text-emerald-700">Settled</b>: the slower count lost by more than a finer search of it has ever made
         up (nothing for a box at every TE, {{ STEP_PENALTY_DAYS.fine }} days for every 2nd or 3rd TE,
         {{ STEP_PENALTY_DAYS.coarse }} days for every 4th or 5th; never for anything coarser, which has not been
-        measured, or for a Nearby routes search, whose shortfall is unknown). <b class="text-sky-700">Direction holds</b>: not
+        measured, or for a Fast or Exact search, whose shortfall is unknown). <b class="text-sky-700">Direction holds</b>: not
         settled, but the count that won was searched at least as coarsely as the other at every stop, counting back from
         the last, and more coarsely at one or more, so a finer search would more likely widen the gap than close it.
         <b class="text-slate-500">Within search noise</b>: the gap could be how the two were searched rather than the
@@ -450,7 +450,7 @@ const table = computed(() =>
       singleRun: comparison.singleRun,
       index: props.accountColors.get(comparison.accountKey) ?? i,
       source: comparison.singleRun
-        ? 'one exhaustive run (solid line): every count from one save'
+        ? 'one Custom run (solid line): every count from one save'
         : 'its runs that still stand (dashed line): earliest finish at each count',
       sourceTitle: twice
         ? comparison.singleRun

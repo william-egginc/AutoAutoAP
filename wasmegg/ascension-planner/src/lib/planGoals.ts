@@ -1,6 +1,6 @@
 /**
  * My runs' "which plan" switch (Jordan, 16 Oct 2026): Right now shows the saved plan of ONE goal at a time, the
- * player picks which (Race to 490 | Egg Day 2027 | By a date). Saved data only: every plan here is a kept instant
+ * player picks which (Race to 490 | Egg Day 2027 | By Feb 10, 2027). Saved data only: every plan here is a kept instant
  * answer snapshot, every "answer" a last checked answer, a Check exactly history entry or a saved By a date answer.
  *
  * Goal keys:
@@ -27,7 +27,8 @@ export interface PlanGoal {
   target: number;
   deadline: number | null;
   kind: 'race' | 'eggday' | 'date';
-  /** The switch's words: "Race to 490", "Egg Day 2027", "By a date". */
+  /** The switch's words: "Race to 490", "Race to 312", "Egg Day 2027", "By Feb 10, 2027" (each date a pill of its own,
+   *  named by its date: Jordan, 24 Oct 2026; was "By a date" for every one). */
   label: string;
   /** The goal named in the chain line and the calendar: "Race to 490", "Egg Day 2027", "By Mar 3, 2027". */
   name: string;
@@ -100,8 +101,8 @@ export function goalDefs(o: {
     target,
     deadline: null,
     kind: 'race',
-    label: `Race to ${target}`,
-    name: `Race to ${target}`,
+    label: `Fastest to ${target} TE`,
+    name: `Fastest to ${target} TE`,
     ...(optional ? { optional } : {}),
   });
   const list: PlanGoal[] = [race(o.ownTarget, false)];
@@ -119,14 +120,15 @@ export function goalDefs(o: {
   });
   for (const d of [...new Set(o.otherDates)].sort((a, b) => a - b)) {
     if (d === o.eggDay.at) continue;
+    const name = `By ${o.dayWords(d)}`;
     list.push({
       key: `date-${d}`,
       goal: 'date',
       target: o.ownTarget,
       deadline: d,
       kind: 'date',
-      label: 'By a date',
-      name: `By ${o.dayWords(d)}`,
+      label: name,
+      name,
       optional: true,
     });
   }
@@ -216,6 +218,90 @@ export interface GoalOption {
   open: MyRunsOpen;
   /** The player follows a route of their own for this goal (lib/follow.ts). */
   following?: boolean;
+  /** With a followed route: how far its times are (the pill says it, never "no saved plan yet"). */
+  follow?: GoalFollow;
+  /** Nothing followed and no plan with its times, but the saved answer tile has an answer for the goal (26 Oct 2026,
+   *  QA: the pill said "no saved plan yet" over a tile showing one): when it lands and what found it. */
+  answer?: GoalAnswerLine;
+}
+
+/** The saved answer tile's answer as the pill reads it (lib/savedTiles.ts TileAnswer). */
+export interface GoalAnswerLine {
+  /** When it lands (its last TE counts), unix seconds. */
+  end: number;
+  how: 'instant' | 'check' | 'search';
+  /** A search's name: Fast, Exact or Custom. */
+  found?: string | null;
+}
+
+/** An unfollowed goal's pill with a saved answer: "not followed · instant answer lands about Nov 4, 2026", "not
+ *  followed · your Fast run lands Nov 4, 2026", "not followed · lands Nov 4, 2026" (the followed pill's words). */
+export function answerOptionWords(a: GoalAnswerLine, dayWords: (unix: number) => string): string {
+  if (a.how === 'instant') return `not followed · instant answer lands about ${dayWords(a.end)}`;
+  if (a.how === 'search' && a.found) return `not followed · your ${a.found} run lands ${dayWords(a.end)}`;
+  return `not followed · lands ${dayWords(a.end)}`;
+}
+
+/**
+ * A FOLLOWED GOAL'S PILL (25 Oct 2026, Jordan: the Fastest to 490 TE pill said "no saved plan yet" while the line under
+ * it said "Following 226 → 277 → 317 → 490 … not priced on this save yet"): with a followed route the pill says what is
+ * true of that route, in the follow line's words.
+ *   'timeline': priced from a kept result or the instant answer's own route; 'estimate': estimated from the instant
+ *   answer's data; 'finish': only its finish kept; 'working' / 'waiting': being estimated / once the search ends;
+ *   'none': no times on this save (nothing to estimate from, past the data, or the estimate failed).
+ */
+export interface GoalFollow {
+  /** 'failed': the estimate was tried and couldn't be made; 'first': only the ascension you are in is being worked out
+   *  (simulated on the save); 'current': only it is known, `end` its next prestige. */
+  times: 'timeline' | 'estimate' | 'finish' | 'working' | 'waiting' | 'none' | 'failed' | 'first' | 'current';
+  /** When the route lands (its last stop), unix seconds; null without times. */
+  end: number | null;
+  /** By a date: it lands after the date. */
+  late?: boolean;
+  /** Its times are from before (another setup's pricing, or the last page load's) while they are worked out again. */
+  checking?: true;
+}
+
+/** A followed route's state from Right now's follow card (useNowPage `FollowCard`) and its plan's finish. */
+export function goalFollowOf(
+  card: { price: 'exact' | 'instant' | 'estimate' | 'finish' | 'none'; estimating?: string; instantFailure?: string; finish?: { end: number }; missesDate?: boolean; staleAt?: number },
+  planEnd: number | null,
+  /** With no timeline: the ascension you are in, simulated on the save (lib/followSim.ts): being worked out, or its next
+   *  prestige (26 Oct 2026). */
+  current?: { working: boolean; prestigeAt: number | null } | null
+): GoalFollow {
+  const late = { ...(card.missesDate ? { late: true } : {}), ...(card.staleAt ? { checking: true as const } : {}) };
+  if (card.price === 'exact' || card.price === 'instant') return { times: 'timeline', end: planEnd, ...late };
+  if (card.price === 'estimate') return { times: 'estimate', end: planEnd, ...late };
+  if (card.price === 'finish') return { times: 'finish', end: card.finish?.end ?? null, ...late };
+  if (card.estimating === 'working' || card.estimating === 'waiting') return { times: card.estimating, end: null };
+  // The instant answer for this setup being worked out on My runs (composables/useInstantCompute.ts): its times next.
+  if (card.estimating === 'instant') return { times: 'working', end: null };
+  if (card.estimating === 'instantwait') return { times: 'waiting', end: null };
+  if (current?.prestigeAt != null) return { times: 'current', end: current.prestigeAt };
+  if (current?.working) return { times: 'first', end: null };
+  if (card.estimating === 'beyond' || card.estimating === 'failed') return { times: 'failed', end: null };
+  if (card.estimating === 'nosource' && card.instantFailure) return { times: 'failed', end: null };
+  return { times: 'none', end: null };
+}
+
+/** A followed route with no times yet, in words: the follow line's note and the pill's (they agree). */
+export function followNoTimesWords(times: 'working' | 'waiting' | 'none' | 'failed' | 'first'): string {
+  if (times === 'working') return 'working out its times';
+  if (times === 'waiting') return 'its times once the search running now ends';
+  if (times === 'failed') return "its times couldn't be estimated";
+  if (times === 'first') return 'working out the first ascension';
+  return 'not priced on this save yet';
+}
+
+/** Under a followed goal's pill: "following · lands about Nov 4, 2026", "following · working out its times",
+ *  "following · not priced on this save yet". `late` words: lib/eggDayRule.ts `lateMarker`. */
+export function followOptionWords(f: GoalFollow, dayWords: (unix: number) => string, lateWords: string): string {
+  if (f.times === 'current' && f.end != null) return `following · next prestige about ${dayWords(f.end)}`;
+  if (f.times === 'working' || f.times === 'waiting' || f.times === 'none' || f.times === 'failed' || f.times === 'first' || f.end == null)
+    return `following · ${followNoTimesWords(f.times === 'working' || f.times === 'waiting' || f.times === 'failed' || f.times === 'first' ? f.times : 'none')}`;
+  const when = `lands ${f.times === 'estimate' ? 'about ' : ''}${dayWords(f.end)}`;
+  return `following · ${when}${f.late ? `, ${lateWords}` : ''}${f.checking ? ' · checking…' : ''}`;
 }
 
 export function goalOptions(list: readonly GoalPlans[], zone: string): GoalOption[] {

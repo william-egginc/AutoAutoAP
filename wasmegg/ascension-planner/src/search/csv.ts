@@ -316,10 +316,22 @@ export function describeVirtueInventory(rawBackup: unknown): string {
   return parts.length ? parts.join('; ') : 'empty';
 }
 
+/** A number written as text (`toFixed`, a count): left as it is, so "-3.25" stays a number in a sheet. */
+const NUMERIC_TEXT = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
+
+/**
+ * A text cell a spreadsheet would run as a formula (= + - @, or a tab or carriage return first) gets a
+ * leading ' so it is shown as text (red team 21 Oct 2026, server.md: CSV formula injection). Numbers,
+ * negative ones included, are left alone. The upload reader takes the ' off again (lib/csvParse.ts `unguardCell`).
+ */
+export function guardCell(s: string): string {
+  return /^[=+\-@\t\r]/.test(s) && !NUMERIC_TEXT.test(s) ? `'${s}` : s;
+}
+
 /** Quote only when a cell needs it, so the common case stays readable in a text editor. */
 function cell(value: string | number | undefined): string {
   if (value === undefined || value === null) return '';
-  const s = String(value);
+  const s = typeof value === 'number' ? String(value) : guardCell(String(value));
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -487,6 +499,10 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   for (const h of head) note(h);
   if (meta.partial) note(partialLine(meta.partial));
   note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
+  // ux29 item 7 (27 Oct 2026): Excel turns these cells into dates and shows them in its own date format, which a
+  // column it never widens on opening a CSV can't hold, so they read ########. The cells are right and stay as they
+  // are (the board's runs, search/runLegsCsv.ts and the analysis scripts read them); this line says so.
+  note(`times (the columns ending _local) are YYYY-MM-DD HH:MM (24-hour) in ${tz}. ######## in Excel means the column is too narrow for its date format: widen it.`);
   // Which simulator priced these routes (search/simVersion.ts), so a file can be matched to its code.
   note(`simulator ${SIM_VERSION}`);
   note(`plan start ${formatInZone(meta.planStart, tz)}`);
@@ -500,7 +516,7 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   if (meta.workers) note(`workers: ${meta.workers}`);
   if (meta.timeOff?.length)
     note(
-      `time off from virtue: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
+      `time off: ${describeTimeOff(meta.timeOff)} (each ends the ascension in progress; a rebuild follows)`
     );
   if (meta.seedChain.length) note(`seed chain ${meta.seedChain.join(' ')}`);
   if (meta.countsProbed?.length)
@@ -582,8 +598,8 @@ export function* chainsCsvChunks(entries: CacheEntry[], meta: CsvMeta): Generato
 
   const firstLeg = firstLegLine(ranked[0]?.legs[0], tz, meta.firstAscension);
   if (firstLeg) note(firstLeg);
-  note('One row per leg. Blank per-leg cells mean the chain was replayed from a saved checkpoint:');
-  note('it keeps per-leg detail for the best chain only — the total is still exact.');
+  note("One row per leg. Blank per-leg cells mean the chain's leg detail was not kept: it is past the 'Keep per-ascension");
+  note("detail for N routes' limit (Setup > Memory) or it was replayed from a saved checkpoint. The total is still exact.");
   note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
 
   lines.push(COLUMNS.join(','));
@@ -791,7 +807,7 @@ export function* deadlineCsvChunks(
     );
   } else {
     note(
-      'Blank leg cells mean the route came back from a saved checkpoint without its legs; the arrival is still exact.'
+      'Blank leg cells mean the route came back from a saved checkpoint without its legs or is past the per-ascension detail limit; the arrival is still exact.'
     );
   }
   lines.push(DEADLINE_COLUMNS.join(','));
@@ -933,4 +949,186 @@ export function buildDeadlineCsv(
   legRoutes = DEADLINE_LEG_ROUTES
 ): string {
   return [...deadlineCsvChunks(routes, meta, info, legRoutes)].join('');
+}
+
+// ------------------------------------------------------------------ every route's legs (leg spill)
+//
+// A big run keeps per-leg detail in memory for only its fastest routes (search/legBudget.ts) and By a
+// date for its top kept routes. With a leg spill (search/legSpill.ts) every priced route's leg cells
+// are on disk as well, and these write the DOWNLOADED file with all of them, streamed: the same rows,
+// read back route by route in rank order. Uploads keep their own rule (the top DEADLINE_LEG_ROUTES).
+
+/**
+ * A route's leg cells, one string per leg: every cell from `leg` on, as both CSV kinds write them after
+ * their route columns (chain search COLUMNS[5..]; By a date after its own columns and chain..gap_days).
+ * What a leg spill stores, formatted once in the run's timezone.
+ */
+export function legTails(legs: readonly LegSummary[], tz: string): string[] {
+  return legs.map((leg, i) => legCells(0, '', 0, 0, 0, i, leg, tz).slice(5).map(cell).join(','));
+}
+
+/** Where a full CSV reads routes' leg cells that memory no longer holds (search/legSpill.ts `LegSpill`). */
+export interface LegTailSource {
+  /** Each key's stored leg cells (`legTails`), or null when none are stored. */
+  tails(keys: readonly string[]): Promise<(string[] | null)[]>;
+  /** Routes with leg cells stored. */
+  readonly count: number;
+  /** Why storing stopped early (disk full), with how many routes it had stored; null when it never did. */
+  readonly stopped: string | null;
+}
+
+/** Routes read from a spill at a time while a full CSV is written. */
+const TAIL_BATCH = 2000;
+
+/** The route cells of a chain-search row (rank..gap_days), joined. */
+function routePrefix(rank: number, chain: string, prestiges: number, totalDays: number, gapDays: number): string {
+  return legCells(rank, chain, prestiges, totalDays, gapDays, '', null, '').slice(0, 5).map(cell).join(',');
+}
+
+/**
+ * The chain-search CSV with leg detail for `legRoutes` routes (default: every one), fastest first:
+ * from memory where an entry still holds its legs, else from `spill`. The same rows as `chainsCsvChunks`;
+ * only the notes about blank cells differ.
+ */
+export async function* chainsCsvChunksFull(
+  entries: CacheEntry[],
+  meta: CsvMeta,
+  spill: LegTailSource,
+  legRoutes = Infinity
+): AsyncGenerator<string> {
+  const tz = meta.timezone;
+  const ranked = [...entries].sort((a, b) => a.seconds - b.seconds);
+  const bestSeconds = ranked.length ? ranked[0].seconds : 0;
+  const lines: string[] = metaLines(
+    meta,
+    ['ascension-planner chain search — every chain this run priced'],
+    `chains priced ${entries.length}`
+  );
+  const note = (s: string) => lines.push(`# ${s}`);
+  const firstLeg = firstLegLine(ranked[0]?.legs[0], tz, meta.firstAscension);
+  if (firstLeg) note(firstLeg);
+  const all = !Number.isFinite(legRoutes) || legRoutes >= ranked.length;
+  note(
+    all
+      ? 'One row per leg for every chain priced (the legs the run kept on disk as it went).'
+      : `One row per leg for the fastest ${legRoutes} chains; every other chain has one row with blank per-leg cells.`
+  );
+  note('Blank per-leg cells otherwise mean the chain has no leg detail: it was replayed from a saved checkpoint. The total is still exact.');
+  if (spill.stopped) note(`Leg detail on disk stopped early: ${spill.stopped.replace(/,/g, '')}.`);
+  note(`Local times are ${tz}. gap_days is days behind the best chain in this file.`);
+  lines.push(COLUMNS.join(','));
+  let chars = 0;
+  for (let from = 0; from < ranked.length; from += TAIL_BATCH) {
+    const batch = ranked.slice(from, from + TAIL_BATCH);
+    const want = batch.map((e, j) => (from + j < legRoutes && !e.legs.length ? e.key : null));
+    const keys = want.filter((k): k is string => k !== null);
+    const got = keys.length ? await spill.tails(keys) : [];
+    let g = 0;
+    batch.forEach((entry, j) => {
+      const rank = from + j + 1;
+      const chain = entry.key.split(',').map(Number);
+      const chainText = chain.join(' ');
+      const totalDays = entry.seconds / 86400;
+      const gapDays = (entry.seconds - bestSeconds) / 86400;
+      const rows: string[] = [];
+      if (rank <= legRoutes && entry.legs.length) {
+        entry.legs.forEach((leg, i) => rows.push(legRow(rank, chainText, chain.length, totalDays, gapDays, i, leg, tz)));
+      } else {
+        const tails = want[j] !== null ? got[g++] : null;
+        if (tails?.length) {
+          const prefix = routePrefix(rank, chainText, chain.length, totalDays, gapDays);
+          for (const t of tails) rows.push(`${prefix},${t}`);
+        } else rows.push(legRow(rank, chainText, chain.length, totalDays, gapDays, '', null, tz));
+      }
+      for (const row of rows) {
+        lines.push(row);
+        chars += row.length + 1;
+      }
+    });
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
+    }
+  }
+  if (lines.length) yield takeChunk(lines);
+}
+
+/** The first cell of a full By a date file's third section: every priced route's legs. Not a digit,
+ *  so the readers that take the kept routes' rows by their leading rank pass these by. */
+export const PRICED_LEG_ROW_TAG = 'pricedleg';
+export const PRICED_LEGS_SECTION_LINE = '# every route priced, with its legs: one row per leg';
+
+/**
+ * The By a date CSV as `deadlineCsvChunks` writes it (kept routes, then a summary line for every
+ * priced route), then a THIRD section with every priced route's legs (from `spill`), in the summary
+ * section's order. Its rows start with `pricedleg` and then carry the leg section's columns, rank
+ * being the place in that order.
+ */
+export async function* deadlineCsvChunksFull(
+  routes: DeadlineCsvRoute[],
+  meta: CsvMeta,
+  info: DeadlineCsvInfo,
+  spill: LegTailSource,
+  legRoutes = DEADLINE_LEG_ROUTES
+): AsyncGenerator<string> {
+  yield* deadlineCsvChunks(routes, meta, { ...info, pricedInDeltas: false }, legRoutes);
+  const all = info.all && info.all.size ? info.all : null;
+  if (!all) return;
+  const tz = meta.timezone;
+  const lines: string[] = [];
+  const note = (s: string) => lines.push(`# ${s}`);
+  note('');
+  lines.push(PRICED_LEGS_SECTION_LINE);
+  note(
+    `Every route priced (${all.size}) with its legs in the summary section's order (rank is the place in it). Each row starts with "${PRICED_LEG_ROW_TAG}" and then the leg section's columns.`
+  );
+  note('A route with no leg detail (replayed from a saved checkpoint or not priced) has one row with blank leg cells.');
+  if (spill.stopped) note(`Leg detail on disk stopped early: ${spill.stopped.replace(/,/g, '')}.`);
+  lines.push(['kind', ...DEADLINE_COLUMNS].map(cell).join(','));
+  const order = pricedOrder(all, info.deadline);
+  let earliest = Infinity;
+  for (let i = 0; i < all.size; i++) {
+    const r = all.reachAt(i);
+    if (r < earliest) earliest = r;
+  }
+  let chars = 0;
+  for (let from = 0; from < order.length; from += TAIL_BATCH) {
+    const idx = Array.from(order.subarray(from, from + TAIL_BATCH));
+    const got = await spill.tails(idx.map(i => all.keys[i]));
+    idx.forEach((i, j) => {
+      const key = all.keys[i];
+      const route = key.split(',').map(Number);
+      const reach = all.reachAt(i);
+      const at = all.ascendAt(i);
+      const priced = !Number.isNaN(at);
+      const ownCells = [
+        PRICED_LEG_ROW_TAG,
+        from + j + 1,
+        route.join(' '),
+        route.length,
+        route[route.length - 1],
+        priced ? formatInZone(reach, tz) : '',
+        priced ? formatInZone(at, tz) : '',
+        priced ? ((info.deadline - at) / 3600).toFixed(2) : '',
+      ];
+      const own = ownCells.map(cell).join(',');
+      const midCells = priced
+        ? legCells(0, route.join(' '), route.length, (reach - meta.planStart) / 86400, (reach - earliest) / 86400, '', null, tz).slice(1, 5)
+        : [route.join(' '), route.length, '', ''];
+      const mid = midCells.map(cell).join(',');
+      const tails = got[j];
+      const rows = tails?.length
+        ? tails.map(t => `${own},${mid},${t}`)
+        : [`${own},${mid},${legCells(0, '', 0, 0, 0, '', null, tz).slice(5).map(cell).join(',')}`];
+      for (const row of rows) {
+        lines.push(row);
+        chars += row.length + 1;
+      }
+    });
+    if (lines.length >= CHUNK_ROWS || chars >= CHUNK_CHARS) {
+      yield takeChunk(lines);
+      chars = 0;
+    }
+  }
+  if (lines.length) yield takeChunk(lines);
 }

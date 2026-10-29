@@ -4,26 +4,148 @@
  * Kept in this browser under the account's partition hash (`aap-follow:<sha-256>`, lib/accountHash.ts), never under
  * the player ID. In memory by partition too, so a pick made in a private window (storage throws) still holds for the
  * visit. `version` moves on each pick, so computeds that read `followed` read again.
+ *
+ * SAVED ONLINE (23 Oct 2026, lib/followCloud.ts): with a collector (the chain-search store's `submitUrl`, the same
+ * one every other call uses), a Follow press also saves the route under the account's follow key, and loading an
+ * account reads the saved routes back once, quietly: each goal follows the newer of this browser's and the saved one
+ * (by when Follow was pressed). Nothing but a Follow press (or Restore, which is one) writes, and, with
+ * lib/followPolicy.ts AUTO_FOLLOW_FIRST, the first answer for a goal that follows nothing, which becomes the follow on
+ * its own (`autoFollow`: the instant answer from InstantRoute.vue, a Fast, Exact or Custom result from useNowPage).
+ * Only once the account's saved routes are read (`autoReady`), never after that read failed on this load. A failure is quiet: `cloudStatus` 'unreachable' (Setup › Sharing says so) and the save's words per goal.
+ * UNSYNCED (23 Oct 2026): a Follow press whose save didn't get through (no collector yet, offline, 5xx, the hour's
+ * limit) stays `sync: 'pending'`; the next load, after its read, saves it ONCE when nothing newer is saved online for
+ * the goal (`syncPending`). 400 and 413 mark it 'unsyncable' (never tried again). A follow kept before the flag existed
+ * is saved the same way only when nothing at all is saved online for its goal. NEWER HERE (ux34, Jordan's Chrome and
+ * Safari following different routes): a follow of this browser newer than the one saved online for its goal, whatever
+ * its mark, is written up once on the load (the collector keeps the last write without comparing `at`, so an older
+ * route can stand there), and "Save it online" reads first, so an old page never writes over a newer route. NOT SAVED (Jordan, 23 Oct 2026: his
+ * Egg Day follow never reached the collector and nothing said so): while a follow is still not saved after the read,
+ * Right now says so with "Save it online" (`notSaved`, `saveNow`).
  */
-import { defineStore } from 'pinia';
-import { ref, watch } from 'vue';
+import { defineStore, getActivePinia } from 'pinia';
+import { computed, ref, watch } from 'vue';
 import { useInitialStateStore } from '@/stores/initialState';
+import { useChainSearchStore } from '@/stores/chainSearch';
 import { accountHash } from '@/lib/accountHash';
-import { readFollows, sameChain, writeFollow, type FollowFrom, type FollowMap, type Followed } from '@/lib/follow';
+import {
+  readFollows,
+  readGone,
+  sameChain,
+  writeFollow,
+  writeGone,
+  type FollowFrom,
+  type FollowMap,
+  type Followed,
+} from '@/lib/follow';
+import {
+  buildCloudValue,
+  followKey,
+  followUrlOf,
+  getFollowHistory,
+  getFollows,
+  hoursOf,
+  mergeCloud,
+  putFollow,
+  saveFailWords,
+  sourceOfFrom,
+  type CloudEntry,
+  type CloudFail,
+  type CloudValue,
+  type FollowSource,
+} from '@/lib/followCloud';
+import { SIM_VERSION } from '@/search/simVersion';
+import { AUTO_FOLLOW_FIRST, autoFollowsGoal, type AutoFollow } from '@/lib/followPolicy';
+import { noteMyRuns } from '@/lib/myRunsShown';
+import { OWN_BUILD_TIME } from '@/composables/useNewVersion';
 import type { GoalKey } from '@/lib/planGoals';
+import type { FollowPrompt } from '@/lib/searchPlan';
+
+/** What a Follow press may say about the route besides its stops (the summary saved with it). */
+export interface FollowExtra {
+  source?: FollowSource;
+  planStart?: number;
+  finish?: number;
+  endTE?: number;
+  spareSeconds?: number;
+  /** The first answer for a goal, followed on its own (lib/followPolicy.ts), not a press. */
+  auto?: boolean;
+}
+
+/** How the last save online of a goal went. */
+export interface SaveState {
+  state: 'saving' | 'saved' | 'failed';
+  why?: CloudFail;
+  /** The player's words for a failure ('' when saved). */
+  words: string;
+  /** Only the route and its summary went (over 4 KB with the rest). */
+  trimmed?: boolean;
+}
 
 export const useFollowStore = defineStore('follow', () => {
   /** The loaded save's partition hash; '' until worked out (or with no save). */
   const partition = ref('');
   const version = ref(0);
   const held = new Map<string, FollowMap>();
+  /** The account's follow key (lib/followCloud.ts `followKey`): a hash, never the ID. */
+  const cloudKey = ref('');
+  /** 'unreachable': the saved routes couldn't be read on the last load (offline, the hour's limit, an error). */
+  const cloudStatus = ref<'idle' | 'loading' | 'ok' | 'unreachable'>('idle');
+  const saves = ref<Record<GoalKey, SaveState>>({});
+  // A follow (or one read back from online) is something My runs shows: the tab looks again (lib/myRunsShown.ts).
+  watch(version, () => noteMyRuns());
 
   const idOf = () => ((useInitialStateStore().rawBackup as { eiUserId?: string } | null)?.eiUserId ?? '').trim();
+  /** The chain-search store once the page has made it (the app always does; it is never made here only for this,
+   *  it writes to storage when made). */
+  const searchStore = () => {
+    try {
+      const pinia = getActivePinia() as { state: { value: Record<string, unknown> } } | undefined;
+      return pinia && 'chainSearch' in pinia.state.value ? useChainSearchStore() : null;
+    } catch {
+      return null;
+    }
+  };
+  /** The collector's /follow, from the submit URL every other call uses; '' without one. */
+  const followUrl = (): string => followUrlOf(searchStore()?.submitUrl);
+
+  /** The followed routes are saved online for this account (a collector and an account). */
+  const online = computed(() => !!cloudKey.value && !!followUrl());
+
+  /** The account and collector (`id|url`) whose hashes are worked out ('' until then). */
+  const hashedFor = ref('');
+  /** The collector reads (`key|url`) that finished: answered (or the collector keeps no routes, 503), or failed. */
+  const readDone = ref<string[]>([]);
+  const readFailed = ref<string[]>([]);
+  /**
+   * An answer may become the follow on its own now (lib/followPolicy.ts): the page has made the search store (so the
+   * collector is known), the account's hashes are worked out, and its saved routes were read on this load, or there is
+   * no collector. Never after that read failed on this load: a route followed on another device must not be
+   * overwritten.
+   */
+  const autoReady = computed(() => {
+    if (!partition.value || !searchStore()) return false;
+    const url = followUrl();
+    if (hashedFor.value !== `${idOf()}|${url}`) return false;
+    if (!url) return true;
+    const sig = `${cloudKey.value}|${url}`;
+    return !!cloudKey.value && readDone.value.includes(sig) && !readFailed.value.includes(sig);
+  });
+
+  // The account (and the collector, once the page has the search store): work out the hashes, then read once.
   watch(
-    idOf,
-    async id => {
+    // A string, so touching the store again (or a tab that reads it) never refires with the same account and URL.
+    () => `${idOf()}|${followUrl()}`,
+    async sig => {
+      const id = sig.slice(0, sig.lastIndexOf('|'));
       const h = id ? await accountHash(id).catch(() => '') : '';
-      if (idOf() === id) partition.value = h;
+      if (idOf() !== id) return;
+      partition.value = h;
+      const k = id ? await followKey(id).catch(() => '') : '';
+      if (idOf() !== id) return;
+      cloudKey.value = k;
+      hashedFor.value = sig;
+      if (h && k) void loadCloud();
+      else cloudStatus.value = 'idle';
     },
     { immediate: true }
   );
@@ -32,6 +154,91 @@ export const useFollowStore = defineStore('follow', () => {
     if (!p) return {};
     if (!held.has(p)) held.set(p, readFollows(p));
     return held.get(p)!;
+  }
+
+  /**
+   * Read the account's saved routes and follow each that is newer than this browser's (lib/followCloud.ts
+   * `mergeCloud`). Quiet: never blocks, never writes anything online; on a failure `cloudStatus` says so.
+   */
+  /** One read per account and collector: the one in flight is shared, and a finished one counts for READ_TTL_MS
+   *  (another account, or `force`, reads again). */
+  let lastRead: { sig: string; at: number; done: Promise<void> } | null = null;
+  const READ_TTL_MS = 60_000;
+  function loadCloud(force = false): Promise<void> {
+    const sig = `${cloudKey.value}|${followUrl()}`;
+    if (!force && lastRead && lastRead.sig === sig && Date.now() - lastRead.at < READ_TTL_MS) return lastRead.done;
+    const done = readCloud();
+    lastRead = { sig, at: Date.now(), done };
+    return done;
+  }
+  async function readCloud(): Promise<void> {
+    const url = followUrl();
+    const p = partition.value;
+    const k = cloudKey.value;
+    if (!url || !p || !k) {
+      cloudStatus.value = 'idle';
+      return;
+    }
+    cloudStatus.value = 'loading';
+    const got = await getFollows(url, k);
+    if (partition.value !== p || cloudKey.value !== k) return;
+    const sig = `${k}|${url}`;
+    if (!got.ok) {
+      cloudStatus.value = got.why === 'off' ? 'idle' : 'unreachable';
+      // 'off' (503): this collector keeps no routes, so nothing saved online can be overwritten.
+      if (got.why === 'off') readDone.value = [...readDone.value, sig];
+      else readFailed.value = [...readFailed.value, sig];
+      return;
+    }
+    const cloud: Record<GoalKey, CloudValue> = {};
+    for (const [g, e] of Object.entries(got.goals)) cloud[g] = e.value;
+    const { map, taken } = mergeCloud(mapOf(p), cloud, readGone(p));
+    if (taken.length) {
+      let next = mapOf(p);
+      for (const g of taken) next = writeFollow(p, g, map[g], next);
+      held.set(p, next);
+      version.value++;
+    }
+    cloudStatus.value = 'ok';
+    readDone.value = [...readDone.value, sig];
+    await syncPending(p, cloud, taken);
+  }
+
+  /** Follows already tried this visit (goal and `at`): one try per load, never a loop. */
+  const tried = new Set<string>();
+  /**
+   * Save online, once, each follow of this browser that never got there, unless something newer is saved. And, once
+   * per load, each follow of this browser NEWER than the one saved online for its goal, whatever its mark (ux34,
+   * Jordan's Chrome and Safari following different routes): the collector keeps the last write, never comparing `at`,
+   * so an older route can stand online (a stale page's save, a retry racing another browser's Follow) while this
+   * browser holds a newer one; left there, this browser keeps its own and every other browser keeps the older one.
+   */
+  async function syncPending(p: string, cloud: Record<GoalKey, CloudValue>, taken: readonly GoalKey[]): Promise<void> {
+    for (const [g, f] of Object.entries(mapOf(p))) {
+      if (taken.includes(g) || f.sync === 'unsyncable') continue;
+      const there = cloud[g];
+      // The same follow online (as new: not taken, so not newer): it got there. A follow kept before the flag too, so
+      // Right now doesn't call it unsaved (`notSaved`).
+      if (there && there.at >= f.at) {
+        if (!f.cloud && f.sync !== 'synced') markSync(p, g, f.at, 'synced');
+        continue;
+      }
+      // Nothing online for the goal: only a follow that never got there (marked saved or read back: left alone).
+      if (!there && (f.cloud || f.sync === 'synced')) continue;
+      const once = `${p}|${g}|${f.at}`;
+      if (tried.has(once)) continue;
+      tried.add(once);
+      await saveOnline(g, f, true);
+      if (partition.value !== p) return;
+    }
+  }
+
+  /** Mark a kept follow's save online (only when it is still that follow: same `at`). */
+  function markSync(p: string, goalKey: GoalKey, at: number, sync: NonNullable<Followed['sync']>): void {
+    const f = mapOf(p)[goalKey];
+    if (!f || f.at !== at || f.sync === sync) return;
+    held.set(p, writeFollow(p, goalKey, { ...f, sync }, mapOf(p)));
+    version.value++;
   }
 
   /** The route followed for a goal of the account (`p`, else the loaded save's), or null. */
@@ -59,28 +266,215 @@ export const useFollowStore = defineStore('follow', () => {
     return h;
   }
 
-  /** Follow `chain` for the goal (the loaded save's account). False when there is no account to keep it under. */
-  async function follow(goalKey: GoalKey, chain: readonly number[], from: FollowFrom, label?: string): Promise<boolean> {
+  /** The setup the route is followed with: the hours window, the save's time, the simulator and the build. */
+  function setupNow(): Pick<Followed, 'hours' | 'saveTime' | 'simVersion' | 'build'> {
+    const hours: Followed['hours'] = hoursOf(searchStore()?.availability);
+    const save = useInitialStateStore().lastBackupTime;
+    return {
+      hours,
+      ...(save > 0 ? { saveTime: Math.floor(save) } : {}),
+      simVersion: SIM_VERSION,
+      ...(OWN_BUILD_TIME ? { build: OWN_BUILD_TIME } : {}),
+    };
+  }
+
+  /** Save one goal's followed route online (from a Follow press; `retry`: the next load's one try for a follow that
+   *  never got there, quiet: nothing is said under Right now). Marks the kept follow's `sync`. */
+  async function saveOnline(goalKey: GoalKey, f: Followed, retry = false): Promise<SaveState> {
+    const url = followUrl();
+    const p = partition.value;
+    if (!url || !cloudKey.value) return { state: 'saved', words: '' };
+    const built = buildCloudValue(f);
+    if (!built) {
+      const s: SaveState = { state: 'failed', why: 'rejected', words: saveFailWords('rejected') };
+      markSync(p, goalKey, f.at, 'unsyncable');
+      if (!retry) saves.value = { ...saves.value, [goalKey]: s };
+      return s;
+    }
+    if (!retry) saves.value = { ...saves.value, [goalKey]: { state: 'saving', words: '' } };
+    const r = await putFollow(url, cloudKey.value, goalKey, built.value);
+    const s: SaveState = r.ok
+      ? { state: 'saved', words: '', ...(built.trimmed ? { trimmed: true } : {}) }
+      : { state: 'failed', why: r.why, words: saveFailWords(r.why) };
+    // Refused for what it is (400, 413): never tried again. Offline, 5xx, the hour's limit: the next load tries once.
+    markSync(p, goalKey, f.at, r.ok ? 'synced' : r.why === 'rejected' || r.why === 'big' ? 'unsyncable' : 'pending');
+    if (!retry || r.ok) saves.value = { ...saves.value, [goalKey]: s };
+    return s;
+  }
+
+  /**
+   * Follow `chain` for the goal (the loaded save's account), and save it online. False when there is no account to
+   * keep it under. `extra`: the summary the button knows (where it came from, its finish, TE, spare, plan start).
+   */
+  async function follow(
+    goalKey: GoalKey,
+    chain: readonly number[],
+    from: FollowFrom,
+    label?: string,
+    extra: FollowExtra = {}
+  ): Promise<boolean> {
     const p = await partitionNow();
     if (!p || !goalKey || !chain.length) return false;
-    held.set(p, writeFollow(p, goalKey, { chain: [...chain], from, at: Date.now(), ...(label ? { label } : {}) }, mapOf(p)));
+    const at = Date.now();
+    const f: Followed = {
+      chain: [...chain],
+      from,
+      at,
+      ...(label ? { label } : {}),
+      source: extra.source ?? sourceOfFrom(from),
+      planStart: extra.planStart ?? (useInitialStateStore().lastBackupTime || Math.floor(at / 1000)),
+      ...(extra.finish !== undefined ? { finish: extra.finish } : {}),
+      ...(extra.endTE !== undefined ? { endTE: extra.endTE } : {}),
+      ...(extra.spareSeconds !== undefined ? { spareSeconds: extra.spareSeconds } : {}),
+      ...(extra.auto ? { auto: true } : {}),
+      ...setupNow(),
+      sync: 'pending',
+    };
+    held.set(p, writeFollow(p, goalKey, f, mapOf(p)));
+    writeGone(p, goalKey, null);
     version.value++;
+    await saveOnline(goalKey, f);
     return true;
   }
 
-  /** Back to the planner's checked route for the goal. */
+  /** Goals an automatic follow is under way for (partition|goal): two screens asking at once follow once. */
+  const autoBusy = new Set<string>();
+  /**
+   * THE FIRST ANSWER BECOMES THE FOLLOW (lib/followPolicy.ts AUTO_FOLLOW_FIRST): follow `a` for the goal (`auto`, its
+   * own source) and save it online once, only for Fastest to 490 and Egg Day 2027 (autoFollowsGoal), only when the saved routes are read (`autoReady`), nothing is followed for
+   * the goal and it was never un-followed on this device. False when it didn't.
+   */
+  async function autoFollow(goalKey: GoalKey, a: AutoFollow): Promise<boolean> {
+    if (!AUTO_FOLLOW_FIRST || !autoFollowsGoal(goalKey) || !a.chain.length || !autoReady.value) return false;
+    const p = partition.value;
+    if (followed(goalKey, p) || goneAt(goalKey, p) > 0) return false;
+    const busy = `${p}|${goalKey}`;
+    if (autoBusy.has(busy)) return false;
+    autoBusy.add(busy);
+    try {
+      const { chain, at: _at, source, ...extra } = a;
+      void _at;
+      return await follow(goalKey, chain, source === 'instant' ? 'answer' : 'saved', undefined, { ...extra, source, auto: true });
+    } finally {
+      autoBusy.delete(busy);
+    }
+  }
+
+  /** Back to the planner's checked route for the goal. Nothing is written online (there is no delete): this browser
+   *  remembers when, so the route saved before doesn't come back on the next load. */
   async function unfollow(goalKey: GoalKey): Promise<void> {
     const p = await partitionNow();
     if (!p || !goalKey) return;
     held.set(p, writeFollow(p, goalKey, null, mapOf(p)));
+    writeGone(p, goalKey, Date.now());
     version.value++;
+  }
+
+  /** When the player un-followed the goal on this device (ms; 0: never). */
+  function goneAt(goalKey: GoalKey, p: string = partition.value): number {
+    void version.value;
+    return p ? (readGone(p)[goalKey] ?? 0) : 0;
+  }
+
+  /** The last 5 versions saved for a goal, newest first (null: couldn't read them). */
+  async function earlierVersions(goalKey: GoalKey): Promise<CloudEntry[] | null> {
+    const url = followUrl();
+    if (!url || !cloudKey.value) return null;
+    const r = await getFollowHistory(url, cloudKey.value, goalKey);
+    return r.ok ? r.versions : null;
+  }
+
+  /** "Restore": follow an earlier version again (a Follow of it: a new save online, counted in the hour's limit). */
+  async function restore(goalKey: GoalKey, v: CloudValue): Promise<SaveState> {
+    const ok = await follow(goalKey, v.chain, v.source === 'instant' ? 'answer' : v.source === 'manual' ? 'typed' : 'saved', undefined, {
+      source: v.source,
+      planStart: v.planStart,
+      ...(v.finish !== undefined ? { finish: v.finish } : {}),
+      ...(v.endTE !== undefined ? { endTE: v.endTE } : {}),
+      ...(v.spareSeconds !== undefined ? { spareSeconds: v.spareSeconds } : {}),
+    });
+    if (!ok) return { state: 'failed', why: 'error', words: saveFailWords('error') };
+    return saves.value[goalKey] ?? { state: 'saved', words: '' };
+  }
+
+  /** "Follow it" on a better result (BetterRoutePrompt.vue, lib/searchPlan.ts `followPrompt`): a Follow press. */
+  async function followBetter(goalKey: GoalKey, p: FollowPrompt, deadline: number | null): Promise<boolean> {
+    return follow(goalKey, p.chain, p.source === 'instant' ? 'answer' : 'saved', undefined, {
+      source: p.source,
+      finish: Math.round(p.end),
+      endTE: p.endTE,
+      ...(p.planStart ? { planStart: Math.floor(p.planStart) } : {}),
+      ...(deadline ? { spareSeconds: Math.round(deadline - p.end) } : {}),
+    });
+  }
+
+  /**
+   * The followed route of a goal is not saved online (23 Oct 2026, Jordan's Egg Day follow never reached the
+   * collector and nothing said so): there is a collector and the account's saved routes were read this visit, and the
+   * kept follow is neither read back from online nor marked saved (a press whose save didn't get through and whose
+   * retry failed too, or one kept before the flag while an older route is saved online). Right now says so and offers
+   * `saveNow`. Not while a save is under way, nor after a refusal (its own words are shown then).
+   */
+  function notSaved(goalKey: GoalKey | null | undefined): boolean {
+    void version.value;
+    if (!goalKey || !online.value || cloudStatus.value !== 'ok') return false;
+    const f = followed(goalKey);
+    if (!f || f.cloud || f.sync === 'synced' || f.sync === 'unsyncable') return false;
+    const s = saves.value[goalKey];
+    return s?.state !== 'saving';
+  }
+
+  /** "Save it online" on Right now: the kept follow of a goal saved online now, as a Follow press saves it (the same
+   *  route and `at`: the collector stores nothing new when it already has it). */
+  async function saveNow(goalKey: GoalKey): Promise<SaveState | null> {
+    const p = partition.value;
+    const was = p ? mapOf(p)[goalKey] : null;
+    if (!was) return null;
+    // The page may be old (ux34): read what is saved online first, so a newer route followed on another device since
+    // is followed here instead of being written over by this older one (the collector keeps the last write). The
+    // read's own retry leaves this follow to the press.
+    tried.add(`${p}|${goalKey}|${was.at}`);
+    await loadCloud(true);
+    if (partition.value !== p) return null;
+    const f = mapOf(p)[goalKey];
+    if (!f || f.at !== was.at) return saveState(goalKey);
+    if (f.cloud || f.sync === 'synced') return { state: 'saved', words: '' };
+    return saveOnline(goalKey, f);
+  }
+
+  /** How the last save of a goal went (null: none this visit). */
+  function saveState(goalKey: GoalKey | null | undefined): SaveState | null {
+    return goalKey ? (saves.value[goalKey] ?? null) : null;
   }
 
   /** Forget what is held in memory (specs). */
   function reset(): void {
     held.clear();
+    saves.value = {};
     version.value++;
   }
 
-  return { partition, version, followed, followedGoals, isFollowed, follow, unfollow, reset };
+  return {
+    partition,
+    version,
+    cloudKey,
+    cloudStatus,
+    online,
+    autoReady,
+    autoFollow,
+    followed,
+    followedGoals,
+    isFollowed,
+    follow,
+    unfollow,
+    goneAt,
+    loadCloud,
+    earlierVersions,
+    restore,
+    followBetter,
+    saveState,
+    notSaved,
+    saveNow,
+    reset,
+  };
 });

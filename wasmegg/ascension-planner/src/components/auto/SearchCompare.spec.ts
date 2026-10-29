@@ -15,17 +15,17 @@ describe('SearchCompare', () => {
     s.lastSearch.smart = { chain: [201, 300, 490], end: T - 7200, endTE: 490, exact: true };
     const t = textOf(await renderHtml(SearchCompare, { goal: 'fastest' }));
     expect(t).toMatch(/^Compare the answers Instant answer .* 200 300 490 checked exactly on your account/);
-    expect(t).toMatch(/Stronger check Best .* 201 300 490 priced on your account/);
-    expect(t).toMatch(/Exhaustive not run yet$/);
+    expect(t).toMatch(/Search Best .* 201 300 490 priced on your account/);
+    expect(t).toMatch(/Custom not run yet$/);
   });
   it('By a date: TE and spare; a run still going says so', async () => {
     const s = useStrongerStore();
     s.instant.date = { chain: [161, 198, 248], end: T, endTE: 248, spare: 0.67 * 86400 };
     s.lastSearch.boxes = { chain: [161, 199, 248], end: T, endTE: 248, spare: 30 * 3600, running: true };
     const t = textOf(await renderHtml(SearchCompare, { goal: 'date' }));
-    expect(t).toContain('Instant answer 248 TE 16.1 h spare 161 198 248 from the instant answer, not checked yet');
-    expect(t).toContain('Stronger check not run yet');
-    expect(t).toContain('Exhaustive Best 248 TE 30.0 h spare 161 199 248 so far, still running');
+    expect(t).toContain('Instant answer 248 TE 16h 5m spare 161 198 248 from the instant answer, not checked yet');
+    expect(t).toContain('Search not run yet');
+    expect(t).toContain('Custom Best 248 TE 30h spare 161 199 248 so far, still running');
   });
 });
 

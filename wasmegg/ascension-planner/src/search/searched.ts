@@ -145,7 +145,7 @@ const oneLine = (text: string | undefined) => (text ?? '').replace(/[\u0000-\u00
  */
 export function cleanSearched(text: unknown): string | undefined {
   if (typeof text !== 'string') return undefined;
-  const one = oneLine(text).replace(/EI\d{16}/g, 'EI[redacted]');
+  const one = oneLine(text).replace(/EI\d{16}/gi, 'EI[redacted]');
   if (!one) return undefined;
   if (one.length <= MAX_SEARCHED) return one;
   const { boxes, counts } = splitTokens(one);
@@ -206,7 +206,7 @@ export function searchedWords(text: string | null | undefined): string {
     } else if ((m = /^grid step (\d+)$/.exec(token))) {
       rest.push(`early stops on a ${m[1]}-TE grid`);
     } else if ((m = /^around ([\d ]+)$/.exec(token))) {
-      rest.push(`Nearby routes around ${m[1].trim()}`);
+      rest.push(`Fast or Exact around ${m[1].trim()}`);
     } else if ((m = /^counts ([\d ]+)$/.exec(token))) {
       rest.push(`ascension counts tried ${m[1].trim().split(/\s+/).join(', ')}`);
     } else if ((m = /^plus (\d+) instant answer sets?$/.exec(token))) {
