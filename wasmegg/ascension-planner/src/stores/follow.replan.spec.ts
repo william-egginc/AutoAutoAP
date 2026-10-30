@@ -75,7 +75,7 @@ describe('re-plan from this save', () => {
     const props = { goalKey: GOAL, goal: 'fastest', deadline: null, candidate: candidate(), zone: ZONE };
     expect(textOf(await renderHtml(BetterRoutePrompt, props, {}, [pinia]))).toBe('');
     const text = textOf(await renderHtml(BetterRoutePrompt, { ...props, stale }, {}, [pinia]));
-    expect(text).toMatch(/^Your save doesn't match the route you follow: it's on Kindness, the route expects Curiosity\. The answer for this save finishes .+ Re-plan from this save Keep mine$/);
+    expect(text).toMatch(/^Your save doesn't match the route you follow: it's on Kindness, but the route expects Curiosity\. The answer for this save finishes .+ Re-plan from this save Keep mine$/);
     expect(JSON.stringify(follows.followed(GOAL))).toBe(before);
     expect(puts().length).toBe(putsBefore);
   });

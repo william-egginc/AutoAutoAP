@@ -79,4 +79,4 @@ export function idFromScreen(raw: SaveIds, screenId: string): 'ok' | 'other' | '
 
 /** Said when a save is loaded with no account on screen (DRAFT wording, for Words). */
 export const NO_ACCOUNT_LINE =
-  'This save is loaded without an account, so your own instant answer, Follow, Saved answers and anything kept online or sent to the Leaderboard are off. Enter your player ID at the top to turn them on.';
+  'This save is loaded without an account, so these are off: your own instant answer, Follow, Saved answers, and anything saved online or sent to the Leaderboard. Enter your player ID at the top to turn them on.';
