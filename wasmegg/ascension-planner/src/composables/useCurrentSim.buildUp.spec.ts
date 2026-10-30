@@ -5,7 +5,7 @@
  * screen while the plan is simulated.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, nextTick, ref } from 'vue';
+import { effectScope, isReactive, nextTick, ref } from 'vue';
 import { setSimRunner, setSimTiming, useCurrentSim, type SimRequest, type SimRunner } from './useCurrentSim';
 import { BUILDUP_PLAN_KEY, readBuildUpPlan } from '@/lib/followSim';
 import type { LegSummary, SearchInputs } from '@/search/types';
@@ -179,5 +179,58 @@ describe('useCurrentSim, wantBuildUp', () => {
     expect(runs).toHaveLength(2);
     expect((m.state.value as { planFailed?: string }).planFailed).toMatch(/could not be simulated/);
     m.scope.stop();
+  });
+});
+
+/**
+ * BUILD-UP PERF (spec-buildperf, 30 Oct 2026: "working it out…" for minutes, the tab frozen). One simulation per save
+ * and route: the request worked out again (a new object, the same key) never asks again, also when the run brought no
+ * build-up list (then the plan is said to have failed, not asked for again and again); the plan in the state is not
+ * deeply reactive; the kept plan's text is parsed once however often it is read.
+ */
+describe('useCurrentSim, one request per save and route', () => {
+  it('the request worked out again and again: one run; no list back: planFailed, never asked again', async () => {
+    const request = ref<SimRequest | null>(req());
+    const want = ref(true);
+    const scope = effectScope();
+    const m = scope.run(() => useCurrentSim(request, ref(false), want))!;
+    await flush();
+    expect(runs).toHaveLength(1);
+    for (let n = 0; n < 5; n++) {
+      request.value = req();
+      await flush();
+    }
+    expect(runs).toHaveLength(1);
+    runs[0].resolve(legOf(false));
+    await flush();
+    expect(m.state.value).toMatchObject({ status: 'done', planFailed: 'the simulation gave no build-up list' });
+    for (let n = 0; n < 5; n++) {
+      request.value = req();
+      want.value = n % 2 === 0;
+      await flush();
+    }
+    want.value = true;
+    await flush();
+    expect(runs).toHaveLength(1);
+    expect(m.state.value).toMatchObject({ status: 'done', planFailed: expect.any(String) });
+    scope.stop();
+  });
+
+  it('the plan in the state is not deeply reactive; the kept text is parsed once', async () => {
+    const request = ref<SimRequest | null>({ ...req(), key: 'other-key' });
+    const scope = effectScope();
+    const m = scope.run(() => useCurrentSim(request, ref(false), true))!;
+    await flush();
+    runs[0].resolve(legOf(true));
+    await flush();
+    const s = m.state.value as { buildUp?: { actions: unknown[] } };
+    expect(s.buildUp).toBeTruthy();
+    expect(isReactive(m.state.value)).toBe(false);
+    expect(isReactive(s.buildUp)).toBe(false);
+    expect(isReactive(s.buildUp!.actions)).toBe(false);
+    const spy = vi.spyOn(JSON, 'parse');
+    for (let n = 0; n < 5; n++) readBuildUpPlan('other-key');
+    expect(spy.mock.calls.filter(c => typeof c[0] === 'string' && c[0].includes('"plan"'))).toHaveLength(1);
+    scope.stop();
   });
 });

@@ -289,3 +289,60 @@ describe('Phase 2 end to end: a second synthetic save ticks the right lines of t
     }
   });
 });
+
+// ------------------------------------------------------------------ perf budget (30 Oct 2026, the frozen tab)
+/**
+ * BUILD-UP PERF (spec-buildperf, 30 Oct 2026: Jordan's tab sat on "working it out…" with the renderer frozen). The pure
+ * list and the save's ticks on the real plan's shape, made at least as long as the 1,841 buys seen live (the plan's
+ * build part repeated, each copy a fortnight on), must each finish well under a generous budget, and four times the
+ * buys must cost about four times the time, not sixteen (no scan inside a scan). Measured with performance.now, the
+ * best of three runs.
+ */
+describe('perf budget on the real plan shape', () => {
+  const WEEK = 7 * 86400;
+  /** The plan's build part `k` times over, each copy a fortnight after the last one ends. */
+  function longer(k: number): BuildUpAction[] {
+    const part = buildPart(plan.actions);
+    const span = part[part.length - 1].t - part[0].t;
+    const step = Math.ceil((span + 2 * WEEK) / WEEK) * WEEK;
+    const out: BuildUpAction[] = [];
+    for (let c = 0; c < k; c++) for (const a of part) out.push({ ...a, t: a.t + c * step });
+    return out;
+  }
+  const run = (actions: BuildUpAction[]) =>
+    buildUpTracker({ actions, zone: ZONE, hours: HOURS, siloSeconds: plan.siloSeconds, startSilos: plan.start?.siloCount ?? null, startEgg: plan.start?.egg ?? null, now });
+  function best<T>(f: () => T): { ms: number; v: T } {
+    let ms = Infinity;
+    let v!: T;
+    for (let n = 0; n < 3; n++) {
+      const s = performance.now();
+      v = f();
+      ms = Math.min(ms, performance.now() - s);
+    }
+    return { ms, v };
+  }
+
+  it('the list and the ticks on at least 1,841 buys: each under 300 ms', () => {
+    const k = Math.ceil(1841 / buildPart(plan.actions).length);
+    const acts = longer(k);
+    expect(acts.length).toBeGreaterThanOrEqual(1841);
+    const list = best(() => run(acts));
+    const farm = saveFarmFor(saveFarmOf(syntheticBackup()), 'earnings')!;
+    const ticks = best(() => boughtFromSave({ lines: list.v.lines, save: farm, start: plan.start, startEgg: plan.start?.egg, anchorFarm: farm }));
+    expect(list.v.lines.length).toBeGreaterThan(0);
+    expect(list.ms, `list ${list.ms.toFixed(1)} ms`).toBeLessThan(300);
+    expect(ticks.ms, `ticks ${ticks.ms.toFixed(1)} ms`).toBeLessThan(300);
+  });
+
+  it('four times the buys: about four times the time (not sixteen)', () => {
+    const n = Math.max(1, Math.ceil(600 / buildPart(plan.actions).length));
+    const small = best(() => run(longer(n)));
+    const big = best(() => run(longer(4 * n)));
+    const farm = saveFarmFor(saveFarmOf(syntheticBackup()), 'earnings')!;
+    const ts = best(() => boughtFromSave({ lines: small.v.lines, save: farm, start: plan.start, startEgg: plan.start?.egg, anchorFarm: farm }));
+    const tb = best(() => boughtFromSave({ lines: big.v.lines, save: farm, start: plan.start, startEgg: plan.start?.egg, anchorFarm: farm }));
+    // Linear is 4; a scan inside a scan is 16. 9 leaves room for a busy machine.
+    expect(big.ms / Math.max(small.ms, 1), `list ${small.ms.toFixed(1)} -> ${big.ms.toFixed(1)} ms`).toBeLessThan(9);
+    expect(tb.ms / Math.max(ts.ms, 0.5), `ticks ${ts.ms.toFixed(2)} -> ${tb.ms.toFixed(2)} ms`).toBeLessThan(9);
+  });
+});

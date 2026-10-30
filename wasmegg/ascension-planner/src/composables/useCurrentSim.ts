@@ -17,7 +17,7 @@
  *
  * Never throws.
  */
-import { onScopeDispose, ref, unref, watch, type Ref } from 'vue';
+import { markRaw, onScopeDispose, ref, shallowRef, unref, watch, type Ref } from 'vue';
 import type { LegSummary, SearchInputs } from '@/search/types';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import {
@@ -122,7 +122,9 @@ export function useCurrentSim(
   /** BUILD-UP TRACKER: keep the simulated ascension's action list too (`SimState.buildUp`). Off by default. */
   wantBuildUp: Ref<boolean> | boolean = false
 ) {
-  const state = ref<SimState | null>(null);
+  /** Shallow (build-up perf, 30 Oct 2026): the state is replaced whole, never changed in place, and the build-up plan in
+   *  it (hundreds to a couple of thousand buys) is never made deeply reactive. */
+  const state = shallowRef<SimState | null>(null);
   /** It has run `slowMs` without an answer. */
   const slow = ref(false);
   let runner: SimRunner | null = null;
@@ -193,9 +195,14 @@ export function useCurrentSim(
         : null;
       // What the START farm's silos hold: a fresh ascension starts on 1 silo, not the save's (the synthetic save has 4:
       // 12 h read as 1 silo's worth made the tracker's silo time 4 times too long, 30 Oct 2026).
-      const buildUp = made?.start ? { ...made, siloSeconds: siloSeconds(made.start.siloCount, siloLevel) } : made;
+      const shaped = made?.start ? { ...made, siloSeconds: siloSeconds(made.start.siloCount, siloLevel) } : made;
+      const buildUp = shaped ? markRaw(shaped) : null;
       if (buildUp) recordBuildUpPlan(req.key, buildUp);
-      result = { key: req.key, status: 'done', leg, at, ...(buildUp ? { buildUp } : {}) };
+      // The plan was wanted and none came back: said so (the tracker shows why), never asked again for this key on
+      // this page (a request worked out again would otherwise simulate it again and again, 30 Oct 2026).
+      const noPlan = want && !buildUp ? 'the simulation gave no build-up list' : '';
+      if (noPlan) failed.set(req.key, { reason: noPlan, tries: 2 });
+      result = { key: req.key, status: 'done', leg, at, ...(buildUp ? { buildUp } : {}), ...(noPlan ? { planFailed: noPlan } : {}) };
     } catch (err) {
       if (id !== asked) return;
       const reason = reasonOf(err);
@@ -226,12 +233,13 @@ export function useCurrentSim(
         return;
       }
       const now = state.value?.key === req.key && state.value.status === 'done' ? state.value : null;
-      if (now && (!want || now.buildUp)) return;
+      // Done for this key: the plan is in, not wanted, or working it out failed (one request per save and route).
+      if (now && (!want || now.buildUp || now.planFailed)) return;
       const kept = findSimRecord(readSimRecords(), req);
       const keptPlan = kept && want ? readBuildUpPlan(req.key) : null;
       if (kept && (!want || keptPlan)) {
         letGo();
-        state.value = { key: req.key, status: 'done', leg: kept.leg, at: kept.at, ...(keptPlan ? { buildUp: keptPlan } : {}) };
+        state.value = { key: req.key, status: 'done', leg: kept.leg, at: kept.at, ...(keptPlan ? { buildUp: markRaw(keptPlan) } : {}) };
         return;
       }
       // BUILD-UP TRACKER: the leg is known (on screen, or kept) and only the plan is wanted: the leg stays while the

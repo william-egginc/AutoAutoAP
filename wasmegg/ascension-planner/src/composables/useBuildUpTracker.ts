@@ -21,7 +21,8 @@
  * The save's time comes from the page (useNowPage `saveSeconds`: the loaded save's own backup time, which the
  * save-start rule of search/saveStart.ts keeps apart from a Manual plan's start), never from a Manual plan.
  */
-import { computed, onScopeDispose, ref, watch, type Ref } from 'vue';
+import { computed, markRaw, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue';
+import { calendarOf } from '@/lib/clock';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import { getResearchById } from '@/calculations/commonResearch';
 import type { Availability } from '@/search/availability';
@@ -94,15 +95,20 @@ export interface BuildUpTrackerInputs {
 }
 
 export function useBuildUpTracker(i: BuildUpTrackerInputs) {
-  /** This page's kept plan (read again when the account changes). */
-  const anchored = ref<AnchoredPlan | null>(null);
+  /**
+   * This page's kept plan (read again when the account changes). NOT deeply reactive (build-up perf, 30 Oct 2026): a
+   * shallow ref of a raw object, replaced whole, so its hundreds to thousands of buys are never wrapped or walked by
+   * Vue. Read from storage once per account; written only when a plan is kept.
+   */
+  const anchored = shallowRef<AnchoredPlan | null>(null);
+  const keep = (a: AnchoredPlan | null): AnchoredPlan | null => (a ? markRaw({ ...a, plan: markRaw(a.plan) }) : null);
   /** Re-plan: asked for and not in yet; why the last one failed. */
   const replanning = ref(false);
   const replanError = ref('');
   watch(
     i.account,
     a => {
-      anchored.value = a ? readAnchoredPlan(a) : null;
+      anchored.value = a ? keep(readAnchoredPlan(a)) : null;
     },
     { immediate: true }
   );
@@ -115,10 +121,13 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     return a && k !== null && a.ascensionStart === k ? a : null;
   });
   const saveFarm = computed(() => i.saveFarm?.value ?? null);
-  // The first plan of the ascension is kept; a later one (a newer save) is not, unless the player re-plans.
+  // The first plan of the ascension is kept; a later one (a newer save) is not, unless the player re-plans. Also when
+  // the ascension's key moves while this save's plan is in (the page's estimate of the ascension's start changed): the
+  // plan of this save is kept under the new key, never asked for again (30 Oct 2026: "working it out…" for minutes
+  // with the plan already worked out).
   watch(
-    i.fresh,
-    p => {
+    [i.fresh, ascKey],
+    ([p]) => {
       if (replanning.value) {
         adoptReplan(p);
         return;
@@ -130,7 +139,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       // Kept here (compacted): useCurrentSim's own copy of the raw plan (lib/followSim.ts BUILDUP_PLAN_KEY, ~250 kB
       // on the synthetic save) is then not needed, and the plan is not asked for again in this ascension.
       if (writeAnchoredPlan(acct, a)) dropSimPlanCopy();
-      anchored.value = a;
+      anchored.value = keep(a);
     },
     { immediate: true }
   );
@@ -165,18 +174,34 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   onScopeDispose(() => (buildUpWanted.value = false));
 
   // ------------------------------------------------------------------ the list
+  /**
+   * The day it is in the zone, with the first moment seen in it. The list reads `now` only for the day (today's day
+   * opens, a year on other years' titles), so a clock tick inside the day changes nothing here: the same object comes
+   * back and the list is not worked out again (build-up perf, 30 Oct 2026).
+   */
+  let dayRep = { ymd: '', at: 0 };
+  const today = computed(() => {
+    const n = i.now.value;
+    const ymd = calendarOf(n * 1000, i.zone.value)?.ymd ?? String(Math.floor(n / 86400));
+    if (ymd !== dayRep.ymd) dayRep = { ymd, at: dayOf(n) };
+    return dayRep;
+  });
+  /** The hours as a key, so an equal window handed again does not rebuild the list. */
+  const hoursKey = computed(() => JSON.stringify(i.hours.value ?? null));
   const result = computed<TrackerResult | null>(() => {
     const a = plan.value;
     if (!a) return null;
-    return buildUpTracker({
-      actions: a.plan.actions,
-      zone: i.zone.value,
-      hours: i.hours.value,
-      siloSeconds: a.plan.siloSeconds,
-      startSilos: a.plan.start?.siloCount ?? null,
-      startEgg: a.plan.start?.egg ?? null,
-      now: dayOf(i.now.value),
-    });
+    return markRaw(
+      buildUpTracker({
+        actions: a.plan.actions,
+        zone: i.zone.value,
+        hours: JSON.parse(hoursKey.value) as Availability | null,
+        siloSeconds: a.plan.siloSeconds,
+        startSilos: a.plan.start?.siloCount ?? null,
+        startEgg: a.plan.start?.egg ?? null,
+        now: today.value.at,
+      })
+    );
   });
 
   // ------------------------------------------------------------------ ticks (Phase 2: from the save, the player's override)
@@ -303,7 +328,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const kept = carryTicks(overrides.value, keys);
     if (writeAnchoredPlan(acct, a)) dropSimPlanCopy();
     else dropAnchoredPlan(acct);
-    anchored.value = a;
+    anchored.value = keep(a);
     saveOverrides(kept.on, kept.off);
     replanning.value = false;
     replanError.value = '';

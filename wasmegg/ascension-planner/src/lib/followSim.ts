@@ -281,11 +281,17 @@ function usablePlan(p: unknown): p is BuildUpPlan {
   return !!x && finite(x.startedAt) && finite(x.endTime) && typeof x.accountKey === 'string' && Array.isArray(x.actions);
 }
 
+/** The last kept text read and what it parsed to: the same text is never parsed twice (build-up perf, 30 Oct 2026:
+ *  the request watch reads this whenever the request is worked out again). */
+let lastRead: { text: string; v: { key?: unknown; plan?: unknown } | null } | null = null;
+
 /** The kept plan for this `simKey`, or null. */
 export function readBuildUpPlan(key: string, st: Store | null = storage()): BuildUpPlan | null {
   if (!st) return null;
   try {
-    const v = JSON.parse(st.getItem(BUILDUP_PLAN_KEY) ?? 'null') as { key?: unknown; plan?: unknown } | null;
+    const text = st.getItem(BUILDUP_PLAN_KEY) ?? 'null';
+    if (lastRead?.text !== text) lastRead = { text, v: JSON.parse(text) as { key?: unknown; plan?: unknown } | null };
+    const v = lastRead.v;
     return v && v.key === key && usablePlan(v.plan) ? v.plan : null;
   } catch {
     return null;
