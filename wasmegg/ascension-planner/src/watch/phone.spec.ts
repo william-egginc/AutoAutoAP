@@ -94,10 +94,11 @@ describe('the phone page', () => {
   });
 
   it('a wrong secret is an incomplete link', async () => {
-    // A well-formed secret that is certainly not SECRET (a random one could, in theory, be it), and a wait
-    // for the answer: opening the heartbeat is real async crypto, which a few event-loop turns do not always
-    // cover on a busy machine (it failed once in a full run, and passed alone).
-    const wrong = SECRET.slice(0, -1) + (SECRET.endsWith('A') ? 'B' : 'A');
+    // A well-formed secret that is certainly not SECRET, and a wait for the answer: opening the heartbeat is
+    // real async crypto, which a few event-loop turns do not always cover on a busy machine. The FIRST character
+    // is changed: 32 bytes are 43 base64url characters and the last one's low 2 bits are padding, so A <-> B
+    // there decoded to the same key whenever SECRET ended in A-D (1 run in 16 failed).
+    const wrong = (SECRET.startsWith('A') ? 'B' : 'A') + SECRET.slice(1);
     await startAt(`#${ID}.${wrong}`);
     for (let i = 0; i < 800 && els['p-title']?.textContent !== 'This link is incomplete'; i++) {
       await new Promise(r => setTimeout(r, 10));
