@@ -14,6 +14,8 @@ import { readCsv } from '@/lib/csvParse';
 import { buildChainsCsv, buildDeadlineCsv, formatInZone } from './csv';
 import { legsFromRunCsv, unixFromZoned } from './runLegsCsv';
 import type { LegSummary } from './types';
+import { XLSX_BUTTON } from '@/components/auto/csvButton';
+import { XLSX_ROW_CAP } from '@/utils/xlsxRows';
 
 const DENVER = 'America/Denver';
 const H = 3600;
@@ -98,9 +100,14 @@ describe('the CSV’s times', () => {
   it('the header says what the times are, in which zone, and what ######## in Excel means', () => {
     for (const csv of [chainsCsv(), deadlineCsv()]) {
       const line = csv.split('\n').find(l => l.startsWith('# times '));
+      // spec-xlsx (29 Oct 2026): still what the #s mean in the CSV, and a one-line tip pointing at the Excel download
+      // beside the CSV button (components/auto/csvButton.ts XLSX_BUTTON), whose columns are sized. Draft for Words.
       expect(line).toBe(
-        '# times (the columns ending _local) are YYYY-MM-DD HH:MM (24-hour) in America/Denver. ######## in Excel means the column is too narrow for its date format: widen it.'
+        `# times (the columns ending _local) are YYYY-MM-DD HH:MM (24-hour) in America/Denver. ######## in Excel means the column is too narrow: widen it. Or use ${XLSX_BUTTON.replace(/ ↓$/, '')} beside the CSV button: its columns are sized (offered when the table is under ${XLSX_ROW_CAP} rows).`
       );
+      // A note line: no commas, and no "This computer" (search/device.ts thisDevice()).
+      expect(line).not.toContain(',');
+      expect(line).not.toMatch(/this computer/i);
       // Still before the data, and not mistaken for the generated line the readers find the zone in.
       expect(csv.indexOf(line!)).toBeLessThan(csv.indexOf('\nrank,'));
       expect(legsFromRunCsv(csv, CHAIN)).not.toBeNull();
