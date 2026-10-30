@@ -28,10 +28,10 @@
           Nothing to buy until your next prestige: the build-up list shows while you build.
         </p>
         <p v-else-if="state === 'working'" data-testid="buildup-working">
-          Working out your build-up (it can take a few minutes). Right now’s shifts still hold meanwhile.
+          Working out your build-up (it can take a few minutes). Right now's shifts still hold meanwhile.
         </p>
         <p v-else-if="state === 'failed'" class="text-amber-800" data-testid="buildup-failed">
-          The build-up list could not be worked out<template v-if="failReason">{{ ' ' }}({{ failReason }})</template>. Right now’s
+          The build-up list could not be worked out<template v-if="failReason">{{ ' ' }}({{ failReason }})</template>. Right now's
           shifts still hold.
         </p>
 
@@ -112,7 +112,7 @@
             </ul>
           </section>
           <p class="text-small text-slate-500" data-testid="buildup-foot">
-            Times are your zone ({{ zone }}), rounded down to the minute. Every sale buy must be done before the sale ends
+            Times are in your zone ({{ zone }}), rounded down to the minute. Every sale buy must be done before the sale ends
             ({{ saleEndWords }}).
           </p>
         </template>

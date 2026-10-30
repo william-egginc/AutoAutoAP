@@ -42,7 +42,7 @@ describe('BuildUpTracker: the states', () => {
     ['noRoute', 'follow a route first', 'Follow a route on Right now and its build-up shows here.'],
     ['notBuilding', 'nothing to buy until your next prestige', 'Nothing to buy until your next prestige'],
     ['working', 'working it out…', 'Working out your build-up'],
-    ['failed', 'could not be worked out', 'The build-up list could not be worked out (worker ran out of memory). Right now’s shifts still hold.'],
+    ['failed', 'could not be worked out', "The build-up list could not be worked out (worker ran out of memory). Right now's shifts still hold."],
   ] as const)('%s: its hint and its line', async (state, hint, body) => {
     const html = await render(state, { failReason: 'worker ran out of memory', open: false });
     expect(html).toContain('data-testid="buildup-tracker"');
@@ -67,7 +67,7 @@ describe('BuildUpTracker: the list', () => {
     expect(t).toContain('9:02 am · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
     expect(t).toContain('wait for the sale: offline until Fri Oct 30 10:00 am (25 min)');
     expect(t).toContain('clocks go back 1 h at 2:00 am');
-    expect(t).toContain('Times are your zone (America/Denver), rounded down to the minute.');
+    expect(t).toContain('Times are in your zone (America/Denver), rounded down to the minute.');
   });
   it('bold lines are bold, research is not', async () => {
     const html = await render('ready');
