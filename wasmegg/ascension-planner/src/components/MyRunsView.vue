@@ -288,8 +288,14 @@
           :zone="page.zone.value"
           :save-seconds="page.saveSeconds.value"
           :plan-save="tracker.plan.value?.saveSeconds ?? 0"
+          :bought="tracker.bought.value?.lines ?? null"
+          :tick-source="tracker.tickSource.value"
+          :save-fit="tracker.bought.value?.fit ?? null"
+          :replan="trackerReplan"
           @toggle="tracker.playerToggle"
           @tick="tracker.toggleTick"
+          @clear="tracker.clearTick"
+          @replan="tracker.replan"
         />
       </div>
     </section>
@@ -425,7 +431,21 @@ const tracker = useBuildUpTracker({
   now: page.now,
   fresh: page.buildUpPlan,
   sim: page.buildUpSim,
+  saveFarm: page.buildUpSave,
 });
+/** The tracker's Re-plan strip (Phase 2): shown when the save is over 1 h behind the plan or bought things off-plan. */
+const trackerReplan = computed(() =>
+  tracker.replanShown.value
+    ? {
+        shown: true,
+        working: tracker.replanning.value,
+        error: tracker.replanError.value,
+        behind: tracker.offer.value?.behind ?? 0,
+        offPlan: tracker.offPlanWords.value,
+        keepsTicks: tracker.hasOverrides.value,
+      }
+    : null
+);
 /** The save on the server versus the one loaded here: asked quietly once per page load (lib/serverSave.ts). */
 const serverSave = useServerSave({
   playerId: computed(() => props.playerId),
