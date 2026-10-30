@@ -80,6 +80,13 @@ export interface EvaluateChainOptions {
    * hours then apply from the end of the wait. Absent, or all zero, prices exactly as before.
    */
   delays?: number[];
+  /**
+   * BUILD-UP TRACKER: the FIRST step's legs come back with their picked variant's actions as compact
+   * records (`LegSummary.buildUp`, search/leg.ts `LegOptions.keepPurchases`). Off by default; My runs'
+   * simulation of the ascension you are in asks for it. The step is kept in the memo under its own
+   * key, so an answer made with it never answers a chain asked without it, nor the other way round.
+   */
+  keepPurchases?: boolean;
 }
 
 export interface ChainEvaluator {
@@ -114,6 +121,9 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
   let capacity = usableCapacity(memoSettings.capacity);
   let keepLastDefault = memoSettings.keepLast !== false;
   let legSims = 0;
+  // `EvaluateChainOptions.keepPurchases` for the step being priced (`evaluate` sets it before each, so it
+  // is on only for a first step asked for it). Read by `safeLeg`.
+  let keepNow = false;
   // Validated once, not per leg. A schedule that excludes nothing becomes null so the hot path is
   // a single null check — and so a run with no schedule is byte-for-byte the same computation it
   // was before availability existed.
@@ -169,7 +179,9 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
     legSims++;
     let leg: LegResult | null;
     try {
-      leg = runLeg(legInputs, state, start, target, allowContinue, te, idx, endOverride);
+      leg = keepNow
+        ? runLeg(legInputs, state, start, target, allowContinue, te, idx, endOverride, { keepPurchases: true })
+        : runLeg(legInputs, state, start, target, allowContinue, te, idx, endOverride);
     } catch {
       leg = null;
     }
@@ -310,9 +322,15 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
         return b[b.length - 1].summary.endTime < a[a.length - 1].summary.endTime ? b : a;
       };
 
+      const keepFirst = !!opts?.keepPurchases;
       for (let i = 0; i < chain.length; i++) {
         // 'now' keeps the plain prefix as its key, so it shares the memo exactly as before.
-        const key = (handoff === 'now' ? '' : `${handoff}|`) + chain.slice(0, i + 1).join(',') + waitsKey(i);
+        // A first step priced with its build-up list kept is its own entry ('p|'); without the ask the key is as before.
+        const key =
+          (keepFirst && i === 0 ? 'p|' : '') +
+          (handoff === 'now' ? '' : `${handoff}|`) +
+          chain.slice(0, i + 1).join(',') +
+          waitsKey(i);
         let segs = memo.get(key);
         // Least recently USED goes first, not least recently added: a By a date run comes back to a
         // set's early legs round after round while every route's own last leg is used once, and with
@@ -325,6 +343,7 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
         }
 
         if (segs === undefined) {
+          keepNow = keepFirst && i === 0;
           if (i === 0) {
             // The first leg starts from a blank farm on curiosity, not from the backup's farm —
             // the "continue current ascension" variant is the one that reads the live farm, and it
@@ -361,6 +380,7 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
                 segs = [{ ...segs[0], firstLegEnds: { ...ends, fresh: segs[0].summary.endTime } }, ...segs.slice(1)];
             }
           }
+          keepNow = false;
           // The last step is still READ from the memo above (another route's early stops may be this
           // whole route), only not written when the caller says nothing comes back to it.
           if (keepLast || i < chain.length - 1) remember(key, segs);
@@ -435,6 +455,8 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
             ...(isFinalLeg ? { endEggs: endEggsOf(leg) } : {}),
             // The egg it ends on and its TE then, every leg (search/routeTimeline.ts).
             ...(leg.endEgg ? { endEgg: { ...leg.endEgg } } : {}),
+            // BUILD-UP TRACKER: only when the first step was asked for it (opts.keepPurchases).
+            ...(leg.buildUp ? { buildUp: leg.buildUp } : {}),
           });
 
           state = leg.nextState;

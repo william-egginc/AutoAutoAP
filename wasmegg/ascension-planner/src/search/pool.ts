@@ -243,6 +243,10 @@ export interface EvaluateOptions {
    * starts (more workers, less each: they share the tab's memory). Absent: the memo as it is.
    */
   memo?: { keepLast?: boolean; capacity?: (workers: number) => number };
+  /** BUILD-UP TRACKER: each chain's first step comes back with its build-up list (search/chain.ts
+   *  `EvaluateChainOptions.keepPurchases`). Off by default; only My runs' simulation of the ascension
+   *  you are in asks for it (composables/useCurrentSim.ts), not when dealt. */
+  keepPurchases?: boolean;
 }
 
 /** The `memo` field of an evaluate request, for a pool of `workers`: absent when there is nothing to say. */
@@ -820,6 +824,7 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
               chains: bucket,
               ...(opts.handoff && opts.handoff !== 'now' ? { handoff: opts.handoff } : {}),
               ...memo,
+              ...(opts.keepPurchases ? { keepPurchases: true as const } : {}),
             },
             `worker ${workerOf[i]}`,
             bucket.length

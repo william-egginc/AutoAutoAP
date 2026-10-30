@@ -9,6 +9,11 @@
  * No `EngineState`s in here: a record is a few numbers and short strings, so a whole build-up (about
  * 1,500 buys) is tens of KB, not the ~22 MB the engine's own action list holds.
  */
+import type { Action } from '@/types/actions/meta';
+import type { EngineState } from '@/engine/types';
+import { getResearchById } from '@/calculations/commonResearch';
+import { getHabById, isHabId } from '@/lib/habs';
+import { getVehicleType } from '@/lib/vehicles';
 
 /**
  * What kind of thing the player does (or waits for):
@@ -26,7 +31,8 @@
  *                  `on` whether it starts or ends.
  *  - 'wait'        any wait_*: `id` the engine's action type ('wait_for_research_sale',
  *                  'wait_for_earnings_boost', 'wait_for_te', ...), `seconds` how long the engine
- *                  waited, as the engine reports it (not clock-anchored).
+ *                  waited, as the engine reports it (not clock-anchored). A `wait_for_time` under a
+ *                  second (the build's slivers of waiting for cash between buys) is left out.
  *  - 'other'       anything else the engine does (fuel, missions, notifications, bank edits):
  *                  `id` the engine's action type.
  */
@@ -46,7 +52,9 @@ export type BuildUpActionKind =
 export interface BuildUpAction {
   /** When the action happens in the simulation, absolute unix seconds (the leg start plus the
    *  action's `endState.lastStepTime`, the same clock search/leg.ts `shiftInstants` reads). For a wait
-   *  that is when the wait ENDS; it began `seconds` earlier. */
+   *  that is the engine's end state's time: normally when the wait ENDS (it began `seconds` earlier),
+   *  but K3's `wait_for_te` (the wait to the build phase end) reports its START; read the next action's
+   *  `t` for when a wait is over. */
   t: number;
   kind: BuildUpActionKind;
   /** For people: the research's name, the shift's name, the set's name, or the engine type. */
@@ -100,4 +108,171 @@ export interface BuildUpPlan {
   siloSeconds: number;
   /** When the leg ends (the variant's `summary.endTime`), unix seconds. */
   endTime: number;
+}
+
+/** What search/leg.ts `LegResult.buildUp` (and search/types.ts `LegSummary.buildUp`) carries for one
+ *  simulated ascension when `keepPurchases` asked for it: the list and the farm it starts from. */
+export interface BuildUpList {
+  actions: BuildUpAction[];
+  start?: BuildUpStart;
+}
+
+// ------------------------------------------------------------------------------------------------
+// From the engine's actions (worker side). Reads Joo's action types and name tables by import only.
+
+const finite = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
+
+/** `wait_for_time` records shorter than this are left out (`recordOf`). */
+export const MIN_TIME_WAIT_SECONDS = 1;
+
+/** One engine action as a compact record, or null when it has no usable time (or is a sub-second cash wait). */
+function recordOf(a: Action, legStart: number): BuildUpAction | null {
+  const step = a.endState?.lastStepTime;
+  if (!finite(step)) return null;
+  const t = legStart + step;
+  const cost = finite(a.cost) && a.cost > 0 ? { cost: a.cost } : {};
+  switch (a.type) {
+    case 'buy_research': {
+      const p = a.payload;
+      return {
+        t,
+        kind: 'research',
+        label: getResearchById(p.researchId)?.name ?? p.researchId,
+        id: p.researchId,
+        fromLevel: p.fromLevel,
+        level: p.toLevel,
+        ...cost,
+      };
+    }
+    case 'buy_vehicle': {
+      const p = a.payload;
+      return {
+        t,
+        kind: 'vehicle',
+        label: getVehicleType(p.vehicleId)?.name ?? `vehicle ${p.vehicleId}`,
+        slot: p.slotIndex,
+        itemId: p.vehicleId,
+        ...(finite(p.trainLength) ? { level: p.trainLength } : {}),
+        ...cost,
+      };
+    }
+    case 'buy_train_car': {
+      const p = a.payload;
+      return {
+        t,
+        kind: 'trainCar',
+        label: 'train car',
+        slot: p.slotIndex,
+        fromLevel: p.fromLength,
+        level: p.toLength,
+        ...cost,
+      };
+    }
+    case 'buy_hab': {
+      const p = a.payload;
+      return {
+        t,
+        kind: 'hab',
+        label: isHabId(p.habId) ? getHabById(p.habId).name : `hab ${p.habId}`,
+        slot: p.slotIndex,
+        itemId: p.habId,
+        ...cost,
+      };
+    }
+    case 'buy_silo': {
+      const p = a.payload;
+      return { t, kind: 'silo', label: 'silo', fromLevel: p.fromCount, count: p.toCount, ...cost };
+    }
+    case 'shift': {
+      const p = a.payload;
+      return {
+        t,
+        kind: 'shift',
+        label: p.autoShiftName ?? `shift to ${p.toEgg}`,
+        id: p.toEgg,
+        detail: p.fromEgg,
+        ...cost,
+      };
+    }
+    case 'start_ascension':
+      return { t, kind: 'prestige', label: 'prestige', id: a.payload.initialEgg, detail: a.type };
+    case 'equip_artifact_set':
+    case 'update_artifact_set':
+      return { t, kind: 'artifactSet', label: `${a.payload.setName} set`, id: a.payload.setName, detail: a.type };
+    case 'change_artifacts':
+      return { t, kind: 'artifactSet', label: 'artifacts', detail: a.type };
+    case 'toggle_sale':
+      return {
+        t,
+        kind: 'event',
+        label: `${a.payload.saleType} sale`,
+        id: a.payload.saleType,
+        on: !!a.payload.active,
+        detail: a.type,
+      };
+    case 'toggle_earnings_boost':
+      return {
+        t,
+        kind: 'event',
+        label: 'earnings boost',
+        id: 'earnings_boost',
+        on: !!a.payload.active,
+        detail: a.type,
+      };
+    case 'wait_for_te':
+    case 'wait_for_time':
+    case 'wait_for_full_habs':
+    case 'wait_for_research_sale':
+    case 'wait_for_earnings_boost':
+    case 'wait_for_no_earnings':
+    case 'wait_for_missions':
+    case 'wait_for_gems': {
+      const p = a.payload as { totalTimeSeconds?: number; timeSeconds?: number; egg?: string; targetTE?: number };
+      const seconds = finite(p.totalTimeSeconds)
+        ? p.totalTimeSeconds
+        : finite(p.timeSeconds)
+          ? p.timeSeconds
+          : undefined;
+      // The build's waits for cash between two buys are mostly slivers of a second (about half of a build-up's
+      // actions, and half the list's size); the buys around them carry the time. Only those under a second go.
+      if (a.type === 'wait_for_time' && seconds !== undefined && seconds < MIN_TIME_WAIT_SECONDS) return null;
+      return {
+        t,
+        kind: 'wait',
+        label: a.type,
+        id: a.type,
+        ...(seconds !== undefined ? { seconds } : {}),
+        ...(a.type === 'wait_for_te' && p.egg ? { detail: `${p.egg} ${p.targetTE ?? ''}`.trim() } : {}),
+      };
+    }
+    default:
+      return { t, kind: 'other', label: a.type, id: a.type, ...cost };
+  }
+}
+
+/**
+ * The compact list of an engine action list, ordered by `t` (stable: ties keep the engine's order).
+ * `legStart` is the leg's start, unix seconds (search/leg.ts `shiftInstants` reads the same clock).
+ */
+export function toBuildUpActions(actions: readonly Action[], legStart: number): BuildUpAction[] {
+  const out: BuildUpAction[] = [];
+  for (const a of actions) {
+    const r = recordOf(a, legStart);
+    if (r) out.push(r);
+  }
+  // Array.prototype.sort is stable; the engine's own order already is by time, so this rarely moves anything.
+  return out.sort((x, y) => x.t - y.t);
+}
+
+/** The compact start farm of an engine state. */
+export function buildUpStartOf(s: EngineState | null | undefined): BuildUpStart | undefined {
+  if (!s) return undefined;
+  return {
+    egg: s.currentEgg,
+    researchLevels: { ...(s.researchLevels as Record<string, number>) },
+    habIds: [...s.habIds],
+    vehicles: (s.vehicles ?? []).map(v => ({ vehicleId: v.vehicleId ?? null, trainLength: v.trainLength ?? 1 })),
+    siloCount: s.siloCount,
+    ...(s.activeArtifactSet ? { artifactSet: s.activeArtifactSet } : {}),
+  };
 }

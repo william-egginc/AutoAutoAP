@@ -12,6 +12,7 @@
  * Pure apart from the storage it is handed (localStorage by default; every read and write in try/catch).
  */
 import type { LegSummary } from '@/search/types';
+import type { BuildUpAction, BuildUpPlan } from '@/search/buildUpActions';
 import type { NowPlan } from './nowPlan';
 
 export const SIM_RECORD_KEY = 'aap-follow-sim';
@@ -238,4 +239,68 @@ export function withCurrentSim(plan: NowPlan, leg: SimLeg | null | undefined): N
       ...plan.tableLegs!.slice(1),
     ],
   };
+}
+
+// ------------------------------------------------------------------------------------------------
+// BUILD-UP TRACKER (Phase 1; ~/code/aaap-tools/wireframes/buildup-tracker-v1.md). The simulated ascension's action
+// list, asked for only by a caller that wants it (composables/useCurrentSim.ts `wantBuildUp`). Kept apart from the
+// 16 kB `SimRecord`: one record under its own key, the newest only.
+
+export const BUILDUP_PLAN_KEY = 'aap-buildup-plan';
+/** The kept plan's most, as JSON text. About 1,500 buys of a whole build-up measure well under this. */
+export const BUILDUP_PLAN_MAX_BYTES = 600_000;
+
+/**
+ * The build-up plan from ALL the segments the one-stop route came back with (as `simLegFromSegments` reads them):
+ * every segment's list in time order, the first segment's start farm and variant, the last one's end. Null when no
+ * segment carries a list (the simulation was not asked for one).
+ */
+export function buildUpPlanFromSegments(
+  legs: readonly LegSummary[] | null | undefined,
+  o: { accountKey: string; siloSeconds: number }
+): BuildUpPlan | null {
+  const segs = (legs ?? []).filter(l => l && l.buildUp && finite(l.endTime));
+  if (!segs.length) return null;
+  const first = segs[0];
+  const startedAt = finite(first.startTime) ? first.startTime : first.endTime - first.durationSeconds;
+  if (!finite(startedAt)) return null;
+  const actions: BuildUpAction[] = segs.flatMap(l => l.buildUp!.actions).sort((x, y) => x.t - y.t);
+  return {
+    startedAt,
+    accountKey: o.accountKey,
+    variantKey: String(first.key),
+    ...(first.buildUp!.start ? { start: first.buildUp!.start } : {}),
+    actions,
+    siloSeconds: finite(o.siloSeconds) ? o.siloSeconds : 0,
+    endTime: segs[segs.length - 1].endTime,
+  };
+}
+
+function usablePlan(p: unknown): p is BuildUpPlan {
+  const x = p as BuildUpPlan | null;
+  return !!x && finite(x.startedAt) && finite(x.endTime) && typeof x.accountKey === 'string' && Array.isArray(x.actions);
+}
+
+/** The kept plan for this `simKey`, or null. */
+export function readBuildUpPlan(key: string, st: Store | null = storage()): BuildUpPlan | null {
+  if (!st) return null;
+  try {
+    const v = JSON.parse(st.getItem(BUILDUP_PLAN_KEY) ?? 'null') as { key?: unknown; plan?: unknown } | null;
+    return v && v.key === key && usablePlan(v.plan) ? v.plan : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Keep the plan for this `simKey` (replacing the one kept). False when too big or it could not be kept. */
+export function recordBuildUpPlan(key: string, plan: BuildUpPlan, st: Store | null = storage()): boolean {
+  if (!st || !usablePlan(plan)) return false;
+  try {
+    const text = JSON.stringify({ key, plan });
+    if (text.length > BUILDUP_PLAN_MAX_BYTES) return false;
+    st.setItem(BUILDUP_PLAN_KEY, text);
+    return true;
+  } catch {
+    return false;
+  }
 }
