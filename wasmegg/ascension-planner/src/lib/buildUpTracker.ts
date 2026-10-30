@@ -749,3 +749,109 @@ export function writeTicks(account: string, ascensionStart: number, ticks: Reado
     /* this visit only */
   }
 }
+
+// ------------------------------------------------------------------------------------------------ the fold
+
+/** Where the player's own open / close of the tracker is kept: per account and ascension. */
+export const foldChoiceKey = (account: string, ascensionStart: number): string =>
+  `aap.buildup.fold.${account}.${Math.floor(ascensionStart)}`;
+
+export function readFoldChoice(account: string, ascensionStart: number): boolean | null {
+  try {
+    const v = localStorage.getItem(foldChoiceKey(account, ascensionStart));
+    return v === '1' ? true : v === '0' ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeFoldChoice(account: string, ascensionStart: number, open: boolean): void {
+  try {
+    localStorage.setItem(foldChoiceKey(account, ascensionStart), open ? '1' : '0');
+  } catch {
+    /* this visit only */
+  }
+}
+
+/**
+ * Whether the tracker's fold is open (outline recommendation 1): the player's own choice for this ascension when they
+ * made one; else open while building (it opens by itself once per ascension: a close then holds, as the choice), else
+ * closed.
+ */
+export function trackerFoldOpen(o: { choice: boolean | null; building: boolean }): boolean {
+  return o.choice ?? o.building;
+}
+
+// ------------------------------------------------------------------------------------------------ the kept plan
+
+/** The plan the tracker shows, per account: the first one worked out in this ascension's build-up (from the first
+ *  save seen in it), so newer saves only tick things off (outline recommendation 2; Re-plan is Phase 2). */
+export const ANCHOR_KEY_PREFIX = 'aap.buildup.plan.';
+/** The kept plan's most, as JSON text. */
+export const ANCHOR_MAX_BYTES = 400_000;
+
+export interface AnchoredPlan {
+  /** The ascension it belongs to (its start, unix seconds). */
+  ascensionStart: number;
+  /** The save it was worked out from (backup time, unix seconds). */
+  saveSeconds: number;
+  plan: import('@/search/buildUpActions').BuildUpPlan;
+}
+
+/** Only what the tracker reads: the build-up part, no engine 'other' actions. */
+export function compactPlan(p: AnchoredPlan['plan']): AnchoredPlan['plan'] {
+  return {
+    ...p,
+    actions: buildPart(p.actions)
+      .filter(a => a.kind !== 'other' && a.kind !== 'event')
+      .map(({ cost: _c, detail: _d, ...a }) => a),
+  };
+}
+
+export function readAnchoredPlan(account: string): AnchoredPlan | null {
+  try {
+    const v = localStorage.getItem(ANCHOR_KEY_PREFIX + account);
+    const a = v ? (JSON.parse(v) as AnchoredPlan) : null;
+    return a && typeof a.ascensionStart === 'number' && a.plan && Array.isArray(a.plan.actions) ? a : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Keeps it (compacted) when it fits; false when it could not be kept (it is still shown this visit). */
+export function writeAnchoredPlan(account: string, a: AnchoredPlan): boolean {
+  try {
+    const text = JSON.stringify({ ...a, plan: compactPlan(a.plan) });
+    if (text.length > ANCHOR_MAX_BYTES) return false;
+    localStorage.setItem(ANCHOR_KEY_PREFIX + account, text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The start of the plan's current ascension (its prestige), unix seconds; null when not known. */
+export function ascensionStartOf(
+  plan: { planStart?: number | null; chain: number[]; legs: { endTime: number }[] | null; tableLegs?: { end: number }[] | null } | null,
+  nowSeconds: number
+): number | null {
+  if (!plan) return null;
+  const ends = plan.legs ? plan.legs.map(l => l.endTime) : (plan.tableLegs ?? []).map(l => l.end);
+  const i = ends.slice(0, plan.chain.length).findIndex(e => nowSeconds < e);
+  if (i < 0) return null;
+  if (i === 0) return plan.planStart && Number.isFinite(plan.planStart) ? plan.planStart : null;
+  return ends[i - 1];
+}
+
+// ------------------------------------------------------------------------------------------------ a day on screen
+
+/**
+ * What a day shows (outline recommendation 6): open, every line; collapsed, its bold, event, wait and warning lines
+ * and the first research line not ticked yet, with how many are hidden ("+ N more · show all").
+ */
+export function dayView(d: Pick<TrackerDay, 'lines'>, open: boolean, ticks: ReadonlySet<string>): { lines: TrackerLine[]; hidden: number } {
+  if (open) return { lines: d.lines, hidden: 0 };
+  const firstOpen = d.lines.find(l => l.granular && !ticks.has(l.key));
+  const lines = d.lines.filter(l => !l.granular || l === firstOpen);
+  return { lines, hidden: d.lines.length - lines.length };
+}

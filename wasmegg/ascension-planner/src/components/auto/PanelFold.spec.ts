@@ -220,6 +220,7 @@ describe('every foldable part reads lib/panelFold.ts', () => {
       steppingAway: ['StepAwayOptions.vue'],
       countTable: ['InstantRoute.vue'],
       howWorkedOut: ['InstantRoute.vue'],
+      buildUpTracker: ['../myruns/BuildUpTracker.vue'],
     };
     expect(Object.keys(where).sort()).toEqual([...SECTIONS].sort());
     for (const [section, files] of Object.entries(where))

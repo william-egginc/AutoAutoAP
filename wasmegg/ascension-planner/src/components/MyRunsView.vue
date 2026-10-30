@@ -275,6 +275,22 @@
           </summary>
           <div class="mt-2"><DashboardGaps :state="steps" @act="act" /></div>
         </details>
+        <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building. -->
+        <BuildUpTracker
+          :state="tracker.state.value"
+          :open="tracker.open.value"
+          :result="tracker.result.value"
+          :ticks="tracker.ticks.value"
+          :summary="tracker.summary.value"
+          :silo-warnings="tracker.siloWarnings.value"
+          :fail-reason="tracker.failReason.value"
+          :now="page.now.value"
+          :zone="page.zone.value"
+          :save-seconds="page.saveSeconds.value"
+          :plan-save="tracker.plan.value?.saveSeconds ?? 0"
+          @toggle="tracker.playerToggle"
+          @tick="tracker.toggleTick"
+        />
       </div>
     </section>
   </div>
@@ -300,6 +316,10 @@ import type { RecalcRequest } from '@/lib/recalc';
 import { markMyRunsSeen } from '@/composables/useMyRunsShown';
 import { useServerSave } from '@/composables/useServerSave';
 import DashboardGaps from './myruns/DashboardGaps.vue';
+import BuildUpTracker from './myruns/BuildUpTracker.vue';
+import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
+import { ascensionStartOf } from '@/lib/buildUpTracker';
+import { isConstrained } from '@/search/availability';
 import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
@@ -391,6 +411,21 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
+/** The Build-up tracker under Next steps (composables/useBuildUpTracker.ts): the followed route's current ascension. */
+const tracker = useBuildUpTracker({
+  account: computed(() => page.account.value || null),
+  hasSave: page.hasSave,
+  onVirtue: page.onVirtue,
+  followed: computed(() => !!page.follow.value),
+  building: computed(() => page.phase.value?.phase === 'building'),
+  ascensionStart: computed(() => ascensionStartOf(page.cardPlan.value?.plan ?? null, page.now.value)),
+  saveSeconds: page.saveSeconds,
+  zone: page.zone,
+  hours: computed(() => (isConstrained(store.availability) ? store.availability : null)),
+  now: page.now,
+  fresh: page.buildUpPlan,
+  sim: page.buildUpSim,
+});
 /** The save on the server versus the one loaded here: asked quietly once per page load (lib/serverSave.ts). */
 const serverSave = useServerSave({
   playerId: computed(() => props.playerId),

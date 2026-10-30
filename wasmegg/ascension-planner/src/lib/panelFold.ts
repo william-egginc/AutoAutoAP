@@ -19,7 +19,8 @@ export type FoldSection =
   | 'acknowledgement' // the Find and submit acknowledgement, its ticks, the name and the note (FindBar.vue)
   | 'steppingAway' // Stepping away? (StepAwayOptions.vue)
   | 'countTable' // the instant answer's "Every number of ascensions" table (InstantRoute.vue)
-  | 'howWorkedOut'; // the instant answer's "How this is worked out" (InstantRoute.vue)
+  | 'howWorkedOut' // the instant answer's "How this is worked out" (InstantRoute.vue)
+  | 'buildUpTracker'; // My runs' Build-up tracker under Next steps (myruns/BuildUpTracker.vue; opens by itself per ascension)
 
 export type FoldDefault = 'open' | 'folded';
 
@@ -37,6 +38,9 @@ export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   steppingAway: 'folded',
   countTable: 'open',
   howWorkedOut: 'folded',
+  // Folded, but open while the player is in a build-up: once per account and ascension, then the player's own close
+  // holds for that ascension (lib/buildUpTracker.ts `trackerFoldOpen`, passed to PanelFold as `force`).
+  buildUpTracker: 'folded',
 };
 
 /** What the screen is doing, for the triggers. */

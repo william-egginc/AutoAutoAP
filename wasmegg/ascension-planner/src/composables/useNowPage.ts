@@ -147,6 +147,7 @@ import { fetchRunCsv } from '@/explorer/collector';
 import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps, prestigeAfterSimulated, withStayLine } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
+import type { BuildUpPlan } from '@/search/buildUpActions';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
 import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
@@ -1343,6 +1344,21 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const st = currentSim.value;
     return st?.status === 'failed' && st.key === simRequest.value?.key ? { reason: st.reason, retrying: !!st.retrying } : null;
   });
+  /**
+   * BUILD-UP TRACKER (Phase 1): the simulated ascension's build-up list, when useCurrentSim was asked for it
+   * (`wantBuildUp`, the tracker's composables/useBuildUpTracker.ts `buildUpWanted`; spec-buildup-a's opt-in). Read
+   * through a cast so this compiles with and without that field; null until the simulation carries one.
+   */
+  const buildUpPlan = computed<BuildUpPlan | null>(() => {
+    const st = currentSim.value;
+    return st?.status === 'done' && st.key === simRequest.value?.key ? ((st as { buildUp?: BuildUpPlan }).buildUp ?? null) : null;
+  });
+  /** The simulation's state for the tracker: working, waiting for a search, failed (with why) or done. */
+  const buildUpSim = computed(() => {
+    const st = currentSim.value;
+    if (!st || st.key !== simRequest.value?.key) return null;
+    return st.status === 'failed' ? { status: st.status, reason: st.reason } : { status: st.status };
+  });
   const cardPlan = computed<CardPlan | null>(() => {
     const c = basePlan.value;
     const r = shiftRequest.value;
@@ -1890,6 +1906,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     simWorking,
     simFailure,
     simSlow,
+    account,
+    buildUpPlan,
+    buildUpSim,
     nextStep,
     nextShiftLines,
     ascNow,

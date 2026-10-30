@@ -54,8 +54,11 @@ const props = withDefaults(
     /** The test id of the <details> (its summary gets `-summary`); `fold-<section>` by default. */
     testid?: string;
     summaryClass?: string;
+    /** The screen's own open or closed, winning over the table and this browser's toggle (the Build-up tracker keeps
+     *  its own per account and ascension and listens to `playerToggle`); null: the rules above. */
+    force?: boolean | null;
   }>(),
-  { hint: '', running: false, unfinished: false, longRun: false, testid: '', summaryClass: 'text-body text-slate-700' }
+  { hint: '', running: false, unfinished: false, longRun: false, testid: '', summaryClass: 'text-body text-slate-700', force: null }
 );
 /** The player's own toggle (open or closed), for a screen that undoes an open it made (Stepping away?). */
 const emit = defineEmits<{ playerToggle: [open: boolean] }>();
@@ -64,7 +67,7 @@ const id = computed(() => props.testid || `fold-${props.section}`);
 /** The player's own last toggle here (this browser), or null. */
 const remembered = ref<boolean | null>(readFoldToggle(props.section));
 const wanted = computed(() =>
-  foldOpen(props.section, {
+  typeof props.force === 'boolean' ? props.force : foldOpen(props.section, {
     running: props.running,
     unfinished: props.unfinished,
     longRun: props.longRun,
