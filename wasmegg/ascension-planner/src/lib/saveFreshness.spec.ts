@@ -186,7 +186,7 @@ describe('the words (DRAFT: Words reviews)', () => {
 
   it('yellow: what to do first, then what is at stake', () => {
     const s = at(13 * H);
-    expect(s.headline).toBe('Open the game so it syncs, then load a fresh save');
+    expect(s.headline).toBe('Open Egg, Inc. so it syncs, then load a fresh save');
     expect(s.reason).toBe('Your save is 13h old, and your silos run out in 11h: after that the farm earns nothing until the game syncs.');
     expect(s.link).toBe('Load a fresh save');
     const farm = at(13 * H, { saveAge: 2 * H });
@@ -197,9 +197,9 @@ describe('the words (DRAFT: Words reviews)', () => {
 
   it('red: what to do first, then what is at stake', () => {
     const s = at(22 * H);
-    expect(s.headline).toBe('Open the game so it syncs, then load a fresh save before you rely on these answers');
+    expect(s.headline).toBe('Open Egg, Inc. so it syncs, then load a fresh save before you rely on these answers');
     expect(s.reason).toBe('Your save is 22h old, and your silos run out in 2h: after that the farm earns nothing, so the answers here stop being right.');
-    expect(at(27 * H).reason).toBe('Your save is 27h old, and your silos ran out 3h ago: the farm has earned nothing since, so the answers here are wrong.');
+    expect(at(27 * H).reason).toBe('Your save is 27h old, and your silos ran out 3h ago: the farm has earned nothing since, so the answers here are probably wrong.');
     expect(at(27 * H).runNote).toBe(`${at(27 * H).reason} ${at(27 * H).headline}.`);
     const save = saveState({ backupSeconds: NOW - 3 * H, hasVirtueFarm: false, nowSeconds: NOW, zone: ZONE })!;
     expect(save.reason).toBe('Your save is 3h old (from Oct 15 at 2:36 PM), so the times here are probably wrong now and some may have passed.');
@@ -217,12 +217,12 @@ describe('the words (DRAFT: Words reviews)', () => {
       'Save: from Oct 15 at 3:36 PM (2h ago).',
       'Virtue farm last ran: Oct 15 at 4:36 AM (13h ago).',
       'Silos: 8, holding 24h; 11h left.',
-      'Getting old from half the silo time (12h used), out of date with a tenth left (21h 36m used).',
-      'Catch-up: the planner moves your farm on from its last run to the plan start at its current rate, up to what your silos hold, the way the game credits time away. Anything you did in the game since is not in it.',
+      "Getting old after 12h, out of date after 21h 36m: for both the save's age and the silo time used.",
+      'Catch-up: from the farm\'s last run to the plan start, the planner runs your farm at its current rate, for as long as your silos hold, the way the game credits time away. Anything you did in the game since is not in it.',
     ]);
     expect(at(13 * H, { silo: null, siloCount: null }).details[2]).toBe('Silos: not in the save, so the smallest is assumed (3h); ran out 10h ago.');
     const none = saveState({ backupSeconds: NOW - 2 * H, hasVirtueFarm: false, nowSeconds: NOW, zone: ZONE })!;
-    expect(none.details).toContain('No virtue ascension under way, so silo time doesn’t apply: this follows your save’s age alone, against 3h.');
+    expect(none.details).toContain("No virtue ascension under way, so silo time doesn't apply: this follows your save's age alone, against 3h.");
     expect(none.details.join(' ')).not.toMatch(/Virtue farm last ran|Catch-up/);
   });
 });

@@ -51,7 +51,7 @@ describe('the banner in each state', () => {
     const html = await render(st(13 * H));
     const t = textOf(html);
     expect(html).toContain('data-tone="yellow"');
-    expect(t).toContain('Getting old Open the game so it syncs, then load a fresh save Your save is 13h old, and your silos run out in 11h');
+    expect(t).toContain('Getting old Open Egg, Inc. so it syncs, then load a fresh save Your save is 13h old, and your silos run out in 11h');
     expect(html).toContain('data-icon="alert"');
     expect(tag(html, 'save-details')).not.toContain(' open');
     expect(t).toContain('Details ›');
@@ -62,7 +62,7 @@ describe('the banner in each state', () => {
     const t = textOf(html);
     expect(html).toContain('data-tone="red"');
     expect(html).toContain('data-icon="stop"');
-    expect(t).toContain('Out of date Open the game so it syncs, then load a fresh save before you rely on these answers');
+    expect(t).toContain('Out of date Open Egg, Inc. so it syncs, then load a fresh save before you rely on these answers');
     expect(t).toContain('Your virtue farm last ran 22h ago, and your silos run out in 2h');
   });
 
@@ -70,7 +70,7 @@ describe('the banner in each state', () => {
     const html = await render(saveState({ backupSeconds: NOW - 2 * H, hasVirtueFarm: false, nowSeconds: NOW, zone: ZONE }));
     expect(html).toContain('data-tone="yellow"');
     expect(textOf(html)).toContain('Your save is 2h old (from Oct 15 at 3:36 PM), so the times here may have drifted.');
-    expect(textOf(html)).toContain('No virtue ascension under way, so silo time doesn’t apply');
+    expect(textOf(html)).toContain("No virtue ascension under way, so silo time doesn't apply");
   });
 
   it('the sync suggestion past 24 h, in each tone, with a 44 px "How to sync"', async () => {

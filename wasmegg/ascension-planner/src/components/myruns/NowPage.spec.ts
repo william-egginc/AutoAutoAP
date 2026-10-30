@@ -97,7 +97,7 @@ describe('the save-age banner (spec-saveage)', () => {
     expect(ok).toContain('data-tone="green"');
     const warn = await renderHtml(SaveAgeStrip, { state: st(13 * H), loading: false });
     expect(warn).toContain('data-tone="yellow"');
-    expect(textOf(warn)).toContain('Getting old Open the game so it syncs, then load a fresh save');
+    expect(textOf(warn)).toContain('Getting old Open Egg, Inc. so it syncs, then load a fresh save');
     const bad = await renderHtml(SaveAgeStrip, { state: st(80 * H), loading: false });
     expect(bad).toContain('data-tone="red"');
     expect(textOf(bad)).toContain('Out of date');

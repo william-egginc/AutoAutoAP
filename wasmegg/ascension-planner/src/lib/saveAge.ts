@@ -98,6 +98,6 @@ export function describeSaveAge(
   return {
     level: 'ok',
     pastSilos: true,
-    text: `Starts ${ageWords(gap)} after your last sync, longer than your silos hold (${silos}): the farm is caught up for ${silos} only, the way the game credits time away, and earns nothing after that.`,
+    text: `Starts ${ageWords(gap)} after your last sync, longer than your silos hold (${silos}): the planner counts the farm as running for ${silos} only, the way the game credits time away, then earning nothing.`,
   };
 }

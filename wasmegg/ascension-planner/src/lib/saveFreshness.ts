@@ -130,8 +130,8 @@ export function saveState(i: SaveStateInput): SaveState | null {
     tone === 'green'
       ? `Your save is from ${when}, ${ageAgo(saveAge)}`
       : tone === 'yellow'
-        ? 'Open the game so it syncs, then load a fresh save'
-        : 'Open the game so it syncs, then load a fresh save before you rely on these answers';
+        ? 'Open Egg, Inc. so it syncs, then load a fresh save'
+        : 'Open Egg, Inc. so it syncs, then load a fresh save before you rely on these answers';
   let reason: string | null = null;
   if (tone !== 'green') {
     if (driver === 'silo' && used != null && left != null) {
@@ -141,7 +141,7 @@ export function saveState(i: SaveStateInput): SaveState | null {
       else if (left > 0)
         reason = `${subject}, and your silos run out in ${ageWords(left)}: after that the farm earns nothing, so the answers here stop being right.`;
       else
-        reason = `${subject}, and your silos ran out ${ageAgo(used - silo)}: the farm has earned nothing since, so the answers here are wrong.`;
+        reason = `${subject}, and your silos ran out ${ageAgo(used - silo)}: the farm has earned nothing since, so the answers here are probably wrong.`;
     } else {
       reason =
         tone === 'yellow'
@@ -160,14 +160,14 @@ export function saveState(i: SaveStateInput): SaveState | null {
       : `Silos: not in the save, so the smallest is assumed (${ageWords(silo)})`;
     details.push(`${holds}; ${left > 0 ? `${ageWords(left)} left` : `ran out ${ageAgo(used - silo)}`}.`);
   } else {
-    details.push(`No virtue ascension under way, so silo time doesn’t apply: this follows your save’s age alone, against ${ageWords(silo)}.`);
+    details.push(`No virtue ascension under way, so silo time doesn't apply: this follows your save's age alone, against ${ageWords(silo)}.`);
   }
   details.push(
-    `Getting old from half the silo time (${ageWords(lines.yellowAt)} used), out of date with a tenth left (${ageWords(lines.redAt)} used).`
+    `Getting old after ${ageWords(lines.yellowAt)}, out of date after ${ageWords(lines.redAt)}: for both the save's age and the silo time used.`
   );
   if (farmAt != null)
     details.push(
-      'Catch-up: the planner moves your farm on from its last run to the plan start at its current rate, up to what your silos hold, the way the game credits time away. Anything you did in the game since is not in it.'
+      'Catch-up: from the farm\'s last run to the plan start, the planner runs your farm at its current rate, for as long as your silos hold, the way the game credits time away. Anything you did in the game since is not in it.'
     );
 
   return {

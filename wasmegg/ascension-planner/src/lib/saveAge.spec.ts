@@ -40,7 +40,7 @@ describe('what the player is told', () => {
     expect(note.pastSilos).toBe(true);
     // DRAFT wording.
     expect(note.text).toBe(
-      'Starts 40h after your last sync, longer than your silos hold (12h): the farm is caught up for 12h only, the way the game credits time away, and earns nothing after that.'
+      'Starts 40h after your last sync, longer than your silos hold (12h): the planner counts the farm as running for 12h only, the way the game credits time away, then earning nothing.'
     );
     expect(note.text).not.toMatch(/Your save is|Force a sync/);
   });
