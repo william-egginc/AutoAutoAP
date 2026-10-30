@@ -42,6 +42,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
 import { showDateTime } from '@/lib/displayTime';
 import { MAX_KEPT_SAVES, type EntrySave } from '@/search/keptSaves';
+import { downloadFile } from '@/utils/export';
 
 const props = defineProps<{
   playerId: string;
@@ -76,14 +77,8 @@ async function download(): Promise<void> {
   try {
     const file = await store.entrySaveFile(props.playerId, props.entry.save);
     if (!file) return;
-    const url = URL.createObjectURL(new Blob([file.text], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    // Through the page's one download (utils/export), which also clears any player ID left in it.
+    downloadFile(file.name, file.text, 'application/json');
   } finally {
     downloading.value = false;
   }

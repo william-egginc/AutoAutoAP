@@ -336,6 +336,7 @@ import {
   type EntrySave,
   type KeptSaveSummary,
 } from '@/search/keptSaves';
+import { idFromScreen, scrubPlayerIds } from '@/lib/saveScrub';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -7256,11 +7257,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * from it carries that save's own moment and TE (`accountFields` reads the loaded save), so the
    * board's backup-age and what-if rules see it as it is.
    */
+  const ANOTHER_ACCOUNTS_SAVE = "That save is another account's than the one loaded now, so it wasn't loaded.";
   async function loadOlderSave(
     playerId: string,
     raw: unknown,
     o: {
       from: 'entry' | 'file';
+      /** A file loaded with no account on screen (`loadSaveFile`). */
+      noAccount?: boolean;
       label?: string;
       te?: number;
       planStart?: number;
@@ -7272,7 +7276,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const now = accountOf(toRaw(useInitialStateStore().rawBackup));
     const then = accountOf(raw);
     if (now && then && now !== then) {
-      olderSaveError.value = "That save is another account's than the one loaded now, so it wasn't loaded.";
+      olderSaveError.value = ANOTHER_ACCOUNTS_SAVE;
       return false;
     }
     try {
@@ -7295,6 +7299,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       backupAt,
       from: o.from,
       ...(o.label ? { label: o.label } : {}),
+      ...(o.noAccount ? { noAccount: true } : {}),
     };
     ownSaveBackup = toRaw(useInitialStateStore().rawBackup);
     // Banners about the previous results (a carry-on's older save, its re-check) don't apply.
@@ -7339,7 +7344,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   }
 
-  /** A saved entry's kept save as a file: the game's backup as JSON, named by TE and date (no id). */
+  /** A saved entry's kept save as a file: the game's backup as JSON, named by TE and date, with every player ID in it
+   *  replaced (lib/saveScrub.ts; "Load a save file" takes the account from the screen). */
   async function entrySaveFile(playerId: string, save: EntrySave): Promise<{ name: string; text: string } | null> {
     olderSaveError.value = null;
     const raw = await loadKeptSave(await hashID(playerId), save.key);
@@ -7347,16 +7353,17 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
       return null;
     }
-    return { name: saveFileName(save, planTimezone()), text: backupText(raw) };
+    return { name: saveFileName(save, planTimezone()), text: scrubPlayerIds(backupText(raw)) };
   }
 
-  /** "Load a save file": a downloaded save (or the game's backup as JSON) as the active save. */
+  /**
+   * "Load a save file": a downloaded save (or the game's backup as JSON) as the active save. Its account is the one
+   * on screen, never the file's (lib/saveScrub.ts `idFromScreen`): a downloaded save has every player ID replaced, so
+   * the save loads for that account as the original would (its own instant answer, Follow, settings). With no account
+   * on screen it loads with none, the instant answer still worked out, and RunSaveNotice says what is off.
+   */
   async function loadSaveFile(playerId: string, text: string): Promise<boolean> {
     olderSaveError.value = null;
-    if (!playerId) {
-      olderSaveError.value = 'Enter your player ID at the top of the page first.';
-      return false;
-    }
     if (busy.value || useUIStore().loading) {
       olderSaveError.value = 'A search is running or a save is loading. Try again when it is done.';
       return false;
@@ -7368,11 +7375,16 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       olderSaveError.value = plainError(e, 'That file could not be read as a save.');
       return false;
     }
+    const who = idFromScreen(raw, playerId ?? '');
+    if (who === 'other') {
+      olderSaveError.value = ANOTHER_ACCOUNTS_SAVE;
+      return false;
+    }
     preparing.value = true;
     try {
       // What the fetch does to every save it hands over (fetchBackup.ts); a no-op when already done.
       resolveColleggtibleContracts(raw);
-      return await loadOlderSave(playerId, raw, { from: 'file' });
+      return await loadOlderSave(who === 'none' ? '' : playerId.trim(), raw, { from: 'file', noAccount: who === 'none' });
     } finally {
       preparing.value = false;
     }

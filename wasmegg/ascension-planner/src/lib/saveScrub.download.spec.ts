@@ -75,7 +75,8 @@ describe('downloads carry no player ID', () => {
     downloadCsv('r.csv', ['te,id\n190,EI98765', '43210987654\n', 'E', 'I9876543210987654', '\n']);
     const csv = await lastText();
     expect(leftovers(csv)).toEqual([]);
-    expect(csv).toBe(`﻿te,id\n190,${PLACEHOLDER_ID}\n${PLACEHOLDER_ID}\n`);
+    // (Blob.text() drops the byte-order mark in front.)
+    expect(csv.replace(/^\uFEFF/, '')).toBe(`te,id\n190,${PLACEHOLDER_ID}\n${PLACEHOLDER_ID}\n`);
   });
 
   it('scrubParts keeps text that only looks like the start of an ID, and passes bytes through', () => {

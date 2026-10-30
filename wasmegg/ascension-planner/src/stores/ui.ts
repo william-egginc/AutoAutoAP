@@ -65,7 +65,15 @@ export const useUIStore = defineStore('ui', () => {
    * Saved answers or Saved runs entry loads the save it was priced from ('entry', `label` its name);
    * "Load a save file" loads a downloaded one ('file'). Cleared by the next fresh fetch.
    */
-  const runSaveLoaded = ref<{ te: number; backupAt: number; from?: 'run' | 'entry' | 'file'; label?: string } | null>(
+  const runSaveLoaded = ref<{
+    te: number;
+    backupAt: number;
+    from?: 'run' | 'entry' | 'file';
+    label?: string;
+    /** A save file loaded with no account on screen (chainSearch `loadSaveFile`): own instant answer, Follow and
+     *  everything online are off, and there is no latest save to go back to. */
+    noAccount?: boolean;
+  } | null>(
     null
   );
   /** Bumped to ask App.vue to open Classic with the chain a search just applied, in place (no reload). */

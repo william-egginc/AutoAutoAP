@@ -1,5 +1,10 @@
+import { scrubParts } from '@/lib/saveScrub';
+
 /**
  * Utility to trigger a file download in the browser.
+ *
+ * NO PLAYER ID LEAVES THIS WAY (spec-savescrub, 29 Oct 2026): every EI + 16 digits in a string piece becomes
+ * EI0000000000000000 (lib/saveScrub.ts), whoever calls it -- our downloads and Joo's plan exports alike.
  */
 export function downloadFile(filename: string, content: string, contentType: string) {
   downloadParts(filename, [content], contentType);
@@ -42,7 +47,7 @@ export function downloadCsv(filename: string, parts: Iterable<BlobPart>) {
 export const CSV_BOM = '\uFEFF';
 
 export function downloadParts(filename: string, parts: Iterable<BlobPart>, contentType: string) {
-  const blob = new Blob([...parts], { type: contentType });
+  const blob = new Blob([...scrubParts(parts)], { type: contentType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
