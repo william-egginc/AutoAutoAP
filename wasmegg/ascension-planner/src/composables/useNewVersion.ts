@@ -52,8 +52,8 @@ export type ReleaseLevel = 'small' | 'big' | 'essential';
 
 export interface ReleaseInfo {
   level: ReleaseLevel;
-  /** The release notes (lib/updateNotes.ts), newest first, at most MAX_SHOWN, each marked whether it is newer than
-   *  this tab's build ("New"); empty only when version.json has none, and then the banner says only "Small update
+  /** The release notes (lib/updateNotes.ts), at most MAX_SHOWN: the ones this tab's build does not carry first,
+   *  marked "New", then the ones it does. Empty when none is new, and then the banner says only "Small update
    *  available" (or asks for the reload). */
   notes: ListedNote[];
   /** How many more notes did not fit ("+N more"). */
@@ -63,10 +63,13 @@ export interface ReleaseInfo {
 /** This bundle's build time, or '' where the define is absent (tests, dev). */
 export const OWN_BUILD_TIME: string = typeof __BUILD_TIME__ === 'string' ? __BUILD_TIME__ : '';
 
-/** This bundle's build: its time, and the `at` of each release note it already carries (vite.config.ts). */
+/** This bundle's build: its time, and the key (and `at`) of each release note it already carries (vite.config.ts).
+ *  No key list (tests, a bundle from before keys) leaves the time rule to decide (lib/updateNotes.ts). */
 export const RUNNING_BUILD: RunningBuild = {
   builtAt: OWN_BUILD_TIME,
   noteAts: typeof __BUILD_NOTE_ATS__ !== 'undefined' && Array.isArray(__BUILD_NOTE_ATS__) ? __BUILD_NOTE_ATS__ : [],
+  noteKeys:
+    typeof __BUILD_NOTE_KEYS__ !== 'undefined' && Array.isArray(__BUILD_NOTE_KEYS__) ? __BUILD_NOTE_KEYS__ : undefined,
 };
 
 /**
@@ -77,9 +80,11 @@ export const RUNNING_BUILD: RunningBuild = {
  * A version.json without the marker (from before this existed), or a tab that does not know its
  * own build time, counts as "essential": the only kind of notice there used to be.
  *
- * The notes are the history entries, newest first, each marked whether it is newer than this tab's
- * build (lib/updateNotes.ts): the banner lists them all and tags the newer ones "New" (UX35-b, 28 Oct
- * 2026). Only a newer note can make the update big. The top-level `release.note` is never shown: it is
+ * The notes are the history entries, each marked whether this tab's build already carries it (by its
+ * text, lib/updateNotes.ts): listed only when one is new, the new ones first and tagged "New" (UX35-b,
+ * 28 Oct 2026; by text, 30 Oct 2026). Only a new note can make the update big. A rebuild whose only
+ * change is re-timed notes still names a new entry script (the build time is compiled in), so it still
+ * shows the quiet "Small update available", with no list: the tab cannot tell it from a code change. The top-level `release.note` is never shown: it is
  * always the newest entry, which a tab running Release 5 or later already had (26 Oct 2026).
  */
 export function releaseFrom(versionJson: unknown, running: RunningBuild = RUNNING_BUILD): ReleaseInfo {

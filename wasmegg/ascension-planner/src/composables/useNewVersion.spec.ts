@@ -10,6 +10,7 @@ import {
   isDue,
   isMobileLike,
 } from './useNewVersion';
+import { buildNoteKeys } from '@/lib/updateNotes';
 
 const page = (hash: string, entry = 'index') =>
   `<html><head><script type="module" crossorigin src="/ascension-planner/assets/${entry}-${hash}.js"></script></head></html>`;
@@ -107,7 +108,7 @@ describe('how often it checks', () => {
 const built = (builtAt: string, noteAts: string[] = []) => ({ builtAt, noteAts });
 /** The listed notes as "text" for an older one and "text (new)" for one newer than the tab (UX35-b). */
 /** One listed note, newer than the tab. */
-const n = (note: string) => ({ at: '2026-10-06T15:00:00Z', note, isNew: true });
+const n = (note: string) => ({ at: '2026-10-06T15:00:00Z', note, key: `k-${note}`, isNew: true });
 const listed = (r: ReturnType<typeof releaseFrom>) => r.notes.map(n => (n.isNew ? `${n.note} (new)` : n.note));
 
 describe('how much an update matters', () => {
@@ -174,9 +175,10 @@ describe('how much an update matters', () => {
     const b = releaseFrom(v, built('2026-10-06T10:00:00Z'));
     expect(b.level).toBe('small');
     expect(listed(b)).toEqual(['tweak (new)', 'heat map', 'older tweak']);
+    // None newer: no list at all (30 Oct 2026).
     const c = releaseFrom(v, built('2026-10-06T16:00:00Z'));
     expect(c.level).toBe('small');
-    expect(listed(c)).toEqual(['tweak', 'heat map', 'older tweak']);
+    expect(listed(c)).toEqual([]);
   });
 
   it('essential beats big: a tab older than reloadIfBuiltBefore is asked to reload', () => {
@@ -211,10 +213,10 @@ describe('the stale note (26 Oct 2026)', () => {
   ];
   const v = { release: { reloadIfBuiltBefore: '2026-10-17T23:00:00Z', note: history[0].note, history } };
 
-  it('a tab built after every note tags none "New", and never falls back to the top-level note', () => {
+  it('a tab built after every note lists none, and never falls back to the top-level note', () => {
     const r = releaseFrom(v, built('2026-10-25T18:00:00Z'));
     expect(r.level).toBe('small');
-    expect(listed(r)).toEqual([history[0].note, history[1].note]);
+    expect(listed(r)).toEqual([]);
   });
 
   it('a Release 5 tab, built before the note’s go-live time but carrying it, tags none "New"', () => {
@@ -224,7 +226,7 @@ describe('the stale note (26 Oct 2026)', () => {
     );
     const r = releaseFrom(v, r5);
     expect(r.level).toBe('small');
-    expect(listed(r)).toEqual([history[0].note, history[1].note]);
+    expect(listed(r)).toEqual([]);
     // The same tab by build time alone would have tagged Release 5’s own note "New".
     expect(listed(releaseFrom(v, built('2026-10-22T21:00:00Z')))).toEqual([
       `${history[0].note} (new)`,
@@ -255,5 +257,13 @@ describe('the stale note (26 Oct 2026)', () => {
         )
       )
     ).toEqual(['Release 6 note (new)', history[0].note, history[1].note]);
+  });
+
+  it('with its notes’ keys, a tab is judged by text: a re-timed note it carries is not new (30 Oct 2026)', () => {
+    const retimed = { release: { ...v.release, history: history.map(h => ({ ...h, at: '2026-10-29T23:00:00Z' })) } };
+    const keyed = { builtAt: '2026-10-22T21:00:00Z', noteKeys: buildNoteKeys(history) };
+    expect(releaseFrom(retimed, keyed)).toEqual({ level: 'small', notes: [], more: 0 });
+    // By time alone (a build with no key list) the same re-timed notes would be new, and big.
+    expect(releaseFrom(retimed, built('2026-10-22T21:00:00Z', history.map(h => h.at))).level).toBe('big');
   });
 });

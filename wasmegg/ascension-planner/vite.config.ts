@@ -8,6 +8,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import release from './release';
+import { buildNoteKeys, versionHistory } from './src/lib/updateNotes';
 import {
   BROTLI_TYPES,
   digest,
@@ -40,8 +41,9 @@ import {
  * `release` (from release.ts) says whether a tab built before a given time needs to reload: players
  * asked for the difference between a real fix and a wording change -- the same loud banner on every
  * deploy taught them to ignore it (2026-09-25). Each bundle carries its own build time
- * (__BUILD_TIME__) to compare with, plus the `at` of every note it already carries
- * (__BUILD_NOTE_ATS__), so the banner lists only the notes it does not (src/lib/updateNotes.ts).
+ * (__BUILD_TIME__) to compare with, plus the key of every note it already carries
+ * (__BUILD_NOTE_KEYS__, a hash of the note's text; __BUILD_NOTE_ATS__ for tabs built before keys),
+ * so the banner tags only the notes it does not (src/lib/updateNotes.ts).
  */
 const BUILD_TIME = new Date().toISOString();
 
@@ -65,9 +67,8 @@ function versionFile(): Plugin {
             // history entry is newer than their build, and it is always the newest entry, which such a tab
             // already has -- the stale Release 5 note. Empty, they say just "Small update available".
             note: '',
-            history: release.history
-              .slice(0, 8)
-              .map(h => ({ at: h.at, note: h.note.slice(0, 200), ...(h.level === 'big' ? { level: 'big' } : {}) })),
+            // The newest 8, each with its `key` (its identity, a hash of its text) beside the old fields.
+            history: versionHistory(release.history),
           },
         }),
       });
@@ -541,6 +542,7 @@ export default defineConfig(({ mode }) => {
     define: {
       __BUILD_TIME__: JSON.stringify(BUILD_TIME),
       __BUILD_NOTE_ATS__: JSON.stringify(release.history.map(h => h.at)),
+      __BUILD_NOTE_KEYS__: JSON.stringify(buildNoteKeys(release.history)),
     },
     build: {
       chunkSizeWarningLimit: 2000,
