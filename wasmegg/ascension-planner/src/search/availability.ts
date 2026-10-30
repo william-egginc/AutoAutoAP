@@ -116,6 +116,10 @@ function nextLocalHour(t: number, hour: number, tz: string): number {
   return out > t ? out : t + 3600;
 }
 
+/** The last instant `nextAvailable` looks at the calendar for: Intl's last date (8.64e12 s) less the fortnight it
+ *  may search ahead. */
+const MAX_DATE_SECONDS = 8.64e12 - 30 * 86400;
+
 /**
  * The earliest instant at or after `unixSeconds` that the player is available.
  *
@@ -123,6 +127,11 @@ function nextLocalHour(t: number, hour: number, tz: string): number {
  * unconditionally.
  */
 export function nextAvailable(unixSeconds: number, a: Availability): number {
+  // Past the last date a calendar holds (Intl throws "Invalid time value" beyond 8.64e12 s), or not a time at all:
+  // nothing to wait for. A bare farm continued as it is gets there (spec-buildfail, 30 Oct 2026: just after a
+  // prestige, its TE waits ran for ages, the shift hold asked here, and the throw took the whole leg with it, the
+  // build carried on included: "the ascension to 218 TE could not be simulated").
+  if (!(Math.abs(unixSeconds) <= MAX_DATE_SECONDS)) return unixSeconds;
   if (!isConstrained(a) || isAvailable(unixSeconds, a)) return unixSeconds;
 
   // Every session begins at `fromHour`, so those are the only candidate instants. Fourteen covers
