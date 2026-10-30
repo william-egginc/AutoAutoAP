@@ -92,6 +92,7 @@ let makeRunner: () => Promise<SimRunner | null> | SimRunner | null = defaultRunn
 export function setSimRunner(f: (() => Promise<SimRunner | null> | SimRunner | null) | null): void {
   makeRunner = f ?? defaultRunner;
   failed.clear();
+  stopRetried.clear();
 }
 
 /**
@@ -110,6 +111,18 @@ export function setSimTiming(t: Partial<typeof TIMING> | null): void {
 /** Keys that failed on this page load, with why and how often: tried once more after `retryMs`, then not again until
  *  the save, route or setup changes. */
 const failed = new Map<string, { reason: string; tries: number }>();
+/**
+ * STOPPED (spec-buildstop, 30 Oct 2026): keys whose run was stopped from outside (its worker torn down: "stopped",
+ * "chain search pool was terminated", "paused") and asked again at once, on this page load. One automatic retry per key,
+ * so a second stop is said as failed rather than looping. A run the page lets go itself (a newer key, a search, leaving
+ * My runs) is not one of these: its answer is dropped before it is read.
+ */
+const stopRetried = new Set<string>();
+/** The run was stopped from outside rather than failing on its own. */
+function wasStopped(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err);
+  return /^(stopped|paused)$|pool was terminated/i.test(m.trim());
+}
 /** The words of a failure, short and without any ID (an error message names no account). */
 function reasonOf(err: unknown): string {
   const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
@@ -129,6 +142,8 @@ export function useCurrentSim(
   const slow = ref(false);
   let runner: SimRunner | null = null;
   let runningKey: string | null = null;
+  /** Whether the run going asked for the plan (read when it ends: wanted since?). */
+  let wantAsked = false;
   let asked = 0;
   let startTimer: ReturnType<typeof setTimeout> | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -176,6 +191,7 @@ export function useCurrentSim(
       if (!r) throw new Error('no chain worker');
       runner = r;
       const want = !!unref(wantBuildUp);
+      wantAsked = want;
       const got = await (want ? r.run(inputs, [req.route[0]], { keepPurchases: true }) : r.run(inputs, [req.route[0]]));
       const leg = simLegFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
         timeOff: inputs.timeOff,
@@ -205,6 +221,15 @@ export function useCurrentSim(
       result = { key: req.key, status: 'done', leg, at, ...(buildUp ? { buildUp } : {}), ...(noPlan ? { planFailed: noPlan } : {}) };
     } catch (err) {
       if (id !== asked) return;
+      if (wasStopped(err) && !stopRetried.has(req.key)) {
+        // Stopped from outside: asked again once, the leg (if any) on screen meanwhile. Never 'working' for good.
+        stopRetried.add(req.key);
+        console.warn('My runs: simulating the ascension you are in was stopped; asking again once.');
+        runner?.terminate();
+        runner = null;
+        schedule(req, have);
+        return;
+      }
       const reason = reasonOf(err);
       console.warn('My runs: simulating the ascension you are in failed:', reason);
       const tries = (failed.get(req.key)?.tries ?? 0) + 1;
@@ -217,6 +242,13 @@ export function useCurrentSim(
     runningKey = null;
     clearTimers();
     state.value = result;
+    // STOPPED → NEVER STUCK (spec-buildstop): the plan became wanted while a run without it was going (the fold opened,
+    // the Building badge came as Right now's plan moved). Its answer is the leg only, the key is already 'done', and
+    // nothing would ask again: the plan is asked for at once, the leg on screen meanwhile.
+    if (result.status === 'done' && !wantAsked && !result.buildUp && !!unref(wantBuildUp)) {
+      if (request.value?.key === req.key && !busy.value) schedule(req, result);
+      return;
+    }
     // Once more, after a longer wait (a worker that ran out of memory, a page that was busy).
     if (result.status === 'failed' && result.retrying)
       retryTimer = setTimeout(() => {
@@ -266,5 +298,27 @@ export function useCurrentSim(
     { immediate: true }
   );
   onScopeDispose(letGo);
-  return { state, slow };
+  /**
+   * The player's Try again (the Build-up tracker's failed line): the request on screen is asked again, whatever the
+   * one-request-per-key rule said (a failure or planFailed of this key is forgotten); the leg stays on screen meanwhile.
+   */
+  function retry(): void {
+    const req = request.value;
+    if (!req) return;
+    failed.delete(req.key);
+    const st = state.value;
+    let have: DoneState | null = null;
+    if (st?.key === req.key && st.status === 'done') {
+      const { planFailed: _gone, ...rest } = st;
+      void _gone;
+      have = rest;
+    }
+    if (busy.value) {
+      letGo();
+      state.value = have ?? { key: req.key, status: 'waiting' };
+      return;
+    }
+    schedule(req, have);
+  }
+  return { state, slow, retry };
 }
