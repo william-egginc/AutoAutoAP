@@ -177,6 +177,17 @@ export function syntheticBackup(): any {
   };
 }
 
+/**
+ * The synthetic save carrying `id` as a real save does (spec-savescrub): its own `eiUserId` and every contract's
+ * `coopUserId`. Pass a made-up ID only (EI9876543210987654), never a real one.
+ */
+export function syntheticSaveWithId(id: string): any {
+  const b = syntheticBackup();
+  b.eiUserId = id;
+  for (const c of [...b.contracts.archive, ...b.contracts.contracts]) c.coopUserId = id;
+  return b;
+}
+
 /** The synthetic save loaded into fresh stores, and the search inputs for it (plain data, as a worker
  *  gets them). `final` 192: a two-TE leg from the save's 190. */
 export async function syntheticInputs(): Promise<SearchInputs> {

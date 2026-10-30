@@ -85,13 +85,14 @@ describe('App.vue', () => {
   it("the header's title is the h1 only while no screen shows its own", () => {
     expect(template).toContain(`<component :is="screenHasH1 ? 'p' : 'h1'" class="mx-4 mt-8 mb-2 text-center heading-xl text-gradient">`);
     const rule = app.slice(app.indexOf('const screenHasH1 = computed('), app.indexOf('/** The pill'));
-    expect(rule).toContain(`(plannerTab.value === 'automatic' && !!playerId.value && !loading.value)`);
+    // (or a save file loaded with no account, spec-savescrub)
+    expect(rule).toContain(`(plannerTab.value === 'automatic' && (!!playerId.value || fileOnlySave.value) && !loading.value)`);
     expect(rule).toContain(`plannerTab.value === 'myruns'`);
     expect(rule).toContain(`plannerTab.value === 'science'`);
     expect(rule).toContain(`plannerTab.value === 'leaderboard'`);
     expect(rule).toContain(`(plannerTab.value === 'manual' && !!playerId.value)`);
     // The screens it counts on: the Auto Planner's three only render with a save, not while loading.
-    expect(template).toContain(`<div v-if="plannerTab === 'automatic' && playerId && !loading" class="mt-4 space-y-4">`);
+    expect(template).toContain(`<div v-if="plannerTab === 'automatic' && (playerId || fileOnlySave) && !loading" class="mt-4 space-y-4">`);
   });
 
   it('Manual (with an account) and Single run get their h1 from App; Science’s check and submit pages too', () => {

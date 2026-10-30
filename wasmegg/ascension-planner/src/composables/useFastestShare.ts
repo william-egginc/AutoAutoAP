@@ -14,6 +14,7 @@ import { onBoardLine } from '@/search/sentOnBoard';
 import { useShareExtras } from './useShareExtras';
 import { useBoardSubmit, useShareIdentity } from './useShareResult';
 import { consentGivenThisVisit } from './useConsent';
+import { downloadFile } from '@/utils/export';
 
 type Store = ReturnType<typeof useChainSearchStore>;
 
@@ -104,19 +105,14 @@ export function useFastestShare(
     return p ? JSON.stringify(p, null, 2) : 'Nothing to share yet. Run a search first.';
   }
 
-  /** The offline path, and the only one with no collector configured. A Blob, not a `data:` URI:
+  /** The offline path, and the only one with no collector configured. A Blob (utils/export), not a `data:` URI:
    *  those are length-capped in some browsers. */
   function downloadSubmission(): void {
     if (!optIn.value) return;
     const payload = store.buildRunSubmission(effectiveNickname.value);
     if (!payload) return;
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = store.submissionFilename(payload);
-    a.click();
-    URL.revokeObjectURL(url);
+    // Through the page's one download (utils/export), which also clears any player ID left in it.
+    downloadFile(store.submissionFilename(payload), JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
     submitOk.value = true;
     submitMessage.value = 'Saved. Share it wherever you like.';
   }
