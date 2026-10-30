@@ -928,8 +928,9 @@ const ChainExplorer = safeAsyncComponent(() => import('@/explorer/ChainExplorer.
 const isDev = import.meta.env.DEV;
 
 // A link's `?playerId=` was read and taken out of the address before the app started (lib/urlPlayerId.ts).
+const playerId = ref(linkPlayerId() || getSavedPlayerID() || '');
 // Never the stand-in ID a downloaded save carries (lib/saveScrub.ts): that is no account.
-const playerId = ref([linkPlayerId(), getSavedPlayerID()].find(id => id && !isPlaceholderId(id)) || '');
+if (isPlaceholderId(playerId.value)) playerId.value = [getSavedPlayerID()].find(id => id && !isPlaceholderId(id)) || '';
 
 // The Update button's cache-buster (PlanFinalSummary.vue) has done its job once the page is here;
 // left in, it rode along in every link copied afterwards.

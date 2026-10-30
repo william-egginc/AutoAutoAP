@@ -57,6 +57,8 @@ describe('the stand-in ID is no account', () => {
   });
 
   it('from a link or the saved ID: not taken as the account on screen', () => {
-    expect(app).toContain("const playerId = ref([linkPlayerId(), getSavedPlayerID()].find(id => id && !isPlaceholderId(id)) || '');");
+    expect(app).toContain(
+      "const playerId = ref(linkPlayerId() || getSavedPlayerID() || '');\n// Never the stand-in ID a downloaded save carries (lib/saveScrub.ts): that is no account.\nif (isPlaceholderId(playerId.value)) playerId.value = [getSavedPlayerID()].find(id => id && !isPlaceholderId(id)) || '';"
+    );
   });
 });
