@@ -91,6 +91,7 @@
             :summary="tracker.summary.value"
             :silo-warnings="tracker.siloWarnings.value"
             :fail-reason="tracker.failReason.value"
+            :fail-stopped="tracker.failStopped.value"
             :now="page.now.value"
             :zone="page.zone.value"
             :save-seconds="page.saveSeconds.value"
@@ -103,6 +104,7 @@
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"
             @replan="tracker.replan"
+            @retry="page.retryBuildUp"
           />
         </template>
       </RightNowCard>

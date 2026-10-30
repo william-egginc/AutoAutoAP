@@ -58,6 +58,11 @@ import {
  * the page (My runs shows one tracker).
  */
 export const buildUpWanted = ref(false);
+/**
+ * The trackers on screen that want it (spec-buildstop, 30 Oct 2026): a tracker left behind (My runs mounted again)
+ * that lets go after the new one said it wants the plan must not turn the switch off under it.
+ */
+const wanting = new Set<object>();
 
 /** What the fold shows. */
 export type TrackerState =
@@ -169,9 +174,21 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   const wanted = computed(
     () => open.value && i.building.value && i.hasSave.value && i.followed.value && (!plan.value || replanning.value)
   );
-  watch(wanted, w => (buildUpWanted.value = w), { immediate: true });
-  // Leaving My runs: nothing wants it any more.
-  onScopeDispose(() => (buildUpWanted.value = false));
+  const me = {};
+  watch(
+    wanted,
+    w => {
+      if (w) wanting.add(me);
+      else wanting.delete(me);
+      buildUpWanted.value = wanting.size > 0;
+    },
+    { immediate: true }
+  );
+  // Leaving My runs: this tracker wants it no more.
+  onScopeDispose(() => {
+    wanting.delete(me);
+    buildUpWanted.value = wanting.size > 0;
+  });
 
   // ------------------------------------------------------------------ the list
   /**
@@ -370,6 +387,8 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     hasOverrides,
     siloWarnings,
     failReason: computed(() => (i.sim.value?.status === 'failed' ? (i.sim.value.reason ?? '') : '')),
+    /** The failure was a stop (its worker torn down) rather than the simulation's own: said so, with Try again. */
+    failStopped: computed(() => i.sim.value?.status === 'failed' && /stopped|terminated|paused/i.test(i.sim.value.reason ?? '')),
   };
 }
 

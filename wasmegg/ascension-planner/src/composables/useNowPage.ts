@@ -902,7 +902,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const shiftRequests = shallowRef<EstimateRequest[]>([]);
   const otherRequests = computed(() => [...otherFollows.value.flatMap(o => (o.req ? [o.req] : [])), ...shiftRequests.value]);
   const searchBusy = computed(() => store.isRunning || store.deadlineRunning || store.resultSending);
-  const { state: estimate, otherStates } = useFollowEstimate(estimateRequest, searchBusy, otherRequests);
+  const { state: estimate, otherStates, retry: retryEstimate } = useFollowEstimate(estimateRequest, searchBusy, otherRequests);
 
   /**
    * MY RUNS NEVER WAITS FOR ANOTHER TAB (26 Oct 2026, composables/useInstantCompute.ts): a followed goal with no
@@ -1335,7 +1335,15 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       },
     };
   });
-  const { state: currentSim, slow: simSlow } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
+  const { state: currentSim, slow: simSlow, retry: retrySim } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
+  /**
+   * The Build-up tracker's Try again (spec-buildstop, 30 Oct 2026): the current ascension simulated again, and the
+   * followed route's estimate priced again when it failed, whatever this page load kept for their keys.
+   */
+  function retryBuildUp(): void {
+    if (estimate.value?.status === 'failed') retryEstimate();
+    retrySim();
+  }
   /** 'working' while the current ascension is simulated (or 'waiting' for a search), else null. */
   const simWorking = computed(() => {
     const st = currentSim.value;
@@ -1917,6 +1925,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     buildUpPlan,
     buildUpSim,
     buildUpSave,
+    retryBuildUp,
     nextStep,
     nextShiftLines,
     ascNow,

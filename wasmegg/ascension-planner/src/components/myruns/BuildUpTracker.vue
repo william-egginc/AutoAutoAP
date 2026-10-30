@@ -14,7 +14,7 @@
   came from is in the checkbox's label and title ("from your save" / "ticked by you"). "Re-plan from this save" shows
   when the save is over 1 h behind the plan or has bought things off-plan.
 
-  Plain data in, events out (`toggle`, `tick`, `clear`, `replan`): the composable owns the storage. Player words are
+  Plain data in, events out (`toggle`, `tick`, `clear`, `replan`, `retry`): the composable owns the storage. Player words are
   DRAFT (Words).
 -->
 <template>
@@ -36,10 +36,23 @@
         <p v-else-if="state === 'working'" data-testid="buildup-working">
           Working out your build-up (it can take a few minutes). Right now's shifts still hold meanwhile.
         </p>
-        <p v-else-if="state === 'failed'" class="text-amber-800" data-testid="buildup-failed">
-          The build-up list could not be worked out<template v-if="failReason">{{ ' ' }}({{ failReason }})</template>. Right now's
-          shifts still hold.
-        </p>
+        <div v-else-if="state === 'failed'" class="space-y-1" data-testid="buildup-failed">
+          <p v-if="failStopped" class="text-amber-800" role="status" data-testid="buildup-failed-stopped">
+            The plan was stopped before it finished. Right now's shifts still hold.
+          </p>
+          <p v-else class="text-amber-800" role="status">
+            The build-up list could not be worked out<template v-if="failReason">{{ ' ' }}({{ failReason }})</template>. Right
+            now's shifts still hold.
+          </p>
+          <button
+            type="button"
+            class="min-h-[44px] rounded-lg border border-indigo-300 bg-white px-3 text-small font-bold text-indigo-700"
+            data-testid="buildup-retry"
+            @click="emit('retry')"
+          >
+            Try again
+          </button>
+        </div>
 
         <template v-else-if="result">
           <p class="text-small text-slate-500 tabular-nums" data-testid="buildup-now">
@@ -201,6 +214,8 @@ const props = withDefaults(
     summary: TrackerSummary | null;
     siloWarnings?: number;
     failReason?: string;
+    /** The failure was a stop (its worker torn down): said so. */
+    failStopped?: boolean;
     now: number;
     zone: string;
     /** The loaded save's time. */
@@ -226,13 +241,14 @@ const props = withDefaults(
       keepsTicks: boolean;
     } | null;
   }>(),
-  { siloWarnings: 0, failReason: '', planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null }
+  { siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null }
 );
 const emit = defineEmits<{
   toggle: [open: boolean];
   tick: [key: string, on: boolean];
   clear: [key: string];
   replan: [];
+  retry: [];
 }>();
 
 const ticked = computed(() => (props.ticks instanceof Set ? props.ticks : new Set(props.ticks as readonly string[])));
