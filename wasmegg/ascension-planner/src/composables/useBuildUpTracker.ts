@@ -27,6 +27,7 @@ import type { BuildUpPlan } from '@/search/buildUpActions';
 import { getResearchById } from '@/calculations/commonResearch';
 import type { Availability } from '@/search/availability';
 import { BUILDUP_PLAN_KEY } from '@/lib/followSim';
+import { buildUpLog } from '@/lib/buildUpDebug';
 import {
   buildUpTracker,
   dropAnchoredPlan,
@@ -113,7 +114,12 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   watch(
     i.account,
     a => {
-      anchored.value = a ? keep(readAnchoredPlan(a)) : null;
+      const read = a ? readAnchoredPlan(a) : null;
+      // A kept plan with no buys, or no usable ascension start, reads as none (spec-buildcache: an old, corrupt or empty
+      // record must never read as "plan present").
+      const ok = read && Number.isFinite(read.ascensionStart) && read.plan.actions.length > 0 ? read : null;
+      buildUpLog(a ? (ok ? `tracker plan read (${ok.plan.actions.length} actions)` : read ? 'tracker plan read but empty: dropped' : 'no tracker plan kept') : 'no account');
+      anchored.value = keep(ok);
     },
     { immediate: true }
   );
@@ -143,7 +149,9 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       const a: AnchoredPlan = { ascensionStart: k, saveSeconds: i.saveSeconds.value, plan: p, ...anchorFarmNow() };
       // Kept here (compacted): useCurrentSim's own copy of the raw plan (lib/followSim.ts BUILDUP_PLAN_KEY, ~250 kB
       // on the synthetic save) is then not needed, and the plan is not asked for again in this ascension.
-      if (writeAnchoredPlan(acct, a)) dropSimPlanCopy();
+      const stored = writeAnchoredPlan(acct, a);
+      if (stored) dropSimPlanCopy();
+      buildUpLog(`tracker plan kept (${p.actions.length} actions, ${stored ? 'stored' : 'not stored'})`);
       anchored.value = keep(a);
     },
     { immediate: true }
@@ -166,6 +174,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   function playerToggle(isOpen: boolean): void {
     const acct = i.account.value;
     const k = ascKey.value;
+    buildUpLog(`fold ${isOpen ? 'opened' : 'closed'} by the player`);
     if (acct && k !== null) writeFoldChoice(acct, k, isOpen);
     choiceVersion.value++;
   }
@@ -178,6 +187,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   watch(
     wanted,
     w => {
+      buildUpLog(`tracker wants the plan: ${w ? 'yes' : 'no'}`);
       if (w) wanting.add(me);
       else wanting.delete(me);
       buildUpWanted.value = wanting.size > 0;
@@ -353,7 +363,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   /** Off-plan buys in words for the strip ('Comfortable Nests 51'): research by name, the rest by kind. */
   const offPlanWords = computed(() => (offer.value?.offPlan ?? []).map(offPlanWord));
 
-  const state = computed<TrackerState>(() => {
+  const shown = computed<TrackerState>(() => {
     if (i.onVirtue.value === false) return 'hidden';
     if (!i.hasSave.value) return 'noSave';
     if (!i.followed.value && !plan.value) return 'noRoute';
@@ -362,6 +372,9 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (i.sim.value?.status === 'failed') return 'failed';
     return 'working';
   });
+  const state = shown;
+  watch(shown, (s, was) => buildUpLog(`tracker ${was ?? 'start'} -> ${s}${s === 'failed' ? ` (${i.sim.value?.reason ?? ''})` : ''}`), { immediate: true });
+  watch(open, o => buildUpLog(`fold ${o ? 'open' : 'closed'}`), { immediate: true });
   /** Silo trick warnings in the list: the "silos too short" strip. */
   const siloWarnings = computed(() => (result.value?.lines ?? []).filter(l => l.kind === 'warning' && /silo/i.test(l.text)).length);
 

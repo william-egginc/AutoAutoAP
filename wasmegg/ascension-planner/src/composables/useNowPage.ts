@@ -149,6 +149,7 @@ import { ascensionSteps, instantSteps, prestigeAfterSimulated, withStayLine } fr
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import { buildUpWanted } from './useBuildUpTracker';
+import { buildUpLog } from '@/lib/buildUpDebug';
 import { saveFarmFor } from '@/lib/buildUpBought';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
 import { buildLeft } from '@/lib/saveBuild';
@@ -1306,7 +1307,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const fs = followState.value;
     const p = fs?.plan?.plan;
     const acct = account.value;
-    if (!fs || p?.legs || !acct || !storeReady.value || onVirtue.value === false) return null;
+    // A route with exact legs needs no simulated ascension for Right now, but the Build-up tracker's plan comes only
+    // from the simulation: asked for while the tracker wants it (spec-buildcache, 30 Oct 2026: a followed route with
+    // exact legs left the tracker "working it out…" with nothing ever asked).
+    if (!fs || !simAskedFor({ followed: true, exactLegs: !!p?.legs, planWanted: buildUpWanted.value }) || !acct || !storeReady.value || onVirtue.value === false)
+      return null;
     const route = followedFromNow(p ? p.chain : fs.card.chain, teSoFar.value);
     if (!route.length) return null;
     const useHours = useHoursFromStores();
@@ -1336,6 +1341,29 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     };
   });
   const { state: currentSim, slow: simSlow, retry: retrySim } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
+  /** The simulation is asked for the Build-up tracker only (the route has exact legs): Right now's card says nothing of it. */
+  const simForTrackerOnly = computed(() => !!followState.value?.plan?.plan?.legs);
+  /**
+   * Why no simulation is asked for while the tracker wants its plan (spec-buildcache: never "working it out…" with
+   * nothing running). null when one is asked, or the tracker shows something else anyway (no save, not on virtue).
+   */
+  const simGap = computed(() =>
+    buildUpSimGap({
+      asked: !!simRequest.value,
+      planWanted: buildUpWanted.value,
+      hasSave: hasSave.value,
+      onVirtue: onVirtue.value,
+      followed: !!followState.value,
+      account: !!account.value,
+      storeReady: storeReady.value,
+    })
+  );
+  watch(
+    () => simGap.value?.reason ?? null,
+    r => {
+      if (r) buildUpLog(`no simulation asked while the plan is wanted: ${r}`);
+    }
+  );
   /**
    * The Build-up tracker's Try again (spec-buildstop, 30 Oct 2026): the current ascension simulated again, and the
    * followed route's estimate priced again when it failed, whatever this page load kept for their keys.
@@ -1347,11 +1375,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** 'working' while the current ascension is simulated (or 'waiting' for a search), else null. */
   const simWorking = computed(() => {
     const st = currentSim.value;
+    if (simForTrackerOnly.value) return null;
     return st && st.key === simRequest.value?.key && (st.status === 'working' || st.status === 'waiting') ? st.status : null;
   });
   /** The simulation failed: its short reason, and whether it is tried once more (Right now says so, never silently). */
   const simFailure = computed(() => {
     const st = currentSim.value;
+    if (simForTrackerOnly.value) return null;
     return st?.status === 'failed' && st.key === simRequest.value?.key ? { reason: st.reason, retrying: !!st.retrying } : null;
   });
   /**
@@ -1366,6 +1396,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   /** The simulation's state for the tracker: working, waiting for a search, failed (with why) or done. */
   const buildUpSim = computed(() => {
     const st = currentSim.value;
+    if (!simRequest.value && simGap.value) return simGap.value;
     if (!st || st.key !== simRequest.value?.key) return null;
     // Only the plan was wanted and it failed (the leg stays on screen): the tracker says so (Phase 2).
     if (st.status === 'done' && st.planFailed) return { status: 'failed' as const, reason: st.planFailed };
@@ -1952,4 +1983,34 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     followsForSteps,
     stepWindows,
   };
+}
+
+/**
+ * Whether the current ascension is simulated (spec-buildcache, 30 Oct 2026): for a followed route without exact legs
+ * (Right now needs it), and for one with exact legs only while the Build-up tracker wants its plan (the plan comes only
+ * from the simulation: a route with exact legs left the tracker "working it out…" with nothing ever asked).
+ */
+export function simAskedFor(o: { followed: boolean; exactLegs: boolean; planWanted: boolean }): boolean {
+  return o.followed && (!o.exactLegs || o.planWanted);
+}
+
+/**
+ * Why no simulation is asked for while the Build-up tracker wants its plan: what the tracker shows instead of "working
+ * it out…" with nothing running (spec-buildcache). null when one is asked, the plan is not wanted, or the tracker shows
+ * something else anyway (no save, not on virtue). The planner still loading this save is 'waiting' (asked once it is in).
+ */
+export function buildUpSimGap(o: {
+  asked: boolean;
+  planWanted: boolean;
+  hasSave: boolean;
+  onVirtue: boolean | null;
+  followed: boolean;
+  account: boolean;
+  storeReady: boolean;
+}): { status: 'waiting' | 'failed'; reason: string } | null {
+  if (o.asked || !o.planWanted || !o.hasSave || o.onVirtue === false) return null;
+  if (!o.followed) return { status: 'failed', reason: 'no followed route for this goal' };
+  if (!o.account) return { status: 'failed', reason: 'the save has no account' };
+  if (!o.storeReady) return { status: 'waiting', reason: "the planner's inputs are not this save's yet" };
+  return { status: 'failed', reason: 'the followed route has no stop ahead of this save' };
 }

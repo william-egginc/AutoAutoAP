@@ -31,6 +31,7 @@ import {
   type SimLeg,
 } from '@/lib/followSim';
 import { siloSeconds } from '@/lib/saveAge';
+import { buildUpLog, shortKey } from '@/lib/buildUpDebug';
 
 export interface SimRequest {
   /** lib/followSim.ts `simKey`. */
@@ -93,6 +94,7 @@ export function setSimRunner(f: (() => Promise<SimRunner | null> | SimRunner | n
   makeRunner = f ?? defaultRunner;
   failed.clear();
   stopRetried.clear();
+  guarded.clear();
 }
 
 /**
@@ -118,6 +120,12 @@ const failed = new Map<string, { reason: string; tries: number }>();
  * My runs) is not one of these: its answer is dropped before it is read.
  */
 const stopRetried = new Set<string>();
+/**
+ * NEVER WANTED AND IDLE (spec-buildcache, 30 Oct 2026): keys the guard below asked again on this page load because the
+ * plan was wanted, the state was 'done' without a plan or a planFailed, and nothing was running or waiting. Once per
+ * key: a second time says planFailed rather than looping.
+ */
+const guarded = new Set<string>();
 /** The run was stopped from outside rather than failing on its own. */
 function wasStopped(err: unknown): boolean {
   const m = err instanceof Error ? err.message : String(err);
@@ -169,6 +177,7 @@ export function useCurrentSim(
     const id = asked;
     runningKey = req.key;
     state.value = have ?? { key: req.key, status: 'working' };
+    buildUpLog(`run scheduled (${have ? 'plan only, the leg on screen' : 'leg'}${unref(wantBuildUp) ? ', plan wanted' : ''}) key ${shortKey(req.key)}`);
     startTimer = setTimeout(() => {
       startTimer = null;
       if (id === asked) void run(req, id, have);
@@ -192,6 +201,7 @@ export function useCurrentSim(
       runner = r;
       const want = !!unref(wantBuildUp);
       wantAsked = want;
+      buildUpLog(`run started${want ? ' with the plan' : ''} key ${shortKey(req.key)}`);
       const got = await (want ? r.run(inputs, [req.route[0]], { keepPurchases: true }) : r.run(inputs, [req.route[0]]));
       const leg = simLegFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
         timeOff: inputs.timeOff,
@@ -213,17 +223,22 @@ export function useCurrentSim(
       // 12 h read as 1 silo's worth made the tracker's silo time 4 times too long, 30 Oct 2026).
       const shaped = made?.start ? { ...made, siloSeconds: siloSeconds(made.start.siloCount, siloLevel) } : made;
       const buildUp = shaped ? markRaw(shaped) : null;
-      if (buildUp) recordBuildUpPlan(req.key, buildUp);
+      if (buildUp) buildUpLog(`plan kept for the sim (${recordBuildUpPlan(req.key, buildUp) ? 'stored' : 'not stored'})`);
+      buildUpLog(`run finished in ${Math.round((at - began) / 100) / 10} s: ${buildUp ? `plan with ${buildUp.actions.length} actions` : want ? 'NO build-up list' : 'leg only (plan not asked)'}`);
       // The plan was wanted and none came back: said so (the tracker shows why), never asked again for this key on
       // this page (a request worked out again would otherwise simulate it again and again, 30 Oct 2026).
       const noPlan = want && !buildUp ? 'the simulation gave no build-up list' : '';
-      if (noPlan) failed.set(req.key, { reason: noPlan, tries: 2 });
+      if (noPlan) {
+        failed.set(req.key, { reason: noPlan, tries: 2 });
+        buildUpLog(`planFailed: ${noPlan}`);
+      }
       result = { key: req.key, status: 'done', leg, at, ...(buildUp ? { buildUp } : {}), ...(noPlan ? { planFailed: noPlan } : {}) };
     } catch (err) {
       if (id !== asked) return;
       if (wasStopped(err) && !stopRetried.has(req.key)) {
         // Stopped from outside: asked again once, the leg (if any) on screen meanwhile. Never 'working' for good.
         stopRetried.add(req.key);
+        buildUpLog('run stopped from outside: asked again once');
         console.warn('My runs: simulating the ascension you are in was stopped; asking again once.');
         runner?.terminate();
         runner = null;
@@ -232,6 +247,7 @@ export function useCurrentSim(
       }
       const reason = reasonOf(err);
       console.warn('My runs: simulating the ascension you are in failed:', reason);
+      buildUpLog(`run failed${have ? ' (planFailed)' : ''}: ${reason}`);
       const tries = (failed.get(req.key)?.tries ?? 0) + 1;
       failed.set(req.key, { reason, tries: have ? 2 : tries });
       // Only the plan was wanted: the leg stays as it was, and it is not tried again on this page.
@@ -270,6 +286,7 @@ export function useCurrentSim(
       const kept = findSimRecord(readSimRecords(), req);
       const keptPlan = kept && want ? readBuildUpPlan(req.key) : null;
       if (kept && (!want || keptPlan)) {
+        buildUpLog(`kept sim restored ${keptPlan ? `with its plan (${keptPlan.actions.length} actions)` : 'without a plan (not wanted)'}`);
         letGo();
         state.value = { key: req.key, status: 'done', leg: kept.leg, at: kept.at, ...(keptPlan ? { buildUp: markRaw(keptPlan) } : {}) };
         return;
@@ -278,8 +295,10 @@ export function useCurrentSim(
       // plan is simulated.
       const have: DoneState | null =
         want && (now || kept) ? (now ?? { key: req.key, status: 'done', leg: kept!.leg, at: kept!.at }) : null;
+      if (kept && !now) buildUpLog('kept sim restored WITHOUT a plan while the plan is wanted: a plan-only run');
       const f = failed.get(req.key);
       if (f && (f.tries >= 2 || retryTimer)) {
+        buildUpLog(`not asked again on this page: ${f.reason}`);
         if (!retryTimer) letGo();
         state.value = have
           ? { ...have, planFailed: f.reason }
@@ -288,6 +307,7 @@ export function useCurrentSim(
       }
       if (isBusy) {
         // A search has the memory: started when it ends (this watch runs again then).
+        buildUpLog('waiting for a search to end');
         letGo();
         state.value = have ?? { key: req.key, status: 'waiting' };
         return;
@@ -297,6 +317,35 @@ export function useCurrentSim(
     },
     { immediate: true }
   );
+  /**
+   * THE GUARD (spec-buildcache, 30 Oct 2026, Jordan's live "working it out…" over 80 s with nothing in the console): the
+   * plan is wanted, the state of the request on screen is 'done' with no plan and no planFailed, and nothing is running,
+   * scheduled or waiting. Whatever path led there, nothing would ever ask again: a plan-only run starts (the leg on
+   * screen meanwhile), once per key per page load; a second time says planFailed.
+   */
+  watch(
+    [state, request, busy, () => !!unref(wantBuildUp)],
+    ([st, req, isBusy, want]) => {
+      if (!want || !req || isBusy || !st || st.key !== req.key || st.status !== 'done' || st.buildUp || st.planFailed) return;
+      if (runningKey === req.key || startTimer || retryTimer) return;
+      if (guarded.has(req.key)) {
+        const reason = 'the build-up list was asked for twice and did not come';
+        buildUpLog(`guard: planFailed (${reason})`);
+        failed.set(req.key, { reason, tries: 2 });
+        state.value = { ...st, planFailed: reason };
+        return;
+      }
+      guarded.add(req.key);
+      buildUpLog('guard: plan wanted, done without a plan, nothing running: a plan-only run');
+      schedule(req, st);
+    },
+    { immediate: true }
+  );
+  watch(
+    () => !!unref(wantBuildUp),
+    w => buildUpLog(`wanted ${w ? 'on' : 'off'}`),
+    { immediate: true }
+  );
   onScopeDispose(letGo);
   /**
    * The player's Try again (the Build-up tracker's failed line): the request on screen is asked again, whatever the
@@ -304,8 +353,10 @@ export function useCurrentSim(
    */
   function retry(): void {
     const req = request.value;
+    buildUpLog(`retry${req ? '' : ': no request'}`);
     if (!req) return;
     failed.delete(req.key);
+    guarded.delete(req.key);
     const st = state.value;
     let have: DoneState | null = null;
     if (st?.key === req.key && st.status === 'done') {
