@@ -292,7 +292,8 @@ export function readBuildUpPlan(key: string, st: Store | null = storage()): Buil
     const text = st.getItem(BUILDUP_PLAN_KEY) ?? 'null';
     if (lastRead?.text !== text) lastRead = { text, v: JSON.parse(text) as { key?: unknown; plan?: unknown } | null };
     const v = lastRead.v;
-    return v && v.key === key && usablePlan(v.plan) ? v.plan : null;
+    // An empty list reads as no plan (spec-buildcache: a record must never read as "plan present" without one).
+    return v && v.key === key && usablePlan(v.plan) && v.plan.actions.length > 0 ? v.plan : null;
   } catch {
     return null;
   }
