@@ -144,6 +144,16 @@
             {{ csv.text }}
           </button>
           <button
+            v-if="xlsx"
+            type="button"
+            :class="SECONDARY_BUTTON"
+            data-testid="by-date-xlsx"
+            :title="xlsxLabel.title"
+            @click="emit('xlsx')"
+          >
+            {{ xlsxLabel.text }}
+          </button>
+          <button
             v-if="canSave"
             type="button"
             :class="SECONDARY_BUTTON"
@@ -220,7 +230,7 @@ import FollowButton from '../FollowButton.vue';
 import type { ResultFollow } from '@/lib/follow';
 import RouteExtras from './RouteExtras.vue';
 import RouteTimeline from './RouteTimeline.vue';
-import { csvButton } from './csvButton';
+import { csvButton, xlsxButton } from './csvButton';
 import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
@@ -248,6 +258,8 @@ const props = defineProps<{
   canCsv?: boolean;
   /** The CSV has every route's per-ascension detail (store `csvHasEveryRoute`): its button says so. */
   csvEvery?: boolean;
+  /** Offer the same table as an .xlsx beside it (store `xlsxOffered`: under the row cap; emits `xlsx`). */
+  xlsx?: boolean;
   canSave?: boolean;
   saving?: boolean;
   /** A line after the buttons: what the last click did. */
@@ -264,9 +276,10 @@ const props = defineProps<{
   /** "Follow this route" for the finished result (lib/follow.ts `ResultFollow`); absent: no button. */
   follow?: ResultFollow | null;
 }>();
-const emit = defineEmits<{ simulate: []; csv: []; save: [] }>();
+const emit = defineEmits<{ simulate: []; csv: []; xlsx: []; save: [] }>();
 
 const csv = computed(() => csvButton(!!props.csvEvery));
+const xlsxLabel = xlsxButton();
 
 /** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
  *  page (SearchPanel.vue), so the one laid out is this card's. */

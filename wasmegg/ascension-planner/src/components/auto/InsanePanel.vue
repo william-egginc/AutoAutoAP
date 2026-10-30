@@ -933,6 +933,8 @@
               @build="buildPlan"
               :csv-every="store.csvHasEveryRoute('fastest')"
               @csv="downloadCsv"
+              :xlsx="store.xlsxOffered('fastest')"
+              @xlsx="downloadXlsx('fastest')"
               @save="save"
               :last-run="lastRunLabel"
               :ran-line="ranLine"
@@ -1265,7 +1267,7 @@ const autoPlannerStore = useAutoPlannerStore();
 const plannerTzFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const ui = useUIStore();
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV row. */
-const { downloadCsv } = useRunDownloads(store);
+const { downloadCsv, downloadXlsx } = useRunDownloads(store);
 
 /** Past this the estimate is longer than anyone will wait, and the form says so rather than
  *  refusing: the point of this page is that the decision is the operator's. */

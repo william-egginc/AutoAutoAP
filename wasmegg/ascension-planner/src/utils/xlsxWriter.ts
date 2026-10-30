@@ -70,23 +70,25 @@ interface Entry {
   offset: number;
 }
 
+/** Bytes on an ordinary ArrayBuffer (what a Blob and CompressionStream take). */
+export type Bytes = Uint8Array<ArrayBuffer>;
 const enc = new TextEncoder();
 /** 1 Jan 1980, 12:00 am in DOS form: a fixed stamp, so the same table makes the same bytes. */
 const DOS_TIME = 0;
 const DOS_DATE = (0 << 9) | (1 << 5) | 1;
 
 export class ZipWriter {
-  private parts: Uint8Array[] = [];
+  private parts: Bytes[] = [];
   private entries: Entry[] = [];
   private offset = 0;
   constructor(private readonly deflate: boolean) {}
 
   /** One file, from its bytes a piece at a time. */
-  async add(name: string, pieces: AsyncIterable<Uint8Array> | Iterable<Uint8Array>): Promise<void> {
+  async add(name: string, pieces: AsyncIterable<Bytes> | Iterable<Bytes>): Promise<void> {
     const nameBytes = enc.encode(name);
     let crc = 0;
     let size = 0;
-    const data: Uint8Array[] = [];
+    const data: Bytes[] = [];
     let csize = 0;
     if (this.deflate) {
       const cs = new CompressionStream('deflate-raw' as CompressionFormat);
@@ -145,7 +147,7 @@ export class ZipWriter {
   }
 
   /** The whole file, as parts for a Blob. The writer is spent after this. */
-  finish(): Uint8Array[] {
+  finish(): Bytes[] {
     const start = this.offset;
     let dirSize = 0;
     for (const e of this.entries) {
@@ -296,7 +298,7 @@ const FLUSH_CHARS = 64 * 1024;
 export async function csvToXlsx(
   chunks: Iterable<string> | AsyncIterable<string>,
   opts: CsvToXlsxOptions
-): Promise<{ parts: Uint8Array[]; rows: number }> {
+): Promise<{ parts: Bytes[]; rows: number }> {
   const zip = new ZipWriter(opts.deflate ?? canDeflateRaw());
   await zip.add('[Content_Types].xml', [enc.encode(CONTENT_TYPES)]);
   await zip.add('_rels/.rels', [enc.encode(ROOT_RELS)]);
@@ -306,7 +308,7 @@ export async function csvToXlsx(
 
   const notes: string[] = [];
   let rows = 0;
-  async function* sheet(): AsyncGenerator<Uint8Array> {
+  async function* sheet(): AsyncGenerator<Bytes> {
     let header: string[] | null = null;
     /** Rows waiting for the widths: records, or a `#` line as a string. */
     const waiting: (string[] | string)[] = [];

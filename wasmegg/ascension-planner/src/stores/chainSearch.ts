@@ -17,6 +17,7 @@ import { plainError } from '@/lib/plainError';
 import { markProvisionalDone, stillOpen } from '@/search/doneProvisional';
 import { defineStore } from 'pinia';
 import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
+import { deadlineTableRows, fastestTableRows, xlsxRowCap } from '@/utils/xlsxRows';
 import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapshot } from '@/lib/chartThin';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
@@ -3692,6 +3693,38 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     void deadlineResult.value;
     const s = legSpills.deadline;
     return !!s && !s.stopped && deadlineAll.length > 0 && !!deadlineAllPriced;
+  }
+  /**
+   * Whether a screen's card offers its table for Excel (.xlsx, composables/useRunDownloads.ts `downloadXlsx`): a
+   * finished result whose top-routes CSV (`exportCsvChunks`, `deadlineCsvChunksNow`) has at most `xlsxRowCap()`
+   * rows (utils/xlsxRows.ts). Never mid-run: counting walks every route, so a Fastest run counts only once stopped.
+   */
+  const xlsxOfferedNow = computed(() => {
+    const cap = xlsxRowCap();
+    const fastest = (() => {
+      if (isRunning.value) return false;
+      // At least a row a route: a run over the cap is answered without walking it.
+      if (csvRows.value > cap) return false;
+      const own = allEntries();
+      if (own.length) return own.length <= cap && fastestTableRows(own.map(e => e.legs.length)) <= cap;
+      const r = resumable.value;
+      if (!r || r.durations.length > cap) return false;
+      const best = r.bestChain.join(',');
+      return r.durations.length > 0 && fastestTableRows(r.durations.map(([key]) => (key === best ? r.bestLegs.length : 0))) <= cap;
+    })();
+    const deadline = (() => {
+      const r = deadlineResult.value;
+      if (!r) return false;
+      const own = deadlineAll.length > 0;
+      const routes = own ? deadlineAll : r.routes;
+      const priced = own && deadlineAllPriced?.size ? deadlineAllPriced.size : null;
+      if ((priced ?? 0) > cap) return false;
+      return deadlineTableRows(routes.map(x => x.legs?.length ?? 0), DEADLINE_LEG_ROUTES, priced) <= cap;
+    })();
+    return { fastest, deadline };
+  });
+  function xlsxOffered(kind: 'fastest' | 'deadline'): boolean {
+    return xlsxOfferedNow.value[kind];
   }
   /** Write what is new and make the spill durable; its length, for the checkpoint. */
   async function commitSpill(entries: readonly CacheEntry[]): Promise<number> {
@@ -9941,6 +9974,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setLegSpillOpener,
     legSpillStatus,
     csvHasEveryRoute,
+    xlsxOffered,
     legSpillInfo,
     buildRunSubmission,
     buildDeadlineSubmission,

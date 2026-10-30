@@ -119,10 +119,16 @@ function wellFormed(xml: string): void {
 function cells(xml: string): Map<string, { text: string; number: boolean; style: string | null }> {
   const out = new Map<string, { text: string; number: boolean; style: string | null }>();
   const unescape = (s: string) =>
-    s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+    s
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, '&');
   for (const m of xml.matchAll(/<c r="([A-Z]+\d+)"(?: s="(\d+)")?( t="inlineStr")?>(.*?)<\/c>/g)) {
     const [, ref, style, inline, inner] = m;
-    if (inline) out.set(ref, { text: unescape(/<t[^>]*>(.*)<\/t>/.exec(inner)![1]), number: false, style: style ?? null });
+    if (inline)
+      out.set(ref, { text: unescape(/<t[^>]*>(.*)<\/t>/.exec(inner)![1]), number: false, style: style ?? null });
     else out.set(ref, { text: /<v>(.*)<\/v>/.exec(inner)![1], number: true, style: style ?? null });
   }
   return out;
@@ -173,7 +179,9 @@ describe('the pieces', () => {
   });
 
   it('escapes the five XML characters and drops the ones XML forbids', () => {
-    expect(xmlText(`<a href="x">Tom & Jerry's</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;Tom &amp; Jerry&apos;s&lt;/a&gt;');
+    expect(xmlText(`<a href="x">Tom & Jerry's</a>`)).toBe(
+      '&lt;a href=&quot;x&quot;&gt;Tom &amp; Jerry&apos;s&lt;/a&gt;'
+    );
     expect(xmlText('a\u0001b\u0008c\td\ne')).toBe('abc\td\ne');
   });
 
@@ -182,7 +190,18 @@ describe('the pieces', () => {
     expect(asNumber('-0.5000')).toBe(-0.5);
     expect(asNumber('150.2500')).toBe(150.25);
     expect(asNumber('5.5e15')).toBe(5.5e15);
-    for (const s of ['196 197', '2027-07-14 10:00', '0012', '1234567890123456', '', 'yes', '1.', '.5', '+1', 'Infinity'])
+    for (const s of [
+      '196 197',
+      '2027-07-14 10:00',
+      '0012',
+      '1234567890123456',
+      '',
+      'yes',
+      '1.',
+      '.5',
+      '+1',
+      'Infinity',
+    ])
       expect(asNumber(s), s).toBeNull();
   });
 
@@ -207,7 +226,9 @@ describe('the workbook', () => {
       }
       expect(rows).toBe(3);
       expect(text(files.get('[Content_Types].xml'))).toContain('spreadsheetml.sheet.main+xml');
-      expect(text(files.get('xl/workbook.xml'))).toMatch(/<sheet name="Routes" sheetId="1" r:id="rId1"\/><sheet name="Notes"/);
+      expect(text(files.get('xl/workbook.xml'))).toMatch(
+        /<sheet name="Routes" sheetId="1" r:id="rId1"\/><sheet name="Notes"/
+      );
     });
   }
 
@@ -215,7 +236,9 @@ describe('the workbook', () => {
     const { files } = await build(SMALL);
     const sheet = text(files.get('xl/worksheets/sheet1.xml'));
     expect(sheet).toContain('<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>');
-    const widths = [...sheet.matchAll(/<col min="(\d+)" max="\d+" width="([\d.]+)" customWidth="1"\/>/g)].map(m => Number(m[2]));
+    const widths = [...sheet.matchAll(/<col min="(\d+)" max="\d+" width="([\d.]+)" customWidth="1"\/>/g)].map(m =>
+      Number(m[2])
+    );
     expect(widths).toHaveLength(5);
     expect(widths[3]).toBeGreaterThanOrEqual(TIME_COL_WIDTH);
     // The header's cells use the bold style (styles.xml's second cellXfs entry has the bold font).
@@ -268,8 +291,14 @@ describe('the workbook', () => {
 
   it('past the width sample it streams on: every row there, in order, widths from the first rows', async () => {
     const n = WIDTH_SAMPLE_ROWS * 3 + 7;
-    const body = Array.from({ length: n }, (_, i) => `${i + 1},${i < 10 ? 'short' : 'x'.repeat(30)},2027-07-14 10:00\n`);
-    const chunks = ['rank,word,when_local\n', ...Array.from({ length: 9 }, (_, k) => body.slice((k * n) / 9, ((k + 1) * n) / 9).join(''))];
+    const body = Array.from(
+      { length: n },
+      (_, i) => `${i + 1},${i < 10 ? 'short' : 'x'.repeat(30)},2027-07-14 10:00\n`
+    );
+    const chunks = [
+      'rank,word,when_local\n',
+      ...Array.from({ length: 9 }, (_, k) => body.slice((k * n) / 9, ((k + 1) * n) / 9).join('')),
+    ];
     const { files, rows } = await build(chunks, { deflate: true, rowCap: n });
     expect(rows).toBe(n);
     const sheet = text(files.get('xl/worksheets/sheet1.xml'));
@@ -356,10 +385,14 @@ describe('from the run CSV (search/csv.ts), cell for cell', () => {
 
   it('By a date: a valid workbook, the leg rows under the frozen header', async () => {
     const legs = [leg(0, 196), leg(1, 197), leg(2, 219)];
-    const csv = buildDeadlineCsv([{ chain: [196, 197, 219], reachAt: legs[2].endTime, ascendAt: legs[2].endTime, spare: D, legs }], meta, {
-      deadline: legs[2].endTime + D,
-      priced: 1,
-    });
+    const csv = buildDeadlineCsv(
+      [{ chain: [196, 197, 219], reachAt: legs[2].endTime, ascendAt: legs[2].endTime, spare: D, legs }],
+      meta,
+      {
+        deadline: legs[2].endTime + D,
+        priced: 1,
+      }
+    );
     const { files, rows } = await build(csv, { deflate: true });
     expect(rows).toBe(3);
     for (const f of files.values()) wellFormed(text(f));
