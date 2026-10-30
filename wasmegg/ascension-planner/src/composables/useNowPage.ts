@@ -156,6 +156,7 @@ import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction,
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
+import { followStaleness, type StaleReason } from '@/lib/followStale';
 import { SIM_VERSION } from '@/search/simVersion';
 import { autoFollowOf, autoFollowsGoal, followedLabel } from '@/lib/followPolicy';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
@@ -1395,6 +1396,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     /** The followed route's finish here came from a priced result (a Fast, Exact or Custom timeline, Check exactly's
      *  price or history): an instant answer never asks about it (lib/searchPlan.ts `followIsPriced`). */
     followedPriced: boolean;
+    /** The save contradicts the followed route (lib/followStale.ts): the pick is offered as "Re-plan from this save"
+     *  whatever the finishes, priced follow or not (alt A1, 30 Oct 2026). Null: it doesn't. */
+    stale: StaleReason | null;
   } | null>(() => {
     const fs = followState.value;
     const pick = pickedPlan.value;
@@ -1422,6 +1426,11 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       },
       followedFinish,
       followedPriced: fs.card.price === 'exact' || fs.card.price === 'finish',
+      stale: followStaleness({
+        plan: fs.plan?.plan ?? null,
+        save: hasSave.value ? { seconds: saveSeconds.value, egg: currentEgg.value, te: saveTEOf(raw.value) } : null,
+        hoursDiffer: f.hours !== undefined && !sameHours(f.hours, hoursOf(store.availability)),
+      }),
     };
   });
   /** A followed route read back from online, set with another hours window or simulator than the player's now: the

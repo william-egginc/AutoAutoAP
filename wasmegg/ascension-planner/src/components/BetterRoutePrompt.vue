@@ -8,7 +8,9 @@
   Exact or Custom result, the route of such a result for this account and goal (kept, or in the search store now), or
   one Right now priced from a result (`followedPriced`). A Fast, Exact or Custom result asks about an unpriced route
   followed from the instant answer without comparing finishes (lib/searchPlan.ts `simulatedOverEstimate`: simulated
-  against the table's estimate, math review 24 Oct 2026).
+  against the table's estimate, math review 24 Oct 2026). When the save contradicts the followed route (`stale`,
+  lib/followStale.ts; Right now only, alt A1 30 Oct 2026) the new result is offered as "Re-plan from this save", the
+  reason first, whatever the finishes and over a priced follow too; the press is the same Follow press.
 -->
 <template>
   <div
@@ -26,7 +28,7 @@
         data-testid="better-route-follow"
         @click.stop="followIt"
       >
-        Follow it
+        {{ prompt.stale ? 'Re-plan from this save' : 'Follow it' }}
       </button>
       <button
         type="button"
@@ -48,6 +50,7 @@ import { followIsPriced, followPrompt, keepMine, readKeptMine, readKeptSearches,
 import { dateAt } from '@/lib/eventWhen';
 import { useInitialStateStore } from '@/stores/initialState';
 import { sourceOfFrom } from '@/lib/followCloud';
+import type { StaleReason } from '@/lib/followStale';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { accountOf } from '@/search/runSaves';
 import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
@@ -63,6 +66,9 @@ const props = defineProps<{
   /** Right now's finish for the followed route came from a priced result (a Fast, Exact or Custom timeline, or Check
    *  exactly's): an instant answer never asks then. */
   followedPriced?: boolean;
+  /** The save contradicts the followed route (lib/followStale.ts `followStaleness`): asked as "Re-plan from this save".
+   *  Absent or null: the better-route rules only. */
+  stale?: StaleReason | null;
   zone?: string;
 }>();
 
@@ -138,6 +144,7 @@ const prompt = computed<FollowPrompt | null>(() => {
     candidate: props.candidate,
     keptMine: kept.value,
     when: t => dateAt(t, nowSec, zone.value),
+    stale: props.stale ?? null,
   });
 });
 

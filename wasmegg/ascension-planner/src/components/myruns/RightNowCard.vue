@@ -26,7 +26,8 @@
   "Go back to the instant answer". A result that doesn't take over is named in one line. Recalculate is "Run Fast"
   (lib/recalc.ts): the goal's screen with Fast selected.
   FOLLOWED ROUTE SAVED ONLINE (23 Oct 2026, lib/followCloud.ts): a followed route is never replaced by a new result; a
-  newer, better one is asked about (BetterRoutePrompt.vue: "Follow it" / "Keep mine"). "Earlier versions"
+  newer, better one is asked about (BetterRoutePrompt.vue: "Follow it" / "Keep mine"); when the save contradicts the
+  followed route (lib/followStale.ts), the planner's answer for this save is offered ("Re-plan from this save"). "Earlier versions"
   (FollowHistory.vue) lists the last 5 saved for the goal, each with Restore. A route read back from online that was
   set with other hours or another simulator says so in one quiet line.
   A FOLLOWED ROUTE KEEPS ITS TIMELINE (23 Oct 2026, lib/followPrice.ts step 0): following this save's instant answer's own
@@ -174,6 +175,7 @@
       :candidate="betterRoute.candidate"
       :followed-finish="betterRoute.followedFinish"
       :followed-priced="!!betterRoute.followedPriced"
+      :stale="betterRoute.stale ?? null"
       :zone="zone"
     />
     <!-- The last 5 versions saved online for this goal, with Restore (GET /follow/history). -->
@@ -492,6 +494,7 @@ import CalendarButton from './CalendarButton.vue';
 import FollowHistory from './FollowHistory.vue';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
+import type { StaleReason } from '@/lib/followStale';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
@@ -568,6 +571,8 @@ const props = defineProps<{
     followedFinish: RouteFinish | null;
     /** Its finish here came from a priced result: an instant answer never asks (lib/searchPlan.ts `followIsPriced`). */
     followedPriced?: boolean;
+    /** The save contradicts the followed route (lib/followStale.ts): offered as "Re-plan from this save". */
+    stale?: StaleReason | null;
   } | null;
   /** "This route was set with a different hours window / simulator version." ('' or absent: none). */
   followSetWith?: string;

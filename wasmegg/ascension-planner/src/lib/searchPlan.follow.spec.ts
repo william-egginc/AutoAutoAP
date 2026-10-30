@@ -212,3 +212,73 @@ describe('a simulated result against an instant-sourced follow', () => {
     expect(followPrompt({ ...base, keptMine: [p.id] })).toBeNull();
   });
 });
+
+/**
+ * THE SAVE CONTRADICTS THE FOLLOW (alt A1, 30 Oct 2026): a priced follow planned from an older save, [209, 287, 490];
+ * the instant answer of the newer save, [160, 195, 216, 249], ends later. Before, nothing asked (an instant answer
+ * never asks about a priced follow, and it isn't better). With a stale reason it is offered as "Re-plan from this save".
+ */
+describe('re-plan from this save (the save contradicts the follow)', () => {
+  const T0 = NOW * 1000 - 20 * H * 1000;
+  const followed = { chain: [209, 287, 490], at: T0, finish: { end: NOW + 40 * D, endTE: 490 }, priced: true, source: 'fast' };
+  const instant = { chain: [160, 195, 216, 249], end: NOW + 42 * D, endTE: 249, at: NOW * 1000, source: 'instant' as const, planStart: NOW };
+  const base = { goalKey: 'fastest-490', goal: 'fastest' as const, deadline: null, followed, candidate: instant, keptMine: [] as string[], when };
+  const egg = { kind: 'egg' as const, saveEgg: 'curiosity', planEgg: 'kindness' };
+
+  it('the reported case: a priced follow and a later-finishing newer answer, with a stale reason: offered', () => {
+    expect(followPrompt(base)).toBeNull(); // no reason: unchanged
+    const p = followPrompt({ ...base, stale: { kind: 'hours' } })!;
+    expect(p).not.toBeNull();
+    expect(p.stale).toBe('hours');
+    expect(p.chain).toEqual([160, 195, 216, 249]);
+    expect(p.source).toBe('instant');
+    expect(p.planStart).toBe(NOW);
+  });
+
+  it('each reason leads in plain words, then the answer\'s finish (12-hour times)', () => {
+    expect(followPrompt({ ...base, stale: egg })!.words).toBe(
+      "Your save doesn't match the route you follow: it's on Curiosity, the route expects Kindness. The answer for this save finishes Dec 4 at 11:00 AM."
+    );
+    expect(followPrompt({ ...base, stale: { kind: 'hours' } })!.words).toBe(
+      "Your save doesn't match the route you follow: the route was set with different awake hours than yours now. The answer for this save finishes Dec 4 at 11:00 AM."
+    );
+    expect(followPrompt({ ...base, stale: { kind: 'overdue', step: 'shift', egg: 'curiosity', at: NOW - 10 * H } })!.words).toBe(
+      "Your save doesn't match the route you follow: the route shifts to Curiosity by Oct 23 at 2:00 AM, and your save hasn't. The answer for this save finishes Dec 4 at 11:00 AM."
+    );
+    expect(followPrompt({ ...base, stale: { kind: 'overdue', step: 'prestige', te: 209, at: NOW - 10 * H } })!.words).toMatch(
+      /the route prestiges at 209 TE by Oct 23 at 2:00 AM, and your save hasn't\./
+    );
+  });
+
+  it('By a date: the answer\'s TE and spare; one that lands after the date is not offered', () => {
+    const date = { ...base, goal: 'date' as const, deadline: DEADLINE, candidate: { ...instant, end: DEADLINE - 2 * D } };
+    expect(followPrompt({ ...date, stale: egg })!.words).toMatch(/The answer for this save gets 249 TE, 2d to spare\.$/);
+    expect(followPrompt({ ...date, stale: egg, candidate: { ...instant, end: DEADLINE + H } })).toBeNull();
+  });
+
+  it('not offered: the same route, an answer not newer than the follow', () => {
+    expect(followPrompt({ ...base, stale: egg, candidate: { ...instant, chain: [209, 287, 490] } })).toBeNull();
+    expect(followPrompt({ ...base, stale: egg, candidate: { ...instant, at: T0 } })).toBeNull();
+  });
+
+  it('Keep mine holds for that follow and that answer (whatever the reason), not for another follow', () => {
+    const id = followPrompt({ ...base, stale: egg })!.id;
+    expect(followPrompt({ ...base, stale: { kind: 'hours' } })!.id).toBe(id);
+    expect(followPrompt({ ...base, stale: egg, keptMine: [id] })).toBeNull();
+    expect(followPrompt({ ...base, stale: { kind: 'hours' }, keptMine: [id] })).toBeNull();
+    const other = { ...followed, chain: [210, 287, 490] };
+    expect(followPrompt({ ...base, followed: other, stale: egg, keptMine: [id] })).not.toBeNull();
+    // A better-route dismissal of the same answer is another id: the stale one still asks.
+    expect(id).not.toBe(resultId('fastest-490', 'instant', instant.chain, instant.end));
+  });
+
+  it('the better-route prompt is unchanged without a reason', () => {
+    const unpriced = { ...followed, priced: false, source: 'manual' };
+    const better = { ...instant, end: NOW + 39 * D };
+    const p = followPrompt({ ...base, followed: unpriced, candidate: better })!;
+    expect(p.stale).toBeUndefined();
+    expect(p.words).toMatch(/^This is a better route than the one you're following/);
+    expect(p.id).toBe(resultId('fastest-490', 'instant', better.chain, better.end));
+    expect(followPrompt({ ...base, followed: unpriced, candidate: better, stale: null })).toEqual(p);
+  });
+});
