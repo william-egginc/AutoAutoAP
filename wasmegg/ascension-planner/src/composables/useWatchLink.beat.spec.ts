@@ -362,3 +362,100 @@ describe('the failing-sends note (search/watchLink.ts watchFailingNote)', () => 
     expect(watchFailingNote(activeWatch.value!)).toBe('');
   });
 });
+
+/**
+ * A post that hangs past the next beat, then answers after all (29 Oct 2026). It was already counted as failed
+ * ("no answer") when the next one went, so its late answer is stale: it must not count a second failure, nor
+ * reset the count, nor move "last sent at" back to its own older time. Only the newest post's answer counts.
+ */
+describe('a late answer from a post the next beat already overtook', () => {
+  /** An answer the test gives when it likes. */
+  function later() {
+    let give!: (r: Response | Error) => void;
+    const p = new Promise<Response>((res, rej) => {
+      give = r => (r instanceof Error ? rej(r) : res(r));
+    });
+    return { answer: () => p, give };
+  }
+
+  /** The run's start (answered), then a post at T0 + 5 min that hangs, then the next at T0 + 10 min. */
+  async function hangThenNext(next: () => Response | Promise<Response>) {
+    watchLinkRunStarted('deadline');
+    await settle();
+    const hung = later();
+    answer = hung.answer;
+    setClock(T0 + WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    answer = next;
+    setClock(T0 + 2 * WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    expect(posts()).toHaveLength(3);
+    return hung;
+  }
+
+  for (const [what, late] of [
+    ['an error (503)', () => new Response('{}', { status: 503 })],
+    ['a 429', () => new Response('{}', { status: 429, headers: { 'retry-after': '60' } })],
+    ['offline', () => new TypeError('Failed to fetch')],
+  ] as [string, () => Response | Error][])
+    it(`hung, then ${what} late: one failure for the hang, none more; the newer post's answer counts`, async () => {
+      const newer = later();
+      const hung = await hangThenNext(newer.answer);
+      expect(activeWatch.value!.fails).toBe(1);
+      expect(activeWatch.value!.lastError).toBe('no answer from the server');
+      hung.give(late());
+      await settle();
+      expect(activeWatch.value!.fails).toBe(1);
+      expect(activeWatch.value!.lastError).toBe('no answer from the server');
+      expect(vi.getTimerCount()).toBe(0);
+      newer.give(new Response('{}', { status: 503 }));
+      await settle();
+      expect(activeWatch.value!.fails).toBe(2);
+      expect(activeWatch.value!.lastError).toBe("the planner's server said 503");
+      expect(activeWatch.value!.lastOkAt).toBe(T0);
+    });
+
+  it('hung, the next one goes, then the hung one answers OK late: "last sent" stays at the newer time', async () => {
+    const hung = await hangThenNext(() => new Response('{}'));
+    expect(activeWatch.value!.fails).toBe(0);
+    expect(activeWatch.value!.lastOkAt).toBe(T0 + 2 * WATCH_EVERY_MS);
+    hung.give(new Response('{}'));
+    await settle();
+    expect(activeWatch.value!.fails).toBe(0);
+    expect(activeWatch.value!.lastError).toBe('');
+    expect(activeWatch.value!.lastOkAt).toBe(T0 + 2 * WATCH_EVERY_MS);
+  });
+
+  it('hung, the next one fails, then the hung one answers OK late: the failures are not wiped', async () => {
+    const hung = await hangThenNext(() => new Response('{}', { status: 503 }));
+    expect(activeWatch.value!.fails).toBe(2);
+    hung.give(new Response('{}'));
+    await settle();
+    expect(activeWatch.value!.fails).toBe(2);
+    expect(activeWatch.value!.lastError).toBe("the planner's server said 503");
+    expect(activeWatch.value!.lastOkAt).toBe(T0);
+    // A third failure in a row still shows the note, with the last one that really went.
+    setClock(T0 + 3 * WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    expect(activeWatch.value!.fails).toBe(3);
+    expect(watchFailingNote(activeWatch.value!)).not.toBe('');
+  });
+
+  it('the newest post answering late still counts (it was never overtaken)', async () => {
+    watchLinkRunStarted('deadline');
+    await settle();
+    const slow = later();
+    answer = slow.answer;
+    setClock(T0 + WATCH_EVERY_MS);
+    watchLinkTick();
+    await settle();
+    setClock(T0 + WATCH_EVERY_MS + 90_000);
+    slow.give(new Response('{}'));
+    await settle();
+    expect(activeWatch.value!.lastOkAt).toBe(T0 + WATCH_EVERY_MS);
+    expect(activeWatch.value!.fails).toBe(0);
+  });
+});

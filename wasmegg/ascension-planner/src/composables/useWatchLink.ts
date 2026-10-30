@@ -175,8 +175,13 @@ function post(a: ActiveWatch, retry = false, statusOnly = false): void {
   if (pending?.id === a.link.id) failed(a.link.id, NO_ANSWER);
   const mine = { id: a.link.id };
   pending = mine;
+  /** Whether this is still the newest post (true just once): an answer to one the next post overtook (it
+   *  was counted failed then, "no answer") or one from before the link began again is stale, and changes
+   *  nothing: no second failure, no reset of the count, no older `lastOkAt`, no retry. */
   const settled = () => {
-    if (pending === mine) pending = null;
+    if (pending !== mine) return false;
+    pending = null;
+    return true;
   };
   const plain = { id: a.link.id, status: a.status, ...(a.link.topic ? { notify: a.link.topic } : {}) };
   const send = (body: string) =>
@@ -197,8 +202,7 @@ function post(a: ActiveWatch, retry = false, statusOnly = false): void {
   }
   void p.then(
     res => {
-      settled();
-      if (activeWatch.value?.link.id !== a.link.id) return;
+      if (!settled() || activeWatch.value?.link.id !== a.link.id) return;
       if (res.ok) {
         activeWatch.value = { ...activeWatch.value, lastOkAt: at, lastError: '', fails: 0 };
         return;
@@ -215,8 +219,7 @@ function post(a: ActiveWatch, retry = false, statusOnly = false): void {
       }
     },
     e => {
-      settled();
-      failed(a.link.id, plainError(e));
+      if (settled()) failed(a.link.id, plainError(e));
     }
   );
 }
