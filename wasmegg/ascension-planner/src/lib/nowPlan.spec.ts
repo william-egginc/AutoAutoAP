@@ -173,6 +173,13 @@ describe('on track', () => {
       why: 'no-te',
     });
     expect(onTrack(p, { seconds: T0 - 600, teByEgg: teStart })).toEqual({ kind: 'cant', why: 'not-started', start: T0 });
+    // A followed estimate (table legs, no snapshot TE per egg): leg by leg from the first leg's start TE, not "no-te".
+    const est = { ...p, legs: null, exact: false, meta: null, tableLegs: p.tableLegs!.map((l, i) => (i ? l : { ...l, from: 186 })) };
+    expect(onTrack(est, { seconds: T0 + 5 * H, teByEgg: [41, 38, 36, 37, 36] })).toMatchObject({ rough: true, estimate: true });
+    expect(onTrack({ ...est, tableLegs: est.tableLegs.map(l => ({ ...l, from: undefined })) }, { seconds: T0 + H, teByEgg: teStart })).toEqual({
+      kind: 'cant',
+      why: 'no-te',
+    });
     const noTE = { ...p, legs: legs.map(l => ({ ...l, shifts: l.shifts!.map(s => ({ ...s, te: undefined })) })) };
     expect(onTrack(noTE, { seconds: T0 + H, teByEgg: [41, 37, 36, 37, 36] })).toMatchObject({ rough: true });
   });

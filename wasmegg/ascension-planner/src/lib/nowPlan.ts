@@ -673,9 +673,14 @@ export function onTrack(
       ? plan.tableLegs.slice(0, plan.chain.length).map(l => ({ start: l.start, end: l.end, endTE: l.endTE ?? l.to }))
       : null;
   const byEgg = plan.meta?.teByEgg && plan.meta.teByEgg.length === 5 ? plan.meta.teByEgg : null;
+  // A followed route's estimate keeps no snapshot (no `meta.teByEgg`): its first table leg says the TE it starts from,
+  // so it is compared leg by leg rather than "Can't tell: saved without each egg's TE" (30 Oct 2026, Jordan's My runs
+  // showed that next to his own per-egg TE, which is the loaded save's, not the plan's start).
+  const from = tableLegs ? plan.tableLegs?.[0]?.from : undefined;
   const line = paceLine({
     legs,
     tableLegs,
+    ...(!byEgg && typeof from === 'number' && Number.isFinite(from) ? { startTE: from } : {}),
     planStart: plan.planStart,
     startTEByEgg: byEgg,
     planSave: plan.meta?.backupTime ?? null,
