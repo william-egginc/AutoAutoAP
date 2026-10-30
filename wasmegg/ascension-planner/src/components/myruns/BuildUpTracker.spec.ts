@@ -210,7 +210,7 @@ describe('BuildUpTracker Phase 2: Re-plan from this save', () => {
   });
   it('failed: the reason, and the plan stays', async () => {
     const t = textOf(await render('ready', { replan: { ...R, error: 'the worker ran out of memory' } }));
-    expect(t).toContain('The new plan could not be worked out (the worker ran out of memory). Your plan stays as it was.');
+    expect(t).toContain('The new plan could not be worked out (the worker ran out of memory). The plan below stays as it was.');
     expect(t).toContain('9:02 am · buy 14 Hyperloop Trains');
   });
   it('hidden without it', async () => {

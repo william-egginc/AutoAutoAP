@@ -74,7 +74,7 @@
               Working out a new plan from this save. The plan below stays until it is in.
             </p>
             <p v-if="replan.error" role="status" data-testid="buildup-replan-failed">
-              The new plan could not be worked out ({{ replan.error }}). Your plan stays as it was.
+              The new plan could not be worked out ({{ replan.error }}). The plan below stays as it was.
             </p>
           </div>
           <p
@@ -138,13 +138,13 @@
                   <span v-else :class="l.bold ? 'font-bold' : ''">{{ l.text }}</span>
                   <span v-if="l.tail" class="tabular-nums text-slate-500">{{ ' · ' }}{{ l.tail }}</span>
                   <span v-if="l.sub" class="text-slate-500">{{ ' · ' }}{{ l.sub }}</span>
-                  <template v-if="statusOf(l) === 'partial'"
+                  <span v-if="statusOf(l) === 'partial'"
                     >{{ ' · ' }}<span class="tabular-nums text-amber-800" :data-testid="`buildup-status-${l.key}`"
                       >{{ boughtOf(l)!.bought }} of {{ boughtOf(l)!.total }} bought</span
-                    ></template
+                    ></span
                   >
-                  <template v-else-if="statusOf(l) === 'bought'"
-                    >{{ ' · ' }}<span class="text-green-700" :data-testid="`buildup-status-${l.key}`">bought</span></template
+                  <span v-else-if="statusOf(l) === 'bought'"
+                    >{{ ' · ' }}<span class="text-green-700" :data-testid="`buildup-status-${l.key}`">bought</span></span
                   >
                   <span v-else-if="statusOf(l) === 'toBuy'" class="sr-only">{{ ' · ' }}to buy</span>
                 </span>
