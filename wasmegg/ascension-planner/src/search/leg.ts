@@ -46,6 +46,7 @@ import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 import type { TableHeader } from './precomputedTable';
+import { buildUpStartOf, toBuildUpActions, type BuildUpAction, type BuildUpList } from './buildUpActions';
 
 /** Mirrors useAscensionGenerator's own constant: below this starting TE a Tier 13 unlock cannot
  *  realistically land inside one build phase, so those variants are skipped rather than simulated
@@ -110,6 +111,18 @@ export interface LegResult {
    *  'continue' (finish without buying), 'buildup' (continue my build-up), 'fresh' (the best fresh
    *  build). Only the kinds actually simulated. Read by health.ts (build-up against frozen continue). */
   firstLegEnds?: FirstLegEnds;
+  /** BUILD-UP TRACKER: the picked variant's actions as compact records (search/buildUpActions.ts), and
+   *  the farm it starts from. Only when `LegOptions.keepPurchases` asked for it; absent otherwise, so a
+   *  result without the ask is exactly what it always was (search/leg.buildUp.spec.ts). */
+  buildUp?: BuildUpList;
+}
+
+/** How `runLeg` is asked for more than its result. Absent: the result as it always was. */
+export interface LegOptions {
+  /** Keep the picked variant's action list as compact records (`LegResult.buildUp`). Off by default;
+   *  on only for My runs' simulation of the ascension you are in (composables/useCurrentSim.ts). It
+   *  reads the actions the simulation made anyway and changes nothing the simulation does. */
+  keepPurchases?: boolean;
 }
 
 /** search/leg.ts `LegResult.firstLegEnds`. */
@@ -199,6 +212,8 @@ interface CompactVariant extends VariantResult {
   shifts: ShiftMoment[];
   heldSeconds: number;
   lastEgg: string;
+  /** `LegOptions.keepPurchases` only. */
+  buildUp?: BuildUpList;
 }
 const NO_ACTIONS: Action[] = Object.freeze([]) as unknown as Action[];
 
@@ -229,9 +244,11 @@ export function runLeg(
   idx: number,
   /** Absolute unix seconds the leg must END at (time off starting). Supersedes `targetTE`: the leg
    *  reaches whatever TE it can by then. Same contract as the CLI's `--override-ascension`. */
-  endOverride?: number
+  endOverride?: number,
+  opts?: LegOptions
 ): LegResult | null {
   const ctx = legContext(inputs, startTime);
+  const keep = !!opts?.keepPurchases;
   // runAscensionFromC3Variant and runContinueCurrent only consult the deadline when the TE goal is
   // absent, so leaving the goal set here would silently ignore it (the trap the generator documents).
   const goalTE = endOverride !== undefined ? undefined : targetTE;
@@ -240,7 +257,10 @@ export function runLeg(
   // simulated, and its action list -- hundreds of actions, each carrying a whole EngineState as its
   // `endState` -- is let go then, rather than all of them being held until the pick. Nothing past
   // this function reads a variant's actions (LegResult does not carry them).
-  const compact = (v: VariantResult): CompactVariant => ({
+  // BUILD-UP TRACKER (`keep`): the variant's actions as compact records are taken here too, before they
+  // are let go; `list` says how (a fresh build's start comes from the shared build, legBuild below).
+  // Without `keep` nothing is added, so the record is exactly what it always was.
+  const compact = (v: VariantResult, list?: () => BuildUpList): CompactVariant => ({
     summary: v.summary,
     actions: NO_ACTIONS,
     shifts: shiftInstants(v.actions, startTime),
@@ -248,8 +268,10 @@ export function runLeg(
     lastEgg:
       (v.actions.filter(a => a.type === 'shift').pop()?.payload as { toEgg?: string } | undefined)?.toEgg ??
       baseState.currentEgg,
+    ...(keep && list ? { buildUp: list() } : {}),
   });
-  const compactOrNull = (v: VariantResult | null): CompactVariant | null => (v ? compact(v) : null);
+  const compactOrNull = (v: VariantResult | null, start?: () => EngineState | null | undefined): CompactVariant | null =>
+    v ? compact(v, () => ({ actions: toBuildUpActions(v.actions, startTime), start: buildUpStartOf(start?.()) })) : null;
   // Leg 1's options by kind, filled in as they are simulated: what `rival` and `firstLegEnds` read.
   const kinds: Partial<Record<'continue' | 'buildup' | 'fresh', { v: CompactVariant; key: VariantKey }>> = {};
   const kindOf = (key: VariantKey): 'continue' | 'buildup' | 'fresh' =>
@@ -279,6 +301,7 @@ export function runLeg(
       ...endEggOf(v),
       ...(rival ? { rival: { key: rival.key, endTime: rival.v.summary.endTime } } : {}),
       ...(Object.keys(ends).length ? { firstLegEnds: ends } : {}),
+      ...(v.buildUp ? { buildUp: v.buildUp } : {}),
     };
   };
 
@@ -288,7 +311,9 @@ export function runLeg(
   const mode = readFirstAscension(inputs);
   let cont =
     allowContinue && mode !== 'fresh'
-      ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride))
+      ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride), () =>
+          continueState(inputs, baseState)
+        )
       : null;
   // Kept even when dropped below, as the rival a fresh leg 1 is recorded against.
   if (cont) kinds.continue = { v: cont, key: 'continue' };
@@ -299,7 +324,10 @@ export function runLeg(
   // would have been sooner (health.ts `buildUpNote`). Worked out once per run and plan start.
   const buildUp =
     allowContinue && mode !== 'fresh'
-      ? compactOrNull(buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride))
+      ? compactOrNull(
+          buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride),
+          () => buildUpBuild(inputs, baseState, startTime, startTE)?.start
+        )
       : null;
   if (buildUp) kinds.buildup = { v: buildUp, key: 'buildup' };
 
@@ -324,7 +352,8 @@ export function runLeg(
 
   // The build to C3 and its variants: no target in it, so shared by every target tried from this
   // start (legBuild below).
-  const { preC3, c3 } = legBuild(inputs, baseState, ctx, startTime, startTE);
+  const build = legBuild(inputs, baseState, ctx, startTime, startTE, keep);
+  const { preC3, c3 } = build;
   let surviving = c3.filter(x => !x.impossible);
   // K3's mandatory wait to buildPhaseEnd cannot be truncated, so under a deadline a variant whose
   // build phase ends after it is not slower but unevaluable.
@@ -333,9 +362,8 @@ export function runLeg(
   const fresh: Partial<Record<VariantKey, CompactVariant>> = {};
   for (const v of surviving) {
     const key = (v.attemptTier13Unlock ? `${v.saleCount}-sale-tier13` : `${v.saleCount}-sale`) as VariantKey;
-    fresh[key] = compact(
-      runAscensionFromC3Variant(baseState, preC3, v, ctx, startTime, `asc_${idx}`, goalTE, endOverride)
-    );
+    const run = runAscensionFromC3Variant(baseState, preC3, v, ctx, startTime, `asc_${idx}`, goalTE, endOverride);
+    fresh[key] = compact(run, () => freshList(build, v, run.actions, startTime, baseState));
   }
   const freshKeys = Object.keys(fresh) as VariantKey[];
   // By a deadline every variant ends at the same instant, so "better" is more TE, not less time.
@@ -387,6 +415,11 @@ const LEG_BUILD_CACHE = 8;
 interface LegBuild {
   preC3: { actions: Action[]; state: EngineState; elapsedSeconds: number };
   c3: C3Variant[];
+  /** BUILD-UP TRACKER (`LegOptions.keepPurchases`): the build's actions as compact records, taken
+   *  before `keptActions` drops them -- the build to C3's, and each C3 variant's (same order as `c3`).
+   *  Only on a build made with the ask; a kept build without them is made again when they are asked
+   *  for (and kept with them), so a build made without the ask never answers one made with it. */
+  lists?: { pre: BuildUpAction[]; c3: (BuildUpAction[] | null)[] };
 }
 const legBuilds = new Map<string, LegBuild>();
 let sharing = true;
@@ -439,11 +472,12 @@ function legBuild(
   baseState: EngineState,
   ctx: SimulationContext,
   startTime: number,
-  startTE: number
+  startTE: number,
+  keep = false
 ): LegBuild {
   const key = sharing ? legBuildKey(inputs, baseState, ctx, startTE) : '';
   const hit = sharing ? legBuilds.get(key) : undefined;
-  if (hit) {
+  if (hit && (!keep || hit.lists)) {
     builds.hits++;
     // Most recently used last, so the oldest is the first to go.
     legBuilds.delete(key);
@@ -462,14 +496,48 @@ function legBuild(
     pre.elapsedSeconds = held.elapsedSeconds;
   }
   const c3 = runC3Variants(pre.state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE);
-  if (!sharing) return { preC3: { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds }, c3 };
+  // Read only, before anything is dropped: the simulation above is the same with or without it.
+  const lists = keep
+    ? {
+        pre: toBuildUpActions(pre.actions, startTime),
+        c3: c3.map(v => (v.result ? toBuildUpActions(v.result.actions, startTime) : null)),
+      }
+    : null;
+  if (!sharing)
+    return {
+      preC3: { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds },
+      c3,
+      ...(lists ? { lists } : {}),
+    };
   const build: LegBuild = {
     preC3: { actions: keptActions(pre.actions), state: pre.state, elapsedSeconds: pre.elapsedSeconds },
     c3: c3.map(v => (v.result ? { ...v, result: { ...v.result, actions: keptActions(v.result.actions) } } : v)),
+    ...(lists ? { lists } : {}),
   };
   legBuilds.set(key, build);
   while (legBuilds.size > LEG_BUILD_CACHE) legBuilds.delete(legBuilds.keys().next().value!);
   return build;
+}
+
+/**
+ * BUILD-UP TRACKER: a fresh variant's whole action list as compact records. `actions` is what
+ * `runAscensionFromC3Variant` returned: the build's actions as `build` holds them (only the kept ones
+ * when shared), then the variant's (likewise), then the rest of the ascension in full. The first two
+ * come from `build.lists`, made before anything was dropped; the rest from `actions` past them.
+ */
+function freshList(
+  build: LegBuild,
+  v: C3Variant,
+  actions: Action[],
+  startTime: number,
+  baseState: EngineState
+): BuildUpList {
+  const i = build.c3.indexOf(v);
+  const lists = build.lists;
+  const skip = build.preC3.actions.length + (v.result?.actions.length ?? 0);
+  const head = lists ? [...lists.pre, ...(lists.c3[i] ?? [])] : toBuildUpActions(actions.slice(0, skip), startTime);
+  const all = [...head, ...toBuildUpActions(actions.slice(skip), startTime)];
+  return { actions: all.sort((x, y) => x.t - y.t), start: buildUpStartOf(baseState) };
 }
 
 /**

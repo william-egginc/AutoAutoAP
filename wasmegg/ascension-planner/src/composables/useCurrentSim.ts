@@ -11,11 +11,26 @@
  *     them reads the whole save through the stores (the crash lesson of 25 Oct 2026).
  *   - A failure says 'failed' (Right now keeps the table's estimate) and is not tried again for that key on this page.
  *
+ *   - BUILD-UP TRACKER: with `wantBuildUp` on (off by default) the simulation also keeps the picked variant's action
+ *     list (search/leg.ts `LegOptions.keepPurchases`) and the state carries it (`buildUp`). The leg is the same either
+ *     way. A kept record without a kept plan is simulated again when the plan is wanted.
+ *
  * Never throws.
  */
-import { onScopeDispose, ref, watch, type Ref } from 'vue';
+import { onScopeDispose, ref, unref, watch, type Ref } from 'vue';
 import type { LegSummary, SearchInputs } from '@/search/types';
-import { findSimRecord, readSimRecords, recordSim, simLegFromSegments, type SimLeg } from '@/lib/followSim';
+import type { BuildUpPlan } from '@/search/buildUpActions';
+import {
+  buildUpPlanFromSegments,
+  findSimRecord,
+  readBuildUpPlan,
+  readSimRecords,
+  recordBuildUpPlan,
+  recordSim,
+  simLegFromSegments,
+  type SimLeg,
+} from '@/lib/followSim';
+import { siloSeconds } from '@/lib/saveAge';
 
 export interface SimRequest {
   /** lib/followSim.ts `simKey`. */
@@ -31,14 +46,21 @@ export interface SimRequest {
 
 export type SimState =
   | { key: string; status: 'waiting' | 'working' }
-  | { key: string; status: 'done'; leg: SimLeg; at: number }
+  /** `buildUp`: only when `wantBuildUp` asked for it and the simulation gave one. */
+  | { key: string; status: 'done'; leg: SimLeg; at: number; buildUp?: BuildUpPlan }
   /** `reason`: a short why, said on Right now; `retrying`: it is tried once more after `retryMs`. */
   | { key: string; status: 'failed'; reason: string; retrying?: boolean };
+
+type DoneState = Extract<SimState, { status: 'done' }>;
 
 /** What simulates one route (a chain worker pool of one). */
 export interface SimRunner {
   /** Every segment the one-stop route comes back with (one leg; with time off, the cut leg and the rebuild). */
-  run(inputs: SearchInputs, chain: number[]): Promise<LegSummary[] | LegSummary | null>;
+  run(
+    inputs: SearchInputs,
+    chain: number[],
+    opts?: { keepPurchases?: boolean }
+  ): Promise<LegSummary[] | LegSummary | null>;
   terminate(): void;
 }
 
@@ -48,13 +70,13 @@ async function defaultRunner(): Promise<SimRunner | null> {
   let pool: import('@/search/pool').ChainSearchPool | null = null;
   let gone = false;
   return {
-    async run(inputs, chain) {
+    async run(inputs, chain, opts) {
       pool = await createChainSearchPool(inputs, { size: 1 });
       if (gone) {
         pool.terminate();
         return null;
       }
-      const out = await pool.evaluate([chain]);
+      const out = await pool.evaluate([chain], undefined, opts?.keepPurchases ? { keepPurchases: true } : {});
       return out.results[0]?.legs ?? null;
     },
     terminate() {
@@ -93,7 +115,12 @@ function reasonOf(err: unknown): string {
   return text.replace(/EI\d{16}/gi, 'EI…').slice(0, 160);
 }
 
-export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean>) {
+export function useCurrentSim(
+  request: Ref<SimRequest | null>,
+  busy: Ref<boolean>,
+  /** BUILD-UP TRACKER: keep the simulated ascension's action list too (`SimState.buildUp`). Off by default. */
+  wantBuildUp: Ref<boolean> | boolean = false
+) {
   const state = ref<SimState | null>(null);
   /** It has run `slowMs` without an answer. */
   const slow = ref(false);
@@ -117,18 +144,19 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
     runner?.terminate();
     runner = null;
   }
-  /** Said 'working' at once; started once nothing has changed for `delayMs`. */
-  function schedule(req: SimRequest): void {
+  /** Said 'working' at once; started once nothing has changed for `delayMs`. With `have` (the leg is known, only the
+   *  build-up plan is wanted) the leg stays on screen meanwhile. */
+  function schedule(req: SimRequest, have: DoneState | null = null): void {
     letGo();
     const id = asked;
     runningKey = req.key;
-    state.value = { key: req.key, status: 'working' };
+    state.value = have ?? { key: req.key, status: 'working' };
     startTimer = setTimeout(() => {
       startTimer = null;
-      if (id === asked) void run(req, id);
+      if (id === asked) void run(req, id, have);
     }, timing.delayMs);
   }
-  async function run(req: SimRequest, id: number): Promise<void> {
+  async function run(req: SimRequest, id: number, have: DoneState | null = null): Promise<void> {
     slowTimer = setTimeout(() => {
       slowTimer = null;
       if (id === asked) slow.value = true;
@@ -144,7 +172,8 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
       }
       if (!r) throw new Error('no chain worker');
       runner = r;
-      const got = await r.run(inputs, [req.route[0]]);
+      const want = !!unref(wantBuildUp);
+      const got = await (want ? r.run(inputs, [req.route[0]], { keepPurchases: true }) : r.run(inputs, [req.route[0]]));
       const leg = simLegFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
         timeOff: inputs.timeOff,
         currentTE: inputs.currentTE,
@@ -154,14 +183,25 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
       if (!leg) throw new Error(`the ascension to ${req.route[0]} TE could not be simulated`);
       const at = Date.now();
       recordSim({ account: req.account, backupTime: req.backupTime, route: [...req.route], setup: req.setup, at, ms: at - began, leg });
-      result = { key: req.key, status: 'done', leg, at };
+      const buildUp = want
+        ? buildUpPlanFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
+            accountKey: req.account,
+            siloSeconds: siloSeconds(
+              inputs.currentFarmState?.numSilos,
+              inputs.context?.epicResearchLevels?.['silo_capacity']
+            ),
+          })
+        : null;
+      if (buildUp) recordBuildUpPlan(req.key, buildUp);
+      result = { key: req.key, status: 'done', leg, at, ...(buildUp ? { buildUp } : {}) };
     } catch (err) {
       if (id !== asked) return;
       const reason = reasonOf(err);
       console.warn('My runs: simulating the ascension you are in failed:', reason);
       const tries = (failed.get(req.key)?.tries ?? 0) + 1;
-      failed.set(req.key, { reason, tries });
-      result = { key: req.key, status: 'failed', reason, ...(tries < 2 ? { retrying: true } : {}) };
+      failed.set(req.key, { reason, tries: have ? 2 : tries });
+      // Only the plan was wanted: the leg stays as it was, and it is not tried again on this page.
+      result = have ?? { key: req.key, status: 'failed', reason, ...(tries < 2 ? { retrying: true } : {}) };
     }
     runner?.terminate();
     runner = null;
@@ -176,34 +216,40 @@ export function useCurrentSim(request: Ref<SimRequest | null>, busy: Ref<boolean
       }, timing.retryMs);
   }
   watch(
-    [request, busy],
-    ([req, isBusy]) => {
+    [request, busy, () => !!unref(wantBuildUp)],
+    ([req, isBusy, want]) => {
       if (!req) {
         letGo();
         state.value = null;
         return;
       }
-      if (state.value?.key === req.key && state.value.status === 'done') return;
+      const now = state.value?.key === req.key && state.value.status === 'done' ? state.value : null;
+      if (now && (!want || now.buildUp)) return;
       const kept = findSimRecord(readSimRecords(), req);
-      if (kept) {
+      const keptPlan = kept && want ? readBuildUpPlan(req.key) : null;
+      if (kept && (!want || keptPlan)) {
         letGo();
-        state.value = { key: req.key, status: 'done', leg: kept.leg, at: kept.at };
+        state.value = { key: req.key, status: 'done', leg: kept.leg, at: kept.at, ...(keptPlan ? { buildUp: keptPlan } : {}) };
         return;
       }
+      // BUILD-UP TRACKER: the leg is known (on screen, or kept) and only the plan is wanted: the leg stays while the
+      // plan is simulated.
+      const have: DoneState | null =
+        want && (now || kept) ? (now ?? { key: req.key, status: 'done', leg: kept!.leg, at: kept!.at }) : null;
       const f = failed.get(req.key);
       if (f && (f.tries >= 2 || retryTimer)) {
         if (!retryTimer) letGo();
-        state.value = { key: req.key, status: 'failed', reason: f.reason, ...(retryTimer ? { retrying: true } : {}) };
+        state.value = have ?? { key: req.key, status: 'failed', reason: f.reason, ...(retryTimer ? { retrying: true } : {}) };
         return;
       }
       if (isBusy) {
         // A search has the memory: started when it ends (this watch runs again then).
         letGo();
-        state.value = { key: req.key, status: 'waiting' };
+        state.value = have ?? { key: req.key, status: 'waiting' };
         return;
       }
       if (runningKey === req.key) return;
-      schedule(req);
+      schedule(req, have);
     },
     { immediate: true }
   );

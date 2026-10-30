@@ -159,6 +159,7 @@ ctx.onmessage = (event: MessageEvent<WorkerRequest>) => {
           const r = evaluator.evaluate(msg.chains[i], {
             ...(msg.handoff ? { handoff: msg.handoff } : {}),
             ...(keepLast ? {} : { keepLast: false }),
+            ...(msg.keepPurchases ? { keepPurchases: true } : {}),
           });
           if (r) results.push(r);
           // Heartbeat. Posted per chain rather than per batch because a batch can be ~2200 chains
