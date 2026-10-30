@@ -4,7 +4,7 @@
   no search (one exception since 24 Oct 2026: a followed route with no timeline is priced on the instant answer's data
   in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:
 
-    1. Save-age strip (SaveAgeStrip.vue): every time below comes from the save, so its age comes first.
+    1. Save-age banner (SaveAgeStrip.vue): every time below comes from the save, so its age comes first.
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
        "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
        the same goal once one is better (lib/searchPlan.ts).
@@ -32,7 +32,7 @@
       </p>
     </div>
 
-    <SaveAgeStrip :strip="page.strip.value" :server="serverSave" :now="page.now.value" :loading="loading" @fresh="emit('fresh')" />
+    <SaveAgeStrip :state="page.strip.value" :server="serverSave" :now="page.now.value" :loading="loading" @fresh="emit('fresh')" />
     <p v-if="page.saveWaiting.value" class="text-body text-slate-500" data-testid="now-save-waiting">
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>

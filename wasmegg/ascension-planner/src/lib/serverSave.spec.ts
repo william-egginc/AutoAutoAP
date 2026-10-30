@@ -8,7 +8,7 @@ import type { ei } from 'lib';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import SaveAgeStrip from '@/components/myruns/SaveAgeStrip.vue';
 import { useInitialStateStore } from '@/stores/initialState';
-import { saveStrip } from './saveFreshness';
+import { saveState } from './saveFreshness';
 import {
   NEWER_ON_SERVER,
   QUIET_CHECK_MIN_AGE_S,
@@ -133,16 +133,17 @@ describe('the quiet server check', () => {
 });
 
 describe('the save strip with the server’s answer', () => {
-  const strip = saveStrip(LOADED, NOW, ZONE);
+  // A save 12 h old with no virtue farm: the save's age alone, red against the smallest silos (3 h).
+  const strip = saveState({ backupSeconds: LOADED, hasVirtueFarm: false, nowSeconds: NOW, zone: ZONE });
 
   it('newer on the server: a Load it button', async () => {
-    const html = await renderHtml(SaveAgeStrip, { strip, loading: false, server: { kind: 'newer', serverSeconds: NOW - 300 }, now: NOW });
-    expect(textOf(html)).toBe(`Your save is from Oct 24 at 10:09 AM (12h ago). Times below may have drifted. ${NEWER_ON_SERVER} ›`);
+    const html = await renderHtml(SaveAgeStrip, { state: strip, loading: false, server: { kind: 'newer', serverSeconds: NOW - 300 }, now: NOW });
+    expect(textOf(html)).toContain(`${strip!.reason} ${NEWER_ON_SERVER} ›`);
     expect(html).toContain('data-testid="now-save-fresh"');
   });
 
   it('the newest on the server: no reload, the reason, and the tip', async () => {
-    const html = await renderHtml(SaveAgeStrip, { strip, loading: false, server: { kind: 'newest', serverSeconds: LOADED }, now: NOW });
+    const html = await renderHtml(SaveAgeStrip, { state: strip, loading: false, server: { kind: 'newest', serverSeconds: LOADED }, now: NOW });
     const t = textOf(html);
     expect(t).toContain('This is the newest save on the server (synced 12h ago). Open the game to update it.');
     expect(t).toContain(WHY_OUT_OF_DATE.summary);
@@ -154,7 +155,7 @@ describe('the save strip with the server’s answer', () => {
   });
 
   it('not known (or failed): as before', async () => {
-    const html = await renderHtml(SaveAgeStrip, { strip, loading: false, server: { kind: 'unknown' }, now: NOW });
+    const html = await renderHtml(SaveAgeStrip, { state: strip, loading: false, server: { kind: 'unknown' }, now: NOW });
     expect(textOf(html)).toContain('Load a fresh save ›');
   });
 });

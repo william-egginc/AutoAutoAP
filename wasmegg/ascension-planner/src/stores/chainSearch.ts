@@ -303,6 +303,7 @@ import { existingOwnerToken, ownerToken } from '@/search/owner';
 import { fetchMineRows } from '@/search/myBoardRows';
 import { sentRowFor } from '@/search/sentOnBoard';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
+import { saveClockOf, saveState } from '@/lib/saveFreshness';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import {
@@ -3834,8 +3835,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * can agree with the real one right up until the day it does not.
    */
   /**
-   * The save's age against the plan start (lib/saveAge.ts): the farm is caught up to the start at
-   * its current rate, up to what its silos hold. Past that, the sync is old or something was missed.
+   * The save's last sync against the plan start (lib/saveAge.ts): the farm is caught up to the start at
+   * its current rate, up to what its silos hold. A plan-start fact: a warning only for a start before the
+   * sync. Whether the save itself is old is the save-age banner's (`saveClock`, spec-saveage).
    */
   const saveAgeNote = computed(() => {
     const iss = useInitialStateStore();
@@ -3851,6 +3853,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       !!farm
     );
   });
+
+  /**
+   * The save-age banner's inputs (lib/saveFreshness.ts `saveClockOf`, spec-saveage): the save's backup time, its
+   * virtue farm's last step and silos, read from the save itself. While the stores hold a Manual plan, the kept
+   * save (search/saveStart.ts, the R6 snapshot rule), never the plan's redacted save or its farm.
+   */
+  const saveClock = computed(() => {
+    const kept = saveStartNow();
+    return saveClockOf(kept ? kept.context.rawBackup : useInitialStateStore().rawBackup);
+  });
+  /** The banner's red, said in a search's run notes (the banner itself is on the screen). */
+  function saveRunNote(): string | null {
+    const c = saveClock.value;
+    if (!c) return null;
+    const zone = useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return saveState({ ...c, nowSeconds: Math.floor(Date.now() / 1000), zone })?.runNote ?? null;
+  }
 
   const setupIssues = computed<HealthIssue[]>(() => {
     const blank = { artifacts: [], stones: [], delivery: [], earnings: [], currentTE: 0, backupTE: 0 };
@@ -6719,6 +6738,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const review = reviewRunInputs(startInputs);
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
     if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
+    const staleSave = saveRunNote();
+    if (staleSave) runNotes.value.push(staleSave);
     const blocking = review.filter(i => i.level === 'error');
     // The inputs moved during the awaits above (a backup landing and rewriting the start boxes, say).
     // The replayed chains were priced under `runFingerprint`; pricing the rest under different
@@ -8997,6 +9018,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const review = reviewRunInputs(startInputs);
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
     if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
+    const staleSave = saveRunNote();
+    if (staleSave) runNotes.value.push(staleSave);
     const blocking = review.filter(i => i.level === 'error');
     if (blocking.length) {
       error.value = blocking[0].message;
@@ -9875,6 +9898,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     buildRunDiagnostics,
     setupIssues,
     saveAgeNote,
+    saveClock,
     setupFacts,
     backupTE,
     plannerTE,

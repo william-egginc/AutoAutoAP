@@ -18,7 +18,7 @@ import GearBlock from './GearBlock.vue';
 import type { LegSummary } from '@/search/types';
 import { planEvents, tableEvents, type NowPlan } from '@/lib/nowPlan';
 import type { CardPlan } from '@/composables/useNowPage';
-import { saveStrip } from '@/lib/saveFreshness';
+import { saveState } from '@/lib/saveFreshness';
 import { tryNextPills } from '@/lib/tryNext';
 import type { Tile } from '@/lib/savedTiles';
 
@@ -87,15 +87,22 @@ const cardProps = (o: Record<string, unknown> = {}) => {
   };
 };
 
-describe('the save-age strip', () => {
-  it('green, amber, red, and none', async () => {
-    const ok = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 3 * H, NOW, ZONE), loading: false });
-    expect(textOf(ok)).toBe('Your save is from Oct 15 at 11:40 AM (3h ago). Load a fresh one ›');
-    expect(ok).toContain('data-tone="ok"');
-    const bad = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 80 * H, NOW, ZONE), loading: false });
-    expect(bad).toContain('data-tone="bad"');
-    expect(textOf(bad)).toContain('Load a fresh save before you rely on them');
-    const none = await renderHtml(SaveAgeStrip, { strip: null, loading: false });
+describe('the save-age banner (spec-saveage)', () => {
+  // A save `age` old whose virtue farm ran when it was taken, with 24 h of silos.
+  const st = (age: number) =>
+    saveState({ backupSeconds: NOW - age, farmStepSeconds: NOW - age, siloSeconds: 24 * H, siloCount: 8, hasVirtueFarm: true, nowSeconds: NOW, zone: ZONE });
+  it('green, yellow, red, and none', async () => {
+    const ok = await renderHtml(SaveAgeStrip, { state: st(3 * H), loading: false });
+    expect(textOf(ok)).toBe('Up to date Your save is from Oct 15 at 11:40 AM, 3h ago. Load a fresh one ›');
+    expect(ok).toContain('data-tone="green"');
+    const warn = await renderHtml(SaveAgeStrip, { state: st(13 * H), loading: false });
+    expect(warn).toContain('data-tone="yellow"');
+    expect(textOf(warn)).toContain('Getting old Open the game so it syncs, then load a fresh save');
+    const bad = await renderHtml(SaveAgeStrip, { state: st(80 * H), loading: false });
+    expect(bad).toContain('data-tone="red"');
+    expect(textOf(bad)).toContain('Out of date');
+    expect(textOf(bad)).toContain('Load a fresh save ›');
+    const none = await renderHtml(SaveAgeStrip, { state: null, loading: false });
     expect(textOf(none)).toContain('Load your save ›');
   });
 });
@@ -423,11 +430,11 @@ describe('source checks', () => {
 });
 
 describe('spacing and picture fixes (19 Oct shots)', () => {
-  it('the save-age strip keeps a space before its link, and the egg picture is named by the egg', () => {
+  it('the save-age banner keeps a space before its link, and the egg picture is named by the egg', () => {
     const fs = require('node:fs') as typeof import('node:fs');
     const path = require('node:path') as typeof import('node:path');
     const strip = fs.readFileSync(path.join(__dirname, 'SaveAgeStrip.vue'), 'utf8');
-    expect(strip).toContain("{{ strip.text }}{{ ' ' }}");
+    expect(strip).toContain(`<template v-if="quiet">{{ ' ' }}</template>`);
     const card = fs.readFileSync(path.join(__dirname, 'RightNowCard.vue'), 'utf8');
     expect(card).toContain(':src="iconURL(eggPicture, 64)"'); // lib/virtueEggs.ts eggIconPath (fix 20)
     expect(card).not.toContain('▸ Full timeline');

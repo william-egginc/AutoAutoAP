@@ -19,6 +19,12 @@ import { dateAt } from './eventWhen';
 import { ageAgo, ageWords, siloSeconds as siloSecondsFor } from './saveAge';
 import { countTEThresholdsPassed } from './truthEggs';
 
+/**
+ * My runs' "load a fresh save first" line (lib/recalc.ts `needsFreshSave`): 6 h. Was also the old strip's amber
+ * (Jordan, 15 Oct 2026); the banner's tones now follow the silo thresholds below, this one stays as it was.
+ */
+export const SAVE_AMBER_HOURS = 6;
+
 /** Yellow from this share of the silo time used. */
 export const YELLOW_FRACTION = 0.5;
 /** Red from this share used: a tenth or less left. */

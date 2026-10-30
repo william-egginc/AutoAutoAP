@@ -97,6 +97,13 @@
       </p>
     </template>
 
+    <!-- The one save-age banner (spec-saveage, 29 Oct 2026): Fastest and By a date show it at the top
+         (AutoSaveStrip.vue); Single run, whose screen is Joo's, shows it here, where the red "longer than your
+         silos hold" line was. -->
+    <div v-if="!docked && !issuesOnly && screen === 'classic'" class="px-4 pb-2.5" data-testid="setup-save-banner">
+      <AutoSaveStrip screen="classic" />
+    </div>
+
     <!-- Problems with the save show folded too: nobody opens a card to look for them. -->
     <div
       v-if="!docked && store.setupIssues.length"
@@ -669,6 +676,7 @@ import { useConsent } from '@/composables/useConsent';
 import { ThisDevice, thisDevice } from '@/search/device';
 import { spillNote } from '@/lib/legSpillText';
 import SaveFileBar from './SaveFileBar.vue';
+import AutoSaveStrip from './AutoSaveStrip.vue';
 import TabsToggle from './TabsToggle.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';

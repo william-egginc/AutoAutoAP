@@ -159,7 +159,8 @@ const backupHint = computed<{ text: string; class: string } | null>(() => {
   if (!note) return null;
   return {
     text: note.text,
-    class: note.severe ? 'text-red-600' : note.level === 'ok' ? 'text-emerald-600' : 'text-amber-600',
+    // Past the silos is a plan-start fact (amber); whether the save is old is the save-age banner's (spec-saveage).
+    class: note.pastSilos || note.level !== 'ok' ? 'text-amber-600' : 'text-emerald-600',
   };
 });
 

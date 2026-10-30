@@ -50,7 +50,7 @@ import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import { hoursDiffer, simulatorAge } from '@/lib/myRunsDashboard';
 import { useMinuteClock } from './useMinuteClock';
-import { backupSecondsOf, saveStrip, saveTEByEggOf, saveTEOf } from '@/lib/saveFreshness';
+import { backupSecondsOf, saveState, saveTEByEggOf, saveTEOf } from '@/lib/saveFreshness';
 import { hashID } from '@/lib/storage/db';
 import { virtueEggOf } from '@/lib/virtueEggs';
 import { progressOf } from '@/lib/planPace';
@@ -336,7 +336,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const currentEgg = computed(() => (hasSave.value && onVirtue.value ? virtueEggOf(farm.value?.eggType) : null));
   const teByEgg = computed(() => saveTEByEggOf(raw.value));
   const teSoFar = computed(() => (hasSave.value ? saveTEOf(raw.value) : 0));
-  const strip = computed(() => saveStrip(saveSeconds.value, now.value, zone.value));
+  /** The save-age banner (lib/saveFreshness.ts `saveState`, spec-saveage): both clocks, read off the save (the
+   *  store's `saveClock`: the kept save while the stores hold a Manual plan). */
+  const strip = computed(() => {
+    const c = store.saveClock;
+    return c ? saveState({ ...c, nowSeconds: now.value, zone: zone.value }) : null;
+  });
 
   // ------------------------------------------------------------------------------------- the keys
 

@@ -46,6 +46,8 @@ function save(): ReturnType<typeof syntheticBackup> {
   const t = Math.floor(Date.now() / 1000) - 2 * H;
   b.settings.lastBackupTime = t;
   b.approxTime = t;
+  // Its virtue farm ran when it was taken (the save-age banner reads both clocks, spec-saveage).
+  for (const f of b.farms ?? []) if (f.lastStepTime) f.lastStepTime = t;
   resolveColleggtibleContracts(b);
   return markRaw(b);
 }
@@ -99,7 +101,7 @@ describe('My runs on a cold load', () => {
 
     // 2. The draft and the stored save: the strip reads the save; nothing else shows the draft's state.
     restoreDraft(backup);
-    expect(page.strip.value?.text).toMatch(/^Your save is from .+ \(2h ago\)\.$/);
+    expect(page.strip.value?.headline).toMatch(/^Your save is from .+, 2h ago$/);
     expect(page.saveWaiting.value).toBe(true);
     expect(page.hasSave.value).toBe(false);
     expect(page.currentEgg.value).toBeNull(); // never the draft's Integrity
@@ -110,7 +112,7 @@ describe('My runs on a cold load', () => {
     expect(page.hasSave.value).toBe(true);
     expect(page.saveWaiting.value).toBe(false);
     expect(page.saveSeconds.value).toBe(saveAt);
-    expect(page.strip.value?.tone).toBe('ok');
+    expect(page.strip.value?.tone).toBe('green');
     expect(page.currentEgg.value).toBe('curiosity');
     expect(Math.floor(page.teSoFar.value)).toBe(190);
     const tile = page.eggDayTile.value;
@@ -137,14 +139,14 @@ describe('My runs on a cold load', () => {
     restoreDraft(backup);
     r = await render();
     expect(r.t).not.toContain('No save loaded');
-    expect(r.t).toMatch(/Your save is from .+ \(2h ago\)\./);
+    expect(r.t).toMatch(/Your save is from .+, 2h ago\./);
     expect(r.html).toContain('data-testid="now-save-waiting"');
     expect(r.html).not.toContain('data-testid="now-card"');
     expect(r.t).not.toContain('159 TE so far');
 
     loadSave(backup);
     r = await render();
-    expect(r.t).toMatch(/Your save is from .+ \(2h ago\)\./);
+    expect(r.t).toMatch(/Your save is from .+, 2h ago\./);
     expect(r.html).not.toContain('data-testid="now-save-waiting"');
     expect(r.html).toContain('data-testid="now-card"');
     expect(r.t).toContain('Curiosity');
