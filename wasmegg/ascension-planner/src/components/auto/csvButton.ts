@@ -24,6 +24,6 @@ export function xlsxButton(): { text: string; title: string } {
   return {
     text: XLSX_BUTTON,
     title:
-      "Every route priced, with each ascension's detail for the top routes: every column wide enough, the header row kept in view",
+      "The same table as the CSV, as an Excel file: every column wide enough, the header row kept in view",
   };
 }
