@@ -1675,7 +1675,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         })
       : null
   );
-  /** The corner badge, Building or Producing with the rate (lib/nowPhase.ts); null off virtue. */
+  /** The corner badge, Building or Producing with the rate (lib/nowPhase.ts); null off virtue. The save wins: its
+   *  set, then the plan only when it is on the save's egg now. */
   const phase = computed(() =>
     hasSave.value
       ? phaseNow({
@@ -1683,6 +1684,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           plan: cardPlan.value?.plan ?? null,
           nowSeconds: now.value,
           setMatch: setMatch.value,
+          saveEgg: currentEgg.value,
           saveElr: facts.value?.elr ?? null,
         })
       : null
