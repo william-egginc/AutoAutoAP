@@ -149,6 +149,7 @@ import { ascensionSteps, instantSteps, prestigeAfterSimulated, withStayLine } fr
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import { buildUpWanted } from './useBuildUpTracker';
+import { saveFarmFor } from '@/lib/buildUpBought';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
 import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
@@ -1358,6 +1359,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const buildUpSim = computed(() => {
     const st = currentSim.value;
     if (!st || st.key !== simRequest.value?.key) return null;
+    // Only the plan was wanted and it failed (the leg stays on screen): the tracker says so (Phase 2).
+    if (st.status === 'done' && st.planFailed) return { status: 'failed' as const, reason: st.planFailed };
     return st.status === 'failed' ? { status: st.status, reason: st.reason } : { status: st.status };
   });
   const cardPlan = computed<CardPlan | null>(() => {
@@ -1629,6 +1632,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const inv = inventory.value;
     return inv ? whichSet(inv.equipped, inv.earnings, inv.production) : null;
   });
+  /** BUILD-UP TRACKER Phase 2: the save as the tracker ticks from it (lib/buildUpBought.ts): the save's own farm and the
+   *  set it wears, read off the save itself (never a Manual plan's start, the save-start rule of search/saveStart.ts). */
+  const buildUpSave = computed(() => (hasSave.value && onVirtue.value ? saveFarmFor(farm.value, setMatch.value) : null));
   const gear = computed(() => {
     const inv = inventory.value;
     if (!inv) return null;
@@ -1910,6 +1916,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     account,
     buildUpPlan,
     buildUpSim,
+    buildUpSave,
     nextStep,
     nextShiftLines,
     ascNow,

@@ -12,14 +12,17 @@ import '../../scripts/node-shims';
 
 import fs from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { syntheticInputs } from '@/test/syntheticSave';
+import { syntheticBackup, syntheticInputs } from '@/test/syntheticSave';
+import { saveFarmOf } from './farmFacts';
+import { boughtFromSave, effectiveTicks, replanOffer, saveFarmFor, type SaveFarm } from './buildUpBought';
+import { virtueEggType } from './virtueEggs';
 import { createChainEvaluator } from '@/search/chain';
 import { buildUpPlanFromSegments } from './followSim';
 import { siloSeconds } from './saveAge';
 import { buildPart, buildUpTracker, compactPlan, lineText, trackerSummary, type TrackerResult } from './buildUpTracker';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import BuildUpTracker from '@/components/myruns/BuildUpTracker.vue';
-import type { BuildUpPlan } from '@/search/buildUpActions';
+import type { BuildUpAction, BuildUpPlan } from '@/search/buildUpActions';
 import type { SearchInputs } from '@/search/types';
 
 const ZONE = 'America/Denver';
@@ -138,6 +141,151 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
         `${process.env.BUILDUP_SHOT_DIR}/real.html`,
         `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="${process.env.BUILDUP_SHOT_CSS}"></head><body class="bg-slate-50"><div class="p-4 max-w-5xl mx-auto">${html}</div></body></html>`
       );
+    }
+  });
+});
+
+// ------------------------------------------------------------------ Phase 2: ticks from a second synthetic save
+/** The plan's farm once every action up to `upTo` (unix seconds) is done: research, habs, vehicles (the last tier per
+ *  slot), train cars, silos, the egg. */
+function farmAt(upTo: number, skip: (a: BuildUpAction) => boolean = () => false) {
+  const s = plan.start!;
+  const research: Record<string, number> = { ...s.researchLevels };
+  const habs = [...s.habIds];
+  const vehicles = s.vehicles.map(v => ({ ...v }));
+  let silos = s.siloCount;
+  let egg = s.egg;
+  for (const a of buildPart(plan.actions)) {
+    if (a.t > upTo || skip(a)) continue;
+    if (a.kind === 'research' && a.id) research[a.id] = Math.max(research[a.id] ?? 0, a.level ?? 0);
+    else if (a.kind === 'hab' && a.slot != null) habs[a.slot] = a.itemId ?? null;
+    else if (a.kind === 'vehicle' && a.slot != null) vehicles[a.slot] = { vehicleId: a.itemId ?? null, trainLength: a.level ?? 1 };
+    else if (a.kind === 'trainCar' && a.slot != null) vehicles[a.slot] = { vehicleId: vehicles[a.slot]?.vehicleId ?? 11, trainLength: a.level ?? 1 };
+    else if (a.kind === 'silo') silos = Math.max(silos, a.count ?? silos);
+    else if (a.kind === 'shift' && a.id) egg = a.id;
+  }
+  return { research, habs, vehicles, silos, egg };
+}
+/** A second synthetic save (placeholder data, no player): the synthetic backup with its virtue farm replaced by `f`. */
+function secondSave(f: ReturnType<typeof farmAt>): SaveFarm {
+  const b = syntheticBackup();
+  for (let i = 0; i < f.vehicles.length; i++) if (!f.vehicles[i]) f.vehicles[i] = { vehicleId: null, trainLength: 1 };
+  b.farms[0] = {
+    ...b.farms[0],
+    eggType: virtueEggType(f.egg),
+    commonResearch: Object.entries(f.research).map(([id, level]) => ({ id, level })),
+    habs: f.habs.map(h => (h == null ? 19 : h)),
+    vehicles: f.vehicles.map(v => v.vehicleId),
+    trainLength: f.vehicles.map(v => v.trainLength),
+    silosOwned: f.silos,
+  };
+  return saveFarmFor(saveFarmOf(b), 'earnings')!;
+}
+
+describe('Phase 2 end to end: a second synthetic save ticks the right lines of the real plan', () => {
+  let anchorFarm: SaveFarm;
+  beforeAll(() => {
+    anchorFarm = saveFarmFor(saveFarmOf(syntheticBackup()), 'earnings')!;
+  });
+  const bought = (f: SaveFarm | null) =>
+    boughtFromSave({ lines: r.lines, save: f, start: plan.start, startEgg: plan.start?.egg, anchorFarm });
+
+  it('the first synthetic save (the anchor, before the fresh start): nothing ticked, "before the prestige"', () => {
+    const b = bought(anchorFarm);
+    expect(plan.variantKey).not.toBe('buildup');
+    expect(b.fit).toBe('beforePrestige');
+    expect(b.ticks.size).toBe(0);
+  });
+
+  it('a second save at the 12th check-in: every line up to it ticks, none after (the last vehicle tier counts)', () => {
+    const T = r.checkIns[11].at;
+    const f = secondSave(farmAt(T));
+    const b = bought(f);
+    expect(b.fit).toBe('fits');
+    for (const l of r.lines) {
+      const lb = b.lines.get(l.key);
+      if (!lb || lb.auto === null) continue;
+      if (l.at <= T) expect(lb.auto, `${lineText(l)}`).toBe(true);
+    }
+    const later = r.lines.filter(l => l.at > T && l.items?.some(i => i.kind === 'research'));
+    expect(later.length).toBeGreaterThan(0);
+    for (const l of later) expect(b.ticks.has(l.key), lineText(l)).toBe(false);
+    // The trains line(s) up to T are bought on the Hyperloop alone.
+    const trains = r.lines.filter(l => l.kind === 'trains' && l.at <= T);
+    for (const l of trains) expect(b.ticks.has(l.key), lineText(l)).toBe(true);
+  });
+
+  it('a later save only adds ticks; one research left out of a line makes it "N of M bought"', () => {
+    const T1 = r.checkIns[11].at;
+    const T2 = r.checkIns[Math.min(r.checkIns.length - 1, 40)].at;
+    const b1 = bought(secondSave(farmAt(T1)));
+    const b2 = bought(secondSave(farmAt(T2)));
+    for (const k of b1.ticks) expect(b2.ticks.has(k)).toBe(true);
+    expect(b2.ticks.size).toBeGreaterThan(b1.ticks.size);
+    const multi = r.lines.find(l => l.at <= T2 && l.at > T1 && (l.items?.length ?? 0) >= 3 && l.items!.every(i => i.kind === 'research'))!;
+    expect(multi).toBeTruthy();
+    const leftOut = (multi.items![0] as { id: string }).id;
+    const b3 = bought(secondSave(farmAt(T2, a => a.kind === 'research' && a.id === leftOut && a.t >= multi.at - 60)));
+    const lb = b3.lines.get(multi.key)!;
+    expect(lb.auto).toBe(false);
+    expect(lb.items[0]).toBe(false);
+    expect(lb.bought).toBe(lb.total - 1);
+  });
+
+  it('Re-plan: hidden on plan, shown over 1 h behind, shown for an off-plan buy', () => {
+    const T = r.checkIns[11].at;
+    const f = secondSave(farmAt(T));
+    const base = { lines: r.lines, start: plan.start, startEgg: plan.start?.egg, anchorSeconds: inputs.planStart - 3600, anchorFarm };
+    expect(replanOffer({ ...base, save: f, saveSeconds: T + 60 }).show).toBe(false);
+    const next = r.checkIns[12].at;
+    expect(replanOffer({ ...base, save: f, saveSeconds: next + 3600 + 120 }).show).toBe(true);
+    const off = secondSave({ ...farmAt(T), research: { ...farmAt(T).research, never_in_this_plan: 2 } });
+    const o = replanOffer({ ...base, save: off, saveSeconds: T + 60 });
+    expect(o.show).toBe(true);
+    expect(o.offPlan.map(x => x.what)).toContain('never_in_this_plan 2');
+  });
+
+  it('renders (and writes the screenshots\' pages): fresh, partly done, mostly done, Re-plan', async () => {
+    const T1 = r.checkIns[11].at;
+    const T2 = r.checkIns[Math.floor(r.checkIns.length * 0.8)].at;
+    const multi = r.lines.find(l => l.at > T1 && (l.items?.length ?? 0) >= 3 && l.items!.every(i => i.kind === 'research'))!;
+    const half = new Set((multi.items as { id: string }[]).slice(0, Math.ceil(multi.items!.length / 2)).map(i => i.id));
+    const states: [string, SaveFarm, number, boolean][] = [
+      ['fresh', anchorFarm, inputs.planStart - 3600, false],
+      ['partly', secondSave(farmAt(multi.at, a => a.kind === 'research' && a.t >= multi.at - 60 && half.has(a.id ?? ''))), multi.at + 120, false],
+      ['mostly', secondSave(farmAt(T2)), T2 + 120, false],
+      ['replan', secondSave(farmAt(T1)), r.checkIns[12].at + 2 * 3600, true],
+    ];
+    for (const [name, f, saveSeconds, replan] of states) {
+      const b = bought(f);
+      const auto = new Map(r.lines.filter(l => l.tickable).map(l => [l.key, b.lines.get(l.key)?.auto ?? null] as const));
+      const e = effectiveTicks(auto, new Set(), new Set());
+      const o = replanOffer({ lines: r.lines, save: f, start: plan.start, startEgg: plan.start?.egg, saveSeconds, anchorSeconds: inputs.planStart - 3600, anchorFarm });
+      expect(o.show, name).toBe(replan);
+      const html = await renderHtml(BuildUpTracker, {
+        state: 'ready',
+        open: true,
+        result: r,
+        ticks: e.ticked,
+        summary: trackerSummary(r, e.ticked),
+        now: saveSeconds + 300,
+        zone: ZONE,
+        saveSeconds,
+        planSave: inputs.planStart - 3600,
+        bought: b.lines,
+        tickSource: e.source,
+        saveFit: b.fit,
+        replan: o.show ? { shown: true, working: false, error: '', behind: o.behind, offPlan: o.offPlan.map(x => x.what), keepsTicks: false } : null,
+      });
+      const t = textOf(html);
+      if (name === 'fresh') expect(t).toContain('This save is from before the plan’s prestige');
+      if (name === 'partly') expect(t).toMatch(/\d+ of \d+ bought/);
+      if (name === 'replan') expect(t).toContain('Re-plan from this save');
+      if (process.env.BUILDUP_SHOT_DIR)
+        fs.writeFileSync(
+          `${process.env.BUILDUP_SHOT_DIR}/p2-${name}.html`,
+          `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="${process.env.BUILDUP_SHOT_CSS}"></head><body class="bg-slate-50"><div class="p-4 max-w-5xl mx-auto">${html}</div></body></html>`
+        );
     }
   });
 });

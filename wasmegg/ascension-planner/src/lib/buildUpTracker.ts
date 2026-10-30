@@ -40,6 +40,7 @@
  * Player-facing words here are DRAFT (Words reviews them; ~/code/aaap-tools/notes/spec-buildup-b.md).
  */
 import type { BuildUpAction } from '@/search/buildUpActions';
+import type { PlanItem } from './buildUpBought';
 import type { Availability } from '@/search/availability';
 import { isAvailable, nextAvailable } from '@/search/availability';
 import { isConstrained } from '@/search/availabilitySchedule';
@@ -100,6 +101,12 @@ export interface TrackerLine {
   tickable: boolean;
   /** The check-in it belongs to (index into `checkIns`), -1 for an event, wait or warning line. */
   checkIn: number;
+  /** What the line buys or does, for the ticks from the save (lib/buildUpBought.ts, Phase 2). Absent on a line the save
+   *  can't tick (the silo trick, back online, events, waits, warnings, notes). */
+  items?: PlanItem[];
+  /** A research line's names one by one ('Grav Plating 18'), in `text`'s order after 'buy ': part i is item i, so a
+   *  bought one can be struck through. */
+  parts?: string[];
 }
 
 export interface CheckIn {
@@ -241,6 +248,16 @@ export function rangeWords(ns: readonly number[]): string {
 
 /** "Name 5" / "Name 3-7" per research item, in order of first appearance. */
 export function researchWords(items: readonly BuildUpAction[], sameName: ReadonlySet<string>): string {
+  return researchParts(items, sameName)
+    .map(p => p.text)
+    .join(', ');
+}
+
+/** One part per research item ('Name 3-7'), in order of first appearance, with its id and the level it ends on. */
+export function researchParts(
+  items: readonly BuildUpAction[],
+  sameName: ReadonlySet<string>
+): { id: string; level: number; text: string }[] {
   const order: string[] = [];
   const by = new Map<string, { name: string; lo: number; hi: number }>();
   for (const a of items) {
@@ -258,12 +275,10 @@ export function researchWords(items: readonly BuildUpAction[], sameName: Readonl
       cur.hi = Math.max(cur.hi, to);
     }
   }
-  return order
-    .map(k => {
-      const r = by.get(k)!;
-      return r.lo >= r.hi ? `${r.name} ${r.hi}` : `${r.name} ${r.lo}-${r.hi}`;
-    })
-    .join(', ');
+  return order.map(k => {
+    const r = by.get(k)!;
+    return { id: k, level: r.hi, text: r.lo >= r.hi ? `${r.name} ${r.hi}` : `${r.name} ${r.lo}-${r.hi}` };
+  });
 }
 
 // ------------------------------------------------------------------------------------------------ regroup
@@ -339,12 +354,14 @@ interface Draft {
   kind: LineKind;
   text: string;
   sub?: string;
+  items?: PlanItem[];
+  parts?: string[];
 }
 
 /** A check-in's lines, in the order to do them. `egg` is the egg the farm is on at its start (updated). */
 function checkInLines(
   items: BuildUpAction[],
-  st: { egg: string; shifted: boolean; trains: Map<number, string>; sameName: Set<string>; dropped: number }
+  st: { egg: string; shifted: boolean; shifts: number; trains: Map<number, string>; sameName: Set<string>; dropped: number }
 ): Draft[] {
   const out: Draft[] = [];
   let i = 0;
@@ -353,7 +370,13 @@ function checkInLines(
     if (a.kind === 'research') {
       let j = i;
       while (j < items.length && items[j].kind === 'research') j++;
-      out.push({ kind: 'research', text: `buy ${researchWords(items.slice(i, j), st.sameName)}` });
+      const ps = researchParts(items.slice(i, j), st.sameName);
+      out.push({
+        kind: 'research',
+        text: `buy ${ps.map(p => p.text).join(', ')}`,
+        items: ps.map(p => ({ kind: 'research', id: p.id, level: p.level })),
+        parts: ps.map(p => p.text),
+      });
       i = j;
       continue;
     }
@@ -370,19 +393,34 @@ function checkInLines(
       const run = items.slice(i, j);
       const lo = (run[0].fromLevel ?? (run[0].count ?? 1) - 1) + 1;
       const hi = Math.max(...run.map(s => s.count ?? lo));
-      out.push({ kind: 'silo', text: lo >= hi ? `buy silo #${hi}` : `buy silos #${lo}-${hi}` });
+      const siloItems: PlanItem[] = [];
+      for (let n = Math.min(lo, hi); n <= hi; n++) siloItems.push({ kind: 'silo', count: n });
+      out.push({ kind: 'silo', text: lo >= hi ? `buy silo #${hi}` : `buy silos #${lo}-${hi}`, items: siloItems });
       i = j;
       continue;
     }
     if (a.kind === 'hab') {
-      out.push({ kind: 'hab', text: `buy ${a.label} in hab slot ${(a.slot ?? 0) + 1}` });
+      out.push({
+        kind: 'hab',
+        text: `buy ${a.label} in hab slot ${(a.slot ?? 0) + 1}`,
+        ...(a.itemId != null ? { items: [{ kind: 'hab', slot: a.slot ?? 0, habId: a.itemId }] as PlanItem[] } : {}),
+      });
     } else if (a.kind === 'shift') {
       st.egg = a.id ?? st.egg;
       st.shifted = true;
-      out.push({ kind: 'shift', text: `shift to ${eggName(a.id) || a.label}` });
+      st.shifts++;
+      out.push({
+        kind: 'shift',
+        text: `shift to ${eggName(a.id) || a.label}`,
+        ...(a.id ? { items: [{ kind: 'shift', egg: a.id, index: st.shifts }] as PlanItem[] } : {}),
+      });
     } else if (a.kind === 'prestige') {
       st.egg = a.id ?? 'curiosity';
-      out.push({ kind: 'prestige', text: `prestige: start the ascension on ${eggName(a.id) || 'Curiosity'}` });
+      out.push({
+        kind: 'prestige',
+        text: `prestige: start the ascension on ${eggName(a.id) || 'Curiosity'}`,
+        items: [{ kind: 'prestige', egg: a.id ?? 'curiosity' }],
+      });
     } else if (a.kind === 'artifactSet') {
       // One line for a run of set actions (H1 does update_artifact_set then equip_artifact_set: one swap).
       let j = i;
@@ -400,7 +438,11 @@ function checkInLines(
           text: `set swap left out: sets are swapped only on Humility (the plan had it on ${eggName(st.egg) || st.egg})`,
         });
       } else {
-        out.push({ kind: 'setSwap', text: last.id ? `set swap: equip the ${setName(last)} set` : 'set swap: change your artifacts' });
+        out.push({
+          kind: 'setSwap',
+          text: last.id ? `set swap: equip the ${setName(last)} set` : 'set swap: change your artifacts',
+          ...(last.id ? { items: [{ kind: 'setSwap', set: last.id, after: st.shifts }] as PlanItem[] } : {}),
+        });
       }
       i = j;
       continue;
@@ -417,12 +459,15 @@ function vehicleLines(run: BuildUpAction[], trains: Map<number, string>): Draft[
   // The engine climbs vehicle tiers one buy at a time (Trike, then Quantum Transporter, then Hyperloop Train in the
   // same moment); the player buys the last one straight away: only each slot's last vehicle of the check-in is said.
   const finalBy = new Map<number, string>();
+  const finalId = new Map<number, number>();
   const cars = new Map<number, number>();
   for (const a of run) {
     const slot = (a.slot ?? 0) + 1;
     if (a.kind === 'vehicle') {
       trains.set(slot, a.label);
       finalBy.set(slot, a.label);
+      if (a.itemId != null) finalId.set(slot, a.itemId);
+      else finalId.delete(slot);
       if (a.level) cars.set(slot, a.level);
       else cars.delete(slot);
     } else if (a.level) cars.set(slot, Math.max(cars.get(slot) ?? 0, a.level));
@@ -444,7 +489,12 @@ function vehicleLines(run: BuildUpAction[], trains: Map<number, string>): Draft[
     const isTrain = /train/i.test(name);
     const c = isTrain ? Math.max(0, ...slots.map(s => cars.get(s) ?? 0)) : 0;
     const what = n === 1 ? `1 ${name} (slot ${slots[0]})` : `${n} ${name}s (slots ${rangeWords(slots)})`;
-    out.push({ kind: 'trains', text: `buy ${what}${c > 1 ? `, cars to ${c}` : ''}` });
+    // One item per slot: the slot's last vehicle of the check-in, and (a train) its own length.
+    const items: PlanItem[] = [...slots]
+      .sort((x, y) => x - y)
+      .filter(s => finalId.has(s))
+      .map(s => ({ kind: 'vehicle', slot: s - 1, vehicleId: finalId.get(s)!, cars: isTrain ? (cars.get(s) ?? 0) : 0 }));
+    out.push({ kind: 'trains', text: `buy ${what}${c > 1 ? `, cars to ${c}` : ''}`, ...(items.length === n ? { items } : {}) });
   }
   const carOnly = [...cars.keys()].filter(s => !boughtSlots.has(s));
   if (carOnly.length) {
@@ -453,6 +503,7 @@ function vehicleLines(run: BuildUpAction[], trains: Map<number, string>): Draft[
     const all = trainSlots.length > 1 && trainSlots.every(s => carOnly.includes(s)) && carOnly.length === trainSlots.length;
     out.push({
       kind: 'trainCars',
+      items: [...carOnly].sort((x, y) => x - y).map(s => ({ kind: 'trainCar', slot: s - 1, cars: cars.get(s)! })),
       text: all
         ? `train cars: all ${trainSlots.length} trains to ${to}`
         : `train cars: ${carOnly.length === 1 ? `slot ${carOnly[0]}` : `slots ${rangeWords(carOnly)}`} to ${to}`,
@@ -516,7 +567,7 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
     }
   const sameName = new Set([...ids.entries()].filter(([, s]) => s.size > 1).map(([n]) => n));
 
-  const st = { egg: input.startEgg ?? 'curiosity', shifted: false, trains: new Map<number, string>(), sameName, dropped: 0 };
+  const st = { egg: input.startEgg ?? 'curiosity', shifted: false, shifts: 0, trains: new Map<number, string>(), sameName, dropped: 0 };
   const startSilos = Math.max(1, input.startSilos ?? 1);
   const perSilo = input.siloSeconds && input.siloSeconds > 0 ? input.siloSeconds / startSilos : 0;
   let silos = startSilos;
@@ -646,6 +697,8 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
         text: d.text,
         tail,
         ...(d.sub ? { sub: d.sub } : {}),
+        ...(d.items?.length ? { items: d.items } : {}),
+        ...(d.parts ? { parts: d.parts } : {}),
         bold: BOLD.has(d.kind),
         granular: d.kind === 'research',
         tickable,
@@ -778,6 +831,29 @@ export function writeTicks(account: string, ascensionStart: number, ticks: Reado
   }
 }
 
+/** Phase 2: lines the player UNticked where the save says bought (their override the other way). The ticked ones stay
+ *  under `ticksKey`, as in Phase 1. */
+export const unticksKey = (account: string, ascensionStart: number): string => `aap.buildup.unticks.${account}.${Math.floor(ascensionStart)}`;
+
+export function readUnticks(account: string, ascensionStart: number): Set<string> {
+  try {
+    const v = localStorage.getItem(unticksKey(account, ascensionStart));
+    const a = v ? (JSON.parse(v) as unknown) : [];
+    return new Set(Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeUnticks(account: string, ascensionStart: number, keys: ReadonlySet<string>): void {
+  try {
+    if (keys.size) localStorage.setItem(unticksKey(account, ascensionStart), JSON.stringify([...keys]));
+    else localStorage.removeItem(unticksKey(account, ascensionStart));
+  } catch {
+    /* this visit only */
+  }
+}
+
 // ------------------------------------------------------------------------------------------------ the fold
 
 /** Where the player's own open / close of the tracker is kept: per account and ascension. */
@@ -813,7 +889,7 @@ export function trackerFoldOpen(o: { choice: boolean | null; building: boolean }
 // ------------------------------------------------------------------------------------------------ the kept plan
 
 /** The plan the tracker shows, per account: the first one worked out in this ascension's build-up (from the first
- *  save seen in it), so newer saves only tick things off (outline recommendation 2; Re-plan is Phase 2). */
+ *  save seen in it), so newer saves only tick things off (outline recommendation 2), until the player re-plans. */
 export const ANCHOR_KEY_PREFIX = 'aap.buildup.plan.';
 /** The kept plan's most, as JSON text. */
 export const ANCHOR_MAX_BYTES = 400_000;
@@ -824,6 +900,9 @@ export interface AnchoredPlan {
   /** The save it was worked out from (backup time, unix seconds). */
   saveSeconds: number;
   plan: import('@/search/buildUpActions').BuildUpPlan;
+  /** Phase 2: that save's farm (lib/buildUpBought.ts), so a plan that starts afresh can tell a save from before its
+   *  prestige. Absent on plans kept before Phase 2. */
+  anchorFarm?: import('./buildUpBought').SaveFarm;
 }
 
 /** Only what the tracker reads: the build-up part, no engine 'other' actions. */
@@ -834,6 +913,15 @@ export function compactPlan(p: AnchoredPlan['plan']): AnchoredPlan['plan'] {
       .filter(a => a.kind !== 'other' && a.kind !== 'event')
       .map(({ cost: _c, detail: _d, ...a }) => a),
   };
+}
+
+/** Drops the kept plan (a re-plan whose new plan could not be kept). Never throws. */
+export function dropAnchoredPlan(account: string): void {
+  try {
+    localStorage.removeItem(ANCHOR_KEY_PREFIX + account);
+  } catch {
+    /* nothing kept */
+  }
 }
 
 export function readAnchoredPlan(account: string): AnchoredPlan | null {

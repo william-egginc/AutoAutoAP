@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, ref, type Ref } from 'vue';
 import { buildUpWanted, useBuildUpTracker } from './useBuildUpTracker';
 import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
-import { ANCHOR_KEY_PREFIX, foldChoiceKey, ticksKey } from '@/lib/buildUpTracker';
+import { ANCHOR_KEY_PREFIX, foldChoiceKey, ticksKey, unticksKey } from '@/lib/buildUpTracker';
+import { farmOfStart, type SaveFarm } from '@/lib/buildUpBought';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import { BUILDUP_PLAN_KEY } from '@/lib/followSim';
 
@@ -37,6 +38,7 @@ function setup(over: Partial<Record<string, Ref<unknown>>> = {}) {
     now: ref(mt(10, 30, 12, 10)),
     fresh: ref<BuildUpPlan | null>(null),
     sim: ref<{ status: 'working' | 'waiting' | 'failed' | 'done'; reason?: string } | null>({ status: 'working' }),
+    saveFarm: ref<SaveFarm | null>(null),
     ...over,
   };
   const scope = effectScope();
@@ -148,6 +150,170 @@ describe('useBuildUpTracker', () => {
     r.fresh.value = fixturePlan();
     expect(() => t.toggleTick('x', true)).not.toThrow();
     expect(() => t.playerToggle(false)).not.toThrow();
+    scope.stop();
+  });
+});
+
+// ------------------------------------------------------------------ Phase 2
+const START = fixturePlan().start!;
+const farmWith = (levels: Record<string, number>, over: Partial<SaveFarm> = {}): SaveFarm => ({
+  ...farmOfStart(START),
+  researchLevels: levels,
+  ...over,
+});
+const FIRST_LINE = { comfortable_nests: 50, excitable_chickens: 25, internal_hatchery3: 15, internal_hatchery4: 5, bigger_eggs: 1 };
+
+describe('useBuildUpTracker Phase 2: ticks from the save, the player\'s override', () => {
+  async function ready(save: SaveFarm | null) {
+    const s = setup({ saveFarm: ref(farmOfStart(START)) });
+    s.r.fresh.value = fixturePlan();
+    await nextTick();
+    (s.r as unknown as { saveFarm: { value: SaveFarm | null } }).saveFarm.value = save;
+    await nextTick();
+    return s;
+  }
+  it('the anchor keeps its save farm; a save holding the first buys ticks their line, "from your save"', async () => {
+    const { t, scope } = await ready(farmWith(FIRST_LINE));
+    expect(t.plan.value?.anchorFarm).toEqual(farmOfStart(START));
+    const first = t.result.value!.lines.find(l => l.kind === 'research')!;
+    expect(t.ticks.value.has(first.key)).toBe(true);
+    expect(t.tickSource.value.get(first.key)).toBe('save');
+    // The prestige too (the save fits the plan).
+    const p = t.result.value!.lines.find(l => l.kind === 'prestige')!;
+    expect(t.ticks.value.has(p.key)).toBe(true);
+    // The prestige's check-in and the first buys'.
+    expect(t.summary.value!.done).toBe(2);
+    scope.stop();
+  });
+  it('a newer save only adds ticks', async () => {
+    const { r, t, scope } = await ready(farmWith({ comfortable_nests: 50 }));
+    const before = new Set(t.ticks.value);
+    (r as unknown as { saveFarm: { value: SaveFarm } }).saveFarm.value = farmWith(FIRST_LINE);
+    r.saveSeconds.value = mt(10, 30, 12, 30);
+    await nextTick();
+    for (const k of before) expect(t.ticks.value.has(k)).toBe(true);
+    expect(t.ticks.value.size).toBeGreaterThan(before.size);
+    scope.stop();
+  });
+  it('the override beats the save both ways; clearing goes back to the save', async () => {
+    const { t, scope } = await ready(farmWith(FIRST_LINE));
+    const bought = t.result.value!.lines.find(l => l.kind === 'research')!.key;
+    const toBuy = t.result.value!.lines.filter(l => l.kind === 'research')[1].key;
+    // Untick a line the save says is bought.
+    t.toggleTick(bought, false);
+    expect(t.ticks.value.has(bought)).toBe(false);
+    expect(t.tickSource.value.get(bought)).toBe('you');
+    expect(JSON.parse(mem.get(unticksKey('acct-hash', A1))!)).toEqual([bought]);
+    // Tick a line the save says is still to buy.
+    t.toggleTick(toBuy, true);
+    expect(t.ticks.value.has(toBuy)).toBe(true);
+    expect(t.tickSource.value.get(toBuy)).toBe('you');
+    expect(JSON.parse(mem.get(ticksKey('acct-hash', A1))!)).toEqual([toBuy]);
+    // Back to the save's.
+    t.clearTick(bought);
+    t.clearTick(toBuy);
+    expect(t.ticks.value.has(bought)).toBe(true);
+    expect(t.tickSource.value.get(bought)).toBe('save');
+    expect(t.ticks.value.has(toBuy)).toBe(false);
+    expect(mem.has(unticksKey('acct-hash', A1))).toBe(false);
+    // A checkbox set to what the save says is no override.
+    t.toggleTick(bought, false);
+    t.toggleTick(bought, true);
+    expect(t.tickSource.value.get(bought)).toBe('save');
+    scope.stop();
+  });
+});
+
+describe('useBuildUpTracker Phase 2: Re-plan from this save', () => {
+  /** The anchor at 8:41 am (the prestige) on the start farm; then a newer save. */
+  async function anchoredThen(save: SaveFarm, saveSeconds: number) {
+    const s = setup({ saveFarm: ref(farmOfStart(START)), saveSeconds: ref(mt(10, 30, 8, 41)) });
+    s.r.fresh.value = fixturePlan();
+    await nextTick();
+    s.r.fresh.value = null;
+    (s.r as unknown as { saveFarm: { value: SaveFarm } }).saveFarm.value = save;
+    s.r.saveSeconds.value = saveSeconds;
+    s.r.sim.value = { status: 'done' };
+    await nextTick();
+    return s;
+  }
+  it.each<[string, Record<string, number>, number, boolean]>([
+    ['on plan and on time: hidden', FIRST_LINE, mt(10, 30, 8, 50), false],
+    ['bought research the plan never buys: shown', { ...FIRST_LINE, never_planned: 3 }, mt(10, 30, 8, 50), true],
+    ['over 1 h behind the plan: shown', FIRST_LINE, mt(10, 30, 10, 0), true],
+    ['under 1 h behind: hidden', FIRST_LINE, mt(10, 30, 9, 40), false],
+  ])('%s', async (_n, levels, at, show) => {
+    const { t, scope } = await anchoredThen(farmWith(levels), at);
+    expect(t.offer.value!.show).toBe(show);
+    expect(t.replanShown.value).toBe(show);
+    scope.stop();
+  });
+
+  it('pressing it: asks for this save\'s plan, keeps the old meanwhile, then re-anchors with the matching ticks', async () => {
+    const later = mt(10, 30, 14, 0);
+    const { r, t, scope } = await anchoredThen(farmWith({ ...FIRST_LINE, never_planned: 3 }), later);
+    expect(t.offer.value!.show).toBe(true);
+    expect(t.replanShown.value).toBe(true);
+    // Ticks by hand: one on a line the new plan still has (9:35 am), one on a line it won't have (8:47 am).
+    const lines = t.result.value!.lines;
+    const keep = lines.find(l => l.text === 'buy Atomic Purification 24')!.key;
+    const orphan = lines.find(l => l.text.startsWith('buy Grav Plating 18'))!.key;
+    t.toggleTick(keep, true);
+    t.toggleTick(orphan, true);
+    expect(t.hasOverrides.value).toBe(true);
+    const oldPlan = t.plan.value;
+    t.replan();
+    expect(t.replanning.value).toBe(true);
+    expect(t.wanted.value).toBe(true);
+    await nextTick();
+    expect(buildUpWanted.value).toBe(true);
+    expect(t.plan.value).toBe(oldPlan);
+    expect(t.state.value).toBe('ready');
+    // This save's plan comes: from 9:35 am on.
+    const p = fixturePlan();
+    r.fresh.value = { ...p, actions: p.actions.filter(a => a.t >= mt(10, 30, 9, 35)) };
+    await nextTick();
+    expect(t.replanning.value).toBe(false);
+    expect(t.plan.value).not.toBe(oldPlan);
+    expect(t.plan.value!.saveSeconds).toBe(later);
+    expect(JSON.parse(mem.get(ANCHOR_KEY_PREFIX + 'acct-hash')!).saveSeconds).toBe(later);
+    expect(t.ticks.value.has(keep)).toBe(true);
+    expect(JSON.parse(mem.get(ticksKey('acct-hash', A1))!)).toEqual([keep]);
+    expect(t.wanted.value).toBe(false);
+    scope.stop();
+  });
+
+  it('a failed re-plan keeps the old plan and says why', async () => {
+    const { r, t, scope } = await anchoredThen(farmWith({ ...FIRST_LINE, never_planned: 3 }), mt(10, 30, 14, 0));
+    const oldPlan = t.plan.value;
+    const kept = mem.get(ANCHOR_KEY_PREFIX + 'acct-hash');
+    t.replan();
+    r.sim.value = { status: 'failed', reason: 'the worker ran out of memory' };
+    await nextTick();
+    expect(t.replanning.value).toBe(false);
+    expect(t.replanError.value).toBe('the worker ran out of memory');
+    expect(t.plan.value).toBe(oldPlan);
+    expect(mem.get(ANCHOR_KEY_PREFIX + 'acct-hash')).toBe(kept);
+    expect(t.replanShown.value).toBe(true);
+    // A newer save may try again.
+    r.saveSeconds.value = mt(10, 30, 15, 0);
+    await nextTick();
+    expect(t.replanError.value).toBe('');
+    scope.stop();
+  });
+});
+
+describe('useBuildUpTracker Phase 2: a plan kept before Phase 2 (no anchor farm)', () => {
+  it('starting afresh, on a newer save: nothing automatic (it could be from before the prestige); the checkbox still works', async () => {
+    const old = { ascensionStart: A1, saveSeconds: mt(10, 30, 8, 41), plan: fixturePlan() };
+    mem.set(ANCHOR_KEY_PREFIX + 'acct-hash', JSON.stringify(old));
+    const { t, scope } = setup({ saveFarm: ref(farmWith(FIRST_LINE)), saveSeconds: ref(mt(10, 30, 12, 5)) });
+    expect(t.plan.value?.anchorFarm).toBeUndefined();
+    expect(t.bought.value!.fit).toBe('unknown');
+    expect([...t.ticks.value]).toEqual([]);
+    const k = t.result.value!.lines.find(l => l.kind === 'research')!.key;
+    t.toggleTick(k, true);
+    expect(t.ticks.value.has(k)).toBe(true);
     scope.stop();
   });
 });

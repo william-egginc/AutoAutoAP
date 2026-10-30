@@ -10,6 +10,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import BuildUpTracker from './BuildUpTracker.vue';
 import { buildUpTracker, dayView, trackerSummary } from '@/lib/buildUpTracker';
 import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
+import { boughtFromSave, effectiveTicks, farmOfStart, type SaveFarm } from '@/lib/buildUpBought';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
 
 const NOW = mt(10, 30, 12, 10);
@@ -126,5 +127,108 @@ describe('the template rules', () => {
   it('44 px targets for the boxes and the show-all buttons', () => {
     expect(tpl).toMatch(/<label[\s\S]*?min-h-\[44px\] min-w-\[44px\]/);
     expect(tpl.match(/min-h-\[44px\] px-2/g)?.length).toBe(2);
+  });
+});
+
+// ------------------------------------------------------------------ Phase 2: ticks from the save
+describe('BuildUpTracker Phase 2: ticks from the save', () => {
+  const START = plan.start!;
+  const save = (levels: Record<string, number>, over: Partial<SaveFarm> = {}): SaveFarm => ({ ...farmOfStart(START), researchLevels: levels, ...over });
+  /** Props as the composable makes them, for a save and the player's overrides. */
+  function fromSave(f: SaveFarm, on: string[] = [], off: string[] = [], over: Record<string, unknown> = {}) {
+    const b = boughtFromSave({ lines: result.lines, save: f, start: START, startEgg: 'curiosity' });
+    const auto = new Map(result.lines.filter(l => l.tickable).map(l => [l.key, b.lines.get(l.key)?.auto ?? null] as const));
+    const e = effectiveTicks(auto, new Set(on), new Set(off));
+    return props('ready', { ticks: e.ticked, summary: trackerSummary(result, e.ticked), bought: b.lines, tickSource: e.source, saveFit: b.fit, ...over });
+  }
+  const first = result.lines.find(l => l.kind === 'research')!;
+  const PART = { comfortable_nests: 50, excitable_chickens: 25, bigger_eggs: 1 };
+
+  it('a partly bought line: "3 of 5 bought" in amber, the bought names struck through (and said for screen readers)', async () => {
+    const html = await renderHtml(BuildUpTracker, fromSave(save(PART)));
+    const t = textOf(html);
+    expect(t.replace(/ ,/g, ',')).toContain(
+      '8:42 am · buy Comfortable Nests 1-50 (bought), Excitable Chickens 1-25 (bought), Internal Hatchery Expansion (tier 5) 1-15, Bigger Eggs 1 (bought), Internal Hatchery Expansion (tier 7) 1-5 · offline 5 min · 3 of 5 bought'
+    );
+    expect(html).toMatch(/<span class="tabular-nums text-amber-800"[^>]*>3 of 5 bought<\/span>/);
+    expect(html.match(/class="line-through decoration-slate-400"/g)?.length).toBe(3);
+    expect(html).toMatch(/<span class="line-through decoration-slate-400">Comfortable Nests 1-50<span class="sr-only"> \(bought\)<\/span><\/span>/);
+    // Not ticked: the checkbox is empty.
+    const box = html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${first.key.replace(':', '\\:')}"[^>]*>`))![0];
+    expect(box).not.toContain('checked');
+  });
+
+  it('a bought line: ticked, "bought", and the label says it came from the save', async () => {
+    const html = await renderHtml(BuildUpTracker, fromSave(save({ ...PART, internal_hatchery3: 15, internal_hatchery4: 5 })));
+    const box = html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${first.key.replace(':', '\\:')}"[^>]*>`))![0];
+    expect(box).toContain('checked');
+    expect(box).toMatch(/aria-label="Done: 8:42 am · buy Comfortable Nests 1-50, [^"]*, from your save"/);
+    expect(html).toMatch(/<label[^>]*title="from your save"/);
+    expect(html).toMatch(/<span class="text-green-700"[^>]*>bought<\/span>/);
+    expect(textOf(html)).toContain('Build-up tracker 2 of ');
+  });
+
+  it('the player\'s override: "ticked by you" / "unticked by you", with "use save" (44 px) to go back', async () => {
+    const f = save({ ...PART, internal_hatchery3: 15, internal_hatchery4: 5 });
+    const second = result.lines.filter(l => l.kind === 'research')[1];
+    const html = await renderHtml(BuildUpTracker, fromSave(f, [second.key], [first.key]));
+    const boxOf = (k: string) => html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${k.replace(':', '\\:')}"[^>]*>`))![0];
+    expect(boxOf(first.key)).not.toContain('checked');
+    expect(boxOf(first.key)).toMatch(/, unticked by you"/);
+    expect(boxOf(second.key)).toContain('checked');
+    expect(boxOf(second.key)).toMatch(/, ticked by you"/);
+    const clear = html.match(new RegExp(`<button[^>]*data-testid="buildup-clear-${first.key.replace(':', '\\:')}"[^>]*>`))![0];
+    expect(clear).toContain('min-h-[44px] min-w-[44px]');
+    expect(clear).toMatch(/aria-label="Use what your save says: 8:42 am · buy Comfortable Nests/);
+    // The status words give way to the override.
+    expect(html).not.toMatch(new RegExp(`data-testid="buildup-status-${first.key.replace(':', '\\:')}"`));
+  });
+
+  it('a save older than the plan, or from before its prestige: said, nothing ticked', async () => {
+    const older = await renderHtml(BuildUpTracker, fromSave(save({}, { siloCount: 0 })));
+    expect(textOf(older)).toContain('This save is older than the plan’s start, so nothing is ticked from it.');
+    const pre = await renderHtml(BuildUpTracker, props('ready', { saveFit: 'beforePrestige' }));
+    expect(textOf(pre)).toContain('This save is from before the plan’s prestige, so nothing is ticked from it yet.');
+  });
+});
+
+describe('BuildUpTracker Phase 2: Re-plan from this save', () => {
+  const R = { shown: true, working: false, error: '', behind: 2 * 3600 + 600, offPlan: ['Comfortable Nests 51', 'silo #5', 'hab slot 2', 'vehicle slot 1'], keepsTicks: true };
+  it('shown: why (behind, off-plan), the 44 px button, and that matching ticks are kept', async () => {
+    const html = await render('ready', { replan: R });
+    const t = textOf(html);
+    expect(t).toContain('You are 2 h 10 min behind this plan.');
+    expect(t).toContain('Your save has bought things this plan has later or not at all: Comfortable Nests 51, silo #5, hab slot 2 and 1 more.');
+    expect(t).toContain('Re-plan from this save This keeps your ticks that still match.');
+    expect(html).toMatch(/<button[^>]*class="min-h-\[44px\][^"]*"[^>]*data-testid="buildup-replan-button"/);
+  });
+  it('working: the button says so and is off; the old plan stays', async () => {
+    const html = await render('ready', { replan: { ...R, working: true } });
+    expect(html).toMatch(/<button[^>]*disabled[^>]*data-testid="buildup-replan-button"[^>]*>\s*Re-planning…/);
+    expect(textOf(html)).toContain('Working out a new plan from this save. The plan below stays until it is in.');
+    expect(textOf(html)).toContain('9:02 am · buy 14 Hyperloop Trains');
+  });
+  it('failed: the reason, and the plan stays', async () => {
+    const t = textOf(await render('ready', { replan: { ...R, error: 'the worker ran out of memory' } }));
+    expect(t).toContain('The new plan could not be worked out (the worker ran out of memory). The plan below stays as it was.');
+    expect(t).toContain('9:02 am · buy 14 Hyperloop Trains');
+  });
+  it('hidden without it', async () => {
+    expect(await render('ready')).not.toContain('buildup-replan');
+  });
+});
+
+describe('the template rules (Phase 2)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'BuildUpTracker.vue'), 'utf8');
+  const tpl = src.slice(0, src.lastIndexOf('</template>'));
+  it('no text-[Npx], caps, medium/semibold weights or mono; every button at least 44 px', () => {
+    expect(tpl).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
+    const buttons = tpl.match(/<button[\s\S]*?<\/button>/g) ?? [];
+    expect(buttons.length).toBe(4);
+    for (const b of buttons) expect(b).toMatch(/class="[^"]*min-h-\[44px\]/);
+  });
+  it('meaningful spaces are explicit', () => {
+    expect(tpl).toContain(`buy{{ ' ' }}`);
+    expect(tpl).toContain(`<span class="sr-only">{{ ' ' }}(bought)</span>`);
   });
 });
