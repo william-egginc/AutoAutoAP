@@ -34,13 +34,15 @@ describe('what the player is told', () => {
     expect(note.text).toMatch(/caught up from your save to the plan start/);
   });
 
-  it('warns in red when the save is older than the silos hold: the answers are off, so force a sync', () => {
+  it('a start past what the silos hold: a plan-start fact, not the red "save is old" (the banner says that now)', () => {
     const note = describeSaveAge(SYNC, SYNC + 40 * H, 12 * H)!;
-    expect(note.level).toBe('warning');
-    expect(note.severe).toBe(true);
-    expect(note.text).toMatch(/Your save is 40h old, longer than your silos hold/);
-    expect(note.text).toMatch(/won't be accurate/);
-    expect(note.text).toMatch(/Force a sync/);
+    expect(note.level).toBe('ok');
+    expect(note.pastSilos).toBe(true);
+    // DRAFT wording.
+    expect(note.text).toBe(
+      'Starts 40h after your last sync, longer than your silos hold (12h): the farm is caught up for 12h only, the way the game credits time away, and earns nothing after that.'
+    );
+    expect(note.text).not.toMatch(/Your save is|Force a sync/);
   });
 
   it('does not talk about silos for a save with no virtue farm, since nothing is caught up', () => {
@@ -51,8 +53,8 @@ describe('what the player is told', () => {
     expect(note.text).not.toMatch(/\bold\b/);
   });
 
-  it('a stale save in days, as everywhere else ("25 days old", never "25d old")', () => {
-    expect(describeSaveAge(SYNC, SYNC + 25 * 24 * H, 12 * H)!.text).toMatch(/^Your save is 25d old, longer/);
+  it('gaps in the one compact style (25d, 42m)', () => {
+    expect(describeSaveAge(SYNC, SYNC + 25 * 24 * H, 12 * H)!.text).toMatch(/^Starts 25d after your last sync, longer/);
     expect(describeSaveAge(SYNC + 42 * 60, SYNC, 12 * H)!.text).toMatch(/^Starts 42m before your last sync/);
   });
 

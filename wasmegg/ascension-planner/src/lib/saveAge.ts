@@ -29,8 +29,12 @@ export function catchUpSeconds(syncSeconds: number, startSeconds: number, silo: 
 export interface SaveAgeNote {
   level: 'ok' | 'warning';
   text: string;
-  /** Older than the silos hold: the answers are wrong, not just uncertain. Shown in red. */
-  severe?: boolean;
+  /**
+   * The plan starts further from the sync than the silos hold: the catch-up stops at the silos. A plan-start fact,
+   * shown in amber beside the start (SchedulingInputs). Whether the SAVE is old is the save-age banner's
+   * (lib/saveFreshness.ts `saveState`, spec-saveage, 29 Oct 2026), no longer said here in red.
+   */
+  pastSilos?: boolean;
 }
 
 const NEWER_SYNC = " If you've opened the game since then and have a newer sync, this might not be accurate.";
@@ -89,9 +93,11 @@ export function describeSaveAge(
       text: `The farm is caught up from your save to the plan start at its current rate, the way the game credits time away (your silos hold ${silos}).${NEWER_SYNC} Anything you bought since is not in it; sync and reload if you have played.`,
     };
   }
+  // DRAFT wording (Words reviews; was "Your save is 40h old, longer than your silos hold (12h), so the answers here
+  // won't be accurate. Force a sync: ..." in red, now the save-age banner's to say).
   return {
-    level: 'warning',
-    severe: true,
-    text: `Your save is ${ageWords(gap)} old, longer than your silos hold (${silos}), so the answers here won't be accurate. Force a sync: open Egg, Inc., let it sync, then reload this page (or press Load latest save).`,
+    level: 'ok',
+    pastSilos: true,
+    text: `Starts ${ageWords(gap)} after your last sync, longer than your silos hold (${silos}): the farm is caught up for ${silos} only, the way the game credits time away, and earns nothing after that.`,
   };
 }
