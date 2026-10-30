@@ -831,6 +831,29 @@ export function writeTicks(account: string, ascensionStart: number, ticks: Reado
   }
 }
 
+/** Phase 2: lines the player UNticked where the save says bought (their override the other way). The ticked ones stay
+ *  under `ticksKey`, as in Phase 1. */
+export const unticksKey = (account: string, ascensionStart: number): string => `aap.buildup.unticks.${account}.${Math.floor(ascensionStart)}`;
+
+export function readUnticks(account: string, ascensionStart: number): Set<string> {
+  try {
+    const v = localStorage.getItem(unticksKey(account, ascensionStart));
+    const a = v ? (JSON.parse(v) as unknown) : [];
+    return new Set(Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeUnticks(account: string, ascensionStart: number, keys: ReadonlySet<string>): void {
+  try {
+    if (keys.size) localStorage.setItem(unticksKey(account, ascensionStart), JSON.stringify([...keys]));
+    else localStorage.removeItem(unticksKey(account, ascensionStart));
+  } catch {
+    /* this visit only */
+  }
+}
+
 // ------------------------------------------------------------------------------------------------ the fold
 
 /** Where the player's own open / close of the tracker is kept: per account and ascension. */
@@ -866,7 +889,7 @@ export function trackerFoldOpen(o: { choice: boolean | null; building: boolean }
 // ------------------------------------------------------------------------------------------------ the kept plan
 
 /** The plan the tracker shows, per account: the first one worked out in this ascension's build-up (from the first
- *  save seen in it), so newer saves only tick things off (outline recommendation 2; Re-plan is Phase 2). */
+ *  save seen in it), so newer saves only tick things off (outline recommendation 2), until the player re-plans. */
 export const ANCHOR_KEY_PREFIX = 'aap.buildup.plan.';
 /** The kept plan's most, as JSON text. */
 export const ANCHOR_MAX_BYTES = 400_000;
@@ -877,6 +900,9 @@ export interface AnchoredPlan {
   /** The save it was worked out from (backup time, unix seconds). */
   saveSeconds: number;
   plan: import('@/search/buildUpActions').BuildUpPlan;
+  /** Phase 2: that save's farm (lib/buildUpBought.ts), so a plan that starts afresh can tell a save from before its
+   *  prestige. Absent on plans kept before Phase 2. */
+  anchorFarm?: import('./buildUpBought').SaveFarm;
 }
 
 /** Only what the tracker reads: the build-up part, no engine 'other' actions. */
@@ -887,6 +913,15 @@ export function compactPlan(p: AnchoredPlan['plan']): AnchoredPlan['plan'] {
       .filter(a => a.kind !== 'other' && a.kind !== 'event')
       .map(({ cost: _c, detail: _d, ...a }) => a),
   };
+}
+
+/** Drops the kept plan (a re-plan whose new plan could not be kept). Never throws. */
+export function dropAnchoredPlan(account: string): void {
+  try {
+    localStorage.removeItem(ANCHOR_KEY_PREFIX + account);
+  } catch {
+    /* nothing kept */
+  }
 }
 
 export function readAnchoredPlan(account: string): AnchoredPlan | null {

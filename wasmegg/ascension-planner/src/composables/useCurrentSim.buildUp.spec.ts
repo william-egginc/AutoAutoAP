@@ -159,4 +159,25 @@ describe('useCurrentSim, wantBuildUp', () => {
     expect(m.state.value).toMatchObject({ status: 'done', buildUp: { actions: LIST.actions } });
     m.scope.stop();
   });
+
+  it('Phase 2: only the plan was wanted and it failed: the leg stays, the state says why (planFailed), not tried again', async () => {
+    const want = ref(false);
+    const m = mount(want);
+    await flush();
+    runs[0].resolve(legOf(false));
+    await flush();
+    want.value = true;
+    await flush();
+    runs[1].resolve(null);
+    await flush();
+    expect(m.state.value).toMatchObject({ status: 'done', leg: { endTime: T0 + 3600 } });
+    expect((m.state.value as { planFailed?: string }).planFailed).toMatch(/could not be simulated/);
+    want.value = false;
+    await flush();
+    want.value = true;
+    await flush();
+    expect(runs).toHaveLength(2);
+    expect((m.state.value as { planFailed?: string }).planFailed).toMatch(/could not be simulated/);
+    m.scope.stop();
+  });
 });

@@ -46,8 +46,9 @@ export interface SimRequest {
 
 export type SimState =
   | { key: string; status: 'waiting' | 'working' }
-  /** `buildUp`: only when `wantBuildUp` asked for it and the simulation gave one. */
-  | { key: string; status: 'done'; leg: SimLeg; at: number; buildUp?: BuildUpPlan }
+  /** `buildUp`: only when `wantBuildUp` asked for it and the simulation gave one. `planFailed`: only the plan was
+   *  wanted (the leg was known) and working it out failed, with why (build-up tracker Phase 2: the tracker says so). */
+  | { key: string; status: 'done'; leg: SimLeg; at: number; buildUp?: BuildUpPlan; planFailed?: string }
   /** `reason`: a short why, said on Right now; `retrying`: it is tried once more after `retryMs`. */
   | { key: string; status: 'failed'; reason: string; retrying?: boolean };
 
@@ -202,7 +203,7 @@ export function useCurrentSim(
       const tries = (failed.get(req.key)?.tries ?? 0) + 1;
       failed.set(req.key, { reason, tries: have ? 2 : tries });
       // Only the plan was wanted: the leg stays as it was, and it is not tried again on this page.
-      result = have ?? { key: req.key, status: 'failed', reason, ...(tries < 2 ? { retrying: true } : {}) };
+      result = have ? { ...have, planFailed: reason } : { key: req.key, status: 'failed', reason, ...(tries < 2 ? { retrying: true } : {}) };
     }
     runner?.terminate();
     runner = null;
@@ -240,7 +241,9 @@ export function useCurrentSim(
       const f = failed.get(req.key);
       if (f && (f.tries >= 2 || retryTimer)) {
         if (!retryTimer) letGo();
-        state.value = have ?? { key: req.key, status: 'failed', reason: f.reason, ...(retryTimer ? { retrying: true } : {}) };
+        state.value = have
+          ? { ...have, planFailed: f.reason }
+          : { key: req.key, status: 'failed', reason: f.reason, ...(retryTimer ? { retrying: true } : {}) };
         return;
       }
       if (isBusy) {
