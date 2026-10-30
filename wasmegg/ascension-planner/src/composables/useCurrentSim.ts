@@ -183,15 +183,16 @@ export function useCurrentSim(
       if (!leg) throw new Error(`the ascension to ${req.route[0]} TE could not be simulated`);
       const at = Date.now();
       recordSim({ account: req.account, backupTime: req.backupTime, route: [...req.route], setup: req.setup, at, ms: at - began, leg });
-      const buildUp = want
+      const siloLevel = inputs.context?.epicResearchLevels?.['silo_capacity'];
+      const made = want
         ? buildUpPlanFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
             accountKey: req.account,
-            siloSeconds: siloSeconds(
-              inputs.currentFarmState?.numSilos,
-              inputs.context?.epicResearchLevels?.['silo_capacity']
-            ),
+            siloSeconds: siloSeconds(inputs.currentFarmState?.numSilos, siloLevel),
           })
         : null;
+      // What the START farm's silos hold: a fresh ascension starts on 1 silo, not the save's (the synthetic save has 4:
+      // 12 h read as 1 silo's worth made the tracker's silo time 4 times too long, 30 Oct 2026).
+      const buildUp = made?.start ? { ...made, siloSeconds: siloSeconds(made.start.siloCount, siloLevel) } : made;
       if (buildUp) recordBuildUpPlan(req.key, buildUp);
       result = { key: req.key, status: 'done', leg, at, ...(buildUp ? { buildUp } : {}) };
     } catch (err) {

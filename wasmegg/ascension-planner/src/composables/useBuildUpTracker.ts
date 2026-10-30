@@ -18,6 +18,7 @@
 import { computed, onScopeDispose, ref, watch, type Ref } from 'vue';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import type { Availability } from '@/search/availability';
+import { BUILDUP_PLAN_KEY } from '@/lib/followSim';
 import {
   buildUpTracker,
   readAnchoredPlan,
@@ -97,7 +98,9 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       const k = ascKey.value;
       if (!p || !acct || k === null || plan.value) return;
       const a: AnchoredPlan = { ascensionStart: k, saveSeconds: i.saveSeconds.value, plan: p };
-      writeAnchoredPlan(acct, a);
+      // Kept here (compacted): useCurrentSim's own copy of the raw plan (lib/followSim.ts BUILDUP_PLAN_KEY, ~250 kB
+      // on the synthetic save) is then not needed, and the plan is not asked for again in this ascension.
+      if (writeAnchoredPlan(acct, a)) dropSimPlanCopy();
       anchored.value = a;
     },
     { immediate: true }
@@ -186,6 +189,15 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     siloWarnings,
     failReason: computed(() => (i.sim.value?.status === 'failed' ? (i.sim.value.reason ?? '') : '')),
   };
+}
+
+/** useCurrentSim's kept copy of the raw plan, once the tracker keeps its own. Never throws. */
+function dropSimPlanCopy(): void {
+  try {
+    localStorage.removeItem(BUILDUP_PLAN_KEY);
+  } catch {
+    /* nothing kept */
+  }
 }
 
 /** `now` to the minute, so the list is not rebuilt every second. */

@@ -142,17 +142,24 @@ describe('buildUpTracker: the oracle format (section D)', () => {
 });
 
 describe('buildUpTracker: set swaps only on Humility', () => {
-  it('drops a swap made off Humility, with a note, and keeps the one on Humility', () => {
+  it('the starting set (equipped at the prestige, before any shift) is not a swap: said on the prestige line, no note', () => {
+    const r = run();
+    expect(lineText(r.lines[0])).toBe('8:41 am · prestige: start the ascension on Curiosity (earnings set on) · offline 1 min');
+    expect(r.days[0].lines.filter(l => l.kind === 'note' && /8:41/.test(l.time))).toHaveLength(0);
+  });
+  it('drops a swap made off Humility during the build-up, with a note after the check-in\'s own lines', () => {
     const r = run();
     expect(r.droppedSwaps).toBe(1);
     const notes = r.lines.filter(l => l.kind === 'note');
-    expect(notes.map(l => l.text)).toEqual(['set swap left out: sets are swapped only on Humility (the plan had it on Curiosity)']);
+    expect(notes.map(l => lineText(l))).toEqual(['12:03 pm · set swap left out: sets are swapped only on Humility (the plan had it on Resilience)']);
     expect(notes[0].tickable).toBe(false);
-    const swaps = r.lines.filter(l => l.kind === 'setSwap');
-    expect(swaps).toHaveLength(1);
-    expect(r.lines[r.lines.indexOf(swaps[0]) - 1].text).toBe('shift to Humility');
-    // The prestige line keeps the offline tail, the note comes after it.
-    expect(lineText(r.lines[0])).toBe('8:41 am · prestige: start the ascension on Curiosity · offline 1 min');
+    // The offline tail stays on the check-in's last own line.
+    expect(texts(r)).toContain('12:03 pm · buy silos #2-5 · offline 1 min');
+  });
+  it("H1's update + equip of the ELR set on Humility is one bold line", () => {
+    const swaps = run().lines.filter(l => l.kind === 'setSwap');
+    expect(swaps.map(l => lineText(l))).toEqual(['10:00 am · set swap: equip the ELR set']);
+    expect(swaps[0].bold).toBe(true);
   });
 });
 

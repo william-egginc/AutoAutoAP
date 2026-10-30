@@ -9,6 +9,7 @@ import { buildUpWanted, useBuildUpTracker } from './useBuildUpTracker';
 import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
 import { ANCHOR_KEY_PREFIX, foldChoiceKey, ticksKey } from '@/lib/buildUpTracker';
 import type { BuildUpPlan } from '@/search/buildUpActions';
+import { BUILDUP_PLAN_KEY } from '@/lib/followSim';
 
 let mem: Map<string, string>;
 beforeEach(() => {
@@ -81,9 +82,12 @@ describe('useBuildUpTracker', () => {
 
   it('keeps the first plan of the ascension, not a later save\'s; ready from storage on the next visit', async () => {
     const { r, t, scope } = setup();
+    mem.set(BUILDUP_PLAN_KEY, '{"key":"k","plan":{}}');
     r.fresh.value = fixturePlan();
     await nextTick();
     expect(t.state.value).toBe('ready');
+    // One copy: the simulation's raw record goes once the tracker keeps its own.
+    expect(mem.has(BUILDUP_PLAN_KEY)).toBe(false);
     expect(t.wanted.value).toBe(false);
     expect(t.plan.value?.saveSeconds).toBe(mt(10, 30, 12, 5));
     const kept = mem.get(ANCHOR_KEY_PREFIX + 'acct-hash')!;

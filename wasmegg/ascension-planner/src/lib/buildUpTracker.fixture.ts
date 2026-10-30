@@ -40,8 +40,8 @@ const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i)
 export function fixtureActions(): BuildUpAction[] {
   return [
     { t: mt(10, 30, 8, 41), kind: 'prestige', label: 'prestige', id: 'curiosity' },
-    // A set swap off Humility: left out, with a note.
-    { t: mt(10, 30, 8, 41), kind: 'artifactSet', label: 'earnings set', id: 'earnings' },
+    // The starting set, equipped at the prestige before any shift (the engine's real shape): not a swap.
+    { t: mt(10, 30, 8, 41), kind: 'artifactSet', label: 'earnings set', id: 'earnings', detail: 'equip_artifact_set' },
     r(mt(10, 30, 8, 41, 30), 'Comfortable Nests', 0, 50),
     r(mt(10, 30, 8, 41, 31), 'Excitable Chickens', 0, 25),
     r(mt(10, 30, 8, 41, 32), 'Internal Hatchery Expansion', 0, 15, 'internal_hatchery3'),
@@ -78,6 +78,8 @@ export function fixtureActions(): BuildUpAction[] {
     shift(mt(10, 30, 12, 3), 'kindness'),
     ...range(0, 16).map(s => ({ t: mt(10, 30, 12, 3), kind: 'trainCar', label: 'train car', slot: s, fromLevel: 5, level: 8 }) as BuildUpAction),
     shift(mt(10, 30, 12, 3), 'resilience'),
+    // A set swap off Humility during the build-up: left out, with a note.
+    { t: mt(10, 30, 12, 3), kind: 'artifactSet', label: 'elr set', id: 'elr', detail: 'equip_artifact_set' },
     ...range(1, 4).map(n => silo(mt(10, 30, 12, 3), n)),
     ...range(5, 7).map(n => silo(mt(10, 30, 12, 4), n)),
     silo(mt(10, 30, 12, 16, 10), 8),
@@ -96,7 +98,9 @@ export function fixtureActions(): BuildUpAction[] {
     saleWait(mt(11, 13, 10, 0), 6 * 86400),
     r(mt(11, 13, 10, 0), 'Relativity Optimization', 2, 4),
     shift(mt(11, 13, 10, 0), 'humility'),
-    { t: mt(11, 13, 10, 0), kind: 'artifactSet', label: 'elr set', id: 'elr' },
+    // H1 (the engine's real shape): update the ELR set, then equip it, on Humility: one swap line.
+    { t: mt(11, 13, 10, 0), kind: 'artifactSet', label: 'elr set', id: 'elr', detail: 'update_artifact_set' },
+    { t: mt(11, 13, 10, 0), kind: 'artifactSet', label: 'elr set', id: 'elr', detail: 'equip_artifact_set' },
     // The TE part: left out of the build-up list.
     { t: mt(11, 21, 18, 32), kind: 'wait', label: 'wait_for_te', id: 'wait_for_te', seconds: 700000 },
     shift(mt(11, 21, 18, 32), 'kindness'),

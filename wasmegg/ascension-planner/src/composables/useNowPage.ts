@@ -148,6 +148,7 @@ import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps, prestigeAfterSimulated, withStayLine } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import type { BuildUpPlan } from '@/search/buildUpActions';
+import { buildUpWanted } from './useBuildUpTracker';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
 import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
@@ -1333,7 +1334,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       },
     };
   });
-  const { state: currentSim, slow: simSlow } = useCurrentSim(simRequest, searchBusy);
+  const { state: currentSim, slow: simSlow } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
   /** 'working' while the current ascension is simulated (or 'waiting' for a search), else null. */
   const simWorking = computed(() => {
     const st = currentSim.value;
@@ -1346,12 +1347,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   });
   /**
    * BUILD-UP TRACKER (Phase 1): the simulated ascension's build-up list, when useCurrentSim was asked for it
-   * (`wantBuildUp`, the tracker's composables/useBuildUpTracker.ts `buildUpWanted`; spec-buildup-a's opt-in). Read
-   * through a cast so this compiles with and without that field; null until the simulation carries one.
+   * (`wantBuildUp`: the tracker's composables/useBuildUpTracker.ts `buildUpWanted`, on only while the fold is open, the
+   * player is building and no plan is kept for the ascension); null until the simulation carries one.
    */
   const buildUpPlan = computed<BuildUpPlan | null>(() => {
     const st = currentSim.value;
-    return st?.status === 'done' && st.key === simRequest.value?.key ? ((st as { buildUp?: BuildUpPlan }).buildUp ?? null) : null;
+    return st?.status === 'done' && st.key === simRequest.value?.key ? (st.buildUp ?? null) : null;
   });
   /** The simulation's state for the tracker: working, waiting for a search, failed (with why) or done. */
   const buildUpSim = computed(() => {

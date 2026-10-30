@@ -30,7 +30,9 @@
  *  5. THE SILO TRICK (Jordan, 29 Oct): stay offline from the check-in before Monday's 2x event until a check-in inside
  *     it. Offline start = return − (S − 45 min cushion), S what the silos hold then. Claimed only when no planned
  *     check-in falls inside that stretch and it fits S; otherwise a warning line, and no trick.
- *  6. SET SWAPS ONLY ON HUMILITY. A set swap the plan makes while not on Humility is dropped, with a note line.
+ *  6. SET SWAPS ONLY ON HUMILITY. The set equipped before the first shift is the ascension's starting set (the free
+ *     trip through Humility at the prestige), said on the prestige line, not a swap. A swap after that while not on
+ *     Humility is dropped, with a note line. H1's update + equip of the ELR set is one bold line.
  *  7. DAYS. Lines grouped by the day in the player's zone; a clock change on that day is noted. Ordinary research
  *     lines are `granular` (a collapsed day hides them). Today and the next day with check-ins start open.
  *
@@ -218,6 +220,8 @@ const EGG_NAMES: Record<string, string> = {
   humility: 'Humility',
 };
 const eggName = (id: string | undefined): string => (id ? (EGG_NAMES[id] ?? id) : '');
+/** 'ELR', 'earnings', or the set's own name. */
+const setName = (a: BuildUpAction): string => (a.id === 'elr' ? 'ELR' : a.id === 'earnings' ? 'earnings' : (a.id ?? a.label.replace(/ set$/, '')));
 
 /** Two research items share the name "Internal Hatchery Expansion": they are told apart by their tier. */
 const RESEARCH_TIER: Record<string, number> = { internal_hatchery3: 5, internal_hatchery4: 7 };
@@ -340,7 +344,7 @@ interface Draft {
 /** A check-in's lines, in the order to do them. `egg` is the egg the farm is on at its start (updated). */
 function checkInLines(
   items: BuildUpAction[],
-  st: { egg: string; trains: Map<number, string>; sameName: Set<string>; dropped: number }
+  st: { egg: string; shifted: boolean; trains: Map<number, string>; sameName: Set<string>; dropped: number }
 ): Draft[] {
   const out: Draft[] = [];
   let i = 0;
@@ -374,21 +378,32 @@ function checkInLines(
       out.push({ kind: 'hab', text: `buy ${a.label} in hab slot ${(a.slot ?? 0) + 1}` });
     } else if (a.kind === 'shift') {
       st.egg = a.id ?? st.egg;
+      st.shifted = true;
       out.push({ kind: 'shift', text: `shift to ${eggName(a.id) || a.label}` });
     } else if (a.kind === 'prestige') {
       st.egg = a.id ?? 'curiosity';
       out.push({ kind: 'prestige', text: `prestige: start the ascension on ${eggName(a.id) || 'Curiosity'}` });
     } else if (a.kind === 'artifactSet') {
-      if (st.egg !== 'humility') {
+      // One line for a run of set actions (H1 does update_artifact_set then equip_artifact_set: one swap).
+      let j = i;
+      while (j < items.length && items[j].kind === 'artifactSet') j++;
+      const last = items[j - 1];
+      if (!st.shifted) {
+        // The set the ascension starts with (equipped at the prestige, before any shift; the free trip through
+        // Humility): not a swap. Said on the prestige line when there is one.
+        const p = out.find(d => d.kind === 'prestige');
+        if (p && last.id) p.text += ` (${setName(last)} set on)`;
+      } else if (st.egg !== 'humility') {
         st.dropped++;
         out.push({
           kind: 'note',
           text: `set swap left out: sets are swapped only on Humility (the plan had it on ${eggName(st.egg) || st.egg})`,
         });
       } else {
-        const set = a.id === 'elr' ? 'ELR' : a.id === 'earnings' ? 'earnings' : a.label.replace(/ set$/, '');
-        out.push({ kind: 'setSwap', text: `set swap: equip the ${set} set` });
+        out.push({ kind: 'setSwap', text: last.id ? `set swap: equip the ${setName(last)} set` : 'set swap: change your artifacts' });
       }
+      i = j;
+      continue;
     }
     i++;
   }
@@ -399,20 +414,27 @@ function checkInLines(
  *  trains to 8'. Other vehicles: 'buy Quantum Transporter in slot 3'. */
 function vehicleLines(run: BuildUpAction[], trains: Map<number, string>): Draft[] {
   const out: Draft[] = [];
-  const bought = new Map<string, number[]>();
-  const order: string[] = [];
+  // The engine climbs vehicle tiers one buy at a time (Trike, then Quantum Transporter, then Hyperloop Train in the
+  // same moment); the player buys the last one straight away: only each slot's last vehicle of the check-in is said.
+  const finalBy = new Map<number, string>();
   const cars = new Map<number, number>();
   for (const a of run) {
     const slot = (a.slot ?? 0) + 1;
     if (a.kind === 'vehicle') {
       trains.set(slot, a.label);
-      if (!bought.has(a.label)) {
-        bought.set(a.label, []);
-        order.push(a.label);
-      }
-      bought.get(a.label)!.push(slot);
-      if (a.level) cars.set(slot, Math.max(cars.get(slot) ?? 0, a.level));
+      finalBy.set(slot, a.label);
+      if (a.level) cars.set(slot, a.level);
+      else cars.delete(slot);
     } else if (a.level) cars.set(slot, Math.max(cars.get(slot) ?? 0, a.level));
+  }
+  const bought = new Map<string, number[]>();
+  const order: string[] = [];
+  for (const [slot, name] of finalBy) {
+    if (!bought.has(name)) {
+      bought.set(name, []);
+      order.push(name);
+    }
+    bought.get(name)!.push(slot);
   }
   const boughtSlots = new Set<number>();
   for (const name of order) {
@@ -494,7 +516,7 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
     }
   const sameName = new Set([...ids.entries()].filter(([, s]) => s.size > 1).map(([n]) => n));
 
-  const st = { egg: input.startEgg ?? 'curiosity', trains: new Map<number, string>(), sameName, dropped: 0 };
+  const st = { egg: input.startEgg ?? 'curiosity', shifted: false, trains: new Map<number, string>(), sameName, dropped: 0 };
   const startSilos = Math.max(1, input.startSilos ?? 1);
   const perSilo = input.siloSeconds && input.siloSeconds > 0 ? input.siloSeconds / startSilos : 0;
   let silos = startSilos;
@@ -648,7 +670,13 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
       lines.push({ key: `w:${w.at}:${w.text.length}`, kind: 'warning', at: ci.at, time: '', text: w.text, tail: '', bold: false, granular: false, tickable: false, checkIn: -1 });
     if (next && saleOpensBetween(ci.at, next.at)) {
       const start = getSaleStartForEnd(getNextSaleEnd(next.at - 1));
-      const over = ci.S > 0 && shownGap(ci.at, start) > ci.S ? ' (open the farm once a day; nothing to buy)' : '';
+      // Longer than the silos hold: say to open the farm meanwhile (the oracle's words when once a day is enough).
+      const over =
+        ci.S > 0 && shownGap(ci.at, start) > ci.S
+          ? ci.S >= 86400
+            ? ' (open the farm once a day; nothing to buy)'
+            : ` (your silos hold ${gapWords(ci.S)}: open the farm before they run out; nothing to buy)`
+          : '';
       // Events before the sale start (a sale end) come before the wait line.
       while (ev < events.length && events[ev].at < start && events[ev].at <= next.at) pushEvent(events[ev++]);
       lines.push({
