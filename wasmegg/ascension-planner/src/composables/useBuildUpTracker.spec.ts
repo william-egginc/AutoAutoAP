@@ -302,3 +302,18 @@ describe('useBuildUpTracker Phase 2: Re-plan from this save', () => {
     scope.stop();
   });
 });
+
+describe('useBuildUpTracker Phase 2: a plan kept before Phase 2 (no anchor farm)', () => {
+  it('starting afresh, on a newer save: nothing automatic (it could be from before the prestige); the checkbox still works', async () => {
+    const old = { ascensionStart: A1, saveSeconds: mt(10, 30, 8, 41), plan: fixturePlan() };
+    mem.set(ANCHOR_KEY_PREFIX + 'acct-hash', JSON.stringify(old));
+    const { t, scope } = setup({ saveFarm: ref(farmWith(FIRST_LINE)), saveSeconds: ref(mt(10, 30, 12, 5)) });
+    expect(t.plan.value?.anchorFarm).toBeUndefined();
+    expect(t.bought.value!.fit).toBe('unknown');
+    expect([...t.ticks.value]).toEqual([]);
+    const k = t.result.value!.lines.find(l => l.kind === 'research')!.key;
+    t.toggleTick(k, true);
+    expect(t.ticks.value.has(k)).toBe(true);
+    scope.stop();
+  });
+});

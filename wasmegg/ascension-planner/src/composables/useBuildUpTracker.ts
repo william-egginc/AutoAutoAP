@@ -188,12 +188,26 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const k = ascKey.value;
     return acct && k !== null ? { on: readTicks(acct, k), off: readUnticks(acct, k) } : { on: new Set<string>(), off: new Set<string>() };
   });
+  /**
+   * The save to tick from, and the anchor save's farm. A plan kept before Phase 2 has no anchor farm: on the anchor
+   * save itself that save's farm is it; on another save a plan that starts afresh can't tell a save from before its
+   * prestige, so nothing is automatic there (the checkbox only) until a re-plan.
+   */
+  const tickFrom = computed(() => {
+    const a = plan.value;
+    const save = saveFarm.value;
+    if (!a) return { save: null, anchorFarm: null };
+    const anchorFarm = a.anchorFarm ?? (i.saveSeconds.value === a.saveSeconds ? save : null);
+    const startsAfresh = a.plan.variantKey !== 'buildup' && a.plan.variantKey !== 'continue';
+    return { save: !anchorFarm && startsAfresh ? null : save, anchorFarm };
+  });
   /** What the save says, line by line. */
   const bought = computed<BoughtResult | null>(() => {
     const r = result.value;
     const a = plan.value;
     if (!r || !a) return null;
-    return boughtFromSave({ lines: r.lines, save: saveFarm.value, start: a.plan.start, startEgg: a.plan.start?.egg, anchorFarm: a.anchorFarm });
+    const { save, anchorFarm } = tickFrom.value;
+    return boughtFromSave({ lines: r.lines, save, start: a.plan.start, startEgg: a.plan.start?.egg, anchorFarm });
   });
   /** The save's tick per tickable line: true / false, null when the save can't tell. */
   const auto = computed(() => {
@@ -238,15 +252,16 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   const offer = computed(() => {
     const r = result.value;
     const a = plan.value;
-    if (!r || !a || !saveFarm.value) return null;
+    const { save, anchorFarm } = tickFrom.value;
+    if (!r || !a || !save) return null;
     return replanOffer({
       lines: r.lines,
-      save: saveFarm.value,
+      save,
       start: a.plan.start,
       startEgg: a.plan.start?.egg,
       saveSeconds: i.saveSeconds.value,
       anchorSeconds: a.saveSeconds,
-      anchorFarm: a.anchorFarm,
+      anchorFarm,
     });
   });
   /** The button shows (or is working, or has failed: the old plan stays). */
