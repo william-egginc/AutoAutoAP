@@ -278,7 +278,7 @@ describe('Phase 2 end to end: a second synthetic save ticks the right lines of t
         replan: o.show ? { shown: true, working: false, error: '', behind: o.behind, offPlan: o.offPlan.map(x => x.what), keepsTicks: false } : null,
       });
       const t = textOf(html);
-      if (name === 'fresh') expect(t).toContain('This save is from before the plan’s prestige');
+      if (name === 'fresh') expect(t).toContain("This save is from before the plan's prestige");
       if (name === 'partly') expect(t).toMatch(/\d+ of \d+ bought/);
       if (name === 'replan') expect(t).toContain('Re-plan from this save');
       if (process.env.BUILDUP_SHOT_DIR)

@@ -331,9 +331,9 @@ function canClear(l: TrackerLine): boolean {
 }
 const fitNote = computed(() =>
   props.saveFit === 'older'
-    ? 'This save is older than the plan’s start, so nothing is ticked from it. Load a newer save, or tick by hand.'
+    ? "This save is older than the plan's start, so nothing is ticked from it. Load a newer save, or tick by hand."
     : props.saveFit === 'beforePrestige'
-      ? 'This save is from before the plan’s prestige, so nothing is ticked from it yet.'
+      ? "This save is from before the plan's prestige, so nothing is ticked from it yet."
       : ''
 );
 const replanWhy = computed(() => {
@@ -344,7 +344,7 @@ const replanWhy = computed(() => {
   if (r.offPlan.length) {
     const some = r.offPlan.slice(0, 3).join(', ');
     const more = r.offPlan.length > 3 ? ` and ${r.offPlan.length - 3} more` : '';
-    out.push(`Your save has bought things this plan has later or not at all: ${some}${more}.`);
+    out.push(`Your save has bought things this plan buys later, or not at all: ${some}${more}.`);
   }
   return out;
 });

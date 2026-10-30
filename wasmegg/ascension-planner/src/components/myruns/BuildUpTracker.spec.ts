@@ -186,9 +186,9 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
 
   it('a save older than the plan, or from before its prestige: said, nothing ticked', async () => {
     const older = await renderHtml(BuildUpTracker, fromSave(save({}, { siloCount: 0 })));
-    expect(textOf(older)).toContain('This save is older than the plan’s start, so nothing is ticked from it.');
+    expect(textOf(older)).toContain("This save is older than the plan's start, so nothing is ticked from it.");
     const pre = await renderHtml(BuildUpTracker, props('ready', { saveFit: 'beforePrestige' }));
-    expect(textOf(pre)).toContain('This save is from before the plan’s prestige, so nothing is ticked from it yet.');
+    expect(textOf(pre)).toContain("This save is from before the plan's prestige, so nothing is ticked from it yet.");
   });
 });
 
@@ -198,7 +198,7 @@ describe('BuildUpTracker Phase 2: Re-plan from this save', () => {
     const html = await render('ready', { replan: R });
     const t = textOf(html);
     expect(t).toContain('You are 2 h 10 min behind this plan.');
-    expect(t).toContain('Your save has bought things this plan has later or not at all: Comfortable Nests 51, silo #5, hab slot 2 and 1 more.');
+    expect(t).toContain('Your save has bought things this plan buys later, or not at all: Comfortable Nests 51, silo #5, hab slot 2 and 1 more.');
     expect(t).toContain('Re-plan from this save This keeps your ticks that still match.');
     expect(html).toMatch(/<button[^>]*class="min-h-\[44px\][^"]*"[^>]*data-testid="buildup-replan-button"/);
   });

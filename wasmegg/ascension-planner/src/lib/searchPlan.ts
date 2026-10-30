@@ -551,7 +551,7 @@ export function staleRouteWords(
   const lead = "Your save doesn't match the route you follow: ";
   const why =
     reason.kind === 'egg'
-      ? `it's on ${virtueEggName(reason.saveEgg)}, the route expects ${virtueEggName(reason.planEgg)}.`
+      ? `it's on ${virtueEggName(reason.saveEgg)}, but the route expects ${virtueEggName(reason.planEgg)}.`
       : reason.kind === 'hours'
         ? 'the route was set with different awake hours than yours now.'
         : reason.step === 'shift'

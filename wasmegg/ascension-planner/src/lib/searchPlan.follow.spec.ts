@@ -237,7 +237,7 @@ describe('re-plan from this save (the save contradicts the follow)', () => {
 
   it('each reason leads in plain words, then the answer\'s finish (12-hour times)', () => {
     expect(followPrompt({ ...base, stale: egg })!.words).toBe(
-      "Your save doesn't match the route you follow: it's on Curiosity, the route expects Kindness. The answer for this save finishes Dec 4 at 11:00 AM."
+      "Your save doesn't match the route you follow: it's on Curiosity, but the route expects Kindness. The answer for this save finishes Dec 4 at 11:00 AM."
     );
     expect(followPrompt({ ...base, stale: { kind: 'hours' } })!.words).toBe(
       "Your save doesn't match the route you follow: the route was set with different awake hours than yours now. The answer for this save finishes Dec 4 at 11:00 AM."
