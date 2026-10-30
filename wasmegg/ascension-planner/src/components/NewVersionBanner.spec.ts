@@ -18,7 +18,7 @@ vi.mock('@/composables/useNewVersion', async importOriginal => ({
 const { default: NewVersionBanner } = await import('./NewVersionBanner.vue');
 
 /** A listed note, newer than this tab or not. */
-const n = (note: string, isNew = true) => ({ at: '2026-10-27T12:00:00Z', note, isNew });
+const n = (note: string, isNew = true) => ({ at: '2026-10-27T12:00:00Z', note, key: `k-${note}`, isNew });
 
 const render = (release: ReleaseInfo, note?: string) => {
   state.release.value = release;

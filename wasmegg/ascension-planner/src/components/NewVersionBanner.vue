@@ -11,9 +11,10 @@
   <!-- A SMALL update (wording, looks): a small note in the corner, dismissible for good. Players
        asked for the difference: the same loud banner on every deploy taught them to ignore it, and
        they could not tell a real fix from a wording change (2026-09-25).
-       Every level lists the release notes newest first, each with its date, at most five plus
-       "+N more"; the ones newer than this tab's build are tagged "New" (lib/updateNotes.ts), the older
-       ones are listed plain (UX35-b, 28 Oct 2026). With no notes at all it says just "Small update
+       When at least one release note is new to this tab (its build does not carry it: matched by the
+       note's text, lib/updateNotes.ts), every level lists the notes, each with its date, at most five
+       plus "+N more": the new ones first, tagged "New", then the ones the tab already has, plain
+       (UX35-b, 28 Oct 2026; by text, 30 Oct 2026). With none new it says just "Small update
        available" and lists nothing. -->
   <div
     v-if="available && release.level === 'small' && !dismissed"
@@ -29,7 +30,7 @@
       >
     </p>
     <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-body space-y-0.5" data-testid="update-notes">
-      <li v-for="n in shown" :key="n.at" data-testid="update-note">
+      <li v-for="n in shown" :key="n.key" data-testid="update-note">
         <span class="tabular-nums text-slate-500">{{ n.date }}</span
         >{{ ' '
         }}<template v-if="n.isNew"
@@ -78,7 +79,7 @@
       <span class="font-bold">New on the planner</span><template v-if="hasNotes">:</template
       ><template v-else>.</template>
       <ul v-if="hasNotes" class="mt-1 list-disc pl-4 space-y-0.5" data-testid="update-notes">
-        <li v-for="n in shown" :key="n.at" data-testid="update-note">
+        <li v-for="n in shown" :key="n.key" data-testid="update-note">
           <span class="tabular-nums text-sky-800">{{ n.date }}</span
           >{{ ' '
           }}<template v-if="n.isNew"
@@ -124,7 +125,7 @@
     <div class="text-body font-bold flex-1 min-w-[14rem]">
       Please reload: this tab is missing a fix from a newer version.{{ advice }}
       <ul v-if="hasNotes" class="mt-1 list-disc pl-4 font-normal space-y-0.5" data-testid="update-notes">
-        <li v-for="n in shown" :key="n.at" data-testid="update-note">
+        <li v-for="n in shown" :key="n.key" data-testid="update-note">
           <span class="tabular-nums text-amber-800">{{ n.date }}</span
           >{{ ' '
           }}<template v-if="n.isNew"
@@ -176,8 +177,8 @@ const TAP = 'inline-flex items-center justify-center min-h-[44px] sm:min-h-0';
 
 const { available, release } = useNewVersion(props.pageUrl, props.entry);
 
-/** The notes, newest first, each with its date in the player's zone and without a trailing full stop (the list has
- *  none); `isNew` when newer than this tab's build. */
+/** The notes in the order given (new first), each with its date in the player's zone and without a trailing full stop
+ *  (the list has none); `isNew` when this tab's build does not carry it. */
 const shown = computed(() => {
   const zone = localZone();
   return release.value.notes
@@ -190,7 +191,7 @@ const more = computed(() => release.value.more);
 const notesKey = computed(() =>
   shown.value
     .filter(n => n.isNew)
-    .map(n => n.at)
+    .map(n => n.key)
     .join('|')
 );
 
@@ -202,8 +203,9 @@ const advice = computed(() => {
 });
 /** The small note, closed for the rest of this tab's life: it asks for nothing. */
 const dismissed = ref(false);
-/** The big banner's notes that were dismissed (notesKey); newer notes show it again. */
-const dismissedBig = ref('');
+/** The big banner's notes that were dismissed (notesKey); newer notes show it again. Null until dismissed, so an
+ *  empty key never counts as dismissed. */
+const dismissedBig = ref<string | null>(null);
 
 function reload(): void {
   window.location.reload();

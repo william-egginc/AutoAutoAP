@@ -1,12 +1,15 @@
 /**
- * The update banner always lists the release notes, newest first: the newer-than-this-tab ones tagged "New", then the
- * older ones, at most five plus "+N more" (Jordan, UX35-b, 28 Oct 2026). Rendered through releaseFrom() with fixture
+ * When at least one release note is new to this tab, the update banner lists the notes: the new ones first, tagged
+ * "New", then the ones the tab already has, at most five plus "+N more" (Jordan, UX35-b, 28 Oct 2026). With none new
+ * it lists nothing, and a note is new only when the tab's build does not carry its text (30 Oct 2026). Rendered through releaseFrom() with fixture
  * notes and a fixed build time, so the whole path from version.json to the banner is covered. Fixed clocks only.
  */
 import { ref } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { releaseFrom, type ReleaseInfo } from '@/composables/useNewVersion';
+import type { RunningBuild } from '@/lib/updateNotes';
 import { renderHtml, textOf as blockText } from '@/test/renderComponent';
+import { buildNoteKeys } from '@/lib/updateNotes';
 
 const textOf = (html: string) => blockText(html.replace(/<\/?span[^>]*>/g, ''));
 
@@ -31,7 +34,7 @@ const versionJson = (history: unknown[]) => ({
 /** A tab whose build is between the 3rd newest (n5, 25 Oct) and the 4th (n4, 24 Oct). */
 const BUILT = { builtAt: '2026-10-24T18:00:00Z', noteAts: [] as string[] };
 
-const render = async (history: unknown[], running = BUILT) => {
+const render = async (history: unknown[], running: RunningBuild = BUILT) => {
   state.release.value = releaseFrom(versionJson(history), running);
   return renderHtml(NewVersionBanner, { pageUrl: './', entry: 'index' });
 };
@@ -65,17 +68,50 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     expect(text).toContain('Reload anyway');
   });
 
-  it('none newer than this tab: the older notes are still listed, none tagged "New"', async () => {
+  it('none newer than this tab: no list, just "Small update available" (30 Oct 2026)', async () => {
     const html = await render(SEVEN, { builtAt: '2026-10-28T00:00:00Z', noteAts: [] });
-    expect(items(html)).toEqual(['Oct 27 note 7', 'Oct 26 note 6', 'Oct 25 note 5', 'Oct 24 note 4', 'Oct 23 note 3']);
-    expect(html).not.toContain('data-testid="update-note-new"');
-    expect(textOf(html)).toContain('+2 more');
+    expect(html).toContain('data-testid="update-banner-small"');
+    expect(html).not.toContain('<li');
+    expect(textOf(html)).toContain(
+      'Small update available. No need to reload now; you will get it next time you open the page.'
+    );
   });
 
   it('a note the tab already carries is not "New", even when its go-live time is after the build', async () => {
     const html = await render(SEVEN, { ...BUILT, noteAts: ['2026-10-25T12:00:00Z'] });
     expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(2);
+    // The new ones first, then the carried one with the older ones.
     expect(items(html)[2]).toBe('Oct 25 note 5');
+  });
+
+  it('a tab carrying the notes under earlier times (re-timed at go-live) lists only the one it lacks as "New"', async () => {
+    // The 29 Oct report: built at 3 pm MDT carrying all seven at placeholder times; version.json has the real times
+    // and one more note. The big carried note neither shows as new nor makes the banner big.
+    const placeholder = SEVEN.map(n => ({ ...n, at: '2026-10-20T12:00:00Z' }));
+    const live = [
+      { at: '2026-10-29T23:00:00Z', note: 'note 8' },
+      ...SEVEN.map((n, i) => (i === 0 ? { ...n, level: 'big' } : n)),
+    ];
+    const keyed = {
+      builtAt: '2026-10-29T21:00:00Z',
+      noteAts: placeholder.map(n => n.at),
+      noteKeys: buildNoteKeys(placeholder),
+    };
+    const html = await render(live, keyed);
+    expect(html).toContain('data-testid="update-banner-small"');
+    expect(items(html)).toEqual([
+      'Oct 29 New note 8',
+      'Oct 27 note 7',
+      'Oct 26 note 6',
+      'Oct 25 note 5',
+      'Oct 24 note 4',
+    ]);
+    expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(1);
+    expect(textOf(html)).toContain('+3 more');
+    // Without the new note: no list, no big banner.
+    const same = await render(live.slice(1), keyed);
+    expect(same).toContain('data-testid="update-banner-small"');
+    expect(same).not.toContain('<li');
   });
 
   it('one note: listed alone, no "+N more"', async () => {

@@ -68,11 +68,11 @@ describe('notesNewerThan', () => {
     expect(big.more).toBe(4);
   });
 
-  it('cuts a note at 200 characters and lists one time once', () => {
+  it('cuts a note at 200 characters and lists one note once (one text, 30 Oct 2026: not one time)', () => {
     const r = notesNewerThan(
       [
         { at: '2026-10-06T15:00:00Z', note: 'x'.repeat(300) },
-        { at: '2026-10-06T15:00:00.000Z', note: 'same time again' },
+        { at: '2026-10-06T16:00:00Z', note: ' ' + 'x'.repeat(300) },
       ],
       { builtAt: '2026-10-01T00:00:00Z' }
     );
@@ -81,7 +81,7 @@ describe('notesNewerThan', () => {
   });
 });
 
-describe('listNotes (UX35-b: every note, newest first, the newer ones tagged)', () => {
+describe('listNotes (UX35-b: the new ones first and tagged, then the rest; nothing when none is new)', () => {
   const tagged = (r: ReturnType<typeof listNotes>) => r.shown.map(n => (n.isNew ? `${n.note}*` : n.note));
 
   it('lists older notes too, and tags only the newer ones', () => {
@@ -93,14 +93,18 @@ describe('listNotes (UX35-b: every note, newest first, the newer ones tagged)', 
     expect(listNotes(notes, { builtAt: '2026-10-06T00:00:00Z' }).anyBig).toBe(true);
   });
 
-  it('a note the build already carries is not tagged, whatever its time', () => {
+  it('a note the build already carries is not tagged, whatever its time; the new ones come first', () => {
     const r = listNotes(notes, { builtAt: '2026-10-05T00:00:00Z', noteAts: ['2026-10-06T15:00:00.000Z'] });
-    expect(tagged(r)).toEqual(['newest', 'middle*', 'oldest*']);
+    expect(tagged(r)).toEqual(['middle*', 'oldest*', 'newest']);
   });
 
-  it('unknown build info lists every note with none tagged', () => {
-    expect(tagged(listNotes(notes, { builtAt: '' }))).toEqual(['newest', 'middle', 'oldest']);
-    expect(tagged(listNotes(notes, null))).toEqual(['newest', 'middle', 'oldest']);
+  it('none new: no list at all', () => {
+    expect(listNotes(notes, { builtAt: '2026-10-07T00:00:00Z' })).toEqual({ shown: [], more: 0, anyBig: false });
+  });
+
+  it('unknown build info: nothing new, so no list', () => {
+    expect(tagged(listNotes(notes, { builtAt: '' }))).toEqual([]);
+    expect(tagged(listNotes(notes, null))).toEqual([]);
     expect(listNotes(notes, null).anyBig).toBe(false);
   });
 
@@ -113,16 +117,17 @@ describe('listNotes (UX35-b: every note, newest first, the newer ones tagged)', 
     expect(listNotes(undefined, { builtAt: '2026-10-23T18:00:00Z' }).shown).toEqual([]);
   });
 
-  it('skips unreadable notes and lists one time once', () => {
+  it('skips unreadable notes and lists one text once (two notes at one time are two notes)', () => {
     const r = listNotes(
       [
         { at: 'soon', note: 'x' },
         { at: '2026-10-06T15:00:00Z', note: ' a ' },
+        { at: '2026-10-06T14:00:00Z', note: 'a' },
         { at: '2026-10-06T15:00:00.000Z', note: 'b' },
       ],
       { builtAt: '2026-10-01T00:00:00Z' }
     );
-    expect(tagged(r)).toEqual(['a*']);
+    expect(tagged(r)).toEqual(['a*', 'b*']);
   });
 });
 
