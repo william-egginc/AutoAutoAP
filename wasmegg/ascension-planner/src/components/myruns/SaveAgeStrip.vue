@@ -26,7 +26,7 @@
     :data-server="server.kind"
   >
     <template v-if="state">
-      <p class="min-w-0" :class="quiet ? 'inline' : 'flex items-start gap-2'">
+      <p class="min-w-0" :class="quiet ? 'inline' : 'flex flex-col sm:flex-row sm:items-start sm:gap-2'">
         <span role="status" class="inline-flex items-center gap-1 shrink-0 align-text-bottom" :class="quiet ? 'mr-1' : 'min-h-[21px]'" data-testid="save-tone">
           <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" :data-icon="state.icon">
             <path v-if="state.icon === 'clock'" stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -59,11 +59,11 @@
         {{ loading ? 'Loading your save…' : !state ? 'Load your save' : server.kind === 'newer' ? NEWER_ON_SERVER : loadWords || state.link }}<template v-if="!loading"> ›</template>
       </button>
       <details v-if="state?.syncLine && server.kind !== 'newest'" class="group" data-testid="save-sync-how">
-        <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline" data-testid="save-sync-how-summary">How to sync ›</summary>
+        <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-sync-how-summary">How to sync ›</summary>
         <p class="mt-1">{{ WHY_OUT_OF_DATE.body }}</p>
       </details>
       <details v-if="state && state.tone !== 'green'" data-testid="save-details">
-        <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline" data-testid="save-details-summary">Details ›</summary>
+        <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-details-summary">Details ›</summary>
         <ul class="mt-1 mb-1 space-y-0.5 text-small tabular-nums">
           <li v-for="d in state.details" :key="d">{{ d }}</li>
         </ul>
