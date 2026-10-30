@@ -436,6 +436,9 @@
       </p>
     </div>
 
+    <!-- The Build-up tracker (MyRunsView.vue, 30 Oct 2026 Jordan): directly under Next step and Next shifts. -->
+    <div v-if="$slots.buildUp" class="mt-2" data-testid="now-buildup-slot"><slot name="buildUp" /></div>
+
     <GearBlock
       v-if="gear"
       :equipped="gear.equipped"

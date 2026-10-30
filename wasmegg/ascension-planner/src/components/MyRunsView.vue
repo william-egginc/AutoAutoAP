@@ -79,7 +79,33 @@
         @use-search="page.useSearchResult"
         @follow="followTyped"
         @unfollow="unfollowGoal"
-      />
+      >
+        <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
+             Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
+        <template #buildUp>
+          <BuildUpTracker
+            :state="tracker.state.value"
+            :open="tracker.open.value"
+            :result="tracker.result.value"
+            :ticks="tracker.ticks.value"
+            :summary="tracker.summary.value"
+            :silo-warnings="tracker.siloWarnings.value"
+            :fail-reason="tracker.failReason.value"
+            :now="page.now.value"
+            :zone="page.zone.value"
+            :save-seconds="page.saveSeconds.value"
+            :plan-save="tracker.plan.value?.saveSeconds ?? 0"
+            :bought="tracker.bought.value?.lines ?? null"
+            :tick-source="tracker.tickSource.value"
+            :save-fit="tracker.bought.value?.fit ?? null"
+            :replan="trackerReplan"
+            @toggle="tracker.playerToggle"
+            @tick="tracker.toggleTick"
+            @clear="tracker.clearTick"
+            @replan="tracker.replan"
+          />
+        </template>
+      </RightNowCard>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
       <YourEggs
@@ -275,28 +301,6 @@
           </summary>
           <div class="mt-2"><DashboardGaps :state="steps" @act="act" /></div>
         </details>
-        <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building. -->
-        <BuildUpTracker
-          :state="tracker.state.value"
-          :open="tracker.open.value"
-          :result="tracker.result.value"
-          :ticks="tracker.ticks.value"
-          :summary="tracker.summary.value"
-          :silo-warnings="tracker.siloWarnings.value"
-          :fail-reason="tracker.failReason.value"
-          :now="page.now.value"
-          :zone="page.zone.value"
-          :save-seconds="page.saveSeconds.value"
-          :plan-save="tracker.plan.value?.saveSeconds ?? 0"
-          :bought="tracker.bought.value?.lines ?? null"
-          :tick-source="tracker.tickSource.value"
-          :save-fit="tracker.bought.value?.fit ?? null"
-          :replan="trackerReplan"
-          @toggle="tracker.playerToggle"
-          @tick="tracker.toggleTick"
-          @clear="tracker.clearTick"
-          @replan="tracker.replan"
-        />
       </div>
     </section>
   </div>
@@ -417,7 +421,7 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
-/** The Build-up tracker under Next steps (composables/useBuildUpTracker.ts): the followed route's current ascension. */
+/** The Build-up tracker under Right now's Next step (composables/useBuildUpTracker.ts): the followed route's current ascension. */
 const tracker = useBuildUpTracker({
   account: computed(() => page.account.value || null),
   hasSave: page.hasSave,
