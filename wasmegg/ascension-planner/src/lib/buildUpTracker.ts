@@ -1,0 +1,751 @@
+/**
+ * THE BUILD-UP TRACKER'S LIST (build-up tracker Phase 1, 30 Oct 2026; outline
+ * ~/code/aaap-tools/wireframes/buildup-tracker-v1.md, method ~/code/aaap-tools/notes/wait-chunks-2026-10-28.md
+ * option (a), format oracle notes/jordan-a2-buildup-2026-10-29.md section D). Pure: no Vue, no stores, the clock
+ * and the zone are parameters.
+ *
+ * From the simulator's build-up (search/buildUpActions.ts `BuildUpAction[]`, cut at the first `wait_for_te`) to
+ * what a player does, check-in by check-in:
+ *
+ *  1. CHECK-INS AT LEAST 1 MINUTE APART. Every player action (research, vehicles, train cars, habs, silos, shifts,
+ *     the prestige, a set swap) is due at its planned time `t`. A check-in takes everything due by its own time, in
+ *     plan order; the next one is at the later of (this one + 60 s) and the next action's due time. Nothing is ever
+ *     earlier than planned. This is a REGROUP of the plan, not a replay: the engine is not run again, so a buy pushed
+ *     by up to a minute is assumed still affordable then (it was affordable earlier) and later buys keep their planned
+ *     times unless the 1-minute rule pushes them. The wait-chunks measurements put the honest replay's extra delay at
+ *     1.3 to 17.5 min per ascension; the regroup's times are optimistic by that much at most.
+ *  2. SALE AND 2x WAITS FIXED TO THE CLOCK. Sales (Fri 9 am to Sat 9 am Pacific) and the 2x earnings event (Mon 9 am
+ *     to Tue 9 am Pacific) come from lib/events.ts (read only), shown in the player's zone. An action after a
+ *     `wait_for_research_sale` / `wait_for_earnings_boost` is due no earlier than that event's start, whatever the
+ *     engine's wait length says. A research buy planned inside a sale is never pushed past the sale's end (the
+ *     sale-end exception: it keeps its planned time even if that is under a minute after the last check-in).
+ *  3. NIGHT HOURS. With the player's hours set (search/availability.ts `Availability`, the planner's hours), no
+ *     check-in falls outside them: it moves to the start of the next available stretch, collecting what is due by
+ *     then. A sale buy the night would push past the sale's end stays where it is, with a warning line.
+ *  4. LINES. One line per kind of thing in a check-in, in the order to do it, the time on each, "offline N" (the gap
+ *     to the next check-in, real elapsed time, rounded down to the minute like the times) on the check-in's last line.
+ *     Research merges into one "buy …" line ("Name 5", "Name 3-7"); shifts, trains, habs, silos, the set swap and the
+ *     prestige are BOLD lines of their own. Before a check-in that opens a sale: "wait for the sale: offline until …".
+ *     Sale starts and ends are event lines (not check-ins).
+ *  5. THE SILO TRICK (Jordan, 29 Oct): stay offline from the check-in before Monday's 2x event until a check-in inside
+ *     it. Offline start = return − (S − 45 min cushion), S what the silos hold then. Claimed only when no planned
+ *     check-in falls inside that stretch and it fits S; otherwise a warning line, and no trick.
+ *  6. SET SWAPS ONLY ON HUMILITY. A set swap the plan makes while not on Humility is dropped, with a note line.
+ *  7. DAYS. Lines grouped by the day in the player's zone; a clock change on that day is noted. Ordinary research
+ *     lines are `granular` (a collapsed day hides them). Today and the next day with check-ins start open.
+ *
+ * Times are 12-hour with am/pm ("8:42 am"), always, as the oracle and Jordan's rule write them.
+ * Player-facing words here are DRAFT (Words reviews them; ~/code/aaap-tools/notes/spec-buildup-b.md).
+ */
+import type { BuildUpAction } from '@/search/buildUpActions';
+import type { Availability } from '@/search/availability';
+import { isAvailable, nextAvailable } from '@/search/availability';
+import { isConstrained } from '@/search/availabilitySchedule';
+import {
+  getNextEarningsBoostEnd,
+  getNextEarningsBoostStart,
+  getNextSaleEnd,
+  getNextSaleStart,
+  getSaleStartForEnd,
+  getTimezoneOffsetAt,
+  isEarningsBoostActive,
+  isResearchSaleActive,
+} from './events';
+import { calendarOf } from './clock';
+
+/** The minimum gap between check-ins, seconds. */
+export const CHECK_IN_GAP = 60;
+/** Silo cushion before the 2x return (the oracle's 45 min). */
+export const SILO_CUSHION = 45 * 60;
+
+export type LineKind =
+  | 'research'
+  | 'trains'
+  | 'trainCars'
+  | 'vehicle'
+  | 'hab'
+  | 'silo'
+  | 'shift'
+  | 'prestige'
+  | 'setSwap'
+  | 'siloTrick'
+  | 'back'
+  | 'saleStart'
+  | 'saleEnd'
+  | 'saleWait'
+  | 'warning'
+  | 'note';
+
+export interface TrackerLine {
+  /** Stable within one plan: `${check-in time}:${n}` for a check-in's lines, `e:${…}` for the others. The tick key. */
+  key: string;
+  kind: LineKind;
+  /** Unix seconds the line is at (a wait line: the check-in it follows). */
+  at: number;
+  /** '8:42 am'; '' for a line without its own time (wait for the sale, a warning). */
+  time: string;
+  /** What to do: 'buy Grav Plating 18, Autonomous Vehicles 2'. */
+  text: string;
+  /** 'offline 1 min' on a check-in's last line; '' otherwise. */
+  tail: string;
+  /** Muted words after the line ('27 h of silos, 45 min spare'). */
+  sub?: string;
+  /** Shifts, trains, habs, silos, the set swap, the prestige, the silo trick. */
+  bold: boolean;
+  /** An ordinary research line: hidden in a collapsed day. */
+  granular: boolean;
+  /** Something the player does (a checkbox): every check-in line. */
+  tickable: boolean;
+  /** The check-in it belongs to (index into `checkIns`), -1 for an event, wait or warning line. */
+  checkIn: number;
+}
+
+export interface CheckIn {
+  at: number;
+  /** Its lines' keys. */
+  keys: string[];
+}
+
+export interface TrackerDay {
+  /** 'YYYY-MM-DD' in the zone. */
+  ymd: string;
+  /** 'Fri Oct 30'. */
+  title: string;
+  /** 'clocks go back 1 h at 2:00 am'; '' when none. */
+  clockNote: string;
+  lines: TrackerLine[];
+  /** Check-ins that start on this day. */
+  checkIns: number;
+  /** Today, or the next day with check-ins after today (outline recommendation 6). */
+  openByDefault: boolean;
+}
+
+export interface TrackerInput {
+  actions: readonly BuildUpAction[];
+  /** IANA zone the player reads times in (the planner's). */
+  zone: string;
+  /** The player's hours; null / unconstrained: every hour. */
+  hours?: Availability | null;
+  /** What the silos hold at the plan's start, seconds; null / 0: not known. */
+  siloSeconds?: number | null;
+  /** Silos at the plan's start (BuildUpPlan.start.siloCount), so later silo buys lengthen S. */
+  startSilos?: number | null;
+  /** The egg the plan starts on (BuildUpPlan.start.egg), for the set-swap rule. */
+  startEgg?: string | null;
+  /** Now, unix seconds: which days start open, and the year in the day titles. */
+  now: number;
+  /** Specs: another gap. */
+  gapSeconds?: number;
+}
+
+export interface TrackerResult {
+  days: TrackerDay[];
+  checkIns: CheckIn[];
+  /** Every line, in order. */
+  lines: TrackerLine[];
+  /** Set swaps left out (not on Humility). */
+  droppedSwaps: number;
+}
+
+// ------------------------------------------------------------------------------------------------ words
+
+/** '8:42 am' in `zone`, rounded down to the minute. */
+export function clock12(at: number, zone: string): string {
+  const d = new Date(Math.floor(at / 60) * 60 * 1000);
+  try {
+    const s = new Intl.DateTimeFormat('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
+    return s.replace(/[\s  ]*([AaPp])\.?[Mm]\.?$/, (_m, x: string) => ` ${x.toLowerCase()}m`);
+  } catch {
+    return '';
+  }
+}
+
+/** 'Fri Oct 30' in `zone` (the year after it when not `now`'s: 'Fri Jan 1 2027'). */
+export function dayTitle(at: number, zone: string, now: number): string {
+  try {
+    const d = new Date(at * 1000);
+    const y = calendarOf(at * 1000, zone)?.year;
+    const ny = calendarOf(now * 1000, zone)?.year;
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric' })
+      .formatToParts(d)
+      .filter(p => p.type === 'weekday' || p.type === 'month' || p.type === 'day')
+      .map(p => p.value);
+    return y && ny && y !== ny ? `${parts.join(' ')} ${y}` : parts.join(' ');
+  } catch {
+    return '';
+  }
+}
+
+/** 'Sunday' in `zone`. */
+function weekdayLong(at: number, zone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'long' }).format(new Date(at * 1000));
+  } catch {
+    return '';
+  }
+}
+
+/** 'Fri Oct 30 10:00 am'. */
+export function dayClock(at: number, zone: string, now: number): string {
+  return `${dayTitle(at, zone, now)} ${clock12(at, zone)}`;
+}
+
+/** An exact span, whole minutes: '1 min', '1 h', '1 h 33 min', '26 h 15 min', '3 d 23 h 59 min'. Days start at 48 h,
+ *  as in lib/duration.ts (hours up to 47 are easy to place on a clock); unlike `compactDuration` nothing is rounded
+ *  away, so each "offline" adds up to the next line's time. */
+export function gapWords(seconds: number): string {
+  const min = Math.max(0, Math.round(seconds / 60));
+  const d = min >= 48 * 60 ? Math.floor(min / 1440) : 0;
+  const h = Math.floor((min - d * 1440) / 60);
+  const m = min - d * 1440 - h * 60;
+  const out: string[] = [];
+  if (d) out.push(`${d} d`);
+  if (h) out.push(`${h} h`);
+  if (m || !out.length) out.push(`${m} min`);
+  return out.join(' ');
+}
+
+/** The gap the lines show: between the two times as written (each rounded down to the minute). */
+function shownGap(from: number, to: number): number {
+  return Math.floor(to / 60) * 60 - Math.floor(from / 60) * 60;
+}
+
+const EGG_NAMES: Record<string, string> = {
+  curiosity: 'Curiosity',
+  kindness: 'Kindness',
+  integrity: 'Integrity',
+  resilience: 'Resilience',
+  humility: 'Humility',
+};
+const eggName = (id: string | undefined): string => (id ? (EGG_NAMES[id] ?? id) : '');
+
+/** Two research items share the name "Internal Hatchery Expansion": they are told apart by their tier. */
+const RESEARCH_TIER: Record<string, number> = { internal_hatchery3: 5, internal_hatchery4: 7 };
+
+/** '1-14', '1-3, 5', '17'. Sorted, de-duplicated. */
+export function rangeWords(ns: readonly number[]): string {
+  const s = [...new Set(ns)].sort((a, b) => a - b);
+  const out: string[] = [];
+  for (let i = 0; i < s.length; ) {
+    let j = i;
+    while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++;
+    out.push(i === j ? `${s[i]}` : `${s[i]}-${s[j]}`);
+    i = j + 1;
+  }
+  return out.join(', ');
+}
+
+/** "Name 5" / "Name 3-7" per research item, in order of first appearance. */
+export function researchWords(items: readonly BuildUpAction[], sameName: ReadonlySet<string>): string {
+  const order: string[] = [];
+  const by = new Map<string, { name: string; lo: number; hi: number }>();
+  for (const a of items) {
+    const key = a.id ?? a.label;
+    const to = a.level ?? 0;
+    const from = (a.fromLevel ?? to - 1) + 1;
+    const cur = by.get(key);
+    if (!cur) {
+      const tier = a.id && sameName.has(a.label) ? RESEARCH_TIER[a.id] : undefined;
+      const name = sameName.has(a.label) ? `${a.label} (${tier ? `tier ${tier}` : (a.id ?? '')})` : a.label;
+      by.set(key, { name, lo: Math.min(from, to), hi: to });
+      order.push(key);
+    } else {
+      cur.lo = Math.min(cur.lo, from);
+      cur.hi = Math.max(cur.hi, to);
+    }
+  }
+  return order
+    .map(k => {
+      const r = by.get(k)!;
+      return r.lo >= r.hi ? `${r.name} ${r.hi}` : `${r.name} ${r.lo}-${r.hi}`;
+    })
+    .join(', ');
+}
+
+// ------------------------------------------------------------------------------------------------ regroup
+
+const PLAYER_KINDS = new Set(['research', 'vehicle', 'trainCar', 'hab', 'silo', 'shift', 'prestige', 'artifactSet']);
+
+/** The build-up part: everything before the first `wait_for_te`. */
+export function buildPart(actions: readonly BuildUpAction[]): BuildUpAction[] {
+  const i = actions.findIndex(a => a.kind === 'wait' && (a.id === 'wait_for_te' || a.label === 'wait_for_te'));
+  return i < 0 ? [...actions] : actions.slice(0, i);
+}
+
+interface Due {
+  a: BuildUpAction;
+  due: number;
+}
+
+/** The player's actions with their due times, sale and 2x waits fixed to the clock. */
+function dueActions(actions: readonly BuildUpAction[]): Due[] {
+  const out: Due[] = [];
+  let anchor = -Infinity;
+  for (const a of actions) {
+    if (a.kind === 'wait') {
+      const id = a.id ?? a.label;
+      const began = a.t - (a.seconds ?? 0);
+      if (id === 'wait_for_research_sale')
+        anchor = Math.max(anchor, isResearchSaleActive(began) ? began : getNextSaleStart(began - 1));
+      else if (id === 'wait_for_earnings_boost')
+        anchor = Math.max(anchor, isEarningsBoostActive(began) ? began : getNextEarningsBoostStart(began - 1));
+      continue;
+    }
+    if (!PLAYER_KINDS.has(a.kind)) continue;
+    out.push({ a, due: Math.max(a.t, anchor) });
+  }
+  return out;
+}
+
+interface Group {
+  at: number;
+  items: BuildUpAction[];
+  /** A sale buy the player's hours would have pushed past the sale's end. */
+  nightSale?: boolean;
+}
+
+function regroup(dues: Due[], gap: number, hours: Availability | null): Group[] {
+  const awake = (t: number) => (hours ? nextAvailable(t, hours) : t);
+  const groups: Group[] = [];
+  for (const { a, due } of dues) {
+    const cur = groups[groups.length - 1];
+    if (cur && due <= cur.at) {
+      cur.items.push(a);
+      continue;
+    }
+    let at = awake(cur ? Math.max(cur.at + gap, due) : due);
+    let nightSale = false;
+    // Sale-end exception: a research buy planned inside a sale is never pushed past its end.
+    if (a.kind === 'research' && isResearchSaleActive(due)) {
+      const end = getNextSaleEnd(due);
+      if (at >= end) {
+        const plain = cur ? Math.max(cur.at + gap, due) : due;
+        nightSale = plain >= end ? false : at !== plain;
+        at = plain < end ? plain : due;
+      }
+    }
+    groups.push({ at, items: [a], ...(nightSale ? { nightSale } : {}) });
+  }
+  return groups;
+}
+
+// ------------------------------------------------------------------------------------------------ lines
+
+interface Draft {
+  kind: LineKind;
+  text: string;
+  sub?: string;
+}
+
+/** A check-in's lines, in the order to do them. `egg` is the egg the farm is on at its start (updated). */
+function checkInLines(
+  items: BuildUpAction[],
+  st: { egg: string; trains: Map<number, string>; sameName: Set<string>; dropped: number }
+): Draft[] {
+  const out: Draft[] = [];
+  let i = 0;
+  while (i < items.length) {
+    const a = items[i];
+    if (a.kind === 'research') {
+      let j = i;
+      while (j < items.length && items[j].kind === 'research') j++;
+      out.push({ kind: 'research', text: `buy ${researchWords(items.slice(i, j), st.sameName)}` });
+      i = j;
+      continue;
+    }
+    if (a.kind === 'vehicle' || a.kind === 'trainCar') {
+      let j = i;
+      while (j < items.length && (items[j].kind === 'vehicle' || items[j].kind === 'trainCar')) j++;
+      out.push(...vehicleLines(items.slice(i, j), st.trains));
+      i = j;
+      continue;
+    }
+    if (a.kind === 'silo') {
+      let j = i;
+      while (j < items.length && items[j].kind === 'silo') j++;
+      const run = items.slice(i, j);
+      const lo = (run[0].fromLevel ?? (run[0].count ?? 1) - 1) + 1;
+      const hi = Math.max(...run.map(s => s.count ?? lo));
+      out.push({ kind: 'silo', text: lo >= hi ? `buy silo #${hi}` : `buy silos #${lo}-${hi}` });
+      i = j;
+      continue;
+    }
+    if (a.kind === 'hab') {
+      out.push({ kind: 'hab', text: `buy ${a.label} in hab slot ${(a.slot ?? 0) + 1}` });
+    } else if (a.kind === 'shift') {
+      st.egg = a.id ?? st.egg;
+      out.push({ kind: 'shift', text: `shift to ${eggName(a.id) || a.label}` });
+    } else if (a.kind === 'prestige') {
+      st.egg = a.id ?? 'curiosity';
+      out.push({ kind: 'prestige', text: `prestige: start the ascension on ${eggName(a.id) || 'Curiosity'}` });
+    } else if (a.kind === 'artifactSet') {
+      if (st.egg !== 'humility') {
+        st.dropped++;
+        out.push({
+          kind: 'note',
+          text: `set swap left out: sets are swapped only on Humility (the plan had it on ${eggName(st.egg) || st.egg})`,
+        });
+      } else {
+        const set = a.id === 'elr' ? 'ELR' : a.id === 'earnings' ? 'earnings' : a.label.replace(/ set$/, '');
+        out.push({ kind: 'setSwap', text: `set swap: equip the ${set} set` });
+      }
+    }
+    i++;
+  }
+  return out;
+}
+
+/** Trains merged per check-in: 'buy 14 Hyperloop Trains (slots 1-14), cars to 5'; cars alone: 'train cars: all 17
+ *  trains to 8'. Other vehicles: 'buy Quantum Transporter in slot 3'. */
+function vehicleLines(run: BuildUpAction[], trains: Map<number, string>): Draft[] {
+  const out: Draft[] = [];
+  const bought = new Map<string, number[]>();
+  const order: string[] = [];
+  const cars = new Map<number, number>();
+  for (const a of run) {
+    const slot = (a.slot ?? 0) + 1;
+    if (a.kind === 'vehicle') {
+      trains.set(slot, a.label);
+      if (!bought.has(a.label)) {
+        bought.set(a.label, []);
+        order.push(a.label);
+      }
+      bought.get(a.label)!.push(slot);
+      if (a.level) cars.set(slot, Math.max(cars.get(slot) ?? 0, a.level));
+    } else if (a.level) cars.set(slot, Math.max(cars.get(slot) ?? 0, a.level));
+  }
+  const boughtSlots = new Set<number>();
+  for (const name of order) {
+    const slots = bought.get(name)!;
+    slots.forEach(s => boughtSlots.add(s));
+    const n = slots.length;
+    const isTrain = /train/i.test(name);
+    const c = isTrain ? Math.max(0, ...slots.map(s => cars.get(s) ?? 0)) : 0;
+    const what = n === 1 ? `1 ${name} (slot ${slots[0]})` : `${n} ${name}s (slots ${rangeWords(slots)})`;
+    out.push({ kind: 'trains', text: `buy ${what}${c > 1 ? `, cars to ${c}` : ''}` });
+  }
+  const carOnly = [...cars.keys()].filter(s => !boughtSlots.has(s));
+  if (carOnly.length) {
+    const to = Math.max(...carOnly.map(s => cars.get(s)!));
+    const trainSlots = [...trains.entries()].filter(([, n]) => /train/i.test(n)).map(([s]) => s);
+    const all = trainSlots.length > 1 && trainSlots.every(s => carOnly.includes(s)) && carOnly.length === trainSlots.length;
+    out.push({
+      kind: 'trainCars',
+      text: all
+        ? `train cars: all ${trainSlots.length} trains to ${to}`
+        : `train cars: ${carOnly.length === 1 ? `slot ${carOnly[0]}` : `slots ${rangeWords(carOnly)}`} to ${to}`,
+    });
+  }
+  return out;
+}
+
+const BOLD: ReadonlySet<LineKind> = new Set([
+  'trains',
+  'trainCars',
+  'vehicle',
+  'hab',
+  'silo',
+  'shift',
+  'prestige',
+  'setSwap',
+  'siloTrick',
+  'back',
+]);
+
+/** A clock change inside the day starting at `dayStart` (zone midnight): 'clocks go back 1 h at 2:00 am'. */
+function clockNoteFor(dayStart: number, zone: string): string {
+  const end = dayStartOf(dayStart + 30 * 3600, zone);
+  const a = getTimezoneOffsetAt(zone, dayStart);
+  if (getTimezoneOffsetAt(zone, end - 1) === a) return '';
+  for (let t = dayStart; t < end; t += 900) {
+    const b = getTimezoneOffsetAt(zone, t + 900);
+    if (b !== a) {
+      // The wall clock just before the change, rounded to the change's moment ('2:00 am' for a fall back).
+      const wall = clock12(t + 900 + (a - b), zone);
+      const diff = b - a;
+      return `clocks go ${diff < 0 ? 'back' : 'forward'} ${gapWords(Math.abs(diff))} at ${wall}`;
+    }
+  }
+  return '';
+}
+
+/** The zone's midnight before `at`. */
+function dayStartOf(at: number, zone: string): number {
+  const off = getTimezoneOffsetAt(zone, at);
+  const wall = at + off;
+  const mid = wall - (((wall % 86400) + 86400) % 86400);
+  return mid - getTimezoneOffsetAt(zone, mid - off);
+}
+
+/** The tracker's list. Pure and deterministic. */
+export function buildUpTracker(input: TrackerInput): TrackerResult {
+  const { zone, now } = input;
+  const gap = input.gapSeconds ?? CHECK_IN_GAP;
+  const hours = isConstrained(input.hours) ? input.hours : null;
+  const actions = buildPart(input.actions);
+  const groups = regroup(dueActions(actions), gap, hours);
+
+  // Names two research items share (the tier tells them apart).
+  const ids = new Map<string, Set<string>>();
+  for (const a of actions)
+    if (a.kind === 'research') {
+      if (!ids.has(a.label)) ids.set(a.label, new Set());
+      ids.get(a.label)!.add(a.id ?? a.label);
+    }
+  const sameName = new Set([...ids.entries()].filter(([, s]) => s.size > 1).map(([n]) => n));
+
+  const st = { egg: input.startEgg ?? 'curiosity', trains: new Map<number, string>(), sameName, dropped: 0 };
+  const startSilos = Math.max(1, input.startSilos ?? 1);
+  const perSilo = input.siloSeconds && input.siloSeconds > 0 ? input.siloSeconds / startSilos : 0;
+  let silos = startSilos;
+
+  // Check-ins with their drafts and the silo time at each.
+  interface CI {
+    at: number;
+    drafts: Draft[];
+    S: number;
+    nightSale?: boolean;
+    synthetic?: 'trick' | 'back';
+  }
+  const cis: CI[] = groups.map(g => {
+    for (const a of g.items) if (a.kind === 'silo' && a.count) silos = Math.max(silos, a.count);
+    const drafts = checkInLines(g.items, st);
+    return { at: g.at, drafts, S: perSilo * silos, ...(g.nightSale ? { nightSale: true } : {}) };
+  }).filter(c => c.drafts.length);
+
+  // The silo trick, for each 2x event start between two check-ins.
+  const extra: { at: number; line: Omit<TrackerLine, 'key' | 'checkIn' | 'tail' | 'granular' | 'tickable' | 'bold'> }[] = [];
+  const warnings: { at: number; text: string }[] = [];
+  if (cis.length > 1) {
+    let B = getNextEarningsBoostStart(cis[0].at);
+    const last = cis[cis.length - 1].at;
+    const inserts: { after: number; ci: CI[] }[] = [];
+    while (B < last) {
+      const bi = cis.findIndex(c => c.at >= B);
+      const prev = cis[bi - 1];
+      const next = cis[bi];
+      const bEnd = getNextEarningsBoostEnd(B);
+      if (prev && next) {
+        const awake = (t: number) => (hours ? nextAvailable(t, hours) : t);
+        let ret = awake(B + gap);
+        if (next.at < ret) ret = next.at;
+        const S = prev.S;
+        const backLine = next.at > ret + gap;
+        if (ret >= bEnd) {
+          // No moment inside the event while awake: nothing to claim.
+        } else if (!(S > 0)) {
+          warnings.push({ at: prev.at, text: 'Silo trick for the 2x event: your silo time is not known, so it is not planned. Load your save to plan it.' });
+        } else {
+          let s = Math.floor((ret - (S - SILO_CUSHION)) / 60) * 60;
+          if (hours) for (let k = 0; k < 1440 && !isAvailable(s, hours); k++) s -= 60;
+          const span = ret - s;
+          if (prev.at > s) {
+            warnings.push({
+              at: prev.at,
+              text: `No silo trick this week: the plan has a check-in at ${dayClock(prev.at, zone, now)}, inside the ${gapWords(S - SILO_CUSHION)} before ${dayClock(ret, zone, now)}. Stay with the plan.`,
+            });
+          } else if (span > S || S <= SILO_CUSHION + gap) {
+            warnings.push({
+              at: prev.at,
+              text: `Your silos hold ${gapWords(S)}: going offline ${dayClock(s, zone, now)} does not reach ${dayClock(ret, zone, now)}. No silo trick this week: check in as planned.`,
+            });
+          } else {
+            const ins: CI[] = [
+              {
+                at: s,
+                S,
+                synthetic: 'trick',
+                drafts: [
+                  {
+                    kind: 'siloTrick',
+                    text: `last ${weekdayLong(s, zone)} check-in: collect, then go offline until ${dayTitle(ret, zone, now).split(' ')[0]} ${clock12(ret, zone)} (${gapWords(shownGap(s, ret))})`,
+                    sub: `${gapWords(S)} of silos, ${gapWords(S - span)} spare`,
+                  },
+                ],
+              },
+            ];
+            if (backLine) ins.push({ at: ret, S, synthetic: 'back', drafts: [{ kind: 'back', text: 'back online inside the 2x event (nothing to buy)' }] });
+            else next.drafts.unshift({ kind: 'back', text: 'back online inside the 2x event' });
+            inserts.push({ after: bi - 1, ci: ins });
+          }
+        }
+      }
+      B = getNextEarningsBoostStart(B + 1);
+    }
+    for (const ins of inserts.reverse()) cis.splice(ins.after + 1, 0, ...ins.ci);
+  }
+
+  // Lines.
+  const lines: TrackerLine[] = [];
+  const checkIns: CheckIn[] = [];
+  const first = cis[0]?.at ?? 0;
+  const lastAt = cis[cis.length - 1]?.at ?? 0;
+  // Sale starts and ends between the first and the last check-in (event lines, not check-ins).
+  const events: { at: number; kind: 'saleStart' | 'saleEnd' }[] = [];
+  if (cis.length) {
+    for (let s = getNextSaleStart(first - 1); s <= lastAt; s = getNextSaleStart(s + 1)) events.push({ at: s, kind: 'saleStart' });
+    for (let e = getNextSaleEnd(first); e <= lastAt; e = getNextSaleEnd(e + 1)) events.push({ at: e, kind: 'saleEnd' });
+    events.sort((a, b) => a.at - b.at);
+  }
+  let ev = 0;
+  const pushEvent = (e: (typeof events)[number]) =>
+    lines.push({
+      key: `e:${e.kind}:${e.at}`,
+      kind: e.kind,
+      at: e.at,
+      time: clock12(e.at, zone),
+      text: e.kind === 'saleStart' ? 'research sale starts (Manual Planner: sale on)' : 'research sale ends (Manual Planner: sale off)',
+      tail: '',
+      bold: false,
+      granular: false,
+      tickable: false,
+      checkIn: -1,
+    });
+  for (let c = 0; c < cis.length; c++) {
+    const ci = cis[c];
+    while (ev < events.length && events[ev].at <= ci.at) pushEvent(events[ev++]);
+    const next = cis[c + 1];
+    const keys: string[] = [];
+    // A note (a set swap left out) goes after the check-in's own lines; the offline tail stays on its last own line.
+    const drafts = [...ci.drafts.filter(d => d.kind !== 'note'), ...ci.drafts.filter(d => d.kind === 'note')];
+    const lastOwn = drafts.filter(d => d.kind !== 'note').length - 1;
+    drafts.forEach((d, n) => {
+      const key = `${Math.floor(ci.at)}:${n}`;
+      const lastLine = n === lastOwn;
+      const saleNext = !!next && saleOpensBetween(ci.at, next.at);
+      const tail =
+        lastLine && next && !saleNext && ci.synthetic !== 'trick' ? `offline ${gapWords(shownGap(ci.at, next.at))}` : '';
+      const tickable = d.kind !== 'note';
+      lines.push({
+        key,
+        kind: d.kind,
+        at: ci.at,
+        time: clock12(ci.at, zone),
+        text: d.text,
+        tail,
+        ...(d.sub ? { sub: d.sub } : {}),
+        bold: BOLD.has(d.kind),
+        granular: d.kind === 'research',
+        tickable,
+        checkIn: tickable ? checkIns.length : -1,
+      });
+      if (tickable) keys.push(key);
+    });
+    if (ci.nightSale)
+      lines.push({
+        key: `w:night:${ci.at}`,
+        kind: 'warning',
+        at: ci.at,
+        time: '',
+        text: `This sale buy is outside your hours: do it before the sale ends at ${clock12(getNextSaleEnd(ci.at), zone)}.`,
+        tail: '',
+        bold: false,
+        granular: false,
+        tickable: false,
+        checkIn: -1,
+      });
+    for (const w of warnings.filter(x => x.at === ci.at && !ci.synthetic))
+      lines.push({ key: `w:${w.at}:${w.text.length}`, kind: 'warning', at: ci.at, time: '', text: w.text, tail: '', bold: false, granular: false, tickable: false, checkIn: -1 });
+    if (next && saleOpensBetween(ci.at, next.at)) {
+      const start = getSaleStartForEnd(getNextSaleEnd(next.at - 1));
+      const over = ci.S > 0 && shownGap(ci.at, start) > ci.S ? ' (open the farm once a day; nothing to buy)' : '';
+      // Events before the sale start (a sale end) come before the wait line.
+      while (ev < events.length && events[ev].at < start && events[ev].at <= next.at) pushEvent(events[ev++]);
+      lines.push({
+        key: `e:wait:${start}`,
+        kind: 'saleWait',
+        at: ci.at,
+        time: '',
+        text: `wait for the sale: offline until ${dayClock(start, zone, now)} (${gapWords(shownGap(ci.at, start))})${over}`,
+        tail: '',
+        bold: false,
+        granular: false,
+        tickable: false,
+        checkIn: -1,
+      });
+    }
+    if (keys.length) checkIns.push({ at: ci.at, keys });
+  }
+  while (ev < events.length) pushEvent(events[ev++]);
+
+  return { days: daysOf(lines, zone, now), checkIns, lines, droppedSwaps: st.dropped };
+}
+
+/** A sale starts after `a` and by `b` (so `b` is a sale-start check-in). */
+function saleOpensBetween(a: number, b: number): boolean {
+  if (!isResearchSaleActive(b)) return false;
+  const start = getSaleStartForEnd(getNextSaleEnd(b));
+  return start > a && start <= b;
+}
+
+function daysOf(lines: TrackerLine[], zone: string, now: number): TrackerDay[] {
+  const days: TrackerDay[] = [];
+  const counted = new Set<number>();
+  for (const l of lines) {
+    const ymd = calendarOf(l.at * 1000, zone)?.ymd ?? '';
+    let d = days[days.length - 1];
+    if (!d || d.ymd !== ymd) {
+      d = { ymd, title: dayTitle(l.at, zone, now), clockNote: clockNoteFor(dayStartOf(l.at, zone), zone), lines: [], checkIns: 0, openByDefault: false };
+      days.push(d);
+    }
+    d.lines.push(l);
+    if (l.checkIn >= 0 && !counted.has(l.checkIn)) {
+      counted.add(l.checkIn);
+      d.checkIns++;
+    }
+  }
+  const today = calendarOf(now * 1000, zone)?.ymd ?? '';
+  const t = days.find(d => d.ymd === today);
+  if (t) t.openByDefault = true;
+  const nextDay = days.find(d => d.ymd > today && d.checkIns > 0);
+  if (nextDay) nextDay.openByDefault = true;
+  if (!days.some(d => d.openByDefault) && days.length) days[days.length - 1].openByDefault = true;
+  return days;
+}
+
+/** A line as the oracle writes it: '8:47 am · buy Grav Plating 18 · offline 1 min'. */
+export function lineText(l: Pick<TrackerLine, 'time' | 'text' | 'tail'>): string {
+  return [l.time, l.text, l.tail].filter(Boolean).join(' · ');
+}
+
+// ------------------------------------------------------------------------------------------------ ticks
+
+export interface TrackerSummary {
+  /** Check-ins with every line ticked. */
+  done: number;
+  total: number;
+  /** The first check-in not fully ticked; null when all are. */
+  next: CheckIn | null;
+}
+
+export function trackerSummary(r: Pick<TrackerResult, 'checkIns'>, ticks: ReadonlySet<string>): TrackerSummary {
+  let done = 0;
+  let next: CheckIn | null = null;
+  for (const c of r.checkIns) {
+    if (c.keys.every(k => ticks.has(k))) done++;
+    else if (!next) next = c;
+  }
+  return { done, total: r.checkIns.length, next };
+}
+
+/** Where a plan's ticks are kept: per account and ascension (its start). */
+export const ticksKey = (account: string, ascensionStart: number): string => `aap.buildup.ticks.${account}.${Math.floor(ascensionStart)}`;
+
+/** The ticked line keys, never throws. */
+export function readTicks(account: string, ascensionStart: number): Set<string> {
+  try {
+    const v = localStorage.getItem(ticksKey(account, ascensionStart));
+    const a = v ? (JSON.parse(v) as unknown) : [];
+    return new Set(Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeTicks(account: string, ascensionStart: number, ticks: ReadonlySet<string>): void {
+  try {
+    localStorage.setItem(ticksKey(account, ascensionStart), JSON.stringify([...ticks]));
+  } catch {
+    /* this visit only */
+  }
+}
