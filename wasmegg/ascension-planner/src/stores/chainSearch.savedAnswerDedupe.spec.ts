@@ -162,7 +162,7 @@ describe('Saved answers: one entry per answer', () => {
     expect(below).not.toContain('Save this answer');
     const card = textOf(
       await renderHtml(ByDateRouteCard, {
-        route: answer().routes[0],
+        route: (answer() as { routes: unknown[] }).routes[0],
         deadline: DEADLINE,
         zone: 'UTC',
         canSave: true,

@@ -21,6 +21,7 @@ import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapsho
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
+import { answerIdentity, collapseSavedAnswers } from '@/lib/savedAnswerIdentity';
 import { accountHash, accountHashNow } from '@/lib/accountHash';
 import {
   isDefaultSetup,
@@ -7077,13 +7078,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!playerId) return;
     const hash = await hashID(playerId);
     const owner = await accountHash(playerId);
-    savedAnswers.value = await listSavedAnswers(hash);
+    savedAnswers.value = await listSavedAnswersOnce(hash);
     savedAnswersOwner = owner;
     await refreshKeptSaves(hash);
   }
-  /** Keep the answer on screen under a name, with the save it was priced from (`entrySaveFor`). */
-  async function saveCurrentAnswer(playerId: string, label: string): Promise<void> {
-    if (!playerId || !deadlineResult.value) return;
+  /** The saved answers, each answer once (lib/savedAnswerIdentity.ts): duplicates kept before 29 Oct 2026 (the
+   *  card's Save answer and Save this answer, both pressed) are deleted here, the first saved kept. */
+  async function listSavedAnswersOnce(hash: string): Promise<SavedAnswer[]> {
+    const list = await listSavedAnswers(hash);
+    const { kept, dropped } = collapseSavedAnswers(list);
+    for (const id of dropped) await deleteSavedAnswer(hash, id);
+    return kept;
+  }
+  /**
+   * Keep the answer on screen under a name, with the save it was priced from (`entrySaveFor`). The same answer saved
+   * again (same date, route and save: lib/savedAnswerIdentity.ts) replaces its entry, saved now, under the name it
+   * had unless `named` (a name typed for it). Returns the name it is kept under.
+   */
+  async function saveCurrentAnswer(playerId: string, label: string, named = false): Promise<string> {
+    if (!playerId || !deadlineResult.value) return label;
     const hash = await hashID(playerId);
     const result = JSON.parse(JSON.stringify(deadlineResult.value)) as SavedDeadlineResult;
     const save = await entrySaveFor(hash, {
@@ -7091,10 +7104,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       backupAt: result.backupAt ?? (result.account?.backupTime as number | null | undefined) ?? null,
       te: result.te,
     });
-    await saveAnswer(hash, result, label, Date.now(), save);
-    savedAnswers.value = await listSavedAnswers(hash);
+    const key = answerIdentity(result);
+    const same = key === null ? [] : (await listSavedAnswers(hash)).filter(a => answerIdentity(a.result) === key);
+    const first = collapseSavedAnswers(same).kept[0];
+    const keptLabel = first && !named ? first.label : label;
+    for (const a of same) await deleteSavedAnswer(hash, a.id);
+    const saved = await saveAnswer(hash, result, keptLabel, Date.now(), save ?? first?.save ?? save);
+    savedAnswers.value = await listSavedAnswersOnce(hash);
     await pruneKept(hash);
+    return saved.label;
   }
+  /** The answer on screen is in Saved answers (both its save buttons say Saved ✓). */
+  const currentAnswerSaved = computed(() => {
+    const key = answerIdentity(deadlineResult.value);
+    return key !== null && savedAnswers.value.some(a => answerIdentity(a.result) === key);
+  });
   /** Show a saved answer as the current one (it doesn't re-run anything). */
   function openSavedAnswer(id: string): void {
     const a = savedAnswers.value.find(x => x.id === id);
@@ -7116,7 +7140,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function removeSavedAnswer(playerId: string, id: string): Promise<void> {
     const hash = await hashID(playerId);
     await deleteSavedAnswer(hash, id);
-    savedAnswers.value = await listSavedAnswers(hash);
+    savedAnswers.value = await listSavedAnswersOnce(hash);
     await pruneKept(hash);
   }
 
@@ -9805,6 +9829,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     savedAnswers,
     refreshSavedAnswers,
     saveCurrentAnswer,
+    currentAnswerSaved,
     openSavedAnswer,
     removeSavedAnswer,
     keptSaves,

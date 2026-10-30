@@ -783,6 +783,7 @@
           :csv-every="store.csvHasEveryRoute('deadline')"
           can-save
           :saving="quickSaving"
+          :saved="store.currentAnswerSaved"
           :note="quickSaveNote"
           :run-cost="result.lastTECost ?? null"
           :last-run="store.dateRunLive ? '' : inPlannerZone(Math.floor(result.at / 1000))"
@@ -2855,8 +2856,9 @@ const quickSaveNote = ref('');
 async function quickSave(): Promise<void> {
   quickSaving.value = true;
   try {
-    await store.saveCurrentAnswer(props.playerId, defaultAnswerLabel.value);
-    quickSaveNote.value = `Saved as "${defaultAnswerLabel.value}".`;
+    // The same answer saved before keeps its entry and name (store `saveCurrentAnswer`).
+    const name = await store.saveCurrentAnswer(props.playerId, defaultAnswerLabel.value);
+    quickSaveNote.value = `Saved as "${name}".`;
   } catch {
     quickSaveNote.value = "Couldn't save it in this browser.";
   } finally {

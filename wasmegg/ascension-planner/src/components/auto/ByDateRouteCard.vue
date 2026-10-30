@@ -151,7 +151,7 @@
             data-testid="by-date-save"
             @click="emit('save')"
           >
-            {{ saving ? 'Saving...' : 'Save answer' }}
+            {{ saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save answer' }}
           </button>
           <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
         </template>
@@ -250,6 +250,9 @@ const props = defineProps<{
   csvEvery?: boolean;
   canSave?: boolean;
   saving?: boolean;
+  /** The answer is in Saved answers (store `currentAnswerSaved`): the button says "Saved ✓" (pressing it again
+   *  refreshes that entry, never a second one). */
+  saved?: boolean;
   /** A line after the buttons: what the last click did. */
   note?: string;
   /** Not from a run in this visit on these settings: when it was found; the heading says
