@@ -188,11 +188,38 @@ export function syntheticSaveWithId(id: string): any {
   return b;
 }
 
+/**
+ * The synthetic save JUST PRESTIGED (spec-buildfail, 30 Oct 2026: a player mid build-up a minute after the prestige
+ * to 197 TE, on Curiosity, ascension 1 of 4 of the route 197 218 247 285 313): 197 TE (40 40 39 39 39), the virtue
+ * farm bare (one coop, no vehicles bought, no research, no cash, one silo), synced at `NOW`.
+ */
+export function justPrestigedBackup(): any {
+  const b = syntheticBackup();
+  const perEgg = [40, 40, 39, 39, 39];
+  b.virtue.eovEarned = perEgg;
+  b.virtue.eggsDelivered = perEgg.map(n => TE_THRESHOLDS[n - 1] * 1.01);
+  const f = b.farms[0];
+  Object.assign(f, {
+    habs: [0, 19, 19, 19],
+    habPopulation: [0, 0, 0, 0],
+    vehicles: [0],
+    trainLength: [1],
+    commonResearch: f.commonResearch.map((r: { id: string }) => ({ id: r.id, level: 0 })),
+    silosOwned: 1,
+    cashEarned: 0,
+    cashSpent: 0,
+    eggsLaid: 0,
+    lastStepTime: NOW,
+  });
+  return b;
+}
+
 /** The synthetic save loaded into fresh stores, and the search inputs for it (plain data, as a worker
- *  gets them). `final` 192: a two-TE leg from the save's 190. */
-export async function syntheticInputs(): Promise<SearchInputs> {
+ *  gets them). `final` 192: a two-TE leg from the save's 190. `from`: another synthetic save
+ *  (`justPrestigedBackup`). */
+export async function syntheticInputs(from?: () => any): Promise<SearchInputs> {
   setActivePinia(createPinia());
-  let backup = syntheticBackup();
+  let backup = from ? from() : syntheticBackup();
   resolveColleggtibleContracts(backup);
   backup = markRaw(backup);
   // initPlanFuture's sequence, as chain.spec.ts does it.
