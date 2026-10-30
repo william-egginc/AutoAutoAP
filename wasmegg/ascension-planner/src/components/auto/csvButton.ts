@@ -12,3 +12,18 @@ export function csvButton(every: boolean): { text: string; title: string } {
     ? { text: CSV_EVERY_ROUTE, title: "Every route priced, each with its ascensions' detail" }
     : { text: CSV_TOP_ROUTES, title: "Every route priced, with each ascension's detail for the top routes" };
 }
+
+/**
+ * The Excel download beside it (spec-xlsx, 29 Oct 2026): the same table as an .xlsx with each column wide enough
+ * (a CSV can't say, so Excel showed ######## in the time columns) and the header row frozen. Offered when the table
+ * is of top-routes size (store `xlsxOffered`, utils/xlsxRows.ts). Drafts for Words.
+ */
+export const XLSX_BUTTON = 'Download for Excel (.xlsx) ↓';
+
+export function xlsxButton(): { text: string; title: string } {
+  return {
+    text: XLSX_BUTTON,
+    title:
+      "Every route priced, with each ascension's detail for the top routes: every column wide enough, the header row kept in view",
+  };
+}

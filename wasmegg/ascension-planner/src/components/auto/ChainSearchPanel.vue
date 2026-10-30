@@ -565,6 +565,8 @@
               @fill="use(store.bestChain)"
               :csv-every="store.csvHasEveryRoute('fastest')"
               @csv="downloadCsv"
+              :xlsx="store.xlsxOffered('fastest')"
+              @xlsx="downloadXlsx('fastest')"
               @save="save"
             >
               <p v-if="!store.searchSpace" class="text-body text-emerald-800 max-w-prose">
@@ -1383,7 +1385,7 @@ const {
 } = useFastestShare(store, () => props.playerId);
 
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV card. */
-const { downloadCsv } = useRunDownloads(store);
+const { downloadCsv, downloadXlsx } = useRunDownloads(store);
 
 /** The finish INSTANT, not the duration: durations from different plan starts are not comparable,
  *  and the end date is the invariant a player actually plans around. */

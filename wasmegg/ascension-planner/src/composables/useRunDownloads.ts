@@ -13,10 +13,16 @@
  * EVERY ROUTE'S DETAIL (26 Oct 2026): with the run's leg spill on disk (lib/legSpillOpfs.ts) the CSV comes
  * from `streamFullCsv`, written into an OPFS file and saved from there, so even a gigabyte file never sits
  * in the page's memory. Without OPFS it is the file as before.
+ *
+ * FOR EXCEL (spec-xlsx, 29 Oct 2026): the same top-routes table as an .xlsx with its columns sized and its header
+ * row frozen (Excel showed ######## in the CSV's time columns), offered under the row cap (store `xlsxOffered`).
+ * The writer (utils/xlsxWriter.ts) is imported on the click only, so it is its own chunk and costs the page nothing
+ * until then. Built from the in-memory CSV (`exportCsvChunks`, `deadlineCsvChunksNow`), never the full spill.
  */
 import { plainError } from '@/lib/plainError';
 import { ref } from 'vue';
 import { downloadCsv as saveCsvFile, downloadParts } from '@/utils/export';
+import { xlsxRowCap } from '@/utils/xlsxRows';
 import { saveFullCsv } from '@/lib/legSpillOpfs';
 import type { useChainSearchStore } from '@/stores/chainSearch';
 
@@ -72,6 +78,15 @@ export function useRunDownloads(store: Store) {
       tryDownloadAsync('CSV', async () => {
         const name = `deadline-search-${stamp()}.csv`;
         if (!(await saveFullCsv(store.streamFullCsv('deadline'), name))) saveCsvFile(name, store.deadlineCsvChunksNow());
+      }),
+    /** The screen's table for Excel (.xlsx), a chunk of the CSV at a time; the writer loads on this click. */
+    downloadXlsx: (kind: 'fastest' | 'deadline') =>
+      tryDownloadAsync('Excel', async () => {
+        const { csvToXlsx, XLSX_MIME } = await import('@/utils/xlsxWriter');
+        const chunks = kind === 'fastest' ? store.exportCsvChunks() : store.deadlineCsvChunksNow();
+        const { parts } = await csvToXlsx(chunks, { rowCap: xlsxRowCap() });
+        const name = kind === 'fastest' ? store.csvFilename().replace(/\.csv$/, '') + '.xlsx' : `deadline-search-${stamp()}.xlsx`;
+        downloadParts(name, parts, XLSX_MIME);
       }),
   };
 }

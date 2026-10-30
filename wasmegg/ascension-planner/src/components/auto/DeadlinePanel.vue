@@ -791,6 +791,8 @@
           :follow="dateFollow"
           @simulate="simulateResult"
           @csv="downloadByDateCsv"
+          :xlsx="store.xlsxOffered('deadline')"
+          @xlsx="downloadXlsx('deadline')"
           @save="quickSave"
         >
           <!-- "Try waiting before each prestige" (WaitBeforePrestige.vue): was on the instant card under Check exactly
@@ -2830,7 +2832,7 @@ const {
 );
 
 /** Download CSV: every leg of every route priced (composables/useRunDownloads.ts). */
-const { downloadByDateCsv, downloadError } = useRunDownloads(store);
+const { downloadByDateCsv, downloadXlsx, downloadError } = useRunDownloads(store);
 
 const result = computed(() => store.deadlineResult);
 /** A row's arrow (RouteTimeline.vue): only a route with its legs has stops to show. */
