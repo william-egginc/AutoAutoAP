@@ -137,7 +137,7 @@ describe('on (aap-debug = 1 or ?debug=1)', () => {
     const t0 = perfStart('step EI1234567890123456');
     now += 80;
     perfEnd('step EI1234567890123456', t0, 'for EI1234567890123456');
-    const said = info.mock.calls.map(c => String(c[0])).join('\n');
+    const said = info.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(said).toContain('[buildup] perf step EI… 80 ms (for EI…)');
     expect(said).not.toMatch(/EI\d{16}/);
   });
