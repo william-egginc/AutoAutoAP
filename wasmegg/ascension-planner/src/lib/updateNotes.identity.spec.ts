@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildNoteKeys, listNotes, normalizeNote, noteKey, notesNewerThan, versionHistory } from './updateNotes';
-import { releaseFrom } from '@/composables/useNewVersion';
+import { bannerFor, releaseFrom } from '@/composables/useNewVersion';
 
 /** Eight Release-6-like notes, newest first as release.ts keeps them; the first one big. */
 const TEXTS = [
@@ -99,11 +99,12 @@ describe('a tab that already carries the notes, re-timed after its build (the 29
     expect(r.more).toBe(4);
   });
 
-  it('only the re-timed notes: no list, and no big banner', () => {
+  it('only the re-timed notes: no list, and no banner at all (R7, 31 Oct 2026)', () => {
     const r = listNotes(REAL, TAB);
     expect(r).toEqual({ shown: [], more: 0, anyBig: false });
     const rel = releaseFrom(versionJson(REAL), TAB);
     expect(rel).toEqual({ level: 'small', notes: [], more: 0 });
+    expect(bannerFor(true, rel, { small: false, big: null, essential: false })).toBeNull();
   });
 
   it('an old version.json (no keys) is matched by the note text itself', () => {

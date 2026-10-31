@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bannerFor,
+  newNotesKey,
   entryScriptIn,
   isNewerBuild,
   isNewerEntry,
@@ -265,5 +267,44 @@ describe('the stale note (26 Oct 2026)', () => {
     expect(releaseFrom(retimed, keyed)).toEqual({ level: 'small', notes: [], more: 0 });
     // By time alone (a build with no key list) the same re-timed notes would be new, and big.
     expect(releaseFrom(retimed, built('2026-10-22T21:00:00Z', history.map(h => h.at))).level).toBe('big');
+  });
+});
+
+describe('which banner shows (R7, 31 Oct 2026: no new note, no banner)', () => {
+  const none = { small: false, big: null, essential: false };
+  const old = (note: string) => ({ ...n(note), isNew: false });
+
+  it('a small update with no note new to this tab shows nothing: the tab gets the code on its next load', () => {
+    expect(bannerFor(true, { level: 'small', notes: [], more: 0 }, none)).toBeNull();
+    // Listed but none new (listNotes never does this; still nothing).
+    expect(bannerFor(true, { level: 'small', notes: [old('carried')], more: 0 }, none)).toBeNull();
+  });
+
+  it('a small update with a new note shows the small note until dismissed, for the rest of the tab', () => {
+    const r = { level: 'small' as const, notes: [n('wording'), old('carried')], more: 0 };
+    expect(bannerFor(true, r, none)).toBe('small');
+    expect(bannerFor(true, r, { ...none, small: true })).toBeNull();
+    expect(bannerFor(true, { ...r, notes: [n('later note')] }, { ...none, small: true })).toBeNull();
+  });
+
+  it('a big update shows until its new notes are dismissed; a newer note shows it again', () => {
+    const r = { level: 'big' as const, notes: [n('heat map'), old('carried')], more: 0 };
+    expect(newNotesKey(r)).toBe('k-heat map');
+    expect(bannerFor(true, r, none)).toBe('big');
+    expect(bannerFor(true, r, { ...none, big: 'k-heat map' })).toBeNull();
+    expect(bannerFor(true, { ...r, notes: [n('route chart'), n('heat map')] }, { ...none, big: 'k-heat map' })).toBe(
+      'big'
+    );
+  });
+
+  it('the reload ask shows with no notes at all, and Later hides it', () => {
+    const r = { level: 'essential' as const, notes: [], more: 0 };
+    expect(bannerFor(true, r, none)).toBe('essential');
+    expect(bannerFor(true, r, { ...none, essential: true })).toBeNull();
+  });
+
+  it('nothing before a newer build is live', () => {
+    expect(bannerFor(false, { level: 'essential', notes: [], more: 0 }, none)).toBeNull();
+    expect(bannerFor(false, { level: 'small', notes: [n('x')], more: 0 }, none)).toBeNull();
   });
 });

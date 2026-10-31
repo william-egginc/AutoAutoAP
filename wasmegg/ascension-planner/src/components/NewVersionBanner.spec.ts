@@ -30,18 +30,11 @@ describe('NewVersionBanner', () => {
     state.available.value = true;
   });
 
-  it('no notes at all: just "Small update available", no list', async () => {
-    const html = await render({ level: 'small', notes: [], more: 0 });
-    expect(html).toContain('data-testid="update-banner-small"');
-    expect(html).not.toContain('data-testid="update-notes"');
-    expect(html).not.toContain('<li');
-    const text = textOf(html);
-    expect(text).toContain(
-      'Small update available. No need to reload now; you will get it next time you open the page.'
-    );
-    expect(text).not.toContain('New:');
-    expect(text).toContain('Dismiss');
-    expect(text).toContain('Reload anyway');
+  it('a small update with no note new to this tab: no banner at all (R7, 31 Oct 2026)', async () => {
+    // Re-timed notes only, or a code-only rebuild: the tab picks up the new code on its next load.
+    const html = await render({ level: 'small', notes: [], more: 0 }, 'save your results first');
+    expect(html).not.toContain('data-testid="update-banner');
+    expect(textOf(html)).toBe('');
   });
 
   it('notes: listed in the order given, newer ones tagged "New", with "+N more"', async () => {

@@ -16,7 +16,7 @@ describe('notesNewerThan', () => {
     expect(r.anyBig).toBe(true);
   });
 
-  it('a running build newer than every note: none (the banner then says only "Small update available")', () => {
+  it('a running build newer than every note: none (then no banner at all unless the tab must reload, R7)', () => {
     expect(notesNewerThan(notes, { builtAt: '2026-10-07T00:00:00Z' })).toEqual({ shown: [], more: 0, anyBig: false });
   });
 

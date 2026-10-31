@@ -14,21 +14,16 @@
        When at least one release note is new to this tab (its build does not carry it: matched by the
        note's text, lib/updateNotes.ts), every level lists the notes, each with its date, at most five
        plus "+N more": the new ones first, tagged "New", then the ones the tab already has, plain
-       (UX35-b, 28 Oct 2026; by text, 30 Oct 2026). With none new it says just "Small update
-       available" and lists nothing. -->
+       (UX35-b, 28 Oct 2026; by text, 30 Oct 2026). With none new there is no banner at all, only the
+       reload ask when the tab must reload: the tab gets the new code on its next load (R7, 31 Oct 2026;
+       composables/useNewVersion.ts bannerFor). -->
   <div
-    v-if="available && release.level === 'small' && !dismissed"
+    v-if="shows === 'small'"
     class="fixed top-3 right-3 z-[1100] w-[min(92vw,22rem)] rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-lg"
     role="status"
     data-testid="update-banner-small"
   >
-    <p class="text-body max-w-prose">
-      <span class="font-bold text-slate-900">Small update available</span>.<template v-if="!hasNotes"
-        >{{ ' ' }}No need to reload now; you will get it next time you open the page.<template v-if="note"
-          >{{ ' ' }}If you reload anyway, {{ note }}.</template
-        ></template
-      >
-    </p>
+    <p class="text-body max-w-prose"><span class="font-bold text-slate-900">Small update available</span>.</p>
     <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-body space-y-0.5" data-testid="update-notes">
       <li v-for="n in shown" :key="n.key" data-testid="update-note">
         <span class="tabular-nums text-slate-500">{{ n.date }}</span
@@ -41,7 +36,7 @@
       </li>
       <li v-if="more > 0" class="list-none -ml-4 text-slate-500 tabular-nums">+{{ more }} more</li>
     </ul>
-    <p v-if="hasNotes" class="mt-1 text-body max-w-prose">
+    <p class="mt-1 text-body max-w-prose">
       No need to reload now; you will get it next time you open the page.<template v-if="note"
         >{{ ' ' }}If you reload anyway, {{ note }}.</template
       >
@@ -51,7 +46,7 @@
         type="button"
         :class="TAP"
         class="px-2 py-1 text-body font-bold text-slate-500 hover:text-slate-800"
-        @click="dismissed = true"
+        @click="dismissed.small = true"
       >
         Dismiss
       </button>
@@ -70,7 +65,7 @@
        reload needed. Dismissed per update: a different set of notes shows it again. A big level
        always has a note (it comes from one), so this always lists. -->
   <div
-    v-else-if="available && release.level === 'big' && dismissedBig !== notesKey"
+    v-else-if="shows === 'big'"
     class="fixed top-0 inset-x-0 z-[1100] flex flex-wrap items-center justify-between gap-2 border-b-2 border-sky-600 bg-sky-50 px-4 py-2.5 text-sky-950 shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
     role="status"
     data-testid="update-banner-big"
@@ -97,7 +92,7 @@
         type="button"
         :class="TAP"
         class="px-3 py-1.5 rounded-lg text-sky-800 text-body font-bold hover:bg-sky-100"
-        @click="dismissedBig = notesKey"
+        @click="dismissed.big = newNotesKey(release)"
       >
         Dismiss
       </button>
@@ -113,7 +108,7 @@
   </div>
 
   <div
-    v-else-if="available && release.level === 'essential' && !hidden"
+    v-else-if="shows === 'essential'"
     class="fixed top-3 left-1/2 -translate-x-1/2 z-[1100] w-[min(94vw,52rem)] flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-amber-900 shadow-[0_12px_32px_rgba(0,0,0,0.35)] ring-4 ring-black/5"
     role="status"
     data-testid="update-banner-essential"
@@ -159,8 +154,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useNewVersion } from '@/composables/useNewVersion';
+import { computed, reactive } from 'vue';
+import { bannerFor, newNotesKey, useNewVersion, type BannerDismissals } from '@/composables/useNewVersion';
 import { localZone, noteDate } from '@/lib/updateNotes';
 
 const props = defineProps<{
@@ -187,33 +182,24 @@ const shown = computed(() => {
 });
 const hasNotes = computed(() => shown.value.length > 0);
 const more = computed(() => release.value.more);
-/** Which newer notes the big banner showed: dismissing it holds until a newer note arrives. */
-const notesKey = computed(() =>
-  shown.value
-    .filter(n => n.isNew)
-    .map(n => n.key)
-    .join('|')
-);
-
 /** The advice as a sentence of its own, capitalised, after the ones before it. In the text itself, not
  *  a template: a leading space alone in a `<template>` is dropped when the page is compiled. */
 const advice = computed(() => {
   const t = (props.note ?? '').trim().replace(/[.\s]+$/, '');
   return t ? ` ${t.charAt(0).toUpperCase()}${t.slice(1)}.` : '';
 });
-/** The small note, closed for the rest of this tab's life: it asks for nothing. */
-const dismissed = ref(false);
-/** The big banner's notes that were dismissed (notesKey); newer notes show it again. Null until dismissed, so an
- *  empty key never counts as dismissed. */
-const dismissedBig = ref<string | null>(null);
+/** What was closed in this tab: the small note for good (it asks for nothing), the big banner until a newer note
+ *  arrives, the reload ask for ten minutes ("Later"). */
+const dismissed = reactive<BannerDismissals>({ small: false, big: null, essential: false });
+/** Which banner shows, if any (none for a small update with no note new to this tab). */
+const shows = computed(() => bannerFor(available.value, release.value, dismissed));
 
 function reload(): void {
   window.location.reload();
 }
 
-const hidden = ref(false);
 function later(): void {
-  hidden.value = true;
-  setTimeout(() => (hidden.value = false), 10 * 60 * 1000);
+  dismissed.essential = true;
+  setTimeout(() => (dismissed.essential = false), 10 * 60 * 1000);
 }
 </script>

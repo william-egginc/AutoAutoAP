@@ -1,6 +1,6 @@
 /**
  * Which release notes an open tab has not seen yet: the update banner (components/NewVersionBanner.vue) lists the notes
- * only when at least one is new, and when none is it says just "Small update available" with no list.
+ * only when at least one is new, and when none is it shows nothing at all unless the tab must reload (R7, 31 Oct 2026).
  *
  * A NOTE'S IDENTITY is its TEXT (30 Oct 2026): `noteKey`, a short hash of the note with its spacing normalized. Until
  * then it was its `at`, and that broke when a note was re-timed after the build: Jordan's egg-beta tab, built before
@@ -163,7 +163,7 @@ export function notesNewerThan(notes: unknown, running: RunningBuild | null | un
 /**
  * The notes for the banner (UX35-b, 28 Oct 2026; identity by text, 30 Oct 2026): when at least one note is new to this
  * tab, the new ones newest first and tagged "New", then the ones it already has, newest first and plain, at most `max`
- * plus "+N more". When none is new, nothing: the banner says just "Small update available" with no list.
+ * plus "+N more". When none is new, nothing: then there is no banner unless the tab must reload (R7, 31 Oct 2026).
  */
 export function listNotes(notes: unknown, running: RunningBuild | null | undefined, max = MAX_SHOWN): ListedNotes {
   const all = judge(notes, running);

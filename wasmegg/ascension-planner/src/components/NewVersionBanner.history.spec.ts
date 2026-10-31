@@ -1,7 +1,8 @@
 /**
  * When at least one release note is new to this tab, the update banner lists the notes: the new ones first, tagged
- * "New", then the ones the tab already has, at most five plus "+N more" (Jordan, UX35-b, 28 Oct 2026). With none new
- * it lists nothing, and a note is new only when the tab's build does not carry its text (30 Oct 2026). Rendered through releaseFrom() with fixture
+ * "New", then the ones the tab already has, at most five plus "+N more" (Jordan, UX35-b, 28 Oct 2026). A note is new
+ * only when the tab's build does not carry its text (30 Oct 2026). With none new there is no banner at all, only the
+ * reload ask when the tab must reload (R7, 31 Oct 2026). Rendered through releaseFrom() with fixture
  * notes and a fixed build time, so the whole path from version.json to the banner is covered. Fixed clocks only.
  */
 import { ref } from 'vue';
@@ -68,13 +69,10 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     expect(text).toContain('Reload anyway');
   });
 
-  it('none newer than this tab: no list, just "Small update available" (30 Oct 2026)', async () => {
+  it('none newer than this tab: no banner at all (R7, 31 Oct 2026)', async () => {
     const html = await render(SEVEN, { builtAt: '2026-10-28T00:00:00Z', noteAts: [] });
-    expect(html).toContain('data-testid="update-banner-small"');
-    expect(html).not.toContain('<li');
-    expect(textOf(html)).toContain(
-      'Small update available. No need to reload now; you will get it next time you open the page.'
-    );
+    expect(html).not.toContain('data-testid="update-banner');
+    expect(textOf(html)).toBe('');
   });
 
   it('a note the tab already carries is not "New", even when its go-live time is after the build', async () => {
@@ -108,10 +106,10 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     ]);
     expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(1);
     expect(textOf(html)).toContain('+3 more');
-    // Without the new note: no list, no big banner.
+    // Without the new note: no banner at all (R7, 31 Oct 2026).
     const same = await render(live.slice(1), keyed);
-    expect(same).toContain('data-testid="update-banner-small"');
-    expect(same).not.toContain('<li');
+    expect(same).not.toContain('data-testid="update-banner');
+    expect(textOf(same)).toBe('');
   });
 
   it('one note: listed alone, no "+N more"', async () => {
@@ -120,13 +118,10 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     expect(textOf(html)).not.toContain('more');
   });
 
-  it('no notes at all: the old generic line, no list', async () => {
+  it('no notes at all (a code-only rebuild with an empty history): no banner', async () => {
     const html = await render([]);
-    expect(html).not.toContain('data-testid="update-notes"');
-    expect(html).not.toContain('<li');
-    expect(textOf(html)).toContain(
-      'Small update available. No need to reload now; you will get it next time you open the page.'
-    );
+    expect(html).not.toContain('data-testid="update-banner');
+    expect(textOf(html)).toBe('');
   });
 
   it('a big update lists the same way under "New on the planner"', async () => {
@@ -147,5 +142,55 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     expect(html).toContain('data-testid="update-banner-essential"');
     expect(items(html)[0]).toBe('Oct 27 New note 7');
     expect(textOf(html)).toContain('Please reload: this tab is missing a fix from a newer version.');
+  });
+
+  describe('R7 (31 Oct 2026): no note new to this tab, no banner; the reload ask still shows', () => {
+    /** Eight notes as the tab's build carries them: placeholder times before the build. */
+    const EIGHT = Array.from({ length: 8 }, (_, i) => ({
+      at: `2026-10-29T18:00:0${7 - i}Z`,
+      note: `release note ${8 - i}`,
+    }));
+    /** The same eight in the live version.json at their real go-live times, after the build, with their keys. */
+    const RETIMED = EIGHT.map((h, i) => ({ ...h, at: `2026-10-29T23:00:0${7 - i}Z`, key: buildNoteKeys([h])[0] }));
+    const TAB = { builtAt: '2026-10-29T22:30:00Z', noteAts: EIGHT.map(h => h.at), noteKeys: buildNoteKeys(EIGHT) };
+
+    it('re-timed notes only (same keys as the build, real times): nothing rendered', async () => {
+      const html = await render(RETIMED, TAB);
+      expect(html).not.toContain('data-testid="update-banner');
+      expect(textOf(html)).toBe('');
+    });
+
+    it('a code-only rebuild with no change to the notes: nothing rendered', async () => {
+      const html = await render(EIGHT, TAB);
+      expect(html).not.toContain('data-testid="update-banner');
+      expect(textOf(html)).toBe('');
+    });
+
+    it('one new note: the banner, with only that note tagged "New"', async () => {
+      const html = await render([{ at: '2026-10-31T18:00:00Z', note: 'one new thing' }, ...RETIMED], TAB);
+      expect(html).toContain('data-testid="update-banner-small"');
+      expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(1);
+      expect(items(html)[0]).toBe('Oct 31 New one new thing');
+      expect(
+        items(html)
+          .slice(1)
+          .every(t => !t.includes('New'))
+      ).toBe(true);
+    });
+
+    it('the reload ask with no new note: shown, without a list', async () => {
+      state.release.value = releaseFrom(
+        {
+          index: 'assets/index-b.js',
+          release: { reloadIfBuiltBefore: '2026-10-30T00:00:00Z', note: '', history: RETIMED },
+        },
+        TAB
+      );
+      const html = await renderHtml(NewVersionBanner, { pageUrl: './', entry: 'index' });
+      expect(html).toContain('data-testid="update-banner-essential"');
+      expect(html).not.toContain('data-testid="update-notes"');
+      expect(html).not.toContain('<li');
+      expect(textOf(html)).toContain('Please reload: this tab is missing a fix from a newer version.');
+    });
   });
 });
