@@ -42,6 +42,11 @@ export interface SimLeg {
    * start) up to the stop (`endTime`, `endTE`). `rebuildBuildEnd`: the rebuild's build phase end.
    */
   timeOff?: { from: number; to: number; te: number; rebuildBuildEnd?: number };
+  /** A1 CHOICE (spec-a1choice, lib/a1Choice.ts): when each kind of first ascension simulated would have ended it
+   *  (search/types.ts `LegSummary.firstLegEnds`), and how many things the build-up's build buys (`buildUpBuys`).
+   *  Absent on a leg cut by time off, and in records kept before. */
+  firstLegEnds?: Partial<Record<'continue' | 'buildup' | 'fresh', number>>;
+  buildUpBuys?: number;
 }
 
 export interface SimRecord {
@@ -65,9 +70,11 @@ export interface SimRecord {
  * same key) made under older rules is never found and the ascension is simulated again. Change it when the same save,
  * route and setup would now simulate differently. 'noemptybuild' (spec-noemptybuild, 31 Oct 2026): a build-up that buys
  * nothing, or ends no sooner than continue, is no longer the ascension you are in (search/leg.ts `runLeg`); a record
- * kept before showed Jordan's alt a 6-shift build-up buying nothing.
+ * kept before showed Jordan's alt a 6-shift build-up buying nothing. 'a1choice' (spec-a1choice, 1 Nov 2026): the leg
+ * carries both first-ascension ends and the build-up's buy count (`SimLeg.firstLegEnds`, `buildUpBuys`), which Right
+ * now's A1 choice reads; a record kept before has neither.
  */
-export const SIM_RECORD_RULES = 'noemptybuild';
+export const SIM_RECORD_RULES = 'a1choice';
 
 /** What the simulation depends on beyond the save and the route: the hours (when the answers work inside them), time
  *  off, no-prestige days, the first ascension's rule and whether shifts wait for the hours; and the rules it was made
@@ -111,7 +118,16 @@ export function simLegOf(leg: LegSummary | null | undefined): SimLeg | null {
     buildPhaseEndTime: finite(leg.buildPhaseEndTime) ? leg.buildPhaseEndTime : null,
     shifts: (leg.shifts ?? []).filter(s => finite(s.at) && typeof s.egg === 'string').map(s => ({ at: s.at, egg: s.egg })),
     ...(finite(leg.maxELR) && leg.maxELR > 0 ? { maxELR: leg.maxELR } : {}),
+    ...(leg.firstLegEnds ? { firstLegEnds: firstLegEndsOf(leg.firstLegEnds) } : {}),
+    ...(Number.isInteger(leg.buildUpBuys) ? { buildUpBuys: leg.buildUpBuys } : {}),
   };
+}
+
+/** Only the finite ends. */
+function firstLegEndsOf(e: Partial<Record<'continue' | 'buildup' | 'fresh', number>>): Partial<Record<'continue' | 'buildup' | 'fresh', number>> {
+  const out: Partial<Record<'continue' | 'buildup' | 'fresh', number>> = {};
+  for (const k of ['continue', 'buildup', 'fresh'] as const) if (finite(e[k])) out[k] = e[k];
+  return out;
 }
 
 /**

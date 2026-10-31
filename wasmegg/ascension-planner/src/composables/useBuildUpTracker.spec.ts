@@ -368,4 +368,29 @@ describe('useBuildUpTracker Phase 2: a plan kept before Phase 2 (no anchor farm)
     expect(t.ticks.value.has(k)).toBe(true);
     scope.stop();
   });
+
+  // A1 CHOICE (spec-a1choice, 1 Nov 2026): Right now follows finishing without buying while a build-up exists.
+  it('finishing without buying followed (picked or by default): "nothing to buy" in its own words, nothing asked, a kept plan left for Keep building', async () => {
+    const { r, t, scope } = setup();
+    r.fresh.value = fixturePlan();
+    await nextTick();
+    expect(t.state.value).toBe('ready');
+    scope.stop();
+    const finishChosen = ref<'picked' | 'default' | null>('picked');
+    const next = setup({ finishChosen: finishChosen as Ref<unknown> });
+    expect(next.t.state.value).toBe('notBuilding');
+    expect(next.t.finishChosen.value).toBe('picked');
+    expect(next.t.wanted.value).toBe(false);
+    expect(buildUpWanted.value).toBe(false);
+    // The kept plan stays: Keep building brings it back.
+    expect(mem.has(ANCHOR_KEY_PREFIX + 'acct-hash')).toBe(true);
+    finishChosen.value = null;
+    await nextTick();
+    expect(next.t.state.value).toBe('ready');
+    finishChosen.value = 'default';
+    await nextTick();
+    expect(next.t.state.value).toBe('notBuilding');
+    expect(next.t.finishChosen.value).toBe('default');
+    next.scope.stop();
+  });
 });

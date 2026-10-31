@@ -117,6 +117,19 @@ describe('keys and the leg', () => {
     expect(simLegOf({ ...l, endTime: NaN })).toBeNull();
     expect(simLegOf(null)).toBeNull();
   });
+
+  it('A1 CHOICE (spec-a1choice): simLegOf keeps both first-ascension ends and the build-up buy count', () => {
+    const l = { key: 'buildup', endTE: 194, durationSeconds: 7 * 24 * H, maxELR: 1, endTime: T0 + 7 * 24 * H, tier13Unlocked: false, shifts: [], firstLegEnds: { buildup: T0 + 7 * 24 * H, continue: T0 + 6 * 24 * H, fresh: NaN }, buildUpBuys: 1 } as LegSummary;
+    expect(simLegOf(l)).toMatchObject({ firstLegEnds: { buildup: T0 + 7 * 24 * H, continue: T0 + 6 * 24 * H }, buildUpBuys: 1 });
+    expect(simLegOf(l)!.firstLegEnds).not.toHaveProperty('fresh');
+  });
+
+  it("a record kept before the A1 choice (rules 'noemptybuild', no ends or buys) is never found again", () => {
+    const base = { availability: null, useHours: false, timeOff: [], noPrestige: [], firstAscension: 'buildup, build unfinished', deferShifts: false };
+    const before = JSON.stringify([null, [], [], 'buildup, build unfinished', false, 'noemptybuild']);
+    expect(SIM_RECORD_RULES).toBe('a1choice');
+    expect(simSetupKey(base)).not.toBe(before);
+  });
 });
 
 describe('withCurrentSim', () => {

@@ -103,6 +103,25 @@ describe('BuildUpTracker: the list', () => {
   });
 });
 
+describe('A1 CHOICE (spec-a1choice): finishing without buying followed', () => {
+  it('picked: "You chose to finish without buying" in place of the generic line, and in the closed hint', async () => {
+    const html = await render('notBuilding', { finishChosen: 'picked', open: false });
+    const t = textOf(html);
+    expect(html).toContain('data-testid="buildup-finish-chosen"');
+    expect(t).toContain('Build-up tracker you chose to finish without buying');
+    expect(t).toContain('You chose to finish without buying: nothing to buy until your next prestige.');
+    expect(t).not.toContain('the build-up list shows while you build');
+  });
+  it('by default: why (the sooner), never "You chose"', async () => {
+    const t = textOf(await render('notBuilding', { finishChosen: 'default' }));
+    expect(t).toMatch(/Finishing without buying ends this ascension sooner/);
+    expect(t).not.toContain('You chose');
+  });
+  it('not chosen: the generic line as before', async () => {
+    expect(textOf(await render('notBuilding'))).toContain('Nothing to buy until your next prestige: the build-up list shows while you build.');
+  });
+});
+
 describe('dayView (per-day show all)', () => {
   const fri = result.days[0];
   it('open: every line; collapsed: bold and event lines and the first line not ticked', () => {

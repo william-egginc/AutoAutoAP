@@ -451,6 +451,8 @@ export function createChainEvaluator(inputs: SearchInputs, memoSettings: MemoSet
             ...(leg.afterTimeOff ? { afterTimeOff: true as const } : {}),
             ...(leg.rival ? { firstLegRival: { ...leg.rival } } : {}),
             ...(leg.firstLegEnds ? { firstLegEnds: { ...leg.firstLegEnds } } : {}),
+            // A1 CHOICE (spec-a1choice): what the build-up's build buys, when it was simulated.
+            ...(leg.buildUpBuys !== undefined ? { buildUpBuys: leg.buildUpBuys } : {}),
             // The route's end state, for By a date's TE per egg and next TE (search/endEggs.ts).
             ...(isFinalLeg ? { endEggs: endEggsOf(leg) } : {}),
             // The egg it ends on and its TE then, every leg (search/routeTimeline.ts).

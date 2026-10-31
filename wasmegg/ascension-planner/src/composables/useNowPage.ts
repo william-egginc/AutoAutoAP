@@ -151,7 +151,19 @@ import type { BuildUpPlan } from '@/search/buildUpActions';
 import { buildUpWanted } from './useBuildUpTracker';
 import { buildUpLog, perfStep } from '@/lib/buildUpDebug';
 import { saveFarmFor } from '@/lib/buildUpBought';
-import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
+import { findSimRecord, readSimRecords, simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
+import {
+  A1_SETUP,
+  a1Candidates,
+  a1ChoiceWords,
+  a1Decision,
+  a1FirstAsk,
+  a1Inputs,
+  readA1Pick,
+  writeA1Pick,
+  type A1Candidates,
+  type A1Side,
+} from '@/lib/a1Choice';
 import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
@@ -1302,7 +1314,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * producing farm read "Keep building: vehicles" for 17 days).
    */
   const saveBuildLeft = computed(() => (hasSave.value && onVirtue.value ? buildLeft(farm.value, fullHabRates.value) : null));
-  const simRequest = computed<SimRequest | null>(() => perfStep('nowPage simRequest', (): SimRequest | null => {
+  /**
+   * The simulation's request without its first-ascension side: everything the two sides of the A1 choice share (the
+   * account, save, route and the rest of the setup), and whether the save's build is unfinished. Null when nothing is
+   * asked (see `simRequest`).
+   */
+  const simBase = computed(() => {
     // Any followed route without exact legs, whether the table's estimate is in, being worked out or couldn't be made
     // (26 Oct 2026: a route the estimate couldn't price still gets its Next step from the ascension you are in).
     const fs = followState.value;
@@ -1317,15 +1334,90 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (!route.length) return null;
     const useHours = useHoursFromStores();
     const building = !!saveBuildLeft.value?.length && store.firstAscension !== 'fresh';
-    const setup = simSetupKey({
-      availability: store.availability,
-      useHours,
-      timeOff: store.timeOff,
-      noPrestige: store.noPrestige,
-      firstAscension: building ? 'buildup, build unfinished' : store.firstAscension,
-      deferShifts: !!store.deferShifts,
-    });
+    const setupFor = (firstAscension: string) =>
+      simSetupKey({
+        availability: store.availability,
+        useHours,
+        timeOff: store.timeOff,
+        noPrestige: store.noPrestige,
+        firstAscension,
+        deferShifts: !!store.deferShifts,
+      });
     const backupTime = saveSeconds.value;
+    // The two sides' keys (A1 CHOICE): the record of either side says what the choice is.
+    const sideKeys = building
+      ? { buildup: simKey({ account: acct, backupTime, route, setup: setupFor(A1_SETUP.buildup) }), continue: simKey({ account: acct, backupTime, route, setup: setupFor(A1_SETUP.continue) }) }
+      : null;
+    return { account: acct, backupTime, route, useHours, building, setupFor, sideKeys, trackerOnly: !!p?.legs };
+  });
+  /**
+   * MY RUNS' A1 CHOICE (spec-a1choice, 1 Nov 2026, lib/a1Choice.ts). On the unfinished-build path a build-up that buys
+   * wins even when it ends later than finishing without buying (pieha's 27 Oct decision). Right now now offers both when
+   * it does, follows the sooner (continue) until the player picks, and keeps the pick per account and ascension (the
+   * stop it heads to), over Your setup's First ascension, which it never changes ('buildup' or 'continue' set there
+   * explicitly is the default side instead). The candidates are read once per save, route and setup from whichever
+   * side's simulation came in first (both carry both ends and the build-up's buy count); the side followed is then
+   * simulated under its own setup key, so a pick change is a new key: a new request, or the kept record of that side.
+   * Only when the simulation drives Right now's ascension (no exact legs: there the plan's own A1 holds).
+   */
+  const a1PickVersion = ref(0);
+  const a1Stop = computed(() => simBase.value?.route[0] ?? null);
+  const a1Pick = computed<A1Side | null>(() => {
+    void a1PickVersion.value;
+    const acct = account.value;
+    const stop = a1Stop.value;
+    return acct && stop !== null ? readA1Pick(acct, stop) : null;
+  });
+  /** The picks made on this page, per base: a pick holds on this page even when storage refuses it. */
+  const a1PagePicks = ref<Record<string, A1Side>>({});
+  /** The candidates for the base on screen, once known (null: known, and there are none). Kept per base: the first
+   *  side to come in decides, so the two records can never make the choice flip back and forth. */
+  const a1Known = shallowRef<{ base: string; cand: A1Candidates | null } | null>(null);
+  const a1BaseKey = computed(() => {
+    const k = simBase.value?.sideKeys;
+    return k && !simBase.value!.trackerOnly ? k.buildup : null;
+  });
+  /** A kept record of either side tells the choice at once (a reload with a pick asks for nothing else). */
+  watch(
+    a1BaseKey,
+    base => {
+      if (!base || a1Known.value?.base === base) return;
+      const b = simBase.value!;
+      const records = readSimRecords();
+      for (const side of ['buildup', 'continue'] as const) {
+        const r = findSimRecord(records, { account: b.account, backupTime: b.backupTime, route: b.route, setup: b.setupFor(A1_SETUP[side]) });
+        if (r) {
+          a1Known.value = { base, cand: a1Candidates(r.leg) };
+          return;
+        }
+      }
+    },
+    { immediate: true }
+  );
+  const a1Cand = computed(() => {
+    const base = a1BaseKey.value;
+    const k = a1Known.value;
+    return base && k?.base === base ? { cand: k.cand } : null;
+  });
+  const a1PickNow = computed<A1Side | null>(() => {
+    const base = a1BaseKey.value;
+    return (base ? a1PagePicks.value[base] : undefined) ?? a1Pick.value;
+  });
+  /** The decision on screen: null off the unfinished-build path. */
+  const a1 = computed(() => {
+    if (!a1BaseKey.value) return null;
+    const known = a1Cand.value;
+    if (!known) return { known: false as const, side: a1FirstAsk(a1PickNow.value, store.firstAscension) };
+    return { known: true as const, cand: known.cand, ...a1Decision({ cand: known.cand, pick: a1PickNow.value, setting: store.firstAscension }) };
+  });
+  /** The side the simulation is asked for. */
+  const a1Side = computed<A1Side>(() => a1.value?.side ?? 'buildup');
+  const simRequest = computed<SimRequest | null>(() => perfStep('nowPage simRequest', (): SimRequest | null => {
+    const b = simBase.value;
+    if (!b) return null;
+    const side = b.building ? a1Side.value : null;
+    const setup = b.setupFor(side ? A1_SETUP[side] : store.firstAscension);
+    const { account: acct, backupTime, route, useHours } = b;
     return {
       key: simKey({ account: acct, backupTime, route, setup }),
       account: acct,
@@ -1334,14 +1426,52 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       setup,
       inputs: () => {
         const i = perfStep('collectInputs', () => store.collectInputs());
-        // The build carried on (above), unless the plan starts too late to continue the save (firstAscensionFor).
-        const carryOn = building && i.firstAscension !== 'fresh' ? { firstAscension: 'buildup' as const, continueMaxSeconds: 0 } : {};
+        // The build carried on (above), unless the plan starts too late to continue the save (firstAscensionFor); or,
+        // when Right now follows "Finish without buying" (A1 CHOICE), continue pinned.
+        const carryOn = side && i.firstAscension !== 'fresh' ? a1Inputs(side) : {};
         // One ascension, not the whole route: no dated milestones to meet; the hours only as the answers use them.
         return { ...i, ...carryOn, milestones: [], ...(useHours ? {} : { availability: null }) };
       },
     };
   }));
   const { state: currentSim, slow: simSlow, retry: retrySim } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
+  // A1 CHOICE: the candidates from the first side's simulation of this base to come in.
+  watch(
+    currentSim,
+    st => {
+      const base = a1BaseKey.value;
+      const keys = simBase.value?.sideKeys;
+      if (!base || !keys || st?.status !== 'done' || a1Known.value?.base === base) return;
+      if (st.key !== keys.buildup && st.key !== keys.continue) return;
+      a1Known.value = { base, cand: a1Candidates(st.leg) };
+    },
+    { immediate: true }
+  );
+  /** Right now's A1 choice (A1Choice.vue): shown only when both sides exist and differ (the build-up buys and ends
+   *  later); its two labels (DRAFT) and the side followed. */
+  const a1Choice = computed(() => {
+    const d = a1.value;
+    if (!d || !d.known || !d.show || !d.cand) return null;
+    const w = a1ChoiceWords(d.cand, now.value, zone.value);
+    return { side: d.side, picked: d.picked, buys: d.cand.buys, buildEnd: d.cand.buildEnd, contEnd: d.cand.contEnd, ...w };
+  });
+  /** Right now follows finishing without buying while a build-up exists (picked, or the sooner by default): the Build-up
+   *  tracker says so ('picked' / 'default'), never the generic "nothing to buy". Null otherwise. */
+  const a1Finish = computed<'picked' | 'default' | null>(() => {
+    const d = a1.value;
+    if (!d || !d.known || !d.cand || d.side !== 'continue') return null;
+    return d.picked ? 'picked' : 'default';
+  });
+  /** The player's pick on Right now: kept for this account and ascension (never Your setup's value). */
+  function pickA1(side: A1Side): void {
+    const acct = account.value;
+    const stop = a1Stop.value;
+    const base = a1BaseKey.value;
+    if (!acct || stop === null || !base) return;
+    a1PagePicks.value = { ...a1PagePicks.value, [base]: side };
+    writeA1Pick(acct, stop, side);
+    a1PickVersion.value++;
+  }
   /** The simulation is asked for the Build-up tracker only (the route has exact legs): Right now's card says nothing of it. */
   const simForTrackerOnly = computed(() => !!followState.value?.plan?.plan?.legs);
   /**
@@ -1972,6 +2102,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     buildUpSim,
     buildUpSave,
     retryBuildUp,
+    a1Choice,
+    a1Finish,
+    pickA1,
     nextStep,
     nextShiftLines,
     ascNow,

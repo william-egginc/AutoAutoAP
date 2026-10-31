@@ -284,3 +284,17 @@ export function nothingToBuyBackup(daysToNextTE: Partial<Record<'curiosity' | 'i
   });
   return b;
 }
+
+/**
+ * ONE TRAIN CAR SHORT, ON KINDNESS (spec-a1choice, 1 Nov 2026): `nothingToBuyBackup` in the alt's shape (Kindness 1.5 days
+ * from its next TE, the others a little further) with the last hyperloop one car short. Its build-up buys that one car
+ * and so is a build-up, but its shifts make it end LATER than finishing without buying (measured on this fixture:
+ * build-up 6.90 days, continue 6.39 days from the plan start, to 194 TE): My runs' unfinished-build case of the A1
+ * choice.
+ */
+export const ONE_CAR_SHORT_SHAPE = { kindness: 1.5, curiosity: 1.6, integrity: 1.65, resilience: 1.7, humility: 1.74 } as const;
+export function oneCarShortBackup(): any {
+  const b = nothingToBuyBackup(ONE_CAR_SHORT_SHAPE);
+  b.farms[0].trainLength[16] = 9;
+  return b;
+}

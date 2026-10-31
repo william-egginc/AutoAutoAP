@@ -32,6 +32,9 @@
       <div class="mt-2 space-y-2 text-body text-slate-700" data-testid="buildup-body">
         <p v-if="state === 'noSave'" data-testid="buildup-nosave">Load your save to see your build-up here.</p>
         <p v-else-if="state === 'noRoute'" data-testid="buildup-noroute">Follow a route on Right now and its build-up shows here.</p>
+        <p v-else-if="state === 'notBuilding' && finishChosen" data-testid="buildup-finish-chosen" :data-why="finishChosen">
+          {{ a1TrackerWords(finishChosen === 'picked') }}
+        </p>
         <p v-else-if="state === 'notBuilding'" data-testid="buildup-notbuilding">
           Nothing to buy until your next prestige: the build-up list shows while you build.
         </p>
@@ -205,6 +208,7 @@ import PanelFold from '@/components/auto/PanelFold.vue';
 import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
 import { getNextSaleEnd } from '@/lib/events';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
+import { a1TrackerWords } from '@/lib/a1Choice';
 import type { LineBought, SaveFit } from '@/lib/buildUpBought';
 
 const props = withDefaults(
@@ -231,6 +235,9 @@ const props = withDefaults(
     tickSource?: ReadonlyMap<string, 'save' | 'you'> | null;
     /** Whether the save can tick this plan. */
     saveFit?: SaveFit | null;
+    /** A1 CHOICE (spec-a1choice): Right now follows finishing without buying while a build-up exists, picked
+     *  ('picked') or as the sooner ('default'); null: not. Said instead of the generic "nothing to buy". */
+    finishChosen?: 'picked' | 'default' | null;
     /** The Re-plan strip; null: none. */
     replan?: {
       shown: boolean;
@@ -244,7 +251,7 @@ const props = withDefaults(
       keepsTicks: boolean;
     } | null;
   }>(),
-  { siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null }
+  { siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null }
 );
 const emit = defineEmits<{
   toggle: [open: boolean];
@@ -264,7 +271,7 @@ const hint = computed(() => {
     case 'noRoute':
       return 'follow a route first';
     case 'notBuilding':
-      return 'nothing to buy until your next prestige';
+      return props.finishChosen === 'picked' ? 'you chose to finish without buying' : 'nothing to buy until your next prestige';
     case 'working':
       return 'working it out…';
     case 'failed':

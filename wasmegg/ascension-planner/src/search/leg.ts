@@ -122,6 +122,10 @@ export interface LegResult {
    *  the farm it starts from. Only when `LegOptions.keepPurchases` asked for it; absent otherwise, so a
    *  result without the ask is exactly what it always was (search/leg.buildUp.spec.ts). */
   buildUp?: BuildUpList;
+  /** A1 only, when "continue my build-up" was simulated (whichever kind won): how many things its build buys (research,
+   *  vehicle, train car, hab and silo purchases before its first wait for TE, the Build-up tracker's build part:
+   *  lib/buildUpTracker.ts `buildPart`). My runs' A1 choice (spec-a1choice, 1 Nov 2026) says "buys N things". */
+  buildUpBuys?: number;
 }
 
 /** How `runLeg` is asked for more than its result. Absent: the result as it always was. */
@@ -221,6 +225,8 @@ interface CompactVariant extends VariantResult {
   lastEgg: string;
   /** `LegOptions.keepPurchases` only. */
   buildUp?: BuildUpList;
+  /** The build-up variant only: `buildBuysOf` its actions (`LegResult.buildUpBuys`). */
+  buys?: number;
 }
 const NO_ACTIONS: Action[] = Object.freeze([]) as unknown as Action[];
 
@@ -229,6 +235,17 @@ function endEggOf(v: CompactVariant): { endEgg?: { egg: string; te: number } } {
   const s = v.summary as { finalTE?: Partial<Record<string, number>>; eggsDelivered?: Partial<Record<string, number>> };
   const te = v.lastEgg ? eggTE({ teEarned: s.finalTE, eggsDelivered: s.eggsDelivered }, v.lastEgg) : null;
   return te !== null ? { endEgg: { egg: v.lastEgg, te } } : {};
+}
+
+/** A1 CHOICE (spec-a1choice): the purchases (auto/ascension.ts `isPurchase`) a build-up makes before its first wait for
+ *  TE, the part the Build-up tracker lists (lib/buildUpTracker.ts `buildPart`). Read only. */
+function buildBuysOf(actions: readonly Action[]): number {
+  let n = 0;
+  for (const a of actions) {
+    if (a.type === 'wait_for_te') break;
+    if (isPurchase(a)) n++;
+  }
+  return n;
 }
 
 /** `a` is strictly better than `b`: sooner, or by a deadline more TE (`pickVariant`'s measures, without its ties). */
@@ -316,6 +333,7 @@ export function runLeg(
       ...(rival ? { rival: { key: rival.key, endTime: rival.v.summary.endTime } } : {}),
       ...(Object.keys(ends).length ? { firstLegEnds: ends } : {}),
       ...(v.buildUp ? { buildUp: v.buildUp } : {}),
+      ...(kinds.buildup?.v.buys !== undefined ? { buildUpBuys: kinds.buildup.v.buys } : {}),
     };
   };
 
@@ -336,13 +354,13 @@ export function runLeg(
   // (auto/buildUp.ts). A real build, so no six-month rule. A candidate under 'auto' and 'buildup';
   // under 'continue' (Finish without buying) only recorded, so the plan can say when building on
   // would have been sooner (health.ts `buildUpNote`). Worked out once per run and plan start.
-  let buildUp =
-    allowContinue && mode !== 'fresh'
-      ? compactOrNull(
-          buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride),
-          () => buildUpBuild(inputs, baseState, startTime, startTE)?.start
-        )
-      : null;
+  // A1 CHOICE (spec-a1choice): its build's buy count is read here, before its actions are let go.
+  let buildUp = ((): CompactVariant | null => {
+    if (!allowContinue || mode === 'fresh') return null;
+    const raw = buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride);
+    const c = compactOrNull(raw, () => buildUpBuild(inputs, baseState, startTime, startTE)?.start);
+    return c && raw ? { ...c, buys: buildBuysOf(raw.actions) } : c;
+  })();
   if (buildUp) kinds.buildup = { v: buildUp, key: 'buildup' };
   // NO EMPTY BUILD-UP (spec-noemptybuild, 31 Oct 2026; Jordan's alt: a build-up A1 of 6 shifts and 38.59Q of soul
   // eggs to Dec 13 against continue's 3 shifts and 17.82Q to Dec 12). The build-up always opens with C3's shift to

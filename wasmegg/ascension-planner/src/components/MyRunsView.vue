@@ -54,6 +54,7 @@
         :sim-slow="page.simSlow.value"
         :next-step="page.nextStep.value"
         :next-shift-lines="page.nextShiftLines.value"
+        :a1-choice="page.a1Choice.value"
         :gear="page.gear.value"
         :now="page.now.value"
         :zone="page.zone.value"
@@ -79,6 +80,7 @@
         @use-search="page.useSearchResult"
         @follow="followTyped"
         @unfollow="unfollowGoal"
+        @pick-a1="page.pickA1"
       >
         <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
              Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
@@ -100,6 +102,7 @@
             :tick-source="tracker.tickSource.value"
             :save-fit="tracker.bought.value?.fit ?? null"
             :replan="trackerReplan"
+            :finish-chosen="tracker.finishChosen.value"
             @toggle="tracker.playerToggle"
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"
@@ -438,6 +441,7 @@ const tracker = useBuildUpTracker({
   fresh: page.buildUpPlan,
   sim: page.buildUpSim,
   saveFarm: page.buildUpSave,
+  finishChosen: page.a1Finish,
 });
 /** The tracker's Re-plan strip (Phase 2): shown when the save is over 1 h behind the plan or bought things off-plan. */
 const trackerReplan = computed(() =>

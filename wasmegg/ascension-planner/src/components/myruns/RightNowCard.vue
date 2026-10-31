@@ -300,6 +300,17 @@
     <!-- Next step. -->
     <div v-else class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
       <p class="label text-indigo-700">Next step</p>
+      <!-- A1 CHOICE (spec-a1choice, lib/a1Choice.ts): carrying on the unfinished build buys but ends later than finishing
+           without buying; both offered, the sooner by default. What follows (Next step, Next shifts, the Build-up
+           tracker) is the side picked. -->
+      <A1Choice
+        v-if="a1Choice && !notOnVirtue"
+        :side="a1Choice.side"
+        :keep="a1Choice.keep"
+        :finish="a1Choice.finish"
+        :legend="a1Choice.legend"
+        @pick="side => emit('pickA1', side)"
+      />
       <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
            action and the first shifts (26 Oct 2026); the lines below say why the rest has no times. -->
       <template v-if="!card && follow && (actionText || simWorking || simFailure)">
@@ -499,6 +510,8 @@ import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
+import A1Choice from './A1Choice.vue';
+import type { A1Side } from '@/lib/a1Choice';
 import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { roundToHourIn } from '@/lib/nowWords';
 import { showDateTime } from '@/lib/displayTime';
@@ -596,6 +609,8 @@ const props = defineProps<{
   nextStep?: NextAction | null;
   /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */
   nextShiftLines?: NextShiftLine[];
+  /** Right now's A1 choice (useNowPage `a1Choice`): the side followed and the two labels; null or absent: no choice. */
+  a1Choice?: { side: A1Side; keep: string; finish: string; legend: string } | null;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -615,6 +630,8 @@ const emit = defineEmits<{
   saveOnline: [];
   /** Retry reading the routes saved online (stores/follow.ts `loadCloud(true)`). */
   retryCloud: [];
+  /** The A1 choice: the player's pick (useNowPage `pickA1`). */
+  pickA1: [side: A1Side];
 }>();
 
 /** Not on virtue yet (null: not known, the card stays as it is). */

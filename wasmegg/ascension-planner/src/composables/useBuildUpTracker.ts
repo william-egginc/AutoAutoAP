@@ -99,6 +99,9 @@ export interface BuildUpTrackerInputs {
   sim: Ref<{ status: 'working' | 'waiting' | 'failed' | 'done'; reason?: string } | null>;
   /** Phase 2: the loaded save as the tracker ticks from it (useNowPage `buildUpSave`); null without one. */
   saveFarm?: Ref<SaveFarm | null>;
+  /** A1 CHOICE (spec-a1choice, useNowPage `a1Finish`): Right now follows finishing without buying while a build-up
+   *  exists, picked by the player ('picked') or as the sooner ('default'); null or absent: not. */
+  finishChosen?: Ref<'picked' | 'default' | null>;
 }
 
 export function useBuildUpTracker(i: BuildUpTrackerInputs) {
@@ -192,8 +195,12 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   }
 
   // ------------------------------------------------------------------ asking for the plan
+  /** A1 CHOICE: finishing without buying is followed: nothing to buy, no plan asked for, a kept plan left as it is
+   *  (Keep building brings it back). */
+  const finishChosen = computed(() => i.finishChosen?.value ?? null);
   const wanted = computed(
     () =>
+      !finishChosen.value &&
       open.value &&
       i.building.value &&
       i.hasSave.value &&
@@ -406,6 +413,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (i.onVirtue.value === false) return 'hidden';
     if (!i.hasSave.value) return 'noSave';
     if (!i.followed.value && !plan.value) return 'noRoute';
+    if (finishChosen.value) return 'notBuilding';
     if (plan.value) return 'ready';
     if (!i.building.value || freshBuysNothing.value) return 'notBuilding';
     if (i.sim.value?.status === 'failed') return 'failed';
@@ -438,6 +446,8 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     replanShown,
     hasOverrides,
     siloWarnings,
+    /** A1 CHOICE: why there is nothing to buy ('picked' / 'default'), for the tracker's own words; null otherwise. */
+    finishChosen,
     failReason: computed(() => (i.sim.value?.status === 'failed' ? (i.sim.value.reason ?? '') : '')),
     /** The failure was a stop (its worker torn down) rather than the simulation's own: said so, with Try again. */
     failStopped: computed(() => i.sim.value?.status === 'failed' && /stopped|terminated|paused/i.test(i.sim.value.reason ?? '')),
