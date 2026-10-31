@@ -26,6 +26,7 @@ import { syntheticBackup, syntheticInputs } from '@/test/syntheticSave';
 import { getArtifactLoadoutFromBackup, getOptimalEarningsSet, getOptimalELRSet } from '@/lib/artifacts';
 import { sameSet } from '@/lib/gearMatch';
 import { getCommonResearches } from '@/calculations/commonResearch';
+import { computeSnapshot } from '@/engine/compute';
 import { buildUpStateForCheck, buildUpVariantForCheck, continueStateForCheck, continueVariantForCheck } from './leg';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { SearchInputs } from './types';
@@ -86,10 +87,34 @@ const continued = (inputs: SearchInputs) => continueVariantForCheck(inputs, inpu
 const loadout = (s: { artifactLoadout: unknown } | null | undefined) =>
   (s?.artifactLoadout ?? null) as EquippedArtifact[] | null;
 
+/** What each fixture wears (the slots point at items in the inventory, so the loader reads them back). */
+const WORN_IDS: Record<Wear, string[]> = {
+  production: ['interstellar-compass-4-1', 'quantum-metronome-4-3', 'tachyon-deflector-4-2'],
+  earnings: ['demeters-necklace-4-3', 'lunar-totem-4-3', 'quantum-metronome-4-3', 'tungsten-ankh-4-3'],
+};
+
+/** The equipped set, checked to be the one the fixture means to wear and to do something: the farm lays faster
+ *  with it than bare. A slot pointing at an item not in the inventory reads as empty, so a fixture that wears
+ *  nothing cannot pass silently. */
+function wornAs(inputs: SearchInputs, wear: Wear): EquippedArtifact[] {
+  const worn = equipped(inputs);
+  expect(
+    worn
+      .map(a => a.artifactId)
+      .filter(Boolean)
+      .sort()
+  ).toEqual(WORN_IDS[wear]);
+  const farm = cont(inputs)!;
+  const elr = (set: EquippedArtifact[]) =>
+    computeSnapshot({ ...farm, artifactLoadout: set }, inputs.context, { skipGrowth: true }).elr;
+  expect(elr(worn)).toBeGreaterThan(elr(worn.map(() => ({ artifactId: null, stones: [] }))));
+  return worn;
+}
+
 describe('A1 off Humility keeps the equipped set (search/leg.ts)', () => {
   it('Kindness, production set worn: continue wears it, not the best delivery set', async () => {
     const inputs = await syntheticInputs(save(KINDNESS, 'production'));
-    const worn = equipped(inputs);
+    const worn = wornAs(inputs, 'production');
     expect(sameSet(worn, earningsSet(inputs))).toBe(false);
     const c = cont(inputs)!;
     expect(c.currentEgg).toBe('kindness');
@@ -98,7 +123,7 @@ describe('A1 off Humility keeps the equipped set (search/leg.ts)', () => {
 
   it('Kindness, production set worn: the build-up wears it until H1, and is slower for it', async () => {
     const inputs = await syntheticInputs(save(KINDNESS, 'production'));
-    const worn = equipped(inputs);
+    const worn = wornAs(inputs, 'production');
     const s = start(inputs)!;
     expect(s.activeArtifactSet).toBe('elr');
     expect(sameSet(loadout(s), worn)).toBe(true);
@@ -119,7 +144,7 @@ describe('A1 off Humility keeps the equipped set (search/leg.ts)', () => {
 
   it('Kindness, earnings set worn: the build-up is unchanged; continue wears that set', async () => {
     const inputs = await syntheticInputs(save(KINDNESS, 'earnings'));
-    const worn = equipped(inputs);
+    const worn = wornAs(inputs, 'earnings');
     expect(sameSet(worn, earningsSet(inputs))).toBe(true);
 
     const c = cont(inputs)!;
@@ -134,7 +159,7 @@ describe('A1 off Humility keeps the equipped set (search/leg.ts)', () => {
 
   it('Humility: the swaps stay allowed, and both are unchanged', async () => {
     const inputs = await syntheticInputs(save(HUMILITY, 'production'));
-    const worn = equipped(inputs);
+    const worn = wornAs(inputs, 'production');
     const c = cont(inputs)!;
     expect(c.currentEgg).toBe('humility');
     // The best delivery set, as before.
@@ -157,6 +182,7 @@ describe('A1 off Humility keeps the equipped set (search/leg.ts)', () => {
 
   it('a farm with nothing left to buy: the build-up does not beat continue', async () => {
     const inputs = await syntheticInputs(save(KINDNESS, 'production', true));
+    wornAs(inputs, 'production');
     const b = buildUp(inputs)!;
     const c = continued(inputs)!;
     expect(b.summary.endTime).toBeGreaterThanOrEqual(c.summary.endTime);
