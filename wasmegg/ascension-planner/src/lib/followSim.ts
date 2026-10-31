@@ -273,6 +273,8 @@ export function buildUpPlanFromSegments(
     actions,
     siloSeconds: finite(o.siloSeconds) ? o.siloSeconds : 0,
     endTime: segs[segs.length - 1].endTime,
+    // How many sales the build looks ahead to (the tracker's Smart Buy line; spec-buylabel).
+    ...(Number.isInteger(first.buildPhaseSaleCount) && first.buildPhaseSaleCount! > 0 ? { saleCount: first.buildPhaseSaleCount } : {}),
   };
 }
 

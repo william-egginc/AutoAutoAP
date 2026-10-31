@@ -6,7 +6,8 @@
   build-up (once per account and ascension, then their close holds: composables/useBuildUpTracker.ts).
 
   The lines are lib/buildUpTracker.ts's: one per check-in kind, research merged, shifts / trains / habs / silos / the
-  set swap bold, sale and silo-trick lines fixed to the clock. Days collapse to their bold and event lines plus the
+  set swap bold, sale and silo-trick lines fixed to the clock. Under the plan line, the Smart Buy line (lib `buyRuleWords`, the plan's
+  sale count; spec-buylabel), and research parts the opening sweep's rule calls cheap end in "(cheap sweep)". Days collapse to their bold and event lines plus the
   first line not ticked yet; today and the next day with check-ins start open.
 
   Phase 2 (lib/buildUpBought.ts): lines tick themselves from the save ("bought", "3 of 5 bought" in amber with the
@@ -64,6 +65,7 @@
             Plan from your save of {{ dayClock(planSave, zone, now) }} · check-ins at least 1 min apart · lines tick themselves
             from your save; tick the rest by hand.
           </p>
+          <p v-if="result.buyRule" class="text-small text-slate-500" data-testid="buildup-buyrule">{{ result.buyRule }}</p>
           <p v-if="fitNote" class="text-small text-amber-800" data-testid="buildup-fit">{{ fitNote }}</p>
           <div
             v-if="replan?.shown"

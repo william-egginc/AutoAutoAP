@@ -226,6 +226,8 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
         siloSeconds: a.plan.siloSeconds,
         startSilos: a.plan.start?.siloCount ?? null,
         startEgg: a.plan.start?.egg ?? null,
+        saleCount: a.plan.saleCount ?? null,
+        variantKey: a.plan.variantKey,
         now: today.value.at,
       })
     );

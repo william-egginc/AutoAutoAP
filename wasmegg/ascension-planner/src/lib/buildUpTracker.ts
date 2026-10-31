@@ -35,6 +35,10 @@
  *     Humility is dropped, with a note line. H1's update + equip of the ELR set is one bold line.
  *  7. DAYS. Lines grouped by the day in the player's zone; a clock change on that day is noted. Ordinary research
  *     lines are `granular` (a collapsed day hides them). Today and the next day with check-ins start open.
+ *  8. SMART BUY (spec-buylabel, 30 Oct 2026; notes/smartbuy-vs-c3-2026-10-30.md). The buys are Joo's Smart Buy as C3
+ *     runs it, looking ahead to the end of the build's last sale: `buyRule` says so with the plan's sale count. A
+ *     research buy that cost 10 s of income or less (`BuildUpAction.cheap`, C3's opening sweep rule) gets
+ *     "(cheap sweep)" after its part, so it is not read as an ROI pick; `items` are untouched.
  *
  * Times are 12-hour with am/pm ("8:42 am"), always, as the oracle and Jordan's rule write them.
  * Player-facing words here are DRAFT (Words reviews them; ~/code/aaap-tools/notes/spec-buildup-b.md).
@@ -145,6 +149,10 @@ export interface TrackerInput {
   now: number;
   /** Specs: another gap. */
   gapSeconds?: number;
+  /** How many sales the plan's Smart Buy looks ahead to (BuildUpPlan.saleCount); null: not carried. */
+  saleCount?: number | null;
+  /** The plan's variant (BuildUpPlan.variantKey): the sale count when `saleCount` is not carried. */
+  variantKey?: string | null;
 }
 
 export interface TrackerResult {
@@ -154,6 +162,8 @@ export interface TrackerResult {
   lines: TrackerLine[];
   /** Set swaps left out (not on Humility). */
   droppedSwaps: number;
+  /** The header's Smart Buy line (`buyRuleWords`); '' for none. */
+  buyRule: string;
 }
 
 // ------------------------------------------------------------------------------------------------ words
@@ -259,7 +269,7 @@ export function researchParts(
   sameName: ReadonlySet<string>
 ): { id: string; level: number; text: string }[] {
   const order: string[] = [];
-  const by = new Map<string, { name: string; lo: number; hi: number }>();
+  const by = new Map<string, { name: string; lo: number; hi: number; cheap: boolean }>();
   for (const a of items) {
     const key = a.id ?? a.label;
     const to = a.level ?? 0;
@@ -268,17 +278,44 @@ export function researchParts(
     if (!cur) {
       const tier = a.id && sameName.has(a.label) ? RESEARCH_TIER[a.id] : undefined;
       const name = sameName.has(a.label) ? `${a.label} (${tier ? `tier ${tier}` : (a.id ?? '')})` : a.label;
-      by.set(key, { name, lo: Math.min(from, to), hi: to });
+      by.set(key, { name, lo: Math.min(from, to), hi: to, cheap: a.cheap === true });
       order.push(key);
     } else {
       cur.lo = Math.min(cur.lo, from);
       cur.hi = Math.max(cur.hi, to);
+      // Marked only when every buy of it in the line was cheap.
+      cur.cheap = cur.cheap && a.cheap === true;
     }
   }
   return order.map(k => {
     const r = by.get(k)!;
-    return { id: k, level: r.hi, text: r.lo >= r.hi ? `${r.name} ${r.hi}` : `${r.name} ${r.lo}-${r.hi}` };
+    const mark = r.cheap ? CHEAP_SWEEP_MARK : '';
+    return { id: k, level: r.hi, text: `${r.lo >= r.hi ? `${r.name} ${r.hi}` : `${r.name} ${r.lo}-${r.hi}`}${mark}` };
   });
+}
+
+/** After a research part whose buys were all `cheap` (DRAFT words). */
+export const CHEAP_SWEEP_MARK = ' (cheap sweep)';
+
+/** The fallback sale count when the plan carries none (an older kept 'buildup' plan): the usual 3-sale build. */
+export const FALLBACK_SALE_COUNT = 3;
+
+/**
+ * How many sales the plan's Smart Buy looks ahead to: the plan's own count (the simulator's `buildPhaseSaleCount`),
+ * else its variant key's ('2-sale', '1-sale-tier13'), else `FALLBACK_SALE_COUNT`. Null for 'continue' (no buys).
+ */
+export function salesAhead(o: { saleCount?: number | null; variantKey?: string | null }): number | null {
+  if (o.variantKey === 'continue') return null;
+  if (typeof o.saleCount === 'number' && Number.isInteger(o.saleCount) && o.saleCount > 0) return o.saleCount;
+  const k = /^(\d+)-sale/.exec(o.variantKey ?? '');
+  return k ? Number(k[1]) : FALLBACK_SALE_COUNT;
+}
+
+/** The header's Smart Buy line (DRAFT words); '' when the plan buys nothing. */
+export function buyRuleWords(o: { saleCount?: number | null; variantKey?: string | null }): string {
+  const n = salesAhead(o);
+  if (n === null) return '';
+  return `Buys follow Smart Buy, set to ${n} sale${n === 1 ? '' : 's'} (the Manual Planner's 70% Return card with its stepper on ${n})`;
 }
 
 // ------------------------------------------------------------------------------------------------ regroup
@@ -749,7 +786,13 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
   }
   while (ev < events.length) pushEvent(events[ev++]);
 
-  return { days: daysOf(lines, zone, now), checkIns, lines, droppedSwaps: st.dropped };
+  return {
+    days: daysOf(lines, zone, now),
+    checkIns,
+    lines,
+    droppedSwaps: st.dropped,
+    buyRule: buyRuleWords({ saleCount: input.saleCount, variantKey: input.variantKey }),
+  };
 }
 
 /** A sale starts after `a` and by `b` (so `b` is a sale-start check-in). */

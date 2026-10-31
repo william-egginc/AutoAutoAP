@@ -79,6 +79,10 @@ export interface BuildUpAction {
   cost?: number;
   /** Raw engine text: the engine action type, and for a shift the egg it leaves. */
   detail?: string;
+  /** 'research': it cost `CHEAP_SWEEP_SECONDS` of the farm's income or less (the engine's `offlineEarnings` just
+   *  before the buy), the opening sweep's rule: the tracker marks it "(cheap sweep)" so it is not read as an ROI pick
+   *  (spec-buylabel, 30 Oct 2026). Absent otherwise, and on records made before it existed. */
+  cheap?: true;
 }
 
 /** The farm the build-up starts from (the chosen variant's start, before its first action). */
@@ -108,6 +112,9 @@ export interface BuildUpPlan {
   siloSeconds: number;
   /** When the leg ends (the variant's `summary.endTime`), unix seconds. */
   endTime: number;
+  /** How many sales the build looks ahead to (the simulator's `buildPhaseSaleCount`: C3's `saleCount`, the Smart Buy
+   *  card's sale stepper), when the segment said. Absent on plans kept before 30 Oct 2026 (spec-buylabel). */
+  saleCount?: number;
 }
 
 /** What search/leg.ts `LegResult.buildUp` (and search/types.ts `LegSummary.buildUp`) carries for one
@@ -124,6 +131,15 @@ const finite = (x: unknown): x is number => typeof x === 'number' && Number.isFi
 
 /** `wait_for_time` records shorter than this are left out (`recordOf`). */
 export const MIN_TIME_WAIT_SECONDS = 1;
+
+/**
+ * A research buy costing this many seconds of the farm's income or less is `cheap`: the threshold of C3's opening
+ * sweep (auto/shifts/c3.ts `OPENING_SMART_BUY_THRESHOLD_SECONDS`, not exported, so mirrored here; the sweep is
+ * auto/shifts/helpers/milestones.ts `runSmartBuyForSeconds`: cheapest first, any category, anything that saves up in
+ * this long). The sweep's own wait counts the farm's growth too (engine/apply/math.ts `getTimeToSave`); this is the
+ * plain cost over the income, a hair stricter. C1's bootstrap sweep (3 s) falls under it as well.
+ */
+export const CHEAP_SWEEP_SECONDS = 10;
 
 /** One engine action as a compact record, or null when it has no usable time (or is a sub-second cash wait). */
 function recordOf(a: Action, legStart: number): BuildUpAction | null {
@@ -256,9 +272,15 @@ function recordOf(a: Action, legStart: number): BuildUpAction | null {
  */
 export function toBuildUpActions(actions: readonly Action[], legStart: number): BuildUpAction[] {
   const out: BuildUpAction[] = [];
+  // The farm's income just before each action: the previous action's end state (the sweep's own note, a shift, the
+  // buy before it). Unknown before the first action.
+  let rate = NaN;
   for (const a of actions) {
     const r = recordOf(a, legStart);
+    if (r && r.kind === 'research' && finite(r.cost) && rate > 0 && r.cost <= CHEAP_SWEEP_SECONDS * rate) r.cheap = true;
     if (r) out.push(r);
+    const next = a.endState?.offlineEarnings;
+    if (finite(next)) rate = next;
   }
   // Array.prototype.sort is stable; the engine's own order already is by time, so this rarely moves anything.
   return out.sort((x, y) => x.t - y.t);
