@@ -959,6 +959,19 @@ export function trackerFoldOpen(o: { choice: boolean | null; building: boolean }
 
 // ------------------------------------------------------------------------------------------------ the kept plan
 
+/** The kinds of a build-up list that are purchases (search/buildUpActions.ts). */
+const BUY_KINDS: ReadonlySet<string> = new Set(['research', 'vehicle', 'trainCar', 'hab', 'silo']);
+
+/**
+ * NO EMPTY BUILD-UP (spec-noemptybuild, 31 Oct 2026): whether a plan's list buys anything (a research, vehicle, train
+ * car, hab or silo). One that buys nothing is no build-up (continue, or a build-up kept before search/leg.ts stopped
+ * offering one that buys nothing: Jordan's alt kept 6 shifts and no buys): the tracker shows "nothing to buy", never
+ * that plan.
+ */
+export function planBuys(plan: { actions: readonly { kind: string }[] } | null | undefined): boolean {
+  return !!plan && plan.actions.some(a => BUY_KINDS.has(a.kind));
+}
+
 /** The plan the tracker shows, per account: the first one worked out in this ascension's build-up (from the first
  *  save seen in it), so newer saves only tick things off (outline recommendation 2), until the player re-plans. */
 export const ANCHOR_KEY_PREFIX = 'aap.buildup.plan.';

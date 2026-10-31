@@ -124,6 +124,58 @@ describe('useBuildUpTracker', () => {
     back.scope.stop();
   });
 
+  // NO EMPTY BUILD-UP (spec-noemptybuild, 31 Oct 2026): Jordan's alt, a build-up of 6 shifts that bought nothing.
+  const BUYS = new Set(['research', 'vehicle', 'trainCar', 'hab', 'silo']);
+  const buysNothing = (variantKey = 'buildup'): BuildUpPlan => ({
+    ...fixturePlan(),
+    variantKey,
+    actions: fixturePlan().actions.filter(a => !BUYS.has(a.kind)),
+  });
+
+  it('a plan that buys nothing is no build-up: "nothing to buy", never kept, not asked again', async () => {
+    for (const key of ['buildup', 'continue']) {
+      const { r, t, scope } = setup();
+      expect(buysNothing(key).actions.some(a => a.kind === 'shift')).toBe(true);
+      r.fresh.value = buysNothing(key);
+      await nextTick();
+      expect(t.state.value).toBe('notBuilding');
+      expect(t.plan.value).toBeNull();
+      expect(mem.has(ANCHOR_KEY_PREFIX + 'acct-hash')).toBe(false);
+      expect(t.wanted.value).toBe(false);
+      expect(buildUpWanted.value).toBe(false);
+      scope.stop();
+    }
+  });
+
+  it('a kept plan that buys nothing (kept before the rule) is dropped on read and the plan worked out again', () => {
+    mem.set(ANCHOR_KEY_PREFIX + 'acct-hash', JSON.stringify({ ascensionStart: A1, saveSeconds: mt(10, 30, 12, 5), plan: buysNothing() }));
+    const { t, scope } = setup();
+    expect(t.plan.value).toBeNull();
+    expect(mem.has(ANCHOR_KEY_PREFIX + 'acct-hash')).toBe(false);
+    expect(t.state.value).toBe('working');
+    expect(t.wanted.value).toBe(true);
+    scope.stop();
+  });
+
+  it("a kept plan that buys is still read; a re-plan whose plan buys nothing drops it: nothing to buy", async () => {
+    const { r, t, scope } = setup();
+    r.fresh.value = fixturePlan();
+    await nextTick();
+    expect(t.state.value).toBe('ready');
+    scope.stop();
+    const next = setup({ saveFarm: ref(farmOfStart(fixturePlan().start!)) });
+    expect(next.t.state.value).toBe('ready');
+    next.r.saveSeconds.value = mt(10, 31, 9, 0);
+    await nextTick();
+    next.t.replan();
+    next.r.fresh.value = buysNothing('continue');
+    await nextTick();
+    expect(next.t.plan.value).toBeNull();
+    expect(mem.has(ANCHOR_KEY_PREFIX + 'acct-hash')).toBe(false);
+    expect(next.t.state.value).toBe('notBuilding');
+    next.scope.stop();
+  });
+
   it('the other states: no save, no route, failed, not on virtue', () => {
     for (const [over, want] of [
       [{ hasSave: ref(false) }, 'noSave'],

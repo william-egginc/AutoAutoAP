@@ -60,8 +60,18 @@ export interface SimRecord {
   leg: SimLeg;
 }
 
+/**
+ * THE RULES A KEPT SIMULATION WAS MADE WITH: part of every setup key, so a record (and its build-up plan, kept under the
+ * same key) made under older rules is never found and the ascension is simulated again. Change it when the same save,
+ * route and setup would now simulate differently. 'noemptybuild' (spec-noemptybuild, 31 Oct 2026): a build-up that buys
+ * nothing, or ends no sooner than continue, is no longer the ascension you are in (search/leg.ts `runLeg`); a record
+ * kept before showed Jordan's alt a 6-shift build-up buying nothing.
+ */
+export const SIM_RECORD_RULES = 'noemptybuild';
+
 /** What the simulation depends on beyond the save and the route: the hours (when the answers work inside them), time
- *  off, no-prestige days, the first ascension's rule and whether shifts wait for the hours. */
+ *  off, no-prestige days, the first ascension's rule and whether shifts wait for the hours; and the rules it was made
+ *  with (`SIM_RECORD_RULES`). */
 export function simSetupKey(o: {
   availability: unknown;
   useHours: boolean;
@@ -77,6 +87,7 @@ export function simSetupKey(o: {
     list(o.noPrestige),
     o.firstAscension ?? null,
     !!o.deferShifts,
+    SIM_RECORD_RULES,
   ]);
 }
 

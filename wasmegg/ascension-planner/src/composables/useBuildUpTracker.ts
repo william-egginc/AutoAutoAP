@@ -31,6 +31,7 @@ import { buildUpLog, perfStep } from '@/lib/buildUpDebug';
 import {
   buildUpTracker,
   dropAnchoredPlan,
+  planBuys,
   readAnchoredPlan,
   readFoldChoice,
   readTicks,
@@ -116,9 +117,11 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     a => {
       const read = a ? perfStep('readAnchoredPlan', () => readAnchoredPlan(a)) : null;
       // A kept plan with no buys, or no usable ascension start, reads as none (spec-buildcache: an old, corrupt or empty
-      // record must never read as "plan present").
-      const ok = read && Number.isFinite(read.ascensionStart) && read.plan.actions.length > 0 ? read : null;
-      buildUpLog(a ? (ok ? `tracker plan read (${ok.plan.actions.length} actions)` : read ? 'tracker plan read but empty: dropped' : 'no tracker plan kept') : 'no account');
+      // record must never read as "plan present"; spec-noemptybuild: nor one whose list buys nothing, a build-up kept
+      // before search/leg.ts stopped offering those).
+      const ok = read && Number.isFinite(read.ascensionStart) && planBuys(read.plan) ? read : null;
+      if (a && read && !ok) dropAnchoredPlan(a);
+      buildUpLog(a ? (ok ? `tracker plan read (${ok.plan.actions.length} actions)` : read ? 'tracker plan read but buys nothing: dropped' : 'no tracker plan kept') : 'no account');
       anchored.value = keep(ok);
     },
     { immediate: true }
@@ -146,6 +149,11 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       const acct = i.account.value;
       const k = ascKey.value;
       if (!p || !acct || k === null || plan.value) return;
+      // A plan that buys nothing is no build-up (`freshBuysNothing`): never kept.
+      if (!planBuys(p)) {
+        buildUpLog('the simulated plan buys nothing: not kept, nothing to buy');
+        return;
+      }
       const a: AnchoredPlan = { ascensionStart: k, saveSeconds: i.saveSeconds.value, plan: p, ...anchorFarmNow() };
       // Kept here (compacted): useCurrentSim's own copy of the raw plan (lib/followSim.ts BUILDUP_PLAN_KEY, ~250 kB
       // on the synthetic save) is then not needed, and the plan is not asked for again in this ascension.
@@ -160,6 +168,10 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const f = saveFarm.value;
     return f ? { anchorFarm: f } : {};
   }
+
+  /** This save's simulated ascension came back and buys nothing (continue, or nothing left to build): no build-up to
+   *  track, so "nothing to buy" and nothing asked for (spec-noemptybuild). */
+  const freshBuysNothing = computed(() => !!i.fresh.value && !planBuys(i.fresh.value));
 
   // ------------------------------------------------------------------ the fold
   const choiceVersion = ref(0);
@@ -181,7 +193,13 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
 
   // ------------------------------------------------------------------ asking for the plan
   const wanted = computed(
-    () => open.value && i.building.value && i.hasSave.value && i.followed.value && (!plan.value || replanning.value)
+    () =>
+      open.value &&
+      i.building.value &&
+      i.hasSave.value &&
+      i.followed.value &&
+      (!plan.value || replanning.value) &&
+      !(freshBuysNothing.value && !replanning.value)
   );
   const me = {};
   watch(
@@ -358,6 +376,14 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const k = ascKey.value;
     const old = plan.value;
     if (!p || !acct || k === null || (old && p === old.plan)) return;
+    // This save's plan buys nothing (the build is done): no build-up left, the kept plan goes (spec-noemptybuild).
+    if (!planBuys(p)) {
+      dropAnchoredPlan(acct);
+      anchored.value = null;
+      replanning.value = false;
+      replanError.value = '';
+      return;
+    }
     const a: AnchoredPlan = { ascensionStart: k, saveSeconds: i.saveSeconds.value, plan: p, ...anchorFarmNow() };
     const zone = i.zone.value;
     const hours = i.hours.value;
@@ -381,7 +407,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (!i.hasSave.value) return 'noSave';
     if (!i.followed.value && !plan.value) return 'noRoute';
     if (plan.value) return 'ready';
-    if (!i.building.value) return 'notBuilding';
+    if (!i.building.value || freshBuysNothing.value) return 'notBuilding';
     if (i.sim.value?.status === 'failed') return 'failed';
     return 'working';
   });

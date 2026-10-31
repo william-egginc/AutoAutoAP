@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SIM_MAX_BYTES,
   SIM_RECORD_KEY,
+  SIM_RECORD_RULES,
   findSimRecord,
   readSimRecords,
   recordSim,
@@ -96,6 +97,18 @@ describe('keys and the leg', () => {
     expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, deferShifts: false }));
     expect(simSetupKey(base)).not.toBe(simSetupKey({ ...base, noPrestige: [{ date: '2026-11-01' }] }));
     expect(simKey({ account: 'a', backupTime: 5, route: [1, 2], setup: 's' })).toBe('a|5|1,2|s');
+  });
+
+  it('a record kept before the no-empty-build-up rules is never found again (spec-noemptybuild)', () => {
+    const base = { availability: null, useHours: false, timeOff: [], noPrestige: [], firstAscension: 'buildup, build unfinished', deferShifts: false };
+    // The setup key as it was made before (no rules in it): Jordan's alt kept a 6-shift build-up that bought nothing.
+    const before = JSON.stringify([null, [], [], 'buildup, build unfinished', false]);
+    expect(simSetupKey(base)).not.toBe(before);
+    expect(simSetupKey(base)).toContain(SIM_RECORD_RULES);
+    const st = mem();
+    const old = { ...rec(T0), setup: before, leg: { ...rec(T0).leg, key: 'buildup' } };
+    st.m.set(SIM_RECORD_KEY, JSON.stringify([old]));
+    expect(findSimRecord(readSimRecords(st), { account: old.account, backupTime: old.backupTime, route: old.route, setup: simSetupKey(base) })).toBeNull();
   });
 
   it('simLegOf keeps the times, shifts and peak rate, and refuses a leg without times', () => {
