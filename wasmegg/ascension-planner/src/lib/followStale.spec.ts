@@ -3,7 +3,7 @@
  * step, a planned step overdue, other awake hours. Fixed clock, relative times, placeholder plans.
  */
 import { describe, expect, it } from 'vitest';
-import { STALE_GRACE_SECONDS, followStaleness } from './followStale';
+import { STALE_GRACE_SECONDS, answerFirstLeg, followStaleness } from './followStale';
 import type { NowPlan } from './nowPlan';
 import type { LegSummary } from '@/search/types';
 
@@ -83,5 +83,91 @@ describe('the save contradicts the followed route', () => {
     expect(at(T0 + 1.5 * D + 3 * H, 'kindness')).toBeNull();
     expect(at(T0 + 4 * D, 'kindness', 215)).toBeNull(); // prestiged at 209, on the next ascension
     expect(followStaleness({ plan: null, save: null, hoursDiffer: false })).toBeNull();
+  });
+});
+
+/**
+ * A FOLLOWED EMPTY BUILD-UP (spec-noemptybuild, 31 Oct 2026; Jordan's alt): a route followed from this very save, whose
+ * first ascension is the 6-shift build-up that buys nothing (Curiosity at the plan start, then H, K, C, I, R), ending
+ * Dec 13, 10:50 am; continue (3 shifts) ends Dec 12, 10:50 am. The save is on Kindness, before the plan start: no egg,
+ * overdue or hours reason holds, so before this nothing offered to re-plan.
+ */
+describe('the followed first ascension is a build-up the answer for this save no longer takes', () => {
+  const SAVE = Date.UTC(2026, 9, 31, 16, 8) / 1000; // Oct 31, 10:08 am Mountain
+  const START = Date.UTC(2026, 9, 31, 21, 9) / 1000; // the plan start, 3:09 pm Mountain
+  const BUILD_END = 1797184206; // Dec 13, 10:50 am Mountain
+  const CONT_END = 1797097806; // Dec 12, 10:50 am Mountain
+  const a1 = (ends?: LegSummary['firstLegEnds']) => ({
+    ...leg(START, BUILD_END, 166, [
+      { at: START, egg: 'curiosity', fromEgg: 'kindness' },
+      { at: START + 5.83 * D, egg: 'humility', fromEgg: 'curiosity' },
+      { at: START + 6.83 * D, egg: 'kindness', fromEgg: 'humility' },
+      { at: START + 8.83 * D, egg: 'curiosity', fromEgg: 'kindness' },
+      { at: START + 16.22 * D, egg: 'integrity', fromEgg: 'curiosity' },
+      { at: START + 27.43 * D, egg: 'resilience', fromEgg: 'integrity' },
+    ]),
+    ...(ends ? { firstLegEnds: ends } : {}),
+  });
+  const followed = (ends?: LegSummary['firstLegEnds']): NowPlan => ({
+    ...plan,
+    chain: [166, 200, 490],
+    planStart: START,
+    legs: [a1(ends), leg(BUILD_END, BUILD_END + 20 * D, 200, []), leg(BUILD_END + 20 * D, BUILD_END + 200 * D, 490, [])],
+  });
+  const answer = { key: 'continue', to: 166, end: CONT_END };
+  const stale = (p: NowPlan, o: { answer?: typeof answer | null; seconds?: number; egg?: string } = {}) =>
+    followStaleness({ plan: p, save: { seconds: o.seconds ?? SAVE, egg: o.egg ?? 'kindness', te: 146 }, hoursDiffer: false, answer: o.answer });
+
+  it('no other reason holds for it (the egg matches, nothing is overdue)', () => {
+    expect(stale(followed())).toBeNull();
+  });
+
+  it("said when the follow's own record has continue ending no later", () => {
+    expect(stale(followed({ continue: CONT_END, buildup: BUILD_END }))).toEqual({ kind: 'emptyBuildUp' });
+    // A tie too: continue wins ties.
+    expect(stale(followed({ continue: BUILD_END, buildup: BUILD_END }))).toEqual({ kind: 'emptyBuildUp' });
+    // A build-up that was sooner than continue: the route stands.
+    expect(stale(followed({ continue: BUILD_END + H, buildup: BUILD_END }))).toBeNull();
+  });
+
+  it("said when this save's answer continues to the same stop, no later than the followed build-up", () => {
+    expect(stale(followed(), { answer })).toEqual({ kind: 'emptyBuildUp' });
+    expect(stale(followed(), { answer: { ...answer, end: BUILD_END } })).toEqual({ kind: 'emptyBuildUp' });
+    // Not when the answer builds up, prestiges, stops elsewhere or ends later.
+    expect(stale(followed(), { answer: { ...answer, key: 'buildup' } })).toBeNull();
+    expect(stale(followed(), { answer: { ...answer, key: '2-sale' } })).toBeNull();
+    expect(stale(followed(), { answer: { ...answer, to: 167 } })).toBeNull();
+    expect(stale(followed(), { answer: { ...answer, end: BUILD_END + 1 } })).toBeNull();
+  });
+
+  it('not once the player is following the build-up (a shift of it behind the save), nor after the first ascension', () => {
+    // Shifted to Curiosity as the route said, a day on: the route they are on.
+    expect(stale(followed({ continue: CONT_END, buildup: BUILD_END }), { seconds: START + D, egg: 'curiosity' })).toBeNull();
+    // Past the first ascension (an overdue prestige says so instead).
+    expect(stale(followed({ continue: CONT_END, buildup: BUILD_END }), { seconds: BUILD_END + D, egg: 'kindness' })?.kind).not.toBe('emptyBuildUp');
+    // A continue or a fresh first ascension followed: nothing.
+    const cont = followed({ continue: CONT_END });
+    cont.legs![0] = { ...cont.legs![0], key: 'continue' };
+    expect(stale(cont, { answer })).toBeNull();
+  });
+
+  it("from the table's legs: the instant answer's build-up label, against this save's answer", () => {
+    const table: NowPlan = {
+      ...followed(),
+      legs: null,
+      tableLegs: [
+        { from: 146, to: 166, endTE: 166, start: START, end: BUILD_END, label: 'buildup' },
+        { from: 166, to: 200, endTE: 200, start: BUILD_END, end: BUILD_END + 20 * D },
+      ],
+    };
+    expect(stale(table, { answer })).toEqual({ kind: 'emptyBuildUp' });
+    expect(stale({ ...table, tableLegs: [{ ...table.tableLegs![0], label: '2-sale' }] }, { answer })).toBeNull();
+    // Re-priced on the live save (lib/followSim.ts withCurrentSim): continue, nothing to say.
+    expect(stale({ ...table, tableLegs: [{ ...table.tableLegs![0], simulated: true, variant: 'continue' }] }, { answer })).toBeNull();
+  });
+
+  it("answerFirstLeg reads a plan's first ascension", () => {
+    expect(answerFirstLeg(followed())).toEqual({ key: 'buildup', to: 166, end: BUILD_END });
+    expect(answerFirstLeg(null)).toBeNull();
   });
 });

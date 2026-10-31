@@ -157,7 +157,7 @@ import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction,
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
-import { followStaleness, type StaleReason } from '@/lib/followStale';
+import { answerFirstLeg, followStaleness, type StaleReason } from '@/lib/followStale';
 import { SIM_VERSION } from '@/search/simVersion';
 import { autoFollowOf, autoFollowsGoal, followedLabel } from '@/lib/followPolicy';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
@@ -1463,6 +1463,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         plan: fs.plan?.plan ?? null,
         save: hasSave.value ? { seconds: saveSeconds.value, egg: currentEgg.value, te: saveTEOf(raw.value) } : null,
         hoursDiffer: f.hours !== undefined && !sameHours(f.hours, hoursOf(store.availability)),
+        // This save's answer's first ascension: a followed empty build-up it no longer takes (spec-noemptybuild).
+        answer: answerFirstLeg(p),
       }),
     };
   });

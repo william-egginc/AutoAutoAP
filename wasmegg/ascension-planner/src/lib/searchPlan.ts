@@ -548,6 +548,10 @@ export function staleRouteWords(
   candidate: RouteFinish,
   when: (t: number) => string
 ): string {
+  const verb0 = goal === 'fastest' || deadline == null ? 'finishes' : 'gets';
+  // DRAFT (spec-noemptybuild, 31 Oct 2026: Words reviews it).
+  if (reason.kind === 'emptyBuildUp')
+    return `The route you follow starts with a build-up that buys nothing: the answer for this save keeps your current egg and ${verb0} ${finishWords(goal, deadline, candidate, when)}.`;
   const lead = "Your save doesn't match the route you follow: ";
   const why =
     reason.kind === 'egg'
@@ -601,7 +605,10 @@ export function followPrompt(o: {
   const f = o.followed;
   const c = o.candidate;
   if (!f || !c.chain.length) return null;
-  if (c.chain.length === f.chain.length && c.chain.every((x, i) => x === f.chain[i])) return null;
+  // The same route is no new route, except when the follow's first ascension is an empty build-up (spec-noemptybuild):
+  // the same stops from this save then start by continuing, and "Re-plan from this save" follows that.
+  const sameRoute = c.chain.length === f.chain.length && c.chain.every((x, i) => x === f.chain[i]);
+  if (sameRoute && o.stale?.kind !== 'emptyBuildUp') return null;
   if (o.stale) {
     if (!(c.at > f.at)) return null;
     if (o.goal === 'date' && o.deadline != null && !finishesBefore(c.end, o.deadline)) return null;

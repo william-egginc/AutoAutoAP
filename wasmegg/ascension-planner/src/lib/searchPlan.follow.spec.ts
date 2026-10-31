@@ -272,6 +272,25 @@ describe('re-plan from this save (the save contradicts the follow)', () => {
     expect(id).not.toBe(resultId('fastest-490', 'instant', instant.chain, instant.end));
   });
 
+  it('a followed empty build-up (spec-noemptybuild): offered even for the same route, in its own words', () => {
+    const empty = { kind: 'emptyBuildUp' as const };
+    const p = followPrompt({ ...base, stale: empty })!;
+    expect(p.stale).toBe('emptyBuildUp');
+    expect(p.words).toBe(
+      'The route you follow starts with a build-up that buys nothing: the answer for this save keeps your current egg and finishes Dec 4 at 11:00 AM.'
+    );
+    // The same stops, now starting by continuing: still offered (the other reasons are not, above).
+    const sameStops = { ...instant, chain: [209, 287, 490] };
+    const same = followPrompt({ ...base, stale: empty, candidate: sameStops })!;
+    expect(same).not.toBeNull();
+    expect(same.chain).toEqual([209, 287, 490]);
+    // Still only a newer answer, and Keep mine holds.
+    expect(followPrompt({ ...base, stale: empty, candidate: { ...sameStops, at: T0 } })).toBeNull();
+    expect(followPrompt({ ...base, stale: empty, candidate: sameStops, keptMine: [same.id] })).toBeNull();
+    const date = { ...base, goal: 'date' as const, deadline: DEADLINE, candidate: { ...instant, end: DEADLINE - 2 * D } };
+    expect(followPrompt({ ...date, stale: empty })!.words).toMatch(/keeps your current egg and gets 249 TE, 2d to spare\.$/);
+  });
+
   it('the better-route prompt is unchanged without a reason', () => {
     const unpriced = { ...followed, priced: false, source: 'manual' };
     const better = { ...instant, end: NOW + 39 * D };
