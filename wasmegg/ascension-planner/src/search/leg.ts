@@ -34,6 +34,7 @@ import {
   getOptimalELRSet,
 } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
+import { sameSet } from '@/lib/gearMatch';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { EngineState, SimulationContext } from '@/engine/types';
 import type { Action } from '@/types/actions/meta';
@@ -550,14 +551,27 @@ function freshList(
  *   - `currentEgg` must be the NAME, not the backup's 50..54 enum.
  *   - the ELR set is recomputed rather than reusing the equipped (earnings) loadout. Filing the
  *     earnings set under `artifactSets.elr` made "continue" report 1.580q/hr instead of 3.574q/hr.
+ *     (Since 31 Oct 2026 a farm off Humility does WEAR its equipped loadout, as the game makes it:
+ *     sets change only on Humility. The recomputed set is still `artifactSets.elr`.)
  */
-/** The farm "continue current ascension" carries on with: the save's own farm, the best delivery
- *  set it can wear, its eggs and TE. Null without a farm in the save. */
+/**
+ * The farm "continue current ascension" carries on with: the save's own farm, its eggs and TE, and
+ * the set it wears.
+ *
+ * SETS CHANGE ONLY ON HUMILITY (spec-continueset, 31 Oct 2026, Jordan's rule): a farm on Humility
+ * may swap, so it wears the best delivery set it can; off Humility it keeps the loadout the save has
+ * equipped (`getArtifactLoadoutFromBackup`, the same read Right now's Gear uses), whatever that is.
+ * Off Humility the equipped loadout is also filed as the earnings set, so a C1 re-equip of
+ * "earnings" changes nothing; the delivery set stays the best one for H1 (which picks its own anyway).
+ * The label is the save's own: 'earnings' when the equipped loadout is the earnings set, else 'elr'
+ * (lib/buildUpBought.ts `saveFarmFor` reads a production set as 'elr' too). Null without a farm.
+ */
 function continueState(inputs: SearchInputs, baseState: EngineState): EngineState | null {
   const farmState = inputs.currentFarmState;
   const raw = inputs.context.rawBackup;
   if (!farmState || !raw) return null;
 
+  const egg = VIRTUE_EGGS_MAP[farmState.eggType as number] ?? 'curiosity';
   const rawLoadout = getArtifactLoadoutFromBackup(raw);
   const optimalEarnings = getOptimalEarningsSet(raw);
   const elr =
@@ -568,19 +582,22 @@ function continueState(inputs: SearchInputs, baseState: EngineState): EngineStat
       currentSet: rawLoadout,
       assumeMaxHabsVehicles: false,
     }) ?? rawLoadout;
+  const canSwap = egg === 'humility';
+  const worn = canSwap ? elr : rawLoadout;
+  const earnings = canSwap ? optimalEarnings : rawLoadout;
 
   const state = {
     ...JSON.parse(JSON.stringify(baseState)),
-    currentEgg: VIRTUE_EGGS_MAP[farmState.eggType as number] ?? 'curiosity',
+    currentEgg: egg,
     researchLevels: { ...farmState.commonResearches },
     habIds: farmState.habs || [0, null, null, null],
     vehicles: farmState.vehicles || [{ vehicleId: 0, trainLength: 1 }],
     siloCount: farmState.numSilos || 1,
     tankLevel: baseState.tankLevel,
-    artifactLoadout: elr.map(s => ({ artifactId: s.artifactId, stones: [...s.stones] })),
-    activeArtifactSet: 'elr',
+    artifactLoadout: worn.map(s => ({ artifactId: s.artifactId, stones: [...s.stones] })),
+    activeArtifactSet: !canSwap && sameSet(rawLoadout, optimalEarnings) ? 'earnings' : 'elr',
     artifactSets: {
-      earnings: optimalEarnings ? JSON.parse(JSON.stringify(optimalEarnings)) : null,
+      earnings: earnings ? JSON.parse(JSON.stringify(earnings)) : null,
       elr: JSON.parse(JSON.stringify(elr)),
     },
     fuelTankAmounts: { ...baseState.fuelTankAmounts },
@@ -613,10 +630,15 @@ function buildContinueVariant(
 
 /**
  * The farm "continue my build-up" starts the standard build from (auto/buildUp.ts): the save's farm
- * as `continueState` reads it, at the plan start (`lastStepTime` 0), on its earnings set (the build
- * up to H1 earns; H1 swaps to the delivery set), with what it laid and earned between the last sync
- * and the plan start credited: eggs at its delivery rate, as continue credits them, and cash at its
- * away earnings, both capped at the silos. Null without a farm in the save.
+ * as `continueState` reads it, at the plan start (`lastStepTime` 0), with what it laid and earned
+ * between the last sync and the plan start credited: eggs at its delivery rate, as continue credits
+ * them, and cash at its away earnings on the set it wears, both capped at the silos. Null without a
+ * farm in the save.
+ *
+ * Its set (SETS CHANGE ONLY ON HUMILITY, see `continueState`): on Humility it puts on the earnings set
+ * (the build up to H1 earns; H1 swaps to the delivery set). Off Humility it keeps the equipped loadout
+ * until H1, which is the first Humility shift: research and away cash are priced on it, and
+ * `continueState` filed it as the earnings set, so C1's equip changes nothing either.
  */
 function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: number): EngineState | null {
   const cont = continueState(inputs, baseState);
@@ -627,7 +649,7 @@ function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: n
     sync > 1e9 && startTime > sync
       ? catchUpSeconds(sync, startTime, siloSeconds(cont.siloCount, ctx.epicResearchLevels?.['silo_capacity']))
       : 0;
-  const earnings = cont.artifactSets.earnings;
+  const earnings = cont.currentEgg === 'humility' ? cont.artifactSets.earnings : null;
   const state: EngineState = {
     ...cont,
     lastStepTime: 0,
@@ -648,6 +670,10 @@ function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: n
   }
   return state;
 }
+
+/** `continueState` and `buildUpState` for checks (leg.continueSet.spec.ts); the search reads them through `runLeg`. */
+export const continueStateForCheck = continueState;
+export const buildUpStateForCheck = buildUpState;
 
 /** One plan start's build-up as far as C3's variants: everything a checkpoint does not change. */
 interface BuildUpBuild {
