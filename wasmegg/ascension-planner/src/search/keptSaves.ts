@@ -24,7 +24,8 @@
  */
 import type { ei } from 'lib';
 import { loadMetadata, putMetadataRecords } from '@/lib/storage/db';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+// workerCopy: sanitizeLongs's copy read under the store proxies (spec-mainfreeze): the same result, without the traps.
+import { workerCopy } from './workerCopy';
 import { accountOf, decode, encode, hash53, reviveNumbers } from './runSaves';
 import { checkSave, parseJsonStrict } from '@/lib/uploadGuard';
 
@@ -66,7 +67,7 @@ interface Body {
 
 /** The backup as the file and the store hold it: plain JSON, Longs as numbers, Infinity kept. */
 export function backupText(raw: unknown): string {
-  return encode(sanitizeLongs(raw));
+  return encode(workerCopy(raw));
 }
 
 /** A save's key: the same backup always gets the same one, whoever keeps it. */

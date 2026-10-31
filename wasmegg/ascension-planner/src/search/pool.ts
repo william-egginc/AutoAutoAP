@@ -23,7 +23,7 @@
  * timeout and no way to tell it apart from a slow batch. So every worker now heartbeats per chain
  * (see chainSearch.protocol.ts) and a request with no traffic for `STALL_MS` is failed loudly.
  */
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { workerCopy } from './workerCopy';
 import { perfEnd, perfStart, perfStep } from '@/lib/buildUpDebug';
 import { inputsForWorkers } from './workerBackup';
 import { sortChainsDepthFirst, type MemoSettings } from './chain';
@@ -587,8 +587,11 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   // the rest of the save -- mission and contract archives, the home farm and its inventory -- was a
   // copy in every worker of something no worker reads. Trimmed before the sanitize, so the deep
   // rebuild only walks what is sent.
-  // Measured as `pool backup clean` with the perf breadcrumbs on (lib/buildUpDebug.ts).
-  const cleanInputs = perfStep('pool backup clean', () => sanitizeLongs(inputsForWorkers(inputs)));
+  //
+  // spec-mainfreeze (31 Oct 2026): through `workerCopy` (search/workerCopy.ts), sanitizeLongs's copy with every node
+  // unwrapped by `toRaw` first, so the walk never goes through a Pinia proxy's traps and nothing reactive reaches
+  // `postMessage`. Measured as `pool backup clean` with the perf breadcrumbs on (lib/buildUpDebug.ts).
+  const cleanInputs = perfStep('pool backup clean', () => workerCopy(inputsForWorkers(inputs)));
 
   /** Create and initialise worker `i` on first use; every later caller awaits the same promise. */
   function workerAt(i: number): Promise<PoolWorker> {
