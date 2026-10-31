@@ -306,9 +306,9 @@
       <A1Choice
         v-if="a1Choice && !notOnVirtue"
         :side="a1Choice.side"
-        :keep="a1Choice.keep"
-        :finish="a1Choice.finish"
-        :legend="a1Choice.legend"
+        :keep="a1Words!.keep"
+        :finish="a1Words!.finish"
+        :legend="a1Words!.legend"
         @pick="side => emit('pickA1', side)"
       />
       <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
@@ -511,7 +511,7 @@ import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
 import A1Choice from './A1Choice.vue';
-import type { A1Side } from '@/lib/a1Choice';
+import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
 import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { roundToHourIn } from '@/lib/nowWords';
 import { showDateTime } from '@/lib/displayTime';
@@ -610,7 +610,7 @@ const props = defineProps<{
   /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */
   nextShiftLines?: NextShiftLine[];
   /** Right now's A1 choice (useNowPage `a1Choice`): the side followed and the two labels; null or absent: no choice. */
-  a1Choice?: { side: A1Side; keep: string; finish: string; legend: string } | null;
+  a1Choice?: { side: A1Side; buys: number; buildEnd: number; contEnd: number } | null;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -774,6 +774,8 @@ const nextText = computed(() =>
   props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value) : ''
 );
 /** "Shift to Humility at …", "Building up until about …", "Prestige at …" (lib/nextAction.ts). */
+/** The A1 choice's words in this card's zone (as every other time on it). */
+const a1Words = computed(() => (props.a1Choice ? a1ChoiceWords(props.a1Choice, props.now, props.zone) : null));
 const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, t => showDateTime(t, props.zone)) : ''));
 /** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
 const shiftLineText = (l: NextShiftLine) =>

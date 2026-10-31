@@ -22,7 +22,8 @@ import { hashID } from '@/lib/storage/db';
 import { FOLLOW_PREFIX } from '@/lib/follow';
 import { setChainPricer, type ChainPricer } from '@/composables/useFollowEstimate';
 import { setSimRunner, setSimTiming, type SimRunner } from '@/composables/useCurrentSim';
-import { A1_PICK_PREFIX } from '@/lib/a1Choice';
+import { A1_PICK_PREFIX, a1ChoiceWords } from '@/lib/a1Choice';
+import { dateAt } from '@/lib/eventWhen';
 import { CONTINUE_MAX_SECONDS } from '@/search/rules';
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { BoardRow } from '@/lib/leaderboardRank';
@@ -223,9 +224,12 @@ describe('(1) a buying build-up that ends later: both offered, the sooner (finis
     expect(html).toMatch(/aria-checked="true"[^>]*data-testid="now-a1-continue"/);
     expect(html).toMatch(/aria-checked="false"[^>]*data-testid="now-a1-buildup"/);
     const t = textOf(html);
-    expect(t).toContain(c.keep);
-    expect(t).toContain(c.finish);
-    expect(t).toMatch(/Next step Keeping on building ends this ascension later\. Pick one:/);
+    // In the card's own zone, as its Next shifts (the prestige line and the finish agree to the minute).
+    const w = a1ChoiceWords(c, page.now.value, ZONE);
+    expect(t).toContain(w.keep);
+    expect(t).toContain(w.finish);
+    expect(w.finish).toContain(dateAt(now + 6 * D, page.now.value, ZONE));
+    expect(t).toMatch(/Next step Keep building ends this ascension later. Pick one:/);
     expect(t).not.toContain('Keep building: ');
     // The two sides kept apart.
     expect(simSetups().sort()).toEqual(['buildup, build unfinished', 'continue, build unfinished']);

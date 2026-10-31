@@ -11,7 +11,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import A1Choice from './A1Choice.vue';
 
 const P = {
-  legend: 'Keeping on building ends this ascension later. Pick one:',
+  legend: 'Keep building ends this ascension later. Pick one:',
   keep: 'Keep building (buys 3 things, ends Nov 8 at 9:00 AM)',
   finish: 'Finish without buying (ends Nov 7 at 9:00 PM)',
 };

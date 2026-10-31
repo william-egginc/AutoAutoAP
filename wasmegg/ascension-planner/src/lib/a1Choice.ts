@@ -147,7 +147,7 @@ export function writeA1Pick(account: string, stop: number, side: A1Side, st: Sto
 export function a1ChoiceWords(c: A1Candidates, nowSeconds: number, zone: string): { keep: string; finish: string; legend: string } {
   const things = `${c.buys} thing${c.buys === 1 ? '' : 's'}`;
   return {
-    legend: 'Keeping on building ends this ascension later. Pick one:',
+    legend: 'Keep building ends this ascension later. Pick one:',
     keep: `Keep building (buys ${things}, ends ${dateAt(c.buildEnd, nowSeconds, zone)})`,
     finish: `Finish without buying (ends ${dateAt(c.contEnd, nowSeconds, zone)})`,
   };
