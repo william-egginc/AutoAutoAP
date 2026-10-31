@@ -109,7 +109,7 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     const top = new Map<string, number>();
     for (const a of buildPart(plan.actions)) if (a.kind === 'research') top.set(a.label, Math.max(top.get(a.label) ?? 0, a.level ?? 0));
     const text = r.lines.map(l => l.text).join(' | ');
-    // spec-buylabel: a cheap buy's part ends in " (cheap sweep)".
+    // spec-buylabel: a sweep name in a mixed line ends in " (cheap sweep)", and so does an all-sweep line (R7).
     for (const [name, lvl] of top)
       expect(text, name).toMatch(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( \\(tier \\d\\))? (\\d+-)?${lvl}( \\(cheap sweep\\))?(,| \\||$)`));
   });
@@ -121,8 +121,22 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     expect(r.buyRule).toBe(`Buys follow Smart Buy, set to ${n} sale${n === 1 ? '' : 's'} (the Manual Planner's 70% Return card with its stepper on ${n})`);
     const marked = r.lines.filter(l => l.kind === 'research' && /\(cheap sweep\)/.test(l.text));
     expect(marked.length).toBeGreaterThan(0);
-    // Every marked part is a research whose buys in the line were all cheap; the items never carry the words.
+    // The items never carry the words.
     for (const l of marked) for (const it of l.items ?? []) expect(JSON.stringify(it)).not.toMatch(/cheap/);
+    // R7 (31 Oct 2026): at most one mark on an all-sweep line (at its end); names marked only on a mixed line.
+    for (const l of r.lines.filter(x => x.kind === 'research')) {
+      const marks = (l.text.match(/\(cheap sweep\)/g) ?? []).length;
+      const sweep = l.sweep ?? [];
+      if (sweep.length && sweep.every(Boolean)) {
+        expect(marks, l.text).toBe(1);
+        expect(l.text.endsWith(' (cheap sweep)'), l.text).toBe(true);
+      } else expect(marks, l.text).toBe(sweep.filter(Boolean).length);
+    }
+    // The first two check-ins of a fresh ascension carry a handful of marks, not one per name.
+    const firstTwo = r.checkIns.slice(0, 2).flatMap(c => c.keys);
+    const early = r.lines.filter(l => firstTwo.includes(l.key)).map(l => (l.text.match(/\(cheap sweep\)/g) ?? []).length);
+    const lines = r.lines.filter(l => firstTwo.includes(l.key) && l.kind === 'research').length;
+    expect(early.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(lines);
   });
 
   it("silo time is the start farm's (1 silo on a fresh ascension), not the save's", () => {

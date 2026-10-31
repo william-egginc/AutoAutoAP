@@ -7,7 +7,8 @@
 
   The lines are lib/buildUpTracker.ts's: one per check-in kind, research merged, shifts / trains / habs / silos / the
   set swap bold, sale and silo-trick lines fixed to the clock. Under the plan line, the Smart Buy line (lib `buyRuleWords`, the plan's
-  sale count; spec-buylabel), and research parts the opening sweep's rule calls cheap end in "(cheap sweep)". Days collapse to their bold and event lines plus the
+  sale count; spec-buylabel), and the opening sweep's cheap buys say "(cheap sweep)": after each such name on a line
+  that also has other buys, once at the end of a line that is all sweep (R7, lib `sweepMarked`). Days collapse to their bold and event lines plus the
   first line not ticked yet; today and the next day with check-ins start open.
 
   Phase 2 (lib/buildUpBought.ts): lines tick themselves from the save ("bought", "3 of 5 bought" in amber with the
@@ -149,7 +150,7 @@
                       ><span v-if="boughtOf(l)!.items[n]" class="line-through decoration-slate-400"
                         >{{ p }}<span class="sr-only">{{ ' ' }}(bought)</span></span
                       ><template v-else>{{ p }}</template></template
-                    ></span
+                    >{{ sweepTail(l) }}</span
                   >
                   <span v-else :class="l.bold ? 'font-bold' : ''">{{ l.text }}</span>
                   <span v-if="l.tail" class="tabular-nums text-slate-500">{{ ' · ' }}{{ l.tail }}</span>
@@ -201,7 +202,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import PanelFold from '@/components/auto/PanelFold.vue';
-import { clock12, dayClock, dayView, gapWords, lineText, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
+import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
 import { getNextSaleEnd } from '@/lib/events';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
 import type { LineBought, SaveFit } from '@/lib/buildUpBought';

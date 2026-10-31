@@ -37,8 +37,12 @@
  *     lines are `granular` (a collapsed day hides them). Today and the next day with check-ins start open.
  *  8. SMART BUY (spec-buylabel, 30 Oct 2026; notes/smartbuy-vs-c3-2026-10-30.md). The buys are Joo's Smart Buy as C3
  *     runs it, looking ahead to the end of the build's last sale: `buyRule` says so with the plan's sale count. A
- *     research buy that cost 10 s of income or less (`BuildUpAction.cheap`, C3's opening sweep rule) gets
- *     "(cheap sweep)" after its part, so it is not read as an ROI pick; `items` are untouched.
+ *     research buy that cost 10 s of income or less (`BuildUpAction.cheap`, C3's opening sweep rule) is a sweep buy,
+ *     not an ROI pick. R7 (31 Oct 2026; Jordan: a fresh ascension's first two check-ins marked ~45 names each): a
+ *     name is marked "(cheap sweep)" only when its line also has non-sweep buys, to tell them apart; a line that is
+ *     ALL sweep gets one "(cheap sweep)" at its end (before the offline tail). A research line is the unit: trains,
+ *     habs and the rest are lines of their own, so they never make a research line "mixed". `items` and keys are
+ *     untouched; `sweep` keeps which part was the sweep.
  *
  * Times are 12-hour with am/pm ("8:42 am"), always, as the oracle and Jordan's rule write them.
  * Player-facing words here are DRAFT (Words reviews them; ~/code/aaap-tools/notes/spec-buildup-b.md).
@@ -109,8 +113,11 @@ export interface TrackerLine {
    *  can't tick (the silo trick, back online, events, waits, warnings, notes). */
   items?: PlanItem[];
   /** A research line's names one by one ('Grav Plating 18'), in `text`'s order after 'buy ': part i is item i, so a
-   *  bought one can be struck through. */
+   *  bought one can be struck through. On a mixed line a sweep name carries its "(cheap sweep)"; on an all-sweep line
+   *  the names are plain and the one mark follows the last (`sweepTail`). */
   parts?: string[];
+  /** Which parts were the cheap sweep (part i, item i); absent when none was. */
+  sweep?: boolean[];
 }
 
 export interface CheckIn {
@@ -256,18 +263,18 @@ export function rangeWords(ns: readonly number[]): string {
   return out.join(', ');
 }
 
-/** "Name 5" / "Name 3-7" per research item, in order of first appearance. */
+/** "Name 5" / "Name 3-7" per research item, in order of first appearance, with the cheap sweep marks. */
 export function researchWords(items: readonly BuildUpAction[], sameName: ReadonlySet<string>): string {
-  return researchParts(items, sameName)
-    .map(p => p.text)
-    .join(', ');
+  const m = sweepMarked(researchParts(items, sameName));
+  return m.parts.join(', ') + m.tail;
 }
 
-/** One part per research item ('Name 3-7'), in order of first appearance, with its id and the level it ends on. */
+/** One part per research item ('Name 3-7', no mark), in order of first appearance, with its id, the level it ends on
+ *  and whether every buy of it in the line was the cheap sweep. */
 export function researchParts(
   items: readonly BuildUpAction[],
   sameName: ReadonlySet<string>
-): { id: string; level: number; text: string }[] {
+): { id: string; level: number; text: string; cheap: boolean }[] {
   const order: string[] = [];
   const by = new Map<string, { name: string; lo: number; hi: number; cheap: boolean }>();
   for (const a of items) {
@@ -289,13 +296,30 @@ export function researchParts(
   }
   return order.map(k => {
     const r = by.get(k)!;
-    const mark = r.cheap ? CHEAP_SWEEP_MARK : '';
-    return { id: k, level: r.hi, text: `${r.lo >= r.hi ? `${r.name} ${r.hi}` : `${r.name} ${r.lo}-${r.hi}`}${mark}` };
+    return { id: k, level: r.hi, text: r.lo >= r.hi ? `${r.name} ${r.hi}` : `${r.name} ${r.lo}-${r.hi}`, cheap: r.cheap };
   });
 }
 
-/** After a research part whose buys were all `cheap` (DRAFT words). */
+/** The cheap sweep mark (DRAFT words): after a sweep name on a mixed line, or once at the end of an all-sweep line. */
 export const CHEAP_SWEEP_MARK = ' (cheap sweep)';
+
+/**
+ * The marks for one research line's parts (R7, 31 Oct 2026): only a line with non-sweep buys too marks its sweep names
+ * (to tell them apart); an all-sweep line keeps its names plain and gets one mark at its end (`tail`). `sweep` is per
+ * part, absent when no part was the sweep.
+ */
+export function sweepMarked(ps: readonly { text: string; cheap: boolean }[]): { parts: string[]; tail: string; sweep?: boolean[] } {
+  const anySweep = ps.some(p => p.cheap);
+  if (!anySweep) return { parts: ps.map(p => p.text), tail: '' };
+  const sweep = ps.map(p => p.cheap);
+  if (sweep.every(Boolean)) return { parts: ps.map(p => p.text), tail: CHEAP_SWEEP_MARK, sweep };
+  return { parts: ps.map(p => (p.cheap ? `${p.text}${CHEAP_SWEEP_MARK}` : p.text)), tail: '', sweep };
+}
+
+/** What follows a research line's last part: the one mark of an all-sweep line, else ''. */
+export function sweepTail(l: Pick<TrackerLine, 'sweep'>): string {
+  return l.sweep?.length && l.sweep.every(Boolean) ? CHEAP_SWEEP_MARK : '';
+}
 
 /** The fallback sale count when the plan carries none (an older kept 'buildup' plan): the usual 3-sale build. */
 export const FALLBACK_SALE_COUNT = 3;
@@ -393,6 +417,7 @@ interface Draft {
   sub?: string;
   items?: PlanItem[];
   parts?: string[];
+  sweep?: boolean[];
 }
 
 /** A check-in's lines, in the order to do them. `egg` is the egg the farm is on at its start (updated). */
@@ -408,11 +433,13 @@ function checkInLines(
       let j = i;
       while (j < items.length && items[j].kind === 'research') j++;
       const ps = researchParts(items.slice(i, j), st.sameName);
+      const m = sweepMarked(ps);
       out.push({
         kind: 'research',
-        text: `buy ${ps.map(p => p.text).join(', ')}`,
+        text: `buy ${m.parts.join(', ')}${m.tail}`,
         items: ps.map(p => ({ kind: 'research', id: p.id, level: p.level })),
-        parts: ps.map(p => p.text),
+        parts: m.parts,
+        ...(m.sweep ? { sweep: m.sweep } : {}),
       });
       i = j;
       continue;
@@ -736,6 +763,7 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
         ...(d.sub ? { sub: d.sub } : {}),
         ...(d.items?.length ? { items: d.items } : {}),
         ...(d.parts ? { parts: d.parts } : {}),
+        ...(d.sweep ? { sweep: d.sweep } : {}),
         bold: BOLD.has(d.kind),
         granular: d.kind === 'research',
         tickable,
