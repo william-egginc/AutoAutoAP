@@ -204,19 +204,34 @@ const price = (p: SnapPricing, chain: number[]): Route | null =>
 
 /** The Setup of the exact case: awake 7 am-11 pm, shifts held for them, a no-prestige day the day after tomorrow.
  *  (`hold` false up to 490: the synthetic save's continue held for the hours never reaches 490, an invalid date.) */
-function withSetup(hold = true): void {
+function withSetup(hold = true, zone = ZONE): void {
   const store = useChainSearchStore();
-  useAutoPlannerStore().timezone = ZONE;
+  useAutoPlannerStore().timezone = zone;
   store.scheduleEnabled = true;
   store.deferShifts = hold;
   const day = new Date((Math.floor(Date.now() / 1000) + 2 * D - 8 * H) * 1000).toISOString().slice(0, 10);
   store.noPrestige = [{ from: day, to: day }];
 }
 
+/** A fixed clock for the exact case (spec-instantclock, 31 Oct 2026). On the real clock the Fastest case failed every
+ *  week from about 8 am Pacific on Saturday (the Research Sale ends at 9 am: a fresh first ascension started then
+ *  waits a week for the next sale, so every first ascension up to 217 ends at 217 TE and `te + 3, te + 20` cannot be
+ *  priced) to about 3 pm on Monday. Wednesday noon Pacific, no DST change in the routes' weeks. */
+const EXACT_AT = Date.parse('2026-11-04T12:00:00-08:00');
+/** Across the fall-back on purpose: Friday noon Pacific, the no-prestige day (two days on, less 8 hours, in UTC) is
+ *  Sunday Nov 1, the 25-hour day, and every route runs through 2:00 am that day. */
+const FALL_BACK_AT = Date.parse('2026-10-30T12:00:00-07:00');
+
 describe("the record My runs builds prices a route exactly as the instant answer's record", () => {
-  it('Fastest to a target: the same record, to the byte, and the same priced routes (hours, held shifts, a no-prestige day)', async () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(EXACT_AT);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function fastestSame(zone: string): Promise<{ te: number; card: SnapPricing; routes: Route[] }> {
     loadSave();
-    withSetup();
+    withSetup(true, zone);
     const te = Math.floor(useChainSearchStore().currentTE);
     const card = (await cardPricing(260, undefined, true))!;
     const mine = (await computeInstantPricing(req(260, true), pool(), () => true))!;
@@ -225,13 +240,40 @@ describe("the record My runs builds prices a route exactly as the instant answer
     expect(mine.tableTo).toBe(TO);
     expect(JSON.stringify(mine.pricing)).toBe(JSON.stringify(card));
     // The setup reached the options: held hours, the day as a window, the save's silo seconds.
-    expect(mine.pricing.options).toMatchObject({ startTE: te, holdShifts: true, hours: { fromHour: 7, toHour: 23, timezone: ZONE } });
+    expect(mine.pricing.options).toMatchObject({ startTE: te, holdShifts: true, hours: { fromHour: 7, toHour: 23, timezone: zone } });
     expect(mine.pricing.options.noPrestige).toHaveLength(1);
     expect(mine.pricing.options.siloSeconds).toBeGreaterThan(0);
+    const routes: Route[] = [];
     for (const chain of [[te + 6, 230, 260], [te + 11, 260], [te + 3, te + 20, 240, 260]]) {
       const a = price(card, chain);
       expect(a, chain.join(' ')).not.toBeNull();
       expect(JSON.stringify(price(mine.pricing, chain))).toBe(JSON.stringify(a));
+      routes.push(a!);
+    }
+    return { te, card, routes };
+  }
+
+  it('Fastest to a target: the same record, to the byte, and the same priced routes (hours, held shifts, a no-prestige day)', async () => {
+    await fastestSame(ZONE);
+  });
+
+  it.each([
+    ['America/Los_Angeles', '2026-11-01T09:00:00Z'],
+    ['America/Denver', '2026-11-01T08:00:00Z'],
+  ])('the same across the fall-back (%s, Nov 1, 2026 2:00 am), the no-prestige day being that 25-hour Sunday', async (zone, change) => {
+    vi.setSystemTime(FALL_BACK_AT);
+    const { card, routes } = await fastestSame(zone);
+    // Midnight to midnight local: 25 hours, from midnight daylight time to midnight standard time.
+    const [day] = card.options.noPrestige!;
+    expect(day.to - day.from).toBe(25 * H);
+    expect(new Date(day.from * 1000).toLocaleString('en-US', { timeZone: zone, hourCycle: 'h23' })).toBe('11/1/2026, 00:00:00');
+    expect(new Date(day.to * 1000).toLocaleString('en-US', { timeZone: zone, hourCycle: 'h23' })).toBe('11/2/2026, 00:00:00');
+    // Every route runs through the change, and none prestiges on the day off.
+    const at = Date.parse(change) / 1000;
+    for (const r of routes) {
+      expect(r.legs[0].start).toBeLessThan(at);
+      expect(r.end).toBeGreaterThan(at);
+      for (const l of r.legs.slice(1)) expect(l.start >= day.from && l.start < day.to, `${l.from}->${l.to}`).toBe(false);
     }
   });
 
