@@ -122,6 +122,12 @@ describe('the first ascension setting (firstLegOptions)', () => {
     expect(withBuildUp(null, 'buildup', [])).toEqual(['1-sale']);
   });
 
+  it('a build-up ending no sooner than continue loses to it, ties too (spec-noemptybuild)', () => {
+    // The same tail as continue: the same end, to the second.
+    expect(withBuildUp(quick, 'buildup', [{ ...quick }])).toEqual(['continue']);
+    expect(withBuildUp(quick, 'auto', [{ ...quick }])).toEqual(['continue']);
+  });
+
   it('Finish without buying and Prestige now ignore the build-up', () => {
     expect(withBuildUp(slow, 'continue')).toEqual(['continue']);
     expect(withBuildUp(slow, 'fresh')).toEqual(['1-sale']);

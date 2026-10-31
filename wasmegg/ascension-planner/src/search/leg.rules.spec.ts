@@ -15,9 +15,13 @@ let fresh: { sale: number; days: number; endTE?: number; buildPhaseEnd?: number 
  *  rule above it is tested as it was before the build-up existed). */
 let buildUpDays: number | null = null;
 let buildUpEndTE = 200;
+/** Whether the build-up's build buys anything (NO EMPTY BUILD-UP, search/leg.ts `buildUpBuild`): a C3 variant with a
+ *  research purchase, or none. */
+let buildUpBuys = true;
 const calls = { c3: 0, buildUp: 0 };
 
 vi.mock('@/auto/ascension', () => ({
+  isPurchase: (a: { type: string }) => /^buy_/.test(a.type),
   runUntilShift: () => ({ actions: [], state: {}, elapsedSeconds: 0 }),
   deriveNextStartState: () => ({}),
   runContinueCurrent: () => ({
@@ -46,7 +50,15 @@ vi.mock('@/auto/shifts/c3', () => ({
       calls.buildUp++;
       return buildUpDays === null
         ? []
-        : [{ saleCount: 1, attemptTier13Unlock: false, impossible: false, buildPhaseEnd: 0 }];
+        : [
+            {
+              saleCount: 1,
+              attemptTier13Unlock: false,
+              impossible: false,
+              buildPhaseEnd: 0,
+              result: { actions: buildUpBuys ? [{ type: 'buy_research' }] : [{ type: 'shift' }] },
+            },
+          ];
     }
     calls.c3++;
     return fresh.map(f => ({
@@ -99,6 +111,7 @@ beforeEach(() => {
   calls.buildUp = 0;
   buildUpDays = null;
   buildUpEndTE = 200;
+  buildUpBuys = true;
   contEndTE = 200;
   fresh = [
     { sale: 1, days: 40 },
@@ -244,9 +257,9 @@ describe('leg 1: continue my build-up', () => {
     expect(calls.c3).toBe(0);
     contDays = 40;
     expect(leg1(inputs('buildup'))!.key).toBe('continue');
-    // A tie goes to the build-up.
+    // A tie goes to continue (spec-noemptybuild: a build-up no sooner than continue is continue with extra shifts).
     contDays = 50;
-    expect(leg1(inputs('buildup'))!.key).toBe('buildup');
+    expect(leg1(inputs('buildup'))!.key).toBe('continue');
   });
 
   it('under Continue my build-up with neither possible, falls back to a fresh start', () => {
@@ -290,5 +303,72 @@ describe('leg 1: continue my build-up', () => {
     buildUpEndTE = 215;
     fresh = [{ sale: 1, days: 20, endTE: 210, buildPhaseEnd: 5 * DAY }];
     expect(leg1(inputs('auto'), 20 * DAY)!.key).toBe('buildup');
+  });
+});
+
+describe('leg 1: no build-up that buys nothing or ends no sooner than continue (spec-noemptybuild)', () => {
+  // Every fresh start slower than continue and the build-up, so only those two decide.
+  beforeEach(() => {
+    fresh = [{ sale: 2, days: 60 }];
+  });
+
+  it('a build-up whose build buys nothing is never offered: continue, under every setting that builds up', () => {
+    contDays = 42;
+    buildUpDays = 41; // even sooner (it cannot be, but the rule does not lean on the times)
+    buildUpBuys = false;
+    for (const first of ['auto', 'buildup'] as const) {
+      const r = leg1(inputs(first))!;
+      expect(r.key).toBe('continue');
+      // Not an option, so neither the rival nor recorded.
+      expect(r.firstLegEnds?.buildup).toBeUndefined();
+      expect(r.rival?.key).not.toBe('buildup');
+    }
+  });
+
+  it("with nothing to buy, My runs' unfinished build (continue left out) is continue, not the empty build-up", () => {
+    contDays = 42;
+    buildUpDays = 43;
+    buildUpBuys = false;
+    // A new inputs object each time: the build-up is worked out once per run (its inputs).
+    const carryOn = () => ({ ...inputs('buildup'), continueMaxSeconds: 0 }) as SearchInputs;
+    expect(leg1(carryOn())!.key).toBe('continue');
+    // A build-up that buys something stays the build carried on there (pieha, 27 Oct 2026), as before.
+    buildUpBuys = true;
+    expect(leg1(carryOn())!.key).toBe('buildup');
+    // Past six months continue is still no answer: a fresh start, as before.
+    buildUpBuys = false;
+    contDays = 200;
+    expect(leg1(carryOn())!.key).toBe('2-sale');
+  });
+
+  it('a build-up that buys something and ends sooner than continue is still chosen', () => {
+    contDays = 42;
+    buildUpDays = 41;
+    expect(leg1(inputs('auto'))!.key).toBe('buildup');
+    expect(leg1(inputs('buildup'))!.key).toBe('buildup');
+  });
+
+  it('a tie with continue goes to continue; later than continue, continue', () => {
+    contDays = 42;
+    buildUpDays = 42;
+    expect(leg1(inputs('auto'))!.key).toBe('continue');
+    expect(leg1(inputs('buildup'))!.key).toBe('continue');
+    buildUpDays = 43;
+    const r = leg1(inputs('auto'))!;
+    expect(r.key).toBe('continue');
+    // A build-up that buys something is still a real option that lost: recorded.
+    expect(r.firstLegEnds?.buildup).toBe(43 * DAY);
+  });
+
+  it('by a deadline, a build-up reaching no more TE than continue is not taken', () => {
+    contDays = 20;
+    contEndTE = 215;
+    buildUpDays = 20;
+    buildUpEndTE = 215;
+    fresh = [{ sale: 1, days: 20, endTE: 210, buildPhaseEnd: 5 * DAY }];
+    expect(leg1(inputs('auto'), 20 * DAY)!.key).toBe('continue');
+    expect(leg1(inputs('buildup'), 20 * DAY)!.key).toBe('continue');
+    buildUpEndTE = 216;
+    expect(leg1(inputs('buildup'), 20 * DAY)!.key).toBe('buildup');
   });
 });

@@ -20,6 +20,8 @@ import { computeSnapshot } from '@/engine/compute';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useVirtueStore } from '@/stores/virtue';
+import { getCommonResearches } from '@/calculations/commonResearch';
+import { TE_BREAKPOINTS } from '@/lib/truthEggs';
 import type { SearchInputs } from '@/search/types';
 
 export const NOW = Math.floor(Date.UTC(2026, 9, 1, 12, 0) / 1000);
@@ -249,4 +251,36 @@ export async function syntheticInputs(from?: () => any): Promise<SearchInputs> {
     forceContinue: false,
   };
   return JSON.parse(JSON.stringify(raw, (_k, v) => (typeof v === 'function' ? undefined : v)));
+}
+
+/** The synthetic farm's delivery on `nothingToBuyBackup`, eggs per second (its continue state, measured on this fixture):
+ *  what its `daysToNextTE` are counted at. */
+export const NOTHING_TO_BUY_RATE = 1719396310747.5;
+
+/**
+ * NOTHING LEFT TO BUY, ON KINDNESS (spec-noemptybuild, 31 Oct 2026: the shape of Jordan's alt, whose build-up A1 bought
+ * nothing). The synthetic save's farm on Kindness wearing the save's own production set (metronome, deflector, compass:
+ * the slots point at owned items; leg.continueSet.spec.ts `wornAs` checks the loader reads them back), its farm maxed:
+ * every common research at its top level, four Chicken Universes, seventeen full hyperloops, ten silos. Each egg in
+ * `daysToNextTE` is that many days (at NOTHING_TO_BUY_RATE) short of its next TE; the rest as the synthetic save has them.
+ */
+export function nothingToBuyBackup(daysToNextTE: Partial<Record<'curiosity' | 'integrity' | 'humility' | 'resilience' | 'kindness', number>> = {}): any {
+  const b = syntheticBackup();
+  const f = b.farms[0];
+  f.eggType = 54;
+  // Every research at its top level (the list the engine reads, so no research is left to buy).
+  f.commonResearch = getCommonResearches().map(r => ({ id: r.id, level: r.levels }));
+  f.habs = [18, 18, 18, 18];
+  f.habPopulation = [1e10, 1e10, 1e10, 1e10];
+  f.vehicles = Array(17).fill(11);
+  f.trainLength = Array(17).fill(10);
+  f.silosOwned = 10;
+  // The save's virtue arrays are in the game's egg order.
+  const order = ['curiosity', 'integrity', 'humility', 'resilience', 'kindness'] as const;
+  order.forEach((egg, i) => {
+    const days = daysToNextTE[egg];
+    if (days === undefined) return;
+    b.virtue.eggsDelivered[i] = TE_BREAKPOINTS[b.virtue.eovEarned[i]] - days * 86400 * NOTHING_TO_BUY_RATE;
+  });
+  return b;
 }

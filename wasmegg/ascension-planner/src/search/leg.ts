@@ -15,7 +15,13 @@
  * is the hotspot.
  */
 import { computeSnapshot } from '@/engine/compute';
-import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
+import {
+  runUntilShift,
+  deriveNextStartState,
+  runContinueCurrent,
+  runAscensionFromC3Variant,
+  isPurchase,
+} from '@/auto/ascension';
 import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
 import { runBuildUpUntilC3 } from '@/auto/buildUp';
 // LOW-TE OPENING (auto/lowTeOpening.ts)
@@ -225,6 +231,13 @@ function endEggOf(v: CompactVariant): { endEgg?: { egg: string; te: number } } {
   return te !== null ? { endEgg: { egg: v.lastEgg, te } } : {};
 }
 
+/** `a` is strictly better than `b`: sooner, or by a deadline more TE (`pickVariant`'s measures, without its ties). */
+function sooner(a: VariantResult, b: VariantResult, byDeadline: boolean): boolean {
+  return byDeadline
+    ? a.summary.endTE > b.summary.endTE
+    : a.summary.totalDurationSeconds < b.summary.totalDurationSeconds;
+}
+
 /**
  * Simulate one ascension and return the variant the app itself would pick.
  *
@@ -323,7 +336,7 @@ export function runLeg(
   // (auto/buildUp.ts). A real build, so no six-month rule. A candidate under 'auto' and 'buildup';
   // under 'continue' (Finish without buying) only recorded, so the plan can say when building on
   // would have been sooner (health.ts `buildUpNote`). Worked out once per run and plan start.
-  const buildUp =
+  let buildUp =
     allowContinue && mode !== 'fresh'
       ? compactOrNull(
           buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride),
@@ -331,6 +344,20 @@ export function runLeg(
         )
       : null;
   if (buildUp) kinds.buildup = { v: buildUp, key: 'buildup' };
+  // NO EMPTY BUILD-UP (spec-noemptybuild, 31 Oct 2026; Jordan's alt: a build-up A1 of 6 shifts and 38.59Q of soul
+  // eggs to Dec 13 against continue's 3 shifts and 17.82Q to Dec 12). The build-up always opens with C3's shift to
+  // Curiosity (auto/buildUp.ts), so one that buys nothing is continue with extra shifts. Such a build-up never gets
+  // here: `buildUpBuild` keeps only the variants whose build (the steps to C3 and C3 itself) buys something. With
+  // nothing to buy, "Continue my build-up" is "just laying" (the 'buildup' rule below): continue, even when the
+  // caller left continue out (My runs' unfinished build, useNowPage.ts `continueMaxSeconds` 0), within the six months.
+  const nothingToBuild = allowContinue && mode !== 'fresh' && !!buildUpBuild(inputs, baseState, startTime, startTE)?.buysNothing;
+  if (nothingToBuild && !cont && mode === 'buildup' && kinds.continue) {
+    const c = kinds.continue.v;
+    if (c.summary.totalDurationSeconds <= CONTINUE_MAX_SECONDS) cont = c;
+  }
+  // A build-up that ends no sooner than continue (by a deadline: reaches no more TE) is no candidate either: continue
+  // wins, ties too. Still recorded (`kinds`), as the option that lost.
+  if (buildUp && cont && !sooner(buildUp, cont, byDeadline)) buildUp = null;
 
   if (
     cont &&
@@ -342,14 +369,9 @@ export function runLeg(
   }
 
   // 'buildup': finish the ascension in progress, building on or (when the build is done) just
-  // laying, whichever is sooner. No fresh start unless neither can be simulated.
-  if (mode === 'buildup' && (buildUp || cont)) {
-    if (buildUp && cont) {
-      const pick = pickVariant({ buildup: buildUp, continue: cont }, undefined, byDeadline);
-      return pick === cont ? asLeg(cont, 'continue') : asLeg(buildUp, 'buildup');
-    }
-    return buildUp ? asLeg(buildUp, 'buildup') : asLeg(cont!, 'continue');
-  }
+  // laying, whichever is sooner (a build-up is left here only when it is sooner than continue, above).
+  // No fresh start unless neither can be simulated.
+  if (mode === 'buildup' && (buildUp || cont)) return buildUp ? asLeg(buildUp, 'buildup') : asLeg(cont!, 'continue');
 
   // The build to C3 and its variants: no target in it, so shared by every target tried from this
   // start (legBuild below).
@@ -384,7 +406,8 @@ export function runLeg(
   }
   if (mode === 'auto' && (cont || buildUp)) {
     // Fastest: every kind one more candidate, as Classic treats continue with nothing picked. Ties go
-    // to the fresh start, then to the build-up (pickVariant keeps the first of equals).
+    // to the fresh start, then to the build-up (pickVariant keeps the first of equals); a build-up is
+    // here only when it is sooner than continue (above).
     const all: Partial<Record<VariantKey, CompactVariant>> = { ...fresh };
     if (buildUp) all.buildup = buildUp;
     if (cont) all.continue = cont;
@@ -681,6 +704,17 @@ interface BuildUpBuild {
   ctx: SimulationContext;
   preC3: { actions: Action[]; state: EngineState; elapsedSeconds: number };
   variants: C3Variant[];
+  /** Every possible variant's build (the steps to C3 and C3 itself) buys nothing (`buildUpBuys`): `variants` is
+   *  then empty, and the build-up is no option (NO EMPTY BUILD-UP, `runLeg`). */
+  buysNothing?: true;
+}
+
+/** Whether a build-up variant's build buys anything: a research, vehicle, train car, hab or silo purchase
+ *  (auto/ascension.ts `isPurchase`) in the steps to C3 or in C3 itself. From H1 on the build-up runs the standard
+ *  tail, as a fresh build does, and the instant answer prices that part from the table; so the build is what tells
+ *  a build-up from continue with extra shifts, the same in the search and in the instant answer. */
+function buildUpBuys(preC3: { actions: Action[] }, v: C3Variant): boolean {
+  return preC3.actions.some(isPurchase) || (v.result?.actions ?? []).some(isPurchase);
 }
 
 /** Per run (its inputs) and plan start: leg 1 is priced to many checkpoints from the same farm, and
@@ -707,10 +741,15 @@ function buildUpBuild(inputs: SearchInputs, baseState: EngineState, startTime: n
         elapsedSeconds = held.elapsedSeconds;
       }
     }
-    const variants = runC3Variants(state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE, {
+    const possible = runC3Variants(state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE, {
       stayOnCuriosity: pre.stayOnCuriosity,
     }).filter(v => !v.impossible);
-    built = variants.length ? { start, ctx, preC3: { actions, state, elapsedSeconds }, variants } : null;
+    const preC3 = { actions, state, elapsedSeconds };
+    // NO EMPTY BUILD-UP: a variant whose build buys nothing is continue with extra shifts, never offered.
+    const variants = possible.filter(v => buildUpBuys(preC3, v));
+    built = possible.length
+      ? { start, ctx, preC3, variants, ...(variants.length ? {} : { buysNothing: true as const }) }
+      : null;
   }
   if (byStart.size >= 4) byStart.delete(byStart.keys().next().value as number);
   byStart.set(startTime, built);

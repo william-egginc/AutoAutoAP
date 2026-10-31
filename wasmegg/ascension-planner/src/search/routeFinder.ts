@@ -1174,11 +1174,13 @@ export function firstLegOptions(o: FirstLegOptions): FirstLeg[] {
       peakELR: from.peakELR,
     });
     if (o.firstAscension === 'buildup' && (b || c)) {
-      // Continue my build-up: the sooner of building on and continuing as the farm is (ties: build-up).
-      pick = b && (!c || b.seconds <= c.seconds) ? { ...b, label: 'buildup' } : { ...c!, label: 'continue' };
-    } else if (o.firstAscension === 'auto' && b && (!f || b.seconds < f.seconds) && (!c || b.seconds <= c.seconds)) {
+      // Continue my build-up: the sooner of building on and continuing as the farm is (ties: continue, as
+      // search/leg.ts runLeg: a build-up no sooner than continue is continue with extra shifts).
+      pick = b && (!c || b.seconds < c.seconds) ? { ...b, label: 'buildup' } : { ...c!, label: 'continue' };
+    } else if (o.firstAscension === 'auto' && b && (!f || b.seconds < f.seconds) && (!c || b.seconds < c.seconds)) {
       // Fastest: the build-up beats a fresh start only strictly (ties go to the fresh start, as
-      // search/leg.ts runLeg's pickVariant does), and continue only by being sooner.
+      // search/leg.ts runLeg's pickVariant does), and continue only by being sooner (ties: continue).
+      // A build-up that buys nothing has no tails here at all (search/leg.ts `buildUpTailParams`).
       pick = { ...b, label: 'buildup' };
     } else if (c && forced && c.seconds <= o.pinSeconds) pick = { ...c, label: 'continue' };
     else if (c && f) {
