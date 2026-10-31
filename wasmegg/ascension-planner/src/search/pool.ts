@@ -24,6 +24,7 @@
  * (see chainSearch.protocol.ts) and a request with no traffic for `STALL_MS` is failed loudly.
  */
 import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { perfEnd, perfStart, perfStep } from '@/lib/buildUpDebug';
 import { inputsForWorkers } from './workerBackup';
 import { sortChainsDepthFirst, type MemoSettings } from './chain';
 import { clampPoolSize, hardwareThreads, maxPoolSize, splitByPrefix, workersForBatch } from './batch';
@@ -408,7 +409,10 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
     counts.made++;
 
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      // The reply is read (structured-clone deserialised) on first access of `data`: measured, quietly.
+      const t0 = perfStart('worker reply read', true);
       const msg = event.data;
+      if (t0 !== null) perfEnd(`worker reply read (${msg?.type ?? '?'})`, t0);
       if ('heapMB' in msg && typeof msg.heapMB === 'number') pw.heapMB = msg.heapMB;
       if ('memoEntries' in msg && typeof msg.memoEntries === 'number') pw.memoEntries = msg.memoEntries;
       if ('memoCapacity' in msg && typeof msg.memoCapacity === 'number') pw.memoCapacity = msg.memoCapacity;
@@ -560,7 +564,9 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
       }
       pw.pending.set(message.requestId, { resolve, reject, lastSeen: now(), label, done: 0, total });
       armWatchdog();
+      const t0 = perfStart(`postMessage ${message.kind}`);
       pw.worker.postMessage(message);
+      perfEnd(`postMessage ${message.kind}`, t0);
     });
   }
 
@@ -581,7 +587,8 @@ export async function createChainSearchPool(inputs: SearchInputs, opts: PoolOpti
   // the rest of the save -- mission and contract archives, the home farm and its inventory -- was a
   // copy in every worker of something no worker reads. Trimmed before the sanitize, so the deep
   // rebuild only walks what is sent.
-  const cleanInputs = sanitizeLongs(inputsForWorkers(inputs));
+  // Measured as `pool backup clean` with the perf breadcrumbs on (lib/buildUpDebug.ts).
+  const cleanInputs = perfStep('pool backup clean', () => sanitizeLongs(inputsForWorkers(inputs)));
 
   /** Create and initialise worker `i` on first use; every later caller awaits the same promise. */
   function workerAt(i: number): Promise<PoolWorker> {

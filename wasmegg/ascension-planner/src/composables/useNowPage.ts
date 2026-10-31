@@ -149,7 +149,7 @@ import { ascensionSteps, instantSteps, prestigeAfterSimulated, withStayLine } fr
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import { buildUpWanted } from './useBuildUpTracker';
-import { buildUpLog } from '@/lib/buildUpDebug';
+import { buildUpLog, perfStep } from '@/lib/buildUpDebug';
 import { saveFarmFor } from '@/lib/buildUpBought';
 import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
 import { buildLeft } from '@/lib/saveBuild';
@@ -1302,7 +1302,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * producing farm read "Keep building: vehicles" for 17 days).
    */
   const saveBuildLeft = computed(() => (hasSave.value && onVirtue.value ? buildLeft(farm.value, fullHabRates.value) : null));
-  const simRequest = computed<SimRequest | null>(() => {
+  const simRequest = computed<SimRequest | null>(() => perfStep('nowPage simRequest', (): SimRequest | null => {
     // Any followed route without exact legs, whether the table's estimate is in, being worked out or couldn't be made
     // (26 Oct 2026: a route the estimate couldn't price still gets its Next step from the ascension you are in).
     const fs = followState.value;
@@ -1333,14 +1333,14 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       route,
       setup,
       inputs: () => {
-        const i = store.collectInputs();
+        const i = perfStep('collectInputs', () => store.collectInputs());
         // The build carried on (above), unless the plan starts too late to continue the save (firstAscensionFor).
         const carryOn = building && i.firstAscension !== 'fresh' ? { firstAscension: 'buildup' as const, continueMaxSeconds: 0 } : {};
         // One ascension, not the whole route: no dated milestones to meet; the hours only as the answers use them.
         return { ...i, ...carryOn, milestones: [], ...(useHours ? {} : { availability: null }) };
       },
     };
-  });
+  }));
   const { state: currentSim, slow: simSlow, retry: retrySim } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
   /** The simulation is asked for the Build-up tracker only (the route has exact legs): Right now's card says nothing of it. */
   const simForTrackerOnly = computed(() => !!followState.value?.plan?.plan?.legs);
@@ -1403,16 +1403,18 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (st.status === 'done' && st.planFailed) return { status: 'failed' as const, reason: st.planFailed };
     return st.status === 'failed' ? { status: st.status, reason: st.reason } : { status: st.status };
   });
-  const cardPlan = computed<CardPlan | null>(() => {
-    const c = basePlan.value;
-    const r = shiftRequest.value;
-    const st = r ? otherStates.value[r.key] : null;
-    const shifted = c && st?.status === 'done' ? { ...c, plan: withTableShifts(c.plan, st.route) } : c;
-    const sim = currentSim.value;
-    return shifted && sim?.status === 'done' && sim.key === simRequest.value?.key
-      ? { ...shifted, plan: withCurrentSim(shifted.plan, sim.leg) }
-      : shifted;
-  });
+  const cardPlan = computed<CardPlan | null>(() =>
+    perfStep('nowPage cardPlan', () => {
+      const c = basePlan.value;
+      const r = shiftRequest.value;
+      const st = r ? otherStates.value[r.key] : null;
+      const shifted = c && st?.status === 'done' ? { ...c, plan: withTableShifts(c.plan, st.route) } : c;
+      const sim = currentSim.value;
+      return shifted && sim?.status === 'done' && sim.key === simRequest.value?.key
+        ? { ...shifted, plan: withCurrentSim(shifted.plan, sim.leg) }
+        : shifted;
+    })
+  );
   /**
    * With a followed route for the selected goal: the planner's pick for this save as the new result the prompt
    * compares (BetterRoutePrompt.vue, lib/searchPlan.ts `followPrompt`), with the followed route's own finish as priced
