@@ -180,12 +180,11 @@ describe('A1 off Humility keeps the equipped set (search/leg.ts)', () => {
     expect(continued(inputs)!.summary.endTime).toBe(BEFORE.humilityContinue);
   }, 600_000);
 
-  it('a farm with nothing left to buy: the build-up does not beat continue', async () => {
+  it('a farm with nothing left to buy: no build-up at all, only continue (spec-noemptybuild: one that buys nothing is no option)', async () => {
     const inputs = await syntheticInputs(save(KINDNESS, 'production', true));
     wornAs(inputs, 'production');
-    const b = buildUp(inputs)!;
-    const c = continued(inputs)!;
-    expect(b.summary.endTime).toBeGreaterThanOrEqual(c.summary.endTime);
+    expect(buildUp(inputs)).toBeNull();
+    expect(continued(inputs)).not.toBeNull();
   }, 600_000);
 
   it('no virtue farm: no continue and no build-up', async () => {
