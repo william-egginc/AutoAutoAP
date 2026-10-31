@@ -27,7 +27,7 @@ import type { BuildUpPlan } from '@/search/buildUpActions';
 import { getResearchById } from '@/calculations/commonResearch';
 import type { Availability } from '@/search/availability';
 import { BUILDUP_PLAN_KEY } from '@/lib/followSim';
-import { buildUpLog } from '@/lib/buildUpDebug';
+import { buildUpLog, perfStep } from '@/lib/buildUpDebug';
 import {
   buildUpTracker,
   dropAnchoredPlan,
@@ -114,7 +114,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   watch(
     i.account,
     a => {
-      const read = a ? readAnchoredPlan(a) : null;
+      const read = a ? perfStep('readAnchoredPlan', () => readAnchoredPlan(a)) : null;
       // A kept plan with no buys, or no usable ascension start, reads as none (spec-buildcache: an old, corrupt or empty
       // record must never read as "plan present").
       const ok = read && Number.isFinite(read.ascensionStart) && read.plan.actions.length > 0 ? read : null;
@@ -149,7 +149,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       const a: AnchoredPlan = { ascensionStart: k, saveSeconds: i.saveSeconds.value, plan: p, ...anchorFarmNow() };
       // Kept here (compacted): useCurrentSim's own copy of the raw plan (lib/followSim.ts BUILDUP_PLAN_KEY, ~250 kB
       // on the synthetic save) is then not needed, and the plan is not asked for again in this ascension.
-      const stored = writeAnchoredPlan(acct, a);
+      const stored = perfStep('writeAnchoredPlan', () => writeAnchoredPlan(acct, a));
       if (stored) dropSimPlanCopy();
       buildUpLog(`tracker plan kept (${p.actions.length} actions, ${stored ? 'stored' : 'not stored'})`);
       anchored.value = keep(a);
@@ -218,18 +218,23 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   const result = computed<TrackerResult | null>(() => {
     const a = plan.value;
     if (!a) return null;
+    const zone = i.zone.value;
+    const hours = JSON.parse(hoursKey.value) as Availability | null;
+    const now = today.value.at;
     return markRaw(
-      buildUpTracker({
-        actions: a.plan.actions,
-        zone: i.zone.value,
-        hours: JSON.parse(hoursKey.value) as Availability | null,
-        siloSeconds: a.plan.siloSeconds,
-        startSilos: a.plan.start?.siloCount ?? null,
-        startEgg: a.plan.start?.egg ?? null,
-        saleCount: a.plan.saleCount ?? null,
-        variantKey: a.plan.variantKey,
-        now: today.value.at,
-      })
+      perfStep('buildUpTracker', () =>
+        buildUpTracker({
+          actions: a.plan.actions,
+          zone,
+          hours,
+          siloSeconds: a.plan.siloSeconds,
+          startSilos: a.plan.start?.siloCount ?? null,
+          startEgg: a.plan.start?.egg ?? null,
+          saleCount: a.plan.saleCount ?? null,
+          variantKey: a.plan.variantKey,
+          now,
+        })
+      )
     );
   });
 
@@ -261,7 +266,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const a = plan.value;
     if (!r || !a) return null;
     const { save, anchorFarm } = tickFrom.value;
-    return boughtFromSave({ lines: r.lines, save, start: a.plan.start, startEgg: a.plan.start?.egg, anchorFarm });
+    return perfStep('boughtFromSave', () => boughtFromSave({ lines: r.lines, save, start: a.plan.start, startEgg: a.plan.start?.egg, anchorFarm }));
   });
   /** The save's tick per tickable line: true / false, null when the save can't tell. */
   const auto = computed(() => {
@@ -308,15 +313,18 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const a = plan.value;
     const { save, anchorFarm } = tickFrom.value;
     if (!r || !a || !save) return null;
-    return replanOffer({
-      lines: r.lines,
-      save,
-      start: a.plan.start,
-      startEgg: a.plan.start?.egg,
-      saveSeconds: i.saveSeconds.value,
-      anchorSeconds: a.saveSeconds,
-      anchorFarm,
-    });
+    const saveSeconds = i.saveSeconds.value;
+    return perfStep('replanOffer', () =>
+      replanOffer({
+        lines: r.lines,
+        save,
+        start: a.plan.start,
+        startEgg: a.plan.start?.egg,
+        saveSeconds,
+        anchorSeconds: a.saveSeconds,
+        anchorFarm,
+      })
+    );
   });
   /** The button shows (or is working, or has failed: the old plan stays). */
   const replanShown = computed(() => !!offer.value?.show || replanning.value || !!replanError.value);
@@ -351,11 +359,14 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     const old = plan.value;
     if (!p || !acct || k === null || (old && p === old.plan)) return;
     const a: AnchoredPlan = { ascensionStart: k, saveSeconds: i.saveSeconds.value, plan: p, ...anchorFarmNow() };
-    const keys = buildUpTracker({ actions: p.actions, zone: i.zone.value, hours: i.hours.value, siloSeconds: p.siloSeconds, startSilos: p.start?.siloCount ?? null, startEgg: p.start?.egg ?? null, now: dayOf(i.now.value) }).lines
+    const zone = i.zone.value;
+    const hours = i.hours.value;
+    const now = dayOf(i.now.value);
+    const keys = perfStep('buildUpTracker (re-plan keys)', () => buildUpTracker({ actions: p.actions, zone, hours, siloSeconds: p.siloSeconds, startSilos: p.start?.siloCount ?? null, startEgg: p.start?.egg ?? null, now })).lines
       .filter(l => l.tickable)
       .map(l => l.key);
     const kept = carryTicks(overrides.value, keys);
-    if (writeAnchoredPlan(acct, a)) dropSimPlanCopy();
+    if (perfStep('writeAnchoredPlan', () => writeAnchoredPlan(acct, a))) dropSimPlanCopy();
     else dropAnchoredPlan(acct);
     anchored.value = keep(a);
     saveOverrides(kept.on, kept.off);

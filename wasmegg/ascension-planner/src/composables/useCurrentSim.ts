@@ -31,7 +31,7 @@ import {
   type SimLeg,
 } from '@/lib/followSim';
 import { siloSeconds } from '@/lib/saveAge';
-import { buildUpLog, shortKey } from '@/lib/buildUpDebug';
+import { buildUpLog, ensureLongTaskWatch, perfEnd, perfOn, perfStart, perfStep, shortKey } from '@/lib/buildUpDebug';
 
 export interface SimRequest {
   /** lib/followSim.ts `simKey`. */
@@ -73,7 +73,9 @@ async function defaultRunner(): Promise<SimRunner | null> {
   let gone = false;
   return {
     async run(inputs, chain, opts) {
+      const t0 = perfStart('sim pool create');
       pool = await createChainSearchPool(inputs, { size: 1 });
+      perfEnd('sim pool create', t0);
       if (gone) {
         pool.terminate();
         return null;
@@ -146,6 +148,14 @@ export function useCurrentSim(
   /** Shallow (build-up perf, 30 Oct 2026): the state is replaced whole, never changed in place, and the build-up plan in
    *  it (hundreds to a couple of thousand buys) is never made deeply reactive. */
   const state = shallowRef<SimState | null>(null);
+  if (perfOn()) ensureLongTaskWatch();
+  /** The perf breadcrumbs (lib/buildUpDebug.ts): a state change measured until the page has taken it (the watchers,
+   *  computeds and render it set off, up to the next macrotask). */
+  function setState(next: SimState | null, why: string): void {
+    const t0 = perfStart(`sim state -> ${why}`);
+    state.value = next;
+    if (t0 !== null) setTimeout(() => perfEnd(`sim state -> ${why} (page settled)`, t0), 0);
+  }
   /** It has run `slowMs` without an answer. */
   const slow = ref(false);
   let runner: SimRunner | null = null;
@@ -176,7 +186,7 @@ export function useCurrentSim(
     letGo();
     const id = asked;
     runningKey = req.key;
-    state.value = have ?? { key: req.key, status: 'working' };
+    setState(have ?? { key: req.key, status: 'working' }, 'working');
     buildUpLog(`run scheduled (${have ? 'plan only, the leg on screen' : 'leg'}${unref(wantBuildUp) ? ', plan wanted' : ''}) key ${shortKey(req.key)}`);
     startTimer = setTimeout(() => {
       startTimer = null;
@@ -191,8 +201,8 @@ export function useCurrentSim(
     const began = Date.now();
     let result: SimState;
     try {
-      const inputs = req.inputs();
-      const r = await makeRunner();
+      const inputs = perfStep('sim request build', () => req.inputs());
+      const r = await perfStep('sim runner', () => makeRunner());
       if (id !== asked) {
         r?.terminate();
         return;
@@ -203,27 +213,33 @@ export function useCurrentSim(
       wantAsked = want;
       buildUpLog(`run started${want ? ' with the plan' : ''} key ${shortKey(req.key)}`);
       const got = await (want ? r.run(inputs, [req.route[0]], { keepPurchases: true }) : r.run(inputs, [req.route[0]]));
-      const leg = simLegFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
-        timeOff: inputs.timeOff,
-        currentTE: inputs.currentTE,
-        planStart: inputs.planStart,
-      });
+      const leg = perfStep('simLegFromSegments', () =>
+        simLegFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
+          timeOff: inputs.timeOff,
+          currentTE: inputs.currentTE,
+          planStart: inputs.planStart,
+        })
+      );
       if (id !== asked) return;
       if (!leg) throw new Error(`the ascension to ${req.route[0]} TE could not be simulated`);
       const at = Date.now();
-      recordSim({ account: req.account, backupTime: req.backupTime, route: [...req.route], setup: req.setup, at, ms: at - began, leg });
+      perfStep('recordSim', () =>
+        recordSim({ account: req.account, backupTime: req.backupTime, route: [...req.route], setup: req.setup, at, ms: at - began, leg })
+      );
       const siloLevel = inputs.context?.epicResearchLevels?.['silo_capacity'];
       const made = want
-        ? buildUpPlanFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
-            accountKey: req.account,
-            siloSeconds: siloSeconds(inputs.currentFarmState?.numSilos, siloLevel),
-          })
+        ? perfStep('buildUpPlanFromSegments', () =>
+            buildUpPlanFromSegments(Array.isArray(got) ? got : got ? [got] : null, {
+              accountKey: req.account,
+              siloSeconds: siloSeconds(inputs.currentFarmState?.numSilos, siloLevel),
+            })
+          )
         : null;
       // What the START farm's silos hold: a fresh ascension starts on 1 silo, not the save's (the synthetic save has 4:
       // 12 h read as 1 silo's worth made the tracker's silo time 4 times too long, 30 Oct 2026).
       const shaped = made?.start ? { ...made, siloSeconds: siloSeconds(made.start.siloCount, siloLevel) } : made;
       const buildUp = shaped ? markRaw(shaped) : null;
-      if (buildUp) buildUpLog(`plan kept for the sim (${recordBuildUpPlan(req.key, buildUp) ? 'stored' : 'not stored'})`);
+      if (buildUp) buildUpLog(`plan kept for the sim (${perfStep('recordBuildUpPlan', () => recordBuildUpPlan(req.key, buildUp)) ? 'stored' : 'not stored'})`);
       buildUpLog(`run finished in ${Math.round((at - began) / 100) / 10} s: ${buildUp ? `plan with ${buildUp.actions.length} actions` : want ? 'NO build-up list' : 'leg only (plan not asked)'}`);
       // The plan was wanted and none came back: said so (the tracker shows why), never asked again for this key on
       // this page (a request worked out again would otherwise simulate it again and again, 30 Oct 2026).
@@ -257,7 +273,7 @@ export function useCurrentSim(
     runner = null;
     runningKey = null;
     clearTimers();
-    state.value = result;
+    setState(result, result.status);
     // STOPPED → NEVER STUCK (spec-buildstop): the plan became wanted while a run without it was going (the fold opened,
     // the Building badge came as Right now's plan moved). Its answer is the leg only, the key is already 'done', and
     // nothing would ask again: the plan is asked for at once, the leg on screen meanwhile.
@@ -283,12 +299,12 @@ export function useCurrentSim(
       const now = state.value?.key === req.key && state.value.status === 'done' ? state.value : null;
       // Done for this key: the plan is in, not wanted, or working it out failed (one request per save and route).
       if (now && (!want || now.buildUp || now.planFailed)) return;
-      const kept = findSimRecord(readSimRecords(), req);
-      const keptPlan = kept && want ? readBuildUpPlan(req.key) : null;
+      const kept = perfStep('readSimRecords', () => findSimRecord(readSimRecords(), req));
+      const keptPlan = kept && want ? perfStep('readBuildUpPlan', () => readBuildUpPlan(req.key)) : null;
       if (kept && (!want || keptPlan)) {
         buildUpLog(`kept sim restored ${keptPlan ? `with its plan (${keptPlan.actions.length} actions)` : 'without a plan (not wanted)'}`);
         letGo();
-        state.value = { key: req.key, status: 'done', leg: kept.leg, at: kept.at, ...(keptPlan ? { buildUp: markRaw(keptPlan) } : {}) };
+        setState({ key: req.key, status: 'done', leg: kept.leg, at: kept.at, ...(keptPlan ? { buildUp: markRaw(keptPlan) } : {}) }, 'done (kept)');
         return;
       }
       // BUILD-UP TRACKER: the leg is known (on screen, or kept) and only the plan is wanted: the leg stays while the
