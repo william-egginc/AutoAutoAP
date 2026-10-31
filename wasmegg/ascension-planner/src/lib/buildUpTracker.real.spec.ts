@@ -51,6 +51,8 @@ beforeAll(async () => {
     siloSeconds: plan.siloSeconds,
     startSilos: plan.start?.siloCount ?? null,
     startEgg: plan.start?.egg ?? null,
+    saleCount: plan.saleCount ?? null,
+    variantKey: plan.variantKey,
     now,
   });
   if (process.env.BUILDUP_DUMP) {
@@ -107,7 +109,20 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     const top = new Map<string, number>();
     for (const a of buildPart(plan.actions)) if (a.kind === 'research') top.set(a.label, Math.max(top.get(a.label) ?? 0, a.level ?? 0));
     const text = r.lines.map(l => l.text).join(' | ');
-    for (const [name, lvl] of top) expect(text, name).toMatch(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( \\(tier \\d\\))? (\\d+-)?${lvl}(,| \\||$)`));
+    // spec-buylabel: a cheap buy's part ends in " (cheap sweep)".
+    for (const [name, lvl] of top)
+      expect(text, name).toMatch(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( \\(tier \\d\\))? (\\d+-)?${lvl}( \\(cheap sweep\\))?(,| \\||$)`));
+  });
+
+  it('spec-buylabel: the Smart Buy line from the plan\'s own sale count, and cheap sweep marks on real buys', () => {
+    const fromKey = Number(/^(\d+)-sale/.exec(plan.variantKey)?.[1]);
+    expect(plan.saleCount).toBe(fromKey);
+    const n = plan.saleCount!;
+    expect(r.buyRule).toBe(`Buys follow Smart Buy, set to ${n} sale${n === 1 ? '' : 's'} (the Manual Planner's 70% Return card with its stepper on ${n})`);
+    const marked = r.lines.filter(l => l.kind === 'research' && /\(cheap sweep\)/.test(l.text));
+    expect(marked.length).toBeGreaterThan(0);
+    // Every marked part is a research whose buys in the line were all cheap; the items never carry the words.
+    for (const l of marked) for (const it of l.items ?? []) expect(JSON.stringify(it)).not.toMatch(/cheap/);
   });
 
   it("silo time is the start farm's (1 silo on a fresh ascension), not the save's", () => {

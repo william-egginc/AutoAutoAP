@@ -232,3 +232,27 @@ describe('the template rules (Phase 2)', () => {
     expect(tpl).toContain(`<span class="sr-only">{{ ' ' }}(bought)</span>`);
   });
 });
+
+// ------------------------------------------------------------------ spec-buylabel: the Smart Buy line, cheap sweep marks
+describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
+  const withRule = (saleCount: number) =>
+    buildUpTracker({ actions: plan.actions, zone: ZONE, hours: HOURS, siloSeconds: plan.siloSeconds, startSilos: 1, startEgg: 'curiosity', now: NOW, saleCount });
+  it('under the plan line, small and slate like the other header lines', async () => {
+    const html = await render('ready', { result: withRule(3) });
+    expect(textOf(html)).toContain("Buys follow Smart Buy, set to 3 sales (the Manual Planner's 70% Return card with its stepper on 3)");
+    expect(html).toMatch(/<p class="text-small text-slate-500" data-testid="buildup-buyrule">/);
+    expect(html.indexOf('data-testid="buildup-buyrule"')).toBeGreaterThan(html.indexOf('data-testid="buildup-plan"'));
+  });
+  it('1 sale, singular', async () => {
+    expect(textOf(await render('ready', { result: withRule(1) }))).toContain('set to 1 sale (the Manual Planner');
+  });
+  it("none for a plan that buys nothing ('continue')", async () => {
+    const r = buildUpTracker({ actions: plan.actions, zone: ZONE, hours: HOURS, now: NOW, variantKey: 'continue' });
+    expect(await render('ready', { result: r })).not.toContain('buildup-buyrule');
+  });
+  it('a cheap sweep buy shows its mark, struck parts included', async () => {
+    const acts = plan.actions.map(a => (a.kind === 'research' && a.id === 'comfortable_nests' ? { ...a, cheap: true as const } : a));
+    const r = buildUpTracker({ actions: acts, zone: ZONE, hours: HOURS, now: NOW, startEgg: 'curiosity' });
+    expect(textOf(await render('ready', { result: r }))).toContain('buy Comfortable Nests 1-50 (cheap sweep), Excitable Chickens 1-25');
+  });
+});
