@@ -76,7 +76,7 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     for (let i = 1; i < r.checkIns.length; i++) expect(r.checkIns[i].at - r.checkIns[i - 1].at).toBeGreaterThanOrEqual(60);
     expect(r.days.length).toBeGreaterThan(1);
     for (const d of r.days) expect(d.title).toMatch(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) [A-Z][a-z]{2} \d+$/);
-    expect(r.lines.some(l => l.kind === 'research' && /^buy [A-Z].* \d+(-\d+)?(, |$)/.test(l.text))).toBe(true);
+    expect(r.lines.some(l => l.kind === 'research' && /^buy [A-Z].* \(\d+ → \d+\)(, |$)/.test(l.text))).toBe(true);
   });
 
   it('the starting set is not a swap; the Humility set swap is one bold line; nothing dropped', () => {
@@ -110,8 +110,9 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     for (const a of buildPart(plan.actions)) if (a.kind === 'research') top.set(a.label, Math.max(top.get(a.label) ?? 0, a.level ?? 0));
     const text = r.lines.map(l => l.text).join(' | ');
     // spec-buylabel: a sweep name in a mixed line ends in " (cheap sweep)", and so does an all-sweep line (R7).
+    // spec-rangewords: 'Name (from → last)', the Manual Planner's range (from the level before the line's first buy).
     for (const [name, lvl] of top)
-      expect(text, name).toMatch(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( \\(tier \\d\\))? (\\d+-)?${lvl}( \\(cheap sweep\\))?(,| \\||$)`));
+      expect(text, name).toMatch(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( \\(tier \\d\\))? \\(\\d+ → ${lvl}\\)( \\(cheap sweep\\))?(,| \\||$)`));
   });
 
   it('spec-buylabel: the Smart Buy line from the plan\'s own sale count, and cheap sweep marks on real buys', () => {

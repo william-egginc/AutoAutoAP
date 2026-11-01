@@ -73,14 +73,14 @@ describe('BuildUpTracker: the list', () => {
   it('bold lines are bold, research is not', async () => {
     const html = await render('ready');
     expect(html).toMatch(/<span class="font-bold">shift to Kindness<\/span>/);
-    expect(html).toMatch(/<span class="">buy Graviton Coupling 3<\/span>/);
+    expect(html).toMatch(/<span class="">buy Graviton Coupling \(2 → 3\)<\/span>/);
   });
   it('a checkbox per check-in line with its label; kept ticks show checked', async () => {
     const key = result.checkIns[1].keys[0];
     const html = await render('ready', { ticks: new Set([key]), summary: trackerSummary(result, new Set([key])) });
     const box = html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${key.replace(':', '\\:')}"[^>]*>`))?.[0] ?? '';
     expect(box).toContain('checked');
-    expect(box).toContain('aria-label="Done: 8:42 am · buy Comfortable Nests 1-50');
+    expect(box).toContain('aria-label="Done: 8:42 am · buy Comfortable Nests (0 → 50)');
     expect(html.match(/type="checkbox"/g)?.length).toBeGreaterThan(10);
     // Event and wait lines have no checkbox.
     expect(html).not.toMatch(/aria-label="Done: wait for the sale/);
@@ -89,8 +89,8 @@ describe('BuildUpTracker: the list', () => {
   it('today and tomorrow open; a later day collapsed to its bold lines, with "+ N more · show all"', async () => {
     const t = textOf(await render('ready'));
     // Fri Nov 6 (collapsed): its research beyond the first is hidden.
-    expect(t).toContain('10:00 am · buy Multiversal Layering 2');
-    expect(t).not.toContain('buy Enlightened Chickens 96');
+    expect(t).toContain('10:00 am · buy Multiversal Layering (1 → 2)');
+    expect(t).not.toContain('buy Enlightened Chickens (95 → 96)');
     expect(t).toContain('+ 1 more · show all');
     expect(t).toContain('Show all ');
     expect(t).toContain('Show less');
@@ -167,11 +167,11 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
     const html = await renderHtml(BuildUpTracker, fromSave(save(PART)));
     const t = textOf(html);
     expect(t.replace(/ ,/g, ',')).toContain(
-      '8:42 am · buy Comfortable Nests 1-50 (bought), Excitable Chickens 1-25 (bought), Internal Hatchery Expansion (tier 5) 1-15, Bigger Eggs 1 (bought), Internal Hatchery Expansion (tier 7) 1-5 · offline 5 min · 3 of 5 bought'
+      '8:42 am · buy Comfortable Nests (0 → 50) (bought), Excitable Chickens (0 → 25) (bought), Internal Hatchery Expansion (tier 5) (0 → 15), Bigger Eggs (0 → 1) (bought), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min · 3 of 5 bought'
     );
     expect(html).toMatch(/<span class="tabular-nums text-amber-800"[^>]*>3 of 5 bought<\/span>/);
     expect(html.match(/class="line-through decoration-slate-400"/g)?.length).toBe(3);
-    expect(html).toMatch(/<span class="line-through decoration-slate-400">Comfortable Nests 1-50<span class="sr-only"> \(bought\)<\/span><\/span>/);
+    expect(html).toMatch(/<span class="line-through decoration-slate-400">Comfortable Nests \(0 → 50\)<span class="sr-only"> \(bought\)<\/span><\/span>/);
     // Not ticked: the checkbox is empty.
     const box = html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${first.key.replace(':', '\\:')}"[^>]*>`))![0];
     expect(box).not.toContain('checked');
@@ -181,7 +181,7 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
     const html = await renderHtml(BuildUpTracker, fromSave(save({ ...PART, internal_hatchery3: 15, internal_hatchery4: 5 })));
     const box = html.match(new RegExp(`<input[^>]*data-testid="buildup-tick-${first.key.replace(':', '\\:')}"[^>]*>`))![0];
     expect(box).toContain('checked');
-    expect(box).toMatch(/aria-label="Done: 8:42 am · buy Comfortable Nests 1-50, [^"]*, from your save"/);
+    expect(box).toMatch(/aria-label="Done: 8:42 am · buy Comfortable Nests \(0 → 50\), [^"]*, from your save"/);
     expect(html).toMatch(/<label[^>]*title="from your save"/);
     expect(html).toMatch(/<span class="text-green-700"[^>]*>bought<\/span>/);
     expect(textOf(html)).toContain('Build-up tracker 2 of ');
@@ -285,7 +285,7 @@ describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
   it('a mixed line (sweep and non-sweep buys) marks the sweep names', async () => {
     const acts = plan.actions.map(a => (a.kind === 'research' && a.id === 'comfortable_nests' ? { ...a, cheap: true as const } : a));
     const r = buildUpTracker({ actions: acts, zone: ZONE, hours: HOURS, now: NOW, startEgg: 'curiosity' });
-    expect(textOf(await render('ready', { result: r }))).toContain('buy Comfortable Nests 1-50 (cheap sweep), Excitable Chickens 1-25');
+    expect(textOf(await render('ready', { result: r }))).toContain('buy Comfortable Nests (0 → 50) (cheap sweep), Excitable Chickens (0 → 25)');
   });
 
   // R7 (31 Oct 2026): the first check-in all sweep, as on a fresh ascension.
@@ -293,7 +293,7 @@ describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
   const sweepActs = plan.actions.map(a => (a.kind === 'research' && a.t <= firstAt ? { ...a, cheap: true as const } : a));
   const sweepResult = buildUpTracker({ actions: sweepActs, zone: ZONE, hours: HOURS, siloSeconds: plan.siloSeconds, startSilos: 1, startEgg: 'curiosity', now: NOW });
   const ALL_SWEEP =
-    '8:42 am · buy Comfortable Nests 1-50, Excitable Chickens 1-25, Internal Hatchery Expansion (tier 5) 1-15, Bigger Eggs 1, Internal Hatchery Expansion (tier 7) 1-5 (cheap sweep) · offline 5 min';
+    '8:42 am · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → 25), Internal Hatchery Expansion (tier 5) (0 → 15), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5) (cheap sweep) · offline 5 min';
 
   it('an all-sweep line: one mark at the end, before the offline tail', async () => {
     const t = textOf(await render('ready', { result: sweepResult }));
@@ -313,10 +313,10 @@ describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
     );
     const t = textOf(html).replace(/ ,/g, ',');
     expect(t).toContain(
-      '8:42 am · buy Comfortable Nests 1-50 (bought), Excitable Chickens 1-25 (bought), Internal Hatchery Expansion (tier 5) 1-15, Bigger Eggs 1 (bought), Internal Hatchery Expansion (tier 7) 1-5 (cheap sweep) · offline 5 min · 3 of 5 bought'
+      '8:42 am · buy Comfortable Nests (0 → 50) (bought), Excitable Chickens (0 → 25) (bought), Internal Hatchery Expansion (tier 5) (0 → 15), Bigger Eggs (0 → 1) (bought), Internal Hatchery Expansion (tier 7) (0 → 5) (cheap sweep) · offline 5 min · 3 of 5 bought'
     );
     expect(t.match(/cheap sweep/g)).toHaveLength(1);
     expect(html.match(/class="line-through decoration-slate-400"/g)?.length).toBe(3);
-    expect(html).toMatch(/<span class="line-through decoration-slate-400">Comfortable Nests 1-50<span class="sr-only"> \(bought\)<\/span><\/span>/);
+    expect(html).toMatch(/<span class="line-through decoration-slate-400">Comfortable Nests \(0 → 50\)<span class="sr-only"> \(bought\)<\/span><\/span>/);
   });
 });

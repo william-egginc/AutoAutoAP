@@ -309,8 +309,8 @@ describe('useBuildUpTracker Phase 2: Re-plan from this save', () => {
     expect(t.replanShown.value).toBe(true);
     // Ticks by hand: one on a line the new plan still has (9:35 am), one on a line it won't have (8:47 am).
     const lines = t.result.value!.lines;
-    const keep = lines.find(l => l.text === 'buy Atomic Purification 24')!.key;
-    const orphan = lines.find(l => l.text.startsWith('buy Grav Plating 18'))!.key;
+    const keep = lines.find(l => l.text === 'buy Atomic Purification (23 → 24)')!.key;
+    const orphan = lines.find(l => l.text.startsWith('buy Grav Plating (17 → 18)'))!.key;
     t.toggleTick(keep, true);
     t.toggleTick(orphan, true);
     expect(t.hasOverrides.value).toBe(true);
