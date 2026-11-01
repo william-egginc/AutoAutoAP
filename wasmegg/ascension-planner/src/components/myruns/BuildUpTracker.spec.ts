@@ -243,7 +243,8 @@ describe('the template rules (Phase 2)', () => {
   it('no text-[Npx], caps, medium/semibold weights or mono; every button at least 44 px', () => {
     expect(tpl).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
     const buttons = tpl.match(/<button[\s\S]*?<\/button>/g) ?? [];
-    expect(buttons.length).toBe(5);
+    // 6: R7 red-team #3 added "Show <goal>" (a route followed for another goal).
+    expect(buttons.length).toBe(6);
     for (const b of buttons) expect(b).toMatch(/class="[^"]*min-h-\[44px\]/);
   });
   it('meaningful spaces are explicit', () => {

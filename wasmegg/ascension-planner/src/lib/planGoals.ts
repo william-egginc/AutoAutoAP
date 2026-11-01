@@ -58,6 +58,9 @@ export interface GoalPlans {
   /** By a date (Egg Day too): no plan in time, but plans that land after the date are kept (lib/eggDayRule.ts):
    *  how many, the nearest's route and how late it lands (seconds; null when not timed). Null otherwise. */
   late?: GoalLate | null;
+  /** A route is followed for the goal (plansByGoal's `keep`): Right now opens on it before a goal with nothing of
+   *  this save (`defaultGoalKey`). */
+  followed?: boolean;
 }
 
 /** The late plans of a goal that has none in time. */
@@ -164,6 +167,7 @@ export function plansByGoal(
       answerOnly: !pick && !late && said.length > 0,
       lastAt: Math.max(planAt, 0, ...saidHere),
       ...(late ? { late } : {}),
+      ...(keep.has(g.key) ? { followed: true } : {}),
     });
   }
   return out;
@@ -172,12 +176,20 @@ export function plansByGoal(
 /**
  * The goal Right now opens on: the one with a plan checked LAST (after the save and setup tiers, as the tiles
  * rank); with no plan anywhere, the goal last checked at all, else the first (Race).
+ *
+ * A FOLLOWED GOAL (R7 red-team #3, 31 Oct 2026): one a route is followed for ranks right after this save's plans
+ * (FOLLOWED_TIER), before an older save's plan or nothing: its route is priced on this save (useNowPage
+ * `followState`). Before, an Egg Day route followed with nothing kept for either goal opened My runs on Fastest to 490
+ * (first in the list), and the Build-up tracker, which is the shown goal's, said "follow a route first".
  */
+/** A followed goal's tier for the default: after this save's plans (0, 1), before an older save's (2, 3) and none (4). */
+const FOLLOWED_TIER = 1.5;
+
 export function defaultGoalKey(list: readonly GoalPlans[], loadedSave: number): GoalKey | null {
   if (!list.length) return null;
   const order = list.map((p, i) => ({
     p,
-    o: { tier: p.pick ? cardTier(p.pick.candidate, loadedSave) : 4, lastAt: p.lastAt, order: i },
+    o: { tier: Math.min(p.pick ? cardTier(p.pick.candidate, loadedSave) : 4, p.followed ? FOLLOWED_TIER : 4), lastAt: p.lastAt, order: i },
   }));
   order.sort((a, b) => compareGoals(a.o, b.o));
   return order[0].p.goal.key;
