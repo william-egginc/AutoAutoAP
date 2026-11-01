@@ -10,7 +10,7 @@ import path from 'node:path';
 import { ref } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { releaseFrom, type ReleaseInfo } from '@/composables/useNewVersion';
-import type { RunningBuild } from '@/lib/updateNotes';
+import { noteKey, type RunningBuild } from '@/lib/updateNotes';
 import { renderHtml, textOf as blockText } from '@/test/renderComponent';
 
 const textOf = (html: string) => blockText(html.replace(/<\/?span[^>]*>/g, ''));
@@ -132,5 +132,30 @@ describe('NewVersionBanner (R7 M1): only the notes new to this tab, at most thre
     expect(note).not.toMatch(/[.()]/);
     const html = await render(SEVEN, FOUR_NEW, '2026-10-29T00:00:00Z');
     expect(textOf(html)).toContain('Please reload: this tab is missing a fix from a newer version.');
+  });
+
+  // Release 7 item 2 (Jordan's egg-beta tab still showed 5 notes, "+3 more" and the long reload paragraph): that tab ran
+  // the banner code from before fe943f5f (spec-r7redteam-d: MAX_SHOWN was 5 and the notes the tab had followed the new
+  // ones, the small level's reload text was two sentences). The banner is drawn by the tab's OWN code, so only a reload
+  // brings this one. With this build's code: 8 notes in version.json, 5 new to the tab (by key) and 3 it has.
+  it('8 notes, 5 new to the tab and 3 it has: exactly 3 listed (newest first, tagged New), "+2 more", no old note anywhere', async () => {
+    const EIGHT = [8, 7, 6, 5, 4, 3, 2, 1].map(d => ({ at: `2026-10-${10 + d}T12:00:00Z`, note: `release note ${d}` }));
+    const old = EIGHT.filter((_n, i) => i >= 5);
+    const tab: RunningBuild = { builtAt: '2026-10-13T18:00:00Z', noteAts: old.map(n => n.at), noteKeys: old.map(n => noteKey(n.note)) };
+    const html = await render(EIGHT, tab);
+    expect(html).toContain('data-testid="update-banner-small"');
+    expect(items(html)).toEqual(['Oct 18 New release note 8', 'Oct 17 New release note 7', 'Oct 16 New release note 6']);
+    expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(3);
+    const text = textOf(html);
+    expect(text).toContain('+2 more');
+    for (const n of old) expect(html).not.toContain(n.note);
+    // The two new ones not listed are only counted.
+    for (const counted of ['release note 5', 'release note 4']) expect(text).not.toContain(counted);
+
+    // The same version.json in a tab whose build already has all 8: no banner.
+    const all: RunningBuild = { builtAt: '2026-10-19T00:00:00Z', noteAts: EIGHT.map(n => n.at), noteKeys: EIGHT.map(n => noteKey(n.note)) };
+    const none = await render(EIGHT, all);
+    expect(none).not.toContain('data-testid="update-banner');
+    expect(textOf(none)).toBe('');
   });
 });
