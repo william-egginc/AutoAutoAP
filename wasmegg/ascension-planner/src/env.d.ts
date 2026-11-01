@@ -18,3 +18,7 @@ declare const __BUILD_NOTE_ATS__: string[];
 /** The key (lib/updateNotes.ts noteKey, a hash of the text) of each release.ts history entry this bundle was built
  *  with (vite.config.ts): a note is new to a tab only when its key is not here. Absent in tests. */
 declare const __BUILD_NOTE_KEYS__: string[];
+
+/** A hash of the code that decides results (vite.config.ts, lib/resultCodeHash.ts): every kept result carries it, and
+ *  one kept under another is worked out again (lib/resultCode.ts). Absent in tests: `resultCode()` is then 'dev'. */
+declare const __RESULT_CODE_HASH__: string;

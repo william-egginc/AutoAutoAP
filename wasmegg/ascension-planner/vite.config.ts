@@ -1,4 +1,4 @@
-import { createReadStream, statSync, type Stats } from 'node:fs';
+import { createReadStream, readdirSync, readFileSync, statSync, type Stats } from 'node:fs';
 import { cp, mkdir, readFile, rm } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import path from 'node:path';
@@ -10,6 +10,7 @@ import vueJsx from '@vitejs/plugin-vue-jsx';
 import release from './release';
 import { buildNoteKeys, versionHistory } from './src/lib/updateNotes';
 import { releaseNoteWarningFor, type Git } from './src/lib/releaseNoteWarning';
+import { resultCodeHash } from './src/lib/resultCodeHash';
 import {
   BROTLI_TYPES,
   digest,
@@ -47,6 +48,38 @@ import {
  * so the banner tags only the notes it does not (src/lib/updateNotes.ts).
  */
 const BUILD_TIME = new Date().toISOString();
+
+/**
+ * THE RESULT CODE HASH (src/lib/resultCodeHash.ts, read by the page through src/lib/resultCode.ts): a hash of the code
+ * that decides results, not its words, so a kept answer worked out by older code is worked out again on a new build
+ * (Release 7, allanfieldhouse) and a wording-only deploy keeps everyone's. Every .ts under src (and release.ts) is handed
+ * in; the helper picks the inputs. Printed once by the build.
+ */
+function readResultCodeFiles(): Map<string, string> {
+  const root = fileURLToPath(new URL('.', import.meta.url));
+  const files = new Map<string, string>();
+  const walk = (dir: string) => {
+    for (const e of readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) walk(rel);
+      else if (e.name.endsWith('.ts')) files.set(rel, readFileSync(path.join(root, rel), 'utf8'));
+    }
+  };
+  walk('src');
+  files.set('release.ts', readFileSync(path.join(root, 'release.ts'), 'utf8'));
+  return files;
+}
+const RESULT_CODE = resultCodeHash(readResultCodeFiles());
+
+function resultCodeLine(): Plugin {
+  return {
+    name: 'aap-result-code',
+    apply: 'build',
+    buildStart() {
+      console.log(`[aap] result code hash ${RESULT_CODE.hash} over ${RESULT_CODE.inputs.length} files`);
+    },
+  };
+}
 
 function versionFile(): Plugin {
   return {
@@ -512,6 +545,7 @@ export default defineConfig(({ mode }) => {
       vue(),
       vueJsx(),
       versionFile(),
+      resultCodeLine(),
       noChunkCycles(),
       warnIfReleaseStale(),
       // Also writes the brotli copies and checks the files (one closeBundle, in order).
@@ -526,6 +560,7 @@ export default defineConfig(({ mode }) => {
       __BUILD_TIME__: JSON.stringify(BUILD_TIME),
       __BUILD_NOTE_ATS__: JSON.stringify(release.history.map(h => h.at)),
       __BUILD_NOTE_KEYS__: JSON.stringify(buildNoteKeys(release.history)),
+      __RESULT_CODE_HASH__: JSON.stringify(RESULT_CODE.hash),
     },
     build: {
       chunkSizeWarningLimit: 2000,
