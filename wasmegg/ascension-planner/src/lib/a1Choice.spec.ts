@@ -131,6 +131,6 @@ describe('the words (DRAFT)', () => {
   it('(7) the tracker: "You chose to finish without buying" when picked; the default says why', () => {
     expect(a1TrackerWords(true)).toMatch(/^You chose to finish without buying/);
     expect(a1TrackerWords(false)).not.toMatch(/You chose/);
-    expect(a1TrackerWords(false)).toMatch(/sooner/);
+    expect(a1TrackerWords(false)).toMatch(/no later than building on/);
   });
 });

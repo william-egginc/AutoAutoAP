@@ -33,9 +33,10 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-11-06T00:00:04Z', note: 'Release 7: a Build-up tracker on My runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
-  { at: '2026-11-06T00:00:03Z', note: "Build-up tracker on My runs: what to buy and when to go offline, ticked from your save; plans that continue it keep the artifacts you're wearing until Humility, so dates match what you can do" },
-  { at: '2026-11-06T00:00:02Z', note: 'Re-plan from this save is offered when your save no longer matches the route you follow; the Building/Producing label now follows your save' },
+  { at: '2026-11-06T00:00:05Z', note: 'Release 7: a Build-up tracker on My runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
+  { at: '2026-11-06T00:00:04Z', note: "Build-up tracker on My runs: what to buy and when to go offline, ticked from your save; plans that continue it keep the artifacts you're wearing until Humility, so dates match what you can do" },
+  { at: '2026-11-06T00:00:03Z', note: 'When keeping on building would end your ascension later, My runs lets you pick: keep building or finish without buying' },
+  { at: '2026-11-06T00:00:02Z', note: 'Re-plan from this save is offered when your save no longer matches the route you follow, or the route starts with a build-up that buys nothing; the Building/Producing label follows your save' },
   { at: '2026-11-06T00:00:01Z', note: 'One save-age box (green, yellow or red) says when to sync; Downloaded saves no longer contain your player ID' },
   { at: '2026-11-06T00:00:00Z', note: 'Download for Excel (.xlsx) beside the CSV; saving the same answer twice no longer duplicates it; the update list shows only what is new to you' },
   { at: '2026-10-29T23:00:07Z', note: 'Release 6: new instant answers, My runs shows your next step and shifts, your Setup and followed route are saved online, and one Run button', level: 'big' },

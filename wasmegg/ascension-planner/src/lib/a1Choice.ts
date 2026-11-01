@@ -157,5 +157,5 @@ export function a1ChoiceWords(c: A1Candidates, nowSeconds: number, zone: string)
 export function a1TrackerWords(picked: boolean): string {
   return picked
     ? 'You chose to finish without buying: nothing to buy until your next prestige. Pick Keep building on Right now to see the build-up list.'
-    : 'Finishing without buying ends this ascension sooner, so Right now follows it: nothing to buy until your next prestige. Pick Keep building on Right now to see the build-up list.';
+    : 'Finishing without buying ends this ascension no later than building on, so Right now follows it: nothing to buy until your next prestige. Pick Keep building on Right now to see the build-up list.';
 }

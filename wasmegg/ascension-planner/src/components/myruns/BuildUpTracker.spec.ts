@@ -114,7 +114,7 @@ describe('A1 CHOICE (spec-a1choice): finishing without buying followed', () => {
   });
   it('by default: why (the sooner), never "You chose"', async () => {
     const t = textOf(await render('notBuilding', { finishChosen: 'default' }));
-    expect(t).toMatch(/Finishing without buying ends this ascension sooner/);
+    expect(t).toMatch(/Finishing without buying ends this ascension no later than building on/);
     expect(t).not.toContain('You chose');
   });
   it('not chosen: the generic line as before', async () => {
