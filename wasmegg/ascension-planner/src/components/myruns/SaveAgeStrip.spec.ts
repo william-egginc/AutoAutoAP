@@ -81,7 +81,8 @@ describe('the banner in each state', () => {
     ] as const) {
       const html = await render(state);
       expect(html, tone).toContain(`data-tone="${tone}"`);
-      expect(textOf(html), tone).toContain('Your save is over a day old: open Egg, Inc. and let it sync so the save here is up to date.');
+      // Said once: by the headline on yellow and red, by the sync line on green (red team R7 M2).
+      expect(textOf(html).split('Open Egg, Inc.').length - 1, tone).toBe(1);
       expect(tag(html, 'save-sync-how-summary'), tone).toContain('min-h-[44px] sm:min-h-0');
       expect(textOf(html), tone).toContain('How to sync ›');
     }

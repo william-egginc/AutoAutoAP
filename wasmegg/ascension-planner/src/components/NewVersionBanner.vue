@@ -14,11 +14,13 @@
        asked for the difference: the same loud banner on every deploy taught them to ignore it, and
        they could not tell a real fix from a wording change (2026-09-25).
        When at least one release note is new to this tab (its build does not carry it: matched by the
-       note's text, lib/updateNotes.ts), every level lists the notes, each with its date, at most five
-       plus "+N more": the new ones first, tagged "New", then the ones the tab already has, plain
-       (UX35-b, 28 Oct 2026; by text, 30 Oct 2026). With none new there is no banner at all, only the
-       reload ask when the tab must reload: the tab gets the new code on its next load (R7, 31 Oct 2026;
-       composables/useNewVersion.ts bannerFor). -->
+       note's text, lib/updateNotes.ts), every level lists ONLY those, each with its date and tagged "New",
+       at most three plus "+N more" (UX35-b, 28 Oct 2026; by text, 30 Oct 2026; red team R7 M1, 1 Nov 2026:
+       the notes the tab already has are no longer listed, the banner was 714 of 852 px on a phone). With
+       none new there is no banner at all, only the reload ask when the tab must reload: the tab gets the
+       new code on its next load (R7, 31 Oct 2026; composables/useNewVersion.ts bannerFor).
+       The small level asks nothing, so its reload line is one short sentence and Dismiss is the primary
+       button, "Reload anyway" the quiet one (R7 M1). -->
   <div
     v-if="shows === 'small'"
     class="fixed top-3 right-3 z-[1100] w-[min(92vw,22rem)] rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-lg"
@@ -38,27 +40,23 @@
       </li>
       <li v-if="more > 0" class="list-none -ml-4 text-slate-500 tabular-nums">+{{ more }} more</li>
     </ul>
-    <p class="mt-1 text-body max-w-prose">
-      No need to reload now; you will get it next time you open the page.<template v-if="note"
-        >{{ ' ' }}If you reload anyway, {{ note }}.</template
-      >
-    </p>
+    <p class="mt-1 text-body max-w-prose">No need to reload: you’ll get it on your next visit.</p>
     <div class="mt-1 flex justify-end gap-2">
       <button
         type="button"
         :class="TAP"
-        class="px-2 py-1 text-body font-bold text-slate-500 hover:text-slate-800"
-        @click="dismissed.small = true"
+        class="px-2 py-1 text-body font-bold text-slate-600 hover:text-slate-900"
+        @click="reload"
       >
-        Dismiss
+        Reload anyway
       </button>
       <button
         type="button"
         :class="TAP"
-        class="px-2 py-1 rounded-md bg-slate-800 text-white text-body font-bold hover:bg-slate-700"
-        @click="reload"
+        class="px-3 py-1 rounded-md bg-slate-800 text-white text-body font-bold hover:bg-slate-700"
+        @click="dismissed.small = true"
       >
-        Reload anyway
+        Dismiss
       </button>
     </div>
   </div>
@@ -118,7 +116,7 @@
     <!-- The fix comes first, and the notes (release.ts) are what else is new: they are usually a
          feature list, and read as the fix it said the new Explorer views were something this tab
          could run into (review, 2026-09-27). The advice is its own sentence. The list has no lead-in
-         ("Also new:" until 28 Oct 2026): it now holds older notes too, and "New" tags the newer ones. -->
+         ("Also new:" until 28 Oct 2026). -->
     <div class="min-w-0 flex-[1_1_14rem] text-body font-bold [overflow-wrap:anywhere]">
       Please reload: this tab is missing a fix from a newer version.{{ advice }}
       <ul v-if="hasNotes" class="mt-1 list-disc pl-4 font-normal space-y-0.5 [overflow-wrap:anywhere]" data-testid="update-notes">
@@ -174,7 +172,7 @@ const TAP = 'inline-flex items-center justify-center min-h-[44px] sm:min-h-0';
 
 const { available, release } = useNewVersion(props.pageUrl, props.entry);
 
-/** The notes in the order given (new first), each with its date in the player's zone and without a trailing full stop
+/** The notes in the order given (only new ones, newest first), each with its date in the player's zone and without a trailing full stop
  *  (the list has none); `isNew` when this tab's build does not carry it. */
 const shown = computed(() => {
   const zone = localZone();

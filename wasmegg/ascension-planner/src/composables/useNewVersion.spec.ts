@@ -172,11 +172,12 @@ describe('how much an update matters', () => {
     const v = { release: { reloadIfBuiltBefore: '2026-10-01T00:00:00Z', note: 'tweak', history } };
     const a = releaseFrom(v, built('2026-10-05T21:00:00Z'));
     expect(a.level).toBe('big');
-    expect(listed(a)).toEqual(['tweak (new)', 'heat map (new)', 'older tweak']);
-    // The heat map is older than this tab: it is listed, but does not make the update big.
+    // Only the notes new to this tab (R7 M1, 1 Nov 2026: the older tweak, which it has, is not listed).
+    expect(listed(a)).toEqual(['tweak (new)', 'heat map (new)']);
+    // The heat map is older than this tab: it is not listed, and does not make the update big.
     const b = releaseFrom(v, built('2026-10-06T10:00:00Z'));
     expect(b.level).toBe('small');
-    expect(listed(b)).toEqual(['tweak (new)', 'heat map', 'older tweak']);
+    expect(listed(b)).toEqual(['tweak (new)']);
     // None newer: no list at all (30 Oct 2026).
     const c = releaseFrom(v, built('2026-10-06T16:00:00Z'));
     expect(c.level).toBe('small');
@@ -230,10 +231,7 @@ describe('the stale note (26 Oct 2026)', () => {
     expect(r.level).toBe('small');
     expect(listed(r)).toEqual([]);
     // The same tab by build time alone would have tagged Release 5’s own note "New".
-    expect(listed(releaseFrom(v, built('2026-10-22T21:00:00Z')))).toEqual([
-      `${history[0].note} (new)`,
-      history[1].note,
-    ]);
+    expect(listed(releaseFrom(v, built('2026-10-22T21:00:00Z')))).toEqual([`${history[0].note} (new)`]);
   });
 
   it('a Release 5 tab lists a Release 6 note once one is live', () => {
@@ -258,7 +256,7 @@ describe('the stale note (26 Oct 2026)', () => {
           )
         )
       )
-    ).toEqual(['Release 6 note (new)', history[0].note, history[1].note]);
+    ).toEqual(['Release 6 note (new)']);
   });
 
   it('with its notes’ keys, a tab is judged by text: a re-timed note it carries is not new (30 Oct 2026)', () => {

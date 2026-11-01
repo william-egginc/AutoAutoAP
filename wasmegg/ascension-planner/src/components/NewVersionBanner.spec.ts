@@ -37,11 +37,13 @@ describe('NewVersionBanner', () => {
     expect(textOf(html)).toBe('');
   });
 
-  it('notes: listed in the order given, newer ones tagged "New", with "+N more"', async () => {
-    const html = await render({ level: 'small', notes: [n('newest.'), n('older', false)], more: 2 });
+  it('notes: listed in the order given, tagged "New", with "+N more"', async () => {
+    const html = await render({ level: 'small', notes: [n('newest.'), n('older')], more: 2 });
     expect(html).toContain('data-testid="update-notes"');
     const text = textOf(html);
-    expect(text).toMatch(/^Small update available\. \w+ \d+ New newest \w+ \d+ older \+2 more No need to reload now/);
+    expect(text).toMatch(
+      /^Small update available\. \w+ \d+ New newest \w+ \d+ New older \+2 more No need to reload: you’ll get it on your next visit\. Reload anyway Dismiss$/
+    );
     expect(text).not.toContain('New:');
     expect(html.match(/<li/g)).toHaveLength(3);
   });

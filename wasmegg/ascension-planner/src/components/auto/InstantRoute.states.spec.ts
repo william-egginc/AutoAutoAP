@@ -512,11 +512,13 @@ describe('the hours note under each box', () => {
 });
 
 describe('Every number of ascensions: rounded gaps (UX review, 25 Oct 2026)', () => {
-  it('Behind and spare go through roundedGap, the exact figure in the tooltip, and a phone row says "behind"', () => {
+  it('Behind and spare go through roundedGap, the exact figure in the tooltip, and a phone row is named "Behind"', () => {
     const src = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
     expect(src).toContain("return r === t ? 'fastest' : '+' + roundedGap(r.seconds - t.seconds);");
     expect(src).toContain('<span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>');
-    expect(src).toContain('<span v-if="behind(r) !== \'fastest\'" class="min-[30rem]:hidden"> behind</span>');
+    // The phone row's name, not a " behind" suffix (red team R7 M3, 1 Nov 2026: countsPhone.spec.ts).
+    expect(src).toContain('<span class="label text-slate-500 min-[480px]:hidden">Behind</span>');
+    expect(src).not.toContain('> behind</span>');
   });
 });
 

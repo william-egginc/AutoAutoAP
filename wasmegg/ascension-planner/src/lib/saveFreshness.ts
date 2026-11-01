@@ -88,7 +88,7 @@ export interface SaveState {
   headline: string;
   /** Yellow and red: what is wrong and what is at stake. Null on green. */
   reason: string | null;
-  /** The sync suggestion, or null. */
+  /** The sync suggestion's words: green past a day only (yellow and red say it in the headline), else null. */
   syncLine: string | null;
   /** Behind "Details": both clocks, the silos, the thresholds, what catch-up does. */
   details: string[];
@@ -161,7 +161,9 @@ export function saveState(i: SaveStateInput): SaveState | null {
           : `Your save is ${ageWords(saveAge)} old (from ${when}), so the times here are probably wrong now and some may have passed.`;
     }
   }
-  const syncLine = suggestSync ? 'Your save is over a day old: open Egg, Inc. and let it sync so the save here is up to date.' : null;
+  // Past a day: on yellow and red the headline already says to open the game, so the banner's action line ("How to
+  // sync") is all that is added; green's headline gives no instruction, so it gets one short one (red team R7 M2).
+  const syncLine = suggestSync && tone === 'green' ? 'Open Egg, Inc. and let it sync.' : null;
 
   const details = [`Save: from ${when} (${ageAgo(saveAge)}).`];
   const lines = toneLines(silo);

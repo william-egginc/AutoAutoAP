@@ -1,6 +1,7 @@
 /**
- * When at least one release note is new to this tab, the update banner lists the notes: the new ones first, tagged
- * "New", then the ones the tab already has, at most five plus "+N more" (Jordan, UX35-b, 28 Oct 2026). A note is new
+ * When at least one release note is new to this tab, the update banner lists ONLY the new ones, tagged "New", at most
+ * three plus "+N more" (Jordan, UX35-b, 28 Oct 2026; red team R7 M1, 1 Nov 2026: "only the ones that are new", the
+ * ones the tab already has are not listed, and five became three). A note is new
  * only when the tab's build does not carry its text (30 Oct 2026). With none new there is no banner at all, only the
  * reload ask when the tab must reload (R7, 31 Oct 2026). Rendered through releaseFrom() with fixture
  * notes and a fixed build time, so the whole path from version.json to the banner is covered. Fixed clocks only.
@@ -48,23 +49,17 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     state.available.value = true;
   });
 
-  it('seven notes, tab built between the 3rd and 4th: five listed newest first, "New" on the first three, "+2 more"', async () => {
+  it('seven notes, tab built between the 3rd and 4th: the three new ones listed newest first, nothing else', async () => {
     const html = await render(SEVEN);
     expect(html).toContain('data-testid="update-banner-small"');
-    expect(items(html)).toEqual([
-      'Oct 27 New note 7',
-      'Oct 26 New note 6',
-      'Oct 25 New note 5',
-      'Oct 24 note 4',
-      'Oct 23 note 3',
-    ]);
+    expect(items(html)).toEqual(['Oct 27 New note 7', 'Oct 26 New note 6', 'Oct 25 New note 5']);
     expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(3);
     const text = textOf(html);
-    expect(text).toContain('+2 more');
-    expect(text).not.toContain('note 2');
-    // The existing words and actions stay.
+    expect(text).not.toContain('more');
+    expect(text).not.toContain('note 4');
+    // The words and actions.
     expect(text).toContain('Small update available.');
-    expect(text).toContain('No need to reload now; you will get it next time you open the page.');
+    expect(text).toContain('No need to reload: you’ll get it on your next visit.');
     expect(text).toContain('Dismiss');
     expect(text).toContain('Reload anyway');
   });
@@ -78,8 +73,8 @@ describe('NewVersionBanner: the release notes, newest first', () => {
   it('a note the tab already carries is not "New", even when its go-live time is after the build', async () => {
     const html = await render(SEVEN, { ...BUILT, noteAts: ['2026-10-25T12:00:00Z'] });
     expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(2);
-    // The new ones first, then the carried one with the older ones.
-    expect(items(html)[2]).toBe('Oct 25 note 5');
+    // Only the new ones: the carried one is not listed.
+    expect(items(html)).toEqual(['Oct 27 New note 7', 'Oct 26 New note 6']);
   });
 
   it('a tab carrying the notes under earlier times (re-timed at go-live) lists only the one it lacks as "New"', async () => {
@@ -97,15 +92,9 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     };
     const html = await render(live, keyed);
     expect(html).toContain('data-testid="update-banner-small"');
-    expect(items(html)).toEqual([
-      'Oct 29 New note 8',
-      'Oct 27 note 7',
-      'Oct 26 note 6',
-      'Oct 25 note 5',
-      'Oct 24 note 4',
-    ]);
+    expect(items(html)).toEqual(['Oct 29 New note 8']);
     expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(1);
-    expect(textOf(html)).toContain('+3 more');
+    expect(textOf(html)).not.toContain('more');
     // Without the new note: no banner at all (R7, 31 Oct 2026).
     const same = await render(live.slice(1), keyed);
     expect(same).not.toContain('data-testid="update-banner');
@@ -128,7 +117,7 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     const history = SEVEN.map((n, i) => (i === 1 ? { ...n, level: 'big' } : n));
     const html = await render(history);
     expect(html).toContain('data-testid="update-banner-big"');
-    expect(items(html)).toHaveLength(5);
+    expect(items(html)).toHaveLength(3);
     expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(3);
     expect(textOf(html)).toContain('New on the planner:');
   });
@@ -166,16 +155,11 @@ describe('NewVersionBanner: the release notes, newest first', () => {
       expect(textOf(html)).toBe('');
     });
 
-    it('one new note: the banner, with only that note tagged "New"', async () => {
+    it('one new note: the banner, with only that note, tagged "New"', async () => {
       const html = await render([{ at: '2026-10-31T18:00:00Z', note: 'one new thing' }, ...RETIMED], TAB);
       expect(html).toContain('data-testid="update-banner-small"');
       expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(1);
-      expect(items(html)[0]).toBe('Oct 31 New one new thing');
-      expect(
-        items(html)
-          .slice(1)
-          .every(t => !t.includes('New'))
-      ).toBe(true);
+      expect(items(html)).toEqual(['Oct 31 New one new thing']);
     });
 
     it('the reload ask with no new note: shown, without a list', async () => {

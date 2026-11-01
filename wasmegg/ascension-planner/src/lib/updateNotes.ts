@@ -37,8 +37,9 @@ export interface RunningBuild {
   noteKeys?: readonly string[];
 }
 
-/** The most notes the banner lists; the rest are "+N more". */
-export const MAX_SHOWN = 5;
+/** The most notes the banner lists; the rest are "+N more" (5 until R7 M1, 1 Nov 2026: a phone's banner was 714 of
+ *  852 px tall). */
+export const MAX_SHOWN = 3;
 /** A note is cut at this many characters (vite.config.ts cuts at the same, through versionHistory). */
 export const MAX_NOTE = 200;
 /** How many notes version.json carries. */
@@ -103,10 +104,10 @@ export interface ListedNote {
 }
 
 export interface ListedNotes {
-  /** At most MAX_SHOWN: the new notes newest first, then the ones this tab already has, newest first. Empty when none
-   *  is new. */
+  /** At most MAX_SHOWN of the notes new to this tab, newest first. The ones it already has are never listed (R7 M1).
+   *  Empty when none is new. */
   shown: ListedNote[];
-  /** How many notes did not fit ("+N more"). */
+  /** How many NEW notes did not fit ("+N more"). */
   more: number;
   /** True when any NEW note (shown or not) is marked big: a note this tab already has never makes the update big. */
   anyBig: boolean;
@@ -161,19 +162,19 @@ export function notesNewerThan(notes: unknown, running: RunningBuild | null | un
 }
 
 /**
- * The notes for the banner (UX35-b, 28 Oct 2026; identity by text, 30 Oct 2026): when at least one note is new to this
- * tab, the new ones newest first and tagged "New", then the ones it already has, newest first and plain, at most `max`
- * plus "+N more". When none is new, nothing: then there is no banner unless the tab must reload (R7, 31 Oct 2026).
+ * The notes for the banner (UX35-b, 28 Oct 2026; identity by text, 30 Oct 2026): only the notes new to this tab, newest
+ * first and tagged "New", at most `max` plus "+N more" counting new notes only. The notes the tab already has are not
+ * listed at all ("only the ones that are new", Jordan, red team R7 M1, 1 Nov 2026; until then they followed, plain).
+ * When none is new, nothing: then there is no banner unless the tab must reload (R7, 31 Oct 2026).
  */
 export function listNotes(notes: unknown, running: RunningBuild | null | undefined, max = MAX_SHOWN): ListedNotes {
-  const all = judge(notes, running);
-  const fresh = all.filter(x => x.n.isNew).sort(newestFirst);
-  if (fresh.length === 0) return { shown: [], more: 0, anyBig: false };
-  const ordered = [...fresh, ...all.filter(x => !x.n.isNew).sort(newestFirst)];
+  const fresh = judge(notes, running)
+    .filter(x => x.n.isNew)
+    .sort(newestFirst);
   const cap = Math.max(0, Math.floor(max));
   return {
-    shown: ordered.slice(0, cap).map(x => x.n),
-    more: Math.max(0, ordered.length - cap),
+    shown: fresh.slice(0, cap).map(x => x.n),
+    more: Math.max(0, fresh.length - cap),
     anyBig: fresh.some(x => x.big),
   };
 }
