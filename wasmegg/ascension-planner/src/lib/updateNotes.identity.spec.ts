@@ -157,7 +157,8 @@ describe('vite.config.ts carries the keys', () => {
     expect(src).toMatch(/history:\s*versionHistory\(release\.history\)/);
     // The old fields stay for tabs built before keys.
     expect(src).toMatch(/__BUILD_NOTE_ATS__:\s*JSON\.stringify\(release\.history\.map\(h => h\.at\)\)/);
-    expect(src).toContain("note: ''");
+    // The body itself is assembled in lib/versionJson.ts since the egg-beta reload (1 Nov 2026).
+    expect(fs.readFileSync(path.resolve(__dirname, 'versionJson.ts'), 'utf8')).toContain("note: ''");
     const env = fs.readFileSync(path.resolve(__dirname, '../env.d.ts'), 'utf8');
     expect(env).toContain('declare const __BUILD_NOTE_KEYS__: string[];');
   });
