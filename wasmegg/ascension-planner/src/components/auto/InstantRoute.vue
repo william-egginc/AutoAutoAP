@@ -418,14 +418,15 @@
              A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1), each
              line led by its column's name (red team R7 M3, 1 Nov 2026: hidden from 30rem up, where the header row
              names them, so a screen reader hears each once), the two buttons named with their route. The names use
-             `min-[480px]:` (= 30rem): Tailwind makes no `min-[30rem]:` variant while the screens are in px, it is
-             dropped from the CSS without a word (so the table's own `min-[30rem]:min-w-[30rem]` does nothing). -->
+             the 480px (= 30rem) variant: Tailwind 3 makes NO min/max arbitrary variant at all once one of them is in
+             rem while the screens are in px ("mixed units"); the table's old 30rem minimum width did exactly that,
+             silently, so it is gone (it never applied) and no rem min/max variant may come back. -->
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-small" data-testid="counts-table">
+            <table class="counts-stack w-full text-small" data-testid="counts-table">
               <thead>
                 <tr class="text-left label text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
@@ -612,7 +613,7 @@
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-small" data-testid="counts-table">
+            <table class="counts-stack w-full text-small" data-testid="counts-table">
               <thead>
                 <tr class="text-left label text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>

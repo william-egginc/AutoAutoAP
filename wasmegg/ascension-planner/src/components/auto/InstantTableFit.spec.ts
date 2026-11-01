@@ -68,7 +68,8 @@ describe('the counts tables fit the card', () => {
 
       it('the table wraps: no nowrap on it; a table from 30rem up, stacked rows below (phones)', () => {
         const table = card().match(/<table [^>]*>/)![0];
-        expect(table).toContain('min-[30rem]:min-w-[30rem]');
+        // No 30rem minimum width: as a rem min variant it never applied, and it switched every min/max variant off
+        // (Tailwind "mixed units"; red team R7 M3, countsPhone.spec.ts). The stacked style still starts below 30rem.
         expect(table).toContain('counts-stack');
         expect(table).toContain('w-full');
         expect(table).not.toContain('whitespace-nowrap');
