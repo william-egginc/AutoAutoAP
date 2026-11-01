@@ -136,8 +136,9 @@
                   :title="sourceWords(l) || undefined"
                 >
                   <input
+                    :id="tickId(l.key)"
                     type="checkbox"
-                    class="h-4 w-4"
+                    class="h-5 w-5"
                     :checked="ticked.has(l.key)"
                     :aria-label="`Done: ${lineText(l)}${sourceWords(l) ? `, ${sourceWords(l)}` : ''}`"
                     :data-testid="`buildup-tick-${l.key}`"
@@ -145,7 +146,14 @@
                   />
                 </label>
                 <span v-else class="w-[44px] shrink-0" aria-hidden="true"></span>
-                <span class="min-w-0 flex-1 py-[13px] text-small break-words">
+                <!-- The words are a second label for the box (red team R7: 16 px boxes on a phone), so the whole row is
+                     the target; a line with no box keeps them as text. -->
+                <component
+                  :is="l.tickable ? 'label' : 'span'"
+                  :for="l.tickable ? tickId(l.key) : undefined"
+                  class="min-h-[44px] min-w-0 flex-1 py-[13px] text-small break-words"
+                  :class="l.tickable ? 'cursor-pointer' : ''"
+                >
                   <span v-if="l.time" class="tabular-nums text-slate-500">{{ l.time }}{{ ' · ' }}</span>
                   <span v-if="struck(l)" :class="l.bold ? 'font-bold' : ''" :data-testid="`buildup-parts-${l.key}`"
                     >buy{{ ' ' }}<template v-for="(p, n) in l.parts" :key="n"
@@ -167,7 +175,7 @@
                     >{{ ' · ' }}<span class="text-green-700" :data-testid="`buildup-status-${l.key}`">bought</span></span
                   >
                   <span v-else-if="statusOf(l) === 'toBuy'" class="sr-only">{{ ' · ' }}to buy</span>
-                </span>
+                </component>
                 <button
                   v-if="l.tickable && canClear(l)"
                   type="button"
@@ -329,6 +337,10 @@ function statusOf(l: TrackerLine): 'bought' | 'partial' | 'toBuy' | null {
 /** A partly bought research line: its bought names struck through. */
 function struck(l: TrackerLine): boolean {
   return statusOf(l) === 'partial' && !!l.parts && l.parts.length === boughtOf(l)!.items.length;
+}
+/** A line's box, for its words' label (`for`): the line keys are unique in a plan. */
+function tickId(key: string): string {
+  return `buildup-box-${key}`;
 }
 function sourceWords(l: TrackerLine): string {
   const s = props.tickSource?.get(l.key);
