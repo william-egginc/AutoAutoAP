@@ -2105,6 +2105,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     a1Choice,
     a1Finish,
     pickA1,
+    /** The farm's rates at full habs and what the save's build still has to buy (lib/saveBuild.ts): read by specs. */
+    fullHabRates,
+    saveBuildLeft,
     nextStep,
     nextShiftLines,
     ascNow,
