@@ -217,7 +217,7 @@ function clockBehindState(o: {
   i: SaveStateInput;
 }): SaveState {
   const lines = toneLines(o.silo);
-  const details = [`Save: from ${o.when}, ${ageWords(o.behind)} ahead of this device's clock.`];
+  const details = [`Save: from ${o.when}, ${ageWords(o.behind)} ahead of your device's clock.`];
   if (o.farmAt != null) details.push(`Virtue farm last ran: ${dateAt(o.farmAt, o.i.nowSeconds, o.i.zone)}.`);
   details.push(
     `Getting old after ${ageWords(lines.yellowAt)}, out of date after ${ageWords(lines.redAt)}: for both the save's age and the silo time used, once the clock is right.`
@@ -236,7 +236,7 @@ function clockBehindState(o: {
     namesFarm: o.namesFarm,
     suggestSync: false,
     headline: `Your device clock looks behind by about ${ageWords(o.behind)}, so the times here may be off`,
-    reason: `Your save is from ${o.when}, later than this device's clock says it is now, so how old it is can't be told. Set the date and time to automatic, then reload.`,
+    reason: `Your save is from ${o.when}, later than your device's clock says it is now, so how old it is can't be told. Set the date and time to automatic, then reload.`,
     syncLine: null,
     details,
     runNote: null,
