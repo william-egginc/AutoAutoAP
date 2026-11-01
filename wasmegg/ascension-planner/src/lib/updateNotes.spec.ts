@@ -54,18 +54,18 @@ describe('notesNewerThan', () => {
     expect(notesNewerThan('nope', { builtAt: '2026-10-01T00:00:00Z' }).shown).toEqual([]);
   });
 
-  it('shows at most five, newest first, and counts the rest', () => {
+  it('shows at most three (five until R7 M1), newest first, and counts the rest', () => {
     const many = Array.from({ length: 8 }, (_, i) => ({ at: `2026-10-1${i}T00:00:00Z`, note: `n${i}` }));
     const r = notesNewerThan(many, { builtAt: '2026-10-01T00:00:00Z' });
-    expect(MAX_SHOWN).toBe(5);
-    expect(texts(r)).toEqual(['n7', 'n6', 'n5', 'n4', 'n3']);
-    expect(r.more).toBe(3);
+    expect(MAX_SHOWN).toBe(3);
+    expect(texts(r)).toEqual(['n7', 'n6', 'n5']);
+    expect(r.more).toBe(5);
     const big = notesNewerThan([...many, { at: '2026-10-09T12:00:00Z', note: 'old big', level: 'big' }], {
       builtAt: '2026-10-01T00:00:00Z',
     });
-    // The big one is past the five shown, and still makes the update big.
+    // The big one is past the three shown, and still makes the update big.
     expect(big.anyBig).toBe(true);
-    expect(big.more).toBe(4);
+    expect(big.more).toBe(6);
   });
 
   it('cuts a note at 200 characters and lists one note once (one text, 30 Oct 2026: not one time)', () => {
@@ -81,21 +81,21 @@ describe('notesNewerThan', () => {
   });
 });
 
-describe('listNotes (UX35-b: the new ones first and tagged, then the rest; nothing when none is new)', () => {
+describe('listNotes (only the new ones, tagged, at most three: R7 M1; nothing when none is new)', () => {
   const tagged = (r: ReturnType<typeof listNotes>) => r.shown.map(n => (n.isNew ? `${n.note}*` : n.note));
 
-  it('lists older notes too, and tags only the newer ones', () => {
+  it('lists only the newer notes, never the ones the tab already has (R7 M1, 1 Nov 2026)', () => {
     const r = listNotes([...notes].reverse(), { builtAt: '2026-10-06T10:00:00Z' });
-    expect(tagged(r)).toEqual(['newest*', 'middle', 'oldest']);
+    expect(tagged(r)).toEqual(['newest*']);
     expect(r.more).toBe(0);
-    // The big note is older than this tab: listed, but the update is not big.
+    // The big note is older than this tab: not listed, and the update is not big.
     expect(r.anyBig).toBe(false);
     expect(listNotes(notes, { builtAt: '2026-10-06T00:00:00Z' }).anyBig).toBe(true);
   });
 
-  it('a note the build already carries is not tagged, whatever its time; the new ones come first', () => {
+  it('a note the build already carries is not listed, whatever its time', () => {
     const r = listNotes(notes, { builtAt: '2026-10-05T00:00:00Z', noteAts: ['2026-10-06T15:00:00.000Z'] });
-    expect(tagged(r)).toEqual(['middle*', 'oldest*', 'newest']);
+    expect(tagged(r)).toEqual(['middle*', 'oldest*']);
   });
 
   it('none new: no list at all', () => {
@@ -108,11 +108,11 @@ describe('listNotes (UX35-b: the new ones first and tagged, then the rest; nothi
     expect(listNotes(notes, null).anyBig).toBe(false);
   });
 
-  it('at most five, the rest counted; no history, no list', () => {
+  it('at most three new ones, the other NEW ones counted (the carried ones are not); no history, no list', () => {
     const many = Array.from({ length: 7 }, (_, i) => ({ at: `2026-10-2${i}T12:00:00Z`, note: `n${i}` }));
-    const r = listNotes(many, { builtAt: '2026-10-23T18:00:00Z' });
-    expect(tagged(r)).toEqual(['n6*', 'n5*', 'n4*', 'n3', 'n2']);
-    expect(r.more).toBe(2);
+    const r = listNotes(many, { builtAt: '2026-10-22T18:00:00Z' });
+    expect(tagged(r)).toEqual(['n6*', 'n5*', 'n4*']);
+    expect(r.more).toBe(1);
     expect(listNotes([], { builtAt: '2026-10-23T18:00:00Z' })).toEqual({ shown: [], more: 0, anyBig: false });
     expect(listNotes(undefined, { builtAt: '2026-10-23T18:00:00Z' }).shown).toEqual([]);
   });

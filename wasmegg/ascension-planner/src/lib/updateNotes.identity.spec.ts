@@ -83,20 +83,21 @@ describe('a tab that already carries the notes, re-timed after its build (the 29
     const r = listNotes([FRESH, ...REAL], TAB);
     expect(r.shown[0]).toMatchObject({ note: FRESH.note, isNew: true });
     expect(r.shown.filter(n => n.isNew)).toHaveLength(1);
-    expect(r.shown).toHaveLength(5);
-    expect(r.more).toBe(4);
-    // The big Release 6 note is carried: listed, untagged, and does not make the update big.
+    // Only the new one (R7 M1, 1 Nov 2026: the carried ones are not listed, nor counted in "+N more").
+    expect(r.shown).toHaveLength(1);
+    expect(r.more).toBe(0);
+    // The big Release 6 note is carried: not listed, and does not make the update big.
     expect(r.anyBig).toBe(false);
     expect(releaseFrom(versionJson([FRESH, ...REAL]), TAB).level).toBe('small');
     expect(notesNewerThan([FRESH, ...REAL], TAB).shown.map(n => n.note)).toEqual([FRESH.note]);
   });
 
-  it('the new notes come first, then the carried ones, newest first, untagged', () => {
-    // A new note older than a carried one still leads the list.
+  it('only the new notes are listed, the carried ones not at all, whatever their times (R7 M1)', () => {
+    // A new note older than a carried one is still the one listed.
     const older = { at: '2026-10-29T20:00:00Z', note: 'New but timed earlier' };
     const r = listNotes([...REAL, older], TAB);
-    expect(tagged(r)).toEqual(['New but timed earlier*', TEXTS[0], TEXTS[1], TEXTS[2], TEXTS[3]]);
-    expect(r.more).toBe(4);
+    expect(tagged(r)).toEqual(['New but timed earlier*']);
+    expect(r.more).toBe(0);
   });
 
   it('only the re-timed notes: no list, and no banner at all (R7, 31 Oct 2026)', () => {
@@ -123,7 +124,8 @@ describe('a tab that already carries the notes, re-timed after its build (the 29
     const noKeys = { builtAt: TAB.builtAt, noteAts: TAB.noteAts };
     const r = listNotes(REAL, noKeys);
     // By time the eight look new: the old behaviour, kept only where the build cannot say what it carries.
-    expect(r.shown.filter(n => n.isNew)).toHaveLength(5);
+    expect(r.shown.filter(n => n.isNew)).toHaveLength(3);
+    expect(r.more).toBe(5);
     expect(r.anyBig).toBe(true);
     // Unknown build info altogether: nothing new, no list.
     expect(listNotes(REAL, { builtAt: '' })).toEqual({ shown: [], more: 0, anyBig: false });

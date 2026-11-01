@@ -52,11 +52,11 @@ export type ReleaseLevel = 'small' | 'big' | 'essential';
 
 export interface ReleaseInfo {
   level: ReleaseLevel;
-  /** The release notes (lib/updateNotes.ts), at most MAX_SHOWN: the ones this tab's build does not carry first,
-   *  marked "New", then the ones it does. Empty when none is new, and then there is no banner at all unless the tab
-   *  must reload (bannerFor, R7). */
+  /** The release notes (lib/updateNotes.ts), at most MAX_SHOWN: only the ones this tab's build does not carry, marked
+   *  "New" (red team R7 M1, 1 Nov 2026: the ones it does are not listed). Empty when none is new, and then there is no
+   *  banner at all unless the tab must reload (bannerFor, R7). */
   notes: ListedNote[];
-  /** How many more notes did not fit ("+N more"). */
+  /** How many more NEW notes did not fit ("+N more"). */
   more: number;
 }
 
@@ -80,9 +80,9 @@ export const RUNNING_BUILD: RunningBuild = {
  * A version.json without the marker (from before this existed), or a tab that does not know its
  * own build time, counts as "essential": the only kind of notice there used to be.
  *
- * The notes are the history entries, each marked whether this tab's build already carries it (by its
- * text, lib/updateNotes.ts): listed only when one is new, the new ones first and tagged "New" (UX35-b,
- * 28 Oct 2026; by text, 30 Oct 2026). Only a new note can make the update big. A rebuild whose only
+ * The notes are the history entries this tab's build does not carry (by their text, lib/updateNotes.ts),
+ * tagged "New"; the ones it carries are not listed (UX35-b, 28 Oct 2026; by text, 30 Oct 2026; only the
+ * new ones, red team R7 M1, 1 Nov 2026). Only a new note can make the update big. A rebuild whose only
  * change is re-timed notes (or code alone) still names a new entry script (the build time is compiled in),
  * so it comes back "small" with no notes, and bannerFor shows nothing for it (R7, 31 Oct 2026). The
  * top-level `release.note` is never shown: it is always the newest entry, which a tab running Release 5 or
