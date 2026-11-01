@@ -21,7 +21,9 @@ const style = src.slice(src.indexOf('<style scoped>'));
 /** Each counts table's <tbody> row template. */
 const rows = [...t.matchAll(/<table class="counts-stack[\s\S]*?<\/table>/g)].map(m => m[0]);
 const cellsOf = (table: string) => [...table.matchAll(/<td\b[\s\S]*?<\/td>/g)].map(m => m[0]);
-const PHONE_LABEL = /<span class="label text-slate-500 min-\[30rem\]:hidden"[^>]*>([^<]+)<\/span>/;
+/** 480px, not 30rem: Tailwind 3 makes no `min-[…]` variant in rem while the screens are in px (it silently drops it),
+ *  so `min-[30rem]:hidden` would show the names on desktop too. */
+const PHONE_LABEL = /<span class="label text-slate-500 min-\[480px\]:hidden"[^>]*>([^<]+)<\/span>/;
 
 describe('Every number of ascensions on a phone (R7 M3)', () => {
   it('both tables (By a date, Fastest)', () => {
@@ -44,6 +46,10 @@ describe('Every number of ascensions on a phone (R7 M3)', () => {
     // The desktop table keeps its header row; the stacked style hides it below 30rem only.
     for (const table of rows) expect(table.match(/<th /g)).toHaveLength(4);
     expect(style).toMatch(/@media \(max-width: 29\.99rem\)[\s\S]*\.counts-stack thead \{\s*display: none;/);
+  });
+
+  it('no rem min-[…] variant on the new cells: Tailwind would not generate it (px screens)', () => {
+    for (const table of rows) for (const c of cellsOf(table)) expect(c).not.toMatch(/min-\[\d+(\.\d+)?rem\]:/);
   });
 
   it('on a phone each line is full width (no 2.25rem count column squeezing the buttons)', () => {

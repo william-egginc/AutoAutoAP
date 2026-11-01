@@ -417,7 +417,9 @@
         <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
              A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1), each
              line led by its column's name (red team R7 M3, 1 Nov 2026: hidden from 30rem up, where the header row
-             names them, so a screen reader hears each once), the two buttons named with their route. -->
+             names them, so a screen reader hears each once), the two buttons named with their route. The names use
+             `min-[480px]:` (= 30rem): Tailwind makes no `min-[30rem]:` variant while the screens are in px, it is
+             dropped from the CSS without a word (so the table's own `min-[30rem]:min-w-[30rem]` does nothing). -->
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
@@ -439,8 +441,8 @@
                   class="border-t border-slate-100"
                   :class="dateRowLit(r) ? 'bg-emerald-50/60' : ''"
                 >
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[30rem]:whitespace-nowrap align-top">
-                    <span class="label text-slate-500 min-[30rem]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[480px]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
                     <span
                       v-if="datePickedRow(r)"
                       class="block whitespace-normal text-small font-bold text-emerald-700"
@@ -450,17 +452,17 @@
                     >
                   </td>
                   <td class="py-1.5 pr-2 font-bold text-slate-800 align-top" data-testid="counts-te">
-                    <span class="label text-slate-500 min-[30rem]:hidden">TE · spare</span>{{ ' ' }}<span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
+                    <span class="label text-slate-500 min-[480px]:hidden">TE · spare</span>{{ ' ' }}<span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
                     <span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>
                   </td>
-                  <td class="py-1.5 pr-2 text-slate-600 min-[30rem]:whitespace-nowrap align-top">
-                    <span class="label text-slate-500 min-[30rem]:hidden">Reached</span>{{ ' ' }}<span class="whitespace-nowrap">{{ show(r.end) }}</span>
+                  <td class="py-1.5 pr-2 text-slate-600 min-[480px]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[480px]:hidden">Reached</span>{{ ' ' }}<span class="whitespace-nowrap">{{ show(r.end) }}</span>
                   </td>
                   <!-- The route wrapping in its own column, its two buttons one block of the same width on every
                        row: beside it on a wide card, under it on a narrow one (resultCardStyle.ts `ROUTE_ACTIONS`). -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
                     <div :class="ROUTE_CELL">
-                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[30rem]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
+                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[480px]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
                       <div :class="ROUTE_ACTIONS">
                         <button
                           type="button"
@@ -626,8 +628,8 @@
                   class="border-t border-slate-100"
                   :class="r === boxLead ? 'bg-emerald-50/60' : ''"
                 >
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[30rem]:whitespace-nowrap align-top">
-                    <span class="label text-slate-500 min-[30rem]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[480px]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
                     <span
                       v-if="preferPicked && r === boxLead"
                       class="block whitespace-normal text-small font-bold text-emerald-700"
@@ -636,11 +638,11 @@
                       >shown above</span
                     >
                   </td>
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[30rem]:whitespace-nowrap align-top">
-                    <span class="label text-slate-500 min-[30rem]:hidden">Reaches {{ store.finalTE }}</span>{{ ' ' }}<span class="whitespace-nowrap">{{ showFinish(r.end) }}</span>
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[480px]:hidden">Reaches {{ store.finalTE }}</span>{{ ' ' }}<span class="whitespace-nowrap">{{ showFinish(r.end) }}</span>
                   </td>
                   <td class="py-1.5 pr-2 text-slate-500 align-top">
-                    <span class="label text-slate-500 min-[30rem]:hidden">Behind</span>{{ ' ' }}<span class="whitespace-nowrap" :title="behindExact(r)">{{ behind(r) }}</span>
+                    <span class="label text-slate-500 min-[480px]:hidden">Behind</span>{{ ' ' }}<span class="whitespace-nowrap" :title="behindExact(r)">{{ behind(r) }}</span>
                     <span
                       v-if="nearTie(r)"
                       class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"
@@ -652,7 +654,7 @@
                   <!-- The route and its two buttons, as By a date's above (resultCardStyle.ts `ROUTE_ACTIONS`). -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
                     <div :class="ROUTE_CELL">
-                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[30rem]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
+                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[480px]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
                       <div :class="ROUTE_ACTIONS">
                         <button
                           type="button"
@@ -3302,7 +3304,7 @@ async function shareResult(k: string): Promise<void> {
 <style scoped>
 /*
  * The counts list on a phone (wireframes/price-route-v2 v1, 23 Oct 2026): below 30rem each count is one stacked row,
- * its lines under each other at the full width, each led by its column's name (the cells' `min-[30rem]:hidden`
+ * its lines under each other at the full width, each led by its column's name (the cells' `min-[480px]:hidden`
  * labels; red team R7 M3, 1 Nov 2026: the count used to sit in a 2.25rem column of its own, unlabelled, and the
  * button block beside it scrolled sideways at 300 px); nothing scrolls sideways. From 30rem up it is the table.
  */
