@@ -38,13 +38,17 @@ describe('the shared classes', () => {
     expect(ROUTE_ACTIONS).toContain('shrink-0');
     expect(ROUTE_ACTIONS).toContain('md:justify-self-end');
   });
-  it('the same width on every row and screen: one fixed 10rem column, equal heights, one line each', () => {
-    expect(ROUTE_ACTIONS).toContain('grid-cols-[10rem]');
-    expect(ROUTE_ACTIONS).not.toMatch(/\b\w+:grid-cols-/);
+  it('from md up the same width on every row: one fixed 10rem column, equal heights, one line each', () => {
+    expect(ROUTE_ACTIONS).toContain('md:grid-cols-[10rem]');
     expect(ROUTE_ACTION).toContain('whitespace-nowrap');
-    expect(ROUTE_ACTIONS).toContain('auto-rows-fr');
-    expect(ROUTE_ACTION).toContain('w-full');
+    expect(ROUTE_ACTIONS).toContain('md:auto-rows-fr');
+    expect(ROUTE_ACTION).toContain('md:w-full');
     expect(ROUTE_ACTION).toContain('justify-center');
+  });
+  it('below md compact, side by side, wrapping (red team R7 M3, 1 Nov 2026: countsPhone.spec.ts)', () => {
+    expect(ROUTE_ACTIONS).toMatch(/^flex flex-wrap /);
+    expect(ROUTE_ACTIONS).not.toMatch(/(^| )grid-cols-/);
+    expect(ROUTE_ACTION).not.toMatch(/(^| )w-full/);
   });
   it('type rules: no px text, no caps, no mono', () => {
     for (const c of [ROUTE_CELL, ROUTE_TEXT, ROUTE_ACTIONS, ROUTE_ACTION]) {

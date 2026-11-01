@@ -415,7 +415,9 @@
           {{ HOURS_NOTE }}
         </p>
         <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
-             A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1). -->
+             A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1), each
+             line led by its column's name (red team R7 M3, 1 Nov 2026: hidden from 30rem up, where the header row
+             names them, so a screen reader hears each once), the two buttons named with their route. -->
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
@@ -437,8 +439,8 @@
                   class="border-t border-slate-100"
                   :class="dateRowLit(r) ? 'bg-emerald-50/60' : ''"
                 >
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
-                    {{ r.legs.length }}
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[30rem]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[30rem]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
                     <span
                       v-if="datePickedRow(r)"
                       class="block whitespace-normal text-small font-bold text-emerald-700"
@@ -448,25 +450,28 @@
                     >
                   </td>
                   <td class="py-1.5 pr-2 font-bold text-slate-800 align-top" data-testid="counts-te">
-                    <span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
+                    <span class="label text-slate-500 min-[30rem]:hidden">TE · spare</span>{{ ' ' }}<span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
                     <span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>
                   </td>
-                  <td class="py-1.5 pr-2 text-slate-600 whitespace-nowrap align-top">{{ show(r.end) }}</td>
+                  <td class="py-1.5 pr-2 text-slate-600 min-[30rem]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[30rem]:hidden">Reached</span>{{ ' ' }}<span class="whitespace-nowrap">{{ show(r.end) }}</span>
+                  </td>
                   <!-- The route wrapping in its own column, its two buttons one block of the same width on every
                        row: beside it on a wide card, under it on a narrow one (resultCardStyle.ts `ROUTE_ACTIONS`). -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
                     <div :class="ROUTE_CELL">
-                      <span :class="ROUTE_TEXT">{{ r.chain.join(' ') }}</span>
+                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[30rem]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
                       <div :class="ROUTE_ACTIONS">
                         <button
                           type="button"
                           :class="[SECONDARY_BUTTON, ROUTE_ACTION]"
                           :title="SIMULATE_TITLE"
+                          :aria-label="`Simulate ${r.chain.join(' ')}`"
                           @click="openPlan(r.chain)"
                         >
                           Simulate this plan
                         </button>
-                        <FollowButton v-if="rowFollowable(r)" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
+                        <FollowButton v-if="rowFollowable(r)" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
                           :finish="r.end"
                           :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
                           :plan-start="answerStart"
@@ -621,8 +626,8 @@
                   class="border-t border-slate-100"
                   :class="r === boxLead ? 'bg-emerald-50/60' : ''"
                 >
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
-                    {{ r.legs.length }}
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[30rem]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[30rem]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
                     <span
                       v-if="preferPicked && r === boxLead"
                       class="block whitespace-normal text-small font-bold text-emerald-700"
@@ -631,11 +636,11 @@
                       >shown above</span
                     >
                   </td>
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">{{ showFinish(r.end) }}</td>
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[30rem]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[30rem]:hidden">Reaches {{ store.finalTE }}</span>{{ ' ' }}<span class="whitespace-nowrap">{{ showFinish(r.end) }}</span>
+                  </td>
                   <td class="py-1.5 pr-2 text-slate-500 align-top">
-                    <span class="whitespace-nowrap" :title="behindExact(r)"
-                      >{{ behind(r) }}<span v-if="behind(r) !== 'fastest'" class="min-[30rem]:hidden"> behind</span></span
-                    >
+                    <span class="label text-slate-500 min-[30rem]:hidden">Behind</span>{{ ' ' }}<span class="whitespace-nowrap" :title="behindExact(r)">{{ behind(r) }}</span>
                     <span
                       v-if="nearTie(r)"
                       class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"
@@ -647,18 +652,19 @@
                   <!-- The route and its two buttons, as By a date's above (resultCardStyle.ts `ROUTE_ACTIONS`). -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
                     <div :class="ROUTE_CELL">
-                      <span :class="ROUTE_TEXT">{{ r.chain.join(' ') }}</span>
+                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[30rem]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
                       <div :class="ROUTE_ACTIONS">
                         <button
                           type="button"
                           :class="[SECONDARY_BUTTON, ROUTE_ACTION]"
                           :disabled="r.chain.length < 2"
                           :title="SIMULATE_TITLE"
+                          :aria-label="`Simulate ${r.chain.join(' ')}`"
                           @click="openPlan(r.chain)"
                         >
                           Simulate this plan
                         </button>
-                        <FollowButton v-if="r.chain.length" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
+                        <FollowButton v-if="r.chain.length" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
                           :finish="r.end"
                           :end-te="r.chain[r.chain.length - 1]"
                           :plan-start="answerStart"
@@ -3296,31 +3302,25 @@ async function shareResult(k: string): Promise<void> {
 <style scoped>
 /*
  * The counts list on a phone (wireframes/price-route-v2 v1, 23 Oct 2026): below 30rem each count is one stacked row,
- * the number of ascensions on the left and its TE and spare (or finish), when, and the route with its buttons
- * under each other on the right; nothing scrolls sideways. From 30rem up it is the table.
+ * its lines under each other at the full width, each led by its column's name (the cells' `min-[30rem]:hidden`
+ * labels; red team R7 M3, 1 Nov 2026: the count used to sit in a 2.25rem column of its own, unlabelled, and the
+ * button block beside it scrolled sideways at 300 px); nothing scrolls sideways. From 30rem up it is the table.
  */
 @media (max-width: 29.99rem) {
   .counts-stack thead {
     display: none;
   }
   .counts-stack,
-  .counts-stack tbody {
+  .counts-stack tbody,
+  .counts-stack tr {
     display: block;
   }
   .counts-stack tr {
-    display: grid;
-    grid-template-columns: 2.25rem minmax(0, 1fr);
-    column-gap: 0.5rem;
     padding-block: 0.5rem;
   }
   .counts-stack td {
     display: block;
-    grid-column: 2;
     padding: 0;
-  }
-  .counts-stack td:first-child {
-    grid-column: 1;
-    grid-row: 1 / span 3;
   }
 }
 </style>

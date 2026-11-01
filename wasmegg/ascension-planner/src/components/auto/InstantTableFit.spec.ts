@@ -105,12 +105,12 @@ describe('the counts tables fit the card', () => {
 
 describe('the counts list on a phone: stacked rows below 30rem (wireframe v1)', () => {
   const style = src.slice(src.indexOf('<style scoped>'));
-  it('below 30rem: no header, each row a grid, the count on the left, the rest stacked on the right', () => {
+  it('below 30rem: no header, each row its lines stacked at the full width, each named (R7 M3: countsPhone.spec.ts)', () => {
     expect(style).toContain('@media (max-width: 29.99rem)');
     expect(style).toMatch(/\.counts-stack thead \{\s*display: none;/);
-    expect(style).toMatch(/\.counts-stack tr \{\s*display: grid;\s*grid-template-columns: 2\.25rem minmax\(0, 1fr\);/);
-    expect(style).toMatch(/\.counts-stack td:first-child \{\s*grid-column: 1;\s*grid-row: 1 \/ span 3;/);
-    // Four cells: the count, then three stacked (TE and spare or finish, when or behind, the route).
+    expect(style).toMatch(/\.counts-stack,\s*\.counts-stack tbody,\s*\.counts-stack tr \{\s*display: block;/);
+    expect(style).toMatch(/\.counts-stack td \{\s*display: block;/);
+    // Four cells, stacked: the count, TE and spare or finish, when or behind, the route.
     for (const c of cards) expect(c.match(/<td /g)).toHaveLength(4);
   });
 });
