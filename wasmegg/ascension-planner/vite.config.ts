@@ -11,6 +11,7 @@ import release from './release';
 import { buildNoteKeys, versionHistory } from './src/lib/updateNotes';
 import { releaseNoteWarningFor, type Git } from './src/lib/releaseNoteWarning';
 import { resultCodeHash } from './src/lib/resultCodeHash';
+import { eggBetaBuild, versionJsonBody } from './src/lib/versionJson';
 import {
   BROTLI_TYPES,
   digest,
@@ -93,18 +94,15 @@ function versionFile(): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
-        source: JSON.stringify({
-          ...entries,
-          release: {
-            reloadIfBuiltBefore: release.reloadIfBuiltBefore,
-            // Empty on purpose (26 Oct 2026): tabs built before lib/updateNotes.ts fall back to this note when no
-            // history entry is newer than their build, and it is always the newest entry, which such a tab
-            // already has -- the stale Release 5 note. Empty, they say just "Small update available".
-            note: '',
-            // The newest 8, each with its `key` (its identity, a hash of its text) beside the old fields.
-            history: versionHistory(release.history),
-          },
-        }),
+        // lib/versionJson.ts: the same body as ever, plus the egg-beta overrides when their env vars are set.
+        source: JSON.stringify(
+          versionJsonBody(
+            entries,
+            { reloadIfBuiltBefore: release.reloadIfBuiltBefore, history: versionHistory(release.history) },
+            process.env,
+            BUILD_TIME
+          )
+        ),
       });
     },
   };
@@ -561,6 +559,9 @@ export default defineConfig(({ mode }) => {
       __BUILD_NOTE_ATS__: JSON.stringify(release.history.map(h => h.at)),
       __BUILD_NOTE_KEYS__: JSON.stringify(buildNoteKeys(release.history)),
       __RESULT_CODE_HASH__: JSON.stringify(RESULT_CODE.hash),
+      // The egg-beta timed reload (lib/eggBetaReload.ts) is compiled in only when AAP_EGG_BETA_RELOAD_AT is set at build
+      // time (lib/versionJson.ts); every other build, live included, drops it as dead code.
+      __AAP_EGG_BETA_RELOAD__: JSON.stringify(eggBetaBuild(process.env)),
     },
     build: {
       chunkSizeWarningLimit: 2000,
