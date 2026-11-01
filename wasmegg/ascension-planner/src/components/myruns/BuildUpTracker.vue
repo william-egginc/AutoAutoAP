@@ -90,6 +90,8 @@
           >
             <p v-for="w in replanWhy" :key="w" class="tabular-nums">{{ w }}</p>
             <div class="flex flex-wrap items-center gap-x-3">
+              <!-- Working: the wait, "(about half a minute)" (DRAFT words, R7 red-team 1 Nov 2026): the simulator's queue,
+                   33 s measured on egg-beta (a leg-only run of the new save, then the plan-only run). -->
               <button
                 type="button"
                 class="min-h-[44px] rounded-lg border border-indigo-300 bg-white px-3 text-small font-bold text-indigo-700"
@@ -98,7 +100,7 @@
                 data-testid="buildup-replan-button"
                 @click="emit('replan')"
               >
-                {{ replan.working ? 'Re-planning…' : 'Re-plan from this save' }}
+                {{ replan.working ? 'Re-planning… (about half a minute)' : 'Re-plan from this save' }}
               </button>
               <span v-if="replan.keepsTicks && !replan.working" class="text-slate-700">This keeps your ticks that still match.</span>
             </div>

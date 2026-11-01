@@ -227,6 +227,18 @@ describe('BuildUpTracker Phase 2: Re-plan from this save', () => {
     expect(textOf(html)).toContain('Working out a new plan from this save. The plan below stays until it is in.');
     expect(textOf(html)).toContain('9:02 am · buy 14 Hyperloop Trains');
   });
+  it('working: the button gives the wait, "(about half a minute)" (DRAFT words, R7 red-team 1 Nov 2026); not when idle', async () => {
+    const working = await render('ready', { replan: { ...R, working: true } });
+    const button = /<button[^>]*data-testid="buildup-replan-button"[^>]*>([\s\S]*?)<\/button>/.exec(working);
+    expect(button![0]).toMatch(/<button[^>]*disabled/);
+    expect(textOf(button![1])).toBe('Re-planning… (about half a minute)');
+    // The strip's line is as it was.
+    expect(textOf(working)).toContain('Working out a new plan from this save. The plan below stays until it is in.');
+    const idle = await render('ready', { replan: R });
+    expect(textOf(idle)).not.toContain('about half a minute');
+    expect(textOf(idle)).not.toContain('Re-planning');
+    expect(idle).not.toMatch(/<button[^>]*disabled[^>]*data-testid="buildup-replan-button"/);
+  });
   it('failed: the reason, and the plan stays', async () => {
     const t = textOf(await render('ready', { replan: { ...R, error: 'the worker ran out of memory' } }));
     expect(t).toContain('The new plan could not be worked out (the worker ran out of memory). The plan below stays as it was.');
