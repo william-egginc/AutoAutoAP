@@ -102,10 +102,14 @@ that choice.
   buys nothing is never offered, and a tie goes to finishing without buying. When your save no longer matches the
   route you follow (another egg, a shift or prestige over 2 hours overdue, other Awake hours, or a build-up that buys
   nothing), Right now offers **Re-plan from this save** beside Keep mine (`lib/followStale.ts`).
+  When Right now has to follow a build-up (an unfinished build, or Setup's Continue my build-up) and a fresh start,
+  priced a little later beside it, would end the ascension more than an hour sooner, a line says so ("Starting fresh
+  would end this ascension 6d 12h sooner: <date> vs <date>.") with **Switch to Soonest**, kept for the account and
+  ascension (`aap.firstasc.*`), never changing Setup, and **Undo** (`lib/freshSooner.ts`, `lib/freshSoonerWords.ts`).
   The **Build-up tracker** sits under them, open while you build (`lib/buildUpTracker.ts`,
   `composables/useBuildUpTracker.ts`): the simulator's build-up for this ascension, check-in by check-in, in 12-hour
   times, grouped by day. A line under the plan says the buys follow Joo's Smart Buy set to the build's sales ("Buys
-  follow Smart Buy, set to 3 sales"); research that cost 10 seconds of income or less is marked "(cheap sweep)". It
+  follow Smart Buy, set to 3 sales"); research that cost 10 seconds of income or less is marked "(cheap sweep)". Research levels read like the Manual Planner's summary, "Comfortable Nests (0 → 7)", with the tier first for the two Internal Hatchery Expansions (`lib/buildUpWords.ts`). It
   plans the silo trick for each Monday 2x event where it fits (or says why not), keeps artifact set swaps to
   Humility, ticks lines off from each newer save (`lib/buildUpBought.ts`; the rest by hand, and a tick of yours wins),
   and offers **Re-plan from this save** when the save is over an hour behind the plan or has bought things off plan.
@@ -161,7 +165,7 @@ from this save for a followed route your save no longer matches; empty build-ups
 artifacts it has on; one save-age box with Check your clock; Download for Excel (.xlsx); downloaded saves with no
 player ID and no device IDs; saving the same run or answer twice keeps one entry; answers worked out by an older
 version of the page are worked out again; an update banner that lists only notes new to your tab, at most 3; and
-tidier phone layouts.
+tidier phone layouts; a line when starting fresh would end the ascension over an hour sooner than a forced build-up, with Switch to Soonest; and an estimate line under the instant answer's date.
 
 ---
 

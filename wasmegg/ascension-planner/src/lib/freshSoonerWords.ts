@@ -7,7 +7,7 @@ import { compactDuration } from './duration';
 import type { FreshSooner } from './freshSooner';
 
 /** The button on the line. DRAFT. */
-export const SWITCH_TO_FASTEST = 'Switch to Fastest';
+export const SWITCH_TO_FASTEST = 'Switch to Soonest';
 /** The button that takes the override back. DRAFT. */
 export const UNDO_FASTEST = 'Undo';
 
@@ -18,4 +18,4 @@ export function freshSoonerLine(f: FreshSooner, nowSeconds: number, zone: string
 }
 
 /** While the override holds. DRAFT. */
-export const FASTEST_FOLLOWED_LINE = 'Following Fastest for this ascension. Setup is unchanged.';
+export const FASTEST_FOLLOWED_LINE = 'Following Soonest for this ascension. Setup is unchanged.';

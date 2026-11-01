@@ -312,7 +312,7 @@
         @pick="side => emit('pickA1', side)"
       />
       <!-- STARTING FRESH WOULD BE SOONER (spec-r7verify, lib/freshSooner.ts): the forced build-up followed here ends more
-           than an hour after a fresh start. "Switch to Fastest" follows Fastest for this ascension only (Setup unchanged);
+           than an hour after a fresh start. "Switch to Soonest" follows Fastest for this ascension only (Setup unchanged);
            while it holds, a line says so with Undo. Words DRAFT (lib/freshSoonerWords.ts). -->
       <FreshSooner v-if="!notOnVirtue" :line="freshWords" :followed="!!fastestFollowed" @switch="on => emit('switchFastest', on)" />
       <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
@@ -645,7 +645,7 @@ const emit = defineEmits<{
   retryCloud: [];
   /** The A1 choice: the player's pick (useNowPage `pickA1`). */
   pickA1: [side: A1Side];
-  /** "Switch to Fastest" (true) / "Undo" (false) for this ascension (useNowPage `switchToFastest`). */
+  /** "Switch to Soonest" (true) / "Undo" (false) for this ascension (useNowPage `switchToFastest`). */
   switchFastest: [on: boolean];
 }>();
 

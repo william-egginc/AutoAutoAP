@@ -102,7 +102,7 @@ describe('words (DRAFT)', () => {
     expect(freshSoonerLine(freshSooner(leg('buildup', NOW + D, NOW + D - 5 * 3600))!, NOW, ZONE)).toContain('5h sooner');
   });
   it('the button and the followed line', () => {
-    expect(SWITCH_TO_FASTEST).toBe('Switch to Fastest');
-    expect(FASTEST_FOLLOWED_LINE).toContain('Fastest for this ascension');
+    expect(SWITCH_TO_FASTEST).toBe('Switch to Soonest');
+    expect(FASTEST_FOLLOWED_LINE).toContain('Soonest for this ascension');
   });
 });

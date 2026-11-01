@@ -12,9 +12,9 @@ import FreshSooner from './FreshSooner.vue';
 const LINE = 'Starting fresh would end this ascension 6d 12h sooner: Dec 27 at 8:31 PM vs Jan 2, 2027 at 8:58 PM.';
 
 describe('FreshSooner', () => {
-  it('the line and Switch to Fastest, a real button described by the line', async () => {
+  it('the line and Switch to Soonest, a real button described by the line', async () => {
     const html = await renderHtml(FreshSooner, { line: LINE });
-    expect(textOf(html)).toBe(`${LINE} Switch to Fastest`);
+    expect(textOf(html)).toBe(`${LINE} Switch to Soonest`);
     expect(html).toMatch(/<button[^>]*type="button"[^>]*aria-describedby="now-fresh-line"[^>]*data-testid="now-switch-fastest"/);
     expect(html).toContain('id="now-fresh-line"');
     expect(html).not.toContain('now-undo-fastest');
@@ -22,7 +22,7 @@ describe('FreshSooner', () => {
 
   it('followed: the quieter line with Undo (the line wins when both)', async () => {
     const html = await renderHtml(FreshSooner, { line: '', followed: true });
-    expect(textOf(html)).toBe('Following Fastest for this ascension. Setup is unchanged. Undo');
+    expect(textOf(html)).toBe('Following Soonest for this ascension. Setup is unchanged. Undo');
     expect(html).toMatch(/aria-describedby="now-fastest-line"[^>]*data-testid="now-undo-fastest"/);
     expect(textOf(await renderHtml(FreshSooner, { line: LINE, followed: true }))).not.toContain('Undo');
   });
