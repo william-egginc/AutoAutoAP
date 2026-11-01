@@ -101,7 +101,17 @@
               Player Backup From: {{ lastBackupFormatted }}
             </div>
 
-            <the-player-id-form :player-id="playerId" load-on-paste @submit="submitPlayerId" />
+            <!-- The shared form, keyed so a refused or failed load puts a fresh, editable one back (resetIdBox), with a
+                 lower-case "ei" upper-cased before it reads the box: the capture listeners fall through to its <form>
+                 and run before its own (lib/playerIdEntry.ts; R7 red team 4). -->
+            <the-player-id-form
+              :key="idFormKey"
+              :player-id="playerId"
+              load-on-paste
+              @input.capture="idInputUpperCase"
+              @paste.capture="onIdPaste"
+              @submit="submitPlayerId"
+            />
           </div>
         </div>
       </div>
@@ -893,6 +903,7 @@ import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
 import SaveFileBar from '@/components/auto/SaveFileBar.vue';
 import { isPlaceholderId, NO_ACCOUNT_LINE } from '@/lib/saveScrub';
+import { idInputUpperCase, idPasteUpperCase, upperCaseIdPrefix } from '@/lib/playerIdEntry';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { setConsentAccount } from '@/composables/useConsent';
@@ -1617,9 +1628,28 @@ watch(error, async e => {
 });
 /** The save load that failed and what it said, for the error's Try again (shown while that message is). */
 const loadRetry = ref<{ id: string; message: string } | null>(null);
+/** The player ID form's key: a new one puts a fresh form back (`resetIdBox`). */
+const idFormKey = ref(0);
 function failLoad(id: string, message: string): void {
   error.value = message;
   loadRetry.value = { id, message };
+  // The box back as it was for the account on screen (Try again keeps the ID that failed).
+  resetIdBox(false);
+}
+
+/**
+ * The player ID box after a load that did not happen (R7 red team 4): the shared form commits the ID before the page
+ * answers, so it was left read-only with that ID in it until a reload. A fresh form (its key) for the account on
+ * screen, focused when `focus` (the box is editable while focused) so the player can type their own ID straight away.
+ */
+function resetIdBox(focus = true): void {
+  idFormKey.value++;
+  if (focus) void nextTick(() => document.getElementById('playerId')?.focus());
+}
+/** A whole lower-case ID pasted into the box loads as it would in upper case (lib/playerIdEntry.ts). */
+function onIdPaste(e: ClipboardEvent): void {
+  const id = idPasteUpperCase(e);
+  if (id) void submitPlayerId(id);
 }
 /** The account whose save is being fetched now (an older load that answers late is dropped). */
 let loadingSaveFor = '';
@@ -2002,11 +2032,15 @@ function showSweepResult(): void {
  * mode buttons become usable and player info is displayed.
  */
 async function submitPlayerId(id: string) {
+  // "ei…" is the same ID as "EI…" (the follow key upper-cases it too); the shared check takes upper case only.
+  id = upperCaseIdPrefix(id).trim();
   if (loading.value && loadingSaveFor === id) return;
   // The stand-in from a downloaded save is no account (lib/saveScrub.ts): never fetched, saved or shown as one.
   if (isPlaceholderId(id)) {
     error.value = PLACEHOLDER_ID_ENTERED;
     loadRetry.value = null;
+    // The box editable again, the stand-in gone from it (it was left read-only until a reload).
+    resetIdBox();
     return;
   }
   loadingSaveFor = id;
