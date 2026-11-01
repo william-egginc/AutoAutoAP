@@ -8,14 +8,23 @@
  *
  * Real simulations of synthetic saves (src/test/syntheticSave.ts; no player data, fixed clock):
  * - `oneCarShortBackup`: the alt's shape with the last hyperloop one car short. The build-up buys 1 thing and ends later
- *   than continue.
+ *   than continue. Only with 'buildup' forced: My runs calls this farm built (its shipping is above its laying), so the
+ *   page never offers the choice on it (spec-r7redteam-f; NowPage.a1Choice.realPage.spec.ts).
+ * - `shippingShortBackup`: nine full hyperloops, shipping below laying at full habs, the page's unfinished build. The
+ *   build-up buys 81 things and ends later than continue.
  * - `nothingToBuyBackup`: nothing to buy, no build-up, no count (spec-noemptybuild's state).
  * - the synthetic save as it is: its build-up buys and is sooner than continue.
  */
 import '../../scripts/node-shims';
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { nothingToBuyBackup, oneCarShortBackup, ONE_CAR_SHORT_SHAPE, syntheticInputs } from '@/test/syntheticSave';
+import {
+  nothingToBuyBackup,
+  oneCarShortBackup,
+  ONE_CAR_SHORT_SHAPE,
+  shippingShortBackup,
+  syntheticInputs,
+} from '@/test/syntheticSave';
 import { runLeg } from './leg';
 import { CONTINUE_MAX_SECONDS } from './rules';
 import type { SearchInputs } from './types';
@@ -52,6 +61,16 @@ describe('one train car short: a buying build-up that ends later than continue',
     expect(r.firstLegEnds?.continue).toBe(r.summary.endTime);
     expect(r.firstLegEnds?.buildup).toBe(b.summary.endTime);
     expect(r.summary.endTime).toBe(b.firstLegEnds!.continue);
+  }, 600_000);
+});
+
+describe("shipping short of laying (the page's unfinished build): a buying build-up that ends later than continue", () => {
+  it('the build-up buys 81 things and ends about 0.2 days after continue (6.90 d vs 6.69 d)', async () => {
+    const inputs = await syntheticInputs(shippingShortBackup);
+    const r = runLeg(under(inputs, UNFINISHED), state(inputs), inputs.planStart, GOAL, true, inputs.currentTE, 0)!;
+    expect(r.key).toBe('buildup');
+    expect(r.buildUpBuys).toBe(81);
+    expect((r.summary.endTime - r.firstLegEnds!.continue!) / 86400).toBeGreaterThan(0.1);
   }, 600_000);
 });
 

@@ -289,12 +289,31 @@ export function nothingToBuyBackup(daysToNextTE: Partial<Record<'curiosity' | 'i
  * ONE TRAIN CAR SHORT, ON KINDNESS (spec-a1choice, 1 Nov 2026): `nothingToBuyBackup` in the alt's shape (Kindness 1.5 days
  * from its next TE, the others a little further) with the last hyperloop one car short. Its build-up buys that one car
  * and so is a build-up, but its shifts make it end LATER than finishing without buying (measured on this fixture:
- * build-up 6.90 days, continue 6.39 days from the plan start, to 194 TE): My runs' unfinished-build case of the A1
- * choice.
+ * build-up 6.90 days, continue 6.39 days from the plan start, to 194 TE) WHEN 'buildup' IS FORCED (leg.a1Choice.spec.ts).
+ * NOT an unfinished build as My runs judges one (spec-r7redteam-f, 1 Nov 2026): its 169 cars ship more than the farm lays,
+ * so the page calls it built and never offers the choice on it (NowPage.a1Choice.realPage.spec.ts). The page's case is
+ * `shippingShortBackup`.
  */
 export const ONE_CAR_SHORT_SHAPE = { kindness: 1.5, curiosity: 1.6, integrity: 1.65, resilience: 1.7, humility: 1.74 } as const;
 export function oneCarShortBackup(): any {
   const b = nothingToBuyBackup(ONE_CAR_SHORT_SHAPE);
   b.farms[0].trainLength[16] = 9;
+  return b;
+}
+
+/**
+ * SHIPPING SHORT OF LAYING, ON KINDNESS (spec-r7redteam-f, 1 Nov 2026; QA: the A1 choice never showed on the real page for
+ * `oneCarShortBackup`). `oneCarShortBackup` is not an unfinished build as My runs judges one (lib/saveBuild.ts, ux30: vehicles
+ * count only while shipping is below laying at full habs): its 169 cars ship far more than the farm lays (delivery limited
+ * by laying, measured with the page's own rates: laying 1.72e12/s, delivery 1.72e12/s), so the page rightly calls it built
+ * and never takes the unfinished-build path. This one is: the alt's shape with NINE full hyperloops (eight slots unbought):
+ * shipping about 0.955 of laying at full habs (the alt itself: 8.36e11 against 8.58e11, 0.974). Its build-up buys the
+ * missing vehicles and cars and still ends LATER than finishing without buying (measured with runLeg to 194 TE: build-up
+ * buys 81 things, 6.90 days, continue 6.69 days from the plan start).
+ */
+export function shippingShortBackup(): any {
+  const b = nothingToBuyBackup(ONE_CAR_SHORT_SHAPE);
+  b.farms[0].vehicles = Array(9).fill(11);
+  b.farms[0].trainLength = Array(9).fill(10);
   return b;
 }
