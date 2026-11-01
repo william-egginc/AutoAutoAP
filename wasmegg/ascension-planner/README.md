@@ -13,7 +13,8 @@ with, or endorsed by, Auxbrain. A **route** is a list of stops, like `195 219 24
 - **Custom**: every route in boxes you set, so the answer is proven inside those boxes.
 - **Highest TE by a date**: how much TE you can have by a date such as Egg Day.
 - **Prefer fewer ascensions** (on the instant answer) and **Try waiting before each prestige** (under a search result).
-- **My runs**: where you are now on the route you follow: the Next step, the Next shifts, the Full timeline, and your runs.
+- **My runs**: where you are now on the route you follow: the Next step, the Next shifts, the Build-up tracker, the Full
+  timeline, and your runs.
 - **Leaderboard** (was Compare): the shared leaderboard and its charts. **Science**: how it works and how it was checked.
   Both are off until you tick them in Setup.
 
@@ -86,10 +87,28 @@ that choice.
   pointing to My runs now. A **sim** chip beside each run says which simulator priced it, since finish times
   from two simulators do not compare exactly. **Show runs from older simulators** (on by default, kept in this
   browser) hides the older ones when turned off.
-- **My runs** (a top tab): the "where am I now" page. A save-age strip with the save check (at most once per page load
-  it asks the server whether a newer save is there: "A newer save is on the server · Load it", or "This is the newest
-  save on the server" with "Why is my save out of date?"; it never swaps the save by itself);
-  **Right now**: the **Next step** and the **Next shifts** (the next few shifts, with the prestiges between).
+- **My runs** (a top tab): the "where am I now" page. One save-age box, also on Fastest, Highest TE by a date and
+  Single run's Setup bar (`lib/saveFreshness.ts`): green **Up to date**, yellow **Getting old** from half the virtue
+  farm's silo time used, red **Out of date** with a tenth or less left, judged on the worse of the save's age and the
+  time since the farm last ran (neither before 1 hour; 3 hours of silos when the save doesn't say), and yellow **Check
+  your clock** when the save is more than 5 minutes ahead of the device's clock. Past a day old it also asks you to let
+  the game sync. With it, the save check (at most once per page load it asks the server whether a newer save is there:
+  "A newer save is on the server · Load it", or, in its Details, "This is the newest save on the server"; it never
+  swaps the save by itself);
+  **Right now**: the **Next step** and the **Next shifts** (the next few shifts, with the prestiges between). When
+  your build is unfinished and building on would end this ascension later than finishing now, the Next step offers
+  **Keep building** (it says how many things it buys) or **Finish without buying**, the sooner one picked first; your
+  pick is kept in this browser for that account and stop (`aap.a1choice.*`) and never changes Setup. A build-up that
+  buys nothing is never offered, and a tie goes to finishing without buying. When your save no longer matches the
+  route you follow (another egg, a shift or prestige over 2 hours overdue, other Awake hours, or a build-up that buys
+  nothing), Right now offers **Re-plan from this save** beside Keep mine (`lib/followStale.ts`).
+  The **Build-up tracker** sits under them, open while you build (`lib/buildUpTracker.ts`,
+  `composables/useBuildUpTracker.ts`): the simulator's build-up for this ascension, check-in by check-in, in 12-hour
+  times, grouped by day. A line under the plan says the buys follow Joo's Smart Buy set to the build's sales ("Buys
+  follow Smart Buy, set to 3 sales"); research that cost 10 seconds of income or less is marked "(cheap sweep)". It
+  plans the silo trick for each Monday 2x event where it fits (or says why not), keeps artifact set swaps to
+  Humility, ticks lines off from each newer save (`lib/buildUpBought.ts`; the rest by hand, and a tick of yours wins),
+  and offers **Re-plan from this save** when the save is over an hour behind the plan or has bought things off plan.
   The ascension you are in is simulated on your loaded save in the background ("Working out your shifts…"), so
   its shifts are to the minute and later ones come from the instant answer, to the hour; a Time off ahead ends
   that ascension where the time off starts. Then the **Full timeline** (every ascension, each egg's first and last
@@ -105,6 +124,12 @@ that choice.
   ascension count and finish date or TE, the best route starred, with "The same routes as a list"); then **Your
   runs** (the latest run or All my runs, with filters): runs on the Leaderboard that are yours or look like yours, the hidden ones too,
   runs saved on this computer or phone, and results not sent yet. Each run's details say **What was searched**.
+  Saving the same run or answer again updates its entry instead of adding a copy (the button then reads "Saved ✓";
+  `search/runLibrary.ts` `runIdentity`, `lib/savedAnswerIdentity.ts`), and copies saved before that are merged when
+  the list is read. **Download this save** (Saved runs, Saved answers) writes the kept save with every player ID
+  replaced by a stand-in and the device IDs (`deviceId`, `gameServicesId`, `gameServicesIdScoped`, `pushUserId`)
+  blank (`lib/saveScrub.ts`); **Load a save file** puts it back under the account on screen, and with no account
+  on screen loads it without one (own instant answer, Follow, Saved answers and everything online off).
   Saved runs, saved answers and Right now's chip say how many hours ahead of or behind the plan your latest
   save is: "On schedule (within an hour)", or "5 hours behind, as of 3:42 pm" (days from 48 hours).
   "Dig deeper into your plan ›" opens it. `#/compare/mine` lands here.
@@ -131,6 +156,12 @@ finishing the routes already started (up to about a minute); and the My runs cha
 Release 5, in short: Joo's latest planner (his artifact and stone editor, the opening switch, fewer empty
 shifts); the Help improve the planner box; hours ahead or behind on My runs; simulator chips and Show runs
 from older simulators on the Leaderboard; Leaderboard and Science off until ticked in Setup.
+Release 7 (Nov 5, 2026), in short: the Build-up tracker on My runs; Keep building or Finish without buying; Re-plan
+from this save for a followed route your save no longer matches; empty build-ups dropped; a farm off Humility keeps the
+artifacts it has on; one save-age box with Check your clock; Download for Excel (.xlsx); downloaded saves with no
+player ID and no device IDs; saving the same run or answer twice keeps one entry; answers worked out by an older
+version of the page are worked out again; an update banner that lists only notes new to your tab, at most 3; and
+tidier phone layouts.
 
 ---
 
@@ -149,6 +180,41 @@ this merge, so this site does not have them. It does **not** plan around Awake h
 `search/leg.ts`, and the instant answer prices them) or Continue my
 build-up, and does not find stops for you. Full list:
 [Single run vs Joo's Auto AP](https://github.com/william-egginc/AutoAutoAP/wiki/Single-run-vs-Joos-Auto-AP).
+
+---
+
+## Game rules the planner follows
+
+Rules of the Eggs of Virtue, as confirmed on Nov 1, 2026, and where the simulator does not follow them yet. More
+on the wiki: [Game rules the planner follows](https://github.com/william-egginc/AutoAutoAP/wiki/Game-rules-the-planner-follows).
+
+- **Purchases happen only on their own egg.** Silos on Resilience, habs on Integrity, research on Curiosity, vehicles
+  and train cars on Kindness, artifacts and ships on Humility. The standard build shifts to the right egg before it
+  buys (K1, I1, C2, K2, R1, C3, H1, K3 in `src/auto/shifts/`).
+- **One free start to each ascension.** An ascension starts at shift 0, on an egg you choose. The first shift (0 to
+  1) costs soul eggs; a prestige at shift 0 is free and starts shift 0 again. So you can start on Humility, put on
+  your artifacts, prestige, and start again on Curiosity at no cost. The simulator starts every fresh ascension on
+  Curiosity with the earnings set on and pays for the 12 shifts after it; it never tries starting on another egg.
+- **Artifacts change only on Humility.** The earnings set goes on at the start (the free start above) and the
+  delivery set at H1, on Humility. In plans that continue your build-up, or finish it without buying, a farm off
+  Humility keeps the artifacts it has on until its first Humility shift (`continueState` and `buildUpState` in
+  `src/search/leg.ts`). The Build-up tracker leaves out any set swap that is not on Humility.
+- **The silo trick.** Check in on Sunday, then stay offline until a check-in inside Monday's 2x event (Monday 9:00 am
+  to Tuesday 9:00 am Pacific), with enough silo time to cover the gap: what the farm earned offline is paid at 2x
+  when you come back inside the event. It is wasted if you come online on Sunday again, or if the silos run out
+  first.
+- A prestige takes about 30 seconds (through the Edible egg to Enlightenment), too short to matter for planning.
+
+Where the simulator does not follow them yet:
+
+- **Continue my build-up's in-place buys.** Each step before C3 (K1, I1, C2, K2, R1) is first tried on whatever egg
+  the farm is on, without a shift; when its buys take 30 minutes or less they are kept there (`src/auto/buildUp.ts`,
+  `IN_PLACE_SECONDS`). So vehicles, habs, research, train cars and silos can be bought off their own egg, with no
+  shift cost and no reset. A fix is planned after Release 7.
+- **The silo trick** is advised by the Build-up tracker but not simulated, so the planner's times leave out its gain.
+- **Waits inside a planned ascension are not capped by silos.** They assume you check in often enough that the silos
+  never run out. Only the catch-up from your save to the plan start is capped at what the silos hold
+  (`src/lib/saveAge.ts` `catchUpSeconds`).
 
 ---
 
@@ -189,8 +255,15 @@ code. That is why the Netlify command is `make -C ../../lib && pnpm build`.
 | `pnpm generate:pacific-time-table` | regenerates the Pacific time table (`scripts/generatePacificTimeTable.ts`) |
 
 One spec file: `npx vitest run path/to/file.spec.ts`. No spec reaches a real collector. Specs that need a
-private save are skipped without it, and the slowest run only with `AAP_SLOW_SPECS=1`. `pnpm build` warns
-when `src/` has commits newer than `release.ts`. Serve the app on `localhost` or over HTTPS: over plain
+private save are skipped without it, and the slowest run only with `AAP_SLOW_SPECS=1`. `pnpm build` prints a
+`RELEASE NOTE MISSING:` box when `src/` has commits (not merges) since the last `release.ts` change
+(`src/lib/releaseNoteWarning.ts`): without a new note, open tabs show no update banner. It also prints `[aap] result
+code hash … over N files`: the hash of the code that works out results (`src/lib/resultCodeHash.ts`: `src/search`,
+`src/auto`, `src/engine`, `src/calculations`, `src/workers`, a few named composables and lib files, and what they
+import from `src/lib`, `src/types` and `src/calculations`; specs, words files, `release.ts`, components and stores
+left out). Kept results stamped with another hash (`rc`) are worked out again after an update; in specs
+`resultCode()` is `'dev'`, so a spec that seeds a kept snapshot or plan by hand stamps `rc: resultCode()`. Serve the
+app on `localhost` or over HTTPS: over plain
 HTTP on a LAN, `crypto.subtle` does not exist and every IndexedDB write fails.
 
 ### The command line (`fastsearch`)
@@ -344,6 +417,13 @@ route restored after a refresh keeps its per-leg cells when the run's detail on 
 total); a full By a date file adds a section with every priced route's legs (rows starting `pricedleg`). Details:
 [Leaderboard](https://github.com/william-egginc/AutoAutoAP/wiki/Leaderboard).
 
+**Download for Excel (.xlsx)**, beside Download CSV on Fastest's and Highest TE by a date's result cards, is the
+same table the page holds in memory (per-ascension detail for the routes kept there, not the leg spill), written in
+the browser with no library (`src/utils/xlsxWriter.ts`): a **Routes** sheet with the header row bold and frozen,
+every column sized (time columns at least 19 characters wide) and times kept as the CSV's text, so Excel shows no
+`########`; and a **Notes** sheet with the CSV's `#` lines. It is offered on a finished result of at most 200,000 rows
+(50,000 where the browser can't compress; `src/utils/xlsxRows.ts`). The CSV's header line points to it.
+
 ### Checking a table someone sent (`--check-bin`)
 
 An instant-answer table file from someone else (Joo's generator, a player's own gear table) is checked
@@ -415,8 +495,10 @@ Paths are relative to this folder. The full module map is on
   `src/explorer/` (Insights, `explorer.html`), `src/watch/` (`watch.html`).
 - `collector/`: the Cloudflare Worker. `scripts/precompute.ts`: the instant answer's tables.
   `scripts/fastsearch.ts`, `scripts/siteRun.ts`: the command line. `public/about.html`: About and privacy.
-  `release.ts`: the update notes an open tab shows (the banner lists the notes newer than the tab's build,
-  newest first, at most 5, then "+N more").
+  `release.ts`: the update notes an open tab shows (`lib/updateNotes.ts`, `composables/useNewVersion.ts`
+  `bannerFor`): the banner lists only the notes new to the tab (not in its own build), newest first, at most 3, then
+  "+N more" counting new notes only. With no new note there is no banner, unless the release asks open tabs to
+  reload (`reloadIfBuiltBefore`). Nothing reloads by itself; a code-only deploy reaches a tab on its next load.
 - The leg spill: `src/search/legSpill.ts` (shared), `src/lib/legSpillOpfs.ts`, `src/workers/legSpill.worker.ts`
   and `src/lib/legSpillText.ts` (the page), `scripts/nodeLegSpill.ts` (the command line). Consent and Setup
   saved online: `src/lib/prefsCloud.ts`, `src/stores/prefs.ts`.
@@ -451,6 +533,10 @@ How to merge upstream safely: [Contributing and upstream sync](https://github.co
   switch for it, and anyone who knows the player ID can read and change them. This computer's settings, the first
   ascension, the Stepping away? choices and Prefer fewer stay in the browser.
 - A send never holds your player ID, and ID-shaped text is stripped from names, notes, `searched` and the CSV.
+- Downloads are made in the browser and send nothing. A downloaded save (Download this save) has every player
+  ID replaced by a stand-in and its device IDs blank; it still holds the rest of the save, the in-game name included.
+  The other text downloads that go through `utils/export.ts` (plans, CSVs, reports) have ID-shaped text replaced
+  too.
 - The short version: `public/about.html`; problems go to `/.well-known/security.txt`; what the collector keeps: `collector/README.md`.
   Full details: [Privacy and security](https://github.com/william-egginc/AutoAutoAP/wiki/Privacy-and-security).
 

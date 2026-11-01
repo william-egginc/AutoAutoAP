@@ -99,7 +99,7 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       'If you set them, the row also has your awake hours (the times of day you said you are awake, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
     );
-    expect(text).toContain('Last updated Oct 27, 2026.');
+    expect(text).toContain('Last updated Nov 5, 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
     const sub = read('src/search/submission.ts');
     expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
@@ -133,7 +133,7 @@ describe('About and privacy page', () => {
       "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which before Oct 23, 2026 held the price of the instant answer's own route)"
     );
     expect(text).toContain('They are anonymous, sent only with that consent, and never shown publicly.');
-    expect(text).toContain('Last updated Oct 27, 2026.');
+    expect(text).toContain('Last updated Nov 5, 2026.');
     expect(text).not.toContain('Keep sharing my checks');
   });
 
@@ -197,7 +197,7 @@ describe('About and privacy page', () => {
     );
     expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
     expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');
-    expect(text).toContain('Last updated Oct 27, 2026.');
+    expect(text).toContain('Last updated Nov 5, 2026.');
     // What it says must stay true: the key made in the browser from the ID, the value's fields, Follow the only write.
     const cloud = read('src/lib/followCloud.ts');
     expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aaap-follow-v1:';");
@@ -359,5 +359,40 @@ describe('About and privacy page', () => {
     // The body is gzip and is not inflated by the collector: the app scrubs before it compresses.
     expect(answers).toContain('body[0] !== 0x1f || body[1] !== 0x8b');
     expect(answers).toContain('the app scrubs before it compresses');
+  });
+
+  it('says what a downloaded save holds, what the Excel download holds, that saving again keeps one entry, the update banner and the recalc (Release 7, Nov 5, 2026)', () => {
+    expect(text).toContain('Saving the same run or answer again updates the one already in the list, so each is listed once.');
+    expect(text).toContain(
+      'Downloads are made in your browser and saved to your computer. Nothing is sent. Download this save (under Saved runs and Saved answers) writes your game save to a file with your player ID swapped for a stand-in and your device IDs left blank. The rest of your save is still in it, including your in-game name, so share it with care. Load a save file puts it back under the account on screen.'
+    );
+    expect(text).toContain(
+      "Download for Excel (.xlsx) , beside Download CSV , has the same routes as the CSV, with each ascension's times for the top routes only. Every column is wide enough, the header row stays in view, and the CSV's notes are on a second sheet. It is offered for a finished result of up to 200,000 rows."
+    );
+    expect(text).toContain(
+      "It also has a short code made from the planner's own code, not from you, so a newer version of the page knows to work the answer out again."
+    );
+    expect(text).toContain(
+      "When a newer version is live, a banner lists what changed: only the notes your open copy doesn't have yet, newest first, at most 3. If there is nothing new to tell you, no banner shows, unless the new version asks open copies to reload."
+    );
+    expect(text).toContain(
+      "After an update, answers that an older version worked out and kept in this browser are worked out again: instant answers, the times My runs works out for the route you follow, and the Build-up tracker's plan. Meanwhile an instant answer is marked \"From &lt;time&gt; (older version), checking…\". Saved runs and saved answers are kept as they are."
+    );
+    // What it says must stay true: the save download scrubs IDs and blanks the device IDs, a file loads under the
+    // account on screen, the .xlsx cap and sheets, saving again replaces, the banner's cap and no-new-note rule, the stamp.
+    const scrub = read('src/lib/saveScrub.ts');
+    expect(scrub).toContain("export const DEVICE_ID_FIELDS = ['deviceId', 'gameServicesId', 'gameServicesIdScoped', 'pushUserId'] as const;");
+    expect(scrub).toContain('export function idFromScreen(');
+    expect(read('src/stores/chainSearch.ts')).toContain('text: scrubPlayerIds(backupText(blankDeviceIds(raw)))');
+    expect(read('src/utils/xlsxRows.ts')).toContain('export const XLSX_ROW_CAP = 200_000;');
+    const xlsx = read('src/utils/xlsxWriter.ts');
+    expect(xlsx).toContain("export const DATA_SHEET = 'Routes';");
+    expect(xlsx).toContain("export const NOTES_SHEET = 'Notes';");
+    expect(read('src/components/auto/csvButton.ts')).toContain("export const XLSX_BUTTON = 'Download for Excel (.xlsx) ↓';");
+    expect(read('src/search/runLibrary.ts')).toContain('export function runIdentity(');
+    expect(read('src/lib/savedAnswerIdentity.ts')).toContain('export function answerIdentity(');
+    expect(read('src/lib/updateNotes.ts')).toContain('export const MAX_SHOWN = 3;');
+    expect(read('src/composables/useNewVersion.ts')).toContain('if (!key) return null;');
+    expect(read('src/components/auto/InstantRoute.vue')).toContain('rc: resultCode(),');
   });
 });

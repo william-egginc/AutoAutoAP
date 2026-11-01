@@ -111,7 +111,7 @@
     <main>
       <p><a href="./">← Back to the planner</a></p>
       <h1>About and privacy</h1>
-      <p class="muted">Last updated Oct 27, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+      <p class="muted">Last updated Nov 5, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
 
       <section id="what">
         <h2>What this is</h2>
@@ -133,6 +133,10 @@
           saves that a saved run or answer needs are kept with it. Nothing expires them. Clearing this site's data in
           your browser removes all of it.
         </p>
+        <!-- search/runLibrary.ts runIdentity, lib/savedAnswerIdentity.ts: this sentence goes with that code. -->
+        <p id="saved-once">
+          Saving the same run or answer again updates the one already in the list, so each is listed once.
+        </p>
         <!-- lib/legSpillOpfs.ts, lib/legSpillText.ts: these sentences go with that code. -->
         <p id="detail-file">
           A search's per-ascension detail is kept in a file in this browser, so the downloaded CSV can have every
@@ -143,6 +147,16 @@
           too, and that copy is removed 10 minutes later. Nothing in these files leaves your computer, except what a
           send includes (see <a href="#sent">What is sent, and when</a>). The command line keeps its own file,
           <code>legs.spill</code>, on the computer it runs on.
+        </p>
+        <!-- lib/saveScrub.ts (entrySaveFile, idFromScreen), utils/xlsxWriter.ts, utils/xlsxRows.ts: these sentences go with that code. -->
+        <p id="downloads">
+          Downloads are made in your browser and saved to your computer. Nothing is sent. <b>Download this save</b>
+          (under Saved runs and Saved answers) writes your game save to a file with your player ID swapped for a
+          stand-in and your device IDs left blank. The rest of your save is still in it, including your in-game name,
+          so share it with care. <b>Load a save file</b> puts it back under the account on screen.
+          <b>Download for Excel (.xlsx)</b>, beside <b>Download CSV</b>, has the same routes as the CSV, with each
+          ascension's times for the top routes only. Every column is wide enough, the header row stays in view, and
+          the CSV's notes are on a second sheet. It is offered for a finished result of up to 200,000 rows.
         </p>
       </section>
 
@@ -326,7 +340,8 @@
           for), the maxed gear what-if and your last Fast, Exact or Custom result for that goal if there are any, the
           time of your save and each egg's TE in it, and how it was priced: your starting TE and start time, your first
           ascensions, and the Setup it was worked out with (awake hours, whether shifts are held, time off, no prestige
-          days, the first ascension, your target TE and your time zone). Before it is packed, the planner replaces anything shaped like a player ID, and an answer that
+          days, the first ascension, your target TE and your time zone). It also has a short code made from the
+          planner's own code, not from you, so a newer version of the page knows to work the answer out again. Before it is packed, the planner replaces anything shaped like a player ID, and an answer that
           still has one is not sent. Never your player ID, a name or your game save. If it is too big (over 64 KB
           packed), the pricing and then the extras are left out; if it is still too big, it is not saved.
         </p>
@@ -474,6 +489,18 @@
           Each open copy of the planner tells our server which version it is, at most once a day: just the
           version, nothing else. We keep only a count per version per day, for 30 days, so we know when old versions
           are still in use. If your browser sends Global Privacy Control or Do Not Track, nothing is sent.
+        </p>
+        <!-- lib/updateNotes.ts, composables/useNewVersion.ts bannerFor, lib/resultCode.ts: these sentences go with that code. -->
+        <p id="update-banner">
+          When a newer version is live, a banner lists what changed: only the notes your open copy doesn't have yet,
+          newest first, at most 3. If there is nothing new to tell you, no banner shows, unless the new version asks
+          open copies to reload.
+        </p>
+        <p id="recalc">
+          After an update, answers that an older version worked out and kept in this browser are worked out again:
+          instant answers, the times My runs works out for the route you follow, and the Build-up tracker's plan.
+          Meanwhile an instant answer is marked "From &lt;time&gt; (older version), checking…". Saved runs and saved
+          answers are kept as they are.
         </p>
       </section>
 
