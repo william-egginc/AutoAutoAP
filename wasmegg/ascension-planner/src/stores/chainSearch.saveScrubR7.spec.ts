@@ -143,3 +143,63 @@ describe('(1) a downloaded save carries no device identifiers', () => {
     expect(useUIStore().runSaveLoaded).toMatchObject({ from: 'file', noAccount: true });
   });
 });
+
+/** Signed in as `screen` with a latest save whose own ID is `saveId`, as App.vue sets it up. */
+async function signedInWith(screen: string, saveId: string): Promise<void> {
+  setActivePinia(createPinia());
+  useUIStore().screenPlayerId = screen;
+  const latest = syntheticSaveWithId(saveId);
+  resolveColleggtibleContracts(latest);
+  await initPlanFuture(screen, markRaw(latest), 'fresh');
+}
+
+describe('(2) a downloaded save loads back into the account it came from', () => {
+  // QA's run (finding 2): the account on screen, its loaded save carrying the stand-in, refused as "another account's".
+  it('the account on screen, its loaded save holding the stand-in: the scrubbed file loads for that account', async () => {
+    setActivePinia(createPinia());
+    const text = await download();
+    await signedInWith(ID, PLACEHOLDER_ID);
+    const store = useChainSearchStore();
+    expect(await store.loadSaveFile(ID, text)).toBe(true);
+    expect(store.olderSaveError).toBeNull();
+    const raw = useInitialStateStore().rawBackup as Record<string, unknown>;
+    expect(raw.eiUserId).toBe(ID);
+    expect(useUIStore().runSaveLoaded?.noAccount).toBeFalsy();
+  });
+
+  // The super-user form of an ID (lib/schema PlayerIdSchema: "mk2!EI…"): the loaded save names the plain ID.
+  it('an mk2! form of the ID on screen: the scrubbed file takes the loaded save’s own ID, not refused', async () => {
+    setActivePinia(createPinia());
+    const text = await download();
+    await signedInWith(`mk2!${ID}`, ID);
+    const store = useChainSearchStore();
+    expect(await store.loadSaveFile(`mk2!${ID}`, text)).toBe(true);
+    expect(store.olderSaveError).toBeNull();
+    const raw = useInitialStateStore().rawBackup as Record<string, unknown>;
+    expect(raw.eiUserId).toBe(ID);
+    expect(accountOf(raw)).toBe(accountOf({ eiUserId: ID }));
+  });
+
+  it('a save naming a different real ID is still refused, whatever the loaded save holds', async () => {
+    const other = (await download()).replaceAll(PLACEHOLDER_ID, 'EI1234567890123456');
+    for (const [screen, saveId] of [
+      [ID, ID],
+      [ID, PLACEHOLDER_ID],
+      [`mk2!${ID}`, ID],
+    ]) {
+      await signedInWith(screen, saveId);
+      const store = useChainSearchStore();
+      expect(await store.loadSaveFile(screen, other), `${screen} / ${saveId}`).toBe(false);
+      expect(store.olderSaveError).toMatch(/another account/);
+      expect((useInitialStateStore().rawBackup as Record<string, unknown>).eiUserId).toBe(saveId);
+    }
+  });
+
+  it('a lower-case form of the account’s own ID in the file is this account', async () => {
+    const own = (await download()).replaceAll(PLACEHOLDER_ID, ID.toLowerCase());
+    await signedInWith(ID, ID);
+    const store = useChainSearchStore();
+    expect(await store.loadSaveFile(ID, own)).toBe(true);
+    expect((useInitialStateStore().rawBackup as Record<string, unknown>).eiUserId).toBe(ID);
+  });
+});

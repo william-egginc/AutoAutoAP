@@ -337,7 +337,7 @@ import {
   type EntrySave,
   type KeptSaveSummary,
 } from '@/search/keptSaves';
-import { blankDeviceIds, idFromScreen, scrubPlayerIds } from '@/lib/saveScrub';
+import { blankDeviceIds, idFromScreen, isPlaceholderId, sameAccountId, scrubPlayerIds } from '@/lib/saveScrub';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -7306,7 +7306,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   ): Promise<boolean> {
     const ui = useUIStore();
-    const now = accountOf(toRaw(useInitialStateStore().rawBackup));
+    // A loaded save holding the stand-in (a downloaded file's ID) names no account to compare with (R7 red team 2).
+    const loaded = toRaw(useInitialStateStore().rawBackup) as { eiUserId?: string | null } | null;
+    const now = isPlaceholderId(loaded?.eiUserId) ? '' : accountOf(loaded);
     const then = accountOf(raw);
     if (now && then && now !== then) {
       olderSaveError.value = ANOTHER_ACCOUNTS_SAVE;
@@ -7409,7 +7411,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       olderSaveError.value = plainError(e, 'That file could not be read as a save.');
       return false;
     }
-    const who = idFromScreen(raw, playerId ?? '');
+    // The account on screen, in the form its loaded save names it (lower case or "mk2!" on screen), so the account
+    // check in `loadOlderSave` compares like with like; the screen's own form when the loaded save names none (or
+    // the stand-in). Every "Load a save file" (SaveFileBar.vue, wherever it shows) comes through here (R7 red team 2).
+    const screen = (playerId ?? '').trim();
+    const loadedId = String((toRaw(useInitialStateStore().rawBackup) as { eiUserId?: string | null } | null)?.eiUserId ?? '').trim();
+    const who = idFromScreen(raw, sameAccountId(loadedId, screen) ? loadedId : screen);
     if (who === 'other') {
       olderSaveError.value = ANOTHER_ACCOUNTS_SAVE;
       return false;
@@ -7418,7 +7425,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       // What the fetch does to every save it hands over (fetchBackup.ts); a no-op when already done.
       resolveColleggtibleContracts(raw);
-      return await loadOlderSave(who === 'none' ? '' : playerId.trim(), raw, { from: 'file', noAccount: who === 'none' });
+      return await loadOlderSave(who === 'none' ? '' : screen, raw, { from: 'file', noAccount: who === 'none' });
     } finally {
       preparing.value = false;
     }

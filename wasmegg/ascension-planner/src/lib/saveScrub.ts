@@ -66,6 +66,20 @@ export function blankDeviceIds<T>(raw: T): T {
   return copy as T;
 }
 
+/** An ID compared as an account: trimmed, the "mk2!" super-user prefix (lib/schema PlayerIdSchema) dropped, upper case. */
+function plainId(id: string | null | undefined): string {
+  return String(id ?? '')
+    .trim()
+    .replace(/^mk2!/i, '')
+    .toUpperCase();
+}
+
+/** Whether two IDs name the same account (`plainId`); never for a blank one or the stand-in. */
+export function sameAccountId(a: string | null | undefined, b: string | null | undefined): boolean {
+  const x = plainId(a);
+  return IS_ID.test(x) && !isPlaceholderId(x) && x === plainId(b);
+}
+
 /** The account fields of a save that the page reads (search/runSaves.ts `accountOf`, the stores' `eiUserId`). */
 type SaveIds = { eiUserId?: string | null; userId?: string | null };
 
@@ -85,8 +99,16 @@ export function idFromScreen(raw: SaveIds, screenId: string): 'ok' | 'other' | '
     return 'none';
   }
   if (file && !isPlaceholderId(file)) {
-    // A real ID in the file: another account's when both are IDs and differ (the caller refuses it).
-    return IS_ID.test(file) && IS_ID.test(screen) && file.toUpperCase() !== screen.toUpperCase() ? 'other' : 'ok';
+    // A real ID in the file: another account's when both are IDs and differ (the caller refuses it). The same
+    // account in another form (lower case, the "mk2!" super-user prefix) is this account, with the screen's form, so
+    // the loaded save's account check (chainSearch `loadOlderSave`) sees the same ID (R7 red team, finding 2).
+    const a = plainId(file);
+    const b = plainId(screen);
+    if (IS_ID.test(a) && IS_ID.test(b)) {
+      if (a !== b) return 'other';
+      raw.eiUserId = screen;
+    }
+    return 'ok';
   }
   raw.eiUserId = screen;
   if (userIdIsId && isPlaceholderId(raw.userId)) raw.userId = screen;
