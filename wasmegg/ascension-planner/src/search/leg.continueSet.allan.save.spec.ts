@@ -16,6 +16,10 @@
  *
  * SKIPPED when the save is absent, and unless AAP_SLOW_SPECS=1. A few minutes when it runs:
  *   AAP_SLOW_SPECS=1 npx vitest run src/search/leg.continueSet.allan.save.spec.ts
+ *
+ * NO EMPTY BUILD-UP (spec-noemptybuild, e3906345; confirmed spec-r7verify, 1 Nov 2026): this farm's build buys nothing,
+ * so it has no build-up variant (A1 is continue, Dec 18, 2026, 7:59 am, as pinned); the old "continue and the build-up
+ * end together" became "no build-up".
  */
 import '../../scripts/node-shims';
 
@@ -34,7 +38,7 @@ import { sameSet } from '@/lib/gearMatch';
 import { TE_BREAKPOINTS } from '@/lib/truthEggs';
 import { computeSnapshot } from '@/engine/compute';
 import { createChainEvaluator } from './chain';
-import { buildUpVariantForCheck, continueStateForCheck, continueVariantForCheck } from './leg';
+import { buildUpBuildForCheck, buildUpVariantForCheck, continueStateForCheck, continueVariantForCheck } from './leg';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { SearchInputs } from './types';
 
@@ -243,12 +247,19 @@ describe.skipIf(!hasSave || !process.env.AAP_SLOW_SPECS)('Allan-like: the Gusset
     expect(qph(elr)).toBeGreaterThan(qph(bareElr) * 1.5);
   });
 
-  it('A1: continue and the build-up end together, Dec 18, 2026, 7:59 am', () => {
+  it('A1: nothing to build (spec-noemptybuild), so no build-up; continue ends Dec 18, 2026, 7:59 am', () => {
     const base = () => JSON.parse(JSON.stringify(inputs.baseState));
+    const te = Math.floor(inputs.currentTE);
     const c = continueVariantForCheck(inputs, base(), inputs.planStart, ROUTE[0], 0)!;
-    const b = buildUpVariantForCheck(inputs, base(), inputs.planStart, ROUTE[0], 0, Math.floor(inputs.currentTE))!;
+    const built = buildUpBuildForCheck(inputs, base(), inputs.planStart, te);
+    console.log(`[allan-like] build-up: ${built ? `${built.variants.length} buying variants, buysNothing ${!!built.buysNothing}` : 'no build'}`);
+    const b = buildUpVariantForCheck(inputs, base(), inputs.planStart, ROUTE[0], 0, te);
     expect(Math.floor(c.summary.endTime)).toBe(PINNED.a1);
-    expect(Math.floor(b.summary.endTime)).toBe(PINNED.a1);
+    // The farm is built (every vehicle, hab and research the build would buy is there): its build-up buys nothing and is
+    // continue with extra shifts, so there is no build-up variant (before e3906345 it ended with continue, at the same instant).
+    expect(built?.buysNothing).toBe(true);
+    expect(built?.variants).toEqual([]);
+    expect(b).toBeNull();
   }, 600_000);
 
   it('the route 237 260 290 328 490 ends Jul 17, 2028, 5:05 pm', () => {

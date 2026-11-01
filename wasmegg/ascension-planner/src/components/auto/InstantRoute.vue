@@ -328,6 +328,9 @@
               Reached {{ show(dateBoxOf(result.byDate).end) }} ·
               {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
             </div>
+            <!-- An estimate (spec-r7verify item 5, lib/instantWords.ts; DRAFT): the tables' answer, a few days either side
+                 of a Fast search. -->
+            <p class="text-small text-slate-500 max-w-prose" data-testid="instant-estimate">{{ INSTANT_ESTIMATE_LINE }}</p>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
               <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label"
@@ -521,6 +524,9 @@
             <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
             <span class="text-small font-bold text-slate-500" data-testid="box-instant">instant answer</span>
           </div>
+          <!-- An estimate (spec-r7verify item 5, lib/instantWords.ts; DRAFT): the tables' answer, a few days either side of
+               a Fast search. -->
+          <p class="text-small text-slate-500 max-w-prose" data-testid="instant-estimate">{{ INSTANT_ESTIMATE_LINE }}</p>
           <div class="text-small font-bold text-emerald-800">
             in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
@@ -996,6 +1002,7 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { INSTANT_ONE_LINE, pointerOf } from '@/lib/searchPointer';
+import { INSTANT_ESTIMATE_LINE } from '@/lib/instantWords';
 import { HOURS_NOTE } from '@/lib/hoursNote';
 import InstantPointer from './InstantPointer.vue';
 import { bracketHeadline, bracketLine, type BracketLineInput } from '@/lib/bracketLine';

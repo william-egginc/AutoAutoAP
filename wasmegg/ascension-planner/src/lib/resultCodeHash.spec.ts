@@ -75,9 +75,22 @@ describe('the result code hash (vite.config.ts, at build time)', () => {
       expect(resultCodeHash(tree({ [p]: text })).hash, p).not.toBe(base);
   });
 
+  it("an edit to the instant answer's words (lib/instantWords.ts) keeps it, even when a hashed file imports them", () => {
+    const over = {
+      'src/lib/instantWords.ts': "export const INSTANT_ESTIMATE_LINE = 'An estimate';",
+      'src/search/chain.ts': "import { leg } from './leg';\nimport { INSTANT_ESTIMATE_LINE } from '@/lib/instantWords';\nexport const chain = leg;",
+    };
+    const base = resultCodeHash(tree(over)).hash;
+    expect(resultCodeInputs(tree(over))).not.toContain('src/lib/instantWords.ts');
+    expect(resultCodeHash(tree({ ...over, 'src/lib/instantWords.ts': "export const INSTANT_ESTIMATE_LINE = 'An estimate, said better';" })).hash).toBe(base);
+  });
+
   it('wording-only files and imports resolve as named', () => {
     expect(isWordingOnly('release.ts')).toBe(true);
     expect(isWordingOnly('src/lib/siloWords.ts')).toBe(true);
+    // spec-r7verify: the instant answer's estimate line and Right now's fresh-start line are words only.
+    expect(isWordingOnly('src/lib/instantWords.ts')).toBe(true);
+    expect(isWordingOnly('src/lib/freshSoonerWords.ts')).toBe(true);
     expect(isWordingOnly('src/lib/followSim.ts')).toBe(false);
     const t = tree();
     expect(resolveImport('src/search/chain.ts', './leg', t)).toBe('src/search/leg.ts');

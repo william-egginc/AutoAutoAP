@@ -44,9 +44,12 @@ const rec = (backupTime: number, extra: Partial<SimRecord> = {}): SimRecord => (
 });
 
 describe('the record (aap-follow-sim)', () => {
-  it('keeps the newest three, one per account, save, route and setup', () => {
+  it('keeps the newest five (SIM_RECORDS; spec-r7verify, was three), one per account, save, route and setup', () => {
     const st = mem();
-    for (const t of [1, 2, 3, 4]) expect(recordSim(rec(T0 + t), st)).toBe(true);
+    for (const t of [1, 2, 3, 4, 5, 6]) expect(recordSim(rec(T0 + t), st)).toBe(true);
+    expect(readSimRecords(st).map(r => r.backupTime)).toEqual([T0 + 6, T0 + 5, T0 + 4, T0 + 3, T0 + 2]);
+    // The rest as before, on the newest three.
+    st.m.set(SIM_RECORD_KEY, JSON.stringify(JSON.parse(st.m.get(SIM_RECORD_KEY)!).slice(2)));
     expect(readSimRecords(st).map(r => r.backupTime)).toEqual([T0 + 4, T0 + 3, T0 + 2]);
     // The same key again replaces it.
     recordSim(rec(T0 + 3, { at: 5 }), st);

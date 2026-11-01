@@ -106,7 +106,9 @@ function stubSims() {
   const sims: { inputs: SearchInputs; resolve: (l: LegSummary | null) => void }[] = [];
   setSimRunner(
     (): SimRunner => ({
-      run: inputs => new Promise(resolve => sims.push({ inputs, resolve })),
+      run: inputs =>
+        // The lazy fresh-start pricing beside a forced build-up (useNowPage `freshSim`, NowPage.freshSooner.spec.ts): left unanswered here.
+        inputs.firstAscension === 'fresh' ? new Promise(() => undefined) : new Promise(resolve => sims.push({ inputs, resolve })),
       terminate: () => undefined,
     })
   );

@@ -79,6 +79,8 @@ describe.skipIf(!hasSave || !process.env.AAP_SLOW_SPECS)("Jordan's alt, Oct 31, 
     setSimRunner(
       (): SimRunner => ({
         run: async (inputs, chain, opts) => {
+        // The lazy fresh-start pricing beside a forced build-up (useNowPage `freshSim`, NowPage.freshSooner.spec.ts): left unanswered here.
+        if (inputs.firstAscension === 'fresh') return new Promise(() => undefined);
           asked.push({ inputs, chain });
           await Promise.resolve();
           const t0 = performance.now();

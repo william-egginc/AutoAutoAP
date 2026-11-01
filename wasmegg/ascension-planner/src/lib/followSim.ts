@@ -17,7 +17,9 @@ import type { NowPlan } from './nowPlan';
 import { resultCode } from './resultCode';
 
 export const SIM_RECORD_KEY = 'aap-follow-sim';
-export const SIM_RECORDS = 3;
+/** 5 (spec-r7verify, 1 Nov 2026; was 3): the A1 choice's two sides, the fresh start priced beside a forced build-up
+ *  (useNowPage `freshSim`) and Fastest for this ascension each keep a record of their own. */
+export const SIM_RECORDS = 5;
 /** One record's most (a leg has about twelve shifts: well under 2 kB). */
 export const SIM_MAX_BYTES = 16_000;
 

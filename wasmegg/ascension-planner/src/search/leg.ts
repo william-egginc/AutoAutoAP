@@ -800,6 +800,8 @@ function buildBuildUpVariant(
 
 /** `buildBuildUpVariant` for checks and the CLI; the search calls it through `runLeg`. */
 export const buildUpVariantForCheck = buildBuildUpVariant;
+/** `buildUpBuild` for checks (leg.continueSet.allan.save.spec.ts: whether the build buys anything at all). */
+export const buildUpBuildForCheck = buildUpBuild;
 
 /**
  * Continue my build-up as the precomputed tail takes it (search/precomputedLeg.ts), one `BuildParams`
