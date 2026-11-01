@@ -10,7 +10,10 @@
   followed from the instant answer without comparing finishes (lib/searchPlan.ts `simulatedOverEstimate`: simulated
   against the table's estimate, math review 24 Oct 2026). When the save contradicts the followed route (`stale`,
   lib/followStale.ts; Right now only, alt A1 30 Oct 2026) the new result is offered as "Re-plan from this save", the
-  reason first, whatever the finishes and over a priced follow too; the press is the same Follow press.
+  reason first, whatever the finishes and over a priced follow too; the press is the same Follow press
+  (stores/follow.ts `replanFromSave`). After it, the offer's place says "Now following the answer for this save"
+  (REPLAN_DONE_WORDS, DRAFT for Words review, R7 red-team 1 Nov 2026) while the follow is the one that press made and
+  is the answer shown; not after "Follow it", not on load.
 -->
 <template>
   <div
@@ -40,7 +43,13 @@
       </button>
     </div>
   </div>
+  <p v-else-if="replanDone" class="text-small text-emerald-800" role="status" data-testid="better-route-replanned">{{ REPLAN_DONE_WORDS }}</p>
 </template>
+
+<script lang="ts">
+/** The line after Right now's "Re-plan from this save" press (DRAFT words, for Words review). */
+export const REPLAN_DONE_WORDS = 'Now following the answer for this save';
+</script>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
@@ -148,10 +157,18 @@ const prompt = computed<FollowPrompt | null>(() => {
   });
 });
 
+/** A "Re-plan from this save" press made the follow (stores/follow.ts `replanned`) and it is the answer shown. */
+const replanDone = computed(() => {
+  if (!follows || !props.goalKey || !props.candidate || !follows.replanned(props.goalKey)) return false;
+  const f = follows.followed(props.goalKey);
+  return !!f && f.chain.join(',') === props.candidate.chain.join(',');
+});
+
 function followIt(): void {
   const p = prompt.value;
   if (!p || !follows || !props.goalKey) return;
-  void follows.followBetter(props.goalKey, p, props.goal === 'date' ? props.deadline : null);
+  const deadline = props.goal === 'date' ? props.deadline : null;
+  void (p.stale ? follows.replanFromSave(props.goalKey, p, deadline) : follows.followBetter(props.goalKey, p, deadline));
 }
 function keepIt(): void {
   const p = prompt.value;

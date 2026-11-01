@@ -96,10 +96,15 @@ describe('re-plan from this save', () => {
     expect(p.stale).toBe('egg');
     expect(await follows.followBetter(GOAL, p, null)).toBe(true);
     expect(follows.followed(GOAL)).toMatchObject({ chain: [160, 195, 216, 249], source: 'instant', planStart: now() });
-    // BetterRoutePrompt's button calls exactly that, nothing new.
+    // BetterRoutePrompt's button calls exactly that: for this offer through `replanFromSave` (the same press, only
+    // remembered for this page so its place can say so: BetterRoutePrompt.replanDone.spec.ts).
     const src = fs.readFileSync(path.join(__dirname, '../components/BetterRoutePrompt.vue'), 'utf8');
     const followIt = src.slice(src.indexOf('function followIt'), src.indexOf('function keepIt'));
-    expect(followIt).toContain('void follows.followBetter(props.goalKey, p, props.goal === \'date\' ? props.deadline : null);');
+    expect(followIt).toContain("const deadline = props.goal === 'date' ? props.deadline : null;");
+    expect(followIt).toContain('void (p.stale ? follows.replanFromSave(props.goalKey, p, deadline) : follows.followBetter(props.goalKey, p, deadline));');
+    const store = fs.readFileSync(path.join(__dirname, 'follow.ts'), 'utf8');
+    const replan = store.slice(store.indexOf('async function replanFromSave'), store.indexOf('function replanned'));
+    expect(replan).toContain('const ok = await followBetter(goalKey, p, deadline);');
     expect(src).toContain('@click.stop="followIt"');
   });
 });

@@ -409,6 +409,36 @@ export const useFollowStore = defineStore('follow', () => {
   }
 
   /**
+   * Right now's "Re-plan from this save" (BetterRoutePrompt.vue, the `stale` offer, R7 red-team 1 Nov 2026): the same
+   * Follow press, remembered for this page (partition|goal → the route and when it was pressed, then the follow's
+   * own `at`) so the offer's place can say "Now following the answer for this save" (`replanned`). Never kept in
+   * storage: a reload shows nothing.
+   */
+  const replans = ref<Record<string, { chain: number[]; from: number; at?: number }>>({});
+  async function replanFromSave(goalKey: GoalKey, p: FollowPrompt, deadline: number | null): Promise<boolean> {
+    const key = `${partition.value}|${goalKey}`;
+    replans.value = { ...replans.value, [key]: { chain: [...p.chain], from: Date.now() } };
+    const ok = await followBetter(goalKey, p, deadline);
+    const k = `${partition.value}|${goalKey}`;
+    const f = ok ? followed(goalKey) : null;
+    const { [key]: _was, [k]: _now, ...rest } = replans.value;
+    void _was;
+    void _now;
+    replans.value = f && sameChain(f.chain, p.chain) ? { ...rest, [k]: { chain: [...p.chain], from: f.at, at: f.at } } : rest;
+    return ok;
+  }
+  /** The goal's follow is still the one a "Re-plan from this save" press made on this page (`replanFromSave`): any
+   *  later Follow press (a new `at`) or another account ends it. */
+  function replanned(goalKey: GoalKey | null | undefined): boolean {
+    void version.value;
+    if (!goalKey) return false;
+    const r = replans.value[`${partition.value}|${goalKey}`];
+    const f = followed(goalKey);
+    if (!r || !f || !sameChain(f.chain, r.chain)) return false;
+    return r.at !== undefined ? f.at === r.at : f.at >= r.from;
+  }
+
+  /**
    * The followed route of a goal is not saved online (23 Oct 2026, Jordan's Egg Day follow never reached the
    * collector and nothing said so): there is a collector and the account's saved routes were read this visit, and the
    * kept follow is neither read back from online nor marked saved (a press whose save didn't get through and whose
@@ -472,6 +502,8 @@ export const useFollowStore = defineStore('follow', () => {
     earlierVersions,
     restore,
     followBetter,
+    replanFromSave,
+    replanned,
     saveState,
     notSaved,
     saveNow,
