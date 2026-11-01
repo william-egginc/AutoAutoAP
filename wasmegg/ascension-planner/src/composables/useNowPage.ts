@@ -165,6 +165,8 @@ import {
   type A1Candidates,
   type A1Side,
 } from '@/lib/a1Choice';
+import { FASTEST_SETUP, FRESH_PRICE_SETUP, forcesBuildUp, freshSooner, readFastestPick, writeFastestPick } from '@/lib/freshSooner';
+import { FASTEST_FOLLOWED_LINE, freshSoonerLine } from '@/lib/freshSoonerWords';
 import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
@@ -1328,6 +1330,18 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    */
   const saveBuildLeft = computed(() => (hasSave.value && onVirtue.value ? buildLeft(farm.value, fullHabRates.value) : null));
   /**
+   * FASTEST FOR THIS ASCENSION (spec-r7verify, lib/freshSooner.ts): the player's "Switch to Fastest" on Right now, kept
+   * per account and the stop the ascension you are in heads to (`aap.firstasc.*`), and held on this page per
+   * account+stop even when storage refuses it. With it the simulation is asked as Fastest: no unfinished-build path, no
+   * A1 choice, its own setup key. Your setup's saved value is never changed.
+   */
+  const fastestVersion = ref(0);
+  const fastestPagePicks = ref<Record<string, boolean>>({});
+  const fastestFor = (acct: string, stop: number): boolean => {
+    void fastestVersion.value;
+    return fastestPagePicks.value[`${acct}.${stop}`] ?? readFastestPick(acct, stop);
+  };
+  /**
    * The simulation's request without its first-ascension side: everything the two sides of the A1 choice share (the
    * account, save, route and the rest of the setup), and whether the save's build is unfinished. Null when nothing is
    * asked (see `simRequest`).
@@ -1346,7 +1360,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const route = followedFromNow(p ? p.chain : fs.card.chain, teSoFar.value);
     if (!route.length) return null;
     const useHours = useHoursFromStores();
-    const building = !!saveBuildLeft.value?.length && store.firstAscension !== 'fresh';
+    // Fastest for this ascension (the player's switch): neither the unfinished-build path nor Your setup's choice.
+    const fastest = store.firstAscension !== 'fresh' && fastestFor(acct, route[0]);
+    const building = !fastest && !!saveBuildLeft.value?.length && store.firstAscension !== 'fresh';
     const setupFor = (firstAscension: string) =>
       simSetupKey({
         availability: store.availability,
@@ -1361,7 +1377,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const sideKeys = building
       ? { buildup: simKey({ account: acct, backupTime, route, setup: setupFor(A1_SETUP.buildup) }), continue: simKey({ account: acct, backupTime, route, setup: setupFor(A1_SETUP.continue) }) }
       : null;
-    return { account: acct, backupTime, route, useHours, building, setupFor, sideKeys, trackerOnly: !!p?.legs };
+    return { account: acct, backupTime, route, useHours, building, fastest, setupFor, sideKeys, trackerOnly: !!p?.legs };
   });
   /**
    * MY RUNS' A1 CHOICE (spec-a1choice, 1 Nov 2026, lib/a1Choice.ts). On the unfinished-build path a build-up that buys
@@ -1429,7 +1445,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const b = simBase.value;
     if (!b) return null;
     const side = b.building ? a1Side.value : null;
-    const setup = b.setupFor(side ? A1_SETUP[side] : store.firstAscension);
+    const setup = b.setupFor(side ? A1_SETUP[side] : b.fastest ? FASTEST_SETUP : store.firstAscension);
     const { account: acct, backupTime, route, useHours } = b;
     return {
       key: simKey({ account: acct, backupTime, route, setup }),
@@ -1442,8 +1458,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         // The build carried on (above), unless the plan starts too late to continue the save (firstAscensionFor); or,
         // when Right now follows "Finish without buying" (A1 CHOICE), continue pinned.
         const carryOn = side && i.firstAscension !== 'fresh' ? a1Inputs(side) : {};
+        // Fastest for this ascension (the player's switch): every kind a candidate, the soonest wins.
+        const fastest = b.fastest && i.firstAscension !== 'fresh' ? { firstAscension: 'auto' as const } : {};
         // One ascension, not the whole route: no dated milestones to meet; the hours only as the answers use them.
-        return { ...i, ...carryOn, milestones: [], ...(useHours ? {} : { availability: null }) };
+        return { ...i, ...carryOn, ...fastest, milestones: [], ...(useHours ? {} : { availability: null }) };
       },
     };
   }));
@@ -1522,6 +1540,77 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     if (simForTrackerOnly.value) return null;
     return st && st.key === simRequest.value?.key && (st.status === 'working' || st.status === 'waiting') ? st.status : null;
   });
+  /**
+   * STARTING FRESH WOULD BE SOONER (spec-r7verify, lib/freshSooner.ts). "Continue my build-up" forced (Your setup's
+   * choice, or the unfinished build's build-up side) never compares the ascension you are in with a fresh start
+   * (search/leg.ts runLeg takes the build-up and stops). So once that simulation is on screen and settled, the fresh start
+   * is priced LAZILY in a second simulation of its own (`freshSim`: Prestige now, the same save, route and hours, its own
+   * setup key `FRESH_PRICE_SETUP` and record): Right now's first answer never waits for it (it costs about as much again:
+   * measured on the synthetic mid-build save, 34.7 s for the build-up and about 40 s more for the fresh start). It waits
+   * while a search runs or the main simulation is still working on its plan (one worker at a time), and follows the
+   * one-request-per-key rules of composables/useCurrentSim.ts.
+   */
+  const forcedBuildUp = computed(() => {
+    const b = simBase.value;
+    const req = simRequest.value;
+    const st = currentSim.value;
+    if (!b || !req || st?.status !== 'done' || st.key !== req.key) return null;
+    const forced = forcesBuildUp({
+      trackerOnly: b.trackerOnly,
+      fastest: b.fastest,
+      building: b.building,
+      side: b.building ? a1Side.value : null,
+      setting: store.firstAscension,
+      leg: st.leg,
+    });
+    if (!forced) return null;
+    // Settled: the plan it was asked for is in (or not wanted, or failed), so no plan-only run is on its way.
+    const settled = !buildUpWanted.value || !!st.buildUp || !!st.planFailed;
+    return { b, leg: st.leg, settled };
+  });
+  const freshRequest = computed<SimRequest | null>(() => {
+    const f = forcedBuildUp.value;
+    if (!f) return null;
+    const { b } = f;
+    const setup = b.setupFor(FRESH_PRICE_SETUP);
+    return {
+      key: simKey({ account: b.account, backupTime: b.backupTime, route: b.route, setup }),
+      account: b.account,
+      backupTime: b.backupTime,
+      route: b.route,
+      setup,
+      inputs: () => {
+        const i = perfStep('collectInputs', () => store.collectInputs());
+        return { ...i, firstAscension: 'fresh' as const, milestones: [], ...(b.useHours ? {} : { availability: null }) };
+      },
+    };
+  });
+  const freshBusy = computed(() => searchBusy.value || !forcedBuildUp.value?.settled);
+  const { state: freshSim } = useCurrentSim(freshRequest, freshBusy);
+  /** The line (DRAFT) and the button "Switch to Fastest" (`switchToFastest`): the fresh start ends more than an hour
+   *  sooner than the forced build-up followed. Null otherwise, and while the fresh start is being priced. */
+  const freshLine = computed(() => {
+    const f = forcedBuildUp.value;
+    const req = freshRequest.value;
+    const st = freshSim.value;
+    if (!f || !req || st?.status !== 'done' || st.key !== req.key) return null;
+    const got = freshSooner({ key: f.leg.key, endTime: f.leg.endTime, firstLegEnds: { fresh: st.leg.endTime } });
+    return got ? { ...got, line: freshSoonerLine(got, now.value, zone.value) } : null;
+  });
+  /** Fastest followed for this ascension (the player's switch): Right now says so, with Undo. Null otherwise. */
+  const fastestFollowed = computed(() => {
+    const b = simBase.value;
+    return b && b.fastest && !b.trackerOnly ? { line: FASTEST_FOLLOWED_LINE } : null;
+  });
+  /** "Switch to Fastest" (on) and "Undo" (off): kept for this account and ascension, never Your setup's value. */
+  function switchToFastest(on = true): void {
+    const acct = account.value;
+    const stop = simBase.value?.route[0];
+    if (!acct || stop === undefined) return;
+    fastestPagePicks.value = { ...fastestPagePicks.value, [`${acct}.${stop}`]: on };
+    writeFastestPick(acct, stop, on);
+    fastestVersion.value++;
+  }
   /** The simulation failed: its short reason, and whether it is tried once more (Right now says so, never silently). */
   const simFailure = computed(() => {
     const st = currentSim.value;
@@ -2118,6 +2207,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     a1Choice,
     a1Finish,
     pickA1,
+    freshLine,
+    fastestFollowed,
+    switchToFastest,
     /** The farm's rates at full habs and what the save's build still has to buy (lib/saveBuild.ts): read by specs. */
     fullHabRates,
     saveBuildLeft,

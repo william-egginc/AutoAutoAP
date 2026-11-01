@@ -311,6 +311,10 @@
         :legend="a1Words!.legend"
         @pick="side => emit('pickA1', side)"
       />
+      <!-- STARTING FRESH WOULD BE SOONER (spec-r7verify, lib/freshSooner.ts): the forced build-up followed here ends more
+           than an hour after a fresh start. "Switch to Fastest" follows Fastest for this ascension only (Setup unchanged);
+           while it holds, a line says so with Undo. Words DRAFT (lib/freshSoonerWords.ts). -->
+      <FreshSooner v-if="!notOnVirtue" :line="freshWords" :followed="!!fastestFollowed" @switch="on => emit('switchFastest', on)" />
       <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
            action and the first shifts (26 Oct 2026); the lines below say why the rest has no times. -->
       <template v-if="!card && follow && (actionText || simWorking || simFailure)">
@@ -513,6 +517,9 @@ import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
 import A1Choice from './A1Choice.vue';
 import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
+import type { FreshSooner as FreshSoonerData } from '@/lib/freshSooner';
+import { freshSoonerLine } from '@/lib/freshSoonerWords';
+import FreshSooner from './FreshSooner.vue';
 import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { roundToHourIn } from '@/lib/nowWords';
 import { showDateTime } from '@/lib/displayTime';
@@ -612,6 +619,11 @@ const props = defineProps<{
   nextShiftLines?: NextShiftLine[];
   /** Right now's A1 choice (useNowPage `a1Choice`): the side followed and the two labels; null or absent: no choice. */
   a1Choice?: { side: A1Side; buys: number; buildEnd: number; contEnd: number } | null;
+  /** A fresh start would end this ascension over an hour sooner than the build-up followed (useNowPage `freshLine`);
+   *  null or absent: no line. */
+  freshSooner?: FreshSoonerData | null;
+  /** Fastest is followed for this ascension (useNowPage `fastestFollowed`): the line with Undo. */
+  fastestFollowed?: boolean;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -633,6 +645,8 @@ const emit = defineEmits<{
   retryCloud: [];
   /** The A1 choice: the player's pick (useNowPage `pickA1`). */
   pickA1: [side: A1Side];
+  /** "Switch to Fastest" (true) / "Undo" (false) for this ascension (useNowPage `switchToFastest`). */
+  switchFastest: [on: boolean];
 }>();
 
 /** Not on virtue yet (null: not known, the card stays as it is). */
@@ -777,6 +791,8 @@ const nextText = computed(() =>
 /** "Shift to Humility at …", "Building up until about …", "Prestige at …" (lib/nextAction.ts). */
 /** The A1 choice's words in this card's zone (as every other time on it). */
 const a1Words = computed(() => (props.a1Choice ? a1ChoiceWords(props.a1Choice, props.now, props.zone) : null));
+/** The fresh-start line in this card's zone (as every other time on it). */
+const freshWords = computed(() => (props.freshSooner ? freshSoonerLine(props.freshSooner, props.now, props.zone) : ''));
 const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, t => showDateTime(t, props.zone)) : ''));
 /** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
 const shiftLineText = (l: NextShiftLine) =>

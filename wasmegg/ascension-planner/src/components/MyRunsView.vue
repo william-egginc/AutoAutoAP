@@ -55,6 +55,8 @@
         :next-step="page.nextStep.value"
         :next-shift-lines="page.nextShiftLines.value"
         :a1-choice="page.a1Choice.value"
+        :fresh-sooner="page.freshLine.value"
+        :fastest-followed="!!page.fastestFollowed.value"
         :gear="page.gear.value"
         :now="page.now.value"
         :zone="page.zone.value"
@@ -81,6 +83,7 @@
         @follow="followTyped"
         @unfollow="unfollowGoal"
         @pick-a1="page.pickA1"
+        @switch-fastest="page.switchToFastest"
       >
         <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
              Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
