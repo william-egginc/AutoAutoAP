@@ -27,12 +27,23 @@
     <div class="max-w-6xl mx-auto p-4">
       <CustomEggWatcher v-if="isDev" />
 
-      <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. -->
-      <NewVersionBanner
-        page-url="./"
-        entry="index"
-        note="save your results first; a running search stops at the reload"
-        class="mb-4"
+      <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. Hidden while the egg-beta
+           timed reload shows (same place on screen, and it says the same thing with a time). -->
+      <div v-show="!eggBetaActive">
+        <NewVersionBanner
+          page-url="./"
+          entry="index"
+          note="save your results first; a running search stops at the reload"
+          class="mb-4"
+        />
+      </div>
+      <!-- EGG-BETA ONLY (lib/eggBetaReload.ts): compiled in only when the build had AAP_EGG_BETA_RELOAD_AT, and then
+           shown only on the egg-beta host. -->
+      <component
+        :is="EggBetaReloadBanner"
+        v-if="EggBetaReloadBanner"
+        :busy="eggBetaBusy"
+        @active="(a: boolean) => (eggBetaActive = a)"
       />
       <!-- Site storage blocked (lib/storageGuard.ts): the page runs on memory, so say nothing will be kept. -->
       <p
@@ -804,7 +815,7 @@
 
 <script setup lang="ts">
 import { formatMoment } from '@/lib/clock';
-import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, type FunctionalComponent } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
   FIRST_LOAD_ROUTE,
   LAST_ROUTE_KEY,
@@ -896,6 +907,7 @@ import { computeDependencies } from '@/lib/actions/executor';
 import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
+import { EGG_BETA_RELOAD_BUILD } from '@/lib/eggBetaReload';
 import { storageBlocked } from '@/lib/storageGuard';
 import { STORAGE_WRITE_FAILED_WORDS, storageWriteFailed } from '@/lib/storageWrites';
 import { forgetLinkPlayerId, linkPlayerId } from '@/lib/urlPlayerId';
@@ -1352,6 +1364,15 @@ const { content: myRunsContent } = useMyRunsShown({
   library: () => chainSearchStore.savedRuns.length + chainSearchStore.savedAnswers.length,
 });
 const myRunsRunning = computed(() => searchActive.value || chainSearchStore.isRunning || chainSearchStore.deadlineRunning);
+
+/** EGG-BETA ONLY: the timed reload (lib/eggBetaReload.ts). A build without AAP_EGG_BETA_RELOAD_AT (live, every other
+ *  build) has EGG_BETA_RELOAD_BUILD false, so the banner's chunk is never emitted. It waits while any search or run
+ *  is going, or a finished one is still being sent. */
+const EggBetaReloadBanner = EGG_BETA_RELOAD_BUILD
+  ? defineAsyncComponent(() => import('@/components/EggBetaReloadBanner.vue'))
+  : null;
+const eggBetaBusy = computed(() => myRunsRunning.value || chainSearchStore.resultSending);
+const eggBetaActive = ref(false);
 const myRunsTabShown = computed(
   () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
 );
