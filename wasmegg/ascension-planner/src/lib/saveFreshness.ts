@@ -35,6 +35,11 @@ export const TONE_FLOOR_SECONDS = 3600;
 export const SYNC_AFTER_SECONDS = 24 * 3600;
 /** The virtue farm is named only when its last step is further than this from the backup (as lib/saveAge.ts). */
 export const FARM_NAMED_AFTER_SECONDS = 15 * 60;
+/**
+ * The device clock looks behind once the save's time is this far ahead of it (R7 red-team #6, 31 Oct 2026). Under it,
+ * a save a few minutes "ahead" is as good as just made (phones drift; the game stamps the save with its own clock).
+ */
+export const CLOCK_BEHIND_AFTER_SECONDS = 5 * 60;
 /** The silo time when the save doesn't say: the smallest silos, one at full Silo Capacity. */
 export const SMALLEST_SILO_SECONDS = 3 * 3600;
 
@@ -68,6 +73,9 @@ export interface SaveState {
   siloLeftSeconds: number | null;
   /** S as used (the smallest when unknown). */
   siloSeconds: number;
+  /** How far the save's time is ahead of this device's clock, seconds, when over CLOCK_BEHIND_AFTER_SECONDS; else 0.
+   *  Then the save's true age is unknown: the banner says the clock looks behind (yellow) instead of "just now". */
+  clockBehindSeconds: number;
   /** The worse clock's share of S. */
   fractionUsed: number;
   /** The clock the tone and the reason follow. */
@@ -124,6 +132,10 @@ export function saveState(i: SaveStateInput): SaveState | null {
   const namesFarm = farmAt != null && Math.abs(farmAt - backup) > FARM_NAMED_AFTER_SECONDS;
   const suggestSync = saveAge > SYNC_AFTER_SECONDS;
   const when = dateAt(backup, now, i.zone);
+  // R7 red-team #6: a save ahead of the clock by more than a few minutes. Its age is not known (the device clock is
+  // off), so never green "just now": the clock is named instead (DRAFT words).
+  const behind = backup - now > CLOCK_BEHIND_AFTER_SECONDS ? Math.round(backup - now) : 0;
+  if (behind) return clockBehindState({ behind, when, saveAge, used, left, silo, farmAt, namesFarm, i });
 
   // ---- the words (DRAFT: Words reviews)
   const headline =
@@ -178,6 +190,7 @@ export function saveState(i: SaveStateInput): SaveState | null {
     siloUsedSeconds: used,
     siloLeftSeconds: left,
     siloSeconds: silo,
+    clockBehindSeconds: 0,
     fractionUsed: Math.max(saveAge, used ?? 0) / silo,
     driver,
     namesFarm,
@@ -188,6 +201,46 @@ export function saveState(i: SaveStateInput): SaveState | null {
     details,
     runNote: tone === 'red' ? `${reason} ${headline}.` : null,
     link: tone === 'green' ? 'Load a fresh one' : 'Load a fresh save',
+  };
+}
+
+/** The banner when the device clock looks behind the save (`saveState`'s `behind`): yellow, its own word. */
+function clockBehindState(o: {
+  behind: number;
+  when: string;
+  saveAge: number;
+  used: number | null;
+  left: number | null;
+  silo: number;
+  farmAt: number | null;
+  namesFarm: boolean;
+  i: SaveStateInput;
+}): SaveState {
+  const lines = toneLines(o.silo);
+  const details = [`Save: from ${o.when}, ${ageWords(o.behind)} ahead of this device's clock.`];
+  if (o.farmAt != null) details.push(`Virtue farm last ran: ${dateAt(o.farmAt, o.i.nowSeconds, o.i.zone)}.`);
+  details.push(
+    `Getting old after ${ageWords(lines.yellowAt)}, out of date after ${ageWords(lines.redAt)}: for both the save's age and the silo time used, once the clock is right.`
+  );
+  return {
+    tone: 'yellow',
+    word: 'Check your clock',
+    icon: 'alert',
+    saveAgeSeconds: o.saveAge,
+    siloUsedSeconds: o.used,
+    siloLeftSeconds: o.left,
+    siloSeconds: o.silo,
+    clockBehindSeconds: o.behind,
+    fractionUsed: Math.max(o.saveAge, o.used ?? 0) / o.silo,
+    driver: 'save',
+    namesFarm: o.namesFarm,
+    suggestSync: false,
+    headline: `Your device clock looks behind by about ${ageWords(o.behind)}, so the times here may be off`,
+    reason: `Your save is from ${o.when}, later than this device's clock says it is now, so how old it is can't be told. Set the date and time to automatic, then reload.`,
+    syncLine: null,
+    details,
+    runNote: null,
+    link: 'Load a fresh save',
   };
 }
 
