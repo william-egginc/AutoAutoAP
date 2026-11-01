@@ -397,15 +397,30 @@ export const useFollowStore = defineStore('follow', () => {
     return saves.value[goalKey] ?? { state: 'saved', words: '' };
   }
 
+  /** Goals whose offer's press is under way (`followBetter`): BetterRoutePrompt.vue shows nothing of the offer from
+   *  the press on (R7 red-team QA, 1 Nov 2026: "Keep mine" stayed with no offer); a press that doesn't follow brings
+   *  it back. This page only. */
+  const pressing = ref<Record<string, true>>({});
+  function offerPressed(goalKey: GoalKey | null | undefined): boolean {
+    return !!goalKey && !!pressing.value[goalKey];
+  }
+
   /** "Follow it" on a better result (BetterRoutePrompt.vue, lib/searchPlan.ts `followPrompt`): a Follow press. */
   async function followBetter(goalKey: GoalKey, p: FollowPrompt, deadline: number | null): Promise<boolean> {
-    return follow(goalKey, p.chain, p.source === 'instant' ? 'answer' : 'saved', undefined, {
-      source: p.source,
-      finish: Math.round(p.end),
-      endTE: p.endTE,
-      ...(p.planStart ? { planStart: Math.floor(p.planStart) } : {}),
-      ...(deadline ? { spareSeconds: Math.round(deadline - p.end) } : {}),
-    });
+    pressing.value = { ...pressing.value, [goalKey]: true };
+    try {
+      return await follow(goalKey, p.chain, p.source === 'instant' ? 'answer' : 'saved', undefined, {
+        source: p.source,
+        finish: Math.round(p.end),
+        endTE: p.endTE,
+        ...(p.planStart ? { planStart: Math.floor(p.planStart) } : {}),
+        ...(deadline ? { spareSeconds: Math.round(deadline - p.end) } : {}),
+      });
+    } finally {
+      const { [goalKey]: _done, ...rest } = pressing.value;
+      void _done;
+      pressing.value = rest;
+    }
   }
 
   /**
@@ -504,6 +519,7 @@ export const useFollowStore = defineStore('follow', () => {
     followBetter,
     replanFromSave,
     replanned,
+    offerPressed,
     saveState,
     notSaved,
     saveNow,

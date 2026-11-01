@@ -13,11 +13,13 @@
   reason first, whatever the finishes and over a priced follow too; the press is the same Follow press
   (stores/follow.ts `replanFromSave`). After it, the offer's place says "Now following the answer for this save"
   (REPLAN_DONE_WORDS, DRAFT for Words review, R7 red-team 1 Nov 2026) while the follow is the one that press made and
-  is the answer shown; not after "Follow it", not on load.
+  is the answer shown; not after "Follow it", not on load. The words, the press and "Keep mine" show together or not
+  at all: from a press on (stores/follow.ts `offerPressed`) nothing of the offer shows, and a press that doesn't follow
+  brings it back whole (R7 red-team QA, 1 Nov 2026).
 -->
 <template>
   <div
-    v-if="prompt"
+    v-if="prompt && prompt.words"
     class="rounded-xl border border-indigo-300 bg-indigo-50 px-3 py-2 text-small text-indigo-950 space-y-1.5"
     role="status"
     data-testid="better-route"
@@ -132,7 +134,8 @@ function resultRoutes(): number[][] {
 }
 
 const prompt = computed<FollowPrompt | null>(() => {
-  if (!follows || !props.goalKey || !props.candidate) return null;
+  // From the press on, nothing of the offer (its words, its press and Keep mine go together; R7 red-team QA).
+  if (!follows || !props.goalKey || !props.candidate || follows.offerPressed(props.goalKey)) return null;
   const f = follows.followed(props.goalKey);
   if (!f) return null;
   const source = f.source ?? sourceOfFrom(f.from);
