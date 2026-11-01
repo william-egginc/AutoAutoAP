@@ -170,7 +170,10 @@ describe('the sync suggestion past 24 h, in any tone', () => {
     expect([yellow.tone, yellow.suggestSync]).toEqual(['yellow', true]);
     const green = at(H, { silo: 80 * H, saveAge: 25 * H });
     expect([green.tone, green.suggestSync]).toEqual(['green', true]);
-    expect(green.syncLine).toBe('Your save is over a day old: open Egg, Inc. and let it sync so the save here is up to date.');
+    // Words only on green: yellow and red say "Open Egg, Inc. so it syncs" in the headline (red team R7 M2).
+    expect(green.syncLine).toBe('Open Egg, Inc. and let it sync.');
+    expect(red.syncLine).toBeNull();
+    expect(yellow.syncLine).toBeNull();
   });
 });
 

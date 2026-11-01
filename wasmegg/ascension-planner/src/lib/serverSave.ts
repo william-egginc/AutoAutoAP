@@ -102,9 +102,10 @@ export function serverSaveState(loadedSeconds: number, check: ServerSaveCheck | 
 /** The strip's button when the server has a newer save (it loads it as Load does). */
 export const NEWER_ON_SERVER = 'A newer save is on the server · Load it';
 
-/** The strip's line when the loaded save is the newest on the server: a reload would change nothing. */
+/** The strip's Details line when the loaded save is the newest on the server: a reload would change nothing. A detail,
+ *  not an instruction: "Open the game to update it" was the headline again (red team R7 M2, 1 Nov 2026). DRAFT. */
 export function newestOnServerLine(serverSeconds: number, nowSeconds: number): string {
-  return `This is the newest save on the server (synced ${ageAgo(nowSeconds - serverSeconds)}). Open the game to update it.`;
+  return `This is the newest save on the server (synced ${ageAgo(nowSeconds - serverSeconds)}).`;
 }
 
 /** The tip under it (as carpet's tools say it: the game syncs only while it is open). */

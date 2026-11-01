@@ -145,7 +145,10 @@ describe('the save strip with the server’s answer', () => {
   it('the newest on the server: no reload, the reason, and the tip', async () => {
     const html = await renderHtml(SaveAgeStrip, { state: strip, loading: false, server: { kind: 'newest', serverSeconds: LOADED }, now: NOW });
     const t = textOf(html);
-    expect(t).toContain('This is the newest save on the server (synced 12h ago). Open the game to update it.');
+    expect(t).toContain('This is the newest save on the server (synced 12h ago).');
+    expect(t).not.toContain('Open the game to update it');
+    // A detail, inside the closed Details (red team R7 M2).
+    expect(html).toMatch(/<details[^>]*data-testid="save-details"[^>]*>[\s\S]*data-testid="now-save-newest"[\s\S]*<\/details>/);
     expect(t).toContain(WHY_OUT_OF_DATE.summary);
     expect(t).toContain('Force close the game and open it again so it syncs');
     expect(t).not.toContain('Load a fresh save');

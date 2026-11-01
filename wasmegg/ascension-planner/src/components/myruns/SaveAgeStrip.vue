@@ -12,7 +12,13 @@
 
   The save on the server versus the save loaded here (lib/serverSave.ts, 25 Oct 2026): once the page knows the
   server's save time, a newer one there gets "A newer save is on the server · Load it", and a loaded save that is
-  already the newest says so instead of offering a reload that would change nothing, with why it is old.
+  already the newest offers no reload (it would change nothing): yellow and red then say why it is old ("Why is my
+  save out of date?"), and green, which isn't, says nothing more.
+
+  Each fact once (red team R7 M2, 1 Nov 2026: the red box said "old, open the game" three times): the headline is
+  the one instruction, the reason the one fact; "this is the newest save on the server (synced …)" is a detail,
+  inside the closed Details; past a day the action line is "How to sync ›" (lib/saveFreshness.ts `syncLine` is
+  words only on green, where the headline gives none).
 
   The Auto Planner screens show it too (auto/AutoSaveStrip.vue, ux29 item 4): `slim`, their own `testid`, and
   `loadWords` "Load latest save" (Setup's button) in place of the state's own link words.
@@ -49,8 +55,7 @@
 
     <div class="flex-wrap items-center gap-x-4 min-w-0" :class="quiet || !state ? 'inline-flex' : 'flex mt-1'">
       <template v-if="state && server.kind === 'newest' && !loading">
-        <span data-testid="now-save-newest">{{ newestOnServerLine(server.serverSeconds, now) }}</span>
-        <details class="mt-1 w-full" data-testid="now-save-why">
+        <details v-if="!quiet" data-testid="now-save-why">
           <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer font-bold underline" data-testid="now-save-why-summary">{{ WHY_OUT_OF_DATE.summary }}</summary>
           <p class="mt-1">{{ WHY_OUT_OF_DATE.body }}</p>
         </details>
@@ -58,13 +63,14 @@
       <button v-else type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline disabled:opacity-50" data-testid="now-save-fresh" :disabled="loading" @click="emit('fresh')">
         {{ loading ? 'Loading your save…' : !state ? 'Load your save' : server.kind === 'newer' ? NEWER_ON_SERVER : loadWords || state.link }}<template v-if="!loading"> ›</template>
       </button>
-      <details v-if="state?.syncLine && server.kind !== 'newest'" class="group" data-testid="save-sync-how">
+      <details v-if="state?.suggestSync && server.kind !== 'newest'" class="group" data-testid="save-sync-how">
         <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-sync-how-summary">How to sync ›</summary>
         <p class="mt-1">{{ WHY_OUT_OF_DATE.body }}</p>
       </details>
       <details v-if="state && state.tone !== 'green'" data-testid="save-details">
         <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-details-summary">Details ›</summary>
         <ul class="mt-1 mb-1 space-y-0.5 text-small tabular-nums">
+          <li v-if="server.kind === 'newest'" data-testid="now-save-newest">{{ newestOnServerLine(server.serverSeconds, now) }}</li>
           <li v-for="d in state.details" :key="d">{{ d }}</li>
         </ul>
       </details>
