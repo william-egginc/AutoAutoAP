@@ -73,9 +73,12 @@ describe('EggBetaReloadBanner', () => {
   it('App.vue: compiled in only for an egg-beta build, waits for searches, hides the reload ask while it shows', () => {
     const app = fs.readFileSync(path.join(__dirname, '../App.vue'), 'utf8');
     expect(app).toMatch(
-      /const EggBetaReloadBanner = EGG_BETA_RELOAD_BUILD\s*\?\s*defineAsyncComponent\(\(\) => import\('@\/components\/EggBetaReloadBanner\.vue'\)\)\s*:\s*null;/
+      /const EggBetaReloadBanner = __AAP_EGG_BETA_RELOAD__\s*\?\s*defineAsyncComponent\(\(\) => import\('@\/components\/EggBetaReloadBanner\.vue'\)\)\s*:\s*null;/
     );
     expect(app).toMatch(/const eggBetaBusy = computed\(\(\) => myRunsRunning\.value \|\| chainSearchStore\.resultSending\);/);
     expect(app).toMatch(/<div v-show="!eggBetaActive">\s*<NewVersionBanner/);
+    expect(app).not.toMatch(/import [^;]*eggBetaReload/);
+    const vitestConfig = fs.readFileSync(path.join(__dirname, '../../vitest.config.ts'), 'utf8');
+    expect(vitestConfig).toMatch(/__AAP_EGG_BETA_RELOAD__:\s*'false'/);
   });
 });

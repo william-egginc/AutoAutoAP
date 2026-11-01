@@ -27,10 +27,6 @@ export const WAIT_POLL_MS = 15_000;
 /** How often version.json is read again (a later build may drop or move the deadline). */
 export const FETCH_EVERY_MS = 60_000;
 
-/** This build has the timed reload compiled in (vite.config.ts; absent in specs and dev). */
-export const EGG_BETA_RELOAD_BUILD: boolean =
-  typeof __AAP_EGG_BETA_RELOAD__ === 'boolean' ? __AAP_EGG_BETA_RELOAD__ : false;
-
 export type EggBetaState =
   | { kind: 'none' }
   | { kind: 'countdown'; reloadAt: string; msLeft: number }

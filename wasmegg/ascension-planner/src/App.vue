@@ -907,7 +907,6 @@ import { computeDependencies } from '@/lib/actions/executor';
 import { restoreFromSnapshot } from '@/lib/actions/snapshot';
 import { computeSnapshot } from '@/engine/compute';
 import NewVersionBanner from '@/components/NewVersionBanner.vue';
-import { EGG_BETA_RELOAD_BUILD } from '@/lib/eggBetaReload';
 import { storageBlocked } from '@/lib/storageGuard';
 import { STORAGE_WRITE_FAILED_WORDS, storageWriteFailed } from '@/lib/storageWrites';
 import { forgetLinkPlayerId, linkPlayerId } from '@/lib/urlPlayerId';
@@ -1366,9 +1365,11 @@ const { content: myRunsContent } = useMyRunsShown({
 const myRunsRunning = computed(() => searchActive.value || chainSearchStore.isRunning || chainSearchStore.deadlineRunning);
 
 /** EGG-BETA ONLY: the timed reload (lib/eggBetaReload.ts). A build without AAP_EGG_BETA_RELOAD_AT (live, every other
- *  build) has EGG_BETA_RELOAD_BUILD false, so the banner's chunk is never emitted. It waits while any search or run
+ *  build) has __AAP_EGG_BETA_RELOAD__ replaced by `false` here (vite.config.ts; vitest.config.ts too), so the banner, its
+ *  chunk and lib/eggBetaReload.ts are left out of the build. Used bare on purpose: a constant from another module is
+ *  not folded, and left the chunk in. It waits while any search or run
  *  is going, or a finished one is still being sent. */
-const EggBetaReloadBanner = EGG_BETA_RELOAD_BUILD
+const EggBetaReloadBanner = __AAP_EGG_BETA_RELOAD__
   ? defineAsyncComponent(() => import('@/components/EggBetaReloadBanner.vue'))
   : null;
 const eggBetaBusy = computed(() => myRunsRunning.value || chainSearchStore.resultSending);

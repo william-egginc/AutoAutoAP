@@ -12,7 +12,7 @@ declare module '*.vue' {
 declare const __BUILD_TIME__: string;
 
 /** True only in a build made with AAP_EGG_BETA_RELOAD_AT set (vite.config.ts, lib/versionJson.ts): the egg-beta timed
- *  reload (lib/eggBetaReload.ts) is compiled in. Absent in tests and dev. */
+ *  reload (lib/eggBetaReload.ts) is compiled in. False in specs (vitest.config.ts). */
 declare const __AAP_EGG_BETA_RELOAD__: boolean;
 
 /** The `at` of each release.ts history entry this bundle was built with (vite.config.ts): the banner
