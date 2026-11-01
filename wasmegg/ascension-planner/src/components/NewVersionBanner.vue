@@ -8,6 +8,8 @@
        a dark drop shadow, because the page is full of pale amber notices and a floating banner in
        the same colours disappears into whichever one it is passing over. "Later" hides it for ten
        minutes, never for good -- the tab is still running old code. -->
+  <!-- Long notes wrap at any width (red team R7: one 200-character word ran past the right edge): each notes list may
+       break anywhere, and the text column is a flex child that can shrink (min-w-0, a 14rem basis, no fixed minimum). -->
   <!-- A SMALL update (wording, looks): a small note in the corner, dismissible for good. Players
        asked for the difference: the same loud banner on every deploy taught them to ignore it, and
        they could not tell a real fix from a wording change (2026-09-25).
@@ -24,7 +26,7 @@
     data-testid="update-banner-small"
   >
     <p class="text-body max-w-prose"><span class="font-bold text-slate-900">Small update available</span>.</p>
-    <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-body space-y-0.5" data-testid="update-notes">
+    <ul v-if="hasNotes" class="mt-1 list-disc pl-4 text-body space-y-0.5 [overflow-wrap:anywhere]" data-testid="update-notes">
       <li v-for="n in shown" :key="n.key" data-testid="update-note">
         <span class="tabular-nums text-slate-500">{{ n.date }}</span
         >{{ ' '
@@ -70,10 +72,10 @@
     role="status"
     data-testid="update-banner-big"
   >
-    <div class="text-body flex-1 min-w-[14rem]">
+    <div class="min-w-0 flex-[1_1_14rem] text-body">
       <span class="font-bold">New on the planner</span><template v-if="hasNotes">:</template
       ><template v-else>.</template>
-      <ul v-if="hasNotes" class="mt-1 list-disc pl-4 space-y-0.5" data-testid="update-notes">
+      <ul v-if="hasNotes" class="mt-1 list-disc pl-4 space-y-0.5 [overflow-wrap:anywhere]" data-testid="update-notes">
         <li v-for="n in shown" :key="n.key" data-testid="update-note">
           <span class="tabular-nums text-sky-800">{{ n.date }}</span
           >{{ ' '
@@ -117,9 +119,9 @@
          feature list, and read as the fix it said the new Explorer views were something this tab
          could run into (review, 2026-09-27). The advice is its own sentence. The list has no lead-in
          ("Also new:" until 28 Oct 2026): it now holds older notes too, and "New" tags the newer ones. -->
-    <div class="text-body font-bold flex-1 min-w-[14rem]">
+    <div class="min-w-0 flex-[1_1_14rem] text-body font-bold [overflow-wrap:anywhere]">
       Please reload: this tab is missing a fix from a newer version.{{ advice }}
-      <ul v-if="hasNotes" class="mt-1 list-disc pl-4 font-normal space-y-0.5" data-testid="update-notes">
+      <ul v-if="hasNotes" class="mt-1 list-disc pl-4 font-normal space-y-0.5 [overflow-wrap:anywhere]" data-testid="update-notes">
         <li v-for="n in shown" :key="n.key" data-testid="update-note">
           <span class="tabular-nums text-amber-800">{{ n.date }}</span
           >{{ ' '

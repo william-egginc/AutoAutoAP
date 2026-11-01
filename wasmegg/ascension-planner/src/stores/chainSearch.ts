@@ -315,7 +315,7 @@ import {
   readFirstAscension,
   type FirstAscension,
 } from '@/search/firstAscension';
-import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
+import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, runIdentity, type RunSummary } from '@/search/runLibrary';
 import {
   holdRunSave,
   listRunSaves,
@@ -2549,6 +2549,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     await refreshKeptSaves(hash);
   }
 
+  /**
+   * Keep the run on screen in Saved runs. The same run saved again (search/runLibrary.ts `runIdentity`: same kind,
+   * target, route, save and inputs) replaces its entry, saved now, under the name it had unless one is typed.
+   */
   async function saveCurrentRun(playerId: string, label?: string): Promise<RunSummary | null> {
     if (!bestChain.value.length || bestDays.value <= 0) return null;
     const hash = await hashID(playerId);
@@ -2564,6 +2568,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const summary = await saveRun(hash, {
       save,
       label: label?.trim() || defaultRunLabel(finalTE.value, bestChain.value, bestDays.value),
+      named: !!label?.trim(),
       currentTE: runTEUsed ?? currentTE.value,
       // The run's own target -- its chain ends there -- not the target box as it reads now, which the
       // player may have changed since the run finished.
@@ -2592,6 +2597,30 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     await pruneKept(hash);
     return summary;
   }
+  /** The run on screen is in Saved runs (Save this run says Saved ✓): what `saveCurrentRun` would file it under. The
+   *  save is read as there (its stored key, else when the game took it); a save only `entrySaveFor` finds, and no
+   *  key, reads as none here, so the button may say Save this run for a run that is saved: pressing it then
+   *  refreshes the entry, never a second one. */
+  const currentRunSaved = computed(() => {
+    if (!bestChain.value.length || bestDays.value <= 0) return false;
+    const opened = openedRun.value;
+    const inputsKey = (opened ? opened.inputsKey : runInputsKey) || undefined;
+    const backupAt = opened
+      ? (opened.save?.backupAt ?? null)
+      : (accountUsed?.backupTime ?? (runBackupUsed as { approxTime?: number } | null)?.approxTime ?? null);
+    const fp = opened?.fingerprint ?? (runFingerprint || (currentPlayerId ? fingerprint(currentPlayerId) : ''));
+    const key = runIdentity({
+      finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
+      effort: effort.value,
+      bestChain: bestChain.value,
+      space: searchSpace.value ?? undefined,
+      fingerprint: fp || undefined,
+      inputsKey,
+      save: typeof backupAt === 'number' ? { key: '', te: 0, backupAt } : null,
+    });
+    // No fingerprint known here (a result shown before any run recorded one): matched on the rest.
+    return key !== null && savedRuns.value.some(r => runIdentity(fp ? r : { ...r, fingerprint: undefined }) === key);
+  });
 
   /**
    * Reload a saved run into the panel as a finished result.
@@ -9938,6 +9967,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     savedRuns,
     refreshSavedRuns,
     saveCurrentRun,
+    currentRunSaved,
     openSavedRun,
     deleteSavedRun,
     seedOverride,

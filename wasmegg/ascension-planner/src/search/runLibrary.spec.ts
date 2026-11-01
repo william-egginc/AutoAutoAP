@@ -73,8 +73,9 @@ describe('runLibrary', () => {
   });
 
   it('lists newest first', async () => {
+    // Two different runs (another route): the same run saved twice is one entry (runIdentity).
     await saveRun(P, input({ id: 'old', label: 'older', now: 1000 }));
-    await saveRun(P, input({ id: 'new', label: 'newer', now: 2000 }));
+    await saveRun(P, input({ id: 'new', label: 'newer', now: 2000, bestChain: [195, 231, 290, 490] }));
     expect((await listRuns(P)).map(r => r.label)).toEqual(['newer', 'older']);
   });
 
@@ -88,7 +89,7 @@ describe('runLibrary', () => {
 
   it('evicts the oldest past the cap and deletes its body with it', async () => {
     for (let i = 0; i <= MAX_RUNS; i++) {
-      await saveRun(P, input({ id: `r${i}`, label: `run ${i}`, now: 1000 + i }));
+      await saveRun(P, input({ id: `r${i}`, label: `run ${i}`, now: 1000 + i, bestChain: [200 + i, 490] }));
     }
     const list = await listRuns(P);
     expect(list).toHaveLength(MAX_RUNS);
@@ -160,6 +161,35 @@ describe('runLibrary', () => {
     const summary = (await listRuns(P))[0];
     expect('space' in summary).toBe(false);
     expect('fingerprint' in summary).toBe(false);
+  });
+
+  it('a Custom run carried on is still that run; other boxes are another run', async () => {
+    const space = {
+      mode: 'bands' as const,
+      bands: [[240, 245]],
+      minGap: 0,
+      minAscensions: 2,
+      maxAscensions: 2,
+      chains: 2,
+      chainsPriced: 1,
+      stoppedEarly: true,
+    };
+    await saveRun(P, input({ label: 'mine', complete: false, space, fingerprint: 'fp', now: 1000 }));
+    await saveRun(
+      P,
+      input({
+        label: '',
+        complete: true,
+        space: { ...space, chainsPriced: 2, stoppedEarly: false },
+        fingerprint: 'fp',
+        now: 2000,
+      })
+    );
+    let list = await listRuns(P);
+    expect(list.map(r => [r.label, r.complete, r.savedAt])).toEqual([['mine', true, 2000]]);
+    await saveRun(P, input({ space: { ...space, bands: [[240, 246]] }, fingerprint: 'fp', now: 3000 }));
+    list = await listRuns(P);
+    expect(list).toHaveLength(2);
   });
 
   it('falls back to a name rather than saving an untitled blank', async () => {
