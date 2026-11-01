@@ -337,7 +337,7 @@ import {
   type EntrySave,
   type KeptSaveSummary,
 } from '@/search/keptSaves';
-import { idFromScreen, scrubPlayerIds } from '@/lib/saveScrub';
+import { blankDeviceIds, idFromScreen, scrubPlayerIds } from '@/lib/saveScrub';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -7386,7 +7386,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
       return null;
     }
-    return { name: saveFileName(save, planTimezone()), text: scrubPlayerIds(backupText(raw)) };
+    // The device identifiers blank too (R7 red team, finding 1).
+    return { name: saveFileName(save, planTimezone()), text: scrubPlayerIds(backupText(blankDeviceIds(raw))) };
   }
 
   /**

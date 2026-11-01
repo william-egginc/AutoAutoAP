@@ -50,6 +50,22 @@ export function* scrubParts(parts: Iterable<BlobPart>): Generator<BlobPart> {
   if (carry) yield scrubPlayerIds(carry);
 }
 
+/**
+ * A save's other persistent identifiers (QA's R7 red team, finding 1): the device, the Game Center / Play Games
+ * player and the push-notification user. The page reads none of them (checked by grep, 1 Nov 2026), so a downloaded
+ * save carries them blank. `userName` stays (the name over the ID box; pending Jordan). `checksum` stays: the file is
+ * the backup as plain JSON (no container), and nothing checks the checksum when a file is loaded back.
+ */
+export const DEVICE_ID_FIELDS = ['deviceId', 'gameServicesId', 'gameServicesIdScoped', 'pushUserId'] as const;
+
+/** A copy of a save with `DEVICE_ID_FIELDS` blank (only those present; nothing added). `raw` is not changed. */
+export function blankDeviceIds<T>(raw: T): T {
+  if (!raw || typeof raw !== 'object') return raw;
+  const copy = { ...(raw as Record<string, unknown>) };
+  for (const f of DEVICE_ID_FIELDS) if (f in copy && copy[f] != null) copy[f] = '';
+  return copy as T;
+}
+
 /** The account fields of a save that the page reads (search/runSaves.ts `accountOf`, the stores' `eiUserId`). */
 type SaveIds = { eiUserId?: string | null; userId?: string | null };
 
