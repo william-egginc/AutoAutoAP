@@ -92,6 +92,8 @@ export interface TileAnswer {
   exactConfirmsTE?: boolean;
   runnerUpHours?: number | null;
   olderSimulator?: boolean;
+  /** An instant answer an older build worked out (NowPlan `olderCode`, Release 7). */
+  olderCode?: boolean;
   hoursChanged?: boolean;
   /** A board run this browser didn't send (not on /mine): a "looks like yours" row from another browser or site. */
   otherBrowser?: boolean;
@@ -222,6 +224,7 @@ function candidates(i: TileInput): TileAnswer[] {
     runnerUpSame: !!s.runnerUp && s.runnerUp.end === s.end && s.runnerUp.endTE === s.endTE,
     plan: true,
     ownKey: own,
+    ...(s.olderCode ? { olderCode: true } : {}),
     setup: own ? ownSetup : setup,
     hoursChanged: setup?.fit === 'other',
   });
@@ -387,6 +390,7 @@ function finish(
     runnerUpHours: pick.runnerUpHours ?? null,
     ageDays: ageMs / 86_400_000,
     olderSimulator: pick.olderSimulator,
+    olderCode: pick.olderCode,
     hoursChanged: pick.hoursChanged,
     teMoved: i.save != null && pick.fromTE != null && Math.floor(pick.fromTE) !== Math.floor(i.save.te),
     te: pick.endTE,

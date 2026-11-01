@@ -12,6 +12,7 @@ import { useBuildUpTracker, buildUpWanted } from './useBuildUpTracker';
 import { buildUpSimGap, simAskedFor } from './useNowPage';
 import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
 import { ANCHOR_KEY_PREFIX } from '@/lib/buildUpTracker';
+import { resultCode } from '@/lib/resultCode';
 import { DEBUG_KEY, buildUpLog } from '@/lib/buildUpDebug';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import type { LegSummary, SearchInputs } from '@/search/types';
@@ -251,7 +252,8 @@ describe('useBuildUpTracker: a kept tracker plan that is empty or corrupt is no 
     scope.stop();
   });
   it('a good one is ready', () => {
-    mem.set(ANCHOR_KEY_PREFIX + 'acct-hash', JSON.stringify({ ascensionStart: A1, saveSeconds: 1, plan: fixturePlan() }));
+    // Kept by this build's code (lib/resultCode.ts).
+    mem.set(ANCHOR_KEY_PREFIX + 'acct-hash', JSON.stringify({ ascensionStart: A1, saveSeconds: 1, plan: fixturePlan(), rc: resultCode() }));
     const { t, scope } = setup();
     expect(t.state.value).toBe('ready');
     scope.stop();

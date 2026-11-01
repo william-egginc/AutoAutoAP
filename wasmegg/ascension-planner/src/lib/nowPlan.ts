@@ -21,6 +21,7 @@ import type { StepLeg, StepLine } from './instantSteps';
 import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './planPace';
 import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
 import { estimatedOpening } from './openingShifts';
+import { sameResultCode } from './resultCode';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
 export interface SnapRoute {
@@ -87,6 +88,8 @@ export interface SnapLike {
   /** The last Fast, Exact or Custom result for this goal and save (lib/searchPlan.ts `SnapSearch`; since 23 Oct
    *  2026). Read with `readSearch`. */
   search?: unknown;
+  /** The code that worked it out (lib/resultCode.ts, Release 7); absent before. */
+  rc?: string;
 }
 
 export interface NowPlan {
@@ -130,6 +133,9 @@ export interface NowPlan {
   runnerUp?: { chain: number[]; end: number; endTE: number } | null;
   meta: SnapMeta | null;
   whatIf: SnapWhatIf | null;
+  /** From an instant answer an older build worked out (its snapshot's `rc`, lib/resultCode.ts; Release 7): How sure
+   *  says so (lib/howSure.ts). Absent: this build's (or not from a snapshot). */
+  olderCode?: true;
 }
 
 const key = (chain: readonly number[]) => chain.join(',');
@@ -154,6 +160,7 @@ export function planFromSnapshot(
     planStart: typeof snap.answerStart === 'number' ? snap.answerStart : null,
     meta: snap.meta ?? null,
     whatIf: snap.whatIf ?? null,
+    ...(sameResultCode(snap.rc) ? {} : { olderCode: true as const }),
   };
   if (goal === 'fastest') {
     const routes = (snap.result.byAscensions ?? []).filter((r): r is SnapRoute => !!r && Array.isArray(r.chain));

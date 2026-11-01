@@ -16,6 +16,7 @@
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { SnapMeta } from '@/search/instantSnapshot';
 import type { NowPlan } from './nowPlan';
+import { resultCode } from './resultCode';
 
 /** The game's highest TE: a route's last stop can't be above it. */
 const MAX_TE = 490;
@@ -203,7 +204,11 @@ export interface PricingRecord {
  *  Since 26 Oct 2026 (My runs works the record out itself on a Setup change, composables/useInstantCompute.ts) also
  *  the plan's time zone (the no-prestige days are whole local dates read in it), "hold my shifts for my hours" (only
  *  with the hours: it holds nothing without them) and the target; records kept before read as another setup and are
- *  worked out again once. */
+ *  worked out again once.
+ *
+ *  Since Release 7 also the code that worked it out (lib/resultCode.ts): a record kept by an older build reads as
+ *  another setup, so it is worked out again (composables/useInstantCompute.ts) and only priced from meanwhile, marked
+ *  stale (`staleRecordSources`). */
 export function pricingSetupKey(o: {
   availability: unknown;
   timeOff: unknown;
@@ -226,6 +231,7 @@ export function pricingSetupKey(o: {
     o.zone,
     o.useHours ? !!o.deferShifts : null,
     o.target,
+    resultCode(),
   ]);
 }
 

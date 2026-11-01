@@ -8,6 +8,7 @@ import { effectScope, nextTick, ref, type Ref } from 'vue';
 import { buildUpWanted, useBuildUpTracker } from './useBuildUpTracker';
 import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
 import { ANCHOR_KEY_PREFIX, foldChoiceKey, ticksKey, unticksKey } from '@/lib/buildUpTracker';
+import { resultCode } from '@/lib/resultCode';
 import { farmOfStart, type SaveFarm } from '@/lib/buildUpBought';
 import type { BuildUpPlan } from '@/search/buildUpActions';
 import { BUILDUP_PLAN_KEY } from '@/lib/followSim';
@@ -357,7 +358,8 @@ describe('useBuildUpTracker Phase 2: Re-plan from this save', () => {
 
 describe('useBuildUpTracker Phase 2: a plan kept before Phase 2 (no anchor farm)', () => {
   it('starting afresh, on a newer save: nothing automatic (it could be from before the prestige); the checkbox still works', async () => {
-    const old = { ascensionStart: A1, saveSeconds: mt(10, 30, 8, 41), plan: fixturePlan() };
+    // Kept by this build's code (lib/resultCode.ts; an older build's is planned again: resultCodeRecalc.spec.ts).
+    const old = { ascensionStart: A1, saveSeconds: mt(10, 30, 8, 41), plan: fixturePlan(), rc: resultCode() };
     mem.set(ANCHOR_KEY_PREFIX + 'acct-hash', JSON.stringify(old));
     const { t, scope } = setup({ saveFarm: ref(farmWith(FIRST_LINE)), saveSeconds: ref(mt(10, 30, 12, 5)) });
     expect(t.plan.value?.anchorFarm).toBeUndefined();

@@ -16,6 +16,7 @@ import FollowHistory from './FollowHistory.vue';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import type { LegSummary } from '@/search/types';
 import { readSnapshot, instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import { KEEP_MINE_KEY, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
 import { accountOf } from '@/search/runSaves';
 import { instantGoal } from '@/search/instantSnapshot';
@@ -85,6 +86,7 @@ async function eggDayWithFastResult(followed: Record<string, unknown> | null, ke
     planStart: now - H,
   };
   writeSnapshot(key, {
+    rc: resultCode(),
     at: Date.now() - 60_000,
     header: {},
     result: { best: null, byAscensions: [], byDate: { chain: [200, 238], end: eggDayAt - 2 * D, legs: [{ to: 200, endTE: 200, start: now - H, end: now + 30 * H }, { to: 238, endTE: 238, start: now + 30 * H, end: eggDayAt - 2 * D }] } },
@@ -101,7 +103,7 @@ async function eggDayWithFastResult(followed: Record<string, unknown> | null, ke
       setup: { availability: store.availability ? JSON.parse(JSON.stringify(store.availability)) : null, timeOff: JSON.parse(JSON.stringify(store.timeOff ?? [])) },
       search: found,
     });
-  else writeSnapshot(key, { ...(readSnapshot(key) as object), search: found } as never);
+  else writeSnapshot(key, { rc: resultCode(), ...(readSnapshot(key) as object), search: found } as never);
   if (followed) mem.set(`${FOLLOW_PREFIX}${await hashID(A_ID)}`, JSON.stringify({ [goalKey]: followed }));
   const follows = useFollowStore();
   await vi.waitFor(() => expect(follows.partition).not.toBe(''));

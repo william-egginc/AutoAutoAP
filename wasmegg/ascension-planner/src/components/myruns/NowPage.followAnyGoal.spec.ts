@@ -14,6 +14,7 @@ import { createPinia, getActivePinia, setActivePinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import { instantGoal, instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import { accountOf } from '@/search/runSaves';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
@@ -91,6 +92,7 @@ async function setUp(goal: Goal, followed: Record<string, unknown>, kept = true)
   };
   if (kept)
     writeSnapshot(key, {
+    rc: resultCode(),
     at: Date.now() - 60_000,
     header: {},
     result: goal.kind === 'date' ? { best: null, byAscensions: [], byDate: route } : { best: route, byAscensions: [] },

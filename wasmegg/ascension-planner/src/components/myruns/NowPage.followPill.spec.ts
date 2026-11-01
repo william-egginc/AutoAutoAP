@@ -12,6 +12,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary } from '@/search/types';
 import { instantSnapKey, writeSnapshot, type SnapWhatIf } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import type { SnapSearch } from '@/lib/searchPlan';
 import { followOptionWords, goalFollowOf } from '@/lib/planGoals';
 import { syntheticBackup } from '@/test/syntheticSave';
@@ -136,6 +137,7 @@ async function setup(
     },
   };
   writeSnapshot(key, {
+    rc: resultCode(),
     at: Date.now() - 60_000,
     header: { from: 100, to: o.tableTo ?? 490 },
     tableUrl: TABLE,

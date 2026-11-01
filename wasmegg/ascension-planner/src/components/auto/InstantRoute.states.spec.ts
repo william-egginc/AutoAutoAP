@@ -208,6 +208,7 @@ function ctxOf(s: State): Record<string, unknown> {
     saveWaitText: s.saveWait ? 'Waiting for your save to load…' : '',
     savedAt: s.saved ? 1_792_000_000_000 : null,
     staleAt: null,
+    staleOlder: false,
     seeResult: () => {},
     setInsideHours: () => {},
     shareNote: null,
@@ -620,6 +621,14 @@ describe('cached answers first, then recheck (Jordan, 27 Oct 2026)', () => {
       // One mark, not the old "previous one" sentence beside it.
       expect(html).not.toContain('The answer below is the previous one');
     }
+  });
+
+  it('an answer an older build worked out (Release 7, lib/resultCode.ts): "From <time> (older version), checking…" (DRAFT words)', async () => {
+    const html = await draw(at('fastest', false), { staleAt: 1_792_000_000_000, staleOlder: true });
+    const mark = html.slice(html.lastIndexOf('<p', html.indexOf('data-testid="instant-stale"')));
+    expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000 (older version), checking…');
+    const fresh = await draw(at('fastest', false), { staleAt: 1_792_000_000_000 });
+    expect(textOf(fresh)).not.toContain('(older version)');
   });
 
   it('while stale, Follow is held (stale on every Follow button) and the better-route prompt is not drawn', async () => {

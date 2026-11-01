@@ -22,6 +22,7 @@ import { createPinia, getActivePinia, setActivePinia } from 'pinia';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import { instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import { INSTANT_RULES, savedAnswerFits, tablesIdentity } from '@/search/instantTables';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
@@ -87,6 +88,7 @@ async function jordan() {
   const goalKey = `eggday-${nextEggDayYear()}`;
   // The old build's snapshot: its own route (200 → 238) and no `pricing` field at all.
   writeSnapshot(instantSnapKey(instantKeyFromStores(eggDayAt, store.finalTE)), {
+    rc: resultCode(),
     at: Date.now() - 60_000,
     header: { from: 100, to: 490 },
     tableUrl: TABLE,
@@ -267,8 +269,8 @@ describe('the pricing record and the saved answers from before it', () => {
     expect(INSTANT_RULES).toBe('2026-10-26-boxprestige');
     const now = tablesIdentity([], ['table-v2.bin']);
     const before = now!.replace(`rules=${INSTANT_RULES}`, 'rules=2026-10-24-heldfix');
-    expect(savedAnswerFits({ tables: before }, 1, now)).toBe(false);
-    expect(savedAnswerFits({ tables: now }, 1, now)).toBe(true);
+    expect(savedAnswerFits({ tables: before, rc: resultCode() }, 1, now)).toBe(false);
+    expect(savedAnswerFits({ tables: now, rc: resultCode() }, 1, now)).toBe(true);
   });
 
   it('InstantRoute keeps the record the moment the first answer is in, and again when a saved one is put back', () => {

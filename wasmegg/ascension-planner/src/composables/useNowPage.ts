@@ -140,6 +140,7 @@ import {
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
 import { keepHeld, readHeld } from '@/lib/heldEstimate';
+import { sameResultCode } from '@/lib/resultCode';
 import { useAnswersStore } from '@/stores/answers';
 import { useInstantCompute, type InstantComputeRequest } from './useInstantCompute';
 import { useBoardRunLegs, type BoardRunWant, type RunCsvFetch } from './useBoardRunLegs';
@@ -229,6 +230,9 @@ export interface FollowCard {
    *  save's pricing record while this one's is worked out, or the estimate shown last while it is priced again. Right
    *  now says "From <time>, checking…" and its pill "· checking…". Absent: worked out for this save and setup. */
   staleAt?: number;
+  /** With `staleAt`: those times were worked out by an older build of the page (lib/resultCode.ts, Release 7): "From
+   *  <time> (older version), checking…". */
+  staleOlder?: true;
   /** Right now's words for whose route it is: "your pick" (a Follow press), "from the instant answer" or "from your
    *  Fast run" (the first answer, followed on its own, lib/followPolicy.ts). Absent: "your pick". */
   label?: string;
@@ -388,6 +392,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       parsed.set(snapKey, s && s.result && snapshotUsable(s, GEAR_RULE) ? s : null);
     }
     return parsed.get(snapKey) ?? null;
+  }
+  /** The snapshot when this build's code worked it out (lib/resultCode.ts), else null: what prices a followed route. */
+  function codeSnap<T extends SnapLike>(s: T | null): T | null {
+    return s && sameResultCode(s.rc) ? s : null;
   }
   function lastCheckedOf(answerKey: string | null): { at: number; chain: number[]; end: number; endTE: number } | null {
     if (!answerKey || typeof localStorage === 'undefined') return null;
@@ -732,7 +740,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const snaps: FollowSnap[] = [];
     const seen = new Set<string>();
     const own = instantSnapKey(keys.value[gi]?.key ?? null);
-    const ownSnap = snapOf(own);
+    // RELEASE 7 (lib/resultCode.ts): a followed route is never priced on an answer an older build worked out; its
+    // times are worked out again (the pricing record, then the estimate), shown meanwhile as from before.
+    const ownSnap = codeSnap(snapOf(own));
     if (own && ownSnap) {
       seen.add(own);
       snaps.push({ snap: ownSnap, startTE: teSoFar.value, ownKey: true, check: currentSetup(sn.setup) });
@@ -743,7 +753,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       for (const e of [...index.value].reverse()) {
         const m = e.meta;
         if (!m || m.account !== acct || m.goal !== words || seen.has(e.key)) continue;
-        const sp = snapOf(e.key);
+        const sp = codeSnap(snapOf(e.key));
         if (!sp) continue;
         seen.add(e.key);
         const te = Array.isArray(m.teByEgg) && m.teByEgg.length ? m.teByEgg.reduce((a, b) => a + b, 0) : null;
@@ -859,7 +869,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     void recordsRead.value;
     const sources: PricingSource[] = [];
     keys.value.forEach(({ d, key }) => {
-      const s = snapOf(instantSnapKey(key)) as (SnapLike & { pricing?: unknown; tableUrl?: unknown; header?: { to?: unknown } | null }) | null;
+      // Never an older build's pricing (Release 7): the record is worked out again instead (`instantNeed`).
+      const s = codeSnap(snapOf(instantSnapKey(key))) as (SnapLike & { pricing?: unknown; tableUrl?: unknown; header?: { to?: unknown } | null }) | null;
       const pricing = s ? readPricing(s.pricing) : null;
       if (!s || !pricing || typeof s.tableUrl !== 'string') return;
       const to = s.header?.to;
@@ -1018,10 +1029,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     }
     if (st.card.price !== 'none' || !HOLDING.has(st.card.estimating ?? '')) return st;
     const last = shownLast.get(key);
-    const held =
+    const held: { at: number; card: FollowCard; plan: CardPlan | null; olderCode?: true } | null =
       last?.plan ? last : readHeld<CardPlan, FollowCard>(account.value, fp.sel.goal.key, st.card.chain);
     if (!held?.plan) return st;
-    const card: FollowCard = { ...held.card, staleAt: held.at };
+    // Never taken for the current one: always marked from before, and said to be an older build's when it is.
+    const { staleOlder: _was, ...heldCard } = held.card;
+    const card: FollowCard = { ...heldCard, staleAt: held.at, ...(held.olderCode ? { staleOlder: true as const } : {}) };
     return { card, plan: { ...held.plan, followed: card } };
   }
   const heldWritten = new Map<string, string>();

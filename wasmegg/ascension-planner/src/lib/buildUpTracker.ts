@@ -63,6 +63,7 @@ import {
   isResearchSaleActive,
 } from './events';
 import { calendarOf } from './clock';
+import { resultCode, sameResultCode } from './resultCode';
 
 /** The minimum gap between check-ins, seconds. */
 export const CHECK_IN_GAP = 60;
@@ -987,6 +988,19 @@ export interface AnchoredPlan {
   /** Phase 2: that save's farm (lib/buildUpBought.ts), so a plan that starts afresh can tell a save from before its
    *  prestige. Absent on plans kept before Phase 2. */
   anchorFarm?: import('./buildUpBought').SaveFarm;
+  /** The code that worked the plan out (lib/resultCode.ts `resultCode()`, stamped by `writeAnchoredPlan`; Release 7).
+   *  A plan kept by an older build (or before this) is dropped once and planned again (`anchoredPlanCurrent`). */
+  rc?: string;
+}
+
+/**
+ * A kept plan this build's code would have worked out (Release 7, lib/resultCode.ts). The plan stays anchored to the
+ * first save of a build-up and is never planned again for a newer save; but one an OLDER BUILD worked out is dropped
+ * and planned again, once (the new one carries this build's code). The player's ticks are kept: they are stored per
+ * account and ascension, by line, apart from the plan.
+ */
+export function anchoredPlanCurrent(a: Pick<AnchoredPlan, 'rc'> | null | undefined): boolean {
+  return !!a && sameResultCode(a.rc);
 }
 
 /** Only what the tracker reads: the build-up part, no engine 'other' actions. */
@@ -1021,7 +1035,7 @@ export function readAnchoredPlan(account: string): AnchoredPlan | null {
 /** Keeps it (compacted) when it fits; false when it could not be kept (it is still shown this visit). */
 export function writeAnchoredPlan(account: string, a: AnchoredPlan): boolean {
   try {
-    const text = JSON.stringify({ ...a, plan: compactPlan(a.plan) });
+    const text = JSON.stringify({ ...a, plan: compactPlan(a.plan), rc: resultCode() });
     if (text.length > ANCHOR_MAX_BYTES) return false;
     localStorage.setItem(ANCHOR_KEY_PREFIX + account, text);
     return true;

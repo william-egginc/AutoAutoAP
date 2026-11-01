@@ -332,9 +332,10 @@
         </p>
       </template>
       <template v-if="card">
-        <!-- Times from before while they are worked out again (useNowPage `staleAt`: cached answers first, then recheck). -->
+        <!-- Times from before while they are worked out again (useNowPage `staleAt`: cached answers first, then recheck).
+             DRAFT words (Release 7 recalc, for the Words review): "(older version)" when an older build worked them out. -->
         <p v-if="follow?.staleAt" class="text-small text-amber-800" role="status" data-testid="now-follow-stale">
-          From {{ showDateTime(follow.staleAt / 1000, zone) }}, checking…
+          From {{ showDateTime(follow.staleAt / 1000, zone) }}{{ follow.staleOlder ? ' (older version)' : '' }}, checking…
         </p>
         <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
              line from the plan's events. -->

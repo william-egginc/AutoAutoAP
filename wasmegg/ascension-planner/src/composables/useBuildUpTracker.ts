@@ -29,6 +29,7 @@ import type { Availability } from '@/search/availability';
 import { BUILDUP_PLAN_KEY } from '@/lib/followSim';
 import { buildUpLog, perfStep } from '@/lib/buildUpDebug';
 import {
+  anchoredPlanCurrent,
   buildUpTracker,
   dropAnchoredPlan,
   planBuys,
@@ -122,9 +123,21 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       // A kept plan with no buys, or no usable ascension start, reads as none (spec-buildcache: an old, corrupt or empty
       // record must never read as "plan present"; spec-noemptybuild: nor one whose list buys nothing, a build-up kept
       // before search/leg.ts stopped offering those).
-      const ok = read && Number.isFinite(read.ascensionStart) && planBuys(read.plan) ? read : null;
+      // Release 7 (lib/resultCode.ts): nor one an older build worked out; it is planned again once, the ticks kept.
+      const usable = read && Number.isFinite(read.ascensionStart) && planBuys(read.plan) ? read : null;
+      const ok = usable && anchoredPlanCurrent(usable) ? usable : null;
       if (a && read && !ok) dropAnchoredPlan(a);
-      buildUpLog(a ? (ok ? `tracker plan read (${ok.plan.actions.length} actions)` : read ? 'tracker plan read but buys nothing: dropped' : 'no tracker plan kept') : 'no account');
+      buildUpLog(
+        a
+          ? ok
+            ? `tracker plan read (${ok.plan.actions.length} actions)`
+            : usable
+              ? 'tracker plan from an older build: dropped, planned again'
+              : read
+                ? 'tracker plan read but buys nothing: dropped'
+                : 'no tracker plan kept'
+          : 'no account'
+      );
       anchored.value = keep(ok);
     },
     { immediate: true }

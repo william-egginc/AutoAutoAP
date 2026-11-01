@@ -13,6 +13,7 @@
  * No Vue, no fetch: InstantRoute.vue reads tables.json and the player's file names.
  */
 import { snapshotUsable } from './instantSnapshot';
+import { resultCode, sameResultCode } from '@/lib/resultCode';
 import type { TableEntry } from './tableBracket';
 
 /**
@@ -41,6 +42,9 @@ export function tablesIdentity(entries: readonly TableEntry[] | null, names: rea
   if (!entries) return null;
   return [
     `rules=${INSTANT_RULES}`,
+    // The code that works the answer out (lib/resultCode.ts, Release 7): its own saved answer and the cloud entry key
+    // (lib/answersCloud.ts `entryKeyOf` hashes this) change with it.
+    `code=${resultCode()}`,
     ...[...new Set(names)].map(n => {
       const e = entries.find(x => x.file === n || x.aliases?.includes(n));
       return `${n}=${e ? entryIdentity(e) : '-'}`;
@@ -55,16 +59,22 @@ export interface SavedTables {
   tableUrl?: string;
   /** `tablesIdentity` when it was worked out; absent on one saved before 24 Oct 2026. */
   tables?: string | null;
+  /** lib/resultCode.ts `resultCode()` when it was worked out; absent on one saved before Release 7. */
+  rc?: string;
 }
 
 /**
  * Whether a saved answer may be shown again instead of working it out: usable as before (instantSnapshot.ts
  * `snapshotUsable`) and made from the tables there are now. One saved before its tables were kept, or with
  * tables.json unreadable then, is worked out again once. With tables.json unreadable now (offline, say), the saved
- * answer stands: nothing could be checked, and it is better than none.
+ * answer stands: nothing could be checked, and it is better than none (if this build's code worked it out).
  */
 export function savedAnswerFits(s: SavedTables | null | undefined, gearRule: number, now: string | null): boolean {
   if (!s || !snapshotUsable(s, gearRule)) return false;
+  // RELEASE 7 (allanfieldhouse: after a reload onto a new build the page kept the old code's answer, as his inputs had
+  // not changed): one worked out by other code (or before answers carried it) is worked out again, even offline. It may
+  // still be shown meanwhile, marked "From <time> (older version), checking…" (InstantRoute.vue `showStale`).
+  if (!sameResultCode(s.rc)) return false;
   if (now === null) return true;
   return typeof s.tables === 'string' && s.tables === now;
 }

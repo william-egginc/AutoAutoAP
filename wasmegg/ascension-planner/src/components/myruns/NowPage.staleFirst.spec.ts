@@ -26,6 +26,7 @@ import { recordPricing, type SnapPricing } from '@/lib/followEstimate';
 import { setChainPricer, type ChainPricer } from '@/composables/useFollowEstimate';
 import { setInstantComputer, setInstantComputeTiming, type InstantPricing } from '@/composables/useInstantCompute';
 import { HELD_ESTIMATE_KEY } from '@/lib/heldEstimate';
+import { setResultCode } from '@/lib/resultCode';
 import type { PolishOptions, Route } from '@/search/routeFinder';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
@@ -59,6 +60,7 @@ afterEach(() => {
   setChainPricer(null);
   setInstantComputer(null);
   setInstantComputeTiming(null);
+  setResultCode(null);
 });
 
 const A_ID = 'EI0000000000000000';
@@ -225,5 +227,55 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
       expect(page.follow.value?.staleAt).toBeUndefined();
     }, { timeout: 8000 });
     scope.stop();
+  }, 30_000);
+
+  /** The page loaded under `build` (lib/resultCode.ts): this save and setup's pricing record kept, an estimate priced
+   *  and held; then the page loaded again under `next`. How many times the record was asked to be worked out again on
+   *  the second load, and the follow as it stood before the route worker answered. */
+  async function reloadUnder(build: string, next: string) {
+    setResultCode(build);
+    const { open, now, eggDayAt, setup, pricingOf, saveAt } = await setUp();
+    recordPricing({ account: accountOf(useInitialStateStore().rawBackup)!, backupTime: useInitialStateStore().lastBackupTime, setup: setup(), url: TABLE, tableTo: 490, at: Date.now() - H * 1000, pricing: pricingOf(20) });
+    let { page, scope } = await open();
+    const answerAll = () => calls.forEach(c => c.resolve(route(now, eggDayAt - 6 * H)));
+    await vi.waitFor(() => {
+      answerAll();
+      expect(page.follow.value?.price).toBe('estimate');
+    }, { timeout: 8000 });
+    expect(computes).toHaveLength(0);
+    scope.stop();
+    calls = [];
+    computes = [];
+    setChainPricer((): ChainPricer => ({ priceChain: (_u, options, chain) => new Promise(resolve => calls.push({ chain, options, resolve })), terminate: () => undefined }));
+    setActivePinia(createPinia());
+    setResultCode(next);
+    ({ page, scope } = await (await setUp(saveAt)).open());
+    await vi.waitFor(() => expect(page.follow.value?.staleAt).toBeGreaterThan(0));
+    // Worked out again (asked of the instant computer) on another build; on the same one the same ticks pass, and none.
+    if (build !== next) await vi.waitFor(() => expect(computes.length).toBeGreaterThan(0));
+    else for (let i = 0; i < 5; i++) await new Promise(r => setTimeout(r, 0));
+    const follow = page.follow.value;
+    const text = (await render(page)).text;
+    scope.stop();
+    return { computes: computes.length, follow, text };
+  }
+
+  it('RELEASE 7: reloaded onto a new build with the same inputs: the pricing record is worked out again, the held estimate marked "(older version)"', async () => {
+    const r = await reloadUnder('A', 'B');
+    // Build A's record is not this build's: My runs asks for it to be worked out again.
+    expect(r.computes).toBe(1);
+    expect(r.follow?.price).toBe('estimate');
+    // The estimate shown last stays on screen meanwhile, never as current.
+    expect(r.follow?.staleAt).toBeGreaterThan(0);
+    expect(r.follow?.staleOlder).toBe(true);
+    expect(r.text).toMatch(/From .+ \(older version\), checking…/);
+  }, 30_000);
+
+  it('RELEASE 7: reloaded on the same build: nothing worked out again (no run), the held estimate not called older', async () => {
+    const r = await reloadUnder('A', 'A');
+    expect(r.computes).toBe(0);
+    expect(computes).toHaveLength(0);
+    expect(r.follow?.staleOlder).toBeUndefined();
+    expect(r.text).not.toContain('(older version)');
   }, 30_000);
 });

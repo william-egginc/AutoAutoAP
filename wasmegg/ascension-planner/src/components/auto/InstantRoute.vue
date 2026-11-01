@@ -63,14 +63,16 @@
     >
       {{ START_WAIT_LABEL }}
     </p>
-    <!-- Cached answers first, then recheck (`staleAt`): the answer below is from before, until the fresh one is in. -->
+    <!-- Cached answers first, then recheck (`staleAt`): the answer below is from before, until the fresh one is in.
+         DRAFT words (Release 7 recalc, for the Words review): "(older version)" when an older build worked it out
+         (`staleOlder`, lib/resultCode.ts). -->
     <p
       v-if="staleAt && result"
       class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-small text-amber-900"
       role="status"
       data-testid="instant-stale"
     >
-      From {{ show(staleAt / 1000) }}{{ status === 'loading' ? ', checking…' : '' }}
+      From {{ show(staleAt / 1000) }}{{ staleOlder ? ' (older version)' : '' }}{{ status === 'loading' ? ', checking…' : '' }}
     </p>
     <p v-if="saveWaitText" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-wait-save">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
@@ -963,6 +965,7 @@ import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
+import { resultCode, sameResultCode } from '@/lib/resultCode';
 import { countsShown } from '@/search/instantCounts';
 import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
 import { pricingSetupKey, readPricing, recordPricing, snapPricing, type PricingRecord, type SnapPricing } from '@/lib/followEstimate';
@@ -1827,6 +1830,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     ++bracketRuns;
     result.value = null;
     staleAt.value = null;
+    staleOlder.value = false;
     status.value = 'idle';
     return;
   }
@@ -1925,6 +1929,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (te < h.from) {
       result.value = null;
       staleAt.value = null;
+      staleOlder.value = false;
       status.value = 'error';
       below.value = { from: h.from, te };
       errorText.value = `The instant answer starts at TE ${h.from} and your route starts at ${te}, so there is no instant answer yet. The searches below work as always.`;
@@ -2001,6 +2006,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const answer = withinAscensions(raw, filterBounds(filters.value));
     result.value = answer;
     staleAt.value = null;
+    staleOlder.value = false;
     // The last answer's "Prestige by" line goes with it.
     prestige.value = null;
     prestigeStatus.value = 'idle';
@@ -2597,6 +2603,9 @@ interface InstantSnapshot {
   /** What its routes were priced with (lib/followEstimate.ts): My runs' Right now prices a followed route on them.
    *  Absent before 24 Oct 2026, or null when too big to keep. */
   pricing?: SnapPricing | null;
+  /** The code that worked it out (lib/resultCode.ts, Release 7): put back only under the same (search/instantTables.ts
+   *  `savedAnswerFits`). Absent before Release 7: worked out again once. */
+  rc?: string;
 }
 let snapKey: string | null = null;
 /** The answer on screen's pricing inputs (`InstantSnapshot.pricing`), kept with its snapshot. */
@@ -2733,6 +2742,7 @@ function currentSnapshot(): InstantSnapshot | null {
       search: newerSearch(keptSearch.value, searchFound.value),
       tables: runTables,
       pricing: answerPricing,
+      rc: resultCode(),
     })
   ) as InstantSnapshot;
   // Too big with the pricing inputs (lib/followEstimate.ts): kept without them rather than not at all.
@@ -2789,6 +2799,8 @@ function restoreSnapshot(tablesNow: string | null): boolean {
  * ever): the loading line as before.
  */
 const staleAt = ref<number | null>(null);
+/** The stale answer on screen was worked out by an older build (its `rc`, lib/resultCode.ts): said so. */
+const staleOlder = ref(false);
 /** The stale answer on screen is another key's (not the answer on screen before this run). */
 let staleOther = false;
 function showStale(id: number): void {
@@ -2823,6 +2835,7 @@ function showStale(id: number): void {
 function dropStale(): void {
   if (staleAt.value !== null && staleOther) result.value = null;
   staleAt.value = null;
+  staleOlder.value = false;
   staleOther = false;
 }
 function applySnapshot(s: InstantSnapshot, stale = false): void {
@@ -2855,6 +2868,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   below.value = null;
   savedAt.value = stale ? null : s.at;
   staleAt.value = stale ? s.at : null;
+  staleOlder.value = stale && !sameResultCode(s.rc);
   if (props.deadline && !stale) emitRoutes(s.result);
 }
 

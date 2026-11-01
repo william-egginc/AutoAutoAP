@@ -14,6 +14,7 @@
 import type { LegSummary } from '@/search/types';
 import type { BuildUpAction, BuildUpPlan } from '@/search/buildUpActions';
 import type { NowPlan } from './nowPlan';
+import { resultCode } from './resultCode';
 
 export const SIM_RECORD_KEY = 'aap-follow-sim';
 export const SIM_RECORDS = 3;
@@ -77,8 +78,9 @@ export interface SimRecord {
 export const SIM_RECORD_RULES = 'a1choice';
 
 /** What the simulation depends on beyond the save and the route: the hours (when the answers work inside them), time
- *  off, no-prestige days, the first ascension's rule and whether shifts wait for the hours; and the rules it was made
- *  with (`SIM_RECORD_RULES`). */
+ *  off, no-prestige days, the first ascension's rule and whether shifts wait for the hours; the rules it was made
+ *  with (`SIM_RECORD_RULES`); and the code that worked it out (lib/resultCode.ts, Release 7: a record kept by an older
+ *  build is never found, so the ascension is simulated again once, and its build-up plan with it). */
 export function simSetupKey(o: {
   availability: unknown;
   useHours: boolean;
@@ -95,6 +97,7 @@ export function simSetupKey(o: {
     o.firstAscension ?? null,
     !!o.deferShifts,
     SIM_RECORD_RULES,
+    resultCode(),
   ]);
 }
 

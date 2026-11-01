@@ -13,6 +13,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary } from '@/search/types';
 import { instantGoal, instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import { recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
 import { accountOf } from '@/search/runSaves';
 import { syntheticBackup } from '@/test/syntheticSave';
@@ -85,6 +86,7 @@ async function eggDay(followed: Record<string, unknown>, where: 'snap' | 'kept' 
   };
   if (where !== 'kept-only')
     writeSnapshot(key, {
+      rc: resultCode(),
       at: Date.now() - 60_000,
       header: {},
       result: {
