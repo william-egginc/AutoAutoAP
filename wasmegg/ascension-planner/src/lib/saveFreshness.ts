@@ -238,7 +238,7 @@ function clockBehindState(o: {
     namesFarm: o.namesFarm,
     suggestSync: false,
     headline: `Your device clock looks behind by about ${ageWords(o.behind)}, so the times here may be off`,
-    reason: `Your save is from ${o.when}, later than your device's clock says it is now, so how old it is can't be told. Set the date and time to automatic, then reload.`,
+    reason: `Your save is from ${o.when}, later than your device's clock says it is now, so the planner can't tell how old it is. Set the date and time to automatic, then reload.`,
     syncLine: null,
     details,
     runNote: null,

@@ -40,7 +40,7 @@
       </li>
       <li v-if="more > 0" class="list-none -ml-4 text-slate-500 tabular-nums">+{{ more }} more</li>
     </ul>
-    <p class="mt-1 text-body max-w-prose">No need to reload: you’ll get it on your next visit.</p>
+    <p class="mt-1 text-body max-w-prose">No need to reload: you'll get it on your next visit.</p>
     <div class="mt-1 flex justify-end gap-2">
       <button
         type="button"

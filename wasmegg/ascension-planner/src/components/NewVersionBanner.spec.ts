@@ -42,7 +42,7 @@ describe('NewVersionBanner', () => {
     expect(html).toContain('data-testid="update-notes"');
     const text = textOf(html);
     expect(text).toMatch(
-      /^Small update available\. \w+ \d+ New newest \w+ \d+ New older \+2 more No need to reload: you’ll get it on your next visit\. Reload anyway Dismiss$/
+      /^Small update available\. \w+ \d+ New newest \w+ \d+ New older \+2 more No need to reload: you'll get it on your next visit\. Reload anyway Dismiss$/
     );
     expect(text).not.toContain('New:');
     expect(html.match(/<li/g)).toHaveLength(3);

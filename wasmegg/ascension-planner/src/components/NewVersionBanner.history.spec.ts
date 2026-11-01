@@ -59,7 +59,7 @@ describe('NewVersionBanner: the release notes, newest first', () => {
     expect(text).not.toContain('note 4');
     // The words and actions.
     expect(text).toContain('Small update available.');
-    expect(text).toContain('No need to reload: you’ll get it on your next visit.');
+    expect(text).toContain("No need to reload: you'll get it on your next visit.");
     expect(text).toContain('Dismiss');
     expect(text).toContain('Reload anyway');
   });
