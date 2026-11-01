@@ -103,11 +103,13 @@
             :save-fit="tracker.bought.value?.fit ?? null"
             :replan="trackerReplan"
             :finish-chosen="tracker.finishChosen.value"
+            :followed-for="trackerFollowedFor"
             @toggle="tracker.playerToggle"
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"
             @replan="tracker.replan"
             @retry="page.retryBuildUp"
+            @show-goal="page.selectGoal"
           />
         </template>
       </RightNowCard>
@@ -442,6 +444,13 @@ const tracker = useBuildUpTracker({
   sim: page.buildUpSim,
   saveFarm: page.buildUpSave,
   finishChosen: page.a1Finish,
+});
+/** R7 red-team #3 (31 Oct 2026): the tracker is the shown goal's; with no route followed for it but one for another
+ *  goal, the tracker names that goal (and shows it on a press) instead of "follow a route first". */
+const trackerFollowedFor = computed(() => {
+  if (page.follow.value) return null;
+  const g = page.goalChoices.value.find(o => o.following && o.key !== page.selectedGoal.value);
+  return g ? { key: g.key, name: g.label } : null;
 });
 /** The tracker's Re-plan strip (Phase 2): shown when the save is over 1 h behind the plan or bought things off-plan. */
 const trackerReplan = computed(() =>

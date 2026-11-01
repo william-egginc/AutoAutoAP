@@ -31,6 +31,18 @@
     >
       <div class="mt-2 space-y-2 text-body text-slate-700" data-testid="buildup-body">
         <p v-if="state === 'noSave'" data-testid="buildup-nosave">Load your save to see your build-up here.</p>
+        <div v-else-if="state === 'noRoute' && followedFor" class="space-y-1" data-testid="buildup-followed-for">
+          <p>Your followed route is for {{ followedFor.name }}. Its build-up shows here when Right now shows that goal.</p>
+          <button
+            type="button"
+            class="min-h-[44px] rounded-lg border border-indigo-300 bg-white px-3 text-small font-bold text-indigo-700"
+            data-testid="buildup-show-followed"
+            :data-goal="followedFor.key"
+            @click="emit('showGoal', followedFor.key)"
+          >
+            Show {{ followedFor.name }}
+          </button>
+        </div>
         <p v-else-if="state === 'noRoute'" data-testid="buildup-noroute">Follow a route on Right now and its build-up shows here.</p>
         <p v-else-if="state === 'notBuilding' && finishChosen" data-testid="buildup-finish-chosen" :data-why="finishChosen">
           {{ a1TrackerWords(finishChosen === 'picked') }}
@@ -246,6 +258,9 @@ const props = withDefaults(
     /** A1 CHOICE (spec-a1choice): Right now follows finishing without buying while a build-up exists, picked
      *  ('picked') or as the sooner ('default'); null: not. Said instead of the generic "nothing to buy". */
     finishChosen?: 'picked' | 'default' | null;
+    /** R7 red-team #3: a route is followed for another goal than the one Right now shows (MyRunsView
+     *  `trackerFollowedFor`): named, with a button that shows it, instead of "follow a route first". */
+    followedFor?: { key: string; name: string } | null;
     /** The Re-plan strip; null: none. */
     replan?: {
       shown: boolean;
@@ -259,7 +274,7 @@ const props = withDefaults(
       keepsTicks: boolean;
     } | null;
   }>(),
-  { siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null }
+  { siloWarnings: 0, failReason: '', failStopped: false, planSave: 0, bought: null, tickSource: null, saveFit: null, replan: null, finishChosen: null, followedFor: null }
 );
 const emit = defineEmits<{
   toggle: [open: boolean];
@@ -267,6 +282,7 @@ const emit = defineEmits<{
   clear: [key: string];
   replan: [];
   retry: [];
+  showGoal: [key: string];
 }>();
 
 const ticked = computed(() => (props.ticks instanceof Set ? props.ticks : new Set(props.ticks as readonly string[])));
@@ -277,7 +293,7 @@ const hint = computed(() => {
     case 'noSave':
       return 'load your save to see it';
     case 'noRoute':
-      return 'follow a route first';
+      return props.followedFor ? `your route is for ${props.followedFor.name}` : 'follow a route first';
     case 'notBuilding':
       return props.finishChosen === 'picked' ? 'you chose to finish without buying' : 'nothing to buy until your next prestige';
     case 'working':

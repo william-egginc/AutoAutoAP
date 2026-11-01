@@ -171,6 +171,24 @@ describe('the default goal: the one checked LAST', () => {
     expect(defaultGoalKey(plansByGoal(goals, [], answers, SAVE), SAVE)).toBe('eggday-2027');
     expect(defaultGoalKey([], SAVE)).toBeNull();
   });
+  // R7 red-team #3 (31 Oct 2026): an Egg Day route followed while nothing of the save is kept for it opened My runs on
+  // Fastest to 490 (no plan, first in the list), so the Build-up tracker said "follow a route first" for 5 minutes.
+  it('a followed goal without a plan opens before a goal with nothing, or with only an older save\'s plan', () => {
+    const follow = new Set(['eggday-2027']);
+    // Neither has a plan: the followed one, not Race (first in the list).
+    expect(defaultGoalKey(plansByGoal(goals, [], [], SAVE, follow), SAVE)).toBe('eggday-2027');
+    // Race checked later without a plan (an answer only): still the followed goal.
+    const answers: GoalAnswer[] = [{ goalKey: 'fastest-490', calculatedAt: T0 + 9 * 60 * MIN, saveSeconds: SAVE }];
+    expect(defaultGoalKey(plansByGoal(goals, [], answers, SAVE, follow), SAVE)).toBe('eggday-2027');
+    // Race with an older save's plan: the followed goal (its route is priced on this save).
+    const old = { ...race, meta: { account: 'acct', goal: 'target 490', backupTime: SAVE - 3 * 86400 } };
+    expect(defaultGoalKey(plansByGoal(goals, [other(old, 'fastest-490', MINE)], [], SAVE, follow), SAVE)).toBe('eggday-2027');
+    // Race with a plan of this save: Race (this save's plans still come first).
+    expect(defaultGoalKey(plansByGoal(goals, [own(race, 'fastest-490')], [], SAVE, follow), SAVE)).toBe('fastest-490');
+    // The same with Race followed instead: the same rule for both goal kinds.
+    expect(defaultGoalKey(plansByGoal(goals, [], [{ goalKey: 'eggday-2027', calculatedAt: T0, saveSeconds: SAVE }], SAVE, new Set(['fastest-490'])), SAVE)).toBe('fastest-490');
+    expect(plansByGoal(goals, [], [], SAVE, follow).find(p => p.goal.key === 'eggday-2027')?.followed).toBe(true);
+  });
 });
 
 describe('the options and "Work it out ›"', () => {
