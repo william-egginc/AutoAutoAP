@@ -24,7 +24,8 @@
  *     then. A sale buy the night would push past the sale's end stays where it is, with a warning line.
  *  4. LINES. One line per kind of thing in a check-in, in the order to do it, the time on each, "offline N" (the gap
  *     to the next check-in, real elapsed time, rounded down to the minute like the times) on the check-in's last line.
- *     Research merges into one "buy …" line ("Name 5", "Name 3-7"); shifts, trains, habs, silos, the set swap and the
+ *     Research merges into one "buy …" line ("Name (4 → 5)", "Name (2 → 7)": the Manual Planner's range, from the
+ *     level before the buy; spec-rangewords, lib/buildUpWords.ts); shifts, trains, habs, silos, the set swap and the
  *     prestige are BOLD lines of their own. Before a check-in that opens a sale: "wait for the sale: offline until …".
  *     Sale starts and ends are event lines (not check-ins).
  *  5. THE SILO TRICK (Jordan, 29 Oct): stay offline from the check-in before Monday's 2x event until a check-in inside
@@ -64,6 +65,9 @@ import {
 } from './events';
 import { calendarOf } from './clock';
 import { resultCode, sameResultCode } from './resultCode';
+import { CHEAP_SWEEP_MARK, researchRangeWords } from './buildUpWords';
+
+export { CHEAP_SWEEP_MARK };
 
 /** The minimum gap between check-ins, seconds. */
 export const CHECK_IN_GAP = 60;
@@ -96,7 +100,7 @@ export interface TrackerLine {
   at: number;
   /** '8:42 am'; '' for a line without its own time (wait for the sale, a warning). */
   time: string;
-  /** What to do: 'buy Grav Plating 18, Autonomous Vehicles 2'. */
+  /** What to do: 'buy Grav Plating (17 → 18), Autonomous Vehicles (1 → 2)'. */
   text: string;
   /** 'offline 1 min' on a check-in's last line; '' otherwise. */
   tail: string;
@@ -113,8 +117,8 @@ export interface TrackerLine {
   /** What the line buys or does, for the ticks from the save (lib/buildUpBought.ts, Phase 2). Absent on a line the save
    *  can't tick (the silo trick, back online, events, waits, warnings, notes). */
   items?: PlanItem[];
-  /** A research line's names one by one ('Grav Plating 18'), in `text`'s order after 'buy ': part i is item i, so a
-   *  bought one can be struck through. On a mixed line a sweep name carries its "(cheap sweep)"; on an all-sweep line
+  /** A research line's names one by one ('Grav Plating (17 → 18)'), in `text`'s order after 'buy ': part i is item i,
+   *  so a bought one can be struck through. On a mixed line a sweep name carries its "(cheap sweep)"; on an all-sweep line
    *  the names are plain and the one mark follows the last (`sweepTail`). */
   parts?: string[];
   /** Which parts were the cheap sweep (part i, item i); absent when none was. */
@@ -264,13 +268,14 @@ export function rangeWords(ns: readonly number[]): string {
   return out.join(', ');
 }
 
-/** "Name 5" / "Name 3-7" per research item, in order of first appearance, with the cheap sweep marks. */
+/** "Name (4 → 5)" / "Name (2 → 7)" per research item (lib/buildUpWords.ts), in order of first appearance, with the
+ *  cheap sweep marks. */
 export function researchWords(items: readonly BuildUpAction[], sameName: ReadonlySet<string>): string {
   const m = sweepMarked(researchParts(items, sameName));
   return m.parts.join(', ') + m.tail;
 }
 
-/** One part per research item ('Name 3-7', no mark), in order of first appearance, with its id, the level it ends on
+/** One part per research item ('Name (2 → 7)', no mark), in order of first appearance, with its id, the level it ends on
  *  and whether every buy of it in the line was the cheap sweep. */
 export function researchParts(
   items: readonly BuildUpAction[],
@@ -297,12 +302,10 @@ export function researchParts(
   }
   return order.map(k => {
     const r = by.get(k)!;
-    return { id: k, level: r.hi, text: r.lo >= r.hi ? `${r.name} ${r.hi}` : `${r.name} ${r.lo}-${r.hi}`, cheap: r.cheap };
+    // From the level before the first buy (`lo` is the first level bought) to the last: the Manual Planner's range.
+    return { id: k, level: r.hi, text: researchRangeWords(r.name, Math.min(r.lo, r.hi) - 1, r.hi), cheap: r.cheap };
   });
 }
-
-/** The cheap sweep mark (DRAFT words): after a sweep name on a mixed line, or once at the end of an all-sweep line. */
-export const CHEAP_SWEEP_MARK = ' (cheap sweep)';
 
 /**
  * The marks for one research line's parts (R7, 31 Oct 2026): only a line with non-sweep buys too marks its sweep names
@@ -856,7 +859,8 @@ function daysOf(lines: TrackerLine[], zone: string, now: number): TrackerDay[] {
   return days;
 }
 
-/** A line as the oracle writes it: '8:47 am · buy Grav Plating 18 · offline 1 min'. */
+/** A line as the oracle writes it: '8:47 am · buy Grav Plating (17 → 18) · offline 1 min' (the oracle's own range is
+ *  'Grav Plating 18'; ours is the Manual Planner's, spec-rangewords). */
 export function lineText(l: Pick<TrackerLine, 'time' | 'text' | 'tail'>): string {
   return [l.time, l.text, l.tail].filter(Boolean).join(' · ');
 }

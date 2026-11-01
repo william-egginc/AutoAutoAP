@@ -2,7 +2,10 @@
  * The build-up tracker's list (lib/buildUpTracker.ts) against the format oracle (notes/jordan-a2-buildup-2026-10-29.md
  * section D). Fixed clock, placeholder plan (buildUpTracker.fixture.ts), no wall-clock waits. The buys differ from
  * the oracle's (it re-timed a library plan); where the fixture makes the same buys at the same times, the lines must
- * be the oracle's lines exactly (its bold marks stripped).
+ * be the oracle's lines exactly (its bold marks stripped), but for one thing: research ranges. The oracle writes them
+ * as Reliability's tracker does ('Crystalline Shelling 59-67', 'Grav Plating 18'); ours follow the Manual Planner
+ * (spec-rangewords, R7: 'Crystalline Shelling (58 → 67)', 'Grav Plating (17 → 18)', from the level before the buy;
+ * lib/buildUpWords.ts), so `oracle()` turns the oracle's research ranges into that form and the rest stays verbatim.
  */
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import {
@@ -37,7 +40,13 @@ function run(over: Partial<Parameters<typeof buildUpTracker>[0]> = {}): TrackerR
   });
 }
 const texts = (r: TrackerResult) => r.lines.map(lineText);
-const oracle = (s: string) => s.replace(/\*\*/g, '');
+/** The oracle's research line ranges in the Manual Planner's form: 'Name 59-67' → 'Name (58 → 67)', 'Name 18' →
+ *  'Name (17 → 18)'. Only plain (research) buy lines: bold lines keep their slots and silos as they are. */
+const manualRanges = (s: string) =>
+  s.replace(/(· buy )([^*·]+?)( · |$)/, (_m, pre: string, list: string, post: string) =>
+    pre + list.split(', ').map(p => p.replace(/ (\d+)(?:-(\d+))?$/, (_n, a: string, b?: string) => ` (${Number(a) - 1} → ${b ?? a})`)).join(', ') + post
+  );
+const oracle = (s: string) => manualRanges(s).replace(/\*\*/g, '');
 
 describe('buildUpTracker: the oracle format (section D)', () => {
   const r = run();
@@ -80,9 +89,16 @@ describe('buildUpTracker: the oracle format (section D)', () => {
     expect(all).toContain(oracle(line));
   });
 
+  it("the oracle's research ranges in the Manual Planner's form", () => {
+    expect(oracle('8:47 am · buy Grav Plating 18, Autonomous Vehicles 2, Crystalline Shelling 59-67 · offline 14 min')).toBe(
+      '8:47 am · buy Grav Plating (17 → 18), Autonomous Vehicles (1 → 2), Crystalline Shelling (58 → 67) · offline 14 min'
+    );
+    expect(oracle('9:02 am · **buy 14 Hyperloop Trains (slots 1-14), cars to 5** · offline 1 min')).toBe('9:02 am · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
+  });
+
   it('merges research per check-in, tiers apart, plan order', () => {
     expect(all).toContain(
-      '8:42 am · buy Comfortable Nests 1-50, Excitable Chickens 1-25, Internal Hatchery Expansion (tier 5) 1-15, Bigger Eggs 1, Internal Hatchery Expansion (tier 7) 1-5 · offline 5 min'
+      '8:42 am · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → 25), Internal Hatchery Expansion (tier 5) (0 → 15), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min'
     );
   });
 
@@ -110,11 +126,11 @@ describe('buildUpTracker: the oracle format (section D)', () => {
   });
 
   it('sale buys are fixed to the clock: the engine said 9:59:58, the line says 10:00 am', () => {
-    expect(all).toContain('10:00 am · buy Eggsistor Miniturization 16-22, Neural Net Refinement 10-11 · offline 30 min');
+    expect(all).toContain('10:00 am · buy Eggsistor Miniturization (15 → 22), Neural Net Refinement (9 → 11) · offline 30 min');
   });
 
   it('nothing inside the night: a buy due at 3:10 am is at 7:00 am, still before the sale ends', () => {
-    expect(all).toContain('7:00 am · buy Wormhole Dampening 12, Eggsistor Miniturization 40 · offline 2 h 49 min');
+    expect(all).toContain('7:00 am · buy Wormhole Dampening (11 → 12), Eggsistor Miniturization (39 → 40) · offline 2 h 49 min');
     for (const c of r.checkIns) {
       const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: ZONE, hour: 'numeric', hourCycle: 'h23' }).format(c.at * 1000));
       expect(h >= 1 && h < 7, clock12(c.at, ZONE)).toBe(false);
@@ -199,7 +215,7 @@ describe('buildUpTracker: the silo trick against the silo time S', () => {
 describe('buildUpTracker: no hours, other zones', () => {
   it('without hours a night buy stays at its time', () => {
     const r = run({ hours: null });
-    expect(texts(r)).toContain('3:10 am · buy Wormhole Dampening 12 · offline 2 h 10 min');
+    expect(texts(r)).toContain('3:10 am · buy Wormhole Dampening (11 → 12) · offline 2 h 10 min');
   });
 
   it('a player in another zone sees the same sale at their clock', () => {

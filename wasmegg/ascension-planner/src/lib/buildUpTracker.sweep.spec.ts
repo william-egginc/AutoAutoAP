@@ -10,6 +10,8 @@
  *    ascension): a name is marked only when its line also has non-sweep buys, to tell them apart; a line that is all
  *    sweep gets ONE "(cheap sweep)" at its end. The line's `items` and keys stay as they were; `sweep` keeps which
  *    part was the sweep.
+ *  - Research ranges are the Manual Planner's (spec-rangewords): 'Neural Linking (24 → 26) (cheap sweep)' on a mixed
+ *    line; an all-sweep line's one mark follows its last range.
  * Fixed clock, placeholder actions, no wall-clock waits.
  */
 import { describe, expect, it } from 'vitest';
@@ -87,8 +89,8 @@ describe('"(cheap sweep)" marks', () => {
 
   it('a mixed line (sweep and non-sweep buys) marks only the sweep names; items unchanged', () => {
     const l = run(merged).lines.find(x => x.kind === 'research')!;
-    expect(lineText(l)).toBe('11:22 pm · buy Neural Linking 25-26 (cheap sweep), Enlightened Chickens 72 (cheap sweep), Timeline Diversion 40');
-    expect(l.parts).toEqual(['Neural Linking 25-26 (cheap sweep)', 'Enlightened Chickens 72 (cheap sweep)', 'Timeline Diversion 40']);
+    expect(lineText(l)).toBe('11:22 pm · buy Neural Linking (24 → 26) (cheap sweep), Enlightened Chickens (71 → 72) (cheap sweep), Timeline Diversion (39 → 40)');
+    expect(l.parts).toEqual(['Neural Linking (24 → 26) (cheap sweep)', 'Enlightened Chickens (71 → 72) (cheap sweep)', 'Timeline Diversion (39 → 40)']);
     expect(l.sweep).toEqual([true, true, false]);
     expect(l.items).toEqual([
       { kind: 'research', id: 'neural_linking', level: 26 },
@@ -100,14 +102,14 @@ describe('"(cheap sweep)" marks', () => {
   it('items are the same with or without the marks', () => {
     const plain = run(merged.map(({ cheap: _c, ...a }) => a)).lines.find(x => x.kind === 'research')!;
     const marked = run(merged).lines.find(x => x.kind === 'research')!;
-    expect(plain.text).toBe('buy Neural Linking 25-26, Enlightened Chickens 72, Timeline Diversion 40');
+    expect(plain.text).toBe('buy Neural Linking (24 → 26), Enlightened Chickens (71 → 72), Timeline Diversion (39 → 40)');
     expect(marked.items).toEqual(plain.items);
     expect(marked.key).toBe(plain.key);
   });
 
   it('no mark on a line without cheap buys', () => {
     const l = run([r3('timeline_diversion', 'Timeline Diversion', 39, 40, false)]).lines.find(x => x.kind === 'research')!;
-    expect(l.text).toBe('buy Timeline Diversion 40');
+    expect(l.text).toBe('buy Timeline Diversion (39 → 40)');
     expect(l.sweep).toBeUndefined();
   });
 
@@ -122,10 +124,10 @@ describe('"(cheap sweep)" marks', () => {
   it('an all-sweep line: ONE "(cheap sweep)" at the end of the line, before the offline tail', () => {
     const r = run(withNext(allSweep));
     const l = r.lines.find(x => x.kind === 'research')!;
-    expect(lineText(l)).toBe('11:22 pm · buy Comfortable Nests 1-50, Excitable Chickens 1-25, Bigger Eggs 1 (cheap sweep) · offline 1 min');
+    expect(lineText(l)).toBe('11:22 pm · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → 25), Bigger Eggs (0 → 1) (cheap sweep) · offline 1 min');
     expect(l.text.match(/cheap sweep/g)).toHaveLength(1);
     // The names stay plain for striking through; which ones were the sweep is kept.
-    expect(l.parts).toEqual(['Comfortable Nests 1-50', 'Excitable Chickens 1-25', 'Bigger Eggs 1']);
+    expect(l.parts).toEqual(['Comfortable Nests (0 → 50)', 'Excitable Chickens (0 → 25)', 'Bigger Eggs (0 → 1)']);
     expect(l.sweep).toEqual([true, true, true]);
     expect(sweepTail(l)).toBe(' (cheap sweep)');
     expect(l.items).toEqual([
@@ -138,13 +140,13 @@ describe('"(cheap sweep)" marks', () => {
     expect(l.key).toBe(plain.key);
     expect(l.items).toEqual(plain.items);
     // The next line (not sweep) has no mark.
-    expect(r.lines.filter(x => x.kind === 'research')[1].text).toBe('buy Timeline Diversion 40');
+    expect(r.lines.filter(x => x.kind === 'research')[1].text).toBe('buy Timeline Diversion (39 → 40)');
   });
 
   it('a mixed line has no line-end mark; a line with no sweep has neither', () => {
     const mixed = run(merged).lines.find(x => x.kind === 'research')!;
     expect(sweepTail(mixed)).toBe('');
-    expect(mixed.text.endsWith('Timeline Diversion 40')).toBe(true);
+    expect(mixed.text.endsWith('Timeline Diversion (39 → 40)')).toBe(true);
     expect(sweepTail(run([r3('timeline_diversion', 'Timeline Diversion', 39, 40, false)]).lines[0])).toBe('');
   });
 
@@ -154,7 +156,7 @@ describe('"(cheap sweep)" marks', () => {
       r3('neural_linking', 'Neural Linking', 25, 26, false),
       r3('enlightened_chickens', 'Enlightened Chickens', 71, 72, true),
     ]).lines.find(x => x.kind === 'research')!;
-    expect(l.parts).toEqual(['Neural Linking 25-26', 'Enlightened Chickens 72 (cheap sweep)']);
+    expect(l.parts).toEqual(['Neural Linking (24 → 26)', 'Enlightened Chickens (71 → 72) (cheap sweep)']);
     expect(l.sweep).toEqual([false, true]);
     expect(sweepTail(l)).toBe('');
   });
@@ -167,7 +169,7 @@ describe('"(cheap sweep)" marks', () => {
     const own = r.lines.filter(x => x.at === t);
     expect(own.map(x => x.kind)).toEqual(['trains', 'research', 'hab']);
     expect(own[0].text).toBe('buy 1 Hyperloop Train (slot 1), cars to 2');
-    expect(own[1].text).toBe('buy Comfortable Nests 1-50, Excitable Chickens 1-25, Bigger Eggs 1 (cheap sweep)');
+    expect(own[1].text).toBe('buy Comfortable Nests (0 → 50), Excitable Chickens (0 → 25), Bigger Eggs (0 → 1) (cheap sweep)');
     expect(own[2].text).toBe('buy Chicken Universe in hab slot 2');
     expect(own[2].tail).toBe('offline 1 min');
   });
@@ -176,7 +178,7 @@ describe('"(cheap sweep)" marks', () => {
     const l = run([r3('neural_linking', 'Neural Linking', 24, 25, true), r3('neural_linking', 'Neural Linking', 25, 26, false)]).lines.find(
       x => x.kind === 'research'
     )!;
-    expect(l.text).toBe('buy Neural Linking 25-26');
+    expect(l.text).toBe('buy Neural Linking (24 → 26)');
   });
 
   it('the placeholder plan (no cheap flags) is unchanged: the oracle lines hold', () => {
