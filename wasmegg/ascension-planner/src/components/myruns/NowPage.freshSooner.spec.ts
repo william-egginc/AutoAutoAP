@@ -87,6 +87,7 @@ async function setup(o: { setting?: FirstAscension; fresh?: boolean; make?: () =
   const { resetGoalChoice, useNowPage } = await import('@/composables/useNowPage');
   resetGoalChoice();
   const now = Math.floor(Date.now() / 1000);
+  setupNow = now;
   mem.set(
     `${FOLLOW_PREFIX}${await hashID(A_ID)}`,
     JSON.stringify({ 'fastest-490': { chain: [226, 277, 317, 490], from: 'typed', source: 'manual', at: Date.now() - 60_000 } })
@@ -102,6 +103,8 @@ async function setup(o: { setting?: FirstAscension; fresh?: boolean; make?: () =
 }
 type Page = Awaited<ReturnType<typeof setup>>['page'];
 
+/** The `now` setup() handed the spec, for the stand-in worker's answers. */
+let setupNow = 0;
 /** The fresh start's end (from now) the stand-in worker answers the lazy fresh pricing with (useNowPage `freshSim`). */
 let freshAt = 5.5 * D;
 /** The lazy fresh pricings asked for (answered at once, kept apart from `sims`). */
@@ -114,7 +117,9 @@ function stubSims() {
       run: inputs => {
         if (inputs.firstAscension === 'fresh') {
           freshAsks.push(inputs);
-          const now = Math.floor(Date.now() / 1000);
+          // setup's own `now`, not a second clock read: under a loaded full run a second can tick between the two
+          // (1 Nov 2026, freshEnd off by 1 s).
+          const now = setupNow || Math.floor(Date.now() / 1000);
           return Promise.resolve(legOf(now, '1-sale', now + freshAt, {}));
         }
         return new Promise(resolve => sims.push({ inputs, resolve }));
