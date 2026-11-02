@@ -1,0 +1,223 @@
+/**
+ * MOVING DOTS ON EVERY "STILL WORKING" LABEL (spec-dots, Jordan 1 Nov 2026: "Can we have all the parts that are
+ * searching have a simple '...' repeating (like the searching...) so that the user knows that something is going on
+ * and it's not frozen"; his shot: My runs, "Build-up tracker  working it out..." with still dots).
+ *
+ * A label shown while something runs has its words typed and its dots drawn by components/auto/AnimatedDots.vue (CSS
+ * only, aria-hidden, still with reduced motion), as FindBar's "Searching" has since 12 Oct. A string from a module that
+ * keeps its "…" (the hashed search and plan files, the store) is drawn through PendingText.vue (lib/pendingWords.ts).
+ *
+ * 1. A source scan: no pending label in a component, an Insights page or a words file ends in a typed "…" or "...",
+ *    except the ones named below, each with why.
+ * 2. Each converted label, drawn: its words as they were, then the dots (aria-hidden), and its role / aria-busy kept.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
+import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
+import { buildUpTracker, trackerSummary } from '@/lib/buildUpTracker';
+import { splitPending } from '@/lib/pendingWords';
+import AnimatedDots from './auto/AnimatedDots.vue';
+import PendingText from './auto/PendingText.vue';
+import PanelFold from './auto/PanelFold.vue';
+import CollapsibleSection from './auto/CollapsibleSection.vue';
+import FollowButton from './FollowButton.vue';
+import BuildUpTracker from './myruns/BuildUpTracker.vue';
+
+const SRC = path.resolve(__dirname, '..');
+const rel = (p: string) => path.relative(SRC, p).split(path.sep).join('/');
+
+function filesUnder(dir: string, ok: (p: string) => boolean, out: string[] = []): string[] {
+  for (const f of fs.readdirSync(dir)) {
+    const p = path.join(dir, f);
+    if (fs.statSync(p).isDirectory()) filesUnder(p, ok, out);
+    else if (ok(p)) out.push(p);
+  }
+  return out;
+}
+
+/** The source without its comments (HTML, block and line), so a note that quotes an old label is not a label. */
+function withoutComments(src: string): string {
+  return src
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/\s\/\/ .*$/gm, '');
+}
+
+/** A word that says something is going on, up to a typed ellipsis on the same run of text (not a spread `...x`). */
+const PENDING = new RegExp(
+  String.raw`\b(?:Loading|Working|working|Checking|checking|Re-checking|Calculating|calculating|Recalculating|Re-planning|` +
+    String.raw`Saving|Sending|Searching|Pricing|pricing|Polishing|measuring|Measuring|Benchmarking|Running|Starting|Hiding|` +
+    String.raw`Showing|Renaming|Preparing|Uploading|Counting|Finding|Trying|Carrying on|Opening|Waiting|Making|stopping|` +
+    String.raw`Stopping|Buying|Exporting|Generating|Fetching|Initializing|Re-checking|One Moment)\b` +
+    String.raw`[^"\x60<>\n]{0,140}?(?:…|\.\.\.)(?![A-Za-z0-9_$\[({.])`,
+  'g'
+);
+
+/**
+ * Left as typed, each with why. Classic and the Manual Planner are Joo's (not changed without asking); the rest are
+ * not "still working" labels on a page that draws them with Vue.
+ */
+const ALLOWED: { file: string; text: string; why: string }[] = [
+  { file: 'App.vue', text: 'Loading player data...', why: "Manual Planner (Joo's): not changed without asking" },
+  { file: 'App.vue', text: 'One Moment...', why: "Manual Planner's loading overlay (Joo's)" },
+  { file: 'App.vue', text: 'Fetching your data and crunching the numbers to set up your plan...', why: "Manual Planner's loading overlay (Joo's)" },
+  { file: 'components/RecalculationOverlay.vue', text: 'Recalculating...', why: "Manual Planner's recalculation (Joo's)" },
+  { file: 'components/LoadingOverlay.vue', text: 'Simulating research sales and 2x earnings windows across thousands of purchase orders to chart your fastest path...', why: "Manual Planner's loading overlay (Joo's)" },
+  { file: 'components/auto/AutomaticPlanner.vue', text: 'Form locked while calculating...', why: "Classic (Single run), Joo's planner" },
+  { file: 'components/auto/AutomaticPlanner.vue', text: 'Calculating...', why: "Classic (Single run), Joo's planner" },
+  { file: 'components/auto/AutomaticPlanner.vue', text: 'Generating Plan...', why: "Classic (Single run), Joo's planner" },
+  { file: 'components/auto/AutomaticPlanner.vue', text: 'Saving...', why: "Classic (Single run), Joo's planner" },
+  { file: 'components/auto/AutomaticPlanner.vue', text: 'Exporting...', why: "Classic (Single run), Joo's planner" },
+  { file: 'components/auto/AscensionOverview.vue', text: 'Saving...', why: "Classic (Single run), Joo's planner" },
+  { file: 'components/actions/ResearchActions.vue', text: 'Buying…', why: "Manual Planner (Joo's)" },
+  { file: 'components/actions/SmartBuyView.vue', text: 'Buying…', why: "Manual Planner (Joo's)" },
+  { file: 'components/actions/QuickBuy.vue', text: 'Buying…', why: "Manual Planner (Joo's)" },
+  { file: 'components/auto/InsanePanel.vue', text: 'on a space with long routes "Stopping…" can sit', why: 'a sentence in How it works that quotes the label (drawn by SendingText, moving)' },
+  { file: 'components/CustomEggWatcher.vue', text: 'Checking GitHub for custom egg updates…', why: 'shown on a dev build only' },
+  // Not a label at all: the run's own aria-label (FindBar draws the dots after the words beside it).
+  { file: 'components/auto/FindBar.vue', text: 'running...', why: 'aria-label text, read by a screen reader (the dots are drawn in the label)' },
+  { file: 'components/auto/FindBar.vue', text: 'Searching...', why: "the prop's default; FindBar strips the dots and draws AnimatedDots (`runningWords`)" },
+];
+
+const SCANNED = [
+  ...filesUnder(path.join(SRC, 'components'), p => p.endsWith('.vue')),
+  ...filesUnder(path.join(SRC, 'explorer'), p => p.endsWith('.vue')),
+  path.join(SRC, 'App.vue'),
+  ...fs
+    .readdirSync(path.join(SRC, 'lib'))
+    .filter(f => /Words?\.ts$/.test(f))
+    .map(f => path.join(SRC, 'lib', f)),
+];
+
+/** Every pending label that still ends in a typed ellipsis: "file: text". */
+function typedDots(): string[] {
+  const out: string[] = [];
+  for (const f of SCANNED) {
+    const src = withoutComments(fs.readFileSync(f, 'utf8'));
+    for (const m of src.matchAll(PENDING)) {
+      const text = m[0].replace(/\s+/g, ' ');
+      if (ALLOWED.some(a => a.file === rel(f) && a.text.replace(/\s+/g, ' ').includes(text))) continue;
+      out.push(`${rel(f)}: ${text}`);
+    }
+  }
+  return out;
+}
+
+describe('pending labels: no typed "…" or "..." (spec-dots, Jordan 1 Nov 2026)', () => {
+  it('the scan finds a typed one, and leaves a spread, a comment and a finished label alone', () => {
+    const src = `<p>Working out every route…</p> {{ saving ? 'Saving...' : 'Saved' }} <!-- Loading… --> {...rest} Loaded.`;
+    expect([...withoutComments(src).matchAll(PENDING)].map(m => m[0])).toEqual(['Working out every route…', 'Saving...']);
+  });
+
+  it('every pending label in the components, Insights pages and words files draws its dots (or is named, with why)', () => {
+    expect(typedDots()).toEqual([]);
+  });
+
+  it('each one named as left is still there (the list stays true)', () => {
+    for (const a of ALLOWED) expect(fs.readFileSync(path.join(SRC, a.file), 'utf8'), `${a.file}: ${a.text}`).toContain(a.text);
+  });
+});
+
+/** The dots, as AnimatedDots draws them. */
+const DOTS = 'class="animated-dots" aria-hidden="true"';
+
+describe('the dots themselves', () => {
+  it('AnimatedDots is aria-hidden, so a screen reader reads the words and not "dot dot dot"', async () => {
+    expect(await renderHtml(AnimatedDots, {})).toContain(DOTS);
+  });
+
+  it('splitPending: the words without a trailing "…" or "...", and whether it had one; nothing else changes', () => {
+    expect(splitPending('Loading the instant answer…')).toEqual({ words: 'Loading the instant answer', pending: true });
+    expect(splitPending('Uploading the full CSV...')).toEqual({ words: 'Uploading the full CSV', pending: true });
+    expect(splitPending('following · lands about Nov 4, 2026 · checking…')).toEqual({ words: 'following · lands about Nov 4, 2026 · checking', pending: true });
+    expect(splitPending('Not sent: try again.')).toEqual({ words: 'Not sent: try again.', pending: false });
+    expect(splitPending('1 … 9 boxes')).toEqual({ words: '1 … 9 boxes', pending: false });
+  });
+
+  it('PendingText: the words, then the dots; a finished line as it is', async () => {
+    const html = await renderHtml(PendingText, { text: 'Checking for an instant answer…' });
+    expect(textOf(html)).toBe('Checking for an instant answer...');
+    expect(html).toContain(DOTS);
+    expect(html).not.toContain('…');
+    const done = await renderHtml(PendingText, { text: 'Reaches 490 on Nov 4 · 5 ascensions' });
+    expect(done).not.toContain('animated-dots');
+    expect(textOf(done)).toBe('Reaches 490 on Nov 4 · 5 ascensions');
+  });
+});
+
+describe('the labels, drawn', () => {
+  const NOW = mt(10, 30, 12, 10);
+  const plan = fixturePlan();
+  const result = buildUpTracker({ actions: plan.actions, zone: ZONE, hours: HOURS, siloSeconds: plan.siloSeconds, startSilos: 1, startEgg: 'curiosity', now: NOW });
+  const tracker = (state: string, over: Record<string, unknown> = {}) =>
+    renderHtml(BuildUpTracker, {
+      state,
+      open: true,
+      result: state === 'ready' ? result : null,
+      ticks: new Set<string>(),
+      summary: state === 'ready' ? trackerSummary(result, new Set()) : null,
+      now: NOW,
+      zone: ZONE,
+      saveSeconds: mt(10, 30, 12, 5),
+      ...over,
+    });
+
+  it('Build-up tracker, working: "working it out" then the dots, in the fold\'s hint (Jordan\'s shot)', async () => {
+    const html = await tracker('working');
+    const hint = html.match(/data-testid="fold-buildUpTracker-hint"[^>]*>([\s\S]*?)<\/span><span aria-hidden="true" class="fold-chevron/);
+    expect(hint).not.toBeNull();
+    expect(textOf(hint![1])).toBe('working it out...');
+    expect(hint![1]).toContain(DOTS);
+    expect(html).not.toContain('…');
+  });
+
+  it('Build-up tracker, re-planning: "Re-planning", the dots, then " (about half a minute)"; the button stays aria-busy', async () => {
+    const replan = { shown: true, working: true, error: '', behind: 7200, offPlan: [], keepsTicks: false };
+    const html = await tracker('ready', { replan });
+    const b = html.match(/<button[^>]*data-testid="buildup-replan-button"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? '';
+    expect(b).toMatch(/aria-busy="true"/);
+    expect(b).toContain(DOTS);
+    expect(textOf(b)).toBe('Re-planning... (about half a minute)');
+    expect(b).not.toContain('…');
+    const idle = (await tracker('ready', { replan: { ...replan, working: false } })).match(/<button[^>]*data-testid="buildup-replan-button"[^>]*>[\s\S]*?<\/button>/)![0];
+    expect(textOf(idle)).toBe('Re-plan from this save');
+    expect(idle).not.toContain('animated-dots');
+  });
+
+  it('Follow, held while its answer is from before: "Checking" then the dots', async () => {
+    const base = { chain: [200, 250, 300], goalKey: 'fastest-490', from: 'answer' };
+    const html = await renderHtml(FollowButton, { ...base, stale: true });
+    expect(textOf(html)).toBe('Checking...');
+    expect(html).toContain(DOTS);
+    expect(html).toMatch(/disabled/);
+    expect(textOf(await renderHtml(FollowButton, { ...base, stale: false }))).toBe('Follow this route');
+  });
+
+  it('a hidden section\'s one line ("working out…" while the instant answer is worked out): the words, then the dots', async () => {
+    // Hidden (its Show bar), as this browser remembered it.
+    const was = (globalThis as { localStorage?: unknown }).localStorage;
+    (globalThis as { localStorage?: unknown }).localStorage = { getItem: () => '1', setItem: () => {} };
+    try {
+      const html = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant answer', summary: 'working out…' });
+      expect(html).toContain('data-testid="show-dots-spec"');
+      expect(textOf(html)).toBe('Instant answer working out... Show');
+      expect(html).toContain(DOTS);
+      expect(html).not.toContain('…');
+      const done = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant answer', summary: 'Reaches 490 on Nov 4 · 5 ascensions' });
+      expect(done).not.toContain('animated-dots');
+    } finally {
+      (globalThis as { localStorage?: unknown }).localStorage = was;
+    }
+  });
+
+  it('a fold\'s hint marked busy gets the dots; a plain one does not', async () => {
+    const busy = await renderHtml(PanelFold, { section: 'buildUpTracker', title: 'Build-up tracker', hint: 'working it out', hintBusy: true });
+    expect(busy).toContain(DOTS);
+    expect(textOf(busy)).toContain('working it out...');
+    const plain = await renderHtml(PanelFold, { section: 'buildUpTracker', title: 'Build-up tracker', hint: '3 of 9 check-ins done' });
+    expect(plain).not.toContain('animated-dots');
+  });
+});
