@@ -8,7 +8,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary } from '@/search/types';
 import { instantSnapKey, writeSnapshot, type SnapWhatIf } from '@/search/instantSnapshot';
@@ -384,10 +385,10 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     expect(sims[0].inputs.milestones).toEqual([]);
     expect(page.simWorking.value).toBe('working');
     let r = await renderHtml(RightNowCard, { ...(await renderProps(page)), simWorking: page.simWorking.value }, {}, [getActivePinia()!]);
-    expect(textOf(r)).toContain('Working out your shifts…');
+    expect(textOf(r)).toContain('Working out your shifts...');
     expect(textOf(r)).not.toContain('(can take a few minutes)');
     r = await renderHtml(RightNowCard, { ...(await renderProps(page)), simWorking: 'working', simSlow: true }, {}, [getActivePinia()!]);
-    expect(textOf(r)).toContain('Working out your shifts… (can take a few minutes)');
+    expect(textOf(r)).toContain('Working out your shifts... (can take a few minutes)');
     sims[0].resolve(leg(now - H, now + 18 * H, 226));
     await vi.waitFor(() => expect(page.cardPlan.value?.plan.tableLegs?.[0].simulated).toBe(true));
     expect(page.simWorking.value).toBeNull();
@@ -395,7 +396,7 @@ describe('the ascension you are in, simulated on the save (26 Oct 2026)', () => 
     expect(readSimRecords()).toHaveLength(1);
     expect(JSON.stringify(readSimRecords())).not.toContain(A_ID);
     r = await renderHtml(RightNowCard, { ...(await renderProps(page)), simWorking: page.simWorking.value }, {}, [getActivePinia()!]);
-    expect(textOf(r)).not.toContain('Working out your shifts…');
+    expect(textOf(r)).not.toContain('Working out your shifts...');
     scope.stop();
   });
 

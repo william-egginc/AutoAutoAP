@@ -67,7 +67,9 @@
             {{ l.simulated ? 'worked out on your save, to the minute' : 'from the instant answer, to the hour' }}
           </li>
         </ul>
-        <p v-else-if="!l.stay" class="ml-4 text-body text-slate-500" data-testid="now-ascension-no-shifts">{{ noShifts(l) }}</p>
+        <p v-else-if="!l.stay" class="ml-4 text-body text-slate-500" data-testid="now-ascension-no-shifts"
+          >{{ noShifts(l) }}<AnimatedDots v-if="shiftsWorking(l)"
+        /></p>
         <!-- The ascension you are in with no shifts left: what to do until its prestige (lib/instantSteps.ts withStayLine). -->
         <p v-if="l.stay" class="mt-0.5 ml-4 text-body text-slate-700" data-testid="now-ascension-stay">{{ stayWords(l.stay, exact) }}</p>
       </li>
@@ -81,6 +83,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { showDateTime } from '@/lib/displayTime';
 import { virtueEggName } from '@/lib/virtueEggs';
 import { roundToHourIn } from '@/lib/nowWords';
@@ -98,8 +101,10 @@ const props = defineProps<{
 /** The table's times: to the hour on the player's clock. */
 const about = (t: number) => `about ${showDateTime(roundToHourIn(t, props.zone), props.zone)}`;
 const exact = (t: number) => showDateTime(t, props.zone);
+/** The first ascension's shifts still being worked out: its line gets the moving dots (spec-dots, 1 Nov 2026). */
+const shiftsWorking = (l: AscensionStep) => l.asc === 1 && !!props.working;
 function noShifts(l: AscensionStep): string {
-  if (l.asc === 1 && props.working) return 'Working out your shifts…';
+  if (shiftsWorking(l)) return 'Working out your shifts';
   if (l.simulated) return 'No shifts left in it: worked out on your save.';
   return l.now ? "The instant answer doesn't keep the shifts of the ascension you are in." : 'No shifts kept for it.';
 }

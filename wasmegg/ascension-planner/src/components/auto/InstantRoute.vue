@@ -72,11 +72,12 @@
       role="status"
       data-testid="instant-stale"
     >
-      From {{ show(staleAt / 1000) }}{{ staleOlder ? ' (older version)' : '' }}{{ status === 'loading' ? ', checking…' : '' }}
+      From {{ show(staleAt / 1000) }}{{ staleOlder ? ' (older version)' : '' }}<template v-if="status === 'loading'">, checking<AnimatedDots /></template>
     </p>
     <p v-if="saveWaitText" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-wait-save">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      {{ saveWaitText }}
+      <!-- search/startProvenance.ts keeps its "…" (a result-hash input): drawn as moving dots here (one flex item). -->
+      <span><PendingText :text="saveWaitText" /></span>
     </p>
     <p
       v-else-if="atTarget && status !== 'loading'"
@@ -88,7 +89,8 @@
     </p>
     <p v-else-if="status === 'loading'" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      {{ loadingText }}{{ result && !staleAt ? ' The answer below is the previous one until the new one is ready.' : '' }}
+      <!-- The words, then the moving dots (spec-dots, 1 Nov 2026), then the note about the answer below. -->
+      <span>{{ loadingText }}<AnimatedDots v-if="loadingText" />{{ result && !staleAt ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
     </p>
     <!-- Below the table's lowest TE: where the answer would be, what to do instead (NoInstantAnswer.vue). -->
     <NoInstantAnswer
@@ -116,7 +118,8 @@
         v-if="idle.spin"
         class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
       />
-      {{ idle.text }}
+      <!-- search/instantDeferral.ts keeps its "…" (a result-hash input): drawn as moving dots here. -->
+      <span><PendingText :text="idle.text" /></span>
       <button
         v-if="idle.button"
         type="button"
@@ -275,12 +278,12 @@
           will wait for you in ways the instant answer can't time. A search below simulates them.
         </p>
         <p v-if="backgroundStatus === 'running'" class="text-body text-slate-400">
-          Polishing the routes in the background…
+          Polishing the routes in the background<AnimatedDots />
         </p>
         <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
              the box's one caveat line): no "Pricing…" line that ends in nothing (UX review 26 Oct 2026, item 7). -->
         <p v-if="bracketStatus === 'running' && !boxShown" class="text-body text-slate-500 max-w-prose" data-testid="instant-bracket-running">
-          Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
+          Pricing your route on the instant answers for the closest stronger and weaker gear on this site<AnimatedDots />
         </p>
         <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
         <p v-else-if="bracketText && !boxShown" class="text-body text-slate-700">{{ bracketText }}</p>
@@ -891,6 +894,8 @@ import {
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
 import GearCaveat from './GearCaveat.vue';
+import AnimatedDots from './AnimatedDots.vue';
+import PendingText from './PendingText.vue';
 import AnswerCaveatLine from './AnswerCaveatLine.vue';
 import PanelFold from './PanelFold.vue';
 import { answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
@@ -1081,6 +1086,7 @@ const noTable = ref(false);
 const olderPage = ref(false);
 /** The route starts below the table's lowest TE (`from`, the table header's): no instant answer for it. */
 const below = ref<{ from: number; te: number } | null>(null);
+/** The loading line's words; the template draws the moving dots after them (spec-dots, 1 Nov 2026), never a typed "…". */
 const loadingText = ref('');
 const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
@@ -1909,8 +1915,8 @@ async function run(force = false, goAhead = false): Promise<void> {
   bracket.value = null;
   bracketStatus.value = 'idle';
   loadingText.value = header.value
-    ? 'Working out every route…'
-    : 'Loading the instant answer (a few MB, once) and working out every route…';
+    ? 'Working out every route'
+    : 'Loading the instant answer (a few MB, once) and working out every route';
   try {
     const p = getPool();
     // The first answer on every route worker again (Safari keeps two for the polish after it); once idle.
@@ -1962,11 +1968,11 @@ async function run(force = false, goAhead = false): Promise<void> {
       hours,
       deferShifts: store.deferShifts,
       liveFresh: (t: number, at: number) => {
-        loadingText.value = 'Working out your one ascension to the target (your TE is past the top of the instant answer)…';
+        loadingText.value = 'Working out your one ascension to the target (your TE is past the top of the instant answer)';
         return store.liveFreshBuilds(t, at);
       },
       buildUpTails: () => {
-        loadingText.value = 'Working out your build-up from your farm as it is…';
+        loadingText.value = 'Working out your build-up from your farm as it is';
         return store.buildUpTails();
       },
       alive: () => id === runs,
@@ -1989,7 +1995,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       ...(hours ? { hours } : {}),
       ...tail,
       onProgress: (done, of) => {
-        if (id === runs) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
+        if (id === runs) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done`;
       },
       expand: (items, settings) => p.expand(url, items, settings),
     });

@@ -53,7 +53,8 @@ describe('InstantRoute: the line closes the chain of states', () => {
     expect(idle).toBeGreaterThan(error);
     const line = card.slice(idle, card.indexOf('</p>', idle));
     expect(line).toContain('data-testid="instant-idle"');
-    expect(line).toContain('{{ idle.text }}');
+    // Its "…" drawn as moving dots (PendingText, spec-dots 1 Nov 2026).
+    expect(line).toContain('<PendingText :text="idle.text" />');
     expect(line).toContain(`@click="pressRun(false, 'again')"`);
     expect(instant).toContain(
       'idleLine({ due: runDue.value || tablesWait.value, setupLoaded: store.setupLoaded, te: Math.floor(store.currentTE) })'

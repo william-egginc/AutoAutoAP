@@ -30,6 +30,8 @@ import { spareLine } from '@/lib/spareLine';
 import { INSTANT_ESTIMATE_LINE } from '@/lib/instantWords';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
+import AnimatedDots from './AnimatedDots.vue';
+import PendingText from './PendingText.vue';
 
 const source = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
 const { descriptor } = parse(source);
@@ -176,7 +178,7 @@ function ctxOf(s: State): Record<string, unknown> {
     keepSharing: false,
     lastEndTE: (r: Route) => r.legs[r.legs.length - 1]?.endTE ?? 0,
     leftOut: [],
-    loadingText: 'Working out every route…',
+    loadingText: 'Working out every route',
     lowTeNote: '',
     moreDontHelp: false,
     ms: 900,
@@ -250,6 +252,9 @@ async function draw(s: State, over: Record<string, unknown> = {}): Promise<strin
   for (const p of PARTS) app.component(p, stub(p));
   // The integrity line itself: it draws nothing when there is nothing to say, so it is not a stand-in.
   app.component('InstantIntegrity', InstantIntegrity);
+  // The moving dots (spec-dots, 1 Nov 2026): the real ones.
+  app.component('AnimatedDots', AnimatedDots);
+  app.component('PendingText', PendingText);
   app.config.warnHandler = () => {};
   return renderToString(app);
 }
@@ -682,7 +687,9 @@ describe('cached answers first, then recheck (Jordan, 27 Oct 2026)', () => {
       const mark = html.slice(html.lastIndexOf('<p', html.indexOf('data-testid="instant-stale"')));
       expect(mark.slice(0, mark.indexOf('</p>'))).toMatch(/role="status"/);
       expect(mark.slice(0, mark.indexOf('</p>'))).toMatch(/text-small/);
-      expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000, checking…');
+      expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000, checking...');
+      // ", checking" then the moving dots, aria-hidden (spec-dots, 1 Nov 2026): no typed "…".
+      expect(mark.slice(0, mark.indexOf('</p>'))).toContain('checking<span class="animated-dots" aria-hidden="true"');
       // One mark, not the old "previous one" sentence beside it.
       expect(html).not.toContain('The answer below is the previous one');
     }
@@ -691,7 +698,7 @@ describe('cached answers first, then recheck (Jordan, 27 Oct 2026)', () => {
   it('an answer an older build worked out (Release 7, lib/resultCode.ts): "From <time> (older version), checking…" (DRAFT words)', async () => {
     const html = await draw(at('fastest', false), { staleAt: 1_792_000_000_000, staleOlder: true });
     const mark = html.slice(html.lastIndexOf('<p', html.indexOf('data-testid="instant-stale"')));
-    expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000 (older version), checking…');
+    expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000 (older version), checking...');
     const fresh = await draw(at('fastest', false), { staleAt: 1_792_000_000_000 });
     expect(textOf(fresh)).not.toContain('(older version)');
   });

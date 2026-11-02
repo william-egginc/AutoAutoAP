@@ -17,7 +17,8 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, nextTick, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from '@/components/myruns/RightNowCard.vue';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
@@ -445,7 +446,7 @@ describe('My runs works the instant answer out by itself, in the background', ()
     expect(computes[0].req.key).not.toContain(A_ID);
     const r = await render(page);
     expect(r.html).toMatch(/role="status"[^>]*data-testid="now-follow-instant"[^>]*data-state="instant"/);
-    expect(r.text).toContain('Working out the instant answer for your setup…');
+    expect(r.text).toContain('Working out the instant answer for your setup...');
     expect(r.text).not.toContain('Open Highest TE by a date once');
     expect(r.text).not.toContain('not priced on this save yet');
     computes[0].resolve(pricingOf(te, now));

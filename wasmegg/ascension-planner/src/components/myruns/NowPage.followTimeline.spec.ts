@@ -9,7 +9,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary } from '@/search/types';
 import { instantGoal, instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
@@ -208,7 +209,7 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     // No pricing settings kept for this save (an answer from before 24 Oct 2026): My runs works them out itself (26 Oct
     // 2026), said while it does.
     expect(text).toContain('Following your pick · working out its times');
-    expect(text).toContain('Working out the instant answer for your setup…');
+    expect(text).toContain('Working out the instant answer for your setup...');
     expect(text).not.toContain(NOT_PRICED);
     expect(html).not.toContain('data-testid="now-follow-price"');
     expect(html).not.toContain('data-testid="now-source-pill"');

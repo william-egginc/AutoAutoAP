@@ -81,7 +81,7 @@
         @click="emit('select', g.key)"
       >
         <span class="block text-small font-bold">{{ g.label }}</span>
-        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times">{{ optionSub(g) }}</span>
+        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
       </button>
     </div>
 
@@ -328,7 +328,7 @@
           </ul>
         </div>
         <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
-          <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
+          <template v-if="simWorking === 'working'">Working out your shifts<AnimatedDots /><template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
         <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
@@ -339,7 +339,7 @@
         <!-- Times from before while they are worked out again (useNowPage `staleAt`: cached answers first, then recheck).
              DRAFT words (Release 7 recalc, for the Words review): "(older version)" when an older build worked them out. -->
         <p v-if="follow?.staleAt" class="text-small text-amber-800" role="status" data-testid="now-follow-stale">
-          From {{ showDateTime(follow.staleAt / 1000, zone) }}{{ follow.staleOlder ? ' (older version)' : '' }}, checking…
+          From {{ showDateTime(follow.staleAt / 1000, zone) }}{{ follow.staleOlder ? ' (older version)' : '' }}, checking<AnimatedDots />
         </p>
         <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
              line from the plan's events. -->
@@ -370,7 +370,7 @@
         </p>
         <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
         <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
-          <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
+          <template v-if="simWorking === 'working'">Working out your shifts<AnimatedDots /><template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
         <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
@@ -388,7 +388,7 @@
         data-testid="now-follow-estimating"
         :data-state="follow.estimating"
       >
-        <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data…</template>
+        <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data<AnimatedDots /></template>
         <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
       </p>
       <!-- My runs works the instant answer for this setup out itself (composables/useInstantCompute.ts). -->
@@ -399,7 +399,7 @@
         data-testid="now-follow-instant"
         :data-state="follow.estimating"
       >
-        <template v-if="follow.estimating === 'instant'">Working out the instant answer for your setup…</template>
+        <template v-if="follow.estimating === 'instant'">Working out the instant answer for your setup<AnimatedDots /></template>
         <template v-else>The instant answer for your setup is worked out once the search running now ends.</template>
       </p>
       <p v-else-if="follow && follow.estimating === 'nosource'" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-nosource">
@@ -509,6 +509,8 @@
 import { computed, nextTick, ref } from 'vue';
 import { iconURL } from 'lib';
 import CalendarButton from './CalendarButton.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import PendingText from '@/components/auto/PendingText.vue';
 import FollowHistory from './FollowHistory.vue';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';

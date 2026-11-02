@@ -10,7 +10,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, nextTick, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
@@ -169,8 +170,8 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
     expect(staleAt).toBeGreaterThan(0);
     let r = await render(page);
     expect(r.html).toMatch(/role="status"[^>]*data-testid="now-follow-stale"|data-testid="now-follow-stale"[^>]*role="status"/);
-    expect(r.text).toMatch(/From .+, checking…/);
-    expect(r.text).not.toContain('Working out the instant answer for your setup…');
+    expect(r.text).toMatch(/From .+, checking\.\.\./);
+    expect(r.text).not.toContain('Working out the instant answer for your setup...');
     // The pill says it is being checked too.
     const pill = page.goalChoices.value.find(g => g.key === page.selectedGoal.value);
     expect(pill?.follow?.checking).toBe(true);
@@ -184,7 +185,7 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
     await vi.waitFor(() => expect(page.follow.value?.staleAt).toBeUndefined());
     expect(page.follow.value?.price).toBe('estimate');
     r = await render(page);
-    expect(r.text).not.toContain('checking…');
+    expect(r.text).not.toContain('checking...');
     scope.stop();
   });
 
@@ -197,7 +198,7 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
     expect(page.follow.value?.estimating).toBe('instant');
     expect(page.follow.value?.staleAt).toBeUndefined();
     const { text } = await render(page);
-    expect(text).toContain('Working out the instant answer for your setup…');
+    expect(text).toContain('Working out the instant answer for your setup...');
     scope.stop();
   });
 
@@ -268,7 +269,7 @@ describe('My runs: the last pricing first, marked, then the fresh one', () => {
     // The estimate shown last stays on screen meanwhile, never as current.
     expect(r.follow?.staleAt).toBeGreaterThan(0);
     expect(r.follow?.staleOlder).toBe(true);
-    expect(r.text).toMatch(/From .+ \(older version\), checking…/);
+    expect(r.text).toMatch(/From .+ \(older version\), checking\.\.\./);
   }, 30_000);
 
   it('RELEASE 7: reloaded on the same build: nothing worked out again (no run), the held estimate not called older', async () => {

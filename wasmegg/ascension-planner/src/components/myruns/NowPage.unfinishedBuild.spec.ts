@@ -11,7 +11,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, h, markRaw, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary, SearchInputs } from '@/search/types';
 import { syntheticBackup } from '@/test/syntheticSave';
@@ -472,7 +473,7 @@ describe("Jordan's producing farm with records kept under the old rule", () => {
     await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     expect(sims[0].inputs.firstAscension).toBe('auto');
     await noBuildLine(again.page);
-    expect(await cardText(again.page)).toMatch(/From .+, checking…/);
+    expect(await cardText(again.page)).toMatch(/From .+, checking\.\.\./);
     sims[0].resolve({ ...buildupLeg(now, now - H, now + 16 * 24 * H), key: 'continue' } as LegSummary);
     await vi.waitFor(() => expect(again.page.nextStep.value?.kind).toBe('shift'), WAIT);
     await noBuildLine(again.page);

@@ -5,7 +5,8 @@
  * Full timeline ("from the instant answer, to the hour"), and All planned shifts counts the shifts listed.
  */
 import { describe, expect, it } from 'vitest';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import AscensionList from './AscensionList.vue';
 import EventsTable from './EventsTable.vue';
 import RightNowCard from './RightNowCard.vue';
@@ -205,7 +206,7 @@ describe('the ascension you are in, simulated (lib/followSim.ts)', () => {
     expect(t).toMatch(/Shift to Kindness · Jan 4, 2027,? 11:17 AM/);
     expect(t).toContain('worked out on your save, to the minute');
     const bare = ascensionSteps(stepLegsOf(plan()), null, null);
-    expect(textOf(await renderHtml(AscensionList, { lines: bare, zone: ZONE, working: true }))).toContain('Working out your shifts…');
+    expect(textOf(await renderHtml(AscensionList, { lines: bare, zone: ZONE, working: true }))).toContain('Working out your shifts...');
     // All planned shifts counts the simulated ones too.
     expect(shiftsAfter(p, T0)).toBe(13);
   });

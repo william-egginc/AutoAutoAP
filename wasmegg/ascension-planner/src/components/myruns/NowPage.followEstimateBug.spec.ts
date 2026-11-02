@@ -19,7 +19,8 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, nextTick, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import { instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
 import { resultCode } from '@/lib/resultCode';
@@ -186,7 +187,7 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     expect(calls).toHaveLength(0);
     const { text } = await render(page);
     expect(text).toContain('This route was set with different awake hours.');
-    expect(text).toContain('Working out the instant answer for your setup…');
+    expect(text).toContain('Working out the instant answer for your setup...');
     expect(text).not.toContain('Open Highest TE by a date once');
     expect(text).not.toContain('No timeline for your route on this save yet');
     scope.stop();
@@ -200,7 +201,7 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     expect(calls[0].chain).toEqual([225, 300]);
     expect(page.follow.value?.estimating).toBe('working');
     let r = await render(page);
-    expect(r.text).toContain("Working out your route's times from the instant answer's data…");
+    expect(r.text).toContain("Working out your route's times from the instant answer's data...");
     expect(r.text).toContain('This route was set with different awake hours.');
     calls[0].resolve(route(now, eggDayAt - 4.5 * H));
     await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));

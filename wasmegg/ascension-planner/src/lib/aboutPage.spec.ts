@@ -282,7 +282,8 @@ describe('About and privacy page', () => {
     expect(route.match(/answersCloud\.offer\(/g)?.length).toBe(1);
     expect(route).toContain('answersCloud.offer({ goal: m.goal, backupTime: m.backupTime, snapKey, tables: runTables, at: snap.at, snap, pricing: pricingRecordNow() });');
     expect(route.indexOf('offerCloud(snap);')).toBeGreaterThan(route.indexOf('function saveSnapshot('));
-    expect(route).toContain("From {{ show(staleAt / 1000) }}{{ staleOlder ? ' (older version)' : '' }}{{ status === 'loading' ? ', checking…' : '' }}");
+    // ", checking" with its moving dots (spec-dots, 1 Nov 2026).
+    expect(route).toContain(`From {{ show(staleAt / 1000) }}{{ staleOlder ? ' (older version)' : '' }}<template v-if="status === 'loading'">, checking<AnimatedDots /></template>`);
     // The pricing record and the snapshot's account are hashes, never the ID.
     expect(read('src/search/runSaves.ts')).toContain("return id ? hash53(`account:${id}`) : '';");
   });
