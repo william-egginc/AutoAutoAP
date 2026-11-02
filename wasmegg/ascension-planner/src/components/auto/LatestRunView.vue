@@ -307,7 +307,7 @@
                         <span
                           class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
                         />
-                        Working out when each stop happens, on one worker… about half a minute.
+                        <span>Working out when each stop happens, on one worker<AnimatedDots />{{ ' ' }}about half a minute.</span>
                         <button
                           type="button"
                           class="font-bold text-slate-600 underline hover:text-slate-900"
@@ -406,6 +406,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { formatMoment } from '@/lib/clock';
 import { roundedGap } from '@/lib/format';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';

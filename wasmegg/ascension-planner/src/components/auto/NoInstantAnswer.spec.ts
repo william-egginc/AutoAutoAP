@@ -131,7 +131,8 @@ describe('By a date: Get a quick estimate', () => {
     const status = panelScript.slice(panelScript.indexOf('const quickStatus'), panelScript.indexOf('const quickBest'));
     expect(status).toContain('instantWait.value ||');
     expect(status).toContain('autoStatus.value ||');
-    expect(slot).toContain('{{ quickStatus }}');
+    // With its moving dots (PendingText, spec-dots 1 Nov 2026).
+    expect(slot).toContain('<PendingText :text="quickStatus" :pending="!instantWait && !autoStatus" />');
     expect(slot).toContain('@click="stopDeadline"');
     expect(slot).toContain('Stop &amp; keep best');
   });

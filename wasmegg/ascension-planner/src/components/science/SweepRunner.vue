@@ -97,7 +97,7 @@
       </template>
       <p v-else-if="phase === 'preparing'" class="text-body text-slate-600 flex items-center gap-2">
         <span class="inline-block w-3 h-3 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
-        Loading your latest save…
+        <span>Loading your latest save<AnimatedDots /></span>
       </p>
       <div
         v-else-if="phase === 'not-ready'"
@@ -246,7 +246,7 @@
           <div class="flex flex-wrap items-baseline justify-between gap-2 text-small">
             <span class="font-bold text-slate-800">
               <SendingText v-if="run.phase === 'sending'" text="Sending the result" />
-              <template v-else-if="run.phase === 'starting' || !store.chainsEstimated">Starting…</template>
+              <template v-else-if="run.phase === 'starting' || !store.chainsEstimated">Starting<AnimatedDots /></template>
               <template v-else>
                 {{ pricedSoFar.toLocaleString() }} of {{ plural(store.chainsEstimated, 'route') }}
               </template>
@@ -348,6 +348,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { formatMoment } from '@/lib/clock';
 import { thisDevice } from '@/search/device';
 import { confirmBigBox } from '@/composables/useBigBoxConfirm';

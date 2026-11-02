@@ -61,7 +61,8 @@
         </details>
       </template>
       <button v-else type="button" class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold underline disabled:opacity-50" data-testid="now-save-fresh" :disabled="loading" @click="emit('fresh')">
-        {{ loading ? 'Loading your save…' : !state ? 'Load your save' : server.kind === 'newer' ? NEWER_ON_SERVER : loadWords || state.link }}<template v-if="!loading"> ›</template>
+        <template v-if="loading">Loading your save<AnimatedDots /></template
+        ><template v-else>{{ !state ? 'Load your save' : server.kind === 'newer' ? NEWER_ON_SERVER : loadWords || state.link }} ›</template>
       </button>
       <details v-if="state?.suggestSync && server.kind !== 'newest'" class="group" data-testid="save-sync-how">
         <summary class="inline-flex items-center min-h-[44px] sm:min-h-0 cursor-pointer font-bold underline list-none [&::-webkit-details-marker]:hidden" data-testid="save-sync-how-summary">How to sync ›</summary>
@@ -79,6 +80,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed } from 'vue';
 import type { SaveState } from '@/lib/saveFreshness';
 import { NEWER_ON_SERVER, WHY_OUT_OF_DATE, newestOnServerLine, type ServerSaveState } from '@/lib/serverSave';

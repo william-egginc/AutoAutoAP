@@ -185,7 +185,7 @@
             :disabled="busy"
             @click="hide.setHidden(ownIds, false)"
           >
-            {{ busy ? 'Showing…' : 'Show again' }}
+            <template v-if="busy">Showing<AnimatedDots /></template><template v-else>Show again</template>
           </button>
         </p>
         <template v-else>
@@ -195,13 +195,10 @@
             :disabled="busy"
             @click="hide.setHidden(ownIds, true)"
           >
-            {{
-              busy
-                ? 'Hiding…'
-                : ownIds.length > 1
-                  ? `Hide from the public (your ${ownIds.length} copies)`
-                  : 'Hide from the public'
-            }}
+            <template v-if="busy">Hiding<AnimatedDots /></template
+            ><template v-else>{{
+              ownIds.length > 1 ? `Hide from the public (your ${ownIds.length} copies)` : 'Hide from the public'
+            }}</template>
           </button>
           <p>Only you and the planner's maintainer will see it.</p>
         </template>
@@ -386,6 +383,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed, inject, ref } from 'vue';
 import { HIDE_CONTROL } from '@/lib/hiddenRuns';
 import {

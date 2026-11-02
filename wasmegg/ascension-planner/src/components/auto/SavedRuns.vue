@@ -39,7 +39,7 @@
         class="px-4 py-2 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
         @click="save"
       >
-        {{ saving ? 'Saving…' : savedHere ? 'Saved ✓' : 'Save this run' }}
+        <template v-if="saving">Saving<AnimatedDots /></template><template v-else>{{ savedHere ? 'Saved ✓' : 'Save this run' }}</template>
       </button>
     </div>
 
@@ -80,7 +80,7 @@
           class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700 disabled:opacity-40"
           @click="resume(run.id)"
         >
-          {{ resuming === run.id ? 'Carrying on…' : 'Carry on' }}
+          <template v-if="resuming === run.id">Carrying on<AnimatedDots /></template><template v-else>Carry on</template>
         </button>
         <button
           type="button"
@@ -122,6 +122,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
 import { computed, onMounted, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';

@@ -31,7 +31,7 @@
         :title="`Put ${nameToClaim} on the run already on the board, instead of sending it again`"
         @click="emit('claim')"
       >
-        {{ claiming ? 'Renaming...' : 'Put my name on it' }}
+        <template v-if="claiming">Renaming<AnimatedDots /></template><template v-else>Put my name on it</template>
       </button>
       <!-- Already on the board, known on load from the account's own rows (Jordan, 27 Oct 2026): said, with no
            Submit, rather than learnt from the press. -->
@@ -102,6 +102,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { inject, ref } from 'vue';
 import { OPEN_SHARING_FOR_NAME } from '@/lib/sharingLine';
 import SendingText from './SendingText.vue';

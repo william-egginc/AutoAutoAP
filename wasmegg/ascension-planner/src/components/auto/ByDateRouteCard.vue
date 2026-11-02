@@ -161,7 +161,7 @@
             data-testid="by-date-save"
             @click="emit('save')"
           >
-            {{ saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save answer' }}
+            <template v-if="saving">Saving<AnimatedDots /></template><template v-else>{{ saved ? 'Saved ✓' : 'Save answer' }}</template>
           </button>
           <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
         </template>
@@ -222,6 +222,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { SIMULATE_TITLE, simulateNote as simulateLine } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import { computed, ref, watch } from 'vue';

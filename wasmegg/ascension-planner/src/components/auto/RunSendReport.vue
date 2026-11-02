@@ -22,7 +22,7 @@
     "
     data-testid="run-send-report"
   >
-    <p><b>Submitted automatically.</b> {{ message }}</p>
+    <p><b>Submitted automatically.</b>{{ ' ' }}<PendingText :text="message" /></p>
     <div v-if="nameToClaim || offerName || pendingTable" class="flex flex-wrap gap-2">
       <button
         v-if="nameToClaim"
@@ -31,7 +31,7 @@
         class="px-3 py-1.5 rounded-lg border border-current text-body font-bold hover:bg-white/60 disabled:opacity-40"
         @click="emit('claim')"
       >
-        {{ claiming ? 'Renaming...' : 'Put my name on it' }}
+        <template v-if="claiming">Renaming<AnimatedDots /></template><template v-else>Put my name on it</template>
       </button>
       <!-- Sent anonymously and no name chosen yet: the press opens the one sharing setting on "Credit me as"
            (SharingSummary.vue, ux29 #11); once a name is chosen, the rename above. -->
@@ -59,6 +59,8 @@
 </template>
 
 <script setup lang="ts">
+import PendingText from '@/components/auto/PendingText.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import AutoSendReport from './AutoSendReport.vue';
 import SendingText from './SendingText.vue';
 

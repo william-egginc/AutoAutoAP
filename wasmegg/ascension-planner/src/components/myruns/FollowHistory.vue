@@ -10,7 +10,7 @@
     <summary class="cursor-pointer font-bold text-indigo-700" data-testid="follow-history-summary">
       <span class="inline-flex min-h-[44px] items-center sm:min-h-0">Earlier versions</span>
     </summary>
-    <p v-if="state === 'loading'" class="mt-1 text-slate-500">Loading…</p>
+    <p v-if="state === 'loading'" class="mt-1 text-slate-500">Loading<AnimatedDots /></p>
     <p v-else-if="state === 'failed'" class="mt-1 text-amber-800" role="status" data-testid="follow-history-failed">
       Couldn't load the earlier versions right now.{{ ' ' }}
       <button
@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed, ref } from 'vue';
 import { useFollowStore } from '@/stores/follow';
 import { sourceWords, type CloudEntry, type CloudValue } from '@/lib/followCloud';

@@ -29,7 +29,7 @@
     </template>
     <template #aside>
       <div class="text-title font-bold text-slate-900 tabular-nums">
-        {{ days > 0 ? `${days.toFixed(3)} d` : 'pricing…' }}
+        <template v-if="days > 0">{{ `${days.toFixed(3)} d` }}</template><template v-else>pricing<AnimatedDots /></template>
       </div>
       <div v-if="days > 0" class="text-small font-bold text-emerald-800">reaches {{ finalTE }} on {{ endLabel }}</div>
     </template>
@@ -101,7 +101,7 @@
         :class="SECONDARY_BUTTON"
         @click="emit('save')"
       >
-        {{ saving ? 'Saving...' : 'Save run' }}
+        <template v-if="saving">Saving<AnimatedDots /></template><template v-else>Save run</template>
       </button>
       <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
       <p class="w-full text-small text-emerald-900/70" data-testid="build-plan-note">
@@ -112,6 +112,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { simulateNote } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import ResultCardFrame from './ResultCardFrame.vue';

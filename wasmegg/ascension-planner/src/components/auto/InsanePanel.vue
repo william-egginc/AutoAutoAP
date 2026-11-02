@@ -67,7 +67,11 @@
           </div>
           <div class="rounded-lg bg-white px-3 py-2">
             <div class="label text-slate-400">Estimated time</div>
-            <div class="font-bold text-slate-800">{{ estimateLabel }}</div>
+            <div class="font-bold text-slate-800">
+              {{ estimateLabel.text }}<AnimatedDots v-if="estimateLabel.dots === 'end'" /><template v-if="estimateLabel.dots === 'paren'"
+              >{{ ' ' }}(measuring<AnimatedDots />)</template
+            >
+            </div>
             <div class="text-small text-slate-400">
               {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}
             </div>
@@ -120,7 +124,9 @@
           </template>
           <template #text>
           <span>
-            I understand this takes about <b>{{ estimateLabel }}</b
+            I understand this takes about <b>{{ estimateLabel.text }}<AnimatedDots v-if="estimateLabel.dots === 'end'" /><template v-if="estimateLabel.dots === 'paren'"
+                >{{ ' ' }}(measuring<AnimatedDots />)</template
+              ></b
             >, that this tab has to stay open (and the computer awake) until it finishes, and that the result is then
             <b>sent to the board automatically</b>. What gets sent: the route, its timings and the full CSV, with my
             artifact inventory, timezone and local plan start, plus a random code this browser keeps for the account
@@ -167,7 +173,7 @@
             class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-body font-bold hover:bg-indigo-500 disabled:opacity-40"
             @click="start(false)"
           >
-            {{ store.isRunning ? 'Running...' : 'Start this sweep' }}
+            <template v-if="store.isRunning">Running<AnimatedDots /></template><template v-else>Start this sweep</template>
           </button>
           <span class="text-small text-slate-500">
             One press starts it (the button further down does the same). When the sweep finishes, the result is
@@ -670,7 +676,9 @@
                 >
               </div>
               <div class="text-title font-bold tabular-nums" :class="tooBig ? 'text-red-700' : 'text-slate-900'">
-                {{ estimateLabel }}
+                {{ estimateLabel.text }}<AnimatedDots v-if="estimateLabel.dots === 'end'" /><template v-if="estimateLabel.dots === 'paren'"
+              >{{ ' ' }}(measuring<AnimatedDots />)</template
+            >
               </div>
             </div>
             <div>
@@ -703,7 +711,8 @@
               class="px-3 py-1.5 rounded-md border border-indigo-300 text-indigo-700 text-body font-bold hover:bg-indigo-50 disabled:opacity-40"
               @click="benchmark"
             >
-              {{ store.benchmarking ? 'Benchmarking…' : store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}
+              <template v-if="store.benchmarking">Benchmarking<AnimatedDots /></template
+              ><template v-else>{{ store.benchmarkedAt ? 'Re-benchmark' : 'Benchmark my PC' }}</template>
             </button>
             <span v-if="store.benchmarking" class="text-body text-slate-500">
               Pricing the first {{ Math.max(store.workerBudget * 2, 32) }} routes as a throwaway run, at the same cost
@@ -1167,6 +1176,7 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { pricedWithLine } from '@/lib/pricedWith';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -1921,14 +1931,16 @@ const hours = computed(() => sweepSeconds(totalChains.value, store.workerBudget,
  * "remaining", while the bar said something else again.
  */
 const runLeft = computed(() => (store.isRunning ? store.sweepLeft : null));
-const estimateLabel = computed(() => {
+/** The estimate's words, and where the moving dots go while the speed is still measured (spec-dots, 1 Nov 2026):
+ *  after "measuring" alone ('end'), or as " (measuring...)" after the time left ('paren'); never a typed "…". */
+const estimateLabel = computed<{ text: string; dots: 'end' | 'paren' | null }>(() => {
   const left = runLeft.value;
   if (left) {
-    if (left.seconds === null) return 'measuring…';
+    if (left.seconds === null) return { text: 'measuring', dots: 'end' };
     const words = formatTimeLeft(left.seconds);
-    return words ? `${words} left${left.measuring ? ' (measuring…)' : ''}` : 'almost done';
+    return words ? { text: `${words} left`, dots: left.measuring ? 'paren' : null } : { text: 'almost done', dots: null };
   }
-  return chainCount.value ? formatHours(hours.value) : '—';
+  return { text: chainCount.value ? formatHours(hours.value) : '—', dots: null };
 });
 const tooBig = computed(() => chainCount.value > 0 && hours.value > TOO_BIG_HOURS);
 /**

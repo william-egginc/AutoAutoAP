@@ -56,7 +56,8 @@
       class="px-3 py-1.5 rounded-lg bg-violet-800 text-white text-body font-bold hover:bg-violet-700 disabled:opacity-40"
       @click="store.recheckOnLatestSave(10)"
     >
-      {{ store.recheckingLatest ? 'Re-checking…' : 'Re-check the top 10 on my latest save' }}
+      <template v-if="store.recheckingLatest">Re-checking<AnimatedDots /></template
+      ><template v-else>Re-check the top 10 on my latest save</template>
     </button>
     <div v-if="store.latestRecheck" class="overflow-x-auto">
       <table class="w-full text-small tabular-nums">
@@ -83,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { NAMES } from '@/lib/siteNav';
 import { NO_ACCOUNT_LINE } from '@/lib/saveScrub';
 import { computed } from 'vue';

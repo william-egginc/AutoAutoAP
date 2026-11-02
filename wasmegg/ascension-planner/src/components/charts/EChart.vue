@@ -9,7 +9,7 @@
       v-if="state !== 'ready'"
       class="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-50 text-body text-slate-400"
     >
-      <span v-if="state === 'loading'">Loading chart…</span>
+      <span v-if="state === 'loading'">Loading chart<AnimatedDots /></span>
       <span v-else class="px-4 text-center">
         This chart could not load.
         <button type="button" class="font-bold text-slate-600 underline" @click="reloadPage">
@@ -22,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { ref, shallowRef, onMounted, onBeforeUnmount, watch } from 'vue';
 import type { ChartOption, ECharts } from '@/lib/charts/echarts';
 import { loadEcharts, type EchartsModule } from '@/lib/charts/loadEcharts';

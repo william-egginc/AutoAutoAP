@@ -161,14 +161,14 @@
           :disabled="!!check.errors.length || sending || sent"
           @click="send"
         >
-          {{ sending ? 'Sending…' : sent ? 'Sent' : 'Submit this sweep' }}
+          <template v-if="sending">Sending<AnimatedDots /></template><template v-else>{{ sent ? 'Sent' : 'Submit this sweep' }}</template>
         </button>
         <span
           v-if="sendMessage"
           class="text-small font-bold"
           :class="sendOk ? 'text-emerald-700' : 'text-rose-700'"
         >
-          {{ sendMessage }}
+          {{ sendMessage }}<AnimatedDots v-if="sending && sendMessage === PREPARING" />
         </span>
         <button
           v-if="pendingTable"
@@ -177,7 +177,7 @@
           class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-800 text-body font-bold hover:bg-amber-50 disabled:opacity-40"
           @click="retryTable"
         >
-          {{ retrying ? 'Sending the CSV…' : 'Retry the CSV' }}
+          <template v-if="retrying">Sending the CSV<AnimatedDots /></template><template v-else>Retry the CSV</template>
         </button>
       </div>
     </template>
@@ -185,6 +185,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plainError } from '@/lib/plainError';
 import { NAMES } from '@/lib/siteNav';
 import { computed, ref, shallowRef, watch } from 'vue';
@@ -231,6 +232,8 @@ const workers = ref<number | undefined>();
 const sending = ref(false);
 const sent = ref(false);
 const sendMessage = ref('');
+/** While the upload is prepared: the words, then the moving dots (spec-dots, 1 Nov 2026). */
+const PREPARING = 'Preparing the upload';
 const sendOk = ref(false);
 
 async function onFiles(e: Event): Promise<void> {
@@ -310,7 +313,7 @@ async function send(): Promise<void> {
   if (sending.value || !preview.value || check.value?.errors.length) return;
   sending.value = true;
   sendOk.value = true;
-  sendMessage.value = 'Preparing the upload…';
+  sendMessage.value = PREPARING;
   pendingTable.value = null;
   try {
     // Let the button's "Sending…" reach the screen before scrubbing a multi-megabyte table.

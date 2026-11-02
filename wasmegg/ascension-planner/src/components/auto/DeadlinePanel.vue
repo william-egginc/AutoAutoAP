@@ -163,7 +163,7 @@
             </template>
             <template v-if="quickRunning">
               <p class="text-body font-bold text-slate-700" data-testid="quick-estimate-status">
-                {{ quickStatus }}
+                <PendingText :text="quickStatus" :pending="!instantWait && !autoStatus" />
               </p>
               <button
                 type="button"
@@ -600,7 +600,8 @@
           class="text-body font-bold text-slate-700"
           data-test="instant-wait-status"
         >
-          {{ instantWait }}
+          <!-- search/autoWiden.ts keeps its "…" (a result-hash input): drawn as moving dots (spec-dots). -->
+          <PendingText :text="instantWait" />
         </p>
         <!-- The numbers that should decide whether you press the button (not while Nearby routes runs:
              the time left would be that run's). -->
@@ -622,7 +623,7 @@
                 {{ store.deadlineRunning ? 'Time left' : 'Est. time' }}
               </div>
               <div class="text-title font-bold text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
-              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-400">measuring…</div>
+              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-400">measuring<AnimatedDots /></div>
               <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-small text-slate-400">
                 first guess {{ firstGuessLabel }}
               </div>
@@ -687,7 +688,7 @@
           <div data-run-progress="by-date" class="scroll-mt-24"></div>
           <!-- No instant answer for this TE: which step of the fallback is going (search/autoWiden.ts). -->
           <p v-if="autoStatus" class="text-body font-bold text-slate-700" data-test="auto-widen-status">
-            {{ autoStatus }}
+            <PendingText :text="autoStatus" />
           </p>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
           <ByDateRouteCard
@@ -1085,6 +1086,8 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import PendingText from '@/components/auto/PendingText.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import BigCsvStatus from './BigCsvStatus.vue';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import FollowButton from '../FollowButton.vue';
@@ -2687,7 +2690,8 @@ const quickStatus = computed(
   () =>
     instantWait.value ||
     autoStatus.value ||
-    `The ${NAMES.smart} search is checking the routes near your last answer. Stop keeps the best route so far…`
+    // Its moving dots are drawn (PendingText `pending`, spec-dots 1 Nov 2026), never typed.
+    `The ${NAMES.smart} search is checking the routes near your last answer. Stop keeps the best route so far`
 );
 /** The fallback's answer (`fallback` on the result), once it is done. */
 const quickBest = computed(() => {

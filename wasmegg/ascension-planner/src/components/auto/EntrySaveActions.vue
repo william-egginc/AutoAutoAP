@@ -14,7 +14,8 @@
         title="Load this save into the planner as your active save, with this entry's plan start and settings"
         @click="use"
       >
-        {{ using ? 'Loading the save…' : `Use the save from ${when} (TE ${teLabel})` }}
+        <template v-if="using">Loading the save<AnimatedDots /></template
+        ><template v-else>{{ `Use the save from ${when} (TE ${teLabel})` }}</template>
       </button>
       <button
         type="button"
@@ -36,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { thisDevice } from '@/search/device';
 import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';

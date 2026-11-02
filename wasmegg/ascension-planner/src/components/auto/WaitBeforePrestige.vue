@@ -20,7 +20,8 @@
     </p>
     <p v-if="status === 'running'" class="flex items-center gap-2 text-emerald-800">
       <span class="inline-block w-2.5 h-2.5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      {{ stopAsked ? 'Stopping after the routes being priced now…' : `Trying waits before each prestige… ${done} of at most ${most} routes priced.` }}
+      <span v-if="stopAsked">Stopping after the routes being priced now<AnimatedDots /></span
+      ><span v-else>Trying waits before each prestige<AnimatedDots />{{ ` ${done} of at most ${most} routes priced.` }}</span>
       <button v-if="!stopAsked" type="button" class="underline text-slate-500" data-testid="wait-stop" @click="stopAsked = true">
         Stop
       </button>
@@ -49,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { formatWeekday } from '@/lib/clock';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { showDateTime } from '@/lib/displayTime';

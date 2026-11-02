@@ -120,7 +120,7 @@
                 </p>
                 <p>Then open it with the button below.</p>
               </div>
-              <p v-else-if="confirmTimer">Opening the watcher tab...</p>
+              <p v-else-if="confirmTimer">Opening the watcher tab<AnimatedDots /></p>
               <p v-else>The watcher tab isn't open.</p>
               <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <a
@@ -217,7 +217,7 @@
                       >
                     </p>
                   </div>
-                  <p v-if="phoneLine" class="text-slate-500" role="status">{{ phoneLine }}</p>
+                  <p v-if="phoneLine" class="text-slate-500" role="status">{{ phoneLine }}<AnimatedDots v-if="phoneSending" /></p>
                 </template>
                 <p v-else class="text-slate-500">The link appears here when the run starts.</p>
                 <label class="flex flex-wrap items-center gap-2">
@@ -359,6 +359,7 @@ const EARLY_CRASH_MS = 90_000;
 </script>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { hashID } from '@/lib/storage/db';
@@ -448,6 +449,8 @@ watch(
   },
   { immediate: true }
 );
+/** No update sent yet: "Sending the first update" gets the moving dots (spec-dots, 1 Nov 2026). */
+const phoneSending = computed(() => phoneLine.value === 'Sending the first update');
 const phoneLine = computed(() => {
   const a = phoneLink.value;
   if (!a) return '';
@@ -461,7 +464,7 @@ const phoneLine = computed(() => {
     return `Last update didn't go (${a.lastError}). It tries again in 5 minutes.`;
   return a.lastOkAt
     ? `Last update sent at ${clock12(a.lastOkAt)}. Next in about 5 minutes.`
-    : 'Sending the first update...';
+    : 'Sending the first update';
 });
 /** Updates to the phone link failing in a row, for this panel's own run only. */
 const phoneFailing = computed(() => {

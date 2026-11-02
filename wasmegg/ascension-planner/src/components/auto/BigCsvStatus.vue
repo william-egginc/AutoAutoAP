@@ -12,7 +12,7 @@
       :class="s.state === 'failed' ? 'font-bold text-amber-700' : 'text-slate-500'"
       data-testid="big-csv-status"
     >
-      {{ s.message }}<span v-if="s.state === 'building' || s.state === 'uploading'"> {{ progress }}</span>
+      <PendingText :text="s.message" /><span v-if="s.state === 'building' || s.state === 'uploading'"> {{ progress }}</span>
     </p>
     <template v-if="s.state === 'done'">
       <button
@@ -32,6 +32,7 @@
 </template>
 
 <script setup lang="ts">
+import PendingText from '@/components/auto/PendingText.vue';
 import { computed, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { spillSizeText } from '@/lib/legSpillText';

@@ -7,7 +7,7 @@
 -->
 <template>
   <p v-if="state.kind === 'checking'" class="text-body text-slate-400" data-testid="instant-integrity">
-    Checking whether this account can build…
+    Checking whether this account can build<AnimatedDots />
   </p>
   <div
     v-else-if="state.kind === 'blocked'"
@@ -36,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed } from 'vue';
 import { integrityHighlights } from '@/search/rules';
 import type { InstantIntegrity } from '@/search/instantIntegrity';

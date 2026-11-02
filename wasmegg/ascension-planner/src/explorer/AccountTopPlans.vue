@@ -48,7 +48,7 @@
         }}
       </button>
       <template v-else>
-        <span class="text-small font-bold text-slate-600 py-1.5" role="status">Loading {{ progress }}…</span>
+        <span class="text-small font-bold text-slate-600 py-1.5" role="status">Loading {{ progress }}<AnimatedDots /></span>
         <button
           type="button"
           class="px-3 py-1.5 rounded-lg text-body font-bold border border-slate-300 text-slate-600 bg-white hover:border-slate-400"
@@ -192,6 +192,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { describeFetchError } from '@/utils/errors';
 import {

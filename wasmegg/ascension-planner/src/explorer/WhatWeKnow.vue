@@ -27,7 +27,7 @@
             ></template
           >
         </span>
-        <span v-else class="text-small font-bold text-slate-400">Counting the Leaderboard…</span>
+        <span v-else class="text-small font-bold text-slate-400">Counting the Leaderboard<AnimatedDots /></span>
       </div>
       <p class="text-body text-slate-700 max-w-3xl">
         What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
@@ -229,6 +229,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
 import { NAMES } from '@/lib/siteNav';
 import { HOURS_NOTE } from '@/lib/hoursNote';
