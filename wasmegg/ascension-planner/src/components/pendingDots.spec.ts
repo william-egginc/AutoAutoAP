@@ -18,6 +18,7 @@ import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
 import { buildUpTracker, trackerSummary } from '@/lib/buildUpTracker';
 import { splitPending } from '@/lib/pendingWords';
+import { isWordingOnly, resultCodeInputs } from '@/lib/resultCodeHash';
 import AnimatedDots from './auto/AnimatedDots.vue';
 import PendingText from './auto/PendingText.vue';
 import PanelFold from './auto/PanelFold.vue';
@@ -121,6 +122,101 @@ describe('pending labels: no typed "…" or "..." (spec-dots, Jordan 1 Nov 2026)
   });
 });
 
+/**
+ * Each label converted, in its own words as before (Words owns wording: only the typed "…" / "..." went), with the dots
+ * drawn right after them. `then`: what follows the dots, unchanged. Source-level, so every screen is covered; the
+ * describe below draws the main ones.
+ */
+const CONVERTED: [file: string, words: string, then?: string][] = [
+  ['components/myruns/BuildUpTracker.vue', 'Re-planning', "{{ ' ' }}(about half a minute)"],
+  ['components/FollowButton.vue', 'Checking'],
+  ['components/auto/InstantRoute.vue', ', checking'],
+  ['components/auto/InstantRoute.vue', 'Polishing the routes in the background'],
+  ['components/auto/InstantRoute.vue', 'Pricing your route on the instant answers for the closest stronger and weaker gear on this site'],
+  ['components/auto/InstantRoute.vue', '{{ loadingText }}', '<AnimatedDots v-if="loadingText" />'],
+  ['components/myruns/RightNowCard.vue', 'Working out your shifts', "<template v-if=\"simSlow\">{{ ' ' }}(can take a few minutes)</template>"],
+  ['components/myruns/RightNowCard.vue', "{{ follow.staleOlder ? ' (older version)' : '' }}, checking"],
+  ['components/myruns/RightNowCard.vue', "Working out your route's times from the instant answer's data"],
+  ['components/myruns/RightNowCard.vue', 'Working out the instant answer for your setup'],
+  ['components/auto/PrestigeByLine.vue', 'Working out how long your next prestige can wait'],
+  ['components/auto/InstantIntegrity.vue', 'Checking whether this account can build'],
+  ['components/auto/IntegrityNotice.vue', 'Checking whether this account can build'],
+  ['components/auto/IntegrityNotice.vue', '<template v-if="ui.loading">Loading'],
+  ['components/auto/MaxedWhatIf.vue', 'Finding your route again with maxed gear'],
+  ['components/auto/RouteResultCard.vue', 'pricing'],
+  ['components/auto/RouteResultCard.vue', '<template v-if="saving">Saving'],
+  ['components/auto/RunSaveNotice.vue', 'Re-checking'],
+  ['components/auto/SaveFileBar.vue', 'Loading the save'],
+  ['components/auto/EntrySaveActions.vue', 'Loading the save'],
+  ['components/auto/LeaderboardPanel.vue', '<template v-if="hideAllBusy">Working'],
+  ['components/auto/LeaderboardPanel.vue', 'Showing'],
+  ['components/auto/LeaderboardPanel.vue', 'text-center">Loading'],
+  ['components/auto/LeaderboardRunDetail.vue', 'Showing'],
+  ['components/auto/LeaderboardRunDetail.vue', 'Hiding'],
+  ['components/auto/SavedRuns.vue', '<template v-if="saving">Saving'],
+  ['components/auto/SavedRuns.vue', 'Carrying on'],
+  ['components/auto/LatestRunView.vue', 'Working out when each stop happens, on one worker', "{{ ' ' }}about half a minute."],
+  ['components/auto/WaitBeforePrestige.vue', 'Stopping after the routes being priced now'],
+  ['components/auto/WaitBeforePrestige.vue', 'Trying waits before each prestige', '{{ ` ${done} of at most ${most} routes priced.` }}'],
+  ['components/auto/StepAwayOptions.vue', 'Opening the watcher tab'],
+  ['components/auto/StepAwayOptions.vue', '{{ phoneLine }}', '<AnimatedDots v-if="phoneSending" />'],
+  ['components/auto/BoardSubmitButtons.vue', 'Renaming'],
+  ['components/auto/RunSendReport.vue', 'Renaming'],
+  ['components/auto/ByDateRouteCard.vue', '<template v-if="saving">Saving'],
+  ['components/auto/InsanePanel.vue', '<template v-if="store.isRunning">Running'],
+  ['components/auto/InsanePanel.vue', 'Benchmarking'],
+  ['components/auto/InsanePanel.vue', "{{ ' ' }}(measuring", ')'],
+  ['components/auto/DeadlinePanel.vue', 'measuring'],
+  ['components/auto/RunProgressBar.vue', ' (measuring', ')'],
+  ['components/auto/RunProgressBar.vue', ' · measuring time left'],
+  ['components/myruns/AscensionList.vue', '{{ noShifts(l) }}', '<AnimatedDots v-if="shiftsWorking(l)"'],
+  ['components/charts/EChart.vue', 'Loading chart'],
+  ['components/myruns/FollowHistory.vue', 'text-slate-500">Loading'],
+  ['components/myruns/SaveAgeStrip.vue', 'Loading your save'],
+  ['components/science/SweepRunner.vue', 'Loading your latest save'],
+  ['components/science/SweepRunner.vue', 'Starting'],
+  ['explorer/AccountTopPlans.vue', 'Loading {{ progress }}'],
+  ['explorer/ChainExplorer.vue', 'Loading the runs'],
+  ['explorer/ChainExplorer.vue', '<template v-if="csvLoadingId === row.id">Loading'],
+  ['explorer/FlaggedBoard.vue', 'Loading these runs'],
+  ['explorer/SweepCurvesChart.vue', '{{ `Loading ${progress}` }}'],
+  ['explorer/SweepUpload.vue', '<template v-if="sending">Sending'],
+  ['explorer/SweepUpload.vue', 'Sending the CSV'],
+  ['explorer/SweepUpload.vue', '{{ sendMessage }}', '<AnimatedDots v-if="sending && sendMessage === PREPARING" />'],
+  ['explorer/WhatWeKnow.vue', 'Counting the Leaderboard'],
+];
+
+describe('each converted label: its words, then the drawn dots', () => {
+  it.each(CONVERTED)('%s: "%s"', (file, words, then) => {
+    const src = fs.readFileSync(path.join(SRC, file), 'utf8');
+    if (then?.startsWith('<AnimatedDots')) expect(src).toContain(`${words}${then}`);
+    else expect(src).toContain(`${words}<AnimatedDots />${then ?? ''}`);
+    expect(src).toMatch(/import AnimatedDots from '(?:@\/components\/auto|\.)\/AnimatedDots\.vue';/);
+  });
+});
+
+/**
+ * Strings that keep their typed "…" in a module (a result-hash input or the store), drawn by PendingText: the module's
+ * line, where it shows. `from`: the module and what it says while working.
+ */
+const VIA_PENDING_TEXT: [file: string, use: string, from: string][] = [
+  ['components/auto/InstantRoute.vue', '<PendingText :text="idle.text" />', 'search/instantDeferral.ts IDLE_LOADING "Loading the instant answer…"'],
+  ['components/auto/InstantRoute.vue', '<PendingText :text="saveWaitText" />', 'search/startProvenance.ts startWaitText "Waiting for your save to finish loading before working out the instant answer…"'],
+  ['components/auto/DeadlinePanel.vue', '<PendingText :text="instantWait" />', 'search/autoWiden.ts INSTANT_WAIT_STATUS "Checking for an instant answer…"'],
+  ['components/auto/DeadlinePanel.vue', '<PendingText :text="autoStatus" />', 'search/autoWiden.ts widenStatus, QUICK_SCAN_STATUS, afterScanStatus, INSTANT_TIMEOUT_STATUS'],
+  ['components/auto/DeadlinePanel.vue', '<PendingText :text="quickStatus" :pending="!instantWait && !autoStatus" />', "the panel's own Nearby routes line (no typed dots), else the two above"],
+  ['components/auto/RunProgressBar.vue', '<PendingText :text="p.stage" />', 'stores/chainSearch.ts stage, e.g. "stopping after the current batch..."'],
+  ['components/auto/BigCsvStatus.vue', '<PendingText :text="s.message" />', 'stores/chainSearch.ts bigCsvState "Making the full CSV...", "Uploading the full CSV..."'],
+  ['components/auto/RunSendReport.vue', '<PendingText :text="message" />', 'search/sendRun.ts onStage "Preparing your result...", "Sending..."'],
+  ['components/myruns/RightNowCard.vue', '<PendingText :text="optionSub(g)" />', 'lib/planGoals.ts followOptionWords "… · checking…"'],
+];
+
+describe('module strings that keep their "…": drawn with the dots where they show', () => {
+  it.each(VIA_PENDING_TEXT)('%s: %s (%s)', (file, use) => {
+    expect(fs.readFileSync(path.join(SRC, file), 'utf8')).toContain(use);
+  });
+});
+
 /** The dots, as AnimatedDots draws them. */
 const DOTS = 'class="animated-dots" aria-hidden="true"';
 
@@ -219,5 +315,27 @@ describe('the labels, drawn', () => {
     expect(textOf(busy)).toContain('working it out...');
     const plain = await renderHtml(PanelFold, { section: 'buildUpTracker', title: 'Build-up tracker', hint: '3 of 9 check-ins done' });
     expect(plain).not.toContain('animated-dots');
+  });
+});
+
+describe('the result code hash is not moved (lib/resultCodeHash.ts, R7 recalc)', () => {
+  it('the dots touch no hash input: the helper is a words file, the rest is components and the spec helper', () => {
+    const root = path.resolve(SRC, '..');
+    const files = new Map<string, string>();
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
+        const r = `${dir}/${e.name}`;
+        if (e.isDirectory()) walk(r);
+        else if (e.name.endsWith('.ts')) files.set(r, fs.readFileSync(path.join(root, r), 'utf8'));
+      }
+    };
+    walk('src');
+    files.set('release.ts', fs.readFileSync(path.join(root, 'release.ts'), 'utf8'));
+    const inputs = resultCodeInputs(files);
+    expect(isWordingOnly('src/lib/pendingWords.ts')).toBe(true);
+    // Every .ts this change adds or edits outside src/components (spec-dots, 1 Nov 2026); the strings that keep their
+    // "…" in the hashed search and plan files (search/instantDeferral.ts, autoWiden.ts, startProvenance.ts, sendRun.ts,
+    // lib/planGoals.ts) are drawn by PendingText.vue instead of being edited.
+    for (const f of ['src/lib/pendingWords.ts', 'src/test/renderComponent.ts']) expect(inputs, f).not.toContain(f);
   });
 });
