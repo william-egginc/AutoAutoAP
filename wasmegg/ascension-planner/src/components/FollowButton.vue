@@ -1,7 +1,7 @@
 <!--
   "Follow this route" (lib/follow.ts, stores/follow.ts): My runs' Right now follows this route for the goal (its key,
   lib/planGoals.ts `goalKeyOf`) instead of the planner's checked pick, remembered per account in this browser.
-  "Following ✓" when it is the one kept; "Checking…" (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `primary` makes it a 44 px tap
+  "Following ✓" when it is the one kept; "Checking" with moving dots (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `primary` makes it a 44 px tap
   target on a phone. A press is the only thing that saves the route online (stores/follow.ts, lib/followCloud.ts):
   the summary props (where it came from, its finish, TE and plan start) go with it when the screen knows them.
 -->
@@ -21,12 +21,14 @@
     :data-goal="goalKey"
     @click.stop="pick"
   >
-    {{ on ? 'Following ✓' : stale ? 'Checking…' : 'Follow this route' }}
+    <template v-if="on">Following ✓</template><template v-else-if="stale">Checking<AnimatedDots /></template
+    ><template v-else>Follow this route</template>
   </button>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { useFollowStore } from '@/stores/follow';
 import type { FollowFrom } from '@/lib/follow';
 import type { FollowSource } from '@/lib/followCloud';

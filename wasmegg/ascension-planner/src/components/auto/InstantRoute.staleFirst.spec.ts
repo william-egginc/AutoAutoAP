@@ -60,7 +60,9 @@ describe('FollowButton: held while the answer is stale', () => {
   it('disabled and says it is checking; a route already followed still says Following', () => {
     expect(fb).toContain('stale?: boolean;');
     expect(fb).toContain(':disabled="stale && !on"');
-    expect(fb).toContain("{{ on ? 'Following ✓' : stale ? 'Checking…' : 'Follow this route' }}");
+    // "Checking" with the moving dots (spec-dots, 1 Nov 2026; drawn in components/pendingDots.spec.ts).
+    expect(fb).toContain('<template v-if="on">Following ✓</template><template v-else-if="stale">Checking<AnimatedDots /></template');
+    expect(fb).toContain('<template v-else>Follow this route</template>');
     expect(fb).toMatch(/if \(!follows \|\| on\.value \|\| props\.stale \|\| !props\.chain\.length\) return;/);
   });
 });

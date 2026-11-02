@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { renderHtml, textOf } from '@/test/renderComponent';
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import BuildUpTracker from './BuildUpTracker.vue';
 import { buildUpTracker, dayView, trackerSummary } from '@/lib/buildUpTracker';
 import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
@@ -42,7 +42,8 @@ describe('BuildUpTracker: the states', () => {
     ['noSave', 'load your save to see it', 'Load your save to see your build-up here.'],
     ['noRoute', 'follow a route first', 'Follow a route on Right now and its build-up shows here.'],
     ['notBuilding', 'nothing to buy until your next prestige', 'Nothing to buy until your next prestige'],
-    ['working', 'working it out…', 'Working out your build-up'],
+    // The dots are drawn (AnimatedDots, spec-dots 1 Nov 2026): read here as the "..." they show.
+    ['working', 'working it out...', 'Working out your build-up'],
     ['failed', 'could not be worked out', "The build-up list could not be worked out (worker ran out of memory). Right now's shifts still hold."],
   ] as const)('%s: its hint and its line', async (state, hint, body) => {
     const html = await render(state, { failReason: 'worker ran out of memory', open: false });
@@ -223,7 +224,7 @@ describe('BuildUpTracker Phase 2: Re-plan from this save', () => {
   });
   it('working: the button says so and is off; the old plan stays', async () => {
     const html = await render('ready', { replan: { ...R, working: true } });
-    expect(html).toMatch(/<button[^>]*disabled[^>]*data-testid="buildup-replan-button"[^>]*>\s*Re-planning…/);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*data-testid="buildup-replan-button"[^>]*>\s*(?:<!--\[-->)?Re-planning<span class="animated-dots" aria-hidden="true"/);
     expect(textOf(html)).toContain('Working out a new plan from this save. The plan below stays until it is in.');
     expect(textOf(html)).toContain('9:02 am · buy 14 Hyperloop Trains');
   });
@@ -231,7 +232,7 @@ describe('BuildUpTracker Phase 2: Re-plan from this save', () => {
     const working = await render('ready', { replan: { ...R, working: true } });
     const button = /<button[^>]*data-testid="buildup-replan-button"[^>]*>([\s\S]*?)<\/button>/.exec(working);
     expect(button![0]).toMatch(/<button[^>]*disabled/);
-    expect(textOf(button![1])).toBe('Re-planning… (about half a minute)');
+    expect(textOf(button![1])).toBe('Re-planning... (about half a minute)');
     // The strip's line is as it was.
     expect(textOf(working)).toContain('Working out a new plan from this save. The plan below stays until it is in.');
     const idle = await render('ready', { replan: R });

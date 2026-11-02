@@ -140,7 +140,7 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
-    <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant">
+    <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy">
       <!-- Never nothing: a card that can't be drawn says so (InstantGuard.ts, lib/renderGuard.ts). -->
       <InstantGuard>
       <InstantRoute
@@ -1562,8 +1562,10 @@ const lines = computed(() => ({
       ? instantUnloaded.value
         ? UNLOADED_INSTANT_SUMMARY
         : NO_INSTANT_SUMMARY
-      : 'working out…'
+      : 'working out'
   ),
+  // Still being worked out: the moving dots after "working out" (CollapsibleSection `summaryBusy`, spec-dots).
+  instantBusy: !stronger.instant.date && instantLoad.value !== 'none',
 }));
 /** The fallback's Nearby routes: how long its boxes may take on this machine; null otherwise. */
 const fallbackSeconds = ref<number | null>(null);

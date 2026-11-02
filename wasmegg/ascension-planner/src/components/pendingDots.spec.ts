@@ -196,12 +196,12 @@ describe('the labels, drawn', () => {
     expect(textOf(await renderHtml(FollowButton, { ...base, stale: false }))).toBe('Follow this route');
   });
 
-  it('a hidden section\'s one line ("working out…" while the instant answer is worked out): the words, then the dots', async () => {
+  it('a hidden section\'s one line ("working out" while the instant answer is worked out): the words, then the dots', async () => {
     // Hidden (its Show bar), as this browser remembered it.
     const was = (globalThis as { localStorage?: unknown }).localStorage;
     (globalThis as { localStorage?: unknown }).localStorage = { getItem: () => '1', setItem: () => {} };
     try {
-      const html = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant answer', summary: 'working out…' });
+      const html = await renderHtml(CollapsibleSection, { id: 'dots-spec', title: 'Instant answer', summary: 'working out', summaryBusy: true });
       expect(html).toContain('data-testid="show-dots-spec"');
       expect(textOf(html)).toBe('Instant answer working out... Show');
       expect(html).toContain(DOTS);

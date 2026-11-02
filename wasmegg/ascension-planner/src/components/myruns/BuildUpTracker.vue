@@ -25,6 +25,7 @@
       section="buildUpTracker"
       title="Build-up tracker"
       :hint="hint"
+      :hint-busy="state === 'working'"
       :force="open"
       summary-class="text-body text-indigo-700"
       @player-toggle="emit('toggle', $event)"
@@ -100,7 +101,8 @@
                 data-testid="buildup-replan-button"
                 @click="emit('replan')"
               >
-                {{ replan.working ? 'Re-planning… (about half a minute)' : 'Re-plan from this save' }}
+                <template v-if="replan.working">Re-planning<AnimatedDots />{{ ' ' }}(about half a minute)</template
+                ><template v-else>Re-plan from this save</template>
               </button>
               <span v-if="replan.keepsTicks && !replan.working" class="text-slate-700">This keeps your ticks that still match.</span>
             </div>
@@ -227,6 +229,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import PanelFold from '@/components/auto/PanelFold.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
 import { getNextSaleEnd } from '@/lib/events';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
@@ -299,7 +302,8 @@ const hint = computed(() => {
     case 'notBuilding':
       return props.finishChosen === 'picked' ? 'you chose to finish without buying' : 'nothing to buy until your next prestige';
     case 'working':
-      return 'working it out…';
+      // The dots are drawn after it (PanelFold `hintBusy`), never typed (spec-dots, Jordan 1 Nov 2026).
+      return 'working it out';
     case 'failed':
       return 'could not be worked out';
   }
