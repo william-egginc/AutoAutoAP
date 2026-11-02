@@ -7,6 +7,8 @@ import type { SnapWhatIf } from './instantSnapshot';
 
 /** Closer than this (days) reads as "about the same". */
 const SAME_DAYS = 0.05;
+/** Closer than this reads as "at about the same time". */
+const SAME_SECONDS = 3600;
 
 export function maxedWhatIfText(o: {
   /** By a date: the deadline (unix seconds); absent for Fastest route. */
@@ -22,19 +24,25 @@ export function maxedWhatIfText(o: {
    */
   exact?: { end: number | null; te: number } | null;
   maxed: PricedOnTable;
+  /**
+   * By a date: when maxed gear's fastest route reaches the player's own TE (`mine.te`), once the component has
+   * it (MaxedWhatIf.vue's second pricing). Said as a second sentence when it is sooner; left out otherwise.
+   */
+  sameEnd?: number | null;
   show: (unix: number) => string;
 }): string {
   const { mine, maxed } = o;
   if (o.deadline) {
     if (!maxed.route) return `With maxed gear: no route reaches a higher TE by ${o.show(o.deadline)} either.`;
     const ex = o.exact && Number.isFinite(o.exact.te) && o.exact.te > 0 && o.exact.te !== mine.te ? o.exact.te : null;
-    return maxed.te > mine.te
+    const sooner = sameEndWords(o);
+    return (maxed.te > mine.te
       ? ex !== null
         ? `With maxed gear: TE ${maxed.te} by ${o.show(o.deadline)} instead of ${mine.te} (instant answer; exact on your account: ${ex}).`
         : `With maxed gear: TE ${maxed.te} by ${o.show(o.deadline)} instead of ${mine.te}.`
       : `With maxed gear: TE ${maxed.te} by ${o.show(o.deadline)}, the same as your gear${
           ex !== null ? ` (instant answer; exact on your account: ${ex})` : ''
-        }.`;
+        }.`) + sooner;
   }
   if (maxed.end === null) return `With maxed gear: no route to ${o.final} in the instant answer either.`;
   if (mine.end === null) return `With maxed gear: ${o.final} on ${o.show(maxed.end)}.`;
@@ -46,6 +54,23 @@ export function maxedWhatIfText(o: {
   return days > SAME_DAYS
     ? `With maxed gear: ${o.final} on ${o.show(maxed.end)}, ${days.toFixed(1)} days sooner than with your gear${note}.`
     : `With maxed gear: ${o.final} on ${o.show(maxed.end)}, about the same as your gear${note}.`;
+}
+
+/** By a date's second sentence: the same TE, how much sooner (against the player's own arrival, else the deadline). */
+function sameEndWords(o: {
+  deadline?: number | null;
+  mine: { end: number | null; te: number };
+  sameEnd?: number | null;
+  show: (unix: number) => string;
+}): string {
+  const { sameEnd, mine, deadline } = o;
+  if (typeof sameEnd !== 'number' || !Number.isFinite(sameEnd) || !(mine.te > 0) || !deadline) return '';
+  const own = mine.end !== null && Number.isFinite(mine.end);
+  const seconds = (own ? (mine.end as number) : deadline) - sameEnd;
+  if (seconds < SAME_SECONDS) return '';
+  return ` Maxed gear would reach ${mine.te} on ${o.show(sameEnd)}, ${spanWords(seconds)} ${
+    own ? 'sooner than with your gear' : 'before your deadline'
+  }.`;
 }
 
 /** The maxed table's gear in letters, from its tables.json label without the trailing "maxed reference". */
@@ -78,15 +103,19 @@ export function perfectSetGap(w: SnapWhatIf | null | undefined, goal: 'fastest' 
   return { te: w.mineTE, seconds: w.mineEnd - maxedAt };
 }
 
-/** Closer than this reads as "at about the same time". */
-const SAME_SECONDS = 3600;
-
 /** "With a perfect set you'd reach 490 TE about 3.2 days sooner (an estimate from the instant answer)." */
 export function perfectSetWords(g: PerfectSetGap): string {
   const tail = ' (an estimate from the instant answer).';
   if (g.seconds < SAME_SECONDS) return `With a perfect set you'd reach ${g.te} TE at about the same time${tail}`;
-  const h = g.seconds / 3600;
-  const span =
-    h < 24 ? `${Math.round(h)} ${Math.round(h) === 1 ? 'hour' : 'hours'}` : h / 24 < 10 ? `${(h / 24).toFixed(1)} days` : `${Math.round(h / 24)} days`;
-  return `With a perfect set you'd reach ${g.te} TE about ${span} sooner${tail}`;
+  return `With a perfect set you'd reach ${g.te} TE about ${spanWords(g.seconds)} sooner${tail}`;
+}
+
+/** "5 hours", "3.2 days", "12 days": one rounding for My runs' gear block and By a date's what-if. */
+function spanWords(seconds: number): string {
+  const h = seconds / 3600;
+  return h < 24
+    ? `${Math.round(h)} ${Math.round(h) === 1 ? 'hour' : 'hours'}`
+    : h / 24 < 10
+      ? `${(h / 24).toFixed(1)} days`
+      : `${Math.round(h / 24)} days`;
 }

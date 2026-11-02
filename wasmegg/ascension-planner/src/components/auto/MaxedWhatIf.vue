@@ -60,6 +60,8 @@ const open = ref(false);
 const status = ref<'idle' | 'running' | 'done' | 'error'>('idle');
 const maxed = ref<PricedOnTable | null>(null);
 const letters = ref('');
+/** By a date: when maxed gear reaches the player's own TE, once priced (the text adds a sentence with it). */
+const sameEndShown = ref<number | null>(null);
 /** Bumped when the answer changes, so a run for an older one is dropped. */
 let runs = 0;
 let pool: RoutePool | null = null;
@@ -72,6 +74,7 @@ const text = computed(() =>
         mine: props.mine,
         exact: props.exact ?? null,
         maxed: maxed.value,
+        sameEnd: sameEndShown.value,
         show: t => showDateTime(t, props.zone),
       })
     : ''
@@ -86,6 +89,7 @@ async function run(): Promise<void> {
   if (props.alreadyMaxed) return;
   const id = ++runs;
   status.value = 'running';
+  sameEndShown.value = null;
   if (!letters.value) void loadLetters();
   // One route worker of its own, as the nearest-gear bracket uses: the maxed table is cached by the
   // browser after the first load, so this is a few seconds of route finding.
@@ -128,6 +132,7 @@ async function run(): Promise<void> {
         sameEnd = undefined;
       }
       if (id !== runs) return;
+      sameEndShown.value = sameEnd ?? null;
     }
     emit('result', {
       at: Date.now(),
@@ -166,6 +171,7 @@ watch(
   () => {
     runs++;
     maxed.value = null;
+    sameEndShown.value = null;
     status.value = 'idle';
     if (open.value) void run();
   }

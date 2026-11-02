@@ -1104,8 +1104,11 @@ function currentRoute(): SiteRoute {
 }
 
 function applyRoute(r: SiteRoute): void {
-  autoView.value = r.auto;
-  fastestDepth.value = r.depth;
+  // Only an address to the Auto Planner names its screen; one to another tab leaves the remembered one (lib/autoScreen.ts).
+  if (r.section === 'auto') {
+    autoView.value = r.auto;
+    fastestDepth.value = r.depth;
+  }
   if (r.compare) compareView.value = r.compare;
   if (r.science) scienceView.value = r.science;
   plannerTab.value =

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { maxedLetters, maxedWhatIfText, perfectSetGap, perfectSetWords } from './maxedWhatIf';
 import type { Route } from './routeFinder';
 
@@ -107,5 +109,35 @@ describe('MaxedWhatIf keeps the By a date same-TE time with its result', () => {
     expect(second).toMatch(/priceOnTable\(pool, props\.tableUrl, \{[\s\S]*final: props\.mine\.te,/);
     expect(second.slice(0, second.indexOf('sameEnd = same.end'))).not.toContain('deadline:');
     expect(src).toContain("...(sameEnd !== undefined ? { sameEnd } : {}),");
+  });
+});
+
+describe('By a date says when maxed gear reaches the player’s own TE (1 Nov 2026)', () => {
+  const maxed252 = { route: route(299 * 86400, 252), end: 299 * 86400, te: 252 };
+  const base = { deadline: 300 * 86400, final: 490, maxed: maxed252, show };
+  it('against the player’s own arrival, with the same wording as My runs', () => {
+    const t = maxedWhatIfText({ ...base, mine: { end: 290 * 86400, te: 248 }, sameEnd: 285.5 * 86400 });
+    expect(t).toContain('With maxed gear: TE 252 by day 300 instead of 248.');
+    expect(t).toContain('Maxed gear would reach 248 on day 286, 4.5 days sooner than with your gear.');
+    expect(perfectSetWords({ te: 248, seconds: 4.5 * 86400 })).toContain('about 4.5 days sooner');
+  });
+  it('against the deadline when the player’s own arrival is unknown, and says so', () => {
+    const t = maxedWhatIfText({ ...base, mine: { end: null, te: 248 }, sameEnd: 290 * 86400 });
+    expect(t).toContain('Maxed gear would reach 248 on day 290, 10 days before your deadline.');
+  });
+  it('is left out with no sameEnd, a failed one, or when not sooner', () => {
+    for (const sameEnd of [undefined, null, 290 * 86400, 291 * 86400]) {
+      const t = maxedWhatIfText({ ...base, mine: { end: 290 * 86400, te: 248 }, sameEnd });
+      expect(t).not.toContain('Maxed gear would reach');
+    }
+  });
+  it('Fastest is unchanged by it', () => {
+    const t = maxedWhatIfText({ final: 490, mine: { end: 100 * 86400, te: 490 }, maxed: { route: route(88 * 86400, 490), end: 88 * 86400, te: 490 }, sameEnd: 50 * 86400, show });
+    expect(t).toBe('With maxed gear: 490 on day 88, 12.0 days sooner than with your gear.');
+  });
+  it('the component shows it once sameEnd arrives and clears it with the answer', () => {
+    const src = readFileSync(fileURLToPath(new URL('../components/auto/MaxedWhatIf.vue', import.meta.url)), 'utf8');
+    expect(src).toContain('sameEnd: sameEndShown.value');
+    expect(src).toContain('sameEndShown.value = null');
   });
 });
