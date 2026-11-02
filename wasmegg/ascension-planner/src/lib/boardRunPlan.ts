@@ -73,3 +73,18 @@ export function runSaveSeconds(row: BoardRow): number | null {
   const s = rowSaveSeconds(row);
   return s == null ? null : Math.round(s);
 }
+
+/**
+ * What a board run keeps for the pace badge (1 Nov 2026: a Custom run sent from another browser showed "Can't tell: saved
+ * without each egg's TE" beside a save that has them): the plan meta from the row, its save's time, each egg's TE when the
+ * row carries all five (shift by shift), and the plan's starting TE (leg by leg when there is no per-egg TE).
+ */
+export function runMetaOf(row: BoardRow, save: number | null): { backupTime: number; teByEgg?: number[]; startTE?: number } {
+  const te = row.teByEgg;
+  const ok = Array.isArray(te) && te.length === 5 && te.every(v => typeof v === 'number' && Number.isFinite(v));
+  return {
+    backupTime: save ?? 0,
+    ...(ok ? { teByEgg: [...(te as number[])] } : {}),
+    ...(typeof row.currentTE === 'number' && Number.isFinite(row.currentTE) ? { startTE: row.currentTE } : {}),
+  };
+}

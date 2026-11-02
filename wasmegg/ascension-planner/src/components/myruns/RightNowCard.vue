@@ -482,6 +482,7 @@
         :calculated-when="calculatedWhen"
         :following="following"
         :rounded="rounded"
+        :here="hereRow"
       />
       <details class="mt-2" data-testid="now-timeline">
         <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-indigo-700" data-testid="now-timeline-summary">
@@ -489,13 +490,14 @@
         </summary>
         <div class="mt-2">
           <!-- No exact legs: every ascension with the instant answer's shifts (lib/instantSteps.ts `ascensionSteps`). -->
-          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" />
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" />
           <RouteTimeline
             v-else
             :chain="card.plan.chain"
             :legs="card.plan.legs"
             :zone="zone"
             :no-legs-text="rounded ? NO_LEGS_INSTANT : NO_LEGS_KEPT"
+            :here-at="hereRow ? now : undefined"
           />
         </div>
       </details>
@@ -775,6 +777,12 @@ const calculatedWhen = computed(() => {
   return at ? `${dateAt(at, props.now, props.zone)} (${relativeWords(at - props.now)})` : '';
 });
 /** The save the plan was made from: its own (an older save's), else the loaded one. */
+/** "You are here": the loaded save's egg and TE, while it is on virtue with a known egg (EventsTable.vue). */
+const hereRow = computed(() =>
+  props.currentEgg && props.onVirtue !== false
+    ? { egg: props.currentEgg, te: props.teSoFar, saveWhen: dateAt(props.saveSeconds, props.now, props.zone) }
+    : null
+);
 const planSaveWhen = computed(() => dateAt(props.card?.plan.meta?.backupTime || props.saveSeconds, props.now, props.zone));
 const secondaryText = computed(() => {
   const sec = props.card?.secondary;

@@ -13,7 +13,14 @@
     <ol class="space-y-1.5 list-none pl-0">
       <li v-for="l in lines" :key="l.asc" class="break-words" data-testid="now-ascension" :data-asc="l.asc">
         <span class="font-bold text-slate-800">A{{ l.asc }}</span>
-        <template v-if="l.now">{{ ' ' }}· now, in the ascension you are in</template>
+        <template v-if="l.now"
+          >{{ ' ' }}· now, in the ascension you are in<span
+            v-if="here"
+            class="ml-1 rounded bg-emerald-100 px-1.5 text-small font-bold text-emerald-900"
+            data-testid="you-are-here"
+            >you are here</span
+          ></template
+        >
         <template v-else>
           <template v-if="l.prestigeInTimeOff"
             >{{ ' ' }}· prestige <span class="text-amber-800 font-bold" data-testid="ascension-prestige-timeoff"
@@ -84,6 +91,8 @@ const props = defineProps<{
   zone: string;
   /** The current ascension's simulation is being worked out (lib/followSim.ts). */
   working?: boolean;
+  /** The save is on a known egg: tag the ascension you are in "you are here". */
+  here?: boolean;
 }>();
 
 /** The table's times: to the hour on the player's clock. */

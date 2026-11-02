@@ -683,7 +683,8 @@ export function onTrack(
   // A followed route's estimate keeps no snapshot (no `meta.teByEgg`): its first table leg says the TE it starts from,
   // so it is compared leg by leg rather than "Can't tell: saved without each egg's TE" (30 Oct 2026, Jordan's My runs
   // showed that next to his own per-egg TE, which is the loaded save's, not the plan's start).
-  const from = tableLegs ? plan.tableLegs?.[0]?.from : undefined;
+  // A Leaderboard run sent from another browser (simulated legs, no per-egg TE) says its start TE in its meta.
+  const from = tableLegs ? plan.tableLegs?.[0]?.from : plan.meta?.startTE;
   const line = paceLine({
     legs,
     tableLegs,

@@ -184,6 +184,13 @@ describe('on track', () => {
     expect(onTrack(noTE, { seconds: T0 + H, teByEgg: [41, 37, 36, 37, 36] })).toMatchObject({ rough: true });
   });
 
+  it('a Custom run sent from another browser: simulated legs, no per-egg TE, but the plan’s start TE (meta.startTE): leg by leg, not "no-te" (1 Nov 2026)', () => {
+    const board = { ...p, meta: { account: 'acc', goal: 'target 200', backupTime: T0 - 1800, startTE: 186 } };
+    expect(onTrack(board, { seconds: T0 + 5 * H, teByEgg: [41, 38, 36, 37, 36] })).toMatchObject({ rough: true });
+    // Without it, still "Can't tell".
+    expect(onTrack({ ...board, meta: { ...board.meta, startTE: undefined } }, { seconds: T0 + 5 * H, teByEgg: [41, 38, 36, 37, 36] })).toEqual({ kind: 'cant', why: 'no-te' });
+  });
+
   it('words the chip (planPace’s words, with the save’s time)', () => {
     const ahead = onTrack(p, { seconds: T0 + 2 * H, teByEgg: [41, 38, 36, 37, 36] });
     expect(trackWords(ahead, T0 + 3 * H, 'UTC')).toEqual({ tone: 'ok', text: '2 hours ahead, as of 7:46 PM' });

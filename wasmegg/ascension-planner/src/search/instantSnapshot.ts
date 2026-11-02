@@ -45,6 +45,9 @@ export interface SnapMeta {
   /** Each egg's TE in that save, lifetime as the game counts it (max of earned and thresholds passed),
    *  in the save's order (Curiosity, Integrity, Humility, Resilience, Kindness). */
   teByEgg?: number[];
+  /** The plan's own starting TE, for a run read back from the Leaderboard that has no per-egg TE (lib/boardRunPlan.ts
+   *  `runMetaOf`): the pace badge then goes leg by leg from it. */
+  startTE?: number;
   /** The hours and time off it was priced with (fix 22, 16 Oct 2026; absent before): My runs ranks answers priced
    *  with Your setup now first and names the hours of the others (lib/currentAnswer.ts). */
   setup?: { availability: Availability | null; timeOff: TimeOffDates[] };

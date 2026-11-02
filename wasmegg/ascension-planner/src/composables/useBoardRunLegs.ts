@@ -6,7 +6,7 @@
  */
 import { ref, watch, type Ref } from 'vue';
 import type { BoardRow } from '@/lib/leaderboardRank';
-import { boardRunFor, runSaveSeconds, searchFromRun } from '@/lib/boardRunPlan';
+import { boardRunFor, runMetaOf, runSaveSeconds, searchFromRun } from '@/lib/boardRunPlan';
 import type { SnapSearch } from '@/lib/searchPlan';
 import { legsFromRunCsv } from '@/search/runLegsCsv';
 import type { LegSummary } from '@/search/types';
@@ -35,6 +35,8 @@ export interface BoardRunFound {
   search: SnapSearch;
   /** The save it was priced from, unix seconds (null when the row doesn't say). */
   save: number | null;
+  /** What the row keeps for the pace badge (lib/boardRunPlan.ts `runMetaOf`). */
+  meta: ReturnType<typeof runMetaOf>;
 }
 
 export function useBoardRunLegs(o: {
@@ -66,7 +68,7 @@ export function useBoardRunLegs(o: {
         const legs = await cache.get(key)!;
         const search = searchFromRun(row, legs);
         if (search && found.value[w.goalKey]?.search.at !== search.at)
-          found.value = { ...found.value, [w.goalKey]: { search, save: runSaveSeconds(row) } };
+          found.value = { ...found.value, [w.goalKey]: { search, save: runSaveSeconds(row), meta: runMetaOf(row, runSaveSeconds(row)) } };
       }
     },
     { immediate: true }

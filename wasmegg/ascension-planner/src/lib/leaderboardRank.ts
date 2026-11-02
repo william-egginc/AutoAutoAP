@@ -123,6 +123,8 @@ export interface BoardRow {
   endLocal?: string;
   timezone?: string;
   currentTE?: number;
+  /** Each egg's TE in the save the run was priced from, in the save's order (submission.ts `teByEgg`); absent on older rows. */
+  teByEgg?: number[];
   finalTE: number;
   window?: string | null;
   effort?: string;

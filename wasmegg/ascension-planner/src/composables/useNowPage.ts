@@ -776,7 +776,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         found: run.search,
         meta: same
           ? { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }
-          : { account: acct ?? '', goal: words, backupTime: run.save ?? 0 },
+          : { account: acct ?? '', goal: words, ...run.meta },
         check: same ? currentSetup(sn.setup) : setupCheck(null, sn.setup, sn.today),
       });
     }

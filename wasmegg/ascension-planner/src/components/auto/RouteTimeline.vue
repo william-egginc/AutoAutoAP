@@ -16,7 +16,7 @@
     <template v-for="l in lines" :key="l.asc">
       <details
         v-if="l.eggs.length"
-        :open="open || undefined"
+        :open="open || hereStep?.asc === l.asc || undefined"
         class="rounded-md border border-slate-200 bg-white/80 px-2 py-1"
         data-testid="route-timeline-line"
       >
@@ -37,6 +37,12 @@
             <span class="whitespace-nowrap">{{ stepLength(s.seconds) }}</span>
             <template v-if="s.te !== null">
               · <span class="whitespace-nowrap">{{ s.te }} TE</span></template
+            >
+            <span
+              v-if="hereStep && hereStep.asc === l.asc && hereStep.k === k"
+              class="ml-1 rounded bg-emerald-100 px-1.5 text-small font-bold text-emerald-900"
+              data-testid="you-are-here"
+              >you are here</span
             >
             <span v-if="s.noLaying" class="text-slate-400"> (no laying: artifact swap / build step)</span>
           </li>
@@ -87,6 +93,8 @@ const props = defineProps<{
   only?: number;
   /** Every line opened (one ascension shown on its own). */
   open?: boolean;
+  /** "You are here": the moment (unix seconds) whose step is tagged and whose ascension opens by default. */
+  hereAt?: number;
   /** What to say when there are no legs, instead of the default line. */
   noLegsText?: string;
 }>();
@@ -95,6 +103,17 @@ const all = computed(() => routeTimeline(props.chain, props.legs));
 const lines = computed(() =>
   props.only === undefined ? all.value : all.value.filter(l => l.asc === (props.only ?? 0) + 1)
 );
+/** The step the moment falls in: the last one that started by then and hasn't ended (an open end counts as running). */
+const hereStep = computed(() => {
+  const at = props.hereAt;
+  if (at === undefined) return null;
+  let found: { asc: number; k: number } | null = null;
+  for (const l of lines.value)
+    l.steps.forEach((s, k) => {
+      if (s.start <= at && (s.seconds === null || at < s.start + s.seconds)) found = { asc: l.asc, k };
+    });
+  return found as { asc: number; k: number } | null;
+});
 /** Eggs with times but no TE: legs simulated before shifts kept their TE. */
 const missingTE = computed(() => lines.value.some(l => l.eggs.some(e => e.te === null)));
 
