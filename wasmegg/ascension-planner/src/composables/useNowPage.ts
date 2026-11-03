@@ -1802,6 +1802,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    *  "Keep building"). Only a 'buildup' leg builds; a 'continue' leg buys nothing. */
   const keepBuilding = (variant: string | null | undefined): Pick<ActionLeg, 'building'> =>
     variant === 'buildup' && saveBuildLeft.value?.length ? { building: [...saveBuildLeft.value] } : {};
+  /** B1 (spec-r7qa, 3 Nov 2026): the simulated ascension you are in is a fresh start (Your setup's Prestige now), but the
+   *  save's farm is producing: the badge's Producing (lib/nowPhase.ts `phaseNow`, the save's production set wins) and the
+   *  tracker's "nothing to buy until your next prestige" (its `building` is that badge). One build state for all three:
+   *  with Producing the fresh start's build-up hasn't begun, so Next step is its prestige, never "Building up until …"
+   *  (lib/nextAction.ts `unstarted`). Building or no badge: as before. */
+  const unstarted = (variant: string | null | undefined): Pick<ActionLeg, 'unstarted'> =>
+    !continuesFarm(variant) && phase.value?.phase === 'producing' ? { unstarted: { te: teSoFar.value } } : {};
   const actionLegs = computed<ActionLeg[]>(() => {
     const p = cardPlan.value?.plan;
     // No timeline for the route: the ascension you are in alone, once simulated.
@@ -1819,6 +1826,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
               ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
               ...(continuesFarm(leg.key) ? { live: true } : {}),
               ...keepBuilding(leg.key),
+              ...unstarted(leg.key),
               ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             },
           ]
@@ -1834,6 +1842,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       ...(l.buildEnd !== undefined ? { buildEnd: l.buildEnd } : {}),
       ...(continuesFarm(l.variant) ? { live: true } : {}),
       ...(i === 0 && l.simulated ? keepBuilding(l.variant) : {}),
+      ...(i === 0 && l.simulated ? unstarted(l.variant) : {}),
       ...(l.timeOff ? { timeOff: l.timeOff } : {}),
     }));
   });
