@@ -1330,7 +1330,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    */
   const saveBuildLeft = computed(() => (hasSave.value && onVirtue.value ? buildLeft(farm.value, fullHabRates.value) : null));
   /**
-   * FASTEST FOR THIS ASCENSION (spec-r7verify, lib/freshSooner.ts): the player's "Switch to Fastest" on Right now, kept
+   * FASTEST FOR THIS ASCENSION (spec-r7verify, lib/freshSooner.ts): the player's "Switch to Soonest" on Right now, kept
    * per account and the stop the ascension you are in heads to (`aap.firstasc.*`), and held on this page per
    * account+stop even when storage refuses it. With it the simulation is asked as Fastest: no unfinished-build path, no
    * A1 choice, its own setup key. Your setup's saved value is never changed.
@@ -1587,7 +1587,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   });
   const freshBusy = computed(() => searchBusy.value || !forcedBuildUp.value?.settled);
   const { state: freshSim } = useCurrentSim(freshRequest, freshBusy);
-  /** The line (DRAFT) and the button "Switch to Fastest" (`switchToFastest`): the fresh start ends more than an hour
+  /** The line (DRAFT) and the button "Switch to Soonest" (`switchToFastest`): the fresh start ends more than an hour
    *  sooner than the forced build-up followed. Null otherwise, and while the fresh start is being priced. */
   const freshLine = computed(() => {
     const f = forcedBuildUp.value;
@@ -1602,7 +1602,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const b = simBase.value;
     return b && b.fastest && !b.trackerOnly ? { line: FASTEST_FOLLOWED_LINE } : null;
   });
-  /** "Switch to Fastest" (on) and "Undo" (off): kept for this account and ascension, never Your setup's value. */
+  /** "Switch to Soonest" (on) and "Undo" (off): kept for this account and ascension, never Your setup's value. */
   function switchToFastest(on = true): void {
     const acct = account.value;
     const stop = simBase.value?.route[0];

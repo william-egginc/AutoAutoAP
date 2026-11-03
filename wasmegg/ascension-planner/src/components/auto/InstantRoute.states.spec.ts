@@ -408,7 +408,7 @@ describe('the estimate line under the date (spec-r7verify item 5; DRAFT)', () =>
     atTarget: false,
     saved: false,
   };
-  const WORDS = 'An estimate from tables worked out ahead of time: a Fast search on your save often lands a few days either side.';
+  const WORDS = 'An estimate worked out ahead of time: a Fast search on your save often lands a few days either side.';
   it('the exact words', () => expect(INSTANT_ESTIMATE_LINE).toBe(WORDS));
 
   it('Fastest: right under the date in the green box, before the "in … · N ascensions" line', async () => {

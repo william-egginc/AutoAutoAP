@@ -1,7 +1,7 @@
 <!--
   Right now's "Starting fresh would be sooner" (spec-r7verify, 1 Nov 2026; lib/freshSooner.ts, composables/useNowPage.ts
   `freshLine` / `fastestFollowed`): the forced build-up followed ends more than an hour after a fresh start, so the line
-  says by how much with both dates, and "Switch to Fastest" follows Fastest for this ascension only (Setup unchanged).
+  says by how much with both dates, and "Switch to Soonest" follows Fastest for this ascension only (Setup unchanged).
   While that holds, a quieter line says so, with Undo. Plain data in, `switch` out. Words DRAFT (lib/freshSoonerWords.ts).
 -->
 <template>

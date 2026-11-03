@@ -7,4 +7,4 @@
 /** Under the date in the instant answer's green box (components/auto/InstantRoute.vue), on the tables' answer only.
  *  DRAFT (Words). */
 export const INSTANT_ESTIMATE_LINE =
-  'An estimate from tables worked out ahead of time: a Fast search on your save often lands a few days either side.';
+  'An estimate worked out ahead of time: a Fast search on your save often lands a few days either side.';

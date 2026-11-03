@@ -11,7 +11,7 @@
  *   - THE LINE shows only when the simulation followed is the forced build-up (or the "just laying" it falls back to)
  *     and the fresh start ends more than `FRESH_SOONER_SECONDS` sooner (`freshSooner`). Never under Fastest, Prestige
  *     now or Finish without buying (those are no forced build-up), never for a route with exact legs.
- *   - THE BUTTON ("Switch to Fastest") keeps an override for this account and ascension in this browser
+ *   - THE BUTTON ("Switch to Soonest") keeps an override for this account and ascension in this browser
  *     (`aap.firstasc.<account>.<stop>` = 'auto'; <stop>: the stop the ascension you are in heads to on the followed
  *     route, as the A1 choice keys its pick, lib/a1Choice.ts). With it the simulation is asked as Fastest (`firstAscension
  *     'auto'`, the unfinished-build path and the A1 choice left out) under its own setup key (`FASTEST_SETUP`). Your
