@@ -29,7 +29,8 @@ import type { ChainResult, SearchInputs } from './types';
 import type { BuildUpAction } from './buildUpActions';
 
 /** leg.shiftTE.spec.ts `BEFORE`: the route's numbers recorded before the build-up list existed. */
-const BEFORE = { seconds: 1410518.5035481453, endTime: 1792270118.5035481, key: '1-sale', endTE: 192 };
+// sim3 (3 Nov 2026): recorded again with the simulator.
+const BEFORE = { seconds: 1421953.4231214523, endTime: 1792281553.4231215, key: '1-sale', endTE: 192 };
 
 let inputs: SearchInputs;
 /** The first leg's start state, as chain.ts builds it. */

@@ -33,7 +33,13 @@ import type { SearchInputs } from './types';
 
 /** Recorded before the fix (ec96de70): the build-up of the synthetic farm on its earnings set, and on
  *  Humility the build-up and continue. Plan start Oct 1, 2026, 7:00 am Mountain; target 192 TE. */
-const BEFORE = { buildUpEarnings: 1791553923.1875973, humilityContinue: 39027924345.62065 };
+// sim3 (3 Nov 2026): recorded again. Under the own-egg rule (auto/buildUp.ts) a farm on Kindness and
+// one on Humility no longer end the build-up at the same instant (0.5 s apart).
+const BEFORE = {
+  buildUpEarnings: 1791553825.7030203,
+  buildUpHumility: 1791553826.1782622,
+  humilityContinue: 39027924345.62065,
+};
 
 const KINDNESS = 54;
 const HUMILITY = 52;
@@ -176,7 +182,7 @@ describe('A1 off Humility keeps the equipped set (search/leg.ts)', () => {
     const s = start(inputs)!;
     expect(s.activeArtifactSet).toBe('earnings');
     expect(sameSet(loadout(s), earningsSet(inputs))).toBe(true);
-    expect(buildUp(inputs)!.summary.endTime).toBe(BEFORE.buildUpEarnings);
+    expect(buildUp(inputs)!.summary.endTime).toBe(BEFORE.buildUpHumility);
     expect(continued(inputs)!.summary.endTime).toBe(BEFORE.humilityContinue);
   }, 600_000);
 
