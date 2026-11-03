@@ -10,7 +10,7 @@ import type {
 import { calculateArtifactModifiers } from '@/lib/artifacts';
 import { totalAwayTime } from '@/stores/silos';
 import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
-import { integrateRate } from './apply/math';
+import { integrateRate, earningsRateFor } from './apply/math';
 
 import { calculateEggValue } from '@/calculations/eggValue';
 import { calculateHabCapacity_Full as calculateHabCapacity } from '@/calculations/habCapacity';
@@ -173,7 +173,9 @@ export function computeSnapshot(
     );
 
     // Offline earnings factor (Value per egg * away multipliers)
-    const vOffline = elrOutput.effectiveLayRate > 0 ? earningsOutput.offlineEarnings / elrOutput.effectiveLayRate : 0;
+    // The 60 s rule (apply/math.ts `earningsRateFor`): a catch-up under a minute earns the online rate.
+    const vOffline =
+      elrOutput.effectiveLayRate > 0 ? earningsRateFor(earningsOutput, elapsedSeconds) / elrOutput.effectiveLayRate : 0;
     bankValue += vOffline * extraEggs;
   }
 

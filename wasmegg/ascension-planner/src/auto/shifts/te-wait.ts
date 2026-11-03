@@ -7,6 +7,7 @@ import { shiftCost } from 'lib';
 import { TE_BREAKPOINTS, countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
 import { computeTEEarned, timeToEarnTE } from '../te-thresholds';
 import type { VirtueEgg } from '@/types/actions/virtue';
+import { earningsRateFor } from '@/engine/apply/math';
 
 const ALL_VIRTUE_EGGS: VirtueEgg[] = ['curiosity', 'integrity', 'resilience', 'humility', 'kindness'];
 
@@ -291,7 +292,7 @@ export function runTEWaitShift(
       currentState = applyAction(currentState, waitAction);
       const snap = computeSnapshot(currentState, context, { skipGrowth: true });
       currentState.lastStepTime = (currentState.lastStepTime || 0) + waitTime;
-      currentState.bankValue += snap.offlineEarnings * waitTime;
+      currentState.bankValue += earningsRateFor(snap, waitTime) * waitTime;
       
       currentState.eggsDelivered = { ...currentState.eggsDelivered, [egg]: teResult.finalEggsDelivered };
       currentState.teEarned = { ...currentState.teEarned, [egg]: (currentState.teEarned[egg] || 0) + teResult.teEarned };
@@ -301,7 +302,7 @@ export function runTEWaitShift(
       const finalSnap = computeSnapshot(currentState, context, { skipGrowth: true });
       waitAction.endState = finalSnap;
       waitAction.totalTimeSeconds = waitTime;
-      waitAction.bankDelta = snap.offlineEarnings * waitTime;
+      waitAction.bankDelta = earningsRateFor(snap, waitTime) * waitTime;
 
       actions.push(waitAction);
       elapsedSeconds += waitTime;

@@ -54,6 +54,7 @@ import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 import type { TableHeader } from './precomputedTable';
 import { buildUpStartOf, toBuildUpActions, type BuildUpAction, type BuildUpList } from './buildUpActions';
+import { earningsRateFor } from '@/engine/apply/math';
 
 /** Mirrors useAscensionGenerator's own constant: below this starting TE a Tier 13 unlock cannot
  *  realistically land inside one build phase, so those variants are skipped rather than simulated
@@ -705,7 +706,7 @@ function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: n
   if (away > 0) {
     const egg = cont.currentEgg as VirtueEgg;
     const elr = computeSnapshot(cont, ctx, { skipGrowth: true }).elr;
-    const cash = computeSnapshot(state, ctx, { skipGrowth: true }).offlineEarnings;
+    const cash = earningsRateFor(computeSnapshot(state, ctx, { skipGrowth: true }), away);
     state.eggsDelivered = { ...state.eggsDelivered, [egg]: (state.eggsDelivered[egg] || 0) + elr * away };
     state.bankValue = (state.bankValue || 0) + (Number.isFinite(cash) ? cash * away : 0);
   }

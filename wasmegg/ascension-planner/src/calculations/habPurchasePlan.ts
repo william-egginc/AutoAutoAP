@@ -146,6 +146,8 @@ export function simulateHabPurchases(
   // and re-derive layRate/elr/offlineEarnings from the virtual population each step.
   const layRatePerChicken = startSnapshot.population > 0 ? startSnapshot.layRate / startSnapshot.population : 0;
   const earningsPerEgg = startSnapshot.elr > 0 ? startSnapshot.offlineEarnings / startSnapshot.elr : 0;
+  // The online rate moves with it (the 60 s rule, engine/apply/math.ts `earningsRateFor`).
+  const onlinePerEgg = startSnapshot.elr > 0 ? startSnapshot.onlineEarnings / startSnapshot.elr : NaN;
 
   const maxIterations = 4 * habTypes.length; // at most one purchase per hab tier per slot
 
@@ -166,6 +168,7 @@ export function simulateHabPurchases(
       layRate,
       elr,
       offlineEarnings,
+      onlineEarnings: elr * onlinePerEgg,
     };
 
     const best = findBestNextHabPurchase(virtualSnapshot, virtualHabIds, mods, isSaleActive, multipliers);

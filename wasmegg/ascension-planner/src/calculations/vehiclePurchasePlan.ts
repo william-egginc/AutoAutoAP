@@ -68,6 +68,8 @@ export interface VehiclePlanResult {
 export interface VehiclePlanningSnapshot {
   bankValue: number;
   offlineEarnings: number;
+  /** Moves with offlineEarnings (a fixed ratio): the 60 s rule's online rate (engine/apply/math.ts). */
+  onlineEarnings?: number;
   population: number;
   habCapacity: number;
   offlineIHR: number;
@@ -113,7 +115,9 @@ function applyVirtualVehiclePurchase(
 
   snapshot.layRate = snapshot.population * snapshot.ratePerChickenPerSecond;
   snapshot.elr = Math.min(snapshot.layRate, snapshot.shippingCapacity);
+  const onlineRatio = snapshot.offlineEarnings > 0 ? (snapshot.onlineEarnings ?? NaN) / snapshot.offlineEarnings : NaN;
   snapshot.offlineEarnings = snapshot.elr * earningsPerEgg;
+  if (Number.isFinite(onlineRatio)) snapshot.onlineEarnings = snapshot.offlineEarnings * onlineRatio;
 
   snapshot.bankValue = Math.max(0, snapshot.bankValue - price);
 }

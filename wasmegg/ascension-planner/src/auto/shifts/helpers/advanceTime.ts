@@ -29,6 +29,7 @@ import {
   getNextEarningsBoostStart,
   BOUNDARY_EPSILON_SECONDS,
 } from '@/lib/events';
+import { earningsRateFor } from '@/engine/apply/math';
 
 // Actions that pass time (or mark an event boundary) without the player doing anything.
 const IDLE_ACTION_TYPES = new Set([
@@ -90,7 +91,7 @@ export function advanceTimeFlat(
   newState = {
     ...newState,
     lastStepTime: (newState.lastStepTime || 0) + seconds,
-    bankValue: (newState.bankValue || 0) + snap.offlineEarnings * seconds,
+    bankValue: (newState.bankValue || 0) + earningsRateFor(snap, seconds) * seconds,
     eggsDelivered: {
       ...newState.eggsDelivered,
       [newState.currentEgg]: (newState.eggsDelivered[newState.currentEgg] || 0) + passiveEggs,
@@ -100,7 +101,7 @@ export function advanceTimeFlat(
   const finalSnap = computeSnapshot(newState, context, { skipGrowth: true });
   waitAction.endState = finalSnap;
   waitAction.totalTimeSeconds = seconds;
-  waitAction.bankDelta = snap.offlineEarnings * seconds;
+  waitAction.bankDelta = earningsRateFor(snap, seconds) * seconds;
 
   actions.push(waitAction);
 
@@ -202,14 +203,14 @@ export function advanceTimeWithBoundaries(
       currentState = {
         ...currentState,
         lastStepTime: nextLastStepTime,
-        bankValue: (currentState.bankValue || 0) + snap.offlineEarnings * stepSeconds,
+        bankValue: (currentState.bankValue || 0) + earningsRateFor(snap, totalSeconds) * stepSeconds,
         eggsDelivered: { ...currentState.eggsDelivered, [currentState.currentEgg]: (currentState.eggsDelivered[currentState.currentEgg] || 0) + passiveEggs },
       };
 
       const finalSnap = computeSnapshot(currentState, context, { skipGrowth: true });
       waitAction.endState = finalSnap;
       waitAction.totalTimeSeconds = stepSeconds;
-      waitAction.bankDelta = snap.offlineEarnings * stepSeconds;
+      waitAction.bankDelta = earningsRateFor(snap, totalSeconds) * stepSeconds;
 
       actions.push(waitAction);
       elapsedSeconds = nextElapsedSeconds;
@@ -230,7 +231,7 @@ export function advanceTimeWithBoundaries(
         const creditSeconds = Math.min(trailingIdleSeconds(actions), totalSiloSeconds);
         if (creditSeconds > 0) {
           const preBoostSnap = computeSnapshot(currentState, context, { skipGrowth: true });
-          const delta = preBoostSnap.offlineEarnings * creditSeconds;
+          const delta = earningsRateFor(preBoostSnap, creditSeconds) * creditSeconds;
           if (delta > 0) {
             const modifyBank = createSimAction('modify_bank', {
               mode: 'delta',
