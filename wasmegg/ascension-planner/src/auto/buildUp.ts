@@ -6,10 +6,12 @@
  * vehicle slot a full hyperloop, silos within a budget), not a count, so anything the farm already
  * owns is simply not bought again. What does need care is the SHIFT itself: in the game a shift
  * resets the farm's chickens and cash (engine/apply/actions.ts), and the standard build only shifts
- * because it then spends time on that egg. So each step is first tried where the farm is, on the
- * egg it is on, without a shift:
- *   - when its purchases take no more than `IN_PLACE_SECONDS`, they are kept and the shift is
- *     dropped (no reset, no soul-egg cost: a player who already has the money just buys);
+ * because it then spends time on that egg. In the game a purchase can only be made on its own egg
+ * (silos on Resilience, habs on Integrity, research on Curiosity, vehicles on Kindness). So each
+ * step's purchases are first tried where the farm is, without a shift:
+ *   - when there is nothing to buy, the step is skipped, shift and all;
+ *   - when the farm is already on the step's egg and its purchases take no more than
+ *     `IN_PLACE_SECONDS`, they are kept with no shift (no reset, no soul-egg cost);
  *   - otherwise the step runs exactly as the standard build runs it, shift and all.
  * C1 (the opening research sweep) only runs on a farm that has not yet bought a hab or a vehicle;
  * past that the player has done it, and running it again would spend the farm's cash on research at
@@ -88,6 +90,16 @@ interface Step {
   inPlace: (s: EngineState, c: SimulationContext) => ShiftResult;
 }
 
+/** The egg each step's purchases belong to: vehicles on Kindness, habs on Integrity, research on
+ *  Curiosity, silos on Resilience. */
+const STEP_EGG: Record<Step['name'], EngineState['currentEgg']> = {
+  K1: 'kindness',
+  I1: 'integrity',
+  C2: 'curiosity',
+  K2: 'kindness',
+  R1: 'resilience',
+};
+
 const STEPS: Step[] = [
   { name: 'K1', shift: (s, c) => runK1(s, c), inPlace: (s, c) => runVehiclesForTimeLimit(s, c, 1800) },
   { name: 'I1', shift: runI1, inPlace: (s, c) => runHabPurchasePlan(s, c, Infinity) },
@@ -137,7 +149,18 @@ export function runBuildUpUntilC3(start: EngineState, context: SimulationContext
   for (const step of STEPS) {
     state.lastStepTime = elapsedSeconds;
     const trial = step.inPlace(JSON.parse(JSON.stringify(state)) as EngineState, context);
-    if (trial.elapsedSeconds <= IN_PLACE_SECONDS) {
+    // Nothing left to buy (habs or vehicles already maxed; the uncapped probes): no shift, which
+    // would reset the farm and cost soul eggs for nothing. C2 and R1 are capped, so their shift is
+    // tried and dropped if it buys nothing (SKIP_WHEN_NO_PURCHASES), as in a fresh build.
+    if (step.name === 'I1' || step.name === 'K2') {
+      if (!trial.actions.some(isPurchase)) continue;
+    } else if (step.name === 'K1') {
+      const probe = runMaxVehiclesPlan(JSON.parse(JSON.stringify(state)) as EngineState, context, Infinity);
+      if (!probe.actions.some(isPurchase)) continue;
+    }
+    // Purchases happen only on their own egg (Jordan, 3 Nov 2026): in place only when the farm is
+    // already on it; otherwise the step shifts there first (paid in soul eggs, as any shift).
+    if (state.currentEgg === STEP_EGG[step.name] && trial.elapsedSeconds <= IN_PLACE_SECONDS) {
       take(trial);
       continue;
     }
