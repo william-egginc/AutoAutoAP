@@ -558,6 +558,7 @@
               can-fill
               can-save
               :saving="saving"
+              :saved="store.currentRunSaved"
               :note="
                 applied ? `Sent ${applied} to ${NAMES.classic}${generated ? ' and started simulating it.' : '.'}` : ''
               "

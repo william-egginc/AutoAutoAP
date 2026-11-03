@@ -99,9 +99,10 @@
         type="button"
         :disabled="saving"
         :class="SECONDARY_BUTTON"
+        data-testid="fastest-save"
         @click="emit('save')"
       >
-        <template v-if="saving">Saving<AnimatedDots /></template><template v-else>Save run</template>
+        <template v-if="saving">Saving<AnimatedDots /></template><template v-else>{{ saved ? 'Saved ✓' : 'Save run' }}</template>
       </button>
       <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
       <p class="w-full text-small text-emerald-900/70" data-testid="build-plan-note">
@@ -140,6 +141,9 @@ const props = withDefaults(
     /** Offer the same table as an .xlsx beside it (store `xlsxOffered`: under the row cap; emits `xlsx`). */
     xlsx?: boolean;
     saving?: boolean;
+    /** The run is in Saved runs (store `currentRunSaved`, the flag Save this run below reads): the button says "Saved ✓"
+     *  (DRAFT words, as Save this run's; pressing it again refreshes that entry, never a second one). L2, spec-r7qa. */
+    saved?: boolean;
     /** Where the answer came from, when it wasn't this depth: the two share one store, so the
      *  Smart search screen shows a Full sweep's result until Smart search runs, and vice versa. */
     source?: string;
@@ -164,6 +168,7 @@ const props = withDefaults(
     csvEvery: false,
     xlsx: false,
     saving: false,
+    saved: false,
     note: '',
     lastRun: '',
     ranLine: '',

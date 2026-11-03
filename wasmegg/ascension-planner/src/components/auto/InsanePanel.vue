@@ -939,6 +939,7 @@
               :follow="customFollow"
               can-save
               :saving="saving"
+              :saved="store.currentRunSaved"
               @build="buildPlan"
               :csv-every="store.csvHasEveryRoute('fastest')"
               @csv="downloadCsv"
