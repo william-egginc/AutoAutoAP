@@ -40,6 +40,8 @@ import { waitForTimeExecutor } from './executors/wait_for_time';
 import { removeFuelExecutor } from './executors/removeFuel';
 import { waitForFullHabsExecutor } from './executors/wait_for_full_habs';
 import { toggleEarningsBoostExecutor } from './executors/toggleEarningsBoost';
+import { waitForResearchSaleEndExecutor } from './executors/waitForResearchSaleEnd';
+import { waitForEarningsBoostEndExecutor } from './executors/waitForEarningsBoostEnd';
 import { waitForResearchSaleExecutor } from './executors/waitForResearchSale';
 import { waitForEarningsBoostExecutor } from './executors/waitForEarningsBoost';
 import { waitForGemsExecutor } from './executors/waitForGems';
@@ -131,6 +133,8 @@ const executorMap: { [K in ActionType]: ActionExecutor<K> } = {
   wait_for_time: waitForTimeExecutor,
   wait_for_full_habs: waitForFullHabsExecutor,
   wait_for_research_sale: waitForResearchSaleExecutor,
+  wait_for_research_sale_end: waitForResearchSaleEndExecutor,
+  wait_for_earnings_boost_end: waitForEarningsBoostEndExecutor,
   wait_for_earnings_boost: waitForEarningsBoostExecutor,
   wait_for_gems: waitForGemsExecutor,
   wait_for_no_earnings: waitForNoEarningsExecutor,

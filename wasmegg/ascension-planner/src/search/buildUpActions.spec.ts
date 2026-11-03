@@ -55,3 +55,20 @@ describe('toBuildUpActions: cheap buys', () => {
     expect(list.every(a => a.cheap === undefined)).toBe(true);
   });
 });
+
+describe('toBuildUpActions: waits that end on a sale or 2x end (Joo 38bf12db)', () => {
+  it('wait_for_research_sale_end and wait_for_earnings_boost_end are listed as waits with their seconds', () => {
+    step = 0;
+    const list = toBuildUpActions(
+      [
+        act('wait_for_research_sale_end', { totalTimeSeconds: 0.5 }, 0, 1e10),
+        act('wait_for_earnings_boost_end', { totalTimeSeconds: 3600 }, 0, 1e10),
+      ],
+      START
+    );
+    expect(list.map(a => [a.kind, a.id, (a as { seconds?: number }).seconds])).toEqual([
+      ['wait', 'wait_for_research_sale_end', 0.5],
+      ['wait', 'wait_for_earnings_boost_end', 3600],
+    ]);
+  });
+});
