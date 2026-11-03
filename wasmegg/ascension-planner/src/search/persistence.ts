@@ -24,6 +24,7 @@ import type { ProvisionalRow, SearchSpace } from './submission';
 import type { WatchLinkState } from './watchLink';
 import { availabilityKey, type Availability } from './availability';
 import { milestonesKey, type Milestone } from './milestones';
+import { SIM_VERSION } from './simVersion';
 import {
   FIRST_ASCENSION_WORDS,
   firstAscensionFromTag,
@@ -224,6 +225,8 @@ export function fingerprintRun(args: {
   if (args.timeOff?.length) parts.push('off:' + args.timeOff.map(w => `${w.from}-${w.to}`).join(','));
   // No prestige on these days (search/noPrestige.ts): likewise only when set.
   if (args.noPrestige?.length) parts.push('np:' + args.noPrestige.map(w => `${w.from}-${w.to}`).join(','));
+  // The simulator (sim3, 3 Nov 2026): a checkpoint priced by an older one does not resume as current.
+  parts.push(`sim:${SIM_VERSION}`);
   return parts.join('|');
 }
 
@@ -311,6 +314,8 @@ export function fingerprintSettings(fp: string): FingerprintSettings | null {
   for (const part of parts.slice(5)) {
     if (part.startsWith('off:')) {
       out.timeOff = windows(part.slice(4));
+    } else if (part.startsWith('sim:')) {
+      continue;
     } else if (part.startsWith('np:')) {
       out.noPrestige = windows(part.slice(3));
     } else if (part.startsWith('ms')) {
@@ -363,11 +368,13 @@ function tailChanges(a: string[], b: string[]): string[] {
   const isOff = (p: string) => p.startsWith('off:');
   const isMs = (p: string) => p.startsWith('ms');
   const isNp = (p: string) => p.startsWith('np:');
-  const isAvail = (p: string) => !isOff(p) && !isMs(p) && !isNp(p);
+  const isSim = (p: string) => p.startsWith('sim:');
+  const isAvail = (p: string) => !isOff(p) && !isMs(p) && !isNp(p) && !isSim(p);
   if (tail(a, isAvail) !== tail(b, isAvail)) out.push('the availability schedule changed');
   if (tail(a, isMs) !== tail(b, isMs)) out.push('the TE milestones changed');
   if (tail(a, isOff) !== tail(b, isOff)) out.push('the time off changed');
   if (tail(a, isNp) !== tail(b, isNp)) out.push('the no-prestige days changed');
+  if (tail(a, isSim) !== tail(b, isSim)) out.push('the simulator changed');
   return out;
 }
 

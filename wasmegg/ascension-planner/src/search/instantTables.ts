@@ -25,7 +25,9 @@ import type { TableEntry } from './tableBracket';
 // again once, so My runs can price a followed route on them.
 // 26 Oct 2026 (boxprestige): the "Prestige by" line is worked out on the route the box shows (Prefer fewer's pick) and
 // saved with that route; answers saved with a line for the best route are worked out again once.
-export const INSTANT_RULES = '2026-10-26-boxprestige';
+// 3 Nov 2026 (sim3): the simulator moved (SIM_VERSION 2026-11-03-sim3); answers saved under the old one are worked
+// out again once.
+export const INSTANT_RULES = '2026-11-03-sim3';
 
 /** One file as tables.json lists it: what changes when the file is rebuilt, restamped or replaced. */
 export function entryIdentity(e: TableEntry): string {
