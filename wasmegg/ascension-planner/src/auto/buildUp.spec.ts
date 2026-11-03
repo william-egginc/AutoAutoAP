@@ -10,6 +10,7 @@ import type { EngineState, ShiftResult } from './types';
 /** Seconds each step's in-place purchases take (the trial), by step name. */
 let inPlace: Record<string, number> = {};
 const ran: string[] = [];
+const vehicleLimits: number[] = [];
 
 const result = (name: string, s: EngineState, seconds: number, egg?: string): ShiftResult => {
   ran.push(name);
@@ -43,11 +44,14 @@ vi.mock('./shifts/i1', () => ({
   I1_TIME_LIMIT_SECONDS: 4 * 3600,
 }));
 vi.mock('./shifts/c2', () => ({ runC2: (s: EngineState) => result('C2 shift', s, 14400, 'curiosity') }));
-vi.mock('./shifts/k2', () => ({ runK2: (s: EngineState) => result('K2 shift', s, 99999, 'kindness') }));
+vi.mock('./shifts/k2', () => ({ K2_TIME_LIMIT_SECONDS: 8 * 3600, runK2: (s: EngineState) => result('K2 shift', s, 99999, 'kindness') }));
 vi.mock('./shifts/r1', () => ({ runR1: (s: EngineState) => result('R1 shift', s, 3600, 'resilience') }));
 vi.mock('./shifts/helpers/vehicles', () => ({
   runVehiclesForTimeLimit: (s: EngineState) => result('K1 in place', s, inPlace.K1 ?? 0),
-  runMaxVehiclesPlan: (s: EngineState) => result('K2 in place', s, inPlace.K2 ?? 0),
+  runMaxVehiclesPlan: (s: EngineState, _c: unknown, limit: number) => {
+    vehicleLimits.push(limit);
+    return result('K2 in place', s, inPlace.K2 ?? 0);
+  },
 }));
 vi.mock('./shifts/helpers/habs', () => ({
   runHabPurchasePlan: (s: EngineState) => result('I1 in place', s, inPlace.I1 ?? 0),
@@ -132,5 +136,13 @@ describe('continue my build-up, up to C3', () => {
     ran.length = 0;
     runBuildUpUntilC3(farm(), {} as never);
     expect(ran).not.toContain('C1');
+  });
+
+  it('the in-place K2 has K2\'s 8-hour budget, never an unlimited one', () => {
+    vehicleLimits.length = 0;
+    inPlace = { K2: 30 };
+    runBuildUpUntilC3(farm({ currentEgg: 'kindness' }), {} as never);
+    // The last call is K2's trial (K1's nothing-to-buy probe before it is uncapped on purpose).
+    expect(vehicleLimits.at(-1)).toBe(8 * 3600);
   });
 });

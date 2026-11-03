@@ -31,7 +31,7 @@ import { runC1 } from './shifts/c1';
 import { runK1 } from './shifts/k1';
 import { runI1 } from './shifts/i1';
 import { runC2 } from './shifts/c2';
-import { runK2 } from './shifts/k2';
+import { runK2, K2_TIME_LIMIT_SECONDS } from './shifts/k2';
 import { runR1 } from './shifts/r1';
 import { runVehiclesForTimeLimit, runMaxVehiclesPlan } from './shifts/helpers/vehicles';
 import { runHabPurchasePlan } from './shifts/helpers/habs';
@@ -104,7 +104,7 @@ const STEPS: Step[] = [
   { name: 'K1', shift: (s, c) => runK1(s, c), inPlace: (s, c) => runVehiclesForTimeLimit(s, c, 1800) },
   { name: 'I1', shift: runI1, inPlace: (s, c) => runHabPurchasePlan(s, c, Infinity) },
   { name: 'C2', shift: runC2, inPlace: c2InPlace },
-  { name: 'K2', shift: runK2, inPlace: (s, c) => runMaxVehiclesPlan(s, c, Infinity) },
+  { name: 'K2', shift: runK2, inPlace: (s, c) => runMaxVehiclesPlan(s, c, K2_TIME_LIMIT_SECONDS) },
   { name: 'R1', shift: (s, c) => runR1(s, c), inPlace: (s, c) => runSiloBudgetPlan(s, c, 3600, 3600) },
 ];
 
