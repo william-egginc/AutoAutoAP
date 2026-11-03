@@ -94,8 +94,8 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     const w = r.lines.filter(l => l.kind === 'saleWait');
     expect(w.length).toBeGreaterThan(0);
     for (const l of w) expect(l.text).toMatch(/^wait for the sale: offline until (Fri|Thu|Sat) [A-Z][a-z]{2} \d+ 10:00 am \(/);
-    // 7 silos at 3 h each hold 21 h; the wait is 22 h 21 min: open the farm before they run out.
-    expect(w[0].text).toBe('wait for the sale: offline until Fri Oct 2 10:00 am (22 h 21 min) (your silos hold 21 h: open the farm before they run out; nothing to buy)');
+    // 7 silos at 3 h each hold 21 h; the wait is 22 h 8 min: open the farm before they run out.
+    expect(w[0].text).toBe('wait for the sale: offline until Fri Oct 2 10:00 am (22 h 8 min) (your silos hold 21 h: open the farm before they run out; nothing to buy)');
     expect(r.lines.some(l => l.kind === 'saleStart' && l.time === '10:00 am')).toBe(true);
   });
 
