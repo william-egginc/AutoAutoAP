@@ -1,4 +1,5 @@
 import { getDiscountedVirtuePrice, type CommonResearch, type ResearchCostModifiers } from './commonResearch';
+import { MIN_WAIT_SECONDS } from '@/engine/apply/math';
 import type { CalculationsSnapshot } from '@/types';
 import type { SimulationContext } from '@/engine/types';
 import { createBaseEngineState } from '@/engine/adapter';
@@ -116,7 +117,9 @@ function earliestSaleTimeAfterSaving(saveWaitSeconds: number, currentAbsoluteTim
 
   const moneyReadyAt = currentAbsoluteTime + saveWaitSeconds;
   const saleTime = isResearchSaleActive(moneyReadyAt) ? moneyReadyAt : getNextSaleStart(moneyReadyAt);
-  return saleTime - currentAbsoluteTime;
+  const wait = saleTime - currentAbsoluteTime;
+  // The 60 s rule (engine/apply/math.ts MIN_WAIT_SECONDS): waiting for the sale is a wait too.
+  return wait > 0 && wait < MIN_WAIT_SECONDS ? MIN_WAIT_SECONDS : wait;
 }
 
 /**

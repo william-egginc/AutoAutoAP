@@ -19,7 +19,6 @@ import { computeSnapshot } from '../engine/compute';
 import { applyAction } from '../engine/apply';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { computeTEEarned } from './te-thresholds';
-import { earningsRateFor } from '@/engine/apply/math';
 
 /** The egg a shift switches to, from its name (C1, K2, I1, R2, H1, ...). */
 export function eggOfShift(name: string): VirtueEgg | null {
@@ -91,13 +90,13 @@ export function holdForPlayer(
   });
   current = applyAction(current, wait);
   current.lastStepTime = elapsedSeconds + held;
-  current.bankValue += earningsRateFor(snap, held) * held;
+  current.bankValue += snap.offlineEarnings * held;
   current.eggsDelivered = { ...current.eggsDelivered, [egg]: earned.finalEggsDelivered };
   current.teEarned = { ...current.teEarned, [egg]: (current.teEarned[egg] || 0) + earned.teEarned };
   current.te += earned.teEarned;
   wait.endState = computeSnapshot(current, context, { skipGrowth: true });
   wait.totalTimeSeconds = held;
-  wait.bankDelta = earningsRateFor(snap, held) * held;
+  wait.bankDelta = snap.offlineEarnings * held;
 
   return { state: current, elapsedSeconds: elapsedSeconds + held, actions: [wait], heldSeconds: held };
 }

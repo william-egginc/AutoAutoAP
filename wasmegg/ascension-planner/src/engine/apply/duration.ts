@@ -13,7 +13,6 @@ import {
   getTimeToSave,
   calculateEggsDeliveredForTime,
   boostTransitionsFrom,
-  earningsRateFor,
 } from './math';
 import { eggsNeededForTE, countTEThresholdsPassed } from '@/lib/truthEggs';
 import { calculateArtifactModifiers } from '@/lib/artifacts';
@@ -140,7 +139,7 @@ export function refreshActionPayload(
         prevSnapshot.shippingCapacity, // shipping caps the shipped portion
         prevSnapshot.habCapacity
       );
-      const valuePerEgg = prevSnapshot.elr > 0 ? earningsRateFor(prevSnapshot, payload.timeSeconds) / prevSnapshot.elr : 0;
+      const valuePerEgg = prevSnapshot.elr > 0 ? prevSnapshot.offlineEarnings / prevSnapshot.elr : 0;
       payload.gemsEarnedDuringFuel = payload.eggsShippedDuringFuel * valuePerEgg;
     } else {
       payload.eggsShippedDuringFuel = 0;

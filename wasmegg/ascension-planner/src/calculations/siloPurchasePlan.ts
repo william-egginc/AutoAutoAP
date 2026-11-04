@@ -45,8 +45,6 @@ export function planSilosWithinBudget(
     virtualSnapshot.elr = Math.min(virtualSnapshot.layRate, virtualSnapshot.shippingCapacity);
     const earningsPerEgg = startSnapshot.elr > 0 ? startSnapshot.offlineEarnings / startSnapshot.elr : 0;
     virtualSnapshot.offlineEarnings = virtualSnapshot.elr * earningsPerEgg;
-    // The online rate moves with it (the 60 s rule, engine/apply/math.ts `earningsRateFor`).
-    if (startSnapshot.elr > 0) virtualSnapshot.onlineEarnings = virtualSnapshot.elr * (startSnapshot.onlineEarnings / startSnapshot.elr);
 
     // Bank is spent down to exactly cover the purchase
     virtualSnapshot.bankValue = seconds > 0 ? 0 : Math.max(0, (virtualSnapshot.bankValue || 0) - cost);

@@ -25,7 +25,7 @@
  */
 // 2026-11-03-sim3: Bust Unions read by its real id (vehicles), multi-level delivery research in smart buy
 // (calculations/, outside the hash), Continue my build-up buys only on each purchase's own egg, K2 within 24 h,
-// and the 60 s rule (a wait under a minute earns the online rate).
+// and the 60 s rule (no sub-minute waits: a non-instant wait is at least a minute, offline).
 export const SIM_VERSION = '2026-11-03-sim3';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories
@@ -33,7 +33,7 @@ export const SIM_VERSION = '2026-11-03-sim3';
 export const SIM_SOURCES = ['src/engine', 'src/auto', 'src/search/tableBuild.ts', 'src/search/precomputedLeg.ts'];
 
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top. */
-export const SIM_SOURCE_HASH = '3dcb2a714c1e57d068547ed8d65df6e9dfb59d576ed9f1f25d3e22da46d7f91a';
+export const SIM_SOURCE_HASH = 'd2348dea1923daca0792337ae980ba962c8d5c3c6854be8f35ccf75e9106d702';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

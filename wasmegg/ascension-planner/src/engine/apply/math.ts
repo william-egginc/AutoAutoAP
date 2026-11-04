@@ -2,24 +2,6 @@ import type { CalculationsSnapshot } from '@/types';
 import { isEarningsBoostActive, getNextEarningsBoostStart, getNextEarningsBoostEnd } from '@/lib/events';
 
 /**
- * The 60 s rule (game, Jordan 3 Nov 2026): away for less than a minute, the farm earns its ONLINE
- * rate; offline earnings (online x away colleggtibles x the artifact away multiplier) only apply
- * from a full minute away. Silos cap time away at an hour or more, so they never bind under it.
- */
-export const OFFLINE_AFTER_SECONDS = 60;
-
-/** $/s for a stretch of `seconds` away: online under a minute, offline from a minute on. A
- *  snapshot without an online rate (older fixtures) keeps the offline one. */
-export function earningsRateFor(
-  snap: { onlineEarnings?: number; offlineEarnings: number },
-  seconds: number
-): number {
-  return seconds < OFFLINE_AFTER_SECONDS && Number.isFinite(snap.onlineEarnings)
-    ? (snap.onlineEarnings as number)
-    : snap.offlineEarnings;
-}
-
-/**
  * A future point (relative to t=0 of the calculation) at which the earnings boost's active state
  * changes. `boostActive` is the state that applies AFTER this transition. A transition with
  * `atSeconds <= 0` means the snapshot's own `earningsBoost.active` is stale for this window (it
@@ -219,7 +201,7 @@ export function calculateEarningsForTime(
   transitions: EarningsRateTransition[] = []
 ): number {
   if (seconds <= 0) return 0;
-  const V1 = prevSnapshot.elr > 0 ? earningsRateFor(prevSnapshot, seconds) / prevSnapshot.elr : 0;
+  const V1 = prevSnapshot.elr > 0 ? prevSnapshot.offlineEarnings / prevSnapshot.elr : 0;
   if (V1 <= 0) return 0;
 
   // `prevSnapshot.earningsBoost.multiplier` is only trustworthy for the snapshot's OWN current
@@ -302,30 +284,29 @@ export function getTimeToSave(
   prevSnapshot: CalculationsSnapshot,
   transitions: EarningsRateTransition[] = []
 ): number {
-  // The 60 s rule (`OFFLINE_AFTER_SECONDS`): saved at the online rate when that takes under a
-  // minute; otherwise at the offline rate, and never under a minute (when only the offline rate
-  // gets there sooner, the money is there once a minute away has passed).
-  if (!Number.isFinite(prevSnapshot.onlineEarnings)) {
-    return timeToSaveAtRate(cost, prevSnapshot, transitions, prevSnapshot.offlineEarnings);
-  }
-  const online = timeToSaveAtRate(cost, prevSnapshot, transitions, prevSnapshot.onlineEarnings);
-  if (online < OFFLINE_AFTER_SECONDS) return online;
-  return Math.max(
-    OFFLINE_AFTER_SECONDS,
-    timeToSaveAtRate(cost, prevSnapshot, transitions, prevSnapshot.offlineEarnings)
-  );
+  const t = timeToSaveRaw(cost, prevSnapshot, transitions);
+  // The 60 s rule (Jordan, 3 Nov 2026): no sub-minute waits. A buy that has to wait at all waits
+  // at least a minute, away (so at the offline rate this whole module uses); an instant one stays 0.
+  return t > 0 && t < MIN_WAIT_SECONDS ? MIN_WAIT_SECONDS : t;
 }
 
-function timeToSaveAtRate(
+/**
+ * The 60 s rule (game, Jordan 3 Nov 2026): "Just have it wait a minute (only exception is when it's
+ * instant, or 0s) then purchase the stuff then go offline a minute." Offline earnings only start
+ * after a full minute away, so the planner never waits less than that: every non-instant wait is at
+ * least this long, at the offline rate, and whatever is affordable at its end is bought together.
+ */
+export const MIN_WAIT_SECONDS = 60;
+
+function timeToSaveRaw(
   cost: number,
   prevSnapshot: CalculationsSnapshot,
-  transitions: EarningsRateTransition[],
-  dollarsPerSecond: number
+  transitions: EarningsRateTransition[]
 ): number {
   const effectiveCost = Math.max(0, cost - (prevSnapshot.bankValue || 0));
   if (effectiveCost <= 0) return 0;
 
-  const V1 = prevSnapshot.elr > 0 ? dollarsPerSecond / prevSnapshot.elr : 0;
+  const V1 = prevSnapshot.elr > 0 ? prevSnapshot.offlineEarnings / prevSnapshot.elr : 0;
   if (V1 <= 0) return Infinity;
 
   // `prevSnapshot.earningsBoost.multiplier` is only trustworthy for the snapshot's OWN current

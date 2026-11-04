@@ -9,7 +9,6 @@ import { computeTEEarned, timeToEarnTE } from '../te-thresholds';
 import { applyShiftIfNeeded } from './helpers/actionHelpers';
 import { runMaxVehiclesPlan } from './helpers/vehicles';
 import type { VirtueEgg } from '@/types';
-import { earningsRateFor } from '@/engine/apply/math';
 
 /**
  * K3 Shift Strategy:
@@ -109,7 +108,7 @@ export function runK3(
     currentState = applyAction(currentState, waitAction);
 
     const snap = computeSnapshot(currentState, context, { skipGrowth: true });
-    currentState.bankValue += earningsRateFor(snap, waitDuration) * waitDuration;
+    currentState.bankValue += snap.offlineEarnings * waitDuration;
 
     currentState.eggsDelivered = { ...currentState.eggsDelivered, [egg]: teResult.finalEggsDelivered };
     currentState.teEarned = {
@@ -122,7 +121,7 @@ export function runK3(
     const finalSnap = computeSnapshot(currentState, context, { skipGrowth: true });
     waitAction.endState = finalSnap;
     waitAction.totalTimeSeconds = waitDuration;
-    waitAction.bankDelta = earningsRateFor(snap, waitDuration) * waitDuration;
+    waitAction.bankDelta = snap.offlineEarnings * waitDuration;
 
     actions.push(waitAction);
     elapsedSeconds += waitDuration;

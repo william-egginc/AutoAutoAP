@@ -33,31 +33,31 @@ import type { ChainResult } from './types';
  */
 // sim3 (3 Nov 2026, SIM_VERSION 2026-11-03-sim3): recorded again; the 1410518.5 s route of before moved with the simulator.
 const BEFORE = {
-  seconds: 1421953.4231214523,
+  seconds: 1674125.7290084362,
   startTime: 1790859600,
-  endTime: 1792281553.4231215,
-  durationSeconds: 1421953.4231213806,
+  endTime: 1792533725.7290084,
+  durationSeconds: 1674125.7290085484,
   key: '1-sale',
   endTE: 192,
   shifts: [
-    [1790861324.8819346, 'kindness', 'curiosity'],
-    [1790863082.769673, 'integrity', 'kindness'],
-    [1790865219.7281964, 'curiosity', 'integrity'],
-    [1790866981.959422, 'kindness', 'curiosity'],
-    [1790867059.1245584, 'integrity', 'kindness'],
-    [1790867232.6948566, 'resilience', 'integrity'],
-    [1790867292.7041607, 'curiosity', 'resilience'],
-    [1791006736.323358, 'humility', 'curiosity'],
-    [1791006736.323358, 'kindness', 'humility'],
-    [1791043199.9999998, 'curiosity', 'kindness'],
-    [1791618841.1556053, 'integrity', 'curiosity'],
+    [1790861396.7519388, 'kindness', 'curiosity'],
+    [1790863168.1615756, 'integrity', 'kindness'],
+    [1790864352.781473, 'curiosity', 'integrity'],
+    [1790865807.7981248, 'kindness', 'curiosity'],
+    [1790867607.7981248, 'integrity', 'kindness'],
+    [1790867847.7981248, 'kindness', 'integrity'],
+    [1790871987.7981248, 'resilience', 'kindness'],
+    [1790872347.7981248, 'curiosity', 'resilience'],
+    [1790986837.3561447, 'humility', 'curiosity'],
+    [1791043200, 'kindness', 'humility'],
+    [1791827091.334587, 'curiosity', 'kindness'],
   ] as [number, string, string][],
   endEggs: {
     delivered: [
-      3510000000343250000, 3510000000343250000, 3282500000000000000, 3282509267443345400, 3295018661452776000,
+      3510000000289737700, 3282511295981234700, 3298830389209239000, 3282544476831055000, 3510000000289737700,
     ],
-    te: [39, 39, 38, 38, 38],
-    egg: 'integrity',
+    te: [39, 38, 38, 38, 39],
+    egg: 'curiosity',
   },
 };
 

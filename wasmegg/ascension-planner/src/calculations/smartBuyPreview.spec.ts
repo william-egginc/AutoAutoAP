@@ -54,8 +54,14 @@ function multiLevelScenario() {
   // Scales prices so the first level takes an hour to save for, instead of a tiny fraction of a
   // second against a maxed account's earnings.
   const unitMods: ResearchCostModifiers = { labUpgradeLevel: 0, researchCostMultiplier: 1, puzzleCubeMultiplier: 1 };
-  const unitSeconds = getTimeToSave(getDiscountedVirtuePrice(research, level, unitMods, true), snapshot, []);
-  const mods = { ...unitMods, researchCostMultiplier: 3600 / unitSeconds };
+  // Rescaled until the first level really takes an hour: a sub-minute price is held at the 60 s
+  // minimum wait (engine/apply/math.ts MIN_WAIT_SECONDS), so one pass from the unit price undershoots.
+  const secondsAt = (multiplier: number) =>
+    getTimeToSave(getDiscountedVirtuePrice(research, level, { ...unitMods, researchCostMultiplier: multiplier }, true), snapshot, []);
+  let multiplier = 1;
+  while (secondsAt(multiplier) <= 120) multiplier *= 1000;
+  for (let i = 0; i < 4; i++) multiplier *= 3600 / secondsAt(multiplier);
+  const mods = { ...unitMods, researchCostMultiplier: multiplier };
 
   const levelSeconds = (n: number) => getTimeToSave(getDiscountedVirtuePrice(research, level + n, mods, true), snapshot, []);
   return { researchId, researchLevels, snapshot, level, mods, levelSeconds };

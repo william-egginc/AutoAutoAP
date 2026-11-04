@@ -34,10 +34,10 @@ import type { SearchInputs } from './types';
 /** Recorded before the fix (ec96de70): the build-up of the synthetic farm on its earnings set, and on
  *  Humility the build-up and continue. Plan start Oct 1, 2026, 7:00 am Mountain; target 192 TE. */
 // sim3 (3 Nov 2026): recorded again. Under the own-egg rule (auto/buildUp.ts) a farm on Kindness and
-// one on Humility no longer end the build-up at the same instant (0.5 s apart).
+// one on Humility no longer end the build-up at the same instant (sim3 with the 60 s rule: 1.6 h apart).
 const BEFORE = {
-  buildUpEarnings: 1791553825.7030203,
-  buildUpHumility: 1791553826.1782622,
+  buildUpEarnings: 1791553258.7748027,
+  buildUpHumility: 1791547892.6406484,
   humilityContinue: 39027924345.62065,
 };
 
