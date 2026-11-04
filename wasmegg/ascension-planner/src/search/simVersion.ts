@@ -24,7 +24,7 @@
  * header and the instant record.
  */
 // 2026-11-03-sim3: Bust Unions read by its real id (vehicles), multi-level delivery research in smart buy
-// (calculations/, outside the hash), Continue my build-up buys only on each purchase's own egg, K2 within 8 h,
+// (calculations/, outside the hash), Continue my build-up buys only on each purchase's own egg, K2 within 24 h,
 // the 60 s rule (a wait under a minute earns the online rate), and research ranked at the price it is charged
 // during a sale (calculations/, outside the hash).
 export const SIM_VERSION = '2026-11-03-sim3';
@@ -34,7 +34,7 @@ export const SIM_VERSION = '2026-11-03-sim3';
 export const SIM_SOURCES = ['src/engine', 'src/auto', 'src/search/tableBuild.ts', 'src/search/precomputedLeg.ts'];
 
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top. */
-export const SIM_SOURCE_HASH = 'dfb255170630cf4f490bb29a9dc4f7491edf4f5318bf5ed905d28a6035c2d77a';
+export const SIM_SOURCE_HASH = '3dcb2a714c1e57d068547ed8d65df6e9dfb59d576ed9f1f25d3e22da46d7f91a';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

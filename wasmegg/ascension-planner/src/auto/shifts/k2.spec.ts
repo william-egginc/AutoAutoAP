@@ -20,8 +20,8 @@ vi.mock('./helpers/actionHelpers', () => ({
 const { runK2, K2_TIME_LIMIT_SECONDS } = await import('./k2');
 
 describe('K2 has a time budget', () => {
-  it('is 8 hours', () => {
-    expect(K2_TIME_LIMIT_SECONDS).toBe(8 * 3600);
+  it('is 24 hours', () => {
+    expect(K2_TIME_LIMIT_SECONDS).toBe(24 * 3600);
   });
   it('runK2 passes it to the vehicle planner', () => {
     limits.length = 0;

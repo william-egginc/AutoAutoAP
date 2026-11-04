@@ -1,6 +1,6 @@
 /**
  * The sim3 bump (3 Nov 2026: the Bust Unions fix, multi-level delivery research, own-egg
- * build-up purchases, K2's 8-hour budget and the 60 s rule): one SIM_VERSION, a new INSTANT_RULES
+ * build-up purchases, K2's 24-hour budget and the 60 s rule): one SIM_VERSION, a new INSTANT_RULES
  * so saved instant answers are worked out again, and the simulator in the checkpoint fingerprint so
  * a checkpoint priced by an older simulator does not resume as if current.
  */
