@@ -7445,7 +7445,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // the stand-in). Every "Load a save file" (SaveFileBar.vue, wherever it shows) comes through here (R7 red team 2).
     const screen = (playerId ?? '').trim();
     const loadedId = String((toRaw(useInitialStateStore().rawBackup) as { eiUserId?: string | null } | null)?.eiUserId ?? '').trim();
-    const who = idFromScreen(raw, sameAccountId(loadedId, screen) ? loadedId : screen);
+    // A scrubbed file (the stand-in, or no ID) is this account's, so it takes the loaded save's own ID whenever that
+    // names one, even when the screen's ID differs from it (QA's r7ids save: R7 red team 2, recheck).
+    const fileId = String((raw as { eiUserId?: string | null }).eiUserId ?? '').trim();
+    const scrubbed = !fileId || isPlaceholderId(fileId);
+    const loadedReal = /^EI\d{16}$/i.test(loadedId.replace(/^mk2!/i, '')) && !isPlaceholderId(loadedId);
+    const who = idFromScreen(raw, sameAccountId(loadedId, screen) || (screen && scrubbed && loadedReal) ? loadedId : screen);
     if (who === 'other') {
       olderSaveError.value = ANOTHER_ACCOUNTS_SAVE;
       return false;
