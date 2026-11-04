@@ -287,17 +287,17 @@ export async function runSiteSearch(o: SiteRunOptions): Promise<number> {
       `, plan start ${show(store.planStart)}`
   );
   if (o.submit) {
-    if (!store.submitUrl) {
+    if (!store.sendUrl) {
       // Only if the public default was overridden with nothing usable: say so plainly and stop
       // before anything runs, rather than ending without a word (pieha, 16 Oct).
       console.error('error: --submit has nowhere to send: pass --collector URL (the board\'s /submit address), or run without --submit and send later with `submit --from DIR`.');
       return 1;
     }
     console.log(
-      `    sends to ${store.submitUrl} when it finishes` + `, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`
+      `    sends to ${store.sendUrl} when it finishes` + `, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`
     );
     // Before anything runs: a destination that is not this machine needs --yes (src/search/offline.ts).
-    const allowed = checkSendAllowed(store.submitUrl, o.submit.yes);
+    const allowed = checkSendAllowed(store.sendUrl, o.submit.yes);
     if (!allowed.ok && !o.dryRun) {
       console.error(allowed.message);
       return 1;
@@ -775,7 +775,7 @@ async function runChains(
 
     if (o.submit && !store.error) {
       // The site's own send (search/sendRun.ts): summary, then the table, with its re-checks.
-      console.log(`\n  sending to ${store.submitUrl}: ${store.bestChain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
+      console.log(`\n  sending to ${store.sendUrl}: ${store.bestChain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
       const res = await sendRunResult(store, o.submit.nickname, o.submit.csv, stage => console.log(`  ${stage}`), !!o.diagnostics);
       console.log(`\n  ${res.text}`);
       if (res.ok) await sendFullCsvNow(store);
@@ -925,7 +925,7 @@ async function runByDate(
       console.error('\n  not sent: nothing to send');
       return 1;
     }
-    console.log(`\n  sending to ${store.submitUrl}: ${payload.chain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
+    console.log(`\n  sending to ${store.sendUrl}: ${payload.chain.join(' ')}, ${o.submit.nickname ? `as "${o.submit.nickname}"` : 'anonymously'}`);
     // The page's own By a date send (Share): the table streamed and capped, black box marks, its diagnostics.
     const res = await store.sendDeadlineAnswer({
       route: best,

@@ -110,7 +110,8 @@ import ShareStatus from './ShareStatus.vue';
 
 defineProps<{
   optIn: boolean;
-  /** The collector's address; empty in a build without one. */
+  /** Where a result is sent (the store's `sendUrl`: VITE_BOARD_SUBMIT_URL when set, else VITE_SUBMIT_URL); empty in a
+   *  build without a collector. */
   submitUrl: string;
   /** The name Put my name on it would put on the stored row, or '' (useBoardSubmit `nameToClaim`). */
   nameToClaim: string;

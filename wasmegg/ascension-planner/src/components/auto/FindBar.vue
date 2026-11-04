@@ -144,6 +144,15 @@
     <!-- The acknowledgement, its ticks, the name and the note: folded under "Before you send" by default
          (lib/panelFold.ts `acknowledgement`), "ticks needed" in amber until ticked. It opens by itself when
          Send best so far asks, and when the send is ticked (or Run pressed with it ticked) without the ticks. -->
+    <!-- A build whose results go to a board of their own (VITE_BOARD_SUBMIT_URL, lib/boardSubmitUrl.ts: egg-beta), said
+         beside Before you send, outside the fold so it shows folded too. DRAFT wording (4 Nov 2026). -->
+    <p
+      v-if="showSubmit && store.boardSendSeparate"
+      class="text-small text-slate-600 max-w-prose"
+      data-testid="test-board-note"
+    >
+      {{ TEST_BOARD_NOTE }}
+    </p>
     <PanelFold
       v-if="showSubmit"
       ref="ackFold"
@@ -274,6 +283,7 @@ import { rememberRunSends, runSendsChoice, runSendsTicked } from '@/lib/runSends
 import type { SearchOption } from '@/lib/searchOption';
 import SharingSummary from '../SharingSummary.vue';
 import { sharingLine } from '@/lib/sharingLine';
+import { TEST_BOARD_NOTE } from '@/lib/boardSubmitUrl';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { stepAwayOptions } from '@/composables/useStepAway';
 

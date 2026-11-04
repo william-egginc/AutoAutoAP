@@ -357,6 +357,7 @@ import { thisDevice } from '@/search/device';
 import { normalizeBoardRows } from '@/lib/boardRowGuard';
 import { readStoredJson, isPlainRecord } from '@/lib/safeStorage';
 import { keptForTop, type PricedRoute } from '@/lib/topRoutes';
+import { boardSubmitUrlOf, buildBoardSetting } from '@/lib/boardSubmitUrl';
 
 /** Don't write to IndexedDB more often than this. A checkpoint costs a JSON round-trip over the
  *  whole cache; a batch takes tens of seconds, so this loses at most one batch on a crash. */
@@ -4364,10 +4365,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * The command line can name one with `--collector` (scripts/siteRun.ts sets `__AAP_SUBMIT_URL__`
    * before the store is first used): its build may have been made where no collector was configured.
    */
-  const submitUrl =
-    ((globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__ ?? '').trim() ||
-    (import.meta.env.VITE_SUBMIT_URL as string | undefined)?.trim() ||
-    '';
+  const cliSubmitUrl = ((globalThis as { __AAP_SUBMIT_URL__?: string }).__AAP_SUBMIT_URL__ ?? '').trim();
+  const submitUrl = cliSubmitUrl || (import.meta.env.VITE_SUBMIT_URL as string | undefined)?.trim() || '';
+  /**
+   * Where the board's SENDS go (lib/boardSubmitUrl.ts): the result, a progress send / Send best so far, and what
+   * follows a sent row (its CSV and deltas, the full CSV, Put my name on it). `VITE_BOARD_SUBMIT_URL` when the build
+   * has one (egg-beta: a newer simulator, so a test board), else `submitUrl` itself. Reading the board, My runs and
+   * everything else stay on `submitUrl`. A `--collector` on the command line names one collector for all of it.
+   */
+  const boardSetting = cliSubmitUrl ? '' : buildBoardSetting();
+  const sendUrl = boardSubmitUrlOf(boardSetting, submitUrl);
+  /** This build sends results to a board of their own (the note near Before you send says so). */
+  const boardSendSeparate = !!boardSetting;
 
   /** The board itself, derived from the submit endpoint rather than configured separately: they
    *  are the same Worker, and two env vars that have to agree is one more thing to get wrong. */
@@ -4910,7 +4919,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
      *  left unsent), `message` says so with the code to quote, and `id` is that code. */
     quarantined?: boolean;
   }> {
-    if (!submitUrl) return { ok: false, message: "the planner's server is not configured" };
+    if (!sendUrl) return { ok: false, message: "the planner's server is not configured" };
     // The instant baseline, when the player shares it (never for a result sent from a file: another save's).
     if (!saved) payload = withBaseline(payload);
     // A payload whose start contradicts its own save is never sent, from any screen or the command
@@ -5002,7 +5011,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           }
           const up = body
             ? await uploadCsv(
-                `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(code)}`,
+                `${sendUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(code)}`,
                 r.uploadToken,
                 body
               )
@@ -5032,7 +5041,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     try {
       // ?quarantine=1: a run the collector refuses for the board but stores comes back as an answer
       // (`quarantined`), not as an error to retry. An older collector ignores it.
-      const res = await fetch(quarantineAwareUrl(submitUrl), {
+      const res = await fetch(quarantineAwareUrl(sendUrl), {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...(owner ? { 'x-owner-token': owner } : {}) },
         body,
@@ -5181,7 +5190,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       }
       pendingTable.value = {
         source: saved?.light ? 'light' : deadlineSend ? 'deadline' : 'fastest',
-        url: `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
+        url: `${sendUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
         token: uploadToken,
         body,
       };
@@ -5265,7 +5274,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const chunks = progressCsvChunks(kind, p);
     if (!chunks) return { kind: 'none' };
     // A collector from before progress sends hands a provisional row no token.
-    if (!id || !token || !submitUrl) return { kind: 'not-taken' };
+    if (!id || !token || !sendUrl) return { kind: 'not-taken' };
     if (kind === 'deadline' && deltaToken && deadlineDelta && deadlineRunCsv?.all && deadlineRun)
       return sendCsvDeltas(p, id, token, deltaToken, stop);
     // In the black box's history only: a page that dies building it says so on the next visit,
@@ -5282,7 +5291,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     // Over 8 MB it goes in parts, each retried (search/progressSend.ts `uploadCsv`).
     let tries = 0;
     const up = await uploadCsv(
-      `${submitUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
+      `${sendUrl.replace(/\/submit\/?$/, '/csv')}?id=${encodeURIComponent(id)}`,
       token,
       gz.body,
       { onTry: () => tries++ }
@@ -5324,7 +5333,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function sendCsvDeltas(p: RunProgress, id: string, token: string, deltaToken: string, stop: ProgressStop): Promise<ProgressCsv> {
     const all = deadlineRunCsv!.all!;
     const run = deadlineRun!;
-    const base = submitUrl!.replace(/\/submit\/?$/, '');
+    const base = sendUrl!.replace(/\/submit\/?$/, '');
     const st = deadlineDelta!;
     const meta = deadlineCsvMeta(run, deadlineRunCsv!.ceiling, { done: p.done, total: p.total, unit: p.unit });
     blackBox.note(`progress send: CSV so far in deltas (${all.size - st.sent} new routes)`);
@@ -5583,7 +5592,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function keepFinishedResult(kind: PendingKind): Promise<void> {
     const go = async () => {
       const hash = partitionHash;
-      if (!hash || !submitUrl) return;
+      if (!hash || !sendUrl) return;
       blackBox.note(`keeping the ${kind === 'deadline' ? 'By a date' : 'Fastest'} result until it is sent`);
       let payload: Submission | null = null;
       let label = '';
@@ -5846,7 +5855,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * so nobody can put their name on another player's run. Resolves to a message; never throws.
    */
   async function claimName(id: string, nickname: string): Promise<{ ok: boolean; message: string }> {
-    if (!submitUrl) return { ok: false, message: "the planner's server is not configured" };
+    if (!sendUrl) return { ok: false, message: "the planner's server is not configured" };
     const name = cleanName(nickname);
     if (!name) return { ok: false, message: 'type the name to put on it first.' };
     const partition = await accountPartition();
@@ -5860,7 +5869,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
     let res: Response;
     try {
-      res = await fetch(submitUrl.replace(/\/submit\/?$/, '/claim'), {
+      res = await fetch(sendUrl.replace(/\/submit\/?$/, '/claim'), {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-owner-token': token },
         body: JSON.stringify({ id, nickname: name }),
@@ -6401,7 +6410,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   function sendFullCsv(): Promise<BigCsvOutcome | null> {
     if (bigCsvBusy) return bigCsvBusy;
     const row = bigCsvRow;
-    if (!row || !submitUrl) return Promise.resolve(null);
+    if (!row || !sendUrl) return Promise.resolve(null);
     bigCsvBusy = (async () => {
       try {
         const sink = await bigCsvSinkOf();
@@ -6412,7 +6421,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         });
         bigCsvState.value = { state: 'uploading', done: 0, total: source.size, message: 'Uploading the full CSV...' };
         const out = await uploadBigCsv({
-          base: submitUrl.replace(/\/submit\/?$/, ''),
+          base: sendUrl.replace(/\/submit\/?$/, ''),
           id: row.id,
           token: row.token,
           source,
@@ -10074,6 +10083,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     pendingTable,
     retryTable,
     submitUrl,
+    sendUrl,
+    boardSendSeparate,
     leaderboardUrl,
     // The search's inputs as they stand: the precompute tool (scripts/precompute.ts) builds its
     // table from exactly what a search here would be given.

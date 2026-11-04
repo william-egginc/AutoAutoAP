@@ -1115,7 +1115,7 @@
 
               <BoardSubmitButtons
                 :opt-in="optIn"
-                :submit-url="store.submitUrl"
+                :submit-url="store.sendUrl"
                 :name-to-claim="nameToClaim"
                 :offer-name="offerName"
                 :claiming="claiming"

@@ -243,7 +243,8 @@ function securityHeaders(env: Record<string, string | undefined>): Plugin {
           // Not built (yet): its inline scripts, if any, are refused until the next restart.
         }
       }
-      const extra = [env.VITE_SUBMIT_URL, env.VITE_EGG_PROXY, env.VITE_EGG_AUTH_PROXY]
+      // VITE_BOARD_SUBMIT_URL: where Run results are sent when not VITE_SUBMIT_URL (lib/boardSubmitUrl.ts, egg-beta).
+      const extra = [env.VITE_SUBMIT_URL, env.VITE_BOARD_SUBMIT_URL, env.VITE_EGG_PROXY, env.VITE_EGG_AUTH_PROXY]
         .map(originOf)
         .filter((o): o is string => !!o && !o.endsWith('.workers.dev'));
       const doc = documentHeaders(contentSecurityPolicy([...hashes], extra));

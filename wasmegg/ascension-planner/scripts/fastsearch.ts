@@ -2285,13 +2285,13 @@ async function submitCommand(): Promise<number> {
   const store = useChainSearchStore();
   // Unreachable today: chooseCollector() always sets a destination (the public board at worst) before
   // the store reads it. Kept as a guard in case that fallback ever goes, so a send never runs blind.
-  if (!store.submitUrl) {
+  if (!store.sendUrl) {
     throw new Error('no collector configured in this build: pass --collector URL (the board\'s /submit address)');
   }
   // The one place a stray run could post to the real board: a destination that is not this machine
   // is only used when the person said --yes. (What goes is listed per result just below.)
-  const allowed = checkSendAllowed(store.submitUrl, has('yes'));
-  console.log(`${dry ? 'dry run: nothing is sent. Would send' : allowed.ok ? 'sending' : 'would send'} ${dirs.length} result${dirs.length === 1 ? '' : 's'} to ${store.submitUrl}`);
+  const allowed = checkSendAllowed(store.sendUrl, has('yes'));
+  console.log(`${dry ? 'dry run: nothing is sent. Would send' : allowed.ok ? 'sending' : 'would send'} ${dirs.length} result${dirs.length === 1 ? '' : 's'} to ${store.sendUrl}`);
   if (!dry && !allowed.ok) {
     for (const dir of dirs) {
       try {
@@ -2370,7 +2370,7 @@ async function submitCommand(): Promise<number> {
     if (res.ok && !res.quarantined && res.id && res.uploadToken && priced > BIG_CSV_MIN_ROUTES && existsSync(full) && !has('no-full-csv')) {
       console.log(`  ${name}: the full CSV to the private store (${priced.toLocaleString()} routes)`);
       const source = await gzipCsvTo(gunzipLines(full), fileBigCsvSink(join(dir, 'run-full-upload.csv.gz')), scrubIdentifiers);
-      const out = await uploadBigCsv({ base: store.submitUrl.replace(/\/submit\/?$/, ''), id: res.id, token: res.uploadToken, source });
+      const out = await uploadBigCsv({ base: store.sendUrl.replace(/\/submit\/?$/, ''), id: res.id, token: res.uploadToken, source });
       if (out.kind !== 'unavailable') console.log(`  ${bigCsvMessage(out)}`);
     }
   }
