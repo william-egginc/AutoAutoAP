@@ -298,7 +298,9 @@ export function getTimeToSave(
  */
 export const MIN_WAIT_SECONDS = 60;
 
-function timeToSaveRaw(
+/** `getTimeToSave` without the 60 s minimum wait: the pure earnings time, for price-to-income tests
+ *  (Smart Buy's 10 s sweep threshold) that are not waits. */
+export function timeToSaveRaw(
   cost: number,
   prevSnapshot: CalculationsSnapshot,
   transitions: EarningsRateTransition[]

@@ -33,7 +33,7 @@ export const SIM_VERSION = '2026-11-03-sim3';
 export const SIM_SOURCES = ['src/engine', 'src/auto', 'src/search/tableBuild.ts', 'src/search/precomputedLeg.ts'];
 
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top. */
-export const SIM_SOURCE_HASH = 'd2348dea1923daca0792337ae980ba962c8d5c3c6854be8f35ccf75e9106d702';
+export const SIM_SOURCE_HASH = '3d7162a9f5a00d5cc200110e50bc0240a6e8363f2579c87cecf8d121019d0f73';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

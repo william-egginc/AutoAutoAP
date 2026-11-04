@@ -8,7 +8,7 @@ import {
   type HabId,
 } from '@/lib/habs';
 import { calculateHabCapacity } from '@/calculations/habCapacity';
-import { getTimeToSave } from '@/engine/apply';
+import { getTimeToSave, calculateEarningsForTime } from '@/engine/apply';
 import type { CalculationsSnapshot } from '@/types';
 
 export const CHICKEN_UNIVERSE_ID = 18;
@@ -173,9 +173,13 @@ export function simulateHabPurchases(
     if (shouldStop(elapsedSeconds + best.waitSeconds)) break;
 
     // Advance virtual population/bank through the wait
+    const earned = best.waitSeconds > 0 && isFinite(best.waitSeconds) ? calculateEarningsForTime(best.waitSeconds, virtualSnapshot) : 0;
     const I = startSnapshot.offlineIHR / 60;
     virtualPopulation = Math.min(virtualHabCapacity, virtualPopulation + I * best.waitSeconds);
-    virtualBank = best.waitSeconds > 0 ? 0 : Math.max(0, virtualBank - best.cost);
+    // The check-in rule (Jordan, 4 Nov 2026): what a wait earned beyond the price stays in the bank,
+    // so everything affordable at the check-in is bought there (with the 60 s minimum wait, the old
+    // "bank to 0 after any wait" made every following buy wait another minute).
+    virtualBank = Math.max(0, virtualBank + earned - best.cost);
 
     // Apply the purchase
     const currentId = virtualHabIds[best.slotIndex];
