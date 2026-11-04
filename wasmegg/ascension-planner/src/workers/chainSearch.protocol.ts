@@ -45,6 +45,9 @@ export interface EvaluateRequest {
    * steps kept -- what Smart search and the Full sweep always had. By a date sends both.
    */
   memo?: import('@/search/chain').MemoSettings;
+  /** BUILD-UP TRACKER (search/chain.ts `EvaluateChainOptions.keepPurchases`): each chain's first step
+   *  comes back with its build-up list. Absent: off, every result as before. */
+  keepPurchases?: true;
 }
 
 /** How long a fresh ascension from the plan start sits on its first Integrity shift. See

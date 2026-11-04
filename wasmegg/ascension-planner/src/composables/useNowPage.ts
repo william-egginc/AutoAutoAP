@@ -50,7 +50,7 @@ import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { BoardRow } from '@/lib/leaderboardRank';
 import { hoursDiffer, simulatorAge } from '@/lib/myRunsDashboard';
 import { useMinuteClock } from './useMinuteClock';
-import { backupSecondsOf, saveStrip, saveTEByEggOf, saveTEOf } from '@/lib/saveFreshness';
+import { backupSecondsOf, saveState, saveTEByEggOf, saveTEOf } from '@/lib/saveFreshness';
 import { hashID } from '@/lib/storage/db';
 import { virtueEggOf } from '@/lib/virtueEggs';
 import { progressOf } from '@/lib/planPace';
@@ -140,6 +140,7 @@ import {
 } from '@/lib/followEstimate';
 import { useFollowEstimate, type EstimateRequest } from './useFollowEstimate';
 import { keepHeld, readHeld } from '@/lib/heldEstimate';
+import { sameResultCode } from '@/lib/resultCode';
 import { useAnswersStore } from '@/stores/answers';
 import { useInstantCompute, type InstantComputeRequest } from './useInstantCompute';
 import { useBoardRunLegs, type BoardRunWant, type RunCsvFetch } from './useBoardRunLegs';
@@ -147,12 +148,31 @@ import { fetchRunCsv } from '@/explorer/collector';
 import { readKept } from '@/search/instantScale';
 import { ascensionSteps, instantSteps, prestigeAfterSimulated, withStayLine } from '@/lib/instantSteps';
 import { useCurrentSim, type SimRequest } from './useCurrentSim';
-import { simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
+import type { BuildUpPlan } from '@/search/buildUpActions';
+import { buildUpWanted } from './useBuildUpTracker';
+import { buildUpLog, perfStep } from '@/lib/buildUpDebug';
+import { saveFarmFor } from '@/lib/buildUpBought';
+import { findSimRecord, readSimRecords, simKey, simSetupKey, withCurrentSim } from '@/lib/followSim';
+import {
+  A1_SETUP,
+  a1Candidates,
+  a1ChoiceWords,
+  a1Decision,
+  a1FirstAsk,
+  a1Inputs,
+  readA1Pick,
+  writeA1Pick,
+  type A1Candidates,
+  type A1Side,
+} from '@/lib/a1Choice';
+import { FASTEST_SETUP, FRESH_PRICE_SETUP, forcesBuildUp, freshSooner, readFastestPick, writeFastestPick } from '@/lib/freshSooner';
+import { FASTEST_FOLLOWED_LINE, freshSoonerLine } from '@/lib/freshSoonerWords';
 import { buildLeft } from '@/lib/saveBuild';
 import { continuesFarm, nextAction, nextShifts, type ActionLeg, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import { followedFromNow, type FollowFrom } from '@/lib/follow';
 import { hoursOf, sameHours, setWithOtherWords, sourceOfFrom } from '@/lib/followCloud';
+import { answerFirstLeg, followStaleness, type StaleReason } from '@/lib/followStale';
 import { SIM_VERSION } from '@/search/simVersion';
 import { autoFollowOf, autoFollowsGoal, followedLabel } from '@/lib/followPolicy';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
@@ -212,6 +232,9 @@ export interface FollowCard {
    *  save's pricing record while this one's is worked out, or the estimate shown last while it is priced again. Right
    *  now says "From <time>, checking…" and its pill "· checking…". Absent: worked out for this save and setup. */
   staleAt?: number;
+  /** With `staleAt`: those times were worked out by an older build of the page (lib/resultCode.ts, Release 7): "From
+   *  <time> (older version), checking…". */
+  staleOlder?: true;
   /** Right now's words for whose route it is: "your pick" (a Follow press), "from the instant answer" or "from your
    *  Fast run" (the first answer, followed on its own, lib/followPolicy.ts). Absent: "your pick". */
   label?: string;
@@ -336,7 +359,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const currentEgg = computed(() => (hasSave.value && onVirtue.value ? virtueEggOf(farm.value?.eggType) : null));
   const teByEgg = computed(() => saveTEByEggOf(raw.value));
   const teSoFar = computed(() => (hasSave.value ? saveTEOf(raw.value) : 0));
-  const strip = computed(() => saveStrip(saveSeconds.value, now.value, zone.value));
+  /** The save-age banner (lib/saveFreshness.ts `saveState`, spec-saveage): both clocks, read off the save (the
+   *  store's `saveClock`: the kept save while the stores hold a Manual plan). */
+  const strip = computed(() => {
+    const c = store.saveClock;
+    return c ? saveState({ ...c, nowSeconds: now.value, zone: zone.value }) : null;
+  });
 
   // ------------------------------------------------------------------------------------- the keys
 
@@ -366,6 +394,10 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       parsed.set(snapKey, s && s.result && snapshotUsable(s, GEAR_RULE) ? s : null);
     }
     return parsed.get(snapKey) ?? null;
+  }
+  /** The snapshot when this build's code worked it out (lib/resultCode.ts), else null: what prices a followed route. */
+  function codeSnap<T extends SnapLike>(s: T | null): T | null {
+    return s && sameResultCode(s.rc) ? s : null;
   }
   function lastCheckedOf(answerKey: string | null): { at: number; chain: number[]; end: number; endTE: number } | null {
     if (!answerKey || typeof localStorage === 'undefined') return null;
@@ -710,7 +742,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const snaps: FollowSnap[] = [];
     const seen = new Set<string>();
     const own = instantSnapKey(keys.value[gi]?.key ?? null);
-    const ownSnap = snapOf(own);
+    // RELEASE 7 (lib/resultCode.ts): a followed route is never priced on an answer an older build worked out; its
+    // times are worked out again (the pricing record, then the estimate), shown meanwhile as from before.
+    const ownSnap = codeSnap(snapOf(own));
     if (own && ownSnap) {
       seen.add(own);
       snaps.push({ snap: ownSnap, startTE: teSoFar.value, ownKey: true, check: currentSetup(sn.setup) });
@@ -721,7 +755,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       for (const e of [...index.value].reverse()) {
         const m = e.meta;
         if (!m || m.account !== acct || m.goal !== words || seen.has(e.key)) continue;
-        const sp = snapOf(e.key);
+        const sp = codeSnap(snapOf(e.key));
         if (!sp) continue;
         seen.add(e.key);
         const te = Array.isArray(m.teByEgg) && m.teByEgg.length ? m.teByEgg.reduce((a, b) => a + b, 0) : null;
@@ -742,7 +776,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         found: run.search,
         meta: same
           ? { account: acct ?? '', goal: words, backupTime: saveSeconds.value, teByEgg: [...teByEgg.value] }
-          : { account: acct ?? '', goal: words, backupTime: run.save ?? 0 },
+          : { account: acct ?? '', goal: words, ...run.meta },
         check: same ? currentSetup(sn.setup) : setupCheck(null, sn.setup, sn.today),
       });
     }
@@ -837,7 +871,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     void recordsRead.value;
     const sources: PricingSource[] = [];
     keys.value.forEach(({ d, key }) => {
-      const s = snapOf(instantSnapKey(key)) as (SnapLike & { pricing?: unknown; tableUrl?: unknown; header?: { to?: unknown } | null }) | null;
+      // Never an older build's pricing (Release 7): the record is worked out again instead (`instantNeed`).
+      const s = codeSnap(snapOf(instantSnapKey(key))) as (SnapLike & { pricing?: unknown; tableUrl?: unknown; header?: { to?: unknown } | null }) | null;
       const pricing = s ? readPricing(s.pricing) : null;
       if (!s || !pricing || typeof s.tableUrl !== 'string') return;
       const to = s.header?.to;
@@ -894,7 +929,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const shiftRequests = shallowRef<EstimateRequest[]>([]);
   const otherRequests = computed(() => [...otherFollows.value.flatMap(o => (o.req ? [o.req] : [])), ...shiftRequests.value]);
   const searchBusy = computed(() => store.isRunning || store.deadlineRunning || store.resultSending);
-  const { state: estimate, otherStates } = useFollowEstimate(estimateRequest, searchBusy, otherRequests);
+  const { state: estimate, otherStates, retry: retryEstimate } = useFollowEstimate(estimateRequest, searchBusy, otherRequests);
 
   /**
    * MY RUNS NEVER WAITS FOR ANOTHER TAB (26 Oct 2026, composables/useInstantCompute.ts): a followed goal with no
@@ -996,10 +1031,12 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     }
     if (st.card.price !== 'none' || !HOLDING.has(st.card.estimating ?? '')) return st;
     const last = shownLast.get(key);
-    const held =
+    const held: { at: number; card: FollowCard; plan: CardPlan | null; olderCode?: true } | null =
       last?.plan ? last : readHeld<CardPlan, FollowCard>(account.value, fp.sel.goal.key, st.card.chain);
     if (!held?.plan) return st;
-    const card: FollowCard = { ...held.card, staleAt: held.at };
+    // Never taken for the current one: always marked from before, and said to be an older build's when it is.
+    const { staleOlder: _was, ...heldCard } = held.card;
+    const card: FollowCard = { ...heldCard, staleAt: held.at, ...(held.olderCode ? { staleOlder: true as const } : {}) };
     return { card, plan: { ...held.plan, followed: card } };
   }
   const heldWritten = new Map<string, string>();
@@ -1292,26 +1329,124 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    * producing farm read "Keep building: vehicles" for 17 days).
    */
   const saveBuildLeft = computed(() => (hasSave.value && onVirtue.value ? buildLeft(farm.value, fullHabRates.value) : null));
-  const simRequest = computed<SimRequest | null>(() => {
+  /**
+   * FASTEST FOR THIS ASCENSION (spec-r7verify, lib/freshSooner.ts): the player's "Switch to Soonest" on Right now, kept
+   * per account and the stop the ascension you are in heads to (`aap.firstasc.*`), and held on this page per
+   * account+stop even when storage refuses it. With it the simulation is asked as Fastest: no unfinished-build path, no
+   * A1 choice, its own setup key. Your setup's saved value is never changed.
+   */
+  const fastestVersion = ref(0);
+  const fastestPagePicks = ref<Record<string, boolean>>({});
+  const fastestFor = (acct: string, stop: number): boolean => {
+    void fastestVersion.value;
+    return fastestPagePicks.value[`${acct}.${stop}`] ?? readFastestPick(acct, stop);
+  };
+  /**
+   * The simulation's request without its first-ascension side: everything the two sides of the A1 choice share (the
+   * account, save, route and the rest of the setup), and whether the save's build is unfinished. Null when nothing is
+   * asked (see `simRequest`).
+   */
+  const simBase = computed(() => {
     // Any followed route without exact legs, whether the table's estimate is in, being worked out or couldn't be made
     // (26 Oct 2026: a route the estimate couldn't price still gets its Next step from the ascension you are in).
     const fs = followState.value;
     const p = fs?.plan?.plan;
     const acct = account.value;
-    if (!fs || p?.legs || !acct || !storeReady.value || onVirtue.value === false) return null;
+    // A route with exact legs needs no simulated ascension for Right now, but the Build-up tracker's plan comes only
+    // from the simulation: asked for while the tracker wants it (spec-buildcache, 30 Oct 2026: a followed route with
+    // exact legs left the tracker "working it out…" with nothing ever asked).
+    if (!fs || !simAskedFor({ followed: true, exactLegs: !!p?.legs, planWanted: buildUpWanted.value }) || !acct || !storeReady.value || onVirtue.value === false)
+      return null;
     const route = followedFromNow(p ? p.chain : fs.card.chain, teSoFar.value);
     if (!route.length) return null;
     const useHours = useHoursFromStores();
-    const building = !!saveBuildLeft.value?.length && store.firstAscension !== 'fresh';
-    const setup = simSetupKey({
-      availability: store.availability,
-      useHours,
-      timeOff: store.timeOff,
-      noPrestige: store.noPrestige,
-      firstAscension: building ? 'buildup, build unfinished' : store.firstAscension,
-      deferShifts: !!store.deferShifts,
-    });
+    // Fastest for this ascension (the player's switch): neither the unfinished-build path nor Your setup's choice.
+    const fastest = store.firstAscension !== 'fresh' && fastestFor(acct, route[0]);
+    const building = !fastest && !!saveBuildLeft.value?.length && store.firstAscension !== 'fresh';
+    const setupFor = (firstAscension: string) =>
+      simSetupKey({
+        availability: store.availability,
+        useHours,
+        timeOff: store.timeOff,
+        noPrestige: store.noPrestige,
+        firstAscension,
+        deferShifts: !!store.deferShifts,
+      });
     const backupTime = saveSeconds.value;
+    // The two sides' keys (A1 CHOICE): the record of either side says what the choice is.
+    const sideKeys = building
+      ? { buildup: simKey({ account: acct, backupTime, route, setup: setupFor(A1_SETUP.buildup) }), continue: simKey({ account: acct, backupTime, route, setup: setupFor(A1_SETUP.continue) }) }
+      : null;
+    return { account: acct, backupTime, route, useHours, building, fastest, setupFor, sideKeys, trackerOnly: !!p?.legs };
+  });
+  /**
+   * MY RUNS' A1 CHOICE (spec-a1choice, 1 Nov 2026, lib/a1Choice.ts). On the unfinished-build path a build-up that buys
+   * wins even when it ends later than finishing without buying (pieha's 27 Oct decision). Right now now offers both when
+   * it does, follows the sooner (continue) until the player picks, and keeps the pick per account and ascension (the
+   * stop it heads to), over Your setup's First ascension, which it never changes ('buildup' or 'continue' set there
+   * explicitly is the default side instead). The candidates are read once per save, route and setup from whichever
+   * side's simulation came in first (both carry both ends and the build-up's buy count); the side followed is then
+   * simulated under its own setup key, so a pick change is a new key: a new request, or the kept record of that side.
+   * Only when the simulation drives Right now's ascension (no exact legs: there the plan's own A1 holds).
+   */
+  const a1PickVersion = ref(0);
+  const a1Stop = computed(() => simBase.value?.route[0] ?? null);
+  const a1Pick = computed<A1Side | null>(() => {
+    void a1PickVersion.value;
+    const acct = account.value;
+    const stop = a1Stop.value;
+    return acct && stop !== null ? readA1Pick(acct, stop) : null;
+  });
+  /** The picks made on this page, per base: a pick holds on this page even when storage refuses it. */
+  const a1PagePicks = ref<Record<string, A1Side>>({});
+  /** The candidates for the base on screen, once known (null: known, and there are none). Kept per base: the first
+   *  side to come in decides, so the two records can never make the choice flip back and forth. */
+  const a1Known = shallowRef<{ base: string; cand: A1Candidates | null } | null>(null);
+  const a1BaseKey = computed(() => {
+    const k = simBase.value?.sideKeys;
+    return k && !simBase.value!.trackerOnly ? k.buildup : null;
+  });
+  /** A kept record of either side tells the choice at once (a reload with a pick asks for nothing else). */
+  watch(
+    a1BaseKey,
+    base => {
+      if (!base || a1Known.value?.base === base) return;
+      const b = simBase.value!;
+      const records = readSimRecords();
+      for (const side of ['buildup', 'continue'] as const) {
+        const r = findSimRecord(records, { account: b.account, backupTime: b.backupTime, route: b.route, setup: b.setupFor(A1_SETUP[side]) });
+        if (r) {
+          a1Known.value = { base, cand: a1Candidates(r.leg) };
+          return;
+        }
+      }
+    },
+    { immediate: true }
+  );
+  const a1Cand = computed(() => {
+    const base = a1BaseKey.value;
+    const k = a1Known.value;
+    return base && k?.base === base ? { cand: k.cand } : null;
+  });
+  const a1PickNow = computed<A1Side | null>(() => {
+    const base = a1BaseKey.value;
+    return (base ? a1PagePicks.value[base] : undefined) ?? a1Pick.value;
+  });
+  /** The decision on screen: null off the unfinished-build path. */
+  const a1 = computed(() => {
+    if (!a1BaseKey.value) return null;
+    const known = a1Cand.value;
+    if (!known) return { known: false as const, side: a1FirstAsk(a1PickNow.value, store.firstAscension) };
+    return { known: true as const, cand: known.cand, ...a1Decision({ cand: known.cand, pick: a1PickNow.value, setting: store.firstAscension }) };
+  });
+  /** The side the simulation is asked for. */
+  const a1Side = computed<A1Side>(() => a1.value?.side ?? 'buildup');
+  const simRequest = computed<SimRequest | null>(() => perfStep('nowPage simRequest', (): SimRequest | null => {
+    const b = simBase.value;
+    if (!b) return null;
+    const side = b.building ? a1Side.value : null;
+    const setup = b.setupFor(side ? A1_SETUP[side] : b.fastest ? FASTEST_SETUP : store.firstAscension);
+    const { account: acct, backupTime, route, useHours } = b;
     return {
       key: simKey({ account: acct, backupTime, route, setup }),
       account: acct,
@@ -1319,35 +1454,199 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       route,
       setup,
       inputs: () => {
-        const i = store.collectInputs();
-        // The build carried on (above), unless the plan starts too late to continue the save (firstAscensionFor).
-        const carryOn = building && i.firstAscension !== 'fresh' ? { firstAscension: 'buildup' as const, continueMaxSeconds: 0 } : {};
+        const i = perfStep('collectInputs', () => store.collectInputs());
+        // The build carried on (above), unless the plan starts too late to continue the save (firstAscensionFor); or,
+        // when Right now follows "Finish without buying" (A1 CHOICE), continue pinned.
+        const carryOn = side && i.firstAscension !== 'fresh' ? a1Inputs(side) : {};
+        // Fastest for this ascension (the player's switch): every kind a candidate, the soonest wins.
+        const fastest = b.fastest && i.firstAscension !== 'fresh' ? { firstAscension: 'auto' as const } : {};
         // One ascension, not the whole route: no dated milestones to meet; the hours only as the answers use them.
-        return { ...i, ...carryOn, milestones: [], ...(useHours ? {} : { availability: null }) };
+        return { ...i, ...carryOn, ...fastest, milestones: [], ...(useHours ? {} : { availability: null }) };
       },
     };
+  }));
+  const { state: currentSim, slow: simSlow, retry: retrySim } = useCurrentSim(simRequest, searchBusy, buildUpWanted);
+  // A1 CHOICE: the candidates from the first side's simulation of this base to come in.
+  watch(
+    currentSim,
+    st => {
+      const base = a1BaseKey.value;
+      const keys = simBase.value?.sideKeys;
+      if (!base || !keys || st?.status !== 'done' || a1Known.value?.base === base) return;
+      if (st.key !== keys.buildup && st.key !== keys.continue) return;
+      a1Known.value = { base, cand: a1Candidates(st.leg) };
+    },
+    { immediate: true }
+  );
+  /** Right now's A1 choice (A1Choice.vue): shown only when both sides exist and differ (the build-up buys and ends
+   *  later); its two labels (DRAFT) and the side followed. */
+  const a1Choice = computed(() => {
+    const d = a1.value;
+    if (!d || !d.known || !d.show || !d.cand) return null;
+    const w = a1ChoiceWords(d.cand, now.value, zone.value);
+    return { side: d.side, picked: d.picked, buys: d.cand.buys, buildEnd: d.cand.buildEnd, contEnd: d.cand.contEnd, ...w };
   });
-  const { state: currentSim, slow: simSlow } = useCurrentSim(simRequest, searchBusy);
+  /** Right now follows finishing without buying while a build-up exists (picked, or the sooner by default): the Build-up
+   *  tracker says so ('picked' / 'default'), never the generic "nothing to buy". Null otherwise. */
+  const a1Finish = computed<'picked' | 'default' | null>(() => {
+    const d = a1.value;
+    if (!d || !d.known || !d.cand || d.side !== 'continue') return null;
+    return d.picked ? 'picked' : 'default';
+  });
+  /** The player's pick on Right now: kept for this account and ascension (never Your setup's value). */
+  function pickA1(side: A1Side): void {
+    const acct = account.value;
+    const stop = a1Stop.value;
+    const base = a1BaseKey.value;
+    if (!acct || stop === null || !base) return;
+    a1PagePicks.value = { ...a1PagePicks.value, [base]: side };
+    writeA1Pick(acct, stop, side);
+    a1PickVersion.value++;
+  }
+  /** The simulation is asked for the Build-up tracker only (the route has exact legs): Right now's card says nothing of it. */
+  const simForTrackerOnly = computed(() => !!followState.value?.plan?.plan?.legs);
+  /**
+   * Why no simulation is asked for while the tracker wants its plan (spec-buildcache: never "working it out…" with
+   * nothing running). null when one is asked, or the tracker shows something else anyway (no save, not on virtue).
+   */
+  const simGap = computed(() =>
+    buildUpSimGap({
+      asked: !!simRequest.value,
+      planWanted: buildUpWanted.value,
+      hasSave: hasSave.value,
+      onVirtue: onVirtue.value,
+      followed: !!followState.value,
+      account: !!account.value,
+      storeReady: storeReady.value,
+    })
+  );
+  watch(
+    () => simGap.value?.reason ?? null,
+    r => {
+      if (r) buildUpLog(`no simulation asked while the plan is wanted: ${r}`);
+    }
+  );
+  /**
+   * The Build-up tracker's Try again (spec-buildstop, 30 Oct 2026): the current ascension simulated again, and the
+   * followed route's estimate priced again when it failed, whatever this page load kept for their keys.
+   */
+  function retryBuildUp(): void {
+    if (estimate.value?.status === 'failed') retryEstimate();
+    retrySim();
+  }
   /** 'working' while the current ascension is simulated (or 'waiting' for a search), else null. */
   const simWorking = computed(() => {
     const st = currentSim.value;
+    if (simForTrackerOnly.value) return null;
     return st && st.key === simRequest.value?.key && (st.status === 'working' || st.status === 'waiting') ? st.status : null;
   });
+  /**
+   * STARTING FRESH WOULD BE SOONER (spec-r7verify, lib/freshSooner.ts). "Continue my build-up" forced (Your setup's
+   * choice, or the unfinished build's build-up side) never compares the ascension you are in with a fresh start
+   * (search/leg.ts runLeg takes the build-up and stops). So once that simulation is on screen and settled, the fresh start
+   * is priced LAZILY in a second simulation of its own (`freshSim`: Prestige now, the same save, route and hours, its own
+   * setup key `FRESH_PRICE_SETUP` and record): Right now's first answer never waits for it (it costs about as much again:
+   * measured on the synthetic mid-build save, 34.7 s for the build-up and about 40 s more for the fresh start). It waits
+   * while a search runs or the main simulation is still working on its plan (one worker at a time), and follows the
+   * one-request-per-key rules of composables/useCurrentSim.ts.
+   */
+  const forcedBuildUp = computed(() => {
+    const b = simBase.value;
+    const req = simRequest.value;
+    const st = currentSim.value;
+    if (!b || !req || st?.status !== 'done' || st.key !== req.key) return null;
+    const forced = forcesBuildUp({
+      trackerOnly: b.trackerOnly,
+      fastest: b.fastest,
+      building: b.building,
+      side: b.building ? a1Side.value : null,
+      setting: store.firstAscension,
+      leg: st.leg,
+    });
+    if (!forced) return null;
+    // Settled: the plan it was asked for is in (or not wanted, or failed), so no plan-only run is on its way.
+    const settled = !buildUpWanted.value || !!st.buildUp || !!st.planFailed;
+    return { b, leg: st.leg, settled };
+  });
+  const freshRequest = computed<SimRequest | null>(() => {
+    const f = forcedBuildUp.value;
+    if (!f) return null;
+    const { b } = f;
+    const setup = b.setupFor(FRESH_PRICE_SETUP);
+    return {
+      key: simKey({ account: b.account, backupTime: b.backupTime, route: b.route, setup }),
+      account: b.account,
+      backupTime: b.backupTime,
+      route: b.route,
+      setup,
+      inputs: () => {
+        const i = perfStep('collectInputs', () => store.collectInputs());
+        return { ...i, firstAscension: 'fresh' as const, milestones: [], ...(b.useHours ? {} : { availability: null }) };
+      },
+    };
+  });
+  const freshBusy = computed(() => searchBusy.value || !forcedBuildUp.value?.settled);
+  const { state: freshSim } = useCurrentSim(freshRequest, freshBusy);
+  /** The line (DRAFT) and the button "Switch to Soonest" (`switchToFastest`): the fresh start ends more than an hour
+   *  sooner than the forced build-up followed. Null otherwise, and while the fresh start is being priced. */
+  const freshLine = computed(() => {
+    const f = forcedBuildUp.value;
+    const req = freshRequest.value;
+    const st = freshSim.value;
+    if (!f || !req || st?.status !== 'done' || st.key !== req.key) return null;
+    const got = freshSooner({ key: f.leg.key, endTime: f.leg.endTime, firstLegEnds: { fresh: st.leg.endTime } });
+    return got ? { ...got, line: freshSoonerLine(got, now.value, zone.value) } : null;
+  });
+  /** Fastest followed for this ascension (the player's switch): Right now says so, with Undo. Null otherwise. */
+  const fastestFollowed = computed(() => {
+    const b = simBase.value;
+    return b && b.fastest && !b.trackerOnly ? { line: FASTEST_FOLLOWED_LINE } : null;
+  });
+  /** "Switch to Soonest" (on) and "Undo" (off): kept for this account and ascension, never Your setup's value. */
+  function switchToFastest(on = true): void {
+    const acct = account.value;
+    const stop = simBase.value?.route[0];
+    if (!acct || stop === undefined) return;
+    fastestPagePicks.value = { ...fastestPagePicks.value, [`${acct}.${stop}`]: on };
+    writeFastestPick(acct, stop, on);
+    fastestVersion.value++;
+  }
   /** The simulation failed: its short reason, and whether it is tried once more (Right now says so, never silently). */
   const simFailure = computed(() => {
     const st = currentSim.value;
+    if (simForTrackerOnly.value) return null;
     return st?.status === 'failed' && st.key === simRequest.value?.key ? { reason: st.reason, retrying: !!st.retrying } : null;
   });
-  const cardPlan = computed<CardPlan | null>(() => {
-    const c = basePlan.value;
-    const r = shiftRequest.value;
-    const st = r ? otherStates.value[r.key] : null;
-    const shifted = c && st?.status === 'done' ? { ...c, plan: withTableShifts(c.plan, st.route) } : c;
-    const sim = currentSim.value;
-    return shifted && sim?.status === 'done' && sim.key === simRequest.value?.key
-      ? { ...shifted, plan: withCurrentSim(shifted.plan, sim.leg) }
-      : shifted;
+  /**
+   * BUILD-UP TRACKER (Phase 1): the simulated ascension's build-up list, when useCurrentSim was asked for it
+   * (`wantBuildUp`: the tracker's composables/useBuildUpTracker.ts `buildUpWanted`, on only while the fold is open, the
+   * player is building and no plan is kept for the ascension); null until the simulation carries one.
+   */
+  const buildUpPlan = computed<BuildUpPlan | null>(() => {
+    const st = currentSim.value;
+    return st?.status === 'done' && st.key === simRequest.value?.key ? (st.buildUp ?? null) : null;
   });
+  /** The simulation's state for the tracker: working, waiting for a search, failed (with why) or done. */
+  const buildUpSim = computed(() => {
+    const st = currentSim.value;
+    if (!simRequest.value && simGap.value) return simGap.value;
+    if (!st || st.key !== simRequest.value?.key) return null;
+    // Only the plan was wanted and it failed (the leg stays on screen): the tracker says so (Phase 2).
+    if (st.status === 'done' && st.planFailed) return { status: 'failed' as const, reason: st.planFailed };
+    return st.status === 'failed' ? { status: st.status, reason: st.reason } : { status: st.status };
+  });
+  const cardPlan = computed<CardPlan | null>(() =>
+    perfStep('nowPage cardPlan', () => {
+      const c = basePlan.value;
+      const r = shiftRequest.value;
+      const st = r ? otherStates.value[r.key] : null;
+      const shifted = c && st?.status === 'done' ? { ...c, plan: withTableShifts(c.plan, st.route) } : c;
+      const sim = currentSim.value;
+      return shifted && sim?.status === 'done' && sim.key === simRequest.value?.key
+        ? { ...shifted, plan: withCurrentSim(shifted.plan, sim.leg) }
+        : shifted;
+    })
+  );
   /**
    * With a followed route for the selected goal: the planner's pick for this save as the new result the prompt
    * compares (BetterRoutePrompt.vue, lib/searchPlan.ts `followPrompt`), with the followed route's own finish as priced
@@ -1362,6 +1661,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     /** The followed route's finish here came from a priced result (a Fast, Exact or Custom timeline, Check exactly's
      *  price or history): an instant answer never asks about it (lib/searchPlan.ts `followIsPriced`). */
     followedPriced: boolean;
+    /** The save contradicts the followed route (lib/followStale.ts): the pick is offered as "Re-plan from this save"
+     *  whatever the finishes, priced follow or not (alt A1, 30 Oct 2026). Null: it doesn't. */
+    stale: StaleReason | null;
   } | null>(() => {
     const fs = followState.value;
     const pick = pickedPlan.value;
@@ -1389,6 +1691,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       },
       followedFinish,
       followedPriced: fs.card.price === 'exact' || fs.card.price === 'finish',
+      stale: followStaleness({
+        plan: fs.plan?.plan ?? null,
+        save: hasSave.value ? { seconds: saveSeconds.value, egg: currentEgg.value, te: saveTEOf(raw.value) } : null,
+        hoursDiffer: f.hours !== undefined && !sameHours(f.hours, hoursOf(store.availability)),
+        // This save's answer's first ascension: a followed empty build-up it no longer takes (spec-noemptybuild).
+        answer: answerFirstLeg(p),
+      }),
     };
   });
   /** A followed route read back from online, set with another hours window or simulator than the player's now: the
@@ -1493,6 +1802,13 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
    *  "Keep building"). Only a 'buildup' leg builds; a 'continue' leg buys nothing. */
   const keepBuilding = (variant: string | null | undefined): Pick<ActionLeg, 'building'> =>
     variant === 'buildup' && saveBuildLeft.value?.length ? { building: [...saveBuildLeft.value] } : {};
+  /** B1 (spec-r7qa, 3 Nov 2026): the simulated ascension you are in is a fresh start (Your setup's Prestige now), but the
+   *  save's farm is producing: the badge's Producing (lib/nowPhase.ts `phaseNow`, the save's production set wins) and the
+   *  tracker's "nothing to buy until your next prestige" (its `building` is that badge). One build state for all three:
+   *  with Producing the fresh start's build-up hasn't begun, so Next step is its prestige, never "Building up until …"
+   *  (lib/nextAction.ts `unstarted`). Building or no badge: as before. */
+  const unstarted = (variant: string | null | undefined): Pick<ActionLeg, 'unstarted'> =>
+    !continuesFarm(variant) && phase.value?.phase === 'producing' ? { unstarted: { te: teSoFar.value } } : {};
   const actionLegs = computed<ActionLeg[]>(() => {
     const p = cardPlan.value?.plan;
     // No timeline for the route: the ascension you are in alone, once simulated.
@@ -1510,6 +1826,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
               ...(leg.buildPhaseEndTime !== null ? { buildEnd: leg.buildPhaseEndTime } : {}),
               ...(continuesFarm(leg.key) ? { live: true } : {}),
               ...keepBuilding(leg.key),
+              ...unstarted(leg.key),
               ...(leg.timeOff ? { timeOff: leg.timeOff } : {}),
             },
           ]
@@ -1525,6 +1842,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       ...(l.buildEnd !== undefined ? { buildEnd: l.buildEnd } : {}),
       ...(continuesFarm(l.variant) ? { live: true } : {}),
       ...(i === 0 && l.simulated ? keepBuilding(l.variant) : {}),
+      ...(i === 0 && l.simulated ? unstarted(l.variant) : {}),
       ...(l.timeOff ? { timeOff: l.timeOff } : {}),
     }));
   });
@@ -1607,6 +1925,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     const inv = inventory.value;
     return inv ? whichSet(inv.equipped, inv.earnings, inv.production) : null;
   });
+  /** BUILD-UP TRACKER Phase 2: the save as the tracker ticks from it (lib/buildUpBought.ts): the save's own farm and the
+   *  set it wears, read off the save itself (never a Manual plan's start, the save-start rule of search/saveStart.ts). */
+  const buildUpSave = computed(() => (hasSave.value && onVirtue.value ? saveFarmFor(farm.value, setMatch.value) : null));
   const gear = computed(() => {
     const inv = inventory.value;
     if (!inv) return null;
@@ -1639,7 +1960,8 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
         })
       : null
   );
-  /** The corner badge, Building or Producing with the rate (lib/nowPhase.ts); null off virtue. */
+  /** The corner badge, Building or Producing with the rate (lib/nowPhase.ts); null off virtue. The save wins: its
+   *  set, then the plan only when it is on the save's egg now. */
   const phase = computed(() =>
     hasSave.value
       ? phaseNow({
@@ -1647,6 +1969,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           plan: cardPlan.value?.plan ?? null,
           nowSeconds: now.value,
           setMatch: setMatch.value,
+          saveEgg: currentEgg.value,
           saveElr: facts.value?.elr ?? null,
         })
       : null
@@ -1885,6 +2208,20 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     simWorking,
     simFailure,
     simSlow,
+    account,
+    buildUpPlan,
+    buildUpSim,
+    buildUpSave,
+    retryBuildUp,
+    a1Choice,
+    a1Finish,
+    pickA1,
+    freshLine,
+    fastestFollowed,
+    switchToFastest,
+    /** The farm's rates at full habs and what the save's build still has to buy (lib/saveBuild.ts): read by specs. */
+    fullHabRates,
+    saveBuildLeft,
     nextStep,
     nextShiftLines,
     ascNow,
@@ -1911,4 +2248,34 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
     followsForSteps,
     stepWindows,
   };
+}
+
+/**
+ * Whether the current ascension is simulated (spec-buildcache, 30 Oct 2026): for a followed route without exact legs
+ * (Right now needs it), and for one with exact legs only while the Build-up tracker wants its plan (the plan comes only
+ * from the simulation: a route with exact legs left the tracker "working it out…" with nothing ever asked).
+ */
+export function simAskedFor(o: { followed: boolean; exactLegs: boolean; planWanted: boolean }): boolean {
+  return o.followed && (!o.exactLegs || o.planWanted);
+}
+
+/**
+ * Why no simulation is asked for while the Build-up tracker wants its plan: what the tracker shows instead of "working
+ * it out…" with nothing running (spec-buildcache). null when one is asked, the plan is not wanted, or the tracker shows
+ * something else anyway (no save, not on virtue). The planner still loading this save is 'waiting' (asked once it is in).
+ */
+export function buildUpSimGap(o: {
+  asked: boolean;
+  planWanted: boolean;
+  hasSave: boolean;
+  onVirtue: boolean | null;
+  followed: boolean;
+  account: boolean;
+  storeReady: boolean;
+}): { status: 'waiting' | 'failed'; reason: string } | null {
+  if (o.asked || !o.planWanted || !o.hasSave || o.onVirtue === false) return null;
+  if (!o.followed) return { status: 'failed', reason: 'no followed route for this goal' };
+  if (!o.account) return { status: 'failed', reason: 'the save has no account' };
+  if (!o.storeReady) return { status: 'waiting', reason: "the planner's inputs are not this save's yet" };
+  return { status: 'failed', reason: 'the followed route has no stop ahead of this save' };
 }

@@ -4,7 +4,7 @@
   no search (one exception since 24 Oct 2026: a followed route with no timeline is priced on the instant answer's data
   in a route worker, lib/followEstimate.ts). Top to bottom, one column at every width:
 
-    1. Save-age strip (SaveAgeStrip.vue): every time below comes from the save, so its age comes first.
+    1. Save-age banner (SaveAgeStrip.vue): every time below comes from the save, so its age comes first.
     2. Right now (RightNowCard.vue): the egg, on track or not, the next step, the gear, the next events with
        "+ Add to calendar", the whole route folded. From the instant answer, or a Fast, Exact or Custom result for
        the same goal once one is better (lib/searchPlan.ts).
@@ -32,7 +32,7 @@
       </p>
     </div>
 
-    <SaveAgeStrip :strip="page.strip.value" :server="serverSave" :now="page.now.value" :loading="loading" @fresh="emit('fresh')" />
+    <SaveAgeStrip :state="page.strip.value" :server="serverSave" :now="page.now.value" :loading="loading" @fresh="emit('fresh')" />
     <p v-if="page.saveWaiting.value" class="text-body text-slate-500" data-testid="now-save-waiting">
       {{ loading ? 'Reading your save: where you are, your eggs and your saved answers show once it is in.' : 'Load your save to see where you are, your eggs and your saved answers.' }}
     </p>
@@ -54,6 +54,9 @@
         :sim-slow="page.simSlow.value"
         :next-step="page.nextStep.value"
         :next-shift-lines="page.nextShiftLines.value"
+        :a1-choice="page.a1Choice.value"
+        :fresh-sooner="page.freshLine.value"
+        :fastest-followed="!!page.fastestFollowed.value"
         :gear="page.gear.value"
         :now="page.now.value"
         :zone="page.zone.value"
@@ -79,7 +82,40 @@
         @use-search="page.useSearchResult"
         @follow="followTyped"
         @unfollow="unfollowGoal"
-      />
+        @pick-a1="page.pickA1"
+        @switch-fastest="page.switchToFastest"
+      >
+        <!-- The build-up, check-in by check-in (composables/useBuildUpTracker.ts): open while building; directly under
+             Right now's Next step and Next shifts (30 Oct 2026, Jordan), not at the foot of the page. -->
+        <template #buildUp>
+          <BuildUpTracker
+            :state="tracker.state.value"
+            :open="tracker.open.value"
+            :result="tracker.result.value"
+            :ticks="tracker.ticks.value"
+            :summary="tracker.summary.value"
+            :silo-warnings="tracker.siloWarnings.value"
+            :fail-reason="tracker.failReason.value"
+            :fail-stopped="tracker.failStopped.value"
+            :now="page.now.value"
+            :zone="page.zone.value"
+            :save-seconds="page.saveSeconds.value"
+            :plan-save="tracker.plan.value?.saveSeconds ?? 0"
+            :bought="tracker.bought.value?.lines ?? null"
+            :tick-source="tracker.tickSource.value"
+            :save-fit="tracker.bought.value?.fit ?? null"
+            :replan="trackerReplan"
+            :finish-chosen="tracker.finishChosen.value"
+            :followed-for="trackerFollowedFor"
+            @toggle="tracker.playerToggle"
+            @tick="tracker.toggleTick"
+            @clear="tracker.clearTick"
+            @replan="tracker.replan"
+            @retry="page.retryBuildUp"
+            @show-goal="page.selectGoal"
+          />
+        </template>
+      </RightNowCard>
 
       <SoulEggWarning :shifts="page.plannedShifts.value?.count ?? null" :done="page.hasSave.value ? page.shiftsDone.value : null" :soul-eggs="page.soulEggs.value" />
       <YourEggs
@@ -300,6 +336,10 @@ import type { RecalcRequest } from '@/lib/recalc';
 import { markMyRunsSeen } from '@/composables/useMyRunsShown';
 import { useServerSave } from '@/composables/useServerSave';
 import DashboardGaps from './myruns/DashboardGaps.vue';
+import BuildUpTracker from './myruns/BuildUpTracker.vue';
+import { useBuildUpTracker } from '@/composables/useBuildUpTracker';
+import { ascensionStartOf } from '@/lib/buildUpTracker';
+import { isConstrained } from '@/search/availability';
 import SaveAgeStrip from './myruns/SaveAgeStrip.vue';
 import RightNowCard from './myruns/RightNowCard.vue';
 import YourEggs from './myruns/YourEggs.vue';
@@ -391,6 +431,43 @@ const allRows = ref<BoardRow[] | null>(hasBoard ? null : []);
 // ------------------------------------------------------------------------------- the Right now page
 
 const page = useNowPage({ myRows: boardRows, boardRows: allRows });
+/** The Build-up tracker under Right now's Next step (composables/useBuildUpTracker.ts): the followed route's current ascension. */
+const tracker = useBuildUpTracker({
+  account: computed(() => page.account.value || null),
+  hasSave: page.hasSave,
+  onVirtue: page.onVirtue,
+  followed: computed(() => !!page.follow.value),
+  building: computed(() => page.phase.value?.phase === 'building'),
+  ascensionStart: computed(() => ascensionStartOf(page.cardPlan.value?.plan ?? null, page.now.value)),
+  saveSeconds: page.saveSeconds,
+  zone: page.zone,
+  hours: computed(() => (isConstrained(store.availability) ? store.availability : null)),
+  now: page.now,
+  fresh: page.buildUpPlan,
+  sim: page.buildUpSim,
+  saveFarm: page.buildUpSave,
+  finishChosen: page.a1Finish,
+});
+/** R7 red-team #3 (31 Oct 2026): the tracker is the shown goal's; with no route followed for it but one for another
+ *  goal, the tracker names that goal (and shows it on a press) instead of "follow a route first". */
+const trackerFollowedFor = computed(() => {
+  if (page.follow.value) return null;
+  const g = page.goalChoices.value.find(o => o.following && o.key !== page.selectedGoal.value);
+  return g ? { key: g.key, name: g.label } : null;
+});
+/** The tracker's Re-plan strip (Phase 2): shown when the save is over 1 h behind the plan or bought things off-plan. */
+const trackerReplan = computed(() =>
+  tracker.replanShown.value
+    ? {
+        shown: true,
+        working: tracker.replanning.value,
+        error: tracker.replanError.value,
+        behind: tracker.offer.value?.behind ?? 0,
+        offPlan: tracker.offPlanWords.value,
+        keepsTicks: tracker.hasOverrides.value,
+      }
+    : null
+);
 /** The save on the server versus the one loaded here: asked quietly once per page load (lib/serverSave.ts). */
 const serverSave = useServerSave({
   playerId: computed(() => props.playerId),

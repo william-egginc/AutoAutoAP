@@ -7,7 +7,7 @@
   <!-- A quiet one-liner only while it is working, and for at most STILL_WORKING_MS: past that it says nothing until a
        line comes (UX review 26 Oct 2026, item 7: it sat in the green box until the player had scrolled away). -->
   <p v-if="status === 'running' && working" class="text-body text-slate-400" data-testid="prestige-by-running">
-    Working out how long your next prestige can wait…
+    Working out how long your next prestige can wait<AnimatedDots />
   </p>
   <div
     v-else-if="line?.show"
@@ -61,6 +61,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { useStillWorking } from '@/composables/useStillWorking';
 import type { PrestigeLine } from '@/search/prestigeBy';
 // With hours on: prestige at the time shown (shared with the instant card and Insights, lib/hoursNote.ts).

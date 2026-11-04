@@ -15,7 +15,7 @@
 import { reactive } from 'vue';
 import type { ei } from 'lib';
 import { ageAgo } from './saveAge';
-import { backupSecondsOf } from './saveFreshness';
+import { backupSecondsOf, CLOCK_BEHIND_AFTER_SECONDS } from './saveFreshness';
 import { requestSave } from './saveLoad';
 import { hashID } from './storage/db';
 
@@ -102,9 +102,17 @@ export function serverSaveState(loadedSeconds: number, check: ServerSaveCheck | 
 /** The strip's button when the server has a newer save (it loads it as Load does). */
 export const NEWER_ON_SERVER = 'A newer save is on the server · Load it';
 
-/** The strip's line when the loaded save is the newest on the server: a reload would change nothing. */
+/**
+ * The strip's Details line when the loaded save is the newest on the server: a reload would change nothing. A detail,
+ * not an instruction: "Open the game to update it" was the headline again (red team R7 M2, 1 Nov 2026). DRAFT.
+ * A save ahead of the device clock (R7 red-team #6: `ageAgo` drops the sign, so a clock 58 min behind read "synced
+ * 58m ago"): no age, the banner says the clock looks behind (lib/saveFreshness.ts CLOCK_BEHIND_AFTER_SECONDS); a few
+ * seconds ahead is "just now".
+ */
 export function newestOnServerLine(serverSeconds: number, nowSeconds: number): string {
-  return `This is the newest save on the server (synced ${ageAgo(nowSeconds - serverSeconds)}). Open the game to update it.`;
+  const age = nowSeconds - serverSeconds;
+  if (age < -CLOCK_BEHIND_AFTER_SECONDS) return 'This is the newest save on the server.';
+  return `This is the newest save on the server (synced ${ageAgo(Math.max(0, age))}).`;
 }
 
 /** The tip under it (as carpet's tools say it: the game syncs only while it is open). */

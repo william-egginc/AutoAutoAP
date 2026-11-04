@@ -6,7 +6,13 @@
  * fresh one is in (composables/useNowPage.ts).
  *
  * Small (a plan of a few stops), bounded (`HELD_MAX`), localStorage in try/catch: a convenience only.
+ *
+ * Release 7: each one carries the code that worked it out (`rc`, lib/resultCode.ts). It is only ever shown as from
+ * before while the fresh one is worked out; one kept by an older build (or before `rc`) reads back with `olderCode`, so
+ * the mark says so ("From <time> (older version), checking…").
  */
+import { resultCode, sameResultCode } from './resultCode';
+
 export const HELD_ESTIMATE_KEY = 'aap-follow-estimate-held';
 export const HELD_MAX = 6;
 
@@ -20,6 +26,8 @@ export interface HeldEstimate<P = unknown, C = unknown> {
   at: number;
   plan: P;
   card: C;
+  /** lib/resultCode.ts `resultCode()` when it was kept (stamped by `keepHeld`); absent before Release 7. */
+  rc?: string;
 }
 
 type Store = { getItem(k: string): string | null; setItem(k: string, v: string): void };
@@ -46,7 +54,7 @@ function readAll(st: Store): HeldEstimate[] {
 export function keepHeld(h: HeldEstimate, st: Store | null = storage()): boolean {
   if (!st || !h.account || !h.chain.length) return false;
   try {
-    const text = JSON.stringify(h);
+    const text = JSON.stringify({ ...h, rc: resultCode() });
     if (/EI\d{16}/i.test(text)) return false;
     const list = [JSON.parse(text) as HeldEstimate, ...readAll(st).filter(x => !(x.account === h.account && x.goalKey === h.goalKey))].slice(0, HELD_MAX);
     st.setItem(HELD_ESTIMATE_KEY, JSON.stringify(list));
@@ -56,14 +64,16 @@ export function keepHeld(h: HeldEstimate, st: Store | null = storage()): boolean
   }
 }
 
-/** The estimate kept for this account, goal and route, or null. */
+/** The estimate kept for this account, goal and route, or null; `olderCode` when an older build kept it. */
 export function readHeld<P = unknown, C = unknown>(
   account: string | null | undefined,
   goalKey: string,
   chain: readonly number[],
   st: Store | null = storage()
-): HeldEstimate<P, C> | null {
+): (HeldEstimate<P, C> & { olderCode?: true }) | null {
   if (!st || !account) return null;
   const want = chain.join(',');
-  return (readAll(st).find(h => h.account === account && h.goalKey === goalKey && h.chain.join(',') === want) as HeldEstimate<P, C> | undefined) ?? null;
+  const h = readAll(st).find(x => x.account === account && x.goalKey === goalKey && x.chain.join(',') === want) as HeldEstimate<P, C> | undefined;
+  if (!h) return null;
+  return sameResultCode(h.rc) ? h : { ...h, olderCode: true };
 }

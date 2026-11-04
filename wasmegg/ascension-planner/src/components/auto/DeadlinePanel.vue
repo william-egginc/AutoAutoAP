@@ -140,7 +140,7 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
          date, from every route at once, instant numbers only (it points to a search's result below). -->
-    <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant">
+    <CollapsibleSection v-if="deadline" id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy">
       <!-- Never nothing: a card that can't be drawn says so (InstantGuard.ts, lib/renderGuard.ts). -->
       <InstantGuard>
       <InstantRoute
@@ -163,7 +163,7 @@
             </template>
             <template v-if="quickRunning">
               <p class="text-body font-bold text-slate-700" data-testid="quick-estimate-status">
-                {{ quickStatus }}
+                <PendingText :text="quickStatus" :pending="!instantWait && !autoStatus" />
               </p>
               <button
                 type="button"
@@ -600,7 +600,8 @@
           class="text-body font-bold text-slate-700"
           data-test="instant-wait-status"
         >
-          {{ instantWait }}
+          <!-- search/autoWiden.ts keeps its "…" (a result-hash input): drawn as moving dots (spec-dots). -->
+          <PendingText :text="instantWait" />
         </p>
         <!-- The numbers that should decide whether you press the button (not while Nearby routes runs:
              the time left would be that run's). -->
@@ -622,7 +623,7 @@
                 {{ store.deadlineRunning ? 'Time left' : 'Est. time' }}
               </div>
               <div class="text-title font-bold text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
-              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-400">measuring…</div>
+              <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-400">measuring<AnimatedDots /></div>
               <div v-else-if="store.deadlineRunning && firstGuessLabel" class="text-small text-slate-400">
                 first guess {{ firstGuessLabel }}
               </div>
@@ -687,7 +688,7 @@
           <div data-run-progress="by-date" class="scroll-mt-24"></div>
           <!-- No instant answer for this TE: which step of the fallback is going (search/autoWiden.ts). -->
           <p v-if="autoStatus" class="text-body font-bold text-slate-700" data-test="auto-widen-status">
-            {{ autoStatus }}
+            <PendingText :text="autoStatus" />
           </p>
           <!-- The best so far in the finished answer's card (ByDateRouteCard.vue), then the next ones. -->
           <ByDateRouteCard
@@ -783,6 +784,7 @@
           :csv-every="store.csvHasEveryRoute('deadline')"
           can-save
           :saving="quickSaving"
+          :saved="store.currentAnswerSaved"
           :note="quickSaveNote"
           :run-cost="result.lastTECost ?? null"
           :last-run="store.dateRunLive ? '' : inPlannerZone(Math.floor(result.at / 1000))"
@@ -790,6 +792,8 @@
           :follow="dateFollow"
           @simulate="simulateResult"
           @csv="downloadByDateCsv"
+          :xlsx="store.xlsxOffered('deadline')"
+          @xlsx="downloadXlsx('deadline')"
           @save="quickSave"
         >
           <!-- "Try waiting before each prestige" (WaitBeforePrestige.vue): was on the instant card under Check exactly
@@ -1082,6 +1086,8 @@ const kept = {
 </script>
 
 <script setup lang="ts">
+import PendingText from '@/components/auto/PendingText.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import BigCsvStatus from './BigCsvStatus.vue';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import FollowButton from '../FollowButton.vue';
@@ -1559,8 +1565,10 @@ const lines = computed(() => ({
       ? instantUnloaded.value
         ? UNLOADED_INSTANT_SUMMARY
         : NO_INSTANT_SUMMARY
-      : 'working out…'
+      : 'working out'
   ),
+  // Still being worked out: the moving dots after "working out" (CollapsibleSection `summaryBusy`, spec-dots).
+  instantBusy: !stronger.instant.date && instantLoad.value !== 'none',
 }));
 /** The fallback's Nearby routes: how long its boxes may take on this machine; null otherwise. */
 const fallbackSeconds = ref<number | null>(null);
@@ -2682,7 +2690,8 @@ const quickStatus = computed(
   () =>
     instantWait.value ||
     autoStatus.value ||
-    `The ${NAMES.smart} search is checking the routes near your last answer. Stop keeps the best route so far…`
+    // Its moving dots are drawn (PendingText `pending`, spec-dots 1 Nov 2026), never typed.
+    `The ${NAMES.smart} search is checking the routes near your last answer. Stop keeps the best route so far`
 );
 /** The fallback's answer (`fallback` on the result), once it is done. */
 const quickBest = computed(() => {
@@ -2829,7 +2838,7 @@ const {
 );
 
 /** Download CSV: every leg of every route priced (composables/useRunDownloads.ts). */
-const { downloadByDateCsv, downloadError } = useRunDownloads(store);
+const { downloadByDateCsv, downloadXlsx, downloadError } = useRunDownloads(store);
 
 const result = computed(() => store.deadlineResult);
 /** A row's arrow (RouteTimeline.vue): only a route with its legs has stops to show. */
@@ -2855,8 +2864,9 @@ const quickSaveNote = ref('');
 async function quickSave(): Promise<void> {
   quickSaving.value = true;
   try {
-    await store.saveCurrentAnswer(props.playerId, defaultAnswerLabel.value);
-    quickSaveNote.value = `Saved as "${defaultAnswerLabel.value}".`;
+    // The same answer saved before keeps its entry and name (store `saveCurrentAnswer`).
+    const name = await store.saveCurrentAnswer(props.playerId, defaultAnswerLabel.value);
+    quickSaveNote.value = `Saved as "${name}".`;
   } catch {
     quickSaveNote.value = "Couldn't save it in this browser.";
   } finally {

@@ -12,10 +12,14 @@
  * Pure apart from the storage it is handed (localStorage by default; every read and write in try/catch).
  */
 import type { LegSummary } from '@/search/types';
+import type { BuildUpAction, BuildUpPlan } from '@/search/buildUpActions';
 import type { NowPlan } from './nowPlan';
+import { resultCode } from './resultCode';
 
 export const SIM_RECORD_KEY = 'aap-follow-sim';
-export const SIM_RECORDS = 3;
+/** 5 (spec-r7verify, 1 Nov 2026; was 3): the A1 choice's two sides, the fresh start priced beside a forced build-up
+ *  (useNowPage `freshSim`) and Fastest for this ascension each keep a record of their own. */
+export const SIM_RECORDS = 5;
 /** One record's most (a leg has about twelve shifts: well under 2 kB). */
 export const SIM_MAX_BYTES = 16_000;
 
@@ -41,6 +45,11 @@ export interface SimLeg {
    * start) up to the stop (`endTime`, `endTE`). `rebuildBuildEnd`: the rebuild's build phase end.
    */
   timeOff?: { from: number; to: number; te: number; rebuildBuildEnd?: number };
+  /** A1 CHOICE (spec-a1choice, lib/a1Choice.ts): when each kind of first ascension simulated would have ended it
+   *  (search/types.ts `LegSummary.firstLegEnds`), and how many things the build-up's build buys (`buildUpBuys`).
+   *  Absent on a leg cut by time off, and in records kept before. */
+  firstLegEnds?: Partial<Record<'continue' | 'buildup' | 'fresh', number>>;
+  buildUpBuys?: number;
 }
 
 export interface SimRecord {
@@ -59,8 +68,21 @@ export interface SimRecord {
   leg: SimLeg;
 }
 
+/**
+ * THE RULES A KEPT SIMULATION WAS MADE WITH: part of every setup key, so a record (and its build-up plan, kept under the
+ * same key) made under older rules is never found and the ascension is simulated again. Change it when the same save,
+ * route and setup would now simulate differently. 'noemptybuild' (spec-noemptybuild, 31 Oct 2026): a build-up that buys
+ * nothing, or ends no sooner than continue, is no longer the ascension you are in (search/leg.ts `runLeg`); a record
+ * kept before showed Jordan's alt a 6-shift build-up buying nothing. 'a1choice' (spec-a1choice, 1 Nov 2026): the leg
+ * carries both first-ascension ends and the build-up's buy count (`SimLeg.firstLegEnds`, `buildUpBuys`), which Right
+ * now's A1 choice reads; a record kept before has neither.
+ */
+export const SIM_RECORD_RULES = 'a1choice';
+
 /** What the simulation depends on beyond the save and the route: the hours (when the answers work inside them), time
- *  off, no-prestige days, the first ascension's rule and whether shifts wait for the hours. */
+ *  off, no-prestige days, the first ascension's rule and whether shifts wait for the hours; the rules it was made
+ *  with (`SIM_RECORD_RULES`); and the code that worked it out (lib/resultCode.ts, Release 7: a record kept by an older
+ *  build is never found, so the ascension is simulated again once, and its build-up plan with it). */
 export function simSetupKey(o: {
   availability: unknown;
   useHours: boolean;
@@ -76,6 +98,8 @@ export function simSetupKey(o: {
     list(o.noPrestige),
     o.firstAscension ?? null,
     !!o.deferShifts,
+    SIM_RECORD_RULES,
+    resultCode(),
   ]);
 }
 
@@ -99,7 +123,16 @@ export function simLegOf(leg: LegSummary | null | undefined): SimLeg | null {
     buildPhaseEndTime: finite(leg.buildPhaseEndTime) ? leg.buildPhaseEndTime : null,
     shifts: (leg.shifts ?? []).filter(s => finite(s.at) && typeof s.egg === 'string').map(s => ({ at: s.at, egg: s.egg })),
     ...(finite(leg.maxELR) && leg.maxELR > 0 ? { maxELR: leg.maxELR } : {}),
+    ...(leg.firstLegEnds ? { firstLegEnds: firstLegEndsOf(leg.firstLegEnds) } : {}),
+    ...(Number.isInteger(leg.buildUpBuys) ? { buildUpBuys: leg.buildUpBuys } : {}),
   };
+}
+
+/** Only the finite ends. */
+function firstLegEndsOf(e: Partial<Record<'continue' | 'buildup' | 'fresh', number>>): Partial<Record<'continue' | 'buildup' | 'fresh', number>> {
+  const out: Partial<Record<'continue' | 'buildup' | 'fresh', number>> = {};
+  for (const k of ['continue', 'buildup', 'fresh'] as const) if (finite(e[k])) out[k] = e[k];
+  return out;
 }
 
 /**
@@ -238,4 +271,77 @@ export function withCurrentSim(plan: NowPlan, leg: SimLeg | null | undefined): N
       ...plan.tableLegs!.slice(1),
     ],
   };
+}
+
+// ------------------------------------------------------------------------------------------------
+// BUILD-UP TRACKER (Phase 1; ~/code/aaap-tools/wireframes/buildup-tracker-v1.md). The simulated ascension's action
+// list, asked for only by a caller that wants it (composables/useCurrentSim.ts `wantBuildUp`). Kept apart from the
+// 16 kB `SimRecord`: one record under its own key, the newest only.
+
+export const BUILDUP_PLAN_KEY = 'aap-buildup-plan';
+/** The kept plan's most, as JSON text. About 1,500 buys of a whole build-up measure well under this. */
+export const BUILDUP_PLAN_MAX_BYTES = 600_000;
+
+/**
+ * The build-up plan from ALL the segments the one-stop route came back with (as `simLegFromSegments` reads them):
+ * every segment's list in time order, the first segment's start farm and variant, the last one's end. Null when no
+ * segment carries a list (the simulation was not asked for one).
+ */
+export function buildUpPlanFromSegments(
+  legs: readonly LegSummary[] | null | undefined,
+  o: { accountKey: string; siloSeconds: number }
+): BuildUpPlan | null {
+  const segs = (legs ?? []).filter(l => l && l.buildUp && finite(l.endTime));
+  if (!segs.length) return null;
+  const first = segs[0];
+  const startedAt = finite(first.startTime) ? first.startTime : first.endTime - first.durationSeconds;
+  if (!finite(startedAt)) return null;
+  const actions: BuildUpAction[] = segs.flatMap(l => l.buildUp!.actions).sort((x, y) => x.t - y.t);
+  return {
+    startedAt,
+    accountKey: o.accountKey,
+    variantKey: String(first.key),
+    ...(first.buildUp!.start ? { start: first.buildUp!.start } : {}),
+    actions,
+    siloSeconds: finite(o.siloSeconds) ? o.siloSeconds : 0,
+    endTime: segs[segs.length - 1].endTime,
+    // How many sales the build looks ahead to (the tracker's Smart Buy line; spec-buylabel).
+    ...(Number.isInteger(first.buildPhaseSaleCount) && first.buildPhaseSaleCount! > 0 ? { saleCount: first.buildPhaseSaleCount } : {}),
+  };
+}
+
+function usablePlan(p: unknown): p is BuildUpPlan {
+  const x = p as BuildUpPlan | null;
+  return !!x && finite(x.startedAt) && finite(x.endTime) && typeof x.accountKey === 'string' && Array.isArray(x.actions);
+}
+
+/** The last kept text read and what it parsed to: the same text is never parsed twice (build-up perf, 30 Oct 2026:
+ *  the request watch reads this whenever the request is worked out again). */
+let lastRead: { text: string; v: { key?: unknown; plan?: unknown } | null } | null = null;
+
+/** The kept plan for this `simKey`, or null. */
+export function readBuildUpPlan(key: string, st: Store | null = storage()): BuildUpPlan | null {
+  if (!st) return null;
+  try {
+    const text = st.getItem(BUILDUP_PLAN_KEY) ?? 'null';
+    if (lastRead?.text !== text) lastRead = { text, v: JSON.parse(text) as { key?: unknown; plan?: unknown } | null };
+    const v = lastRead.v;
+    // An empty list reads as no plan (spec-buildcache: a record must never read as "plan present" without one).
+    return v && v.key === key && usablePlan(v.plan) && v.plan.actions.length > 0 ? v.plan : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Keep the plan for this `simKey` (replacing the one kept). False when too big or it could not be kept. */
+export function recordBuildUpPlan(key: string, plan: BuildUpPlan, st: Store | null = storage()): boolean {
+  if (!st || !usablePlan(plan)) return false;
+  try {
+    const text = JSON.stringify({ key, plan });
+    if (text.length > BUILDUP_PLAN_MAX_BYTES) return false;
+    st.setItem(BUILDUP_PLAN_KEY, text);
+    return true;
+  } catch {
+    return false;
+  }
 }

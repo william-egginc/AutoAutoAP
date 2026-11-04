@@ -1,7 +1,7 @@
 <!--
   "Follow this route" (lib/follow.ts, stores/follow.ts): My runs' Right now follows this route for the goal (its key,
   lib/planGoals.ts `goalKeyOf`) instead of the planner's checked pick, remembered per account in this browser.
-  "Following ✓" when it is the one kept; "Checking…" (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `primary` makes it a 44 px tap
+  "Following ✓" when it is the one kept; "Checking" with moving dots (disabled) while the answer it is on is from before (`stale`). Small beside the buttons it sits with; `primary` makes it a 44 px tap
   target on a phone. A press is the only thing that saves the route online (stores/follow.ts, lib/followCloud.ts):
   the summary props (where it came from, its finish, TE and plan start) go with it when the screen knows them.
 -->
@@ -13,6 +13,7 @@
       on ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50',
       primary ? 'min-h-[44px] sm:min-h-0 px-3 py-1.5 text-body' : 'px-2 py-0.5 text-body',
     ]"
+    :aria-label="ariaLabel"
     :aria-pressed="on ? 'true' : 'false'"
     :disabled="stale && !on"
     :title="on ? `Right now (My runs) follows this route for ${goalName}` : `Right now (My runs) follows this route for ${goalName} instead of the checked one`"
@@ -20,12 +21,14 @@
     :data-goal="goalKey"
     @click.stop="pick"
   >
-    {{ on ? 'Following ✓' : stale ? 'Checking…' : 'Follow this route' }}
+    <template v-if="on">Following ✓</template><template v-else-if="stale">Checking<AnimatedDots /></template
+    ><template v-else>Follow this route</template>
   </button>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { useFollowStore } from '@/stores/follow';
 import type { FollowFrom } from '@/lib/follow';
 import type { FollowSource } from '@/lib/followCloud';
@@ -46,6 +49,9 @@ const props = defineProps<{
   /** The answer it is on is from before and being worked out again (InstantRoute.vue `staleAt`): held until the
    *  fresh one is in, so a stale route is never followed or saved online. */
   stale?: boolean;
+  /** The route as the row shows it ("166 198 222 249"): the button's name then carries it ("Follow 166 198 222 249"),
+   *  so a table's buttons are told apart by a screen reader (red team R7 M3, 1 Nov 2026). The visible words stay. */
+  routeLabel?: string;
 }>();
 
 /** No store without Pinia (a board list rendered on its own in a spec): the button still shows, and does nothing. */
@@ -57,6 +63,9 @@ const follows = (() => {
   }
 })();
 const on = computed(() => !!follows?.isFollowed(props.goalKey, props.chain));
+const ariaLabel = computed(() =>
+  props.routeLabel ? `${on.value ? 'Following' : props.stale ? 'Checking' : 'Follow'} ${props.routeLabel}` : undefined
+);
 const goalName = computed(() => {
   const k = props.goalKey;
   if (k.startsWith('fastest-')) return `Fastest to ${k.slice(8)} TE`;

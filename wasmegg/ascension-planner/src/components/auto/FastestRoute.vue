@@ -31,7 +31,7 @@
 
     <!-- The instant answer from the precomputed table (the precompute fork): every route, at once, instant
          numbers only. The search panel below prices routes on your save; the answer points to its result. -->
-    <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant">
+    <CollapsibleSection id="instant" title="Instant answer" :summary="lines.instant" :summary-busy="lines.instantBusy">
       <!-- No instant answer for the player's TE: it points to By a date's quick estimate (`by-date`). Never nothing:
            a card that can't be drawn says so (InstantGuard.ts). -->
       <InstantGuard>
@@ -159,8 +159,10 @@ const lines = computed(() => ({
       ? instantUnloaded.value
         ? UNLOADED_INSTANT_SUMMARY
         : NO_INSTANT_SUMMARY
-      : 'working out…'
+      : 'working out'
   ),
+  // Still being worked out: the moving dots after "working out" (CollapsibleSection `summaryBusy`, spec-dots).
+  instantBusy: !stronger.instant.fastest && instantLoad.value !== 'none',
 }));
 /** What each Nearby routes level would cost on this computer (store `smartEstimate`). */
 const levelEstimates = computed<Partial<Record<StrongerLevel, LevelEstimate>>>(() => {

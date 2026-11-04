@@ -20,6 +20,7 @@ const SECTIONS: FoldSection[] = [
   'steppingAway',
   'countTable',
   'howWorkedOut',
+  'buildUpTracker',
 ];
 
 let mem: Map<string, string>;

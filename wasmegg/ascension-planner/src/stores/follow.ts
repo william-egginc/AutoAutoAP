@@ -397,15 +397,60 @@ export const useFollowStore = defineStore('follow', () => {
     return saves.value[goalKey] ?? { state: 'saved', words: '' };
   }
 
+  /** Goals whose offer's press is under way (`followBetter`): BetterRoutePrompt.vue shows nothing of the offer from
+   *  the press on (R7 red-team QA, 1 Nov 2026: "Keep mine" stayed with no offer); a press that doesn't follow brings
+   *  it back. This page only. */
+  const pressing = ref<Record<string, true>>({});
+  function offerPressed(goalKey: GoalKey | null | undefined): boolean {
+    return !!goalKey && !!pressing.value[goalKey];
+  }
+
   /** "Follow it" on a better result (BetterRoutePrompt.vue, lib/searchPlan.ts `followPrompt`): a Follow press. */
   async function followBetter(goalKey: GoalKey, p: FollowPrompt, deadline: number | null): Promise<boolean> {
-    return follow(goalKey, p.chain, p.source === 'instant' ? 'answer' : 'saved', undefined, {
-      source: p.source,
-      finish: Math.round(p.end),
-      endTE: p.endTE,
-      ...(p.planStart ? { planStart: Math.floor(p.planStart) } : {}),
-      ...(deadline ? { spareSeconds: Math.round(deadline - p.end) } : {}),
-    });
+    pressing.value = { ...pressing.value, [goalKey]: true };
+    try {
+      return await follow(goalKey, p.chain, p.source === 'instant' ? 'answer' : 'saved', undefined, {
+        source: p.source,
+        finish: Math.round(p.end),
+        endTE: p.endTE,
+        ...(p.planStart ? { planStart: Math.floor(p.planStart) } : {}),
+        ...(deadline ? { spareSeconds: Math.round(deadline - p.end) } : {}),
+      });
+    } finally {
+      const { [goalKey]: _done, ...rest } = pressing.value;
+      void _done;
+      pressing.value = rest;
+    }
+  }
+
+  /**
+   * Right now's "Re-plan from this save" (BetterRoutePrompt.vue, the `stale` offer, R7 red-team 1 Nov 2026): the same
+   * Follow press, remembered for this page (partition|goal → the route and when it was pressed, then the follow's
+   * own `at`) so the offer's place can say "Now following the answer for this save" (`replanned`). Never kept in
+   * storage: a reload shows nothing.
+   */
+  const replans = ref<Record<string, { chain: number[]; from: number; at?: number }>>({});
+  async function replanFromSave(goalKey: GoalKey, p: FollowPrompt, deadline: number | null): Promise<boolean> {
+    const key = `${partition.value}|${goalKey}`;
+    replans.value = { ...replans.value, [key]: { chain: [...p.chain], from: Date.now() } };
+    const ok = await followBetter(goalKey, p, deadline);
+    const k = `${partition.value}|${goalKey}`;
+    const f = ok ? followed(goalKey) : null;
+    const { [key]: _was, [k]: _now, ...rest } = replans.value;
+    void _was;
+    void _now;
+    replans.value = f && sameChain(f.chain, p.chain) ? { ...rest, [k]: { chain: [...p.chain], from: f.at, at: f.at } } : rest;
+    return ok;
+  }
+  /** The goal's follow is still the one a "Re-plan from this save" press made on this page (`replanFromSave`): any
+   *  later Follow press (a new `at`) or another account ends it. */
+  function replanned(goalKey: GoalKey | null | undefined): boolean {
+    void version.value;
+    if (!goalKey) return false;
+    const r = replans.value[`${partition.value}|${goalKey}`];
+    const f = followed(goalKey);
+    if (!r || !f || !sameChain(f.chain, r.chain)) return false;
+    return r.at !== undefined ? f.at === r.at : f.at >= r.from;
   }
 
   /**
@@ -472,6 +517,9 @@ export const useFollowStore = defineStore('follow', () => {
     earlierVersions,
     restore,
     followBetter,
+    replanFromSave,
+    replanned,
+    offerPressed,
     saveState,
     notSaved,
     saveNow,

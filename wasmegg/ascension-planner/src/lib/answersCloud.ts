@@ -17,6 +17,7 @@
  */
 import { hasPlayerId } from './followCloud';
 import { INSTANT_RULES } from '@/search/instantTables';
+import { resultCode } from './resultCode';
 
 /** The contract's caps (v1). */
 export const ANSWERS_MAX_GZ = 65_536;
@@ -57,11 +58,16 @@ export function goalTagOf(goal: string): string | null {
  * The entry key: the goal, the save (its backup time), the answer's own key hashed (the save's TE and eggs, Your
  * setup, the filters) and the tables it was made from with INSTANT_RULES (search/instantTables.ts `tablesIdentity`,
  * hashed): `a1.t490.1790000000.1a2b3c4d.5e6f7a8b`. Null when the goal is not one kept.
+ *
+ * Release 7: the tables part also carries the code that worked the answer out (`code=`, lib/resultCode.ts), so an
+ * answer saved by an older build is never another browser's exact match; at most it is drawn as from before while the
+ * answer is worked out (InstantRoute.vue `showStale`). The key's shape is unchanged (the collector checks only its
+ * characters and length, collector/answers.js `E_RE`); the snapshot inside also carries `rc`.
  */
 export function entryKeyOf(o: { goal: string; backupTime: number; snapKey: string; tables: string | null }): string | null {
   const tag = goalTagOf(o.goal);
   if (!tag) return null;
-  const e = `a1.${tag}.${Math.max(0, Math.floor(o.backupTime) || 0)}.${fnv(o.snapKey)}.${fnv(o.tables ?? `rules=${INSTANT_RULES}`)}`;
+  const e = `a1.${tag}.${Math.max(0, Math.floor(o.backupTime) || 0)}.${fnv(o.snapKey)}.${fnv(o.tables ?? `rules=${INSTANT_RULES}|code=${resultCode()}`)}`;
   return ENTRY.test(e) ? e : null;
 }
 /** The goal tag of an entry key (`t490`), or null. */

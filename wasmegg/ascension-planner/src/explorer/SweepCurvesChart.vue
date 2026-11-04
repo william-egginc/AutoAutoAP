@@ -88,13 +88,10 @@
         :disabled="loading || !pending.length"
         @click="loadTables"
       >
-        {{
-          loading
-            ? `Loading ${progress}…`
-            : pending.length
-              ? `Load ${pending.length} table${pending.length === 1 ? '' : 's'}`
-              : 'All loaded'
-        }}
+        <template v-if="loading">{{ `Loading ${progress}` }}<AnimatedDots /></template
+        ><template v-else>{{
+          pending.length ? `Load ${pending.length} table${pending.length === 1 ? '' : 's'}` : 'All loaded'
+        }}</template>
       </button>
     </div>
     <p v-else class="px-4 py-8 text-center text-body text-slate-400">
@@ -303,6 +300,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
 import { describeFetchError } from '@/utils/errors';
 import { computed, ref, shallowRef, watch } from 'vue';

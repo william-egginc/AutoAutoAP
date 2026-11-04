@@ -21,6 +21,8 @@ import { foundLevel, type FoundLevel, type FoundResult } from './searchPointer';
 import { planFromSnapshot, type NowPlan, type SnapLike } from './nowPlan';
 import type { SnapMeta } from '@/search/instantSnapshot';
 import { compactDuration } from './duration';
+import type { StaleReason } from './followStale';
+import { virtueEggName } from './virtueEggs';
 
 /** A finished search result for one goal, as the snapshot keeps it. */
 export interface SnapSearch extends FoundResult {
@@ -534,10 +536,42 @@ export function simulatedRouteWords(
   return `Your ${level} run, simulated on your account, ${verb} ${a}; the route you follow is the instant answer's estimate${b}. Do you want to follow the ${level} run's route?`;
 }
 
+/**
+ * "Your save doesn't match the route you follow: it's on Curiosity, the route expects Kindness. The answer for this
+ * save finishes Dec 12 at 9:25 am." (DRAFT wording, 30 Oct 2026: Words reviews it.) The reason in plain words, then the
+ * candidate's finish; the button says "Re-plan from this save" (BetterRoutePrompt.vue).
+ */
+export function staleRouteWords(
+  reason: StaleReason,
+  goal: 'fastest' | 'date',
+  deadline: number | null,
+  candidate: RouteFinish,
+  when: (t: number) => string
+): string {
+  const verb0 = goal === 'fastest' || deadline == null ? 'finishes' : 'gets';
+  // DRAFT (spec-noemptybuild, 31 Oct 2026: Words reviews it).
+  if (reason.kind === 'emptyBuildUp')
+    return `The route you follow starts with a build-up that buys nothing: the answer for this save keeps your current egg and ${verb0} ${finishWords(goal, deadline, candidate, when)}.`;
+  const lead = "Your save doesn't match the route you follow: ";
+  const why =
+    reason.kind === 'egg'
+      ? `it's on ${virtueEggName(reason.saveEgg)}, but the route expects ${virtueEggName(reason.planEgg)}.`
+      : reason.kind === 'hours'
+        ? 'the route was set with different awake hours than yours now.'
+        : reason.step === 'shift'
+          ? `the route shifts to ${virtueEggName(reason.egg)} by ${when(reason.at)}, and your save hasn't.`
+          : `the route prestiges at ${reason.te} TE by ${when(reason.at)}, and your save hasn't.`;
+  const verb = goal === 'fastest' || deadline == null ? 'finishes' : 'gets';
+  return `${lead}${why} The answer for this save ${verb} ${finishWords(goal, deadline, candidate, when)}.`;
+}
+
 /** A newer, better result for a goal with a followed route: what the prompt shows and what "Follow it" follows. */
 export interface FollowPrompt {
   id: string;
   words: string;
+  /** Asked because the save contradicts the follow (lib/followStale.ts), not for a better finish: the button says
+   *  "Re-plan from this save". */
+  stale?: StaleReason['kind'];
   chain: number[];
   source: 'instant' | 'fast' | 'exact' | 'custom';
   end: number;
@@ -549,6 +583,11 @@ export interface FollowPrompt {
  * The prompt for a result, or null: no route followed, the same route, an instant answer against a priced follow
  * (`mayPrompt`), not newer than the follow (by when it was found against when Follow was pressed), not better
  * (`betterThanFollowed`), or "Keep mine" pressed for it already.
+ *
+ * THE SAVE CONTRADICTS THE FOLLOW (`stale`, lib/followStale.ts; alt A1, 30 Oct 2026): the result is offered as
+ * "Re-plan from this save" whatever the two finishes and even over a priced follow, still only when it is newer than
+ * the follow, another route, (By a date) in time, and not dismissed. Its id is the result's plus the followed route,
+ * so "Keep mine" holds for that follow and that answer.
  */
 export function followPrompt(o: {
   goalKey: string;
@@ -560,11 +599,32 @@ export function followPrompt(o: {
   candidate: RouteFinish & { chain: readonly number[]; at: number; source: FollowPrompt['source']; planStart?: number | null };
   keptMine: readonly string[];
   when: (t: number) => string;
+  /** Why the save contradicts the followed route (lib/followStale.ts `followStaleness`); null or absent: it doesn't. */
+  stale?: StaleReason | null;
 }): FollowPrompt | null {
   const f = o.followed;
   const c = o.candidate;
   if (!f || !c.chain.length) return null;
-  if (c.chain.length === f.chain.length && c.chain.every((x, i) => x === f.chain[i])) return null;
+  // The same route is no new route, except when the follow's first ascension is an empty build-up (spec-noemptybuild):
+  // the same stops from this save then start by continuing, and "Re-plan from this save" follows that.
+  const sameRoute = c.chain.length === f.chain.length && c.chain.every((x, i) => x === f.chain[i]);
+  if (sameRoute && o.stale?.kind !== 'emptyBuildUp') return null;
+  if (o.stale) {
+    if (!(c.at > f.at)) return null;
+    if (o.goal === 'date' && o.deadline != null && !finishesBefore(c.end, o.deadline)) return null;
+    const id = `${resultId(o.goalKey, c.source, c.chain, c.end)}|over|${f.chain.join('-')}`;
+    if (o.keptMine.includes(id)) return null;
+    return {
+      id,
+      words: staleRouteWords(o.stale, o.goal, o.deadline, c, o.when),
+      stale: o.stale.kind,
+      chain: [...c.chain],
+      source: c.source,
+      end: c.end,
+      endTE: c.endTE,
+      planStart: c.planStart ?? null,
+    };
+  }
   if (!mayPrompt(c.source, !!f.priced)) return null;
   if (!(c.at > f.at)) return null;
   const overEstimate = simulatedOverEstimate(c.source, f);

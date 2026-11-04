@@ -1,7 +1,8 @@
 <!--
   Under Saved answers and Saved runs: "Load a save file" (a save from "Download this save", or the
   game's backup as JSON) as the planner's active save, the one-line warning about sharing those files,
-  and why the last Use / Download / Load did not happen.
+  and why the last Use / Download / Load did not happen. Also under the player ID box when no account is entered
+  (App.vue, spec-savescrub): the save then loads with no account (`loaded` tells the page to show it).
 -->
 <template>
   <div class="space-y-1">
@@ -13,7 +14,7 @@
         :class="disabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer'"
         data-testid="save-file-load"
       >
-        {{ loading ? 'Loading the save…' : 'Load a save file' }}
+        <template v-if="loading">Loading the save<AnimatedDots /></template><template v-else>Load a save file</template>
         <input type="file" accept=".json,application/json" class="sr-only" :disabled="disabled" @change="onFile" />
       </label>
       <span class="text-slate-400">This file is your game save; don't share it publicly.</span>
@@ -23,6 +24,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';
@@ -30,6 +32,7 @@ import { readUploadText } from '@/lib/uploadGuard';
 import { plainError } from '@/lib/plainError';
 
 const props = defineProps<{ playerId: string }>();
+const emit = defineEmits<{ (e: 'loaded'): void }>();
 const store = useChainSearchStore();
 const ui = useUIStore();
 
@@ -52,7 +55,7 @@ async function onFile(ev: Event): Promise<void> {
       store.olderSaveError = plainError(e, 'That file could not be read as a save.');
       return;
     }
-    await store.loadSaveFile(props.playerId, text);
+    if (await store.loadSaveFile(props.playerId, text)) emit('loaded');
   } finally {
     loading.value = false;
   }

@@ -28,8 +28,8 @@
         {{ kindLabel }} · <template v-if="p.chain">{{ queueCountLine({ chain: p.chain, done: p.done, total: p.total, queueTotal: p.queueTotal ?? null }) }}</template
         ><template v-else>{{ p.done.toLocaleString()
         }}<template v-if="p.total"> of {{ approx }}{{ p.total.toLocaleString() }}</template> {{ p.unit }}</template
-        ><template v-if="leftLabel"> · about {{ leftLabel }} left<template v-if="p.measuring"> (measuring…)</template></template
-        ><template v-else-if="p.measuring"> · measuring time left…</template
+        ><template v-if="leftLabel"> · about {{ leftLabel }} left<template v-if="p.measuring"> (measuring<AnimatedDots />)</template></template
+        ><template v-else-if="p.measuring"> · measuring time left<AnimatedDots /></template
         ><template v-if="p.best">
           · best so far {{ p.kind === 'by-date' ? 'gets to' : 'reaches' }} {{ p.best.te }} TE on
           {{ show(p.best.at) }}</template
@@ -85,7 +85,7 @@
       <div v-else class="h-full w-1/3 rounded-full bg-indigo-400/70 animate-pulse"></div>
     </div>
     <p v-if="stopping" class="text-small text-white/70" data-testid="stopping-note">{{ STOPPING_NOTE }}</p>
-    <p v-if="p.stage" class="text-small text-white/60 truncate">{{ p.stage }}</p>
+    <p v-if="p.stage" class="text-small text-white/60 truncate"><PendingText :text="p.stage" /></p>
     <!-- What the screen's own progress block used to add (lib/runDetails.ts; the in-page header, bar and time
          line went on 16 Oct 2026, so this bar is the one progress display). Folded: the line above is enough
          most of the time. -->
@@ -124,6 +124,8 @@
 </template>
 
 <script setup lang="ts">
+import PendingText from '@/components/auto/PendingText.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';

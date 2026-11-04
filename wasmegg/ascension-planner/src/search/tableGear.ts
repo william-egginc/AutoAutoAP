@@ -16,7 +16,10 @@
  * current research (which moves mid-ascension) is not part of it.
  */
 import { getOptimalELRSet } from '@/lib/artifacts';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+import { toRaw } from 'vue';
+import { workerCopy } from './workerCopy';
+import { trimBackupForWorkers } from './workerBackup';
+import { perfStep } from '@/lib/buildUpDebug';
 import { describeLoadoutSlots, type LoadoutSlot } from './csv';
 import { getColleggtibleTiers, modifiersFromColleggtibleTiers } from 'lib/collegtibles';
 import { epicResearchDefs } from '@/lib/epicResearch';
@@ -56,16 +59,29 @@ export function gearStamp(
   earnings: EquippedArtifact[] | null | undefined,
   research: Record<string, number>
 ): TableGear | null {
+  return perfStep('gearStamp', () => stampOf(inputs, earnings, research));
+}
+
+function stampOf(
+  inputs: SearchInputs,
+  earnings: EquippedArtifact[] | null | undefined,
+  research: Record<string, number>
+): TableGear | null {
   const ctx = inputs.context;
-  const raw = ctx.rawBackup;
+  // The plain save under the store's proxy (spec-mainfreeze, 31 Oct 2026): read through Vue's traps, the two copies
+  // below walked the whole 2.8 MB save proxy by proxy, about a second of the main thread on a fast Mac (several on a
+  // busy one), every time the instant answer or the table prefetch picked a table.
+  const raw = toRaw(ctx.rawBackup);
   if (!raw) return null;
   // Each on a fresh copy of the save: getOptimalELRSet caches the first set structure it finds per
   // backup OBJECT (lib/artifacts/virtue.ts), so on the page's own save the answer would depend on
   // whatever ran first, and a stamp computed first would leave its structure in that cache for the
-  // page's own searches. A copy is a cache miss, a full search, and leaves the page's cache alone.
+  // page's own searches. A copy is a cache miss, a full search, and leaves the page's cache alone. Only the part of the
+  // save getOptimalELRSet reads is copied (search/workerBackup.ts, the same cut the workers get: the research, epic
+  // research and colleggtible modifiers are passed here, so nothing else of the save is read).
   const delivery = (commonResearch: Record<string, number>) =>
     describeLoadoutSlots(
-      getOptimalELRSet(sanitizeLongs(raw) as typeof raw, {
+      getOptimalELRSet(workerCopy(trimBackupForWorkers(raw, ctx)) as typeof raw, {
         commonResearch,
         epicResearchLevels: ctx.epicResearchLevels,
         colleggtibleModifiers: ctx.colleggtibleModifiers,

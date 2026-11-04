@@ -45,7 +45,7 @@
         class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
         @click="ui.backupRetryRequested++"
       >
-        {{ ui.loading ? 'Loading…' : 'Try again' }}
+        <template v-if="ui.loading">Loading<AnimatedDots /></template><template v-else>Try again</template>
       </button>
       <label v-if="initialState.rawBackup" class="flex items-center gap-2 cursor-pointer">
         <input v-model="store.staleBackupAccepted" type="checkbox" class="rounded" />
@@ -53,7 +53,7 @@
       </label>
     </div>
   </div>
-  <p v-if="store.integrityChecking" class="text-body text-slate-400">Checking whether this account can build...</p>
+  <p v-if="store.integrityChecking" class="text-body text-slate-400">Checking whether this account can build<AnimatedDots /></p>
   <div
     v-else-if="store.integrityNotice"
     class="p-3 rounded-xl border text-body"
@@ -74,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { thisDevice } from '@/search/device';
 import { computed } from 'vue';
 import BlackBoxNotice from './BlackBoxNotice.vue';

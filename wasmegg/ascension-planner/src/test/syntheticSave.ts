@@ -20,6 +20,8 @@ import { computeSnapshot } from '@/engine/compute';
 import { useActionsStore } from '@/stores/actions';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useVirtueStore } from '@/stores/virtue';
+import { getCommonResearches } from '@/calculations/commonResearch';
+import { TE_BREAKPOINTS } from '@/lib/truthEggs';
 import type { SearchInputs } from '@/search/types';
 
 export const NOW = Math.floor(Date.UTC(2026, 9, 1, 12, 0) / 1000);
@@ -177,11 +179,49 @@ export function syntheticBackup(): any {
   };
 }
 
+/**
+ * The synthetic save carrying `id` as a real save does (spec-savescrub): its own `eiUserId` and every contract's
+ * `coopUserId`. Pass a made-up ID only (EI9876543210987654), never a real one.
+ */
+export function syntheticSaveWithId(id: string): any {
+  const b = syntheticBackup();
+  b.eiUserId = id;
+  for (const c of [...b.contracts.archive, ...b.contracts.contracts]) c.coopUserId = id;
+  return b;
+}
+
+/**
+ * The synthetic save JUST PRESTIGED (spec-buildfail, 30 Oct 2026: a player mid build-up a minute after the prestige
+ * to 197 TE, on Curiosity, ascension 1 of 4 of the route 197 218 247 285 313): 197 TE (40 40 39 39 39), the virtue
+ * farm bare (one coop, no vehicles bought, no research, no cash, one silo), synced at `NOW`.
+ */
+export function justPrestigedBackup(): any {
+  const b = syntheticBackup();
+  const perEgg = [40, 40, 39, 39, 39];
+  b.virtue.eovEarned = perEgg;
+  b.virtue.eggsDelivered = perEgg.map(n => TE_THRESHOLDS[n - 1] * 1.01);
+  const f = b.farms[0];
+  Object.assign(f, {
+    habs: [0, 19, 19, 19],
+    habPopulation: [0, 0, 0, 0],
+    vehicles: [0],
+    trainLength: [1],
+    commonResearch: f.commonResearch.map((r: { id: string }) => ({ id: r.id, level: 0 })),
+    silosOwned: 1,
+    cashEarned: 0,
+    cashSpent: 0,
+    eggsLaid: 0,
+    lastStepTime: NOW,
+  });
+  return b;
+}
+
 /** The synthetic save loaded into fresh stores, and the search inputs for it (plain data, as a worker
- *  gets them). `final` 192: a two-TE leg from the save's 190. */
-export async function syntheticInputs(): Promise<SearchInputs> {
+ *  gets them). `final` 192: a two-TE leg from the save's 190. `from`: another synthetic save
+ *  (`justPrestigedBackup`). */
+export async function syntheticInputs(from?: () => any): Promise<SearchInputs> {
   setActivePinia(createPinia());
-  let backup = syntheticBackup();
+  let backup = from ? from() : syntheticBackup();
   resolveColleggtibleContracts(backup);
   backup = markRaw(backup);
   // initPlanFuture's sequence, as chain.spec.ts does it.
@@ -211,4 +251,69 @@ export async function syntheticInputs(): Promise<SearchInputs> {
     forceContinue: false,
   };
   return JSON.parse(JSON.stringify(raw, (_k, v) => (typeof v === 'function' ? undefined : v)));
+}
+
+/** The synthetic farm's delivery on `nothingToBuyBackup`, eggs per second (its continue state, measured on this fixture):
+ *  what its `daysToNextTE` are counted at. */
+export const NOTHING_TO_BUY_RATE = 1719396310747.5;
+
+/**
+ * NOTHING LEFT TO BUY, ON KINDNESS (spec-noemptybuild, 31 Oct 2026: the shape of Jordan's alt, whose build-up A1 bought
+ * nothing). The synthetic save's farm on Kindness wearing the save's own production set (metronome, deflector, compass:
+ * the slots point at owned items; leg.continueSet.spec.ts `wornAs` checks the loader reads them back), its farm maxed:
+ * every common research at its top level, four Chicken Universes, seventeen full hyperloops, ten silos. Each egg in
+ * `daysToNextTE` is that many days (at NOTHING_TO_BUY_RATE) short of its next TE; the rest as the synthetic save has them.
+ */
+export function nothingToBuyBackup(daysToNextTE: Partial<Record<'curiosity' | 'integrity' | 'humility' | 'resilience' | 'kindness', number>> = {}): any {
+  const b = syntheticBackup();
+  const f = b.farms[0];
+  f.eggType = 54;
+  // Every research at its top level (the list the engine reads, so no research is left to buy).
+  f.commonResearch = getCommonResearches().map(r => ({ id: r.id, level: r.levels }));
+  f.habs = [18, 18, 18, 18];
+  f.habPopulation = [1e10, 1e10, 1e10, 1e10];
+  f.vehicles = Array(17).fill(11);
+  f.trainLength = Array(17).fill(10);
+  f.silosOwned = 10;
+  // The save's virtue arrays are in the game's egg order.
+  const order = ['curiosity', 'integrity', 'humility', 'resilience', 'kindness'] as const;
+  order.forEach((egg, i) => {
+    const days = daysToNextTE[egg];
+    if (days === undefined) return;
+    b.virtue.eggsDelivered[i] = TE_BREAKPOINTS[b.virtue.eovEarned[i]] - days * 86400 * NOTHING_TO_BUY_RATE;
+  });
+  return b;
+}
+
+/**
+ * ONE TRAIN CAR SHORT, ON KINDNESS (spec-a1choice, 1 Nov 2026): `nothingToBuyBackup` in the alt's shape (Kindness 1.5 days
+ * from its next TE, the others a little further) with the last hyperloop one car short. Its build-up buys that one car
+ * and so is a build-up, but its shifts make it end LATER than finishing without buying (measured on this fixture:
+ * build-up 6.90 days, continue 6.39 days from the plan start, to 194 TE) WHEN 'buildup' IS FORCED (leg.a1Choice.spec.ts).
+ * NOT an unfinished build as My runs judges one (spec-r7redteam-f, 1 Nov 2026): its 169 cars ship more than the farm lays,
+ * so the page calls it built and never offers the choice on it (NowPage.a1Choice.realPage.spec.ts). The page's case is
+ * `shippingShortBackup`.
+ */
+export const ONE_CAR_SHORT_SHAPE = { kindness: 1.5, curiosity: 1.6, integrity: 1.65, resilience: 1.7, humility: 1.74 } as const;
+export function oneCarShortBackup(): any {
+  const b = nothingToBuyBackup(ONE_CAR_SHORT_SHAPE);
+  b.farms[0].trainLength[16] = 9;
+  return b;
+}
+
+/**
+ * SHIPPING SHORT OF LAYING, ON KINDNESS (spec-r7redteam-f, 1 Nov 2026; QA: the A1 choice never showed on the real page for
+ * `oneCarShortBackup`). `oneCarShortBackup` is not an unfinished build as My runs judges one (lib/saveBuild.ts, ux30: vehicles
+ * count only while shipping is below laying at full habs): its 169 cars ship far more than the farm lays (delivery limited
+ * by laying, measured with the page's own rates: laying 1.72e12/s, delivery 1.72e12/s), so the page rightly calls it built
+ * and never takes the unfinished-build path. This one is: the alt's shape with NINE full hyperloops (eight slots unbought):
+ * shipping about 0.955 of laying at full habs (the alt itself: 8.36e11 against 8.58e11, 0.974). Its build-up buys the
+ * missing vehicles and cars and still ends LATER than finishing without buying (measured with runLeg to 194 TE: build-up
+ * buys 81 things, 6.90 days, continue 6.69 days from the plan start).
+ */
+export function shippingShortBackup(): any {
+  const b = nothingToBuyBackup(ONE_CAR_SHORT_SHAPE);
+  b.farms[0].vehicles = Array(9).fill(11);
+  b.farms[0].trainLength = Array(9).fill(10);
+  return b;
 }

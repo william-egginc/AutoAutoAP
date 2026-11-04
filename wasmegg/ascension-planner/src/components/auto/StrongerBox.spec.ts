@@ -319,7 +319,7 @@ describe('the "is running" notice floats in the run bar (15 Oct)', () => {
     const bar = fs.readFileSync(path.join(__dirname, 'RunProgressBar.vue'), 'utf8');
     expect(bar).toContain('data-testid="run-bar-elsewhere"');
     expect(bar).toContain('is running.</span> Stop it');
-    expect(bar.indexOf('run-bar-elsewhere')).toBeGreaterThan(bar.indexOf('{{ p.stage }}'));
+    expect(bar.indexOf('run-bar-elsewhere')).toBeGreaterThan(bar.indexOf('<PendingText :text="p.stage" />'));
     const app = fs.readFileSync(path.join(__dirname, '../../App.vue'), 'utf8');
     expect(app).not.toContain('<RunningElsewhere');
     expect(app).toContain(":elsewhere=\"blockedBy && plannerTab === 'automatic' ? { running: blockedBy, here: hereLabel } : null\"");

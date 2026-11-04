@@ -27,8 +27,11 @@ import { HOURS_NOTE } from '@/lib/hoursNote';
 import { instantLiveText } from '@/lib/liveStatus';
 import { headlineGap, roundedGap } from '@/lib/format';
 import { spareLine } from '@/lib/spareLine';
+import { INSTANT_ESTIMATE_LINE } from '@/lib/instantWords';
 import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
+import AnimatedDots from './AnimatedDots.vue';
+import PendingText from './PendingText.vue';
 
 const source = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
 const { descriptor } = parse(source);
@@ -111,6 +114,7 @@ function ctxOf(s: State): Record<string, unknown> {
     FULL_RESEARCH_TE: 340,
     HOURS_NOTE,
     INSTANT_ONE_LINE: 'These are instant answers, worked out ahead of time.',
+    INSTANT_ESTIMATE_LINE,
     MAX_ASCENSIONS: 12,
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
     SHARE_WHAT: '',
@@ -174,7 +178,7 @@ function ctxOf(s: State): Record<string, unknown> {
     keepSharing: false,
     lastEndTE: (r: Route) => r.legs[r.legs.length - 1]?.endTE ?? 0,
     leftOut: [],
-    loadingText: 'Working out every route…',
+    loadingText: 'Working out every route',
     lowTeNote: '',
     moreDontHelp: false,
     ms: 900,
@@ -208,6 +212,7 @@ function ctxOf(s: State): Record<string, unknown> {
     saveWaitText: s.saveWait ? 'Waiting for your save to load…' : '',
     savedAt: s.saved ? 1_792_000_000_000 : null,
     staleAt: null,
+    staleOlder: false,
     seeResult: () => {},
     setInsideHours: () => {},
     shareNote: null,
@@ -247,6 +252,9 @@ async function draw(s: State, over: Record<string, unknown> = {}): Promise<strin
   for (const p of PARTS) app.component(p, stub(p));
   // The integrity line itself: it draws nothing when there is nothing to say, so it is not a stand-in.
   app.component('InstantIntegrity', InstantIntegrity);
+  // The moving dots (spec-dots, 1 Nov 2026): the real ones.
+  app.component('AnimatedDots', AnimatedDots);
+  app.component('PendingText', PendingText);
   app.config.warnHandler = () => {};
   return renderToString(app);
 }
@@ -386,6 +394,69 @@ describe('the ascensions From … to … (24 Oct 2026)', () => {
   });
 });
 
+describe('the estimate line under the date (spec-r7verify item 5; DRAFT)', () => {
+  const base: State = {
+    answer: 'fastest',
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline: false,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  };
+  const WORDS = 'An estimate worked out ahead of time: a Fast search on your save often lands a few days either side.';
+  it('the exact words', () => expect(INSTANT_ESTIMATE_LINE).toBe(WORDS));
+
+  it('Fastest: right under the date in the green box, before the "in … · N ascensions" line', async () => {
+    const html = await draw(base);
+    const box = html.slice(html.indexOf('data-testid="instant-box"'));
+    const date = box.indexOf('data-testid="box-instant"');
+    const line = box.indexOf('data-testid="instant-estimate"');
+    expect(date).toBeGreaterThan(-1);
+    expect(line).toBeGreaterThan(date);
+    // The "in … · N ascensions" line comes after it.
+    expect(box.slice(line).search(/ · \d+ ascensions?/)).toBeGreaterThan(-1);
+    expect(box.slice(date, line).search(/ · \d+ ascensions?/)).toBe(-1);
+    expect(box).toContain(WORDS);
+    expect(html.match(/data-testid="instant-estimate"/g)).toHaveLength(1);
+  });
+
+  it('By a date: right under the "Reached …" date line', async () => {
+    const html = await draw({ ...base, answer: 'date', deadline: true });
+    const reached = html.indexOf('Reached ');
+    const line = html.indexOf('data-testid="instant-estimate"');
+    expect(reached).toBeGreaterThan(-1);
+    expect(line).toBeGreaterThan(reached);
+    expect(html.match(/data-testid="instant-estimate"/g)).toHaveLength(1);
+  });
+
+  it('no green box (no answer, the integrity hold): no line', async () => {
+    expect(await draw({ ...base, answer: 'none' })).not.toContain('instant-estimate');
+    expect(await draw({ ...base, hold: true })).not.toContain('instant-estimate');
+  });
+
+  it("never on a search's result card (the Fast/Exact/Custom result is ChainSearchPanel's own)", () => {
+    const panel = fs.readFileSync(path.resolve(__dirname, 'ChainSearchPanel.vue'), 'utf8');
+    expect(panel).not.toContain('INSTANT_ESTIMATE_LINE');
+    expect(panel).not.toContain('instant-estimate');
+  });
+
+  it('type scale: text-small, neutral slate; no text-[Npx], caps, medium/semibold or mono; nothing joined across a <template>', () => {
+    const lines = [...source.matchAll(/<p [^>]*data-testid="instant-estimate"[^>]*>[^<]*<\/p>/g)].map(m => m[0]);
+    expect(lines).toHaveLength(2);
+    for (const l of lines) {
+      expect(l).toContain('text-small');
+      expect(l).toContain('text-slate-500');
+      expect(l).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono|font-bold/);
+      expect(l).toContain('{{ INSTANT_ESTIMATE_LINE }}');
+    }
+  });
+});
+
 describe('the hidden section keeps its Show bar', () => {
   const store = new Map<string, string>();
   const g = globalThis as { localStorage?: unknown };
@@ -512,11 +583,13 @@ describe('the hours note under each box', () => {
 });
 
 describe('Every number of ascensions: rounded gaps (UX review, 25 Oct 2026)', () => {
-  it('Behind and spare go through roundedGap, the exact figure in the tooltip, and a phone row says "behind"', () => {
+  it('Behind and spare go through roundedGap, the exact figure in the tooltip, and a phone row is named "Behind"', () => {
     const src = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
     expect(src).toContain("return r === t ? 'fastest' : '+' + roundedGap(r.seconds - t.seconds);");
     expect(src).toContain('<span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>');
-    expect(src).toContain('<span v-if="behind(r) !== \'fastest\'" class="min-[30rem]:hidden"> behind</span>');
+    // The phone row's name, not a " behind" suffix (red team R7 M3, 1 Nov 2026: countsPhone.spec.ts).
+    expect(src).toContain('<span class="label text-slate-500 min-[480px]:hidden">Behind</span>');
+    expect(src).not.toContain('> behind</span>');
   });
 });
 
@@ -614,10 +687,20 @@ describe('cached answers first, then recheck (Jordan, 27 Oct 2026)', () => {
       const mark = html.slice(html.lastIndexOf('<p', html.indexOf('data-testid="instant-stale"')));
       expect(mark.slice(0, mark.indexOf('</p>'))).toMatch(/role="status"/);
       expect(mark.slice(0, mark.indexOf('</p>'))).toMatch(/text-small/);
-      expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000, checking…');
+      expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000, checking...');
+      // ", checking" then the moving dots, aria-hidden (spec-dots, 1 Nov 2026): no typed "…".
+      expect(mark.slice(0, mark.indexOf('</p>'))).toContain('checking<span class="animated-dots" aria-hidden="true"');
       // One mark, not the old "previous one" sentence beside it.
       expect(html).not.toContain('The answer below is the previous one');
     }
+  });
+
+  it('an answer an older build worked out (Release 7, lib/resultCode.ts): "From <time> (older version), checking…" (DRAFT words)', async () => {
+    const html = await draw(at('fastest', false), { staleAt: 1_792_000_000_000, staleOlder: true });
+    const mark = html.slice(html.lastIndexOf('<p', html.indexOf('data-testid="instant-stale"')));
+    expect(textOf(mark.slice(0, mark.indexOf('</p>') + 4))).toContain('From t1792000000 (older version), checking...');
+    const fresh = await draw(at('fastest', false), { staleAt: 1_792_000_000_000 });
+    expect(textOf(fresh)).not.toContain('(older version)');
   });
 
   it('while stale, Follow is held (stale on every Follow button) and the better-route prompt is not drawn', async () => {

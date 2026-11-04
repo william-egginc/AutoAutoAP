@@ -58,6 +58,15 @@ describe('the plan start results are described by', () => {
 });
 
 describe('the plan-start pin', () => {
+  // A fixed clock (spec-instantclock, 31 Oct 2026): unpinned, the start comes back through the Plan start boxes
+  // (lib/events.ts getLocalTimestampInTimezone), which on a fall-back morning (Nov 1, 2026, 12:30-2:30 am in the
+  // machine's Denver) read the box an hour early, so "two hours ahead" became one and the rule kept continue.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.parse('2026-11-04T12:00:00-07:00'));
+  });
+  afterEach(() => vi.useRealTimers());
+
   it("goes when another player's save is loaded, not when the same player's is", async () => {
     const { useChainSearchStore } = await import('./chainSearch');
     const s = useChainSearchStore();

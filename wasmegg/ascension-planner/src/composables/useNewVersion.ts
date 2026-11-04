@@ -52,21 +52,24 @@ export type ReleaseLevel = 'small' | 'big' | 'essential';
 
 export interface ReleaseInfo {
   level: ReleaseLevel;
-  /** The release notes (lib/updateNotes.ts), newest first, at most MAX_SHOWN, each marked whether it is newer than
-   *  this tab's build ("New"); empty only when version.json has none, and then the banner says only "Small update
-   *  available" (or asks for the reload). */
+  /** The release notes (lib/updateNotes.ts), at most MAX_SHOWN: only the ones this tab's build does not carry, marked
+   *  "New" (red team R7 M1, 1 Nov 2026: the ones it does are not listed). Empty when none is new, and then there is no
+   *  banner at all unless the tab must reload (bannerFor, R7). */
   notes: ListedNote[];
-  /** How many more notes did not fit ("+N more"). */
+  /** How many more NEW notes did not fit ("+N more"). */
   more: number;
 }
 
 /** This bundle's build time, or '' where the define is absent (tests, dev). */
 export const OWN_BUILD_TIME: string = typeof __BUILD_TIME__ === 'string' ? __BUILD_TIME__ : '';
 
-/** This bundle's build: its time, and the `at` of each release note it already carries (vite.config.ts). */
+/** This bundle's build: its time, and the key (and `at`) of each release note it already carries (vite.config.ts).
+ *  No key list (tests, a bundle from before keys) leaves the time rule to decide (lib/updateNotes.ts). */
 export const RUNNING_BUILD: RunningBuild = {
   builtAt: OWN_BUILD_TIME,
   noteAts: typeof __BUILD_NOTE_ATS__ !== 'undefined' && Array.isArray(__BUILD_NOTE_ATS__) ? __BUILD_NOTE_ATS__ : [],
+  noteKeys:
+    typeof __BUILD_NOTE_KEYS__ !== 'undefined' && Array.isArray(__BUILD_NOTE_KEYS__) ? __BUILD_NOTE_KEYS__ : undefined,
 };
 
 /**
@@ -77,10 +80,13 @@ export const RUNNING_BUILD: RunningBuild = {
  * A version.json without the marker (from before this existed), or a tab that does not know its
  * own build time, counts as "essential": the only kind of notice there used to be.
  *
- * The notes are the history entries, newest first, each marked whether it is newer than this tab's
- * build (lib/updateNotes.ts): the banner lists them all and tags the newer ones "New" (UX35-b, 28 Oct
- * 2026). Only a newer note can make the update big. The top-level `release.note` is never shown: it is
- * always the newest entry, which a tab running Release 5 or later already had (26 Oct 2026).
+ * The notes are the history entries this tab's build does not carry (by their text, lib/updateNotes.ts),
+ * tagged "New"; the ones it carries are not listed (UX35-b, 28 Oct 2026; by text, 30 Oct 2026; only the
+ * new ones, red team R7 M1, 1 Nov 2026). Only a new note can make the update big. A rebuild whose only
+ * change is re-timed notes (or code alone) still names a new entry script (the build time is compiled in),
+ * so it comes back "small" with no notes, and bannerFor shows nothing for it (R7, 31 Oct 2026). The
+ * top-level `release.note` is never shown: it is always the newest entry, which a tab running Release 5 or
+ * later already had (26 Oct 2026).
  */
 export function releaseFrom(versionJson: unknown, running: RunningBuild = RUNNING_BUILD): ReleaseInfo {
   const r = versionJson && typeof versionJson === 'object' ? (versionJson as LiveEntries).release : null;
@@ -102,6 +108,41 @@ const RANK: Record<ReleaseLevel, number> = { small: 0, big: 1, essential: 2 };
 export function raiseLevel(current: ReleaseInfo | null, next: ReleaseInfo): ReleaseInfo {
   if (current && RANK[current.level] > RANK[next.level]) return { ...next, level: current.level };
   return next;
+}
+
+/** The keys of the notes new to this tab, joined: what dismissing the big banner holds on to. */
+export function newNotesKey(release: ReleaseInfo): string {
+  return release.notes
+    .filter(n => n.isNew)
+    .map(n => n.key)
+    .join('|');
+}
+
+/** What the player has closed in this tab (components/NewVersionBanner.vue). */
+export interface BannerDismissals {
+  /** The small note's Dismiss: for the rest of the tab's life. */
+  small: boolean;
+  /** The big banner's Dismiss: the newNotesKey it showed; null until dismissed. */
+  big: string | null;
+  /** The reload ask's Later: ten minutes. */
+  essential: boolean;
+}
+
+/**
+ * Which banner shows, if any. "Shouldn't there always be something to say about the release?" (Jordan, R7,
+ * 31 Oct 2026): a small update with no note new to this tab (re-timed notes, or code alone) shows NOTHING
+ * (it used to say "Small update available" with no list). Nothing is asked of the player, the HTML is never
+ * cached, so the tab's next load runs the new code anyway. The check keeps running, so a later build with a new
+ * note, or one this tab must reload for, still shows. The reload ask (release.ts `reloadIfBuiltBefore`) shows
+ * with or without notes; a big level only ever comes from a new note.
+ */
+export function bannerFor(available: boolean, release: ReleaseInfo, dismissed: BannerDismissals): ReleaseLevel | null {
+  if (!available) return null;
+  if (release.level === 'essential') return dismissed.essential ? null : 'essential';
+  const key = newNotesKey(release);
+  if (!key) return null;
+  if (release.level === 'big') return dismissed.big === key ? null : 'big';
+  return dismissed.small ? null : 'small';
 }
 
 /** The live entry for `entry` from a `version.json` body, or null when it is not one. */

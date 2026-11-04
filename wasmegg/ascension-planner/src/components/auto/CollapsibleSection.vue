@@ -35,7 +35,9 @@
       @click="set(true)"
     >
       <span class="text-body font-bold text-slate-900">{{ title }}</span>
-      <span class="min-w-0 flex-1 text-small text-slate-600 break-words">{{ summary || 'Hidden' }}</span>
+      <span class="min-w-0 flex-1 text-small text-slate-600 break-words"
+        >{{ summary || 'Hidden' }}<AnimatedDots v-if="summary && summaryBusy"
+      /></span>
       <span class="text-body font-bold text-indigo-700">Show</span>
     </button>
     <div v-show="open"><slot /></div>
@@ -44,6 +46,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import AnimatedDots from './AnimatedDots.vue';
 
 const props = defineProps<{
   /** Remembered under this name: 'instant', 'stronger', 'exhaustive'. */
@@ -51,6 +54,8 @@ const props = defineProps<{
   title: string;
   /** The section's one-line result, shown when it is hidden. */
   summary?: string;
+  /** The one line is a "still working" one ("working out"): the moving dots after it (AnimatedDots.vue, spec-dots). */
+  summaryBusy?: boolean;
 }>();
 
 const KEY = `aap-section-hidden-${props.id}`;

@@ -29,7 +29,7 @@
     </template>
     <template #aside>
       <div class="text-title font-bold text-slate-900 tabular-nums">
-        {{ days > 0 ? `${days.toFixed(3)} d` : 'pricing…' }}
+        <template v-if="days > 0">{{ `${days.toFixed(3)} d` }}</template><template v-else>pricing<AnimatedDots /></template>
       </div>
       <div v-if="days > 0" class="text-small font-bold text-emerald-800">reaches {{ finalTE }} on {{ endLabel }}</div>
     </template>
@@ -85,13 +85,24 @@
         {{ csv.text }}
       </button>
       <button
+        v-if="xlsx"
+        type="button"
+        :class="SECONDARY_BUTTON"
+        data-testid="fastest-xlsx"
+        :title="xlsxLabel.title"
+        @click="emit('xlsx')"
+      >
+        {{ xlsxLabel.text }}
+      </button>
+      <button
         v-if="canSave"
         type="button"
         :disabled="saving"
         :class="SECONDARY_BUTTON"
+        data-testid="fastest-save"
         @click="emit('save')"
       >
-        {{ saving ? 'Saving...' : 'Save run' }}
+        <template v-if="saving">Saving<AnimatedDots /></template><template v-else>{{ saved ? 'Saved ✓' : 'Save run' }}</template>
       </button>
       <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
       <p class="w-full text-small text-emerald-900/70" data-testid="build-plan-note">
@@ -102,13 +113,14 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { simulateNote } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
 import ResultCardFrame from './ResultCardFrame.vue';
 import FollowButton from '../FollowButton.vue';
 import type { ResultFollow } from '@/lib/follow';
 import { CARD_NOTE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
-import { csvButton } from './csvButton';
+import { csvButton, xlsxButton } from './csvButton';
 import { computed } from 'vue';
 
 const props = withDefaults(
@@ -126,7 +138,12 @@ const props = withDefaults(
     canSave?: boolean;
     /** The CSV has every route's per-ascension detail (store `csvHasEveryRoute`): its button says so. */
     csvEvery?: boolean;
+    /** Offer the same table as an .xlsx beside it (store `xlsxOffered`: under the row cap; emits `xlsx`). */
+    xlsx?: boolean;
     saving?: boolean;
+    /** The run is in Saved runs (store `currentRunSaved`, the flag Save this run below reads): the button says "Saved ✓"
+     *  (DRAFT words, as Save this run's; pressing it again refreshes that entry, never a second one). L2, spec-r7qa. */
+    saved?: boolean;
     /** Where the answer came from, when it wasn't this depth: the two share one store, so the
      *  Smart search screen shows a Full sweep's result until Smart search runs, and vice versa. */
     source?: string;
@@ -149,7 +166,9 @@ const props = withDefaults(
     canFill: false,
     canSave: false,
     csvEvery: false,
+    xlsx: false,
     saving: false,
+    saved: false,
     note: '',
     lastRun: '',
     ranLine: '',
@@ -157,9 +176,10 @@ const props = withDefaults(
     follow: null,
   }
 );
-const emit = defineEmits<{ build: []; fill: []; csv: []; save: [] }>();
+const emit = defineEmits<{ build: []; fill: []; csv: []; xlsx: []; save: [] }>();
 /** The CSV button, named for what the file holds (csvButton.ts). */
 const csv = computed(() => csvButton(props.csvEvery));
+const xlsxLabel = xlsxButton();
 
 /** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
  *  page (SearchPanel.vue), so the one laid out is this card's. */

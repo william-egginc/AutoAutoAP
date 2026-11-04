@@ -85,7 +85,7 @@
       </button>
     </p>
     <p v-if="loading && !allRows.length && !mineRows" class="text-body text-indigo-900/60 py-6 text-center">
-      Loading…
+      Loading<AnimatedDots />
     </p>
     <p v-else-if="!myKey && !mineRows?.length" class="text-body text-indigo-900/70 py-4">
       Load your save to see your own runs here.
@@ -126,7 +126,7 @@
           :disabled="hideAllBusy || hideBusy.size > 0"
           @click="changeHidden({ all: true }, true)"
         >
-          {{ hideAllBusy ? 'Working…' : 'Hide all my runs from the public' }}
+          <template v-if="hideAllBusy">Working<AnimatedDots /></template><template v-else>Hide all my runs from the public</template>
         </button>
         <button
           v-if="myHidden.length"
@@ -135,7 +135,7 @@
           :disabled="hideAllBusy || hideBusy.size > 0"
           @click="changeHidden({ all: true }, false)"
         >
-          {{ hideAllBusy ? 'Working…' : 'Show all again' }}
+          <template v-if="hideAllBusy">Working<AnimatedDots /></template><template v-else>Show all again</template>
         </button>
       </div>
       <!-- ABOUT LINK: when the About page has a section on hidden runs, link "the planner's
@@ -176,7 +176,7 @@
                   :disabled="hideAllBusy || (!!h.id && hideBusy.has(h.id))"
                   @click="h.id && changeHidden({ ids: [h.id] }, false)"
                 >
-                  {{ h.id && hideBusy.has(h.id) ? 'Showing…' : 'Show again' }}
+                  <template v-if="h.id && hideBusy.has(h.id)">Showing<AnimatedDots /></template><template v-else>Show again</template>
                 </button>
               </span>
             </div>
@@ -293,7 +293,7 @@
         </button>
       </p>
 
-      <p v-else-if="loading && !allRows.length" class="text-body text-indigo-900/60 py-6 text-center">Loading…</p>
+      <p v-else-if="loading && !allRows.length" class="text-body text-indigo-900/60 py-6 text-center">Loading<AnimatedDots /></p>
 
       <p v-else-if="!allRows.length" class="text-body text-indigo-900/60 py-6 text-center">
         Nothing submitted yet. Run a search and use <span class="font-bold">Share this result</span>.
@@ -988,6 +988,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import FollowButton from '../FollowButton.vue';
 import { boardGoalKey, followableRow } from '@/lib/follow';
 import { plural } from '@/lib/format';

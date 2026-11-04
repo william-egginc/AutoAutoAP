@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SIM_MAX_BYTES,
   SIM_RECORD_KEY,
+  SIM_RECORD_RULES,
   findSimRecord,
   readSimRecords,
   recordSim,
@@ -43,9 +44,12 @@ const rec = (backupTime: number, extra: Partial<SimRecord> = {}): SimRecord => (
 });
 
 describe('the record (aap-follow-sim)', () => {
-  it('keeps the newest three, one per account, save, route and setup', () => {
+  it('keeps the newest five (SIM_RECORDS; spec-r7verify, was three), one per account, save, route and setup', () => {
     const st = mem();
-    for (const t of [1, 2, 3, 4]) expect(recordSim(rec(T0 + t), st)).toBe(true);
+    for (const t of [1, 2, 3, 4, 5, 6]) expect(recordSim(rec(T0 + t), st)).toBe(true);
+    expect(readSimRecords(st).map(r => r.backupTime)).toEqual([T0 + 6, T0 + 5, T0 + 4, T0 + 3, T0 + 2]);
+    // The rest as before, on the newest three.
+    st.m.set(SIM_RECORD_KEY, JSON.stringify(JSON.parse(st.m.get(SIM_RECORD_KEY)!).slice(2)));
     expect(readSimRecords(st).map(r => r.backupTime)).toEqual([T0 + 4, T0 + 3, T0 + 2]);
     // The same key again replaces it.
     recordSim(rec(T0 + 3, { at: 5 }), st);
@@ -98,11 +102,36 @@ describe('keys and the leg', () => {
     expect(simKey({ account: 'a', backupTime: 5, route: [1, 2], setup: 's' })).toBe('a|5|1,2|s');
   });
 
+  it('a record kept before the no-empty-build-up rules is never found again (spec-noemptybuild)', () => {
+    const base = { availability: null, useHours: false, timeOff: [], noPrestige: [], firstAscension: 'buildup, build unfinished', deferShifts: false };
+    // The setup key as it was made before (no rules in it): Jordan's alt kept a 6-shift build-up that bought nothing.
+    const before = JSON.stringify([null, [], [], 'buildup, build unfinished', false]);
+    expect(simSetupKey(base)).not.toBe(before);
+    expect(simSetupKey(base)).toContain(SIM_RECORD_RULES);
+    const st = mem();
+    const old = { ...rec(T0), setup: before, leg: { ...rec(T0).leg, key: 'buildup' } };
+    st.m.set(SIM_RECORD_KEY, JSON.stringify([old]));
+    expect(findSimRecord(readSimRecords(st), { account: old.account, backupTime: old.backupTime, route: old.route, setup: simSetupKey(base) })).toBeNull();
+  });
+
   it('simLegOf keeps the times, shifts and peak rate, and refuses a leg without times', () => {
     const l = { key: '1-sale', endTE: 226, durationSeconds: 10 * H, maxELR: 1, endTime: T0 + 10 * H, tier13Unlocked: false, buildPhaseEndTime: T0 + 2 * H, shifts: [{ at: T0 + H, egg: 'kindness', fromEgg: 'curiosity', te: 3 }] } as LegSummary;
     expect(simLegOf(l)).toEqual({ key: '1-sale', startTime: T0, endTime: T0 + 10 * H, endTE: 226, buildPhaseEndTime: T0 + 2 * H, shifts: [{ at: T0 + H, egg: 'kindness' }], maxELR: 1 });
     expect(simLegOf({ ...l, endTime: NaN })).toBeNull();
     expect(simLegOf(null)).toBeNull();
+  });
+
+  it('A1 CHOICE (spec-a1choice): simLegOf keeps both first-ascension ends and the build-up buy count', () => {
+    const l = { key: 'buildup', endTE: 194, durationSeconds: 7 * 24 * H, maxELR: 1, endTime: T0 + 7 * 24 * H, tier13Unlocked: false, shifts: [], firstLegEnds: { buildup: T0 + 7 * 24 * H, continue: T0 + 6 * 24 * H, fresh: NaN }, buildUpBuys: 1 } as LegSummary;
+    expect(simLegOf(l)).toMatchObject({ firstLegEnds: { buildup: T0 + 7 * 24 * H, continue: T0 + 6 * 24 * H }, buildUpBuys: 1 });
+    expect(simLegOf(l)!.firstLegEnds).not.toHaveProperty('fresh');
+  });
+
+  it("a record kept before the A1 choice (rules 'noemptybuild', no ends or buys) is never found again", () => {
+    const base = { availability: null, useHours: false, timeOff: [], noPrestige: [], firstAscension: 'buildup, build unfinished', deferShifts: false };
+    const before = JSON.stringify([null, [], [], 'buildup, build unfinished', false, 'noemptybuild']);
+    expect(SIM_RECORD_RULES).toBe('a1choice');
+    expect(simSetupKey(base)).not.toBe(before);
   });
 });
 

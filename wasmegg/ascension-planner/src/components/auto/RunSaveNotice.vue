@@ -21,12 +21,15 @@
         >, including the search running now</template
       >. Anything you send to the leaderboard says how old this save is.
     </p>
+    <!-- A file loaded with no account on screen (spec-savescrub): what that turns off, and no latest save to go back to. -->
+    <p v-if="ui.runSaveLoaded.noAccount" class="font-bold" data-testid="no-account-line">{{ NO_ACCOUNT_LINE }}</p>
     <p v-else>
       <span class="font-bold">Using the save this run started with.</span>
       The planner is using your save from {{ when(ui.runSaveLoaded.backupAt) }} (TE {{ ui.runSaveLoaded.te }}), so the
       run carries on with the farm it began on. Your latest save may differ; load it again when the run is done.
     </p>
     <button
+      v-if="!ui.runSaveLoaded.noAccount"
       type="button"
       :disabled="ui.loading || store.isRunning"
       class="px-3 py-1.5 rounded-lg bg-violet-800 text-white text-body font-bold hover:bg-violet-700 disabled:opacity-40"
@@ -53,7 +56,8 @@
       class="px-3 py-1.5 rounded-lg bg-violet-800 text-white text-body font-bold hover:bg-violet-700 disabled:opacity-40"
       @click="store.recheckOnLatestSave(10)"
     >
-      {{ store.recheckingLatest ? 'Re-checking…' : 'Re-check the top 10 on my latest save' }}
+      <template v-if="store.recheckingLatest">Re-checking<AnimatedDots /></template
+      ><template v-else>Re-check the top 10 on my latest save</template>
     </button>
     <div v-if="store.latestRecheck" class="overflow-x-auto">
       <table class="w-full text-small tabular-nums">
@@ -80,7 +84,9 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { NAMES } from '@/lib/siteNav';
+import { NO_ACCOUNT_LINE } from '@/lib/saveScrub';
 import { computed } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { useUIStore } from '@/stores/ui';

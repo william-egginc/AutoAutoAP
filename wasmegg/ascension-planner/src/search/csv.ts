@@ -25,6 +25,7 @@
 import { SIM_VERSION } from './simVersion';
 import { describeTimeOff, type TimeOffDates } from './timeOff';
 import { getArtifact, getStone } from '@/lib/artifacts/data';
+import { XLSX_ROW_CAP } from '@/utils/xlsxRows';
 // The workspace tier table, the same source src/lib/artifacts/data.ts parses its own
 // options from. Needed raw here because an inventory item carries (afx name, level),
 // not a planner artifact id.
@@ -501,8 +502,12 @@ function metaLines(meta: CsvMeta, head: string[], count: string): string[] {
   note(`generated ${formatInZone(Math.floor((meta.generatedAt ?? Date.now()) / 1000), tz)} (${tz})`);
   // ux29 item 7 (27 Oct 2026): Excel turns these cells into dates and shows them in its own date format, which a
   // column it never widens on opening a CSV can't hold, so they read ########. The cells are right and stay as they
-  // are (the board's runs, search/runLegsCsv.ts and the analysis scripts read them); this line says so.
-  note(`times (the columns ending _local) are YYYY-MM-DD HH:MM (24-hour) in ${tz}. ######## in Excel means the column is too narrow for its date format: widen it.`);
+  // are (the board's runs, search/runLegsCsv.ts and the analysis scripts read them); this line says so. spec-xlsx (29 Oct
+  // 2026): and points at the Excel download beside the CSV button (components/auto/csvButton.ts XLSX_BUTTON), whose
+  // columns are sized. Draft for Words; a note line, so no commas.
+  note(
+    `times (the columns ending _local) are YYYY-MM-DD HH:MM (24-hour) in ${tz}. ######## in Excel means the column is too narrow: widen it. Or use Download for Excel (.xlsx) beside the CSV button: its columns are sized (offered when the table is under ${XLSX_ROW_CAP} rows).`
+  );
   // Which simulator priced these routes (search/simVersion.ts), so a file can be matched to its code.
   note(`simulator ${SIM_VERSION}`);
   note(`plan start ${formatInZone(meta.planStart, tz)}`);

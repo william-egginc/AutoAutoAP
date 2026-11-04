@@ -7,12 +7,17 @@
  * once-per-page-load one (useServerSave), so a strip on every screen still asks the server at most once. Quiet while
  * the save is under `QUIET_CHECK_MIN_AGE_S` old (the check is skipped then too), unless a newer save is known.
  * Its button is Setup's "Load latest save" (the ui store's `backupRetryRequested`, App's `prepareAutoPlanner`).
+ *
+ * The one save-age banner (spec-saveage, 29 Oct 2026): the tone comes from both clocks (lib/saveFreshness.ts
+ * `saveState`), read off the save (the store's `saveClock`, the kept save while a Manual plan is open). So a fresh
+ * backup over a farm that last ran long ago (a check-in that didn't sync) shows yellow or red even under 10 minutes.
  */
 import { computed, type Ref } from 'vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { backupSecondsOf, saveStrip } from '@/lib/saveFreshness';
+import { useChainSearchStore } from '@/stores/chainSearch';
+import { saveState } from '@/lib/saveFreshness';
 import { QUIET_CHECK_MIN_AGE_S } from '@/lib/serverSave';
 import { useServerSave } from './useServerSave';
 
@@ -23,8 +28,10 @@ export function useAutoSaveStrip(o: { now: Ref<number> }) {
   const initial = useInitialStateStore();
   const ui = useUIStore();
   const planner = useAutoPlannerStore();
+  const search = useChainSearchStore();
   const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const loadedSeconds = computed(() => backupSecondsOf(initial.rawBackup));
+  const clock = computed(() => search.saveClock);
+  const loadedSeconds = computed(() => clock.value?.backupSeconds ?? 0);
   const loading = computed(() => ui.loading);
   const server = useServerSave({
     playerId: computed(() => ui.screenPlayerId),
@@ -32,13 +39,15 @@ export function useAutoSaveStrip(o: { now: Ref<number> }) {
     ready: computed(() => loadedSeconds.value > 0 && initial.hasData && !ui.loading),
     now: o.now,
   });
-  const strip = computed(() => saveStrip(loadedSeconds.value, o.now.value, zone.value));
+  const state = computed(() => (clock.value ? saveState({ ...clock.value, nowSeconds: o.now.value, zone: zone.value }) : null));
   const shown = computed(
-    () => !!strip.value && (server.value.kind === 'newer' || o.now.value - loadedSeconds.value >= QUIET_CHECK_MIN_AGE_S)
+    () =>
+      !!state.value &&
+      (state.value.tone !== 'green' || server.value.kind === 'newer' || o.now.value - loadedSeconds.value >= QUIET_CHECK_MIN_AGE_S)
   );
   /** Setup's "Load latest save": App watches the counter and loads a fresh save. */
   function load(): void {
     ui.backupRetryRequested++;
   }
-  return { strip, server, shown, loading, load };
+  return { state, server, shown, loading, load };
 }

@@ -13,7 +13,7 @@
     <p v-if="error" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-body text-red-800">
       {{ error }}
     </p>
-    <p v-else-if="loading" class="text-body text-slate-400">Loading these runs…</p>
+    <p v-else-if="loading" class="text-body text-slate-400">Loading these runs<AnimatedDots /></p>
     <p v-else-if="!rows.length" class="rounded-lg bg-emerald-50 px-3 py-2 text-body font-bold text-emerald-700">
       No run like that has been sent yet.
     </p>
@@ -51,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { onMounted, ref } from 'vue';
 import { fetchFlagged, type CollectorRow } from './collector';
 import { allOwnerTokens } from '@/search/owner';

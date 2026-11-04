@@ -3,7 +3,7 @@
   sweep's alone; the user asked whether they could all save (30 Sept), and the library already
   holds Smart search runs too (a staged run is saved without a space), so both depths of Fastest
   route show it now. Highest TE by a date keeps its answers in a different shape and has its own
-  carry-on instead.
+  carry-on instead. One entry per run: Save this run again says Saved ✓ and refreshes it (red team R7).
 
   Resume (carry on an unfinished run) is the Full sweep's: it re-enters `startExhaustive` with the
   saved space, so it is offered only there, and only for a sweep. Open works for either kind.
@@ -39,7 +39,7 @@
         class="px-4 py-2 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
         @click="save"
       >
-        {{ saving ? 'Saving…' : 'Save this run' }}
+        <template v-if="saving">Saving<AnimatedDots /></template><template v-else>{{ savedHere ? 'Saved ✓' : 'Save this run' }}</template>
       </button>
     </div>
 
@@ -80,7 +80,7 @@
           class="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-body font-bold hover:bg-indigo-700 disabled:opacity-40"
           @click="resume(run.id)"
         >
-          {{ resuming === run.id ? 'Carrying on…' : 'Carry on' }}
+          <template v-if="resuming === run.id">Carrying on<AnimatedDots /></template><template v-else>Carry on</template>
         </button>
         <button
           type="button"
@@ -122,6 +122,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
 import { computed, onMounted, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
@@ -188,6 +189,9 @@ function baselineOf(run: RunSummary) {
 
 const label = ref('');
 const saving = ref(false);
+/** "Saved ✓" while the run on screen is in the list (store `currentRunSaved`), unless a name is typed, which saving
+ *  again gives it. Saving again never adds a second entry (search/runLibrary.ts `runIdentity`). */
+const savedHere = computed(() => store.currentRunSaved && !label.value.trim());
 const note = ref('');
 const resuming = ref('');
 

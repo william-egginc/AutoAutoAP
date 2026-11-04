@@ -27,12 +27,23 @@
     <div class="max-w-6xl mx-auto p-4">
       <CustomEggWatcher v-if="isDev" />
 
-      <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. -->
-      <NewVersionBanner
-        page-url="./"
-        entry="index"
-        note="save your results first (Save this run, Save the file instead, or Download CSV) so nothing is lost; a search that is still running stops at the reload, and Carry on from where it stopped then goes on from its last save point (Carry on by itself does not cover a reload)"
-        class="mb-4"
+      <!-- A tab left open through a deploy keeps running the old code; see useNewVersion. Hidden while the egg-beta
+           timed reload shows (same place on screen, and it says the same thing with a time). -->
+      <div v-show="!eggBetaActive">
+        <NewVersionBanner
+          page-url="./"
+          entry="index"
+          note="save your results first; a running search stops at the reload"
+          class="mb-4"
+        />
+      </div>
+      <!-- EGG-BETA ONLY (lib/eggBetaReload.ts): compiled in only when the build had AAP_EGG_BETA_RELOAD_AT, and then
+           shown only on the egg-beta host. -->
+      <component
+        :is="EggBetaReloadBanner"
+        v-if="EggBetaReloadBanner"
+        :busy="eggBetaBusy"
+        @active="(a: boolean) => (eggBetaActive = a)"
       />
       <!-- Site storage blocked (lib/storageGuard.ts): the page runs on memory, so say nothing will be kept. -->
       <p
@@ -101,7 +112,17 @@
               Player Backup From: {{ lastBackupFormatted }}
             </div>
 
-            <the-player-id-form :player-id="playerId" load-on-paste @submit="submitPlayerId" />
+            <!-- The shared form, keyed so a refused or failed load puts a fresh, editable one back (resetIdBox), with a
+                 lower-case "ei" upper-cased before it reads the box: the capture listeners fall through to its <form>
+                 and run before its own (lib/playerIdEntry.ts; R7 red team 4). -->
+            <the-player-id-form
+              :key="idFormKey"
+              :player-id="playerId"
+              load-on-paste
+              @input.capture="idInputUpperCase"
+              @paste.capture="onIdPaste"
+              @submit="submitPlayerId"
+            />
           </div>
         </div>
       </div>
@@ -125,6 +146,12 @@
         >
           Try again
         </button>
+      </div>
+
+      <!-- Or a save file, with no account (spec-savescrub): the instant answer works from it; the line over Fastest and
+           RunSaveNotice say what is off without an account. Outside the folding header, under the error line. -->
+      <div v-if="!playerId" class="mx-4 mt-3 flex justify-center" data-testid="no-account-save-file">
+        <SaveFileBar player-id="" @loaded="onNoAccountSave" />
       </div>
 
       <SiteTabs
@@ -584,7 +611,11 @@
       </div>
 
       <!-- The Auto Planner's three screens; each has Your setup where its settings used to be. -->
-      <div v-if="plannerTab === 'automatic' && playerId && !loading" class="mt-4 space-y-4">
+      <div v-if="plannerTab === 'automatic' && (playerId || fileOnlySave) && !loading" class="mt-4 space-y-4">
+        <!-- A save file loaded with no account on screen: said once, over the instant answer (DRAFT words, lib/saveScrub.ts). -->
+        <p v-if="fileOnlySave" class="max-w-4xl mx-auto text-body font-bold text-violet-900" data-testid="no-account-line">
+          {{ NO_ACCOUNT_LINE }}
+        </p>
         <!-- A search running on another Auto Planner screen: this one greyed out under a line saying
              which, with Stop on the progress bar above. Fastest route greys only its panel, below its
              depth cards (FastestRoute.vue). -->
@@ -784,7 +815,7 @@
 
 <script setup lang="ts">
 import { formatMoment } from '@/lib/clock';
-import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, type FunctionalComponent } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
   FIRST_LOAD_ROUTE,
   LAST_ROUTE_KEY,
@@ -881,6 +912,9 @@ import { STORAGE_WRITE_FAILED_WORDS, storageWriteFailed } from '@/lib/storageWri
 import { forgetLinkPlayerId, linkPlayerId } from '@/lib/urlPlayerId';
 import IntegrityAlert from '@/components/auto/IntegrityAlert.vue';
 import BigBoxConfirm from '@/components/auto/BigBoxConfirm.vue';
+import SaveFileBar from '@/components/auto/SaveFileBar.vue';
+import { isPlaceholderId, NO_ACCOUNT_LINE } from '@/lib/saveScrub';
+import { idInputUpperCase, idPasteUpperCase, upperCaseIdPrefix } from '@/lib/playerIdEntry';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import type { Action, VirtueEgg } from '@/types';
 import { setConsentAccount } from '@/composables/useConsent';
@@ -917,6 +951,8 @@ const isDev = import.meta.env.DEV;
 
 // A link's `?playerId=` was read and taken out of the address before the app started (lib/urlPlayerId.ts).
 const playerId = ref(linkPlayerId() || getSavedPlayerID() || '');
+// Never the stand-in ID a downloaded save carries (lib/saveScrub.ts): that is no account.
+if (isPlaceholderId(playerId.value)) playerId.value = [getSavedPlayerID()].find(id => id && !isPlaceholderId(id)) || '';
 
 // The Update button's cache-buster (PlanFinalSummary.vue) has done its job once the page is here;
 // left in, it rode along in every link copied afterwards.
@@ -988,6 +1024,12 @@ usePlanStartForm();
 useTablePrefetch();
 const actionsStore = useActionsStore();
 const uiStore = useUIStore();
+/** A save file loaded with no account on screen (SaveFileBar under the ID box): the Auto Planner shows it, Fastest only. */
+const fileOnlySave = computed(() => !playerId.value && !!uiStore.runSaveLoaded?.noAccount);
+/** Its Fastest screen, where the instant answer is (no fetch: `goTo` leaves a save the player picked alone). */
+function onNoAccountSave(): void {
+  if (!playerId.value) goAuto('fastest', 'smart');
+}
 const { plannerTab, isHeaderCollapsed, isFooterCollapsed, loading, error } = storeToRefs(uiStore);
 /** The floating Setup pill shows (the two SetupDock mounts below): the page keeps room under its content for it. */
 const setupDockShown = computed(
@@ -999,7 +1041,7 @@ const setupDockShown = computed(
  */
 const screenHasH1 = computed(
   () =>
-    (plannerTab.value === 'automatic' && !!playerId.value && !loading.value) ||
+    (plannerTab.value === 'automatic' && (!!playerId.value || fileOnlySave.value) && !loading.value) ||
     plannerTab.value === 'myruns' ||
     plannerTab.value === 'science' ||
     plannerTab.value === 'leaderboard' ||
@@ -1062,8 +1104,11 @@ function currentRoute(): SiteRoute {
 }
 
 function applyRoute(r: SiteRoute): void {
-  autoView.value = r.auto;
-  fastestDepth.value = r.depth;
+  // Only an address to the Auto Planner names its screen; one to another tab leaves the remembered one (lib/autoScreen.ts).
+  if (r.section === 'auto') {
+    autoView.value = r.auto;
+    fastestDepth.value = r.depth;
+  }
   if (r.compare) compareView.value = r.compare;
   if (r.science) scienceView.value = r.science;
   plannerTab.value =
@@ -1321,6 +1366,17 @@ const { content: myRunsContent } = useMyRunsShown({
   library: () => chainSearchStore.savedRuns.length + chainSearchStore.savedAnswers.length,
 });
 const myRunsRunning = computed(() => searchActive.value || chainSearchStore.isRunning || chainSearchStore.deadlineRunning);
+
+/** EGG-BETA ONLY: the timed reload (lib/eggBetaReload.ts). A build without AAP_EGG_BETA_RELOAD_AT (live, every other
+ *  build) has __AAP_EGG_BETA_RELOAD__ replaced by `false` here (vite.config.ts; vitest.config.ts too), so the banner, its
+ *  chunk and lib/eggBetaReload.ts are left out of the build. Used bare on purpose: a constant from another module is
+ *  not folded, and left the chunk in. It waits while any search or run
+ *  is going, or a finished one is still being sent. */
+const EggBetaReloadBanner = __AAP_EGG_BETA_RELOAD__
+  ? defineAsyncComponent(() => import('@/components/EggBetaReloadBanner.vue'))
+  : null;
+const eggBetaBusy = computed(() => myRunsRunning.value || chainSearchStore.resultSending);
+const eggBetaActive = ref(false);
 const myRunsTabShown = computed(
   () => myRunsTab({ content: myRunsContent.value, running: myRunsRunning.value, onIt: plannerTab.value === 'myruns' }).shown
 );
@@ -1597,12 +1653,33 @@ watch(error, async e => {
 });
 /** The save load that failed and what it said, for the error's Try again (shown while that message is). */
 const loadRetry = ref<{ id: string; message: string } | null>(null);
+/** The player ID form's key: a new one puts a fresh form back (`resetIdBox`). */
+const idFormKey = ref(0);
 function failLoad(id: string, message: string): void {
   error.value = message;
   loadRetry.value = { id, message };
+  // The box back as it was for the account on screen (Try again keeps the ID that failed).
+  resetIdBox(false);
+}
+
+/**
+ * The player ID box after a load that did not happen (R7 red team 4): the shared form commits the ID before the page
+ * answers, so it was left read-only with that ID in it until a reload. A fresh form (its key) for the account on
+ * screen, focused when `focus` (the box is editable while focused) so the player can type their own ID straight away.
+ */
+function resetIdBox(focus = true): void {
+  idFormKey.value++;
+  if (focus) void nextTick(() => document.getElementById('playerId')?.focus());
+}
+/** A whole lower-case ID pasted into the box loads as it would in upper case (lib/playerIdEntry.ts). */
+function onIdPaste(e: ClipboardEvent): void {
+  const id = idPasteUpperCase(e);
+  if (id) void submitPlayerId(id);
 }
 /** The account whose save is being fetched now (an older load that answers late is dropped). */
 let loadingSaveFor = '';
+/** The stand-in ID from a downloaded save typed in (DRAFT words). */
+const PLACEHOLDER_ID_ENTERED = "That's the stand-in ID a downloaded save carries, not an account. Enter your own player ID.";
 /** The save came in but setting the planner up from it failed. */
 const SAVE_SET_UP_FAILED = "Couldn't set up the planner from your save. Try again.";
 
@@ -1980,7 +2057,17 @@ function showSweepResult(): void {
  * mode buttons become usable and player info is displayed.
  */
 async function submitPlayerId(id: string) {
+  // "ei…" is the same ID as "EI…" (the follow key upper-cases it too); the shared check takes upper case only.
+  id = upperCaseIdPrefix(id).trim();
   if (loading.value && loadingSaveFor === id) return;
+  // The stand-in from a downloaded save is no account (lib/saveScrub.ts): never fetched, saved or shown as one.
+  if (isPlaceholderId(id)) {
+    error.value = PLACEHOLDER_ID_ENTERED;
+    loadRetry.value = null;
+    // The box editable again, the stand-in gone from it (it was left read-only until a reload).
+    resetIdBox();
+    return;
+  }
   loadingSaveFor = id;
   error.value = '';
   loadRetry.value = null;
@@ -2007,6 +2094,8 @@ async function submitPlayerId(id: string) {
 
   playerId.value = id;
   savePlayerID(id);
+  // An account now: a save file loaded without one gives way to this account's own save (set up as on entering).
+  if (uiStore.runSaveLoaded?.noAccount) uiStore.runSaveLoaded = null;
   // The saved ID is this account now: a link's ID kept for this tab (lib/urlPlayerId.ts) would otherwise
   // take a reload back to the link's account after the player had entered their own.
   forgetLinkPlayerId();

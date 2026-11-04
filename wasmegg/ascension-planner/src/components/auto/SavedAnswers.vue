@@ -1,6 +1,6 @@
 <!--
   By a date's answers kept under a name (the user, 5 Oct: a new search no longer loses one): "Save this
-  answer" beside the result's other buttons (`actions` slot: Download CSV), whatever the screen says
+  answer" ("Saved ✓" once the answer on screen is in the list, one entry however often it is saved) beside the result's other buttons (`actions` slot: Download CSV), whatever the screen says
   under it (default slot), then the list with Open and Delete, and each entry's save (EntrySaveActions:
   Use the save from…, Download this save). Kept in this browser per player by the
   store (`saveCurrentAnswer`, `savedAnswers`), in By a date's own format.
@@ -30,7 +30,7 @@
       :disabled="saving"
       @click="save"
     >
-      {{ flash ? 'Saved' : 'Save this answer' }}
+      {{ savedHere ? 'Saved ✓' : 'Save this answer' }}
     </button>
   </div>
   <slot v-if="!listOnly" />
@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { showDateTime } from '@/lib/displayTime';
 import EntrySaveActions from './EntrySaveActions.vue';
@@ -139,14 +139,15 @@ function open(id: string): void {
 
 const label = ref('');
 const saving = ref(false);
-const flash = ref(false);
+/** "Saved ✓" while the answer on screen is in the list (from either save button: the card's Save answer too), unless
+ *  a name is typed, which saving again gives it. Saving again never adds a second entry (store `saveCurrentAnswer`). */
+const savedHere = computed(() => store.currentAnswerSaved && !label.value.trim());
 async function save(): Promise<void> {
   saving.value = true;
   try {
-    await store.saveCurrentAnswer(props.playerId, label.value || props.defaultLabel);
+    const named = !!label.value.trim();
+    await store.saveCurrentAnswer(props.playerId, label.value || props.defaultLabel, named);
     label.value = '';
-    flash.value = true;
-    setTimeout(() => (flash.value = false), 2000);
   } finally {
     saving.value = false;
   }

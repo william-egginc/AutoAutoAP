@@ -18,7 +18,7 @@
 -->
 <template>
   <div class="space-y-4">
-    <SafariNotice />
+    <SafariNotice :estimate-seconds="estimateSeconds" :option="option" />
     <RunSaveNotice v-if="runSaveNotice" />
     <IntegrityNotice v-if="integrityNotice" :deadline-offer="deadlineOffer" />
     <slot name="above-find" />

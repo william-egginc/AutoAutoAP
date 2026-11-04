@@ -8,6 +8,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { entryIdentity, savedAnswerFits, tablesIdentity } from './instantTables';
 import { GEAR_RULE } from './tableGear';
+import { resultCode } from '@/lib/resultCode';
 import type { TableEntry } from './tableBracket';
 
 const OWN = 'acct-0123456789abcdef01234567.bin';
@@ -68,7 +69,8 @@ describe('tablesIdentity', () => {
 describe('savedAnswerFits', () => {
   const before = tablesIdentity([maxed], names);
   const now = tablesIdentity([maxed, ownV2], names);
-  const saved = (tables?: string | null) => ({ tableUrl: '/precompute/table-v2.bin|g=…', ownChanged: '', gearRule: GEAR_RULE, tables });
+  // Saved by this build's code (lib/resultCode.ts: 'dev' in specs; resultCodeRecalc.spec.ts covers another build's).
+  const saved = (tables?: string | null) => ({ tableUrl: '/precompute/table-v2.bin|g=…', ownChanged: '', gearRule: GEAR_RULE, tables, rc: resultCode() });
 
   it('the same tables: put back (the "Saved from …" line stays)', () => {
     expect(savedAnswerFits(saved(now), GEAR_RULE, now)).toBe(true);

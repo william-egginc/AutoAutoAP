@@ -9,9 +9,10 @@
  * its virtue farm on Curiosity, habs and vehicles not all bought) and stand-in workers.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, markRaw, ref } from 'vue';
+import { effectScope, h, markRaw, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary, SearchInputs } from '@/search/types';
 import { syntheticBackup } from '@/test/syntheticSave';
@@ -114,7 +115,11 @@ async function setup(farm?: Parameters<typeof save>[0]) {
 }
 
 async function cardText(page: Awaited<ReturnType<typeof setup>>['page']) {
-  return textOf(
+  return textOf(await cardHtml(page));
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function cardHtml(page: Awaited<ReturnType<typeof setup>>['page'], slots: Record<string, () => any> = {}) {
+  return (
     await renderHtml(
       RightNowCard,
       {
@@ -137,7 +142,7 @@ async function cardText(page: Awaited<ReturnType<typeof setup>>['page']) {
         nextStep: page.nextStep.value,
         nextShiftLines: page.nextShiftLines.value,
       },
-      {},
+      slots,
       [getActivePinia()!]
     )
   );
@@ -186,6 +191,16 @@ describe("pieha's state: mid-ascension on Curiosity, habs not all bought", () =>
     expect(t).toMatch(/Next step Keep building: habs until about [A-Z][a-z]{2} \d{1,2}, \d{4}/);
     expect(t).toMatch(/Next shifts Keep building: habs until about [^·]*Shift to Kindness · about/);
     expect(t).not.toMatch(/Next step (Shift to Curiosity|Prestige)/);
+    // BUILD-UP TRACKER PLACEMENT (30 Oct 2026, Jordan: it sat at the foot of My runs): MyRunsView.vue hands the tracker to
+    // Right now's `buildUp` slot, which renders directly under Next step and Next shifts, above the gear and the Full
+    // timeline.
+    const html = await cardHtml(page, { buildUp: () => h('div', { 'data-testid': 'buildup-tracker' }, 'Build-up tracker') });
+    const at = (id: string) => html.indexOf(`data-testid="${id}"`);
+    expect(at('now-next-shifts')).toBeGreaterThan(0);
+    expect(at('buildup-tracker')).toBeGreaterThan(at('now-next-shifts'));
+    expect(at('buildup-tracker')).toBeGreaterThan(at('now-next-action'));
+    const timeline = at('now-timeline');
+    if (timeline >= 0) expect(at('buildup-tracker')).toBeLessThan(timeline);
     scope.stop();
   });
 });
@@ -458,7 +473,7 @@ describe("Jordan's producing farm with records kept under the old rule", () => {
     await vi.waitFor(() => expect(sims).toHaveLength(1), WAIT);
     expect(sims[0].inputs.firstAscension).toBe('auto');
     await noBuildLine(again.page);
-    expect(await cardText(again.page)).toMatch(/From .+, checking…/);
+    expect(await cardText(again.page)).toMatch(/From .+, checking\.\.\./);
     sims[0].resolve({ ...buildupLeg(now, now - H, now + 16 * 24 * H), key: 'continue' } as LegSummary);
     await vi.waitFor(() => expect(again.page.nextStep.value?.kind).toBe('shift'), WAIT);
     await noBuildLine(again.page);

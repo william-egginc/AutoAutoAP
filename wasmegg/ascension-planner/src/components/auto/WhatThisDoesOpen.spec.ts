@@ -54,6 +54,7 @@ describe('"What this does" starts open (29 Oct 2026)', () => {
       steppingAway: 'folded',
       countTable: 'open',
       howWorkedOut: 'folded',
+      buildUpTracker: 'folded',
     });
   });
 

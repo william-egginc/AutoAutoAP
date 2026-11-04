@@ -21,9 +21,22 @@
         </tr>
       </thead>
       <tbody>
+        <template v-for="(e, i) in events" :key="`${e.kind}-${e.at}`">
         <tr
-          v-for="e in events"
-          :key="`${e.kind}-${e.at}`"
+          v-if="here && hereAt === i"
+          class="border-t border-slate-100 align-top bg-emerald-50 text-emerald-900"
+          data-testid="now-event-here"
+        >
+          <td class="py-2 pr-1" aria-hidden="true">●</td>
+          <td class="py-2 pr-2 font-bold">
+            {{ hereText }}
+            <p class="sm:hidden text-small font-normal">Now</p>
+          </td>
+          <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">Now</td>
+          <td class="py-2 pr-2 hidden sm:table-cell"></td>
+          <td class="py-2 hidden sm:table-cell"></td>
+        </tr>
+        <tr
           class="border-t border-slate-100 align-top"
           :class="e.past ? 'text-slate-400' : e.notDone ? 'bg-amber-50 text-amber-900' : e.next ? 'bg-indigo-50' : 'text-slate-800'"
           :data-testid="e.past ? 'now-event-past' : e.notDone ? 'now-event-notdone' : e.next ? 'now-event-next' : 'now-event'"
@@ -63,6 +76,21 @@
           <td class="py-2 hidden sm:table-cell text-right">
             <CalendarButton v-if="addable(e)" :events="[calOf(e)]" label="Add" align-right />
           </td>
+        </tr>
+        </template>
+        <tr
+          v-if="here && hereAt === events.length"
+          class="border-t border-slate-100 align-top bg-emerald-50 text-emerald-900"
+          data-testid="now-event-here"
+        >
+          <td class="py-2 pr-1" aria-hidden="true">●</td>
+          <td class="py-2 pr-2 font-bold">
+            {{ hereText }}
+            <p class="sm:hidden text-small font-normal">Now</p>
+          </td>
+          <td class="py-2 pr-2 whitespace-nowrap hidden sm:table-cell">Now</td>
+          <td class="py-2 pr-2 hidden sm:table-cell"></td>
+          <td class="py-2 hidden sm:table-cell"></td>
         </tr>
       </tbody>
     </table>
@@ -104,7 +132,20 @@ const props = defineProps<{
   following?: string;
   /** The instant answer's times (estimates): rounded to the hour, no calendar buttons. */
   rounded?: boolean;
+  /** "You are here" (Jordan, 1 Nov 2026): the egg the loaded save is on, its TE so far and its time (said as the
+   *  row's text), shown between the last passed row and the next one. Absent: no row. */
+  here?: { egg: string | null; te: number; saveWhen: string } | null;
 }>();
+/** Where the row goes: before the first row that hasn't passed (the same clock-and-save rule `past` uses). */
+const hereAt = computed(() => {
+  const i = props.events.findIndex(e => !e.past);
+  return i < 0 ? props.events.length : i;
+});
+const hereText = computed(() =>
+  props.here
+    ? `You are here · ${virtueEggName(props.here.egg)} · ${Math.floor(props.here.te)} TE · from your save of ${props.here.saveWhen}`
+    : ''
+);
 /** Rounded to the hour: the instant answer's times, never the ascension you are in simulated on the save (`exact`). */
 const roundedFor = (e: PlanEvent) => !!props.rounded && !e.exact;
 const when = (e: PlanEvent) => whenWords(e, props.goal, props.now, props.zone, roundedFor(e));

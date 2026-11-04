@@ -21,6 +21,7 @@ import type { StepLeg, StepLine } from './instantSteps';
 import { paceLine, paceWords, planPace, type PaceState, type PaceTone } from './planPace';
 import { boxRouteOf, readPreferFewer, type PreferMargin } from '@/search/preferFewer';
 import { estimatedOpening } from './openingShifts';
+import { sameResultCode } from './resultCode';
 
 /** A table route as the snapshot keeps it (search/routeFinder.ts Route / RouteLeg). */
 export interface SnapRoute {
@@ -87,6 +88,8 @@ export interface SnapLike {
   /** The last Fast, Exact or Custom result for this goal and save (lib/searchPlan.ts `SnapSearch`; since 23 Oct
    *  2026). Read with `readSearch`. */
   search?: unknown;
+  /** The code that worked it out (lib/resultCode.ts, Release 7); absent before. */
+  rc?: string;
 }
 
 export interface NowPlan {
@@ -130,6 +133,9 @@ export interface NowPlan {
   runnerUp?: { chain: number[]; end: number; endTE: number } | null;
   meta: SnapMeta | null;
   whatIf: SnapWhatIf | null;
+  /** From an instant answer an older build worked out (its snapshot's `rc`, lib/resultCode.ts; Release 7): How sure
+   *  says so (lib/howSure.ts). Absent: this build's (or not from a snapshot). */
+  olderCode?: true;
 }
 
 const key = (chain: readonly number[]) => chain.join(',');
@@ -154,6 +160,7 @@ export function planFromSnapshot(
     planStart: typeof snap.answerStart === 'number' ? snap.answerStart : null,
     meta: snap.meta ?? null,
     whatIf: snap.whatIf ?? null,
+    ...(sameResultCode(snap.rc) ? {} : { olderCode: true as const }),
   };
   if (goal === 'fastest') {
     const routes = (snap.result.byAscensions ?? []).filter((r): r is SnapRoute => !!r && Array.isArray(r.chain));
@@ -673,9 +680,15 @@ export function onTrack(
       ? plan.tableLegs.slice(0, plan.chain.length).map(l => ({ start: l.start, end: l.end, endTE: l.endTE ?? l.to }))
       : null;
   const byEgg = plan.meta?.teByEgg && plan.meta.teByEgg.length === 5 ? plan.meta.teByEgg : null;
+  // A followed route's estimate keeps no snapshot (no `meta.teByEgg`): its first table leg says the TE it starts from,
+  // so it is compared leg by leg rather than "Can't tell: saved without each egg's TE" (30 Oct 2026, Jordan's My runs
+  // showed that next to his own per-egg TE, which is the loaded save's, not the plan's start).
+  // A Leaderboard run sent from another browser (simulated legs, no per-egg TE) says its start TE in its meta.
+  const from = tableLegs ? plan.tableLegs?.[0]?.from : plan.meta?.startTE;
   const line = paceLine({
     legs,
     tableLegs,
+    ...(!byEgg && typeof from === 'number' && Number.isFinite(from) ? { startTE: from } : {}),
     planStart: plan.planStart,
     startTEByEgg: byEgg,
     planSave: plan.meta?.backupTime ?? null,

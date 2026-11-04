@@ -11,9 +11,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import { instantGoal, instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import { accountOf } from '@/search/runSaves';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
@@ -91,6 +93,7 @@ async function setUp(goal: Goal, followed: Record<string, unknown>, kept = true)
   };
   if (kept)
     writeSnapshot(key, {
+    rc: resultCode(),
     at: Date.now() - 60_000,
     header: {},
     result: goal.kind === 'date' ? { best: null, byAscensions: [], byDate: route } : { best: route, byAscensions: [] },
@@ -188,7 +191,7 @@ describe("Right now: a route followed from this save's instant answer keeps the 
       // Nothing of this save to estimate it from: My runs works the instant answer for this setup out itself (26 Oct
       // 2026), never "Open … once" and never "not priced on this save yet".
       expect(text).toContain('From the instant answer · working out its times');
-      expect(text).toContain('Working out the instant answer for your setup…');
+      expect(text).toContain('Working out the instant answer for your setup...');
       expect(text).not.toContain(NOT_PRICED);
       expect(text).not.toContain('Open Highest TE by a date once');
       expect(text).toContain('By Feb 10, 2027 following · working out its times');

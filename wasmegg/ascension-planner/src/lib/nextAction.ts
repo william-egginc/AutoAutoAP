@@ -41,6 +41,11 @@ export interface ActionLeg {
   /** The save's build isn't finished (lib/saveBuild.ts `buildLeft`: 'vehicles', 'habs') and this leg carries it on
    *  ('buildup'): "Keep building" until `buildEnd`. */
   building?: string[];
+  /** A fresh start (not `live`) the save hasn't prestiged into yet: the save's farm is still producing (lib/nowPhase.ts,
+   *  the save wins). Its build-up can't have begun, whatever the clock says, so the next step is the prestige at its
+   *  start (as soon as the hours allow, once that is past), never "Building up" (B1, spec-r7qa, 3 Nov 2026: Willsalt on Prestige now read
+   *  "Producing", "nothing to buy until your next prestige" and "Building up until about …"). `te`: the save's TE. */
+  unstarted?: { te: number };
   /** The simulated ascension is cut by time off (lib/followSim.ts SimLeg.timeOff): it ends at `from` with `te` (the home
    *  farm is a prestige), and the rebuild starts at `to`. */
   timeOff?: { from: number; to: number; te: number; rebuildBuildEnd?: number };
@@ -131,6 +136,7 @@ function nextActionOf(o: {
   if (t && o.now >= t.from && o.now < t.to) return { kind: 'back', at: t.to };
   const leg = partAt(o.leg, o.now);
   if (o.now < leg.start) return { kind: 'prestige', at: leg.start, te: null };
+  if (leg.unstarted && !leg.live) return { kind: 'prestige', at: o.prestigeAt ? o.prestigeAt(o.now) : o.now, te: null };
   const keep = keepBuildingUntil(leg, o.now);
   if (keep !== null) return { kind: 'keepbuilding', until: keep, left: [...leg.building!] };
   const until = buildUntil(leg);
@@ -230,6 +236,9 @@ function shiftLines(o: {
         out.push({ kind: 'shift', egg: s.egg, at: s.at, exact });
         if (++shifts >= max) return out;
       }
+    } else if (i === 0 && leg.simulated && leg.unstarted && !leg.live && o.now >= leg.start) {
+      // Not prestiged into yet (the save still producing): the prestige first, as soon as the hours allow.
+      out.push({ kind: 'prestige', at: o.prestigeAt ? o.prestigeAt(o.now) : o.now, te: leg.unstarted.te, exact });
     } else if (i === 0 && leg.simulated && keepBuildingUntil(leg, o.now) !== null) {
       // The save's build carried on: said first, then every shift (those made while building too).
       out.push({ kind: 'keepbuilding', at: leg.buildEnd!, left: [...leg.building!], exact });

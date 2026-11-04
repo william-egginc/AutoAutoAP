@@ -63,18 +63,21 @@
     >
       {{ START_WAIT_LABEL }}
     </p>
-    <!-- Cached answers first, then recheck (`staleAt`): the answer below is from before, until the fresh one is in. -->
+    <!-- Cached answers first, then recheck (`staleAt`): the answer below is from before, until the fresh one is in.
+         DRAFT words (Release 7 recalc, for the Words review): "(older version)" when an older build worked it out
+         (`staleOlder`, lib/resultCode.ts). -->
     <p
       v-if="staleAt && result"
       class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-small text-amber-900"
       role="status"
       data-testid="instant-stale"
     >
-      From {{ show(staleAt / 1000) }}{{ status === 'loading' ? ', checking…' : '' }}
+      From {{ show(staleAt / 1000) }}{{ staleOlder ? ' (older version)' : '' }}<template v-if="status === 'loading'">, checking<AnimatedDots /></template>
     </p>
     <p v-if="saveWaitText" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-wait-save">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      {{ saveWaitText }}
+      <!-- search/startProvenance.ts keeps its "…" (a result-hash input): drawn as moving dots here (one flex item). -->
+      <span><PendingText :text="saveWaitText" /></span>
     </p>
     <p
       v-else-if="atTarget && status !== 'loading'"
@@ -86,7 +89,8 @@
     </p>
     <p v-else-if="status === 'loading'" class="text-body text-slate-500 flex items-center gap-2" data-testid="instant-loading">
       <span class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-      {{ loadingText }}{{ result && !staleAt ? ' The answer below is the previous one until the new one is ready.' : '' }}
+      <!-- The words, then the moving dots (spec-dots, 1 Nov 2026), then the note about the answer below. -->
+      <span>{{ loadingText }}<AnimatedDots v-if="loadingText" />{{ result && !staleAt ? ' The answer below is the previous one until the new one is ready.' : '' }}</span>
     </p>
     <!-- Below the table's lowest TE: where the answer would be, what to do instead (NoInstantAnswer.vue). -->
     <NoInstantAnswer
@@ -114,7 +118,8 @@
         v-if="idle.spin"
         class="inline-block w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"
       />
-      {{ idle.text }}
+      <!-- search/instantDeferral.ts keeps its "…" (a result-hash input): drawn as moving dots here. -->
+      <span><PendingText :text="idle.text" /></span>
       <button
         v-if="idle.button"
         type="button"
@@ -273,12 +278,12 @@
           will wait for you in ways the instant answer can't time. A search below simulates them.
         </p>
         <p v-if="backgroundStatus === 'running'" class="text-body text-slate-400">
-          Polishing the routes in the background…
+          Polishing the routes in the background<AnimatedDots />
         </p>
         <!-- The nearest-gear pricing says something on its own only without the box (its bound otherwise sits in
              the box's one caveat line): no "Pricing…" line that ends in nothing (UX review 26 Oct 2026, item 7). -->
         <p v-if="bracketStatus === 'running' && !boxShown" class="text-body text-slate-500 max-w-prose" data-testid="instant-bracket-running">
-          Pricing your route on the instant answers for the closest stronger and weaker gear on this site…
+          Pricing your route on the instant answers for the closest stronger and weaker gear on this site<AnimatedDots />
         </p>
         <!-- With the answer's box on screen, the bound is in its one caveat line (AnswerCaveatLine, under "Why?"). -->
         <p v-else-if="bracketText && !boxShown" class="text-body text-slate-700">{{ bracketText }}</p>
@@ -326,6 +331,9 @@
               Reached {{ show(dateBoxOf(result.byDate).end) }} ·
               {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
             </div>
+            <!-- An estimate (spec-r7verify item 5, lib/instantWords.ts; DRAFT): the tables' answer, a few days either side
+                 of a Fast search. -->
+            <p class="text-small text-slate-500 max-w-prose" data-testid="instant-estimate">{{ INSTANT_ESTIMATE_LINE }}</p>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
               <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label"
@@ -415,13 +423,18 @@
           {{ HOURS_NOTE }}
         </p>
         <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
-             A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1). -->
+             A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1), each
+             line led by its column's name (red team R7 M3, 1 Nov 2026: hidden from 30rem up, where the header row
+             names them, so a screen reader hears each once), the two buttons named with their route. The names use
+             the 480px (= 30rem) variant: Tailwind 3 makes NO min/max arbitrary variant at all once one of them is in
+             rem while the screens are in px ("mixed units"); the table's old 30rem minimum width did exactly that,
+             silently, so it is gone (it never applied) and no rem min/max variant may come back. -->
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
           <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-small" data-testid="counts-table">
+            <table class="counts-stack w-full text-small" data-testid="counts-table">
               <thead>
                 <tr class="text-left label text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
@@ -437,8 +450,8 @@
                   class="border-t border-slate-100"
                   :class="dateRowLit(r) ? 'bg-emerald-50/60' : ''"
                 >
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
-                    {{ r.legs.length }}
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[480px]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
                     <span
                       v-if="datePickedRow(r)"
                       class="block whitespace-normal text-small font-bold text-emerald-700"
@@ -448,25 +461,28 @@
                     >
                   </td>
                   <td class="py-1.5 pr-2 font-bold text-slate-800 align-top" data-testid="counts-te">
-                    <span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
+                    <span class="label text-slate-500 min-[480px]:hidden">TE · spare</span>{{ ' ' }}<span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
                     <span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>
                   </td>
-                  <td class="py-1.5 pr-2 text-slate-600 whitespace-nowrap align-top">{{ show(r.end) }}</td>
+                  <td class="py-1.5 pr-2 text-slate-600 min-[480px]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[480px]:hidden">Reached</span>{{ ' ' }}<span class="whitespace-nowrap">{{ show(r.end) }}</span>
+                  </td>
                   <!-- The route wrapping in its own column, its two buttons one block of the same width on every
                        row: beside it on a wide card, under it on a narrow one (resultCardStyle.ts `ROUTE_ACTIONS`). -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
                     <div :class="ROUTE_CELL">
-                      <span :class="ROUTE_TEXT">{{ r.chain.join(' ') }}</span>
+                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[480px]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
                       <div :class="ROUTE_ACTIONS">
                         <button
                           type="button"
                           :class="[SECONDARY_BUTTON, ROUTE_ACTION]"
                           :title="SIMULATE_TITLE"
+                          :aria-label="`Simulate ${r.chain.join(' ')}`"
                           @click="openPlan(r.chain)"
                         >
                           Simulate this plan
                         </button>
-                        <FollowButton v-if="rowFollowable(r)" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
+                        <FollowButton v-if="rowFollowable(r)" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
                           :finish="r.end"
                           :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
                           :plan-start="answerStart"
@@ -511,6 +527,9 @@
             <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
             <span class="text-small font-bold text-slate-500" data-testid="box-instant">instant answer</span>
           </div>
+          <!-- An estimate (spec-r7verify item 5, lib/instantWords.ts; DRAFT): the tables' answer, a few days either side of
+               a Fast search. -->
+          <p class="text-small text-slate-500 max-w-prose" data-testid="instant-estimate">{{ INSTANT_ESTIMATE_LINE }}</p>
           <div class="text-small font-bold text-emerald-800">
             in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
@@ -605,7 +624,7 @@
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
           <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="counts-stack w-full min-[30rem]:min-w-[30rem] text-small" data-testid="counts-table">
+            <table class="counts-stack w-full text-small" data-testid="counts-table">
               <thead>
                 <tr class="text-left label text-slate-500 align-bottom">
                   <th class="py-1 pr-2">Ascensions</th>
@@ -621,8 +640,8 @@
                   class="border-t border-slate-100"
                   :class="r === boxLead ? 'bg-emerald-50/60' : ''"
                 >
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">
-                    {{ r.legs.length }}
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[480px]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
                     <span
                       v-if="preferPicked && r === boxLead"
                       class="block whitespace-normal text-small font-bold text-emerald-700"
@@ -631,11 +650,11 @@
                       >shown above</span
                     >
                   </td>
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 whitespace-nowrap align-top">{{ showFinish(r.end) }}</td>
+                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
+                    <span class="label text-slate-500 min-[480px]:hidden">Reaches {{ store.finalTE }}</span>{{ ' ' }}<span class="whitespace-nowrap">{{ showFinish(r.end) }}</span>
+                  </td>
                   <td class="py-1.5 pr-2 text-slate-500 align-top">
-                    <span class="whitespace-nowrap" :title="behindExact(r)"
-                      >{{ behind(r) }}<span v-if="behind(r) !== 'fastest'" class="min-[30rem]:hidden"> behind</span></span
-                    >
+                    <span class="label text-slate-500 min-[480px]:hidden">Behind</span>{{ ' ' }}<span class="whitespace-nowrap" :title="behindExact(r)">{{ behind(r) }}</span>
                     <span
                       v-if="nearTie(r)"
                       class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"
@@ -647,18 +666,19 @@
                   <!-- The route and its two buttons, as By a date's above (resultCardStyle.ts `ROUTE_ACTIONS`). -->
                   <td class="py-1.5 align-top" data-testid="counts-route">
                     <div :class="ROUTE_CELL">
-                      <span :class="ROUTE_TEXT">{{ r.chain.join(' ') }}</span>
+                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[480px]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
                       <div :class="ROUTE_ACTIONS">
                         <button
                           type="button"
                           :class="[SECONDARY_BUTTON, ROUTE_ACTION]"
                           :disabled="r.chain.length < 2"
                           :title="SIMULATE_TITLE"
+                          :aria-label="`Simulate ${r.chain.join(' ')}`"
                           @click="openPlan(r.chain)"
                         >
                           Simulate this plan
                         </button>
-                        <FollowButton v-if="r.chain.length" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :stale="!!staleAt"
+                        <FollowButton v-if="r.chain.length" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
                           :finish="r.end"
                           :end-te="r.chain[r.chain.length - 1]"
                           :plan-start="answerStart"
@@ -874,6 +894,8 @@ import {
 } from '@/search/instantDeferral';
 import InstantRunWarning from './InstantRunWarning.vue';
 import GearCaveat from './GearCaveat.vue';
+import AnimatedDots from './AnimatedDots.vue';
+import PendingText from './PendingText.vue';
 import AnswerCaveatLine from './AnswerCaveatLine.vue';
 import PanelFold from './PanelFold.vue';
 import { answerCaveat, gearCaveat, lowTeCaveat } from '@/lib/answerCaveat';
@@ -954,6 +976,7 @@ import { noteMyRuns } from '@/lib/myRunsShown';
 import { ownerToken } from '@/search/owner';
 import { appBuildId } from '@/search/submission';
 import { SIM_VERSION, tableSimMismatch } from '@/search/simVersion';
+import { resultCode, sameResultCode } from '@/lib/resultCode';
 import { countsShown } from '@/search/instantCounts';
 import { priceOnTable, type FirstLegsBase } from '@/search/priceOnTable';
 import { pricingSetupKey, readPricing, recordPricing, snapPricing, type PricingRecord, type SnapPricing } from '@/lib/followEstimate';
@@ -984,6 +1007,7 @@ import {
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
 import { INSTANT_ONE_LINE, pointerOf } from '@/lib/searchPointer';
+import { INSTANT_ESTIMATE_LINE } from '@/lib/instantWords';
 import { HOURS_NOTE } from '@/lib/hoursNote';
 import InstantPointer from './InstantPointer.vue';
 import { bracketHeadline, bracketLine, type BracketLineInput } from '@/lib/bracketLine';
@@ -1062,6 +1086,7 @@ const noTable = ref(false);
 const olderPage = ref(false);
 /** The route starts below the table's lowest TE (`from`, the table header's): no instant answer for it. */
 const below = ref<{ from: number; te: number } | null>(null);
+/** The loading line's words; the template draws the moving dots after them (spec-dots, 1 Nov 2026), never a typed "…". */
 const loadingText = ref('');
 const errorText = ref('');
 const result = ref<FoundRoutes | null>(null);
@@ -1818,6 +1843,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     ++bracketRuns;
     result.value = null;
     staleAt.value = null;
+    staleOlder.value = false;
     status.value = 'idle';
     return;
   }
@@ -1889,8 +1915,8 @@ async function run(force = false, goAhead = false): Promise<void> {
   bracket.value = null;
   bracketStatus.value = 'idle';
   loadingText.value = header.value
-    ? 'Working out every route…'
-    : 'Loading the instant answer (a few MB, once) and working out every route…';
+    ? 'Working out every route'
+    : 'Loading the instant answer (a few MB, once) and working out every route';
   try {
     const p = getPool();
     // The first answer on every route worker again (Safari keeps two for the polish after it); once idle.
@@ -1916,6 +1942,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     if (te < h.from) {
       result.value = null;
       staleAt.value = null;
+      staleOlder.value = false;
       status.value = 'error';
       below.value = { from: h.from, te };
       errorText.value = `The instant answer starts at TE ${h.from} and your route starts at ${te}, so there is no instant answer yet. The searches below work as always.`;
@@ -1941,11 +1968,11 @@ async function run(force = false, goAhead = false): Promise<void> {
       hours,
       deferShifts: store.deferShifts,
       liveFresh: (t: number, at: number) => {
-        loadingText.value = 'Working out your one ascension to the target (your TE is past the top of the instant answer)…';
+        loadingText.value = 'Working out your one ascension to the target (your TE is past the top of the instant answer)';
         return store.liveFreshBuilds(t, at);
       },
       buildUpTails: () => {
-        loadingText.value = 'Working out your build-up from your farm as it is…';
+        loadingText.value = 'Working out your build-up from your farm as it is';
         return store.buildUpTails();
       },
       alive: () => id === runs,
@@ -1968,7 +1995,7 @@ async function run(force = false, goAhead = false): Promise<void> {
       ...(hours ? { hours } : {}),
       ...tail,
       onProgress: (done, of) => {
-        if (id === runs) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done…`;
+        if (id === runs) loadingText.value = `Working out every route: ${done} of ${of} ascension counts done`;
       },
       expand: (items, settings) => p.expand(url, items, settings),
     });
@@ -1992,6 +2019,7 @@ async function run(force = false, goAhead = false): Promise<void> {
     const answer = withinAscensions(raw, filterBounds(filters.value));
     result.value = answer;
     staleAt.value = null;
+    staleOlder.value = false;
     // The last answer's "Prestige by" line goes with it.
     prestige.value = null;
     prestigeStatus.value = 'idle';
@@ -2588,6 +2616,9 @@ interface InstantSnapshot {
   /** What its routes were priced with (lib/followEstimate.ts): My runs' Right now prices a followed route on them.
    *  Absent before 24 Oct 2026, or null when too big to keep. */
   pricing?: SnapPricing | null;
+  /** The code that worked it out (lib/resultCode.ts, Release 7): put back only under the same (search/instantTables.ts
+   *  `savedAnswerFits`). Absent before Release 7: worked out again once. */
+  rc?: string;
 }
 let snapKey: string | null = null;
 /** The answer on screen's pricing inputs (`InstantSnapshot.pricing`), kept with its snapshot. */
@@ -2724,6 +2755,7 @@ function currentSnapshot(): InstantSnapshot | null {
       search: newerSearch(keptSearch.value, searchFound.value),
       tables: runTables,
       pricing: answerPricing,
+      rc: resultCode(),
     })
   ) as InstantSnapshot;
   // Too big with the pricing inputs (lib/followEstimate.ts): kept without them rather than not at all.
@@ -2780,6 +2812,8 @@ function restoreSnapshot(tablesNow: string | null): boolean {
  * ever): the loading line as before.
  */
 const staleAt = ref<number | null>(null);
+/** The stale answer on screen was worked out by an older build (its `rc`, lib/resultCode.ts): said so. */
+const staleOlder = ref(false);
 /** The stale answer on screen is another key's (not the answer on screen before this run). */
 let staleOther = false;
 function showStale(id: number): void {
@@ -2814,6 +2848,7 @@ function showStale(id: number): void {
 function dropStale(): void {
   if (staleAt.value !== null && staleOther) result.value = null;
   staleAt.value = null;
+  staleOlder.value = false;
   staleOther = false;
 }
 function applySnapshot(s: InstantSnapshot, stale = false): void {
@@ -2846,6 +2881,7 @@ function applySnapshot(s: InstantSnapshot, stale = false): void {
   below.value = null;
   savedAt.value = stale ? null : s.at;
   staleAt.value = stale ? s.at : null;
+  staleOlder.value = stale && !sameResultCode(s.rc);
   if (props.deadline && !stale) emitRoutes(s.result);
 }
 
@@ -3296,31 +3332,25 @@ async function shareResult(k: string): Promise<void> {
 <style scoped>
 /*
  * The counts list on a phone (wireframes/price-route-v2 v1, 23 Oct 2026): below 30rem each count is one stacked row,
- * the number of ascensions on the left and its TE and spare (or finish), when, and the route with its buttons
- * under each other on the right; nothing scrolls sideways. From 30rem up it is the table.
+ * its lines under each other at the full width, each led by its column's name (the cells' `min-[480px]:hidden`
+ * labels; red team R7 M3, 1 Nov 2026: the count used to sit in a 2.25rem column of its own, unlabelled, and the
+ * button block beside it scrolled sideways at 300 px); nothing scrolls sideways. From 30rem up it is the table.
  */
 @media (max-width: 29.99rem) {
   .counts-stack thead {
     display: none;
   }
   .counts-stack,
-  .counts-stack tbody {
+  .counts-stack tbody,
+  .counts-stack tr {
     display: block;
   }
   .counts-stack tr {
-    display: grid;
-    grid-template-columns: 2.25rem minmax(0, 1fr);
-    column-gap: 0.5rem;
     padding-block: 0.5rem;
   }
   .counts-stack td {
     display: block;
-    grid-column: 2;
     padding: 0;
-  }
-  .counts-stack td:first-child {
-    grid-column: 1;
-    grid-row: 1 / span 3;
   }
 }
 </style>

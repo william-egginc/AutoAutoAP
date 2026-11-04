@@ -1,4 +1,4 @@
-import { createReadStream, statSync, type Stats } from 'node:fs';
+import { createReadStream, readdirSync, readFileSync, statSync, type Stats } from 'node:fs';
 import { cp, mkdir, readFile, rm } from 'node:fs/promises';
 import type { ServerResponse } from 'node:http';
 import path from 'node:path';
@@ -8,6 +8,10 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import release from './release';
+import { buildNoteKeys, versionHistory } from './src/lib/updateNotes';
+import { releaseNoteWarningFor, type Git } from './src/lib/releaseNoteWarning';
+import { resultCodeHash } from './src/lib/resultCodeHash';
+import { eggBetaBuild, versionJsonBody } from './src/lib/versionJson';
 import {
   BROTLI_TYPES,
   digest,
@@ -40,10 +44,43 @@ import {
  * `release` (from release.ts) says whether a tab built before a given time needs to reload: players
  * asked for the difference between a real fix and a wording change -- the same loud banner on every
  * deploy taught them to ignore it (2026-09-25). Each bundle carries its own build time
- * (__BUILD_TIME__) to compare with, plus the `at` of every note it already carries
- * (__BUILD_NOTE_ATS__), so the banner lists only the notes it does not (src/lib/updateNotes.ts).
+ * (__BUILD_TIME__) to compare with, plus the key of every note it already carries
+ * (__BUILD_NOTE_KEYS__, a hash of the note's text; __BUILD_NOTE_ATS__ for tabs built before keys),
+ * so the banner tags only the notes it does not (src/lib/updateNotes.ts).
  */
 const BUILD_TIME = new Date().toISOString();
+
+/**
+ * THE RESULT CODE HASH (src/lib/resultCodeHash.ts, read by the page through src/lib/resultCode.ts): a hash of the code
+ * that decides results, not its words, so a kept answer worked out by older code is worked out again on a new build
+ * (Release 7, allanfieldhouse) and a wording-only deploy keeps everyone's. Every .ts under src (and release.ts) is handed
+ * in; the helper picks the inputs. Printed once by the build.
+ */
+function readResultCodeFiles(): Map<string, string> {
+  const root = fileURLToPath(new URL('.', import.meta.url));
+  const files = new Map<string, string>();
+  const walk = (dir: string) => {
+    for (const e of readdirSync(path.join(root, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) walk(rel);
+      else if (e.name.endsWith('.ts')) files.set(rel, readFileSync(path.join(root, rel), 'utf8'));
+    }
+  };
+  walk('src');
+  files.set('release.ts', readFileSync(path.join(root, 'release.ts'), 'utf8'));
+  return files;
+}
+const RESULT_CODE = resultCodeHash(readResultCodeFiles());
+
+function resultCodeLine(): Plugin {
+  return {
+    name: 'aap-result-code',
+    apply: 'build',
+    buildStart() {
+      console.log(`[aap] result code hash ${RESULT_CODE.hash} over ${RESULT_CODE.inputs.length} files`);
+    },
+  };
+}
 
 function versionFile(): Plugin {
   return {
@@ -57,19 +94,15 @@ function versionFile(): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'version.json',
-        source: JSON.stringify({
-          ...entries,
-          release: {
-            reloadIfBuiltBefore: release.reloadIfBuiltBefore,
-            // Empty on purpose (26 Oct 2026): tabs built before lib/updateNotes.ts fall back to this note when no
-            // history entry is newer than their build, and it is always the newest entry, which such a tab
-            // already has -- the stale Release 5 note. Empty, they say just "Small update available".
-            note: '',
-            history: release.history
-              .slice(0, 8)
-              .map(h => ({ at: h.at, note: h.note.slice(0, 200), ...(h.level === 'big' ? { level: 'big' } : {}) })),
-          },
-        }),
+        // lib/versionJson.ts: the same body as ever, plus the egg-beta overrides when their env vars are set.
+        source: JSON.stringify(
+          versionJsonBody(
+            entries,
+            { reloadIfBuiltBefore: release.reloadIfBuiltBefore, history: versionHistory(release.history) },
+            process.env,
+            BUILD_TIME
+          )
+        ),
       });
     },
   };
@@ -119,11 +152,13 @@ function noChunkCycles(): Plugin {
 }
 
 /**
- * A loud line in the build output when src/ has commits newer than release.ts's last one. The note
- * is written by hand, and it went four days without a change (26-30 Sep 2026): every deploy in that
- * time told players "New: an Egg Day 2027 leaderboard", and the fixes in them only got the quiet
- * "small update" note instead of a reload. Only a warning: a build with no git (or no history) goes
- * ahead silently, and a deploy of wording alone rightly leaves release.ts alone.
+ * A loud box in the build output when src/ has commits newer than release.ts's last one
+ * (src/lib/releaseNoteWarning.ts). The note is written by hand, and it went four days without a change
+ * (26-30 Sep 2026): every deploy in that time told players "New: an Egg Day 2027 leaderboard", and the
+ * fixes in them only got the quiet "small update" note instead of a reload. Since R7 (31 Oct 2026) a build
+ * with no new note shows open tabs no banner at all, so it is a box now, not one plugin line. Its first
+ * line starts with RELEASE_NOTE_MISSING for deploy scripts to grep. Only a warning: a build with no git
+ * (or no history) goes ahead silently, and a deploy of nothing players notice rightly leaves release.ts alone.
  */
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 
@@ -132,29 +167,9 @@ function warnIfReleaseStale(): Plugin {
     name: 'aap-release-stale',
     apply: 'build',
     buildStart() {
-      try {
-        const last = (paths: string[]) =>
-          Number(
-            execFileSync('git', ['log', '-1', '--format=%ct', '--', ...paths], { cwd: HERE })
-              .toString()
-              .trim()
-          );
-        const src = last(['src']);
-        const rel = last(['release.ts']);
-        if (src && rel && src > rel) {
-          const n = execFileSync('git', ['rev-list', '--count', `--since=${rel + 1}`, 'HEAD', '--', 'src'], {
-            cwd: HERE,
-          })
-            .toString()
-            .trim();
-          this.warn(
-            `release.ts is older than ${n} commit(s) in src/: open tabs will get no note for them (newest is ` +
-              `"${release.note.slice(0, 60)}..."). Add a note if players will notice, and reloadIfBuiltBefore if a fix ships.`
-          );
-        }
-      } catch {
-        /* no git here: nothing to compare */
-      }
+      const git: Git = args => execFileSync('git', args, { cwd: HERE, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+      const warning = releaseNoteWarningFor(git, release.note);
+      if (warning) console.warn(`\n${warning}\n`);
     },
   };
 }
@@ -528,6 +543,7 @@ export default defineConfig(({ mode }) => {
       vue(),
       vueJsx(),
       versionFile(),
+      resultCodeLine(),
       noChunkCycles(),
       warnIfReleaseStale(),
       // Also writes the brotli copies and checks the files (one closeBundle, in order).
@@ -541,6 +557,11 @@ export default defineConfig(({ mode }) => {
     define: {
       __BUILD_TIME__: JSON.stringify(BUILD_TIME),
       __BUILD_NOTE_ATS__: JSON.stringify(release.history.map(h => h.at)),
+      __BUILD_NOTE_KEYS__: JSON.stringify(buildNoteKeys(release.history)),
+      __RESULT_CODE_HASH__: JSON.stringify(RESULT_CODE.hash),
+      // The egg-beta timed reload (lib/eggBetaReload.ts) is compiled in only when AAP_EGG_BETA_RELOAD_AT is set at build
+      // time (lib/versionJson.ts); every other build, live included, drops it as dead code.
+      __AAP_EGG_BETA_RELOAD__: JSON.stringify(eggBetaBuild(process.env)),
     },
     build: {
       chunkSizeWarningLimit: 2000,

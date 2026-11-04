@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { TIE_HOURS, behindWords, howSure, type SureInput } from './howSure';
 import { planFromSnapshot, type SnapLike } from './nowPlan';
 import { buildTile } from './savedTiles';
+import { resultCode } from './resultCode';
 
 const date = (o: Partial<SureInput>): SureInput => ({ goal: 'date', how: 'check', ageDays: 0.1, te: 248, spareHours: 30, ...o });
 
@@ -37,6 +38,8 @@ describe('a runner-up that ties', () => {
       result: { best: null, byAscensions: [], byDate: { chain: [160, 248], legs: [], end } },
       dateExact: { chain: [160, 248], endTE: 248, end },
       dateExactByK: { 2: { chain: [160, 248], endTE: 248, end }, 3: { chain: [150, 200, 248], endTE: 248, end } },
+      // Kept by this build (lib/resultCode.ts).
+      rc: resultCode(),
     };
     const plan = planFromSnapshot(snap, 'date', DEADLINE)!;
     expect(plan.runnerUpHours).toBe(0);

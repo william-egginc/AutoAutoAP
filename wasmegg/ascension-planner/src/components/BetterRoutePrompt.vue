@@ -8,11 +8,18 @@
   Exact or Custom result, the route of such a result for this account and goal (kept, or in the search store now), or
   one Right now priced from a result (`followedPriced`). A Fast, Exact or Custom result asks about an unpriced route
   followed from the instant answer without comparing finishes (lib/searchPlan.ts `simulatedOverEstimate`: simulated
-  against the table's estimate, math review 24 Oct 2026).
+  against the table's estimate, math review 24 Oct 2026). When the save contradicts the followed route (`stale`,
+  lib/followStale.ts; Right now only, alt A1 30 Oct 2026) the new result is offered as "Re-plan from this save", the
+  reason first, whatever the finishes and over a priced follow too; the press is the same Follow press
+  (stores/follow.ts `replanFromSave`). After it, the offer's place says "Now following the answer for this save"
+  (REPLAN_DONE_WORDS, DRAFT for Words review, R7 red-team 1 Nov 2026) while the follow is the one that press made and
+  is the answer shown; not after "Follow it", not on load. The words, the press and "Keep mine" show together or not
+  at all: from a press on (stores/follow.ts `offerPressed`) nothing of the offer shows, and a press that doesn't follow
+  brings it back whole (R7 red-team QA, 1 Nov 2026).
 -->
 <template>
   <div
-    v-if="prompt"
+    v-if="prompt && prompt.words"
     class="rounded-xl border border-indigo-300 bg-indigo-50 px-3 py-2 text-small text-indigo-950 space-y-1.5"
     role="status"
     data-testid="better-route"
@@ -26,7 +33,7 @@
         data-testid="better-route-follow"
         @click.stop="followIt"
       >
-        Follow it
+        {{ prompt.stale ? 'Re-plan from this save' : 'Follow it' }}
       </button>
       <button
         type="button"
@@ -38,7 +45,13 @@
       </button>
     </div>
   </div>
+  <p v-else-if="replanDone" class="text-small text-emerald-800" role="status" data-testid="better-route-replanned">{{ REPLAN_DONE_WORDS }}</p>
 </template>
+
+<script lang="ts">
+/** The line after Right now's "Re-plan from this save" press (DRAFT words, for Words review). */
+export const REPLAN_DONE_WORDS = 'Now following the answer for this save';
+</script>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
@@ -48,6 +61,7 @@ import { followIsPriced, followPrompt, keepMine, readKeptMine, readKeptSearches,
 import { dateAt } from '@/lib/eventWhen';
 import { useInitialStateStore } from '@/stores/initialState';
 import { sourceOfFrom } from '@/lib/followCloud';
+import type { StaleReason } from '@/lib/followStale';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { accountOf } from '@/search/runSaves';
 import { SAME_DEADLINE_SECONDS } from '@/search/strongerCheck';
@@ -63,6 +77,9 @@ const props = defineProps<{
   /** Right now's finish for the followed route came from a priced result (a Fast, Exact or Custom timeline, or Check
    *  exactly's): an instant answer never asks then. */
   followedPriced?: boolean;
+  /** The save contradicts the followed route (lib/followStale.ts `followStaleness`): asked as "Re-plan from this save".
+   *  Absent or null: the better-route rules only. */
+  stale?: StaleReason | null;
   zone?: string;
 }>();
 
@@ -117,7 +134,8 @@ function resultRoutes(): number[][] {
 }
 
 const prompt = computed<FollowPrompt | null>(() => {
-  if (!follows || !props.goalKey || !props.candidate) return null;
+  // From the press on, nothing of the offer (its words, its press and Keep mine go together; R7 red-team QA).
+  if (!follows || !props.goalKey || !props.candidate || follows.offerPressed(props.goalKey)) return null;
   const f = follows.followed(props.goalKey);
   if (!f) return null;
   const source = f.source ?? sourceOfFrom(f.from);
@@ -138,13 +156,22 @@ const prompt = computed<FollowPrompt | null>(() => {
     candidate: props.candidate,
     keptMine: kept.value,
     when: t => dateAt(t, nowSec, zone.value),
+    stale: props.stale ?? null,
   });
+});
+
+/** A "Re-plan from this save" press made the follow (stores/follow.ts `replanned`) and it is the answer shown. */
+const replanDone = computed(() => {
+  if (!follows || !props.goalKey || !props.candidate || !follows.replanned(props.goalKey)) return false;
+  const f = follows.followed(props.goalKey);
+  return !!f && f.chain.join(',') === props.candidate.chain.join(',');
 });
 
 function followIt(): void {
   const p = prompt.value;
   if (!p || !follows || !props.goalKey) return;
-  void follows.followBetter(props.goalKey, p, props.goal === 'date' ? props.deadline : null);
+  const deadline = props.goal === 'date' ? props.deadline : null;
+  void (p.stale ? follows.replanFromSave(props.goalKey, p, deadline) : follows.followBetter(props.goalKey, p, deadline));
 }
 function keepIt(): void {
   const p = prompt.value;

@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import type { AutoView, CompareView, Depth, ScienceView } from '@/lib/siteNav';
 import type { SweepRequest } from '@/search/sweepRequest';
 import type { ByDateRequest } from '@/search/byDateRequest';
 import { readSearchMode } from '@/lib/searchMode';
+import { readAutoScreen, writeAutoScreen } from '@/lib/autoScreen';
 
 export type PlannerTab = 'manual' | 'automatic' | 'leaderboard' | 'myruns' | 'science';
 
@@ -20,10 +21,15 @@ export const useUIStore = defineStore('ui', () => {
   /** The top tab (lib/siteNav.ts has the names and addresses): Manual, Auto, Compare, My runs, Science. */
   const plannerTab = ref<PlannerTab>('manual');
   /** Which Auto Planner screen, and how thorough the fastest-route one is. */
-  const autoView = ref<AutoView>('classic');
+  const lastScreen = readAutoScreen();
+  /** Opens on the screen the player was last on (lib/autoScreen.ts); Single run on a first visit. */
+  const autoView = ref<AutoView>(lastScreen?.view ?? 'classic');
   /** Simple (Smart search) unless the player last picked Advanced (lib/searchMode.ts); an address
    *  naming the depth (#/auto/fastest/full) wins over both. */
-  const fastestDepth = ref<Depth>(readSearchMode('fastest') === 'advanced' ? 'full' : 'smart');
+  const fastestDepth = ref<Depth>(
+    lastScreen?.depth ?? (readSearchMode('fastest') === 'advanced' ? 'full' : 'smart')
+  );
+  watch([autoView, fastestDepth], ([view, depth]) => writeAutoScreen(view, depth));
   /** Compare's view (a leaderboard tab, or Insights) and Science's. */
   const compareView = ref<CompareView>('eggday');
   const scienceView = ref<ScienceView>('how');
@@ -65,7 +71,15 @@ export const useUIStore = defineStore('ui', () => {
    * Saved answers or Saved runs entry loads the save it was priced from ('entry', `label` its name);
    * "Load a save file" loads a downloaded one ('file'). Cleared by the next fresh fetch.
    */
-  const runSaveLoaded = ref<{ te: number; backupAt: number; from?: 'run' | 'entry' | 'file'; label?: string } | null>(
+  const runSaveLoaded = ref<{
+    te: number;
+    backupAt: number;
+    from?: 'run' | 'entry' | 'file';
+    label?: string;
+    /** A save file loaded with no account on screen (chainSearch `loadSaveFile`): own instant answer, Follow and
+     *  everything online are off, and there is no latest save to go back to. */
+    noAccount?: boolean;
+  } | null>(
     null
   );
   /** Bumped to ask App.vue to open Classic with the chain a search just applied, in place (no reload). */

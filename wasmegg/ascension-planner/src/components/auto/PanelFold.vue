@@ -27,7 +27,7 @@
       <slot name="extra" />
       <span v-if="hint" class="min-w-0 font-bold text-slate-500 normal-case tracking-normal" :data-testid="`${id}-hint`">{{
         hint
-      }}</span>
+      }}<AnimatedDots v-if="hintBusy" /></span>
       <span aria-hidden="true" class="fold-chevron ml-auto pl-1 text-small leading-none text-slate-400">›</span>
     </summary>
     <slot />
@@ -36,6 +36,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
+import AnimatedDots from './AnimatedDots.vue';
 import { foldOpen, readFoldToggle, rememberFoldToggle, type FoldSection } from '@/lib/panelFold';
 
 const props = withDefaults(
@@ -45,6 +46,8 @@ const props = withDefaults(
     title: string;
     /** A one-line scope after the title, shown open or folded: "Nearby routes · ±3 TE · about 25 min". */
     hint?: string;
+    /** The hint is a "still working" one ("working it out"): the moving dots after it (AnimatedDots.vue, spec-dots). */
+    hintBusy?: boolean;
     /** A search on this screen is running (lib/panelFold.ts FOLD_OPENS_WHEN). */
     running?: boolean;
     /** An unfinished run is saved here (lib/panelFold.ts FOLD_OPENS_WHEN). */
@@ -54,8 +57,11 @@ const props = withDefaults(
     /** The test id of the <details> (its summary gets `-summary`); `fold-<section>` by default. */
     testid?: string;
     summaryClass?: string;
+    /** The screen's own open or closed, winning over the table and this browser's toggle (the Build-up tracker keeps
+     *  its own per account and ascension and listens to `playerToggle`); null: the rules above. */
+    force?: boolean | null;
   }>(),
-  { hint: '', running: false, unfinished: false, longRun: false, testid: '', summaryClass: 'text-body text-slate-700' }
+  { hint: '', hintBusy: false, running: false, unfinished: false, longRun: false, testid: '', summaryClass: 'text-body text-slate-700', force: null }
 );
 /** The player's own toggle (open or closed), for a screen that undoes an open it made (Stepping away?). */
 const emit = defineEmits<{ playerToggle: [open: boolean] }>();
@@ -64,7 +70,7 @@ const id = computed(() => props.testid || `fold-${props.section}`);
 /** The player's own last toggle here (this browser), or null. */
 const remembered = ref<boolean | null>(readFoldToggle(props.section));
 const wanted = computed(() =>
-  foldOpen(props.section, {
+  typeof props.force === 'boolean' ? props.force : foldOpen(props.section, {
     running: props.running,
     unfinished: props.unfinished,
     longRun: props.longRun,

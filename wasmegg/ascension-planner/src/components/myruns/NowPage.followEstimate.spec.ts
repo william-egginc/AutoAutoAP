@@ -10,10 +10,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, nextTick, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import type { LegSummary } from '@/search/types';
 import { instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import type { SnapSearch } from '@/lib/searchPlan';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
@@ -129,6 +131,7 @@ async function setup(
     },
   };
   writeSnapshot(key, {
+    rc: resultCode(),
     at: Date.now() - 60_000,
     header: { from: 100, to: 490 },
     tableUrl: TABLE,
@@ -272,7 +275,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     await nextTick();
     expect(calls).toHaveLength(0);
     const { text, html } = await render(page);
-    expect(text).toContain('Working out the instant answer for your setup…');
+    expect(text).toContain('Working out the instant answer for your setup...');
     expect(html).toMatch(/role="status"[^>]*data-testid="now-follow-instant"/);
     scope.stop();
   });

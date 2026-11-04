@@ -10,7 +10,7 @@
     <div class="mt-1 space-y-1 pl-3">
       <p v-if="letters" class="tabular-nums text-small text-slate-500">{{ letters }}</p>
       <p v-if="alreadyMaxed">Your gear is already maxed: your instant answer is the maxed one.</p>
-      <p v-else-if="status === 'running'" class="text-slate-400">Finding your route again with maxed gear…</p>
+      <p v-else-if="status === 'running'" class="text-slate-400">Finding your route again with maxed gear<AnimatedDots /></p>
       <p v-else-if="status === 'error'" class="text-slate-500">Couldn’t work that out this time.</p>
       <p v-else-if="text" class="font-bold text-emerald-800" data-testid="instant-maxed-result">{{ text }}</p>
       <p class="text-small text-slate-400">
@@ -22,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { showDateTime } from '@/lib/displayTime';
 import { RoutePool } from '@/search/routePool';
@@ -60,6 +61,8 @@ const open = ref(false);
 const status = ref<'idle' | 'running' | 'done' | 'error'>('idle');
 const maxed = ref<PricedOnTable | null>(null);
 const letters = ref('');
+/** By a date: when maxed gear reaches the player's own TE, once priced (the text adds a sentence with it). */
+const sameEndShown = ref<number | null>(null);
 /** Bumped when the answer changes, so a run for an older one is dropped. */
 let runs = 0;
 let pool: RoutePool | null = null;
@@ -72,6 +75,7 @@ const text = computed(() =>
         mine: props.mine,
         exact: props.exact ?? null,
         maxed: maxed.value,
+        sameEnd: sameEndShown.value,
         show: t => showDateTime(t, props.zone),
       })
     : ''
@@ -86,6 +90,7 @@ async function run(): Promise<void> {
   if (props.alreadyMaxed) return;
   const id = ++runs;
   status.value = 'running';
+  sameEndShown.value = null;
   if (!letters.value) void loadLetters();
   // One route worker of its own, as the nearest-gear bracket uses: the maxed table is cached by the
   // browser after the first load, so this is a few seconds of route finding.
@@ -128,6 +133,7 @@ async function run(): Promise<void> {
         sameEnd = undefined;
       }
       if (id !== runs) return;
+      sameEndShown.value = sameEnd ?? null;
     }
     emit('result', {
       at: Date.now(),
@@ -166,6 +172,7 @@ watch(
   () => {
     runs++;
     maxed.value = null;
+    sameEndShown.value = null;
     status.value = 'idle';
     if (open.value) void run();
   }

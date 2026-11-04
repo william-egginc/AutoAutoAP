@@ -24,6 +24,7 @@ import { exportPlanData } from './actions/io';
 import { initPlanFuture } from '@/lib/modes/planFuture';
 import { initLoadPlan } from '@/lib/modes/loadPlan';
 import { needsSaveSetUp, PLAN_NOT_SAVE } from '@/search/saveStart';
+import { saveState } from '@/lib/saveFreshness';
 
 const A = 'EI0000000000000000';
 const DAY = 86400;
@@ -114,6 +115,20 @@ describe('a Manual plan opened after the save was set up', () => {
     const before = cs.saveAgeNote;
     await initLoadPlan({ id: 'p1', name: 'to 218', timestamp: 1, data: libraryPlan() } as never);
     expect(cs.saveAgeNote).toEqual(before);
+  }, 120_000);
+
+  it('(2) the save-age banner reads the save’s times, not the plan’s (spec-saveage, the R6 snapshot rule)', async () => {
+    const { init, cs } = stores();
+    await initPlanFuture(A, saveAt(NOW), 'fresh');
+    const before = cs.saveClock;
+    expect(before).toMatchObject({ backupSeconds: NOW, farmStepSeconds: NOW - 1800, hasVirtueFarm: true });
+    await initLoadPlan({ id: 'p1', name: 'to 218', timestamp: 1, data: libraryPlan() } as never);
+    expect(init.setupSource).toBe('draft');
+    // The plan's farm is a day older and its redacted save has no time: neither reaches the banner.
+    expect(cs.saveClock).toEqual(before);
+    const state = saveState({ ...cs.saveClock!, nowSeconds: Math.floor(Date.now() / 1000), zone: 'UTC' })!;
+    expect(state.saveAgeSeconds).toBe(3 * 3600);
+    expect(state.siloUsedSeconds).toBe(3 * 3600 + 1800);
   }, 120_000);
 
   it('(3) the Manual Planner still opens the plan from its own start', async () => {

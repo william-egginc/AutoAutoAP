@@ -17,10 +17,12 @@ import { plainError } from '@/lib/plainError';
 import { markProvisionalDone, stillOpen } from '@/search/doneProvisional';
 import { defineStore } from 'pinia';
 import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
+import { deadlineTableRows, fastestTableRows, xlsxRowCap } from '@/utils/xlsxRows';
 import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapshot } from '@/lib/chartThin';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { hashID } from '@/lib/storage/db';
+import { answerIdentity, collapseSavedAnswers } from '@/lib/savedAnswerIdentity';
 import { accountHash, accountHashNow } from '@/lib/accountHash';
 import {
   isDefaultSetup,
@@ -303,6 +305,7 @@ import { existingOwnerToken, ownerToken } from '@/search/owner';
 import { fetchMineRows } from '@/search/myBoardRows';
 import { sentRowFor } from '@/search/sentOnBoard';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
+import { saveClockOf, saveState } from '@/lib/saveFreshness';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
 import { nextPrestigeAt } from '@/search/noPrestige';
 import {
@@ -312,7 +315,7 @@ import {
   readFirstAscension,
   type FirstAscension,
 } from '@/search/firstAscension';
-import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, type RunSummary } from '@/search/runLibrary';
+import { listRuns, saveRun, loadRun, deleteRun, defaultRunLabel, runIdentity, type RunSummary } from '@/search/runLibrary';
 import {
   holdRunSave,
   listRunSaves,
@@ -334,6 +337,7 @@ import {
   type EntrySave,
   type KeptSaveSummary,
 } from '@/search/keptSaves';
+import { blankDeviceIds, idFromScreen, isPlaceholderId, sameAccountId, scrubPlayerIds } from '@/lib/saveScrub';
 import { epicResearchDefs } from '@/lib/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
@@ -2545,6 +2549,10 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     await refreshKeptSaves(hash);
   }
 
+  /**
+   * Keep the run on screen in Saved runs. The same run saved again (search/runLibrary.ts `runIdentity`: same kind,
+   * target, route, save and inputs) replaces its entry, saved now, under the name it had unless one is typed.
+   */
   async function saveCurrentRun(playerId: string, label?: string): Promise<RunSummary | null> {
     if (!bestChain.value.length || bestDays.value <= 0) return null;
     const hash = await hashID(playerId);
@@ -2560,6 +2568,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const summary = await saveRun(hash, {
       save,
       label: label?.trim() || defaultRunLabel(finalTE.value, bestChain.value, bestDays.value),
+      named: !!label?.trim(),
       currentTE: runTEUsed ?? currentTE.value,
       // The run's own target -- its chain ends there -- not the target box as it reads now, which the
       // player may have changed since the run finished.
@@ -2588,6 +2597,30 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     await pruneKept(hash);
     return summary;
   }
+  /** The run on screen is in Saved runs (Save this run says Saved ✓): what `saveCurrentRun` would file it under. The
+   *  save is read as there (its stored key, else when the game took it); a save only `entrySaveFor` finds, and no
+   *  key, reads as none here, so the button may say Save this run for a run that is saved: pressing it then
+   *  refreshes the entry, never a second one. */
+  const currentRunSaved = computed(() => {
+    if (!bestChain.value.length || bestDays.value <= 0) return false;
+    const opened = openedRun.value;
+    const inputsKey = (opened ? opened.inputsKey : runInputsKey) || undefined;
+    const backupAt = opened
+      ? (opened.save?.backupAt ?? null)
+      : (accountUsed?.backupTime ?? (runBackupUsed as { approxTime?: number } | null)?.approxTime ?? null);
+    const fp = opened?.fingerprint ?? (runFingerprint || (currentPlayerId ? fingerprint(currentPlayerId) : ''));
+    const key = runIdentity({
+      finalTE: bestChain.value[bestChain.value.length - 1] ?? finalTE.value,
+      effort: effort.value,
+      bestChain: bestChain.value,
+      space: searchSpace.value ?? undefined,
+      fingerprint: fp || undefined,
+      inputsKey,
+      save: typeof backupAt === 'number' ? { key: '', te: 0, backupAt } : null,
+    });
+    // No fingerprint known here (a result shown before any run recorded one): matched on the rest.
+    return key !== null && savedRuns.value.some(r => runIdentity(fp ? r : { ...r, fingerprint: undefined }) === key);
+  });
 
   /**
    * Reload a saved run into the panel as a finished result.
@@ -3692,6 +3725,38 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const s = legSpills.deadline;
     return !!s && !s.stopped && deadlineAll.length > 0 && !!deadlineAllPriced;
   }
+  /**
+   * Whether a screen's card offers its table for Excel (.xlsx, composables/useRunDownloads.ts `downloadXlsx`): a
+   * finished result whose top-routes CSV (`exportCsvChunks`, `deadlineCsvChunksNow`) has at most `xlsxRowCap()`
+   * rows (utils/xlsxRows.ts). Never mid-run: counting walks every route, so a Fastest run counts only once stopped.
+   */
+  const xlsxOfferedNow = computed(() => {
+    const cap = xlsxRowCap();
+    const fastest = (() => {
+      if (isRunning.value) return false;
+      // At least a row a route: a run over the cap is answered without walking it.
+      if (csvRows.value > cap) return false;
+      const own = allEntries();
+      if (own.length) return own.length <= cap && fastestTableRows(own.map(e => e.legs.length)) <= cap;
+      const r = resumable.value;
+      if (!r || r.durations.length > cap) return false;
+      const best = r.bestChain.join(',');
+      return r.durations.length > 0 && fastestTableRows(r.durations.map(([key]) => (key === best ? r.bestLegs.length : 0))) <= cap;
+    })();
+    const deadline = (() => {
+      const r = deadlineResult.value;
+      if (!r) return false;
+      const own = deadlineAll.length > 0;
+      const routes = own ? deadlineAll : r.routes;
+      const priced = own && deadlineAllPriced?.size ? deadlineAllPriced.size : null;
+      if ((priced ?? 0) > cap) return false;
+      return deadlineTableRows(routes.map(x => x.legs?.length ?? 0), DEADLINE_LEG_ROUTES, priced) <= cap;
+    })();
+    return { fastest, deadline };
+  });
+  function xlsxOffered(kind: 'fastest' | 'deadline'): boolean {
+    return xlsxOfferedNow.value[kind];
+  }
   /** Write what is new and make the spill durable; its length, for the checkpoint. */
   async function commitSpill(entries: readonly CacheEntry[]): Promise<number> {
     spillNew(entries);
@@ -3834,8 +3899,9 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * can agree with the real one right up until the day it does not.
    */
   /**
-   * The save's age against the plan start (lib/saveAge.ts): the farm is caught up to the start at
-   * its current rate, up to what its silos hold. Past that, the sync is old or something was missed.
+   * The save's last sync against the plan start (lib/saveAge.ts): the farm is caught up to the start at
+   * its current rate, up to what its silos hold. A plan-start fact: a warning only for a start before the
+   * sync. Whether the save itself is old is the save-age banner's (`saveClock`, spec-saveage).
    */
   const saveAgeNote = computed(() => {
     const iss = useInitialStateStore();
@@ -3851,6 +3917,23 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       !!farm
     );
   });
+
+  /**
+   * The save-age banner's inputs (lib/saveFreshness.ts `saveClockOf`, spec-saveage): the save's backup time, its
+   * virtue farm's last step and silos, read from the save itself. While the stores hold a Manual plan, the kept
+   * save (search/saveStart.ts, the R6 snapshot rule), never the plan's redacted save or its farm.
+   */
+  const saveClock = computed(() => {
+    const kept = saveStartNow();
+    return saveClockOf(kept ? kept.context.rawBackup : useInitialStateStore().rawBackup);
+  });
+  /** The banner's red, said in a search's run notes (the banner itself is on the screen). */
+  function saveRunNote(): string | null {
+    const c = saveClock.value;
+    if (!c) return null;
+    const zone = useAutoPlannerStore().timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return saveState({ ...c, nowSeconds: Math.floor(Date.now() / 1000), zone })?.runNote ?? null;
+  }
 
   const setupIssues = computed<HealthIssue[]>(() => {
     const blank = { artifacts: [], stones: [], delivery: [], earnings: [], currentTE: 0, backupTE: 0 };
@@ -6719,6 +6802,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const review = reviewRunInputs(startInputs);
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
     if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
+    const staleSave = saveRunNote();
+    if (staleSave) runNotes.value.push(staleSave);
     const blocking = review.filter(i => i.level === 'error');
     // The inputs moved during the awaits above (a backup landing and rewriting the start boxes, say).
     // The replayed chains were priced under `runFingerprint`; pricing the rest under different
@@ -7056,13 +7141,25 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     if (!playerId) return;
     const hash = await hashID(playerId);
     const owner = await accountHash(playerId);
-    savedAnswers.value = await listSavedAnswers(hash);
+    savedAnswers.value = await listSavedAnswersOnce(hash);
     savedAnswersOwner = owner;
     await refreshKeptSaves(hash);
   }
-  /** Keep the answer on screen under a name, with the save it was priced from (`entrySaveFor`). */
-  async function saveCurrentAnswer(playerId: string, label: string): Promise<void> {
-    if (!playerId || !deadlineResult.value) return;
+  /** The saved answers, each answer once (lib/savedAnswerIdentity.ts): duplicates kept before 29 Oct 2026 (the
+   *  card's Save answer and Save this answer, both pressed) are deleted here, the first saved kept. */
+  async function listSavedAnswersOnce(hash: string): Promise<SavedAnswer[]> {
+    const list = await listSavedAnswers(hash);
+    const { kept, dropped } = collapseSavedAnswers(list);
+    for (const id of dropped) await deleteSavedAnswer(hash, id);
+    return kept;
+  }
+  /**
+   * Keep the answer on screen under a name, with the save it was priced from (`entrySaveFor`). The same answer saved
+   * again (same date, route and save: lib/savedAnswerIdentity.ts) replaces its entry, saved now, under the name it
+   * had unless `named` (a name typed for it). Returns the name it is kept under.
+   */
+  async function saveCurrentAnswer(playerId: string, label: string, named = false): Promise<string> {
+    if (!playerId || !deadlineResult.value) return label;
     const hash = await hashID(playerId);
     const result = JSON.parse(JSON.stringify(deadlineResult.value)) as SavedDeadlineResult;
     const save = await entrySaveFor(hash, {
@@ -7070,10 +7167,21 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       backupAt: result.backupAt ?? (result.account?.backupTime as number | null | undefined) ?? null,
       te: result.te,
     });
-    await saveAnswer(hash, result, label, Date.now(), save);
-    savedAnswers.value = await listSavedAnswers(hash);
+    const key = answerIdentity(result);
+    const same = key === null ? [] : (await listSavedAnswers(hash)).filter(a => answerIdentity(a.result) === key);
+    const first = collapseSavedAnswers(same).kept[0];
+    const keptLabel = first && !named ? first.label : label;
+    for (const a of same) await deleteSavedAnswer(hash, a.id);
+    const saved = await saveAnswer(hash, result, keptLabel, Date.now(), save ?? first?.save ?? save);
+    savedAnswers.value = await listSavedAnswersOnce(hash);
     await pruneKept(hash);
+    return saved.label;
   }
+  /** The answer on screen is in Saved answers (both its save buttons say Saved ✓). */
+  const currentAnswerSaved = computed(() => {
+    const key = answerIdentity(deadlineResult.value);
+    return key !== null && savedAnswers.value.some(a => answerIdentity(a.result) === key);
+  });
   /** Show a saved answer as the current one (it doesn't re-run anything). */
   function openSavedAnswer(id: string): void {
     const a = savedAnswers.value.find(x => x.id === id);
@@ -7095,7 +7203,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   async function removeSavedAnswer(playerId: string, id: string): Promise<void> {
     const hash = await hashID(playerId);
     await deleteSavedAnswer(hash, id);
-    savedAnswers.value = await listSavedAnswers(hash);
+    savedAnswers.value = await listSavedAnswersOnce(hash);
     await pruneKept(hash);
   }
 
@@ -7211,11 +7319,14 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    * from it carries that save's own moment and TE (`accountFields` reads the loaded save), so the
    * board's backup-age and what-if rules see it as it is.
    */
+  const ANOTHER_ACCOUNTS_SAVE = "That save is another account's than the one loaded now, so it wasn't loaded.";
   async function loadOlderSave(
     playerId: string,
     raw: unknown,
     o: {
       from: 'entry' | 'file';
+      /** A file loaded with no account on screen (`loadSaveFile`). */
+      noAccount?: boolean;
       label?: string;
       te?: number;
       planStart?: number;
@@ -7224,10 +7335,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   ): Promise<boolean> {
     const ui = useUIStore();
-    const now = accountOf(toRaw(useInitialStateStore().rawBackup));
+    // A loaded save holding the stand-in (a downloaded file's ID) names no account to compare with (R7 red team 2).
+    const loaded = toRaw(useInitialStateStore().rawBackup) as { eiUserId?: string | null } | null;
+    const now = isPlaceholderId(loaded?.eiUserId) ? '' : accountOf(loaded);
     const then = accountOf(raw);
     if (now && then && now !== then) {
-      olderSaveError.value = "That save is another account's than the one loaded now, so it wasn't loaded.";
+      olderSaveError.value = ANOTHER_ACCOUNTS_SAVE;
       return false;
     }
     try {
@@ -7250,6 +7363,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       backupAt,
       from: o.from,
       ...(o.label ? { label: o.label } : {}),
+      ...(o.noAccount ? { noAccount: true } : {}),
     };
     ownSaveBackup = toRaw(useInitialStateStore().rawBackup);
     // Banners about the previous results (a carry-on's older save, its re-check) don't apply.
@@ -7294,7 +7408,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     }
   }
 
-  /** A saved entry's kept save as a file: the game's backup as JSON, named by TE and date (no id). */
+  /** A saved entry's kept save as a file: the game's backup as JSON, named by TE and date, with every player ID in it
+   *  replaced (lib/saveScrub.ts; "Load a save file" takes the account from the screen). */
   async function entrySaveFile(playerId: string, save: EntrySave): Promise<{ name: string; text: string } | null> {
     olderSaveError.value = null;
     const raw = await loadKeptSave(await hashID(playerId), save.key);
@@ -7302,16 +7417,18 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       olderSaveError.value = `That save is no longer kept on ${thisDevice()}.`;
       return null;
     }
-    return { name: saveFileName(save, planTimezone()), text: backupText(raw) };
+    // The device identifiers blank too (R7 red team, finding 1).
+    return { name: saveFileName(save, planTimezone()), text: scrubPlayerIds(backupText(blankDeviceIds(raw))) };
   }
 
-  /** "Load a save file": a downloaded save (or the game's backup as JSON) as the active save. */
+  /**
+   * "Load a save file": a downloaded save (or the game's backup as JSON) as the active save. Its account is the one
+   * on screen, never the file's (lib/saveScrub.ts `idFromScreen`): a downloaded save has every player ID replaced, so
+   * the save loads for that account as the original would (its own instant answer, Follow, settings). With no account
+   * on screen it loads with none, the instant answer still worked out, and RunSaveNotice says what is off.
+   */
   async function loadSaveFile(playerId: string, text: string): Promise<boolean> {
     olderSaveError.value = null;
-    if (!playerId) {
-      olderSaveError.value = 'Enter your player ID at the top of the page first.';
-      return false;
-    }
     if (busy.value || useUIStore().loading) {
       olderSaveError.value = 'A search is running or a save is loading. Try again when it is done.';
       return false;
@@ -7323,11 +7440,26 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       olderSaveError.value = plainError(e, 'That file could not be read as a save.');
       return false;
     }
+    // The account on screen, in the form its loaded save names it (lower case or "mk2!" on screen), so the account
+    // check in `loadOlderSave` compares like with like; the screen's own form when the loaded save names none (or
+    // the stand-in). Every "Load a save file" (SaveFileBar.vue, wherever it shows) comes through here (R7 red team 2).
+    const screen = (playerId ?? '').trim();
+    const loadedId = String((toRaw(useInitialStateStore().rawBackup) as { eiUserId?: string | null } | null)?.eiUserId ?? '').trim();
+    // A scrubbed file (the stand-in, or no ID) is this account's, so it takes the loaded save's own ID whenever that
+    // names one, even when the screen's ID differs from it (QA's r7ids save: R7 red team 2, recheck).
+    const fileId = String((raw as { eiUserId?: string | null }).eiUserId ?? '').trim();
+    const scrubbed = !fileId || isPlaceholderId(fileId);
+    const loadedReal = /^EI\d{16}$/i.test(loadedId.replace(/^mk2!/i, '')) && !isPlaceholderId(loadedId);
+    const who = idFromScreen(raw, sameAccountId(loadedId, screen) || (screen && scrubbed && loadedReal) ? loadedId : screen);
+    if (who === 'other') {
+      olderSaveError.value = ANOTHER_ACCOUNTS_SAVE;
+      return false;
+    }
     preparing.value = true;
     try {
       // What the fetch does to every save it hands over (fetchBackup.ts); a no-op when already done.
       resolveColleggtibleContracts(raw);
-      return await loadOlderSave(playerId, raw, { from: 'file' });
+      return await loadOlderSave(who === 'none' ? '' : screen, raw, { from: 'file', noAccount: who === 'none' });
     } finally {
       preparing.value = false;
     }
@@ -8997,6 +9129,8 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     const review = reviewRunInputs(startInputs);
     runNotes.value = review.filter(i => i.level === 'warning').map(i => i.message);
     if (saveAgeNote.value?.level === 'warning') runNotes.value.push(saveAgeNote.value.text);
+    const staleSave = saveRunNote();
+    if (staleSave) runNotes.value.push(staleSave);
     const blocking = review.filter(i => i.level === 'error');
     if (blocking.length) {
       error.value = blocking[0].message;
@@ -9782,6 +9916,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     savedAnswers,
     refreshSavedAnswers,
     saveCurrentAnswer,
+    currentAnswerSaved,
     openSavedAnswer,
     removeSavedAnswer,
     keptSaves,
@@ -9837,6 +9972,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     savedRuns,
     refreshSavedRuns,
     saveCurrentRun,
+    currentRunSaved,
     openSavedRun,
     deleteSavedRun,
     seedOverride,
@@ -9875,6 +10011,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     buildRunDiagnostics,
     setupIssues,
     saveAgeNote,
+    saveClock,
     setupFacts,
     backupTE,
     plannerTE,
@@ -9917,6 +10054,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     setLegSpillOpener,
     legSpillStatus,
     csvHasEveryRoute,
+    xlsxOffered,
     legSpillInfo,
     buildRunSubmission,
     buildDeadlineSubmission,

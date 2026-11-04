@@ -13,7 +13,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import SaveAgeStrip from '@/components/myruns/SaveAgeStrip.vue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useUIStore } from '@/stores/ui';
-import { saveStrip } from '@/lib/saveFreshness';
+import { saveState } from '@/lib/saveFreshness';
 import { NEWER_ON_SERVER, newestOnServerLine, resetServerSaveChecks } from '@/lib/serverSave';
 import { LOAD_LATEST_SAVE, useAutoSaveStrip } from '@/composables/useAutoSaveStrip';
 
@@ -25,11 +25,16 @@ const ZONE = 'America/Denver';
 const NOW = Date.UTC(2026, 9, 27, 18, 0) / 1000;
 const H = 3600;
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
-const backupAt = (t: number) => ({ approxTime: t, settings: { lastBackupTime: t }, game: {} });
+const backupAt = (t: number, farmAt?: number) => ({
+  approxTime: t,
+  settings: { lastBackupTime: t },
+  game: { epicResearch: [{ id: 'silo_capacity', level: 20 }] },
+  ...(farmAt ? { farms: [{ eggType: 51, lastStepTime: farmAt, silosOwned: 8 }] } : {}),
+});
 
-function loadSave(t: number) {
+function loadSave(t: number, farmAt?: number) {
   const initial = useInitialStateStore();
-  initial.$patch({ rawBackup: backupAt(t) as never, hasData: true, lastBackupTime: t });
+  initial.$patch({ rawBackup: backupAt(t, farmAt) as never, hasData: true, lastBackupTime: t });
   useUIStore().screenPlayerId = ID;
 }
 async function settle() {
@@ -72,7 +77,7 @@ describe('the save strip on the Auto Planner screens', () => {
     await settle();
     expect(s.server.value).toEqual({ kind: 'newer', serverSeconds: NOW - 5 * 60 });
     expect(s.shown.value).toBe(true);
-    const html = await renderHtml(SaveAgeStrip, { strip: s.strip.value, server: s.server.value, now: NOW, loading: false, testid: 'auto-save-strip-fastest', slim: true, loadWords: LOAD_LATEST_SAVE });
+    const html = await renderHtml(SaveAgeStrip, { state: s.state.value, server: s.server.value, now: NOW, loading: false, testid: 'auto-save-strip-fastest', slim: true, loadWords: LOAD_LATEST_SAVE });
     expect(html).toContain('data-testid="auto-save-strip-fastest"');
     expect(textOf(html)).toContain(`${NEWER_ON_SERVER} ›`);
     stop();
@@ -84,7 +89,7 @@ describe('the save strip on the Auto Planner screens', () => {
     const { s, stop } = mountStrip();
     await settle();
     expect(s.server.value.kind).toBe('newest');
-    const html = await renderHtml(SaveAgeStrip, { strip: s.strip.value, server: s.server.value, now: NOW, loading: false, testid: 'auto-save-strip-by-date', slim: true, loadWords: LOAD_LATEST_SAVE });
+    const html = await renderHtml(SaveAgeStrip, { state: s.state.value, server: s.server.value, now: NOW, loading: false, testid: 'auto-save-strip-by-date', slim: true, loadWords: LOAD_LATEST_SAVE });
     expect(textOf(html)).toContain(newestOnServerLine(NOW - 12 * H, NOW));
     expect(html).not.toContain(LOAD_LATEST_SAVE);
     stop();
@@ -97,7 +102,7 @@ describe('the save strip on the Auto Planner screens', () => {
     await settle();
     expect(s.server.value.kind).toBe('unknown');
     expect(s.shown.value).toBe(true);
-    const html = await renderHtml(SaveAgeStrip, { strip: saveStrip(NOW - 3 * H, NOW, ZONE), server: s.server.value, now: NOW, loading: false, testid: 'auto-save-strip-fastest', slim: true, loadWords: LOAD_LATEST_SAVE });
+    const html = await renderHtml(SaveAgeStrip, { state: saveState({ backupSeconds: NOW - 3 * H, hasVirtueFarm: false, nowSeconds: NOW, zone: ZONE }), server: s.server.value, now: NOW, loading: false, testid: 'auto-save-strip-fastest', slim: true, loadWords: LOAD_LATEST_SAVE });
     expect(textOf(html)).toContain('Load latest save ›');
     const button = html.match(/<button[^>]*data-testid="now-save-fresh"[^>]*>/)![0];
     expect(button).toContain('min-h-[44px] sm:min-h-0'); // 44 px on a phone, the site's tap-target rule
@@ -112,6 +117,23 @@ describe('the save strip on the Auto Planner screens', () => {
     expect(s.shown.value).toBe(false);
     expect(requestSave).not.toHaveBeenCalled();
     stop();
+  });
+
+  it('not quiet under 10 minutes when the farm is out of date: a check-in that didn’t sync (spec-saveage)', async () => {
+    requestSave.mockResolvedValue({ backup: backupAt(NOW) });
+    loadSave(NOW - 4 * 60, NOW - 22 * H);
+    const { s, stop } = mountStrip();
+    await settle();
+    expect(s.state.value?.tone).toBe('red');
+    expect(s.state.value?.namesFarm).toBe(true);
+    expect(s.shown.value).toBe(true);
+    stop();
+  });
+
+  it('Single run shows the same banner in its Setup bar (its screen is Joo’s, the bar is ours)', () => {
+    const setup = read('YourSetup.vue');
+    expect(setup).toMatch(/v-if="!docked && !issuesOnly && screen === 'classic'"[^>]*data-testid="setup-save-banner"/);
+    expect(setup).toContain('<AutoSaveStrip screen="classic" />');
   });
 
   it('one server check per page load, however many screens show the strip', async () => {

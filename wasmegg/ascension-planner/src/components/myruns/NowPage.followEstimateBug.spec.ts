@@ -19,9 +19,11 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, markRaw, nextTick, ref } from 'vue';
 import { createPinia, getActivePinia, setActivePinia } from 'pinia';
-import { renderHtml, textOf } from '@/test/renderComponent';
+// The moving dots (AnimatedDots, spec-dots 1 Nov 2026) read as the "..." they draw.
+import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import RightNowCard from './RightNowCard.vue';
 import { instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import { INSTANT_RULES, savedAnswerFits, tablesIdentity } from '@/search/instantTables';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
@@ -87,6 +89,7 @@ async function jordan() {
   const goalKey = `eggday-${nextEggDayYear()}`;
   // The old build's snapshot: its own route (200 → 238) and no `pricing` field at all.
   writeSnapshot(instantSnapKey(instantKeyFromStores(eggDayAt, store.finalTE)), {
+    rc: resultCode(),
     at: Date.now() - 60_000,
     header: { from: 100, to: 490 },
     tableUrl: TABLE,
@@ -184,7 +187,7 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     expect(calls).toHaveLength(0);
     const { text } = await render(page);
     expect(text).toContain('This route was set with different awake hours.');
-    expect(text).toContain('Working out the instant answer for your setup…');
+    expect(text).toContain('Working out the instant answer for your setup...');
     expect(text).not.toContain('Open Highest TE by a date once');
     expect(text).not.toContain('No timeline for your route on this save yet');
     scope.stop();
@@ -198,7 +201,7 @@ describe("Jordan's Egg Day follow: the estimate whenever this save has an instan
     expect(calls[0].chain).toEqual([225, 300]);
     expect(page.follow.value?.estimating).toBe('working');
     let r = await render(page);
-    expect(r.text).toContain("Working out your route's times from the instant answer's data…");
+    expect(r.text).toContain("Working out your route's times from the instant answer's data...");
     expect(r.text).toContain('This route was set with different awake hours.');
     calls[0].resolve(route(now, eggDayAt - 4.5 * H));
     await vi.waitFor(() => expect(page.follow.value?.price).toBe('estimate'));
@@ -267,8 +270,8 @@ describe('the pricing record and the saved answers from before it', () => {
     expect(INSTANT_RULES).toBe('2026-10-26-boxprestige');
     const now = tablesIdentity([], ['table-v2.bin']);
     const before = now!.replace(`rules=${INSTANT_RULES}`, 'rules=2026-10-24-heldfix');
-    expect(savedAnswerFits({ tables: before }, 1, now)).toBe(false);
-    expect(savedAnswerFits({ tables: now }, 1, now)).toBe(true);
+    expect(savedAnswerFits({ tables: before, rc: resultCode() }, 1, now)).toBe(false);
+    expect(savedAnswerFits({ tables: now, rc: resultCode() }, 1, now)).toBe(true);
   });
 
   it('InstantRoute keeps the record the moment the first answer is in, and again when a saved one is put back', () => {

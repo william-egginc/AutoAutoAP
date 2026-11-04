@@ -2,7 +2,7 @@
  * "How sure" on My runs' saved-answer tiles (spec myruns-now v3, section 4): High, Medium or Low with one reason
  * line, never a percentage (a real probability needs calibration data still being collected). First match wins:
  *
- *   Low     an older simulator; hours used differ from Your setup now; under LOW_SPARE_HOURS to spare (By a
+ *   Low     an older simulator; an instant answer an older build of the page worked out (Release 7); hours used differ from Your setup now; under LOW_SPARE_HOURS to spare (By a
  *           date); the save or the answer older than STALE_DAYS; the TE has moved since.
  *   High    Exhaustive complete; By a date with Check exactly confirming the instant answer's TE plus
  *           HIGH_SPARE_HOURS or more to spare and the runner-up more than HIGH_RUNNER_UP_DATE_HOURS behind,
@@ -68,6 +68,9 @@ export interface SureInput {
   /** The older of the save and the answer, in days. */
   ageDays: number;
   olderSimulator?: boolean;
+  /** An instant answer an older build of the page worked out (lib/resultCode.ts): it is worked out again when the
+   *  instant answer is next opened. */
+  olderCode?: boolean;
   hoursChanged?: boolean;
   /** The loaded save's TE is not the one the answer started from. */
   teMoved?: boolean;
@@ -108,6 +111,8 @@ export function howSure(i: SureInput): Sure {
   const what = i.how === 'instant' ? 'instant answer' : i.how === 'check' ? 'simulator check' : `${LEVEL_WORDS[i.level ?? 'quick']} search`;
   // Low.
   if (i.olderSimulator) return { level: 'low', reason: 'priced by an older simulator' };
+  // DRAFT words (Release 7 recalc, for the Words review).
+  if (i.olderCode) return { level: 'low', reason: 'worked out by an older version of this page' };
   if (i.hoursChanged) return { level: 'low', reason: 'priced before your awake hours changed' };
   if (i.goal === 'date' && typeof i.spareHours === 'number' && i.spareHours < LOW_SPARE_HOURS)
     return { level: 'low', reason: `only ${hours(Math.max(0, i.spareHours))} to spare` };

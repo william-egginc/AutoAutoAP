@@ -48,7 +48,8 @@ const plan: NowPlan = {
   whatIf: null,
 };
 const at = (nowSeconds: number, o: Partial<Parameters<typeof phaseNow>[0]> = {}) =>
-  phaseNow({ onVirtue: true, plan, nowSeconds, setMatch: 'mix', saveElr: 1e12, ...o });
+  // The save on the plan's egg at that time (integrity before H1, kindness after): the plan agrees with it.
+  phaseNow({ onVirtue: true, plan, nowSeconds, setMatch: 'mix', saveEgg: nowSeconds < H1 ? 'integrity' : 'kindness', saveElr: 1e12, ...o });
 
 describe("Right now's badge", () => {
   it("finds Joo's H1 step: Humility, then straight to Kindness", () => {
@@ -69,9 +70,12 @@ describe("Right now's badge", () => {
 
   it("the rate: the save's when it wears that phase's set, else the plan's projected one", () => {
     expect(at(NOW, { setMatch: 'earnings' })).toEqual({ phase: 'building', elr: 1e12, elrFrom: 'save' });
-    expect(at(NOW, { setMatch: 'production' })).toEqual({ phase: 'building', elr: null, elrFrom: null });
+    // The set worn decides the phase (30 Oct 2026: before, the plan's H1 step did, and the badge flipped).
+    expect(at(NOW, { setMatch: 'production' })).toEqual({ phase: 'producing', elr: 1e12, elrFrom: 'save' });
     expect(at(H1 + 60, { setMatch: 'production' })).toEqual({ phase: 'producing', elr: 1e12, elrFrom: 'save' });
-    expect(at(H1 + 60, { setMatch: 'earnings' })).toEqual({ phase: 'producing', elr: 2e12, elrFrom: 'projected' });
+    expect(at(H1 + 60, { setMatch: 'earnings' })).toEqual({ phase: 'building', elr: 1e12, elrFrom: 'save' });
+    // No rate from the save: the agreeing plan's projected one.
+    expect(at(H1 + 60, { setMatch: 'production', saveElr: null })).toEqual({ phase: 'producing', elr: 2e12, elrFrom: 'projected' });
     // "A mix": the plan's projected rate for either phase when it has legs.
     expect(at(NOW, { setMatch: 'mix' })?.elrFrom).toBe('projected');
   });
@@ -87,6 +91,59 @@ describe("Right now's badge", () => {
   it('not on virtue (or not known): no badge', () => {
     expect(at(NOW, { onVirtue: false })).toBeNull();
     expect(at(NOW, { onVirtue: null })).toBeNull();
+  });
+
+  // 30 Oct 2026 (alt A1): the badge flipped Building/Producing with which request finished first. The save wins.
+  describe('the save wins over the followed route', () => {
+    const D = 24 * H;
+    // A followed route planned from an older state: still on Kindness now, C3 in an hour, H1 a day out.
+    const stale: NowPlan = {
+      ...plan,
+      chain: [209, 287, 490],
+      legs: [
+        leg(
+          NOW - 10 * H,
+          NOW + 3 * D,
+          209,
+          [
+            { at: NOW + H, egg: 'curiosity', fromEgg: 'kindness', te: 0 },
+            { at: NOW + D, egg: 'humility', fromEgg: 'curiosity', te: 0 },
+            { at: NOW + D, egg: 'kindness', fromEgg: 'humility', te: 0 },
+          ],
+          3e12
+        ),
+        leg(NOW + 3 * D + H, NOW + 20 * D, 490, []),
+      ],
+      planStart: NOW - 10 * H,
+    };
+    const tableOnly: NowPlan = {
+      ...stale,
+      legs: null,
+      tableLegs: [
+        { start: NOW - 10 * H, end: NOW + 3 * D, from: 146, to: 209, endTE: 209 },
+        { start: NOW + 3 * D + H, end: NOW + 20 * D, from: 209, to: 490, endTE: 490 },
+      ],
+    };
+    const alt = (o: Partial<Parameters<typeof phaseNow>[0]> = {}) =>
+      phaseNow({ onVirtue: true, plan: stale, nowSeconds: NOW, setMatch: 'production', saveEgg: 'kindness', saveElr: 1e12, ...o });
+
+    it('production set on, the plan saying a future Humility: Producing, with or without the simulated legs', () => {
+      expect(alt()).toEqual({ phase: 'producing', elr: 1e12, elrFrom: 'save' });
+      expect(alt({ plan: tableOnly })).toEqual(alt());
+    });
+
+    it('earnings set on: Building, whatever the plan says', () => {
+      expect(alt({ setMatch: 'earnings' })?.phase).toBe('building');
+      expect(at(H1 + 60, { setMatch: 'earnings', saveEgg: 'kindness' })?.phase).toBe('building');
+    });
+
+    it("the save's egg isn't the plan's at now: the plan is ignored, the set decides", () => {
+      // On a mix: the plan alone would say Building (H1 ahead); on another egg it can't say.
+      expect(alt({ setMatch: 'mix', saveEgg: 'kindness' })?.phase).toBe('building');
+      expect(alt({ setMatch: 'mix', saveEgg: 'curiosity' })).toBeNull();
+      expect(alt({ setMatch: 'mix', saveEgg: null })).toBeNull();
+      expect(alt({ setMatch: 'production', saveEgg: 'curiosity' })?.phase).toBe('producing');
+    });
   });
 
   it('its words', () => {

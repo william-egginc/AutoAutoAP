@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { getLocalTimestampInTimezone } from '@/lib/events';
 import { buildChainsCsv, buildDeadlineCsv } from '@/search/csv';
 import { csvZone, legsFromRunCsv, unixFromZoned } from '@/search/runLegsCsv';
-import { boardRunFor, rowFoundLevel, searchFromRun } from './boardRunPlan';
+import { boardRunFor, rowFoundLevel, runMetaOf, searchFromRun } from './boardRunPlan';
 import { planFromSearch } from './searchPlan';
 import { planEvents } from './nowPlan';
 import type { BoardRow } from './leaderboardRank';
@@ -133,5 +133,31 @@ describe('the followed route’s run among the account’s rows', () => {
     expect(p).toMatchObject({ exact: true, from: { level: 'Fast', otherBrowser: true } });
     expect(planEvents(p, PLAN_START).filter(e => e.kind === 'shift')[0]).toMatchObject({ egg: 'kindness' });
     expect(searchFromRun(row(), null)).toBeNull();
+  });
+});
+
+describe('what a board run keeps for the pace badge (1 Nov 2026: "Can\'t tell: saved without each egg\'s TE")', () => {
+  const r = { id: 'run-1', chain: [197, 219], currentTE: 195, finalTE: 219, durationDays: 3 } as BoardRow;
+  it('the row’s own per-egg TE and start TE, with the save it was priced from', () => {
+    expect(runMetaOf({ ...r, teByEgg: [40, 39, 38, 40, 38] } as BoardRow, 1234)).toEqual({
+      backupTime: 1234,
+      teByEgg: [40, 39, 38, 40, 38],
+      startTE: 195,
+    });
+  });
+  it('a row without teByEgg (or a malformed one) keeps just the start TE; without that, nothing', () => {
+    expect(runMetaOf(r, null)).toEqual({ backupTime: 0, startTE: 195 });
+    expect(runMetaOf({ ...r, teByEgg: [1, 2] } as BoardRow, 5)).toEqual({ backupTime: 5, startTE: 195 });
+    expect(runMetaOf({ ...r, currentTE: undefined } as BoardRow, 5)).toEqual({ backupTime: 5 });
+  });
+});
+
+describe('wiring', () => {
+  it('a board run’s plan meta carries them (useBoardRunLegs → useNowPage)', async () => {
+    const fs = await import('node:fs');
+    const hook = fs.readFileSync(new URL('../composables/useBoardRunLegs.ts', import.meta.url), 'utf8');
+    expect(hook).toContain('meta: runMetaOf(row, runSaveSeconds(row))');
+    const page = fs.readFileSync(new URL('../composables/useNowPage.ts', import.meta.url), 'utf8');
+    expect(page).toContain('...run.meta');
   });
 });

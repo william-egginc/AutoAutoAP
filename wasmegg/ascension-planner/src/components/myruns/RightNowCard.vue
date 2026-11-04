@@ -26,7 +26,8 @@
   "Go back to the instant answer". A result that doesn't take over is named in one line. Recalculate is "Run Fast"
   (lib/recalc.ts): the goal's screen with Fast selected.
   FOLLOWED ROUTE SAVED ONLINE (23 Oct 2026, lib/followCloud.ts): a followed route is never replaced by a new result; a
-  newer, better one is asked about (BetterRoutePrompt.vue: "Follow it" / "Keep mine"). "Earlier versions"
+  newer, better one is asked about (BetterRoutePrompt.vue: "Follow it" / "Keep mine"); when the save contradicts the
+  followed route (lib/followStale.ts), the planner's answer for this save is offered ("Re-plan from this save"). "Earlier versions"
   (FollowHistory.vue) lists the last 5 saved for the goal, each with Restore. A route read back from online that was
   set with other hours or another simulator says so in one quiet line.
   A FOLLOWED ROUTE KEEPS ITS TIMELINE (23 Oct 2026, lib/followPrice.ts step 0): following this save's instant answer's own
@@ -80,7 +81,7 @@
         @click="emit('select', g.key)"
       >
         <span class="block text-small font-bold">{{ g.label }}</span>
-        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times">{{ optionSub(g) }}</span>
+        <span class="block text-small" :class="g.state === 'plan' || g.follow ? 'text-slate-500' : 'text-slate-400'" :data-follow="g.follow?.times"><PendingText :text="optionSub(g)" /></span>
       </button>
     </div>
 
@@ -174,6 +175,7 @@
       :candidate="betterRoute.candidate"
       :followed-finish="betterRoute.followedFinish"
       :followed-priced="!!betterRoute.followedPriced"
+      :stale="betterRoute.stale ?? null"
       :zone="zone"
     />
     <!-- The last 5 versions saved online for this goal, with Restore (GET /follow/history). -->
@@ -298,6 +300,21 @@
     <!-- Next step. -->
     <div v-else class="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2" data-testid="now-next">
       <p class="label text-indigo-700">Next step</p>
+      <!-- A1 CHOICE (spec-a1choice, lib/a1Choice.ts): carrying on the unfinished build buys but ends later than finishing
+           without buying; both offered, the sooner by default. What follows (Next step, Next shifts, the Build-up
+           tracker) is the side picked. -->
+      <A1Choice
+        v-if="a1Choice && !notOnVirtue"
+        :side="a1Choice.side"
+        :keep="a1Words!.keep"
+        :finish="a1Words!.finish"
+        :legend="a1Words!.legend"
+        @pick="side => emit('pickA1', side)"
+      />
+      <!-- STARTING FRESH WOULD BE SOONER (spec-r7verify, lib/freshSooner.ts): the forced build-up followed here ends more
+           than an hour after a fresh start. "Switch to Soonest" follows Fastest for this ascension only (Setup unchanged);
+           while it holds, a line says so with Undo. Words DRAFT (lib/freshSoonerWords.ts). -->
+      <FreshSooner v-if="!notOnVirtue" :line="freshWords" :followed="!!fastestFollowed" @switch="on => emit('switchFastest', on)" />
       <!-- A followed route with no timeline: the ascension you are in, simulated on your save, still gives the next
            action and the first shifts (26 Oct 2026); the lines below say why the rest has no times. -->
       <template v-if="!card && follow && (actionText || simWorking || simFailure)">
@@ -311,7 +328,7 @@
           </ul>
         </div>
         <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
-          <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
+          <template v-if="simWorking === 'working'">Working out your shifts<AnimatedDots /><template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
         <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
@@ -319,9 +336,10 @@
         </p>
       </template>
       <template v-if="card">
-        <!-- Times from before while they are worked out again (useNowPage `staleAt`: cached answers first, then recheck). -->
+        <!-- Times from before while they are worked out again (useNowPage `staleAt`: cached answers first, then recheck).
+             DRAFT words (Release 7 recalc, for the Words review): "(older version)" when an older build worked them out. -->
         <p v-if="follow?.staleAt" class="text-small text-amber-800" role="status" data-testid="now-follow-stale">
-          From {{ showDateTime(follow.staleAt / 1000, zone) }}, checking…
+          From {{ showDateTime(follow.staleAt / 1000, zone) }}{{ follow.staleOlder ? ' (older version)' : '' }}, checking<AnimatedDots />
         </p>
         <!-- The next action from the ascension you are in, simulated on your save (lib/nextAction.ts); until it is in, the
              line from the plan's events. -->
@@ -352,7 +370,7 @@
         </p>
         <!-- The ascension you are in, simulated on your save in the background (lib/followSim.ts). -->
         <p v-if="simWorking" class="mt-0.5 text-body text-slate-600 max-w-prose" role="status" data-testid="now-sim-working" :data-state="simWorking">
-          <template v-if="simWorking === 'working'">Working out your shifts…<template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
+          <template v-if="simWorking === 'working'">Working out your shifts<AnimatedDots /><template v-if="simSlow">{{ ' ' }}(can take a few minutes)</template></template>
           <template v-else>Your shifts are worked out once the search running now ends.</template>
         </p>
         <p v-if="simFailure" class="mt-0.5 text-body text-amber-800 max-w-prose" role="status" data-testid="now-sim-failed">
@@ -370,7 +388,7 @@
         data-testid="now-follow-estimating"
         :data-state="follow.estimating"
       >
-        <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data…</template>
+        <template v-if="follow.estimating === 'working'">Working out your route's times from the instant answer's data<AnimatedDots /></template>
         <template v-else>Your route's times are worked out from the instant answer's data once the search running now ends.</template>
       </p>
       <!-- My runs works the instant answer for this setup out itself (composables/useInstantCompute.ts). -->
@@ -381,7 +399,7 @@
         data-testid="now-follow-instant"
         :data-state="follow.estimating"
       >
-        <template v-if="follow.estimating === 'instant'">Working out the instant answer for your setup…</template>
+        <template v-if="follow.estimating === 'instant'">Working out the instant answer for your setup<AnimatedDots /></template>
         <template v-else>The instant answer for your setup is worked out once the search running now ends.</template>
       </p>
       <p v-else-if="follow && follow.estimating === 'nosource'" class="text-body text-slate-700 max-w-prose" data-testid="now-follow-nosource">
@@ -436,6 +454,9 @@
       </p>
     </div>
 
+    <!-- The Build-up tracker (MyRunsView.vue, 30 Oct 2026 Jordan): directly under Next step and Next shifts. -->
+    <div v-if="$slots.buildUp" class="mt-2" data-testid="now-buildup-slot"><slot name="buildUp" /></div>
+
     <GearBlock
       v-if="gear"
       :equipped="gear.equipped"
@@ -461,6 +482,7 @@
         :calculated-when="calculatedWhen"
         :following="following"
         :rounded="rounded"
+        :here="hereRow"
       />
       <details class="mt-2" data-testid="now-timeline">
         <summary class="min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0 cursor-pointer text-body font-bold text-indigo-700" data-testid="now-timeline-summary">
@@ -468,13 +490,14 @@
         </summary>
         <div class="mt-2">
           <!-- No exact legs: every ascension with the instant answer's shifts (lib/instantSteps.ts `ascensionSteps`). -->
-          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" />
+          <AscensionList v-if="!card.plan.legs && ascensions && ascensions.length" :lines="ascensions" :zone="zone" :working="simWorking === 'working'" :here="!!hereRow" />
           <RouteTimeline
             v-else
             :chain="card.plan.chain"
             :legs="card.plan.legs"
             :zone="zone"
             :no-legs-text="rounded ? NO_LEGS_INSTANT : NO_LEGS_KEPT"
+            :here-at="hereRow ? now : undefined"
           />
         </div>
       </details>
@@ -486,13 +509,21 @@
 import { computed, nextTick, ref } from 'vue';
 import { iconURL } from 'lib';
 import CalendarButton from './CalendarButton.vue';
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
+import PendingText from '@/components/auto/PendingText.vue';
 import FollowHistory from './FollowHistory.vue';
 import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import type { FollowPrompt, RouteFinish } from '@/lib/searchPlan';
+import type { StaleReason } from '@/lib/followStale';
 import EventsTable from './EventsTable.vue';
 import GearBlock from './GearBlock.vue';
 import RouteTimeline from '../auto/RouteTimeline.vue';
 import AscensionList from './AscensionList.vue';
+import A1Choice from './A1Choice.vue';
+import { a1ChoiceWords, type A1Side } from '@/lib/a1Choice';
+import type { FreshSooner as FreshSoonerData } from '@/lib/freshSooner';
+import { freshSoonerLine } from '@/lib/freshSoonerWords';
+import FreshSooner from './FreshSooner.vue';
 import { nextActionWords, nextShiftWords, type NextAction, type NextShiftLine } from '@/lib/nextAction';
 import { roundToHourIn } from '@/lib/nowWords';
 import { showDateTime } from '@/lib/displayTime';
@@ -565,6 +596,8 @@ const props = defineProps<{
     followedFinish: RouteFinish | null;
     /** Its finish here came from a priced result: an instant answer never asks (lib/searchPlan.ts `followIsPriced`). */
     followedPriced?: boolean;
+    /** The save contradicts the followed route (lib/followStale.ts): offered as "Re-plan from this save". */
+    stale?: StaleReason | null;
   } | null;
   /** "This route was set with a different hours window / simulator version." ('' or absent: none). */
   followSetWith?: string;
@@ -588,6 +621,13 @@ const props = defineProps<{
   nextStep?: NextAction | null;
   /** The next 3 to 5 shifts (useNowPage `nextShiftLines`); empty or absent: none shown. */
   nextShiftLines?: NextShiftLine[];
+  /** Right now's A1 choice (useNowPage `a1Choice`): the side followed and the two labels; null or absent: no choice. */
+  a1Choice?: { side: A1Side; buys: number; buildEnd: number; contEnd: number } | null;
+  /** A fresh start would end this ascension over an hour sooner than the build-up followed (useNowPage `freshLine`);
+   *  null or absent: no line. */
+  freshSooner?: FreshSoonerData | null;
+  /** Fastest is followed for this ascension (useNowPage `fastestFollowed`): the line with Undo. */
+  fastestFollowed?: boolean;
 }>();
 const emit = defineEmits<{
   open: [to: MyRunsOpen];
@@ -607,6 +647,10 @@ const emit = defineEmits<{
   saveOnline: [];
   /** Retry reading the routes saved online (stores/follow.ts `loadCloud(true)`). */
   retryCloud: [];
+  /** The A1 choice: the player's pick (useNowPage `pickA1`). */
+  pickA1: [side: A1Side];
+  /** "Switch to Soonest" (true) / "Undo" (false) for this ascension (useNowPage `switchToFastest`). */
+  switchFastest: [on: boolean];
 }>();
 
 /** Not on virtue yet (null: not known, the card stays as it is). */
@@ -735,6 +779,12 @@ const calculatedWhen = computed(() => {
   return at ? `${dateAt(at, props.now, props.zone)} (${relativeWords(at - props.now)})` : '';
 });
 /** The save the plan was made from: its own (an older save's), else the loaded one. */
+/** "You are here": the loaded save's egg and TE, while it is on virtue with a known egg (EventsTable.vue). */
+const hereRow = computed(() =>
+  props.currentEgg && props.onVirtue !== false
+    ? { egg: props.currentEgg, te: props.teSoFar, saveWhen: dateAt(props.saveSeconds, props.now, props.zone) }
+    : null
+);
 const planSaveWhen = computed(() => dateAt(props.card?.plan.meta?.backupTime || props.saveSeconds, props.now, props.zone));
 const secondaryText = computed(() => {
   const sec = props.card?.secondary;
@@ -749,6 +799,10 @@ const nextText = computed(() =>
   props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value) : ''
 );
 /** "Shift to Humility at …", "Building up until about …", "Prestige at …" (lib/nextAction.ts). */
+/** The A1 choice's words in this card's zone (as every other time on it). */
+const a1Words = computed(() => (props.a1Choice ? a1ChoiceWords(props.a1Choice, props.now, props.zone) : null));
+/** The fresh-start line in this card's zone (as every other time on it). */
+const freshWords = computed(() => (props.freshSooner ? freshSoonerLine(props.freshSooner, props.now, props.zone) : ''));
 const actionText = computed(() => (props.nextStep ? nextActionWords(props.nextStep, t => showDateTime(t, props.zone)) : ''));
 /** "Shift to Humility · about …": exact from the simulation, to the hour from the table. */
 const shiftLineText = (l: NextShiftLine) =>

@@ -147,19 +147,100 @@ export interface SaveRunInput {
   settings?: RunSummary['settings'];
   /** Injectable so tests are not clock-dependent. */
   now?: number;
-  /** Injectable for the same reason; ids are otherwise random. */
+  /** Injectable for the same reason; ids are otherwise random (or the same run's, saved again). */
   id?: string;
+  /** A name was typed for it: a re-save of the same run takes it (else keeps the name it had). */
+  named?: boolean;
 }
 
 function bodyKey(id: string): string {
   return `${BODY_PREFIX}${id}`;
 }
 
-/** Newest first. Drops entries from an older version rather than showing something unopenable. */
+/**
+ * Which saved runs are the same run (red team R7, 31 Oct 2026: "Save this run" three times listed it three times, and
+ * 25 clicks pushed every other run out past the cap). The same rule as Saved answers (lib/savedAnswerIdentity.ts):
+ * the same kind of search (Fast, Exact, ...; Custom with the same boxes), the same target and route, the same save
+ * (the stored save's key, else when the game took it) and the same inputs (the fingerprint: plan start, TE, schedule).
+ * Null for a run without a route (never merged).
+ *
+ * Following is per goal and route (stores/follow.ts), not per entry, so dropping a duplicate never loses a
+ * Following ✓: the entry kept names the same goal and route.
+ */
+export function runIdentity(
+  r:
+    | Pick<RunSummary, 'finalTE' | 'effort' | 'bestChain' | 'space' | 'fingerprint' | 'inputsKey' | 'save'>
+    | null
+    | undefined
+): string | null {
+  if (!r || !r.bestChain?.length) return null;
+  // The boxes a Custom run searched, without how far it got (a run carried on is still that run).
+  const space = r.space
+    ? JSON.stringify([r.space.mode, r.space.bands, r.space.minGap, r.space.minAscensions, r.space.maxAscensions])
+    : '';
+  const save = r.inputsKey || (r.save?.backupAt ? String(r.save.backupAt) : '');
+  return [
+    r.space ? 'custom' : 'smart',
+    r.effort,
+    space,
+    r.finalTE,
+    r.bestChain.join(' '),
+    save,
+    r.fingerprint ?? '',
+  ].join('|');
+}
+
+/** `a` is the one to keep over `b`: finished, else more routes priced, else it has its save, else saved first. */
+function betterRun(a: RunSummary, b: RunSummary): boolean {
+  if (a.complete !== b.complete) return a.complete;
+  if (a.chainsPriced !== b.chainsPriced) return a.chainsPriced > b.chainsPriced;
+  if (!!a.save !== !!b.save) return !!a.save;
+  return a.savedAt < b.savedAt;
+}
+
+/**
+ * Each run once: of the entries for one run, the best (`betterRun`) is kept under the name the first saved one has;
+ * the others are `dropped`. The list keeps its order.
+ */
+export function collapseRuns(list: readonly RunSummary[]): { kept: RunSummary[]; dropped: RunSummary[] } {
+  const keeper = new Map<string, RunSummary>();
+  const firstLabel = new Map<string, { label: string; savedAt: number }>();
+  for (const r of list) {
+    const k = runIdentity(r);
+    if (k === null) continue;
+    const cur = keeper.get(k);
+    if (!cur || betterRun(r, cur)) keeper.set(k, r);
+    const first = firstLabel.get(k);
+    if (!first || r.savedAt < first.savedAt) firstLabel.set(k, { label: r.label, savedAt: r.savedAt });
+  }
+  const kept: RunSummary[] = [];
+  const dropped: RunSummary[] = [];
+  for (const r of list) {
+    const k = runIdentity(r);
+    if (k === null) kept.push(r);
+    else if (keeper.get(k) === r) {
+      const label = firstLabel.get(k)!.label;
+      kept.push(label === r.label ? r : { ...r, label });
+    } else dropped.push(r);
+  }
+  return { kept, dropped };
+}
+
+/** Newest first. Drops entries from an older version rather than showing something unopenable. Each run once
+ *  (`collapseRuns`): duplicates kept before 1 Nov 2026 are removed here, index and bodies. */
 export async function listRuns(partitionHash: string): Promise<RunSummary[]> {
   const raw = (await loadMetadata(partitionHash, INDEX_KEY)) as RunSummary[] | null;
   if (!Array.isArray(raw)) return [];
-  return raw.filter(r => r && READABLE_VERSIONS.has(r.version)).sort((a, b) => b.savedAt - a.savedAt);
+  const readable = raw.filter(r => r && READABLE_VERSIONS.has(r.version)).sort((a, b) => b.savedAt - a.savedAt);
+  const { kept, dropped } = collapseRuns(readable);
+  if (dropped.length) {
+    for (const r of dropped) await saveMetadata(partitionHash, bodyKey(r.id), null);
+    await saveMetadata(partitionHash, INDEX_KEY, [
+      ...kept,
+      ...raw.filter(r => !(r && READABLE_VERSIONS.has(r.version))),
+    ]);
+  }
+  return kept;
 }
 
 /**
@@ -169,7 +250,14 @@ export async function listRuns(partitionHash: string): Promise<RunSummary[]> {
  * body that nothing lists, rather than an index entry pointing at a run that cannot be opened.
  */
 export async function saveRun(partitionHash: string, input: SaveRunInput): Promise<RunSummary> {
-  const id = input.id ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const existing = await listRuns(partitionHash);
+  // The same run saved again (`runIdentity`) replaces its entry, under its id and name unless a name is typed
+  // (`named`), saved now: never a second row, so repeated saves can't push other runs out past the cap.
+  const key = runIdentity(input);
+  const same = key === null ? undefined : existing.find(r => runIdentity(r) === key && r.id !== input.id);
+  const id = input.id ?? same?.id ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const label = same && !input.named ? same.label : input.label;
+  const save = input.save ?? same?.save ?? input.save;
   const priced = input.entries.filter(e => e.seconds > 0);
 
   const body: RunBody = {
@@ -183,7 +271,7 @@ export async function saveRun(partitionHash: string, input: SaveRunInput): Promi
   const summary: RunSummary = {
     id,
     version: LIBRARY_VERSION,
-    label: input.label.trim().slice(0, 80) || 'Untitled run',
+    label: label.trim().slice(0, 80) || 'Untitled run',
     savedAt: input.now ?? Date.now(),
     currentTE: input.currentTE,
     finalTE: input.finalTE,
@@ -198,14 +286,14 @@ export async function saveRun(partitionHash: string, input: SaveRunInput): Promi
     ...(input.space ? { space: input.space } : {}),
     ...(input.fingerprint ? { fingerprint: input.fingerprint } : {}),
     ...(input.inputsKey ? { inputsKey: input.inputsKey } : {}),
-    ...(input.save !== undefined ? { save: input.save } : {}),
+    ...(save !== undefined ? { save } : {}),
     ...(input.runNote ? { runNote: input.runNote } : {}),
     ...(input.settings ? { settings: input.settings } : {}),
   };
 
-  const existing = await listRuns(partitionHash);
-  // A re-save under the same id replaces rather than duplicates.
-  const next = [summary, ...existing.filter(r => r.id !== id)];
+  // A re-save under the same id replaces rather than duplicates; so does the same run under another id.
+  const next = [summary, ...existing.filter(r => r.id !== id && r !== same)];
+  if (same && same.id !== id) await saveMetadata(partitionHash, bodyKey(same.id), null);
 
   // Evict oldest past the cap, and delete their bodies too. An index that forgets a run while its
   // megabytes stay in IndexedDB is how a quota fills up with nothing to show for it.

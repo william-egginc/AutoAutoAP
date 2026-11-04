@@ -206,6 +206,13 @@ export interface LegSummary {
    *  only each leg's end TE, end time, duration and strategy: peak delivery, start, shifts and leg 1's
    *  rival are UNKNOWN here, not zero. Absent on a leg simulated in this session. */
   replayed?: true;
+  /** BUILD-UP TRACKER: the picked variant's actions as compact records and its start farm
+   *  (search/buildUpActions.ts). Only on a route's first step evaluated with `keepPurchases`
+   *  (search/chain.ts `EvaluateChainOptions`); absent everywhere else. */
+  buildUp?: import('./buildUpActions').BuildUpList;
+  /** Leg 1 only, when "continue my build-up" was simulated: how many things its build buys (search/leg.ts
+   *  `LegResult.buildUpBuys`). My runs' A1 choice reads it (spec-a1choice). */
+  buildUpBuys?: number;
 }
 
 /** A fully evaluated chain. `seconds` is what every stage of the driver minimises. */

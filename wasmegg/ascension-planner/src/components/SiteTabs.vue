@@ -38,10 +38,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="ICONS[t.id]" />
           </svg>
           {{ t.label }}
+          <!-- White on indigo-600 (6.29:1), selected or not: white (90 % unselected) on indigo-500 was 4.47:1 and less,
+               under WCAG AA's 4.5 (red team R7, axe, 1 Nov 2026; SiteTabs.betaContrast.spec.ts). -->
           <span
             v-if="t.id === 'auto'"
-            class="shrink-0 bg-indigo-500 text-small px-1.5 py-0.5 rounded-md sm:ml-1 border border-indigo-400/30"
-            :class="current === t.tab ? 'text-white' : 'text-white/90'"
+            class="shrink-0 bg-indigo-600 text-white text-small px-1.5 py-0.5 rounded-md sm:ml-1 border border-indigo-400/30"
             >BETA</span
           >
         </button>

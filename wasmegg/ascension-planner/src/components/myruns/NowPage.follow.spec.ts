@@ -24,6 +24,7 @@ import { resolveColleggtibleContracts } from 'lib';
 import { loadAndSyncBackup, rollUpPendingTE } from '@/lib/modes';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import type { BoardRow } from '@/lib/leaderboardRank';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
@@ -265,6 +266,7 @@ describe('the page: a followed route replaces the lead, priced from the saved ex
     const leg = (start: number, end: number, endTE: number, egg: string) =>
       ({ key: 'continue', endTE, durationSeconds: end - start, maxELR: 0, endTime: end, tier13Unlocked: false, startTime: start, shifts: [{ at: start + H, egg, fromEgg: 'curiosity', te: 39 }], endEgg: { egg: 'kindness', te: 40 } }) as unknown as LegSummary;
     writeSnapshot(instantSnapKey(instantKeyFromStores(null, target)), {
+      rc: resultCode(),
       at: Date.now() - 3 * 60_000,
       header: {},
       result: { best: null, byAscensions: [null, null, { chain: [192, target], end: now + 91 * H, legs: [] }] },

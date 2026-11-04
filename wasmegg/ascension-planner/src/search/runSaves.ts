@@ -17,7 +17,8 @@
  * Keyed by a hash of the payload, so the many runs of one session on one save share one copy.
  */
 import { loadMetadata, saveMetadata } from '@/lib/storage/db';
-import { sanitizeLongs } from '@/lib/artifacts/utils';
+// workerCopy: sanitizeLongs's copy read under the store proxies (spec-mainfreeze): the same result, without the traps.
+import { workerCopy } from './workerCopy';
 import type { SearchInputs } from './types';
 
 const INDEX_KEY = 'chainSearchRunSaveIndex';
@@ -71,7 +72,7 @@ export function decode<T>(text: string): T {
  * give the same save a new key on every visit.
  */
 export function runSaveKey(inputs: SearchInputs): string {
-  const plain = sanitizeLongs(inputs) as SearchInputs;
+  const plain = workerCopy(inputs) as SearchInputs;
   const context: Record<string, unknown> = { ...(plain.context as unknown as Record<string, unknown>) };
   delete context.ascensionStartTime;
   delete context.planStartOffset;
@@ -123,7 +124,7 @@ export async function saveRunInputs(
     };
     // Body first, then the index: a quota failure leaves an orphan nothing lists, not a listed save
     // that cannot be read.
-    await saveMetadata(partitionHash, BODY_PREFIX + key, encode(sanitizeLongs(inputs)));
+    await saveMetadata(partitionHash, BODY_PREFIX + key, encode(workerCopy(inputs)));
     await saveMetadata(partitionHash, INDEX_KEY, [summary, ...index]);
     return summary;
   });

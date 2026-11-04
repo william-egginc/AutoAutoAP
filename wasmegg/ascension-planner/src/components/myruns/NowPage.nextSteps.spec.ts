@@ -8,6 +8,7 @@ import { effectScope, markRaw, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import type { LegSummary } from '@/search/types';
 import { instantSnapKey, writeSnapshot } from '@/search/instantSnapshot';
+import { resultCode } from '@/lib/resultCode';
 import type { SnapSearch } from '@/lib/searchPlan';
 import { syntheticBackup } from '@/test/syntheticSave';
 import { resolveColleggtibleContracts } from 'lib';
@@ -72,6 +73,7 @@ async function setup(o: { timeOffOnPrestige: boolean }) {
     planStart: now - H,
   };
   writeSnapshot(instantSnapKey(instantKeyFromStores(eggDayAt, store.finalTE)), {
+    rc: resultCode(),
     at: Date.now() - 60_000,
     header: {},
     result: {

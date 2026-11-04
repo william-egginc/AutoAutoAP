@@ -15,7 +15,13 @@
  * is the hotspot.
  */
 import { computeSnapshot } from '@/engine/compute';
-import { runUntilShift, deriveNextStartState, runContinueCurrent, runAscensionFromC3Variant } from '@/auto/ascension';
+import {
+  runUntilShift,
+  deriveNextStartState,
+  runContinueCurrent,
+  runAscensionFromC3Variant,
+  isPurchase,
+} from '@/auto/ascension';
 import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
 import { runBuildUpUntilC3 } from '@/auto/buildUp';
 // LOW-TE OPENING (auto/lowTeOpening.ts)
@@ -34,6 +40,7 @@ import {
   getOptimalELRSet,
 } from '@/lib/artifacts';
 import { computeRealisticELR } from '@/calculations/realisticELR';
+import { sameSet } from '@/lib/gearMatch';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { EngineState, SimulationContext } from '@/engine/types';
 import type { Action } from '@/types/actions/meta';
@@ -46,6 +53,7 @@ import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 import type { TableHeader } from './precomputedTable';
+import { buildUpStartOf, toBuildUpActions, type BuildUpAction, type BuildUpList } from './buildUpActions';
 
 /** Mirrors useAscensionGenerator's own constant: below this starting TE a Tier 13 unlock cannot
  *  realistically land inside one build phase, so those variants are skipped rather than simulated
@@ -110,6 +118,22 @@ export interface LegResult {
    *  'continue' (finish without buying), 'buildup' (continue my build-up), 'fresh' (the best fresh
    *  build). Only the kinds actually simulated. Read by health.ts (build-up against frozen continue). */
   firstLegEnds?: FirstLegEnds;
+  /** BUILD-UP TRACKER: the picked variant's actions as compact records (search/buildUpActions.ts), and
+   *  the farm it starts from. Only when `LegOptions.keepPurchases` asked for it; absent otherwise, so a
+   *  result without the ask is exactly what it always was (search/leg.buildUp.spec.ts). */
+  buildUp?: BuildUpList;
+  /** A1 only, when "continue my build-up" was simulated (whichever kind won): how many things its build buys (research,
+   *  vehicle, train car, hab and silo purchases before its first wait for TE, the Build-up tracker's build part:
+   *  lib/buildUpTracker.ts `buildPart`). My runs' A1 choice (spec-a1choice, 1 Nov 2026) says "buys N things". */
+  buildUpBuys?: number;
+}
+
+/** How `runLeg` is asked for more than its result. Absent: the result as it always was. */
+export interface LegOptions {
+  /** Keep the picked variant's action list as compact records (`LegResult.buildUp`). Off by default;
+   *  on only for My runs' simulation of the ascension you are in (composables/useCurrentSim.ts). It
+   *  reads the actions the simulation made anyway and changes nothing the simulation does. */
+  keepPurchases?: boolean;
 }
 
 /** search/leg.ts `LegResult.firstLegEnds`. */
@@ -199,6 +223,10 @@ interface CompactVariant extends VariantResult {
   shifts: ShiftMoment[];
   heldSeconds: number;
   lastEgg: string;
+  /** `LegOptions.keepPurchases` only. */
+  buildUp?: BuildUpList;
+  /** The build-up variant only: `buildBuysOf` its actions (`LegResult.buildUpBuys`). */
+  buys?: number;
 }
 const NO_ACTIONS: Action[] = Object.freeze([]) as unknown as Action[];
 
@@ -207,6 +235,24 @@ function endEggOf(v: CompactVariant): { endEgg?: { egg: string; te: number } } {
   const s = v.summary as { finalTE?: Partial<Record<string, number>>; eggsDelivered?: Partial<Record<string, number>> };
   const te = v.lastEgg ? eggTE({ teEarned: s.finalTE, eggsDelivered: s.eggsDelivered }, v.lastEgg) : null;
   return te !== null ? { endEgg: { egg: v.lastEgg, te } } : {};
+}
+
+/** A1 CHOICE (spec-a1choice): the purchases (auto/ascension.ts `isPurchase`) a build-up makes before its first wait for
+ *  TE, the part the Build-up tracker lists (lib/buildUpTracker.ts `buildPart`). Read only. */
+function buildBuysOf(actions: readonly Action[]): number {
+  let n = 0;
+  for (const a of actions) {
+    if (a.type === 'wait_for_te') break;
+    if (isPurchase(a)) n++;
+  }
+  return n;
+}
+
+/** `a` is strictly better than `b`: sooner, or by a deadline more TE (`pickVariant`'s measures, without its ties). */
+function sooner(a: VariantResult, b: VariantResult, byDeadline: boolean): boolean {
+  return byDeadline
+    ? a.summary.endTE > b.summary.endTE
+    : a.summary.totalDurationSeconds < b.summary.totalDurationSeconds;
 }
 
 /**
@@ -229,9 +275,11 @@ export function runLeg(
   idx: number,
   /** Absolute unix seconds the leg must END at (time off starting). Supersedes `targetTE`: the leg
    *  reaches whatever TE it can by then. Same contract as the CLI's `--override-ascension`. */
-  endOverride?: number
+  endOverride?: number,
+  opts?: LegOptions
 ): LegResult | null {
   const ctx = legContext(inputs, startTime);
+  const keep = !!opts?.keepPurchases;
   // runAscensionFromC3Variant and runContinueCurrent only consult the deadline when the TE goal is
   // absent, so leaving the goal set here would silently ignore it (the trap the generator documents).
   const goalTE = endOverride !== undefined ? undefined : targetTE;
@@ -240,7 +288,10 @@ export function runLeg(
   // simulated, and its action list -- hundreds of actions, each carrying a whole EngineState as its
   // `endState` -- is let go then, rather than all of them being held until the pick. Nothing past
   // this function reads a variant's actions (LegResult does not carry them).
-  const compact = (v: VariantResult): CompactVariant => ({
+  // BUILD-UP TRACKER (`keep`): the variant's actions as compact records are taken here too, before they
+  // are let go; `list` says how (a fresh build's start comes from the shared build, legBuild below).
+  // Without `keep` nothing is added, so the record is exactly what it always was.
+  const compact = (v: VariantResult, list?: () => BuildUpList): CompactVariant => ({
     summary: v.summary,
     actions: NO_ACTIONS,
     shifts: shiftInstants(v.actions, startTime),
@@ -248,8 +299,10 @@ export function runLeg(
     lastEgg:
       (v.actions.filter(a => a.type === 'shift').pop()?.payload as { toEgg?: string } | undefined)?.toEgg ??
       baseState.currentEgg,
+    ...(keep && list ? { buildUp: list() } : {}),
   });
-  const compactOrNull = (v: VariantResult | null): CompactVariant | null => (v ? compact(v) : null);
+  const compactOrNull = (v: VariantResult | null, start?: () => EngineState | null | undefined): CompactVariant | null =>
+    v ? compact(v, () => ({ actions: toBuildUpActions(v.actions, startTime), start: buildUpStartOf(start?.()) })) : null;
   // Leg 1's options by kind, filled in as they are simulated: what `rival` and `firstLegEnds` read.
   const kinds: Partial<Record<'continue' | 'buildup' | 'fresh', { v: CompactVariant; key: VariantKey }>> = {};
   const kindOf = (key: VariantKey): 'continue' | 'buildup' | 'fresh' =>
@@ -279,6 +332,8 @@ export function runLeg(
       ...endEggOf(v),
       ...(rival ? { rival: { key: rival.key, endTime: rival.v.summary.endTime } } : {}),
       ...(Object.keys(ends).length ? { firstLegEnds: ends } : {}),
+      ...(v.buildUp ? { buildUp: v.buildUp } : {}),
+      ...(kinds.buildup?.v.buys !== undefined ? { buildUpBuys: kinds.buildup.v.buys } : {}),
     };
   };
 
@@ -288,7 +343,9 @@ export function runLeg(
   const mode = readFirstAscension(inputs);
   let cont =
     allowContinue && mode !== 'fresh'
-      ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride))
+      ? compactOrNull(buildContinueVariant(inputs, baseState, startTime, goalTE, idx, endOverride), () =>
+          continueState(inputs, baseState)
+        )
       : null;
   // Kept even when dropped below, as the rival a fresh leg 1 is recorded against.
   if (cont) kinds.continue = { v: cont, key: 'continue' };
@@ -297,11 +354,28 @@ export function runLeg(
   // (auto/buildUp.ts). A real build, so no six-month rule. A candidate under 'auto' and 'buildup';
   // under 'continue' (Finish without buying) only recorded, so the plan can say when building on
   // would have been sooner (health.ts `buildUpNote`). Worked out once per run and plan start.
-  const buildUp =
-    allowContinue && mode !== 'fresh'
-      ? compactOrNull(buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride))
-      : null;
+  // A1 CHOICE (spec-a1choice): its build's buy count is read here, before its actions are let go.
+  let buildUp = ((): CompactVariant | null => {
+    if (!allowContinue || mode === 'fresh') return null;
+    const raw = buildBuildUpVariant(inputs, baseState, startTime, goalTE, idx, startTE, endOverride);
+    const c = compactOrNull(raw, () => buildUpBuild(inputs, baseState, startTime, startTE)?.start);
+    return c && raw ? { ...c, buys: buildBuysOf(raw.actions) } : c;
+  })();
   if (buildUp) kinds.buildup = { v: buildUp, key: 'buildup' };
+  // NO EMPTY BUILD-UP (spec-noemptybuild, 31 Oct 2026; Jordan's alt: a build-up A1 of 6 shifts and 38.59Q of soul
+  // eggs to Dec 13 against continue's 3 shifts and 17.82Q to Dec 12). The build-up always opens with C3's shift to
+  // Curiosity (auto/buildUp.ts), so one that buys nothing is continue with extra shifts. Such a build-up never gets
+  // here: `buildUpBuild` keeps only the variants whose build (the steps to C3 and C3 itself) buys something. With
+  // nothing to buy, "Continue my build-up" is "just laying" (the 'buildup' rule below): continue, even when the
+  // caller left continue out (My runs' unfinished build, useNowPage.ts `continueMaxSeconds` 0), within the six months.
+  const nothingToBuild = allowContinue && mode !== 'fresh' && !!buildUpBuild(inputs, baseState, startTime, startTE)?.buysNothing;
+  if (nothingToBuild && !cont && mode === 'buildup' && kinds.continue) {
+    const c = kinds.continue.v;
+    if (c.summary.totalDurationSeconds <= CONTINUE_MAX_SECONDS) cont = c;
+  }
+  // A build-up that ends no sooner than continue (by a deadline: reaches no more TE) is no candidate either: continue
+  // wins, ties too. Still recorded (`kinds`), as the option that lost.
+  if (buildUp && cont && !sooner(buildUp, cont, byDeadline)) buildUp = null;
 
   if (
     cont &&
@@ -313,18 +387,14 @@ export function runLeg(
   }
 
   // 'buildup': finish the ascension in progress, building on or (when the build is done) just
-  // laying, whichever is sooner. No fresh start unless neither can be simulated.
-  if (mode === 'buildup' && (buildUp || cont)) {
-    if (buildUp && cont) {
-      const pick = pickVariant({ buildup: buildUp, continue: cont }, undefined, byDeadline);
-      return pick === cont ? asLeg(cont, 'continue') : asLeg(buildUp, 'buildup');
-    }
-    return buildUp ? asLeg(buildUp, 'buildup') : asLeg(cont!, 'continue');
-  }
+  // laying, whichever is sooner (a build-up is left here only when it is sooner than continue, above).
+  // No fresh start unless neither can be simulated.
+  if (mode === 'buildup' && (buildUp || cont)) return buildUp ? asLeg(buildUp, 'buildup') : asLeg(cont!, 'continue');
 
   // The build to C3 and its variants: no target in it, so shared by every target tried from this
   // start (legBuild below).
-  const { preC3, c3 } = legBuild(inputs, baseState, ctx, startTime, startTE);
+  const build = legBuild(inputs, baseState, ctx, startTime, startTE, keep);
+  const { preC3, c3 } = build;
   let surviving = c3.filter(x => !x.impossible);
   // K3's mandatory wait to buildPhaseEnd cannot be truncated, so under a deadline a variant whose
   // build phase ends after it is not slower but unevaluable.
@@ -333,9 +403,8 @@ export function runLeg(
   const fresh: Partial<Record<VariantKey, CompactVariant>> = {};
   for (const v of surviving) {
     const key = (v.attemptTier13Unlock ? `${v.saleCount}-sale-tier13` : `${v.saleCount}-sale`) as VariantKey;
-    fresh[key] = compact(
-      runAscensionFromC3Variant(baseState, preC3, v, ctx, startTime, `asc_${idx}`, goalTE, endOverride)
-    );
+    const run = runAscensionFromC3Variant(baseState, preC3, v, ctx, startTime, `asc_${idx}`, goalTE, endOverride);
+    fresh[key] = compact(run, () => freshList(build, v, run.actions, startTime, baseState));
   }
   const freshKeys = Object.keys(fresh) as VariantKey[];
   // By a deadline every variant ends at the same instant, so "better" is more TE, not less time.
@@ -355,7 +424,8 @@ export function runLeg(
   }
   if (mode === 'auto' && (cont || buildUp)) {
     // Fastest: every kind one more candidate, as Classic treats continue with nothing picked. Ties go
-    // to the fresh start, then to the build-up (pickVariant keeps the first of equals).
+    // to the fresh start, then to the build-up (pickVariant keeps the first of equals); a build-up is
+    // here only when it is sooner than continue (above).
     const all: Partial<Record<VariantKey, CompactVariant>> = { ...fresh };
     if (buildUp) all.buildup = buildUp;
     if (cont) all.continue = cont;
@@ -387,6 +457,11 @@ const LEG_BUILD_CACHE = 8;
 interface LegBuild {
   preC3: { actions: Action[]; state: EngineState; elapsedSeconds: number };
   c3: C3Variant[];
+  /** BUILD-UP TRACKER (`LegOptions.keepPurchases`): the build's actions as compact records, taken
+   *  before `keptActions` drops them -- the build to C3's, and each C3 variant's (same order as `c3`).
+   *  Only on a build made with the ask; a kept build without them is made again when they are asked
+   *  for (and kept with them), so a build made without the ask never answers one made with it. */
+  lists?: { pre: BuildUpAction[]; c3: (BuildUpAction[] | null)[] };
 }
 const legBuilds = new Map<string, LegBuild>();
 let sharing = true;
@@ -439,11 +514,12 @@ function legBuild(
   baseState: EngineState,
   ctx: SimulationContext,
   startTime: number,
-  startTE: number
+  startTE: number,
+  keep = false
 ): LegBuild {
   const key = sharing ? legBuildKey(inputs, baseState, ctx, startTE) : '';
   const hit = sharing ? legBuilds.get(key) : undefined;
-  if (hit) {
+  if (hit && (!keep || hit.lists)) {
     builds.hits++;
     // Most recently used last, so the oldest is the first to go.
     legBuilds.delete(key);
@@ -462,14 +538,48 @@ function legBuild(
     pre.elapsedSeconds = held.elapsedSeconds;
   }
   const c3 = runC3Variants(pre.state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE);
-  if (!sharing) return { preC3: { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds }, c3 };
+  // Read only, before anything is dropped: the simulation above is the same with or without it.
+  const lists = keep
+    ? {
+        pre: toBuildUpActions(pre.actions, startTime),
+        c3: c3.map(v => (v.result ? toBuildUpActions(v.result.actions, startTime) : null)),
+      }
+    : null;
+  if (!sharing)
+    return {
+      preC3: { actions: pre.actions, state: pre.state, elapsedSeconds: pre.elapsedSeconds },
+      c3,
+      ...(lists ? { lists } : {}),
+    };
   const build: LegBuild = {
     preC3: { actions: keptActions(pre.actions), state: pre.state, elapsedSeconds: pre.elapsedSeconds },
     c3: c3.map(v => (v.result ? { ...v, result: { ...v.result, actions: keptActions(v.result.actions) } } : v)),
+    ...(lists ? { lists } : {}),
   };
   legBuilds.set(key, build);
   while (legBuilds.size > LEG_BUILD_CACHE) legBuilds.delete(legBuilds.keys().next().value!);
   return build;
+}
+
+/**
+ * BUILD-UP TRACKER: a fresh variant's whole action list as compact records. `actions` is what
+ * `runAscensionFromC3Variant` returned: the build's actions as `build` holds them (only the kept ones
+ * when shared), then the variant's (likewise), then the rest of the ascension in full. The first two
+ * come from `build.lists`, made before anything was dropped; the rest from `actions` past them.
+ */
+function freshList(
+  build: LegBuild,
+  v: C3Variant,
+  actions: Action[],
+  startTime: number,
+  baseState: EngineState
+): BuildUpList {
+  const i = build.c3.indexOf(v);
+  const lists = build.lists;
+  const skip = build.preC3.actions.length + (v.result?.actions.length ?? 0);
+  const head = lists ? [...lists.pre, ...(lists.c3[i] ?? [])] : toBuildUpActions(actions.slice(0, skip), startTime);
+  const all = [...head, ...toBuildUpActions(actions.slice(skip), startTime)];
+  return { actions: all.sort((x, y) => x.t - y.t), start: buildUpStartOf(baseState) };
 }
 
 /**
@@ -482,14 +592,27 @@ function legBuild(
  *   - `currentEgg` must be the NAME, not the backup's 50..54 enum.
  *   - the ELR set is recomputed rather than reusing the equipped (earnings) loadout. Filing the
  *     earnings set under `artifactSets.elr` made "continue" report 1.580q/hr instead of 3.574q/hr.
+ *     (Since 31 Oct 2026 a farm off Humility does WEAR its equipped loadout, as the game makes it:
+ *     sets change only on Humility. The recomputed set is still `artifactSets.elr`.)
  */
-/** The farm "continue current ascension" carries on with: the save's own farm, the best delivery
- *  set it can wear, its eggs and TE. Null without a farm in the save. */
+/**
+ * The farm "continue current ascension" carries on with: the save's own farm, its eggs and TE, and
+ * the set it wears.
+ *
+ * SETS CHANGE ONLY ON HUMILITY (spec-continueset, 31 Oct 2026, Jordan's rule): a farm on Humility
+ * may swap, so it wears the best delivery set it can; off Humility it keeps the loadout the save has
+ * equipped (`getArtifactLoadoutFromBackup`, the same read Right now's Gear uses), whatever that is.
+ * Off Humility the equipped loadout is also filed as the earnings set, so a C1 re-equip of
+ * "earnings" changes nothing; the delivery set stays the best one for H1 (which picks its own anyway).
+ * The label is the save's own: 'earnings' when the equipped loadout is the earnings set, else 'elr'
+ * (lib/buildUpBought.ts `saveFarmFor` reads a production set as 'elr' too). Null without a farm.
+ */
 function continueState(inputs: SearchInputs, baseState: EngineState): EngineState | null {
   const farmState = inputs.currentFarmState;
   const raw = inputs.context.rawBackup;
   if (!farmState || !raw) return null;
 
+  const egg = VIRTUE_EGGS_MAP[farmState.eggType as number] ?? 'curiosity';
   const rawLoadout = getArtifactLoadoutFromBackup(raw);
   const optimalEarnings = getOptimalEarningsSet(raw);
   const elr =
@@ -500,19 +623,22 @@ function continueState(inputs: SearchInputs, baseState: EngineState): EngineStat
       currentSet: rawLoadout,
       assumeMaxHabsVehicles: false,
     }) ?? rawLoadout;
+  const canSwap = egg === 'humility';
+  const worn = canSwap ? elr : rawLoadout;
+  const earnings = canSwap ? optimalEarnings : rawLoadout;
 
   const state = {
     ...JSON.parse(JSON.stringify(baseState)),
-    currentEgg: VIRTUE_EGGS_MAP[farmState.eggType as number] ?? 'curiosity',
+    currentEgg: egg,
     researchLevels: { ...farmState.commonResearches },
     habIds: farmState.habs || [0, null, null, null],
     vehicles: farmState.vehicles || [{ vehicleId: 0, trainLength: 1 }],
     siloCount: farmState.numSilos || 1,
     tankLevel: baseState.tankLevel,
-    artifactLoadout: elr.map(s => ({ artifactId: s.artifactId, stones: [...s.stones] })),
-    activeArtifactSet: 'elr',
+    artifactLoadout: worn.map(s => ({ artifactId: s.artifactId, stones: [...s.stones] })),
+    activeArtifactSet: !canSwap && sameSet(rawLoadout, optimalEarnings) ? 'earnings' : 'elr',
     artifactSets: {
-      earnings: optimalEarnings ? JSON.parse(JSON.stringify(optimalEarnings)) : null,
+      earnings: earnings ? JSON.parse(JSON.stringify(earnings)) : null,
       elr: JSON.parse(JSON.stringify(elr)),
     },
     fuelTankAmounts: { ...baseState.fuelTankAmounts },
@@ -545,10 +671,15 @@ function buildContinueVariant(
 
 /**
  * The farm "continue my build-up" starts the standard build from (auto/buildUp.ts): the save's farm
- * as `continueState` reads it, at the plan start (`lastStepTime` 0), on its earnings set (the build
- * up to H1 earns; H1 swaps to the delivery set), with what it laid and earned between the last sync
- * and the plan start credited: eggs at its delivery rate, as continue credits them, and cash at its
- * away earnings, both capped at the silos. Null without a farm in the save.
+ * as `continueState` reads it, at the plan start (`lastStepTime` 0), with what it laid and earned
+ * between the last sync and the plan start credited: eggs at its delivery rate, as continue credits
+ * them, and cash at its away earnings on the set it wears, both capped at the silos. Null without a
+ * farm in the save.
+ *
+ * Its set (SETS CHANGE ONLY ON HUMILITY, see `continueState`): on Humility it puts on the earnings set
+ * (the build up to H1 earns; H1 swaps to the delivery set). Off Humility it keeps the equipped loadout
+ * until H1, which is the first Humility shift: research and away cash are priced on it, and
+ * `continueState` filed it as the earnings set, so C1's equip changes nothing either.
  */
 function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: number): EngineState | null {
   const cont = continueState(inputs, baseState);
@@ -559,7 +690,7 @@ function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: n
     sync > 1e9 && startTime > sync
       ? catchUpSeconds(sync, startTime, siloSeconds(cont.siloCount, ctx.epicResearchLevels?.['silo_capacity']))
       : 0;
-  const earnings = cont.artifactSets.earnings;
+  const earnings = cont.currentEgg === 'humility' ? cont.artifactSets.earnings : null;
   const state: EngineState = {
     ...cont,
     lastStepTime: 0,
@@ -581,12 +712,27 @@ function buildUpState(inputs: SearchInputs, baseState: EngineState, startTime: n
   return state;
 }
 
+/** `continueState` and `buildUpState` for checks (leg.continueSet.spec.ts); the search reads them through `runLeg`. */
+export const continueStateForCheck = continueState;
+export const buildUpStateForCheck = buildUpState;
+
 /** One plan start's build-up as far as C3's variants: everything a checkpoint does not change. */
 interface BuildUpBuild {
   start: EngineState;
   ctx: SimulationContext;
   preC3: { actions: Action[]; state: EngineState; elapsedSeconds: number };
   variants: C3Variant[];
+  /** Every possible variant's build (the steps to C3 and C3 itself) buys nothing (`buildUpBuys`): `variants` is
+   *  then empty, and the build-up is no option (NO EMPTY BUILD-UP, `runLeg`). */
+  buysNothing?: true;
+}
+
+/** Whether a build-up variant's build buys anything: a research, vehicle, train car, hab or silo purchase
+ *  (auto/ascension.ts `isPurchase`) in the steps to C3 or in C3 itself. From H1 on the build-up runs the standard
+ *  tail, as a fresh build does, and the instant answer prices that part from the table; so the build is what tells
+ *  a build-up from continue with extra shifts, the same in the search and in the instant answer. */
+function buildUpBuys(preC3: { actions: Action[] }, v: C3Variant): boolean {
+  return preC3.actions.some(isPurchase) || (v.result?.actions ?? []).some(isPurchase);
 }
 
 /** Per run (its inputs) and plan start: leg 1 is priced to many checkpoints from the same farm, and
@@ -613,10 +759,15 @@ function buildUpBuild(inputs: SearchInputs, baseState: EngineState, startTime: n
         elapsedSeconds = held.elapsedSeconds;
       }
     }
-    const variants = runC3Variants(state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE, {
+    const possible = runC3Variants(state, ctx, 3, startTE < TIER_13_MIN_STARTING_TE, {
       stayOnCuriosity: pre.stayOnCuriosity,
     }).filter(v => !v.impossible);
-    built = variants.length ? { start, ctx, preC3: { actions, state, elapsedSeconds }, variants } : null;
+    const preC3 = { actions, state, elapsedSeconds };
+    // NO EMPTY BUILD-UP: a variant whose build buys nothing is continue with extra shifts, never offered.
+    const variants = possible.filter(v => buildUpBuys(preC3, v));
+    built = possible.length
+      ? { start, ctx, preC3, variants, ...(variants.length ? {} : { buysNothing: true as const }) }
+      : null;
   }
   if (byStart.size >= 4) byStart.delete(byStart.keys().next().value as number);
   byStart.set(startTime, built);
@@ -649,6 +800,8 @@ function buildBuildUpVariant(
 
 /** `buildBuildUpVariant` for checks and the CLI; the search calls it through `runLeg`. */
 export const buildUpVariantForCheck = buildBuildUpVariant;
+/** `buildUpBuild` for checks (leg.continueSet.allan.save.spec.ts: whether the build buys anything at all). */
+export const buildUpBuildForCheck = buildUpBuild;
 
 /**
  * Continue my build-up as the precomputed tail takes it (search/precomputedLeg.ts), one `BuildParams`

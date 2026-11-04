@@ -33,3 +33,9 @@ export function textOf(html: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/** The visible text with AnimatedDots read as the "..." it draws (spec-dots, 1 Nov 2026): "Checking..." rather than
+ *  textOf's "Checking . . .". The dots are aria-hidden; this is what the eye reads. */
+export function textWithDots(html: string): string {
+  return textOf(html.replace(/<span class="animated-dots" aria-hidden="true"[^>]*>(?:<span[^>]*>\.<\/span>){3}<\/span>/g, '...'));
+}

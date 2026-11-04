@@ -74,7 +74,7 @@
 
         <div v-else class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-0.5">
-            <p v-if="loading" class="text-body font-bold text-slate-500">Loading the runs…</p>
+            <p v-if="loading" class="text-body font-bold text-slate-500">Loading the runs<AnimatedDots /></p>
             <p v-else-if="error" class="text-body font-bold text-rose-700">{{ error }}</p>
             <p v-else-if="allSimHidden" class="text-body font-bold text-amber-700" data-testid="sim-all-hidden">
               {{ allSimHidden }}
@@ -171,7 +171,7 @@
         class="flex h-40 items-center justify-center rounded-xl border border-slate-200 bg-white text-small font-bold text-slate-400"
         role="status"
       >
-        Loading the runs…
+        <span>Loading the runs<AnimatedDots /></span>
       </section>
 
       <p
@@ -767,7 +767,8 @@
                           :disabled="csvLoadingId === row.id"
                           @click="openTable(row, $event)"
                         >
-                          {{ csvLoadingId === row.id ? 'Loading…' : loadedRun?.id === row.id ? 'Loaded' : 'Open' }}
+                          <template v-if="csvLoadingId === row.id">Loading<AnimatedDots /></template
+                          ><template v-else>{{ loadedRun?.id === row.id ? 'Loaded' : 'Open' }}</template>
                         </button>
                         <span v-else class="text-slate-300">—</span>
                       </td>
@@ -1242,6 +1243,7 @@
 </template>
 
 <script setup lang="ts">
+import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import SearchShapeChart from '@/components/auto/charts/SearchShapeChart.vue';

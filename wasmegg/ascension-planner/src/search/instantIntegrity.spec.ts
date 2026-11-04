@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { holdsRoutes, instantIntegrity } from './instantIntegrity';
-import { renderHtml, textOf } from '@/test/renderComponent';
+import { renderHtml, textOf, textWithDots } from '@/test/renderComponent';
 import InstantIntegrity from '@/components/auto/InstantIntegrity.vue';
 import type { CteParts } from './rules';
 
@@ -64,8 +64,10 @@ describe('InstantIntegrity.vue', () => {
   it('warn: an amber note; checking: one grey line; none: nothing', async () => {
     const warn = textOf(await renderHtml(InstantIntegrity, { state: instantIntegrity(2 * 3600, false, null, false) }));
     expect(warn).toMatch(/^This account stalls\. Times on your account include an Integrity wait of 2\.0 hours/);
-    const checking = textOf(await renderHtml(InstantIntegrity, { state: { kind: 'checking' } }));
-    expect(checking).toBe('Checking whether this account can build…');
+    const checkingHtml = await renderHtml(InstantIntegrity, { state: { kind: 'checking' } });
+    // The dots are drawn, aria-hidden (AnimatedDots, spec-dots 1 Nov 2026).
+    expect(textWithDots(checkingHtml)).toBe('Checking whether this account can build...');
+    expect(checkingHtml).toContain('class="animated-dots" aria-hidden="true"');
     expect(textOf(await renderHtml(InstantIntegrity, { state: { kind: 'none' } }))).toBe('');
   });
 });

@@ -8,11 +8,13 @@ If you want to build this yourself I suggest looking at the various Makefiles an
 
 Original Project: https://github.com/fanaticscripter/egg
 
+The virtue ascension planner is in [`wasmegg/ascension-planner`](wasmegg/ascension-planner); its [README](wasmegg/ascension-planner/README.md) covers its setup, commands and what is new.
+
 How to set up build environment
 
 1. Use Linux, MacOS, or a linux environment on windows (WSL or maybe git bash?) - I only have personal experience building directly on Linux
 1. Install protoc: https://protobuf.dev/installation/
-1. Install pnpm: https://pnpm.io/installation
+1. Install pnpm: https://pnpm.io/installation (use the version `packageManager` pins in `package.json`, pnpm 11.11.0, for example with `npx -y pnpm@11.11.0`)
 1. Install ets: https://github.com/zmwangx/ets?tab=readme-ov-file#installation
 1. Install make
 1. cd to lib folder in root of project and run `make init` and `make`. This will install dependencies with pnpm and run protoc

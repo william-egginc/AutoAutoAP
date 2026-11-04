@@ -18,7 +18,7 @@ vi.mock('@/composables/useNewVersion', async importOriginal => ({
 const { default: NewVersionBanner } = await import('./NewVersionBanner.vue');
 
 /** A listed note, newer than this tab or not. */
-const n = (note: string, isNew = true) => ({ at: '2026-10-27T12:00:00Z', note, isNew });
+const n = (note: string, isNew = true) => ({ at: '2026-10-27T12:00:00Z', note, key: `k-${note}`, isNew });
 
 const render = (release: ReleaseInfo, note?: string) => {
   state.release.value = release;
@@ -30,25 +30,20 @@ describe('NewVersionBanner', () => {
     state.available.value = true;
   });
 
-  it('no notes at all: just "Small update available", no list', async () => {
-    const html = await render({ level: 'small', notes: [], more: 0 });
-    expect(html).toContain('data-testid="update-banner-small"');
-    expect(html).not.toContain('data-testid="update-notes"');
-    expect(html).not.toContain('<li');
-    const text = textOf(html);
-    expect(text).toContain(
-      'Small update available. No need to reload now; you will get it next time you open the page.'
-    );
-    expect(text).not.toContain('New:');
-    expect(text).toContain('Dismiss');
-    expect(text).toContain('Reload anyway');
+  it('a small update with no note new to this tab: no banner at all (R7, 31 Oct 2026)', async () => {
+    // Re-timed notes only, or a code-only rebuild: the tab picks up the new code on its next load.
+    const html = await render({ level: 'small', notes: [], more: 0 }, 'save your results first');
+    expect(html).not.toContain('data-testid="update-banner');
+    expect(textOf(html)).toBe('');
   });
 
-  it('notes: listed in the order given, newer ones tagged "New", with "+N more"', async () => {
-    const html = await render({ level: 'small', notes: [n('newest.'), n('older', false)], more: 2 });
+  it('notes: listed in the order given, tagged "New", with "+N more"', async () => {
+    const html = await render({ level: 'small', notes: [n('newest.'), n('older')], more: 2 });
     expect(html).toContain('data-testid="update-notes"');
     const text = textOf(html);
-    expect(text).toMatch(/^Small update available\. \w+ \d+ New newest \w+ \d+ older \+2 more No need to reload now/);
+    expect(text).toMatch(
+      /^Small update available\. \w+ \d+ New newest \w+ \d+ New older \+2 more No need to reload: you'll get it on your next visit\. Reload anyway Dismiss$/
+    );
     expect(text).not.toContain('New:');
     expect(html.match(/<li/g)).toHaveLength(3);
   });
