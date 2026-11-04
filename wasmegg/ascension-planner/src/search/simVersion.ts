@@ -25,7 +25,8 @@
  */
 // 2026-11-03-sim3: Bust Unions read by its real id (vehicles), multi-level delivery research in smart buy
 // (calculations/, outside the hash), Continue my build-up buys only on each purchase's own egg, K2 within 8 h,
-// and the 60 s rule (a wait under a minute earns the online rate).
+// the 60 s rule (a wait under a minute earns the online rate), and research ranked at the price it is charged
+// during a sale (calculations/, outside the hash).
 export const SIM_VERSION = '2026-11-03-sim3';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories

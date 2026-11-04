@@ -591,7 +591,14 @@ export function rankResearchByELRImpact(
           transitions
         );
         const price = withBankPurchase.price;
-        const secondsToBuyNoBank = noBankPurchase.waitSeconds;
+        // Rated on the price actually charged (Allan, 3 Nov 2026: Joo's AP sometimes rated a sale
+        // purchase at full price). Late in a sale, saving the sale price from an empty bank may not
+        // fit before the sale ends, so the zero-bank wait falls back to the full price or next week's
+        // sale, while the purchase is made now, with the bank, at the sale price.
+        const secondsToBuyNoBank =
+          noBankPurchase.price === price
+            ? noBankPurchase.waitSeconds
+            : getTimeToSave(price, noBankSnapshot, transitions);
         const secondsToBuyWithBank = withBankPurchase.waitSeconds;
 
         const tempLevels = { ...researchLevels, [r.id]: level + 1 };
@@ -732,7 +739,14 @@ export function rankResearchByELRImpact(
           transitions
         );
         const price = withBankPurchase.price;
-        const secondsToBuyNoBank = noBankPurchase.waitSeconds;
+        // Rated on the price actually charged (Allan, 3 Nov 2026: Joo's AP sometimes rated a sale
+        // purchase at full price). Late in a sale, saving the sale price from an empty bank may not
+        // fit before the sale ends, so the zero-bank wait falls back to the full price or next week's
+        // sale, while the purchase is made now, with the bank, at the sale price.
+        const secondsToBuyNoBank =
+          noBankPurchase.price === price
+            ? noBankPurchase.waitSeconds
+            : getTimeToSave(price, noBankSnapshot, transitions);
         const secondsToBuyWithBank = withBankPurchase.waitSeconds;
         const impact = FLEET_RESEARCH_IDS.includes(r.id)
           ? 1 / currentSlots
