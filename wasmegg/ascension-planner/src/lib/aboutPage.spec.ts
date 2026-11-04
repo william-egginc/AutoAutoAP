@@ -99,7 +99,7 @@ describe('About and privacy page', () => {
     expect(text).toContain(
       'If you set them, the row also has your awake hours (the times of day you said you are awake, shown in the Schedule column) and the days you marked as time off. It always has the weekday your plan starts on. Rows are public.'
     );
-    expect(text).toContain('Last updated Nov 5, 2026.');
+    expect(text).toContain('Last updated Nov 4, 2026.');
     // The fields behind those words: sent by the planner, and kept on the public row by the collector.
     const sub = read('src/search/submission.ts');
     expect(sub).toContain('window: i.availability ? describeAvailability(i.availability) : null,');
@@ -133,7 +133,7 @@ describe('About and privacy page', () => {
       "the best result of a Fast, Exact or Custom search on your account for the same goal (it is in the record's exact field, which before Oct 23, 2026 held the price of the instant answer's own route)"
     );
     expect(text).toContain('They are anonymous, sent only with that consent, and never shown publicly.');
-    expect(text).toContain('Last updated Nov 5, 2026.');
+    expect(text).toContain('Last updated Nov 4, 2026.');
     expect(text).not.toContain('Keep sharing my checks');
   });
 
@@ -197,7 +197,7 @@ describe('About and privacy page', () => {
     );
     expect(text).toContain('The last 5 versions for each goal are kept. To put an earlier one back, open Earlier versions');
     expect(text).toContain('The routes you follow No time limit. The last 5 versions of each goal, for up to 8 goals.');
-    expect(text).toContain('Last updated Nov 5, 2026.');
+    expect(text).toContain('Last updated Nov 4, 2026.');
     // What it says must stay true: the key made in the browser from the ID, the value's fields, Follow the only write.
     const cloud = read('src/lib/followCloud.ts');
     expect(cloud).toContain("export const FOLLOW_KEY_PREFIX = 'aaap-follow-v1:';");

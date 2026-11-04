@@ -160,7 +160,7 @@ finishing the routes already started (up to about a minute); and the My runs cha
 Release 5, in short: Joo's latest planner (his artifact and stone editor, the opening switch, fewer empty
 shifts); the Help improve the planner box; hours ahead or behind on My runs; simulator chips and Show runs
 from older simulators on the Leaderboard; Leaderboard and Science off until ticked in Setup.
-Release 7 (Nov 5, 2026), in short: the Build-up tracker on My runs; Keep building or Finish without buying; Re-plan
+Release 7 (Nov 4, 2026), in short: the Build-up tracker on My runs; Keep building or Finish without buying; Re-plan
 from this save for a followed route your save no longer matches; empty build-ups dropped; a farm off Humility keeps the
 artifacts it has on; one save-age box with Check your clock; Download for Excel (.xlsx); downloaded saves with no
 player ID and no device IDs; saving the same run or answer twice keeps one entry; answers worked out by an older

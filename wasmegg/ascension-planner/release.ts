@@ -33,14 +33,14 @@
  * A .ts file on purpose: the repo ignores *.json in this folder (it is for player backups).
  */
 const history: { at: string; note: string; level?: 'small' | 'big' }[] = [
-  { at: '2026-11-06T00:00:07Z', note: 'Release 7: a Build-up tracker on My runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
-  { at: '2026-11-06T00:00:06Z', note: "Build-up tracker on My runs: what to buy and when to go offline, ticked from your save; plans that continue it keep the artifacts you're wearing until Humility, so dates match what you can do" },
-  { at: '2026-11-06T00:00:05Z', note: 'When keeping on building would end your ascension later, My runs lets you pick: keep building or finish without buying' },
-  { at: '2026-11-06T00:00:04Z', note: 'Right now says when starting fresh would end your ascension over an hour sooner than your build-up, with a Switch to Soonest button; the instant answer says it is an estimate' },
-  { at: '2026-11-06T00:00:03Z', note: 'Re-plan from this save is offered when your save no longer matches the route you follow, or the route starts with a build-up that buys nothing; the Building/Producing label follows your save' },
-  { at: '2026-11-06T00:00:02Z', note: 'One save-age box (green, yellow or red) says when to sync; Downloaded saves no longer contain your player ID or device IDs; after an update, answers are worked out again with the new version' },
-  { at: '2026-11-06T00:00:01Z', note: 'Download for Excel (.xlsx) beside the CSV; saving the same answer twice no longer duplicates it; the update list shows only what is new to you; phone layout and banner tidy-ups' },
-  { at: '2026-11-06T00:00:00Z', note: "My runs shows a You are here row and tag; the Auto Planner remembers its screen; Fastest's Save run says Saved ✓; Next step says Prestige at N TE for a producing save; waiting labels have moving dots" },
+  { at: '2026-11-04T22:00:07Z', note: 'Release 7: a Build-up tracker on My runs (what to buy and when to go offline), Re-plan from this save, one save-age box, and downloaded saves without your player ID', level: 'big' },
+  { at: '2026-11-04T22:00:06Z', note: "Build-up tracker on My runs: what to buy and when to go offline, ticked from your save; plans that continue it keep the artifacts you're wearing until Humility, so dates match what you can do" },
+  { at: '2026-11-04T22:00:05Z', note: 'When keeping on building would end your ascension later, My runs lets you pick: keep building or finish without buying' },
+  { at: '2026-11-04T22:00:04Z', note: 'Right now says when starting fresh would end your ascension over an hour sooner than your build-up, with a Switch to Soonest button; the instant answer says it is an estimate' },
+  { at: '2026-11-04T22:00:03Z', note: 'Re-plan from this save is offered when your save no longer matches the route you follow, or the route starts with a build-up that buys nothing; the Building/Producing label follows your save' },
+  { at: '2026-11-04T22:00:02Z', note: 'One save-age box (green, yellow or red) says when to sync; Downloaded saves no longer contain your player ID or device IDs; after an update, answers are worked out again with the new version' },
+  { at: '2026-11-04T22:00:01Z', note: 'Download for Excel (.xlsx) beside the CSV; saving the same answer twice no longer duplicates it; the update list shows only what is new to you; phone layout and banner tidy-ups' },
+  { at: '2026-11-04T22:00:00Z', note: "My runs shows a You are here row and tag; the Auto Planner remembers its screen; Fastest's Save run says Saved ✓; Next step says Prestige at N TE for a producing save; waiting labels have moving dots" },
   { at: '2026-10-29T23:00:07Z', note: 'Release 6: new instant answers, My runs shows your next step and shifts, your Setup and followed route are saved online, and one Run button', level: 'big' },
   { at: '2026-10-29T23:00:06Z', note: 'New instant answers (some numbers will move), and new gear tables make them more exact for more gear sets; the Silos tile estimates time left' },
   { at: '2026-10-29T23:00:05Z', note: 'My runs shows your Next step and Next shifts from your live save, a timeline with a build-up line for each ascension, and a check for a newer save; Your routes at a glance is a heat map' },
