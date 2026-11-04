@@ -202,4 +202,30 @@ describe('(2) a downloaded save loads back into the account it came from', () =>
     expect(await store.loadSaveFile(ID, own)).toBe(true);
     expect((useInitialStateStore().rawBackup as Record<string, unknown>).eiUserId).toBe(ID);
   });
+
+  // QA's recheck on 8ae81704 (r7ids): the ID typed on screen and the loaded save's own ID differ. The downloaded file
+  // (the stand-in) is the loaded save's account, so it takes that ID and loads; a real other ID is still refused.
+  const SAVE_ID = 'EI1111111111117777';
+  it('the screen’s ID differs from the loaded save’s: the downloaded file loads as the loaded save’s account', async () => {
+    setActivePinia(createPinia());
+    const text = await download();
+    await signedInWith(ID, SAVE_ID);
+    const store = useChainSearchStore();
+    expect(await store.loadSaveFile(ID, text)).toBe(true);
+    expect(store.olderSaveError).toBeNull();
+    const raw = useInitialStateStore().rawBackup as Record<string, unknown>;
+    expect(raw.eiUserId).toBe(SAVE_ID);
+    expect(useUIStore().runSaveLoaded?.noAccount).toBeFalsy();
+  });
+
+  it('the screen’s ID differs from the loaded save’s: a file naming another real ID is still refused', async () => {
+    const text = await download();
+    for (const otherId of ['EI1234567890123456', ID]) {
+      await signedInWith(ID, SAVE_ID);
+      const store = useChainSearchStore();
+      expect(await store.loadSaveFile(ID, text.replaceAll(PLACEHOLDER_ID, otherId)), otherId).toBe(false);
+      expect(store.olderSaveError).toMatch(/another account/);
+      expect((useInitialStateStore().rawBackup as Record<string, unknown>).eiUserId).toBe(SAVE_ID);
+    }
+  });
 });
