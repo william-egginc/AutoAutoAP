@@ -1,5 +1,5 @@
 import { getDiscountedVehiclePrice, getDiscountedTrainCarPrice, getVehicleType, type VehicleCostModifiers } from '@/lib/vehicles';
-import { getTimeToSave } from '@/engine/apply';
+import { getTimeToSave, calculateEarningsForTime } from '@/engine/apply';
 import type { CalculationsSnapshot } from '@/types';
 
 export interface VehicleMultipliers {
@@ -103,6 +103,8 @@ function applyVirtualVehiclePurchase(
   seconds: number,
   earningsPerEgg: number
 ): void {
+  const earned =
+    seconds > 0 && isFinite(seconds) ? calculateEarningsForTime(seconds, snapshot as unknown as CalculationsSnapshot) : 0;
   const P0 = snapshot.population;
   const I = snapshot.offlineIHR / 60;
   // seconds can be Infinity (unaffordable in finite time); P0 + I * Infinity would be
@@ -115,7 +117,10 @@ function applyVirtualVehiclePurchase(
   snapshot.elr = Math.min(snapshot.layRate, snapshot.shippingCapacity);
   snapshot.offlineEarnings = snapshot.elr * earningsPerEgg;
 
-  snapshot.bankValue = Math.max(0, snapshot.bankValue - price);
+  // The check-in rule (Jordan, 4 Nov 2026): what a wait earned beyond the price stays in the bank,
+  // so everything affordable at the check-in is bought there (with the 60 s minimum wait, the old
+  // "bank to 0 after any wait" made every following buy wait another minute).
+  snapshot.bankValue = Math.max(0, snapshot.bankValue + earned - price);
 }
 
 /**

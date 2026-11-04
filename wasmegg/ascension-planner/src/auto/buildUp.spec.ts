@@ -10,11 +10,19 @@ import type { EngineState, ShiftResult } from './types';
 /** Seconds each step's in-place purchases take (the trial), by step name. */
 let inPlace: Record<string, number> = {};
 const ran: string[] = [];
+const vehicleLimits: number[] = [];
 
 const result = (name: string, s: EngineState, seconds: number, egg?: string): ShiftResult => {
   ran.push(name);
+  // A step with no entry in `inPlace` has nothing to buy, in place or after its shift (the vehicle
+  // planner stands for K1's and K2's both).
+  const key = name.slice(0, 2);
+  const buys = inPlace[key] !== undefined || (name === 'K2 in place' && inPlace.K1 !== undefined);
   return {
-    actions: [{ type: egg ? 'shift' : 'buy', payload: { toEgg: egg } } as never],
+    actions: [
+      ...(egg ? [{ type: 'shift', payload: { toEgg: egg } } as never] : []),
+      ...(buys ? [{ type: 'buy_vehicle', payload: {} } as never] : []),
+    ],
     elapsedSeconds: seconds,
     endState: { ...s, ...(egg ? { currentEgg: egg, bankValue: 0, population: 1 } : {}) } as EngineState,
   };
@@ -36,11 +44,14 @@ vi.mock('./shifts/i1', () => ({
   I1_TIME_LIMIT_SECONDS: 4 * 3600,
 }));
 vi.mock('./shifts/c2', () => ({ runC2: (s: EngineState) => result('C2 shift', s, 14400, 'curiosity') }));
-vi.mock('./shifts/k2', () => ({ runK2: (s: EngineState) => result('K2 shift', s, 99999, 'kindness') }));
+vi.mock('./shifts/k2', () => ({ K2_TIME_LIMIT_SECONDS: 24 * 3600, runK2: (s: EngineState) => result('K2 shift', s, 99999, 'kindness') }));
 vi.mock('./shifts/r1', () => ({ runR1: (s: EngineState) => result('R1 shift', s, 3600, 'resilience') }));
 vi.mock('./shifts/helpers/vehicles', () => ({
   runVehiclesForTimeLimit: (s: EngineState) => result('K1 in place', s, inPlace.K1 ?? 0),
-  runMaxVehiclesPlan: (s: EngineState) => result('K2 in place', s, inPlace.K2 ?? 0),
+  runMaxVehiclesPlan: (s: EngineState, _c: unknown, limit: number) => {
+    vehicleLimits.push(limit);
+    return result('K2 in place', s, inPlace.K2 ?? 0);
+  },
 }));
 vi.mock('./shifts/helpers/habs', () => ({
   runHabPurchasePlan: (s: EngineState) => result('I1 in place', s, inPlace.I1 ?? 0),
@@ -78,15 +89,34 @@ beforeEach(() => {
 });
 
 describe('continue my build-up, up to C3', () => {
-  it('buys a finished farm\'s leftovers where it is: no shift, no reset, and C3 stays on Curiosity', () => {
-    inPlace = { K2: 30, R1: 10 };
+  it('a step with nothing to buy is skipped, shift and all: a finished farm stays on Curiosity', () => {
     const pre = runBuildUpUntilC3(farm(), {} as never);
-    expect(ran).toEqual(['K1 in place', 'I1 in place', 'K2 in place', 'R1 in place']);
+    expect(ran).not.toContain('K1 shift');
+    expect(ran).not.toContain('I1 shift');
+    expect(ran).not.toContain('K2 shift');
     expect(pre.shifted).toEqual([]);
-    expect(pre.elapsedSeconds).toBe(40);
+    expect(pre.state.bankValue).toBe(1e40);
+    expect(pre.stayOnCuriosity).toBe(true);
+  });
+
+  it('buys only on its own egg (Jordan): quick leftovers on another egg still shift there first', () => {
+    inPlace = { I1: 30, R1: 10 };
+    const pre = runBuildUpUntilC3(farm({ habIds: [16, 16, null, null] }), {} as never);
+    expect(pre.shifted).toEqual(['I1', 'R1']);
+    expect(ran).toContain('I1 shift');
+    expect(ran).toContain('R1 shift');
+    expect(pre.state.currentEgg).toBe('resilience');
+    expect(pre.stayOnCuriosity).toBe(false);
+  });
+
+  it('on the step\'s own egg, quick purchases are bought where the farm is: no shift, no reset', () => {
+    inPlace = { K1: 10 };
+    const pre = runBuildUpUntilC3(farm({ currentEgg: 'kindness' }), {} as never);
+    expect(pre.shifted).toEqual([]);
+    expect(ran).not.toContain('K1 shift');
+    expect(pre.elapsedSeconds).toBe(10);
     expect(pre.state.bankValue).toBe(1e40);
     expect(pre.state.population).toBe(1e10);
-    expect(pre.stayOnCuriosity).toBe(true);
   });
 
   it('runs a step as a fresh build does, shift and all, when its purchases take longer than the in-place limit', () => {
@@ -106,5 +136,13 @@ describe('continue my build-up, up to C3', () => {
     ran.length = 0;
     runBuildUpUntilC3(farm(), {} as never);
     expect(ran).not.toContain('C1');
+  });
+
+  it('the in-place K2 has K2\'s 24-hour budget, never an unlimited one', () => {
+    vehicleLimits.length = 0;
+    inPlace = { K2: 30 };
+    runBuildUpUntilC3(farm({ currentEgg: 'kindness' }), {} as never);
+    // The last call is K2's trial (K1's nothing-to-buy probe before it is uncapped on purpose).
+    expect(vehicleLimits.at(-1)).toBe(24 * 3600);
   });
 });

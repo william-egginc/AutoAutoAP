@@ -45,6 +45,16 @@ export interface WaitForResearchSalePayload {
 export interface WaitForEarningsBoostPayload {
   totalTimeSeconds: number;
 }
+
+/** Payload for waiting for the running research sale to end. */
+export interface WaitForResearchSaleEndPayload {
+  totalTimeSeconds: number;
+}
+
+/** Payload for waiting for the running 2x earnings event to end. */
+export interface WaitForEarningsBoostEndPayload {
+  totalTimeSeconds: number;
+}
 /**
  * Payload for waiting to reach a target gem count.
  */

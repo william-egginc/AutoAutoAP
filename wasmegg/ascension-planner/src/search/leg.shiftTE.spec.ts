@@ -31,32 +31,33 @@ import type { ChainResult } from './types';
  * and the leg takes 16.3 days. The 15 Oct numbers: seconds 20844400.35885477, end 1811704000.3588548,
  * nine shifts, the I1 ending at 1805159981.4405875.
  */
+// sim3 (3 Nov 2026, SIM_VERSION 2026-11-03-sim3): recorded again; the 1410518.5 s route of before moved with the simulator.
 const BEFORE = {
-  seconds: 1410518.5035481453,
+  seconds: 1421633.5813481808,
   startTime: 1790859600,
-  endTime: 1792270118.5035481,
-  durationSeconds: 1410518.503548117,
+  endTime: 1792281233.5813482,
+  durationSeconds: 1421633.5813482336,
   key: '1-sale',
   endTE: 192,
   shifts: [
-    [1790861349.4107058, 'kindness', 'curiosity'],
-    [1790862865.0780554, 'integrity', 'kindness'],
-    [1790863616.0352676, 'curiosity', 'integrity'],
-    [1790864711.3002753, 'kindness', 'curiosity'],
-    [1790864717.103002, 'integrity', 'kindness'],
-    [1790864733.414759, 'resilience', 'integrity'],
-    [1790864754.5340643, 'curiosity', 'resilience'],
-    [1791018171.5381534, 'humility', 'curiosity'],
-    [1791018171.5381534, 'kindness', 'humility'],
+    [1790861317.8029885, 'kindness', 'curiosity'],
+    [1790863073.8166099, 'integrity', 'kindness'],
+    [1790863843.5788205, 'curiosity', 'integrity'],
+    [1790865007.9882977, 'kindness', 'curiosity'],
+    [1790865067.9882977, 'integrity', 'kindness'],
+    [1790865127.9882977, 'resilience', 'integrity'],
+    [1790865187.9882977, 'curiosity', 'resilience'],
+    [1791005438.7459395, 'humility', 'curiosity'],
+    [1791005438.7459395, 'kindness', 'humility'],
     [1791043200, 'curiosity', 'kindness'],
-    [1791608561.2172203, 'integrity', 'curiosity'],
+    [1791618478.2377987, 'resilience', 'curiosity'],
   ] as [number, string, string][],
   endEggs: {
     delivered: [
-      3510000000343879000, 3510000000343879000, 3282500000000000000, 3282503261526989300, 3291106990925773000,
+      3510000000343250000, 3282504251140066300, 3282500000000000000, 3510000000343250000, 3295458878936432000,
     ],
-    te: [39, 39, 38, 38, 38],
-    egg: 'integrity',
+    te: [39, 38, 38, 39, 38],
+    egg: 'resilience',
   },
 };
 

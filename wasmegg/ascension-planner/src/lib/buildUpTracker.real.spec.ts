@@ -94,8 +94,8 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     const w = r.lines.filter(l => l.kind === 'saleWait');
     expect(w.length).toBeGreaterThan(0);
     for (const l of w) expect(l.text).toMatch(/^wait for the sale: offline until (Fri|Thu|Sat) [A-Z][a-z]{2} \d+ 10:00 am \(/);
-    // 7 silos at 3 h each hold 21 h; the wait is 22 h 21 min: open the farm before they run out.
-    expect(w[0].text).toBe('wait for the sale: offline until Fri Oct 2 10:00 am (22 h 21 min) (your silos hold 21 h: open the farm before they run out; nothing to buy)');
+    // 7 silos at 3 h each hold 21 h; the wait is 22 h 13 min (sim3 check-ins): open the farm before they run out.
+    expect(w[0].text).toBe('wait for the sale: offline until Fri Oct 2 10:00 am (22 h 13 min) (your silos hold 21 h: open the farm before they run out; nothing to buy)');
     expect(r.lines.some(l => l.kind === 'saleStart' && l.time === '10:00 am')).toBe(true);
   });
 
@@ -148,7 +148,19 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
   it('vehicles climbed in one moment say only the last one per slot', () => {
     const at = r.lines.filter(l => l.kind === 'trains' && /Hyperloop/.test(l.text));
     expect(at.length).toBeGreaterThan(0);
-    for (const l of at) expect(r.lines.filter(x => x.at === l.at && x.kind === 'trains' && /slot/.test(x.text)).every(x => !/Trike|Quantum/.test(x.text))).toBe(true);
+    // Each slot is named once per moment (sim3: under the 60 s rule a new slot can get a lower vehicle in the same
+    // moment as other slots climb to Hyperloops; that is its last vehicle there, not a climb step).
+    const slotsOf = (t: string): number[] => {
+      const m = /slots? (\d+)(?:-(\d+))?/.exec(t);
+      if (!m) return [];
+      const a = Number(m[1]);
+      const b = m[2] ? Number(m[2]) : a;
+      return Array.from({ length: b - a + 1 }, (_, i) => a + i);
+    };
+    for (const l of at) {
+      const named = r.lines.filter(x => x.at === l.at && x.kind === 'trains').flatMap(x => slotsOf(x.text));
+      expect(new Set(named).size).toBe(named.length);
+    }
   });
 
   it('the kept plan (compacted) fits the 400 kB cap', () => {

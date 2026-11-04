@@ -34,17 +34,17 @@ vi.mock('./shifts/i1', () => ({
   I1_TIME_LIMIT_SECONDS: 4 * 3600,
 }));
 vi.mock('./shifts/c2', () => ({ runC2: (s: EngineState) => result('C2 shift', s, 14400, 'curiosity', c2Buys) }));
-vi.mock('./shifts/k2', () => ({ runK2: (s: EngineState) => result('K2 shift', s, 99999, 'kindness', true) }));
+vi.mock('./shifts/k2', () => ({ K2_TIME_LIMIT_SECONDS: 24 * 3600, runK2: (s: EngineState) => result('K2 shift', s, 99999, 'kindness', true) }));
 vi.mock('./shifts/r1', () => ({ runR1: (s: EngineState) => result('R1 shift', s, 3600, 'resilience', true) }));
 vi.mock('./shifts/helpers/vehicles', () => ({
-  runVehiclesForTimeLimit: (s: EngineState) => result('K1 in place', s, 99999),
-  runMaxVehiclesPlan: (s: EngineState) => result('K2 in place', s, 99999),
+  runVehiclesForTimeLimit: (s: EngineState) => result('K1 in place', s, 99999, undefined, true),
+  runMaxVehiclesPlan: (s: EngineState) => result('K2 in place', s, 99999, undefined, true),
 }));
 vi.mock('./shifts/helpers/habs', () => ({
-  runHabPurchasePlan: (s: EngineState) => result('I1 in place', s, 99999),
+  runHabPurchasePlan: (s: EngineState) => result('I1 in place', s, 99999, undefined, true),
 }));
 vi.mock('./shifts/helpers/silos', () => ({
-  runSiloBudgetPlan: (s: EngineState) => result('R1 in place', s, 99999),
+  runSiloBudgetPlan: (s: EngineState) => result('R1 in place', s, 99999, undefined, true),
 }));
 vi.mock('./shifts/helpers/milestones', () => ({
   runBuyResearchLevelByLevel: (s: EngineState) => ({ actions: [], elapsedSeconds: 99999, endState: s }),

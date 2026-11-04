@@ -7,6 +7,9 @@ import { isEarningsBoostActive, getNextEarningsBoostStart, getNextEarningsBoostE
  * `atSeconds <= 0` means the snapshot's own `earningsBoost.active` is stale for this window (it
  * wasn't re-derived at this point in time) — the most recent such transition wins as the true
  * state at t=0, overriding the snapshot's flag, rather than creating a mid-window segment.
+ *
+ * Lists of these are in ascending `atSeconds` order, as `boostTransitionsFrom` builds them:
+ * `calculateEarningsForTime` and `getTimeToSave` walk them in place rather than sorting per call.
  */
 export interface EarningsRateTransition {
   atSeconds: number;
@@ -223,21 +226,20 @@ export function calculateEarningsForTime(
   // Transitions at/before t=0 mean prevSnapshot's own `earningsBoost.active` is stale for this
   // window — the most recent one wins as the true state at t=0. Only transitions strictly inside
   // (0, seconds) create additional segments.
-  const past = transitions.filter(t => t.atSeconds <= 0).sort((a, b) => b.atSeconds - a.atSeconds);
-  const future = transitions
-    .filter(t => t.atSeconds > 0 && t.atSeconds < seconds)
-    .sort((a, b) => a.atSeconds - b.atSeconds);
-
-  let segmentActive = past.length > 0 ? past[0].boostActive : currentActive;
-  let segmentStart = 0;
+  let segmentActive = currentActive;
+  let eggsAtSegmentStart = eggsAt(0);
   let total = 0;
 
-  for (const transition of future) {
-    total += rateFor(segmentActive) * (eggsAt(transition.atSeconds) - eggsAt(segmentStart));
-    segmentStart = transition.atSeconds;
+  for (const transition of transitions) {
+    if (transition.atSeconds >= seconds) break;
+    if (transition.atSeconds > 0) {
+      const eggsAtSegmentEnd = eggsAt(transition.atSeconds);
+      total += rateFor(segmentActive) * (eggsAtSegmentEnd - eggsAtSegmentStart);
+      eggsAtSegmentStart = eggsAtSegmentEnd;
+    }
     segmentActive = transition.boostActive;
   }
-  total += rateFor(segmentActive) * (eggsAt(seconds) - eggsAt(segmentStart));
+  total += rateFor(segmentActive) * (eggsAt(seconds) - eggsAtSegmentStart);
 
   return total;
 }
@@ -282,6 +284,27 @@ export function getTimeToSave(
   prevSnapshot: CalculationsSnapshot,
   transitions: EarningsRateTransition[] = []
 ): number {
+  const t = timeToSaveRaw(cost, prevSnapshot, transitions);
+  // The 60 s rule (Jordan, 3 Nov 2026): no sub-minute waits. A buy that has to wait at all waits
+  // at least a minute, away (so at the offline rate this whole module uses); an instant one stays 0.
+  return t > 0 && t < MIN_WAIT_SECONDS ? MIN_WAIT_SECONDS : t;
+}
+
+/**
+ * The 60 s rule (game, Jordan 3 Nov 2026): "Just have it wait a minute (only exception is when it's
+ * instant, or 0s) then purchase the stuff then go offline a minute." Offline earnings only start
+ * after a full minute away, so the planner never waits less than that: every non-instant wait is at
+ * least this long, at the offline rate, and whatever is affordable at its end is bought together.
+ */
+export const MIN_WAIT_SECONDS = 60;
+
+/** `getTimeToSave` without the 60 s minimum wait: the pure earnings time, for price-to-income tests
+ *  (Smart Buy's 10 s sweep threshold) that are not waits. */
+export function timeToSaveRaw(
+  cost: number,
+  prevSnapshot: CalculationsSnapshot,
+  transitions: EarningsRateTransition[]
+): number {
   const effectiveCost = Math.max(0, cost - (prevSnapshot.bankValue || 0));
   if (effectiveCost <= 0) return 0;
 
@@ -305,19 +328,21 @@ export function getTimeToSave(
   const eggsAt = (t: number) => integrateRate(t, P0, I, R, S, HabCap);
   const popAt = (t: number) => Math.min(HabCap, P0 + I * t);
 
-  const past = transitions.filter(t => t.atSeconds <= 0).sort((a, b) => b.atSeconds - a.atSeconds);
-  const future = transitions.filter(t => t.atSeconds > 0).sort((a, b) => a.atSeconds - b.atSeconds);
+  // Transitions at/before t=0 only correct the snapshot's stale flag; the rest end regimes.
+  let segmentActive = currentActive;
+  let i = 0;
+  while (i < transitions.length && transitions[i].atSeconds <= 0) segmentActive = transitions[i++].boostActive;
 
-  let segmentActive = past.length > 0 ? past[0].boostActive : currentActive;
   let segmentStart = 0;
+  let eggsAtSegmentStart = eggsAt(0);
   let dollarsSoFar = 0;
 
-  const regimeEnds = [...future.map(t => t.atSeconds), Infinity];
-
-  for (let i = 0; i < regimeEnds.length; i++) {
-    const regimeEnd = regimeEnds[i];
+  // One regime more than there are transitions left: the last one never ends.
+  for (; i <= transitions.length; i++) {
+    const regimeEnd = i < transitions.length ? transitions[i].atSeconds : Infinity;
     const rate = rateFor(segmentActive);
-    const dollarsAvailable = regimeEnd === Infinity ? Infinity : rate * (eggsAt(regimeEnd) - eggsAt(segmentStart));
+    const eggsAtRegimeEnd = regimeEnd === Infinity ? Infinity : eggsAt(regimeEnd);
+    const dollarsAvailable = regimeEnd === Infinity ? Infinity : rate * (eggsAtRegimeEnd - eggsAtSegmentStart);
 
     if (dollarsSoFar + dollarsAvailable >= effectiveCost) {
       const neededEggs = (effectiveCost - dollarsSoFar) / rate;
@@ -327,7 +352,8 @@ export function getTimeToSave(
 
     dollarsSoFar += dollarsAvailable;
     segmentStart = regimeEnd;
-    segmentActive = i < future.length ? future[i].boostActive : segmentActive;
+    eggsAtSegmentStart = eggsAtRegimeEnd;
+    if (i < transitions.length) segmentActive = transitions[i].boostActive;
   }
 
   return Infinity;

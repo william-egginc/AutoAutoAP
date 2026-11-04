@@ -23,14 +23,17 @@
  * (`tableSimMismatch`) and says so on the instant answer when they differ; it also rides in the CSV
  * header and the instant record.
  */
-export const SIM_VERSION = '2026-10-21-egg-beta2';
+// 2026-11-03-sim3: Bust Unions read by its real id (vehicles), multi-level delivery research in smart buy
+// (calculations/, outside the hash), Continue my build-up buys only on each purchase's own egg, K2 within 24 h,
+// and the 60 s rule (no sub-minute waits: a non-instant wait is at least a minute, offline).
+export const SIM_VERSION = '2026-11-03-sim3';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories
  *  are taken whole, every .ts but the specs. */
 export const SIM_SOURCES = ['src/engine', 'src/auto', 'src/search/tableBuild.ts', 'src/search/precomputedLeg.ts'];
 
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top. */
-export const SIM_SOURCE_HASH = '7dbadea06aa5b0975b6021ad0a992b183821b86cbfb071595124f148210b864a';
+export const SIM_SOURCE_HASH = '3d7162a9f5a00d5cc200110e50bc0240a6e8363f2579c87cecf8d121019d0f73';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

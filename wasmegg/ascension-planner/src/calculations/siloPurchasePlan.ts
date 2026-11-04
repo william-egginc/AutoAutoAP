@@ -1,5 +1,5 @@
 import { nextSiloCost, MAX_SILOS } from '@/stores/silos';
-import { getTimeToSave } from '@/engine/apply';
+import { getTimeToSave, calculateEarningsForTime } from '@/engine/apply';
 import type { CalculationsSnapshot } from '@/types';
 
 export interface SiloPurchaseStep {
@@ -36,6 +36,7 @@ export function planSilosWithinBudget(
     if (!isFinite(seconds) || elapsedSeconds + seconds > budgetSeconds) break;
 
     elapsedSeconds += seconds;
+    const earned = seconds > 0 ? calculateEarningsForTime(seconds, virtualSnapshot) : 0;
 
     // Advance virtual population/earnings state during the wait
     const I = virtualSnapshot.offlineIHR / 60;
@@ -46,8 +47,10 @@ export function planSilosWithinBudget(
     const earningsPerEgg = startSnapshot.elr > 0 ? startSnapshot.offlineEarnings / startSnapshot.elr : 0;
     virtualSnapshot.offlineEarnings = virtualSnapshot.elr * earningsPerEgg;
 
-    // Bank is spent down to exactly cover the purchase
-    virtualSnapshot.bankValue = seconds > 0 ? 0 : Math.max(0, (virtualSnapshot.bankValue || 0) - cost);
+    // The check-in rule (Jordan, 4 Nov 2026): what a wait earned beyond the price stays in the bank,
+    // so everything affordable at the check-in is bought there (with the 60 s minimum wait, the old
+    // "bank to 0 after any wait" made every following buy wait another minute).
+    virtualSnapshot.bankValue = Math.max(0, (virtualSnapshot.bankValue || 0) + earned - cost);
 
     steps.push({ fromCount: currentSiloCount, toCount: currentSiloCount + 1, cost, waitSeconds: seconds });
     currentSiloCount++;

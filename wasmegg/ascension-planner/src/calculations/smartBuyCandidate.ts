@@ -6,7 +6,7 @@ import {
   type ResearchCostModifiers,
 } from './commonResearch';
 import type { CalculationsSnapshot } from '@/types';
-import { getTimeToSave } from '@/engine/apply';
+import { timeToSaveRaw, MIN_WAIT_SECONDS } from '@/engine/apply/math';
 import { getSaleAwareTimeToSave } from './researchROI';
 
 export interface SmartBuyCandidate {
@@ -52,10 +52,14 @@ export function findSmartBuyCandidate(
       const level = researchLevels[r.id] || 0;
       if (currentAbsoluteTime !== undefined) {
         const purchase = getSaleAwareTimeToSave(r, level, mods, isSale, currentAbsoluteTime, noBankSnapshot, []);
-        return { research: r, price: purchase.price, secondsToSave: purchase.waitSeconds };
+        // The threshold is a price-to-income test ("costs at most N s of earnings"), not a wait: read it
+        // without the 60 s minimum wait, which would otherwise rule out every candidate of a 10 s sweep.
+        const secondsToSave =
+          purchase.waitSeconds <= MIN_WAIT_SECONDS ? timeToSaveRaw(purchase.price, noBankSnapshot, []) : purchase.waitSeconds;
+        return { research: r, price: purchase.price, secondsToSave };
       }
       const price = getDiscountedVirtuePrice(r, level, mods, isSale);
-      return { research: r, price, secondsToSave: getTimeToSave(price, noBankSnapshot) };
+      return { research: r, price, secondsToSave: timeToSaveRaw(price, noBankSnapshot, []) };
     });
 
   candidates.sort((a, b) => a.price - b.price);

@@ -226,6 +226,8 @@ export function getActionDuration(
     action.type === 'wait_for_time' ||
     action.type === 'wait_for_full_habs' ||
     action.type === 'wait_for_research_sale' ||
+    action.type === 'wait_for_research_sale_end' ||
+    action.type === 'wait_for_earnings_boost_end' ||
     action.type === 'wait_for_earnings_boost' ||
     action.type === 'wait_for_no_earnings'
   ) {
