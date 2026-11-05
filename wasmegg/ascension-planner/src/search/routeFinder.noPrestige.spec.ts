@@ -185,8 +185,10 @@ describe('the days reach the workers and the saved-answer identity', () => {
 
 describe('the instant card', () => {
   const src = readFileSync(fileURLToPath(new URL('../components/auto/InstantRoute.vue', import.meta.url)), 'utf8');
-  it('says the prestiges wait past the days, only when some are set', () => {
-    expect(src).toContain('<p v-if="noPrestigeOn" class="text-body text-slate-500 max-w-prose" data-testid="instant-no-prestige">');
+  it('says the prestiges wait past the days, only when some are set (behind the one line\'s Why since spec-slimcard)', () => {
+    expect(src).toContain('<li v-if="noPrestigeOn" data-testid="instant-no-prestige">');
+    // The one line itself counts the days (lib/instantWords.ts noPrestigeDayCount), only when some are set.
+    expect(src).toContain('noPrestigeDays: noPrestigeOn.value ? noPrestigeDayCount(store.noPrestige) : 0,');
     expect(src).toContain('Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time');
   });
   it('the "Prestige by" line, which times its own prestige by the hours only, is not drawn with days set (spec-slimcard)', () => {

@@ -13,22 +13,24 @@ describe('InstantRoute layout', () => {
     ['By a date', 'Highest TE by {{ show(deadline) }}', 'v-for="r in dateRows"'],
     ['Fastest', 'Fastest to {{ store.finalTE }} TE', 'v-for="r in shownRows"'],
   ] as const) {
-    it(`${goal}: box, its two buttons, the one line, then the counts list`, () => {
+    it(`${goal}: the one line under the title, then the box with its two buttons, then the counts list`, () => {
+      // The one line sits under the title since spec-slimcard (wireframes/instant-slim-v1), before both boxes.
+      const line = t.indexOf('data-testid="instant-header"');
       const box = t.indexOf(heading);
       const actions = t.indexOf('data-testid="box-actions"', box);
-      const line = t.indexOf('data-testid="instant-one-line"', box);
       const counts = t.indexOf('data-testid="counts-card"', box);
       const table = t.indexOf(rowsFor, box);
-      expect(box).toBeGreaterThan(0);
+      expect(line).toBeGreaterThan(t.indexOf('every route checked in'));
+      expect(box).toBeGreaterThan(line);
       expect(actions).toBeGreaterThan(box);
-      expect(line).toBeGreaterThan(actions);
-      expect(counts).toBeGreaterThan(line);
+      expect(counts).toBeGreaterThan(actions);
       expect(table).toBeGreaterThan(counts);
       // Both buttons on the box (Jordan's answer 2: keep Simulate this plan and Follow this route).
-      const buttons = t.slice(actions, line);
+      const buttons = t.slice(actions, counts);
       expect(buttons).toContain('Simulate this plan');
       expect(buttons).toContain('<FollowButton');
       expect(buttons).toContain('from="answer"');
+      expect(t).not.toContain('data-testid="instant-one-line"');
     });
   }
   it('the pointer sits at the TOP of the instant card (23 Oct 2026), before what the instant area shows, in both sections', () => {

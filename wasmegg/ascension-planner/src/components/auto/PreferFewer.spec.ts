@@ -12,22 +12,41 @@ import { PREFER_DEFAULTS, PREFER_OFF } from '@/search/preferFewer';
 const route = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
 
 describe('PreferFewerControl', () => {
-  it('Fastest: Off and three margins in time, custom, the helper line; Off is checked', async () => {
+  // The explainer behind a 44 px "?" since spec-slimcard (UX fluff review 5 Nov 2026, item 10): drawn but hidden until
+  // the "?" opens it (its aria-controls), so textOf still reads it; the row itself is the name, the "?" and the choices.
+  const HELP_FASTEST =
+    'Picks the route with the fewest ascensions that is still within that margin of the fastest. It only changes which route the green box shows.';
+  it('Fastest: Off and three margins in time, custom; Off is checked; the explainer behind "?"', async () => {
     const html = await renderHtml(PreferFewerControl, { goal: 'fastest', modelValue: PREFER_OFF });
-    expect(textOf(html)).toBe(
-      'Prefer fewer ascensions: Off within 12 h within 1 day within 2 days custom… Picks the route with the fewest ascensions that is still within that margin of the fastest. It only changes which route the green box shows.'
-    );
+    expect(textOf(html)).toBe(`Prefer fewer ascensions ? Off within 12 h within 1 day within 2 days custom… ${HELP_FASTEST}`);
     expect(html).toContain('role="radiogroup"');
-    expect(html).toContain('aria-label="Prefer fewer ascensions"');
+    expect(html).toMatch(/role="radiogroup" aria-labelledby="([^"]+)"/);
+    const label = html.match(/role="radiogroup" aria-labelledby="([^"]+)"/)![1];
+    expect(html).toMatch(new RegExp(`<span id="${label}"[^>]*>Prefer fewer ascensions</span>`));
     expect(html).toMatch(/role="radio" aria-checked="true"[^>]*data-testid="prefer-fewer-Off"/);
     // At least 44 px to tap on a phone.
     expect((html.match(/min-h-\[44px\]/g) ?? []).length).toBeGreaterThanOrEqual(5);
   });
 
-  it('By a date: same TE, 1 TE, 2 TE; the helper names the highest TE', async () => {
+  it('the "?": a 44 px button at every width that opens the explainer (aria-expanded, aria-controls), closed to start', async () => {
+    const html = await renderHtml(PreferFewerControl, { goal: 'date', modelValue: PREFER_DEFAULTS.date });
+    const q = html.match(/<button[^>]*data-testid="prefer-fewer-why"[^>]*>/)![0];
+    expect(q).toContain('type="button"');
+    expect(q).toContain('aria-expanded="false"');
+    expect(q).toContain('aria-label="What does Prefer fewer ascensions do?"');
+    expect(q).toContain('w-11 h-11');
+    expect(q).not.toMatch(/sm:(w|h|min-h)-/);
+    expect(q).toContain('focus-visible:ring-2');
+    const controls = q.match(/aria-controls="([^"]+)"/)![1];
+    expect(html).toMatch(new RegExp(`<p id="${controls}"[^>]*data-testid="prefer-fewer-help"[^>]*style="display:none;"`));
+    // Outside the radiogroup: the choices stay the group's only members.
+    expect(html.indexOf('data-testid="prefer-fewer-why"')).toBeLessThan(html.indexOf('role="radiogroup"'));
+  });
+
+  it('By a date: same TE, 1 TE, 2 TE; the explainer names the highest TE', async () => {
     const html = await renderHtml(PreferFewerControl, { goal: 'date', modelValue: { kind: 'te', te: 1 } });
     expect(textOf(html)).toBe(
-      'Prefer fewer ascensions: Off same TE within 1 TE within 2 TE custom… Picks the route with the fewest ascensions that is still within that margin of the highest TE. It only changes which route the green box shows.'
+      'Prefer fewer ascensions ? Off same TE within 1 TE within 2 TE custom… Picks the route with the fewest ascensions that is still within that margin of the highest TE. It only changes which route the green box shows.'
     );
     expect(html).toMatch(/role="radio" aria-checked="true"[^>]*data-testid="prefer-fewer-within 1 TE"/);
   });

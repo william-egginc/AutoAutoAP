@@ -5,62 +5,73 @@
 -->
 <template>
   <div class="py-1 space-y-1" data-testid="prefer-fewer">
-    <div
-      class="flex flex-wrap items-center gap-1 text-small text-slate-600"
-      role="radiogroup"
-      aria-label="Prefer fewer ascensions"
-    >
-      <span class="mr-1 font-bold text-slate-700">Prefer fewer ascensions:</span>
-      <button
-        v-for="p in presets"
-        :key="p.label"
-        type="button"
-        role="radio"
-        :aria-checked="!customOpen && sameMargin(p.margin, modelValue)"
-        class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-body font-bold"
-        :class="!customOpen && sameMargin(p.margin, modelValue) ? ON : OFF"
-        :data-testid="`prefer-fewer-${p.label}`"
-        @click="pick(p.margin)"
-      >
-        {{ p.label }}
-      </button>
+    <div class="flex flex-wrap items-center gap-1 text-small text-slate-600">
+      <span :id="labelId" class="font-bold text-slate-700">Prefer fewer ascensions</span>
+      <!-- The explainer behind a 44 px "?" (spec-slimcard; UX fluff review 5 Nov 2026, item 10: it showed under every
+           visit). A disclosure button, outside the radiogroup so the choices stay its only members. -->
       <button
         type="button"
-        role="radio"
-        :aria-checked="customOpen"
-        class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-body font-bold"
-        :class="customOpen ? ON : OFF"
-        data-testid="prefer-fewer-custom"
-        @click="openCustom"
+        class="inline-flex items-center justify-center w-11 h-11 rounded-full text-body font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+        :aria-expanded="helpOpen ? 'true' : 'false'"
+        :aria-controls="helpId"
+        aria-label="What does Prefer fewer ascensions do?"
+        data-testid="prefer-fewer-why"
+        @click="helpOpen = !helpOpen"
       >
-        custom…
+        ?
       </button>
-      <span v-if="customOpen" class="inline-flex items-center gap-1">
-        within
-        <input
-          v-model.number="amount"
-          type="number"
-          min="0"
-          :step="goal === 'fastest' ? 0.5 : 1"
-          class="w-16 min-h-[44px] sm:min-h-0 rounded-md border-slate-300 py-0.5 px-1 text-body"
-          :aria-label="goal === 'fastest' ? 'How much slower' : 'How many TE below'"
-          data-testid="prefer-fewer-amount"
-          @change="applyCustom"
-        />
-        <select
-          v-if="goal === 'fastest'"
-          v-model="unit"
-          class="min-h-[44px] sm:min-h-0 rounded-md border-slate-300 py-0.5 pl-1 pr-6 text-body"
-          aria-label="Hours or days"
-          @change="applyCustom"
+      <div class="flex flex-wrap items-center gap-1" role="radiogroup" :aria-labelledby="labelId">
+        <button
+          v-for="p in presets"
+          :key="p.label"
+          type="button"
+          role="radio"
+          :aria-checked="!customOpen && sameMargin(p.margin, modelValue)"
+          class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-body font-bold"
+          :class="!customOpen && sameMargin(p.margin, modelValue) ? ON : OFF"
+          :data-testid="`prefer-fewer-${p.label}`"
+          @click="pick(p.margin)"
         >
-          <option value="h">hours</option>
-          <option value="d">days</option>
-        </select>
-        <template v-else>TE</template>
-      </span>
+          {{ p.label }}
+        </button>
+        <button
+          type="button"
+          role="radio"
+          :aria-checked="customOpen"
+          class="min-h-[44px] sm:min-h-0 px-2 py-1 rounded-md border text-body font-bold"
+          :class="customOpen ? ON : OFF"
+          data-testid="prefer-fewer-custom"
+          @click="openCustom"
+        >
+          custom…
+        </button>
+        <span v-if="customOpen" class="inline-flex items-center gap-1">
+          within
+          <input
+            v-model.number="amount"
+            type="number"
+            min="0"
+            :step="goal === 'fastest' ? 0.5 : 1"
+            class="w-16 min-h-[44px] sm:min-h-0 rounded-md border-slate-300 py-0.5 px-1 text-body"
+            :aria-label="goal === 'fastest' ? 'How much slower' : 'How many TE below'"
+            data-testid="prefer-fewer-amount"
+            @change="applyCustom"
+          />
+          <select
+            v-if="goal === 'fastest'"
+            v-model="unit"
+            class="min-h-[44px] sm:min-h-0 rounded-md border-slate-300 py-0.5 pl-1 pr-6 text-body"
+            aria-label="Hours or days"
+            @change="applyCustom"
+          >
+            <option value="h">hours</option>
+            <option value="d">days</option>
+          </select>
+          <template v-else>TE</template>
+        </span>
+      </div>
     </div>
-    <p class="text-small text-slate-500" data-testid="prefer-fewer-help">
+    <p v-show="helpOpen" :id="helpId" class="text-small text-slate-500" data-testid="prefer-fewer-help">
       Picks the route with the fewest ascensions that is still within that margin of the
       {{ goal === 'fastest' ? 'fastest' : 'highest TE' }}. It only changes which route the green box shows.
     </p>
@@ -68,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import {
   DATE_PRESETS,
   FASTEST_PRESETS,
@@ -80,6 +91,12 @@ import {
 
 const props = defineProps<{ goal: PreferGoal; modelValue: PreferMargin }>();
 const emit = defineEmits<{ 'update:modelValue': [PreferMargin] }>();
+
+/** The "?" explainer, closed to start; ids for the group's name and the explainer. */
+const helpOpen = ref(false);
+const uid = useId();
+const labelId = `prefer-fewer-${uid}`;
+const helpId = `prefer-fewer-help-${uid}`;
 
 const ON = 'border-emerald-700 bg-emerald-700 text-white';
 const OFF = 'border-slate-300 bg-white text-slate-600 hover:border-emerald-400';

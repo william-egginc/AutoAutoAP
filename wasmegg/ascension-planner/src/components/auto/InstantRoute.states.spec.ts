@@ -114,7 +114,9 @@ function ctxOf(s: State): Record<string, unknown> {
     $slots: {},
     FULL_RESEARCH_TE: 340,
     HOURS_NOTE,
-    INSTANT_ONE_LINE: 'These are instant answers, worked out ahead of time.',
+    FIRST_STEP_LABEL: 'First step:',
+    headerLine: 'Worked out ahead of time, a few days either side of a search on your save.',
+    firstStep: '',
     INSTANT_ESTIMATE_LINE,
     MAX_ASCENSIONS: 12,
     NAMES: { science: 'Science', how: 'How it works', smart: 'Fast' },
@@ -396,7 +398,7 @@ describe('the ascensions From … to … (24 Oct 2026)', () => {
   });
 });
 
-describe('the estimate line under the date (spec-r7verify item 5; DRAFT)', () => {
+describe('the estimate line (spec-r7verify item 5; DRAFT): behind the one line\'s Why since spec-slimcard', () => {
   const base: State = {
     answer: 'fastest',
     status: 'done',
@@ -413,28 +415,18 @@ describe('the estimate line under the date (spec-r7verify item 5; DRAFT)', () =>
   const WORDS = 'An estimate worked out ahead of time: a Fast search on your save often lands a few days either side.';
   it('the exact words', () => expect(INSTANT_ESTIMATE_LINE).toBe(WORDS));
 
-  it('Fastest: right under the date in the green box, before the "in … · N ascensions" line', async () => {
-    const html = await draw(base);
-    const box = html.slice(html.indexOf('data-testid="instant-box"'));
-    const date = box.indexOf('data-testid="box-instant"');
-    const line = box.indexOf('data-testid="instant-estimate"');
-    expect(date).toBeGreaterThan(-1);
-    expect(line).toBeGreaterThan(date);
-    // The "in … · N ascensions" line comes after it.
-    expect(box.slice(line).search(/ · \d+ ascensions?/)).toBeGreaterThan(-1);
-    expect(box.slice(date, line).search(/ · \d+ ascensions?/)).toBe(-1);
-    expect(box).toContain(WORDS);
-    expect(html.match(/data-testid="instant-estimate"/g)).toHaveLength(1);
-  });
-
-  it('By a date: right under the "Reached …" date line', async () => {
-    const html = await draw({ ...base, answer: 'date', deadline: true });
-    const reached = html.indexOf('Reached ');
-    const line = html.indexOf('data-testid="instant-estimate"');
-    expect(reached).toBeGreaterThan(-1);
-    expect(line).toBeGreaterThan(reached);
-    expect(html.match(/data-testid="instant-estimate"/g)).toHaveLength(1);
-  });
+  for (const [name, over] of [
+    ['Fastest', {}],
+    ['By a date', { answer: 'date', deadline: true }],
+  ] as const) {
+    it(`${name}: not in the green box any more; once, under the title's "Why? ›"`, async () => {
+      const html = await draw({ ...base, ...over });
+      const box = html.slice(html.indexOf('data-testid="instant-box"'));
+      expect(box).not.toContain(WORDS);
+      expect(html.match(/data-testid="instant-estimate-why"/g)).toHaveLength(1);
+      expect(html.indexOf('data-testid="instant-estimate-why"')).toBeLessThan(html.indexOf('data-testid="instant-box"'));
+    });
+  }
 
   it('no green box (no answer, the integrity hold): no line', async () => {
     expect(await draw({ ...base, answer: 'none' })).not.toContain('instant-estimate');
@@ -447,15 +439,9 @@ describe('the estimate line under the date (spec-r7verify item 5; DRAFT)', () =>
     expect(panel).not.toContain('instant-estimate');
   });
 
-  it('type scale: text-small, neutral slate; no text-[Npx], caps, medium/semibold or mono; nothing joined across a <template>', () => {
-    const lines = [...source.matchAll(/<p [^>]*data-testid="instant-estimate"[^>]*>[^<]*<\/p>/g)].map(m => m[0]);
-    expect(lines).toHaveLength(2);
-    for (const l of lines) {
-      expect(l).toContain('text-small');
-      expect(l).toContain('text-slate-500');
-      expect(l).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono|font-bold/);
-      expect(l).toContain('{{ INSTANT_ESTIMATE_LINE }}');
-    }
+  it('the constant, drawn once (no copy of its words in the template)', () => {
+    expect(source.match(/\{\{ INSTANT_ESTIMATE_LINE \}\}/g)).toHaveLength(1);
+    expect(source).not.toContain('a Fast search on your save often lands');
   });
 });
 
@@ -539,7 +525,7 @@ describe('the share Teleport lives as long as the card', () => {
 
 // "Prestige at the time shown" on the card itself (the math review's second check, 24 Oct 2026): under each box, in
 // the Prestige by line's words, only with hours that limit when a prestige can be made (`hoursLimited`).
-describe('the hours note under each box', () => {
+describe('the hours note: a clause at the end of First step since spec-slimcard (was a paragraph under each box)', () => {
   const at = (answer: Answer, deadline: boolean, hours: boolean): State => ({
     answer,
     status: 'done',
@@ -553,32 +539,22 @@ describe('the hours note under each box', () => {
     atTarget: false,
     saved: false,
   });
-  const NOTE = 'data-testid="instant-hours-note"';
   for (const [name, answer, deadline] of [
     ['By a date', 'date', true],
     ['Fastest', 'fastest', false],
   ] as const) {
-    it(`${name}: shown with hours set, in the Prestige by line's words`, async () => {
-      const html = await draw(at(answer, deadline, true));
-      expect(html).toContain(NOTE);
-      expect(html).toContain(HOURS_NOTE);
-      // Small grey text like the one line, after it; no amber box of its own.
-      const note = html.slice(html.lastIndexOf('<p', html.indexOf(NOTE)), html.indexOf(NOTE));
-      expect(note).toContain('text-slate-600');
-      expect(html.indexOf(NOTE)).toBeGreaterThan(html.indexOf('data-testid="instant-one-line"'));
-    });
-    it(`${name}: hidden without hours, and with hours set to any hour`, async () => {
-      expect(await draw(at(answer, deadline, false))).not.toContain(NOTE);
-      expect(await draw(at(answer, deadline, true), { hoursLimited: false })).not.toContain(NOTE);
+    it(`${name}: no paragraph of its own under the box, with hours set or not`, async () => {
+      expect(await draw(at(answer, deadline, true))).not.toContain('data-testid="instant-hours-note"');
+      expect(await draw(at(answer, deadline, true))).not.toContain(HOURS_NOTE);
     });
   }
-  it('the words are the Prestige by line\'s own constant, not a copy', () => {
+  it('First step is told when the hours limit the prestiges (hoursLimited), and the Prestige by line keeps HOURS_NOTE', () => {
+    expect(source).not.toContain('HOURS_NOTE }}');
+    expect(source).toContain('hours: hoursLimited.value,');
+    expect(source).not.toContain('a prestige even a few minutes off');
     expect(HOURS_NOTE).toBe(
       'With awake hours on, a prestige even a few minutes off the time shown can move your finish by days, so prestige at the time shown.'
     );
-    expect(source).toContain("import { HOURS_NOTE } from '@/lib/hoursNote';");
-    expect(source.match(/\{\{ HOURS_NOTE \}\}/g)).toHaveLength(2);
-    expect(source).not.toContain('a prestige even a few minutes off');
     const line = fs.readFileSync(path.resolve(__dirname, 'PrestigeByLine.vue'), 'utf8');
     expect(line).toContain("import { HOURS_NOTE } from '@/lib/hoursNote';");
   });
@@ -626,13 +602,13 @@ describe('the green box headline (UX review, 26 Oct 2026, items 2, 4 and 17)', (
     expect(none).not.toContain('data-testid="box-tight"');
   });
 
-  it('Fastest: "in 5.1 years", compact (ux29-d); no "worked out ahead" badge, the "instant answer" tag stays', async () => {
+  it('Fastest: "in 5.1 years", compact (ux29-d); no "worked out ahead" badge; the "instant answer" tag gone (spec-slimcard)', async () => {
     const html = await draw(at('fastest', false), {
       boxLead: { chain: [210, 260, 300], legs: [{ endTE: 210 }, { endTE: 260 }, { endTE: 300 }], end: 1, seconds: 1857.95 * D },
     });
     expect(html).toContain('in 5.1 years');
     expect(html.toLowerCase()).not.toContain('worked out ahead</span');
-    expect(html).toContain('data-testid="box-instant"');
+    expect(html).not.toContain('data-testid="box-instant"');
   });
 });
 
@@ -902,5 +878,86 @@ describe('Every number of ascensions: rows open on tap, one pair in the open row
     expect(source).not.toContain('<div :class="ROUTE_ACTIONS">');
     // The open rows start afresh with each new answer (the box's row open again).
     expect(source).toContain('openCounts.value = new Map()');
+  });
+});
+
+/**
+ * THE SLIM CARD (spec-slimcard; wireframes/instant-slim-v1, Jordan 5 Nov 2026: "yes go ahead that looks good!"): one
+ * line under the title in place of five paragraphs (the estimate line in the box, "These are instant answers…",
+ * "Each prestige waits for your awake hours…", "Your no-prestige days are kept…"), their detail behind "Why? ›"; a
+ * First step line in the green box that carries the awake-hours clause (was the HOURS_NOTE paragraph under the box);
+ * no "instant answer" tag; the build-up note on Single run's banner instead (planFromInstant.spec.ts). DRAFT words in
+ * lib/instantWords.ts.
+ */
+describe('the slim card: one line under the title, First step in the box', () => {
+  const at = (answer: Answer, deadline: boolean, hours = true): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+  const HEADER = 'Worked out ahead of time, a few days either side of a search on your save. Keeps your awake hours (8 am to 11 pm) and your 9 no-prestige days.';
+  const STEP = 'continue your current ascension to 218 TE (Dec 22, 2026 at 8:11 PM), then prestige at 9:00 PM.';
+  const slim = { headerLine: HEADER, firstStep: STEP, noPrestigeOn: true, boxSimulateNote: 'This route’s first ascension continues your build-up' };
+  for (const [name, answer, deadline] of [
+    ['By a date', 'date', true],
+    ['Fastest', 'fastest', false],
+  ] as const) {
+    it(`${name}: the one line sits under the title, before the controls and the box, its detail behind Why`, async () => {
+      const html = await draw(at(answer, deadline), slim);
+      const line = html.indexOf('data-testid="instant-header"');
+      expect(line).toBeGreaterThan(html.indexOf('Instant answer'));
+      expect(line).toBeLessThan(html.indexOf('data-testid="inside-hours"'));
+      expect(line).toBeLessThan(html.indexOf('data-testid="instant-box"'));
+      const why = html.slice(line, html.indexOf('</details>', line));
+      expect(textOf(why)).toContain(`${HEADER} Why? ›`);
+      // The detail, folded: the estimate, the hours' wait, the days kept (with the silos).
+      expect(why).toContain(INSTANT_ESTIMATE_LINE);
+      expect(why).toContain('Each prestige waits for your awake hours (the times shown include the wait).');
+      expect(why).toContain('Your no-prestige days are kept');
+      expect(why).toContain('until its silos run out');
+    });
+    it(`${name}: the five paragraphs and the "instant answer" tag are gone`, async () => {
+      // Drawn markup only (the template's comments name the old lines).
+      const html = (await draw(at(answer, deadline), { ...slim, hoursLimited: true })).replace(/<!--[\s\S]*?-->/g, '');
+      for (const gone of ['box-instant', 'instant-estimate', 'instant-one-line', 'instant-hours-note', 'box-simulate-note'])
+        expect(html, gone).not.toContain(`data-testid="${gone}"`);
+      expect(html).not.toContain('These are instant answers');
+      // Only inside Why now, not as paragraphs of their own.
+      const out = html.slice(0, html.indexOf('data-testid="instant-header"')) + html.slice(html.indexOf('</details>', html.indexOf('data-testid="instant-header"')));
+      expect(out).not.toContain('Each prestige waits for your awake hours');
+      expect(out).not.toContain('Your no-prestige days are kept');
+    });
+    it(`${name}: First step in the green box, the label bold, before When each step happens`, async () => {
+      const html = await draw(at(answer, deadline), slim);
+      const box = html.slice(html.indexOf('data-testid="instant-box"'));
+      const step = box.indexOf('data-testid="box-first-step"');
+      expect(step).toBeGreaterThan(-1);
+      expect(textOf(box.slice(step - 200, box.indexOf('</p>', step)))).toContain(`First step: ${STEP}`);
+      expect(box.slice(step, box.indexOf('</p>', step))).toContain('<b>First step:</b>');
+      expect(step).toBeLessThan(box.indexOf('data-testid="box-actions"'));
+      expect(step).toBeLessThan(box.indexOf('<InstantSteps'));
+    });
+    it(`${name}: no line with no box; no First step without one`, async () => {
+      expect(await draw(at(answer, deadline), { ...slim, boxShown: false, result: null })).not.toContain('data-testid="instant-header"');
+      expect(await draw(at(answer, deadline), { ...slim, firstStep: '' })).not.toContain('data-testid="box-first-step"');
+    });
+  }
+  it('type: the line text-small slate-500, First step text-body; no px sizes, caps, medium/semibold or mono', () => {
+    const t = source.slice(0, source.indexOf('<script'));
+    const head = t.slice(t.lastIndexOf('<div', t.indexOf('data-testid="instant-header"')), t.indexOf('data-testid="instant-header"'));
+    expect(head).toContain('text-small text-slate-500');
+    for (const m of t.matchAll(/<p[^>]*data-testid="box-first-step"[^>]*>/g)) {
+      expect(m[0]).toContain('text-body');
+      expect(m[0]).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
+    }
+    expect(t.match(/data-testid="box-first-step"/g)).toHaveLength(2);
   });
 });

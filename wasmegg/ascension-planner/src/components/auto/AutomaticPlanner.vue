@@ -267,6 +267,11 @@
         >
           ×
         </button>
+        <!-- The instant card's build-up note (spec-slimcard): this route's A1 continues the build-up, which this planner
+             prices as a fresh build or a continue, so its dates can run later than the answer's. -->
+        <p v-if="fromInstant.note" class="basis-full text-small text-emerald-900" data-testid="plan-from-instant-note">
+          {{ fromInstant.note }}
+        </p>
       </div>
       <div class="space-y-4">
         <template v-for="(result, idx) in bestResults" :key="idx">

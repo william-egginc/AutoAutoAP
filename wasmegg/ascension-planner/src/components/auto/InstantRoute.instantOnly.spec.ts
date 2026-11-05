@@ -76,9 +76,10 @@ describe('the box never changes while a search runs', () => {
 });
 
 describe('the one line', () => {
-  it('under each box, from lib/searchPointer.ts', () => {
-    expect(template.match(/\{\{ INSTANT_ONE_LINE \}\}/g)).toHaveLength(2);
-    expect(template.match(/data-testid="instant-one-line"/g)).toHaveLength(2);
+  it('under the title since spec-slimcard (lib/instantWords.ts); lib/searchPointer.ts INSTANT_ONE_LINE no longer drawn', () => {
+    expect(template).not.toContain('INSTANT_ONE_LINE }}');
+    expect(template).not.toContain('data-testid="instant-one-line"');
+    expect(template.match(/data-testid="instant-header-line">\{\{ headerLine \}\}/g)).toHaveLength(1);
   });
   it('replaces the disclaimers that said the same', () => {
     for (const gone of [

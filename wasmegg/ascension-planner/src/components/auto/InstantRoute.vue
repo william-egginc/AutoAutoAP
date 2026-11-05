@@ -215,6 +215,28 @@
 
       <!-- The filters (remembered in this browser): the routes and the headline come from what is left. -->
       <div v-if="result" class="space-y-1">
+        <!-- THE ONE LINE UNDER THE TITLE (spec-slimcard; wireframes/instant-slim-v1, Jordan 5 Nov 2026; DRAFT words in
+             lib/instantWords.ts): in place of the estimate line in the box, "These are instant answers…" (lib/searchPointer.ts
+             INSTANT_ONE_LINE, no longer drawn), "Each prestige waits for your awake hours…" and "Your no-prestige days are
+             kept…", which sit behind its "Why? ›". The line itself is the summary, as AnswerCaveatLine's. -->
+        <div v-if="boxShown && headerLine" class="text-small text-slate-500 max-w-prose" data-testid="instant-header">
+          <details data-testid="instant-header-why">
+            <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer min-h-[44px] sm:min-h-0 py-2.5 sm:py-0">
+              <span data-testid="instant-header-line">{{ headerLine }}</span
+              >{{ ' '
+              }}<span class="font-bold text-slate-600 underline decoration-dotted underline-offset-2 whitespace-nowrap">Why? ›</span>
+            </summary>
+            <ul class="mt-1 space-y-1 list-disc pl-4 text-slate-600">
+              <li data-testid="instant-estimate-why">{{ INSTANT_ESTIMATE_LINE }}</li>
+              <li v-if="useHours">Each prestige waits for your awake hours (the times shown include the wait).</li>
+              <!-- No prestige on these days (search/noPrestige.ts): held in every route here, hours ticked or not. -->
+              <li v-if="noPrestigeOn" data-testid="instant-no-prestige">
+                Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time, and
+                the farm keeps laying while it waits, {{ siloWords }} (the times shown include the wait).
+              </li>
+            </ul>
+          </details>
+        </div>
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-body text-slate-600">
           <label v-if="hoursOn" class="flex items-center gap-2 cursor-pointer">
             <input
@@ -257,16 +279,8 @@
             />
           </span>
         </div>
-        <p v-if="useHours" class="text-body text-slate-500 max-w-prose">
-          Each prestige waits for your awake hours (the times shown include the wait).
-        </p>
         <p v-if="rangeText" class="text-body text-slate-500 max-w-prose" data-testid="instant-range-note">
           Only routes with {{ rangeText }} {{ rangeText.endsWith(' 1') ? 'ascension' : 'ascensions' }}: the box and the rows below leave the others out.
-        </p>
-        <!-- No prestige on these days (search/noPrestige.ts): held in every route here, hours ticked or not. -->
-        <p v-if="noPrestigeOn" class="text-body text-slate-500 max-w-prose" data-testid="instant-no-prestige">
-          Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time, and
-          the farm keeps laying while it waits, {{ siloWords }} (the times shown include the wait).
         </p>
         <p v-if="useHours && openingNote === 'morning'" class="text-body text-slate-500 max-w-prose" data-testid="held-opening">
           A stop reached late in your day waits for the next morning to prestige: an ascension's first shifts come in
@@ -322,7 +336,6 @@
                 class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 label"
                 >tight</span
               >
-              <span class="text-small font-bold text-slate-500" data-testid="box-instant">instant answer</span>
             </div>
             <div class="tabular-nums text-body font-bold text-slate-800">
               {{ dateBoxOf(result.byDate).chain.join(' → ') }}
@@ -331,9 +344,6 @@
               Reached {{ show(dateBoxOf(result.byDate).end) }} ·
               {{ plural(dateBoxOf(result.byDate).chain.length, 'ascension') }}
             </div>
-            <!-- An estimate (spec-r7verify item 5, lib/instantWords.ts; DRAFT): the tables' answer, a few days either side
-                 of a Fast search. -->
-            <p class="text-small text-slate-500 max-w-prose" data-testid="instant-estimate">{{ INSTANT_ESTIMATE_LINE }}</p>
             <!-- What the polish did for this route only, after a small tag (UX review 26 Oct 2026, item 3). -->
             <p v-if="boxGain" class="text-body text-emerald-800" data-testid="box-polished">
               <span class="mr-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label"
@@ -343,6 +353,12 @@
             <!-- ONE caveat line under the answer, the rest behind "Why? ›" (lib/answerCaveat.ts). -->
             <AnswerCaveatLine :caveat="headCaveat" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
+            <!-- FIRST STEP (spec-slimcard, DRAFT words in lib/instantWords.ts): the part a player acts on today, from the
+                 same legs as When each step happens below, with the awake-hours clause (was HOURS_NOTE's paragraph under
+                 the box; lib/hoursNote.ts). -->
+            <p v-if="firstStep" class="text-body text-slate-800 max-w-prose" data-testid="box-first-step">
+              <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}{{ firstStep }}
+            </p>
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
             <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
                  own first prestige is timed by the hours only (search/prestigeBy.ts), so with no-prestige days set it is
@@ -377,9 +393,6 @@
                 :deadline="deadline"
               />
             </div>
-            <p v-if="boxSimulateNote" class="text-small text-emerald-900/70" data-testid="box-simulate-note">
-              {{ boxSimulateNote }}
-            </p>
             <!-- A route followed for this date: this answer offered when it is better (lib/searchPlan.ts). -->
             <BetterRoutePrompt
               v-if="!staleAt"
@@ -407,15 +420,6 @@
             No route gets above your TE by then{{ filtering ? ' with these filters' : '' }}.
           </p>
         </div>
-        <p v-if="result.byDate" class="text-body text-slate-600" data-testid="instant-one-line">
-          {{ INSTANT_ONE_LINE }}
-        </p>
-        <!-- With hours that limit when a prestige can be made: prestige at the time shown (the Prestige by line's words,
-             lib/hoursNote.ts; the math review's second check, 24 Oct 2026: one route moved 6.3 days between at once and
-             on the hour). -->
-        <p v-if="result.byDate && hoursLimited" class="text-body text-slate-600" data-testid="instant-hours-note">
-          {{ HOURS_NOTE }}
-        </p>
         <!-- Every number of ascensions, instant numbers only, like Joo's table (spec-slimcard; UX fluff review 5 Nov 2026,
              item 11): one 44 px line per count (chevron, ascensions, highest TE, spare with its tight tag, the route),
              its head a real button (aria-expanded, aria-controls; Enter and Space as any button; a visible focus ring).
@@ -538,11 +542,7 @@
           </div>
           <div class="flex flex-wrap items-baseline gap-x-3">
             <span class="text-headline font-black text-slate-900">{{ showFinish(boxLead.end) }}</span>
-            <span class="text-small font-bold text-slate-500" data-testid="box-instant">instant answer</span>
           </div>
-          <!-- An estimate (spec-r7verify item 5, lib/instantWords.ts; DRAFT): the tables' answer, a few days either side of
-               a Fast search. -->
-          <p class="text-small text-slate-500 max-w-prose" data-testid="instant-estimate">{{ INSTANT_ESTIMATE_LINE }}</p>
           <div class="text-small font-bold text-emerald-800">
             in {{ headlineGap(boxLead.seconds) }} · {{ plural(boxLead.legs.length, 'ascension') }}
           </div>
@@ -556,6 +556,10 @@
           <AnswerCaveatLine :caveat="headCaveat" />
           <div class="tabular-nums text-body font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
+          <!-- First step, as in By a date's box. -->
+          <p v-if="firstStep" class="text-body text-slate-800 max-w-prose" data-testid="box-first-step">
+            <b>{{ FIRST_STEP_LABEL }}</b>{{ ' ' }}{{ firstStep }}
+          </p>
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
           <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
                drawn with no-prestige days set, as under By a date's box. -->
@@ -585,9 +589,6 @@
               :plan-start="answerStart"
             />
           </div>
-          <p v-if="boxSimulateNote" class="text-small text-emerald-900/70" data-testid="box-simulate-note">
-            {{ boxSimulateNote }}
-          </p>
           <!-- A route followed for this race: this answer offered when it is better (lib/searchPlan.ts). -->
           <BetterRoutePrompt
             v-if="!staleAt"
@@ -616,13 +617,6 @@
           No route reaches {{ store.finalTE }} from here in the instant answer{{
             filtering ? ' with these filters' : ''
           }}.
-        </p>
-        <p v-if="boxLead" class="text-body text-slate-600" data-testid="instant-one-line">
-          {{ INSTANT_ONE_LINE }}
-        </p>
-        <!-- Prestige at the time shown, with hours (as under By a date's box). -->
-        <p v-if="boxLead && hoursLimited" class="text-body text-slate-600" data-testid="instant-hours-note">
-          {{ HOURS_NOTE }}
         </p>
         <!-- Every number of ascensions, instant numbers only: rows that open on tap, as By a date's above. -->
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
@@ -838,7 +832,7 @@
 
 <script setup lang="ts">
 import { SECONDARY_BUTTON } from './resultCardStyle';
-import { formatClock } from '@/lib/clock';
+import { calendarOf, formatClock, formatMoment } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
 import { isTightSpare, spareLine } from '@/lib/spareLine';
 import { countRowOpen, toggleCountRow } from '@/lib/countRows';
@@ -847,7 +841,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
-import { showDateTime } from '@/lib/displayTime';
+import { dateStyle, showDateTime } from '@/lib/displayTime';
 import { continueTailParams, farmLaying, saveSiloSeconds } from '@/search/leg';
 import { cardDeliveryScale, readKept } from '@/search/instantScale';
 import { getSimulationContext } from '@/engine/adapter';
@@ -1026,9 +1020,11 @@ import {
 } from '@/search/startProvenance';
 import { accountHashNow } from '@/lib/accountHash';
 import { selectSearchTab, type SearchTabScreen } from '@/lib/searchTab';
-import { INSTANT_ONE_LINE, pointerOf } from '@/lib/searchPointer';
-import { INSTANT_ESTIMATE_LINE } from '@/lib/instantWords';
-import { HOURS_NOTE } from '@/lib/hoursNote';
+import { pointerOf } from '@/lib/searchPointer';
+import { FIRST_STEP_LABEL, INSTANT_ESTIMATE_LINE, firstStepLine, instantHeaderLine, noPrestigeDayCount } from '@/lib/instantWords';
+import { instantSteps } from '@/lib/instantSteps';
+import { hoursWords } from '@/lib/pricedWith';
+import { useUIStore } from '@/stores/ui';
 import InstantPointer from './InstantPointer.vue';
 import { bracketHeadline, bracketLine, type BracketLineInput } from '@/lib/bracketLine';
 import { liveSearchResult, newerSearch, readSearch, recordKeptSearch, type SnapSearch } from '@/lib/searchPlan';
@@ -1068,6 +1064,7 @@ function emitRoutes(found: { byDateByAscensions: (Route | null)[] }): void {
 }
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
+const ui = useUIStore();
 
 /** The maxed table under its version 2 name (tableBracket.ts MAXED_TABLE_FILE): `.gz` first, then the plain file
  *  (search/tableFetch.ts). Older pages keep reading the version 1 `table.bin`. */
@@ -1601,6 +1598,44 @@ const stepHours = computed(() => (hoursLimited.value ? store.availability : null
 const stepDays = computed(() => timeOffWindows(usableTimeOff(store.noPrestige), zone.value));
 const hoursLimited = computed(() => hoursOn.value && isConstrained(store.availability));
 /**
+ * THE SLIM CARD (spec-slimcard; wireframes/instant-slim-v1; DRAFT words in lib/instantWords.ts). The one line under the
+ * title: an estimate, and the awake hours (when the answer keeps them) and the no-prestige days it keeps.
+ */
+const headerLine = computed(() =>
+  instantHeaderLine({
+    hours: useHours.value && hoursLimited.value ? hoursWords(store.availability).replace(/^awake hours /, '') : null,
+    noPrestigeDays: noPrestigeOn.value ? noPrestigeDayCount(store.noPrestige) : 0,
+  })
+);
+/** "Dec 22, 2026 at 8:11 PM" (ISO when the player picked it, as the rest of the card). */
+function showAt(unix: number): string {
+  return dateStyle.value === 'iso' ? show(unix) : formatMoment(unix * 1000, { zone: zone.value, at: true }) || show(unix);
+}
+/**
+ * First step in the green box, after its name (FIRST_STEP_LABEL, drawn bold): the box's route's first ascension and the
+ * prestige after it, from the same lines as When each step happens (lib/instantSteps.ts), with the awake-hours clause
+ * when the hours limit the prestiges. '' with no route in the box.
+ */
+const firstStep = computed(() => {
+  const legs = props.deadline ? dateBoxLegs.value : (boxLead.value?.legs ?? null);
+  const [a, b] = instantSteps(legs, stepHours.value, stepDays.value);
+  if (!a || !legs?.length) return '';
+  const label = legs[0].label ?? '';
+  const kind = label === 'buildup' ? 'buildup' : /^\d+-sale/.test(label) ? 'fresh' : 'continue';
+  const day = (t: number) => calendarOf(t * 1000, zone.value)?.ymd ?? '';
+  const line = firstStepLine({
+    kind,
+    start: kind === 'fresh' && !a.now ? showAt(a.prestigeAt) : null,
+    stopTE: a.stopTE,
+    reached: showAt(a.reachedAt),
+    prestigeDate: b ? showAt(b.prestigeAt) : null,
+    prestigeTime: b && dateStyle.value !== 'iso' ? formatClock(b.prestigeAt * 1000, zone.value) || null : null,
+    sameDay: !!b && day(a.reachedAt) !== '' && day(a.reachedAt) === day(b.prestigeAt),
+    hours: hoursLimited.value,
+  });
+  return line.slice(FIRST_STEP_LABEL.length + 1);
+});
+/**
  * "Works inside my hours" ticked by default whenever playing hours are set (search/instantFilters.ts
  * `defaultInsideHours`; Jordan, 22 Oct 2026). The player's own tick or untick is remembered and wins: never ticked
  * again by itself once unticked. No hours: as before.
@@ -1640,8 +1675,8 @@ const moreDontHelp = computed(
 /** The TE the note names: where builds reach their full laying rate (measured 338; the cap is 360). */
 const USEFUL_STOP_NOTE = 340;
 
-/** Setup the instant answer does not model, named so nobody reads it as accounted for. Playing hours are in the one
- *  line under the answer (`INSTANT_ONE_LINE`), so only these are named here. */
+/** Setup the instant answer does not model, named so nobody reads it as accounted for. Playing hours and no-prestige
+ *  days are in the one line under the title (`headerLine`), so only these are named here. */
 const leftOut = computed(() => {
   const out: string[] = [];
   if (store.timeOff.length) out.push('time off');
@@ -2158,8 +2193,11 @@ const answerStart = ref(0);
  * from (search/simulateRoute.ts).
  */
 function openPlan(chain: number[]): void {
-  const { opts } = instantSimulate(routeOf(chain), { start: answerStart.value, firstAscension: answerFirst.value });
+  const { opts, note } = instantSimulate(routeOf(chain), { start: answerStart.value, firstAscension: answerFirst.value });
   simulateRoute(chain, props.deadline ? 'by-date' : 'fastest', opts);
+  // A route whose A1 continues the build-up: Single run's dates run later, said on its banner (spec-slimcard; UX fluff
+  // review 5 Nov 2026, item 7: the note under the box's buttons moved there).
+  if (note && ui.planFromInstant) ui.planFromInstant = { ...ui.planFromInstant, note };
 }
 /** The first-ascension setting the answer on screen was priced under (null for a saved answer put back: not kept). */
 const answerFirst = ref<FirstAscension | null>(null);
@@ -2171,8 +2209,6 @@ function routeOf(chain: readonly number[]): Route | null {
   const all = [found.best, found.byDate, ...dateRowsOf(found), ...fastestRowsOf(found)];
   return all.find((r): r is Route => !!r && key(r.chain) === want) ?? null;
 }
-/** Under the box's Simulate this plan: Single run can't continue a build-up, so its dates for this route run later. */
-const boxSimulateNote = computed(() => instantSimulate(boxRoute.value, {}).note);
 /** "Follow this route": the goal My runs' Right now follows it for (lib/follow.ts). */
 const followGoal = computed(() => screenGoalKey(props.deadline, store.finalTE));
 /** When the answer on screen was worked out (ms; a snapshot's own time when restored): a route followed before it is

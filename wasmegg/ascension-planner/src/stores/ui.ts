@@ -87,7 +87,9 @@ export const useUIStore = defineStore('ui', () => {
   /** A route the instant answer's "Simulate this plan" sent to Classic (search/simulateRoute.ts): Classic
    *  scrolls to its plan once simulated and says where it came from, with a way back. */
   /** `from`: what the banner names as its source, when not the instant answer (By a date's answer). */
-  const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date'; from?: string } | null>(null);
+  /** `note`: what the banner adds about the route (the instant card's build-up note, search/simulateRoute.ts
+   *  INSTANT_BUILDUP_NOTE: Single run can't continue a build-up, so its dates run later; spec-slimcard). */
+  const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date'; from?: string; note?: string } | null>(null);
   /** Your setup's floating panel (SetupDock.vue) is open: the gear, or a screen's Edit setup. */
   const setupOpen = ref(false);
   /** Bumped to open Your setup at its time off (YourSetup.vue), e.g. from a sweep's "add time off". */
