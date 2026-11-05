@@ -46,8 +46,15 @@ const WAIT = { timeout: 120_000, interval: 20 };
 const SLOW = 300_000;
 let mem: Map<string, string>;
 let saveAt: number;
+/** The clock, pinned (5 Nov 2026: two tests failed on a Thursday). The simulated A1 shifts for the Friday 9am PT
+ *  Research Sale (lib/events.ts), so near a Friday its shifts before the prestige pass Next shifts' 5 (lib/nextAction.ts
+ *  `nextShifts`) and the prestige line these tests read is rightly cut off. A Tuesday, the sale days away. */
+const CLOCK = Date.UTC(2026, 10, 3, 12, 0);
 
 beforeEach(() => {
+  // Only Date: vi.waitFor and the simulations keep real timers.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(CLOCK);
   mem = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => mem.get(k) ?? null,
@@ -69,6 +76,7 @@ beforeEach(() => {
 });
 const scopes: { stop: () => void }[] = [];
 afterEach(() => {
+  vi.useRealTimers();
   for (const s of scopes.splice(0)) s.stop();
   setChainPricer(null);
   setSimRunner(null);
