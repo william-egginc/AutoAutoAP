@@ -73,8 +73,9 @@ describe('PrestigeByLine', () => {
     expect(uses.filter(u => /\n\s*dated\n/.test(u))).toHaveLength(1);
     expect(template.indexOf('dated\n')).toBeLessThan(template.indexOf('Fastest to {{ store.finalTE }} TE'));
     for (const u of uses) {
-      // Worked out on the route the box shows, Prefer fewer's pick included (Jordan, 26 Oct 2026): always there.
-      expect(u).toContain('v-if="prestigeFlag.enabled.value"');
+      // Worked out on the route the box shows, Prefer fewer's pick included (Jordan, 26 Oct 2026); not drawn with
+      // no-prestige days set (spec-slimcard: InstantRoute.states.spec.ts).
+      expect(u).toContain('v-if="prestigeFlag.enabled.value && !noPrestigeOn"');
       expect(u).toContain(':line="boxPrestige?.line ?? null"');
       expect(u).toContain('mismatch=""');
       expect(u).toContain(':beta="prestigeFlag.beta"');

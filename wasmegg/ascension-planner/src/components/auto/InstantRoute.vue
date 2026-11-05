@@ -344,9 +344,11 @@
             <AnswerCaveatLine :caveat="headCaveat" />
             <PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
             <InstantSteps :legs="dateBoxLegs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
-            <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). -->
+            <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). Its
+                 own first prestige is timed by the hours only (search/prestigeBy.ts), so with no-prestige days set it is
+                 not drawn (UX fluff review, 5 Nov 2026, item 5: "by Dec 24, 2026 at 2:00 am" with Dec 24 to 26 off). -->
             <PrestigeByLine
-              v-if="prestigeFlag.enabled.value"
+              v-if="prestigeFlag.enabled.value && !noPrestigeOn"
               :line="boxPrestige?.line ?? null"
               :status="prestigeStatus"
               mismatch=""
@@ -354,14 +356,6 @@
               :hours-on="hoursLimited"
               dated
             />
-            <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
-            <p
-              v-if="prestigeFlag.enabled.value && noPrestigeOn && prestigeStatus !== 'idle'"
-              class="text-body text-amber-800 max-w-prose"
-              data-testid="prestige-by-no-days"
-            >
-              The “Prestige by” line doesn't know your no-prestige days; Fast, Exact or Custom do.
-            </p>
             <!-- HOOK: "First ascension: N egg shifts" and "One more TE" were here (they need the simulated first leg,
                  gone from the instant card since 23 Oct 2026). When the engine simulates the current ascension live
                  again, feed it to lib/searchPointer.ts `firstAscensionFromLiveLeg` and mount RouteExtras with what it
@@ -544,23 +538,16 @@
           <div class="tabular-nums text-body font-bold text-slate-800">{{ boxLead.chain.join(' → ') }}</div>
           <PreferFewerNote :copy="preferCopy" goal="fastest" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />
           <InstantSteps :legs="boxLead.legs" :zone="zone" :hours="stepHours" :no-prestige="stepDays" />
-          <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026). -->
+          <!-- "Prestige by" is worked out on the route the box shows (Prefer fewer's pick too; Jordan, 26 Oct 2026); not
+               drawn with no-prestige days set, as under By a date's box. -->
           <PrestigeByLine
-            v-if="prestigeFlag.enabled.value"
+            v-if="prestigeFlag.enabled.value && !noPrestigeOn"
             :line="boxPrestige?.line ?? null"
             :status="prestigeStatus"
             mismatch=""
             :beta="prestigeFlag.beta"
             :hours-on="hoursLimited"
           />
-          <!-- Its own first prestige is timed by the hours only (search/prestigeBy.ts): say so when days are set. -->
-          <p
-            v-if="prestigeFlag.enabled.value && noPrestigeOn && prestigeStatus !== 'idle'"
-            class="text-body text-amber-800 max-w-prose"
-            data-testid="prestige-by-no-days"
-          >
-            The “Prestige by” line doesn't know your no-prestige days; Fast, Exact or Custom do.
-          </p>
           <!-- HOOK: First ascension / One more TE (see the By a date box above, lib/searchPointer.ts
                `firstAscensionFromLiveLeg`). -->
           <div class="flex flex-wrap items-center gap-2 pt-1" data-testid="box-actions">

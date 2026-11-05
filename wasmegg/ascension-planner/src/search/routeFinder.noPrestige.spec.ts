@@ -189,9 +189,10 @@ describe('the instant card', () => {
     expect(src).toContain('<p v-if="noPrestigeOn" class="text-body text-slate-500 max-w-prose" data-testid="instant-no-prestige">');
     expect(src).toContain('Your no-prestige days are kept: a prestige that would land on one waits for the next allowed time');
   });
-  it('the "Prestige by" line, which times its own prestige by the hours only, says it does not know the days', () => {
-    expect(src.match(/data-testid="prestige-by-no-days"/g)).toHaveLength(2);
-    expect(src).toContain('The “Prestige by” line doesn\'t know your no-prestige days; Fast, Exact or Custom do.');
+  it('the "Prestige by" line, which times its own prestige by the hours only, is not drawn with days set (spec-slimcard)', () => {
+    expect(src.match(/<PrestigeByLine\s+v-if="prestigeFlag\.enabled\.value && !noPrestigeOn"/g)).toHaveLength(2);
+    // Its warning went with it (InstantRoute.states.spec.ts "Prestige by: hidden whenever no-prestige days are set").
+    expect(src).not.toContain('data-testid="prestige-by-no-days"');
   });
   it('keys the saved answer with the days, and hands them to every pricing (answer, what-if, bracket, Prestige by)', () => {
     expect(src).toContain('noPrestige: store.noPrestige,');

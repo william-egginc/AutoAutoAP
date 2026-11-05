@@ -32,6 +32,7 @@ import CollapsibleSection from './CollapsibleSection.vue';
 import InstantIntegrity from './InstantIntegrity.vue';
 import AnimatedDots from './AnimatedDots.vue';
 import PendingText from './PendingText.vue';
+import PrestigeByLine from './PrestigeByLine.vue';
 
 const source = fs.readFileSync(path.resolve(__dirname, 'InstantRoute.vue'), 'utf8');
 const { descriptor } = parse(source);
@@ -245,11 +246,12 @@ function ctxOf(s: State): Record<string, unknown> {
   };
 }
 
-async function draw(s: State, over: Record<string, unknown> = {}): Promise<string> {
+async function draw(s: State, over: Record<string, unknown> = {}, real: Record<string, Vue.Component> = {}): Promise<string> {
   const ctx = { ...ctxOf(s), ...over };
   const cache: unknown[] = [];
   const app = createSSRApp({ render: () => h(defineComponent({ render: () => render(ctx, cache) })) });
-  for (const p of PARTS) app.component(p, stub(p));
+  // `real`: a part drawn as itself, not a stand-in (the Prestige by line below).
+  for (const p of PARTS) app.component(p, real[p] ?? stub(p));
   // The integrity line itself: it draws nothing when there is nothing to say, so it is not a stand-in.
   app.component('InstantIntegrity', InstantIntegrity);
   // The moving dots (spec-dots, 1 Nov 2026): the real ones.
@@ -724,3 +726,63 @@ describe('cached answers first, then recheck (Jordan, 27 Oct 2026)', () => {
 function textOf(html: string): string {
   return html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * PRESTIGE BY WITH NO-PRESTIGE DAYS (UX fluff review, 5 Nov 2026, item 5; spec-slimcard). On egg-beta, By a date (Egg
+ * Day 2027), awake hours 8 am to 11 pm and no-prestige days Dec 24 to 26, the line said "Next: prestige by Dec 24, 2026
+ * at 2:00 am": inside a no-prestige day and outside the hours, while the route's own steps prestige on Dec 22 at 9:00
+ * pm. The line times its prestige by the hours only (search/prestigeBy.ts), so with days set it is not drawn at all,
+ * and the amber "doesn't know your no-prestige days" warning under it goes with it.
+ */
+describe('Prestige by: hidden whenever no-prestige days are set', () => {
+  const DEC_24_2AM = Date.UTC(2026, 11, 24, 10) / 1000; // 2:00 am Pacific
+  const LINE = 'Next: prestige by Dec 24, 2026 at 2:00 am to keep 313 TE.';
+  const at = (answer: Answer, deadline: boolean): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours: true,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+  const on = (status: 'running' | 'done', days: boolean) => ({
+    prestigeFlag: { enabled: { value: true }, beta: true },
+    prestigeStatus: status,
+    boxPrestige: {
+      line: { show: true, text: LINE, tight: false, byHour: DEC_24_2AM, latestHour: DEC_24_2AM + 3600, spareSeconds: null },
+    },
+    noPrestigeOn: days,
+    stepDays: days ? [{ start: Date.UTC(2026, 11, 24, 8) / 1000, end: Date.UTC(2026, 11, 27, 8) / 1000 }] : [],
+  });
+  const real = { PrestigeByLine };
+  for (const [name, answer, deadline] of [
+    ['By a date', 'date', true],
+    ['Fastest', 'fastest', false],
+  ] as const) {
+    it(`${name}: hours 8 am to 11 pm and Dec 24 to 26 off: no "Next: prestige by Dec 24, 2026 at 2:00 am", no warning`, async () => {
+      const html = await draw(at(answer, deadline), on('done', true), real);
+      expect(html).not.toContain('Next: prestige by');
+      expect(html).not.toContain('data-testid="prestige-by"');
+      expect(html).not.toContain('data-testid="prestige-by-no-days"');
+      expect(html).not.toContain("doesn't know your no-prestige days");
+    });
+    it(`${name}: nor its "Working out…" line while it runs`, async () => {
+      const html = await draw(at(answer, deadline), on('running', true), real);
+      expect(html).not.toContain('data-testid="prestige-by-running"');
+    });
+    it(`${name}: with no days set the line still shows (hours only)`, async () => {
+      const html = await draw(at(answer, deadline), on('done', false), real);
+      expect(html).toContain('data-testid="prestige-by"');
+      expect(html).toContain(LINE);
+    });
+  }
+  it('the warning is gone from the source (moot once the line hides itself)', () => {
+    expect(source).not.toContain('prestige-by-no-days');
+    expect(source).not.toContain("doesn't know your no-prestige days");
+  });
+});

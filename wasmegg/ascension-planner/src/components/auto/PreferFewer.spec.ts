@@ -126,9 +126,9 @@ describe('InstantRoute wiring', () => {
     expect(route).toContain(
       '<PreferFewerNote :copy="preferCopy" goal="date" :showing-best="preferShowBest" @toggle="preferShowBest = !preferShowBest" />'
     );
-    // Prestige by follows the box's route (Jordan, 26 Oct 2026): shown under both boxes whatever Prefer fewer picked,
-    // and the muted "worked out on the fastest route" line is gone.
-    expect((route.match(/<PrestigeByLine\s+v-if="prestigeFlag.enabled.value"\s+:line="boxPrestige\?\.line \?\? null"/g) ?? []).length).toBe(2);
+    // Prestige by follows the box's route (Jordan, 26 Oct 2026): shown under both boxes whatever Prefer fewer picked
+    // (not with no-prestige days set, spec-slimcard), and the muted "worked out on the fastest route" line is gone.
+    expect((route.match(/<PrestigeByLine\s+v-if="prestigeFlag.enabled.value && !noPrestigeOn"\s+:line="boxPrestige\?\.line \?\? null"/g) ?? []).length).toBe(2);
     expect(route).not.toContain('prestige-by-other-route');
     expect(route).not.toContain('is worked out on the fastest route');
     expect(route).not.toContain('is worked out on the highest TE route');
