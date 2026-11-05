@@ -1,13 +1,12 @@
 /**
- * The instant answer's counts tables fit a desktop card (18 Oct 2026: at a ~1570 px window, a ~1000 px card,
- * By a date's Route column and Simulate buttons were cut off behind a scroll that also carried the intro).
- * No DOM here, so the template is read: only the table scrolls, and only below its minimum width (phones);
- * every wide cell may wrap; the Simulate button sits in the route's cell, beside it or under it (since 29 Oct 2026
- * one block with Follow, the same width on every row: routeRowActions.spec.ts).
+ * The instant answer's counts lists fit the card (18 Oct 2026: at a ~1570 px window, a ~1000 px card, By a date's
+ * Route column and Simulate buttons were cut off behind a scroll that also carried the intro). No DOM here, so the
+ * template is read.
  *
- * Since 23 Oct 2026 (wireframes/price-route-v2) the lists show instant numbers only, four columns: By a date
- * Ascensions, TE · spare, Reached, Route; Fastest Ascensions, Reaches, Behind (with the near-tie line's 9rem),
- * Route. Below 30rem (phones) each count is a stacked row (`.counts-stack`, wireframe v1): no sideways scroll.
+ * Since spec-slimcard (UX fluff review 5 Nov 2026, item 11) the lists are rows that open on tap, not a table: nothing
+ * scrolls sideways at all; one grid of minmax(0, …) columns on a phone (the route on a second line inside the row) and
+ * five from md up: By a date chevron, Ascensions, Highest TE, Spare, Route; Fastest chevron, Ascensions, Reaches,
+ * Behind, Route. Instant numbers only (23 Oct 2026); Reached and the one Simulate / Follow pair are in the open row.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,7 +31,7 @@ function element(from: number): string {
 }
 const cards = [...t.matchAll(/<div (?:[^>"]|"[^"]*")*data-testid="counts-card"/g)].map(m => element(m.index!));
 
-describe('the counts tables fit the card', () => {
+describe('the counts lists fit the card', () => {
   it('both goals have the card (By a date first, then Fastest)', () => {
     expect(cards).toHaveLength(2);
     expect(cards[0]).toContain('v-for="r in dateRows"');
@@ -45,49 +44,32 @@ describe('the counts tables fit the card', () => {
   ] as const) {
     describe(name, () => {
       const card = () => cards[i];
-      const open = () => card().match(/^<div (?:[^>"]|"[^"]*")*>/)![0];
-      const scroller = () =>
-        element(t.indexOf(card()) + card().indexOf('<div class="overflow-x-auto" data-testid="counts-scroll">'));
 
-      it('the card itself never scrolls; one scroller, holding only the table', () => {
-        expect(open()).not.toContain('overflow');
-        expect(card().match(/overflow-x-auto/g)).toHaveLength(1);
-        const sc = scroller();
-        expect(sc.startsWith('<div class="overflow-x-auto" data-testid="counts-scroll">')).toBe(true);
-        expect(sc).toContain('<table');
-        expect(sc).not.toContain('<MaxedWhatIf');
-        // Nothing after the table inside the scroller.
-        expect(sc).toMatch(/<\/table>\s*<\/div>$/);
+      it('nothing in the card scrolls sideways; no table', () => {
+        expect(card()).not.toContain('overflow-x-auto');
+        expect(card()).not.toContain('<table');
+        expect(card()).not.toContain('counts-scroll');
       });
 
-      it('the heading sits above the scroller, in the card', () => {
+      it('the heading sits above the list, in the card', () => {
         const intro = card().indexOf('Every number of ascensions');
         expect(intro).toBeGreaterThan(0);
-        expect(intro).toBeLessThan(card().indexOf('data-testid="counts-scroll"'));
+        expect(intro).toBeLessThan(card().indexOf('data-testid="counts-list"'));
       });
 
-      it('the table wraps: no nowrap on it; a table from 30rem up, stacked rows below (phones)', () => {
-        const table = card().match(/<table [^>]*>/)![0];
-        // No 30rem minimum width: as a rem min variant it never applied, and it switched every min/max variant off
-        // (Tailwind "mixed units"; red team R7 M3, countsPhone.spec.ts). The stacked style still starts below 30rem.
-        expect(table).toContain('counts-stack');
-        expect(table).toContain('w-full');
-        expect(table).not.toContain('whitespace-nowrap');
+      it('the route may wrap (min-w-0, break-words) in the body font with tabular figures; no mono, no nowrap on it', () => {
+        const route = card().slice(card().indexOf('data-testid="counts-route"') - 400);
+        const span = route.slice(route.lastIndexOf('<span', 400), route.indexOf('</span>', 400));
+        expect(span).toContain('min-w-0 break-words tabular-nums');
+        expect(span).not.toContain('whitespace-nowrap');
+        expect(card()).not.toContain('font-mono');
       });
 
-      it('four columns, instant numbers only: the buttons live in the route cell, in their own block', () => {
-        expect(card().match(/<th /g)).toHaveLength(4);
-        expect(card()).not.toContain('colspan');
+      it('instant numbers only; the buttons in the open row, not beside the route', () => {
         expect(card()).not.toContain('Exact, your account');
-        const route = card().slice(card().indexOf('data-testid="counts-route"'));
-        const cell = route.slice(0, route.indexOf('</td>'));
-        expect(cell).toContain('<div :class="ROUTE_ACTIONS">');
-        expect(cell).toContain('Simulate this plan');
-        // The route in the body font with tabular figures (resultCardStyle.ts `ROUTE_TEXT`): no mono anywhere
-        // (Jordan, 26 Oct 2026).
-        expect(cell).toContain('<span :class="ROUTE_TEXT">');
-        expect(cell).not.toContain('font-mono');
-        expect(cell).not.toMatch(/<td[^>]*whitespace-nowrap/);
+        const head = card().slice(card().indexOf('data-testid="counts-row-head"'), card().indexOf('data-testid="counts-row-panel"'));
+        expect(head).not.toContain('Simulate this plan');
+        expect(card().slice(card().indexOf('data-testid="counts-row-panel"'))).toContain('Simulate this plan');
       });
 
       it('no at-once line and no exact column (23 Oct 2026)', () => {
@@ -98,20 +80,15 @@ describe('the counts tables fit the card', () => {
     });
   }
 
-  it('Fastest: the near-tie line may wrap', () => {
-    const fast = cards[1];
-    expect(fast).toContain('class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"');
+  it('By a date: Reached is in the open row, not a column', () => {
+    const date = cards[0];
+    expect(date.slice(date.indexOf('data-testid="counts-row-panel"'))).toContain('Reached {{ show(r.end) }}');
+    expect(date.slice(0, date.indexOf('data-testid="counts-row-panel"'))).not.toContain('Reached');
   });
-});
 
-describe('the counts list on a phone: stacked rows below 30rem (wireframe v1)', () => {
-  const style = src.slice(src.indexOf('<style scoped>'));
-  it('below 30rem: no header, each row its lines stacked at the full width, each named (R7 M3: countsPhone.spec.ts)', () => {
-    expect(style).toContain('@media (max-width: 29.99rem)');
-    expect(style).toMatch(/\.counts-stack thead \{\s*display: none;/);
-    expect(style).toMatch(/\.counts-stack,\s*\.counts-stack tbody,\s*\.counts-stack tr \{\s*display: block;/);
-    expect(style).toMatch(/\.counts-stack td \{\s*display: block;/);
-    // Four cells, stacked: the count, TE and spare or finish, when or behind, the route.
-    for (const c of cards) expect(c.match(/<td /g)).toHaveLength(4);
+  it('Fastest: the near-tie line may wrap, with no fixed width on a phone', () => {
+    const fast = cards[1];
+    expect(fast).toContain('class="block whitespace-normal text-small"');
+    expect(fast).not.toContain('min-w-[9rem]');
   });
 });

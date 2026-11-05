@@ -1,11 +1,12 @@
 /**
- * Red team R7 M3 (1 Nov 2026): "Every number of ascensions" on a phone was six stacked cards with no column names, two
- * full-width buttons per row named only "Simulate this plan" / "Follow this route", and a sideways scroll at 300 px
- * (the 10rem button column beside the count). Now: below 30rem (where the table stacks) each line has its column's
- * name, shown only there (the table's own header row is hidden there, and the names are hidden from 30rem up, so a
- * screen reader hears each once); the two buttons are compact and side by side, wrapping when they don't fit; each
- * button's name carries its route; nothing has a fixed width that would push past a 300 px phone. No DOM: the
- * template, the style and the shared classes are read; the rendered check is FollowButton's.
+ * Every number of ascensions on a phone. Red team R7 M3 (1 Nov 2026): six stacked cards with no column names, two
+ * full-width buttons per row named only "Simulate this plan" / "Follow this route", and a sideways scroll at 300 px.
+ * Since spec-slimcard (UX fluff review 5 Nov 2026, item 11) the rows open on tap like Joo's: one 44 px line per count
+ * under one row of column names, the route wrapping onto a second line inside the row on a phone (its own column from
+ * md up), and one Simulate / Follow pair in each open row. The column names are for the eye (aria-hidden); each row's
+ * head button says them itself ("3 ascensions, 308 TE, 14m spare, route 205 → 248 → 308"), so a screen reader hears
+ * each once. Each button's name carries its route; nothing has a fixed width that would push past a 300 px phone. No
+ * DOM: the template is read; the rendered checks are InstantRoute.states.spec.ts's and FollowButton's below.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,39 +14,57 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { renderHtml } from '@/test/renderComponent';
 import FollowButton from '../FollowButton.vue';
-import { ROUTE_ACTION, ROUTE_ACTIONS } from './resultCardStyle';
 
 const src = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
 const t = src.slice(0, src.indexOf('<script'));
-const style = src.slice(src.indexOf('<style scoped>'));
-/** Each counts table's <tbody> row template. */
-const rows = [...t.matchAll(/<table class="counts-stack[\s\S]*?<\/table>/g)].map(m => m[0]);
-const cellsOf = (table: string) => [...table.matchAll(/<td\b[\s\S]*?<\/td>/g)].map(m => m[0]);
-/** 480px, not 30rem: Tailwind 3 makes no min/max arbitrary variant at all once one is in rem while the screens are in
- *  px ("mixed units"; it drops them silently), so a rem one would show the names on desktop too. */
-const PHONE_LABEL = /<span class="label text-slate-500 min-\[480px\]:hidden"[^>]*>([^<]+)<\/span>/;
+/** Each counts list: its column names, then its rows. */
+const lists = [...t.matchAll(/<div data-testid="counts-list">[\s\S]*?<\/ul>/g)].map(m => m[0]);
+const headOf = (list: string) => list.match(/<div\s+class="grid[^"]*"\s+aria-hidden="true"\s+data-testid="counts-head"\s*>([\s\S]*?)<\/div>/)!;
+const namesOf = (list: string) => [...headOf(list)[1].matchAll(/<span[^>]*>([^<]*)<\/span>/g)].map(m => m[1]).filter(Boolean);
+const rowHead = (list: string) => list.match(/<button\s+type="button"[\s\S]*?<\/button>/)![0];
+/** A class run's grid columns below md (the phone's) and from md up. */
+const cols = (classes: string) => ({
+  phone: classes.match(/(?:^| )grid-cols-\[([^\]]+)\]/)![1],
+  wide: classes.match(/md:grid-cols-\[([^\]]+)\]/)![1],
+});
 
-describe('Every number of ascensions on a phone (R7 M3)', () => {
-  it('both tables (By a date, Fastest)', () => {
-    expect(rows).toHaveLength(2);
+describe('Every number of ascensions on a phone (R7 M3, spec-slimcard)', () => {
+  it('both lists (By a date, Fastest)', () => {
+    expect(lists).toHaveLength(2);
   });
 
-  it('By a date: each line named on a phone: Ascensions, TE · spare, Reached, Route', () => {
-    const labels = cellsOf(rows[0]).map(c => c.match(PHONE_LABEL)?.[1].trim());
-    expect(labels).toEqual(['Ascensions', 'TE · spare', 'Reached', 'Route']);
+  it('By a date: the columns Ascensions, Highest TE, Spare, Route (Route named from md up, where it has its column)', () => {
+    expect(namesOf(lists[0])).toEqual(['Ascensions', 'Highest TE', 'Spare', 'Route']);
+    expect(headOf(lists[0])[1]).toContain('<span class="hidden md:block">Route</span>');
   });
 
-  it('Fastest: its own column names (Reaches N, Behind); the "behind" suffix is not said twice', () => {
-    const labels = cellsOf(rows[1]).map(c => c.match(PHONE_LABEL)?.[1].trim());
-    expect(labels).toEqual(['Ascensions', 'Reaches {{ store.finalTE }}', 'Behind', 'Route']);
-    expect(rows[1]).not.toContain('> behind</span');
+  it('Fastest: its own column names (Reaches N, Behind)', () => {
+    expect(namesOf(lists[1])).toEqual(['Ascensions', 'Reaches {{ store.finalTE }}', 'Behind', 'Route']);
   });
 
-  it('the names are not aria-hidden: on a phone the header row is hidden and they are what is read, once', () => {
-    for (const table of rows) for (const c of cellsOf(table)) expect(c.match(PHONE_LABEL)![0]).not.toContain('aria-hidden');
-    // The desktop table keeps its header row; the stacked style hides it below 30rem only.
-    for (const table of rows) expect(table.match(/<th /g)).toHaveLength(4);
-    expect(style).toMatch(/@media \(max-width: 29\.99rem\)[\s\S]*\.counts-stack thead \{\s*display: none;/);
+  it('the names are for the eye only; the row head says each to a screen reader (sr-only), once', () => {
+    for (const list of lists) {
+      expect(headOf(list)[0]).toContain('aria-hidden="true"');
+      const head = rowHead(list);
+      expect(head).toContain("{{ r.legs.length === 1 ? 'ascension' : 'ascensions' }}");
+      expect(head).toContain('<span class="sr-only">route{{ \' \' }}</span>');
+    }
+    expect(rowHead(lists[0])).toContain('}}spare</span');
+    expect(rowHead(lists[1])).toContain('}}behind</span');
+  });
+
+  it('the column names and the rows share one grid; on a phone the route wraps onto a second line inside the row', () => {
+    for (const list of lists) {
+      const names = headOf(list)[0].match(/class="([^"]+)"/)![1];
+      const row = rowHead(list).match(/\bclass="([^"]+)"/)![1];
+      expect(cols(row)).toEqual(cols(names));
+      // Four columns on a phone (chevron, count, then two), five from md up (the route's own).
+      expect(cols(row).phone.split('_')).toHaveLength(4);
+      expect(cols(row).wide.split('_')).toHaveLength(5);
+      // Nothing fixed past the chevron on a phone: the rest are minmax(0, …), so nothing pushes past 300 px.
+      expect(cols(row).phone.split('_').slice(1).every(c => c.startsWith('minmax(0,'))).toBe(true);
+      expect(rowHead(list)).toMatch(/class="col-start-2 col-end-\[-1\] min-w-0 break-words[^"]*md:col-start-auto md:col-end-auto/);
+    }
   });
 
   it('no rem min/max variant anywhere in the app source: one would switch them all off (Tailwind "mixed units")', () => {
@@ -59,29 +78,17 @@ describe('Every number of ascensions on a phone (R7 M3)', () => {
     expect(bad).toEqual([]);
   });
 
-  it('on a phone each line is full width (no 2.25rem count column squeezing the buttons)', () => {
-    expect(style).not.toMatch(/grid-template-columns: 2\.25rem/);
-    // No cell is nowrap as a whole below 30rem: the value inside may be, never the name and value together.
-    for (const table of rows) for (const c of cellsOf(table)) expect(c.match(/<td[^>]*>/)![0]).not.toMatch(/[" ]whitespace-nowrap/);
-  });
-
-  it('the two buttons compact and side by side below md, wrapping; the fixed 10rem column from md up only', () => {
-    expect(ROUTE_ACTIONS).toMatch(/(^| )flex( |$)/);
-    expect(ROUTE_ACTIONS).toContain('flex-wrap');
-    expect(ROUTE_ACTIONS).toContain('gap-2');
-    expect(ROUTE_ACTIONS).toContain('md:grid');
-    expect(ROUTE_ACTIONS).toContain('md:grid-cols-[10rem]');
-    expect(ROUTE_ACTIONS).not.toMatch(/(^| )grid-cols-\[/);
-    expect(ROUTE_ACTION).not.toMatch(/(^| )w-full/);
-    expect(ROUTE_ACTION).toContain('md:w-full');
-    // Nothing fixed-width that would push past a 300 px phone.
-    for (const c of [ROUTE_ACTIONS, ROUTE_ACTION]) expect(c).not.toMatch(/(^| )(w|min-w)-\[/);
+  it('each row head is 44 px tall at every width', () => {
+    for (const list of lists) {
+      expect(rowHead(list)).toContain('min-h-[44px]');
+      expect(rowHead(list)).not.toContain('sm:min-h-0');
+    }
   });
 
   it('each button is named with its route', () => {
-    for (const table of rows) {
-      expect(table).toMatch(/<button[^>]*:aria-label="`Simulate \$\{r\.chain\.join\(' '\)\}`"[^>]*>\s*Simulate this plan\s*<\/button>/);
-      expect(table).toMatch(/<FollowButton[^>]*:route-label="r\.chain\.join\(' '\)"/);
+    for (const list of lists) {
+      expect(list).toMatch(/<button[^>]*:aria-label="`Simulate \$\{r\.chain\.join\(' '\)\}`"[^>]*>\s*Simulate this plan\s*<\/button>/);
+      expect(list).toMatch(/<FollowButton[^>]*:route-label="r\.chain\.join\(' '\)"/);
     }
   });
 });

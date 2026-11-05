@@ -30,9 +30,17 @@ describe('the instant card on a phone', () => {
   });
   it('Follow this route: the boxes use the 44 px primary button, the counts rows get 44 px too', () => {
     expect(src.match(/<FollowButton primary|<FollowButton v-if="boxFollowable" primary/g)).toHaveLength(2);
-    // The counts rows' Follow is the primary (44 px) one too since 29 Oct 2026 (resultCardStyle.ts `ROUTE_ACTIONS`).
-    expect(src.match(/<FollowButton v-if="(?:rowFollowable\(r\)|r\.chain\.length)" primary :class="ROUTE_ACTION"/g)).toHaveLength(2);
+    // The counts rows' Follow is the primary (44 px) one too, in the open row's panel since spec-slimcard.
+    expect(src.match(/<FollowButton v-if="(?:rowFollowable\(r\)|r\.chain\.length)" primary :chain="r\.chain"/g)).toHaveLength(2);
     expect(read('FollowButton.vue')).toContain("primary ? 'min-h-[44px] sm:min-h-0");
+  });
+  it('the count rows that open on tap: each head 44 px at every width (spec-slimcard)', () => {
+    const heads = tagsWith(src, 'data-testid="counts-row-head"');
+    expect(heads).toHaveLength(2);
+    for (const t of heads) {
+      expect(t).toContain('min-h-[44px]');
+      expect(t).not.toContain('sm:min-h-0');
+    }
   });
   it('the pointer link (See it ↓) and Show more ascension counts', () => {
     expect(tagWith(read('auto/InstantPointer.vue'), 'data-testid="instant-pointer-link"')).toContain(TAP);

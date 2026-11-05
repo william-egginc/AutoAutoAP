@@ -416,78 +416,97 @@
         <p v-if="result.byDate && hoursLimited" class="text-body text-slate-600" data-testid="instant-hours-note">
           {{ HOURS_NOTE }}
         </p>
-        <!-- Every number of ascensions, instant numbers only (TE, days spare, when it is reached, the route).
-             A table from 30rem up; below it (phones) one stacked row per count (`.counts-stack`, wireframe v1), each
-             line led by its column's name (red team R7 M3, 1 Nov 2026: hidden from 30rem up, where the header row
-             names them, so a screen reader hears each once), the two buttons named with their route. The names use
-             the 480px (= 30rem) variant: Tailwind 3 makes NO min/max arbitrary variant at all once one of them is in
-             rem while the screens are in px ("mixed units"); the table's old 30rem minimum width did exactly that,
-             silently, so it is gone (it never applied) and no rem min/max variant may come back. -->
+        <!-- Every number of ascensions, instant numbers only, like Joo's table (spec-slimcard; UX fluff review 5 Nov 2026,
+             item 11): one 44 px line per count (chevron, ascensions, highest TE, spare with its tight tag, the route),
+             its head a real button (aria-expanded, aria-controls; Enter and Space as any button; a visible focus ring).
+             Opened, it shows when it is reached and ONE Simulate / Follow pair (was a pair on every row: 12 buttons for
+             6 counts). The box's row starts open, any row opens or closes on its own (lib/countRows.ts). On a phone the
+             route wraps onto a second line inside the row; from md up it has its own column. The column names are for
+             the eye (aria-hidden); each head says them to a screen reader itself. No rem min/max variant (Tailwind 3
+             "mixed units" drops them all: countsPhone.spec.ts). -->
         <div v-if="result.byDate && dateRows.length > 1" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="date" />
           <!-- The table folds (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${dateRows.length})`" summary-class="text-body text-slate-600">
-          <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="counts-stack w-full text-small" data-testid="counts-table">
-              <thead>
-                <tr class="text-left label text-slate-500 align-bottom">
-                  <th class="py-1 pr-2">Ascensions</th>
-                  <th class="py-1 pr-2">TE · spare</th>
-                  <th class="py-1 pr-2">Reached</th>
-                  <th class="py-1">Route</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="r in dateRows"
-                  :key="r.legs.length"
-                  class="border-t border-slate-100"
-                  :class="dateRowLit(r) ? 'bg-emerald-50/60' : ''"
+          <div data-testid="counts-list">
+            <div
+              class="grid items-end gap-x-1.5 md:gap-x-2 px-1 pb-1 label text-slate-500 grid-cols-[1.25rem_minmax(0,5.25rem)_minmax(0,3.5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
+              aria-hidden="true"
+              data-testid="counts-head"
+            >
+              <span></span><span>Ascensions</span>{{ ' ' }}<span>Highest TE</span>{{ ' ' }}<span>Spare</span>{{ ' ' }}<span class="hidden md:block">Route</span>
+            </div>
+            <ul>
+              <li v-for="r in dateRows" :key="r.legs.length" class="border-t border-slate-100" data-testid="counts-row">
+                <button
+                  type="button"
+                  :id="`${countIds}-${r.legs.length}-head`"
+                  :aria-expanded="countOpen(r) ? 'true' : 'false'"
+                  :aria-controls="`${countIds}-${r.legs.length}`"
+                  class="grid w-full min-h-[44px] items-center gap-x-1.5 md:gap-x-2 gap-y-0.5 px-1 py-1.5 text-left text-body rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 grid-cols-[1.25rem_minmax(0,5.25rem)_minmax(0,3.5rem)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_6rem_9rem_minmax(0,1fr)]"
+                  :class="dateRowLit(r) ? 'bg-emerald-50' : 'hover:bg-slate-50'"
+                  data-testid="counts-row-head"
+                  @click="toggleCount(r)"
                 >
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
-                    <span class="label text-slate-500 min-[480px]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
-                    <span
+                  <span class="text-slate-400 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
+                  {{ ' ' }}
+                  <span class="font-bold text-slate-800 tabular-nums"
+                    >{{ r.legs.length }}<span class="sr-only">{{ ' ' }}{{ r.legs.length === 1 ? 'ascension' : 'ascensions' }},</span
+                    ><span
                       v-if="datePickedRow(r)"
-                      class="block whitespace-normal text-small font-bold text-emerald-700"
+                      class="block text-small font-bold text-emerald-700"
                       :title="preferCopy.chip"
                       data-testid="prefer-fewer-row"
                       >shown above</span
-                    >
-                  </td>
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 align-top" data-testid="counts-te">
-                    <span class="label text-slate-500 min-[480px]:hidden">TE · spare</span>{{ ' ' }}<span class="whitespace-nowrap">{{ lastEndTE(r) }} TE</span> ·
-                    <span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>
-                  </td>
-                  <td class="py-1.5 pr-2 text-slate-600 min-[480px]:whitespace-nowrap align-top">
-                    <span class="label text-slate-500 min-[480px]:hidden">Reached</span>{{ ' ' }}<span class="whitespace-nowrap">{{ show(r.end) }}</span>
-                  </td>
-                  <!-- The route wrapping in its own column, its two buttons one block of the same width on every
-                       row: beside it on a wide card, under it on a narrow one (resultCardStyle.ts `ROUTE_ACTIONS`). -->
-                  <td class="py-1.5 align-top" data-testid="counts-route">
-                    <div :class="ROUTE_CELL">
-                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[480px]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
-                      <div :class="ROUTE_ACTIONS">
-                        <button
-                          type="button"
-                          :class="[SECONDARY_BUTTON, ROUTE_ACTION]"
-                          :title="SIMULATE_TITLE"
-                          :aria-label="`Simulate ${r.chain.join(' ')}`"
-                          @click="openPlan(r.chain)"
-                        >
-                          Simulate this plan
-                        </button>
-                        <FollowButton v-if="rowFollowable(r)" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
-                          :finish="r.end"
-                          :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
-                          :plan-start="answerStart"
-                          :deadline="deadline"
-                        />
-                      </div>
+                    ></span
+                  >
+                  {{ ' ' }}
+                  <span class="font-bold text-slate-800 tabular-nums whitespace-nowrap" data-testid="counts-te"
+                    >{{ lastEndTE(r) }} TE<span class="sr-only">,</span></span
+                  >
+                  {{ ' ' }}
+                  <span class="font-bold tabular-nums" :class="rowTight(r) ? 'text-amber-700' : 'text-emerald-800'" :title="days(deadline - r.end)"
+                    ><span>{{ tableGap(deadline - r.end) }}</span><span class="sr-only">{{ ' ' }}spare</span
+                    ><template v-if="rowTight(r)"
+                      >{{ ' ' }}<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 label" data-testid="counts-tight">tight</span></template
+                    ></span
+                  >
+                  {{ ' ' }}
+                  <span
+                    class="col-start-2 col-end-[-1] min-w-0 break-words tabular-nums text-small text-slate-600 md:col-start-auto md:col-end-auto md:text-body md:text-slate-800"
+                    data-testid="counts-route"
+                    ><span class="sr-only">route{{ ' ' }}</span>{{ r.chain.join(' → ') }}</span
+                  >
+                </button>
+                <div
+                  v-show="countOpen(r)"
+                  :id="`${countIds}-${r.legs.length}`"
+                  class="pl-8 pr-1 pb-2.5 space-y-1"
+                  data-testid="counts-row-panel"
+                >
+                  <template v-if="countOpen(r)">
+                    <p class="text-small text-slate-600 tabular-nums">Reached {{ show(r.end) }}</p>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        :class="SECONDARY_BUTTON"
+                        :title="SIMULATE_TITLE"
+                        :aria-label="`Simulate ${r.chain.join(' ')}`"
+                        @click="openPlan(r.chain)"
+                      >
+                        Simulate this plan
+                      </button>
+                      <FollowButton v-if="rowFollowable(r)" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
+                        :finish="r.end"
+                        :end-te="r.legs[r.legs.length - 1]?.endTE ?? null"
+                        :plan-start="answerStart"
+                        :deadline="deadline"
+                      />
                     </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </template>
+                </div>
+              </li>
+            </ul>
           </div>
           </PanelFold>
           <MaxedWhatIf
@@ -605,77 +624,90 @@
         <p v-if="boxLead && hoursLimited" class="text-body text-slate-600" data-testid="instant-hours-note">
           {{ HOURS_NOTE }}
         </p>
-        <!-- Every number of ascensions, instant numbers only. A table from 30rem up; stacked rows below it. -->
+        <!-- Every number of ascensions, instant numbers only: rows that open on tap, as By a date's above. -->
         <div v-if="boxLead" class="space-y-1" data-testid="counts-card">
           <PreferFewerControl v-model="preferMargin" goal="fastest" />
           <!-- The table and Show more fold (lib/panelFold.ts `countTable`); Prefer fewer stays outside. -->
           <PanelFold section="countTable" :title="`Every number of ascensions (${shownRows.length})`" summary-class="text-body text-slate-600">
-          <div class="overflow-x-auto" data-testid="counts-scroll">
-            <table class="counts-stack w-full text-small" data-testid="counts-table">
-              <thead>
-                <tr class="text-left label text-slate-500 align-bottom">
-                  <th class="py-1 pr-2">Ascensions</th>
-                  <th class="py-1 pr-2">Reaches {{ store.finalTE }}</th>
-                  <th class="py-1 pr-2">Behind</th>
-                  <th class="py-1">Route</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="r in shownRows"
-                  :key="r.legs.length"
-                  class="border-t border-slate-100"
-                  :class="r === boxLead ? 'bg-emerald-50/60' : ''"
+          <div data-testid="counts-list">
+            <div
+              class="grid items-end gap-x-2 px-1 pb-1 label text-slate-500 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_9rem_9rem_minmax(0,1fr)]"
+              aria-hidden="true"
+              data-testid="counts-head"
+            >
+              <span></span><span>Ascensions</span>{{ ' ' }}<span>Reaches {{ store.finalTE }}</span>{{ ' ' }}<span>Behind</span>{{ ' ' }}<span class="hidden md:block">Route</span>
+            </div>
+            <ul>
+              <li v-for="r in shownRows" :key="r.legs.length" class="border-t border-slate-100" data-testid="counts-row">
+                <button
+                  type="button"
+                  :id="`${countIds}-${r.legs.length}-head`"
+                  :aria-expanded="countOpen(r) ? 'true' : 'false'"
+                  :aria-controls="`${countIds}-${r.legs.length}`"
+                  class="grid w-full min-h-[44px] items-center gap-x-2 gap-y-0.5 px-1 py-1.5 text-left text-body rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 grid-cols-[1.25rem_minmax(0,5.5rem)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-[1.25rem_7rem_9rem_9rem_minmax(0,1fr)]"
+                  :class="r === boxLead ? 'bg-emerald-50' : 'hover:bg-slate-50'"
+                  data-testid="counts-row-head"
+                  @click="toggleCount(r)"
                 >
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
-                    <span class="label text-slate-500 min-[480px]:hidden">Ascensions</span>{{ ' ' }}<span class="whitespace-nowrap">{{ r.legs.length }}</span>
-                    <span
+                  <span class="text-slate-400 transition-transform" :class="countOpen(r) ? 'rotate-90' : ''" aria-hidden="true">›</span>
+                  {{ ' ' }}
+                  <span class="font-bold text-slate-800 tabular-nums"
+                    >{{ r.legs.length }}<span class="sr-only">{{ ' ' }}{{ r.legs.length === 1 ? 'ascension' : 'ascensions' }}, reaches {{ store.finalTE }}</span
+                    ><span
                       v-if="preferPicked && r === boxLead"
-                      class="block whitespace-normal text-small font-bold text-emerald-700"
+                      class="block text-small font-bold text-emerald-700"
                       :title="preferCopy.chip"
                       data-testid="prefer-fewer-row"
                       >shown above</span
-                    >
-                  </td>
-                  <td class="py-1.5 pr-2 font-bold text-slate-800 min-[480px]:whitespace-nowrap align-top">
-                    <span class="label text-slate-500 min-[480px]:hidden">Reaches {{ store.finalTE }}</span>{{ ' ' }}<span class="whitespace-nowrap">{{ showFinish(r.end) }}</span>
-                  </td>
-                  <td class="py-1.5 pr-2 text-slate-500 align-top">
-                    <span class="label text-slate-500 min-[480px]:hidden">Behind</span>{{ ' ' }}<span class="whitespace-nowrap" :title="behindExact(r)">{{ behind(r) }}</span>
-                    <span
+                    ></span
+                  >
+                  {{ ' ' }}
+                  <span class="font-bold text-slate-800 tabular-nums">{{ showFinish(r.end) }}<span class="sr-only">,</span></span>
+                  {{ ' ' }}
+                  <span class="text-slate-500 tabular-nums"
+                    ><span class="whitespace-nowrap" :title="behindExact(r)">{{ behind(r) }}</span
+                    ><span v-if="behind(r) !== 'fastest'" class="sr-only">{{ ' ' }}behind</span
+                    ><span
                       v-if="nearTie(r)"
-                      class="block min-w-[9rem] max-w-[13rem] whitespace-normal text-small"
+                      class="block whitespace-normal text-small"
                       :class="nearTie(r)!.kind === 'fewer' ? 'font-bold text-emerald-700' : 'text-slate-400'"
                       :data-testid="`near-tie-${nearTie(r)!.kind}`"
                       >{{ nearTie(r)!.text }}</span
+                    ></span
+                  >
+                  {{ ' ' }}
+                  <span
+                    class="col-start-2 col-end-[-1] min-w-0 break-words tabular-nums text-small text-slate-600 md:col-start-auto md:col-end-auto md:text-body md:text-slate-800"
+                    data-testid="counts-route"
+                    ><span class="sr-only">route{{ ' ' }}</span>{{ r.chain.join(' → ') }}</span
+                  >
+                </button>
+                <div
+                  v-show="countOpen(r)"
+                  :id="`${countIds}-${r.legs.length}`"
+                  class="pl-8 pr-1 pb-2.5"
+                  data-testid="counts-row-panel"
+                >
+                  <div v-if="countOpen(r)" class="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      :class="SECONDARY_BUTTON"
+                      :disabled="r.chain.length < 2"
+                      :title="SIMULATE_TITLE"
+                      :aria-label="`Simulate ${r.chain.join(' ')}`"
+                      @click="openPlan(r.chain)"
                     >
-                  </td>
-                  <!-- The route and its two buttons, as By a date's above (resultCardStyle.ts `ROUTE_ACTIONS`). -->
-                  <td class="py-1.5 align-top" data-testid="counts-route">
-                    <div :class="ROUTE_CELL">
-                      <span :class="ROUTE_TEXT"><span class="label text-slate-500 min-[480px]:hidden">Route</span>{{ ' ' }}{{ r.chain.join(' ') }}</span>
-                      <div :class="ROUTE_ACTIONS">
-                        <button
-                          type="button"
-                          :class="[SECONDARY_BUTTON, ROUTE_ACTION]"
-                          :disabled="r.chain.length < 2"
-                          :title="SIMULATE_TITLE"
-                          :aria-label="`Simulate ${r.chain.join(' ')}`"
-                          @click="openPlan(r.chain)"
-                        >
-                          Simulate this plan
-                        </button>
-                        <FollowButton v-if="r.chain.length" primary :class="ROUTE_ACTION" :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
-                          :finish="r.end"
-                          :end-te="r.chain[r.chain.length - 1]"
-                          :plan-start="answerStart"
-                        />
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                      Simulate this plan
+                    </button>
+                    <FollowButton v-if="r.chain.length" primary :chain="r.chain" :goal-key="followGoal" from="count" :route-label="r.chain.join(' ')" :stale="!!staleAt"
+                      :finish="r.end"
+                      :end-te="r.chain[r.chain.length - 1]"
+                      :plan-start="answerStart"
+                    />
+                  </div>
+                </div>
+              </li>
+            </ul>
           </div>
           <!-- Counts past the best + 1 add stops that no longer help (routeFinder.ts USEFUL_STOP_MAX). -->
           <button
@@ -805,11 +837,12 @@
 </template>
 
 <script setup lang="ts">
-import { ROUTE_ACTION, ROUTE_ACTIONS, ROUTE_CELL, ROUTE_TEXT, SECONDARY_BUTTON } from './resultCardStyle';
+import { SECONDARY_BUTTON } from './resultCardStyle';
 import { formatClock } from '@/lib/clock';
 import { headlineGap, plural, roundedGap } from '@/lib/format';
-import { spareLine } from '@/lib/spareLine';
-import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { isTightSpare, spareLine } from '@/lib/spareLine';
+import { countRowOpen, toggleCountRow } from '@/lib/countRows';
+import { computed, nextTick, onUnmounted, ref, shallowRef, useId, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { timeOffWindows, usableTimeOff } from '@/search/timeOff';
 import { useInstantSummaryStore } from '@/stores/instantSummary';
@@ -2388,6 +2421,30 @@ function dateRowLit(r: Route): boolean {
 function datePickedRow(r: Route): boolean {
   return preferPicked.value && dateRowLit(r);
 }
+/**
+ * EVERY NUMBER OF ASCENSIONS, ROWS THAT OPEN ON TAP (spec-slimcard, lib/countRows.ts): the rows the player tapped
+ * (count -> open); a row never tapped is open when it is the box's. Afresh with each new answer.
+ */
+const openCounts = ref(new Map<number, boolean>());
+watch(result, () => {
+  openCounts.value = new Map();
+});
+/** The box's row: By a date's lit row, Fastest's lead. */
+function countLit(r: Route): boolean {
+  return props.deadline ? dateRowLit(r) : r === boxLead.value;
+}
+function countOpen(r: Route): boolean {
+  return countRowOpen(openCounts.value, r.legs.length, countLit(r));
+}
+function toggleCount(r: Route): void {
+  openCounts.value = toggleCountRow(openCounts.value, r.legs.length, countLit(r));
+}
+/** The rows' ids (a head's aria-controls names its panel), unique on the page. */
+const countIds = `counts-${useId()}`;
+/** A row's tight tag: under a day to spare, or inside the gear caveat's window (lib/spareLine.ts, as the box's). */
+function rowTight(r: Route): boolean {
+  return !!props.deadline && isTightSpare(props.deadline - r.end, shiftedTable.value);
+}
 
 /**
  * THE FIRST ANSWER BECOMES THE FOLLOW (lib/followPolicy.ts AUTO_FOLLOW_FIRST, Jordan 24 Oct 2026): with nothing ever
@@ -3316,28 +3373,3 @@ async function shareResult(k: string): Promise<void> {
 }
 </script>
 
-<style scoped>
-/*
- * The counts list on a phone (wireframes/price-route-v2 v1, 23 Oct 2026): below 30rem each count is one stacked row,
- * its lines under each other at the full width, each led by its column's name (the cells' `min-[480px]:hidden`
- * labels; red team R7 M3, 1 Nov 2026: the count used to sit in a 2.25rem column of its own, unlabelled, and the
- * button block beside it scrolled sideways at 300 px); nothing scrolls sideways. From 30rem up it is the table.
- */
-@media (max-width: 29.99rem) {
-  .counts-stack thead {
-    display: none;
-  }
-  .counts-stack,
-  .counts-stack tbody,
-  .counts-stack tr {
-    display: block;
-  }
-  .counts-stack tr {
-    padding-block: 0.5rem;
-  }
-  .counts-stack td {
-    display: block;
-    padding: 0;
-  }
-}
-</style>

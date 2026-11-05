@@ -1,15 +1,15 @@
 /**
- * A table row's two buttons, Simulate this plan and Follow this route (Jordan, 29 Oct 2026: on rows with a long
- * route Follow dropped under the route text and the columns jagged). They sit in one block of their own
- * (resultCardStyle.ts `ROUTE_ACTIONS`), the same width on every row, beside the route on a wide card and under it on
- * a narrow one (one over the other: four columns and both side by side don't fit the card); the route wraps inside
- * its own column (`min-w-0`). Every table in src/components with both buttons in one cell uses the shared classes,
- * so they cannot drift. No DOM: the template is read.
+ * A count row's Simulate this plan and Follow this route (spec-slimcard; UX fluff review 5 Nov 2026, item 11). Until
+ * then every row of the instant answer's "Every number of ascensions" had both buttons in its route cell (one shared
+ * block, resultCardStyle.ts ROUTE_ACTIONS, Jordan 29 Oct 2026): 12 buttons for 6 counts. Now the rows open on tap like
+ * Joo's and ONE pair sits in each open row's panel (InstantRoute.states.spec.ts draws it). This guards the source: in
+ * both lists the pair is inside the panel and drawn only while the row is open, and no component has a table cell with
+ * both buttons in it any more. No DOM: the template is read.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ROUTE_ACTION, ROUTE_ACTIONS, ROUTE_CELL, ROUTE_TEXT } from './resultCardStyle';
+import * as style from './resultCardStyle';
 
 const components = path.join(__dirname, '..');
 function vueFiles(dir: string): string[] {
@@ -18,59 +18,52 @@ function vueFiles(dir: string): string[] {
     return e.isDirectory() ? vueFiles(p) : e.name.endsWith('.vue') ? [p] : [];
   });
 }
-/** Every <td>…</td> holding both buttons, per file. */
-const cells = vueFiles(components).flatMap(f => {
+const templateOf = (f: string) => {
   const src = fs.readFileSync(f, 'utf8');
-  const t = src.slice(0, src.indexOf('<script'));
-  return [...t.matchAll(/<td\b[\s\S]*?<\/td>/g)]
-    .map(m => m[0])
-    .filter(c => c.includes('Simulate this plan') && c.includes('<FollowButton'))
-    .map(cell => ({ file: path.relative(components, f), cell }));
-});
+  return src.slice(0, src.indexOf('<script'));
+};
+const instant = templateOf(path.join(__dirname, 'InstantRoute.vue'));
+/** Each count row (<li data-testid="counts-row"> … </li>) in the template. */
+const rows = [...instant.matchAll(/<li v-for="r in (?:dateRows|shownRows)"[\s\S]*?<\/li>/g)].map(m => m[0]);
 
-describe('the shared classes', () => {
-  it('the route wraps in its own column; the buttons are a block of their own that never shrinks', () => {
-    expect(ROUTE_CELL).toContain('grid');
-    expect(ROUTE_CELL).toContain('md:grid-cols-[minmax(0,1fr)_auto]');
-    expect(ROUTE_TEXT).toContain('min-w-0');
-    expect(ROUTE_TEXT).toContain('break-words');
-    expect(ROUTE_TEXT).toContain('tabular-nums');
-    expect(ROUTE_ACTIONS).toContain('shrink-0');
-    expect(ROUTE_ACTIONS).toContain('md:justify-self-end');
-  });
-  it('from md up the same width on every row: one fixed 10rem column, equal heights, one line each', () => {
-    expect(ROUTE_ACTIONS).toContain('md:grid-cols-[10rem]');
-    expect(ROUTE_ACTION).toContain('whitespace-nowrap');
-    expect(ROUTE_ACTIONS).toContain('md:auto-rows-fr');
-    expect(ROUTE_ACTION).toContain('md:w-full');
-    expect(ROUTE_ACTION).toContain('justify-center');
-  });
-  it('below md compact, side by side, wrapping (red team R7 M3, 1 Nov 2026: countsPhone.spec.ts)', () => {
-    expect(ROUTE_ACTIONS).toMatch(/^flex flex-wrap /);
-    expect(ROUTE_ACTIONS).not.toMatch(/(^| )grid-cols-/);
-    expect(ROUTE_ACTION).not.toMatch(/(^| )w-full/);
-  });
-  it('type rules: no px text, no caps, no mono', () => {
-    for (const c of [ROUTE_CELL, ROUTE_TEXT, ROUTE_ACTIONS, ROUTE_ACTION]) {
-      expect(c).not.toMatch(/text-\[\d+px\]|uppercase|font-mono|font-medium|font-semibold/);
+describe('the count rows: one pair, in the open row', () => {
+  it('two lists (By a date, Fastest), each row a head button and a panel', () => {
+    expect(rows).toHaveLength(2);
+    for (const r of rows) {
+      expect(r).toContain('data-testid="counts-row-head"');
+      expect(r).toContain('data-testid="counts-row-panel"');
     }
   });
-});
-
-describe('every table with both buttons uses them', () => {
-  it('the instant answer has two such tables (By a date, Fastest)', () => {
-    expect(cells.filter(c => c.file === 'auto/InstantRoute.vue')).toHaveLength(2);
-  });
-  for (const { file, cell } of cells) {
-    it(`${file}: one block for both buttons, the route beside it`, () => {
-      expect(cell).toContain(':class="ROUTE_CELL"');
-      expect(cell).toMatch(/<span :class="ROUTE_TEXT">/);
-      const block = cell.slice(cell.indexOf('<div :class="ROUTE_ACTIONS">'));
-      expect(cell).toContain('<div :class="ROUTE_ACTIONS">');
-      // Both buttons inside the block, each with the shared width and its 44 px tap target.
-      expect(block).toMatch(/<button[^>]*:class="\[SECONDARY_BUTTON, ROUTE_ACTION\]"[^>]*>\s*Simulate this plan\s*<\/button>/);
-      expect(block).toMatch(/<FollowButton[^>]*\bprimary\b[^>]*:class="ROUTE_ACTION"/);
-      expect(cell).not.toContain('flex-wrap');
+  for (const [name, i] of [
+    ['By a date', 0],
+    ['Fastest', 1],
+  ] as const) {
+    it(`${name}: Simulate and Follow only inside the panel, drawn only while the row is open`, () => {
+      const r = rows[i];
+      const head = r.slice(0, r.indexOf('data-testid="counts-row-panel"'));
+      expect(head).not.toContain('Simulate this plan');
+      expect(head).not.toContain('<FollowButton');
+      const panel = r.slice(r.indexOf('data-testid="counts-row-panel"'));
+      const shown = panel.slice(panel.indexOf('v-if="countOpen(r)"'));
+      expect(panel.indexOf('v-if="countOpen(r)"')).toBeGreaterThan(-1);
+      expect(shown.match(/>\s*Simulate this plan\s*<\/button>/g)).toHaveLength(1);
+      expect(shown.match(/<FollowButton\b/g)).toHaveLength(1);
+      // The 44 px buttons (SECONDARY_BUTTON, FollowButton's primary), each named with its route.
+      expect(shown).toMatch(/<button[^>]*:class="SECONDARY_BUTTON"[^>]*:aria-label="`Simulate \$\{r\.chain\.join\(' '\)\}`"/);
+      expect(shown).toMatch(/<FollowButton[^>]*\bprimary\b[^>]*from="count"[^>]*:route-label="r\.chain\.join\(' '\)"/);
     });
   }
+  it('no component has a table cell with both buttons (the pair-per-row table is gone)', () => {
+    const cells = vueFiles(components).flatMap(f =>
+      [...templateOf(f).matchAll(/<td\b[\s\S]*?<\/td>/g)]
+        .map(m => m[0])
+        .filter(c => c.includes('Simulate this plan') && c.includes('<FollowButton'))
+        .map(() => path.relative(components, f))
+    );
+    expect(cells).toEqual([]);
+  });
+  it('the shared per-row button block is gone with it', () => {
+    expect(Object.keys(style)).not.toContain('ROUTE_ACTIONS');
+    expect(Object.keys(style)).not.toContain('ROUTE_CELL');
+  });
 });

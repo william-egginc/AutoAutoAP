@@ -21,17 +21,3 @@ export const LEG_TABLE = 'w-full text-small tabular-nums';
 /** A table's column heads (on the <tr> or each <th>): the caps label. */
 export const LEG_HEAD = 'label text-slate-400 text-left whitespace-nowrap';
 export const LEG_ROW = 'border-t border-slate-100';
-/**
- * A table row's route with its two buttons, Simulate this plan and Follow this route (the instant answer's "Every
- * number of ascensions", By a date and Fastest; Jordan, 29 Oct 2026: on a long route Follow dropped under the text
- * and the rows jagged). The route wraps in its own column (`min-w-0`); the buttons are one block of their own, the
- * same width on every row and every screen: one fixed 10rem column, one button over the other (the card is at most
- * 4xl, too narrow for four columns and both side by side), right of the route from md up. Below md (red team R7 M3,
- * 1 Nov 2026: two full-width buttons per row filled a phone, and the 10rem column scrolled sideways at 300 px) they
- * are compact, as wide as their words, side by side under the route, and wrap to two lines when they don't fit.
- * Equal heights (`auto-rows-fr`, md up), 44 px to tap on a phone (the buttons' own classes).
- */
-export const ROUTE_CELL = 'grid items-start gap-x-3 gap-y-1.5 md:grid-cols-[minmax(0,1fr)_auto]';
-export const ROUTE_TEXT = 'min-w-0 break-words tabular-nums text-slate-800';
-export const ROUTE_ACTIONS = 'flex flex-wrap shrink-0 gap-2 md:grid md:grid-cols-[10rem] md:auto-rows-fr md:justify-self-end';
-export const ROUTE_ACTION = 'md:w-full justify-center text-center whitespace-nowrap';

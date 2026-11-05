@@ -97,12 +97,19 @@ describe('(b) numbers in tables are tabular', () => {
     expect(css.slice(at, css.indexOf('}', at))).toContain('font-variant-numeric: tabular-nums;');
   });
 
-  it('the columns the review named are real table cells, so the rule covers them', () => {
+  it('the columns the review named are tabular: the counts rows (not a table since spec-slimcard) carry it themselves', () => {
     const instant = read('components/auto/InstantRoute.vue');
-    // The two counts tables (instant answer, Fastest): TE · spare and Reached; Reaches and Behind.
-    expect(instant.match(/<table class="counts-stack[^"]*" data-testid="counts-table">/g)).toHaveLength(2);
-    for (const head of ['TE · spare', 'Reached', 'Reaches {{ store.finalTE }}', 'Behind']) expect(instant).toContain(`<th class="py-1 pr-2">${head}</th>`);
-    expect(instant).toMatch(/<td class="[^"]*" data-testid="counts-te">/);
+    // The two counts lists (By a date, Fastest): each number span in a row's head is tabular-nums on its own.
+    const heads = [...instant.matchAll(/data-testid="counts-row-head"[\s\S]*?<\/button>/g)].map(m => m[0]);
+    expect(heads).toHaveLength(2);
+    for (const h of heads) {
+      // The head's cells (the button's own children, one indent in): the chevron aside, each holds a number.
+      const spans = [...h.matchAll(/\n {18}<span\s+class="([^"]*)"/g)].map(m => m[1]).filter(c => !c.includes('transition-transform'));
+      expect(spans).toHaveLength(4);
+      expect(spans.length).toBeGreaterThan(0);
+      for (const c of spans) expect(c).toContain('tabular-nums');
+    }
+    expect(instant).toMatch(/<span class="[^"]*tabular-nums[^"]*" data-testid="counts-te"/);
     // Leaderboard: its three tables.
     expect(read('components/auto/LeaderboardPanel.vue').match(/<table\b/g)?.length).toBeGreaterThanOrEqual(3);
   });

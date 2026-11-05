@@ -97,7 +97,7 @@ describe('InstantRoute wiring', () => {
     expect(route).toContain('<PreferFewerControl v-model="preferMargin" goal="fastest" />');
     expect(route).toContain('<PreferFewerControl v-model="preferMargin" goal="date" />');
     expect(route.indexOf('<PreferFewerControl v-model="preferMargin" goal="date" />')).toBeLessThan(
-      route.indexOf('<th class="py-1 pr-2">TE · spare</th>')
+      route.indexOf('<span>Highest TE</span>')
     );
     expect(route).toContain('get: () => preferSetting.value[preferGoal.value],');
     // Only the screen picked on is remembered; the other keeps its default (preferFewer.ts PREFER_DEFAULTS).
@@ -135,7 +135,9 @@ describe('InstantRoute wiring', () => {
     expect(route).not.toMatch(/prestigeFlag\.enabled\.value && !?preferPicked/);
     expect(route).toContain('v-if="preferPicked && r === boxLead"');
     expect(route).toContain('v-if="datePickedRow(r)"');
-    expect(route).toContain(`:class="r === boxLead ? 'bg-emerald-50/60' : ''"`);
+    // The box's row lit (and open to start, spec-slimcard: lib/countRows.ts).
+    expect(route).toContain(`:class="r === boxLead ? 'bg-emerald-50' : 'hover:bg-slate-50'"`);
+    expect(route).toContain(`:class="dateRowLit(r) ? 'bg-emerald-50' : 'hover:bg-slate-50'"`);
   });
 
   it('saved answers: the pick is never saved, so a new default needs no new answer key', () => {

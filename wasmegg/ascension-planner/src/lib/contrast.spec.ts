@@ -68,9 +68,10 @@ describe('and the screens use them', () => {
   it('SiteTabs.vue: slate-500 when not picked', () => {
     expect(read('components/SiteTabs.vue')).toContain("'text-slate-500 hover:text-slate-700 hover:bg-slate-50'");
   });
-  it('InstantRoute.vue: both tables’ headers the caps label (11 px) in slate-500; the checked-in and Pricing lines slate-500', () => {
+  it('InstantRoute.vue: both counts lists’ column names the caps label (11 px) in slate-500; the checked-in and Pricing lines slate-500', () => {
     const src = read('components/auto/InstantRoute.vue');
-    expect(src.match(/<tr class="text-left label text-slate-500 align-bottom">/g)).toHaveLength(2);
+    // The counts lists' column names (rows that open on tap since spec-slimcard, no table header row).
+    expect(src.match(/class="grid items-end gap-x-[^ ]+ (?:md:gap-x-2 )?px-1 pb-1 label text-slate-500 /g)).toHaveLength(2);
     expect(src).not.toMatch(/<tr class="[^"]*text-\[9px\][^"]*text-slate-400/);
     expect(src).toContain('<span v-if="ms !== null" class="text-small text-slate-500"');
     expect(src).toMatch(/<p v-if="bracketStatus === 'running'[^"]*" class="text-body text-slate-500 max-w-prose"/);

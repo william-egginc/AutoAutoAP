@@ -121,10 +121,6 @@ function ctxOf(s: State): Record<string, unknown> {
     SHARE_WHAT: '',
     SIMULATE_TITLE: '',
     SECONDARY_BUTTON: 'btn',
-    ROUTE_CELL: 'route-cell',
-    ROUTE_TEXT: 'route-text',
-    ROUTE_ACTIONS: 'route-actions',
-    ROUTE_ACTION: 'route-action',
     START_WAIT_LABEL: 'From before: waiting for your save.',
     TABLE_URL: '/precompute/table-v2.bin',
     TIGHT_SECONDS: 86400,
@@ -146,6 +142,10 @@ function ctxOf(s: State): Record<string, unknown> {
     confirming: null,
     dateBoxOf: (r: Route) => ({ chain: r.chain, endTE: last(r), end: r.end }),
     datePickedRow: () => false,
+    countIds: 'counts-v0',
+    countOpen: () => false,
+    toggleCount: () => {},
+    rowTight: () => false,
     dateRowLit: () => false,
     dateRows: result?.byDate ? [fewer, dateRoute] : [],
     days: (sec: number) => `${(sec / 86400).toFixed(2)} days`,
@@ -585,13 +585,16 @@ describe('the hours note under each box', () => {
 });
 
 describe('Every number of ascensions: rounded gaps (UX review, 25 Oct 2026)', () => {
-  it('Behind and spare go through roundedGap, the exact figure in the tooltip, and a phone row is named "Behind"', () => {
+  it('Behind and spare go through roundedGap, the exact figure in the tooltip; "spare" and "behind" said to screen readers only', () => {
     const src = fs.readFileSync(path.join(__dirname, 'InstantRoute.vue'), 'utf8');
     expect(src).toContain("return r === t ? 'fastest' : '+' + roundedGap(r.seconds - t.seconds);");
-    expect(src).toContain('<span class="whitespace-nowrap" :title="days(deadline - r.end)">{{ tableGap(deadline - r.end) }} spare</span>');
-    // The phone row's name, not a " behind" suffix (red team R7 M3, 1 Nov 2026: countsPhone.spec.ts).
-    expect(src).toContain('<span class="label text-slate-500 min-[480px]:hidden">Behind</span>');
-    expect(src).not.toContain('> behind</span>');
+    // The rows open on tap since spec-slimcard: the column head names Spare and Behind for the eye (aria-hidden), the
+    // row's head button says them (countsPhone.spec.ts).
+    expect(src).toContain(':title="days(deadline - r.end)"');
+    // The spare may wrap ("16h" / "46m") in its column on the narrowest card (By a date's is 290 px on a 390 px phone).
+    expect(src).toContain('<span>{{ tableGap(deadline - r.end) }}</span><span class="sr-only">{{ \' \' }}spare</span');
+    expect(src).toContain('<span class="whitespace-nowrap" :title="behindExact(r)">{{ behind(r) }}</span');
+    expect(src).toContain("<span v-if=\"behind(r) !== 'fastest'\" class=\"sr-only\">{{ ' ' }}behind</span");
   });
 });
 
@@ -784,5 +787,120 @@ describe('Prestige by: hidden whenever no-prestige days are set', () => {
   it('the warning is gone from the source (moot once the line hides itself)', () => {
     expect(source).not.toContain('prestige-by-no-days');
     expect(source).not.toContain("doesn't know your no-prestige days");
+  });
+});
+
+/**
+ * EVERY NUMBER OF ASCENSIONS, ROWS THAT OPEN ON TAP (spec-slimcard; UX fluff review 5 Nov 2026, item 11; Joo's table).
+ * It was a table with Simulate this plan and Follow this route on every row: 12 buttons for 6 counts, about 600 px of
+ * a phone card. Now one 44 px line per count (chevron, ascensions, highest TE, spare with a tight tag, route), its head a
+ * real button (aria-expanded, aria-controls, Enter and Space as any button, a visible focus ring); opened, it shows
+ * "Reached …" and ONE Simulate / Follow pair. The box's row starts open (lib/countRows.ts); several may be open.
+ */
+describe('Every number of ascensions: rows open on tap, one pair in the open row', () => {
+  const at = (answer: Answer, deadline: boolean): State => ({
+    answer,
+    status: 'done',
+    below: false,
+    noTable: false,
+    hold: false,
+    deadline,
+    hours: false,
+    waiting: false,
+    saveWait: false,
+    atTarget: false,
+    saved: false,
+  });
+  /** Each count row: its <li> … </li>. */
+  const rowsOf = (html: string) => [...html.matchAll(/<li[^>]*data-testid="counts-row"[\s\S]*?<\/li>/g)].map(m => m[0]);
+  const headOf = (row: string) => row.match(/<button[^>]*data-testid="counts-row-head"[^>]*>/)![0];
+  const panelOf = (row: string) => row.slice(row.indexOf('data-testid="counts-row-panel"'));
+  const simulates = (s: string) => s.match(/>\s*Simulate this plan\s*<\/button>/g)?.length ?? 0;
+  const follows = (s: string) => s.match(/data-part="FollowButton"/g)?.length ?? 0;
+
+  describe('By a date', () => {
+    const r = resultOf('date')!;
+    const lit = r.byDate;
+    const open = { dateRowLit: (x: unknown) => x === lit, countOpen: (x: unknown) => x === lit };
+
+    it('one row per count, each head a real button that says whether it is open and what it opens', async () => {
+      const rows = rowsOf(await draw(at('date', true), open));
+      expect(rows).toHaveLength(2);
+      for (const row of rows) {
+        const head = headOf(row);
+        expect(head).toMatch(/^<button type="button"/);
+        const controls = head.match(/aria-controls="([^"]+)"/)![1];
+        expect(row).toMatch(new RegExp(`<div[^>]*id="${controls}"[^>]*data-testid="counts-row-panel"`));
+        expect(head).toMatch(/id="[^"]+-head"/);
+      }
+      expect(headOf(rows[0])).toContain('aria-expanded="false"');
+      expect(headOf(rows[1])).toContain('aria-expanded="true"');
+    });
+
+    it('the box’s row starts open with Reached and one Simulate / Follow pair; a closed row has none', async () => {
+      const html = await draw(at('date', true), open);
+      const [closed, opened] = rowsOf(html);
+      expect(simulates(panelOf(opened))).toBe(1);
+      expect(follows(panelOf(opened))).toBe(1);
+      expect(panelOf(opened)).toContain(`Reached t${lit!.end}`);
+      expect(simulates(closed)).toBe(0);
+      expect(follows(closed)).toBe(0);
+      expect(panelOf(closed)).toMatch(/^data-testid="counts-row-panel"[^>]*style="display:none;"/);
+      // On the whole card: the box's pair and the open row's, no more (was one pair per row).
+      expect(simulates(html)).toBe(2);
+    });
+
+    it('several rows open at once', async () => {
+      const html = await draw(at('date', true), { ...open, countOpen: () => true });
+      expect(rowsOf(html).map(row => simulates(panelOf(row)))).toEqual([1, 1]);
+    });
+
+    it('the head shows ascensions, highest TE, spare (tight tag under a day) and the route; screen readers hear each named', async () => {
+      const [first] = rowsOf(await draw(at('date', true), { ...open, rowTight: () => true }));
+      const head = first.slice(0, first.indexOf('</button>'));
+      expect(head).toContain('data-testid="counts-te"');
+      expect(head).toContain('data-testid="counts-tight"');
+      expect(head).toContain('205 → 248 → 308');
+      expect(textOf(head)).toMatch(/3 ascensions, 308 TE, .+ spare tight route 205 → 248 → 308/);
+      const calm = rowsOf(await draw(at('date', true), { ...open, rowTight: () => false }));
+      expect(calm.join('')).not.toContain('data-testid="counts-tight"');
+    });
+
+    it('a 44 px head at every width, a visible focus ring, the chevron hidden from screen readers', async () => {
+      const head = headOf(rowsOf(await draw(at('date', true), open))[0]);
+      expect(head).toContain('min-h-[44px]');
+      expect(head).not.toContain('sm:min-h-0');
+      expect(head).toContain('focus-visible:ring-2');
+      const row = rowsOf(await draw(at('date', true), open))[0];
+      expect(row).toMatch(/<span[^>]*aria-hidden="true"[^>]*>›<\/span>/);
+    });
+  });
+
+  describe('Fastest', () => {
+    const r = resultOf('fastest')!;
+    it('the box’s row starts open with one pair; the column names Ascensions, Reaches N, Behind, Route', async () => {
+      const other = route([220, 300], 1_800_500_000);
+      const html = await draw(at('fastest', false), {
+        shownRows: [other, r.best],
+        countOpen: (x: unknown) => x === r.best,
+      });
+      const rows = rowsOf(html);
+      expect(rows).toHaveLength(2);
+      expect(headOf(rows[0])).toContain('aria-expanded="false"');
+      expect(headOf(rows[1])).toContain('aria-expanded="true"');
+      expect(simulates(panelOf(rows[1]))).toBe(1);
+      expect(follows(panelOf(rows[1]))).toBe(1);
+      expect(simulates(rows[0])).toBe(0);
+      expect(simulates(html)).toBe(2);
+      const head = html.match(/<div[^>]*data-testid="counts-head"[\s\S]*?<\/div>/)![0];
+      expect(textOf(head)).toBe('Ascensions Reaches 300 Behind Route');
+    });
+  });
+
+  it('no table and no per-row button block left in the counts cards', () => {
+    expect(source).not.toContain('counts-stack');
+    expect(source).not.toContain('<div :class="ROUTE_ACTIONS">');
+    // The open rows start afresh with each new answer (the box's row open again).
+    expect(source).toContain('openCounts.value = new Map()');
   });
 });

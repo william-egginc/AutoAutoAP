@@ -92,8 +92,8 @@ describe('buttons, column heads and notes have one definition (resultCardStyle.t
 
   it('InstantRoute, ChainSearchPanel, ByDateRouteCard and the Help box use them', () => {
     const instant = read('components/auto/InstantRoute.vue');
-    expect(instant.match(/:class="SECONDARY_BUTTON"/g)).toHaveLength(2);
-    expect(instant.match(/:class="\[SECONDARY_BUTTON, ROUTE_ACTION\]"/g)).toHaveLength(2);
+    // The two boxes' Simulate and the open count row's (spec-slimcard: one pair in the open row, not on every row).
+    expect(instant.match(/:class="SECONDARY_BUTTON"/g)).toHaveLength(4);
     const panel = read('components/auto/ChainSearchPanel.vue');
     expect(panel).toContain('<table :class="LEG_TABLE">');
     expect(panel).toContain('<tr :class="LEG_HEAD">');
@@ -218,7 +218,8 @@ describe('line length (step 4): reading paragraphs stop at about 65 characters (
 describe('phone check (step 5): fixes found on the 390 px shots', () => {
   it('"shown above" in the counts tables wraps in its narrow column as small text (11 px caps ran into the date)', () => {
     const src = read('components/auto/InstantRoute.vue');
-    expect(src.match(/class="block whitespace-normal text-small font-bold text-emerald-700"\s+:title="preferCopy\.chip"/g)).toHaveLength(2);
+    // Its own line under the count in the row's head since spec-slimcard (the head is a grid, so it wraps in its column).
+    expect(src.match(/class="block text-small font-bold text-emerald-700"\s+:title="preferCopy\.chip"/g)).toHaveLength(2);
   });
   it('action buttons are the body size: Follow this route, the Prefer fewer choices, Copy, Show more ascension counts', () => {
     expect(read('components/FollowButton.vue')).toContain("primary ? 'min-h-[44px] sm:min-h-0 px-3 py-1.5 text-body' : 'px-2 py-0.5 text-body'");
