@@ -687,10 +687,7 @@
               These are the runs the Leaderboard still needs. Run one on your account and it fills a gap.
             </template>
             <template v-else>A sweep sent in here fills a gap listed under {{ NAMES.check }}, the same as a run started there.</template>
-            How the planner works is under {{ NAMES.how }}; what everybody's shared runs show is on
-            <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
-              >{{ NAMES.compare }} › {{ NAMES.insights }}</a
-            >.
+            <!-- The cross-links went (fluff review 2, 5 Nov 2026, Sc10): How it works is the tab beside this one. -->
           </p>
         </div>
         <ChainExplorer v-if="scienceView === 'check' || scienceView === 'submit'" part="science" embedded :science-view="scienceView" :te-now="saveTE" :final-te="chainSearchStore.finalTE" :inventory="saveArtifacts" :gear-coverage="gearCoverage" :workers="chainSearchStore.workerBudget" :threads="chainSearchStore.machineThreads" @run-sweep="openSweep" @run-by-date="openByDate" />

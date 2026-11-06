@@ -1193,9 +1193,9 @@
           @run-by-date="r => emit('run-by-date', r)"
         />
         <p v-else class="rounded-lg bg-slate-50 px-3 py-2 text-body text-slate-500">
-          The asks are worked out from the runs on the Leaderboard, so they need the Leaderboard, and it
-          {{ error ? 'gave nothing to work from (see above)' : 'holds no runs yet' }}. Any run you send, from a
-          search or from {{ NAMES.submit }}, still helps.
+          <!-- One line (fluff review 2, 5 Nov 2026, Sc11). -->
+          {{ error ? "Can't list the gaps without the Leaderboard." : 'No runs on the Leaderboard yet, so no gaps to list.' }}
+          Any run you send still helps.
         </p>
       </section>
 
@@ -1209,7 +1209,7 @@
           <h2 class="text-title font-bold text-slate-900">{{ NAMES.submit }}</h2>
           <p class="text-body text-slate-500 max-w-3xl">
             Ran a sweep and closed the tab, or ran it on another machine? Upload its two files here. They are checked
-            against each other, for truncation and for the old delivery-set bug, before anything is sent.
+            before anything is sent.
           </p>
         </div>
         <SweepUpload :base="base" :rows="rows" @submitted="load" />
