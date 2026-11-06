@@ -5,7 +5,9 @@
   reaches by then. Uses the same schedule, time off and machine settings as the rest of the panel.
 -->
 <template>
-  <div class="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+  <!-- Its own frame from sm up only: on a phone By a date's cards get the width Fastest's do (fluff review 2, 5 Nov
+       2026: 256 px of a 390 px phone inside this frame and InsanePanel's, now embedded; ByDateScreen.frame.spec). -->
+  <div class="space-y-4 sm:rounded-xl sm:border sm:border-slate-200 sm:bg-white sm:p-4">
     <!-- THE one offer to carry on a run that stopped before finishing (a reload, a crash, or Stop).
          Everything else on the page (the black box notice, Stepping away?) points here. -->
     <CarryOnOffer
