@@ -20,7 +20,8 @@ export type FoldSection =
   | 'steppingAway' // Stepping away? (StepAwayOptions.vue)
   | 'countTable' // the instant answer's "Every number of ascensions" table (InstantRoute.vue)
   | 'howWorkedOut' // the instant answer's "How this is worked out" (InstantRoute.vue)
-  | 'buildUpTracker'; // My runs' Build-up tracker under Next steps (myruns/BuildUpTracker.vue; opens by itself per ascension)
+  | 'buildUpTracker' // My runs' Build-up tracker under Next steps (myruns/BuildUpTracker.vue; opens by itself per ascension)
+  | 'setupMore'; // Setup's More options (auto/YourSetup.vue, docked; UX fluff review 2, 5 Nov 2026): its own button, same table and toggle
 
 export type FoldDefault = 'open' | 'folded';
 
@@ -41,6 +42,9 @@ export const PANEL_FOLD: Record<FoldSection, FoldDefault> = {
   // Folded, but open while the player is in a build-up: once per account and ascension, then the player's own close
   // holds for that ascension (lib/buildUpTracker.ts `trackerFoldOpen`, passed to PanelFold as `force`).
   buildUpTracker: 'folded',
+  // Closed (Jordan approved the slim Setup with it closed, 5 Nov 2026): its summary line names every value inside
+  // that isn't its default, so nothing changed is hidden by it.
+  setupMore: 'folded',
 };
 
 /** What the screen is doing, for the triggers. */

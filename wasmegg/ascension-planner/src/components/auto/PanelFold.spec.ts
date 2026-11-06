@@ -222,7 +222,12 @@ describe('every foldable part reads lib/panelFold.ts', () => {
       howWorkedOut: ['InstantRoute.vue'],
       buildUpTracker: ['../myruns/BuildUpTracker.vue'],
     };
-    expect(Object.keys(where).sort()).toEqual([...SECTIONS].sort());
+    // Setup's More options (5 Nov 2026) is the one fold with its own button (aria-expanded / aria-controls over a
+    // region hidden until found) rather than a <details>: it reads the same table and toggle.
+    expect(Object.keys(where).sort()).toEqual(SECTIONS.filter(s => s !== 'setupMore').sort());
+    const setup = read('YourSetup.vue');
+    expect(setup).toContain("foldOpen('setupMore', { remembered: readFoldToggle('setupMore') })");
+    expect(setup).toContain("rememberFoldToggle('setupMore', moreOpen.value);");
     for (const [section, files] of Object.entries(where))
       for (const f of files) expect(read(f), `${section} in ${f}`).toMatch(new RegExp(`<PanelFold\\b[^>]*?\\ssection="${section}"`));
     // Both By a date and Fastest count tables fold.

@@ -387,7 +387,7 @@ const SHORTLIST_INTERVAL_MS = 30_000;
  * this is a 4 GB laptop or something with room to spare. Unavailable in Safari and Firefox, where
  * the middle value is the honest guess.
  */
-const DEFAULT_LEG_DETAIL_BUDGET = (() => {
+export const DEFAULT_LEG_DETAIL_BUDGET = (() => {
   const gb = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
   if (!gb) return 2000;
   return Math.max(500, Math.min(8000, Math.round(gb * 500)));

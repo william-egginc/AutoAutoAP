@@ -51,7 +51,7 @@
       <p>
         <b>When you prestige matters near the weekly research sale.</b> Every build is timed to end with the sale, so a
         few hours either side of it can move a route by days, and in a bad case by up to a week. An experimental
-        "Prestige by…" line (turn it on in Setup › Experimental) shows the last hour you can prestige and still
+        "Prestige by…" line (turn it on in Setup › More options › Experimental) shows the last hour you can prestige and still
         keep your TE.
       </p>
       <p>
@@ -423,7 +423,7 @@
             inside its boxes.
           </li>
           <li>
-            <b>"Prestige by…" (experimental, needs more data).</b> Turn it on in Setup › Experimental (on the beta
+            <b>"Prestige by…" (experimental, needs more data).</b> Turn it on in Setup › More options › Experimental (on the beta
             site it starts on). A line under the instant answer like "Prestige by Fri Nov 27, 2 pm to keep 248 TE", then
             what you'd get after that. It prices your routes again from each later whole hour, up to 8 days ahead, with
             your farm laying while you wait (for as long as your silos hold), then confirms the hour it drops with the

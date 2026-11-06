@@ -21,6 +21,7 @@ const SECTIONS: FoldSection[] = [
   'countTable',
   'howWorkedOut',
   'buildUpTracker',
+  'setupMore',
 ];
 
 let mem: Map<string, string>;
@@ -39,6 +40,11 @@ describe('the default split (the review\'s proposal)', () => {
     expect(Object.keys(PANEL_FOLD).sort()).toEqual([...SECTIONS].sort());
     const open: FoldSection[] = ['countTable', 'whatItDoes'];
     for (const s of SECTIONS) expect(PANEL_FOLD[s], s).toBe(open.includes(s) ? 'open' : 'folded');
+  });
+  it('Setup\'s More options starts closed (Jordan approved the slim Setup with it closed, 5 Nov 2026)', () => {
+    expect(PANEL_FOLD.setupMore).toBe('folded');
+    expect(foldOpen('setupMore')).toBe(false);
+    expect(foldKey('setupMore')).toBe('aap.fold.setupMore');
   });
   it('Search settings stays folded (Fast unless the player opens it)', () => {
     expect(PANEL_FOLD.searchSettings).toBe('folded');
