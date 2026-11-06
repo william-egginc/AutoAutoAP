@@ -569,6 +569,7 @@
               </p>
               <RouteExtras
                 v-if="!store.isRunning"
+                :first-note="store.buildUpClause"
                 :chain="store.bestChain"
                 :legs="store.bestLegs"
                 :reach-at="store.planStart + store.bestDays * 86400"
@@ -924,13 +925,17 @@
                Exhaustive box below has it. -->
           <SavedRuns v-if="!embedded" :player-id="playerId" />
 
-          <!-- Every chain the run priced, one row per leg. Safe to take mid-run. -->
-          <CsvCard v-if="ownRun && (store.csvRows || store.resumable)" class="p-4 rounded-xl border border-slate-200 bg-white">
+          <!-- Every chain the run priced, one row per leg. With the result card on screen its Download ▾ has the CSV, so
+               this row shows only mid-run (safe then) or without a card (UX fluff review 2, 5 Nov 2026, item C8, as
+               Custom's); the download status and a failed download's message stay. -->
+          <CsvCard
+            v-if="ownRun && (store.csvRows || store.resumable)"
+            :csv="store.isRunning || !(store.bestDays > 0)"
+            class="p-4 rounded-xl border border-slate-200 bg-white"
+          >
             <template #csv>
               <p class="text-body text-slate-500 flex-1 min-w-[16rem]">
-                {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per ascension:
-                strategy, sale count, start and end times in your plan's timezone, peak delivery, and how many shifts
-                fall in your schedule. Artifacts and stones are in the header block: the search never varies them.
+                {{ chainCount(store.csvRows || store.resumable?.durations.length || 0) }}, one row per ascension.
                 <span v-if="store.isRunning" class="font-bold text-slate-600">Safe to download mid-run.</span>
               </p>
             </template>

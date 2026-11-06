@@ -63,7 +63,9 @@ describe('BuildUpTracker: the list', () => {
     expect(t).toContain('Build-up tracker 0 of ');
     expect(t).toMatch(/check-ins done · next 8:41 am \(3 h 29 min ago\)/);
     expect(t).toMatch(/Now Fri Oct 30 12:10 pm · your save Fri Oct 30 12:05 pm \(5 min old\) ?\./);
-    expect(t).toContain('Plan from your save of Fri Oct 30 8:41 am · check-ins at least 1 min apart');
+    // Behind the "?" after the save line since 5 Nov 2026 (UX fluff review 2, item R12): a HelpTip, read from the source.
+    expect(t).not.toContain('Plan from your save of');
+    expect(fs.readFileSync(path.join(__dirname, 'BuildUpTracker.vue'), 'utf8').replace(/\s+/g, ' ')).toContain('<HelpTip data-testid="buildup-plan" >Plan from your save of {{ dayClock(planSave, zone, now) }} · check-ins at least 1 min apart');
     expect(t).toContain('Fri Oct 30 18 check-ins Show less');
     expect(t).toContain('Fri Nov 13 1 check-in 10:00 am');
     expect(t).toContain('9:02 am · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
@@ -274,14 +276,13 @@ describe('the template rules (Phase 2)', () => {
 describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
   const withRule = (saleCount: number) =>
     buildUpTracker({ actions: plan.actions, zone: ZONE, hours: HOURS, siloSeconds: plan.siloSeconds, startSilos: 1, startEgg: 'curiosity', now: NOW, saleCount });
-  it('under the plan line, small and slate like the other header lines', async () => {
-    const html = await render('ready', { result: withRule(3) });
-    expect(textOf(html)).toContain("Buys follow Smart Buy, set to 3 sales (the Manual Planner's 70% Return card with its stepper on 3)");
-    expect(html).toMatch(/<p class="text-small text-slate-500" data-testid="buildup-buyrule">/);
-    expect(html.indexOf('data-testid="buildup-buyrule"')).toBeGreaterThan(html.indexOf('data-testid="buildup-plan"'));
+  it('behind the plan line\'s "?" since 5 Nov 2026 (UX fluff review 2, item R12); the words are the lib\'s', async () => {
+    expect(withRule(3).buyRule).toBe("Buys follow Smart Buy, set to 3 sales (the Manual Planner's 70% Return card with its stepper on 3)");
+    expect(fs.readFileSync(path.join(__dirname, 'BuildUpTracker.vue'), 'utf8').replace(/\s+/g, ' ')).toMatch(/tick the rest by hand\.<template v-if="result\.buyRule" >\{\{ ' ' \}\}\{\{ result\.buyRule \}\}<\/template >/);
+    expect(textOf(await render('ready', { result: withRule(3) }))).not.toContain('Buys follow Smart Buy');
   });
   it('1 sale, singular', async () => {
-    expect(textOf(await render('ready', { result: withRule(1) }))).toContain('set to 1 sale (the Manual Planner');
+    expect(withRule(1).buyRule).toContain('set to 1 sale (the Manual Planner');
   });
   it("none for a plan that buys nothing ('continue')", async () => {
     const r = buildUpTracker({ actions: plan.actions, zone: ZONE, hours: HOURS, now: NOW, variantKey: 'continue' });

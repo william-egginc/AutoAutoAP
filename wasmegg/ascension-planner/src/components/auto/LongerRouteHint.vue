@@ -25,7 +25,8 @@
           class="px-3 py-1.5 rounded-lg bg-amber-700 text-white text-body font-bold hover:bg-amber-800 disabled:opacity-40"
           @click="add(h.count)"
         >
-          {{ mode === 'start' ? `Start from ${h.count} ascensions` : `Add a box with ${h.count} ascensions` }}
+          <!-- "Add a box with 6", as the mock (UX fluff review 2, item C0b; the line above says "ascensions"). DRAFT. -->
+          {{ mode === 'start' ? `Start from ${h.count} ascensions` : `Add a box with ${h.count}` }}
         </button>
         <button
           v-if="h.kind === 'instant' && h.chain && h.chain.length > 1"

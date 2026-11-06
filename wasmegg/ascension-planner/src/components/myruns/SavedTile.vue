@@ -11,8 +11,9 @@
       <p class="text-body text-slate-600">
         {{ sub }} · <span class="tabular-nums font-bold text-slate-800" :title="a.chain.join(' ')">{{ route }}</span>
       </p>
-      <!-- Soul eggs after it (lib/soulEggs.ts `soulEggsAfterLine`), when it is the route Right now follows. -->
-      <p v-if="soulEggsAfter" class="text-body break-words" :class="soulEggsAfter.amber ? 'text-amber-800' : 'text-slate-600'" data-testid="now-tile-soul-eggs">
+      <!-- Soul eggs after it (lib/soulEggs.ts `soulEggsAfterLine`), when it is the route Right now follows: only when amber
+           (under a quarter), as Next step says them already (UX fluff review 2, 5 Nov 2026, item R11). -->
+      <p v-if="soulEggsAfter && soulEggsAfter.amber" class="text-body break-words" :class="soulEggsAfter.amber ? 'text-amber-800' : 'text-slate-600'" data-testid="now-tile-soul-eggs">
         {{ soulEggsAfter.text }}
       </p>
       <p class="text-body text-slate-500" data-testid="now-tile-when">

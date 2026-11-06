@@ -115,14 +115,11 @@
     <p class="text-body text-slate-500 max-w-prose">
       <!-- The planner's time only when it reads differently from the zone the date was given in (Egg Day: Pacific);
            otherwise it was a third copy of the same date (UX review 26 Oct 2026, item 14). -->
-      <template v-if="deadline && !sameClock(deadline, plannerZone, zone)"
-        >That is {{ inPlannerZone(deadline) }} in your planner's time, {{ plural(Math.round(daysAway), 'day') }} after the plan
-        starts.</template
-      ><template v-else-if="deadline"
-        >That is {{ plural(Math.round(daysAway), 'day') }} after the plan starts.</template
-      >
+      <!-- One short line (UX fluff review 2, 5 Nov 2026, item D0b): the picker above already gives the time in your own
+           zone. DRAFT (Words). -->
+      <template v-if="deadline">{{ plural(Math.round(daysAway), 'day') }} from your plan start.</template>
       <template v-else>Pick a date and time.</template>
-      Egg Day's own bonuses aren't in the plan. The plan is for reaching the TE by then.
+      Egg Day's own bonuses aren't in the plan.
     </p>
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
@@ -325,12 +322,8 @@
     <!-- Custom is Exhaustive, unchanged: the chain editor, and its run controls and results. -->
     <template #custom>
     <section id="exhaustive" class="space-y-3 scroll-mt-24">
-      <div class="max-w-prose space-y-1 text-body text-slate-700" data-testid="custom-intro">
-        <p>{{ CUSTOM_LEAD }}</p>
-        <ul class="list-disc space-y-0.5 pl-5">
-          <li v-for="line in CUSTOM_POINTS" :key="line">{{ line }}</li>
-        </ul>
-      </div>
+      <!-- One line (UX fluff review 2, 5 Nov 2026, item C-pre1); the bullets are in "How Custom works" under it. DRAFT. -->
+      <p class="max-w-prose text-body text-slate-700" data-testid="custom-intro">{{ CUSTOM_LEAD }}</p>
       <ExhaustivePromise goal="deadline" />
       <template v-if="true">
         <h3 class="text-slate-500 label pt-1">The routes to try</h3>
@@ -607,8 +600,23 @@
               <div class="text-small text-slate-400">~{{ plural(roundedRoutes(plannedRoutes), 'route') }}</div>
             </div>
             <div>
-              <div class="text-slate-400 label">
-                {{ store.deadlineRunning ? 'Time left' : 'Est. time' }}
+              <div class="flex items-center justify-center gap-1.5">
+                <span class="text-slate-400 label">{{ store.deadlineRunning ? 'Time left' : 'Est. time' }}</span>
+                <HelpTip>
+            Counted in ascensions, not routes: a set's first route simulates its early ascensions, shared with the
+            sets that start the same way, and every later try at its last stop only the last ascension. About
+            {{ plan.sets ? (plan.routes / plan.sets).toFixed(1) : 4 }} routes per set<template
+              v-if="mode === 'space' && rememberedPerSet"
+            >
+              (what this machine's last run over a space this shape needed)</template
+            >: the last stop is narrowed down, not tried at every TE. During a run the time left is the ascensions left at the
+            rate of the last 12 minutes. The estimate uses
+            <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last Highest TE by a date search</template
+            ><template v-else
+              >the typical speed for routes this long in players' runs, until this machine has done a Highest TE by a date search of its
+              own</template
+            >, on {{ store.workerBudget }} workers.
+                </HelpTip>
               </div>
               <div class="text-title font-bold text-slate-900 tabular-nums" data-test="estimate">{{ estimateLabel }}</div>
               <div v-if="store.deadlineRunning && timeLeft?.measuring" class="text-small text-slate-400">measuring<AnimatedDots /></div>
@@ -625,21 +633,7 @@
               <div class="text-small text-slate-400">an ascension</div>
             </div>
           </div>
-          <p class="pt-2 text-small text-slate-500">
-            Counted in ascensions, not routes: a set's first route simulates its early ascensions, shared with the
-            sets that start the same way, and every later try at its last stop only the last ascension. About
-            {{ plan.sets ? (plan.routes / plan.sets).toFixed(1) : 4 }} routes per set<template
-              v-if="mode === 'space' && rememberedPerSet"
-            >
-              (what this machine's last run over a space this shape needed)</template
-            >: the last stop is narrowed down, not tried at every TE. During a run the time left is the ascensions left at the
-            rate of the last 12 minutes. The estimate uses
-            <template v-if="store.deadlineWorkerSeconds">this machine's speed from its last Highest TE by a date search</template
-            ><template v-else
-              >the typical speed for routes this long in players' runs, until this machine has done a Highest TE by a date search of its
-              own</template
-            >, on {{ store.workerBudget }} workers.
-          </p>
+          <!-- How the estimate counts is in the Est. time tip (UX fluff review 2, 5 Nov 2026, item C-pre10). -->
           <!-- Above 300,000 routes (search/bigBox.ts): about how many hours here, and the command line. -->
           <BigBoxNote :note="bigBox" />
           <p v-if="store.longRunNote" class="text-small font-bold text-amber-800" data-testid="long-run-workers">
@@ -1152,6 +1146,7 @@ import StrongerBox from './StrongerBox.vue';
 import PanelFold from './PanelFold.vue';
 import ExhaustivePromise from './ExhaustivePromise.vue';
 import CustomBoxesHelp from './CustomBoxesHelp.vue';
+import HelpTip from './HelpTip.vue';
 import StartTimingNote from './StartTimingNote.vue';
 import { lastStopHint } from './customBoxesText';
 import {
@@ -1206,7 +1201,7 @@ import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, typ
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
-import { eggDayWords, eggDayYearOf, sameClock } from '@/lib/eggDay';
+import { eggDayWords, eggDayYearOf } from '@/lib/eggDay';
 import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
@@ -1370,14 +1365,9 @@ const unfinishedChoice = computed<SearchChoice | null>(() => {
   if (!u || runKind.value) return null;
   return choiceForEffort(u.spec.simple ? u.spec.level ?? 'quick' : 'boxes');
 });
-/** Custom's first lines (it is the Exhaustive search, unchanged): what it does, then one fact per bullet (ux35-e). */
-const CUSTOM_LEAD = 'Custom tries every route in the boxes you set, and nothing outside them.';
-const CUSTOM_POINTS = [
-  'It is for proving an answer, not for finding a much better one.',
-  "The answer is proven for those boxes only. So far no search has beaten the instant answer's TE by a date.",
-  'You set a range of TEs for each ascension. The last stop is found to the exact TE.',
-  'Big boxes take hours.',
-];
+/** Custom's one line (it is the Exhaustive search, unchanged); its bullets are in the fold (ExhaustivePromise.vue). DRAFT. */
+const CUSTOM_LEAD =
+  'Tries every route in your boxes, so it proves the best inside them. It rarely beats Fast by more than hours, and big boxes take hours.';
 /** The answer on screen, by box. */
 const resultKind = computed(() => kindOfSimple(result.value));
 /** The unfinished run, by box. */

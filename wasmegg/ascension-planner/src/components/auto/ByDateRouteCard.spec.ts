@@ -32,7 +32,7 @@ describe('ByDateRouteCard', () => {
     const html = await renderHtml(ByDateRouteCard, props(), { default: () => 'Stopped early.' });
     const t = textOf(html);
     expect(t).toMatch(/^Highest by .*2027/);
-    expect(t).toMatch(/166 197 223 247 247 TE reached .*2027.*, 27h 18m to spare/);
+    expect(t).toMatch(/166 → 197 → 223 → 247 247 TE reached .*2027.*, 27h 18m to spare/);
     expect(t).toContain('Stopped early.');
     // Laid out as Fastest's leg table: Ascension, to TE, Start, Finish, Days.
     expect(t).toMatch(/Ascension → TE Start Finish Days A1 166 .* 30\.00 A2 197 .* 80\.00 A3 223 .* 70\.00 A4 247 .* 48\.90/);
@@ -59,7 +59,7 @@ describe('ByDateRouteCard', () => {
   it('mid-run: labelled the best so far, and says it can still improve', async () => {
     const t = textOf(await renderHtml(ByDateRouteCard, props({ running: true })));
     expect(t).toMatch(/^Best so far · highest by .*2027/);
-    expect(t).toContain('166 197 223 247 247 TE');
+    expect(t).toContain('166 → 197 → 223 → 247 247 TE');
     expect(t).toContain('The search is still going, so this can still improve.');
     expect(t).toContain('Ascension → TE Start Finish Days');
   });
@@ -67,7 +67,7 @@ describe('ByDateRouteCard', () => {
   it('a best so far without its legs yet (replayed) shows what is known, and no empty table', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ running: true, route: route({ legs: [] }) }));
     expect(html).not.toContain('by-date-legs');
-    expect(textOf(html)).toContain('166 197 223 247 247 TE');
+    expect(textOf(html)).toContain('166 → 197 → 223 → 247 247 TE');
     expect(textOf(html)).toContain('The time of each stop comes with the finished result.');
   });
 

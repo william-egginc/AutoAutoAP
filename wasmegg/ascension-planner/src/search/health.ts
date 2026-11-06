@@ -18,6 +18,7 @@
  * the physics of the game rather than a threshold tuned to one account, because a threshold tuned
  * to one account is a false alarm on everybody else's.
  */
+import { buildUpNoteWords } from './healthWords';
 import type { LegSummary } from './types';
 import { CONTINUE_WARN_SECONDS, longContinueMessage } from './rules';
 import type { InventoryCount, LoadoutSlot } from './csv';
@@ -133,17 +134,10 @@ export function buildUpNote(leg: LegSummary): HealthIssue | null {
   const days = Number.isFinite(frozen) ? (frozen - build) / 86400 : Infinity;
   if (!(days >= BUILD_UP_NOTE_DAYS)) return null;
   const by = Number.isFinite(days) ? `${days.toFixed(1)} days` : 'a long way';
-  const pickIt = 'Pick "Continue my build-up" or "Fastest" in Setup to use it.';
   const fresh = ends?.fresh;
   const beatsFresh = fresh !== undefined && Number.isFinite(fresh) && (fresh - build) / 86400 >= BUILD_UP_NOTE_DAYS;
-  const message =
-    leg.key === 'continue'
-      ? `Your build isn't finished: carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying, which is what this plan does. ${pickIt}`
-      : leg.key === 'buildup'
-        ? `Ascension 1 carries on your build-up: that ends it ${by} sooner than finishing your farm as it is, without buying anything more.`
-        : beatsFresh
-          ? `Carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying, and ${((fresh! - build) / 86400).toFixed(1)} days sooner than the fresh start this plan takes. ${pickIt}`
-          : `Carrying on your build-up would end ascension 1 ${by} sooner than finishing without buying; prestiging now was faster still.`;
+  // The words are search/healthWords.ts's (moved there unchanged, 5 Nov 2026), so a reword keeps the result code hash.
+  const message = buildUpNoteWords(leg.key, by, beatsFresh ? ((fresh! - build) / 86400).toFixed(1) : null);
   return { kind: 'build-up-sooner', level: 'warning', message };
 }
 

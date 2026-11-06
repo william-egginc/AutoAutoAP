@@ -250,55 +250,8 @@
           {{ g.label }}
         </button>
       </div>
-      <details v-if="goal === 'fastest'" class="rounded-xl border border-slate-200 bg-white">
-        <summary class="cursor-pointer px-4 py-3 text-body font-bold text-slate-500">
-          How {{ NAMES.fullFirst }} works, and what it costs
-        </summary>
-        <div class="px-4 pb-4 text-body text-slate-600 space-y-2">
-          <p>
-            This prices <span class="font-bold">every</span> route in the ranges you describe, with no descent, stages or
-            pruning, so the winner is the true optimum of that space, not a local one. It is also the mode that gets out
-            of hand fastest: the ranges multiply, so halving the step in each does far more than double the work.
-          </p>
-          <p>
-            Nothing here is capped. Above 100,000 routes, Run Custom asks you to confirm first; above 500,000 it asks twice.
-            The count and estimate below update as you type, so check them before you press Run Custom.
-          </p>
-          <!-- How the work is split: explanation, so it sits here with the rest (it was between the
-               estimate and Find). -->
-          <p class="pt-2 font-bold text-slate-800">How the work is split</p>
-          <p>
-            <span class="font-bold text-slate-800">Routes are sorted so related ones sit together.</span> Every route
-            starting <code class="tabular-nums">195 229</code> sits next to the others that start that way, because
-            the expensive unit is the <span class="font-bold">ascension</span>, not the route. Two routes that share their
-            first three stops share those three ascensions' simulations exactly.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800"
-              >The sorted list is cut into chunks of {{ store.workersInPool * 2 }}</span
-            >
-            (workers × 2) and handed to the pool one chunk at a time. The pool splits each chunk across workers by
-            prefix, so each worker gets a family of related routes instead of a random handful, and its memo pays off.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Each worker simulates ascensions and remembers them.</span> An ascension is a full
-            farm simulation: research purchases, hab and vehicle upgrades, twelve egg shifts, sale timing. That is
-            where the ~15 s goes. A route whose prefix the worker has already priced only pays for its new ascensions, which
-            is why the real cost lands well under the estimate.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Progress comes from the workers themselves.</span> Each worker
-            reports after every route it finishes, so the bar moves steadily and you can tell a dead worker from one
-            that is still thinking. The s/route figure under the bar is measured on this machine, not carried over from
-            another one.
-          </p>
-          <p>
-            <span class="font-bold text-slate-800">Stop is checked between chunks.</span> A chunk in flight finishes
-            first, so on a space with long routes "Stopping…" can sit for a minute or two. Nothing is lost: everything
-            priced so far stays, and the best of it is your answer.
-          </p>
-        </div>
-      </details>
+      <!-- Its fold on how the Full sweep works and what it costs is inside Custom's one fold now, "How Custom works" (ExhaustivePromise.vue
+           with CustomHowItWorks.vue, FastestRoute.vue; UX fluff review 2, 5 Nov 2026, item C-pre2). -->
 
       <!--
         An interrupted run, found on load. Above everything, because it is time-sensitive in a way
@@ -415,7 +368,9 @@
                 <HelpTip>
                   Semicolon separated, each `lo-hi` with an optional `:step`. `185-200:5; 210-240:10; 250-290:20` means
                   the first ascension lands between 185 and 200, the second between 210 and 240, the third between 250
-                  and 290, then the target. Ranges may overlap; routes still have to increase.
+                  and 290, then the target. Ranges may overlap; routes still have to increase. The ascension count includes
+                  the final target, so 4 ranges is 5 ascensions. Values at or below your current TE, and at or above the
+                  target, are dropped: neither is an ascension you can perform.
                 </HelpTip>
               </span>
               <input
@@ -458,18 +413,12 @@
                   class="px-3 py-1.5 rounded-md bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
                   @click="applySuggestion"
                 >
-                  Suggest a space
+                  Suggest a space<template v-if="suggestion">{{ ' ' }}({{ chainsTimeLabel(suggestion.chains) }})</template>
                 </button>
+                <!-- What Suggest would fill in is in its tip, the time on the button (UX fluff review 2, 5 Nov 2026, item
+                     C-pre3: a line under every box). DRAFT (Words). -->
                 <HelpTip>
-                  Fills the boxes with a space of the size set beside it. When the whole reachable range fits (at two
-                  ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
-                  no measurement is involved. Above that, it uses where near-best routes have actually landed across
-                  this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
-                  the ranges. It also adds a box for one ascension fewer and one more, at half the size, so a sweep
-                  covers three counts; remove them under Box 2 and 3 if you only want one. Either way it's a starting
-                  point you can edit.
-                </HelpTip>
-                <span v-if="suggestion" class="text-small text-slate-500">
+                  <template v-if="suggestion">
                   Suggest would fill in {{ plural(suggestAsc, 'ascension') }}, {{ plural(suggestion.chains, 'route') }},
                   about {{ chainsTimeLabel(suggestion.chains) }} &middot;
                   <template v-if="suggestion.kind === 'complete'">
@@ -490,9 +439,16 @@
                   </template>
                   <template v-else>
                     measured shape, from {{ plural(suggestion.runs, 'run') }} across {{ plural(suggestion.accounts, 'account') }}
-                  </template>
-                </span>
-                <span v-else class="text-small text-amber-700">
+                  </template>{{ '. ' }}</template
+                  >Fills the boxes with a space of the size set beside it. When the whole reachable range fits (at two
+                  ascensions, and three on most accounts), it suggests that at step 1, so the run proves the optimum and
+                  no measurement is involved. Above that, it uses where near-best routes have actually landed across
+                  this project's runs, refined as close to 5 TE as the budget allows before any of it goes to widening
+                  the ranges. It also adds a box for one ascension fewer and one more, at half the size, so a sweep
+                  covers three counts; remove them under Box 2 and 3 if you only want one. Either way it's a starting
+                  point you can edit.
+                </HelpTip>
+                <span v-if="!suggestion" class="text-small text-amber-700">
                   No suggestion for this target or ascension count.
                 </span>
                 <KeptBoxNote
@@ -568,11 +524,15 @@
               @use-sliders="suggestExtra"
             >
               <template #row-after="{ row, k }">
-                <span v-if="row.asc >= 2 && extraSugs[k]" class="block text-small text-slate-500">
-                  Suggest would fill in {{ plural(extraSugs[k]!.chains, 'route') }}, about
-                  {{ chainsTimeLabel(extraSugs[k]!.chains)
-                  }}<template v-if="extraCoarse(k)"
-                    >. {{ COARSE_SUGGESTION_NOTE }}</template
+                <!-- Behind a tip, as Box 1's (UX fluff review 2, item C-pre3), its time beside it. DRAFT (Words). -->
+                <span v-if="row.asc >= 2 && extraSugs[k]" class="inline-flex items-center gap-1.5 text-small text-slate-500">
+                  Suggest: about {{ chainsTimeLabel(extraSugs[k]!.chains) }}
+                  <HelpTip
+                    >Suggest would fill in {{ plural(extraSugs[k]!.chains, 'route') }}, about
+                    {{ chainsTimeLabel(extraSugs[k]!.chains)
+                    }}<template v-if="extraCoarse(k)"
+                      >. {{ COARSE_SUGGESTION_NOTE }}</template
+                    ></HelpTip
                   >
                 </span>
               </template>
@@ -612,17 +572,11 @@
               </span>
             </label>
 
-            <p class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-              The winner will be the best <span class="font-bold">of the ranges you set</span>, not of everything
-              reachable. That's still a stronger claim than the {{ NAMES.smartFirst }} search makes, which homes in rather than
-              trying everything.
-            </p>
+            <!-- The amber line on what the winner is the best of is gone: the lead says it (UX fluff review 2, 5 Nov 2026,
+                 item C-pre5). -->
           </div>
 
-          <p class="text-body text-slate-500 max-w-prose">
-            The ascension count includes the final target, so 4 ranges is 5 ascensions. Values at or below your current
-            TE, and at or above the target, are dropped: neither is an ascension you can perform.
-          </p>
+          <!-- The ascension-count rule is in the Ranges tip (UX fluff review 2, item C-pre6). -->
         </div>
 
         <!-- The number that should decide whether you press the button. -->
@@ -688,7 +642,10 @@
                   >What the estimate charges per route. It starts at the typical cost for routes this long in players'
                   runs and switches to this machine's own measured rate once the first chunk lands, or as soon as you
                   press "Benchmark my PC" below, which prices that first chunk right away instead of waiting for a real
-                  run.</HelpTip
+                  run. The estimate assumes {{ assumedCostLabel }} per route on {{ store.workerBudget }} workers,
+                  {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.<template v-if="!measuredCost"
+                    >{{ ' ' }}Press Benchmark my PC for a number from your own computer.</template
+                  ></HelpTip
                 >
               </div>
               <div
@@ -743,14 +700,8 @@
               {{ store.workerBudget }} workers{{ measuredCost ? ', measured on this machine' : '' }}. Raise the step or
               narrow the ascension range.
             </template>
-            <template v-else>
-              The estimate assumes {{ assumedCostLabel }} per route on {{ store.workerBudget }} workers,
-              {{ measuredCost ? 'measured on this machine' : speedSourceLabel }}.
-              <template v-if="!measuredCost"
-                >Press Benchmark my PC above for a number from your own computer.</template
-              >
-              Leave the tab open: a closed tab stops the workers.
-            </template>
+            <!-- The safety clause only; the estimate's basis is in the Assumed cost tip (UX fluff review 2, item C-pre9). -->
+            <template v-else> Leave the tab open: a closed tab stops the workers. </template>
           </p>
           <!-- Above 300,000 routes (search/bigBox.ts): about how many hours here, and the command line. -->
           <BigBoxNote :note="bigBox" />
@@ -953,6 +904,7 @@
             >
               <RouteExtras
                 v-if="!store.isRunning"
+                :first-note="store.buildUpClause"
                 :chain="store.bestChain"
                 :legs="store.bestLegs"
                 :reach-at="store.planStart + store.bestDays * 86400"
@@ -979,19 +931,16 @@
                   Your boxes may be too small.<template v-if="coverageAfter">{{ ' ' }}{{ coverageAfter }}</template>
                 </p>
                 <p v-if="suggestedCountNote">{{ suggestedCountNote }}</p>
+                <!-- The wider space's size on the button, as the mock (item C0b); no sentence under it. -->
                 <EdgeWarning
                   v-if="edges.length"
                   bare
                   :lines="edges.map(edgeWords)"
                   :can-widen="!!edgeWiden"
                   :disabled="store.busy || queueAt >= 0"
+                  :routes="edgeWiden ? plural(edgeWiden.chains, 'route') : ''"
                   @widen="widenAndRun"
-                >
-                  <template v-if="edgeWiden">
-                    The wider space is {{ plural(edgeWiden.chains, 'route') }}. Routes already priced are reused when your
-                    setup hasn't changed.
-                  </template>
-                </EdgeWarning>
+                />
                 <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
                 <LongerRouteHint
                   v-if="goal === 'fastest'"
@@ -1004,18 +953,10 @@
                   @check="checkRouteExactly"
                 />
               </div>
-              <!-- Ascension 1 carries on the build-up: good news, so not in an amber box (item C3). The other
-                   continue notes are advice and keep the amber. The words are search/health.ts's (a result code
-                   input), unchanged here. -->
+              <!-- Ascension 1 carrying on the build-up is a clause in the First ascension line (store `buildUpClause`,
+                   item C3); the other leg-1 notes are advice and keep the amber. -->
               <p
-                v-if="store.continueWarning && buildUpGoodNews"
-                class="text-body text-emerald-900/80"
-                data-testid="build-up-note"
-              >
-                {{ store.continueWarning }}
-              </p>
-              <p
-                v-else-if="store.continueWarning"
+                v-if="store.continueWarning"
                 class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-body text-amber-900"
               >
                 {{ store.continueWarning }}
@@ -1069,7 +1010,7 @@
                  diagnostics for a run with no answer (no card), exactly when someone wants to report what went in. -->
             <CsvCard
               v-if="ownRun && (store.pricedCount || store.noFeasibleChain)"
-              :csv="false"
+              :csv="store.isRunning && store.csvRows > 0"
               :diagnostics="!(store.bestDays > 0)"
             />
           </template>
@@ -2396,9 +2337,6 @@ const resuming = ref('');
 
 /** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
 const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
-/** Ascension 1 carries on the build-up (search/health.ts `buildUpNote`, its 'buildup' leg): good news, said without
- *  the amber box (UX fluff review 2, item C3). */
-const buildUpGoodNews = computed(() => store.bestLegs[0]?.key === 'buildup');
 /** The one amber box for the edges (item C0b): 'edge' when the best sits on a box's edge or on the most ascensions
  *  searched (it gets the heading), 'hint' for the instant answer's faster route alone, '' for none. The same rule as
  *  LongerRouteHint.vue's own list (lib/longerRouteHint.ts). */

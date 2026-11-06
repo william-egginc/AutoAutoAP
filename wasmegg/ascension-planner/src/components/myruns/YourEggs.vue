@@ -55,7 +55,10 @@
         <p v-if="clockLine(e.egg)" class="text-body tabular-nums text-slate-500 break-words" data-testid="now-egg-when">{{ clockLine(e.egg) }}</p>
       </div>
     </div>
-    <p v-if="afterShift" class="mt-1.5 text-small text-slate-500 break-words" data-testid="now-eggs-after-shift-note">{{ afterShift.note }}</p>
+    <!-- "estimated from your save" once; how, and which save, behind the "?" (UX fluff review 2, item R16). DRAFT. -->
+    <p v-if="afterShift" class="mt-1.5 flex items-center gap-1.5 text-small text-slate-500 break-words" data-testid="now-eggs-after-shift-note">
+      After a shift: estimated from your save.{{ ' ' }}<HelpTip>{{ afterShift.note }}</HelpTip>
+    </p>
     <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
       <div v-for="f in tiles" :key="f.label" class="rounded-lg bg-slate-50 px-2.5 py-1.5 text-small" :data-testid="`now-fact-${f.id}`">
         <p class="label text-slate-500">{{ f.label }}</p>
@@ -73,6 +76,7 @@ import { virtueEggName } from '@/lib/virtueEggs';
 import { formatSiloTime } from '@/stores/silos';
 import { nextTeLine, type EggLine, type FarmFacts } from '@/lib/farmFacts';
 import { siloNow, siloNowWords } from '@/lib/farmNow';
+import HelpTip from '@/components/auto/HelpTip.vue';
 import { readEggsView, writeEggsView, type EggsView } from '@/lib/nextTeEgg';
 import { plannedShiftsWords } from '@/lib/soulEggs';
 
@@ -141,7 +145,8 @@ const silosTile = computed(() => {
   const s = siloNow({ siloSeconds: f.siloMinutes * 60, saveSeconds: props.saveSeconds, stepSeconds: f.stepSeconds, nowSeconds: props.now });
   if (!s) return { id: 'silos', label: 'Silos', value: `${formatSiloTime(f.siloMinutes)} away`, note: '' };
   const w = siloNowWords(s, props.saveSeconds, props.now, props.zone || Intl.DateTimeFormat().resolvedOptions().timeZone);
-  return { id: 'silos', label: 'Silos', value: w.value, note: w.note };
+  // Not "estimated from your save of …" a third time on the card (UX fluff review 2, item R17).
+  return { id: 'silos', label: 'Silos', value: w.value, note: w.short };
 });
 
 const se = (n: number) => `${formatNumber(n, 1)} soul eggs`;

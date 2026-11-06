@@ -306,13 +306,13 @@ describe('with no collector (VITE_SUBMIT_URL unset, 21 Oct 2026)', () => {
 });
 
 describe('words (26 Oct 2026)', () => {
-  it('the intro says what the page holds and where searches run', () => {
+  it('the intro says what the page holds, in one clause (UX fluff review 2, 5 Nov 2026, item M1)', () => {
     const src = read('MyRunsView.vue');
     const intro = src.match(/<p([^>]*)data-testid="my-runs-intro">([\s\S]*?)<\/p>/)!;
     expect(intro[1]).toContain('text-body');
     expect(intro[1]).toContain('max-w-prose');
     expect(intro[2].replace(/\s+/g, ' ').trim()).toBe(
-      'From your save: where you are now, your next steps and your runs. Estimates are worked out here in the background; searches run on the {{ NAMES.auto }}.'
+      'From your save: where you are now, your next steps and your runs.'
     );
     expect(src).not.toContain('The only thing worked out here');
   });

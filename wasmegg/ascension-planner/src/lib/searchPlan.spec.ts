@@ -183,7 +183,7 @@ describe('which plan drives Right now (lib/searchPlan.ts)', () => {
     expect(sourcePill(null)).toBe('from the instant answer');
     expect(sourcePill('Fast')).toBe('from your Fast run, on your account');
     expect(replaceWords('makes-date', { end: 0 }, { end: 0 })).toBe(
-      'Makes the date on your account, so it replaces the instant answer for the same goal:'
+      'Replaces the instant answer ·' // lib/searchPlanWords.ts, UX fluff review 2, item R6 (DRAFT)
     );
     expect(gapWords(22 * 60)).toBe('22m');
     expect(gapWords(5 * H)).toBe('5h');

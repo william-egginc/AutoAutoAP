@@ -3998,9 +3998,15 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
   // Leg 1's notes (a long continue, the build-up against frozen continue) are not faults.
   const LEG1_NOTES: HealthIssue['kind'][] = ['long-continue', 'build-up-sooner'];
   const resultContradictions = computed(() => resultIssues.value.filter(i => !LEG1_NOTES.includes(i.kind)));
+  /** Ascension 1 carries on the build-up (search/health.ts `buildUpNote` on a 'buildup' leg): good news, a clause in
+   *  the cards' First ascension line (RouteExtras.vue `firstNote`; UX fluff review 2, 5 Nov 2026, item C3). */
+  const buildUpClause = computed(() =>
+    bestLegs.value[0]?.key === 'buildup' ? (resultIssues.value.find(i => i.kind === 'build-up-sooner')?.message ?? '') : ''
+  );
+  /** Leg 1's other notes (a long continue, the advice to carry on the build-up): amber on the cards. */
   const continueWarning = computed(() =>
     resultIssues.value
-      .filter(i => LEG1_NOTES.includes(i.kind))
+      .filter(i => LEG1_NOTES.includes(i.kind) && !(buildUpClause.value && i.message === buildUpClause.value))
       .map(i => i.message)
       .join(' ')
   );
@@ -10017,6 +10023,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     resultIssues,
     resultContradictions,
     continueWarning,
+    buildUpClause,
     integrityWait,
     integrityLowTe,
     singleAscensionAsked,

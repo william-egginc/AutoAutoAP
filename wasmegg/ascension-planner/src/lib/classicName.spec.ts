@@ -107,6 +107,6 @@ describe('the Single run name', () => {
   });
 
   it("By a date's build-up note follows the name", () => {
-    expect(BUILDUP_NOTE).toBe(`${NAMES.classic} prices the first ascension as a fresh build/continue.`);
+    expect(BUILDUP_NOTE).toBe(`${NAMES.classic} can't carry on a build-up, so it starts ascension 1 fresh.`);
   });
 });

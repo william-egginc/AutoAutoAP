@@ -79,13 +79,12 @@
         <template #custom>
           <!-- Custom is Exhaustive: its boxes, run controls and results (InsanePanel.vue), unchanged. -->
           <section id="exhaustive" class="space-y-3 scroll-mt-24">
-            <div class="max-w-prose space-y-1 text-body text-slate-700" data-testid="custom-intro">
-              <p>{{ CUSTOM_LEAD }}</p>
-              <ul class="list-disc space-y-0.5 pl-5">
-                <li v-for="line in CUSTOM_POINTS" :key="line">{{ line }}</li>
-              </ul>
-            </div>
-            <ExhaustivePromise goal="fastest" />
+            <!-- One line (UX fluff review 2, 5 Nov 2026, item C-pre1); the evidence and how it works are in the one fold
+                 under it, "How Custom works" (item C-pre2). DRAFT (Words). -->
+            <p class="max-w-prose text-body text-slate-700" data-testid="custom-intro">{{ CUSTOM_LEAD }}</p>
+            <ExhaustivePromise goal="fastest">
+              <CustomHowItWorks />
+            </ExhaustivePromise>
             <InsanePanel :player-id="playerId" goal="fastest" embedded @update:goal="onGoal" />
           </section>
         </template>
@@ -114,6 +113,7 @@ import SearchCompare from './SearchCompare.vue';
 import { SHOW_COMPARE } from '@/lib/features';
 import InstantRoute from './InstantRoute.vue';
 import ExhaustivePromise from './ExhaustivePromise.vue';
+import CustomHowItWorks from './CustomHowItWorks.vue';
 import YourSetup from './YourSetup.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';
 import { useUIStore } from '@/stores/ui';
@@ -215,14 +215,9 @@ function onGoal(g: 'fastest' | 'deadline'): void {
 const ChainSearchPanel = safeAsyncComponent(() => import('./ChainSearchPanel.vue'));
 const InsanePanel = safeAsyncComponent(() => import('./InsanePanel.vue'));
 
-/** Custom's first line (it is the Exhaustive search, unchanged): what it is for and how long it takes. */
-const CUSTOM_LEAD = 'Custom tries every route in the boxes you set, and nothing outside them.';
-const CUSTOM_POINTS = [
-  'It is for proving an answer, not for finding a much better one.',
-  'The answer is proven for those boxes only.',
-  "In players' runs so far it found routes minutes to hours sooner, not days.",
-  'It takes about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.',
-];
+/** Custom's one line (it is the Exhaustive search, unchanged); its bullets are in the fold (ExhaustivePromise.vue). DRAFT. */
+const CUSTOM_LEAD =
+  'Tries every route in your boxes, so it proves the best inside them. It rarely beats Fast by more than hours, and big boxes take hours.';
 
 /** The address and the tab: #/auto/fastest/full (a sweep link, an old ?insane=1 link, Check exactly)
  *  opens Exhaustive, and a tab picked by hand changes the address (@pick above). Opened on the plain

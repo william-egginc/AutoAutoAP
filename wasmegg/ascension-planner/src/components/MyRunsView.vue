@@ -25,10 +25,9 @@
   <div class="space-y-3 pb-16" data-testid="my-runs">
     <div>
       <h1 class="text-headline font-black text-slate-900">{{ NAMES.myRuns }}</h1>
-      <!-- One line (ux review 26 Oct, row 15): what the page holds is in its section headings below. -->
+      <!-- One clause (ux review 26 Oct, row 15; UX fluff review 2, 5 Nov 2026, item M1): the sections say the rest. -->
       <p class="text-body text-slate-600 max-w-prose" data-testid="my-runs-intro">
-        From your save: where you are now, your next steps and your runs. Estimates are worked out here in the
-        background; searches run on the {{ NAMES.auto }}.
+        From your save: where you are now, your next steps and your runs.
       </p>
     </div>
 
