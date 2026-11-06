@@ -288,7 +288,7 @@ function progressOf(p) {
 /** A player id is a bearer token for the whole save. One must never be stored here even if
  *  someone posts one by hand, so text is swept on the way in. */
 function scrubText(s) {
-  return String(s).replace(/EI\d{16}/g, 'EI[redacted]');
+  return String(s).replace(/EI\d{16}/gi, 'EI[redacted]');
 }
 
 // ---------------------------------------------------------------- private extras
@@ -3270,6 +3270,13 @@ export default {
       if (env.RANK_NEEDS_EVIDENCE === '1' && !verifiable(record)) record.flags = [...(record.flags || []), UNVERIFIED];
       // A simulator stamp newer than this Worker knows (see "simulator stamps"): kept, and marked.
       if (simNewer(record.simVersion)) record.simNewer = true;
+      // The simulator gate (red team 6 Nov, C9): with RANK_SIMS set to the stamp(s) the live site runs, a row from
+      // another simulator is kept but unranked (the flagged board), so a preview build on this collector cannot
+      // mix into the main board. A row with no stamp is not judged. The stamp is the sender's word: this keeps an
+      // honest preview out, not a forger.
+      if (env.RANK_SIMS && record.simVersion && !String(env.RANK_SIMS).split(',').map(x => x.trim()).includes(record.simVersion)) {
+        record.flags = [...(record.flags || []), 'other-simulator'];
+      }
       // A flagged run goes under its own prefix, so the main board -- /leaderboard, /all and every
       // analysis built on them -- never sees it, and no reader has to remember to filter.
       const board = record.flags?.length ? 'flag' : 'sub';

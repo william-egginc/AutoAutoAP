@@ -229,6 +229,12 @@ describe('ingest is a whitelist, not a scrub', () => {
     expect(record.note).toBe('Friday start test\nfor EI[redacted]');
   });
 
+  it('sweeps a player id in any letter case (P7: a hand-made lowercase ei... is not stored)', async () => {
+    const res = await post('/submit', { ...MINIMAL, note: 'a ei1234567890123456 b Ei1234567890123456 c' });
+    expect(res.status).toBe(200);
+    expect(stored()[0][1].note).toBe('a EI[redacted] b EI[redacted] c');
+  });
+
   it('refuses a note that is too long or not text', async () => {
     expect((await post('/submit', { ...MINIMAL, note: 'x'.repeat(501) })).status).toBe(400);
     expect((await post('/submit', { ...MINIMAL, note: { a: 1 } }, '9.9.9.9')).status).toBe(400);
