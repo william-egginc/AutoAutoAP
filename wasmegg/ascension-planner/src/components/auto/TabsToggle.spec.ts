@@ -36,10 +36,9 @@ describe('TabsToggle', () => {
     const html = await renderHtml(TabsToggle, {}, {}, [pinia]);
     const t = textOf(html);
     expect(t).not.toContain(NOTE);
-    expect(t).toContain('Show the Leaderboard tab');
-    expect(t).toContain('Show the Science tab');
-    expect(t).toContain('Everyone’s shared runs: Egg Day, Fastest to 490 TE and the charts.');
-    expect(t).toContain('How the planner works and how its answers were checked, and the sweeps still to run.');
+    // One line each (spec-fluff3-chrome, S44).
+    expect(t).toContain('Leaderboard tab · everyone’s shared runs');
+    expect(t).toContain('Science tab · how the planner works and was checked');
     expect(t).not.toContain(NONE);
     for (const id of ['leaderboard', 'science']) {
       expect(box(html, id)).toContain('type="checkbox"');

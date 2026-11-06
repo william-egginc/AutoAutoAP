@@ -1,7 +1,8 @@
 /**
  * Setup's First ascension choices (spec-fluff3-chrome): moved word for word out of search/firstAscension.ts, so they
  * can be reworded without moving the result code hash (lib/resultCodeHash.ts: src/search is an input, a *Words.ts
- * file is not). Only YourSetup.vue reads them.
+ * file is not). Only YourSetup.vue reads them. Since spec-fluff3-chrome (UX fluff review 2, S12) only Soonest has a
+ * blurb, a clause after its label; the names say the rest.
  */
 import type { FirstAscension } from './firstAscension';
 
@@ -12,24 +13,22 @@ export const FIRST_ASCENSION_CHOICES: readonly { value: FirstAscension; label: s
     // "Soonest", not "Fastest": the goal is called Fastest to 490 TE (glossary Q5, its suggested name; ux review
     // 26 Oct, row 19).
     label: 'Soonest (default)',
-    blurb:
-      'Works out all three: keep building from where your farm is, stop buying and just lay, or prestige now. Takes whichever finishes first.',
+    // A clause after the label (UX fluff review 2, S12, DRAFT for Words); the other choices say it in their names.
+    blurb: 'whichever finishes first: keep building, just lay, or prestige now.',
   },
   {
     value: 'buildup',
     label: 'Continue my build-up',
-    blurb:
-      'Carries on from your farm as it is now, finishing the build (habs, vehicles, research through the coming sales), then lays out the ascension.',
+    blurb: '',
   },
   {
     value: 'continue',
     label: 'Finish without buying',
-    blurb:
-      "No more purchases: your farm lays at today's rate until the ascension ends. Right when your build is already done. If that takes over a week, a fresh start that is strictly faster still wins.",
+    blurb: '',
   },
   {
     value: 'fresh',
     label: 'Prestige now',
-    blurb: 'Prestiges straight away: the first ascension is a fresh one.',
+    blurb: '',
   },
 ];

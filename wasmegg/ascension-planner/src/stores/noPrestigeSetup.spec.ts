@@ -104,7 +104,8 @@ describe('the three kinds of "not now", in the player\'s words', () => {
     expect(noPrestige).toBeGreaterThan(awake);
     expect(timeOff).toBeGreaterThan(noPrestige);
     // Each its own line: awake hours' choice, and the day picker's explanation for each kind (below).
-    expect(setup).toContain('Prestiges and egg shifts wait for your next awake hour. You are still on the virtue farm while you wait');
+    // Shortened to one line (spec-fluff3-chrome, S13).
+    expect(setup).toContain('Prestiges and egg shifts wait for your hours; the farm keeps laying meanwhile.');
     expect(setup.slice(awake, timeOff)).not.toContain('setup-more-body');
   });
 

@@ -16,10 +16,11 @@ export const SAVE_AGE_WORDS = {
   /** Before the last sync. */
   beforeSync: (age: string) =>
     `Starts ${age} before your last sync, so the plan begins before the farm state it uses existed.`,
-  /** Caught up, within what the silos hold. No age here either (the save card has it); the gap runs to the plan start,
-   *  which may be later than now. */
-  caughtUp: (silos: string) =>
-    `The farm is caught up from your save to the plan start at its current rate, the way the game credits time away (your silos hold ${silos}).${NEWER_SYNC} Anything you bought since is not in it; sync and reload if you have played.`,
+  /** Caught up, within what the silos hold. No age here either (the save card has it). One clause (UX fluff review 2,
+   *  S10, spec-fluff3-chrome; DRAFT for Words): it was 5 lines in bold green ("The farm is caught up from your save to
+   *  the plan start at its current rate, the way the game credits time away (your silos hold …). If you've opened the
+   *  game since then … Anything you bought since is not in it; sync and reload if you have played."). */
+  caughtUp: (_silos: string) => 'Your farm is caught up to here from your save. Played since? Sync and reload.',
   /** Past what the silos hold. DRAFT wording (Words reviews; was "Your save is 40h old, longer than your silos hold
    *  (12h), so the answers here won't be accurate. Force a sync: ..." in red, now the save-age banner's to say). */
   pastSilos: (age: string, silos: string) =>

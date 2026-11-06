@@ -19,11 +19,8 @@
         <option v-for="n in slower" :key="n" :value="n">slow to {{ n }} worker{{ n === 1 ? '' : 's' }}</option>
       </select>
     </label>
-    <p class="text-small text-slate-500">
-      Lets the search keep going at a lower draw while you use the computer for something else, and go back to full
-      speed when you return. Takes effect within about a minute, and no route in progress is lost.
-      <span class="font-bold text-slate-600">{{ BROWSER_ADVICE[browser] }}</span>
-    </p>
+    <!-- The select and the browser line only (UX fluff review 2, S27): the advice is what saves an overnight run. -->
+    <p class="text-small font-bold text-slate-600">{{ BROWSER_ADVICE[browser] }}</p>
   </div>
 </template>
 

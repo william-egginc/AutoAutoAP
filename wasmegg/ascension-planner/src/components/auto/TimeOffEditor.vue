@@ -22,7 +22,31 @@
         {{ words.add }}
       </button>
     </div>
-    <p class="text-body text-slate-500" :data-testid="`${kind}-explain`">{{ words.explain }}</p>
+    <!-- One line in view, the full explainer behind a 44 px "?" opening in place, word for word (UX fluff review 2, S20
+         and S22; the short lines are DRAFT for Words). Time off's line keeps its safety clause: it is a prestige. -->
+    <div class="flex items-start gap-1">
+      <p class="min-w-0 flex-1 py-1 text-body text-slate-500" :data-testid="`${kind}-short`">{{ words.short }}</p>
+      <button
+        type="button"
+        class="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-body font-bold text-indigo-700 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        :aria-expanded="moreOpen"
+        :aria-controls="explainId"
+        :aria-label="`More about ${words.title.toLowerCase()}`"
+        :data-testid="`${kind}-more`"
+        @click="moreOpen = !moreOpen"
+      >
+        ?
+      </button>
+    </div>
+    <p
+      :id="explainId"
+      :hidden.attr="moreOpen ? undefined : 'until-found'"
+      class="text-body text-slate-500"
+      :data-testid="`${kind}-explain`"
+      @beforematch="moreOpen = true"
+    >
+      {{ words.explain }}
+    </p>
     <div v-for="(row, i) in rows" :key="i" class="flex flex-wrap items-center gap-2">
       <label class="flex min-w-0 max-w-full items-center gap-1.5 text-small font-bold text-slate-600">
         From
@@ -59,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { nextDate, type TimeOffDates } from '@/search/timeOff';
 import { formatInZone } from '@/search/csv';
@@ -81,17 +105,23 @@ const siloWords = computed(() =>
   siloRunOutWords(knownSiloSeconds(initialState.currentFarmState, initialState.epicResearchLevels?.['silo_capacity']))
 );
 
+/** The "?" beside the short line: the full explainer, closed by default (not remembered). */
+const moreOpen = ref(false);
+const explainId = computed(() => `${props.kind}-explain-body`);
+
 /** The player's words for each kind: the three kinds of "not now" must read as different things. */
 const WORDS = {
   timeOff: {
     title: 'Time off',
     add: 'Add time off',
+    short: "On the home farm: that's a prestige, and you rebuild when back. Egg Day is the usual one.",
     explain:
       "Days you will be off the virtue farm, on the home farm, in the plan's timezone. Nothing is earned on the virtue farm while you are away. Going to the home farm is a prestige: the ascension you are in ends when the time off starts and keeps the TE it has, and when you come back it is a complete rebuild. Egg Day (July 14) is the usual one.",
   },
   noPrestige: {
     title: 'No prestige days',
     add: 'Add days',
+    short: 'Stay on virtue, but no prestige on these days.',
     explain:
       "Days you stay on the virtue farm but won't prestige, in the plan's timezone. A prestige that would land on one waits for the next allowed time (inside your awake hours, if you picked them), and the farm keeps laying while it waits, {silos}. Egg shifts still happen on these days.",
   },
