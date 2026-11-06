@@ -30,10 +30,20 @@ export const SIM_VERSION = '2026-11-03-sim3';
 
 /** The simulator code the guard hashes (repo-relative to wasmegg/ascension-planner): directories
  *  are taken whole, every .ts but the specs. */
-export const SIM_SOURCES = ['src/engine', 'src/auto', 'src/search/tableBuild.ts', 'src/search/precomputedLeg.ts'];
+export const SIM_SOURCES = [
+  'src/engine',
+  'src/auto',
+  'src/search/tableBuild.ts',
+  'src/search/precomputedLeg.ts',
+  // Joo's shared planner code (PR #729) moved the engine math and the hab/vehicle/silo planners here.
+  '../../lib/planners/engine',
+  '../../lib/planners/calculations',
+];
 
-/** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top. */
-export const SIM_SOURCE_HASH = '3d7162a9f5a00d5cc200110e50bc0240a6e8363f2579c87cecf8d121019d0f73';
+/** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top.
+ *  5 Nov 2026 (spec-joo729): re-pasted for the coverage change above (lib/planners added) and Joo's
+ *  merged code. Not a SIM_VERSION decision: whether his sim changes move cells is still to measure. */
+export const SIM_SOURCE_HASH = '578d3a7ca821b7743b3d5a800bdf1114b5f63fe341df52b7698e7abd473de7d5';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no
