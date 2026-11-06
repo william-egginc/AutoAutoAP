@@ -190,3 +190,14 @@ describe('nothing floating covers the end of the page on a phone', () => {
     expect(48 * 4).toBeGreaterThanOrEqual(bubbleTop + 8);
   });
 });
+
+describe('My runs › Your runs on a phone (fluff review 2, 5 Nov 2026: view buttons 31 px, Refresh and Show 21 px)', () => {
+  const src = read('auto/LatestRunView.vue');
+  it('Other options: the view buttons (A good mix … By finish date) and Refresh', () => {
+    expect(tagWith(src, ':key="v.id"')).toContain(TAP);
+    expect(tagWith(src, '@click="store.rebuildShortlist()"')).toContain(TAP);
+  });
+  it('The shape of this search: Show / Hide', () => {
+    expect(tagWith(src, '@click="store.setChartShown(!store.chartShown)"')).toContain(TAP);
+  });
+});

@@ -166,7 +166,7 @@
           <button
             v-if="!store.isRunning"
             type="button"
-            class="text-body font-bold text-slate-400 hover:text-slate-600"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 text-body font-bold text-slate-400 hover:text-slate-600"
             @click="store.rebuildShortlist()"
           >
             Refresh
@@ -181,13 +181,14 @@
         </p>
 
         <!-- Preset views over the SAME priced chains. Nothing here re-simulates; every one of
-             these reads the cache the run already built, so switching is instant. -->
+             these reads the cache the run already built, so switching is instant. 44 px tall on a phone, as Refresh
+             and Show (components/phoneTapTargets.spec.ts; fluff review 2, 5 Nov 2026). -->
         <div class="flex flex-wrap gap-1.5">
           <button
             v-for="v in VIEWS"
             :key="v.id"
             type="button"
-            class="px-2.5 py-1 rounded-lg border text-body font-bold transition-colors"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-lg border text-body font-bold transition-colors"
             :class="
               store.shortlistView === v.id
                 ? 'bg-slate-800 border-slate-800 text-white'
@@ -366,7 +367,7 @@
           <h3 class="text-slate-500 label">The shape of this search</h3>
           <button
             type="button"
-            class="text-body font-bold text-slate-400 hover:text-slate-600"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 text-body font-bold text-slate-400 hover:text-slate-600"
             @click="store.setChartShown(!store.chartShown)"
           >
             {{ store.chartShown ? 'Hide' : 'Show' }}
