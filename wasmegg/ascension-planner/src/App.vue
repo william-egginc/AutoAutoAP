@@ -102,16 +102,10 @@
               <p>{{ FIRST_VISIT_WORDS.what }}</p>
               <p>{{ FIRST_VISIT_WORDS.id }}</p>
             </div>
-            <!-- The save's name on its own small line, not run into the title in display type (UX review 26 Oct, #13). -->
-            <p
-              v-if="playerName"
-              class="mx-4 -mt-1 mb-2 text-center text-body font-bold text-slate-600 break-words"
-              data-testid="header-player-name"
-            >
-              {{ playerName }}
-            </p>
+            <!-- No name line here (UX fluff review 2, H3): the ID box just under shows the same name. The backup time
+                 on Manual only (H4): the other screens say the save's age in their save-age box and Setup. -->
             <div
-              v-if="initialStateStore.hasData && lastBackupFormatted"
+              v-if="manualShown && initialStateStore.hasData && lastBackupFormatted"
               class="text-center text-slate-500 label mb-4 -mt-1"
             >
               Player Backup From: {{ lastBackupFormatted }}
@@ -1562,7 +1556,7 @@ const lastBackupAge = computed(() => {
   return `${hours}h${remainingMinutes}m ago`;
 });
 
-/** The header's title; the save's name sits on its own line under it (`playerName`). */
+/** The header's title; the save's name (`playerName`) is in the browser tab's title only (the ID box shows it). */
 const pageTitle = 'Ascension Planner';
 const playerName = computed(() => initialStateStore.rawBackup?.userName ?? '');
 /** The browser tab keeps the name in the title. */
