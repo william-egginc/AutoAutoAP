@@ -414,14 +414,26 @@ export function getNextTimeInTimezone(
 
 /**
  * Parses a YYYY-MM-DD and HH:MM string in a specific IANA timezone to a Unix timestamp.
+ *
+ * DST change days (red team 6 Nov 2026, R2). This read the offset once, at the naive guess (the wall time
+ * taken as UTC), which is up to 14 h from the real instant and on a change day can be on the other side of
+ * the change: in the US zones a start typed from about 2-3 am to 8-10 am came out an hour off, on both
+ * change days. Now: the zone's offset a day either side of the guess. The same (nearly every day), that is
+ * the offset. Different, the change is close: each one is tried and kept only if it is the offset at the
+ * instant it gives. Both kept (the fall-back hour that happens twice): the first. Neither (the
+ * spring-forward gap, a time that never happens): the offset from before the change, so 02:30 is 03:30, as
+ * JavaScript's own Date and Temporal's 'compatible' do. A zone changes at most once in any two days.
  */
 export function getLocalTimestampInTimezone(dateStr: string, timeStr: string, timezone: string): number {
     const [y, m, d] = dateStr.split('-').map(Number);
     const [h, min] = timeStr.split(':').map(Number);
 
-    const guessUTC = Date.UTC(y, m - 1, d, h, min, 0);
-    const offset = getTimezoneOffsetAt(timezone, Math.floor(guessUTC / 1000));
-    return Math.floor((guessUTC - offset * 1000) / 1000);
+    const guess = Math.floor(Date.UTC(y, m - 1, d, h, min, 0) / 1000);
+    const before = getTimezoneOffsetAt(timezone, guess - 86400);
+    const after = getTimezoneOffsetAt(timezone, guess + 86400);
+    if (before === after) return guess - before;
+    const fits = [before, after].map(o => guess - o).filter(t => getTimezoneOffsetAt(timezone, t) === guess - t);
+    return fits.length ? Math.min(...fits) : guess - before;
 }
 
 /**
