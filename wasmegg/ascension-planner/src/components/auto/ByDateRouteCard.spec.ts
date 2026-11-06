@@ -47,9 +47,9 @@ describe('ByDateRouteCard', () => {
     const reach = DEADLINE - 70 * 86400; // 10:00 am UTC
     const held = 5 * 3600 + 40 * 60;
     const legs = [
-      { ...leg(278, reach, 66), sleepDelaySeconds: held },
-      { ...leg(311, DEADLINE - 3600, 70 - (held + 3600) / 86400), startTime: reach + held },
-    ];
+      { ...(leg(278, reach, 66) as object), sleepDelaySeconds: held },
+      { ...(leg(311, DEADLINE - 3600, 70 - (held + 3600) / 86400) as object), startTime: reach + held },
+    ] as never;
     const t = textOf(await renderHtml(ByDateRouteCard, props({ route: route({ chain: [278, 311], legs }) })));
     const at = (u: number) => formatMoment(u * 1000, { zone: 'UTC', year: 'always' });
     expect(t).toContain(`A2 311 ${at(reach + held)}`);
