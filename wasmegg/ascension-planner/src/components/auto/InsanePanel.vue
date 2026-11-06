@@ -1020,7 +1020,7 @@
                  diagnostics for a run with no answer (no card), exactly when someone wants to report what went in. -->
             <CsvCard
               v-if="ownRun && (store.pricedCount || store.noFeasibleChain)"
-              :csv="false"
+              :csv="store.isRunning && store.csvRows > 0"
               :diagnostics="!(store.bestDays > 0)"
             />
           </template>

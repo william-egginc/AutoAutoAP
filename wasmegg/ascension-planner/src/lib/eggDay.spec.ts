@@ -34,9 +34,10 @@ describe('sameClock: the planner\'s time line only when it says something new (U
   it('an unknown zone reads as different (the line stays)', () => {
     expect(sameClock(at, 'Not/AZone')).toBe(false);
   });
-  it("DeadlinePanel: the planner's time line goes through it, against the zone the date was given in", () => {
+  it("DeadlinePanel: no second planner's-time line under the picker (UX fluff review 2, 5 Nov 2026, item D0b)", () => {
+    // The picker's own line gives the time in your zone; under it only the days from the plan start.
     const src = fs.readFileSync(path.resolve(__dirname, '../components/auto/DeadlinePanel.vue'), 'utf8');
-    expect(src).toContain(`<template v-if="deadline && !sameClock(deadline, plannerZone, zone)"`);
-    expect(src).toContain("That is {{ plural(Math.round(daysAway), 'day') }} after the plan starts.");
+    expect(src).not.toContain('sameClock(deadline, plannerZone, zone)');
+    expect(src).toContain("{{ plural(Math.round(daysAway), 'day') }} from your plan start.");
   });
 });

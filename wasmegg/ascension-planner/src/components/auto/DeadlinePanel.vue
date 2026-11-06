@@ -115,14 +115,11 @@
     <p class="text-body text-slate-500 max-w-prose">
       <!-- The planner's time only when it reads differently from the zone the date was given in (Egg Day: Pacific);
            otherwise it was a third copy of the same date (UX review 26 Oct 2026, item 14). -->
-      <template v-if="deadline && !sameClock(deadline, plannerZone, zone)"
-        >That is {{ inPlannerZone(deadline) }} in your planner's time, {{ plural(Math.round(daysAway), 'day') }} after the plan
-        starts.</template
-      ><template v-else-if="deadline"
-        >That is {{ plural(Math.round(daysAway), 'day') }} after the plan starts.</template
-      >
+      <!-- One short line (UX fluff review 2, 5 Nov 2026, item D0b): the picker above already gives the time in your own
+           zone. DRAFT (Words). -->
+      <template v-if="deadline">{{ plural(Math.round(daysAway), 'day') }} from your plan start.</template>
       <template v-else>Pick a date and time.</template>
-      Egg Day's own bonuses aren't in the plan. The plan is for reaching the TE by then.
+      Egg Day's own bonuses aren't in the plan.
     </p>
 
     <!-- The instant answer from the precomputed table (the precompute fork): the highest TE by this
@@ -1204,7 +1201,7 @@ import { BY_DATE_LEVELS, simpleByDateSpace, widthForLevel, type ByDateLevel, typ
 import { firstTime } from '@/lib/linkOnce';
 import { parseByDateRequest, SCIENCE_WIDTHS, type ByDateRequest } from '@/search/byDateRequest';
 import { useUIStore } from '@/stores/ui';
-import { eggDayWords, eggDayYearOf, sameClock } from '@/lib/eggDay';
+import { eggDayWords, eggDayYearOf } from '@/lib/eggDay';
 import { applyByDatePreset, byDatePresetPending, takeByDatePreset } from '@/lib/byDateForm';
 import { showDateTime } from '@/lib/displayTime';
 import InstantRoute from './InstantRoute.vue';
