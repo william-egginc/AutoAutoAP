@@ -42,8 +42,8 @@
   <div v-if="myRunsMode" class="space-y-3" data-testid="my-runs-board">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <p class="flex-1 min-w-[14rem] text-body text-indigo-900/80">
-        Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, Fastest to N TE for
-        any target, and other dates, and the ones hidden from the public. Open one for its details, or press
+        Every run this browser sent for your account, plus older runs with your timezone and artifacts: Egg Day, Fastest to any
+        target TE, and other dates, and the ones hidden from the public. Open one for its details, or press
         <span class="font-bold">Use</span> to open its route in Single run, without running it. Single run doesn't use your awake hours.
       </p>
       <button
@@ -294,7 +294,7 @@
       <!-- ================================================================== RACE -->
       <template v-else-if="tab === 'race'">
         <p v-if="target == null" class="text-body text-indigo-900/70 py-4">
-          Pick a target TE above: Fastest to N TE needs one finish line.
+          Pick a target TE above: the race needs one finish line.
         </p>
         <template v-else>
           <!-- One line (fluff review 2, L10); how it is judged is in the fold under the table. -->
@@ -1706,9 +1706,10 @@ const NARROW_ORDER: SortKey[] = [
 ];
 const shownColumns = computed(() => (narrow.value ? NARROW_ORDER.map(k => COLUMNS.find(c => c.key === k)!) : COLUMNS));
 
-const NO_CODE_TITLE =
+/** The race named as its tab is ("Fastest to 490 TE", or "Fastest to a target TE"), never a literal N (5 Nov 2026). */
+const noCodeTitle = (): string =>
   "Sent under this name since the Leaderboard began stamping runs, but without the owner code the player's other runs carry. " +
-  "Anyone can send a run like this, so in Fastest to N TE it never sets the player's finish or place. It is listed on their " +
+  `Anyone can send a run like this, so in ${tabLabel('race')} it never sets the player's finish or place. It is listed on their ` +
   'line tagged "no code", or, if its timezone, artifacts or TE do not fit theirs, on a separate line marked (no code).';
 
 const runLines = computed<RunLine[]>(() => {
@@ -1741,7 +1742,7 @@ const runLines = computed<RunLine[]>(() => {
         ? [{ text: provisionalTag(f.row), title: PROVISIONAL_TITLE, cls: 'bg-amber-50 text-amber-800' }]
         : []),
       ...(isNoCodeLine(filing, f.player)
-        ? [{ text: 'no code', title: NO_CODE_TITLE, cls: 'bg-indigo-100 text-indigo-800' }]
+        ? [{ text: 'no code', title: noCodeTitle(), cls: 'bg-indigo-100 text-indigo-800' }]
         : []),
       ...(isDeadlineRow(f.row)
         ? [

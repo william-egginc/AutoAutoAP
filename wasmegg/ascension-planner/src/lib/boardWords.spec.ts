@@ -38,3 +38,19 @@ describe('By a date: the anonymous line', () => {
     expect(template).toContain("Anonymous answers aren't ranked.");
   });
 });
+
+describe('No literal "N" left on the Leaderboard (spec-fluff2-bugs left three, 5 Nov 2026)', () => {
+  const list = fs.readFileSync(path.resolve(__dirname, '../components/auto/LeaderboardPlanList.vue'), 'utf8');
+  it('neither the panel nor the plan list says "Fastest to N TE" anywhere, tooltips included', () => {
+    expect(panel).not.toMatch(/Fastest to N TE/);
+    expect(list).not.toMatch(/Fastest to N TE/);
+  });
+  it('My runs intro, the no-target line and the "no code" tooltip', () => {
+    const words = template.replace(/\s+/g, ' ');
+    expect(words).toContain('Egg Day, Fastest to any target TE, and other dates');
+    expect(words).toContain('Pick a target TE above: the race needs one finish line.');
+    // The tooltip names the race as its tab does ("Fastest to 490 TE", or "Fastest to a target TE").
+    expect(panel).toMatch(/so in \$\{tabLabel\('race'\)\} it never sets the player's finish or place/);
+    expect(list).toContain("its place in the race");
+  });
+});
