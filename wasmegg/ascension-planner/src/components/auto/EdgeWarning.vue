@@ -6,7 +6,7 @@
 -->
 <template>
   <div
-    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-body text-amber-900"
+    :class="bare ? 'space-y-2' : 'rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-body text-amber-900'"
     data-test="edge-warning"
   >
     <p v-for="line in lines" :key="line">{{ line }}</p>
@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ lines: string[]; canWiden: boolean; disabled: boolean }>();
+/** `bare`: inside a box of the screen's own (Custom's one amber box for every edge, UX fluff review 2, item C0b). */
+defineProps<{ lines: string[]; canWiden: boolean; disabled: boolean; bare?: boolean }>();
 const emit = defineEmits<{ widen: [] }>();
 </script>

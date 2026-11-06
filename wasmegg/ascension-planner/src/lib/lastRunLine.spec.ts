@@ -39,9 +39,10 @@ describe('where the line shows', () => {
   it('on the By a date card and both Fastest cards, from the kept result', () => {
     const src = (f: string) => readFileSync(`src/components/auto/${f}`, 'utf8');
     expect(src('DeadlinePanel.vue')).toContain(':ran-line="ranLine"');
-    expect(src('ChainSearchPanel.vue')).toContain(':ran-line="ranLine"');
-    expect(src('InsanePanel.vue')).toContain(':ran-line="ranLine"');
     expect(src('ByDateRouteCard.vue')).toContain('data-testid="ran-line"');
-    expect(src('RouteResultCard.vue')).toContain('data-testid="ran-line"');
+    // Fastest's cards: in the one meta line since 5 Nov 2026 (`runMetaLine`, UX fluff review 2; slimRouteCard.spec).
+    expect(src('ChainSearchPanel.vue')).toContain(':meta="runMeta"');
+    expect(src('InsanePanel.vue')).toContain(':meta="runMeta"');
+    expect(src('RouteResultCard.vue')).toContain('data-testid="run-meta"');
   });
 });

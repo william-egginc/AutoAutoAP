@@ -59,11 +59,12 @@ describe('the button (draft wording)', () => {
       });
     expect(textOf(await card())).not.toContain(XLSX_BUTTON);
     const t = textOf(await card({ xlsx: true }));
-    expect(t).toMatch(/Share Download CSV \(detail for top routes\) ↓ Download for Excel \(\.xlsx\) ↓ Save run/);
+    // Under Download ▾ since 5 Nov 2026 (UX fluff review 2, item C5; DownloadMenu.vue, its items 44 px).
+    expect(t).toMatch(/Share ↓ Download ▾ Download CSV \(detail for top routes\) Download for Excel \(\.xlsx\) Save run/);
     const src = read('RouteResultCard.vue');
-    expect(src).toMatch(
-      /v-if="xlsx"\s+type="button"\s+:class="SECONDARY_BUTTON"\s+data-testid="fastest-xlsx"[\s\S]*?@click="emit\('xlsx'\)"/
-    );
+    expect(src).toMatch(/props\.xlsx \? \[\{ key: 'xlsx', text: xlsxLabel\.text\.replace\(\/ ↓\$\/, ''\)[^\n]*testid: 'fastest-xlsx'/);
+    expect(src).toContain("else if (key === 'xlsx') emit('xlsx');");
+    expect(read('DownloadMenu.vue')).toMatch(/class="flex w-full min-h-\[44px\]/);
     expect(read('resultCardStyle.ts')).toMatch(/SECONDARY_BUTTON = `[^`]*min-h-\[44px\]/);
   });
 

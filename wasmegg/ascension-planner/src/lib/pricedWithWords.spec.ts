@@ -41,11 +41,9 @@ describe('pricedWithDays', () => {
 });
 
 describe('every "Priced with" adds them', () => {
-  it('Custom (Fastest and the chain panel): the run’s own days', () => {
+  it('Custom (Fastest and the chain panel): the run’s own days, in the card’s meta line since 5 Nov 2026', () => {
     for (const f of ['../components/auto/InsanePanel.vue', '../components/auto/ChainSearchPanel.vue'])
-      expect(read(f), f).toContain(
-        'const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithDays(pricedWithLine(store.runSettingsUsed), store.runSettingsUsed.noPrestige) : \'\'));'
-      );
+      expect(read(f), f).toContain("priced: store.runSettingsUsed ? pricedWithShort(store.runSettingsUsed) : ''");
   });
   it('By a date’s card and footer: the result’s recorded days', () => {
     const p = read('../components/auto/DeadlinePanel.vue');

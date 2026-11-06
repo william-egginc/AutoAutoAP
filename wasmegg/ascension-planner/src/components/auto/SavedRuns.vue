@@ -3,10 +3,13 @@
   sweep's alone; the user asked whether they could all save (30 Sept), and the library already
   holds Smart search runs too (a staged run is saved without a space), so both depths of Fastest
   route show it now. Highest TE by a date keeps its answers in a different shape and has its own
-  carry-on instead. One entry per run: Save this run again says Saved ✓ and refreshes it (red team R7).
+  carry-on instead. One entry per run: saving it again says Saved ✓ and refreshes it (red team R7).
 
   Resume (carry on an unfinished run) is the Full sweep's: it re-enters `startExhaustive` with the
   saved space, so it is offered only there, and only for a sweep. Open works for either kind.
+
+  Saved from the result card's one Save (RouteResultCard.vue, UX fluff review 2, 5 Nov 2026): this list had its own
+  name box and "Save this run" for the same run until then.
 
   `list-only` (My runs, 15 Oct 2026): the list alone, without the explanation, Save this run or the
   save-file bar, and Open says so (`opened`) for My runs to show the screen it opened on. There, each run
@@ -19,28 +22,27 @@
       <h3 class="text-slate-500 label">{{ heading || 'Saved runs' }}</h3>
       <span class="text-small font-bold text-slate-400">{{ store.savedRuns.length }} / {{ MAX_RUNS }}</span>
     </div>
-    <p v-if="!listOnly" class="text-body text-slate-500 max-w-prose">
-      Kept in this browser, per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with
-      the save it started with while that save is kept here, and puts its target, schedule, time off and plan start
-      back; without that save, your TE has to be the same. Past {{ MAX_RUNS }}, the oldest is dropped. Each run also
-      keeps the save it was priced from, so you can go back to it after the game has moved on.
-    </p>
-
-    <div v-if="!listOnly" class="flex flex-wrap gap-2">
-      <input
-        v-model="label"
-        type="text"
-        placeholder="Name this run (optional)"
-        class="flex-1 min-w-[12rem] rounded-lg border-slate-300 text-body text-slate-800"
-      />
-      <button
-        type="button"
-        :disabled="store.bestDays <= 0 || store.isRunning || saving"
-        class="px-4 py-2 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
-        @click="save"
-      >
-        <template v-if="saving">Saving<AnimatedDots /></template><template v-else>{{ savedHere ? 'Saved ✓' : 'Save this run' }}</template>
-      </button>
+    <!-- One line and a fold (UX fluff review 2, 5 Nov 2026, item C7); the run is saved from the result card's one Save
+         (item C7b: the name box and "Save this run" here were a second Save for the same run). DRAFT (Words). -->
+    <div v-if="!listOnly" class="text-body text-slate-500 max-w-prose">
+      <p>
+        Kept in this browser; past {{ MAX_RUNS }}, the oldest goes.{{ ' ' }}<button
+          type="button"
+          class="inline-flex min-h-[44px] items-center font-bold text-slate-600 underline decoration-dotted underline-offset-2 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 sm:min-h-0"
+          :aria-expanded="howOpen"
+          :aria-controls="howId"
+          data-testid="saved-runs-how"
+          @click="howOpen = !howOpen"
+        >
+          How carrying on works {{ howOpen ? '⌄' : '›' }}
+        </button>
+      </p>
+      <p v-show="howOpen" :id="howId" class="mt-1">
+        Kept per player, for both {{ NAMES.smartFirst }} and {{ NAMES.fullFirst }}. A saved run carries on with the save
+        it started with while that save is kept here, and puts its target, schedule, time off and plan start back;
+        without that save, your TE has to be the same. Each run also keeps the save it was priced from, so you can go
+        back to it after the game has moved on.
+      </p>
     </div>
 
     <p v-if="note" class="text-body font-bold text-amber-700">{{ note }}</p>
@@ -124,7 +126,7 @@
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, useId } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { MAX_RUNS } from '@/search/runLibrary';
 import { NAMES } from '@/lib/siteNav';
@@ -187,23 +189,11 @@ function baselineOf(run: RunSummary) {
   });
 }
 
-const label = ref('');
-const saving = ref(false);
-/** "Saved ✓" while the run on screen is in the list (store `currentRunSaved`), unless a name is typed, which saving
- *  again gives it. Saving again never adds a second entry (search/runLibrary.ts `runIdentity`). */
-const savedHere = computed(() => store.currentRunSaved && !label.value.trim());
+/** "How carrying on works ›", folded by default (item C7). */
+const howOpen = ref(false);
+const howId = `saved-runs-how-${useId()}`;
 const note = ref('');
 const resuming = ref('');
-
-async function save(): Promise<void> {
-  saving.value = true;
-  try {
-    await store.saveCurrentRun(props.playerId, label.value);
-    label.value = '';
-  } finally {
-    saving.value = false;
-  }
-}
 
 async function open(id: string): Promise<void> {
   store.sweepQueue.results = [];

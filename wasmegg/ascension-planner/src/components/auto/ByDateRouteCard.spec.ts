@@ -203,7 +203,8 @@ describe('RouteResultCard (Fastest): last run and the Build note', () => {
     );
     const live = textOf(await renderHtml(RouteResultCard, { ...base, running: false }));
     expect(live).toMatch(/^Fastest found/);
-    expect(live).toContain("Simulate this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives");
+    // The Simulate line is the button's title since 5 Nov 2026 (UX fluff review 2, item C6).
+    expect(live).not.toContain('Simulate this plan opens this route');
     // While running: still the best so far, never "Your last run".
     expect(textOf(await renderHtml(RouteResultCard, { ...base, running: true, lastRun: 'x' }))).toMatch(/^Best so far/);
   });

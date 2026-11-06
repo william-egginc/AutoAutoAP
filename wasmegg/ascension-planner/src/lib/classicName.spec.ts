@@ -86,11 +86,15 @@ describe('the Single run name', () => {
       "Simulate this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
     );
     expect(simulateNote('Build this plan')).toMatch(/^Build this plan opens this route in Single run/);
-    for (const f of ['ByDateRouteCard.vue', 'InstantRoute.vue', 'RouteResultCard.vue']) {
+    for (const f of ['ByDateRouteCard.vue', 'InstantRoute.vue']) {
       const src = fs.readFileSync(path.join(SRC, 'components', 'auto', f), 'utf8');
       expect(src, f).toMatch(/\{\{ simulate(?:Note|Line)\((?:'Build this plan')?\) \}\}/);
       expect(src, f).not.toContain('shows every shift and when each TE arrives');
     }
+    // Fastest's result card: the button's title only (UX fluff review 2, 5 Nov 2026, item C6; slimRouteCard.spec).
+    const card = fs.readFileSync(path.join(SRC, 'components', 'auto', 'RouteResultCard.vue'), 'utf8');
+    expect(card).toContain(':title="SIMULATE_TITLE"');
+    expect(card).not.toMatch(/simulateNote\(/);
   });
 
   it('"(was Your plan)" is said once, on the screen\'s own intro', () => {

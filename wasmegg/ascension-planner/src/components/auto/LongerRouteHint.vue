@@ -12,7 +12,7 @@
 <template>
   <div
     v-if="hints.length"
-    class="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-3 text-body text-amber-900"
+    :class="bare ? 'space-y-3' : 'rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-3 text-body text-amber-900'"
     data-test="longer-route-hint"
   >
     <div v-for="h in hints" :key="h.kind" class="space-y-1.5" :data-test="`longer-route-${h.kind}`">
@@ -66,8 +66,10 @@ const props = withDefaults(
     onAdd: (count: number) => string;
     /** Smart search: the counts its run searched and its limits (store `runCounts`); null elsewhere. */
     run?: { counts: number[]; min: number; max: number } | null;
+    /** Inside a box of the screen's own (Custom's one amber box, UX fluff review 2, item C0b). */
+    bare?: boolean;
   }>(),
-  { disabled: false, canAdd: true, run: null }
+  { disabled: false, canAdd: true, run: null, bare: false }
 );
 const emit = defineEmits<{ check: [chain: number[]] }>();
 

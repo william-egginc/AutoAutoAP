@@ -544,7 +544,7 @@
             <!-- Best so far, and the answer once it stops: the same card as the Full sweep
                (RouteResultCard.vue). Always usable: the stages are nested, so stopping is safe. -->
             <RouteResultCard
-              :priced-with="pricedWith"
+              :meta="runMeta"
               :chain="store.bestChain"
               :days="store.bestDays"
               :final-t-e="store.finalTE"
@@ -552,7 +552,6 @@
               :running="store.isRunning"
               :claim="store.stoppedEarly ? 'the best of what was priced' : ''"
               :last-run="lastRunLabel"
-              :ran-line="ranLine"
               :busy="store.busy"
               :follow="fastFollow"
               can-fill
@@ -1081,11 +1080,10 @@ import BetterRoutePrompt from '../BetterRoutePrompt.vue';
 import { sourceOfLevel } from '@/lib/followCloud';
 import type { ResultFollow } from '@/lib/follow';
 import { foundLevel as levelOfRun } from '@/lib/searchPointer';
-import { pricedWithLine } from '@/lib/pricedWith';
-import { pricedWithDays } from '@/lib/pricedWithWords';
+import { pricedWithShort } from '@/lib/pricedWithWords';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
-import { lastRunLine } from '@/lib/lastRunLine';
+import { runMetaLine } from '@/lib/lastRunLine';
 import { choiceForEffort } from '@/lib/searchOption';
 import { backupSecondsOf } from '@/lib/saveFreshness';
 import { thisDevice } from '@/search/device';
@@ -1406,17 +1404,18 @@ const tabHelp = browserHelp(detectBrowser().browser, typeof window !== 'undefine
 
 // The eggs a leg lays, in order, INCLUDING the one it opens on: search/routeTimeline.ts `eggBlocks`.
 
-/** "This search ran on ..., on your save of ..., and found 307 TE." (lib/lastRunLine.ts) */
-const ranLine = computed(() =>
+/** The card's one meta line: when it ran, on which save, and with the run's own settings (lib/lastRunLine.ts
+ *  `runMetaLine`; UX fluff review 2, 5 Nov 2026, items C1 and C4). */
+const runMeta = computed(() =>
   store.chainResultAt && !store.isRunning
-    ? lastRunLine({
+    ? runMetaLine({
         level: store.runSettingsUsed?.effort ?? 'quick',
         at: store.chainResultAt,
         saveAt: store.chainRunSaveAt,
         loadedSaveAt: backupSecondsOf(useInitialStateStore().rawBackup),
-        te: store.finalTE,
         zone: autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         now: Math.floor(Date.now() / 1000),
+        priced: store.runSettingsUsed ? pricedWithShort(store.runSettingsUsed) : '',
       })
     : ''
 );
@@ -1480,12 +1479,12 @@ function relativeTime(ms: number): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-/** The result card's Save run (named later, or not, in Saved runs). */
+/** The result card's Save run, with the name typed beside it (CardSaveRow.vue). */
 const saving = ref(false);
-async function save(): Promise<void> {
+async function save(name = ''): Promise<void> {
   saving.value = true;
   try {
-    await store.saveCurrentRun(props.playerId);
+    await store.saveCurrentRun(props.playerId, name);
   } finally {
     saving.value = false;
   }
@@ -1554,8 +1553,4 @@ watch(
 
 /** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
 const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
-/** The hours and time off this run was priced with (its own settings, not the live setup); '' when no run's
- *  settings are known (lib/pricedWith.ts). */
-// …and the no-prestige days it held for (lib/pricedWithWords.ts; fluff review 2, 5 Nov 2026).
-const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithDays(pricedWithLine(store.runSettingsUsed), store.runSettingsUsed.noPrestige) : ''));
 </script>

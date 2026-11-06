@@ -93,10 +93,11 @@ describe('Fastest (Fast, Exact, Custom): the same named button in the same place
   const fast = (over = {}) =>
     renderHtml(RouteResultCard, { chain: [212, 280, 490], days: 760.5, finalTE: 490, endLabel: 'Feb 15, 2029', running: false, canSave: true, ...over });
 
-  it('Share, then the named CSV button, then Save run, as on By a date', async () => {
-    expect(textOf(await fast())).toMatch(/Share Download CSV \(detail for top routes\) ↓ Save run/);
-    expect(textOf(await fast({ csvEvery: true }))).toMatch(/Share Download CSV \(detail for every route\) ↓ Save run/);
-    expect(read('RouteResultCard.vue')).toMatch(/data-testid="fastest-csv"\s+:title="csv\.title"\s+@click="emit\('csv'\)"/);
+  it('Share, then the named CSV under Download ▾, then Save run (UX fluff review 2, 5 Nov 2026, item C5)', async () => {
+    expect(textOf(await fast())).toMatch(/Share ↓ Download ▾ Download CSV \(detail for top routes\) Save run/);
+    expect(textOf(await fast({ csvEvery: true }))).toMatch(/Share ↓ Download ▾ Download CSV \(detail for every route\) Save run/);
+    expect(read('RouteResultCard.vue')).toMatch(/\{ key: 'csv', text: csv\.value\.text\.replace\(\/ ↓\$\/, ''\), title: csv\.value\.title, testid: 'fastest-csv' \}/);
+    expect(read('RouteResultCard.vue')).toContain("if (key === 'csv') emit('csv');");
   });
 
   it('Fast / Exact and Custom pass the run\'s detail and keep the same handler', () => {

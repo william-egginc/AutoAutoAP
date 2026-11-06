@@ -1,5 +1,5 @@
 /**
- * L2 (spec-r7qa, QA 3 Nov 2026, LOW): of Fastest's two save buttons, "Save this run" (SavedRuns.vue) turned to "Saved ✓"
+ * L2 (spec-r7qa, QA 3 Nov 2026, LOW): of Fastest's two save buttons (one since UX fluff review 2, 5 Nov 2026), "Save this run" (SavedRuns.vue) turned to "Saved ✓"
  * but the result card's "Save run" (RouteResultCard.vue) stayed "Save run". Both read the store's `currentRunSaved` now
  * (ChainSearchPanel.vue and InsanePanel.vue pass it to the card as `saved`); a name typed under Save this run switches only
  * that one back, as before. By a date's card already read `currentAnswerSaved` (DeadlinePanel.vue `:saved`): held here
@@ -93,33 +93,29 @@ describe("L2: Fastest's two save buttons say the same for the stored run", () =>
     expect(cardButton(await renderHtml(RouteResultCard, cardProps(false)))).toBe('Save run');
   });
 
-  it('not saved: Save run and Save this run; saved: both Saved ✓; a typed name switches only the lower one back', async () => {
+  it('one Save since 5 Nov 2026: the card\'s follows the store; Saved for later has none (UX fluff review 2, item C7b)', async () => {
     const store = useChainSearchStore();
     store.bestChain = [195, 229, 283, 490];
     store.bestDays = 743.9;
     const card = async () => cardButton(await renderHtml(RouteResultCard, cardProps(store.currentRunSaved)));
     expect(await card()).toBe('Save run');
-    expect(lowerButton((await savedRuns()).html)).toBe('Save this run');
-    await store.saveCurrentRun(PLAYER);
+    expect(lowerButton((await savedRuns()).html)).toBe('');
+    await store.saveCurrentRun(PLAYER, 'my run');
     expect(await card()).toBe('Saved ✓');
-    const lower = await savedRuns();
-    expect(lowerButton(lower.html)).toBe('Saved ✓');
-    // A name typed under Save this run: that one offers to save again under it; the card's stays Saved ✓.
-    expect((await savedRuns('my run')).savedHere).toBe(false);
-    expect(await card()).toBe('Saved ✓');
-    // Another run on screen: both say save again.
+    expect(store.savedRuns[0]?.label).toBe('my run');
+    // Another run on screen: save again.
     store.bestChain = [195, 230, 283, 490];
     expect(await card()).toBe('Save run');
-    expect(lowerButton((await savedRuns()).html)).toBe('Save this run');
   });
 
-  it('both panels that show the card hand it the store flag Save this run reads', () => {
+  it('both panels that show the card hand it the store flag; a typed name switches only that one back', () => {
     for (const f of ['ChainSearchPanel.vue', 'InsanePanel.vue']) {
       const cards = openings(read(f), 'RouteResultCard').filter(a => /\bcan-save\b/.test(a));
       expect(cards.length, f).toBeGreaterThan(0);
       for (const c of cards) expect(c, f).toContain(':saved="store.currentRunSaved"');
+      expect(read(f), f).toContain('await store.saveCurrentRun(props.playerId, name);');
     }
-    expect(read('SavedRuns.vue')).toContain('store.currentRunSaved && !label.value.trim()');
+    expect(read('CardSaveRow.vue')).toContain('props.saved && !name.value.trim()');
   });
 
   it("By a date's card: Save answer reads currentAnswerSaved, as Save this answer does", async () => {
