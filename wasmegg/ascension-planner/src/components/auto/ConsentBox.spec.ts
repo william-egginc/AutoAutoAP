@@ -66,7 +66,7 @@ describe('ConsentBox', () => {
     expect(html).not.toContain('consent-summary');
     expect(t).toContain('I acknowledge THE TEXT');
     expect(html).toContain('data-testid="consent-remember"');
-    expect(t).toContain('Remember my choice for this account (kept in this browser until you withdraw it)');
+    expect(t).toContain('Remember my choice for this account (kept in this browser and saved online until you withdraw it)');
     expect(html).toMatch(/data-testid="consent-remember"[^>]*checked|checked[^>]*data-testid="consent-remember"/);
     expect(html).toContain('data-testid="consent-withdraw"');
     expect(t).toContain('Withdraw');

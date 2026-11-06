@@ -14,7 +14,7 @@ describe('About and privacy: contents', () => {
   const nav = about.slice(navAt, about.indexOf('</nav>', navAt));
 
   it('sits under the short version, before the first section', () => {
-    expect(sections.length).toBe(15);
+    expect(sections.length).toBe(16);
     expect(navAt).toBeGreaterThan(about.indexOf('Short version:'));
     expect(navAt).toBeLessThan(about.indexOf('<section id="what">'));
   });

@@ -149,6 +149,7 @@
           <li><a href="#answers">Your instant answers, saved online</a></li>
           <li><a href="#readback">Your own run's CSV, read back</a></li>
           <li><a href="#never">What is never sent to the leaderboard</a></li>
+          <li><a href="#online">What goes online, and the code made from your ID</a></li>
           <li><a href="#code">The random browser code</a></li>
           <li><a href="#stored">Where it is stored, and for how long</a></li>
           <li><a href="#remove">Hiding or removing your rows</a></li>
@@ -421,6 +422,17 @@
           Names and notes you type are public, so keep them free of anything personal. The time zone, start time and
           inventory in a row can also point to one account if someone knows the account well.
         </p>
+      </section>
+
+      <!-- lib/privacyWords.ts, lib/followCloud.ts followKey: this section goes with that code. -->
+      <section id="online">
+        <h2>What goes online, and the code made from your ID</h2>
+        <ul>
+          <li>Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), and your newest instant answers. The same code on another device shows them.</li>
+          <li>The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.</li>
+          <li>On the leaderboard: only what you tick. Never your player ID or your save.</li>
+          <li>Never leaves your browser: your full save, with your ID. To load it, your ID goes to the game's server through the planner's relay; the planner's server never gets the save.</li>
+        </ul>
       </section>
 
       <section id="code">

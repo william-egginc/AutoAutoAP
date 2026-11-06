@@ -42,7 +42,7 @@ const setup = () => renderHtml(StudySetup, {}, {}, [pinia]);
 /** The box's paragraph (21 Oct 2026, cut to about 5 lines at 390 px; the full list is at about.html#sent). */
 const INTRO =
   'Help make the planner’s answers better. Your runs go public only when you press share. The last tick sends a ' +
-  'private, anonymous record of the best result of a Fast, Exact or Custom search. Your player ID and save are never sent. ' +
+  'private, anonymous record of the best result of a Fast, Exact or Custom search. Your player ID and save are never sent with a shared run. ' +
   'This account only; change or withdraw it in Setup.';
 
 /** Setup's Withdraw line (21 Oct 2026): the words follow what Withdraw does (lib/study.ts afterWithdraw). */
@@ -52,12 +52,13 @@ const WITHDRAW_LINE =
   'sent stays. Each share button still shows its own agreement, with Withdraw there too.';
 
 describe('the box', () => {
-  it('keeps its paragraph short: under 280 characters, 5 lines at 390 px', async () => {
+  it('keeps its paragraph short: under 300 characters, 5 or 6 lines at 390 px', async () => {
     await setConsentAccount(A);
     const html = await box();
     const intro = textOf(html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '');
     expect(intro).toBe(INTRO);
-    expect(intro.length).toBeLessThan(280);
+    // 280 until 6 Nov 2026; 300 since: "never sent with a shared run" says what is true (privacy wording, Jordan's OK).
+    expect(intro.length).toBeLessThan(300);
   });
 
   it('shows nothing before an account is in', async () => {
@@ -475,7 +476,7 @@ describe('compact on phones (Jordan, 26 Oct 2026: the box stays on top and open,
   it('the intro is one sentence on a phone, the whole paragraph from sm up, and the link stays', async () => {
     await setConsentAccount(A);
     const html = await box();
-    expect(phoneIntro(html)).toBe('Help make the planner’s answers better. Your player ID and save are never sent.');
+    expect(phoneIntro(html)).toBe('Help make the planner’s answers better. Your player ID and save are never sent with a shared run.');
     expect(textOf(html.match(/<p[^>]*data-testid="study-intro"[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '')).toBe(INTRO);
     expect(phone(tag(html, 'study-about'))).not.toContain('hidden');
   });

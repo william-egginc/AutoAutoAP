@@ -396,4 +396,14 @@ describe('About and privacy page', () => {
     expect(read('src/composables/useNewVersion.ts')).toContain('if (!key) return null;');
     expect(read('src/components/auto/InstantRoute.vue')).toContain('rc: resultCode(),');
   });
+  it('says what goes online and what the code made from the ID is (6 Nov 2026)', () => {
+    expect(text).toContain('What goes online, and the code made from your ID');
+    expect(text).toContain(
+      'Saved online, under a code made from your player ID: the route you follow, your Setup and sharing choices (with the name you are credited as), and your newest instant answers. The same code on another device shows them.'
+    );
+    expect(text).toContain(
+      'The code is a SHA-256 hash of your ID. It is scrambled, not anonymous: it is not salted yet, so anyone who knows an ID can work out its code, and read or change what is saved under it. A salted code is planned.'
+    );
+    expect(text).toContain("Never leaves your browser: your full save, with your ID.");
+  });
 });

@@ -87,7 +87,7 @@
           />
           <span
             >Remember my choice for this account<span class="font-normal">{{
-              remember ? ' (kept in this browser until you withdraw it)' : ' (off: for this visit only)'
+              remember ? REMEMBER_KEPT : ' (off: for this visit only)'
             }}</span></span
           >
         </label>
@@ -125,6 +125,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { consentRemembered, setConsentRemember, type ConsentId } from '@/composables/useConsent';
+import { REMEMBER_KEPT } from '@/lib/privacyWords';
 
 const props = withDefaults(
   defineProps<{

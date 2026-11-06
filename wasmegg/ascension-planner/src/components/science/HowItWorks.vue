@@ -346,12 +346,12 @@
       </summary>
       <div class="hw-body">
         <p>
-          <b>Nothing is sent unless you tick it.</b> A shared result sends the route, its dates and the target or
+          <b>{{ SCIENCE_NOTHING_UNLESS }}</b> A shared result sends the route, its dates and the target or
           date, your artifact inventory, timezone and plan start, and a random code this browser keeps for your
           account. Only a scrambled form of that code is stored. It lets you rename your rows and see your own plans.
-          Your player ID and your save are never sent. You can send anonymously or under a name: the "Credit me as" name
-          is one per account, kept in this browser, so a name typed on one screen is already there on the others.
+          {{ SCIENCE_CREDIT_NAME }}
         </p>
+        <PrivacyTip />
         <ul class="hw-list">
           <li>
             <b>CSV</b> (optional): every route the search simulated, compressed before it leaves your computer. A big
@@ -469,6 +469,8 @@
 <script setup lang="ts">
 import { NAMES } from '@/lib/siteNav';
 import ChainSearchExplainer from '@/components/auto/ChainSearchExplainer.vue';
+import PrivacyTip from '@/components/PrivacyTip.vue';
+import { SCIENCE_CREDIT_NAME, SCIENCE_NOTHING_UNLESS } from '@/lib/privacyWords';
 
 /** The date every number here was last checked. */
 const UPDATED = 'Oct 21, 2026';
