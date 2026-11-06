@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
 import {
-  claimAt,
   creditWait,
   findRoutes,
   priceChain,
@@ -23,7 +22,7 @@ import { countTEThresholdsPassed } from '@/lib/truthEggs';
 
 // No prestige on these days in the instant answer (routeFinder.ts `TailOptions.noPrestige`): each prestige waits past
 // them to the next allowed time (inside the hours when set), the laying meanwhile capped at the silos for the part
-// the days add, By a date's claim waits too, and nothing changes without them. The synthetic table of
+// the days add, and nothing changes without them. The synthetic table of
 // routeFinder.claim.spec.ts.
 const START = Date.parse('2027-01-04T17:00:00Z') / 1000; // Monday 4 Jan 2027, 9:00 am PST
 const FROM = 100;
@@ -133,17 +132,6 @@ describe('the laying while a no-prestige day holds a prestige (creditWait)', () 
   });
   it('no days and no hours: nothing waits', () => {
     expect(creditWait(110, end, eggs, 0, rate, undefined).delivered).toBe(eggs);
-  });
-});
-
-describe('By a date: the claim is a prestige, so it waits past the days too', () => {
-  it('claimAt', () => {
-    const day = ymd(START + 86_400);
-    const windows = timeOffWindows([{ from: day, to: day }], TZ);
-    const t = windows[0].from + 12 * 3600;
-    expect(claimAt(t, days9to5)).toBe(t);
-    expect(claimAt(t, days9to5, { noPrestige: windows })).toBe(windows[0].to + 9 * 3600);
-    expect(claimAt(t, null, { noPrestige: windows })).toBe(windows[0].to);
   });
 });
 

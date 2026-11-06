@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from './precomputedLeg';
-import { claimAt, findRoutes, polishFound, type BuildLookup, type PolishOptions } from './routeFinder';
-import { nextAvailable, type Availability } from './availability';
+import * as routeFinder from './routeFinder';
+import { findRoutes, polishFound, type BuildLookup, type PolishOptions } from './routeFinder';
+import { isAvailable, type Availability } from './availability';
 import { getNextSaleEnd } from '@/lib/events';
 
-// By a date with the player's hours: a TE counts once a prestige CLAIMS it (Jordan, 22 Oct 2026), and a prestige
-// waits for the player, so the last stop must be reached in time to claim it inside the hours by the deadline
-// (`claimAt`; the math review, 24 Oct 2026, finding 9). The same synthetic table as routeFinder.hours.spec.ts.
+// By a date with the player's hours: the last stop counts when it is REACHED by the deadline, as By a date's search
+// does (Jordan, 5 Nov 2026, removing "I need to ascend at the last stop before the deadline": a night-time last stop
+// they stay up for, and the next-TE line lets them decide whether to wait). Until then the instant answer counted it
+// only once it could be claimed inside the hours (`claimAt`, the math review, 24 Oct 2026, finding 9). Every prestige
+// before it still waits for the hours. The same synthetic table as routeFinder.hours.spec.ts.
 const START = Date.parse('2027-01-04T17:00:00Z') / 1000; // Monday 4 Jan 2027, 9:00 am PST
 const FROM = 100;
 const FINAL = 130;
@@ -28,25 +31,14 @@ const find = (extra: object = {}) =>
   findRoutes({ table, startTE: FROM, start: START, final: FINAL, maxAscensions: 5, ...extra });
 const lastTE = (r: { legs: { endTE: number }[] } | null) => (r ? r.legs[r.legs.length - 1].endTE : 0);
 
-describe('claimAt', () => {
-  const at = (iso: string) => Date.parse(iso) / 1000;
-  it('inside the hours, or with no hours: the moment it is reached', () => {
-    const noon = at('2027-01-05T20:00:00Z'); // Tue 12:00 pm PST
-    expect(claimAt(noon, days9to5)).toBe(noon);
-    expect(claimAt(noon, undefined)).toBe(noon);
-    expect(claimAt(noon, null)).toBe(noon);
+describe('By a date with hours: the last stop counts when it is reached by the deadline', () => {
+  it('there is no claim rule any more', () => {
+    expect(Object.keys(routeFinder)).not.toContain('claimAt');
   });
-  it('outside them: when the player is next around', () => {
-    const night = at('2027-01-06T10:00:00Z'); // Wed 2:00 am PST
-    expect(claimAt(night, days9to5)).toBe(at('2027-01-06T17:00:00Z'));
-    expect(claimAt(night, days9to5)).toBe(nextAvailable(night, days9to5));
-  });
-});
 
-describe('By a date with hours: the last stop claimed inside them by the deadline', () => {
-  it('a deadline in the night counts what was reached by the end of the last evening, and no more', async () => {
+  it('a deadline in the night counts what was reached by then, after the hours ended too', async () => {
     let checked = 0;
-    let more = 0;
+    let atNightOnly = 0;
     for (let night = 4; night < 30; night += 3) {
       // 2:00 am PST on the nights after the plan start, and the last second of the hours before it (4:59:59 pm).
       const deadline = START + 17 * 3600 + night * 86400;
@@ -55,30 +47,30 @@ describe('By a date with hours: the last stop claimed inside them by the deadlin
       const atEvening = await find({ hours: days9to5, deadline: evening });
       for (const r of [atNight.byDate, ...atNight.byDateByAscensions]) {
         if (!r) continue;
-        expect(claimAt(r.end, days9to5)).toBeLessThanOrEqual(deadline);
-        expect(r.end).toBeLessThanOrEqual(evening);
+        expect(r.end).toBeLessThanOrEqual(deadline);
+        // Every prestige before the last stop is still inside the hours.
+        expect(r.legs.every((l, i) => i === 0 || isAvailable(l.start, days9to5))).toBe(true);
       }
-      expect(lastTE(atNight.byDate)).toBe(lastTE(atEvening.byDate));
+      expect(lastTE(atNight.byDate)).toBeGreaterThanOrEqual(lastTE(atEvening.byDate));
       if (atNight.byDate) checked++;
-      // As before (`claimInHours: false`): what was reached by 2:00 am, never less.
-      const reached = await find({ hours: days9to5, deadline, claimInHours: false });
-      expect(lastTE(reached.byDate)).toBeGreaterThanOrEqual(lastTE(atNight.byDate));
-      if (lastTE(reached.byDate) > lastTE(atNight.byDate)) more++;
+      // Reached in the night, after the hours ended: counted now, never before.
+      if (atNight.byDate && atNight.byDate.end > evening) atNightOnly++;
     }
     expect(checked).toBeGreaterThan(0);
-    // Some night counted a TE reached after the hours ended, which could not be claimed by 2:00 am.
-    expect(more).toBeGreaterThan(0);
+    expect(atNightOnly).toBeGreaterThan(0);
   });
 
-  it('the polish keeps each count claimable in time', async () => {
+  it('the polish keeps each count reached by the deadline', async () => {
     const free = await find();
     const deadline = free.best!.end - 86_400 + 3600 * 3;
     const dated = await find({ hours: days9to5, deadline });
     const o: PolishOptions = { startTE: FROM, start: START, hours: days9to5, deadline };
     const p = polishFound(table, o, JSON.parse(JSON.stringify(dated)));
-    for (const r of [p.byDate, ...p.byDateByAscensions]) {
+    expect(p.byDate).not.toBeNull();
+    for (const [k, r] of p.byDateByAscensions.entries()) {
       if (!r) continue;
-      expect(claimAt(r.end, days9to5)).toBeLessThanOrEqual(deadline);
+      expect(r.end).toBeLessThanOrEqual(deadline);
+      expect(lastTE(r)).toBeGreaterThanOrEqual(lastTE(dated.byDateByAscensions[k]));
     }
   });
 

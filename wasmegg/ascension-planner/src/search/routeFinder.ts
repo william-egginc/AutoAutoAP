@@ -81,8 +81,8 @@ export interface TailOptions {
    *  opening of a player that many TE behind the table's account is about that account's opening at their TE less
    *  the gap. Default 0. */
   openingRows?: number;
-  /** No prestige on these days (search/noPrestige.ts), absolute windows: every prestige (a fresh ascension's start,
-   *  By a date's claim) waits past them to the next allowed time, inside `hours` when set; shifts are unaffected.
+  /** No prestige on these days (search/noPrestige.ts), absolute windows: every prestige (a fresh ascension's start)
+   *  waits past them to the next allowed time, inside `hours` when set; shifts are unaffected.
    *  Absent or empty: exactly as before. */
   noPrestige?: TimeOffWindow[];
   /** With `noPrestige`: what the save's silos hold, seconds (saveAge.ts `siloSeconds`), the cap on the farm's laying
@@ -320,12 +320,10 @@ export interface FindOptions extends TailOptions {
   /** No route continues from a checkpoint above this (default USEFUL_STOP_MAX; Infinity: no limit). */
   usefulStopMax?: number;
   /** Also find the highest TE reachable by this unix second (Highest TE by a date), from the same
-   *  pass: the highest TE whose earliest arrival is no later. With `hours`, the TE must also be claimed
-   *  by then: the prestige at the last stop waits for the player's hours as every other prestige does
-   *  (`claimAt`). */
+   *  pass: the highest TE whose earliest arrival is no later. With `hours` too the last stop counts when
+   *  it is reached, as By a date's search counts it (Jordan, 5 Nov 2026; from 24 Oct it had to be claimed
+   *  by a prestige inside the hours by then). Every prestige before it still waits for the hours. */
   deadline?: number;
-  /** False: with hours, the last stop counts when reached, as before 24 Oct 2026 (for comparing). */
-  claimInHours?: boolean;
   /** Told after each number of ascensions is done (k of `maxAscensions`), for a progress bar. */
   onProgress?: (done: number, of: number) => void;
   /** Filled in with what the search did, for tuning (scripts/precompute.ts --route-bin). */
@@ -350,23 +348,6 @@ export interface FindOptions extends TailOptions {
  *  and reaching the final target needs no prestige (search/availability.ts). */
 export function prestigesInHours(route: { legs: { start: number }[] }, hours: Availability): boolean {
   return route.legs.every((l, i) => i === 0 || isAvailable(l.start, hours));
-}
-
-/**
- * CLAIMED, NOT REACHED (Jordan, 22 Oct 2026: a TE counts once a prestige claims it; the math review, 24 Oct,
- * finding 9). By a date with the player's hours, the last stop's TE reached at `t` is claimed at the first moment
- * they are around (`nextAvailable`): a reach in the night before a morning deadline (Egg Day's 9:00 am Pacific is
- * 1-2 am in eastern Australia and Japan) cannot be claimed in time. `t` itself with no hours, or when they are
- * around. The search's "I need to ascend at the last stop" (search/deadline.ts `ascendAt`) is the same rule.
- */
-export function claimAt(
-  t: number,
-  hours: Availability | undefined | null,
-  /** No-prestige days (search/noPrestige.ts): the claim is a prestige, so it waits past them too. */
-  days?: Pick<TailOptions, 'noPrestige'>
-): number {
-  const back = prestigeBackFor(hours, days);
-  return back ? back(t) : t;
 }
 
 /** The first moment from `start` through its opening's span (`openingSpan`) when the player is away (`holdUntil`:
@@ -1003,15 +984,13 @@ export async function findRoutes(
   let byDate: Route | null = null;
   const byDateByAscensions: (Route | null)[] = Array.from({ length: K + 1 }, () => null);
   if (o.deadline !== undefined) {
-    const claimHours = o.claimInHours === false ? undefined : hours;
-    const claimDays = o.claimInHours === false ? undefined : o;
     let overall: { te: number; label: Label } | null = null;
     for (let k = 1; k <= K; k++) {
       let mine: { te: number; label: Label } | null = null;
       for (const [te, list] of arrivals[k]) {
         const l = list[0];
-        // Claimed in time (`claimAt`): with hours, a prestige inside them by the deadline.
-        if (claimAt(l.time, claimHours, claimDays) > o.deadline) continue;
+        // Reached in time; with hours too (Jordan, 5 Nov 2026: no longer claimed inside them by then).
+        if (l.time > o.deadline) continue;
         if (!mine || te > mine.te || (te === mine.te && l.time < mine.label.time)) mine = { te, label: l };
       }
       if (!mine && k >= firstDrop) outOfHours.add(k);
@@ -1019,7 +998,7 @@ export async function findRoutes(
       byDateByAscensions[k] = routeTo(mine.label);
       dateAlternatives[k] = arrivals[k]
         .get(mine.te)!
-        .filter(l => l !== mine!.label && claimAt(l.time, claimHours, claimDays) <= o.deadline!)
+        .filter(l => l !== mine!.label && l.time <= o.deadline!)
         .map(routeTo);
       if (!overall || mine.te > overall.te || (mine.te === overall.te && mine.label.time < overall.label.time))
         overall = mine;
@@ -1221,12 +1200,10 @@ export interface PolishOptions extends TailOptions {
   reach?: number;
   pairs?: boolean;
   /** As FindOptions: each prestige waits for these hours (priceLeg), and only moves that keep every
-   *  prestige inside them; by a date, the last stop claimed inside them by the deadline (`claimAt`). */
+   *  prestige inside them; by a date, the last stop reached by the deadline. */
   hours?: Availability;
   /** As FindOptions. */
   holdForHours?: boolean;
-  /** As FindOptions. */
-  claimInHours?: boolean;
   /** The stronger polish (the user, 6 Oct): the first two stops searched together, each moved by up
    *  to this many TE, before the local search (default 0: off). */
   wide?: number;
@@ -1493,11 +1470,7 @@ export function polishFound(table: BuildLookup, o: PolishOptions, found: FoundRo
       ? polishFrom(
           r,
           found.dateAlternatives?.[k],
-          c =>
-            claimAt(c.end, o.claimInHours === false ? undefined : o.hours, o.claimInHours === false ? undefined : o) <=
-              o.deadline! &&
-            lastTE(c) >= lastTE(r) &&
-            inHours(c)
+          c => c.end <= o.deadline! && lastTE(c) >= lastTE(r) && inHours(c)
         )
       : r
   );
