@@ -73,10 +73,9 @@ export const NAMES = {
   /** Science › How it works: what the searches and the instant answer do, and how they were checked. */
   how: 'How it works',
   /** Joo's single-plan simulator (Classic), the Auto Planner's first screen. Was "Your plan" until 15 Oct
-   *  2026; `classicFirst` says so in one place (the screen's own intro). */
+   *  2026; the intro named the old name too until 5 Nov 2026 (UX fluff review 2, item S-1: a month after the rename). */
   classic: 'Single run',
   classicWas: 'Your plan',
-  classicFirst: 'Single run (was Your plan)',
   fastest: 'Fastest to 490 TE',
   byDate: 'Highest TE by a date',
   /** The two ways to search on Fastest and By a date (decision A, 12 Oct 2026; SearchModeChooser.vue):

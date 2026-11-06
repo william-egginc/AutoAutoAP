@@ -251,8 +251,7 @@
       >
         <span
           >Simulated <b class="tabular-nums">{{ routeText(fromInstant.chain) }}</b> from
-          {{ fromInstant.from ?? 'the instant answer' }}. Each ascension's View details lists its steps and
-          purchases.</span
+          {{ fromInstant.from ?? 'the instant answer' }}.</span
         >
         <a
           :href="fromInstant.back === 'by-date' ? '#/auto/by-date' : '#/auto/fastest'"
@@ -271,6 +270,12 @@
              prices as a fresh build or a continue, so its dates can run later than the answer's. -->
         <p v-if="fromInstant.note" class="basis-full text-small text-emerald-900" data-testid="plan-from-instant-note">
           {{ fromInstant.note }}
+        </p>
+        <!-- A By a date route Single run finishes after the date: said, with its finish (UX fluff review 2, 5 Nov 2026,
+             finding 1: the search reached 311 TE on Jul 13, Single run on Jul 15, after a Jul 14 date, in silence).
+             DRAFT (Words). -->
+        <p v-if="missesDate" class="basis-full text-body font-bold text-amber-800" data-testid="plan-from-instant-misses">
+          Here it finishes {{ showDateTime(missesDate, timezone || plannerZoneFallback) }}, after your date. The search’s dates are on the answer.
         </p>
       </div>
       <div class="space-y-4">
@@ -609,6 +614,15 @@ const fromInstant = computed(() => {
   const f = ui.planFromInstant;
   return f && targetTE.value.trim().split(/\s+/).join(' ') === f.chain.join(' ') ? f : null;
 });
+/** Single run's own finish (its last ascension's end, unix seconds) when it is after the By a date route's date; null
+ *  otherwise, while it is being worked out, or for a route from Fastest. */
+const missesDate = computed<number | null>(() => {
+  const f = fromInstant.value;
+  if (!f?.deadline || isGenerating.value) return null;
+  const end = bestResults.value[bestResults.value.length - 1]?.summary?.endTime;
+  return typeof end === 'number' && end > f.deadline ? end : null;
+});
+const plannerZoneFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
 let scrollState: 'idle' | 'waiting' | 'generating' = ui.planFromInstant ? 'waiting' : 'idle';
 watch(
   () => ui.planFromInstant,

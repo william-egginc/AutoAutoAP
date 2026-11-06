@@ -87,8 +87,8 @@
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your awake hours (and
-        whether shifts wait for them), time off, no prestige days and first ascension. ·
+        <!-- One line (UX fluff review 2, 5 Nov 2026, item S-2); what is remembered, and when, is the title. -->
+        <span :title="rememberedTitle">Remembered for this account</span>{{ ' ' }}·
         <button
           type="button"
           class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
@@ -167,8 +167,8 @@
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your awake hours (and
-        whether shifts wait for them), time off, no prestige days and first ascension. ·
+        <!-- One line (UX fluff review 2, 5 Nov 2026, item S-2); what is remembered, and when, is the title. -->
+        <span :title="rememberedTitle">Remembered for this account</span>{{ ' ' }}·
         <button
           type="button"
           class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
@@ -869,6 +869,11 @@ const rememberedWhen = computed(() => {
   const at = store.setupRemembered?.at;
   return at ? showDateTime(at / 1000, zone.value) : '';
 });
+/** The line's title: what is remembered, and when (the words the line said until 5 Nov 2026). */
+const rememberedTitle = computed(
+  () =>
+    `${rememberedWhen.value ? `Remembered ${rememberedWhen.value}: y` : 'Y'}our awake hours (and whether shifts wait for them), time off, no prestige days and first ascension`
+);
 const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 /** Whether the plan may prestige in this hour of the day: from-hour inclusive, to-hour exclusive,
  *  wrapping past midnight, and equal ends meaning all day (search/availability.ts). */

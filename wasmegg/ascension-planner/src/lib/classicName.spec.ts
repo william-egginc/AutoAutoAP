@@ -99,11 +99,11 @@ describe('the Single run name', () => {
     }
   });
 
-  it('"(was Your plan)" is said once, on the screen\'s own intro', () => {
+  it('"(was Your plan)" is no longer said: the rename was a month ago (UX fluff review 2, 5 Nov 2026, item S-1)', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.vue'), 'utf8');
-    expect(app.match(/NAMES\.classicFirst/g)).toHaveLength(1);
+    expect(app).toContain("<span class=\"font-bold text-slate-900\">{{ NAMES.classic }}</span> is Joo's original planner");
     const uses = files(SRC).filter(f => /NAMES\.classicFirst|\(was Your plan\)/.test(fs.readFileSync(f, 'utf8')));
-    expect(uses.map(f => path.relative(SRC, f)).sort()).toEqual(['App.vue', path.join('lib', 'siteNav.ts')].sort());
+    expect(uses.map(f => path.relative(SRC, f))).toEqual([]);
   });
 
   it("By a date's build-up note follows the name", () => {

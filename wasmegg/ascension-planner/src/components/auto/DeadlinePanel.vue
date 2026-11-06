@@ -2941,6 +2941,9 @@ const liveSim = computed(() =>
 function openInSingleRun(s: ReturnType<typeof byDateSimulate>): void {
   simulateRoute(s.chain, 'by-date', s.opts);
   if (s.note && ui.planFromInstant) ui.planFromInstant = { ...ui.planFromInstant, note: s.note };
+  // The date, so the banner can say when Single run's own finish is after it (UX fluff review 2, finding 1).
+  const deadline = result.value?.deadline ?? store.deadlineRunDeadline;
+  if (deadline && ui.planFromInstant) ui.planFromInstant = { ...ui.planFromInstant, deadline };
 }
 function simulateResult(): void {
   const s = resultSim.value;

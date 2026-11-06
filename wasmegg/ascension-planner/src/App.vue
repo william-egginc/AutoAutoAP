@@ -628,7 +628,7 @@
           <template v-if="autoView === 'classic'">
             <h1 class="max-w-4xl mx-auto text-headline font-black text-slate-900">{{ NAMES.classic }}</h1>
             <p class="max-w-4xl mx-auto text-body text-slate-600">
-              <span class="font-bold text-slate-900">{{ NAMES.classicFirst }}</span> is Joo's original planner: type the TE you want
+              <span class="font-bold text-slate-900">{{ NAMES.classic }}</span> is Joo's original planner: type the TE you want
               to ascend at and it lays out every ascension from your start, with the weekly Research Sale and the Monday
               2× earnings boost in it. To have the stops found for you, use
               {{ fastestName(chainSearchStore.finalTE) }} or {{ NAMES.byDate }}.
