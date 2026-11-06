@@ -133,7 +133,7 @@
                 class="ml-auto min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
                 :aria-expanded="isOpen(d)"
                 :data-testid="`buildup-showall-${d.ymd}`"
-                @click="setOpen(d, !isOpen(d))"
+                @click="isOpen(d) ? setOpen(d, false) : showAll(d)"
               >
                 {{ isOpen(d) ? 'Show less' : `Show all ${d.lines.length}` }}
               </button>
@@ -202,6 +202,18 @@
                   @click="emit('clear', l.key)"
                 >
                   use save
+                </button>
+              </li>
+              <!-- An open day stops at its first 8 lines (UX fluff review 2, 5 Nov 2026, item R12: the next sale day opened
+                   with 112). -->
+              <li v-if="capped(d)">
+                <button
+                  type="button"
+                  class="min-h-[44px] px-2 text-small font-bold text-indigo-700 underline"
+                  :data-testid="`buildup-cap-${d.ymd}`"
+                  @click="showAll(d)"
+                >
+                  Show all {{ d.lines.length }}
                 </button>
               </li>
               <li v-if="!isOpen(d) && hiddenCount(d) > 0">
@@ -329,10 +341,25 @@ function isOpen(d: TrackerDay): boolean {
 }
 function setOpen(d: TrackerDay, o: boolean): void {
   dayOpen.value = { ...dayOpen.value, [d.ymd]: o };
+  if (!o) dayFull.value = { ...dayFull.value, [d.ymd]: false };
 }
-/** A collapsed day: its bold, event and warning lines and the first line not ticked yet (lib `dayView`). */
+/** An open day shows at most this many lines until "Show all" (UX fluff review 2, item R12). */
+const OPEN_DAY_CAP = 8;
+/** Days whose every line the player asked for. */
+const dayFull = ref<Record<string, boolean>>({});
+/** The day is open, longer than the cap, and not asked for in full. */
+function capped(d: TrackerDay): boolean {
+  return isOpen(d) && !dayFull.value[d.ymd] && d.lines.length > OPEN_DAY_CAP;
+}
+function showAll(d: TrackerDay): void {
+  dayFull.value = { ...dayFull.value, [d.ymd]: true };
+  setOpen(d, true);
+}
+/** A collapsed day: its bold, event and warning lines and the first line not ticked yet (lib `dayView`); an open one
+ *  up to the cap. */
 function shownLines(d: TrackerDay): TrackerLine[] {
-  return dayView(d, isOpen(d), ticked.value).lines;
+  const lines = dayView(d, isOpen(d), ticked.value).lines;
+  return capped(d) ? lines.slice(0, OPEN_DAY_CAP) : lines;
 }
 function hiddenCount(d: TrackerDay): number {
   return dayView(d, isOpen(d), ticked.value).hidden;

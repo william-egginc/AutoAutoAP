@@ -8,7 +8,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderHtml, textWithDots as textOf } from '@/test/renderComponent';
 import BuildUpTracker from './BuildUpTracker.vue';
-import { buildUpTracker, dayView, trackerSummary } from '@/lib/buildUpTracker';
+import { buildUpTracker, dayView, lineText, trackerSummary } from '@/lib/buildUpTracker';
 import { fixturePlan, HOURS, mt, ZONE } from '@/lib/buildUpTracker.fixture';
 import { boughtFromSave, effectiveTicks, farmOfStart, type SaveFarm } from '@/lib/buildUpBought';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
@@ -67,14 +67,17 @@ describe('BuildUpTracker: the list', () => {
     expect(t).toContain('Fri Oct 30 18 check-ins Show less');
     expect(t).toContain('Fri Nov 13 1 check-in 10:00 am');
     expect(t).toContain('9:02 am · buy 14 Hyperloop Trains (slots 1-14), cars to 5 · offline 1 min');
-    expect(t).toContain('wait for the sale: offline until Fri Oct 30 10:00 am (25 min)');
+    // Fri Oct 30 is open with 32 lines: its first 8, then "Show all 32" (UX fluff review 2, 5 Nov 2026, item R12; the
+    // cap is BuildUpTracker.cap.spec's). Its later lines, such as the wait for the sale, are the plan's still.
+    expect(t).toContain('9:04 am · buy 1 Hyperloop Train (slot 17), cars to 5 Show all 32 Sat Oct 31');
+    expect(result.lines.map(lineText)).toContain('wait for the sale: offline until Fri Oct 30 10:00 am (25 min)');
     expect(t).toContain('clocks go back 1 h at 2:00 am');
     expect(t).toContain('Times are in your zone (America/Denver), rounded down to the minute.');
   });
   it('bold lines are bold, research is not', async () => {
     const html = await render('ready');
     expect(html).toMatch(/<span class="font-bold">shift to Kindness<\/span>/);
-    expect(html).toMatch(/<span class="">buy Graviton Coupling \(2 → 3\)<\/span>/);
+    expect(html).toMatch(/<span class="">buy Grav Plating \(17 → 18\), Autonomous Vehicles \(1 → 2\), Crystalline Shelling \(58 → 67\)<\/span>/);
   });
   it('a checkbox per check-in line with its label; kept ticks show checked', async () => {
     const key = result.checkIns[1].keys[0];
@@ -146,7 +149,8 @@ describe('the template rules', () => {
   });
   it('44 px targets for the boxes and the show-all buttons', () => {
     expect(tpl).toMatch(/<label[\s\S]*?min-h-\[44px\] min-w-\[44px\]/);
-    expect(tpl.match(/min-h-\[44px\] px-2/g)?.length).toBe(2);
+    // 3: the open day's "Show all N" under its first 8 lines (5 Nov 2026).
+    expect(tpl.match(/min-h-\[44px\] px-2/g)?.length).toBe(3);
   });
 });
 
@@ -256,8 +260,8 @@ describe('the template rules (Phase 2)', () => {
   it('no text-[Npx], caps, medium/semibold weights or mono; every button at least 44 px', () => {
     expect(tpl).not.toMatch(/text-\[\d+px\]|uppercase|font-medium|font-semibold|font-mono/);
     const buttons = tpl.match(/<button[\s\S]*?<\/button>/g) ?? [];
-    // 6: R7 red-team #3 added "Show <goal>" (a route followed for another goal).
-    expect(buttons.length).toBe(6);
+    // 6: R7 red-team #3 added "Show <goal>" (a route followed for another goal); 7: the open day's cap (5 Nov 2026).
+    expect(buttons.length).toBe(7);
     for (const b of buttons) expect(b).toMatch(/class="[^"]*min-h-\[44px\]/);
   });
   it('meaningful spaces are explicit', () => {
