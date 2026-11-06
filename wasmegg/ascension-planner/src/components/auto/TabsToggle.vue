@@ -1,8 +1,7 @@
-<!-- Which optional tabs show, in this browser (composables/useTabPrefs.ts, 21 Oct 2026): Setup › How the site shows
+<!-- Which optional tabs show, in this browser (composables/useTabPrefs.ts, 21 Oct 2026): Setup › More options › How the site shows
      things. Both off by default; with no collector both boxes are greyed out, since there is no board to show. -->
 <template>
   <div class="space-y-1" data-testid="tabs-toggle">
-    <p class="text-body text-slate-500">{{ TABS_HIDDEN_NOTE }}</p>
     <label
       v-for="t in ROWS"
       :key="t.id"
@@ -34,8 +33,6 @@ const store = useChainSearchStore();
 const collector = !!store.submitUrl;
 const { prefs } = useTabPrefs(() => collector);
 
-/** For players who used the Leaderboard before it went behind this box. */
-const TABS_HIDDEN_NOTE = `The ${NAMES.compare} and ${NAMES.science} tabs show only when you turn them on here.`;
 const NO_COLLECTOR = 'This build has no leaderboard, so there is nothing to show.';
 const ROWS: { id: OptionalTab; label: string; what: string }[] = [
   {

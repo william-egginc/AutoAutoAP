@@ -55,6 +55,7 @@ describe('"What this does" starts open (29 Oct 2026)', () => {
       countTable: 'open',
       howWorkedOut: 'folded',
       buildUpTracker: 'folded',
+      setupMore: 'folded', // Setup's More options (5 Nov 2026)
     });
   });
 

@@ -92,12 +92,20 @@ describe('the no-prestige days, stored', () => {
 describe('the three kinds of "not now", in the player\'s words', () => {
   const read = (p: string) => fs.readFileSync(path.resolve(__dirname, '..', p), 'utf8');
 
-  it('Your setup names all three, each its own thing', () => {
+  it('Your setup shows all three side by side, each saying its own kind in its own card (the summary bullets cut, 5 Nov 2026)', () => {
     const setup = read('components/auto/YourSetup.vue');
-    expect(setup).toContain('Awake hours:</span> on the virtue farm, but shifts and prestiges wait for them');
-    expect(setup).toContain('No prestige days:</span> stay on virtue; a prestige waits for the');
-    expect(setup).toContain('Time off:</span> off the virtue farm, on the home farm, nothing earned on virtue; rebuild when');
-    expect(setup).toContain('<TimeOffEditor kind="noPrestige" />');
+    // The three bullets repeated what each card says (UX fluff review 2, S2): cut. The cards are adjacent instead.
+    expect(setup).not.toContain('data-testid="setup-not-now"');
+    expect(setup).not.toContain('Awake hours:</span> on the virtue farm');
+    const awake = setup.indexOf('Awake hours</h3>');
+    const noPrestige = setup.indexOf('<TimeOffEditor kind="noPrestige" />');
+    const timeOff = setup.indexOf('<TimeOffEditor />');
+    expect(awake).toBeGreaterThan(0);
+    expect(noPrestige).toBeGreaterThan(awake);
+    expect(timeOff).toBeGreaterThan(noPrestige);
+    // Each its own line: awake hours' choice, and the day picker's explanation for each kind (below).
+    expect(setup).toContain('Prestiges and egg shifts wait for your next awake hour. You are still on the virtue farm while you wait');
+    expect(setup.slice(awake, timeOff)).not.toContain('setup-more-body');
   });
 
   it('the day picker has a title and an explanation for each kind', () => {
