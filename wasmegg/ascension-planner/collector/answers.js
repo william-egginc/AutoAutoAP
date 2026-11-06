@@ -20,7 +20,7 @@
  * under 'answers|<key>'), MAX_TOTAL entries in all, and the FOLLOW_LIMIT edge binding per address.
  */
 import { DAY_MS, spend, waitSeconds } from './budget.js';
-import { FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
+import { AT_AHEAD_MS, FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
 export const ANSWER_MAX_BYTES = 65_536;
 export const ANSWER_MAX_ENTRIES = 8;
@@ -92,6 +92,7 @@ export async function handleAnswers(request, env, now = Date.now()) {
   if (slow) return slow;
   const at = /^\d{1,16}$/.test(url.searchParams.get('at') ?? '') ? Number(url.searchParams.get('at')) : NaN;
   if (!whole(at, UNIX_FROM * 1000, UNIX_TO * 1000)) return bad(['at must be milliseconds since 1970 between 2020 and 2100']);
+  if (at > now + AT_AHEAD_MS) return bad(['at is more than 10 minutes ahead of the collector clock: check this device\'s clock']);
   const declared = request.headers.get('content-length');
   if (declared === null) return reply({ error: 'content-length is required' }, 411);
   if (Number(declared) > ANSWER_MAX_BYTES) return reply({ error: 'too big' }, 413);

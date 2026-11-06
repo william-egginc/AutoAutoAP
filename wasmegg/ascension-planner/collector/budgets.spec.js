@@ -175,6 +175,14 @@ describe('C2/C6: answers have a byte budget, a daily new-entry cap, and expire',
     expect((await put(key(1), { now: T0 + 5000 })).status).toBe(200);
     expect((await put(key(3), { now: T0 + 86_400_001 })).status).toBe(200);
   });
+  it('an `at` more than 10 minutes ahead of the collector clock is 400 (QA C4c, answers too), 9 minutes is fine', async () => {
+    const send = at => handleAnswers(new Request(`https://c.example/answers?k=${key(1)}&e=e1&at=${at}`, { method: 'PUT', headers: { 'content-length': String(gzBody(1).length) }, body: gzBody(1) }), env, T0);
+    const res = await send(T0 + 365 * 86_400_000);
+    expect(res.status).toBe(400);
+    expect((await res.json()).problems.join(' ')).toMatch(/at /);
+    expect((await send(T0 + 11 * 60_000)).status).toBe(400);
+    expect((await send(T0 + 9 * 60_000)).status).toBe(200);
+  });
   it('pruneAnswers drops entries not written for ANSWER_KEEP_DAYS and keeps the rest', async () => {
     seed(3, 1000, T0 - (ANSWER_KEEP_DAYS + 1) * 86_400_000);
     env.WATCH._db.prepare('INSERT INTO answers (key, e, at, updated, bytes, data) VALUES (?, ?, ?, ?, ?, ?)').run(key(1), 'e1', T0, T0 - 86_400_000, 1000, 'AAAA');
