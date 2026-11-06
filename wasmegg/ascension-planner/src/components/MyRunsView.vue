@@ -111,7 +111,7 @@
             @tick="tracker.toggleTick"
             @clear="tracker.clearTick"
             @replan="tracker.replan"
-            @retry="page.retryBuildUp"
+            @retry="tracker.retry(); page.retryBuildUp()"
             @show-goal="page.selectGoal"
           />
         </template>

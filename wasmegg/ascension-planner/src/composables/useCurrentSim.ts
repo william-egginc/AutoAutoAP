@@ -105,7 +105,14 @@ export function setSimRunner(f: (() => Promise<SimRunner | null> | SimRunner | n
  * and once it has run `slowMs` Right now adds "(can take a few minutes)". Leaving My runs lets it go; the next visit
  * starts it again, or reads the record when it finished.
  */
-const TIMING = { delayMs: 3000, slowMs: 20_000, retryMs: 60_000 };
+/**
+ * `runMs` (spec-buildup-stuck, 6 Nov 2026: Safari's Build-up tracker said "working it out" for hours on a save a
+ * headless run plans in about 2 s): the longest one run may take, worker start included. The pool's own watchdog
+ * (search/pool.ts) misses a worker that died or never loaded while the tab was hidden (every sweep of a throttled tab
+ * reads as a suspend and is skipped), so the run is failed here instead: said, with Try again, never 'working' for good.
+ * The slowest simulation measured is 199 s (synthetic saves, 26 Oct 2026).
+ */
+const TIMING = { delayMs: 3000, slowMs: 20_000, retryMs: 60_000, runMs: 6 * 60_000 };
 let timing = { ...TIMING };
 /** Specs: other delays (null: back to the defaults). */
 export function setSimTiming(t: Partial<typeof TIMING> | null): void {
@@ -200,6 +207,25 @@ export function useCurrentSim(
     }, timing.slowMs);
     const began = Date.now();
     let result: SimState;
+    // The bound (`runMs`): past it the run is let go (its answer, if one ever comes, dropped) and said failed, as a
+    // failure of its own would be. A timer beside the run, so the run's own path is not changed.
+    const runTimer = setTimeout(() => {
+      if (id !== asked) return;
+      const reason = `Error: it did not finish in ${Math.round(timing.runMs / 60_000)} minutes`;
+      console.warn('My runs: simulating the ascension you are in failed:', reason);
+      buildUpLog(`run timed out${have ? ' (planFailed)' : ''}: ${reason}`);
+      letGo();
+      const tries = (failed.get(req.key)?.tries ?? 0) + 1;
+      failed.set(req.key, { reason, tries: have ? 2 : tries });
+      const out: SimState = have ? { ...have, planFailed: reason } : { key: req.key, status: 'failed', reason, ...(tries < 2 ? { retrying: true } : {}) };
+      setState(out, out.status);
+      const again = asked;
+      if (out.status === 'failed' && out.retrying)
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
+          if (again === asked && request.value?.key === req.key && !busy.value) schedule(req);
+        }, timing.retryMs);
+    }, timing.runMs);
     try {
       const inputs = perfStep('sim request build', () => req.inputs());
       const r = await perfStep('sim runner', () => makeRunner());
@@ -250,6 +276,7 @@ export function useCurrentSim(
       }
       result = { key: req.key, status: 'done', leg, at, ...(buildUp ? { buildUp } : {}), ...(noPlan ? { planFailed: noPlan } : {}) };
     } catch (err) {
+      clearTimeout(runTimer);
       if (id !== asked) return;
       if (wasStopped(err) && !stopRetried.has(req.key)) {
         // Stopped from outside: asked again once, the leg (if any) on screen meanwhile. Never 'working' for good.
@@ -269,6 +296,7 @@ export function useCurrentSim(
       // Only the plan was wanted: the leg stays as it was, and it is not tried again on this page.
       result = have ? { ...have, planFailed: reason } : { key: req.key, status: 'failed', reason, ...(tries < 2 ? { retrying: true } : {}) };
     }
+    clearTimeout(runTimer);
     runner?.terminate();
     runner = null;
     runningKey = null;

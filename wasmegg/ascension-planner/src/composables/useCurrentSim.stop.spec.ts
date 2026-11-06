@@ -32,7 +32,7 @@ beforeEach(() => {
   });
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   runs = [];
-  setSimTiming({ delayMs: 3000, retryMs: 60_000 });
+  setSimTiming({ delayMs: 3000, retryMs: 60_000, runMs: 60 * 60_000 }); // the run bound (spec-buildup-stuck) is not what these say
   setSimRunner(
     (): SimRunner => ({
       run: (...args: unknown[]) => new Promise((resolve, reject) => runs.push({ args, resolve, reject })),
