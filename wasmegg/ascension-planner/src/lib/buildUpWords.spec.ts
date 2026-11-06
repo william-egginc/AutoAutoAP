@@ -13,7 +13,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CHEAP_SWEEP_MARK, RANGE_ARROW, researchRangeWords } from './buildUpWords';
+import { allResearches } from 'lib';
+import {
+  CHEAP_SWEEP_MARK,
+  MAX_LEVEL_WORD,
+  RANGE_ARROW,
+  levelWords,
+  researchMaxLevel,
+  researchRangeWords,
+} from './buildUpWords';
 import { researchParts, researchWords, sweepMarked } from './buildUpTracker';
 import { resultCodeHash, resultCodeInputs } from './resultCodeHash';
 import { mt } from './buildUpTracker.fixture';
@@ -114,6 +122,68 @@ describe("the Manual Planner's wording (components/summaries/CuriositySummary.vu
       ['Comfortable Nests', 0, 7],
     ] as const)
       expect(researchRangeWords(n, a, b)).toBe(manual(n, a, b).replace(' -> ', ` ${RANGE_ARROW} `));
+  });
+});
+
+/**
+ * spec-maxlevel (6 Nov 2026, Jordan: "when it hits the max level just say max"): a range that ends on the research's
+ * max level reads "max" in place of the number, "Enlightened Chickens (102 → max)". The max is the game's, from the
+ * research data (lib/researches.json `levels`), not a list of our own. Only the level AFTER the buy: a range that stops
+ * short of the max keeps its numbers. A one-level research (Bigger Eggs, Hatchery Rebuild, USDE Prime Certification,
+ * Timeline Splicing) keeps "(0 → 1)": "Bigger Eggs (0 → max)" says no more than "(0 → 1)" and reads as if there were
+ * levels to buy out (notes ~/code/aaap-tools/notes/spec-maxlevel.md).
+ */
+describe('the max level reads "max"', () => {
+  type Res = { id: string; name: string; levels: number };
+  const data = allResearches as unknown as Res[];
+
+  it('"Enlightened Chickens (102 → max)": the range ends on its max (150)', () => {
+    expect(MAX_LEVEL_WORD).toBe('max');
+    expect(researchMaxLevel('enlightened_chickens')).toBe(150);
+    expect(researchRangeWords('Enlightened Chickens', 102, 150, 'enlightened_chickens')).toBe(
+      'Enlightened Chickens (102 → max)'
+    );
+  });
+
+  it('short of the max stays numbers: (80 → 90), (102 → 149)', () => {
+    expect(researchRangeWords('Enlightened Chickens', 80, 90, 'enlightened_chickens')).toBe(
+      'Enlightened Chickens (80 → 90)'
+    );
+    expect(researchRangeWords('Enlightened Chickens', 102, 149, 'enlightened_chickens')).toBe(
+      'Enlightened Chickens (102 → 149)'
+    );
+  });
+
+  it('the two Internal Hatchery Expansions have their own max (15 and 30): told apart by id, not name', () => {
+    const n = 'Internal Hatchery Expansion';
+    expect(researchRangeWords(n, 14, 15, 'internal_hatchery3')).toBe(`${n} (14 → max)`);
+    expect(researchRangeWords(n, 14, 15, 'internal_hatchery4')).toBe(`${n} (14 → 15)`);
+    expect(researchRangeWords(n, 29, 30, 'internal_hatchery4')).toBe(`${n} (29 → max)`);
+  });
+
+  it('a one-level research keeps "(0 → 1)"', () => {
+    expect(researchMaxLevel('bigger_eggs')).toBe(1);
+    expect(researchRangeWords('Bigger Eggs', 0, 1, 'bigger_eggs')).toBe('Bigger Eggs (0 → 1)');
+  });
+
+  it('no id, or an id the data does not know: numbers, as before', () => {
+    expect(researchRangeWords('Enlightened Chickens', 102, 150)).toBe('Enlightened Chickens (102 → 150)');
+    expect(researchMaxLevel('not_a_research')).toBeNull();
+    expect(researchMaxLevel(undefined)).toBeNull();
+    expect(researchRangeWords('X', 4, 5, 'not_a_research')).toBe('X (4 → 5)');
+  });
+
+  it('every research in the game data: "max" at its max level, numbers at every level below it', () => {
+    expect(data.length).toBeGreaterThan(50);
+    for (const r of data) {
+      expect(researchMaxLevel(r.id), r.id).toBe(r.levels);
+      for (let to = 1; to <= r.levels; to++) {
+        const want = to === r.levels && r.levels > 1 ? 'max' : String(to);
+        expect(levelWords(to, r.levels), `${r.id} ${to}`).toBe(want);
+        expect(researchRangeWords(r.name, to - 1, to, r.id), `${r.id} ${to}`).toBe(`${r.name} (${to - 1} → ${want})`);
+      }
+      expect(researchRangeWords(r.name, 0, r.levels, r.id)).toBe(`${r.name} (0 → ${r.levels > 1 ? 'max' : '1'})`);
+    }
   });
 });
 
