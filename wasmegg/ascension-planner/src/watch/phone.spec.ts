@@ -5,6 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newWatchId, newWatchSecret, sealHeartbeat, type WatchHeartbeat } from '@/search/watchLink';
+import { settle } from '@/watch/specSettle';
 
 const ID = newWatchId();
 const SECRET = newWatchSecret();
@@ -34,10 +35,6 @@ const hb: WatchHeartbeat = {
   startedAt: T0 - 3600_000,
   updatedAt: T0,
   workers: 8,
-};
-
-const settle = async () => {
-  for (let i = 0; i < 8; i++) await new Promise(r => setImmediate(r));
 };
 
 async function startAt(hash: string): Promise<void> {
