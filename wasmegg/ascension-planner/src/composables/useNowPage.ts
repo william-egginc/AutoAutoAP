@@ -95,7 +95,9 @@ import {
   todayIn,
   type CardCandidate,
   type PricedSetup,
+  type SetupCheck,
 } from '@/lib/currentAnswer';
+import { pricedWithDays } from '@/lib/pricedWithWords';
 import { eggLines, farmFacts, saveEggCountsOf, saveFarmOf } from '@/lib/farmFacts';
 import { afterShiftLines, afterShiftNote, eggClockLines, eggGoalLines, shiftRates } from '@/lib/nextTeEgg';
 import { nextShiftCostAt, plannedShiftsCost } from '@/lib/shiftCost';
@@ -330,6 +332,9 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
   const follows = useFollowStore();
   const now = useMinuteClock();
   const zone = computed(() => planner.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  /** "priced with awake hours 8 am to 11 pm, no time off, and your 9 no-prestige days": the no-prestige days are the
+   *  ones Right now's steps hold for (lib/pricedWithWords.ts; fluff review 2, 5 Nov 2026). */
+  const pricedWithNow = (c: SetupCheck): string => pricedWithDays(pricedWithWords(c), store.noPrestige);
 
   // ------------------------------------------------------------------------------------------ the save
 
@@ -1083,7 +1088,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
           plan: p,
           goal: g,
           state: price.source,
-          pricedWith: pricedWithWords(price.candidate.check),
+          pricedWith: pricedWithNow(price.candidate.check),
           secondary: null,
           key: sel.goal.key,
           name: sel.goal.name,
@@ -1107,7 +1112,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       shownLast.set(heldKeyOf(sel.goal.key, p.chain), { at: pick.source.at, card, plan: null });
       return {
         card,
-        plan: { plan: p, goal: g, state: 'this-save', pricedWith: pricedWithWords(currentSetup(sn.setup)), secondary: null, key: sel.goal.key, name: sel.goal.name, followed: card },
+        plan: { plan: p, goal: g, state: 'this-save', pricedWith: pricedWithNow(currentSetup(sn.setup)), secondary: null, key: sel.goal.key, name: sel.goal.name, followed: card },
       };
     }
     /** While it is worked out, or why it can't be (Right now's Next step). */
@@ -1252,7 +1257,7 @@ export function useNowPage(o: { myRows: Ref<BoardRow[] | null>; boardRows: Ref<B
       plan: c.plan,
       goal: goalOf(sel.goal),
       state: pick.state,
-      pricedWith: pricedWithWords(c.check),
+      pricedWith: pricedWithNow(c.check),
       secondary: pick.secondary ? { plan: pick.secondary.plan, label: otherSetupLabel(pick.secondary.check) } : null,
       key: sel.goal.key,
       name: sel.goal.name,

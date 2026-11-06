@@ -1077,6 +1077,7 @@ import { sourceOfLevel } from '@/lib/followCloud';
 import { foundLevel } from '@/lib/searchPointer';
 import { followableAnswer, screenGoalKey, type ResultFollow } from '@/lib/follow';
 import { pricedWithLine } from '@/lib/pricedWith';
+import { pricedWithDays } from '@/lib/pricedWithWords';
 import { thisDevice } from '@/search/device';
 import {
   byDatePlan,
@@ -3101,8 +3102,6 @@ const atCeiling = computed(
 function inPlannerZone(unixSeconds: number): string {
   return showDateTime(unixSeconds, plannerZone.value);
 }
-/** The hours and time off the answer was priced with: its own recorded settings, never the live setup
- *  (lib/pricedWith.ts); '' for an answer from before settings were recorded. */
 /** "This Fast search ran on ..., on your save of ..., and found 307 TE." (lib/lastRunLine.ts), from the kept result. */
 const ranLine = computed(() => {
   const r = result.value;
@@ -3118,5 +3117,14 @@ const ranLine = computed(() => {
     now: Math.floor(Date.now() / 1000),
   });
 });
-const resultPricedWith = computed(() => (result.value?.settings ? pricedWithLine(result.value.settings) : ''));
+/** The no-prestige days a run recorded (stores/chainSearch.ts `RunSettings.noPrestige`; search/deadlineStore.ts's
+ *  type leaves them out, and none before 24 Oct 2026). */
+function recordedNoPrestige(s: object): { from: string; to: string }[] | undefined {
+  return (s as { noPrestige?: { from: string; to: string }[] }).noPrestige;
+}
+/** The hours, time off and no-prestige days the answer was priced with: its own recorded settings, never the live
+ *  setup (lib/pricedWith.ts, lib/pricedWithWords.ts); '' for an answer from before settings were recorded. */
+const resultPricedWith = computed(() =>
+  result.value?.settings ? pricedWithDays(pricedWithLine(result.value.settings), recordedNoPrestige(result.value.settings)) : ''
+);
 </script>

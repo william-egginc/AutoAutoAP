@@ -1179,6 +1179,7 @@ const kept = {
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { pricedWithLine } from '@/lib/pricedWith';
+import { pricedWithDays } from '@/lib/pricedWithWords';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
 import { lastRunLine } from '@/lib/lastRunLine';
@@ -2370,5 +2371,6 @@ const resuming = ref('');
 const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
 /** The hours and time off this run was priced with (its own settings, not the live setup); '' when no run's
  *  settings are known (lib/pricedWith.ts). */
-const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithLine(store.runSettingsUsed) : ''));
+// …and the no-prestige days it held for (lib/pricedWithWords.ts; fluff review 2, 5 Nov 2026).
+const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithDays(pricedWithLine(store.runSettingsUsed), store.runSettingsUsed.noPrestige) : ''));
 </script>

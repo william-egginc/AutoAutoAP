@@ -72,11 +72,11 @@ describe('the result names its hours and time off (item 10)', () => {
     for (const f of ['ChainSearchPanel.vue', 'InsanePanel.vue']) {
       const src = read(f);
       expect(src, f).toContain(':priced-with="pricedWith"');
-      expect(src, f).toContain('store.runSettingsUsed ? pricedWithLine(store.runSettingsUsed)');
+      expect(src, f).toContain('store.runSettingsUsed ? pricedWithDays(pricedWithLine(store.runSettingsUsed)');
     }
     const deadline = read('DeadlinePanel.vue');
     expect(deadline).not.toContain('with the hours and time off in Your setup');
-    expect(deadline).toContain('result.value?.settings ? pricedWithLine(result.value.settings)');
+    expect(deadline).toContain('result.value?.settings ? pricedWithDays(pricedWithLine(result.value.settings)');
     expect(deadline).toContain('{{ resultPricedWith }}.');
     // The instant answer has no priced-with line since 23 Oct 2026: it prices nothing (no Check exactly).
     expect(read('InstantRoute.vue')).not.toContain('pricedWithLine(');
