@@ -14,6 +14,7 @@ import { createPinia, defineStore, setActivePinia, type Pinia } from 'pinia';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useFollowStore } from '@/stores/follow';
 import { followKey, type CloudValue } from '@/lib/followCloud';
+import { settle } from '@/watch/specSettle';
 
 const ID = 'EI1234567890123456';
 const SUBMIT = 'https://collector.example/submit';
@@ -22,12 +23,35 @@ const T1 = T0 + 2 * 3600_000;
 const ROUTE_A = [218, 247, 277, 313];
 const ROUTE_B = [197, 218, 247, 285, 313];
 const EGG = 'eggday-2027';
+const FETCH_DELAY_MS = Number(process.env.FOLLOW_SPEC_FETCH_DELAY_MS ?? 0) || 0;
+const realSetTimeout = globalThis.setTimeout;
+const realNow = () => Number(process.hrtime.bigint() / 1_000_000n);
+
+/** Wait (real time, 5 s at most; Date is faked here, so not Date.now) until `done()`, turning the event loop between looks. */
+async function until(what: string, done: () => boolean): Promise<void> {
+  const t0 = realNow();
+  while (!done()) {
+    if (realNow() - t0 > 5000) throw new Error(`follow spec: ${what} still pending after 5000 ms`);
+    await new Promise<void>(r => setImmediate(r));
+  }
+}
 
 /** The collector's /follow: each goal's last PUT (no `at` comparison), and every request made. */
 function collector() {
   const goals = new Map<string, { value: CloudValue; version: number; updatedAt: number }>();
   const calls: { method: string; goal?: string; at?: number }[] = [];
+  let pending = 0;
   const f = async (url: string, init?: { method?: string; body?: string }) => {
+    pending++;
+    try {
+      // Opt-in slow collector for checking the waits (FOLLOW_SPEC_FETCH_DELAY_MS=50), like the watch specs' slow crypto.
+      if (FETCH_DELAY_MS) await new Promise<void>(r => realSetTimeout(r, FETCH_DELAY_MS));
+      return await handle(url, init);
+    } finally {
+      pending--;
+    }
+  };
+  const handle = async (_url: string, init?: { method?: string; body?: string }) => {
     const method = init?.method ?? 'GET';
     const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
     if (method === 'PUT') {
@@ -40,7 +64,7 @@ function collector() {
     calls.push({ method });
     return ok({ goals: Object.fromEntries(goals), now: Date.now() });
   };
-  return { f, goals, calls, puts: () => calls.filter(c => c.method === 'PUT') };
+  return { f, goals, calls, idle: () => pending === 0, puts: () => calls.filter(c => c.method === 'PUT') };
 }
 type Collector = ReturnType<typeof collector>;
 
@@ -68,10 +92,12 @@ function profile(c: Collector) {
     useInitialStateStore().rawBackup = { eiUserId: ID } as never;
     const follows = useFollowStore();
     const key = await followKey(ID);
-    // The key is worked out from the ID (crypto.subtle): flushed, not waited for (vi.waitFor would move the clock).
-    for (let i = 0; i < 200 && follows.cloudKey !== key; i++) await new Promise(r => setImmediate(r));
+    // The key is worked out from the ID (crypto.subtle): wait until it is there (vi.waitFor would move the clock).
+    await until('the follow key', () => follows.cloudKey === key);
     expect(follows.cloudKey).toBe(key);
     await follows.loadCloud();
+    await until('the collector', c.idle);
+    await settle();
     return follows;
   }
   /** The page as it is (no reload): the same pinia and storage. */
