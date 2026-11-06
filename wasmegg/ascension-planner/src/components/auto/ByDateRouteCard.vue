@@ -47,6 +47,7 @@
         :reach-at="route.reachAt"
         :zone="zone"
         :run-cost="runCost"
+        :deadline="deadline"
         no-rate
         green
       />
