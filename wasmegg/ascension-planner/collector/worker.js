@@ -68,7 +68,7 @@ import { handleFollow, isFollowRequest } from './follow.js';
 import { handlePrefs, isPrefsRequest } from './prefs.js';
 import { handleBigCsv, isBigCsvRequest } from './bigcsv.js';
 import { handleAnswers, isAnswersRequest, pruneAnswers } from './answers.js';
-import { CSVD_DAY_WRITES, CSVD_RUN_BYTES, DAY_MS, FOREVER_MS, pruneBudgets, spend, waitSeconds } from './budget.js';
+import { CSVD_DAY_WRITES, CSVD_RUN_BYTES, CSVD_TTL_SECONDS, SUBMITS_PER_DAY, csvDayRefusal, DAY_MS, FOREVER_MS, pruneBudgets, spend, waitSeconds } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
@@ -3277,6 +3277,13 @@ export default {
       if (env.RANK_SIMS && record.simVersion && !String(env.RANK_SIMS).split(',').map(x => x.trim()).includes(record.simVersion)) {
         record.flags = [...(record.flags || []), 'other-simulator'];
       }
+      // A day-wide cap on accepted sends (red team C5, quotas 6 Nov): each costs about 3 or 4 of KV's 1,000 free writes a day.
+      const sendsPerDay = Number(env.SUBMITS_PER_DAY) || SUBMITS_PER_DAY;
+      const sendDay = await spend(env, 'submits-day', 1, sendsPerDay, Date.now(), DAY_MS);
+      if (!sendDay.ok) {
+        const retryAfter = waitSeconds(sendDay.since, DAY_MS, Date.now());
+        return json({ error: 'the collector has taken all the results it can today', retryAfter }, 429, { 'retry-after': String(retryAfter) });
+      }
       // A flagged run goes under its own prefix, so the main board -- /leaderboard, /all and every
       // analysis built on them -- never sees it, and no reader has to remember to filter.
       const board = record.flags?.length ? 'flag' : 'sub';
@@ -3754,7 +3761,9 @@ export default {
       }
       const runBudget = await spend(env, `csvd|${run}`, body.byteLength, CSVD_RUN_BYTES, now, FOREVER_MS);
       if (!runBudget.ok) return json({ error: `this run's CSV deltas are over ${CSVD_RUN_BYTES / 1048576} MB` }, 413);
-      await env.SUBMISSIONS.put(key, body, { metadata: { len, crc, count, at: Date.now() } });
+      const csvdBytes = await csvDayRefusal(env, body.byteLength, now, json);
+      if (csvdBytes) return csvdBytes;
+      await env.SUBMISSIONS.put(key, body, { metadata: { len, crc, count, at: Date.now() }, expirationTtl: CSVD_TTL_SECONDS });
       return json({ ok: true, seq, bytes: body.byteLength });
     }
 
@@ -3799,6 +3808,8 @@ export default {
           return json({ error: `head too large (${head.byteLength} bytes, limit ${MAX.CSV_BYTES})` }, 413);
         }
         if (!endsSynced(head)) return json({ error: 'a head must be a sync-flushed raw deflate segment' }, 400);
+        const headDay = await csvDayRefusal(env, head.byteLength, Date.now(), json);
+        if (headDay) return headDay;
         const missing = [];
         let total = len;
         let all = crc;
@@ -3841,6 +3852,8 @@ export default {
       if (body.byteLength > MAX.CSV_BYTES) {
         return json({ error: `CSV too large (${body.byteLength} bytes gzipped, limit ${MAX.CSV_BYTES})` }, 413);
       }
+      const csvDay = await csvDayRefusal(env, body.byteLength, Date.now(), json);
+      if (csvDay) return csvDay;
       // A later part is a slice from the middle of one gzip stream: stored as it came, and done.
       if (split && split.part > 0) {
         await env.SUBMISSIONS.put(csvPartKey(id, split.part, base), body, ttl);

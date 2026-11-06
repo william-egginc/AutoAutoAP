@@ -12,6 +12,12 @@ export const FOREVER_MS = 1e15;
 
 /** Bytes one run's /csvd deltas may add up to (a long run's CSV in KV is a few MB; 8 MB is one request's cap). */
 export const CSVD_RUN_BYTES = 32 * 1024 * 1024;
+/** Gzip bytes of CSV (/csv heads, whole files, parts, and /csvd deltas) written to KV a day: real use is under 10 MB (measured 6 Nov: mean 0.15 MB a CSV, largest 1.7 MB). KV's free storage is 1 GB. */
+export const CSV_DAY_BYTES = 32 * 1024 * 1024;
+/** Accepted /submit sends a day for the whole collector (each is about 3 or 4 KV writes of the 1,000 a day). */
+export const SUBMITS_PER_DAY = 150;
+/** Seconds a /csvd delta lives in KV if nothing sweeps it first: the sweep deletes only 20 a day. A run's deltas are stitched into its CSV long before. */
+export const CSVD_TTL_SECONDS = 7 * 86_400;
 /** /csvd writes a day for the whole collector: KV allows 1,000 writes a day and the board needs most of them. */
 export const CSVD_DAY_WRITES = 300;
 
@@ -48,4 +54,13 @@ export const waitSeconds = (since, windowMs, now) => Math.max(1, Math.ceil((sinc
 export async function pruneBudgets(env, now) {
   if (!env.WATCH) return;
   await env.WATCH.prepare('DELETE FROM follow_rate WHERE since < ?').bind(now - 3 * DAY_MS).run();
+}
+
+/** Spend `bytes` of the day's CSV budget. `null` if there is room, else the 429 `{ error, retryAfter }` to send. */
+export async function csvDayRefusal(env, bytes, now, reply) {
+  const cap = Number(env.CSV_DAY_BYTES) || CSV_DAY_BYTES;
+  const r = await spend(env, 'csv-bytes-day', bytes, cap, now, DAY_MS);
+  if (r.ok) return null;
+  const retryAfter = waitSeconds(r.since, DAY_MS, now);
+  return reply({ error: 'the collector has taken all the CSV bytes it can today', retryAfter }, 429, { 'retry-after': String(retryAfter) });
 }

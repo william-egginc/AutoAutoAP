@@ -24,6 +24,7 @@ function makeKV() {
     },
     async put(k, v, opts) {
       m.set(k, v);
+      (this._ttl ||= new Map()).set(k, opts && opts.expirationTtl);
       if (opts && opts.metadata) meta.set(k, opts.metadata);
       else meta.delete(k);
     },
@@ -188,5 +189,60 @@ describe('C2/C6: answers have a byte budget, a daily new-entry cap, and expire',
     env.WATCH._db.prepare('INSERT INTO answers (key, e, at, updated, bytes, data) VALUES (?, ?, ?, ?, ?, ?)').run(key(1), 'e1', T0, T0 - 86_400_000, 1000, 'AAAA');
     await pruneAnswers(env, T0);
     expect(env.WATCH._db.prepare('SELECT key FROM answers').all().map(r => r.key)).toEqual([key(1)]);
+  });
+});
+
+describe('KV and D1 quotas: daily bytes and rows across the anonymous write paths (Jordan 6 Nov)', () => {
+  const submit = async (extra, n) =>
+    (
+      await call('/submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'cf-connecting-ip': `7.0.${n >> 8}.${n & 255}`, 'x-owner-token': String(n).padStart(32, 'e') },
+        body: JSON.stringify({ schema: 3, chain: [195, 490], durationDays: 700 + n, finalTE: 490, ...extra }),
+      })
+    ).json();
+  const gzCsv = bytes => {
+    const b = Buffer.concat([Buffer.from(zlib.gzipSync(Buffer.from('a,b\n1,2\n'))), Buffer.alloc(bytes)]);
+    return b;
+  };
+  const postCsv = (id, token, body) => call(`/csv?id=${id}`, { method: 'POST', headers: { 'x-upload-token': token, 'cf-connecting-ip': '7.9.9.9' }, body });
+
+  it('a csvd delta is stored with an expiry, so KV drops it without a delete (the sweep deletes only 20 a day)', async () => {
+    const sub = await (await call('/submit?quarantine=1', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '1.1.1.1', 'x-owner-token': OWNER },
+      body: JSON.stringify({ schema: 7, chain: [400, 490], finalTE: 490, durationDays: 100, provisional: true, csvRun: 'ab12cd34ef56ab78' }),
+    })).json();
+    const body = Buffer.alloc(1000);
+    body.set([0, 0, 255, 255], 996);
+    expect((await call('/csvd?run=ab12cd34ef56ab78&seq=0&len=1&crc=0&count=0', { method: 'POST', headers: { 'x-upload-token': sub.deltaToken, 'cf-connecting-ip': '1.1.1.1' }, body })).status).toBe(200);
+    const ttl = env.SUBMISSIONS._ttl.get('csvd:ab12cd34ef56ab78:0');
+    expect(ttl).toBeGreaterThan(86_400);
+    expect(ttl).toBeLessThanOrEqual(14 * 86_400);
+  });
+  it('CSV_DAY_BYTES caps the CSV bytes written to KV in a day across /csv and /csvd: 429 with retryAfter, nothing stored', async () => {
+    env.CSV_DAY_BYTES = String(3 * 1024 * 1024);
+    const a = await submit({}, 1);
+    const b = await submit({}, 2);
+    expect(a.uploadToken).toBeTruthy();
+    expect((await postCsv(a.id, a.uploadToken, gzCsv(2 * 1024 * 1024))).status).toBe(200);
+    const res = await postCsv(b.id, b.uploadToken, gzCsv(2 * 1024 * 1024));
+    expect(res.status).toBe(429);
+    expect((await res.json()).retryAfter).toBeGreaterThan(0);
+    expect(env.SUBMISSIONS._m.has(`csv:${b.id}`)).toBe(false);
+  });
+  it('SUBMITS_PER_DAY caps new rows a day for the whole collector (each costs about 3 KV writes): 429, nothing stored', async () => {
+    env.SUBMITS_PER_DAY = '2';
+    expect((await submit({}, 11)).ok).toBe(true);
+    expect((await submit({}, 12)).ok).toBe(true);
+    const before = env.SUBMISSIONS._m.size;
+    const res = await call('/submit', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'cf-connecting-ip': '7.0.0.13', 'x-owner-token': '13'.padStart(32, 'e') },
+      body: JSON.stringify({ schema: 3, chain: [195, 490], durationDays: 713, finalTE: 490 }),
+    });
+    expect(res.status).toBe(429);
+    expect((await res.json()).retryAfter).toBeGreaterThan(0);
+    expect(env.SUBMISSIONS._m.size).toBe(before);
   });
 });
