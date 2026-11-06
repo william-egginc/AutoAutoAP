@@ -213,7 +213,7 @@ describe('every foldable part reads lib/panelFold.ts', () => {
 
   it('the source: each section is a PanelFold, and the old hand-made folds are gone', () => {
     const read = (f: string) => fs.readFileSync(path.join(__dirname, f), 'utf8');
-    const where: Record<FoldSection, string[]> = {
+    const where: Record<Exclude<FoldSection, 'setupMore'>, string[]> = {
       whatItDoes: ['StrongerBox.vue'],
       searchSettings: ['ChainSearchPanel.vue', 'DeadlinePanel.vue'],
       acknowledgement: ['FindBar.vue'],
