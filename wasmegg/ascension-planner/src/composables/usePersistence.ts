@@ -1,6 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useActionsStore } from '@/stores/actions';
-import { hashID, saveMetadata, loadMetadata } from '@/lib/storage/db';
+import { hashID, saveMetadata, loadMetadata, putMetadataRecords } from '@/lib/storage/db';
 import { exportPlanData } from '@/stores/actions/io';
 
 const SYNC_CHANNEL_NAME = 'ascension_sync';
@@ -105,28 +105,70 @@ const handleMessage = (event: MessageEvent) => {
 };
 
 // ── Draft persistence ──
+/**
+ * The draft could not be READ (the database failed or did not answer in time, lib/storage/db.ts): there may
+ * be one stored that this page never saw, so this page must not autosave over it. Cleared when a later read
+ * finds none (`saveActiveDraft`) or by the next restore (an account switch).
+ */
+let draftUnread = false;
+
+/**
+ * Restores this tab's draft. Never throws (red team 6 Nov 2026, R1): the page's startup awaited this, so one
+ * draft this build can't import (a newer beta wrote it, then a rollback) or a database that never answered
+ * stopped My runs and the Auto Planner setup on every reload. A draft that fails to import is kept aside
+ * under `unreadable_draft_<session>` and the page carries on without it; the import is all or nothing
+ * (actions store `importPlan`), so the stores are as they were.
+ */
 async function loadActiveDraft() {
   if (!partitionHash.value) return;
+  const hash = partitionHash.value;
+  const key = `active_draft_${getSessionId()}`;
 
-  const draft = await loadMetadata(partitionHash.value, `active_draft_${getSessionId()}`);
-  if (draft) {
-    isSyncing.value = true;
+  let draft: unknown;
+  try {
+    draft = await loadMetadata(hash, key);
+  } catch (e) {
+    draftUnread = true;
+    console.warn('Could not read the saved draft; going on without it, and not saving over it:', e);
+    return;
+  }
+  if (!draft) return;
+  isSyncing.value = true;
+  try {
+    const actionsStore = useActionsStore();
+    await actionsStore.importPlan(JSON.stringify(draft), true, true);
+
+    const planData = exportPlanData(actionsStore.actions, actionsStore.initialSnapshot);
+    const dataForComparison = { ...planData, timestamp: 0 };
+    lastSyncedDataStr = JSON.stringify(dataForComparison);
+  } catch (e) {
+    console.warn(`The saved draft could not be opened; it is kept aside as unreadable_draft_${getSessionId()}:`, e);
     try {
-      const actionsStore = useActionsStore();
-      await actionsStore.importPlan(JSON.stringify(draft), true, true);
-
-      const planData = exportPlanData(actionsStore.actions, actionsStore.initialSnapshot);
-      const dataForComparison = { ...planData, timestamp: 0 };
-      lastSyncedDataStr = JSON.stringify(dataForComparison);
-    } finally {
-      isSyncing.value = false;
+      await putMetadataRecords(hash, [
+        { key: `unreadable_draft_${getSessionId()}`, value: draft, raw: true },
+        { key, value: null },
+      ]);
+    } catch (e2) {
+      console.warn('Could not set the unreadable draft aside:', e2);
     }
+  } finally {
+    isSyncing.value = false;
   }
 }
 
 export function usePersistence() {
+  /** Never throws (see `loadActiveDraft`); without a hash (no crypto.subtle on a plain-http address) there is
+   *  no draft, read or saved. */
   async function initPersistence(eid: string) {
-    partitionHash.value = await hashID(eid);
+    // Not the last account's hash while this one's is worked out: an autosave then would land there.
+    partitionHash.value = '';
+    draftUnread = false;
+    try {
+      partitionHash.value = await hashID(eid);
+    } catch (e) {
+      console.warn('Could not work out where the draft is kept; going on without it:', e);
+      return;
+    }
     await loadActiveDraft();
   }
 
@@ -140,6 +182,15 @@ export function usePersistence() {
 
   async function saveActiveDraft() {
     if (!partitionHash.value || isSyncing.value) return;
+    if (draftUnread) {
+      // The database may have come back (it was only slow): save once it holds no draft this page missed.
+      try {
+        if (await loadMetadata(partitionHash.value, `active_draft_${getSessionId()}`)) return;
+        draftUnread = false;
+      } catch {
+        return;
+      }
+    }
 
     const actionsStore = useActionsStore();
     if (actionsStore.isRecalculating) return;

@@ -156,11 +156,55 @@ export function writeOptions(o: StepAwayOptions, s: KV | null = store()): void {
   }
 }
 
+/** An http(s) page, of this site where the page knows its own address: the watcher opens it. */
+function isRunPage(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+    const own = typeof location !== 'undefined' ? location.origin : undefined;
+    return !own || own === 'null' || u.origin === own;
+  } catch {
+    return false;
+  }
+}
+
+/** Only the finite times of a stored list; `bad` when there was something else there. */
+function times(v: unknown): { list: number[]; bad: boolean } {
+  if (v === undefined) return { list: [], bad: false };
+  if (!Array.isArray(v)) return { list: [], bad: true };
+  const list = v.filter((t): t is number => typeof t === 'number' && Number.isFinite(t));
+  return { list, bad: list.length !== v.length };
+}
+
+/**
+ * The run mark, checked as it is read (red team 6 Nov 2026, R6): `reopens` and `autoCarries` were defaulted
+ * with `??`, so a stored `"reopens":5` made the watcher throw on every check, and `url` went to
+ * `window.open` and `location.href` as it was. A bad list or worker count is dropped (the console says
+ * which); a mark whose address isn't an http(s) page of this site is not read at all.
+ */
 export function readRunMark(s: KV | null = store()): RunMark | null {
   try {
     const raw = JSON.parse(s?.getItem(RUN_KEY) || 'null') as RunMark | null;
     if (raw && raw.version === 1 && typeof raw.beatAt === 'number' && typeof raw.url === 'string') {
-      return { ...raw, reopens: raw.reopens ?? [], autoCarries: raw.autoCarries ?? [] };
+      if (!isRunPage(raw.url)) {
+        console.warn('The stored run mark has an address that is not a page of this site; not using it.');
+        return null;
+      }
+      const reopens = times(raw.reopens);
+      const autoCarries = times(raw.autoCarries);
+      const workersBad = raw.workers !== undefined && !(typeof raw.workers === 'number' && raw.workers >= 0);
+      const dropped = [
+        ...(reopens.bad ? ['reopens'] : []),
+        ...(autoCarries.bad ? ['autoCarries'] : []),
+        ...(workersBad ? ['workers'] : []),
+      ];
+      if (dropped.length) console.warn(`The stored run mark had a bad ${dropped.join(', ')}; dropped it.`);
+      return {
+        ...raw,
+        reopens: reopens.list,
+        autoCarries: autoCarries.list,
+        ...(workersBad ? { workers: 0 } : {}),
+      };
     }
   } catch {
     // unreadable
