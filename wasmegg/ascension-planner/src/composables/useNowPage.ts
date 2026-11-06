@@ -28,6 +28,7 @@ import {
   ANSWER_PREFIX,
   instantGoal,
   instantKey,
+  instantSaveAt,
   instantSnapKey,
   readSnapIndex,
   patchSnapshot,
@@ -295,13 +296,14 @@ export function pricingSetupFromStores(): string {
 
 export function instantKeyFromStores(deadline: number | null, finalTE: number): string | null {
   const store = useChainSearchStore();
-  const r = useInitialStateStore().rawBackup as { eiUserId?: string } | null;
+  const r = useInitialStateStore().rawBackup as { eiUserId?: string; approxTime?: number; settings?: { lastBackupTime?: number } } | null;
   if (!r?.eiUserId) return null;
   try {
     const inputs = store.collectInputs();
     const inv = virtueInventory(r);
     const filters = readFilters();
     return instantKey({
+      saveAt: instantSaveAt(r),
       playerId: r.eiUserId,
       deadline,
       finalTE,

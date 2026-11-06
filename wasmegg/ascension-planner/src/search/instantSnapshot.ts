@@ -306,6 +306,13 @@ export function instantGoal(deadline: number | null | undefined, finalTE: number
  * filters. The JSON and its key order are exactly InstantRoute's before this moved here: a different hash
  * would lose every answer saved in players' browsers (instantSnapshot.spec.ts holds golden values).
  */
+/** The save's own time for `InstantKeyInput.saveAt`, one place so the Instant route and My runs cannot drift. */
+export function instantSaveAt(
+  raw: { approxTime?: number; settings?: { lastBackupTime?: number } } | null | undefined
+): number | null {
+  return raw?.approxTime ?? raw?.settings?.lastBackupTime ?? null;
+}
+
 export function instantKey(i: InstantKeyInput): string {
   const sig = (x: number) => Number(x.toPrecision(6));
   const parts = {

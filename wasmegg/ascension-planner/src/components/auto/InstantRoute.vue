@@ -960,6 +960,7 @@ import { useInstantDuringSearch } from '@/composables/useInstantDuringSearch';
 import {
   instantGoal,
   instantKey,
+  instantSaveAt,
   instantSnapKey,
   latestSnapshotFor,
   patchSnapshot,
@@ -2638,7 +2639,7 @@ function cacheKey(): string | null {
   if (!raw?.eiUserId) return null;
   const inv = store.readInventory();
   return instantKey({
-    saveAt: raw.approxTime ?? raw.settings?.lastBackupTime ?? null,
+    saveAt: instantSaveAt(raw),
     playerId: raw.eiUserId,
     deadline: props.deadline,
     finalTE: store.finalTE,
