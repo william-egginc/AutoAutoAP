@@ -67,7 +67,8 @@ import { handleWatch, isWatchRequest, watchCron } from './watch.js';
 import { handleFollow, isFollowRequest } from './follow.js';
 import { handlePrefs, isPrefsRequest } from './prefs.js';
 import { handleBigCsv, isBigCsvRequest } from './bigcsv.js';
-import { handleAnswers, isAnswersRequest } from './answers.js';
+import { handleAnswers, isAnswersRequest, pruneAnswers } from './answers.js';
+import { CSVD_DAY_WRITES, CSVD_RUN_BYTES, DAY_MS, FOREVER_MS, pruneBudgets, spend, waitSeconds } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 import { buildCountSweep, handleBuildCount, isBuildCountRequest } from './buildcount.js';
 
@@ -3734,6 +3735,18 @@ export default {
         return json({ error: `delta too large (${body.byteLength} bytes, limit ${MAX.CSV_BYTES})` }, 413);
       }
       if (!endsSynced(body)) return json({ error: 'a delta must be a sync-flushed raw deflate segment' }, 400);
+      // Budgets (red team 6 Nov, C1): one run's deltas add up to at most CSVD_RUN_BYTES, and the whole collector
+      // takes at most CSVD_DAY_WRITES a day, so an invented owner code cannot use up KV's daily writes or storage.
+      const now = Date.now();
+      const dayWrites = Number(env.CSVD_DAY_WRITES) || CSVD_DAY_WRITES;
+      const day = await spend(env, 'csvd-day', 1, dayWrites, now, DAY_MS);
+      if (!day.ok) {
+        return json({ error: 'the collector has taken all the CSV deltas it can today', retryAfter: waitSeconds(day.since, DAY_MS, now) }, 429, {
+          'retry-after': String(waitSeconds(day.since, DAY_MS, now)),
+        });
+      }
+      const runBudget = await spend(env, `csvd|${run}`, body.byteLength, CSVD_RUN_BYTES, now, FOREVER_MS);
+      if (!runBudget.ok) return json({ error: `this run's CSV deltas are over ${CSVD_RUN_BYTES / 1048576} MB` }, 413);
       await env.SUBMISSIONS.put(key, body, { metadata: { len, crc, count, at: Date.now() } });
       return json({ ok: true, seq, bytes: body.byteLength });
     }
@@ -4199,6 +4212,8 @@ export default {
       }).catch(() => undefined)
     );
     if (prune) ctx.waitUntil(buildCountSweep(env, at).catch(() => undefined));
+    if (prune) ctx.waitUntil(pruneBudgets(env, at).catch(() => undefined));
+    if (prune) ctx.waitUntil(pruneAnswers(env, at).catch(() => undefined));
     // The sweep (see "the sweep"): once an hour, at :30, one prefix a time. KV, not D1.
     const minute = new Date(at).getUTCMinutes();
     if (minute >= 30 && minute < 35 && env.SUBMISSIONS) ctx.waitUntil(sweepGarbage(env, at).catch(() => undefined));

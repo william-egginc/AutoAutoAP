@@ -19,11 +19,18 @@
  * evicts the least recently written, so the answer is never refused for room), 30 writes an hour per key (`follow_rate`
  * under 'answers|<key>'), MAX_TOTAL entries in all, and the FOLLOW_LIMIT edge binding per address.
  */
+import { DAY_MS, spend, waitSeconds } from './budget.js';
 import { FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
 export const ANSWER_MAX_BYTES = 65_536;
 export const ANSWER_MAX_ENTRIES = 8;
 export const ANSWER_MAX_TOTAL = 20_000;
+/** Gzip bytes held in all (stored as base64, about a third more): D1's free size is 500 MB and the board, follow, prefs and big-CSV tables share it. */
+export const ANSWER_MAX_TOTAL_BYTES = 100 * 1024 * 1024;
+/** New entries a day for the whole collector (a replacement of an existing one is free): keys are free to invent. */
+export const ANSWER_NEW_PER_DAY = 300;
+/** An entry not written for this long is dropped by the cron: it is a recomputable cache, not a record. */
+export const ANSWER_KEEP_DAYS = 45;
 const E_RE = /^[A-Za-z0-9._:-]{1,96}$/;
 
 export const isAnswersRequest = url => url.pathname === '/answers' || url.pathname === '/answers/get';
@@ -94,8 +101,12 @@ export async function handleAnswers(request, env, now = Date.now()) {
 
   const have = await env.WATCH.prepare('SELECT 1 AS x FROM answers WHERE key = ? AND e = ?').bind(k, e).first();
   if (!have) {
-    const total = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM answers').first();
-    if ((total?.n ?? 0) >= ANSWER_MAX_TOTAL) return retry(3600, 'the cloud save is full right now');
+    // Red team 6 Nov, C2: a daily cap on new entries (one upsert), then the stored bytes, not only the row count.
+    const perDay = Number(env.ANSWERS_NEW_PER_DAY) || ANSWER_NEW_PER_DAY;
+    const day = await spend(env, 'answers-new-day', 1, perDay, now, DAY_MS);
+    if (!day.ok) return retry(waitSeconds(day.since, DAY_MS, now), 'the cloud save has taken all the new answers it can today');
+    const total = await env.WATCH.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(bytes), 0) AS b FROM answers').first();
+    if ((total?.n ?? 0) >= ANSWER_MAX_TOTAL || (total?.b ?? 0) + body.length > ANSWER_MAX_TOTAL_BYTES) return retry(3600, 'the cloud save is full right now');
   }
 
   // The hour's budget in one statement (as follow.js): a refused write changes no row, so it needs no read.
@@ -130,4 +141,14 @@ export async function handleAnswers(request, env, now = Date.now()) {
     .run();
   const n = evicted.meta?.changes ?? 0;
   return reply({ ok: true, updatedAt: now, ...(n ? { evicted: n } : {}) });
+}
+
+/** The cron: entries not written for ANSWER_KEEP_DAYS go (at most 500 a run, so a backlog clears over a few runs). */
+export async function pruneAnswers(env, now) {
+  if (!env.WATCH) return;
+  await env.WATCH.prepare(
+    'DELETE FROM answers WHERE (key, e) IN (SELECT key, e FROM answers WHERE updated < ? LIMIT 500)'
+  )
+    .bind(now - ANSWER_KEEP_DAYS * DAY_MS)
+    .run();
 }
