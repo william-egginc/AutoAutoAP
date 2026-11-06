@@ -160,6 +160,8 @@ describe('Sharing: the consent text folded in place, word for word', () => {
       expect(btn).toContain('aria-expanded="false"');
       expect(btn).toContain(`aria-controls="${id}-body"`);
       expect(btn).toContain('min-h-[44px]');
+      // A flex button drops the {{ ' ' }} between the words and the ›: a gap keeps them apart (seen in Chrome).
+      expect(btn).toContain(' gap-1 ');
       expect(tagWith(shown, `id="${id}-body"`)).toMatch(HIDDEN);
     }
     const t = textOf(shown);

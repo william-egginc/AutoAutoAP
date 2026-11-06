@@ -863,7 +863,7 @@ defineExpose({ reveal });
 const whatOpen = reactive({ instant: false, baseline: false });
 const savedOnlineOpen = ref(false);
 const WHAT_IS_SENT =
-  'ml-7 inline-flex min-h-[44px] items-center rounded text-body font-bold text-indigo-700 underline hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
+  'ml-7 inline-flex min-h-[44px] items-center gap-1 rounded text-body font-bold text-indigo-700 underline hover:text-indigo-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
 /** When the remembered setup was last written, for the "Remembered for this account" line. */
 const rememberedWhen = computed(() => {
   const at = store.setupRemembered?.at;
