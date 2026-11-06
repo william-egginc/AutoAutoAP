@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   HOUR_MS,
   OPTIONS_KEY,
@@ -11,6 +11,8 @@ import {
   clock12,
   fewerWorkersCap,
   heartbeatAge,
+  lastHour,
+  RUN_KEY,
   memoryHigh,
   nextReopenAllowedAt,
   rateSlow,
@@ -380,5 +382,59 @@ describe('a run still going in another tab (review, 9 Oct)', () => {
     // Account not known yet here: any account's run counts (safer than offering it twice).
     expect(runAliveElsewhere({ ...base, account: '', mark: mark() })).toBe(true);
     expect(runAliveElsewhere({ ...base, mark: mark(), runningHere: true, lockHeld: true })).toBe(false);
+  });
+});
+
+/**
+ * Red team 6 Nov 2026, R6: `reopens` and `autoCarries` were defaulted with `??`, not checked, so a stored
+ * `"reopens":5` made the watcher tab throw "filter is not a function" (watch/local.ts) on every check, and
+ * `url`, which the watcher opens, could be anything. Now each is checked on read: a bad list or worker count
+ * is dropped (the console says so), and a mark whose address isn't an http(s) page of this site is not read.
+ */
+describe('a damaged run mark (R6)', () => {
+  const stored = (v: unknown) => {
+    const s = memStore();
+    s.setItem(RUN_KEY, JSON.stringify(v));
+    return s;
+  };
+  const quiet = () => vi.spyOn(console, 'warn').mockImplementation(() => {});
+  afterEach(() => vi.restoreAllMocks());
+
+  it('reopens or autoCarries that are not lists: dropped, and the watcher helpers work on what is read', () => {
+    const warn = quiet();
+    for (const bad of [5, 'x', { 0: 1 }, null, [1, 'two', NaN]]) {
+      const m = readRunMark(stored({ ...mark(), reopens: bad, autoCarries: bad }));
+      expect(m, JSON.stringify(bad)).not.toBeNull();
+      expect(() => lastHour(m!.reopens, T0)).not.toThrow();
+      expect(() => heartbeatAge(m!, T0)).not.toThrow();
+      expect(() => canReopen(m!.autoCarries, T0)).not.toThrow();
+      expect(m!.reopens.every(t => Number.isFinite(t))).toBe(true);
+    }
+    expect(readRunMark(stored({ ...mark(), reopens: [1, 'two', 3] }))!.reopens).toEqual([1, 3]);
+    expect(warn.mock.calls.some(c => String(c[0]).includes('reopens'))).toBe(true);
+  });
+
+  it('the red team’s mark ({"version":1,"beatAt":1,"url":"x","reopens":5}) is not read: its address is no page', () => {
+    quiet();
+    expect(readRunMark(stored({ version: 1, beatAt: 1, url: 'x', reopens: 5 }))).toBeNull();
+    for (const url of ['javascript:alert(1)', 'data:text/html,hi', 'file:///etc/passwd', ''])
+      expect(readRunMark(stored(mark({ url }))), url).toBeNull();
+  });
+
+  it('a mark for another site is not read, where the page knows its own', () => {
+    quiet();
+    vi.stubGlobal('location', { origin: 'https://example.test', href: 'https://example.test/' });
+    try {
+      expect(readRunMark(stored(mark()))).not.toBeNull();
+      expect(readRunMark(stored(mark({ url: 'https://elsewhere.test/#/auto/by-date' })))).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('a worker count that is not one reads as none (the carry-on then uses the budget)', () => {
+    quiet();
+    expect(readRunMark(stored({ ...mark(), workers: 'lots' }))!.workers).toBe(0);
+    expect(readRunMark(stored(mark()))!.workers).toBe(19);
   });
 });

@@ -33,10 +33,74 @@ export interface AutoPlannerScheduleCache {
 export function loadAutoPlannerSchedule(): Partial<AutoPlannerScheduleCache> | null {
   try {
     const raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? checkSchedule(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
+}
+
+const isKnownTimeZone = (tz: string): boolean => {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+/** A real calendar date, YYYY-MM-DD (Date.UTC would roll 2026-13-40 over into a later one). */
+const isDate = (s: string): boolean => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
+};
+const isTime = (s: string): boolean => /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+const isTimes = (v: unknown): boolean =>
+  !!v &&
+  typeof v === 'object' &&
+  !Array.isArray(v) &&
+  Object.values(v).every(t => typeof t === 'number' && Number.isFinite(t));
+const isCuts = (v: unknown): boolean => {
+  if (v === null) return true;
+  if (!v || typeof v !== 'object') return false;
+  const c = v as Record<string, unknown>;
+  return (
+    typeof c.targets === 'string' &&
+    isTimes(c.ends) &&
+    isTimes(c.starts) &&
+    (c.start === undefined || typeof c.start === 'string')
+  );
+};
+/** '' is what a patch writes for an empty box (`patchAutoPlannerSchedule`), so it passes. */
+const SCHEDULE_FIELDS: Record<keyof AutoPlannerScheduleCache, (v: unknown) => boolean> = {
+  timezone: v => v === '' || (typeof v === 'string' && v.length <= 64 && isKnownTimeZone(v)),
+  startDate: v => v === '' || (typeof v === 'string' && isDate(v)),
+  startTime: v => v === '' || (typeof v === 'string' && isTime(v)),
+  startTimeOverride: v => typeof v === 'boolean',
+  startAccount: v => typeof v === 'string' && v.length <= 128,
+  targetTE: v => typeof v === 'string' && v.length <= 500,
+  deferForEarningsMode: v => typeof v === 'boolean',
+  timeOffCuts: isCuts,
+};
+
+/**
+ * The saved form, each field checked (red team 6 Nov 2026, R3): a time zone this browser doesn't know, or a
+ * start date or time that isn't one, went into the store as it was and the plan start threw on it, on every
+ * reload. A bad field is dropped (and the console says which); the others are kept. Fields this build doesn't
+ * know are dropped too.
+ */
+function checkSchedule(raw: unknown): Partial<AutoPlannerScheduleCache> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out: Record<string, unknown> = {};
+  const dropped: string[] = [];
+  for (const [field, value] of Object.entries(raw)) {
+    const ok = (SCHEDULE_FIELDS as Partial<Record<string, (v: unknown) => boolean>>)[field];
+    if (value === undefined) continue;
+    if (ok?.(value)) out[field] = value;
+    else if (ok) dropped.push(field);
+  }
+  if (dropped.length) console.warn(`The saved Auto Planner form had a bad ${dropped.join(', ')}; dropped it.`);
+  return out as Partial<AutoPlannerScheduleCache>;
 }
 
 export function saveAutoPlannerSchedule(data: AutoPlannerScheduleCache): void {

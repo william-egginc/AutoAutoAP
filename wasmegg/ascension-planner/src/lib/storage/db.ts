@@ -25,12 +25,46 @@ export async function hashID(id: string): Promise<string> {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * How long an open may take before the caller is told there is no database (red team 6 Nov 2026, R1).
+ * WebKit can leave `indexedDB.open` unanswered for good (blocked storage, its known hang), and the page's
+ * startup awaited it, so My runs and the Auto Planner setup never came. Nothing is deleted or written on a
+ * timeout: the open keeps going, and if it answers late the database is used again from the next call.
+ */
+export const OPEN_TIMEOUT_MS = 5000;
+
+/** An open that passed its timeout and has not answered yet. While it is out, calls fail at once (no-DB
+ *  mode) instead of each waiting another 5 s; it clears when that open answers either way. */
+let stalledOpen: IDBOpenDBRequest | null = null;
+
 function openDB(): Promise<IDBDatabase> {
+    if (stalledOpen) return Promise.reject(new Error('IndexedDB is not answering (an earlier open is still out)'));
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
+        let timedOut = false;
+        const timer = setTimeout(() => {
+            timedOut = true;
+            stalledOpen = request;
+            reject(new Error(`IndexedDB did not open within ${OPEN_TIMEOUT_MS / 1000} s`));
+        }, OPEN_TIMEOUT_MS);
+        const settle = () => {
+            clearTimeout(timer);
+            if (stalledOpen === request) stalledOpen = null;
+        };
 
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => {
+            settle();
+            if (!timedOut) reject(request.error);
+        };
+        request.onsuccess = () => {
+            settle();
+            const db = request.result;
+            // Its caller already went on without it; the next call opens a fresh one.
+            if (timedOut) return db.close();
+            db.onversionchange = () => db.close();
+            resolve(db);
+        };
+        request.onblocked = () => console.warn('IndexedDB open is blocked by another tab; waiting.');
 
         request.onupgradeneeded = (event) => {
             const db = (event.target as IDBOpenDBRequest).result;

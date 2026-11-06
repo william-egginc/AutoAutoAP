@@ -1610,7 +1610,13 @@ onMounted(async () => {
   eventsStore.fetchEvents();
 
   if (playerId.value) {
-    await initPersistence(playerId.value);
+    // Never the reason the rest of this doesn't run (red team 6 Nov 2026, R1): a draft this build can't open
+    // or a database that doesn't answer left myRunsReady false, so My runs and the Auto Planner never set up.
+    try {
+      await initPersistence(playerId.value);
+    } catch (e) {
+      console.error('Could not restore the draft:', e);
+    }
 
     try {
       const pHash = await hashID(playerId.value);
