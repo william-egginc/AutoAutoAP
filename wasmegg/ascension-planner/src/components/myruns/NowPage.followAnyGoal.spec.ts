@@ -154,7 +154,9 @@ async function expectInstantTimeline(goal: Goal, name: string) {
     expect(page.cardPlan.value?.plan).toMatchObject({ chain: CHAIN, exact: false });
     expect(page.events.value.length).toBeGreaterThan(0);
     const { html, text } = await render(page);
-    expect(text).toContain(`Following 197 → 218 → 239 (${name} · from the instant answer)`);
+    // No goal in brackets: the goal switch names it (UX fluff review 2, 5 Nov 2026, item R3).
+    expect(text).toContain('Following 197 → 218 → 239');
+    expect(text).not.toContain(`(${name} · from the instant answer)`);
     expect(html).toContain('data-testid="now-source-pill"');
     expect(text).toContain('worked out ahead of time; times rounded to the hour');
     expect(text).not.toContain(NOT_PRICED);

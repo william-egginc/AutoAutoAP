@@ -187,7 +187,10 @@ describe('the route followed', () => {
   it('"Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)": the ascension the save is in highlighted, the ones passed grey', async () => {
     const html = await renderHtml(RightNowCard, cardProps());
     const line = html.match(/<p[^>]*data-testid="now-chain"[\s\S]*?<\/p>/)![0];
-    expect(textOf(line)).toBe('Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)');
+    // No goal in brackets while the goal switch names it (UX fluff review 2, 5 Nov 2026, item R3).
+    expect(textOf(line)).toBe('Following 197 → 222 → 247 → 285 → 313');
+    const alone = (await renderHtml(RightNowCard, cardProps({ goals: [] }))).match(/<p[^>]*data-testid="now-chain"[\s\S]*?<\/p>/)![0];
+    expect(textOf(alone)).toBe('Following 197 → 222 → 247 → 285 → 313 (Egg Day 2027)');
     const stop = (te: number) => line.match(new RegExp(`<span[^>]*>${te}</span>`))![0];
     expect(stop(197)).toContain('data-stop="passed"');
     expect(stop(197)).toContain('text-slate-400');
@@ -208,7 +211,7 @@ describe('the route followed', () => {
     const t = textOf(
       await renderHtml(RightNowCard, cardProps({ card: { ...card, plan: { ...datePlan, goal: 'fastest', deadline: null, chain: [197, 490] }, goal: { goal: 'fastest', target: 490, deadline: null }, key: 'fastest-490', name: 'Fastest to 490 TE' }, selectedGoal: 'fastest-490' }))
     );
-    expect(t).toContain('Following 197 → 490 (Fastest to 490 TE)');
+    expect(t).toContain('Following 197 → 490');
     expect(read('RightNowCard.vue')).toContain(':following="following"');
     expect(read('RightNowCard.vue')).toMatch(/planCalEvent\(nextEvent\.value, \{[\s\S]*?following: following\.value/);
     expect(read('EventsTable.vue')).toMatch(/planCalEvent\(e, \{[\s\S]*?following: props\.following/);

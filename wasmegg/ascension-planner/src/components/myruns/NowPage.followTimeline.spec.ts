@@ -170,7 +170,8 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     expect(html).toContain('data-testid="now-source-pill"');
     expect(text).toContain('from the instant answer');
     expect(text).toContain('worked out ahead of time; times rounded to the hour');
-    expect(text).toContain('Following your pick');
+    expect(text).toContain('Following 2');
+    expect(text).not.toContain('Following your pick');
     expect(text).not.toContain(NOT_PRICED);
     expect(text).not.toContain(NO_TIMELINE);
     // Next step with its (rounded) time, no calendar buttons, Try next named under the events (no link, no Run Fast
@@ -208,7 +209,7 @@ describe("Right now: a followed route keeps its route's timeline", () => {
     const { html, text } = await render(page);
     // No pricing settings kept for this save (an answer from before 24 Oct 2026): My runs works them out itself (26 Oct
     // 2026), said while it does.
-    expect(text).toContain('Following your pick · working out its times');
+    expect(text).toContain('Working out its times');
     expect(text).toContain('Working out the instant answer for your setup...');
     expect(text).not.toContain(NOT_PRICED);
     expect(html).not.toContain('data-testid="now-follow-price"');
@@ -242,7 +243,7 @@ describe("Right now: a followed route keeps its route's timeline", () => {
       expect(page.follow.value, `${hours} h`).toMatchObject({ price: 'exact', source: 'older-save' });
       expect(page.cardPlan.value?.plan.from?.level).toBe('Fast');
       const { html, text } = await render(page);
-      expect(text, `${hours} h`).toMatch(/Following your pick · priced on your save of .+, may have drifted/);
+      expect(text, `${hours} h`).toMatch(/Priced on your save of .+, may have drifted/);
       expect(text).not.toContain(NOT_PRICED);
       expect(text).not.toContain(NO_TIMELINE);
       expect(html).toContain('data-testid="calendar-button"');

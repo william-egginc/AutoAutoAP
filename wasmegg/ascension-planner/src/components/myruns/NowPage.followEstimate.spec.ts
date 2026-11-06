@@ -228,7 +228,7 @@ describe("Right now: a followed route with no kept price is estimated on the ins
     expect(r.text).toMatch(/Next step .*at around \d+:\d\d [AP]M/);
     expect(r.text).toContain(`Your route's steps, ${ESTIMATE_WORDS}.`);
     expect(r.html).toContain('data-testid="now-next-estimated"');
-    expect(r.text).toContain("Following your pick · estimated from the instant answer's data");
+    expect(r.text).toContain("Estimated from the instant answer's data");
     expect(r.text).not.toContain(NO_TIMELINE);
     expect(r.text).not.toContain(WORKING);
     // Rounded: no calendar buttons; one path per card (25 Oct 2026): no Run Fast or Simulate it on the follow line.

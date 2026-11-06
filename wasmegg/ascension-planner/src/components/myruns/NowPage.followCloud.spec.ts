@@ -152,7 +152,8 @@ describe('Right now: a better result with and without a followed route', () => {
     expect(page.follow.value).toMatchObject({ chain: found.chain, label: 'from your Fast run', price: 'exact' });
     expect(page.cardPlan.value?.plan.chain).toEqual(found.chain);
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
-    expect(text).toContain('(Egg Day 2027 · from your Fast run)'.replace('2027', String(nextEggDayYear())));
+    // No goal in brackets on the route line since 5 Nov 2026 (UX fluff review 2, item R3): the goal switch names it.
+    expect(text).not.toContain('(Egg Day 2027 · from your Fast run)'.replace('2027', String(nextEggDayYear())));
     expect(text).toContain("From your Fast run Stop following: use the planner's route");
     expect(text).not.toContain('your pick');
     expect(text).not.toContain('This is a better route');
@@ -180,7 +181,7 @@ describe('Right now: a better result with and without a followed route', () => {
       return;
     }
     const text = textOf(await renderHtml(RightNowCard, cardProps(page), {}, [getActivePinia()!]));
-    expect(text).toContain(`(Egg Day ${nextEggDayYear()} · from the instant answer)`);
+    expect(text).not.toContain(`(Egg Day ${nextEggDayYear()} · from the instant answer)`);
     expect(text).toContain('from the instant answer worked out ahead of time; times rounded to the hour From the instant answer ');
     expect(text).toContain("Stop following: use the planner's route");
     expect(text).not.toContain('your pick');

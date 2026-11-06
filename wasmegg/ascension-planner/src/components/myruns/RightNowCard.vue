@@ -48,8 +48,13 @@
     <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
       <div class="min-w-0 flex flex-wrap items-baseline gap-x-3">
         <p class="label text-slate-500">Right now</p>
-        <p v-if="card" class="text-body text-slate-500" data-testid="now-calculated">
-          Plan for {{ followName }} calculated {{ calculatedWhen }} ({{ howText }})<template
+        <!-- With the source pill below, only when (UX fluff review 2, 5 Nov 2026, item R1: the pill's line says the
+             source, the hours and the save, and the goal switch the goal). -->
+        <p v-if="card && pill" class="text-body text-slate-500" data-testid="now-calculated">
+          Calculated {{ calculatedWhen }}
+        </p>
+        <p v-else-if="card" class="text-body text-slate-500" data-testid="now-calculated">
+          Plan for {{ goalOnlyName }} calculated {{ calculatedWhen }} ({{ howText }})<template
             v-if="card.pricedWith"
             >{{ ' ' }}· <span data-testid="now-priced-with">{{ card.pricedWith }}</span></template
           >
@@ -101,7 +106,7 @@
           :data-stop="s.state"
           >{{ s.te }}</span
         ></template
-      >{{ ' ' }}({{ followName }})
+      ><template v-if="!(goals && goals.length)">{{ ' ' }}({{ goalOnlyName }})</template>
     </p>
 
     <!-- Where the plan comes from (lib/searchPlan.ts): the instant answer or a search's result on the account. -->
@@ -132,9 +137,19 @@
 
     <!-- The player's own pick (lib/follow.ts) and where its price came from. One path per card (25 Oct 2026): no Run
          Fast, Simulate it or way back on this line; the way back is the quiet line under Earlier versions. -->
-    <p v-if="follow" class="text-body text-slate-600" data-testid="now-follow" :data-price="follow.price" :data-source="follow.source ?? ''">
-      <span class="font-bold text-indigo-800" data-testid="now-follow-whose">{{ followWhose }}</span><template v-if="followNote">{{ ' ' }}· {{ followNote }}</template
-      ><template v-if="follow.missesDate">{{ ' ' }}· {{ lateMark }}</template>
+    <!-- "Following your pick" is not said again here (UX fluff review 2, item R5: the route line says Following); a label
+         of its own ("From your Fast run") still is. -->
+    <p
+      v-if="follow && (followWhose || followNote || follow.missesDate)"
+      class="text-body text-slate-600"
+      data-testid="now-follow"
+      :data-price="follow.price"
+      :data-source="follow.source ?? ''"
+    >
+      <span v-if="followWhose" class="font-bold text-indigo-800" data-testid="now-follow-whose">{{ followWhose }}</span
+      >{{ followWhose && followNote ? ' · ' : '' }}{{ followWhose ? followNote : capitalise(followNote) }}<template v-if="follow.missesDate"
+        >{{ followWhose || followNote ? ' · ' : '' }}{{ lateMark }}</template
+      >
     </p>
 
     <!-- Saved online (lib/followCloud.ts): set elsewhere with other hours or another simulator; a save that failed. -->
@@ -678,12 +693,21 @@ const followName = computed(() => {
     (props.card ? (props.card.goal.goal === 'fastest' ? `Fastest to ${props.card.goal.target} TE` : goalName.value) : (selectedOption.value?.name ?? ''));
   return props.follow ? `${name} · ${props.follow.label ?? 'your pick'}` : name;
 });
-/** "Following your pick" (a Follow press), "From the instant answer" or "From your Fast run" (the first answer for the
- *  goal, followed on its own, lib/followPolicy.ts). */
+/** "From the instant answer" or "From your Fast run" (the first answer for the goal, followed on its own,
+ *  lib/followPolicy.ts); '' for a Follow press ("Following your pick" until 5 Nov 2026: the route line says Following). */
 const followWhose = computed(() => {
   const l = props.follow?.label ?? 'your pick';
-  return l === 'your pick' ? 'Following your pick' : l.charAt(0).toUpperCase() + l.slice(1);
+  return l === 'your pick' ? '' : capitalise(l);
 });
+function capitalise(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+/** The goal alone, for the header when there is no source pill and the route line when there is no goal switch. */
+const goalOnlyName = computed(
+  () =>
+    props.card?.name ??
+    (props.card ? (props.card.goal.goal === 'fastest' ? `Fastest to ${props.card.goal.target} TE` : goalName.value) : (selectedOption.value?.name ?? ''))
+);
 /** The route on the line: the plan's, else (a followed route not priced yet) the followed one. */
 const shownChain = computed(() => props.card?.plan.chain ?? props.follow?.chain ?? []);
 const stops = computed(() => chainStops(shownChain.value, props.card ? props.ascNow : 0));

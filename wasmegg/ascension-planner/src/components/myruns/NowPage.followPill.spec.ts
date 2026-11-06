@@ -264,7 +264,7 @@ describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jo
     expect(page.follow.value).toMatchObject({ price: 'none', estimating: 'working' });
     let r = await render(page);
     expect(r.text).toContain('Fastest to 490 TE following · working out its times');
-    expect(r.text).toContain('Following your pick · working out its times');
+    expect(r.text).toContain('Working out its times');
     expect(r.text).not.toContain('no saved plan yet');
     expect(r.text).not.toContain('not priced on this save yet');
 
@@ -276,7 +276,7 @@ describe("A followed goal's pill says what is true of its route (25 Oct 2026, Jo
     expect(pillOf(page, 'fastest-490')?.follow).toEqual({ times: 'estimate', end });
     r = await render(page);
     expect(r.text).toMatch(/Fastest to 490 TE following · lands about [A-Z][a-z]{2} \d{1,2}, \d{4}/);
-    expect(r.text).toContain("Following your pick · estimated from the instant answer's data");
+    expect(r.text).toContain("Estimated from the instant answer's data");
     expect(r.text).not.toContain('no saved plan yet');
     expect(r.html).toContain('data-follow="estimate"');
     scope.stop();
@@ -581,7 +581,7 @@ describe('the ascension you are in without the table\'s estimate (26 Oct 2026)',
     expect(t).toContain('Next shifts Shift to Humility · about');
     expect(t).toContain('Prestige at 226 TE · about');
     expect(t).toContain("Your route couldn't be priced on the instant answer's data");
-    expect(t).toContain("Following your pick · its times couldn't be estimated");
+    expect(t).toContain("Its times couldn't be estimated");
     expect(t).toMatch(/Fastest to 490 TE following · next prestige about/);
     scope.stop();
   });
@@ -614,7 +614,7 @@ describe("Jordan's continued ascension on Curiosity (26 Oct 2026: \"Building up 
       await renderHtml(RightNowCard, { ...(await renderProps(page)), nextStep: page.nextStep.value, nextShiftLines: page.nextShiftLines.value }, {}, [getActivePinia()!])
     );
     expect(t).not.toContain('Building up');
-    expect(t).toContain("Following your pick · the ascension you are in simulated on your save, the rest estimated from the instant answer's data");
+    expect(t).toContain("The ascension you are in simulated on your save, the rest estimated from the instant answer's data");
     expect(t).toContain('The ascension you are in, simulated on your save; the rest of your route');
     scope.stop();
   });

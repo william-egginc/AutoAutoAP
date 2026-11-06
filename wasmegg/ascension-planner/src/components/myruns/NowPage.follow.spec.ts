@@ -131,8 +131,12 @@ const followedCard: CardPlan = {
 describe('Right now with a followed route', () => {
   it('priced on this save: the route line names it your pick, the quiet way back under it, and no Price it', async () => {
     const t = textOf(await renderHtml(RightNowCard, props(followedCard, thisSave)));
-    expect(t).toContain('Following 222 → 490 (Fastest to 490 TE · your pick)');
-    expect(t).toContain("Following your pick Stop following: use the planner's route");
+    // "Following" / "your pick" once (UX fluff review 2, 5 Nov 2026, items R1, R3 and R5): the route line, no goal in
+    // brackets (the goal switch says it) and no "Following your pick" line with nothing after it.
+    expect(t).toContain('Following 222 → 490');
+    expect(t).not.toContain('(Fastest to 490 TE');
+    expect(t).not.toContain('your pick');
+    expect(t).toContain("490 Stop following: use the planner's route");
     expect(t).not.toContain('Price it');
     expect(t).not.toContain('may have drifted');
     // Its events and timeline are there (they follow the plan, which is the followed route's).
@@ -148,7 +152,7 @@ describe('Right now with a followed route', () => {
     const c: CardPlan = { ...followedCard, state: 'older-save', plan: { ...plan, meta: { account: 'a', goal: 'target 490', backupTime: OLD } }, followed: older };
     const t = textOf(await renderHtml(RightNowCard, props(c, older)));
     expect(t).toContain(
-      'Following your pick · priced on your save of Oct 14 at 8:40 AM, may have drifted Stop following: use the planner\'s route'
+      'Priced on your save of Oct 14 at 8:40 AM, may have drifted Stop following: use the planner\'s route'
     );
     // The card's own older-save box is not said twice.
     expect(t).not.toContain('This plan was worked out from your save of');
@@ -158,8 +162,9 @@ describe('Right now with a followed route', () => {
     const none: FollowCard = { chain: [222, 490], from: 'typed', price: 'none', source: null, pricedSave: null };
     const html = await renderHtml(RightNowCard, props(null, none));
     const t = textOf(html);
-    expect(t).toContain('Following 222 → 490 (Fastest to 490 TE · your pick)');
-    expect(t).toContain("Following your pick · not priced on this save yet Stop following: use the planner's route");
+    expect(t).toContain('Following 222 → 490');
+    expect(t).not.toContain('your pick');
+    expect(t).toContain("Not priced on this save yet Stop following: use the planner's route");
     expect(t).not.toMatch(/Run Fast|Simulate it/);
     expect(t).toContain('No timeline for your route on this save yet: a run from Try next, below, works out its times on your account.');
     expect(html).not.toContain('data-testid="now-events"');
@@ -177,7 +182,7 @@ describe('Right now with a followed route', () => {
       finish: { end: NOW + 100 * H, endTE: 490, at: OLD * 1000 + 600_000 },
     };
     const t = textOf(await renderHtml(RightNowCard, props(null, fin)));
-    expect(t).toMatch(/Following your pick · checked Oct 14 at 8:50 AM: lands Oct 19 at 6:40 PM, no timeline kept Stop following/);
+    expect(t).toMatch(/Checked Oct 14 at 8:50 AM: lands Oct 19 at 6:40 PM, no timeline kept Stop following/);
   });
 
   it('"Stop following: use the planner\'s route" is the one way back: it asks to unfollow', async () => {
