@@ -15,6 +15,14 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 const panel = fs.readFileSync(path.join(__dirname, 'DeadlinePanel.vue'), 'utf8');
 const template = panel.slice(0, panel.indexOf('</template>\n\n<script'));
 const lower = (s: string) => s.toLowerCase();
+/** The Format tip's words (a HelpTip: drawn on hover or tap, so read from the source; UX fluff review 2, item C-pre10). */
+const helpSrc = fs.readFileSync(path.join(__dirname, 'CustomBoxesHelp.vue'), 'utf8');
+const tipText = textOf(
+  helpSrc
+    .slice(helpSrc.indexOf('<HelpTip'), helpSrc.indexOf('</HelpTip>'))
+    .replace(/^<HelpTip\s*/, '')
+    .replace(/\{\{ ' ' \}\}/g, ' ')
+);
 
 /** The facts of the old "Each box is one range…" paragraph, each as a key phrase. */
 const BOX_FACTS: Record<string, string> = {
@@ -38,8 +46,8 @@ const TIMING_FACTS: Record<string, string> = {
 };
 
 describe('the boxes help keeps every fact', () => {
-  it('each fact of the old paragraph is in the rendered text', async () => {
-    const text = lower(textOf(await renderHtml(CustomBoxesHelp, { finalTe: 490, from: '' })));
+  it('each fact of the old paragraph is in the rendered text, or in the Format tip (since 5 Nov 2026)', async () => {
+    const text = lower(textOf(await renderHtml(CustomBoxesHelp, { finalTe: 490, from: '' })) + ' ' + tipText);
     for (const [fact, phrase] of Object.entries(BOX_FACTS)) expect(text, fact).toContain(lower(phrase));
   });
   it('A2 reads the final TE the panel passes (fastestName)', async () => {
@@ -66,29 +74,24 @@ describe('the boxes help reads as a lead line, then a Format example', () => {
     expect(textOf(lead![1]).length).toBeLessThan(110);
     expect(html.indexOf('custom-boxes-lead')).toBeLessThan(html.indexOf('custom-boxes-format'));
   });
-  it('a Format line: the .label, then the example in a chip, in the body font with tabular figures', async () => {
+  it('a Format line: the .label, then a tip holding the example in a chip, with tabular figures (C-pre10)', async () => {
     const html = await renderHtml(CustomBoxesHelp, { finalTe: 490, from: '' });
     const format = html.slice(html.indexOf('data-testid="custom-boxes-format"'));
     expect(format).toMatch(/<span class="label[^"]*">Format<\/span>/);
-    const chip = format.match(/<span class="([^"]*)"[^>]*data-testid="custom-boxes-example"[^>]*>([^<]*)<\/span>/);
+    expect(format).toContain('aria-label="What does this mean?"');
+    const chip = helpSrc.replace(/\s+/g, ' ').match(/<span class="([^"]*)"[^>]*data-testid="custom-boxes-example"[^>]*>([^<]*)<\/span\s*>/);
     expect(chip).not.toBeNull();
     expect(chip![2]).toBe('210-230:1; 240-260:1');
     expect(chip![1]).toContain('tabular-nums');
     expect(chip![1]).not.toMatch(/mono/);
   });
-  it('then the rules as a bulleted list, one fact per bullet', async () => {
-    const html = await renderHtml(CustomBoxesHelp, { finalTe: 490, from: '' });
-    const list = html.match(/<ul class="([^"]*)"[^>]*data-testid="custom-boxes-points"[^>]*>([\s\S]*?)<\/ul>/);
-    expect(list).not.toBeNull();
-    expect(list![1]).toContain('list-disc');
-    const items = [...list![2].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map(m => lower(textOf(m[1])));
-    expect(items).toHaveLength(4);
-    expect(items[0]).toContain('; between ascensions');
-    expect(items[1]).toContain('lo-hi:step');
-    expect(items[1]).toContain('a single value, or several values with commas');
-    expect(items[2]).toContain('same click');
-    expect(items[3]).toContain('costs next to nothing');
-    expect(html.indexOf('custom-boxes-format')).toBeLessThan(html.indexOf('custom-boxes-points'));
+  it('then the rules, in the Format tip, in order (behind the tip since 5 Nov 2026, item C-pre10)', async () => {
+    const tip = lower(tipText);
+    const order = ['; between ascensions', 'lo-hi:step', 'a single value, or several values with commas', 'same click', 'costs next to nothing'];
+    const at = order.map(p => tip.indexOf(p));
+    for (const [k, i] of at.entries()) expect(i, order[k]).toBeGreaterThan(-1);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(await renderHtml(CustomBoxesHelp, { finalTe: 490, from: '' })).not.toContain('custom-boxes-points');
   });
   it('the house type rules: max-w-prose, size tokens, no px sizes, caps class, medium/semibold or mono', () => {
     const src = fs.readFileSync(path.join(__dirname, 'CustomBoxesHelp.vue'), 'utf8');

@@ -1,5 +1,7 @@
 <!--
-  "What this does and does not promise" for Exhaustive, amber like the Stronger check's per-level box
+  "How Custom works" (was "What this does and does not promise" until 5 Nov 2026; UX fluff review 2, items C-pre1 and
+  C-pre2: Custom's one fold, holding the evidence that was Custom's lead bullets, and on Fastest how the sweep works,
+  the default slot). For Exhaustive, amber like the Stronger check's per-level box
   (StrongerBox.vue), on both screens (the user, 12 Oct): what proving a space means, and what it leaves
   out. `goal` only changes the line about the last stop: By a date finds it to the exact TE, Fastest's is
   the target. Closed until opened, and its open/closed state remembered in this browser, as Fast and
@@ -14,11 +16,12 @@
   >
     <!-- 44 px to tap on a phone (list-item kept for the marker); unchanged from sm up. -->
     <summary class="cursor-pointer font-bold text-amber-800 min-h-[44px] pt-3.5 sm:min-h-0 sm:pt-0" data-testid="exhaustive-promise-summary">
-      What this does and does not promise
+      How Custom works ›
     </summary>
     <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed" data-testid="exhaustive-promise-lines">
-      <li v-for="(line, k) in lines" :key="k">{{ line }}</li>
+      <li v-for="(line, k) in [...EVIDENCE[goal], ...lines]" :key="k">{{ line }}</li>
     </ul>
+    <slot />
   </details>
 </template>
 
@@ -46,6 +49,21 @@ function onPromiseToggle(e: Event): void {
   }
 }
 
+/** What Custom's lead said under it, one fact per bullet (FastestRoute.vue, DeadlinePanel.vue `CUSTOM_POINTS` until
+ *  5 Nov 2026), now inside the fold: the lead is one line (UX fluff review 2, item C-pre1). Word for word. */
+const EVIDENCE: Record<'fastest' | 'deadline', string[]> = {
+  fastest: [
+    'It is for proving an answer, not for finding a much better one.',
+    'The answer is proven for those boxes only.',
+    "In players' runs so far it found routes minutes to hours sooner, not days.",
+    'It takes about 1 minute per 70 routes on an 8-core computer, so big boxes take hours.',
+  ],
+  deadline: [
+    'It is for proving an answer, not for finding a much better one.',
+    "The answer is proven for those boxes only. So far no search has beaten the instant answer's TE by a date.",
+    'You set a range of TEs for each ascension. The last stop is found to the exact TE.',
+  ],
+};
 /** Exported for the spec: the words are the promise. */
 const lines = computed<string[]>(() => [
   'It tries every route in your boxes, so the answer is the best for that space and says nothing about routes outside it.',

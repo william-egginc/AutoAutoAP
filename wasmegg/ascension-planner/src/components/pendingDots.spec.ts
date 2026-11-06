@@ -76,7 +76,7 @@ const ALLOWED: { file: string; text: string; why: string }[] = [
   { file: 'components/actions/ResearchActions.vue', text: 'Buying…', why: "Manual Planner (Joo's)" },
   { file: 'components/actions/SmartBuyView.vue', text: 'Buying…', why: "Manual Planner (Joo's)" },
   { file: 'components/actions/QuickBuy.vue', text: 'Buying…', why: "Manual Planner (Joo's)" },
-  { file: 'components/auto/InsanePanel.vue', text: 'on a space with long routes "Stopping…" can sit', why: 'a sentence in How it works that quotes the label (drawn by SendingText, moving)' },
+  { file: 'components/auto/CustomHowItWorks.vue', text: 'on a space with long routes "Stopping…" can sit', why: 'a sentence in How it works that quotes the label (drawn by SendingText, moving)' },
   { file: 'components/CustomEggWatcher.vue', text: 'Checking GitHub for custom egg updates…', why: 'shown on a dev build only' },
   // Not a label at all: the run's own aria-label (FindBar draws the dots after the words beside it).
   { file: 'components/auto/FindBar.vue', text: 'running...', why: 'aria-label text, read by a screen reader (the dots are drawn in the label)' },
