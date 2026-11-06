@@ -18,8 +18,23 @@ import { buildUpTracker, lineText } from './buildUpTracker';
 import { HOURS, mt, ZONE } from './buildUpTracker.fixture';
 import type { BuildUpAction } from '@/search/buildUpActions';
 
-const research = (t: number, id: string, label: string, from: number, to: number, cost: number, cheap = true): BuildUpAction => ({
-  t, kind: 'research', label, id, fromLevel: from, level: to, cost, ...(cheap ? { cheap: true as const } : {}),
+const research = (
+  t: number,
+  id: string,
+  label: string,
+  from: number,
+  to: number,
+  cost: number,
+  cheap = true
+): BuildUpAction => ({
+  t,
+  kind: 'research',
+  label,
+  id,
+  fromLevel: from,
+  level: to,
+  cost,
+  ...(cheap ? { cheap: true as const } : {}),
 });
 const sale = (t: number): BuildUpAction[] => [
   { t, kind: 'wait', label: 'wait_for_research_sale', id: 'wait_for_research_sale', seconds: 3180 },
