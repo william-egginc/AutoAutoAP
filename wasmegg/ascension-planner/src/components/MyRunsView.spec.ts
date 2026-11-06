@@ -257,13 +257,10 @@ describe('My runs › Your runs: the latest run inside it (17 Oct 2026; was its 
     expect(theirs).not.toContain('EI0000000000000000');
   });
 
-  it("the Leaderboard's Your latest run tab is one line to My runs", async () => {
-    const { useUIStore } = await import('@/stores/ui');
-    useUIStore().compareView = 'latest';
+  it("the Leaderboard has no Your latest run tab (fluff review 2, L1): #/compare/latest opens My runs", async () => {
     const html = await renderHtml(LeaderboardPanel, { playerId: 'P' }, {}, [pinia]);
-    expect(html).toContain('data-testid="latest-moved"');
-    expect(textOf(html)).toContain('Your latest run is now in My runs ›');
-    expect(html).toContain('href="#/myruns"');
+    expect(html).not.toContain('data-testid="latest-moved"');
+    expect(textOf(html)).not.toContain('Your latest run');
     expect(html).not.toContain('data-testid="latest-run"');
   });
 });

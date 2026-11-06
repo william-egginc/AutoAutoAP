@@ -111,9 +111,9 @@ describe('LatestRunView (My runs › Your latest run)', () => {
     // The view is on My runs now (inside its Your runs section, 17 Oct 2026), not on the Leaderboard.
     expect(read('../MyRunsView.vue')).toMatch(/<LatestRunView\s+:player-id="playerId"\s+:want="[^"]+"\s+@has="v => \(latestHas = v\)"/);
     expect(read('LeaderboardPanel.vue')).not.toMatch(/<LatestRunView|import\('\.\/LatestRunView\.vue'\)/);
-    // Its Leaderboard tab stays, as one line to My runs (the integrator, 16 Oct).
-    expect(read('LeaderboardPanel.vue')).toMatch(/v-else-if="tab === 'latest'"[^>]*data-testid="latest-moved"/);
-    expect(read('LeaderboardPanel.vue')).toContain('>{{ NAMES.latest }} is now in {{ NAMES.myRuns }} ›</a');
+    // Its Leaderboard tab, one line to My runs since 16 Oct, went in the fluff review 2 (L1, 5 Nov 2026); the
+    // address lands on My runs (siteNav.spec.ts).
+    expect(read('LeaderboardPanel.vue')).not.toContain('data-testid="latest-moved"');
     // The store builds the chart's data only while a chart is mounted.
     expect(read('charts/RunCharts.vue')).toContain('onMounted(() => store.chartMounted(true))');
     expect(read('charts/RunCharts.vue')).toContain('onBeforeUnmount(() => store.chartMounted(false))');

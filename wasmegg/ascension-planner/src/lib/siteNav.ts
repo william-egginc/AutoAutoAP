@@ -9,8 +9,8 @@
  *   Leaderboard      #/compare[/<view>]      the leaderboard's views (Egg Day first), and Insights:
  *                                            (was Compare until 16 Oct 2026; #/leaderboard[/<view>] lands here too)
  *                                            the Chain Explorer's charts
- *                    #/compare/latest        Your latest run: one line, "Your latest run is now in My runs ›"
- *                                            (16 Oct 2026; the block itself is on My runs)
+ *                    #/compare/latest        lands on My runs (Your latest run moved there 16 Oct 2026; its
+ *                                            one-line Leaderboard tab went 5 Nov 2026, fluff review 2)
  *   My runs          #/myruns                every run of yours: your latest run (its routes, other options
  *                                            and charts; was Leaderboard › Your latest run until 16 Oct 2026),
  *                                            on the board (hidden ones too), saved on this computer, and not
@@ -35,8 +35,8 @@ export type AutoView = 'classic' | 'fastest' | 'by-date';
 /** How thorough the fastest-route search is: descent (Smart) or every route in a box (full). */
 export type Depth = 'smart' | 'full';
 /** The leaderboard's views, then the Explorer's charts. */
-export type CompareView = 'eggday' | 'race' | 'all' | 'dates' | 'latest' | 'insights';
-export const COMPARE_VIEWS: CompareView[] = ['eggday', 'race', 'all', 'dates', 'latest', 'insights'];
+export type CompareView = 'eggday' | 'race' | 'all' | 'dates' | 'insights';
+export const COMPARE_VIEWS: CompareView[] = ['eggday', 'race', 'all', 'dates', 'insights'];
 /** Science's views, in tab order: How it works first (the default), then the sweep pages. */
 export type ScienceView = 'how' | 'check' | 'submit' | 'start';
 /** The Science views that have their own address part (`how` is the plain #/science). */
@@ -63,8 +63,9 @@ export const NAMES = {
   science: 'Science',
   insights: 'Insights',
   /** My runs › Your latest run (LatestRunView.vue): the newest search's routes, other options and charts.
-   *  Was a Leaderboard tab's content (#/compare/latest, 15 Oct 2026) until 16 Oct 2026; that tab is one line
-   *  to My runs now, and "Dig deeper into your plan ›" opens My runs (DigDeeperLink.vue). */
+   *  Was a Leaderboard tab's content (#/compare/latest, 15 Oct 2026) until 16 Oct 2026, then a one-line tab to My
+   *  runs until 5 Nov 2026 (fluff review 2, L1); that address lands on My runs, and "Dig deeper into your plan ›"
+   *  opens My runs (DigDeeperLink.vue). */
   latest: 'Your latest run',
   check: 'What we need to check',
   submit: 'Submit a sweep',
@@ -177,8 +178,10 @@ export function routeFromLocation(search: string, hash: string): Required<SiteRo
   if (h.startsWith('/')) {
     const [section, sub, depth] = h.slice(1).split('/');
     if (section === 'manual' || section === 'myruns') return { ...DEFAULT_ROUTE, section };
-    // Compare's My plans tab became My runs (15 Oct 2026): old links land there.
-    if (section === 'compare' && sub === 'mine') return { ...DEFAULT_ROUTE, section: 'myruns' };
+    // Compare's My plans tab became My runs (15 Oct 2026), and Your latest run's tab went (5 Nov 2026, fluff
+    // review 2): old links land there.
+    if ((section === 'compare' || section === 'leaderboard') && (sub === 'mine' || sub === 'latest'))
+      return { ...DEFAULT_ROUTE, section: 'myruns' };
     // The tab is called Leaderboard (16 Oct 2026); its address kept the old name, and either works.
     if (section === 'compare' || section === 'leaderboard') {
       const compare = COMPARE_VIEWS.find(v => v === sub) ?? 'eggday';

@@ -239,7 +239,7 @@
 
       <!-- Which simulator priced each run (lib/simLabel.ts): a finish from another simulator carries a chip (SimChip.vue), and
            this hides the runs this site's own simulator did not price, on every view here, Insights too. -->
-      <div v-if="tab !== 'latest'" class="flex flex-wrap items-center gap-x-3 text-small text-indigo-900/80">
+      <div class="flex flex-wrap items-center gap-x-3 text-small text-indigo-900/80">
         <label class="inline-flex min-h-[44px] items-center gap-2">
           <input v-model="showOlder" type="checkbox" class="rounded border-indigo-300 text-indigo-600" />
           Show runs from older simulators
@@ -271,14 +271,6 @@
       <!-- Insights: the Chain Explorer's charts (its own load, filters and refresh), in place of a
            link out to its page (the unified layout, phase 4). -->
       <ChainExplorer v-if="tab === 'insights'" part="insights" embedded />
-
-      <!-- Your latest run: its block moved to My runs (16 Oct 2026; LatestRunView.vue in MyRunsView.vue). The
-           tab and its address stay, as one line pointing there. -->
-      <p v-else-if="tab === 'latest'" class="text-body text-slate-700 py-2" data-testid="latest-moved">
-        <a :href="MY_RUNS_HASH" class="font-bold text-indigo-700 underline hover:text-indigo-900"
-          >{{ NAMES.latest }} is now in {{ NAMES.myRuns }} ›</a
-        >
-      </p>
 
       <p v-else-if="error" class="flex flex-wrap items-center gap-2 text-body text-red-700 font-bold" data-testid="board-error">
         <span>{{ error }}</span>
@@ -998,7 +990,7 @@ import FollowButton from '../FollowButton.vue';
 import { boardGoalKey, followableRow } from '@/lib/follow';
 import { plural } from '@/lib/format';
 import { onRowClick } from '@/lib/rowClick';
-import { COMPARE_VIEWS, DEFAULT_ROUTE, NAMES, hashFor, type CompareView } from '@/lib/siteNav';
+import { COMPARE_VIEWS, NAMES, type CompareView } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';
 import { safeAsyncComponent } from '@/lib/import';
 import { plainError } from '@/lib/plainError';
@@ -1138,12 +1130,11 @@ const tab = computed<Tab>({
   get: () => ui.compareView,
   set: v => (ui.compareView = v),
 });
-/** The views that read the collector's board (not Insights, which loads its own, nor Your latest run's line). */
+/** The views that read the collector's board (not Insights, which loads its own). Your latest run's one-line tab
+ *  went in the fluff review 2 (5 Nov 2026, L1); #/compare/latest lands on My runs (lib/siteNav.ts). */
 function isBoardView(t: Tab): boolean {
-  return t !== 'insights' && t !== 'latest';
+  return t !== 'insights';
 }
-/** Your latest run's tab: one line to My runs, where its block is. */
-const MY_RUNS_HASH = hashFor({ ...DEFAULT_ROUTE, section: 'myruns' });
 /** My runs always reads the board. */
 const boardView = computed(() => myRunsMode.value || isBoardView(tab.value));
 const allRows = ref<Row[]>([]);
@@ -1220,7 +1211,6 @@ function tabLabel(t: Tab): string {
   if (t === 'dates') return 'Other dates';
   if (t === 'eggday') return `Egg Day ${eggDayYear}`;
   if (t === 'insights') return NAMES.insights;
-  if (t === 'latest') return NAMES.latest;
   return 'All runs';
 }
 
@@ -1881,7 +1871,7 @@ watch(final, () => {
   if (capped.value) void load();
 });
 
-// Not while Insights is open (the Explorer there fetches the runs itself), nor Your latest run. The board loads the first
+// Not while Insights is open (the Explorer there fetches the runs itself). The board loads the first
 // time one of its own views is shown.
 onMounted(() => {
   if (boardView.value) void load();
