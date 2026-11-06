@@ -683,7 +683,6 @@
             :zone="plannerZone"
             running
             simulate
-            :simulate-note="liveSim?.note"
             @simulate="simulateLive"
           />
           <!-- Its top routes so far are on My runs › Your latest run (LatestRunView.vue; moved off here, Jordan
@@ -763,7 +762,6 @@
           :zone="plannerZone"
           :priced-with="resultPricedWith"
           simulate
-          :simulate-note="resultSim?.note"
           :can-share="collectorConfigured"
           can-csv
           :csv-every="store.csvHasEveryRoute('deadline')"
@@ -2930,13 +2928,20 @@ const liveSim = computed(() =>
       })
     : null
 );
+/** This route in Single run, then its build-up note (byDateSimulate's `note`) on Single run's "Simulated … from …"
+ *  banner, as the instant card's (InstantRoute.vue `openPlan`): Single run prices that A1 as a fresh build or a
+ *  continue, so its dates can run past the date (fluff review 2, 5 Nov 2026: Jul 15 against a Jul 14 date, silently). */
+function openInSingleRun(s: ReturnType<typeof byDateSimulate>): void {
+  simulateRoute(s.chain, 'by-date', s.opts);
+  if (s.note && ui.planFromInstant) ui.planFromInstant = { ...ui.planFromInstant, note: s.note };
+}
 function simulateResult(): void {
   const s = resultSim.value;
-  if (s) simulateRoute(s.chain, 'by-date', s.opts);
+  if (s) openInSingleRun(s);
 }
 function simulateLive(): void {
   const s = liveSim.value;
-  if (s) simulateRoute(s.chain, 'by-date', s.opts);
+  if (s) openInSingleRun(s);
 }
 
 /** More routes (TopRoutes.vue, item 12): the result's kept routes and its best per stop count, by their stops. */
@@ -2959,8 +2964,7 @@ function simulateDateRoute(chain: number[]): void {
   const r = result.value as SavedDeadlineResult | null;
   const route = dateRoutesByKey.value.get(chain.join(','));
   if (!r || !route) return;
-  const s = byDateSimulate(route, { planStart: r.planStart, firstAscension: r.settings ? readFirstAscension(r.settings) : null });
-  simulateRoute(s.chain, 'by-date', s.opts);
+  openInSingleRun(byDateSimulate(route, { planStart: r.planStart, firstAscension: r.settings ? readFirstAscension(r.settings) : null }));
 }
 
 /** What the shown result says about its run: time, workers, the space (and, on Advanced, the boxes). */

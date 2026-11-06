@@ -118,7 +118,9 @@ describe('wiring', () => {
     expect(custom).toContain('function buildPlan(chain: readonly number[] = store.bestChain)');
     const date = read('DeadlinePanel.vue');
     expect(date).toMatch(/<TopRoutes[\s\S]*?goal="date"[\s\S]*?:follow="dateRowFollow"[\s\S]*?@simulate="simulateDateRoute"/);
-    expect(date).toMatch(/function simulateDateRoute[\s\S]*?byDateSimulate\(route[\s\S]*?simulateRoute\(s\.chain, 'by-date', s\.opts\)/);
+    // Through openInSingleRun since spec-fluff2-bugs: simulateRoute, then the build-up note on Single run's banner.
+    expect(date).toMatch(/function simulateDateRoute[\s\S]*?openInSingleRun\(byDateSimulate\(route/);
+    expect(date).toMatch(/function openInSingleRun[\s\S]*?simulateRoute\(s\.chain, 'by-date', s\.opts\)/);
   });
 
   it('the store reads the kept routes, never searches: allEntries plus the best, cut to what the list needs', () => {

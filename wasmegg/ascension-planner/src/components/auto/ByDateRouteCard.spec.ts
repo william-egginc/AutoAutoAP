@@ -145,16 +145,11 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
 });
 
 describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
-  it('Simulate this plan, with its note', async () => {
-    const t = textOf(
-      await renderHtml(
-        ByDateRouteCard,
-        props({ simulate: true, simulateNote: BUILDUP_NOTE })
-      )
-    );
-    expect(t).toContain('Single run prices the first ascension as a fresh build/continue. Simulate this plan');
+  it('Simulate this plan, without the build-up note (it is on Single run\'s banner: DeadlinePanel.simulateNote.spec)', async () => {
+    const t = textOf(await renderHtml(ByDateRouteCard, props({ simulate: true })));
+    expect(t).toContain('Simulate this plan');
+    expect(t).not.toContain(BUILDUP_NOTE);
     expect(await renderHtml(ByDateRouteCard, props())).not.toContain('by-date-simulate');
-    expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('by-date-simulate-note');
   });
 
   it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {

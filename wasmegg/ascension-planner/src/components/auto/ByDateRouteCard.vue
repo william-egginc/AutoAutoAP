@@ -100,9 +100,6 @@
       </div>
       <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->
       <p v-if="pricedWith && !running" :class="CARD_NOTE" data-testid="priced-with">{{ pricedWith }}.</p>
-      <p v-if="simulate && simulateNote" class="text-small text-emerald-900/70" data-testid="by-date-simulate-note">
-        {{ simulateNote }}
-      </p>
       <!-- The same row as Fastest's card, in the same order: the main action (Simulate this plan, as
            the instant answer's rows: this route in Single run (NAMES.classic), search/simulateRoute.ts), Share, CSV, Save.
            Mid-run only Simulate (the rest belong to the finished answer). -->
@@ -252,8 +249,6 @@ const props = defineProps<{
   running?: boolean;
   /** Show Simulate this plan (emits `simulate`). */
   simulate?: boolean;
-  /** One line under that button, e.g. that Your plan prices a build-up first ascension differently. */
-  simulateNote?: string;
   /** The rest of the row, as on Fastest's card: Share (scrolls to Share this result), CSV ↓ (emits
    *  `csv`; named for what the file holds, csvButton.ts), Save answer (emits `save`). Finished answers only. */
   canShare?: boolean;
