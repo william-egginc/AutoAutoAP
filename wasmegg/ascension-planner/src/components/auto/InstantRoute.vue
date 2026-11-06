@@ -1065,6 +1065,8 @@ function emitRoutes(found: { byDateByAscensions: (Route | null)[] }): void {
 const store = useChainSearchStore();
 const planner = useAutoPlannerStore();
 const ui = useUIStore();
+// Up here with the other stores: searchFound (ownerMatches) reads it while the setup runs (its spec: InstantRoute.initialState).
+const initialState = useInitialStateStore();
 
 /** The maxed table under its version 2 name (tableBracket.ts MAXED_TABLE_FILE): `.gz` first, then the plain file
  *  (search/tableFetch.ts). Older pages keep reading the version 1 `table.bin`. */
@@ -3151,7 +3153,6 @@ function seeResult(): void {
 const share = useInstantShare();
 /** "Share my search results": the account's consent itself (composables/useConsent.ts). */
 const keepSharing = share.on;
-const initialState = useInitialStateStore();
 /** How long a farm waiting out a no-prestige day lays (lib/siloWords.ts): until its silos run out, about how long with the save's. */
 const siloWords = computed(() =>
   siloRunOutWords(knownSiloSeconds(initialState.currentFarmState, initialState.epicResearchLevels?.['silo_capacity']))
