@@ -27,7 +27,7 @@ import { EGG_ORDER } from './precomputedLeg';
 import { meetsAll, usableMilestones } from './milestones';
 import { computeTEEarned } from '@/auto/te-thresholds';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
-import { isResearchSaleActive } from '@/lib/events';
+import { isResearchSaleActive } from 'lib/planners/events';
 import { VIRTUE_EGGS } from '@/types';
 import type { EngineState } from '@/engine/types';
 import type { ChainResult, SearchInputs } from './types';

@@ -20,7 +20,7 @@ import { computed, markRaw, ref, shallowRef, toRaw, watch } from 'vue';
 import { deadlineTableRows, fastestTableRows, xlsxRowCap } from '@/utils/xlsxRows';
 import { CHART_AUTO_LIMIT, addToHeat, createHeat, heatSnapshot, type HeatSnapshot } from '@/lib/chartThin';
 import { getSimulationContext, createBaseEngineState } from '@/engine/adapter';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { hashID } from '@/lib/storage/db';
 import { answerIdentity, collapseSavedAnswers } from '@/lib/savedAnswerIdentity';
 import { accountHash, accountHashNow } from '@/lib/accountHash';
@@ -337,7 +337,7 @@ import {
   type KeptSaveSummary,
 } from '@/search/keptSaves';
 import { blankDeviceIds, idFromScreen, isPlaceholderId, sameAccountId, scrubPlayerIds } from '@/lib/saveScrub';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { deliveryScore } from '@/search/virtueScore';
 import { getColleggtibleTiers } from 'lib/collegtibles';
 import {
@@ -1973,7 +1973,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       truthEggs: currentTE.value + pending,
       colleggtibleModifiers: getSimulationContext().colleggtibleModifiers,
       labUpgradeLevel: initialStateStore.epicResearchLevels['cheaper_research'] ?? 0,
-      permitLevel: raw.game?.permitLevel ?? null,
+      proPermit: raw.game?.permitLevel === 1,
     };
     const bare = calculateClothedTEForSet([], opts);
     const total = inv.earnings ? calculateClothedTEForSet(inv.earnings, opts) : bare;
@@ -1984,7 +1984,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       gear: total - bare,
       colleggtibles: cteFromColleggtibles(opts.colleggtibleModifiers),
       lab: cteFromLabUpgrade(opts.labUpgradeLevel),
-      permit: opts.permitLevel === 1 ? 0 : multiplierToTE(0.5),
+      permit: opts.proPermit ? 0 : multiplierToTE(0.5),
     };
   }
 
@@ -4061,7 +4061,7 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
             truthEggs: te,
             colleggtibleModifiers: getSimulationContext().colleggtibleModifiers,
             labUpgradeLevel: initialStateStore.epicResearchLevels['cheaper_research'] ?? 0,
-            permitLevel: initialStateStore.rawBackup?.game?.permitLevel ?? null,
+            proPermit: initialStateStore.rawBackup?.game?.permitLevel === 1,
           })
         : null,
       // The planner's per-egg TE when it adds up to the save's TE (search/teByEgg.ts): the save's own

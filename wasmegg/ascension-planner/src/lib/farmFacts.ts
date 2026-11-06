@@ -8,10 +8,10 @@
  * Not the actions store's initial snapshot: entering the Auto Planner sets that up as a fresh Curiosity farm
  * ("Plan Future"), not the farm in the save.
  */
-import { calculateHabCapacity_Full } from '@/calculations/habCapacity';
-import { calculateLayRate } from '@/calculations/layRate';
-import { calculateShippingCapacity } from '@/calculations/shippingCapacity';
-import { calculateEffectiveLayRate } from '@/calculations/effectiveLayRate';
+import { calculateHabCapacity_Full } from 'lib/planners/calculations/habCapacity';
+import { calculateLayRate } from 'lib/planners/calculations/layRate';
+import { calculateShippingCapacity } from 'lib/planners/calculations/shippingCapacity';
+import { calculateEffectiveLayRate } from 'lib/planners/calculations/effectiveLayRate';
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold, TE_BREAKPOINTS } from '@/lib/truthEggs';

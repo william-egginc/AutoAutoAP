@@ -36,7 +36,7 @@ import {
   type BuildParams,
   type TailSweep,
 } from './precomputedLeg';
-import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
+import { getNextSaleEnd, isResearchSaleActive } from 'lib/planners/events';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 import { holdUntilOf, isAvailable, type Availability } from './availability';
 import { creditedWaitSeconds, noPrestigeAt, prestigeHoldOf } from './noPrestige';

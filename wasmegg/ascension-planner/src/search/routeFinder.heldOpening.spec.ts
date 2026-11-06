@@ -17,7 +17,7 @@ import {
 } from './routeFinder';
 import { holdUntilOf, isAvailable, type Availability } from './availability';
 import { openingSpan } from './openingSpan';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 
 // THE HELD OPENING (routeFinder.ts `heldOpeningStart`): with held shifts, a fresh ascension whose opening (the shifts
 // before C3's end, which the table's held replay never holds) could reach past the end of the player's hours waits

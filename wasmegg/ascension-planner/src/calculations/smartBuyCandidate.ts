@@ -6,7 +6,7 @@ import {
   type ResearchCostModifiers,
 } from './commonResearch';
 import type { CalculationsSnapshot } from '@/types';
-import { timeToSaveRaw, MIN_WAIT_SECONDS } from '@/engine/apply/math';
+import { timeToSaveRaw, MIN_WAIT_SECONDS } from 'lib/planners/engine/apply/math';
 import { getSaleAwareTimeToSave } from './researchROI';
 
 export interface SmartBuyCandidate {

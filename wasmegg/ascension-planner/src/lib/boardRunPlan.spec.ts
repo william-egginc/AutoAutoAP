@@ -4,7 +4,7 @@
  * account's Leaderboard rows (lib/boardRunPlan.ts), and priced as a kept result.
  */
 import { describe, expect, it } from 'vitest';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { buildChainsCsv, buildDeadlineCsv } from '@/search/csv';
 import { csvZone, legsFromRunCsv, unixFromZoned } from '@/search/runLegsCsv';
 import { boardRunFor, rowFoundLevel, runMetaOf, searchFromRun } from './boardRunPlan';

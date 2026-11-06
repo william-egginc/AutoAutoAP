@@ -3,7 +3,7 @@
  * leaderboard's Egg Day tab, so an answer sent for "Egg Day" always lands on that tab.
  */
 import { calendarOf, formatClock, formatMoment } from './clock';
-import { getLocalTimestampInTimezone } from './events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 
 export const EGG_DAY_ZONE = 'America/Los_Angeles';
 export const EGG_DAY_TIME = '09:00';

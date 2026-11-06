@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 import { NAMES } from '@/lib/siteNav';
-import { safeAsyncComponent } from '@/lib/import';
+import { safeAsyncComponent } from 'lib/planners/import';
 import YourSetup from './YourSetup.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';
 

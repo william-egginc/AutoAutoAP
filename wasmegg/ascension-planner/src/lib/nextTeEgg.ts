@@ -27,10 +27,11 @@
  *   With no shipping limit (perChicken maxHabs <= ship) this is the "ELR scales with population" ramp with
  *   rate_per_chicken = maxElr / maxHabs. pop0 is 0 after a shift, the save's population for the egg being laid.
  */
-import { calculateHabCapacity_Full } from '@/calculations/habCapacity';
-import { calculateLayRate } from '@/calculations/layRate';
-import { calculateShippingCapacity } from '@/calculations/shippingCapacity';
-import { calculateIHR } from '@/calculations/internalHatcheryRate';
+import { PROFILE } from '@/lib/profile';
+import { calculateHabCapacity_Full } from 'lib/planners/calculations/habCapacity';
+import { calculateLayRate } from 'lib/planners/calculations/layRate';
+import { calculateShippingCapacity } from 'lib/planners/calculations/shippingCapacity';
+import { calculateIHR } from 'lib/planners/calculations/internalHatcheryRate';
 import { calculateArtifactModifiers } from '@/lib/artifacts/calculator';
 import { countTEThresholdsPassed, getThresholdForTE, nextTEThreshold } from '@/lib/truthEggs';
 import { dateAt } from './eventWhen';
@@ -87,6 +88,7 @@ export function shiftRates(i: ShiftInput): ShiftRates | null {
   }).totalFinalCapacity;
   const ihr = calculateIHR({
     te: i.totalTe,
+    teBase: PROFILE.ihrTruthEggBase,
     researchLevels: farm.commonResearches,
     epicResearchLevels: {
       epicInternalIncubators: i.epic['epic_internal_incubators'] || 0,

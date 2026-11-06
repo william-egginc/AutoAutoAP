@@ -1,4 +1,5 @@
 import { scrubParts } from '@/lib/saveScrub';
+import { downloadGzipped as downloadGzippedShared } from 'lib/planners/utils/export';
 
 /**
  * Utility to trigger a file download in the browser.
@@ -61,4 +62,12 @@ export function downloadParts(filename: string, parts: Iterable<BlobPart>, conte
   // a long time. Deferring costs nothing and removes the race; it is a precaution, not a fix for
   // anything measured here.
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
+ * A plan file, gzipped (`plan.json` arrives as `plan.json.gz`; lib/planners/utils/export.ts, Joo's 50a26c77).
+ * Scrubbed here first like every other download: the shared helper writes the bytes as given.
+ */
+export async function downloadGzipped(filename: string, content: string): Promise<void> {
+  await downloadGzippedShared(filename, [...scrubParts([content])].join(''));
 }

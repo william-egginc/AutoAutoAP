@@ -5,7 +5,7 @@
  * comes back as given.
  */
 import { showDateTime } from './displayTime';
-import { getLocalTimestampInTimezone } from './events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 
 export function boxStartWords(box: string, timezone: string, style?: 'local' | 'iso'): string {
   const m = /^(\d{4}-\d{2}-\d{2}) (\d{1,2}:\d{2})$/.exec(box.trim());

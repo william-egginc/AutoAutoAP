@@ -17,7 +17,7 @@ import { timeOffWindows } from './timeOff';
 import { instantTail } from './instantGear';
 import { instantKey } from './instantSnapshot';
 import type { Availability } from './availability';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 import { countTEThresholdsPassed } from '@/lib/truthEggs';
 
 // No prestige on these days in the instant answer (routeFinder.ts `TailOptions.noPrestige`): each prestige waits past

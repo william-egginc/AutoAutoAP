@@ -6,17 +6,18 @@ import { dropFileResults } from '@/stores/actions/io';
 import { UploadError, readLibraryFile, readUploadText } from '@/lib/uploadGuard';
 import { usePersistence } from '@/composables/usePersistence';
 import { loadLibraryPlans, deletePlanFromLibrary, savePlanToLibrary, type PlanData } from '@/lib/storage/db';
-import { downloadFile } from '@/utils/export';
+import { importedPlanName } from 'lib/planners/utils/export';
+import { downloadGzipped } from '@/utils/export';
 import { formatNumber, formatDuration, formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
 import { initLoadPlan, initPlanFuture } from '@/lib/modes';
 import { useAutoPlannerStore, pickVariant, type ChainedAscension, type VariantKey } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useTruthEggsStore } from '@/stores/truthEggs';
 import { useUIStore } from '@/stores/ui';
-import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
-import ImportCollisionDialog from '@/components/ImportCollisionDialog.vue';
+import ConfirmationDialog from 'ui/components/planners/ConfirmationDialog.vue';
+import ImportCollisionDialog from 'ui/components/planners/ImportCollisionDialog.vue';
 import AutoPlanImportDialog from '@/components/AutoPlanImportDialog.vue';
-import PlanAlreadyOpenWarning from '@/components/PlanAlreadyOpenWarning.vue';
+import PlanAlreadyOpenWarning from 'ui/components/planners/PlanAlreadyOpenWarning.vue';
 import { createEmptySnapshot } from '@/types';
 import { buildLibraryPlansFromExport } from '@/auto/buildLibraryPlans';
 import { migrateExportedPlanV1, type ExportedPlan } from '@/auto/export';
@@ -190,7 +191,7 @@ async function saveRename() {
 /**
  * Export a single plan. Sanitized — no hashed IDs or storage keys.
  */
-function exportPlan(plan: PlanData) {
+async function exportPlan(plan: PlanData) {
   const exportData = {
     version: 1,
     type: 'plan',
@@ -199,13 +200,13 @@ function exportPlan(plan: PlanData) {
     data: plan.data,
   };
   const jsonString = JSON.stringify(exportData, null, 2);
-  downloadFile(`${plan.name.replace(/\s+/g, '_')}.json`, jsonString, 'application/json');
+  await downloadGzipped(`${plan.name.replace(/\s+/g, '_')}.json`, jsonString);
 }
 
 /**
  * Export entire library. Sanitized — no hashed IDs or storage keys.
  */
-function exportAll() {
+async function exportAll() {
   const exportData = {
     version: 1,
     type: 'library',
@@ -217,7 +218,7 @@ function exportAll() {
     })),
   };
   const jsonString = JSON.stringify(exportData, null, 2);
-  downloadFile(`ascension-library-${new Date().toISOString().split('T')[0]}.json`, jsonString, 'application/json');
+  await downloadGzipped(`ascension-library-${new Date().toISOString().split('T')[0]}.json`, jsonString);
 }
 
 /**
@@ -270,7 +271,7 @@ function handleCollisionCancel() {
 }
 
 /**
- * Import plans from a JSON file. Handles single plans, library exports, and raw plan data.
+ * Import plans from a gzipped or plain JSON file. Handles single plans, library exports, and raw plan data.
  * For each name collision, prompts the user for resolution.
  */
 async function handleImport(event: Event) {
@@ -296,7 +297,7 @@ async function handleImport(event: Event) {
         }));
       } else if (imported.type === 'plan' && imported.data) {
         // Single plan export (from our new format)
-        plansToImport = [{ name: imported.name || file.name.replace('.json', ''), data: imported.data }];
+        plansToImport = [{ name: imported.name || importedPlanName(file.name), data: imported.data }];
       } else if (imported.version && imported.ascensions && imported.initialState) {
         // Sequential Roadmap (Auto-Plan). Migrate version-1 exports (result1/result2/result3?) to
         // the current variants-map shape up front so everything below only ever deals with one shape.
@@ -305,7 +306,7 @@ async function handleImport(event: Event) {
 
         showAutoPlanDialog.value = true;
         autoPlanToImport.value = plan;
-        autoPlanName.value = file.name.replace('.json', '');
+        autoPlanName.value = importedPlanName(file.name);
         autoPlanAscensionCount.value = plan.ascensions.length;
 
         const resolution = await new Promise<'restore' | 'individual' | 'cancel'>(resolve => {
@@ -423,7 +424,7 @@ async function handleImport(event: Event) {
         }
       } else if (imported.version && imported.actions && imported.initialState) {
         // Raw plan data (old format — the plan data itself, not wrapped)
-        plansToImport = [{ name: file.name.replace('.json', ''), data: imported }];
+        plansToImport = [{ name: importedPlanName(file.name), data: imported }];
       } else {
         throw new Error('Unrecognized file format');
       }
@@ -593,7 +594,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
         </button>
         <label class="px-2.5 py-1 text-small font-normal rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer">
           Import
-          <input type="file" class="hidden" accept=".json" @change="handleImport" />
+          <input type="file" class="hidden" accept=".gz,.json" @change="handleImport" />
         </label>
       </div>
     </div>
@@ -673,7 +674,7 @@ const emit = defineEmits<{ 'plan-loaded': [name: string] }>();
             <span class="hidden sm:inline text-small text-gray-400 whitespace-nowrap mr-1">
               Updated {{ formatMoment(plan.timestamp) }}
             </span>
-            <button class="p-0.5 sm:p-1 text-gray-400 hover:text-indigo-600" v-tippy="'Export this plan (JSON)'" @click="exportPlan(plan)">
+            <button class="p-0.5 sm:p-1 text-gray-400 hover:text-indigo-600" v-tippy="'Export this plan'" @click="exportPlan(plan)">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"

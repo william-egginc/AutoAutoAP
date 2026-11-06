@@ -8,7 +8,7 @@
  * zone, so a naive `+3600` drifts an hour twice a year in opposite directions.
  */
 import { describe, expect, it } from 'vitest';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import {
   availabilityKey,
   countUnavailable,

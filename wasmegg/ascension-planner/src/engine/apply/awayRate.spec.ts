@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { CalculationsSnapshot } from '@/types';
-import { calculateEarningsForTime, getTimeToSave, MIN_WAIT_SECONDS } from './math';
+import { calculateEarningsForTime, getTimeToSave, MIN_WAIT_SECONDS } from 'lib/planners/engine/apply/math';
 
 const snap = {
   population: 1000,

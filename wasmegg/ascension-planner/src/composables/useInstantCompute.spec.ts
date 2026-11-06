@@ -52,7 +52,7 @@ import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from '@/searc
 import { firstLegOptions, priceChain, tailOptionsOf, type BuildLookup, type PolishOptions, type Route } from '@/search/routeFinder';
 import { MAXED_TABLE_FILE } from '@/search/tableBracket';
 import { ownTableNames } from '@/search/tableGear';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 import type { TableHeader } from '@/search/precomputedTable';
 import type { Availability } from '@/search/availabilitySchedule';
 import type { BoardRow } from '@/lib/leaderboardRank';

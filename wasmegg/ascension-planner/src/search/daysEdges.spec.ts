@@ -16,7 +16,7 @@ import { noPrestigeAt } from './noPrestige';
 import { timeOffWindows, type TimeOffDates } from './timeOff';
 import { instantTail } from './instantGear';
 import type { Availability } from './availability';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 import { eggDaySeconds } from '@/lib/eggDay';
 
 const TZ = 'America/Denver';

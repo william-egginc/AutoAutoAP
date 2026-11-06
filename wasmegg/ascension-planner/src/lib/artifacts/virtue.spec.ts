@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { modifiersFromColleggtibleTiers } from 'lib/collegtibles';
-import { calculateHabCapacity_Full } from '@/calculations/habCapacity';
-import { calculateLayRate } from '@/calculations/layRate';
-import { calculateShippingCapacity } from '@/calculations/shippingCapacity';
+import { calculateHabCapacity_Full } from 'lib/planners/calculations/habCapacity';
+import { calculateLayRate } from 'lib/planners/calculations/layRate';
+import { calculateShippingCapacity } from 'lib/planners/calculations/shippingCapacity';
 import { calculateArtifactModifiers } from './calculator';
 import { getArtifact } from './data';
 import type { EquippedArtifact } from './types';
@@ -96,6 +96,7 @@ describe('getOptimalELRSetFromPool stone placement', () => {
     const pool: DeliveryPool = { candidates: SET, ...stones };
     const set = getOptimalELRSetFromPool(pool, {
       forcedArtifacts: SET,
+      proPermit: true,
       habIds,
       vehicles,
       commonResearch,

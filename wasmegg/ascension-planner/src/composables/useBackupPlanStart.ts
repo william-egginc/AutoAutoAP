@@ -35,7 +35,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { resolvePlanStart } from '@/lib/planStartTime';
 import { formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { accountOf } from '@/search/runSaves';
 
 let startDefaulted = false;

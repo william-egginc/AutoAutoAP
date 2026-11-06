@@ -8,6 +8,8 @@ import VueTippy from 'vue-tippy';
 import 'tippy.js/dist/tippy.css';
 import 'tippy.js/themes/translucent.css';
 
+import { PLANNER_PROFILE_KEY } from 'ui/composables/planners/plannerProfile';
+import { PROFILE } from '@/lib/profile';
 import App from './App.vue';
 import { installAppErrorLog } from './lib/appErrorLog';
 import './index.css';
@@ -18,6 +20,7 @@ installAppErrorLog(app);
 const pinia = createPinia();
 
 app.use(pinia);
+app.provide(PLANNER_PROFILE_KEY, PROFILE);
 app.use(VueTippy, {
   defaultProps: {
     theme: 'translucent',

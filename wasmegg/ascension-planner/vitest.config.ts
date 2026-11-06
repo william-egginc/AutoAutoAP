@@ -22,8 +22,9 @@ export default defineConfig({
     environment: 'node',
     // collector/ is a standalone Cloudflare Worker with no build step, so its tests live next to
     // it and are plain .js. They run here rather than in a separate command so `pnpm test` is
-    // still the one thing that has to pass.
-    include: ['src/**/*.{test,spec}.ts', 'collector/**/*.spec.js'],
+    // still the one thing that has to pass. Shared planner code lives in lib/planners; its specs
+    // run under both planners.
+    include: ['src/**/*.{test,spec}.ts', 'collector/**/*.spec.js', '../../lib/planners/**/*.{test,spec}.ts'],
     // No collector unless a spec names one (`__AAP_SUBMIT_URL__`). Vitest reads the gitignored
     // .env.local like the dev server does, so a checkout with VITE_SUBMIT_URL set gave every store
     // the real collector: each finished run in a spec then kept a result for sending, built after

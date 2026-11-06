@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { planMaxVehicles } from './vehiclePurchasePlan';
-import { planSilosWithinBudget } from './siloPurchasePlan';
+import { planSilosWithinBudget } from 'lib/planners/calculations/siloPurchasePlan';
 import { findSmartBuyCandidate } from './smartBuyCandidate';
 import { getCommonResearches, getDiscountedVirtuePrice, isTierUnlocked } from './commonResearch';
 

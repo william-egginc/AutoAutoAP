@@ -26,7 +26,7 @@ import { runC3Variants, type C3Variant } from '@/auto/shifts/c3';
 import { runBuildUpUntilC3 } from '@/auto/buildUp';
 // LOW-TE OPENING (auto/lowTeOpening.ts)
 import { MAX_OPENING_ROUNDS } from '@/auto/lowTeOpening';
-import { isResearchSaleActive } from '@/lib/events';
+import { isResearchSaleActive } from 'lib/planners/events';
 import { paramsOf } from './tableBuild';
 import { paramsAndExtrasOf } from './tableV2Build';
 import type { BuildWithExtras } from './tableV2';

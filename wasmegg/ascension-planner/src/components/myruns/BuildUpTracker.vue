@@ -231,7 +231,7 @@ import { computed, ref } from 'vue';
 import PanelFold from '@/components/auto/PanelFold.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 import type { TrackerState } from '@/composables/useBuildUpTracker';
 import { a1TrackerWords } from '@/lib/a1Choice';
 import type { LineBought, SaveFit } from '@/lib/buildUpBought';

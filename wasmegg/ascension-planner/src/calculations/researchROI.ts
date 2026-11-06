@@ -1,5 +1,5 @@
 import { getDiscountedVirtuePrice, type CommonResearch, type ResearchCostModifiers } from './commonResearch';
-import { MIN_WAIT_SECONDS } from '@/engine/apply/math';
+import { MIN_WAIT_SECONDS } from 'lib/planners/engine/apply/math';
 import type { CalculationsSnapshot } from '@/types';
 import type { SimulationContext } from '@/engine/types';
 import { createBaseEngineState } from '@/engine/adapter';
@@ -19,7 +19,7 @@ import {
   getNextEarningsBoostEnd,
   isResearchSaleActive,
   BOUNDARY_EPSILON_SECONDS,
-} from '@/lib/events';
+} from 'lib/planners/events';
 
 // See the comment where this is used in `calculateResearchROI` for why the ROI-payback horizon is
 // deliberately much shorter than `boostTransitionsFrom`'s own multi-year default.

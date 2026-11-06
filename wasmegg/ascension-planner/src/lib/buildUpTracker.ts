@@ -62,7 +62,7 @@ import {
   getTimezoneOffsetAt,
   isEarningsBoostActive,
   isResearchSaleActive,
-} from './events';
+} from 'lib/planners/events';
 import { calendarOf } from './clock';
 import { resultCode, sameResultCode } from './resultCode';
 import { CHEAP_SWEEP_MARK, researchRangeWords } from './buildUpWords';

@@ -216,7 +216,7 @@ import { formatNumber, formatDuration, formatAbsoluteTime } from '@/lib/format';
 import { generateActionId, VIRTUE_EGG_NAMES } from '@/types';
 import { eggsNeededForTE, countTEThresholdsPassed, isTEWaitReachable, clampTECount, maxTEToGain } from '@/lib/truthEggs';
 import { useActionExecutor } from '@/composables/useActionExecutor';
-import { solveForTime } from '@/engine/apply/math';
+import { solveForTime } from 'lib/planners/engine/apply/math';
 
 const truthEggsStore = useTruthEggsStore();
 const virtueStore = useVirtueStore();

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from '@/search/precomputedLeg';
 import { findRoutes, priceChain, type BuildLookup, type FirstLeg, type PolishOptions } from '@/search/routeFinder';
 import type { Availability } from '@/search/availability';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 import {
   ESTIMATE_WORDS,
   PRICING_MAX_BYTES,

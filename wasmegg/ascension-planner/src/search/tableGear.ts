@@ -22,7 +22,7 @@ import { trimBackupForWorkers } from './workerBackup';
 import { perfStep } from '@/lib/buildUpDebug';
 import { describeLoadoutSlots, type LoadoutSlot } from './csv';
 import { getColleggtibleTiers, modifiersFromColleggtibleTiers } from 'lib/collegtibles';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import type { EquippedArtifact } from '@/lib/artifacts/types';
 import type { SearchInputs } from './types';
 

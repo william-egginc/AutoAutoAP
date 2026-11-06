@@ -16,7 +16,7 @@ import {
   presetByDate,
   takeByDatePreset,
 } from './byDateForm';
-import { getLocalTimestampInTimezone } from './events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { renderHtml } from '@/test/renderComponent';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import DeadlinePanel from '@/components/auto/DeadlinePanel.vue';

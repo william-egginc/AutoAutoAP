@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { epicResearchDefs } from '@/lib/epicResearch';
+import { epicResearchDefs } from 'lib/planners/epicResearch';
 import { deliveryLetters, earningsLetters, gearLabel, maxedLabel, stonesText } from './tableLabel';
 
 const stones = (n: number, kind: string, tier = 4) => Array.from({ length: n }, () => `T${tier} ${kind} stone`);

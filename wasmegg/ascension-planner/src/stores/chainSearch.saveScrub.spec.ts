@@ -27,7 +27,7 @@ import { MAXED_TABLE_FILE } from '@/search/tableBracket';
 import { canonicalDelivered, pacificHourOfWeek, type BuildParams } from '@/search/precomputedLeg';
 import { firstLegOptions, tailOptionsOf, type BuildLookup } from '@/search/routeFinder';
 import type { TableHeader } from '@/search/precomputedTable';
-import { getNextSaleEnd } from '@/lib/events';
+import { getNextSaleEnd } from 'lib/planners/events';
 import { followKey } from '@/lib/followCloud';
 import { hashID } from '@/lib/storage/db';
 import { computeInstantPricing, type InstantPool } from '@/composables/useInstantCompute';

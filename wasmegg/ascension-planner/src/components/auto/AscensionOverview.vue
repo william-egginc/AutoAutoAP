@@ -346,6 +346,7 @@
             :inventory-delivery="inventoryDelivery"
             reset-label="Undo changes"
             default-label="Was"
+            :slot-count="artifactSlotCount(initialStateStore.proPermit)"
           />
         </div>
 
@@ -452,14 +453,17 @@
 import { formatMoment } from '@/lib/clock';
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { formatNumber, formatDuration, formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { iconURL } from 'lib';
 import type { AscensionSummary } from '@/auto/types';
+import type { Action } from '@/types/actions/meta';
 import type { VirtueEgg } from '@/types';
 import VariantComparisonModal from './VariantComparisonModal.vue';
 import type { VariantKey, VariantResult } from '@/stores/autoPlanner';
 import ShiftSummary from './ShiftSummary.vue';
 import AutoLoadoutEditor from './AutoLoadoutEditor.vue';
+import { useInitialStateStore } from '@/stores/initialState';
+import { artifactSlotCount } from '@/lib/artifacts/calculator';
 import {
   cloneLoadoutInputs,
   extractUsedLoadout,
@@ -467,6 +471,8 @@ import {
   type AutoLoadoutInputs,
   type DeliveryInputs,
 } from '@/auto/loadout';
+
+const initialStateStore = useInitialStateStore();
 
 const props = defineProps<{
   summary: AscensionSummary & {
@@ -481,7 +487,7 @@ const props = defineProps<{
       isActive: boolean;
     }[];
   };
-  actions: any[];
+  actions: Action[];
   index: number;
   total: number;
   targetTE: number | null;
@@ -656,10 +662,21 @@ const warnings = computed(() => {
   return list;
 });
 
+interface ShiftGroup {
+  title: string;
+  egg: VirtueEgg;
+  actions: Action[];
+  duration: number;
+  cost: number;
+  costType: 'SE' | 'Virtue';
+  startTime: number;
+  endTime: number;
+}
+
 const shifts = computed(() => {
   const actions = props.actions;
   const ascStartTime = props.summary.startTime;
-  const shifts: any[] = [];
+  const shifts: ShiftGroup[] = [];
   let absoluteTime = ascStartTime;
 
   const startEgg = (actions[0]?.type === 'start_ascension' && actions[0]?.payload?.initialEgg) || 'curiosity';
@@ -673,13 +690,13 @@ const shifts = computed(() => {
     return `${egg.charAt(0).toUpperCase()}${count} Shift`;
   };
 
-  let currentShift = {
+  let currentShift: ShiftGroup = {
     title: visitTitle(startEgg),
     egg: startEgg,
-    actions: [] as any[],
+    actions: [],
     duration: 0,
     cost: 0,
-    costType: 'SE' as 'SE' | 'Virtue',
+    costType: 'SE',
     startTime: absoluteTime,
     endTime: absoluteTime,
   };
@@ -706,7 +723,8 @@ const shifts = computed(() => {
     } else {
       currentShift.actions.push(action);
       if (action.type.startsWith('wait_')) {
-        const dt = action.totalTimeSeconds || action.payload.totalTimeSeconds || action.payload.timeSeconds || 0;
+        const payload = action.payload as { totalTimeSeconds?: number; timeSeconds?: number };
+        const dt = action.totalTimeSeconds || payload.totalTimeSeconds || payload.timeSeconds || 0;
         currentShift.duration += dt;
         absoluteTime += dt;
       }

@@ -9,7 +9,7 @@ import {
   startInSale,
   type BuildLookup,
 } from './routeFinder';
-import { getNextSaleEnd, isResearchSaleActive } from '@/lib/events';
+import { getNextSaleEnd, isResearchSaleActive } from 'lib/planners/events';
 
 // AT ONCE INSIDE THE SALE (`TailOptions.inSale: 'atOnce'`, the instant answer's since 24 Oct 2026): a fresh ascension
 // the player can start at once inside the weekly sale starts at once, priced from this hour's cell moved by the

@@ -91,7 +91,7 @@ import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useVirtueStore } from '@/stores/virtue';
 import { formatUnixToDateInput, formatUnixToTimeInput } from '@/lib/format';
-import { getLocalTimestampInTimezone } from '@/lib/events';
+import { getLocalTimestampInTimezone } from 'lib/planners/events';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 
 const { startDate, startTime, timezone, startTimeOverride } = storeToRefs(useAutoPlannerStore());

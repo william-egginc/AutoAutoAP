@@ -164,15 +164,15 @@
 
 <script setup lang="ts">
 import { formatMoment } from '@/lib/clock';
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, type Component } from 'vue';
 import { iconURL } from 'lib';
 import { useActionsStore } from '@/stores/actions';
 import { useVirtueStore } from '@/stores/virtue';
 import type { Action, VirtueEgg, StartAscensionPayload, ShiftPayload } from '@/types';
 import { VIRTUE_EGG_NAMES } from '@/types';
 import { formatNumber, formatDuration } from '@/lib/format';
-import { safeAsyncComponent } from '@/lib/import';
-import { scrollToAndHighlight } from '@/lib/scrollToAndHighlight';
+import { safeAsyncComponent } from 'lib/planners/import';
+import { scrollToAndHighlight } from 'lib/planners/scrollToAndHighlight';
 import ActionHistoryItem from './ActionHistoryItem.vue';
 import DayGroup from './DayGroup.vue';
 
@@ -183,7 +183,7 @@ const HumilitySummary = safeAsyncComponent(() => import('./summaries/HumilitySum
 const ResilienceSummary = safeAsyncComponent(() => import('./summaries/ResilienceSummary.vue'));
 const KindnessSummary = safeAsyncComponent(() => import('./summaries/KindnessSummary.vue'));
 
-const summaryComponents: Record<VirtueEgg, any> = {
+const summaryComponents: Record<VirtueEgg, Component> = {
   curiosity: CuriositySummary,
   integrity: IntegritySummary,
   humility: HumilitySummary,
