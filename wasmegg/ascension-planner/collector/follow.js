@@ -20,6 +20,7 @@
  * field (`readValue`): a field that is out of bounds refuses the write with its name; an unknown field is dropped.
  */
 
+import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
 import { OLD_BUILD_BODY, oldBuild } from './oldbuild.js';
 
 export const FOLLOW_MAX_BODY = 6 * 1024;
@@ -246,10 +247,16 @@ export async function handleFollow(request, env, now = Date.now()) {
     const goals = await env.WATCH.prepare('SELECT COUNT(DISTINCT goal) AS n FROM follows WHERE key = ?').bind(k).first();
     if ((goals?.n ?? 0) >= FOLLOW_MAX_GOALS) return retry(3600, `at most ${FOLLOW_MAX_GOALS} goals for one key`);
     if (!goals?.n) {
+      const newKeyWait = await dayWait(env, 'cloud-new-keys-day', Number(env.CLOUD_NEW_KEYS_PER_DAY) || CLOUD_NEW_KEYS_PER_DAY, now);
+      if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
       const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM follows').first();
       if ((keys?.n ?? 0) >= FOLLOW_MAX_KEYS) return retry(3600, 'the cloud save is full right now');
     }
   }
+
+  // Every cloud write counts against a day-wide budget (D1's free plan: 100,000 rows written a day).
+  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   // The hour's budget for this key, in one statement: a new hour starts the count over, a write past the
   // budget changes no row (so `changes` says it was refused, and no read was needed).

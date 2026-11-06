@@ -17,6 +17,7 @@
  * Last write wins by the CLIENT's `at`: the server stores every write and keeps `updatedAt`; the app compares.
  * D1 (the WATCH binding), not KV: KV's 1,000 writes a day belong to the board.
  */
+import { CLOUD_NEW_KEYS_PER_DAY, CLOUD_PUTS_PER_DAY, dayWait } from './budget.js';
 import { FOLLOW_MAX_BODY, FOLLOW_MAX_KEYS, FOLLOW_MAX_VALUE, FOLLOW_VERSIONS, FOLLOW_WRITES_PER_HOUR, HHMM, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, parse, reply, retry, whole, AT_AHEAD_MS, insertTwice, newerStored } from './follow.js';
 
 const KINDS = ['consent', 'setup'];
@@ -214,10 +215,15 @@ export async function handlePrefs(request, env, now = Date.now()) {
   if (!latest) {
     const other = await env.WATCH.prepare('SELECT COUNT(*) AS n FROM prefs WHERE key = ?').bind(k).first();
     if (!other?.n) {
+      const newKeyWait = await dayWait(env, 'cloud-new-keys-day', Number(env.CLOUD_NEW_KEYS_PER_DAY) || CLOUD_NEW_KEYS_PER_DAY, now);
+      if (newKeyWait) return retry(newKeyWait, 'the cloud save has taken all the new accounts it can today');
       const keys = await env.WATCH.prepare('SELECT COUNT(DISTINCT key) AS n FROM prefs').first();
       if ((keys?.n ?? 0) >= FOLLOW_MAX_KEYS) return retry(3600, 'the cloud save is full right now');
     }
   }
+
+  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   // The hour's budget, in one statement (as follow.js does): a refused write changes no row, so it costs no read.
   const budgetKey = `prefs|${k}`;

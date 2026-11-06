@@ -155,7 +155,7 @@ describe('limits', () => {
     expect((await put(gz({ x: 2 }), { now: T0 + 3_700_000 })).status).toBe(200);
     const keys = env.WATCH._db.prepare("SELECT key FROM follow_rate").all().map(r => r.key);
     expect(keys).toContain(`answers|${K}`);
-    expect(keys.every(k => k.startsWith('answers|') || k === 'answers-new-day')).toBe(true);
+    expect(keys.every(k => k.startsWith('answers|') || k === 'answers-new-day' || k === 'cloud-puts-day')).toBe(true);
   });
 
   it('refuses a new entry when the table is full, but lets an existing one be replaced', async () => {

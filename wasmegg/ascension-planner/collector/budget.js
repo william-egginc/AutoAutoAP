@@ -15,11 +15,15 @@ export const CSVD_RUN_BYTES = 32 * 1024 * 1024;
 /** Gzip bytes of CSV (/csv heads, whole files, parts, and /csvd deltas) written to KV a day: real use is under 10 MB (measured 6 Nov: mean 0.15 MB a CSV, largest 1.7 MB). KV's free storage is 1 GB. */
 export const CSV_DAY_BYTES = 32 * 1024 * 1024;
 /** Accepted /submit sends a day for the whole collector (each is about 3 or 4 KV writes of the 1,000 a day). */
-export const SUBMITS_PER_DAY = 150;
+export const SUBMITS_PER_DAY = 100;
 /** Seconds a /csvd delta lives in KV if nothing sweeps it first: the sweep deletes only 20 a day. A run's deltas are stitched into its CSV long before. */
 export const CSVD_TTL_SECONDS = 7 * 86_400;
-/** /csvd writes a day for the whole collector: KV allows 1,000 writes a day and the board needs most of them. */
-export const CSVD_DAY_WRITES = 300;
+/** /csvd writes a day for the whole collector. KV's free plan allows 1,000 writes a day; worst case all paths together stay near 660 (see notes/quotas-2026-11-06.md). */
+export const CSVD_DAY_WRITES = 200;
+/** follow + prefs + answers PUTs a day for the whole collector (each is about 4 D1 rows written of the 100,000 a day; real use is a few hundred). */
+export const CLOUD_PUTS_PER_DAY = 5000;
+/** Brand-new follow or prefs keys a day: the new-key path counts the table (D1 reads are 5 million a day). */
+export const CLOUD_NEW_KEYS_PER_DAY = 150;
 
 /**
  * Spend `amount` of `cap` for `key` in a window of `windowMs` starting at the first spend. `{ ok: true }` or
@@ -63,4 +67,10 @@ export async function csvDayRefusal(env, bytes, now, reply) {
   if (r.ok) return null;
   const retryAfter = waitSeconds(r.since, DAY_MS, now);
   return reply({ error: 'the collector has taken all the CSV bytes it can today', retryAfter }, 429, { 'retry-after': String(retryAfter) });
+}
+
+/** Spend one of a day-wide count. 0 if there is room, else the seconds to wait. */
+export async function dayWait(env, key, cap, now) {
+  const r = await spend(env, key, 1, cap, now, DAY_MS);
+  return r.ok ? 0 : waitSeconds(r.since, DAY_MS, now);
 }

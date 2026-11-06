@@ -19,7 +19,7 @@
  * evicts the least recently written, so the answer is never refused for room), 30 writes an hour per key (`follow_rate`
  * under 'answers|<key>'), MAX_TOTAL entries in all, and the FOLLOW_LIMIT edge binding per address.
  */
-import { DAY_MS, spend, waitSeconds } from './budget.js';
+import { CLOUD_PUTS_PER_DAY, DAY_MS, dayWait, spend, waitSeconds } from './budget.js';
 import { AT_AHEAD_MS, FOLLOW_WRITES_PER_HOUR, HOUR_MS, PLAYER_ID, UNIX_FROM, UNIX_TO, isKey, overLimit, reply, retry, whole } from './follow.js';
 
 export const ANSWER_MAX_BYTES = 65_536;
@@ -28,7 +28,7 @@ export const ANSWER_MAX_TOTAL = 20_000;
 /** Gzip bytes held in all (stored as base64, about a third more): D1's free size is 500 MB and the board, follow, prefs and big-CSV tables share it. */
 export const ANSWER_MAX_TOTAL_BYTES = 100 * 1024 * 1024;
 /** New entries a day for the whole collector (a replacement of an existing one is free): keys are free to invent. */
-export const ANSWER_NEW_PER_DAY = 300;
+export const ANSWER_NEW_PER_DAY = 150;
 /** An entry not written for this long is dropped by the cron: it is a recomputable cache, not a record. */
 export const ANSWER_KEEP_DAYS = 45;
 const E_RE = /^[A-Za-z0-9._:-]{1,96}$/;
@@ -109,6 +109,9 @@ export async function handleAnswers(request, env, now = Date.now()) {
     const total = await env.WATCH.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(bytes), 0) AS b FROM answers').first();
     if ((total?.n ?? 0) >= ANSWER_MAX_TOTAL || (total?.b ?? 0) + body.length > ANSWER_MAX_TOTAL_BYTES) return retry(3600, 'the cloud save is full right now');
   }
+
+  const putWait = await dayWait(env, 'cloud-puts-day', Number(env.CLOUD_PUTS_PER_DAY) || CLOUD_PUTS_PER_DAY, now);
+  if (putWait) return retry(putWait, 'the cloud save has taken all the writes it can today');
 
   // The hour's budget in one statement (as follow.js): a refused write changes no row, so it needs no read.
   const budgetKey = `answers|${k}`;

@@ -118,3 +118,27 @@ describe('C13: two writers for one version number', () => {
     expect((await putPrefs('consent', consentValue(T0))).status).toBe(503);
   });
 });
+
+describe('D1 quotas: daily PUT and new-key budgets across follow and prefs (Jordan 6 Nov)', () => {
+  const kk = n => n.toString(16).padStart(64, '0');
+  it('CLOUD_PUTS_PER_DAY caps follow and prefs writes together; 429 with retryAfter and nothing stored', async () => {
+    env.CLOUD_PUTS_PER_DAY = '3';
+    expect((await putFollow(followValue(T0), T0, kk(1))).status).toBe(200);
+    expect((await putPrefs('setup', setupValue(T0), T0, kk(1))).status).toBe(200);
+    expect((await putFollow(followValue(T0, { chain: [1, 2] }), T0, kk(1))).status).toBe(200);
+    const res = await putPrefs('consent', consentValue(T0), T0, kk(1));
+    expect(res.status).toBe(429);
+    expect((await res.json()).retryAfter).toBeGreaterThan(0);
+    expect(rows('prefs')).toBe(1);
+    expect((await putFollow(followValue(T0 + 86_400_001), T0 + 86_400_001, kk(1))).status).toBe(200);
+  });
+  it('CLOUD_NEW_KEYS_PER_DAY caps brand-new keys a day (the new-key path scans the table); a known key is unaffected', async () => {
+    env.CLOUD_NEW_KEYS_PER_DAY = '2';
+    expect((await putFollow(followValue(T0), T0, kk(1))).status).toBe(200);
+    expect((await putPrefs('setup', setupValue(T0), T0, kk(2))).status).toBe(200);
+    expect((await putFollow(followValue(T0), T0, kk(3))).status).toBe(429);
+    expect((await putPrefs('setup', setupValue(T0), T0, kk(4))).status).toBe(429);
+    expect((await putFollow(followValue(T0 + 5, { chain: [1, 2] }), T0 + 5, kk(1))).status).toBe(200);
+    expect(rows('follows')).toBe(2);
+  });
+});
