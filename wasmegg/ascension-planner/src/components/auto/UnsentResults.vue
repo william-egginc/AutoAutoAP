@@ -173,6 +173,9 @@ const props = defineProps<{
   playerId: string;
   /** The screen's own "Credit me as" box, to start each name from; else the account's name. */
   nickname?: string;
+  /** The kept result whose own Share this result is on the page: left out here, as a second send path with a second
+   *  copy of the consent for the same result (UX fluff review 2, 5 Nov 2026, item S3). Others still show. */
+  hideKey?: string | null;
 }>();
 const store = useChainSearchStore();
 
@@ -180,7 +183,7 @@ const store = useChainSearchStore();
 const shown = computed(() =>
   store.isRunning || store.deadlineRunning || (store.resultSending && !sendingId.value)
     ? []
-    : store.pendingSends.filter(p => !props.kind || p.kind === props.kind)
+    : store.pendingSends.filter(p => (!props.kind || p.kind === props.kind) && !(props.hideKey && p.key === props.hideKey))
 );
 /** What the last Send it now here said once its result left the list (sent). */
 const sentNote = ref('');

@@ -548,6 +548,7 @@
       kind="by-date"
       :option="k === 'boxes' ? 'custom' : choiceForEffort(stronger.level).option"
       :player-id="playerId"
+      :share-shown-key="shareShownKey"
       :find-disabled="
         store.busy ||
         !!instantWait ||
@@ -2455,6 +2456,11 @@ const autoShare = ref(false);
 const autoShared = ref(false);
 /** The answer on screen went with its run: Share this result gives way to one line. A send that failed
  *  (or was kept off the board) keeps the box, so it says so and can still be sent by hand. */
+/** The kept answer whose Share this result is on the page (the key a kept By a date result carries, stores/chainSearch.ts
+ *  `keepFinishedResult`): the unsent box near Run leaves it out (UX fluff review 2, 5 Nov 2026, item S3). */
+const shareShownKey = computed(() =>
+  result.value && best.value && collectorConfigured.value && !store.deadlineRunning ? `deadline:${result.value.at}` : null
+);
 const sentByRun = computed(
   () => autoShared.value && !store.deadlineRunning && shareOk.value && (sharing.value || sentKey.value === resultKey.value)
 );

@@ -767,6 +767,7 @@
           v-model:note="store.runNote"
           kind="full"
           :player-id="playerId"
+          :share-shown-key="shareShownKey"
           :find-disabled="
             store.busy ||
             store.integrityBlocked ||
@@ -1094,21 +1095,12 @@
               :csv-detail="`(${store.csvRows.toLocaleString()} routes, one row per ascension; routes past the memory budget export with their per-ascension cells blank)`"
               @nickname-typed="nicknameTouched = true"
             >
+              <!-- One sentence before the consent (UX fluff review 2, 5 Nov 2026, item C9/S1; DRAFT, Words); what the random
+                   code does is under "Show exactly what is sent" (item C10/S2, word for word). -->
               <template #intro>
                 <p class="text-body text-indigo-900/80 max-w-prose">
-                  A Custom result is the most useful thing the Leaderboard can get: the best of a stated grid rather than
-                  a search result. It is sent with the space it covered and what it found there (the runners-up, the
-                  best route at each ascension count, and the spread), so a reader can tell a real find from a flat
-                  neighbourhood without downloading the CSV. A run opened from Saved for later above is sent without a run
-                  cost, because the time it took wasn't this machine's.
-                </p>
-                <p class="text-body text-indigo-900/80 max-w-prose">
-                  The Leaderboard uses the random code so that a run landing on the flagged Leaderboard shows to you as yours and to
-                  everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
-                  you sent anonymously, and your own later runs can replace your older plans on the Leaderboard (nobody else's
-                  can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
-                  to you. Your best three plans already on the Leaderboard go named with a named send and anonymous with an
-                  anonymous one, so a re-check never ties the two together.
+                  Sends the space it covered, its best route and the runners-up, so readers can tell a real find from a
+                  flat neighbourhood.
                 </p>
               </template>
               <template #opted>
@@ -1150,7 +1142,16 @@
                 @submit="submit()"
                 @save="downloadSubmission"
                 @retry="retryTable"
-              />
+              >
+                <template #payload-note>
+                  The Leaderboard uses the random code so that a run landing on the flagged Leaderboard shows to you as yours and to
+                  everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
+                  you sent anonymously, and your own later runs can replace your older plans on the Leaderboard (nobody else's
+                  can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
+                  to you. Your best three plans already on the Leaderboard go named with a named send and anonymous with an
+                  anonymous one, so a re-check never ties the two together.
+                </template>
+              </BoardSubmitButtons>
             </ShareResult>
           </template>
         </RunResults>
@@ -2037,6 +2038,11 @@ const autoSubmitted = ref(false);
 /** The result on screen went with its run (Find and submit, a sweep link, or a run that owed it): Share
  *  this result gives way to one line. A send that failed keeps the box, so it can still be sent by hand. */
 const sentByRun = computed(() => autoSubmitted.value && submitOk.value && (submitting.value || store.alreadySubmitted));
+/** The kept result whose Share this result is on the page (store `safeResultKey`, the key a kept Fastest result
+ *  carries): the unsent box near Run leaves it out (UX fluff review 2, item S3); null while none is shown. */
+const shareShownKey = computed(() =>
+  ownRun.value && store.bestDays > 0 && !store.isRunning ? store.safeResultKey() : null
+);
 
 /** Set for the length of a Find and submit click (one run or a whole queue). */
 const findAndSubmit = ref(false);

@@ -467,6 +467,7 @@
         kind="smart"
         :option="choiceForEffort(store.effort).option"
         :player-id="playerId"
+        :share-shown-key="shareShownKey"
         :find-disabled="
           store.busy ||
           store.integrityBlocked ||
@@ -1485,6 +1486,11 @@ const autoSubmitted = ref(false);
 /** The result on screen went with its run (Find and submit, or a run that owed it): Share this result
  *  gives way to one line. A send that failed keeps the box, so it can still be sent by hand. */
 const sentByRun = computed(() => autoSubmitted.value && submitOk.value && (submitting.value || store.alreadySubmitted));
+/** The kept result whose Share this result is on the page (store `safeResultKey`): the unsent box near Run leaves it
+ *  out (UX fluff review 2, 5 Nov 2026, item S3); null while none is shown. */
+const shareShownKey = computed(() =>
+  ownRun.value && store.bestDays > 0 && !store.isRunning ? store.safeResultKey() : null
+);
 
 /** Find (or carry on a run, `resume`); with `andSubmit`, the result is sent as Share this result
  *  would send it once the run finishes. */

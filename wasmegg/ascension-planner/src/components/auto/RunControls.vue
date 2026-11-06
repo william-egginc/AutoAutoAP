@@ -75,7 +75,12 @@
     />
     <!-- Finished results kept until sent (search/pendingSends.ts): "This result wasn't sent: Send it now",
          for a run that finished (and sent) while this panel was closed for another tab. -->
-    <UnsentResults :kind="kind === 'by-date' ? 'deadline' : 'fastest'" :player-id="playerId" :nickname="nickname" />
+    <UnsentResults
+      :kind="kind === 'by-date' ? 'deadline' : 'fastest'"
+      :player-id="playerId"
+      :nickname="nickname"
+      :hide-key="shareShownKey"
+    />
 
     <!-- Stepping away? Carry on by itself, a watcher tab, fewer workers (StepAwayOptions.vue). -->
     <StepAwayOptions
@@ -159,6 +164,8 @@ const props = withDefaults(
     /** The run's estimate the screen shows, seconds (null or absent: none). Over an hour (useStepAwayNudge.ts
      *  LONG_RUN_SECONDS), Run also opens Stepping away? unless it is set up. */
     estimateSeconds?: number | null;
+    /** The kept result whose Share this result the screen shows (UnsentResults.vue `hideKey`); null: none. */
+    shareShownKey?: string | null;
   }>(),
   {
     stopping: false,
@@ -171,6 +178,7 @@ const props = withDefaults(
     integrityNotice: true,
     deadlineOffer: false,
     estimateSeconds: null,
+    shareShownKey: null,
   }
 );
 const emit = defineEmits<{
