@@ -29,18 +29,13 @@
         </span>
         <span v-else class="text-small font-bold text-slate-400">Counting the Leaderboard<AnimatedDots /></span>
       </div>
+      <!-- The first sentence only, and one line on how old the findings are (fluff review 2, 5 Nov 2026, L22-L23):
+           the pointer to Science › How it works went, since that tab is off by default. -->
       <p class="text-body text-slate-700 max-w-3xl">
         What everybody's shared runs on the leaderboard show: patterns that hold across accounts, like how many
-        ascensions pay off and where the stops land. How the planner itself works, and how its numbers were checked, is
-        on
-        <a v-if="howHref" :href="howHref" class="font-bold text-indigo-700 underline"
-          >{{ NAMES.science }} › {{ NAMES.how }}</a
-        ><template v-else>{{ NAMES.science }} › {{ NAMES.how }}</template>.
+        ascensions pay off and where the stops land.
       </p>
-      <p class="text-small text-slate-500">
-        Findings checked {{ FINDINGS_CHECKED }}, on the simulator the site ran before Oct 21, 2026. They have not been
-        checked again on the newer one yet.
-      </p>
+      <p class="text-small text-slate-500">Checked {{ FINDINGS_CHECKED }} on the older simulator; not rechecked yet.</p>
     </div>
 
     <div class="rounded-lg border border-emerald-200 bg-white p-3 space-y-1 text-body text-slate-800">
@@ -63,11 +58,6 @@
       </p>
       <p><b>Below about 220 Clothed TE,</b> upgrade your earnings set first: your first ascension stalls.</p>
     </div>
-
-    <p class="text-body text-slate-500 max-w-prose">
-      Tap a finding to open it. The header counts are worked out from the Leaderboard each time the page loads. The charts and
-      tables further down are live too and show dates in your timezone.
-    </p>
 
     <div class="space-y-1.5 text-body text-slate-700">
       <details v-for="(f, i) in findings" :key="f.id" class="finding rounded-lg border border-emerald-100 bg-white">
@@ -231,7 +221,6 @@
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { plural } from '@/lib/format';
-import { NAMES } from '@/lib/siteNav';
 import { HOURS_NOTE } from '@/lib/hoursNote';
 import type { KnowStats } from './knowStats';
 
@@ -243,8 +232,6 @@ defineProps<{
   stats?: KnowStats | null;
   /** The Science tab's address, when the page can link to it. */
   scienceHref?: string;
-  /** Science › How it works, when the page can link to it. */
-  howHref?: string;
 }>();
 
 const findings = [

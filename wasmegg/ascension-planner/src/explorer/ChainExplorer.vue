@@ -159,7 +159,6 @@
         v-if="part === 'insights'"
         :stats="knowSummary"
         :science-href="scienceHref('check')"
-        :how-href="scienceHref('how')"
       />
 
       <!-- Holds the place of everything below while the collector loads, at a fixed height. The

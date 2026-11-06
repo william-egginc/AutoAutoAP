@@ -31,9 +31,21 @@ describe('What we know: the instant answer against the full simulator', () => {
   });
 
   it('says what Insights is for, and states the cost of one TE without doom figures', async () => {
-    const text = textOf(await renderHtml(WhatWeKnow, { howHref: './#/science' }));
+    const text = textOf(await renderHtml(WhatWeKnow, {}));
     expect(text).toContain("What everybody's shared runs on the leaderboard show");
     expect(text).toContain('one TE is worth about two days');
     expect(text).not.toMatch(/a month|cost weeks/i);
+  });
+
+  it('is trimmed (fluff review 2, 5 Nov 2026: L22, L23, L25)', async () => {
+    const text = textOf(await renderHtml(WhatWeKnow, {}));
+    // L22: the first sentence only; no pointer to Science, which is off by default.
+    expect(text).toContain('like how many ascensions pay off and where the stops land.');
+    expect(text).not.toContain('How the planner itself works');
+    // L23: one line, kept (it says how far to trust the findings).
+    expect(text).toContain('Checked Oct 10, 2026 on the older simulator; not rechecked yet.');
+    expect(text).not.toContain('They have not been checked again');
+    // L25: cut.
+    expect(text).not.toContain('Tap a finding to open it');
   });
 });
