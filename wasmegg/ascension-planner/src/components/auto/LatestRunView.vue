@@ -160,8 +160,14 @@
            nudged by one TE all over the cache, and ten of those is a useless menu. -->
       <div v-if="store.pricedCount > 1" data-testid="other-options" class="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <div class="flex items-center justify-between gap-3">
-          <h3 class="text-slate-500 label">
+          <!-- "Fastest is not always best…" behind the "?", word for word (UX fluff review 2, 5 Nov 2026, item M4). -->
+          <h3 class="flex items-center gap-1.5 text-slate-500 label">
             Other options worth considering
+            <HelpTip>
+              Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
+              half a day slower for one fewer ascension may well be the trade you want. Pick on the finish date, not the
+              day count: durations from different plan starts are not comparable.
+            </HelpTip>
           </h3>
           <button
             v-if="!store.isRunning"
@@ -173,12 +179,6 @@
           </button>
         </div>
 
-        <p class="text-body text-slate-500 max-w-prose">
-          Fastest is not always best. Every prestige is a full rebuild (twelve shifts and a fresh research grind), so
-          half a day slower for one fewer ascension may well be the trade you want. Pick on the
-          <span class="font-bold">finish date</span>, not the day count: durations from different plan starts are
-          not comparable.
-        </p>
 
         <!-- Preset views over the SAME priced chains. Nothing here re-simulates; every one of
              these reads the cache the run already built, so switching is instant. 44 px tall on a phone, as Refresh
@@ -209,10 +209,15 @@
           v-if="store.shortlist.length <= 1"
           class="text-body text-slate-500 rounded-lg border border-slate-200 bg-slate-50 p-3"
         >
-          Nothing else here is a genuinely different plan: every other route this run priced is the same shape moved
-          by a few TE, or more than five days behind. That is normal for a run that only swept one stop, and for one
-          stopped early. Switch to <span class="font-bold">Fastest</span> to see the quickest of the
-          {{ store.pricedCount }}, fastest first.
+          <!-- One line and the way to the Fastest view (UX fluff review 2, 5 Nov 2026, item M7). DRAFT (Words). -->
+          Nothing here is a different plan.{{ ' ' }}<button
+            type="button"
+            class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-slate-700 underline hover:text-slate-900"
+            data-testid="shortlist-see-fastest"
+            @click="store.setShortlistView('fastest')"
+          >
+            See Fastest ›
+          </button>
         </p>
         <div v-else class="overflow-x-auto" data-testid="shortlist">
           <table class="w-full text-small">
