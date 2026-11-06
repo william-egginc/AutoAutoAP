@@ -79,10 +79,10 @@ describe('the saved answer tile (SavedTile.vue)', () => {
   };
   const props = { tile, goal: 'fastest' as const, title: 'Fastest to 490 TE', target: 490, now: 1_799_000_000, zone: 'UTC', standing: '', standingLabel: '' };
 
-  it('shows the line it is given, amber when it is', async () => {
+  it('shows the line only when amber (Next step says it otherwise: UX fluff review 2, 5 Nov 2026, item R11)', async () => {
     const plain = await renderHtml(SavedTile, { ...props, soulEggsAfter: { text: "You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)", amber: false } });
-    expect(textOf(plain)).toContain("You'll have about 9.7s soul eggs left when this plan is done (about 3.0s goes on 48 shifts)");
-    expect(plain).toMatch(/data-testid="now-tile-soul-eggs"[^>]*>|class="[^"]*text-slate-600[^"]*"[^>]*data-testid="now-tile-soul-eggs"/);
+    expect(textOf(plain)).not.toContain("You'll have about 9.7s soul eggs left");
+    expect(plain).not.toContain('data-testid="now-tile-soul-eggs"');
     const amber = await renderHtml(SavedTile, { ...props, soulEggsAfter: { text: "You'll have about 1.0s soul eggs left when this plan is done", amber: true } });
     expect(amber).toMatch(/class="[^"]*text-amber-800[^"]*"[^>]*data-testid="now-tile-soul-eggs"/);
     expect(textOf(await renderHtml(SavedTile, props))).not.toContain('soul eggs left when this plan is done');

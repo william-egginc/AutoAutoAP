@@ -817,7 +817,12 @@ const secondaryText = computed(() => {
 });
 /** The chip: lib/planPace.ts's words, the same as My runs' saved plans ("3 hours behind, as of 3:42 pm"). */
 const pace = computed(() => (props.track ? paceWords(props.track, props.now, props.zone) : null));
-const chip = computed(() => (pace.value?.text ? { tone: pace.value.tone, text: pace.value.text } : null));
+/** lib/planPace.ts's words for a plan made from the save loaded now: the chip says nothing new then, so it is left out
+ *  (UX fluff review 2, 5 Nov 2026, item R9; the words are planPace.ts's, a result code input, so they are matched here). */
+const SAME_SAVE_CHIP = 'Made from your latest save';
+const chip = computed(() =>
+  pace.value?.text && pace.value.badge !== SAME_SAVE_CHIP ? { tone: pace.value.tone, text: pace.value.text } : null
+);
 const paceBadge = computed(() => pace.value?.badge ?? '');
 const nextText = computed(() =>
   props.card ? nextStepText(props.events, props.card.goal.goal, props.now, props.zone, rounded.value) : ''

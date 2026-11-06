@@ -202,7 +202,9 @@ describe('Your eggs with several eggs (server render)', () => {
     expect(t).not.toContain('60% to the next TE');
     expect(t).not.toContain('10% to the next TE');
     expect(t).toContain('100% to the next TE · after a shift');
-    expect(t).toContain('estimated from your save of Oct 15 at 2:40 PM');
+    // "estimated from your save" once on the card; the note with its save is behind the "?" (UX fluff review 2, item R16).
+    expect(t).toContain('After a shift: estimated from your save.');
+    expect(html).toMatch(/data-testid="now-eggs-after-shift-note"[\s\S]*?aria-label="What does this mean\?"/);
   });
 
   it('phone width: one column, the lines wrap, the type scale (no size under 11 px, no caps)', async () => {

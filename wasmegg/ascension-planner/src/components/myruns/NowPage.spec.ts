@@ -114,7 +114,8 @@ describe('the Right now card', () => {
     expect(t).toContain('Plan for Fastest to 490 TE calculated Oct 15 at 12:40 PM (2h ago) (simulator check)');
     expect(t).toContain('Integrity');
     expect(t).toContain('ascension 1 of 2 · 186 TE so far');
-    expect(t).toContain('Made from your latest save'); // R6: one wording with My runs' saved plans (lib/planPace.ts)
+    // Not on Right now since 5 Nov 2026: a plan from the save loaded now has nothing to compare (UX fluff review 2, R9).
+    expect(t).not.toContain('Made from your latest save');
     expect(t).toContain('Shift to Humility today at 4:00 PM (in 1h 20m), then Kindness tomorrow at 9:15 AM');
     // The picture is named by the egg's name, as FloatingStats does (a numeric name did not load).
     expect(html).toContain('egginc/egg_integrity.png');
@@ -126,7 +127,8 @@ describe('the Right now card', () => {
     expect(t).toContain('Prestige at 198 TE');
     expect(t).toContain('490 TE reached');
     expect(t).toContain('Add all 3 upcoming to calendar');
-    expect(t).toContain('If the plan changes, add them again after a new run.');
+    // One clause since 5 Nov 2026, the alert and the save behind its "?" (UX fluff review 2, item R15).
+    expect(t).toContain('If the plan changes, add them again.');
     expect(t).toContain('Full timeline');
   });
 
@@ -299,7 +301,9 @@ describe('your eggs and Try next', () => {
     expect(t).toContain('Shifts done 214');
     expect(t).toContain("All planned shifts Can't tell");
     // Estimated to now (lib/farmNow.ts): 3 h since the save, 17h 20m held.
-    expect(t).toContain('Silos about 14h 20m left of 17h 20m · estimated from your save of Oct 15 at 11:40 AM');
+    // Not "estimated from your save of …" again on the tile (UX fluff review 2, item R17).
+    expect(t).toContain('Silos about 14h 20m left of 17h 20m');
+    expect(t).not.toContain('of 17h 20m · estimated from your save');
     expect(t).toContain('Habs 72% full');
     expect(t).toContain('Clothed TE 212 (equipped 198)');
   });

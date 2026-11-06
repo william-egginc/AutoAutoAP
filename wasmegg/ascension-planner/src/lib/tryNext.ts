@@ -79,6 +79,7 @@ export function oneMoreLine(o: {
   const when = dateAt(next.at, o.nowSeconds, o.zone);
   const egg = virtueEggName(next.egg);
   if (o.deadline != null && !finishesBefore(next.at, o.deadline))
-    return `One more TE by ${o.what} (${last + 1}, on ${egg}) would come ${when}, ${lateMarker(deadlineKind(o.deadline))}, so it isn't counted.`;
+    // Nothing to try (UX fluff review 2, 5 Nov 2026, item R19): the next TE comes after the date. DRAFT (Words).
+    return `Nothing to try: the next TE comes ${lateMarker(deadlineKind(o.deadline))}.`;
   return `One more TE (${last + 1}, on ${egg}) would come ${when}.`;
 }

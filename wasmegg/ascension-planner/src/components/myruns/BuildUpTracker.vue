@@ -33,7 +33,7 @@
       <div class="mt-2 space-y-2 text-body text-slate-700" data-testid="buildup-body">
         <p v-if="state === 'noSave'" data-testid="buildup-nosave">Load your save to see your build-up here.</p>
         <div v-else-if="state === 'noRoute' && followedFor" class="space-y-1" data-testid="buildup-followed-for">
-          <p>Your followed route is for {{ followedFor.name }}. Its build-up shows here when Right now shows that goal.</p>
+          <!-- The hint above names the goal; the sentence that said it again is gone (UX fluff review 2, item R13). -->
           <button
             type="button"
             class="min-h-[44px] rounded-lg border border-indigo-300 bg-white px-3 text-small font-bold text-indigo-700"
@@ -73,16 +73,18 @@
         </div>
 
         <template v-else-if="result">
+          <!-- Two lines (UX fluff review 2, 5 Nov 2026, item R12): the save's age with "Load a newer save", and the silo
+               warning below; the plan's save, the check-in spacing and the Smart Buy setting are behind the "?". -->
           <p class="text-small text-slate-500 tabular-nums" data-testid="buildup-now">
             Now {{ dayClock(now, zone, now) }} · your save
             <span :class="saveOld ? 'text-amber-800' : ''">{{ dayClock(saveSeconds, zone, now) }} ({{ saveAge }} old)</span>.
-            Load a newer save to tick off what you bought.
+            Load a newer save to tick off what you bought.{{ ' ' }}<HelpTip data-testid="buildup-plan"
+              >Plan from your save of {{ dayClock(planSave, zone, now) }} · check-ins at least 1 min apart · lines tick
+              themselves from your save; tick the rest by hand.<template v-if="result.buyRule"
+                >{{ ' ' }}{{ result.buyRule }}</template
+              ></HelpTip
+            >
           </p>
-          <p class="text-small text-slate-500 tabular-nums" data-testid="buildup-plan">
-            Plan from your save of {{ dayClock(planSave, zone, now) }} · check-ins at least 1 min apart · lines tick themselves
-            from your save; tick the rest by hand.
-          </p>
-          <p v-if="result.buyRule" class="text-small text-slate-500" data-testid="buildup-buyrule">{{ result.buyRule }}</p>
           <p v-if="fitNote" class="text-small text-amber-800" data-testid="buildup-fit">{{ fitNote }}</p>
           <div
             v-if="replan?.shown"
@@ -241,6 +243,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import PanelFold from '@/components/auto/PanelFold.vue';
+import HelpTip from '@/components/auto/HelpTip.vue';
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { clock12, dayClock, dayView, gapWords, lineText, sweepTail, type TrackerDay, type TrackerLine, type TrackerResult, type TrackerSummary } from '@/lib/buildUpTracker';
 import { getNextSaleEnd } from '@/lib/events';

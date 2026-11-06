@@ -30,7 +30,8 @@ describe('BuildUpTracker: a route followed for another goal', () => {
     expect(text).not.toContain('follow a route first');
     expect(text).not.toContain('Follow a route on Right now');
     expect(text).toContain('Build-up tracker your route is for Egg Day 2027');
-    expect(text).toContain("Your followed route is for Egg Day 2027. Its build-up shows here when Right now shows that goal.");
+    // The hint names the goal; the sentence that repeated it is gone (UX fluff review 2, 5 Nov 2026, item R13).
+    expect(text).not.toContain('Its build-up shows here when Right now shows that goal.');
     expect(html).toMatch(/<button[^>]*data-testid="buildup-show-followed"[^>]*data-goal="eggday-2027"/);
     expect(html).toMatch(/<button[^>]*min-h-\[44px\][^>]*data-testid="buildup-show-followed"/);
     expect(text).toContain('Show Egg Day 2027');

@@ -101,9 +101,13 @@
       <!-- Plain words, no link (ux review 26 Oct, row 15; 25 Oct 2026: the card's Run Fast went, Try next has the runs). -->
       From the instant answer, rounded to the hour. For exact times on your account, use a run from Try next below.
     </p>
-    <p v-else-if="upcoming.length" class="mt-1.5 text-body text-slate-500 max-w-prose">
-      Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
-      nothing is sent. If the plan changes, add them again after a new run.
+    <!-- One clause, the rest behind a "?" (UX fluff review 2, 5 Nov 2026, item R15). DRAFT (Words). -->
+    <p v-else-if="upcoming.length" class="mt-1.5 flex items-center gap-1.5 text-body text-slate-500 max-w-prose">
+      If the plan changes, add them again.
+      <HelpTip>
+        Calendar events carry a 10-minute alert and say "from your save of {{ saveWhen }}". Built on {{ device }};
+        nothing is sent. Add them again after a new run.
+      </HelpTip>
     </p>
   </div>
 </template>
@@ -111,6 +115,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import CalendarButton from './CalendarButton.vue';
+import HelpTip from '@/components/auto/HelpTip.vue';
 import { dateAt } from '@/lib/eventWhen';
 import { eventTitle, howFar, notDoneTitle, whenWords } from '@/lib/nowWords';
 import { planCalEvent } from '@/lib/calendarEvents';
