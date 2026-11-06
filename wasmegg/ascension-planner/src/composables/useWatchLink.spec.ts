@@ -24,6 +24,7 @@ import {
   type ProgressLike,
   type WatchHeartbeat,
 } from '@/search/watchLink';
+import { settle } from '@/watch/specSettle';
 
 const T0 = Date.UTC(2026, 9, 10, 12);
 let clock = T0;
@@ -34,10 +35,6 @@ let running: 'smart' | 'sweep' | 'deadline' | null = null;
 
 const posts = () => calls.filter(c => c.url.endsWith('/watch'));
 const notes = () => calls.filter(c => c.url === 'https://ntfy.sh');
-/** Let the sealing (WebCrypto) and the fetch go through. Not a timer, so fake timers don't stop it. */
-const settle = async () => {
-  for (let i = 0; i < 5; i++) await new Promise(r => setImmediate(r));
-};
 /** A post opened with the active link's secret, as the phone would. */
 async function opened(i: number, secret = activeWatch.value!.link.secret): Promise<WatchHeartbeat | null> {
   const b = posts()[i].body;
