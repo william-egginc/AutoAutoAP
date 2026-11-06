@@ -100,6 +100,30 @@
         color: var(--muted);
         font-weight: 600;
       }
+      .contents ul {
+        list-style: none;
+        padding: 0;
+        margin: 1rem 0;
+      }
+      .contents li {
+        margin: 0;
+        break-inside: avoid;
+      }
+      .contents a {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 0.25rem;
+      }
+      @media (min-width: 40rem) {
+        .contents ul {
+          columns: 2;
+          column-gap: 1.5rem;
+        }
+      }
+      section {
+        scroll-margin-top: 0.5rem;
+      }
       code {
         font-family: inherit;
         font-variant-numeric: tabular-nums;
@@ -112,6 +136,27 @@
       <p><a href="./">← Back to the planner</a></p>
       <h1>About and privacy</h1>
       <p class="muted">Last updated Nov 4, 2026. Short version: your save stays on your computer, nothing goes to the leaderboard unless you press a button, and your player ID is never sent to it.</p>
+
+      <!-- Contents (UX fluff review 2, A4): the page is long on a phone. Links only; the sections' text is unchanged. -->
+      <nav class="contents" aria-label="Contents">
+        <ul>
+          <li><a href="#what">What this is</a></li>
+          <li><a href="#stays">What stays on your computer</a></li>
+          <li><a href="#save">Where your save comes from</a></li>
+          <li><a href="#sent">What is sent, and when</a></li>
+          <li><a href="#follow">The route you follow, saved online</a></li>
+          <li><a href="#prefs">Your choices and Setup, saved online</a></li>
+          <li><a href="#answers">Your instant answers, saved online</a></li>
+          <li><a href="#readback">Your own run's CSV, read back</a></li>
+          <li><a href="#never">What is never sent to the leaderboard</a></li>
+          <li><a href="#code">The random browser code</a></li>
+          <li><a href="#stored">Where it is stored, and for how long</a></li>
+          <li><a href="#remove">Hiding or removing your rows</a></li>
+          <li><a href="#cookies">Cookies, ads and counters</a></li>
+          <li><a href="#version">Which version of the page you have open</a></li>
+          <li><a href="#security">Security</a></li>
+        </ul>
+      </nav>
 
       <section id="what">
         <h2>What this is</h2>
