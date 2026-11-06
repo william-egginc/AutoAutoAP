@@ -145,7 +145,9 @@ describe('Saved answers: one entry per answer', () => {
     expect(store.savedAnswers[0]).toMatchObject({ label: 'first', savedAt: T0 + 5000 });
   });
 
-  it('both save buttons say Saved once the answer on screen is saved, and not for a new one', async () => {
+  // One named Save, on the card, since 5 Nov 2026 (UX fluff review 2, item D11; CardSaveRow.vue): it says Saved ✓ for
+  // the answer on screen; Saved answers below lists it and has no Save of its own.
+  it("the card's one Save says Saved once the answer on screen is saved, and not for a new one", async () => {
     const store = useChainSearchStore();
     store.deadlineResult = answer();
     expect(store.currentAnswerSaved).toBe(false);
@@ -158,21 +160,24 @@ describe('Saved answers: one entry per answer', () => {
         pinia,
       ])
     );
-    expect(below).toContain('Saved ✓');
-    expect(below).not.toContain('Save this answer');
-    const card = textOf(
-      await renderHtml(ByDateRouteCard, {
-        route: (answer() as { routes: unknown[] }).routes[0],
-        deadline: DEADLINE,
-        zone: 'UTC',
-        canSave: true,
-        saved: store.currentAnswerSaved,
-      })
-    );
-    expect(card).toContain('Saved ✓');
-    expect(card).not.toContain('Save answer');
+    expect(below).toContain('Saved answers 249 TE by Jul 14, 2027, 10:00 AM');
+    expect(below).not.toMatch(/Save this answer|Saved ✓/);
+    const card = async () =>
+      textOf(
+        await renderHtml(ByDateRouteCard, {
+          route: (answer() as { routes: unknown[] }).routes[0],
+          deadline: DEADLINE,
+          zone: 'UTC',
+          canSave: true,
+          saved: store.currentAnswerSaved,
+        })
+      );
+    const saved = await card();
+    expect(saved).toContain('Saved ✓');
+    expect(saved).not.toContain('Save answer');
 
     store.deadlineResult = answer({ chain: [166, 199, 222, 249] });
     expect(store.currentAnswerSaved).toBe(false);
+    expect(await card()).toContain('Save answer');
   });
 });

@@ -16,6 +16,7 @@ const { saveRun, listRuns, loadRun, MAX_RUNS } = await import('@/search/runLibra
 const { hashID } = await import('@/lib/storage/db');
 const { renderHtml, textOf } = await import('@/test/renderComponent');
 const SavedRuns = (await import('@/components/auto/SavedRuns.vue')).default;
+const RouteResultCard = (await import('@/components/auto/RouteResultCard.vue')).default;
 
 /** See chainSearch.seed.spec.ts: the actions store reads localStorage the moment it exists. */
 function installStorageStub(): void {
@@ -185,18 +186,37 @@ describe('Saved runs: one entry per run', () => {
     expect(followKey(store.savedRuns[0])).toBe(before);
   });
 
-  it('Save this run says Saved ✓ once the run on screen is saved, and not for a new one', async () => {
+  // The one named Save is the result card's since 5 Nov 2026 (UX fluff review 2, item C7b; CardSaveRow.vue): it says
+  // Saved ✓ for the run on screen; Saved for later lists the run and has no Save of its own.
+  it("the card's one Save says Saved ✓ once the run on screen is saved, and not for a new one", async () => {
     const store = useChainSearchStore();
     showRun(store);
     expect(store.currentRunSaved).toBe(false);
-    await store.saveCurrentRun(PLAYER);
+    const card = async () =>
+      textOf(
+        await renderHtml(RouteResultCard, {
+          chain: store.bestChain,
+          days: store.bestDays,
+          finalTE: 490,
+          endLabel: 'Nov 14, 2028',
+          running: false,
+          canSave: true,
+          saved: store.currentRunSaved,
+        })
+      );
+    expect(await card()).toContain('Save run');
+    await store.saveCurrentRun(PLAYER, 'my run');
     expect(store.currentRunSaved).toBe(true);
+    const saved = await card();
+    expect(saved).toContain('Saved ✓');
+    expect(saved).not.toContain('Save run');
     const pinia = (await import('pinia')).getActivePinia()!;
-    const text = textOf(await renderHtml(SavedRuns, { playerId: PLAYER }, {}, [pinia]));
-    expect(text).toContain('Saved ✓');
-    expect(text).not.toContain('Save this run');
+    const list = textOf(await renderHtml(SavedRuns, { playerId: PLAYER }, {}, [pinia]));
+    expect(list).toContain('my run');
+    expect(list).not.toMatch(/Save this run|Saved ✓/);
     showRun(store, [195, 230, 283, 490]);
     expect(store.currentRunSaved).toBe(false);
+    expect(await card()).toContain('Save run');
   });
 
   it('genuinely different runs still evict the oldest first at the cap (no pinned or followed exemption exists)', async () => {

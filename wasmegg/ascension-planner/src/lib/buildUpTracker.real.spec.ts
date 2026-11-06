@@ -177,7 +177,16 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
     const t = textOf(html);
     expect(t).toContain('Build-up tracker 0 of ');
     expect(t).toContain(r.days[0].title);
-    expect(html).toContain('<span class="font-bold">shift to Kindness</span>');
+    // An open day shows its first 8 lines, then "Show all N" (UX fluff review 2, 5 Nov 2026, item R12; the open-by-default
+    // rule is unchanged). The real first day is longer: 8 lines rendered, the cap's button, and the bold shift to Kindness
+    // still in the plan's lines for that day (it renders bold once the day is shown in full: BuildUpTracker.spec).
+    const day0 = r.days[0];
+    expect(day0.lines.length).toBeGreaterThan(8);
+    const section = html.slice(html.indexOf(`data-testid="buildup-day-${day0.ymd}"`), html.indexOf('</section>', html.indexOf(`data-testid="buildup-day-${day0.ymd}"`)));
+    expect(section.match(/<li[^>]*data-testid="buildup-line-/g)).toHaveLength(8);
+    expect(section).toMatch(new RegExp(`data-testid="buildup-cap-${day0.ymd}"[^>]*>\\s*Show all ${day0.lines.length}\\s*</button>`));
+    expect(day0.lines.some(l => l.bold && l.text === 'shift to Kindness')).toBe(true);
+    expect(html).not.toContain('<span class="font-bold">shift to Kindness</span>');
     if (process.env.BUILDUP_SHOT_DIR) {
       fs.writeFileSync(
         `${process.env.BUILDUP_SHOT_DIR}/real.html`,
@@ -321,7 +330,18 @@ describe('Phase 2 end to end: a second synthetic save ticks the right lines of t
       });
       const t = textOf(html);
       if (name === 'fresh') expect(t).toContain("This save is from before the plan's prestige");
-      if (name === 'partly') expect(t).toMatch(/\d+ of \d+ bought/);
+      if (name === 'partly') {
+        // The partly bought line sits past the open day's 8-line cap (UX fluff review 2, item R12): the header and the
+        // day say how far along it is, the cap offers the rest, and the save still reads that line as partly bought
+        // ("N of M bought" once Show all opens it).
+        expect(t).toMatch(/Build-up tracker \d+ of \d+ check-ins done/);
+        expect(t).toMatch(/\d+ check-ins · \d+ of \d+ lines done/);
+        expect(t).toMatch(/· bought /);
+        expect(t).toMatch(new RegExp(`Show all ${r.days[0].lines.length}`));
+        const part = b.lines.get(multi.key)!;
+        expect(part.bought).toBeGreaterThan(0);
+        expect(part.bought).toBeLessThan(part.total);
+      }
       if (name === 'replan') expect(t).toContain('Re-plan from this save');
       if (process.env.BUILDUP_SHOT_DIR)
         fs.writeFileSync(
