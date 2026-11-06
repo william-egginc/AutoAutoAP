@@ -766,7 +766,7 @@
             </table>
           </div>
           <p v-if="g.anonymous.length" class="text-small text-slate-500">
-            Anonymous answers are listed but not ranked, as in Fastest to N TE.
+            Anonymous answers are listed but not ranked, as in {{ tabLabel('race') }}.
           </p>
         </div>
       </template>
@@ -895,7 +895,7 @@
                         v-else-if="c.key === 'durationDays'"
                         class="py-2 pr-3 text-right text-slate-700 font-bold whitespace-nowrap"
                       >
-                        {{ Number.isFinite(line.row.durationDays) ? line.row.durationDays.toFixed(3) : '—' }}
+                        {{ planLengthText(line.row.durationDays) }}
                       </td>
                       <td
                         v-else-if="c.key === 'finish'"
@@ -1002,6 +1002,7 @@ import { useChainSearchStore } from '@/stores/chainSearch';
 import { useInitialStateStore } from '@/stores/initialState';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { sortRows, type SortKey, type SortableRow } from '@/lib/leaderboardSort';
+import { planLengthText } from '@/lib/boardWords';
 import {
   accountKeyOf,
   browserCount,
