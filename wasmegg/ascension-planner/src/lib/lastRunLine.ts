@@ -40,3 +40,23 @@ export function lastRunLine(o: LastRunLineInput): string {
   const found = o.te > 0 ? `, and found ${Math.floor(o.te)} TE` : '';
   return `${lead}${saveWords}${found}.`;
 }
+
+/**
+ * The slim result cards' one meta line (UX fluff review 2, 5 Nov 2026, items C1, C4, D2, D7, D12; mocks
+ * wireframes/fluff2-custom-v1 and fluff2-bydate-v1), in place of the ran line above, "Priced with …" and By a date's
+ * "Priced from …" footer: "Custom, Nov 3 at 12:22 pm, on your save of Nov 3 at 11:19 am (197 TE) · awake hours 8 am
+ * to 11 pm, 9 no-prestige days". `priced` is lib/pricedWithWords.ts `pricedWithShort`; `startTE` the TE the plan
+ * started from (By a date). Each piece that isn't known is left out. DRAFT (Words).
+ */
+export function runMetaLine(o: Omit<LastRunLineInput, 'te'> & { startTE?: number | null; priced?: string }): string {
+  const ranAt = o.at > 0 ? dayClockShort(Math.floor(o.at / 1000), o.now, o.zone) : '';
+  const level = foundLevelOf(o.level, o.space);
+  const save = o.saveAt && o.saveAt > 1e9 ? dayClockShort(o.saveAt, o.now, o.zone) : '';
+  const aside = [
+    o.startTE && o.startTE > 0 ? `${Math.floor(o.startTE)} TE` : '',
+    save && o.loadedSaveAt && o.loadedSaveAt > o.saveAt! ? 'older than the one loaded now' : '',
+  ].filter(Boolean);
+  const saveWords = save ? `on your save of ${save}${aside.length ? ` (${aside.join(', ')})` : ''}` : '';
+  const ran = [ranAt ? (level ? `${level}, ${ranAt}` : ranAt) : '', saveWords].filter(Boolean).join(', ');
+  return [ran, o.priced ?? ''].filter(Boolean).join(' · ');
+}

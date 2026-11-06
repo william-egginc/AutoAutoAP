@@ -548,6 +548,7 @@
       kind="by-date"
       :option="k === 'boxes' ? 'custom' : choiceForEffort(stronger.level).option"
       :player-id="playerId"
+      :share-shown-key="shareShownKey"
       :find-disabled="
         store.busy ||
         !!instantWait ||
@@ -762,7 +763,8 @@
           :route="best"
           :deadline="result.deadline"
           :zone="plannerZone"
-          :priced-with="resultPricedWith"
+          :meta="resultMeta"
+          :save-placeholder="defaultAnswerLabel"
           simulate
           :can-share="collectorConfigured"
           can-csv
@@ -773,7 +775,6 @@
           :note="quickSaveNote"
           :run-cost="result.lastTECost ?? null"
           :last-run="store.dateRunLive ? '' : inPlannerZone(Math.floor(result.at / 1000))"
-          :ran-line="ranLine"
           :follow="dateFollow"
           @simulate="simulateResult"
           @csv="downloadByDateCsv"
@@ -786,6 +787,7 @@
           <template #extras>
             <WaitBeforePrestige
               v-if="best.chain.length"
+              compact
               :chain="best.chain"
               :zone="plannerZone"
               :deadline="result.deadline"
@@ -874,7 +876,9 @@
       <!-- How long the run took and what it searched (search/deadlineSummary.ts), kept with the result so
            a saved answer and a carried-on run say it too. -->
       <div class="text-body text-slate-600 space-y-0.5" data-testid="by-date-took">
-        <p>{{ summary.line }}</p>
+        <!-- "(Custom, in your own boxes)" is dropped: the heading above already says Custom (UX fluff review 2, item
+             D10d). The words are search/deadlineSummary.ts's, a result code input, so they are cut here. -->
+        <p>{{ summary.line.replace(' (Custom, in your own boxes)', '') }}</p>
         <p v-if="summary.chains.length" data-testid="by-date-chains">
           Boxes: {{ shownChains.join(' · ') }}<template v-if="chainsTruncated && !showAllChains">…</template
           ><template v-if="summary.lastStop"> · {{ summary.lastStop }}</template>
@@ -925,17 +929,12 @@
            My runs › Your latest run (LatestRunView.vue; Jordan, 16 Oct 2026): the result keeps its best, the best
            for each stop count and the share box. -->
       <template #keep>
-        <!-- Save this answer and Saved answers (SavedAnswers.vue), with Download CSV beside Save. -->
-        <!-- CSV and a quick save are on the card (as on Fastest's); here, a save under a name of your own. -->
+        <!-- Saved answers (SavedAnswers.vue). The CSV and the one Save (with its name) are on the card. The footer that
+             said the plan start, the save and the hours again is gone (UX fluff review 2, item D12): the card's meta
+             line says them once. -->
         <SavedAnswers :player-id="playerId" :default-label="defaultAnswerLabel" :zone="plannerZone">
           <p v-if="downloadError" class="text-body font-bold text-red-700">{{ downloadError }}</p>
           <BigCsvStatus />
-          <p class="text-body text-slate-500 max-w-prose">
-            Priced from {{ inPlannerZone(result.planStart) }} at {{ result.te }} TE<template v-if="result.backupAt"
-              >, on your save from {{ inPlannerZone(result.backupAt) }}</template
-            >.<template v-if="resultPricedWith">{{ ' ' }}{{ resultPricedWith }}.</template> A route that reaches one more TE
-            usually has much less time to spare: the table shows both so you can choose.
-          </p>
         </SavedAnswers>
       </template>
       <template #share>
@@ -1078,8 +1077,7 @@ import FollowButton from '../FollowButton.vue';
 import { sourceOfLevel } from '@/lib/followCloud';
 import { foundLevel } from '@/lib/searchPointer';
 import { followableAnswer, screenGoalKey, type ResultFollow } from '@/lib/follow';
-import { pricedWithLine } from '@/lib/pricedWith';
-import { pricedWithDays } from '@/lib/pricedWithWords';
+import { pricedWithShort } from '@/lib/pricedWithWords';
 import { thisDevice } from '@/search/device';
 import {
   byDatePlan,
@@ -1147,7 +1145,7 @@ import { boundsText } from '@/search/instantFilters';
 import { LONG_RUN_WORKERS, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
-import { lastRunLine } from '@/lib/lastRunLine';
+import { runMetaLine } from '@/lib/lastRunLine';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { useStrongerStore, type LevelEstimate, type StrongerLevel } from '@/stores/stronger';
 import StrongerBox from './StrongerBox.vue';
@@ -2458,6 +2456,11 @@ const autoShare = ref(false);
 const autoShared = ref(false);
 /** The answer on screen went with its run: Share this result gives way to one line. A send that failed
  *  (or was kept off the board) keeps the box, so it says so and can still be sent by hand. */
+/** The kept answer whose Share this result is on the page (the key a kept By a date result carries, stores/chainSearch.ts
+ *  `keepFinishedResult`): the unsent box near Run leaves it out (UX fluff review 2, 5 Nov 2026, item S3). */
+const shareShownKey = computed(() =>
+  result.value && best.value && collectorConfigured.value && !store.deadlineRunning ? `deadline:${result.value.at}` : null
+);
 const sentByRun = computed(
   () => autoShared.value && !store.deadlineRunning && shareOk.value && (sharing.value || sentKey.value === resultKey.value)
 );
@@ -2823,11 +2826,12 @@ const defaultAnswerLabel = computed(() => {
  *  saves under a name of your own). */
 const quickSaving = ref(false);
 const quickSaveNote = ref('');
-async function quickSave(): Promise<void> {
+/** The card's one Save, with the name typed beside it (CardSaveRow.vue); empty: the default name. */
+async function quickSave(typed = ''): Promise<void> {
   quickSaving.value = true;
   try {
-    // The same answer saved before keeps its entry and name (store `saveCurrentAnswer`).
-    const name = await store.saveCurrentAnswer(props.playerId, defaultAnswerLabel.value);
+    // The same answer saved before keeps its entry and name (store `saveCurrentAnswer`), unless a name is typed.
+    const name = await store.saveCurrentAnswer(props.playerId, typed || defaultAnswerLabel.value, !!typed);
     quickSaveNote.value = `Saved as "${name}".`;
   } catch {
     quickSaveNote.value = "Couldn't save it in this browser.";
@@ -2937,6 +2941,9 @@ const liveSim = computed(() =>
 function openInSingleRun(s: ReturnType<typeof byDateSimulate>): void {
   simulateRoute(s.chain, 'by-date', s.opts);
   if (s.note && ui.planFromInstant) ui.planFromInstant = { ...ui.planFromInstant, note: s.note };
+  // The date, so the banner can say when Single run's own finish is after it (UX fluff review 2, finding 1).
+  const deadline = result.value?.deadline ?? store.deadlineRunDeadline;
+  if (deadline && ui.planFromInstant) ui.planFromInstant = { ...ui.planFromInstant, deadline };
 }
 function simulateResult(): void {
   const s = resultSim.value;
@@ -3104,19 +3111,23 @@ const atCeiling = computed(
 function inPlannerZone(unixSeconds: number): string {
   return showDateTime(unixSeconds, plannerZone.value);
 }
-/** "This Fast search ran on ..., on your save of ..., and found 307 TE." (lib/lastRunLine.ts), from the kept result. */
-const ranLine = computed(() => {
+/** The card's one meta line (lib/lastRunLine.ts `runMetaLine`; UX fluff review 2, 5 Nov 2026, items D2, D7 and D12):
+ *  "Custom, Nov 3 at 12:24 pm, on your save of Nov 3 at 11:19 am (197 TE) · awake hours 8 am to 11 pm, 9 no-prestige
+ *  days", from the kept result: its own recorded settings, never the live setup ('' hours for an answer from before
+ *  settings were recorded). */
+const resultMeta = computed(() => {
   const r = result.value;
   const b = best.value;
   if (!r || !b || !b.chain.length) return '';
-  return lastRunLine({
+  return runMetaLine({
     level: r.simple ? (r.level ?? 'quick') : 'exhaustive',
     at: r.at,
     saveAt: r.backupAt ?? (r.account?.backupTime as number | null | undefined) ?? null,
     loadedSaveAt: initialState.lastBackupTime || null,
-    te: b.chain[b.chain.length - 1],
     zone: plannerZone.value,
     now: Math.floor(Date.now() / 1000),
+    startTE: r.te,
+    priced: r.settings ? pricedWithShort({ ...r.settings, noPrestige: recordedNoPrestige(r.settings) }) : '',
   });
 });
 /** The no-prestige days a run recorded (stores/chainSearch.ts `RunSettings.noPrestige`; search/deadlineStore.ts's
@@ -3124,9 +3135,4 @@ const ranLine = computed(() => {
 function recordedNoPrestige(s: object): { from: string; to: string }[] | undefined {
   return (s as { noPrestige?: { from: string; to: string }[] }).noPrestige;
 }
-/** The hours, time off and no-prestige days the answer was priced with: its own recorded settings, never the live
- *  setup (lib/pricedWith.ts, lib/pricedWithWords.ts); '' for an answer from before settings were recorded. */
-const resultPricedWith = computed(() =>
-  result.value?.settings ? pricedWithDays(pricedWithLine(result.value.settings), recordedNoPrestige(result.value.settings)) : ''
-);
 </script>

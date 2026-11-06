@@ -14,7 +14,8 @@ const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
 
 describe('the build-up note on Single run’s banner', () => {
   it('the ui store carries it with the route', () => {
-    expect(read('../../stores/ui.ts')).toMatch(/planFromInstant = ref<\{ chain: number\[\]; back: 'fastest' \| 'by-date'; from\?: string; note\?: string \} \| null>/);
+    // `deadline` too since 5 Nov 2026 (By a date: Single run says when its finish is after it; singleRunSlim.spec).
+    expect(read('../../stores/ui.ts')).toMatch(/planFromInstant = ref<\{ chain: number\[\]; back: 'fastest' \| 'by-date'; from\?: string; note\?: string; deadline\?: number \} \| null>/);
   });
   it('the instant card’s Simulate this plan (box and rows) hands the note on, after simulateRoute set the banner', () => {
     const src = read('InstantRoute.vue');

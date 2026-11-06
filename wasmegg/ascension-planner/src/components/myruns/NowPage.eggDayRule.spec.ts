@@ -92,8 +92,8 @@ describe('Right now: a goal with no plan in time', () => {
   it('a followed route that lands late is marked "after Egg Day starts"', async () => {
     const follow = { chain: [197, 222, 249], from: 'board', price: 'none', source: null, pricedSave: null, missesDate: true };
     const t = textOf(await renderHtml(RightNowCard, props({ goals: [race, { ...eggLate, state: 'none', late: undefined }], follow })));
-    expect(t).toContain('Following your pick');
-    expect(t).toContain('· after Egg Day starts');
+    // The route line says Following; the follow line starts with its note (UX fluff review 2, 5 Nov 2026, item R5).
+    expect(t).toContain('Not priced on this save yet · after Egg Day starts');
     expect(t).not.toContain('lands after the date');
   });
 });

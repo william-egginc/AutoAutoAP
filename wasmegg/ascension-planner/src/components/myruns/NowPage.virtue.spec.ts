@@ -173,7 +173,8 @@ describe('not on virtue yet', () => {
     const t = textOf(html);
     expect(t).toContain('If you start Oct 30 at 6:00 PM: 490 on Nov 20 at 1:00 PM (Fastest to 490 TE, simulator check)');
     expect(t).toContain('Egg Day 2027: no start time is priced yet');
-    expect(t).toContain('If you start then: Following 198 → 490 (Fastest to 490 TE)');
+    // No goal in brackets with the goal switch on screen (UX fluff review 2, 5 Nov 2026, item R3).
+    expect(t).toContain('If you start then: Following 198 → 490');
     expect(html).toContain('data-testid="now-goal-switch"');
     expect(t).toContain('Full timeline');
   });

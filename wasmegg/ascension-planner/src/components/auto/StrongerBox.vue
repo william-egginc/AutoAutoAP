@@ -8,10 +8,19 @@
 -->
 <template>
   <section class="space-y-3" data-testid="stronger-box">
-    <!-- The option picked (Fast or Exact), in three plain lines: what it does, how long, what it can and
-         can't find; then, amber like the other promise boxes, what it promises and what it doesn't. One fold,
-         "What this does" (lib/panelFold.ts `whatItDoes`; 26 Oct 2026: it and "What this does and does not
-         promise" said the same things twice), each point once. Open by default since 29 Oct 2026; the player's close is remembered. -->
+    <!-- In view (UX fluff review 2, 5 Nov 2026, items F6 and F7): How long, and the two safety clauses (keep the tab in
+         front; stop any time and keep the best so far, and on Fastest a refresh is safe). DRAFT (Words). -->
+    <div class="space-y-1 text-body" data-testid="level-in-view">
+      <p class="text-slate-800">
+        <span class="label text-slate-500">How long</span>{{ ' ' }}<span data-testid="level-how-long">{{
+          estimates?.[level]?.line ?? current.time
+        }}</span>
+      </p>
+      <p class="text-slate-700" data-testid="level-safety">{{ SAFETY[goal] }}</p>
+    </div>
+    <!-- The rest, folded (lib/panelFold.ts `whatItDoes`, closed by default again since 5 Nov 2026; the player's toggle is
+         remembered): what it does and what it finds, then how sure it is, the evidence lines word for word (moved, not
+         reworded: "Do not soften them"). One fold since 26 Oct 2026. -->
     <PanelFold
       section="whatItDoes"
       title="What this does"
@@ -21,8 +30,6 @@
       <dl class="mt-1 mb-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-body" data-testid="level-note">
         <dt class="text-slate-500 label pt-0.5">What it does</dt>
         <dd class="text-slate-800">{{ current.does }}</dd>
-        <dt class="text-slate-500 label pt-0.5">How long</dt>
-        <dd class="text-slate-800" data-testid="level-how-long">{{ estimates?.[level]?.line ?? current.time }}</dd>
         <dt class="text-slate-500 label pt-0.5">What it finds</dt>
         <dd class="text-slate-800">{{ current.finds }}</dd>
       </dl>
@@ -30,7 +37,7 @@
         class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-small text-amber-900"
         data-testid="stronger-promise"
       >
-        <p class="font-bold text-small text-amber-800">What it promises and what it doesn't</p>
+        <p class="font-bold text-small text-amber-800">How sure is it?</p>
         <!-- What the option picked promises, and only that (the user, 12 Oct: no lines that don't apply). -->
         <ul class="mt-1 pl-4 list-disc space-y-0.5 leading-relaxed" data-testid="promise-lines">
           <li v-for="(line, k) in promises" :key="k">{{ line }}</li>
@@ -180,8 +187,16 @@ function setVeryHigh(on: boolean): void {
  * amber box that sat under the search's results (the user, 12 Oct: one promise box, not two). Do not soften them.
  */
 const PRICED = 'Every route it shows is priced with the full simulator on your save, so its times are your own.';
-const STOP = 'You can stop it at any point and keep the best route it found so far.';
-const TIMING = "The times come from players' runs and your computer's own speed. Keep this tab in front: a hidden tab runs several times slower.";
+/** The evidence for the times (the first half of what was the timing line; its "keep this tab in front" is in view). */
+const TIMING = "The times come from players' runs and your computer's own speed.";
+/** The safety clauses kept in view above the fold (UX fluff review 2, items F7 and D13; "truly needed" 2 and 3). DRAFT
+ *  (Words): they were the promise box's "Keep this tab in front: …", "You can stop it at any point …" and, on Fastest,
+ *  "A refresh is safe: …". */
+const SAFETY: Record<'fastest' | 'date', string> = {
+  fastest:
+    'Keep this tab in front (a hidden tab runs several times slower). You can stop it any time and keep the best so far; a refresh is safe, it carries on.',
+  date: 'Keep this tab in front (a hidden tab runs several times slower). You can stop it any time and keep the best so far.',
+};
 const promises = computed<string[]>(() => {
   if (props.goal === 'date')
     return [
@@ -189,7 +204,6 @@ const promises = computed<string[]>(() => {
       `It can miss a route whose early stops are further away. It is never a proven best: ${NAMES.full} proves the best only inside the boxes you set.`,
       "No search up to 13 Oct beat the instant answer's TE by a date, but that rests on only 2 like-for-like runs from one save, so a search here will often confirm it.",
       TIMING,
-      STOP,
     ];
   return [
     `${PRICED} With awake hours set (in Setup), each prestige and each egg shift waits for your awake hours, and the CSV counts the waits per ascension.`,
@@ -197,7 +211,6 @@ const promises = computed<string[]>(() => {
     `It is a strong nearby answer, never a proven best: ${NAMES.full} proves the best only inside the boxes you set. Its accuracy figures come from 3 accounts, and only one of them has a proven best to check against.`,
     "In players' runs before 23 Oct, on about 5 accounts, a short search (Fast) often found a route at least a day sooner than the instant answer's. Treat that as an upper bound: part of the gap was how the old instant answer was priced, and it has not been measured again since. Going bigger rarely added more. That sample is small.",
     TIMING,
-    `${STOP} A refresh is safe: its progress is saved and carries on without re-simulating anything.`,
   ];
 });
 const current = computed(() => levels.value.find(l => l.id === level.value) ?? levels.value[0]);

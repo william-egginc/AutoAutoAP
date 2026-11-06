@@ -22,13 +22,13 @@
       <!-- The same headline and aside as Fastest's card (RouteResultCard.vue): the route, then the number
            and when it lands on the right. -->
       <template #headline>
-        <!-- When the search ran, on which save, what it found (lib/lastRunLine.ts). -->
-        <p v-if="ranLine && !running" class="text-body font-bold text-emerald-900/80" data-testid="ran-line">
-          {{ ranLine }}
-        </p>
         <div class="tabular-nums text-title font-bold text-slate-900 break-words">
           {{ route.chain.join(' ') }}
         </div>
+        <!-- One meta line: when it ran, on which save (and its TE), what it was priced with (lib/lastRunLine.ts
+             `runMetaLine`; UX fluff review 2, 5 Nov 2026, items D2, D7 and D12: was the ran line here, "Priced with" under
+             the details and "Priced from … Priced with …" under the card). -->
+        <p v-if="meta && !running" class="text-small text-emerald-900/80" data-testid="run-meta">{{ meta }}</p>
       </template>
       <template #aside>
         <div class="text-title font-bold text-slate-900 tabular-nums">{{ lastStop }} TE</div>
@@ -42,13 +42,11 @@
       </p>
       <RouteExtras
         v-if="!running"
+        part="shifts"
         :chain="route.chain"
         :legs="legs"
         :reach-at="route.reachAt"
         :zone="zone"
-        :run-cost="runCost"
-        :deadline="deadline"
-        no-rate
         green
       />
       <!-- What a screen adds under the route's details (DeadlinePanel: "Try waiting before each prestige"). -->
@@ -59,47 +57,71 @@
       <!-- TE per egg when the route ends, and when each egg's next TE would come at the final delivery rate
            (search/endEggs.ts): a date and time, not the eggs still to lay (Jordan, 16 Oct 2026; the eggs and the
            time it takes are in the cell's title). Only when the last leg carries its end state: nothing rather than
-           a guess, and a dash with its reason when the rate or the end time isn't known. -->
-      <div v-if="eggs" class="space-y-1" data-testid="by-date-te-per-egg">
-        <div class="overflow-x-auto">
-          <table class="text-small tabular-nums whitespace-nowrap">
-            <thead>
-              <tr :class="LEG_HEAD">
-                <th class="pr-4 py-1">TE per egg</th>
-                <th class="pr-4 py-1">TE</th>
-                <th class="pr-4 py-1" :title="NEXT_TE_TITLE">Next TE</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="r in eggs.rows" :key="r.egg" class="border-t border-emerald-100">
-                <td class="pr-4 py-1">
-                  {{ VIRTUE_EGG_NAMES[r.egg]
-                  }}<span
-                    v-if="r.laying"
-                    class="text-small text-emerald-700/80"
-                    title="The egg the farm is on at the end"
-                  >
-                    · laying</span
-                  >
-                </td>
-                <td class="pr-4 py-1 font-bold">{{ r.te }}</td>
-                <td class="pr-4 py-1" :title="nextTitle(r)" data-testid="by-date-next-te-at">
-                  {{ r.need === null ? 'all 98' : !r.laying ? 'after a shift' : r.at === null ? '—' : when(r.at) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+           a guess, and a dash with its reason when the rate or the end time isn't known.
+           One fold since 5 Nov 2026 (UX fluff review 2, items D3, D5 and D6): its title is the next TE when it comes
+           after the date (the old laying-on line, shortened), the table and the run's one-more-TE
+           line inside. Closed by default. DRAFT (Words). -->
+      <div v-if="!running && (eggs || hasMore)" data-testid="by-date-te-per-egg">
+        <button
+          type="button"
+          class="inline-flex min-h-[44px] items-center gap-1 rounded-md text-left text-body font-bold text-emerald-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 sm:min-h-0"
+          :aria-expanded="eggsOpen"
+          :aria-controls="eggsId"
+          data-testid="by-date-next-te"
+          @click="eggsOpen = !eggsOpen"
+        >
+          <span aria-hidden="true">{{ eggsOpen ? '⌄' : '›' }}</span>{{ ' ' }}<template v-if="nextAfterDeadline"
+            >Next TE: {{ VIRTUE_EGG_NAMES[nextAfterDeadline.egg] }}, {{ when(nextAfterDeadline.at) }}, after the date</template
+          ><template v-else>TE per egg at the end</template>
+        </button>
+        <div v-show="eggsOpen" :id="eggsId" class="mt-1 space-y-1">
+          <div v-if="eggs" class="overflow-x-auto">
+            <table class="text-small tabular-nums whitespace-nowrap">
+              <thead>
+                <tr :class="LEG_HEAD">
+                  <th class="pr-4 py-1">TE per egg</th>
+                  <th class="pr-4 py-1">TE</th>
+                  <th class="pr-4 py-1" :title="NEXT_TE_TITLE">Next TE</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in eggs.rows" :key="r.egg" class="border-t border-emerald-100">
+                  <td class="pr-4 py-1">
+                    {{ VIRTUE_EGG_NAMES[r.egg]
+                    }}<span
+                      v-if="r.laying"
+                      class="text-small text-emerald-700/80"
+                      title="The egg the farm is on at the end"
+                    >
+                      · laying</span
+                    >
+                  </td>
+                  <td class="pr-4 py-1 font-bold">{{ r.te }}</td>
+                  <td class="pr-4 py-1" :title="nextTitle(r)" data-testid="by-date-next-te-at">
+                    {{ r.need === null ? 'all 98' : !r.laying ? 'after a shift' : r.at === null ? '—' : when(r.at) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-if="nextAfterDeadline && eggs" :class="CARD_NOTE">
+            That is laying on after the last stop at the final rate of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an
+            hour, so it isn't counted.
+          </p>
+          <!-- The run's measured cost of one more TE (search/routeExtras.ts drops it when it would land by the date). -->
+          <RouteExtras
+            part="more"
+            :chain="route.chain"
+            :legs="legs"
+            :reach-at="route.reachAt"
+            :zone="zone"
+            :run-cost="runCost"
+            :deadline="deadline"
+            no-rate
+            green
+          />
         </div>
-        <!-- Only when it comes after the deadline (the search prices one TE higher, so before it would mean a
-             missed route: no line then, and a note in the black box). Never a TE the answer leaves out. -->
-        <p v-if="nextAfterDeadline" :class="CARD_NOTE" data-testid="by-date-next-te">
-          Laying on after the last stop, your next TE ({{ VIRTUE_EGG_NAMES[nextAfterDeadline.egg] }}, at the final rate
-          of {{ formatNumber(eggs.rate! * 3600, 2) }} eggs an hour) would come about {{ when(nextAfterDeadline.at) }},
-          after the date, so it isn't counted.
-        </p>
       </div>
-      <!-- The hours and time off the run used, named (lib/pricedWith.ts, 16 Oct 2026). -->
-      <p v-if="pricedWith && !running" :class="CARD_NOTE" data-testid="priced-with">{{ pricedWith }}.</p>
       <!-- The same row as Fastest's card, in the same order: the main action (Simulate this plan, as
            the instant answer's rows: this route in Single run (NAMES.classic), search/simulateRoute.ts), Share, CSV, Save.
            Mid-run only Simulate (the rest belong to the finished answer). -->
@@ -129,43 +151,23 @@
             :deadline="follow.deadline ?? null"
           />
           <button v-if="canShare" type="button" :class="SECONDARY_BUTTON" data-testid="by-date-share" @click="toShare">
-            Share
+            Share ↓
           </button>
-          <button
-            v-if="canCsv"
-            type="button"
-            :class="SECONDARY_BUTTON"
-            data-testid="by-date-csv"
-            :title="csv.title"
-            @click="emit('csv')"
-          >
-            {{ csv.text }}
-          </button>
-          <button
-            v-if="xlsx"
-            type="button"
-            :class="SECONDARY_BUTTON"
-            data-testid="by-date-xlsx"
-            :title="xlsxLabel.title"
-            @click="emit('xlsx')"
-          >
-            {{ xlsxLabel.text }}
-          </button>
-          <button
+          <!-- The CSV and the Excel file under one Download ▾ (UX fluff review 2, item D9). -->
+          <DownloadMenu v-if="canCsv" :items="downloads" testid="by-date-download" @pick="download" />
+          <!-- The one Save, with its optional name (item D11: Saved answers' "Save this answer" was a second Save). -->
+          <CardSaveRow
             v-if="canSave"
-            type="button"
-            :class="SECONDARY_BUTTON"
-            :disabled="saving"
-            data-testid="by-date-save"
-            @click="emit('save')"
-          >
-            <template v-if="saving">Saving<AnimatedDots /></template><template v-else>{{ saved ? 'Saved ✓' : 'Save answer' }}</template>
-          </button>
+            label="Save answer"
+            name-label="Name for this answer"
+            :placeholder="savePlaceholder || 'Name (optional)'"
+            :saving="saving"
+            :saved="saved"
+            testid="by-date-save"
+            @save="name => emit('save', name)"
+          />
           <span v-if="note" class="text-small font-bold text-emerald-800">{{ note }}</span>
         </template>
-        <p v-if="simulate" class="w-full text-small text-emerald-900/70" data-testid="simulate-plan-note">
-          {{ simulateLine() }}
-        </p>
       </template>
     </ResultCardFrame>
     <!-- A row per stop, laid out as Fastest's leg table (under its card too). -->
@@ -221,15 +223,18 @@
 
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
-import { SIMULATE_TITLE, simulateNote as simulateLine } from '@/lib/siteNav';
+import { SIMULATE_TITLE } from '@/lib/siteNav';
 import { scrollToShownId } from '@/lib/searchTab';
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import ResultCardFrame from './ResultCardFrame.vue';
 import FollowButton from '../FollowButton.vue';
 import type { ResultFollow } from '@/lib/follow';
 import RouteExtras from './RouteExtras.vue';
 import RouteTimeline from './RouteTimeline.vue';
 import { csvButton, xlsxButton } from './csvButton';
+import DownloadMenu, { type DownloadItem } from './DownloadMenu.vue';
+import CardSaveRow from './CardSaveRow.vue';
+import { oneMoreTE } from '@/search/routeExtras';
 import { CARD_NOTE, LEG_HEAD, LEG_ROW, LEG_TABLE, PRIMARY_BUTTON, SECONDARY_BUTTON } from './resultCardStyle';
 import { showDateTime } from '@/lib/displayTime';
 import { spareLabel } from '@/search/deadlineSummary';
@@ -267,19 +272,37 @@ const props = defineProps<{
   /** Not from a run in this visit on these settings: when it was found; the heading says
    *  "Your last run · ...". */
   lastRun?: string;
-  /** "This Fast search ran on Oct 23 at 6:43 pm, on your save of Oct 23 at 1:03 am, and found 307 TE." (lib/lastRunLine.ts). */
-  ranLine?: string;
+  /** "Custom, Nov 3 at 12:24 pm, on your save of Nov 3 at 11:19 am (197 TE) · awake hours 8 am to 11 pm, 9 no-prestige
+   *  days": when it ran, on which save and with the run's own settings (lib/lastRunLine.ts `runMetaLine`). */
+  meta?: string;
+  /** The Save's name box placeholder (DeadlinePanel's default answer name). */
+  savePlaceholder?: string;
   /** The run's measured cost of one more TE above the last stop, seconds (`lastTECost`). */
   runCost?: number | null;
-  /** "Priced with your hours 9 am to 1 am, no time off": the run's own settings (lib/pricedWith.ts). */
-  pricedWith?: string;
   /** "Follow this route" for the finished result (lib/follow.ts `ResultFollow`); absent: no button. */
   follow?: ResultFollow | null;
 }>();
-const emit = defineEmits<{ simulate: []; csv: []; xlsx: []; save: [] }>();
+const emit = defineEmits<{ simulate: []; csv: []; xlsx: []; save: [name: string] }>();
 
 const csv = computed(() => csvButton(!!props.csvEvery));
 const xlsxLabel = xlsxButton();
+/** Download ▾'s items: the CSV, and the Excel file when offered. */
+const downloads = computed<DownloadItem[]>(() => [
+  { key: 'csv', text: csv.value.text.replace(/ ↓$/, ''), title: csv.value.title, testid: 'by-date-csv' },
+  ...(props.xlsx ? [{ key: 'xlsx', text: xlsxLabel.text.replace(/ ↓$/, ''), title: xlsxLabel.title, testid: 'by-date-xlsx' }] : []),
+]);
+function download(key: string): void {
+  if (key === 'csv') emit('csv');
+  else if (key === 'xlsx') emit('xlsx');
+}
+/** The Next TE fold (items D5, D6): closed by default. */
+const eggsOpen = ref(false);
+const eggsId = `by-date-eggs-${useId()}`;
+/** The run's one-more-TE line has something to say (it goes inside the fold). */
+const hasMore = computed(
+  () =>
+    !!oneMoreTE({ chain: props.route.chain, legs: legs.value, reachAt: props.route.reachAt, runCost: props.runCost, noRate: true, deadline: props.deadline })
+);
 
 /** Each panel's Share this result section carries id="share-this-result"; both search tabs are on the
  *  page (SearchPanel.vue), so the one laid out is this card's. */

@@ -61,7 +61,7 @@ describe('CsvCard', () => {
 });
 
 describe('SavedAnswers', () => {
-  it('shows Save this answer beside the actions, the note, then the saved answers', async () => {
+  it('shows the actions, the note, then the saved answers (the one Save is on the card since 5 Nov 2026)', async () => {
     const store = useChainSearchStore();
     store.savedAnswers = [
       {
@@ -81,7 +81,7 @@ describe('SavedAnswers', () => {
       )
     );
     expect(t).toMatch(
-      /^Download CSV Save this answer Priced from now\. Saved answers Egg Day try 307 368 · saved .*Open Follow this route Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Empty no route · saved .*Open Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Load a save file This file is your game save; don't share it publicly\.$/
+      /^Download CSV Priced from now\. Saved answers Egg Day try 307 368 · saved .*Open Follow this route Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Empty no route · saved .*Open Delete The save for this one wasn't kept \(saved before 10 Oct\)\. Load a save file This file is your game save; don't share it publicly\.$/
     );
   });
 
@@ -104,6 +104,7 @@ describe('SavedAnswers', () => {
 
   it('shows no list with nothing saved', async () => {
     const t = textOf(await renderHtml(SavedAnswers, { playerId: 'P', defaultLabel: 'x', zone: 'UTC' }, {}, [pinia]));
-    expect(t).toBe('Save this answer');
+    // Nothing at all since 5 Nov 2026: the one Save is on the card (UX fluff review 2, item D11).
+    expect(t).toBe('');
   });
 });

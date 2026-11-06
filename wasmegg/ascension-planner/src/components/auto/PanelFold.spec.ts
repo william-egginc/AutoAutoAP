@@ -156,9 +156,11 @@ describe('PanelFold', () => {
 });
 
 describe('every foldable part reads lib/panelFold.ts', () => {
-  it('What this does (StrongerBox), the promise inside it: open by default (29 Oct 2026), folded when the table says so', async () => {
+  it('What this does (StrongerBox), the promise inside it: folded by default again (5 Nov 2026), open when the table says so', async () => {
     const html = await render(StrongerBox, { goal: 'fastest' });
-    expect(isOpen(detailsTag(html, 'fold-whatItDoes'))).toBe(true);
+    expect(isOpen(detailsTag(html, 'fold-whatItDoes'))).toBe(false);
+    const opened = await withTable('whatItDoes', 'open', () => render(StrongerBox, { goal: 'fastest' }));
+    expect(isOpen(detailsTag(opened, 'fold-whatItDoes'))).toBe(true);
     expect(html.match(/<details/g)).toHaveLength(1);
     expect(html.indexOf('data-testid="level-note"')).toBeGreaterThan(html.indexOf('data-testid="fold-whatItDoes"'));
     expect(html.indexOf('data-testid="stronger-promise"')).toBeGreaterThan(html.indexOf('data-testid="level-note"'));

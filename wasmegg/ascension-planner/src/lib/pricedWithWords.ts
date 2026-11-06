@@ -6,6 +6,9 @@
  * `instantHeaderLine`): "your 9 no-prestige days".
  */
 import { noPrestigeDayCount } from './instantWords';
+import { hoursWords, timeOffWords } from './pricedWith';
+import { usableTimeOff, type TimeOffDates } from '@/search/timeOff';
+import type { Availability } from '@/search/availabilitySchedule';
 
 /**
  * DRAFT (Words). "Priced with awake hours 8 am to 11 pm, no time off" → "…, no time off, and your 9 no-prestige days";
@@ -15,4 +18,24 @@ import { noPrestigeDayCount } from './instantWords';
 export function pricedWithDays(line: string, noPrestige: readonly { from: string; to: string }[] | null | undefined): string {
   const n = noPrestigeDayCount(noPrestige);
   return line && n > 0 ? `${line}, and your ${n} no-prestige ${n === 1 ? 'day' : 'days'}` : line;
+}
+
+/**
+ * The same settings, short, for the slim cards' meta line (lib/lastRunLine.ts `runMetaLine`; mocks fluff2-custom-v1,
+ * fluff2-bydate-v1): "awake hours 8 am to 11 pm, 9 no-prestige days"; time off only when there is some ("any hour,
+ * time off Nov 20–22"). DRAFT (Words).
+ */
+export function pricedWithShort(s: {
+  availability: Availability | null | undefined;
+  timeOff: TimeOffDates[] | null | undefined;
+  noPrestige?: readonly { from: string; to: string }[] | null;
+}): string {
+  const n = noPrestigeDayCount(s.noPrestige);
+  return [
+    hoursWords(s.availability),
+    usableTimeOff(s.timeOff).length ? timeOffWords(s.timeOff) : '',
+    n > 0 ? `${n} no-prestige ${n === 1 ? 'day' : 'days'}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
 }

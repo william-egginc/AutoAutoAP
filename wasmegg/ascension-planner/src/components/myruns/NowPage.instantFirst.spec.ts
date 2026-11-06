@@ -310,7 +310,9 @@ describe('the card', () => {
     const html = await renderHtml(RightNowCard, cardFor(drivingPlan(snap as never, 'date', DEADLINE)));
     const t = textOf(html);
     expect(t).toContain('from the instant answer worked out ahead of time; times rounded to the hour');
-    expect(t).toContain('(instant answer)');
+    // The header is "Calculated …" only when the pill says the source (UX fluff review 2, 5 Nov 2026, item R1).
+    expect(t).toMatch(/^Right now Calculated /);
+    expect(t).not.toContain('(instant answer)');
     expect(t).toContain('Prestige at 197 TE Oct 28 at around 4:00 AM');
     expect(t).toContain('Wed, Oct 28 at around 4:00 AM');
     expect(t).toContain('in 5d 17h');
@@ -331,7 +333,8 @@ describe('the card', () => {
     const html = await renderHtml(RightNowCard, cardFor(d));
     const t = textOf(html);
     expect(t).toContain('from your Fast run, on your account done Oct 22 at 4:47 PM, your save of Oct 22 at 11:03 AM');
-    expect(t).toContain('(Fast run)');
+    expect(t).toMatch(/^Right now Calculated /);
+    expect(t).not.toContain('(Fast run)');
     expect(t).toContain('Makes the date on your account, so it replaces the instant answer for the same goal: Go back to the instant answer');
     expect(t).toContain('Shift to Humility tomorrow at 2:47 PM');
     expect(t).toContain('Wed, Oct 28 at 4:12 AM');

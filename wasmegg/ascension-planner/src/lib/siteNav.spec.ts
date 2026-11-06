@@ -78,9 +78,9 @@ describe('siteNav', () => {
     expect(routeFromLocation('', '#/compare/race')).toEqual(R('compare', 'classic', 'smart', 'race'));
   });
 
-  it('names Classic "Single run" in one place (was Your plan)', () => {
+  it('names Classic "Single run" in one place; "(was Your plan)" is no longer said (UX fluff review 2, 5 Nov 2026, item S-1)', () => {
     expect(NAMES.classic).toBe('Single run');
-    expect(NAMES.classicFirst).toBe(`${NAMES.classic} (was ${NAMES.classicWas})`);
+    expect(NAMES).not.toHaveProperty('classicFirst');
     expect(NAMES.classicWas).toBe('Your plan');
   });
 

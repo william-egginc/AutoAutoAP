@@ -89,7 +89,9 @@ export const useUIStore = defineStore('ui', () => {
   /** `from`: what the banner names as its source, when not the instant answer (By a date's answer). */
   /** `note`: what the banner adds about the route (the instant card's build-up note, search/simulateRoute.ts
    *  INSTANT_BUILDUP_NOTE: Single run can't continue a build-up, so its dates run later; spec-slimcard). */
-  const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date'; from?: string; note?: string } | null>(null);
+  /** `deadline` (By a date, unix seconds): Single run's banner says when its own finish is after it (UX fluff review 2,
+   *  5 Nov 2026, finding 1). */
+  const planFromInstant = ref<{ chain: number[]; back: 'fastest' | 'by-date'; from?: string; note?: string; deadline?: number } | null>(null);
   /** Your setup's floating panel (SetupDock.vue) is open: the gear, or a screen's Edit setup. */
   const setupOpen = ref(false);
   /** Bumped to open Your setup at its time off (YourSetup.vue), e.g. from a sweep's "add time off". */

@@ -86,18 +86,24 @@ describe('the Single run name', () => {
       "Simulate this plan opens this route in Single run (Joo's original planner) and simulates every shift: when each TE arrives, and each ascension's dates and purchases."
     );
     expect(simulateNote('Build this plan')).toMatch(/^Build this plan opens this route in Single run/);
-    for (const f of ['ByDateRouteCard.vue', 'InstantRoute.vue', 'RouteResultCard.vue']) {
+    for (const f of ['InstantRoute.vue']) {
       const src = fs.readFileSync(path.join(SRC, 'components', 'auto', f), 'utf8');
       expect(src, f).toMatch(/\{\{ simulate(?:Note|Line)\((?:'Build this plan')?\) \}\}/);
       expect(src, f).not.toContain('shows every shift and when each TE arrives');
     }
+    // The result cards: the button's title only (UX fluff review 2, 5 Nov 2026, items C6 and D10).
+    for (const f of ['RouteResultCard.vue', 'ByDateRouteCard.vue']) {
+      const card = fs.readFileSync(path.join(SRC, 'components', 'auto', f), 'utf8');
+      expect(card, f).toContain(':title="SIMULATE_TITLE"');
+      expect(card, f).not.toMatch(/simulate(?:Note|Line)\(/);
+    }
   });
 
-  it('"(was Your plan)" is said once, on the screen\'s own intro', () => {
+  it('"(was Your plan)" is no longer said: the rename was a month ago (UX fluff review 2, 5 Nov 2026, item S-1)', () => {
     const app = fs.readFileSync(path.join(SRC, 'App.vue'), 'utf8');
-    expect(app.match(/NAMES\.classicFirst/g)).toHaveLength(1);
+    expect(app).toContain("<span class=\"font-bold text-slate-900\">{{ NAMES.classic }}</span> is Joo's original planner");
     const uses = files(SRC).filter(f => /NAMES\.classicFirst|\(was Your plan\)/.test(fs.readFileSync(f, 'utf8')));
-    expect(uses.map(f => path.relative(SRC, f)).sort()).toEqual(['App.vue', path.join('lib', 'siteNav.ts')].sort());
+    expect(uses.map(f => path.relative(SRC, f))).toEqual([]);
   });
 
   it("By a date's build-up note follows the name", () => {

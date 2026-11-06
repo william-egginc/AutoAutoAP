@@ -5,15 +5,19 @@
     <button
       v-if="status !== 'running'"
       type="button"
-      class="px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-body font-bold hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed"
+      class="inline-flex min-h-[44px] items-center px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-800 text-body font-bold hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-not-allowed sm:min-h-0"
       :disabled="disabled"
-      :title="`Prices this route with a wait of 1 to 24 hours before each prestige: about ${legs} ascensions on the full simulator`"
+      :title="compact ? `${whyText} ${howText}` : `Prices this route with a wait of 1 to 24 hours before each prestige: about ${legs} ascensions on the full simulator`"
+      :aria-describedby="compact && status === 'idle' ? whyId : undefined"
       data-testid="wait-try"
       @click="start"
     >
-      {{ status === 'done' ? 'Try waiting again' : 'Try waiting before each prestige' }}
+      {{ status === 'done' ? 'Try waiting again' : compact ? 'Try waiting ›' : 'Try waiting before each prestige' }}
     </button>
-    <p v-if="status === 'idle'" class="mt-1 text-small text-slate-500">
+    <!-- By a date (`compact`, UX fluff review 2, 5 Nov 2026, item D4): the paragraph is behind the button, its title and,
+         for a screen reader, its description. -->
+    <span v-if="compact && status === 'idle'" :id="whyId" class="sr-only">{{ whyText }} {{ howText }}</span>
+    <p v-if="status === 'idle' && !compact" class="mt-1 text-small text-slate-500">
       Keeping the old farm laying for a few hours before you prestige can sometimes finish sooner. This prices
       {{ chain.join(' ') }} with each wait from 1 to 24 hours (about {{ legs }} ascensions on the full simulator, several
       minutes or more).
@@ -52,7 +56,7 @@
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
 import { formatWeekday } from '@/lib/clock';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, useId, watch } from 'vue';
 import { showDateTime } from '@/lib/displayTime';
 import { createChainSearchPool, type ChainSearchPool } from '@/search/pool';
 import { ANY_HOUR_WARNING, searchWaits, waitLines, waitSearchLegs, hoursText, type WaitReport, type Waits } from '@/search/delays';
@@ -68,7 +72,16 @@ const props = defineProps<{
   deadline?: number | null;
   /** True while Check exactly or a search has the cores. */
   disabled?: boolean;
+  /** By a date: "Try waiting ›", its paragraph behind the button (UX fluff review 2, item D4). DRAFT (Words). */
+  compact?: boolean;
 }>();
+const whyId = `wait-why-${useId()}`;
+/** The idle paragraph's words, for the compact button's title and description. */
+const whyText = 'Keeping the old farm laying for a few hours before you prestige can sometimes finish sooner.';
+const howText = computed(
+  () =>
+    `This prices ${props.chain.join(' ')} with each wait from 1 to 24 hours (about ${legs.value} ascensions on the full simulator, several minutes or more).`
+);
 
 const store = useChainSearchStore();
 const status = ref<'idle' | 'running' | 'done' | 'error'>('idle');

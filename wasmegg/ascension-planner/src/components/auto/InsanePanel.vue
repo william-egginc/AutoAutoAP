@@ -767,6 +767,7 @@
           v-model:note="store.runNote"
           kind="full"
           :player-id="playerId"
+          :share-shown-key="shareShownKey"
           :find-disabled="
             store.busy ||
             store.integrityBlocked ||
@@ -927,7 +928,7 @@
 
             <!-- The answer: the same card as Smart search (RouteResultCard.vue). -->
             <RouteResultCard
-              :priced-with="pricedWith"
+              :meta="runMeta"
               v-if="ownRun && store.bestDays > 0"
               :chain="store.bestChain"
               :days="store.bestDays"
@@ -945,9 +946,10 @@
               @csv="downloadCsv"
               :xlsx="store.xlsxOffered('fastest')"
               @xlsx="downloadXlsx('fastest')"
+              diagnostics
+              @diagnostics="downloadDiagnostics"
               @save="save"
               :last-run="lastRunLabel"
-              :ran-line="ranLine"
             >
               <RouteExtras
                 v-if="!store.isRunning"
@@ -962,40 +964,58 @@
               <p v-if="!store.isRunning && resultExplain" class="text-body text-emerald-900/80">
                 {{ resultExplain }}
               </p>
-              <p v-if="coverageAfter" class="text-body text-emerald-900/80">
+              <p v-if="coverageAfter && !edgeBox" class="text-body text-emerald-900/80">
                 {{ coverageAfter }}
                 <template v-if="suggestedCountNote">{{ suggestedCountNote }}</template>
               </p>
-              <EdgeWarning
-                v-if="edges.length"
-                class="mt-2"
-                :lines="edges.map(edgeWords)"
-                :can-widen="!!edgeWiden"
-                :disabled="store.busy || queueAt >= 0"
-                @widen="widenAndRun"
+              <!-- The edge warnings in one amber box with one heading (UX fluff review 2, 5 Nov 2026, item C0b): "This
+                   sweep only tried N ascensions" joins the heading; both actions stay. -->
+              <div
+                v-if="edgeBox"
+                class="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2 text-body text-amber-900"
+                data-test="edge-box"
               >
-                <template v-if="edgeWiden">
-                  The wider space is {{ plural(edgeWiden.chains, 'route') }}. Routes already priced are reused when your
-                  setup hasn't changed.
-                </template>
-              </EdgeWarning>
-              <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
-              <LongerRouteHint
-                v-if="goal === 'fastest'"
-                class="mt-2"
-                mode="chain"
-                :running="store.isRunning || queueAt >= 0"
-                :disabled="store.busy || queueAt >= 0"
-                :can-add="!sweepRequest"
-                :on-add="addChainOfCount"
-                @check="checkRouteExactly"
-              />
-              <p class="text-small text-emerald-900/60">
-                Compare runs by finish date. Two runs started hours apart have different plan starts, so their day
-                counts don't measure the same thing, but the dates they land on do.
+                <p v-if="edgeBox === 'edge'" class="font-bold">
+                  Your boxes may be too small.<template v-if="coverageAfter">{{ ' ' }}{{ coverageAfter }}</template>
+                </p>
+                <p v-if="suggestedCountNote">{{ suggestedCountNote }}</p>
+                <EdgeWarning
+                  v-if="edges.length"
+                  bare
+                  :lines="edges.map(edgeWords)"
+                  :can-widen="!!edgeWiden"
+                  :disabled="store.busy || queueAt >= 0"
+                  @widen="widenAndRun"
+                >
+                  <template v-if="edgeWiden">
+                    The wider space is {{ plural(edgeWiden.chains, 'route') }}. Routes already priced are reused when your
+                    setup hasn't changed.
+                  </template>
+                </EdgeWarning>
+                <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
+                <LongerRouteHint
+                  v-if="goal === 'fastest'"
+                  bare
+                  mode="chain"
+                  :running="store.isRunning || queueAt >= 0"
+                  :disabled="store.busy || queueAt >= 0"
+                  :can-add="!sweepRequest"
+                  :on-add="addChainOfCount"
+                  @check="checkRouteExactly"
+                />
+              </div>
+              <!-- Ascension 1 carries on the build-up: good news, so not in an amber box (item C3). The other
+                   continue notes are advice and keep the amber. The words are search/health.ts's (a result code
+                   input), unchanged here. -->
+              <p
+                v-if="store.continueWarning && buildUpGoodNews"
+                class="text-body text-emerald-900/80"
+                data-testid="build-up-note"
+              >
+                {{ store.continueWarning }}
               </p>
               <p
-                v-if="store.continueWarning"
+                v-else-if="store.continueWarning"
                 class="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-body text-amber-900"
               >
                 {{ store.continueWarning }}
@@ -1044,15 +1064,14 @@
             <!-- Saved runs: the same list on both depths (SavedRuns.vue); carrying a sweep on is this one's. -->
             <SavedRuns :player-id="playerId" can-resume heading="Saved for later" />
 
-            <!-- Diagnostics are offered on a run with no answer too: that is exactly when someone wants to
-               report what went in. -->
-            <CsvCard v-if="ownRun && (store.pricedCount || store.noFeasibleChain)" :csv="store.csvRows > 0" diagnostics>
-              <template #csv>
-                <span class="text-body text-slate-500">
-                  {{ countLabel(store.csvRows) }}, one row per ascension. Safe to download mid-run.
-                </span>
-              </template>
-            </CsvCard>
+            <!-- The CSV and the diagnostics are under the card's Download ▾ (UX fluff review 2, item C8: this row was a
+                 second copy of the card's CSV). Here: a failed download's message and the big CSV's status, and the
+                 diagnostics for a run with no answer (no card), exactly when someone wants to report what went in. -->
+            <CsvCard
+              v-if="ownRun && (store.pricedCount || store.noFeasibleChain)"
+              :csv="false"
+              :diagnostics="!(store.bestDays > 0)"
+            />
           </template>
           <template #share>
             <!-- Submission. Same payload, same opt-in, same disclosure as the main panel. -->
@@ -1076,21 +1095,12 @@
               :csv-detail="`(${store.csvRows.toLocaleString()} routes, one row per ascension; routes past the memory budget export with their per-ascension cells blank)`"
               @nickname-typed="nicknameTouched = true"
             >
+              <!-- One sentence before the consent (UX fluff review 2, 5 Nov 2026, item C9/S1; DRAFT, Words); what the random
+                   code does is under "Show exactly what is sent" (item C10/S2, word for word). -->
               <template #intro>
                 <p class="text-body text-indigo-900/80 max-w-prose">
-                  A Custom result is the most useful thing the Leaderboard can get: the best of a stated grid rather than
-                  a search result. It is sent with the space it covered and what it found there (the runners-up, the
-                  best route at each ascension count, and the spread), so a reader can tell a real find from a flat
-                  neighbourhood without downloading the CSV. A run opened from Saved for later above is sent without a run
-                  cost, because the time it took wasn't this machine's.
-                </p>
-                <p class="text-body text-indigo-900/80 max-w-prose">
-                  The Leaderboard uses the random code so that a run landing on the flagged Leaderboard shows to you as yours and to
-                  everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
-                  you sent anonymously, and your own later runs can replace your older plans on the Leaderboard (nobody else's
-                  can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
-                  to you. Your best three plans already on the Leaderboard go named with a named send and anonymous with an
-                  anonymous one, so a re-check never ties the two together.
+                  Sends the space it covered, its best route and the runners-up, so readers can tell a real find from a
+                  flat neighbourhood.
                 </p>
               </template>
               <template #opted>
@@ -1132,7 +1142,16 @@
                 @submit="submit()"
                 @save="downloadSubmission"
                 @retry="retryTable"
-              />
+              >
+                <template #payload-note>
+                  The Leaderboard uses the random code so that a run landing on the flagged Leaderboard shows to you as yours and to
+                  everyone else anonymously, the same result sent twice is stored once, you can put your name on a run
+                  you sent anonymously, and your own later runs can replace your older plans on the Leaderboard (nobody else's
+                  can). A named run shows a short tag made from the code. An anonymous run shows nothing that links it
+                  to you. Your best three plans already on the Leaderboard go named with a named send and anonymous with an
+                  anonymous one, so a re-check never ties the two together.
+                </template>
+              </BoardSubmitButtons>
             </ShareResult>
           </template>
         </RunResults>
@@ -1178,11 +1197,12 @@ const kept = {
 
 <script setup lang="ts">
 import AnimatedDots from '@/components/auto/AnimatedDots.vue';
-import { pricedWithLine } from '@/lib/pricedWith';
-import { pricedWithDays } from '@/lib/pricedWithWords';
+import { pricedWithShort } from '@/lib/pricedWithWords';
+import { longerRouteHints } from '@/lib/longerRouteHint';
+import { useInstantSummaryStore } from '@/stores/instantSummary';
 import { offerStartTimes } from '@/lib/onVirtue';
 import { useInitialStateStore } from '@/stores/initialState';
-import { lastRunLine } from '@/lib/lastRunLine';
+import { runMetaLine } from '@/lib/lastRunLine';
 import { backupSecondsOf } from '@/lib/saveFreshness';
 import { thisDevice } from '@/search/device';
 import { NAMES } from '@/lib/siteNav';
@@ -1222,7 +1242,6 @@ import SpaceSliders from './SpaceSliders.vue';
 import RoutesToTry from './RoutesToTry.vue';
 import KeptBoxNote from './KeptBoxNote.vue';
 import { pinSliders, sweepSliderView } from '@/composables/useRowSliders';
-import { chainCount as countLabel } from '@/lib/chartThin';
 import HelpTip from './HelpTip.vue';
 import BandCheckNotice from './BandCheckNotice.vue';
 import { coverageAfterText, coverageBeforeText, describeEdge, findBandEdges, widenEdges } from '@/search/bandCheck';
@@ -1279,7 +1298,7 @@ const autoPlannerStore = useAutoPlannerStore();
 const plannerTzFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const ui = useUIStore();
 /** The result card's Download CSV (composables/useRunDownloads.ts): the same handler as the CSV row. */
-const { downloadCsv, downloadXlsx } = useRunDownloads(store);
+const { downloadCsv, downloadXlsx, downloadDiagnostics } = useRunDownloads(store);
 
 /** Past this the estimate is longer than anyone will wait, and the form says so rather than
  *  refusing: the point of this page is that the decision is the operator's. */
@@ -2019,6 +2038,11 @@ const autoSubmitted = ref(false);
 /** The result on screen went with its run (Find and submit, a sweep link, or a run that owed it): Share
  *  this result gives way to one line. A send that failed keeps the box, so it can still be sent by hand. */
 const sentByRun = computed(() => autoSubmitted.value && submitOk.value && (submitting.value || store.alreadySubmitted));
+/** The kept result whose Share this result is on the page (store `safeResultKey`, the key a kept Fastest result
+ *  carries): the unsent box near Run leaves it out (UX fluff review 2, item S3); null while none is shown. */
+const shareShownKey = computed(() =>
+  ownRun.value && store.bestDays > 0 && !store.isRunning ? store.safeResultKey() : null
+);
 
 /** Set for the length of a Find and submit click (one run or a whole queue). */
 const findAndSubmit = ref(false);
@@ -2252,17 +2276,19 @@ function buildPlan(chain: readonly number[] = store.bestChain): void {
   ui.openPlannerRequested++;
 }
 
-/** "This search ran on ..., on your save of ..., and found 307 TE." (lib/lastRunLine.ts) */
-const ranLine = computed(() =>
+/** The card's one meta line: "Custom, Nov 3 at 12:22 pm, on your save of Nov 3 at 11:19 am · awake hours 8 am to 11 pm,
+ *  9 no-prestige days" (lib/lastRunLine.ts `runMetaLine`; UX fluff review 2, items C1 and C4). The settings are the
+ *  run's own (store `runSettingsUsed`), never the live setup. */
+const runMeta = computed(() =>
   store.chainResultAt && !store.isRunning
-    ? lastRunLine({
+    ? runMetaLine({
         level: 'exhaustive',
         at: store.chainResultAt,
         saveAt: store.chainRunSaveAt,
         loadedSaveAt: backupSecondsOf(useInitialStateStore().rawBackup),
-        te: store.finalTE,
         zone: autoPlannerStore.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         now: Math.floor(Date.now() / 1000),
+        priced: store.runSettingsUsed ? pricedWithShort(store.runSettingsUsed) : '',
       })
     : ''
 );
@@ -2315,11 +2341,12 @@ function agoLabel(ms: number): string {
   return `${Math.round(diffH / 24)} days ago`;
 }
 
-/** The result card's Save run (named later, or not, in Saved runs). */
-async function save(): Promise<void> {
+/** The result card's Save run, with the name typed beside it (CardSaveRow.vue; Saved for later's own Save this run
+ *  is gone, UX fluff review 2, item C7b). */
+async function save(name = ''): Promise<void> {
   saving.value = true;
   try {
-    await store.saveCurrentRun(props.playerId);
+    await store.saveCurrentRun(props.playerId, name);
   } finally {
     saving.value = false;
   }
@@ -2369,8 +2396,26 @@ const resuming = ref('');
 
 /** "Check start times for this route" only before the player is on virtue (lib/onVirtue.ts). */
 const offerStart = computed(() => offerStartTimes(useInitialStateStore().rawBackup));
-/** The hours and time off this run was priced with (its own settings, not the live setup); '' when no run's
- *  settings are known (lib/pricedWith.ts). */
-// …and the no-prestige days it held for (lib/pricedWithWords.ts; fluff review 2, 5 Nov 2026).
-const pricedWith = computed(() => (store.runSettingsUsed ? pricedWithDays(pricedWithLine(store.runSettingsUsed), store.runSettingsUsed.noPrestige) : ''));
+/** Ascension 1 carries on the build-up (search/health.ts `buildUpNote`, its 'buildup' leg): good news, said without
+ *  the amber box (UX fluff review 2, item C3). */
+const buildUpGoodNews = computed(() => store.bestLegs[0]?.key === 'buildup');
+/** The one amber box for the edges (item C0b): 'edge' when the best sits on a box's edge or on the most ascensions
+ *  searched (it gets the heading), 'hint' for the instant answer's faster route alone, '' for none. The same rule as
+ *  LongerRouteHint.vue's own list (lib/longerRouteHint.ts). */
+const instantSummary = useInstantSummaryStore();
+const edgeBox = computed<'edge' | 'hint' | ''>(() => {
+  if (store.isRunning || queueAt.value >= 0) return '';
+  const hints =
+    goal.value === 'fastest' && store.bestDays > 0 && store.bestChain.length
+      ? longerRouteHints({
+          bestChain: store.bestChain,
+          bestSeconds: store.bestDays * 86400,
+          searchedCounts: store.pricedCounts(),
+          instant: instantSummary.fastest,
+          run: null,
+        })
+      : [];
+  if (edges.value.length || hints.some(h => h.kind === 'edge')) return 'edge';
+  return hints.length ? 'hint' : '';
+});
 </script>

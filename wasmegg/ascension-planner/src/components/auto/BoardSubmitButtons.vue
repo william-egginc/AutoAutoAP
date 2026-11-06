@@ -87,6 +87,11 @@
       />
     </div>
 
+    <!-- A screen's words on what is sent and why, shown with the payload (Custom's "what the random code does", moved
+         here from before the consent; UX fluff review 2, 5 Nov 2026, item C10/S2). -->
+    <p v-if="showPayload && $slots['payload-note']" class="text-body text-indigo-900/80 max-w-prose" data-testid="payload-note">
+      <slot name="payload-note" />
+    </p>
     <pre
       v-if="showPayload"
       class="max-h-64 overflow-auto rounded-lg bg-slate-900 p-3 text-small text-slate-200"

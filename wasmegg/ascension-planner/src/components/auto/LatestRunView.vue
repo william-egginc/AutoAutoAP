@@ -352,12 +352,8 @@
           </table>
         </div>
 
-        <p class="text-body text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
-          Every view above reads the <span class="font-bold">{{ store.csvRows.toLocaleString() }}</span>
-          routes this run priced, so switching costs nothing and re-simulates nothing. A route missing from all of
-          them was almost certainly never evaluated rather than evaluated and beaten: the search stays in its own
-          neighbourhood. Download the CSV for the full list.
-        </p>
+        <!-- The amber box on what the views read (how many routes, the CSV) is gone (UX fluff review 2, 5 Nov 2026,
+             item M8): it was not a warning, and the views say what they read. -->
       </div>
 
       <!-- The run's own shape, and why it ended. The CSV had all of this already, but reading it

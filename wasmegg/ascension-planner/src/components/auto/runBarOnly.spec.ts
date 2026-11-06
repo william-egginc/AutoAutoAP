@@ -48,36 +48,37 @@ describe('the run bar is the only progress', () => {
 });
 
 describe('the result names its hours and time off (item 10)', () => {
-  const line = 'Priced with awake hours 9 am to 1 am, no time off';
 
-  it("Fastest's card says it once finished, not while running", async () => {
-    const base = { chain: [212, 280, 490], days: 760.5, finalTE: 490, endLabel: 'Feb 15, 2029', pricedWith: line };
-    expect(textOf(await renderHtml(RouteResultCard, { ...base, running: false }))).toContain(`${line}.`);
-    expect(await renderHtml(RouteResultCard, { ...base, running: true })).not.toContain('priced-with');
+  it("Fastest's card says it once finished, not while running (in its one meta line since 5 Nov 2026)", async () => {
+    const meta = 'Custom, Nov 3 at 12:22 pm · awake hours 9 am to 1 am';
+    const base = { chain: [212, 280, 490], days: 760.5, finalTE: 490, endLabel: 'Feb 15, 2029', meta };
+    expect(textOf(await renderHtml(RouteResultCard, { ...base, running: false }))).toContain(meta);
+    expect(await renderHtml(RouteResultCard, { ...base, running: true })).not.toContain('run-meta');
   });
 
-  it("By a date's card says it", async () => {
+  it("By a date's card says it (in its one meta line since 5 Nov 2026)", async () => {
+    const meta = 'Custom, Nov 3 at 12:24 pm (197 TE) · awake hours 9 am to 1 am';
     const t = textOf(
       await renderHtml(ByDateRouteCard, {
         route: { chain: [166, 247], reachAt: 1_815_000_000, ascendAt: 1_815_000_000, spare: 3600, legs: [] },
         deadline: 1_815_003_600,
         zone: 'UTC',
-        pricedWith: line,
+        meta,
       })
     );
-    expect(t).toContain(`${line}.`);
+    expect(t).toContain(meta);
   });
 
   it('the panels pass the RUN\'s settings, and By a date no longer points at Your setup', () => {
+    // Fastest's cards: the run's settings in the one meta line (UX fluff review 2, 5 Nov 2026, items C1 and C4).
     for (const f of ['ChainSearchPanel.vue', 'InsanePanel.vue']) {
       const src = read(f);
-      expect(src, f).toContain(':priced-with="pricedWith"');
-      expect(src, f).toContain('store.runSettingsUsed ? pricedWithDays(pricedWithLine(store.runSettingsUsed)');
+      expect(src, f).toContain(':meta="runMeta"');
+      expect(src, f).toContain("priced: store.runSettingsUsed ? pricedWithShort(store.runSettingsUsed) : ''");
     }
     const deadline = read('DeadlinePanel.vue');
     expect(deadline).not.toContain('with the hours and time off in Your setup');
-    expect(deadline).toContain('result.value?.settings ? pricedWithDays(pricedWithLine(result.value.settings)');
-    expect(deadline).toContain('{{ resultPricedWith }}.');
+    expect(deadline).toContain("priced: r.settings ? pricedWithShort({ ...r.settings, noPrestige: recordedNoPrestige(r.settings) }) : ''");
     // The instant answer has no priced-with line since 23 Oct 2026: it prices nothing (no Check exactly).
     expect(read('InstantRoute.vue')).not.toContain('pricedWithLine(');
   });

@@ -38,8 +38,7 @@
       >
     </div>
     <p class="text-body text-slate-600 max-w-prose" data-testid="search-panel-intro">
-      Checks the instant answer harder, with the full simulator on your save. Pick how hard to look; your choice is
-      remembered.
+      Check the instant answer on your save:
     </p>
 
     <div
