@@ -23,7 +23,7 @@
            and when it lands on the right. -->
       <template #headline>
         <div class="tabular-nums text-title font-bold text-slate-900 break-words">
-          {{ route.chain.join(' ') }}
+          {{ route.chain.join(' → ') }}
         </div>
         <!-- One meta line: when it ran, on which save (and its TE), what it was priced with (lib/lastRunLine.ts
              `runMetaLine`; UX fluff review 2, 5 Nov 2026, items D2, D7 and D12: was the ran line here, "Priced with" under

@@ -28,7 +28,7 @@
       </div>
       <div v-if="source" class="text-small font-bold text-emerald-700/80">{{ source }}</div>
       <div class="tabular-nums text-body font-bold text-slate-900 break-words">
-        {{ chain.join(' ') }}
+        {{ chain.join(' → ') }}
       </div>
       <!-- One meta line: when it ran, on which save, what it was priced with (lib/lastRunLine.ts `runMetaLine`; was
            the ran line here and "Priced with …" under the details, items C1 and C4). -->

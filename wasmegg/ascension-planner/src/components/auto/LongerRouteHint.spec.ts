@@ -37,7 +37,7 @@ describe('LongerRouteHint', () => {
     useInstantSummaryStore().fastest = { chain: SEVEN, seconds: 28.5 * 86400, exact: false };
     const html = await renderHtml(LongerRouteHint, props, {}, [pinia]);
     expect(textOf(html)).toBe(
-      'The instant answer has a route with 7 ascensions that may finish about 1.5 days sooner (163 195 216 248 280 318 490). Add a box with 7 ascensions Price this route'
+      'The instant answer has a route with 7 ascensions that may finish about 1.5 days sooner (163 195 216 248 280 318 490). Add a box with 7 Price this route'
     );
   });
 

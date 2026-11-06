@@ -931,19 +931,16 @@
                   Your boxes may be too small.<template v-if="coverageAfter">{{ ' ' }}{{ coverageAfter }}</template>
                 </p>
                 <p v-if="suggestedCountNote">{{ suggestedCountNote }}</p>
+                <!-- The wider space's size on the button, as the mock (item C0b); no sentence under it. -->
                 <EdgeWarning
                   v-if="edges.length"
                   bare
                   :lines="edges.map(edgeWords)"
                   :can-widen="!!edgeWiden"
                   :disabled="store.busy || queueAt >= 0"
+                  :routes="edgeWiden ? plural(edgeWiden.chains, 'route') : ''"
                   @widen="widenAndRun"
-                >
-                  <template v-if="edgeWiden">
-                    The wider space is {{ plural(edgeWiden.chains, 'route') }}. Routes already priced are reused when your
-                    setup hasn't changed.
-                  </template>
-                </EdgeWarning>
+                />
                 <!-- Fastest is fast, not best: when a longer route might win, say so (never runs anything). -->
                 <LongerRouteHint
                   v-if="goal === 'fastest'"
