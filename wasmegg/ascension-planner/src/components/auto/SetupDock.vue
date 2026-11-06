@@ -32,7 +32,7 @@
           Done
         </button>
       </div>
-      <YourSetup :screen="screen" docked />
+      <YourSetup ref="setup" :screen="screen" docked />
     </div>
 
     <!-- From xl (1280 px) the pill stacks Setup over the workers, 10rem wide, so it sits in the margin right of the
@@ -159,14 +159,14 @@ watch(
   }
 );
 
-/** Asked from a panel (a sweep's "add time off"): open, and scroll to the time off. */
+/** Asked from a panel (a sweep's "add time off"): open, and bring the time off into view. Setup reveals it, opening
+ *  More options first should a target ever sit inside it (YourSetup.vue `reveal`). */
+const setup = ref<InstanceType<typeof YourSetup> | null>(null);
 watch(
   () => ui.openSetupRequested,
   () => {
     ui.setupOpen = true;
-    void nextTick(() =>
-      document.getElementById('your-setup-time-off')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    );
+    void nextTick(() => setup.value?.reveal('your-setup-time-off'));
   }
 );
 

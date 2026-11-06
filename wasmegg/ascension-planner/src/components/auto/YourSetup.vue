@@ -774,7 +774,7 @@ import { spillNote } from '@/lib/legSpillText';
 import SaveFileBar from './SaveFileBar.vue';
 import AutoSaveStrip from './AutoSaveStrip.vue';
 import TabsToggle from './TabsToggle.vue';
-import { computed, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue';
 import { DEFAULT_LEG_DETAIL_BUDGET, useChainSearchStore } from '@/stores/chainSearch';
 import { useAutoPlannerStore } from '@/stores/autoPlanner';
 import { useInitialStateStore } from '@/stores/initialState';
@@ -845,6 +845,20 @@ function toggleMore(): void {
   moreOpen.value = !moreOpen.value;
   rememberFoldToggle('setupMore', moreOpen.value);
 }
+const moreBody = ref<HTMLElement | null>(null);
+/** A link into Setup (SetupDock.vue's openSetupRequested): bring the option with this id into view, opening More
+ *  options first when it is inside (not remembered as the player's toggle), so a link never lands on a folded part. */
+async function reveal(id: string): Promise<void> {
+  await nextTick();
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!moreOpen.value && moreBody.value?.contains(el)) {
+    moreOpen.value = true;
+    await nextTick();
+  }
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+defineExpose({ reveal });
 /** Sharing's folds, closed on each visit: what each tick sends, and the "saved online" notices. */
 const whatOpen = reactive({ instant: false, baseline: false });
 const savedOnlineOpen = ref(false);
