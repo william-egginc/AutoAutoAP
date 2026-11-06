@@ -20,7 +20,7 @@
       Help make the planner’s answers better.{{ ' ' }}<span :class="phoneOnly"
         >Your runs go public only when you press share. The last tick sends a private, anonymous record of the best
         result of a Fast, Exact or Custom search.{{ ' ' }}</span
-      >Your player ID and save are never sent.<span :class="phoneOnly"
+      >{{ NEVER_WITH_A_RUN }}<span :class="phoneOnly"
         >{{ ' ' }}This account only; change or withdraw it in {{ NAMES.setup }}.</span
       >
     </p>
@@ -32,6 +32,7 @@
       data-testid="study-about"
       >What exactly is sent</a
     >
+    <PrivacyTip />
 
     <!-- Compact, under sm: the choices fold behind this row (from sm up the row is gone and they always show). -->
     <button
@@ -122,6 +123,8 @@ import { NAMES } from '@/lib/siteNav';
 import { BUTTON_TEXT } from './auto/resultCardStyle';
 import { DEFAULT_TICKS, TICK_WORDS, anyTick, capName, type StudyCredit, type StudyTicks } from '@/lib/study';
 import SharingChoices from './SharingChoices.vue';
+import PrivacyTip from './PrivacyTip.vue';
+import { NEVER_WITH_A_RUN } from '@/lib/privacyWords';
 import { consentState } from '@/composables/useConsent';
 import { answerNo, answerYes, defaultCredit, knownName, yesToAll } from '@/composables/useStudy';
 import { useShareNameStore } from '@/stores/shareName';

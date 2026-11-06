@@ -271,10 +271,10 @@ describe('one definition of the credit radios in the app (source checks)', () =>
 
   it('"Credit me as" and "Stay anonymous" are labels in SharingChoices.vue only; "Submit anonymously" is gone', () => {
     const credit = [...src].filter(([, s]) => s.includes('Credit me as')).map(([f]) => f);
-    // Two pages name the setting in a sentence (no control): the Leaderboard's "To join, pick “Credit me as”" and How
-    // it works. Every other mention is SharingChoices.vue's.
+    // One page names the setting in a sentence (no control): the Leaderboard's "To join, pick “Credit me as”". How it
+    // works says it too, from lib/privacyWords.ts since 6 Nov 2026. Every other mention is SharingChoices.vue's.
     expect(credit.sort()).toEqual(
-      ['components/SharingChoices.vue', 'components/auto/LeaderboardPanel.vue', 'components/science/HowItWorks.vue'].sort()
+      ['components/SharingChoices.vue', 'components/auto/LeaderboardPanel.vue'].sort()
     );
     const anonLabel = [...src].filter(([, s]) => /^\s*Stay anonymous\s*$/m.test(s)).map(([f]) => f);
     expect(anonLabel).toEqual(['components/SharingChoices.vue']);
