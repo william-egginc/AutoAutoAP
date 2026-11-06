@@ -44,7 +44,9 @@ export interface DeadlineRunSpec {
   /** "Pick them for me": how many sets of early stops the first look may try (deadline.ts
    *  `maxShapes`); the grid widens until it fits. Absent on runs saved before the slider. */
   maxShapes?: number;
-  ascendNeeded: boolean;
+  /** @deprecated "I need to ascend at the last stop before the deadline", removed 5 Nov 2026: a TE counts when it
+   *  is reached. On runs saved before then; never read, so such a run (or its carry-on) runs as if it was unticked. */
+  ascendNeeded?: boolean;
   /** Shapes tried first (the account's current route). Kept with the run so a carry-on replays
    *  the very same search. */
   seedShapes?: number[][];
@@ -265,7 +267,9 @@ export interface SavedDeadlineResult {
   shapes: number;
   priced: number;
   stoppedEarly: boolean;
-  ascendNeeded: boolean;
+  /** Priced with the old "I need to ascend at the last stop" ticked (removed 5 Nov 2026), so its CSV still says so.
+   *  Only on results saved before then; a run now never sets it. */
+  ascendNeeded?: boolean;
   lastHi: number;
   /** The highest last stop the search could reach: `lastHi`, or 490 for an extended search. */
   ceiling?: number;

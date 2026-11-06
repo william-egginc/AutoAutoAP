@@ -307,7 +307,6 @@ import { sentRowFor } from '@/search/sentOnBoard';
 import { describeSaveAge, siloSeconds } from '@/lib/saveAge';
 import { saveClockOf, saveState } from '@/lib/saveFreshness';
 import { timeOffWindows, usableTimeOff, type TimeOffDates } from '@/search/timeOff';
-import { nextPrestigeAt } from '@/search/noPrestige';
 import {
   DEFAULT_FIRST_ASCENSION,
   firstAscensionAt,
@@ -5230,7 +5229,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     return deadlineCsvChunks(routes, deadlineCsvMeta(deadlineRun, deadlineRunCsv.ceiling, partial), {
       deadline: deadlineRun.deadline,
       priced: deadlineProgress.value?.priced ?? 0,
-      ascendNeeded: deadlineRunCsv.ascendNeeded,
       all: deadlineRunCsv.all,
     });
   }
@@ -5384,7 +5382,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           {
             deadline: run.deadline,
             priced: deadlineProgress.value?.priced ?? 0,
-            ascendNeeded: deadlineRunCsv?.ascendNeeded,
             all,
             pricedInDeltas: true,
           },
@@ -7076,13 +7073,12 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
    *  best so far; null when none ran. */
   const deadlineRunPlan = ref<{ planStart: number; firstAscension: FirstAscension } | null>(null);
   /** What a progress send's CSV so far needs from the date search going now: its routes found so far
-   *  (search/deadline.ts `routesSoFar`), its top target and whether it ascends in awake hours. */
+   *  (search/deadline.ts `routesSoFar`) and its top target. */
   let deadlineRunCsv: {
     routes: () => DeadlineRoute[];
     /** Every route priced so far (search/deadline.ts `PricedRoutes`), for the CSV's summary lines. */
     all: PricedRoutes | null;
     ceiling: number;
-    ascendNeeded: boolean;
   } | null = null;
   /** Whether the date search going now sends its result when it ends, and on what choices (kept in
    *  its checkpoint, so a carry-on sends too). Null: it doesn't. */
@@ -7689,7 +7685,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
     /** Seconds an earlier session of this run already spent (a carry-on), for its "took". */
     priorSeconds = 0
   ): Promise<void> {
-    const schedule = isConstrained(inputs.availability) ? inputs.availability : null;
     const seedCount = seed ? checkpointCount(seed) : 0;
     // For the diagnostics: when the run began (across carry-ons), how often it was carried on, its checkpoint.
     deadlineRunPrior = priorSeconds;
@@ -7744,7 +7739,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
       routes: () => [],
       all: null,
       ceiling: spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi,
-      ascendNeeded: !!spec.ascendNeeded && !!schedule,
     };
     deadlineEstimate.value = Math.max(0, Math.floor(spec.estimate ?? 0));
     deadlineStop = false;
@@ -7952,10 +7946,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
           ...(spec.refine === false ? { refine: false } : {}),
           ...(spec.bands?.length ? { bands: spec.bands } : {}),
           ...(spec.bandSets?.length ? { bandSets: runBandSets(spec) } : {}),
-          // The claim is a prestige: inside the hours and not on a no-prestige day (search/noPrestige.ts).
-          ...(spec.ascendNeeded && schedule
-            ? { ascendAt: (t: number) => nextPrestigeAt(t, schedule, inputs.noPrestige) }
-            : {}),
         },
         {
           evaluate: async (chains, onResult) => {
@@ -8048,7 +8038,6 @@ export const useChainSearchStore = defineStore('chainSearch', () => {
         shapes: out.shapes,
         priced: out.priced,
         stoppedEarly: out.stoppedEarly,
-        ascendNeeded: spec.ascendNeeded && !!schedule,
         lastHi: spec.lastHi,
         ceiling: spec.extend ? Math.max(spec.lastHi, MAX_LAST_STOP) : spec.lastHi,
         ...(spec.note ? { note: spec.note } : {}),

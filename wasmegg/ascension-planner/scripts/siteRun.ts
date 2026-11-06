@@ -139,7 +139,6 @@ export interface SiteRunOptions {
   lastHi: number;
   step: number;
   maxShapes: number;
-  ascendNeeded: boolean;
   /** Send the result when it finishes (stopped early, it still sends: the board marks it partial). */
   submit: { nickname: string; csv: boolean; yes: boolean } | null;
   /** --diagnostics: send the run's diagnostics with the result, as the page's "Send diagnostics" tick. */
@@ -873,7 +872,6 @@ async function runByDate(
         lastLo: o.lastRange[0],
         lastHi: o.lastRange[1],
         step: 1,
-        ascendNeeded: o.ascendNeeded,
         estimate: plan.routes,
         extend: true,
         bandSets: o.chains.map(c => (c.asc <= 1 ? [] : c.bands.map(b => [...b]))),
@@ -888,7 +886,6 @@ async function runByDate(
         lastHi: Math.min(490, o.lastHi),
         step: o.step,
         maxShapes: o.maxShapes,
-        ascendNeeded: o.ascendNeeded,
         extend: true,
       });
     }

@@ -327,7 +327,6 @@ describe('the quick scan', () => {
       currentTE: 78,
       deadline: 2_000_000_000,
       guessHi: 193,
-      ascendNeeded: false,
       level: 'quick',
     });
     expect(s).toMatchObject({

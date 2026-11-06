@@ -540,7 +540,6 @@ THE SITE'S SEARCHES  (Auto Planner > Fastest route and Highest TE by a date)
                             Suggest a space does (default 4), with --last picked around your TE.
   --width TE --step N       How far either side of each suggested stop (default 10), and the step for
                             every stop after the first (default 2).
-  --ascend-needed           Reach the last stop in time to ascend at it in your hours.
   (The retired "Pick them for me" still runs if you give --min-stops/--max-stops/--thoroughness/
   --last-hi/--step, to reproduce an old run.)
 
@@ -2203,7 +2202,6 @@ function siteOptions(o: {
     lastHi: +(arg('last-hi', String(Math.min(490, Math.floor(o.currentTE) + 200)))!),
     step: +(arg('step', '5')!),
     maxShapes: THOROUGH[thorough],
-    ascendNeeded: has('ascend-needed'),
     submit: has('submit') ? { nickname, csv: withCsv, yes: has('yes') } : null,
     diagnostics: has('diagnostics'),
     noFullCsv: has('no-full-csv'),

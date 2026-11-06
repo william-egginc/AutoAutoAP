@@ -187,7 +187,6 @@ export function quickScanSpec(o: {
   currentTE: number;
   deadline: number;
   guessHi: number;
-  ascendNeeded: boolean;
   level?: DeadlineRunSpec['level'];
 }): DeadlineRunSpec {
   const lastHi = scanLastHi(o.currentTE, o.guessHi);
@@ -211,7 +210,6 @@ export function quickScanSpec(o: {
     lastHi,
     step: 5,
     maxShapes: QUICK_SCAN_SHAPES,
-    ascendNeeded: o.ascendNeeded,
     // About 4 routes a set: the last stop is narrowed down, not tried at every TE.
     estimate: sets * 4,
     sets,
