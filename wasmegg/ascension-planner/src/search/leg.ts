@@ -50,7 +50,9 @@ import type { SearchInputs, ShiftMoment } from './types';
 import { CONTINUE_PIN_MAX_SECONDS, CONTINUE_MAX_SECONDS } from './rules';
 import { readFirstAscension } from './firstAscension';
 import { catchUpSeconds, siloSeconds } from '@/lib/saveAge';
-import { countTEThresholdsPassed } from '@/lib/truthEggs';
+import { countTEThresholdsPassed, getThresholdForTE } from '@/lib/truthEggs';
+import { parseVirtueProgress } from '@/lib/backupVirtue';
+import type { ei } from 'lib';
 import { EGG_ORDER, type BuildParams } from './precomputedLeg';
 import type { TableHeader } from './precomputedTable';
 import { buildUpStartOf, toBuildUpActions, type BuildUpAction, type BuildUpList } from './buildUpActions';
@@ -583,6 +585,27 @@ function freshList(
 }
 
 /**
+ * The TE the farm in the save has CLAIMED, per egg: what its earnings bonus counts until the next prestige
+ * (spec-pendingte). The base state's `teEarned` has the save's pending TE rolled in (lib/modes/utils.ts
+ * `rollUpPendingTE`, right for an ascension that starts at the next prestige); this takes them out again: per egg the
+ * save's own `eovEarned`, never more than the base state's TE. An egg whose TE the planner set itself (the starting-TE
+ * override, auto/startingTE.ts: eggs at exactly that TE's threshold, not the save's eggs) is claimed as set, with
+ * nothing pending.
+ */
+function claimedTEEarned(baseState: EngineState, raw: ei.IBackup): Record<VirtueEgg, number> {
+  const save = parseVirtueProgress(raw);
+  const out = { ...baseState.teEarned };
+  for (const egg of Object.keys(save.teEarned) as VirtueEgg[]) {
+    const te = baseState.teEarned?.[egg] || 0;
+    const eggs = baseState.eggsDelivered?.[egg] || 0;
+    const setByPlanner =
+      eggs < save.eggsDelivered[egg] || (eggs === getThresholdForTE(te) && eggs !== save.eggsDelivered[egg]);
+    out[egg] = setByPlanner ? te : Math.min(te, save.teEarned[egg]);
+  }
+  return out;
+}
+
+/**
  * A1-only "continue current ascension" variant, mirroring the generator's own setup.
  *
  * The field names below are load-bearing and were each a real bug in the CLI harness:
@@ -606,8 +629,15 @@ function freshList(
  * "earnings" changes nothing; the delivery set stays the best one for H1 (which picks its own anyway).
  * The label is the save's own: 'earnings' when the equipped loadout is the earnings set, else 'elr'
  * (lib/buildUpBought.ts `saveFarmFor` reads a production set as 'elr' too). Null without a farm.
+ *
+ * IT EARNS AT ITS CLAIMED TE (spec-pendingte, 6 Nov 2026; aaap-tools notes/math-review-2026-11-06.md item 1): `te`
+ * and `teEarned` are the TE the save has claimed (`claimedTEEarned`), not the base state's claimed + pending, because
+ * the game pays x1.1 a TE only on claimed TE until the next prestige. The pending TE still count toward the stop:
+ * every TE goal and the leg's end TE are the thresholds its eggs delivered have passed (`eggsDelivered`, unchanged),
+ * and the next ascension starts with them (`deriveNextStartState` reads the leg's `finalTE`). Exported for checks
+ * (leg.pendingTE.spec.ts).
  */
-function continueState(inputs: SearchInputs, baseState: EngineState): EngineState | null {
+export function continueState(inputs: SearchInputs, baseState: EngineState): EngineState | null {
   const farmState = inputs.currentFarmState;
   const raw = inputs.context.rawBackup;
   if (!farmState || !raw) return null;
@@ -626,6 +656,7 @@ function continueState(inputs: SearchInputs, baseState: EngineState): EngineStat
   const canSwap = egg === 'humility';
   const worn = canSwap ? elr : rawLoadout;
   const earnings = canSwap ? optimalEarnings : rawLoadout;
+  const claimed = claimedTEEarned(baseState, raw);
 
   const state = {
     ...JSON.parse(JSON.stringify(baseState)),
@@ -643,7 +674,8 @@ function continueState(inputs: SearchInputs, baseState: EngineState): EngineStat
     },
     fuelTankAmounts: { ...baseState.fuelTankAmounts },
     eggsDelivered: { ...baseState.eggsDelivered },
-    teEarned: { ...baseState.teEarned },
+    teEarned: claimed,
+    te: Object.values(claimed).reduce((a, n) => a + n, 0),
     population: farmState.population || 0,
     lastStepTime: farmState.lastStepTime || 0,
     bankValue: farmState.cash || 0,
