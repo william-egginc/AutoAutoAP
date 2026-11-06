@@ -33,8 +33,8 @@ describe('All runs: plan length', () => {
 });
 
 describe('By a date: the anonymous line', () => {
-  it('names the race tab as the tab does, never a literal N', () => {
+  it('never a literal N; since fluff review 2 (L8, 5 Nov 2026) one clause, naming no tab', () => {
     expect(template).not.toContain('as in Fastest to N TE');
-    expect(template).toMatch(/Anonymous answers are listed but not ranked, as in \{\{ tabLabel\('race'\) \}\}\./);
+    expect(template).toContain("Anonymous answers aren't ranked.");
   });
 });

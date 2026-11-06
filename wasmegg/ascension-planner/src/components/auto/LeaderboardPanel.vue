@@ -305,10 +305,10 @@
           Pick a target TE above: Fastest to N TE needs one finish line.
         </p>
         <template v-else>
+          <!-- One line (fluff review 2, L10); how it is judged is in the fold under the table. -->
           <p class="text-body text-indigo-900/80 max-w-prose">
-            Players ranked by when their current best plan reaches {{ target }}. How far along they already are counts,
-            so this shows who gets there first, not whose plan is best. To compare a route with yours, press
-            <span class="font-bold">Use</span>.
+            Who reaches {{ target }} first, counting how far along each player is. Open a player and press
+            <span class="font-bold">Use</span> to try their route on your save.
           </p>
           <!-- Only this browser sees it: the race is named-only, and saying where an anonymous run
                would sit on the public board would tie it to the account. -->
@@ -561,12 +561,11 @@
           </details>
 
           <p class="text-small text-slate-500">
-            Dates and days left are in your timezone ({{ viewZone }}); hover a finish for the player's own. Anonymous
-            runs are not ranked in Fastest to {{ target }} TE, so add a name to join. All runs lists every run.
+            Dates and days left are in your timezone ({{ viewZone }}); hover a finish for the player's own.
           </p>
-          <details class="text-small text-slate-500">
-            <summary class="cursor-pointer font-bold text-slate-600">How Fastest to {{ target }} TE is judged</summary>
-            <ul class="mt-1 ml-4 list-disc space-y-1">
+          <BoardFold :title="`How Fastest to ${target} TE is judged`" testid="race-judged">
+            <ul class="ml-4 list-disc space-y-1">
+              <li>Anonymous runs are not ranked here, so add a name to join. {{ tabLabel('all') }} lists every run.</li>
               <li>A player's line is their earliest-finishing plan that still counts.</li>
               <li>
                 A plan stops counting when a newer run of the same plan replaces it. The newest run wins whether it
@@ -591,24 +590,28 @@
               </li>
               <li>"Tried" counts each plan once, however often it was run or sent.</li>
             </ul>
-          </details>
+          </BoardFold>
         </template>
       </template>
 
       <!-- ======================================================= EGG DAY, AND BY A DATE -->
       <template v-else-if="tab === 'eggday' || tab === 'dates'">
+        <!-- One line each (fluff review 2, L5 and L20); the rest is in "How it's judged". -->
         <p v-if="tab === 'eggday'" class="text-body text-indigo-900/80 max-w-prose">
-          The highest TE each player can reach by Egg Day {{ eggDayYear }} (Jul 14, 9:00 am Pacific), from the Auto
-          Planner's <span class="font-bold">{{ NAMES.byDate }}</span> search with the Egg Day preset. Players are ranked
-          by the TE they reach, then by time to spare, using each player's best answer. Game events aren't simulated,
-          including Egg Day's own.
+          Highest TE by Egg Day {{ eggDayYear }} (Jul 14, 9:00 am Pacific). Ranked by TE, then time to spare.
         </p>
         <p v-else class="text-body text-indigo-900/80 max-w-prose">
-          The highest TE each player can reach by any other date, from the Auto Planner's
-          <span class="font-bold">{{ NAMES.byDate }}</span> search, one table per date. Dates are in your timezone
-          ({{ viewZone }}). Players are ranked by the TE they reach, then by time to spare, using each player's best
-          answer. Egg Day {{ eggDayYear }} has its own tab.
+          Highest TE by any other date, in your timezone ({{ viewZone }}). Ranked by TE, then time to spare.
         </p>
+        <BoardFold title="How it's judged" testid="dates-judged">
+          <p class="max-w-prose">
+            From the Auto Planner's <span class="font-bold">{{ NAMES.byDate }}</span> search<template v-if="tab === 'eggday'">
+              with the Egg Day preset</template
+            ><template v-else>, one table per date</template>, using each player's best answer.
+            <template v-if="tab === 'eggday'">Game events aren't simulated, including Egg Day's own.</template>
+            <template v-else>Egg Day {{ eggDayYear }} has its own tab.</template>
+          </p>
+        </BoardFold>
         <div class="flex flex-wrap items-end gap-3">
           <label class="block">
             <span class="block label text-indigo-700/70 mb-1"
@@ -765,22 +768,23 @@
               </tbody>
             </table>
           </div>
-          <p v-if="g.anonymous.length" class="text-small text-slate-500">
-            Anonymous answers are listed but not ranked, as in {{ tabLabel('race') }}.
-          </p>
+          <p v-if="g.anonymous.length" class="text-small text-slate-500">Anonymous answers aren't ranked.</p>
         </div>
       </template>
 
       <!-- ================================================================== ALL RUNS -->
       <template v-else>
-        <p class="text-body text-indigo-900/80 max-w-prose">
-          Every run on the Leaderboard. A result sent more than once shows once, with how many times it was sent; open it to
-          see each copy and its CSV. Look-alike runs (same route and save) are tagged with how they differ. A run sent
-          under a player's name without their code since codes began is tagged
-          <span class="font-bold">no code</span>. Plan length counts from each run's own start, so it shrinks every
-          day a plan is run again. Compare finish dates instead. A route's length on someone else's account says little
-          about yours until you press <span class="font-bold">Use</span>.
-        </p>
+        <!-- One line (fluff review 2, L17); the rest behind "How this list works". -->
+        <p class="text-body text-indigo-900/80 max-w-prose">Every run sent. Compare finish dates, not plan length.</p>
+        <BoardFold title="How this list works" testid="all-how">
+          <p class="max-w-prose">
+            A result sent more than once shows once, with how many times it was sent; open it to see each copy and its
+            CSV. Look-alike runs (same route and save) are tagged with how they differ. A run sent under a player's name
+            without their code since codes began is tagged <span class="font-bold">no code</span>. Plan length counts
+            from each run's own start, so it shrinks every day a plan is run again. A route's length on someone else's
+            account says little about yours until you open it and press <span class="font-bold">Use</span>.
+          </p>
+        </BoardFold>
         <p v-if="!runLines.length" class="text-body text-indigo-900/60 py-6 text-center">
           No runs to {{ target }} yet.
         </p>
@@ -1074,6 +1078,7 @@ import { BOARD_ROWS } from '@/lib/instantBaseline';
 import MyRunsList from './MyRunsList.vue';
 import MyRunsMissing from './MyRunsMissing.vue';
 import SimChip from './SimChip.vue';
+import BoardFold from './BoardFold.vue';
 import { bySimToggle, hiddenSimText, useShowOlderSims } from '@/composables/useShowOlderSims';
 
 /** Insights: the Explorer's charts and their chart library load only when that tab opens. */
