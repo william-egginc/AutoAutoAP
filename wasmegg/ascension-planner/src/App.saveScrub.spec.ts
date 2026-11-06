@@ -19,7 +19,7 @@ const bodyOf = (head: string) => {
 describe('a save file with no account on screen', () => {
   it('is offered under the player ID box while no account is entered, and opens Fastest when it loads', () => {
     expect(template).toContain('<div v-if="!playerId" class="mx-4 mt-3 flex justify-center" data-testid="no-account-save-file">');
-    expect(template).toContain('<SaveFileBar player-id="" @loaded="onNoAccountSave" />');
+    expect(template).toContain('<SaveFileBar player-id="" :compact="firstVisit" @loaded="onNoAccountSave" />');
     expect(template.indexOf('data-testid="no-account-save-file"')).toBeGreaterThan(template.indexOf('<the-player-id-form'));
     expect(bodyOf('function onNoAccountSave(): void {')).toContain("goAuto('fastest', 'smart')");
     expect(app).toContain('const fileOnlySave = computed(() => !playerId.value && !!uiStore.runSaveLoaded?.noAccount);');

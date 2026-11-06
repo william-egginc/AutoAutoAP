@@ -14,7 +14,7 @@
       'min-h-screen bg-gray-100 transition-all duration-300',
       setupDockShown
         ? ''
-        : plannerTab === 'manual'
+        : manualShown
           ? isFooterCollapsed
             ? 'pb-48 md:pb-8'
             : 'pb-48 md:pb-24'
@@ -97,6 +97,11 @@
             <component :is="screenHasH1 ? 'p' : 'h1'" class="mx-4 mt-8 mb-2 text-center heading-xl text-gradient">
               {{ pageTitle }}
             </component>
+            <!-- First visit (no account, nothing asked; lib/siteNav.ts firstVisitShows): what the planner does, in two lines. -->
+            <div v-if="firstVisit" class="mx-auto mb-3 max-w-xl px-4 space-y-1 text-center text-body text-slate-700" data-testid="first-visit-intro">
+              <p>{{ FIRST_VISIT_WORDS.what }}</p>
+              <p>{{ FIRST_VISIT_WORDS.id }}</p>
+            </div>
             <!-- The save's name on its own small line, not run into the title in display type (UX review 26 Oct, #13). -->
             <p
               v-if="playerName"
@@ -151,8 +156,18 @@
       <!-- Or a save file, with no account (spec-savescrub): the instant answer works from it; the line over Fastest and
            RunSaveNotice say what is off without an account. Outside the folding header, under the error line. -->
       <div v-if="!playerId" class="mx-4 mt-3 flex justify-center" data-testid="no-account-save-file">
-        <SaveFileBar player-id="" @loaded="onNoAccountSave" />
+        <SaveFileBar player-id="" :compact="firstVisit" @loaded="onNoAccountSave" />
       </div>
+      <!-- First visit: the Manual Planner one tap away (an address, so a reload or a shared link keeps it open), instead
+           of its empty cards and actions under the ID box. -->
+      <p v-if="firstVisit" class="mx-4 mt-3 text-center text-body text-slate-700" data-testid="first-visit-manual-line">
+        {{ FIRST_VISIT_WORDS.manualLead }}{{ ' ' }}<a
+          href="#/manual"
+          class="inline-flex items-center min-h-[44px] px-1 underline decoration-dotted underline-offset-2 text-indigo-700 hover:text-indigo-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded"
+          data-testid="first-visit-manual"
+          >{{ FIRST_VISIT_WORDS.manualLink }}</a
+        >
+      </p>
 
       <SiteTabs
         v-if="playerId"
@@ -198,7 +213,7 @@
 
       <!-- What folds on Manual: the plan library and the action cards (nothing folds on the other screens). -->
       <div
-        v-if="plannerTab === 'manual'"
+        v-if="manualShown"
         class="mt-2 rounded-2xl border transition-all duration-500"
         :class="
           isHeaderCollapsed
@@ -443,7 +458,7 @@
       </nav>
 
       <!-- Current Mode Label -->
-      <div v-if="plannerTab === 'manual' && plannerModeLabel" class="mt-4 flex justify-center">
+      <div v-if="manualShown && plannerModeLabel" class="mt-4 flex justify-center">
         <span class="text-body font-bold text-slate-700">{{ plannerModeLabel }}</span>
       </div>
 
@@ -521,7 +536,7 @@
       </div>
 
       <!-- Active Event Slide Toggle (Earnings Boost) -->
-      <div v-if="plannerTab === 'manual'" class="mt-4 flex flex-col items-center gap-2">
+      <div v-if="manualShown" class="mt-4 flex flex-col items-center gap-2">
         <div
           class="w-full max-w-sm bg-gradient-to-r from-orange-50/80 via-white to-amber-50/80 rounded-2xl p-4 border border-orange-100/50 shadow-sm relative overflow-hidden flex items-center justify-between transition-all duration-300"
         >
@@ -555,7 +570,7 @@
       <div v-if="loading" class="text-center py-4 text-gray-600">Loading player data...</div>
 
 
-      <div v-if="plannerTab === 'manual'">
+      <div v-if="manualShown">
         <!-- Action History and Available Actions side-by-side -->
         <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Action History -->
@@ -790,13 +805,13 @@
       />
 
       <PlanFinalSummary
-        v-if="plannerTab === 'manual'"
+        v-if="manualShown"
         @update:collapsed="isFooterCollapsed = $event"
         @save-plan="saveCurrentPlan"
         @save-plan-as="savePlanAs"
       />
-      <FloatingStats v-if="plannerTab === 'manual'" />
-      <FloatingNotes v-if="plannerTab === 'manual'" />
+      <FloatingStats v-if="manualShown" />
+      <FloatingNotes v-if="manualShown" />
 
       </main>
 
@@ -815,6 +830,7 @@
 
 <script setup lang="ts">
 import { formatMoment } from '@/lib/clock';
+import { FIRST_VISIT_WORDS } from '@/lib/firstVisitWords';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch, h, defineAsyncComponent, type FunctionalComponent } from 'vue';
 import {
   FIRST_LOAD_ROUTE,
@@ -823,6 +839,7 @@ import {
   canonicalUrl,
   fastestName,
   hashFor,
+  firstVisitShows,
   openingRoute,
   routeFromLocation,
   type AutoView,
@@ -1082,6 +1099,23 @@ function readLastRoute(): string | null {
  */
 const opening = openingRoute({ fromUrl: initialRoute, stored: readLastRoute(), savedPlayerId: getSavedPlayerID() });
 let newPlayerLanding = opening.newPlayer;
+/**
+ * First visit (spec-fluff3-chrome; lib/siteNav.ts firstVisitShows): the Manual Planner counts as asked for once a tab
+ * came from the address or the browser's memory, or any route to it is applied later (the first-visit link is
+ * `#/manual`). Until then, with no account and no save file, the page shows what the planner does instead of Joo's
+ * empty Manual Planner; his components are untouched, only not shown.
+ */
+const manualAsked = ref(opening.route !== null);
+const firstVisit = computed(() =>
+  firstVisitShows({
+    hasAccount: !!playerId.value,
+    hasSaveFile: fileOnlySave.value,
+    tab: plannerTab.value,
+    manualAsked: manualAsked.value,
+  })
+);
+/** The Manual Planner's pieces in this wrapper (cards, toggles, history and actions, the totals bar, the bubbles). */
+const manualShown = computed(() => plannerTab.value === 'manual' && !firstVisit.value);
 
 function currentRoute(): SiteRoute {
   const section: Section =
@@ -1104,6 +1138,7 @@ function currentRoute(): SiteRoute {
 }
 
 function applyRoute(r: SiteRoute): void {
+  if (r.section === 'manual') manualAsked.value = true;
   // Only an address to the Auto Planner names its screen; one to another tab leaves the remembered one (lib/autoScreen.ts).
   if (r.section === 'auto') {
     autoView.value = r.auto;

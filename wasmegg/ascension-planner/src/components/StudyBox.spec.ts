@@ -333,7 +333,7 @@ describe('wiring', () => {
     expect(at).toBeGreaterThan(app.indexOf('<SiteTabs'));
     expect(at).toBeGreaterThan(app.indexOf('data-testid="header-toggle"'));
     // Before every tab's content: Manual's folding part, the Auto Planner's nav, and the other tabs.
-    expect(at).toBeLessThan(app.indexOf('v-if="plannerTab === \'manual\'"\n        class="mt-2 rounded-2xl border'));
+    expect(at).toBeLessThan(app.indexOf('v-if="manualShown"\n        class="mt-2 rounded-2xl border'));
     expect(at).toBeLessThan(app.indexOf('<nav v-if="playerId"'));
     expect(at).toBeLessThan(app.indexOf('<LeaderboardPanel'));
     expect(at).toBeLessThan(app.indexOf('<SetupDock'));
