@@ -282,7 +282,7 @@ export function researchParts(
   sameName: ReadonlySet<string>
 ): { id: string; level: number; text: string; cheap: boolean }[] {
   const order: string[] = [];
-  const by = new Map<string, { name: string; lo: number; hi: number; cheap: boolean }>();
+  const by = new Map<string, { name: string; id?: string; lo: number; hi: number; cheap: boolean }>();
   for (const a of items) {
     const key = a.id ?? a.label;
     const to = a.level ?? 0;
@@ -291,7 +291,7 @@ export function researchParts(
     if (!cur) {
       const tier = a.id && sameName.has(a.label) ? RESEARCH_TIER[a.id] : undefined;
       const name = sameName.has(a.label) ? `${a.label} (${tier ? `tier ${tier}` : (a.id ?? '')})` : a.label;
-      by.set(key, { name, lo: Math.min(from, to), hi: to, cheap: a.cheap === true });
+      by.set(key, { name, id: a.id, lo: Math.min(from, to), hi: to, cheap: a.cheap === true });
       order.push(key);
     } else {
       cur.lo = Math.min(cur.lo, from);
@@ -302,8 +302,9 @@ export function researchParts(
   }
   return order.map(k => {
     const r = by.get(k)!;
-    // From the level before the first buy (`lo` is the first level bought) to the last: the Manual Planner's range.
-    return { id: k, level: r.hi, text: researchRangeWords(r.name, Math.min(r.lo, r.hi) - 1, r.hi), cheap: r.cheap };
+    // From the level before the first buy (`lo` is the first level bought) to the last: the Manual Planner's range,
+    // "max" when the last is the research's max level (spec-maxlevel, lib/buildUpWords.ts).
+    return { id: k, level: r.hi, text: researchRangeWords(r.name, Math.min(r.lo, r.hi) - 1, r.hi, r.id), cheap: r.cheap };
   });
 }
 

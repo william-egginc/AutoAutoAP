@@ -74,7 +74,7 @@ describe('research ranges: the Manual Planner form', () => {
       ...Array.from({ length: 50 }, (_, i) => buy('comfortable_nests', 'A', i, i + 1, true)),
       ...Array.from({ length: 25 }, (_, i) => buy('excitable_chickens', 'B', i, i + 1, true)),
     ];
-    expect(`buy ${researchWords(items, none)}`).toBe('buy A (0 → 50), B (0 → 25) (cheap sweep)');
+    expect(`buy ${researchWords(items, none)}`).toBe('buy A (0 → 50), B (0 → max) (cheap sweep)');
     expect(CHEAP_SWEEP_MARK).toBe(' (cheap sweep)');
   });
 
@@ -184,6 +184,38 @@ describe('the max level reads "max"', () => {
       }
       expect(researchRangeWords(r.name, 0, r.levels, r.id)).toBe(`${r.name} (0 → ${r.levels > 1 ? 'max' : '1'})`);
     }
+  });
+
+  it("the Build-up tracker's lines: a part that ends on the max reads max; the item keeps its number (ticks match on it)", () => {
+    const ps = researchParts(
+      [
+        buy('enlightened_chickens', 'Enlightened Chickens', 102, 103),
+        ...Array.from({ length: 47 }, (_, i) => buy('enlightened_chickens', 'Enlightened Chickens', 103 + i, 104 + i)),
+        buy('comfortable_nests', 'Comfortable Nests', 40, 41),
+        buy('internal_hatchery3', 'Internal Hatchery Expansion', 14, 15),
+        buy('bigger_eggs', 'Bigger Eggs', 0, 1),
+      ],
+      none
+    );
+    expect(ps.map(p => p.text)).toEqual([
+      'Enlightened Chickens (102 → max)',
+      'Comfortable Nests (40 → 41)',
+      'Internal Hatchery Expansion (14 → max)',
+      'Bigger Eggs (0 → 1)',
+    ]);
+    expect(ps.map(p => p.level)).toEqual([150, 41, 15, 1]);
+    // The tier names of the two Internal Hatchery Expansions in one line: each its own max.
+    const both = researchParts(
+      [
+        buy('internal_hatchery3', 'Internal Hatchery Expansion', 14, 15),
+        buy('internal_hatchery4', 'Internal Hatchery Expansion', 14, 15),
+      ],
+      new Set(['Internal Hatchery Expansion'])
+    );
+    expect(both.map(p => p.text)).toEqual([
+      'Internal Hatchery Expansion (tier 5) (14 → max)',
+      'Internal Hatchery Expansion (tier 7) (14 → 15)',
+    ]);
   });
 });
 
