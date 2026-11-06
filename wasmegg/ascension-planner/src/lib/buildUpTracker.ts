@@ -64,6 +64,7 @@ import {
   isResearchSaleActive,
 } from './events';
 import { calendarOf } from './clock';
+import { getResearchById } from '@/calculations/commonResearch';
 import { resultCode, sameResultCode } from './resultCode';
 import { CHEAP_SWEEP_MARK, researchRangeWords } from './buildUpWords';
 
@@ -326,6 +327,10 @@ export function sweepTail(l: Pick<TrackerLine, 'sweep'>): string {
   return l.sweep?.length && l.sweep.every(Boolean) ? CHEAP_SWEEP_MARK : '';
 }
 
+/** A research buy planned inside a sale with less than this left before its end is flagged "tight" (6 Nov 2026: a buy 6
+ *  seconds before the end moved a route by 1 h 19 min; spec buildUpTracker.saleedge.spec.ts). */
+export const TIGHT_SALE_SECONDS = 15 * 60;
+
 /** The fallback sale count when the plan carries none (an older kept 'buildup' plan): the usual 3-sale build. */
 export const FALLBACK_SALE_COUNT = 3;
 
@@ -379,7 +384,50 @@ function dueActions(actions: readonly BuildUpAction[]): Due[] {
     if (!PLAYER_KINDS.has(a.kind)) continue;
     out.push({ a, due: Math.max(a.t, anchor) });
   }
-  return out;
+  return holdSweepToSale(out);
+}
+
+/** A sweep buy of research the earnings maths gives no value (internal hatchery rate, running chicken bonus, hatchery
+ *  capacity and refill: the categories `calculations/researchRanking.ts` ROI_EXCLUDED_CATEGORIES leaves out) that falls
+ *  within this long before a research sale starts is held to the sale (6 Nov 2026, Jordan: "the random small
+ *  IHR/enlightened chickens"). Three hours: the 53 minutes of 6 Nov were one case. */
+export const HOLD_BEFORE_SALE_SECONDS = 3 * 3600;
+const NO_EARNINGS_CATEGORIES = new Set(['hatchery_capacity', 'internal_hatchery_rate', 'running_chicken_bonus', 'hatchery_refill_rate']);
+
+function isPointlessSweep(a: BuildUpAction): boolean {
+  if (a.kind !== 'research' || a.cheap !== true || !a.id) return false;
+  const cats = getResearchById(a.id)?.categories;
+  return !!cats && cats.split(',').every(c => NO_EARNINGS_CATEGORIES.has(c.trim()));
+}
+
+/**
+ * Holds each pointless sweep buy that comes under `HOLD_BEFORE_SALE_SECONDS` before a sale starts, with no sale on, to
+ * that sale's start, where it is bought at the sale price in the check-in that is there anyway. Every other buy keeps its
+ * time and order; the held ones are put back in at the sale start, ahead of what is due then. The simulation is not
+ * touched: these levels only count toward a tier unlock, and the unlock comes after the sale starts (spec
+ * buildUpTracker.holdsweep.spec.ts).
+ */
+function holdSweepToSale(dues: Due[]): Due[] {
+  const held: Due[] = [];
+  const rest: Due[] = [];
+  for (const d of dues) {
+    if (isPointlessSweep(d.a) && !isResearchSaleActive(d.due)) {
+      const start = getNextSaleStart(d.due);
+      if (start - d.due <= HOLD_BEFORE_SALE_SECONDS) {
+        held.push({ a: d.a, due: start });
+        continue;
+      }
+    }
+    rest.push(d);
+  }
+  if (!held.length) return dues;
+  held.sort((x, y) => x.due - y.due);
+  const out: Due[] = [];
+  for (const d of rest) {
+    while (held.length && held[0].due <= d.due) out.push(held.shift()!);
+    out.push(d);
+  }
+  return out.concat(held);
 }
 
 interface Group {
@@ -647,12 +695,16 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
     drafts: Draft[];
     S: number;
     nightSale?: boolean;
+    /** When the sale ends, for a research buy in this check-in with under TIGHT_SALE_SECONDS left. */
+    tightEnd?: number;
     synthetic?: 'trick' | 'back';
   }
   const cis: CI[] = groups.map(g => {
     for (const a of g.items) if (a.kind === 'silo' && a.count) silos = Math.max(silos, a.count);
     const drafts = checkInLines(g.items, st);
-    return { at: g.at, drafts, S: perSilo * silos, ...(g.nightSale ? { nightSale: true } : {}) };
+    const end = isResearchSaleActive(g.at) ? getNextSaleEnd(g.at) : 0;
+    const tight = end > 0 && end - g.at < TIGHT_SALE_SECONDS && g.items.some(a => a.kind === 'research');
+    return { at: g.at, drafts, S: perSilo * silos, ...(g.nightSale ? { nightSale: true } : {}), ...(tight ? { tightEnd: end } : {}) };
   }).filter(c => c.drafts.length);
 
   // The silo trick, for each 2x event start between two check-ins.
@@ -783,6 +835,19 @@ export function buildUpTracker(input: TrackerInput): TrackerResult {
         at: ci.at,
         time: '',
         text: `This sale buy is outside your hours: do it before the sale ends at ${clock12(getNextSaleEnd(ci.at), zone)}.`,
+        tail: '',
+        bold: false,
+        granular: false,
+        tickable: false,
+        checkIn: -1,
+      });
+    if (ci.tightEnd)
+      lines.push({
+        key: `w:tight:${ci.at}`,
+        kind: 'warning',
+        at: ci.at,
+        time: '',
+        text: `Tight: the sale ends at ${clock12(ci.tightEnd, zone)}. Buy this first: after that it costs 3.3 times as much.`,
         tail: '',
         bold: false,
         granular: false,

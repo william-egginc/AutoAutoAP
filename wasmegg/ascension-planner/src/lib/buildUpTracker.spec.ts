@@ -189,7 +189,8 @@ describe('buildUpTracker: the silo trick against the silo time S', () => {
   it('silos too short (S = 9 h): no trick, a warning, the plan as it is', () => {
     const r = run({ siloSeconds: 3600 });
     expect(r.lines.some(l => l.kind === 'siloTrick' || l.kind === 'back')).toBe(false);
-    const w = r.lines.filter(l => l.kind === 'warning');
+    // The silo warnings only: the "Tight:" flag on a sale buy with minutes left (buildUpTracker.saleedge.spec.ts) is another warning.
+    const w = r.lines.filter(l => l.kind === 'warning' && !/^Tight:/.test(l.text));
     expect(w.length).toBe(2);
     // 9 h back from Mon 10:01 am is inside the night: going offline at 12:59 am, the last awake minute, is 2 min too long.
     expect(w[0].text).toBe(
@@ -200,7 +201,7 @@ describe('buildUpTracker: the silo trick against the silo time S', () => {
   it('S unknown: a warning, no trick', () => {
     const r = run({ siloSeconds: null });
     expect(r.lines.some(l => l.kind === 'siloTrick')).toBe(false);
-    expect(r.lines.filter(l => l.kind === 'warning')[0].text).toMatch(/silo time is not known/);
+    expect(r.lines.filter(l => l.kind === 'warning' && !/^Tight:/.test(l.text))[0].text).toMatch(/silo time is not known/);
   });
 
   it('a check-in inside the stretch: no trick', () => {
