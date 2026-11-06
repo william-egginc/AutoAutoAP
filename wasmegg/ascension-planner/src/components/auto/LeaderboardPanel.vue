@@ -237,7 +237,7 @@
         </button>
       </div>
 
-      <!-- Which simulator priced each run (lib/simLabel.ts): every finish carries a "sim" chip (SimChip.vue), and
+      <!-- Which simulator priced each run (lib/simLabel.ts): a finish from another simulator carries a chip (SimChip.vue), and
            this hides the runs this site's own simulator did not price, on every view here, Insights too. -->
       <div v-if="tab !== 'latest'" class="flex flex-wrap items-center gap-x-3 text-small text-indigo-900/80">
         <label class="inline-flex min-h-[44px] items-center gap-2">

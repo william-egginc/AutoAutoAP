@@ -2,9 +2,12 @@
   The "sim" chip beside a board run's finish (lib/simLabel.ts): which simulator priced it, in plain
   words, with the stamp itself on hover and, for a phone, on a tap (a small box under the chip). The
   button is a 44 px tap target; its negative margin keeps the row as tall as it was.
+
+  Nothing for a run this site's own simulator priced (UX fluff review 2, 5 Nov 2026, L4): with every row current, a
+  "sim: current" chip on each was noise. Only an older, newer, other or unknown simulator gets a chip.
 -->
 <template>
-  <span class="relative inline-block align-middle" data-testid="sim-chip" :data-kind="label.kind">
+  <span v-if="label.kind !== 'current'" class="relative inline-block align-middle" data-testid="sim-chip" :data-kind="label.kind">
     <button
       type="button"
       class="inline-flex items-center min-h-[44px] -my-[14px] px-0.5 whitespace-nowrap"
@@ -46,7 +49,7 @@ const chipText = computed(() =>
   label.value.words.includes('simulator') ? label.value.words : `sim: ${label.value.words}`
 );
 
-/** The current simulator's chip has a quiet accent, so its runs stand out; the rest are grey. */
+/** The current simulator has no chip (above); its class stays for completeness. The rest are grey. */
 const CHIP_CLASS: Record<SimKind, string> = {
   current: 'bg-emerald-50 border border-emerald-300 text-emerald-800',
   older: 'bg-slate-100 border border-slate-200 text-slate-500',
