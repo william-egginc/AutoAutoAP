@@ -124,10 +124,10 @@ describe('"(cheap sweep)" marks', () => {
   it('an all-sweep line: ONE "(cheap sweep)" at the end of the line, before the offline tail', () => {
     const r = run(withNext(allSweep));
     const l = r.lines.find(x => x.kind === 'research')!;
-    expect(lineText(l)).toBe('11:22 pm · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → 25), Bigger Eggs (0 → 1) (cheap sweep) · offline 1 min');
+    expect(lineText(l)).toBe('11:22 pm · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Bigger Eggs (0 → 1) (cheap sweep) · offline 1 min');
     expect(l.text.match(/cheap sweep/g)).toHaveLength(1);
     // The names stay plain for striking through; which ones were the sweep is kept.
-    expect(l.parts).toEqual(['Comfortable Nests (0 → 50)', 'Excitable Chickens (0 → 25)', 'Bigger Eggs (0 → 1)']);
+    expect(l.parts).toEqual(['Comfortable Nests (0 → 50)', 'Excitable Chickens (0 → max)', 'Bigger Eggs (0 → 1)']);
     expect(l.sweep).toEqual([true, true, true]);
     expect(sweepTail(l)).toBe(' (cheap sweep)');
     expect(l.items).toEqual([
@@ -169,7 +169,7 @@ describe('"(cheap sweep)" marks', () => {
     const own = r.lines.filter(x => x.at === t);
     expect(own.map(x => x.kind)).toEqual(['trains', 'research', 'hab']);
     expect(own[0].text).toBe('buy 1 Hyperloop Train (slot 1), cars to 2');
-    expect(own[1].text).toBe('buy Comfortable Nests (0 → 50), Excitable Chickens (0 → 25), Bigger Eggs (0 → 1) (cheap sweep)');
+    expect(own[1].text).toBe('buy Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Bigger Eggs (0 → 1) (cheap sweep)');
     expect(own[2].text).toBe('buy Chicken Universe in hab slot 2');
     expect(own[2].tail).toBe('offline 1 min');
   });

@@ -174,7 +174,7 @@ describe('BuildUpTracker Phase 2: ticks from the save', () => {
     const html = await renderHtml(BuildUpTracker, fromSave(save(PART)));
     const t = textOf(html);
     expect(t.replace(/ ,/g, ',')).toContain(
-      '8:42 am · buy Comfortable Nests (0 → 50) (bought), Excitable Chickens (0 → 25) (bought), Internal Hatchery Expansion (tier 5) (0 → 15), Bigger Eggs (0 → 1) (bought), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min · 3 of 5 bought'
+      '8:42 am · buy Comfortable Nests (0 → 50) (bought), Excitable Chickens (0 → max) (bought), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1) (bought), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min · 3 of 5 bought'
     );
     expect(html).toMatch(/<span class="tabular-nums text-amber-800"[^>]*>3 of 5 bought<\/span>/);
     expect(html.match(/class="line-through decoration-slate-400"/g)?.length).toBe(3);
@@ -291,7 +291,7 @@ describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
   it('a mixed line (sweep and non-sweep buys) marks the sweep names', async () => {
     const acts = plan.actions.map(a => (a.kind === 'research' && a.id === 'comfortable_nests' ? { ...a, cheap: true as const } : a));
     const r = buildUpTracker({ actions: acts, zone: ZONE, hours: HOURS, now: NOW, startEgg: 'curiosity' });
-    expect(textOf(await render('ready', { result: r }))).toContain('buy Comfortable Nests (0 → 50) (cheap sweep), Excitable Chickens (0 → 25)');
+    expect(textOf(await render('ready', { result: r }))).toContain('buy Comfortable Nests (0 → 50) (cheap sweep), Excitable Chickens (0 → max)');
   });
 
   // R7 (31 Oct 2026): the first check-in all sweep, as on a fresh ascension.
@@ -299,7 +299,7 @@ describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
   const sweepActs = plan.actions.map(a => (a.kind === 'research' && a.t <= firstAt ? { ...a, cheap: true as const } : a));
   const sweepResult = buildUpTracker({ actions: sweepActs, zone: ZONE, hours: HOURS, siloSeconds: plan.siloSeconds, startSilos: 1, startEgg: 'curiosity', now: NOW });
   const ALL_SWEEP =
-    '8:42 am · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → 25), Internal Hatchery Expansion (tier 5) (0 → 15), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5) (cheap sweep) · offline 5 min';
+    '8:42 am · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5) (cheap sweep) · offline 5 min';
 
   it('an all-sweep line: one mark at the end, before the offline tail', async () => {
     const t = textOf(await render('ready', { result: sweepResult }));
@@ -319,7 +319,7 @@ describe('BuildUpTracker: the Smart Buy line (DRAFT words)', () => {
     );
     const t = textOf(html).replace(/ ,/g, ',');
     expect(t).toContain(
-      '8:42 am · buy Comfortable Nests (0 → 50) (bought), Excitable Chickens (0 → 25) (bought), Internal Hatchery Expansion (tier 5) (0 → 15), Bigger Eggs (0 → 1) (bought), Internal Hatchery Expansion (tier 7) (0 → 5) (cheap sweep) · offline 5 min · 3 of 5 bought'
+      '8:42 am · buy Comfortable Nests (0 → 50) (bought), Excitable Chickens (0 → max) (bought), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1) (bought), Internal Hatchery Expansion (tier 7) (0 → 5) (cheap sweep) · offline 5 min · 3 of 5 bought'
     );
     expect(t.match(/cheap sweep/g)).toHaveLength(1);
     expect(html.match(/class="line-through decoration-slate-400"/g)?.length).toBe(3);

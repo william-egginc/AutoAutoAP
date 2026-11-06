@@ -98,7 +98,7 @@ describe('buildUpTracker: the oracle format (section D)', () => {
 
   it('merges research per check-in, tiers apart, plan order', () => {
     expect(all).toContain(
-      '8:42 am · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → 25), Internal Hatchery Expansion (tier 5) (0 → 15), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min'
+      '8:42 am · buy Comfortable Nests (0 → 50), Excitable Chickens (0 → max), Internal Hatchery Expansion (tier 5) (0 → max), Bigger Eggs (0 → 1), Internal Hatchery Expansion (tier 7) (0 → 5) · offline 5 min'
     );
   });
 

@@ -20,6 +20,7 @@ import { createChainEvaluator } from '@/search/chain';
 import { buildUpPlanFromSegments } from './followSim';
 import { siloSeconds } from './saveAge';
 import { buildPart, buildUpTracker, compactPlan, lineText, trackerSummary, type TrackerResult } from './buildUpTracker';
+import { levelWords, researchMaxLevel } from './buildUpWords';
 import { renderHtml, textOf } from '@/test/renderComponent';
 import BuildUpTracker from '@/components/myruns/BuildUpTracker.vue';
 import type { BuildUpAction, BuildUpPlan } from '@/search/buildUpActions';
@@ -106,13 +107,22 @@ describe('the tracker on a real simulated build-up (synthetic save)', () => {
   });
 
   it('every research item the build buys is on a line, to its last level', () => {
-    const top = new Map<string, number>();
-    for (const a of buildPart(plan.actions)) if (a.kind === 'research') top.set(a.label, Math.max(top.get(a.label) ?? 0, a.level ?? 0));
+    const top = new Map<string, { name: string; lvl: number }>();
+    for (const a of buildPart(plan.actions))
+      if (a.kind === 'research') {
+        const key = a.id ?? a.label;
+        top.set(key, { name: a.label, lvl: Math.max(top.get(key)?.lvl ?? 0, a.level ?? 0) });
+      }
     const text = r.lines.map(l => l.text).join(' | ');
     // spec-buylabel: a sweep name in a mixed line ends in " (cheap sweep)", and so does an all-sweep line (R7).
     // spec-rangewords: 'Name (from → last)', the Manual Planner's range (from the level before the line's first buy).
-    for (const [name, lvl] of top)
-      expect(text, name).toMatch(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( \\(tier \\d\\))? \\(\\d+ → ${lvl}\\)( \\(cheap sweep\\))?(,| \\||$)`));
+    // spec-maxlevel: the last level reads "max" when it is the research's max (lib/buildUpWords.ts `levelWords`).
+    for (const [id, { name, lvl }] of top)
+      expect(text, name).toMatch(
+        new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( \\(tier \\d\\))? \\(\\d+ → ${levelWords(lvl, researchMaxLevel(id))}\\)( \\(cheap sweep\\))?(,| \\||$)`)
+      );
+    // A real build-up maxes some research (Excitable Chickens' 25 levels on the first check-in): it says so.
+    expect(text).toMatch(/ → max\)/);
   });
 
   it('spec-buylabel: the Smart Buy line from the plan\'s own sale count, and cheap sweep marks on real buys', () => {
