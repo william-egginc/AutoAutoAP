@@ -55,3 +55,35 @@ describe('BoardFold', () => {
     expect(textOf(html)).toContain("How it's judged");
   });
 });
+
+describe('Use and Follow this route sit in the opened row (L13, L19)', () => {
+  const race = template.slice(template.indexOf('RACE -->'), template.indexOf('EGG DAY, AND BY A DATE'));
+  const all = template.slice(template.indexOf('ALL RUNS -->'));
+  it('Fastest to N TE: not on the closed row; the opened player lists each plan with its own Use and Follow', () => {
+    expect(race).not.toContain("emit('use', e.best.row.chain)");
+    expect(race).not.toContain('<FollowButton');
+    expect(race).toMatch(/<LeaderboardPlanList\s+:plans="\[e\.best, \.\.\.e\.listed\]"[\s\S]*?@use="c => emit\('use', c\)"/);
+    expect(race).toContain(':colspan="narrow ? 8 : 10"');
+  });
+  it('All runs: not on the closed row; in the opened run, above its detail', () => {
+    const opened = all.slice(all.indexOf('<tr v-if="open === line.key"'));
+    const closed = all.slice(0, all.indexOf('<tr v-if="open === line.key"'));
+    expect(closed).not.toContain("emit('use', line.row.chain)");
+    expect(closed).not.toContain('<FollowButton');
+    expect(opened.indexOf("emit('use', line.row.chain)")).toBeGreaterThan(-1);
+    expect(opened.indexOf("emit('use', line.row.chain)")).toBeLessThan(opened.indexOf('<LeaderboardRunDetail'));
+    expect(opened).toContain('<FollowButton v-if="followableRow(line.row)"');
+    expect(all).toContain(':colspan="shownColumns.length + 1"');
+  });
+});
+
+describe('By a date tables on a phone: Who, TE, Spare, the route on a second line (L9)', () => {
+  const dates = template.slice(template.indexOf('EGG DAY, AND BY A DATE'), template.indexOf('ALL RUNS -->'));
+  it('Route, From, Sent and CSV are wide-screen columns', () => {
+    for (const h of ['Route', 'From', 'Sent', 'CSV']) expect(dates).toMatch(new RegExp(`<th v-if="!narrow" class="[^"]*">${h}</th>`));
+    expect(dates).toContain(':colspan="narrow ? 4 : 8"');
+  });
+  it('the route goes under the name when narrow', () => {
+    expect(dates).toMatch(/<div v-if="narrow"[^>]*>\s*<span class="tabular-nums[^"]*">\{\{ e\.best\.chain\.join\(' '\) \}\}<\/span>/);
+  });
+});

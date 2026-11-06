@@ -363,7 +363,6 @@
                     <th class="py-2 pr-3">Planned</th>
                     <th class="py-2 pr-3">Schedule</th>
                     <th class="py-2 pr-3 text-right">Tried</th>
-                    <th class="py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -470,20 +469,11 @@
                       <td class="py-2 pr-3 text-right text-slate-500 whitespace-nowrap" :title="triedTitle(e)">
                         {{ e.plansTried }} {{ e.plansTried === 1 ? 'plan' : 'plans' }}
                       </td>
-                      <td class="py-2 text-right">
-                        <button
-                          type="button"
-                          class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                          :title="`Open ${e.best.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
-                          @click="emit('use', e.best.row.chain)"
-                        >
-                          Use
-                        </button>
-                        <FollowButton v-if="followableRow(e.best.row)" class="ml-1" :chain="e.best.row.chain" :goal-key="boardGoalKey(e.best.row)" from="board" />
-                      </td>
+                      <!-- Use and Follow this route are in the opened row (fluff review 2, L13): the plan list there has
+                           them on each plan, the best one first. -->
                     </tr>
                     <tr v-if="openPlayers[e.key]" class="bg-white/70">
-                      <td :colspan="narrow ? 9 : 11" class="p-0">
+                      <td :colspan="narrow ? 8 : 10" class="p-0">
                         <!-- Exactly as wide as the visible part of the table and pinned to its left
                              edge: on a phone the Race table is wider than the screen, and a plan list
                              left to size itself would stretch it further and wrap every line. The
@@ -676,11 +666,13 @@
                   <th class="pr-3 py-1">#</th>
                   <th class="pr-3 py-1">Who</th>
                   <th class="pr-3 py-1">TE by then</th>
-                  <th class="pr-3 py-1">Route</th>
+                  <th v-if="!narrow" class="pr-3 py-1">Route</th>
                   <th class="pr-3 py-1">Spare</th>
-                  <th class="pr-3 py-1">From</th>
-                  <th class="pr-3 py-1">Sent</th>
-                  <th class="pr-3 py-1">CSV</th>
+                  <!-- On a phone: Who, TE and Spare, the route under the name (fluff review 2, L9); the rest is in the
+                       opened row's detail. -->
+                  <th v-if="!narrow" class="pr-3 py-1">From</th>
+                  <th v-if="!narrow" class="pr-3 py-1">Sent</th>
+                  <th v-if="!narrow" class="pr-3 py-1">CSV</th>
                 </tr>
               </thead>
               <tbody>
@@ -701,12 +693,20 @@
                       }}<span v-if="e.others.length" class="font-normal text-slate-400">
                         · {{ e.others.length }} more</span
                       >
+                      <div v-if="narrow" class="font-normal text-slate-600 leading-snug">
+                        <span class="tabular-nums">{{ e.best.chain.join(' ') }}</span><span
+                          v-if="provisionalTag(e.best)"
+                          class="ml-1 inline-block whitespace-nowrap px-1 rounded bg-amber-50 border border-amber-300 text-small font-bold text-amber-800"
+                          :title="PROVISIONAL_TITLE"
+                          >{{ provisionalTag(e.best) }}</span
+                        >
+                      </div>
                     </td>
                     <td class="pr-3 py-1 font-bold text-indigo-900 whitespace-nowrap">
                       {{ e.te }}
                       <SimChip :stamp="e.best.simVersion" />
                     </td>
-                    <td class="pr-3 py-1">
+                    <td v-if="!narrow" class="pr-3 py-1">
                       {{ e.best.chain.join(' ')
                       }}<span
                         v-if="provisionalTag(e.best)"
@@ -716,13 +716,13 @@
                       >
                     </td>
                     <td class="pr-3 py-1">{{ spareText(e.spare) }}</td>
-                    <td class="pr-3 py-1" :title="e.best.startLocal ? `plan start ${e.best.startLocal}` : undefined">
+                    <td v-if="!narrow" class="pr-3 py-1" :title="e.best.startLocal ? `plan start ${e.best.startLocal}` : undefined">
                       {{ e.best.currentTE ?? '—' }} TE
                     </td>
-                    <td class="pr-3 py-1" :title="sentTitle(e.best.receivedAt ?? e.best.submittedAt)">
+                    <td v-if="!narrow" class="pr-3 py-1" :title="sentTitle(e.best.receivedAt ?? e.best.submittedAt)">
                       {{ sentText(e.best.receivedAt ?? e.best.submittedAt) }}
                     </td>
-                    <td class="pr-3 py-1">
+                    <td v-if="!narrow" class="pr-3 py-1">
                       <a
                         v-if="e.best.hasCsv && e.best.id"
                         :href="`${csvRoot}?id=${encodeURIComponent(e.best.id)}`"
@@ -739,7 +739,7 @@
                     </td>
                   </tr>
                   <tr v-if="openDate === dateKey(g.deadline, e)" class="bg-slate-50">
-                    <td colspan="8" class="px-3 py-3 space-y-3">
+                    <td :colspan="narrow ? 4 : 8" class="px-3 py-3 space-y-3">
                       <LeaderboardRunDetail
                         :row="e.best"
                         :copies="[e.best]"
@@ -816,7 +816,6 @@
                       }}<span v-if="sortKey === c.key">{{ sortAsc ? ' ▲' : ' ▼' }}</span>
                     </button>
                   </th>
-                  <th class="py-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -946,20 +945,22 @@
                         {{ sentText(line.submittedAt) }}
                       </td>
                     </template>
-                    <td class="py-2 text-right">
-                      <button
-                        type="button"
-                        class="px-2.5 py-1 rounded-md border border-slate-300 text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-                        @click="emit('use', line.row.chain)"
-                      >
-                        Use
-                      </button>
-                      <FollowButton v-if="followableRow(line.row)" class="ml-1" :chain="line.row.chain" :goal-key="boardGoalKey(line.row)" from="board" />
-                    </td>
                   </tr>
                   <tr v-if="open === line.key" class="bg-slate-50">
-                    <td :colspan="shownColumns.length + 2" class="p-0">
+                    <td :colspan="shownColumns.length + 1" class="p-0">
                       <div class="sticky left-0 w-[100cqw] px-3 py-3">
+                        <!-- Use and Follow this route, moved here from the closed row (fluff review 2, L19). -->
+                        <div class="mb-2 flex flex-wrap items-center gap-1">
+                          <button
+                            type="button"
+                            class="min-h-[44px] sm:min-h-0 px-2.5 py-1 rounded-md border border-slate-300 bg-white text-body font-bold text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+                            :title="`Open ${line.row.chain.join(' ')} in Single run, without running it. Single run doesn't use your awake hours.`"
+                            @click="emit('use', line.row.chain)"
+                          >
+                            Use
+                          </button>
+                          <FollowButton v-if="followableRow(line.row)" :chain="line.row.chain" :goal-key="boardGoalKey(line.row)" from="board" />
+                        </div>
                         <LeaderboardRunDetail
                           :row="line.row"
                           :copies="line.copyRows"

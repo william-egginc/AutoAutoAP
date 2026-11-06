@@ -67,7 +67,8 @@ describe('the followed route saved online: wiring', () => {
       [...readFileSync(p, 'utf8').matchAll(/<FollowButton\b[^>]*>/g)].map(m => ({ file: p.slice(src.length), tag: m[0] }))
     );
     const without = tags.filter(t => !t.tag.includes(':finish=')).map(t => t.file).sort();
-    expect(without).toEqual(['components/auto/LeaderboardPanel.vue', 'components/auto/LeaderboardPanel.vue', 'components/auto/LeaderboardPlanList.vue']);
+    // All runs' opened row and each plan in a race player's list (the race row's own moved there: fluff review 2, L13).
+    expect(without).toEqual(['components/auto/LeaderboardPanel.vue', 'components/auto/LeaderboardPlanList.vue']);
     expect(tags.length).toBeGreaterThanOrEqual(9);
   });
 });

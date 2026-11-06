@@ -114,7 +114,7 @@ describe('the words and the follow suggestions', () => {
     const guarded: [string, string][] = [
       ['components/auto/MyRunsList.vue', '<FollowButton v-if="followableRow(l.row)"'],
       ['components/auto/LeaderboardPanel.vue', '<FollowButton v-if="followableRow(line.row)"'],
-      ['components/auto/LeaderboardPanel.vue', '<FollowButton v-if="followableRow(e.best.row)"'],
+      // The race row's own Follow moved into the opened player's plan list (LeaderboardPlanList, below; fluff review 2, L13).
       ['components/auto/LeaderboardPlanList.vue', '<FollowButton v-if="followableRow(p.row)"'],
       ['components/auto/SavedAnswers.vue', 'followableAnswer(a.result.routes[0], a.result.deadline)'],
       ['components/auto/InstantRoute.vue', '<FollowButton v-if="rowFollowable(r)"'],
