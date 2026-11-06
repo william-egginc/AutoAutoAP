@@ -21,12 +21,11 @@
         What the planner does to find a route, how each number is worked out, how far we've checked it against the full
         simulator, and what it doesn't cover yet. Updated {{ UPDATED }}.
       </p>
-      <p class="text-body text-slate-600 max-w-3xl">
-        This page is about the planner itself. For what everybody's shared runs show (how many ascensions pay off, where
-        the stops land), see
+      <!-- Just the link (fluff review 2, 5 Nov 2026, Sc3): the Leaderboard tab is off by default. -->
+      <p class="text-body max-w-3xl">
         <a href="#/compare/insights" class="font-bold text-indigo-700 underline"
-          >{{ NAMES.compare }} › {{ NAMES.insights }}</a
-        >.
+          >What everybody's shared runs show: {{ NAMES.compare }} › {{ NAMES.insights }} ›</a
+        >
       </p>
     </div>
 
@@ -43,10 +42,8 @@
         <b>The instant answer looks routes up</b> in ascensions simulated ahead of time, so it covers every route in a
         second or two, ascending on the hour. <b>A Fast, Exact or Custom search</b> then prices routes through the full
         simulator on your save. Run Fast for the most accurate answer: its times are the simulator's own numbers for
-        your save. In our checks the instant answer was usually within about 1% of the simulator (within 1.5
-        hours a route on gear like yours). On maxed gear, for an account with weaker gear, it can be several days too
-        hopeful, and on the weakest gear seen far more (section 6). These checks were made on the simulator the site
-        ran before 21 Oct 2026, and have not been repeated on the newer one yet.
+        your save. The instant answer is usually close, but on maxed gear for an account with weaker gear it can be
+        days too hopeful (sections 3 and 6).
       </p>
       <p>
         <b>When you prestige matters near the weekly research sale.</b> Every build is timed to end with the sale, so a
@@ -60,8 +57,8 @@
       </p>
     </section>
 
-    <!-- 1. The simulator and the searches -->
-    <details class="hw rounded-xl border border-slate-200 bg-white" open>
+    <!-- 1. The simulator and the searches. Folded like the rest (fluff review 2, Sc5): open, it made the page 5,000 px on a phone. -->
+    <details class="hw rounded-xl border border-slate-200 bg-white">
       <summary class="hw-summary flex cursor-pointer items-start gap-2 px-4 py-3">
         <span class="hw-num" aria-hidden="true">1</span>
         <span class="flex-1 text-body font-bold text-slate-900">The simulator, and what our searches add</span>
@@ -91,8 +88,7 @@
             each stop up to 8 TE either way until nothing moves. Then it checks every other number of ascensions inside
             your limits: each starts from the instant answer's route for that count, gets its last stop fine-tuned and,
             unless it is more than two days behind by then, one pass of nudges. It keeps the fastest. Exact also tries
-            each neighbouring pair of stops together, then one ascension more or fewer; the retired Exact (wider) level also
-            tried groups of three. You can stop it at any point and keep the best route so far. The result is a strong local best.
+            each neighbouring pair of stops together, then one ascension more or fewer. You can stop it at any point and keep the best route so far. The result is a strong local best.
             Nobody has proven it's the best overall.
           </li>
           <li>
@@ -117,24 +113,21 @@
           </li>
         </ul>
         <p>
-          Every search, Fast, Exact or Custom, on {{ NAMES.fastest }} or {{ NAMES.byDate }}, has the
-          same run controls in the same order: Run Fast, Run Exact or Run Custom with its send tick, Stop, the progress, Stepping away?, what was
-          sent, and any errors. It uses the number of workers Setup shows (half your computer's cores, at most 12,
+          Every search uses the number of workers Setup shows (half your computer's cores, at most 12,
           until you pick a number), and Science's time estimates use that number too. On the one 20-thread PC we
           measured, 12 workers were as fast as 19, so more is not always faster.
         </p>
         <p>
           <b>How long, and what it finds</b> (from players' runs up to 13 Oct 2026, a small sample). On
           {{ NAMES.fastest }}, Fast takes about 5-10 minutes on an 8-core computer and a few minutes on 16; Exact about
-          20-30 minutes on 8 cores and 10-20 on 16 or more; the retired Exact (wider) level about 1.5-2.5 hours on 8 cores and 45 minutes to
-          1.5 hours on 16. {{ NAMES.full }} runs about 70 routes a minute on 8 cores and about 120 on 16, so its time
-          follows the size of your boxes. The Fast and Exact (wider)
+          20-30 minutes on 8 cores and 10-20 on 16 or more. {{ NAMES.full }} runs about 70 routes a minute on 8 cores and about 120 on 16, so its time
+          follows the size of your boxes. These
           figures rest on very few runs, and the 8- and 16-core figures are estimates fitted from other machines. A tab
           in the background runs several times slower, so keep it in front. On {{ NAMES.fastest }}, a short Fast search
           often found a route at least a day sooner than the instant answer's, on about 5 accounts before 23 Oct. Treat
           that as an upper bound: part of the gap came from how the old instant answer was priced, and it has not been
-          measured again since. Going bigger (Exact, Exact (wider), {{ NAMES.full }}) rarely added
-          more. On {{ NAMES.byDate }}, no search up to 13 Oct beat the instant answer's TE, but that rests on 2
+          measured again since. Going bigger (Exact, {{ NAMES.full }}) rarely added
+          more. On {{ NAMES.byDate }}, no search beat the instant answer's TE, but that rests on 2
           like-for-like runs, both on one developer's save starting below TE 150 (5 counting runs held to fewer
           ascensions). Both reached the same TE; one was a 43.7-hour search, and a 7-minute one found the same route. We will update these figures as more runs
           come in.
@@ -144,11 +137,6 @@
           your first ascension shifts eggs, from the simulation itself, and what one more TE above the last stop would
           take. On {{ NAMES.byDate }} that comes from the run's own numbers (what its last TE cost over the one below);
           elsewhere it's when the next TE would come if you keep laying the same egg at the final rate (another egg needs a shift, which sets your chickens back to zero).
-        </p>
-        <p>
-          <b>The memo.</b> Routes that start the same way share those ascensions exactly, so each worker remembers the
-          ascensions it has simulated, and routes are handed out so that routes with the same start go to the same
-          worker. That only saves time; it never changes an answer.
         </p>
         <p>
           <b>On the hour or at once.</b> A search starts each new ascension the moment the last one reaches its TE. The
@@ -467,6 +455,12 @@
       </summary>
       <div class="px-4 pb-4">
         <ChainSearchExplainer />
+        <!-- Detail, moved here from section 1 (fluff review 2, Sc8). -->
+        <p class="mt-3 text-small leading-relaxed text-slate-600">
+          <b>The memo.</b> Routes that start the same way share those ascensions exactly, so each worker remembers the
+          ascensions it has simulated, and routes are handed out so that routes with the same start go to the same
+          worker. That only saves time; it never changes an answer.
+        </p>
       </div>
     </details>
   </div>
