@@ -15,6 +15,7 @@
  * instant card's pointer, InstantRoute.vue `searchFound`), and the instant answer's snapshot, which keeps the last
  * one as `search` (search/instantSnapshot.ts; written by InstantRoute and by My runs). Pure.
  */
+import { MAKES_DATE_WORDS } from './searchPlanWords';
 import type { LegSummary } from '@/search/types';
 import { finishesBefore, lateMarker, type DeadlineKind } from './eggDayRule';
 import { foundLevel, type FoundLevel, type FoundResult } from './searchPointer';
@@ -211,7 +212,8 @@ export function sourcePill(level: FoundLevel | null): string {
  * "Finishes 1.2 days sooner than the instant answer for the same goal:" ("at the same time as" within the minute).
  */
 export function replaceWords(t: Takeover, search: Pick<NowPlan, 'end'>, instant: Pick<NowPlan, 'end'> | null): string {
-  if (t === 'makes-date') return 'Makes the date on your account, so it replaces the instant answer for the same goal:';
+  // The words are lib/searchPlanWords.ts's (moved there unchanged, 5 Nov 2026), so a reword keeps the result code hash.
+  if (t === 'makes-date') return MAKES_DATE_WORDS;
   if (t === 'simulated')
     return "Simulated on your account with your awake hours, time off and dates, so it replaces the instant answer's estimate for the same goal:";
   if (t === 'sooner' && instant) {

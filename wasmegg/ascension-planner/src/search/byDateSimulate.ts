@@ -11,9 +11,10 @@
 import type { DeadlineRoute } from './deadline';
 import type { FirstAscension } from './firstAscension';
 import type { LegSummary } from './types';
-import { NAMES } from '@/lib/siteNav';
 
-export const BUILDUP_NOTE = `${NAMES.classic} prices the first ascension as a fresh build/continue.`;
+// The note's words are search/byDateSimulateWords.ts's (moved there unchanged, 5 Nov 2026), so a reword keeps the hash.
+import { BUILDUP_NOTE } from './byDateSimulateWords';
+export { BUILDUP_NOTE };
 
 export function byDateSimulate(
   route: DeadlineRoute,
