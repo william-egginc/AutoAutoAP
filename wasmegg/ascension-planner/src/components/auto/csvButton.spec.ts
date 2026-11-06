@@ -50,13 +50,15 @@ describe('the CSV button names what it holds', () => {
 
   it('By a date: the card shows the named button, still emitting csv', async () => {
     const top = await renderHtml(ByDateRouteCard, { route, deadline: DEADLINE, zone: 'UTC', canCsv: true });
-    expect(textOf(top)).toContain('Download CSV (detail for top routes) ↓');
+    // Under Download ▾ since 5 Nov 2026 (UX fluff review 2, item D9).
+    expect(textOf(top)).toContain('Download ▾ Download CSV (detail for top routes)');
     expect(textOf(top)).not.toMatch(/(^|\s)CSV ↓/);
     expect(top.replace(/&#39;/g, "'")).toContain(`title="${csvButton(false).title}"`);
     const every = await renderHtml(ByDateRouteCard, { route, deadline: DEADLINE, zone: 'UTC', canCsv: true, csvEvery: true });
-    expect(textOf(every)).toContain('Download CSV (detail for every route) ↓');
+    expect(textOf(every)).toContain('Download CSV (detail for every route)');
     const src = read('ByDateRouteCard.vue');
-    expect(src).toMatch(/data-testid="by-date-csv"\s+:title="csv\.title"\s+@click="emit\('csv'\)"/);
+    expect(src).toContain("{ key: 'csv', text: csv.value.text.replace(/ ↓$/, ''), title: csv.value.title, testid: 'by-date-csv' }");
+    expect(src).toContain("if (key === 'csv') emit('csv');");
   });
 
   it('By a date panel: the label follows the run, the download is the same handler', () => {

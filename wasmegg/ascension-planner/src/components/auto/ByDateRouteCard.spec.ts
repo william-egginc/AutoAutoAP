@@ -109,16 +109,17 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     expect(t).toContain('Curiosity 50 after a shift');
     expect(t).toMatch(new RegExp(`Kindness · laying 49 ${at(end + 2.3e5).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     expect(html).toMatch(/title="310\.00q eggs to go, after a shift to this egg, which starts the farm again from one chicken"/);
-    // After the deadline: said so, and never as a TE the answer could have had (15 Oct 2026, Halceyx).
-    expect(t).toMatch(
-      /Laying on after the last stop, your next TE \(Kindness, at the final rate of 3\.60q eggs an hour\) would come about .*2027.*, after the date, so it isn't counted\./
-    );
+    // After the deadline: said so, and never as a TE the answer could have had (15 Oct 2026, Halceyx). The fold's title
+    // since 5 Nov 2026 (UX fluff review 2, items D5 and D6; the table and the rate inside it).
+    expect(t).toMatch(/Next TE: Kindness, .*2027.*, after the date TE per egg/);
+    expect(t).toContain("That is laying on after the last stop at the final rate of 3.60q eggs an hour, so it isn't counted.");
   });
 
   it('no next-TE line when laying on would beat the deadline (the search should have found that route)', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ route: withEnd(), deadline: DEADLINE + 100 * 3600 }));
     expect(html).toContain('data-testid="by-date-te-per-egg"');
-    expect(html).not.toContain('by-date-next-te"');
+    expect(textOf(html)).not.toContain('Next TE:');
+    expect(textOf(html)).toContain('TE per egg at the end');
   });
 
   it('without a rate: the TE, and a dash for when, with its reason in the title', async () => {
@@ -127,7 +128,7 @@ describe('ByDateRouteCard: TE per egg and the next TE', () => {
     expect(t).toContain('TE per egg TE Next TE Curiosity 50 after a shift');
     expect(t).toMatch(/Kindness · laying 49 —/);
     expect(html).toContain("final delivery rate isn&#39;t known, so there is no time for it.");
-    expect(t).not.toContain('Laying on after the last stop');
+    expect(t).not.toContain('laying on after the last stop');
   });
 
   it('without the end time: a dash, and the title says the date is what is missing', async () => {
@@ -152,11 +153,9 @@ describe('ByDateRouteCard: the button row (as on Fastest\'s card)', () => {
     expect(await renderHtml(ByDateRouteCard, props())).not.toContain('by-date-simulate');
   });
 
-  it('Simulate, Share, CSV, Save answer in that order, styled as Fastest\'s Build / Share / CSV / Save run', async () => {
+  it('Simulate, Share, Download ▾, Save answer in that order, styled as Fastest\'s (no Simulate note since 5 Nov 2026)', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ simulate: true, canShare: true, canCsv: true, canSave: true }));
-    expect(textOf(html)).toMatch(
-      /Simulate this plan Share Download CSV \(detail for top routes\) ↓ Save answer Simulate this plan opens this route in Single run \(Joo's original planner\) and simulates every shift: when each TE arrives, and each ascension's dates and purchases\. Ascension/
-    );
+    expect(textOf(html)).toMatch(/Simulate this plan Share ↓ Download ▾ Download CSV \(detail for top routes\) Save answer Ascension/);
     const fast = await renderHtml(RouteResultCard, {
       chain: [212, 280, 490],
       days: 760.5,
@@ -227,7 +226,7 @@ describe('Follow this route on the result cards (23 Oct 2026)', () => {
   it('By a date: the finished answer has "Follow this route" for its goal; the best so far and a card without it have none', async () => {
     const html = await renderHtml(ByDateRouteCard, props({ follow, simulate: true, canCsv: true }));
     expect(html).toMatch(/data-testid="follow-route" data-goal="eggday-2027"/);
-    expect(textOf(html)).toMatch(/Simulate this plan Follow this route Download CSV/);
+    expect(textOf(html)).toMatch(/Simulate this plan Follow this route Download ▾ Download CSV/);
     expect(await renderHtml(ByDateRouteCard, props({ follow, running: true, simulate: true }))).not.toContain('follow-route');
     expect(await renderHtml(ByDateRouteCard, props({ simulate: true }))).not.toContain('follow-route');
   });

@@ -48,7 +48,6 @@ describe('the run bar is the only progress', () => {
 });
 
 describe('the result names its hours and time off (item 10)', () => {
-  const line = 'Priced with awake hours 9 am to 1 am, no time off';
 
   it("Fastest's card says it once finished, not while running (in its one meta line since 5 Nov 2026)", async () => {
     const meta = 'Custom, Nov 3 at 12:22 pm · awake hours 9 am to 1 am';
@@ -57,16 +56,17 @@ describe('the result names its hours and time off (item 10)', () => {
     expect(await renderHtml(RouteResultCard, { ...base, running: true })).not.toContain('run-meta');
   });
 
-  it("By a date's card says it", async () => {
+  it("By a date's card says it (in its one meta line since 5 Nov 2026)", async () => {
+    const meta = 'Custom, Nov 3 at 12:24 pm (197 TE) · awake hours 9 am to 1 am';
     const t = textOf(
       await renderHtml(ByDateRouteCard, {
         route: { chain: [166, 247], reachAt: 1_815_000_000, ascendAt: 1_815_000_000, spare: 3600, legs: [] },
         deadline: 1_815_003_600,
         zone: 'UTC',
-        pricedWith: line,
+        meta,
       })
     );
-    expect(t).toContain(`${line}.`);
+    expect(t).toContain(meta);
   });
 
   it('the panels pass the RUN\'s settings, and By a date no longer points at Your setup', () => {
@@ -78,8 +78,7 @@ describe('the result names its hours and time off (item 10)', () => {
     }
     const deadline = read('DeadlinePanel.vue');
     expect(deadline).not.toContain('with the hours and time off in Your setup');
-    expect(deadline).toContain('result.value?.settings ? pricedWithDays(pricedWithLine(result.value.settings)');
-    expect(deadline).toContain('{{ resultPricedWith }}.');
+    expect(deadline).toContain("priced: r.settings ? pricedWithShort({ ...r.settings, noPrestige: recordedNoPrestige(r.settings) }) : ''");
     // The instant answer has no priced-with line since 23 Oct 2026: it prices nothing (no Check exactly).
     expect(read('InstantRoute.vue')).not.toContain('pricedWithLine(');
   });

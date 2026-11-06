@@ -72,14 +72,12 @@ describe('the button (draft wording)', () => {
     const base = { route, deadline: DEADLINE, zone: 'UTC', canCsv: true };
     expect(textOf(await renderHtml(ByDateRouteCard, base))).not.toContain(XLSX_BUTTON);
     expect(textOf(await renderHtml(ByDateRouteCard, { ...base, xlsx: true }))).toMatch(
-      /Download CSV \(detail for top routes\) ↓ Download for Excel \(\.xlsx\) ↓/
+      /Download ▾ Download CSV \(detail for top routes\) Download for Excel \(\.xlsx\)/
     );
     expect(textOf(await renderHtml(ByDateRouteCard, { ...base, xlsx: true, running: true }))).not.toContain(
       XLSX_BUTTON
     );
-    expect(read('ByDateRouteCard.vue')).toMatch(
-      /v-if="xlsx"[\s\S]*?data-testid="by-date-xlsx"[\s\S]*?@click="emit\('xlsx'\)"/
-    );
+    expect(read('ByDateRouteCard.vue')).toMatch(/props\.xlsx \? \[\{ key: 'xlsx'[^\n]*testid: 'by-date-xlsx'/);
   });
 
   it('every panel with a result card offers it by the store and downloads through one handler', () => {

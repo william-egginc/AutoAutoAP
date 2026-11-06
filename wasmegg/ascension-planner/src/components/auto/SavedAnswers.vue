@@ -1,6 +1,7 @@
 <!--
-  By a date's answers kept under a name (the user, 5 Oct: a new search no longer loses one): "Save this
-  answer" ("Saved ✓" once the answer on screen is in the list, one entry however often it is saved) beside the result's other buttons (`actions` slot: Download CSV), whatever the screen says
+  By a date's answers kept under a name (the user, 5 Oct: a new search no longer loses one), saved from the result
+  card's one Save since 5 Nov 2026 (ByDateRouteCard.vue; it had its own name box and Save this answer here until then),
+  then the result's other buttons (`actions` slot), whatever the screen says
   under it (default slot), then the list with Open and Delete, and each entry's save (EntrySaveActions:
   Use the save from…, Download this save). Kept in this browser per player by the
   store (`saveCurrentAnswer`, `savedAnswers`), in By a date's own format.
@@ -14,24 +15,10 @@
   it (R6, PaceBadge.vue), worked out while `pace-active` (My runs' "Saved on this device" is open).
 -->
 <template>
-  <div v-if="!listOnly" class="flex flex-wrap items-center gap-2">
+  <!-- The answer is saved from the card's one Save, with its name (ByDateRouteCard.vue; UX fluff review 2, 5 Nov 2026,
+       item D11): the name box and the second Save that were here are gone. -->
+  <div v-if="!listOnly && $slots.actions" class="flex flex-wrap items-center gap-2">
     <slot name="actions" />
-    <input
-      v-model="label"
-      type="text"
-      maxlength="80"
-      :placeholder="defaultLabel"
-      aria-label="Name for this answer"
-      class="w-64 max-w-full rounded-lg border-slate-300 text-body text-slate-800"
-    />
-    <button
-      type="button"
-      class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-body font-bold hover:bg-slate-700 disabled:opacity-40"
-      :disabled="saving"
-      @click="save"
-    >
-      {{ savedHere ? 'Saved ✓' : 'Save this answer' }}
-    </button>
   </div>
   <slot v-if="!listOnly" />
   <div v-if="store.savedAnswers.length" class="space-y-1">
@@ -90,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useChainSearchStore } from '@/stores/chainSearch';
 import { showDateTime } from '@/lib/displayTime';
 import EntrySaveActions from './EntrySaveActions.vue';
@@ -137,21 +124,6 @@ function open(id: string): void {
   emit('opened');
 }
 
-const label = ref('');
-const saving = ref(false);
-/** "Saved ✓" while the answer on screen is in the list (from either save button: the card's Save answer too), unless
- *  a name is typed, which saving again gives it. Saving again never adds a second entry (store `saveCurrentAnswer`). */
-const savedHere = computed(() => store.currentAnswerSaved && !label.value.trim());
-async function save(): Promise<void> {
-  saving.value = true;
-  try {
-    const named = !!label.value.trim();
-    await store.saveCurrentAnswer(props.playerId, label.value || props.defaultLabel, named);
-    label.value = '';
-  } finally {
-    saving.value = false;
-  }
-}
 
 onMounted(() => void store.refreshSavedAnswers(props.playerId));
 

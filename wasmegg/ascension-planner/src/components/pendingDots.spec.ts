@@ -161,7 +161,6 @@ const CONVERTED: [file: string, words: string, then?: string][] = [
   ['components/auto/StepAwayOptions.vue', '{{ phoneLine }}', '<AnimatedDots v-if="phoneSending" />'],
   ['components/auto/BoardSubmitButtons.vue', 'Renaming'],
   ['components/auto/RunSendReport.vue', 'Renaming'],
-  ['components/auto/ByDateRouteCard.vue', '<template v-if="saving">Saving'],
   ['components/auto/InsanePanel.vue', '<template v-if="store.isRunning">Running'],
   ['components/auto/InsanePanel.vue', 'Benchmarking'],
   ['components/auto/InsanePanel.vue', "{{ ' ' }}(measuring", ')'],

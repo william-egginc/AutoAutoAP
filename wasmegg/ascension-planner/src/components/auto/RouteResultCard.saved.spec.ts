@@ -118,12 +118,13 @@ describe("L2: Fastest's two save buttons say the same for the stored run", () =>
     expect(read('CardSaveRow.vue')).toContain('props.saved && !name.value.trim()');
   });
 
-  it("By a date's card: Save answer reads currentAnswerSaved, as Save this answer does", async () => {
+  it("By a date's card: its one Save reads currentAnswerSaved (Save this answer is gone since 5 Nov 2026)", async () => {
     // Only the finished answer's card can save (the best-so-far ones can't): it reads the flag.
     const cards = openings(read('DeadlinePanel.vue'), 'ByDateRouteCard').filter(a => /\bcan-save\b/.test(a));
     expect(cards).toHaveLength(1);
     expect(cards[0]).toContain(':saved="store.currentAnswerSaved"');
-    expect(read('SavedAnswers.vue')).toContain('store.currentAnswerSaved && !label.value.trim()');
+    expect(read('SavedAnswers.vue')).not.toContain("'Save this answer'");
+    expect(read('DeadlinePanel.vue')).toContain('await store.saveCurrentAnswer(props.playerId, typed || defaultAnswerLabel.value, !!typed);');
     // The store side is chainSearch.savedAnswerDedupe.spec.ts's; here, the card's two words.
     const DEADLINE = 1_815_660_000;
     const route = { chain: [166, 198, 222, 249], reachAt: DEADLINE - 3600, ascendAt: DEADLINE - 3600, spare: 3600, legs: [] };

@@ -42,7 +42,7 @@ describe('where it is shown (23 Oct 2026)', () => {
     const fast = read('./ChainSearchPanel.vue');
     expect(fast).toMatch(/<WaitBeforePrestige\s+v-if="!store\.isRunning && store\.bestChain\.length > 1"\s+:chain="store\.bestChain"/);
     const date = read('./DeadlinePanel.vue');
-    expect(date).toMatch(/<template #extras>\s+<WaitBeforePrestige\s+v-if="best\.chain\.length"\s+:chain="best\.chain"/);
+    expect(date).toMatch(/<template #extras>\s+<WaitBeforePrestige\s+v-if="best\.chain\.length"\s+compact\s+:chain="best\.chain"/);
     expect(read('./ByDateRouteCard.vue')).toContain('<slot v-if="!running" name="extras" />');
     expect(read('./WaitBeforePrestige.vue')).toContain('as the full simulator prices it.');
   });

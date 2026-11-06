@@ -4,8 +4,8 @@
   shifts fold into one line until opened; the TE is one line. Nothing when the legs don't say.
 -->
 <template>
-  <div v-if="shifts.length || more" class="space-y-1 text-body" data-testid="route-extras">
-    <details v-if="shifts.length" data-testid="first-shifts">
+  <div v-if="(part !== 'more' && shifts.length) || (part !== 'shifts' && more)" class="space-y-1 text-body" data-testid="route-extras">
+    <details v-if="part !== 'more' && shifts.length" data-testid="first-shifts">
       <summary class="cursor-pointer font-bold" :class="tone">
         First ascension: {{ shifts.length }} egg {{ shifts.length === 1 ? 'shift' : 'shifts' }},
         {{ short(shifts[0].at) }} to {{ short(shifts[shifts.length - 1].at) }}
@@ -16,7 +16,7 @@
         </li>
       </ul>
     </details>
-    <p v-if="more" :class="tone" data-testid="one-more-te">
+    <p v-if="part !== 'shifts' && more" :class="tone" data-testid="one-more-te">
       <span class="font-bold">One more TE ({{ more.te }}):</span>
       <template v-if="more.how === 'run'"
         >{{ ' ' }}about {{ span(more.seconds) }} more, so about <span class="whitespace-nowrap">{{ short(more.at) }}</span> (what
@@ -52,8 +52,11 @@ const props = withDefaults(
     noRate?: boolean;
     /** By a date's deadline: no run-cost "one more TE" date at or before it (search/routeExtras.ts). */
     deadline?: number | null;
+    /** One part only: By a date's card shows the shifts in the card and one more TE inside its Next TE fold (UX fluff
+     *  review 2, 5 Nov 2026, items D3 and D5). */
+    part?: 'all' | 'shifts' | 'more';
   }>(),
-  { runCost: null, green: false, noRate: false, deadline: null }
+  { runCost: null, green: false, noRate: false, deadline: null, part: 'all' }
 );
 
 const shifts = computed(() => firstLegShifts(props.legs));
