@@ -20,6 +20,9 @@ describe('Single run’s banner (AutomaticPlanner.vue)', () => {
     expect(src).toContain('data-testid="plan-from-instant-misses"');
     expect(src).toMatch(/Here it finishes \{\{ [^}]+ \}\}, after your date\. The search’s dates are on the answer\./);
     expect(src).toMatch(/const missesDate = computed/);
+    // The finish is the ascension that reaches the route's last stop, not Single run's forced final one to 490 (found in
+    // the harness: the banner said Sep 27, 2028 for a route that Single run finished in Jul 2027).
+    expect(src).toContain('const end = bestResults.value[f.chain.length - 1]?.summary?.endTime;');
   });
   it('By a date hands the date to the banner with the route (DeadlinePanel.vue)', () => {
     expect(read('DeadlinePanel.vue')).toMatch(/ui\.planFromInstant = \{ \.\.\.ui\.planFromInstant, deadline/);

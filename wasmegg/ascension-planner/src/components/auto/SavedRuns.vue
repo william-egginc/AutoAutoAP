@@ -25,8 +25,8 @@
     <!-- One line and a fold (UX fluff review 2, 5 Nov 2026, item C7); the run is saved from the result card's one Save
          (item C7b: the name box and "Save this run" here were a second Save for the same run). DRAFT (Words). -->
     <div v-if="!listOnly" class="text-body text-slate-500 max-w-prose">
-      <p>
-        Kept in this browser; past {{ MAX_RUNS }}, the oldest goes.{{ ' ' }}<button
+      <p class="flex flex-wrap items-center gap-x-1">
+        <span>Kept in this browser; past {{ MAX_RUNS }}, the oldest goes.</span>{{ ' ' }}<button
           type="button"
           class="inline-flex min-h-[44px] items-center font-bold text-slate-600 underline decoration-dotted underline-offset-2 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 sm:min-h-0"
           :aria-expanded="howOpen"

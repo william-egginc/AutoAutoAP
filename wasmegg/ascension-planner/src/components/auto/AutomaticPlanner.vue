@@ -619,7 +619,8 @@ const fromInstant = computed(() => {
 const missesDate = computed<number | null>(() => {
   const f = fromInstant.value;
   if (!f?.deadline || isGenerating.value) return null;
-  const end = bestResults.value[bestResults.value.length - 1]?.summary?.endTime;
+  // The ascension that reaches the route's last stop (Single run may add a forced final one to 490 after it).
+  const end = bestResults.value[f.chain.length - 1]?.summary?.endTime;
   return typeof end === 'number' && end > f.deadline ? end : null;
 });
 const plannerZoneFallback = Intl.DateTimeFormat().resolvedOptions().timeZone;
