@@ -18,11 +18,12 @@ describe('StrongerBox', () => {
     const t = textOf(html);
     expect(html).not.toContain('role="radiogroup"');
     expect(t).not.toContain('How hard to look');
-    // Under the "What this does" fold (lib/panelFold.ts `whatItDoes`) since 25 Oct.
-    expect(t).toMatch(/^What this does › What it does Fast and Exact\. Starting from the instant answer's route/);
-    // One fold since 26 Oct 2026: the promise is the amber part of "What this does".
+    // How long and the safety clauses in view, then the "What this does" fold (lib/panelFold.ts `whatItDoes`) since 5 Nov
+    // 2026 (UX fluff review 2, items F6 and F7).
+    expect(t).toMatch(/^How long .+ Keep this tab in front \(a hidden tab runs several times slower\)\. You can stop it any time and keep the best so far; a refresh is safe, it carries on\. What this does › What it does Fast and Exact\. Starting from the instant answer's route/);
+    // One fold since 26 Oct 2026: the promise is the amber part of "What this does", titled "How sure is it?".
     expect(t).not.toContain('What this does and does not promise');
-    expect(t).toContain("What it promises and what it doesn't");
+    expect(t).toContain('How sure is it?');
     expect(t).toContain('proves the best only inside');
     expect(html).not.toContain('id="stronger-check-results"');
   });
@@ -48,9 +49,9 @@ describe('StrongerBox promise lines (12 Oct: one promise box)', () => {
     const html = await renderHtml(StrongerBox, { goal: 'fastest' });
     return [...html.matchAll(/<li[^>]*>([^<]*)<\/li>/g)].map(m => textOf(m[1]));
   };
-  it('Fast on Fastest: a refresh is safe, your hours, the picked start, and where the accuracy figures come from', async () => {
+  it('Fast on Fastest: your hours, the picked start, and where the accuracy figures come from (a refresh is safe: in view)', async () => {
     const all = (await lines('quick')).join('\n');
-    expect(all).toContain('A refresh is safe');
+    expect(all).not.toContain('refresh is safe');
     expect(all).toContain('awake hours');
     expect(all).toContain('or the one you picked');
     expect(all).toContain('3 accounts');
@@ -201,7 +202,7 @@ describe('"What this does": one fold, the promise its amber part (26 Oct 2026)',
       'a short search (Fast) often found a route at least a day sooner',
       'Treat that as an upper bound',
       'Going bigger rarely added more',
-      'A refresh is safe',
+      'a refresh is safe',
       'awake hours',
     ])
       expect(f, c).toContain(c);
@@ -215,7 +216,7 @@ describe('"What this does": one fold, the promise its amber part (26 Oct 2026)',
       'Custom proves the best only inside the boxes you set',
       'No search up to 13 Oct beat the instant answer\'s TE by a date',
       'only 2 like-for-like runs from one save',
-      'You can stop it at any point',
+      'You can stop it any time and keep the best so far',
     ])
       expect(d, c).toContain(c);
   });
@@ -259,8 +260,9 @@ describe('the algorithm fold moved to How it works (12 Oct)', () => {
   it('the panel has two plain lines and a link; How it works has the explainer', () => {
     const panel = fs.readFileSync(path.join(__dirname, 'ChainSearchPanel.vue'), 'utf8');
     expect(panel).not.toContain('<ChainSearchExplainer');
-    expect(panel).toContain('data-testid="nearby-in-brief"');
-    expect(panel).toContain('href="#/science/how"');
+    // The brief and its second link are gone (UX fluff review 2, 5 Nov 2026, item F8); the Search heading has the link.
+    expect(panel).not.toContain('data-testid="nearby-in-brief"');
+    expect(fs.readFileSync(path.join(__dirname, 'SearchPanel.vue'), 'utf8')).toContain('href="#/science/how"');
     const how = fs.readFileSync(path.join(__dirname, '../science/HowItWorks.vue'), 'utf8');
     expect(how).toContain('<ChainSearchExplainer />');
   });

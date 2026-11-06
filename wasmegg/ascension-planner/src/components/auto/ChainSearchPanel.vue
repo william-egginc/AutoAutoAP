@@ -3,18 +3,9 @@
     <div class="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 space-y-8">
-      <!-- What it does, in two lines; the problem, the algorithm and the worked example are on Science ›
-           How it works (moved there 12 Oct 2026: too much for this page). -->
-      <p class="text-body text-slate-700 max-w-prose" data-testid="nearby-in-brief">
-        The {{ NAMES.smart }} search starts from the instant answer's route and moves its stops a few TE at a time, keeping any
-        change that finishes sooner, with the full simulator on your save. It runs on {{ thisDevice() }}'s workers; you can
-        stop it any time and keep the best so far.
-        <a
-          href="#/science/how"
-          class="inline-flex min-h-[44px] items-center font-bold text-indigo-700 underline whitespace-nowrap sm:inline sm:min-h-0"
-          >How it works ›</a
-        >
-      </p>
+      <!-- "The Fast and Exact search starts from …" and a second "How it works ›" are gone (UX fluff review 2, 5 Nov 2026,
+           item F8): "What this does" above says it, and the Search heading has the one How it works link; the
+           algorithm and the worked example are on Science › How it works. -->
 
       <!-- Search settings, the route it starts from and how many routes it may price, folded under "Settings" with
            that scope in its summary (lib/panelFold.ts `searchSettings`; the player's toggle is remembered). -->
@@ -1086,7 +1077,6 @@ import { useInitialStateStore } from '@/stores/initialState';
 import { runMetaLine } from '@/lib/lastRunLine';
 import { choiceForEffort } from '@/lib/searchOption';
 import { backupSecondsOf } from '@/lib/saveFreshness';
-import { thisDevice } from '@/search/device';
 import { useIntegrityProbe } from '@/composables/useIntegrityProbe';
 import { NAMES } from '@/lib/siteNav';
 import { useUIStore } from '@/stores/ui';

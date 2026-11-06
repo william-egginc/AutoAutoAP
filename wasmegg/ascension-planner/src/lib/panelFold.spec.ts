@@ -36,9 +36,9 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the default split (the review\'s proposal)', () => {
-  it('has every section; Jordan\'s defaults (26 Oct 2026; Stepping away? folded since 28 Oct): Every number of ascensions open, the rest folded; What this does open since 29 Oct', () => {
+  it('has every section; Jordan\'s defaults (26 Oct 2026; Stepping away? folded since 28 Oct): Every number of ascensions open, the rest folded; What this does folded again since 5 Nov (open 29 Oct to 5 Nov)', () => {
     expect(Object.keys(PANEL_FOLD).sort()).toEqual([...SECTIONS].sort());
-    const open: FoldSection[] = ['countTable', 'whatItDoes'];
+    const open: FoldSection[] = ['countTable'];
     for (const s of SECTIONS) expect(PANEL_FOLD[s], s).toBe(open.includes(s) ? 'open' : 'folded');
   });
   it('Setup\'s More options starts closed (Jordan approved the slim Setup with it closed, 5 Nov 2026)', () => {
@@ -57,7 +57,7 @@ describe('the default split (the review\'s proposal)', () => {
 
 describe('foldOpen', () => {
   it('idle, nothing remembered: the table', () => {
-    for (const s of SECTIONS) expect(foldOpen(s), s).toBe(s === 'countTable' || s === 'whatItDoes');
+    for (const s of SECTIONS) expect(foldOpen(s), s).toBe(s === 'countTable');
     for (const s of SECTIONS) expect(foldOpen(s, {}), s).toBe(PANEL_FOLD[s] === 'open');
   });
   it('a long run started opens Stepping away?, even where the table says folded; nothing else', () => {
@@ -119,9 +119,9 @@ describe("the player's toggle, remembered per section", () => {
     mem.set('aap-stronger-promise-closed', '0');
     mem.set('aap.fold.promise', '1');
     expect(readFoldToggle('whatItDoes')).toBeNull();
-    expect(foldOpen('whatItDoes', { remembered: readFoldToggle('whatItDoes') })).toBe(true);
-    rememberFoldToggle('whatItDoes', false);
-    expect(readFoldToggle('whatItDoes')).toBe(false);
+    expect(foldOpen('whatItDoes', { remembered: readFoldToggle('whatItDoes') })).toBe(false);
+    rememberFoldToggle('whatItDoes', true);
+    expect(readFoldToggle('whatItDoes')).toBe(true);
     expect(Object.keys(PANEL_FOLD)).not.toContain('promise');
   });
   it('never throws without storage', () => {

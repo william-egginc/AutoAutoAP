@@ -27,15 +27,17 @@ const detailsTag = (html: string, id: string) =>
   html.match(new RegExp(`<details[^>]*data-testid="${id}"[^>]*>`))?.[0] ?? '';
 const isOpen = (tag: string) => /\sopen(=|\s|>)/.test(tag);
 
-describe("Custom's promise box, closed by default (Fast and Exact's What this does starts open since 29 Oct 2026)", () => {
-  it('closed on a first visit, for both goals; Fast / Exact open', async () => {
+describe("Custom's promise box, closed by default (Fast and Exact's What this does folded again since 5 Nov 2026)", () => {
+  it('closed on a first visit, for both goals; Fast / Exact closed too', async () => {
     for (const goal of ['fastest', 'deadline'] as const)
       expect(isOpen(detailsTag(await renderHtml(ExhaustivePromise, { goal }), 'exhaustive-promise'))).toBe(false);
-    expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal: 'date' }), 'fold-whatItDoes'))).toBe(true);
+    expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal: 'date' }), 'fold-whatItDoes'))).toBe(false);
   });
   it('opens when the player opened it last time; each box remembers its own state', async () => {
     mem.set('aap-exhaustive-promise-closed', '0');
     expect(isOpen(detailsTag(await renderHtml(ExhaustivePromise, { goal: 'fastest' }), 'exhaustive-promise'))).toBe(true);
+    expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal: 'fastest' }), 'fold-whatItDoes'))).toBe(false);
+    mem.set('aap.fold.whatItDoes', '1');
     expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal: 'fastest' }), 'fold-whatItDoes'))).toBe(true);
     mem.set('aap.fold.whatItDoes', '0');
     expect(isOpen(detailsTag(await renderHtml(ExhaustivePromise, { goal: 'fastest' }), 'exhaustive-promise'))).toBe(true);
@@ -65,11 +67,10 @@ describe("Custom's promise box, closed by default (Fast and Exact's What this do
 describe('44 px tap targets below sm, desktop unchanged', () => {
   const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
   const tapInline = /inline-flex min-h-\[44px\] items-center[^"]*sm:inline sm:min-h-0/;
-  it("How it works › in the card's heading and in Nearby routes' brief", () => {
+  it("How it works › in the card's heading, the one link (Nearby routes' brief is gone since 5 Nov 2026, item F8)", () => {
     const head = read('SearchPanel.vue').match(/<a\s[^>]*>\s*How it works ›<\/a/)?.[0] ?? '';
     expect(head).toMatch(tapInline);
-    const brief = read('ChainSearchPanel.vue').match(/<a\s[^>]*>\s*How it works ›<\/a/)?.[0] ?? '';
-    expect(brief).toMatch(tapInline);
+    expect(read('ChainSearchPanel.vue')).not.toMatch(/How it works ›<\/a/);
   });
   it('Open in Custom', () => {
     const btn = read('DeadlinePanel.vue').match(/<button[^>]*data-test="open-in-advanced"[^>]*>\s*Open in Custom/)?.[0] ?? '';

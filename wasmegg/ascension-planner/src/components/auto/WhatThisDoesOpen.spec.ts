@@ -1,7 +1,8 @@
 /**
- * Search > "What this does" (StrongerBox.vue, the explainer under the Fast / Exact / Custom picker) starts OPEN in a
- * fresh browser (Jordan, 29 Oct 2026, Release 6). It stays one of the remembered folds (lib/panelFold.ts
- * `whatItDoes`, PanelFold.vue): a player who closed it finds it closed next time. It is shown in one place,
+ * Search > "What this does" (StrongerBox.vue, the explainer under the Fast / Exact / Custom picker) starts FOLDED in a
+ * fresh browser again since 5 Nov 2026 (UX fluff review 2, items F6 and F7, Jordan approved; it started open from
+ * 29 Oct 2026, Release 6). How long and the two safety clauses stay in view above it. It stays one of the remembered
+ * folds (lib/panelFold.ts `whatItDoes`, PanelFold.vue): a player who opened it finds it open next time. It is shown in one place,
  * StrongerBox.vue, which both Fastest (FastestRoute.vue) and By a date (DeadlinePanel.vue) render, so both agree.
  * The other folds keep their defaults. Server rendered, no DOM, no clocks.
  */
@@ -30,11 +31,11 @@ const detailsTag = (html: string, id: string) =>
 const isOpen = (tag: string) => /\sopen(=|\s|>)/.test(tag);
 const GOALS = ['fastest', 'date'] as const;
 
-describe('"What this does" starts open (29 Oct 2026)', () => {
-  it('the table says open; a fresh browser gets it open', () => {
-    expect(PANEL_FOLD.whatItDoes).toBe('open');
+describe('"What this does" starts folded (5 Nov 2026)', () => {
+  it('the table says folded; a fresh browser gets it folded', () => {
+    expect(PANEL_FOLD.whatItDoes).toBe('folded');
     expect(readFoldToggle('whatItDoes')).toBeNull();
-    expect(foldOpen('whatItDoes', { remembered: readFoldToggle('whatItDoes') })).toBe(true);
+    expect(foldOpen('whatItDoes', { remembered: readFoldToggle('whatItDoes') })).toBe(false);
   });
 
   it('a player who closed it stays closed; one who reopened it stays open', () => {
@@ -60,10 +61,18 @@ describe('"What this does" starts open (29 Oct 2026)', () => {
   });
 
   for (const goal of GOALS) {
-    it(`rendered (${goal}): open in a fresh browser`, async () => {
+    it(`rendered (${goal}): folded in a fresh browser, How long and the safety clauses in view above it`, async () => {
       const html = await renderHtml(StrongerBox, { goal });
-      expect(isOpen(detailsTag(html, 'fold-whatItDoes'))).toBe(true);
+      expect(isOpen(detailsTag(html, 'fold-whatItDoes'))).toBe(false);
       expect(html.match(/<details/g)).toHaveLength(1);
+      const inView = html.slice(0, html.indexOf('data-testid="fold-whatItDoes"'));
+      expect(inView).toContain('data-testid="level-how-long"');
+      expect(inView).toContain('Keep this tab in front (a hidden tab runs several times slower).');
+      expect(inView).toContain('You can stop it any time and keep the best so far');
+    });
+    it(`rendered (${goal}): open when the player opened it`, async () => {
+      mem.set(foldKey('whatItDoes'), '1');
+      expect(isOpen(detailsTag(await renderHtml(StrongerBox, { goal }), 'fold-whatItDoes'))).toBe(true);
     });
     it(`rendered (${goal}): closed when the player closed it, also while a run goes`, async () => {
       mem.set(foldKey('whatItDoes'), '0');
