@@ -17,9 +17,9 @@
       @input="setWorkers(($event.target as HTMLInputElement).value)"
     />
     <span class="block text-small text-slate-500">
-      Fewer workers keep the computer usable and quieter; more finish sooner, up to a point (on the one 20-thread PC
-      we measured, 12 workers were as fast as 19). You can move it during a run too: the
-      change takes effect within about a minute, and no route in progress is lost.
+      <!-- One line (UX fluff review 2, S25; DRAFT). It said fewer keep the computer usable, that 12 workers were as
+           fast as 19 on the one 20-thread PC measured, and that a change mid-run takes about a minute and loses no route. -->
+      More finish sooner, up to a point. You can change it mid-run.
     </span>
     <span
       v-if="store.longRunNote"

@@ -158,6 +158,15 @@ export function openingRoute(p: {
   return { route: null, newPlayer: !p.savedPlayerId };
 }
 
+/**
+ * The first visit (spec-fluff3-chrome, UX fluff review 2 part B, F2 to F7): no account, no save file, the Manual tab
+ * by default and nobody asked for it (no tab in the address, none remembered, the "Open the Manual Planner" link not
+ * pressed). The page then shows what the planner does and the ID box instead of the empty Manual Planner.
+ */
+export function firstVisitShows(p: { hasAccount: boolean; hasSaveFile: boolean; tab: string; manualAsked: boolean }): boolean {
+  return !p.hasAccount && !p.hasSaveFile && p.tab === 'manual' && !p.manualAsked;
+}
+
 /** `#/auto/fastest/full` for a route. The sub-parts only where the section has them. */
 export function hashFor(r: SiteRoute): string {
   if (r.section === 'compare') return !r.compare || r.compare === 'eggday' ? '#/compare' : `#/compare/${r.compare}`;

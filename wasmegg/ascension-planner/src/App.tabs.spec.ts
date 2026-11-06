@@ -53,7 +53,9 @@ describe('App.vue header layout', () => {
   });
 
   it('the Manual part that folds is only there on Manual, and the sub-tabs stay in the nav', () => {
-    expect(app).toContain("v-if=\"plannerTab === 'manual'\"\n        class=\"mt-2 rounded-2xl border");
+    // manualShown: the Manual tab, and not the first visit (spec-fluff3-chrome, App.firstVisit.spec.ts).
+    expect(app).toContain('v-if="manualShown"\n        class="mt-2 rounded-2xl border');
+    expect(app).toContain("const manualShown = computed(() => plannerTab.value === 'manual' && !firstVisit.value);");
     expect(app.indexOf('<nav v-if="playerId"')).toBeGreaterThan(app.indexOf('data-testid="header-toggle"'));
   });
 

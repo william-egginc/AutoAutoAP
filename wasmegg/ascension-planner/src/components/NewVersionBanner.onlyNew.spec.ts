@@ -50,11 +50,11 @@ describe('NewVersionBanner (R7 M1): only the notes new to this tab, at most thre
     state.available.value = true;
   });
 
-  it('7 notes, 4 new: the 3 newest listed, each tagged New, "+1 more", no carried note', async () => {
+  it('7 notes, 4 new: the 3 newest listed, "+1 more", no carried note', async () => {
     const html = await render(SEVEN);
     expect(html).toContain('data-testid="update-banner-small"');
-    expect(items(html)).toEqual(['Oct 27 New note 7', 'Oct 26 New note 6', 'Oct 25 New note 5']);
-    expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(3);
+    expect(items(html)).toEqual(['Oct 27 note 7', 'Oct 26 note 6', 'Oct 25 note 5']);
+    expect(html).not.toContain('data-testid="update-note-new"'); // every listed note is new: no tag (fluff review 2, U2)
     const text = textOf(html);
     expect(text).toContain('+1 more');
     for (const carried of ['note 3', 'note 2', 'note 1']) expect(text).not.toContain(carried);
@@ -64,13 +64,13 @@ describe('NewVersionBanner (R7 M1): only the notes new to this tab, at most thre
 
   it('exactly 3 new: all listed, no "+N more" (the carried ones are not counted)', async () => {
     const html = await render(SEVEN, { builtAt: '2026-10-24T18:00:00Z', noteAts: [] });
-    expect(items(html)).toEqual(['Oct 27 New note 7', 'Oct 26 New note 6', 'Oct 25 New note 5']);
+    expect(items(html)).toEqual(['Oct 27 note 7', 'Oct 26 note 6', 'Oct 25 note 5']);
     expect(textOf(html)).not.toContain('more');
   });
 
   it('1 new of 7: only that one, nothing else', async () => {
     const html = await render(SEVEN, { builtAt: '2026-10-26T18:00:00Z', noteAts: [] });
-    expect(items(html)).toEqual(['Oct 27 New note 7']);
+    expect(items(html)).toEqual(['Oct 27 note 7']);
     expect(html.match(/<li/g)).toHaveLength(1);
   });
 
@@ -138,14 +138,14 @@ describe('NewVersionBanner (R7 M1): only the notes new to this tab, at most thre
   // the banner code from before fe943f5f (spec-r7redteam-d: MAX_SHOWN was 5 and the notes the tab had followed the new
   // ones, the small level's reload text was two sentences). The banner is drawn by the tab's OWN code, so only a reload
   // brings this one. With this build's code: 8 notes in version.json, 5 new to the tab (by key) and 3 it has.
-  it('8 notes, 5 new to the tab and 3 it has: exactly 3 listed (newest first, tagged New), "+2 more", no old note anywhere', async () => {
+  it('8 notes, 5 new to the tab and 3 it has: exactly 3 listed (newest first), "+2 more", no old note anywhere', async () => {
     const EIGHT = [8, 7, 6, 5, 4, 3, 2, 1].map(d => ({ at: `2026-10-${10 + d}T12:00:00Z`, note: `release note ${d}` }));
     const old = EIGHT.filter((_n, i) => i >= 5);
     const tab: RunningBuild = { builtAt: '2026-10-13T18:00:00Z', noteAts: old.map(n => n.at), noteKeys: old.map(n => noteKey(n.note)) };
     const html = await render(EIGHT, tab);
     expect(html).toContain('data-testid="update-banner-small"');
-    expect(items(html)).toEqual(['Oct 18 New release note 8', 'Oct 17 New release note 7', 'Oct 16 New release note 6']);
-    expect(html.match(/data-testid="update-note-new"/g)).toHaveLength(3);
+    expect(items(html)).toEqual(['Oct 18 release note 8', 'Oct 17 release note 7', 'Oct 16 release note 6']);
+    expect(html).not.toContain('data-testid="update-note-new"'); // every listed note is new: no tag (fluff review 2, U2)
     const text = textOf(html);
     expect(text).toContain('+2 more');
     for (const n of old) expect(html).not.toContain(n.note);

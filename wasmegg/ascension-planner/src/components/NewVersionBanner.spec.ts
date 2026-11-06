@@ -1,4 +1,4 @@
-/** The update banner's words and buttons; the notes list itself (newest first, "New" tags, "+N more") is
+/** The update banner's words and buttons; the notes list itself (newest first, "+N more") is
  *  NewVersionBanner.history.spec.ts. */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,12 +37,12 @@ describe('NewVersionBanner', () => {
     expect(textOf(html)).toBe('');
   });
 
-  it('notes: listed in the order given, tagged "New", with "+N more"', async () => {
+  it('notes: listed in the order given, with "+N more" (no "New" tag: every listed note is new)', async () => {
     const html = await render({ level: 'small', notes: [n('newest.'), n('older')], more: 2 });
     expect(html).toContain('data-testid="update-notes"');
     const text = textOf(html);
     expect(text).toMatch(
-      /^Small update available\. \w+ \d+ New newest \w+ \d+ New older \+2 more No need to reload: you'll get it on your next visit\. Reload anyway Dismiss$/
+      /^Small update available\. \w+ \d+ newest \w+ \d+ older \+2 more No need to reload: you'll get it on your next visit\. Reload anyway Dismiss$/
     );
     expect(text).not.toContain('New:');
     expect(html.match(/<li/g)).toHaveLength(3);
@@ -56,7 +56,7 @@ describe('NewVersionBanner', () => {
     const html = await render({ level: 'big', notes: [n('a heat map')], more: 0 });
     expect(html).toContain('data-testid="update-banner-big"');
     expect(textOf(html)).toMatch(
-      /New on the planner: \w+ \d+ New a heat map You’ll get it next time you open the page/
+      /New on the planner: \w+ \d+ a heat map You’ll get it next time you open the page/
     );
   });
 
@@ -72,7 +72,7 @@ describe('NewVersionBanner', () => {
 
   it('essential with notes: the list straight after the advice (no "Also new:" now that older notes are listed too)', async () => {
     const text = textOf(await render({ level: 'essential', notes: [n('fixes')], more: 0 }, 'save your results first'));
-    expect(text).toMatch(/Save your results first\. \w+ \d+ New fixes/);
+    expect(text).toMatch(/Save your results first\. \w+ \d+ fixes/);
   });
 
   it('nothing before a newer build is live', async () => {

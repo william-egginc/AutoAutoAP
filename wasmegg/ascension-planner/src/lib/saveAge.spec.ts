@@ -31,7 +31,8 @@ describe('what the player is told', () => {
     expect(note.level).toBe('ok');
     // No age: Setup's save card says it once (ux review 26 Oct, row 19: "Your save is 42m old" beside it).
     expect(note.text).not.toMatch(/\bold\b/);
-    expect(note.text).toMatch(/caught up from your save to the plan start/);
+    // One clause (spec-fluff3-chrome, S10).
+    expect(note.text).toBe('Your farm is caught up to here from your save. Played since? Sync and reload.');
   });
 
   it('a start past what the silos hold: a plan-start fact, not the red "save is old" (the banner says that now)', () => {

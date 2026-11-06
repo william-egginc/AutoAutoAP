@@ -14,7 +14,7 @@
        asked for the difference: the same loud banner on every deploy taught them to ignore it, and
        they could not tell a real fix from a wording change (2026-09-25).
        When at least one release note is new to this tab (its build does not carry it: matched by the
-       note's text, lib/updateNotes.ts), every level lists ONLY those, each with its date and tagged "New",
+       note's text, lib/updateNotes.ts), every level lists ONLY those, each with its date (no "New" tag: all are new; fluff review 2, U2),
        at most three plus "+N more" (UX35-b, 28 Oct 2026; by text, 30 Oct 2026; red team R7 M1, 1 Nov 2026:
        the notes the tab already has are no longer listed, the banner was 714 of 852 px on a phone). With
        none new there is no banner at all, only the reload ask when the tab must reload: the tab gets the
@@ -32,11 +32,7 @@
       <li v-for="n in shown" :key="n.key" data-testid="update-note">
         <span class="tabular-nums text-slate-500">{{ n.date }}</span
         >{{ ' '
-        }}<template v-if="n.isNew"
-          ><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label" data-testid="update-note-new"
-            >New</span
-          >{{ ' ' }}</template
-        >{{ n.note }}
+        }}{{ n.note }}
       </li>
       <li v-if="more > 0" class="list-none -ml-4 text-slate-500 tabular-nums">+{{ more }} more</li>
     </ul>
@@ -77,11 +73,7 @@
         <li v-for="n in shown" :key="n.key" data-testid="update-note">
           <span class="tabular-nums text-sky-800">{{ n.date }}</span
           >{{ ' '
-          }}<template v-if="n.isNew"
-            ><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label" data-testid="update-note-new"
-              >New</span
-            >{{ ' ' }}</template
-          >{{ n.note }}
+          }}{{ n.note }}
         </li>
         <li v-if="more > 0" class="list-none -ml-4 text-sky-800 tabular-nums">+{{ more }} more</li>
       </ul>
@@ -123,11 +115,7 @@
         <li v-for="n in shown" :key="n.key" data-testid="update-note">
           <span class="tabular-nums text-amber-800">{{ n.date }}</span
           >{{ ' '
-          }}<template v-if="n.isNew"
-            ><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 label" data-testid="update-note-new"
-              >New</span
-            >{{ ' ' }}</template
-          >{{ n.note }}
+          }}{{ n.note }}
         </li>
         <li v-if="more > 0" class="list-none -ml-4 tabular-nums">+{{ more }} more</li>
       </ul>

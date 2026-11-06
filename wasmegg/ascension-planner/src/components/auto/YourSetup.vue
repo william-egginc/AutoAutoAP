@@ -87,13 +87,12 @@
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your awake hours (and
-        whether shifts wait for them), time off, no prestige days and first ascension. ·
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>{{ ' ' }}·
         <button
           type="button"
           class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no prestige days, first ascension Soonest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : REMEMBERED_TITLE"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -167,13 +166,12 @@
         :class="docked ? '' : 'px-4 pb-2.5 -mt-1'"
         data-testid="setup-remembered"
       >
-        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>: your awake hours (and
-        whether shifts wait for them), time off, no prestige days and first ascension. ·
+        Remembered for this account<template v-if="rememberedWhen"> ({{ rememberedWhen }})</template>{{ ' ' }}·
         <button
           type="button"
           class="inline-flex items-center min-h-[44px] sm:min-h-0 font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-40 disabled:no-underline"
           :disabled="locked"
-          :title="locked ? 'A search is running: stop it to change the setup' : 'Any hour, no time off or no prestige days, first ascension Soonest'"
+          :title="locked ? 'A search is running: stop it to change the setup' : REMEMBERED_TITLE"
           data-testid="setup-reset"
           @click="store.resetSetupToDefaults()"
         >
@@ -185,9 +183,9 @@
         v-if="locked"
         class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-body font-bold text-amber-800"
       >
-        A search is running, so the plan start, your awake hours, no prestige days and time off are locked: they change which route is fastest,
-        and the routes already priced used the old ones. Stop the search (your best so far is kept), change them, and
-        press Run again. The computer settings still work.
+        <!-- One sentence (UX fluff review 2, S4; DRAFT): these change which route is fastest, and the routes already
+             priced used the old ones; the computer settings stay free. -->
+        A search is running: stop it to change the start, hours or days (your best so far is kept).
       </p>
 
       <!-- When you can play -->
@@ -201,29 +199,26 @@
           {{ NAMES.classic }} doesn't plan around awake hours yet. {{ fastestName(store.finalTE) }} and {{ NAMES.byDate }} do.
         </p>
         <!-- Two plain choices instead of one checkbox (the user, 4 Oct: "the hours don't seem that clear"). -->
-        <div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Awake hours">
+        <!-- Two 44 px choices and one line under them (UX fluff review 2, S13; DRAFT): the blurbs said the same twice. -->
+        <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Awake hours">
           <label
-            class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer"
+            class="flex min-h-[44px] items-center gap-2 rounded-lg border px-3 py-1.5 cursor-pointer"
             :class="!store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
           >
-            <input v-model="store.scheduleEnabled" type="radio" :value="false" class="mt-0.5 text-indigo-600" />
-            <span class="text-body text-slate-600">
-              <span class="block font-bold text-slate-800">Any hour</span>
-              The plan prestiges the moment each stop is reached, day or night. Fastest on paper.
-            </span>
+            <input v-model="store.scheduleEnabled" type="radio" :value="false" class="text-indigo-600" />
+            <span class="text-body font-bold text-slate-800">Any hour</span>
           </label>
           <label
-            class="flex items-start gap-2 rounded-lg border p-3 cursor-pointer"
+            class="flex min-h-[44px] items-center gap-2 rounded-lg border px-3 py-1.5 cursor-pointer"
             :class="store.scheduleEnabled ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
           >
-            <input v-model="store.scheduleEnabled" type="radio" :value="true" class="mt-0.5 text-indigo-600" />
-            <span class="text-body text-slate-600">
-              <span class="block font-bold text-slate-800">Awake hours</span>
-              Prestiges and egg shifts wait for your next awake hour. You are still on the virtue farm while you wait, and
-              the farm keeps laying.
-            </span>
+            <input v-model="store.scheduleEnabled" type="radio" :value="true" class="text-indigo-600" />
+            <span class="text-body font-bold text-slate-800">My awake hours</span>
           </label>
         </div>
+        <p class="text-body text-slate-500" data-testid="setup-awake-line">
+          Prestiges and egg shifts wait for your hours; the farm keeps laying meanwhile.
+        </p>
         <div v-if="store.scheduleEnabled" class="pl-8 space-y-3">
           <div class="flex flex-wrap items-center gap-3">
             <label class="flex min-w-0 max-w-full items-center gap-2 text-small font-bold text-slate-600">
@@ -265,11 +260,9 @@
               ><span>{{ showHour(18) }}</span
               ><span>{{ showHour(23) }}</span>
             </div>
-            <p class="text-small text-slate-500 mt-1">
-              Hours are in the plan's timezone ({{ zone }}). Blue is your awake hours: shifts and prestiges happen only then. Days you are awake:
-            </p>
           </div>
-          <div class="flex flex-wrap gap-1">
+          <!-- The timezone sentence is gone (UX fluff review 2, S14): the readback under the days names the zone. -->
+          <div class="flex flex-wrap gap-1" role="group" aria-label="Days you are awake">
             <button
               v-for="(label, day) in DAY_LABELS"
               :key="day"
@@ -532,16 +525,16 @@
                    ("Continue Asc." / a build for "Prestige Now"), so each changes the other. -->
               <div class="border-t border-slate-100 pt-3 space-y-2" role="radiogroup" aria-label="First ascension">
                 <h3 class="text-slate-500 label">First ascension</h3>
+                <!-- One 44 px row each, a clause on Soonest only (UX fluff review 2, S12; search/firstAscensionWords.ts). -->
                 <label
                   v-for="c in FIRST_ASCENSION_CHOICES"
                   :key="c.value"
-                  class="flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer"
+                  class="flex min-h-[44px] items-start gap-2 rounded-lg border px-2.5 py-2 cursor-pointer"
                   :class="firstChoice === c.value ? 'border-indigo-400 bg-indigo-50/60' : 'border-slate-200'"
                 >
                   <input v-model="firstChoice" type="radio" :value="c.value" class="mt-0.5 text-indigo-600" />
                   <span class="text-body text-slate-600">
-                    <span class="block font-bold text-slate-800">{{ c.label }}</span>
-                    {{ c.blurb }}
+                    <span class="font-bold text-slate-800">{{ c.label }}</span><template v-if="c.blurb">{{ ' ' }}<span class="text-slate-500">{{ c.blurb }}</span></template>
                   </span>
                 </label>
                 <p v-if="store.firstAscensionFromClassic" class="text-body text-slate-500 max-w-prose">
@@ -633,8 +626,9 @@
               <label class="flex items-start gap-3 cursor-pointer">
                 <input v-model="store.keepAwake" type="checkbox" class="mt-0.5 rounded border-slate-300 text-indigo-600" />
                 <span class="text-body text-slate-600">
-                  <span class="font-bold text-slate-800">Keep my computer awake while a search runs.</span> If it sleeps,
-                  every worker freezes until you wake it. It can't stop a laptop sleeping when the lid is closed.
+                  <!-- The label and one clause (UX fluff review 2, S28; DRAFT). It was: "If it sleeps, every worker freezes
+                       until you wake it. It can't stop a laptop sleeping when the lid is closed." -->
+                  <span class="font-bold text-slate-800">Keep my computer awake while a search runs</span>{{ ' ' }}(not with the lid closed)
                 </span>
               </label>
               <label class="flex items-start gap-3 cursor-pointer" data-testid="instant-during-search">
@@ -793,7 +787,8 @@ import { useFollowStore } from '@/stores/follow';
 import { CLOUD_EGG_DAY_YEAR, UNREACHABLE_NOTE } from '@/lib/followCloud';
 import { AUTO_FOLLOW_FIRST } from '@/lib/followPolicy';
 import { ageAgo } from '@/lib/saveAge';
-import { FIRST_ASCENSION_CHOICES, FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
+import { FIRST_ASCENSION_WORDS, type FirstAscension } from '@/search/firstAscension';
+import { FIRST_ASCENSION_CHOICES } from '@/search/firstAscensionWords';
 import SchedulingInputs from './SchedulingInputs.vue';
 import TimeOffEditor from './TimeOffEditor.vue';
 import WorkerSlider from './WorkerSlider.vue';
@@ -801,6 +796,10 @@ import BackgroundSpeed from './BackgroundSpeed.vue';
 import DateStyleToggle from './DateStyleToggle.vue';
 import SimulationSetup from './SimulationSetup.vue';
 import StudySetup from './StudySetup.vue';
+
+/** What is remembered and what Reset does, as Reset's title (UX fluff review 2, S3; DRAFT): the line itself is short. */
+const REMEMBERED_TITLE =
+  'Remembered: your awake hours (and whether shifts wait for them), time off, no prestige days and first ascension. Reset to defaults: any hour, no time off or no prestige days, first ascension Soonest.';
 
 defineProps<{
   screen: AutoView;
