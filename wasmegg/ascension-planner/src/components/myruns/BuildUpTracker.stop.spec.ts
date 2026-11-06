@@ -42,7 +42,7 @@ describe('BuildUpTracker: failed, with Try again', () => {
 
   it('My runs wires Try again to the page (useNowPage retryBuildUp) and says when it was a stop', () => {
     const src = fs.readFileSync(path.join(__dirname, '../MyRunsView.vue'), 'utf8');
-    expect(src).toContain('@retry="page.retryBuildUp"');
+    expect(src).toContain('@retry="tracker.retry(); page.retryBuildUp()"'); // the stall bound forgotten too (spec-buildup-stuck)
     expect(src).toContain(':fail-stopped="tracker.failStopped.value"');
   });
 });

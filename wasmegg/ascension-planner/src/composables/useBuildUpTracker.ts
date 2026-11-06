@@ -105,6 +105,19 @@ export interface BuildUpTrackerInputs {
   finishChosen?: Ref<'picked' | 'default' | null>;
 }
 
+/**
+ * NEVER "WORKING IT OUT" FOR GOOD (spec-buildup-stuck, 6 Nov 2026: Safari's tracker said it at 10:05 am and still at
+ * 12:39 pm). A run going is bounded by useCurrentSim's own `runMs`; this bounds the rest: the plan wanted and nothing
+ * going for it (no simulation state, 'done' without a plan, or the page's inputs never ready) this long reads as
+ * failed, with Try again. A search running ('waiting' with no reason) is not counted: it ends by itself.
+ */
+const STALL = { ms: 3 * 60_000 };
+/** Specs: another bound (null: back to the default). */
+export function setTrackerStallMs(ms: number | null): void {
+  STALL.ms = ms ?? 3 * 60_000;
+}
+export const TRACKER_STALL_REASON = 'nothing came back for it';
+
 export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   /**
    * This page's kept plan (read again when the account changes). NOT deeply reactive (build-up perf, 30 Oct 2026): a
@@ -422,6 +435,43 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
   /** Off-plan buys in words for the strip ('Comfortable Nests 51'): research by name, the rest by kind. */
   const offPlanWords = computed(() => (offer.value?.offPlan ?? []).map(offPlanWord));
 
+  // ------------------------------------------------------------------ the stall bound
+  const stalled = ref(false);
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  function clearStall(): void {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = null;
+    stalled.value = false;
+  }
+  /** Waiting for nothing that will come by itself: no state, done without the plan, or the page's inputs not ready. */
+  const idleWaiting = computed(() => {
+    if (!wanted.value || replanning.value) return false;
+    const s = i.sim.value;
+    if (!s) return true;
+    if (s.status === 'done') return !i.fresh.value;
+    return s.status === 'waiting' && !!s.reason;
+  });
+  // Started afresh whenever the simulation's state changes (a retry, a new run): only an unchanged wait counts.
+  watch(
+    [idleWaiting, i.sim],
+    ([idle]) => {
+      clearStall();
+      if (!idle) return;
+      stallTimer = setTimeout(() => {
+        stallTimer = null;
+        buildUpLog(`tracker stalled: ${TRACKER_STALL_REASON}`);
+        stalled.value = true;
+      }, STALL.ms);
+    },
+    { immediate: true }
+  );
+  onScopeDispose(clearStall);
+  /** Try again: the stall forgotten (the caller asks the simulation again). */
+  function retry(): void {
+    buildUpLog('tracker retry');
+    clearStall();
+  }
+
   const shown = computed<TrackerState>(() => {
     if (i.onVirtue.value === false) return 'hidden';
     if (!i.hasSave.value) return 'noSave';
@@ -429,7 +479,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     if (finishChosen.value) return 'notBuilding';
     if (plan.value) return 'ready';
     if (!i.building.value || freshBuysNothing.value) return 'notBuilding';
-    if (i.sim.value?.status === 'failed') return 'failed';
+    if (i.sim.value?.status === 'failed' || stalled.value) return 'failed';
     return 'working';
   });
   const state = shown;
@@ -461,7 +511,8 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     siloWarnings,
     /** A1 CHOICE: why there is nothing to buy ('picked' / 'default'), for the tracker's own words; null otherwise. */
     finishChosen,
-    failReason: computed(() => (i.sim.value?.status === 'failed' ? (i.sim.value.reason ?? '') : '')),
+    failReason: computed(() => (i.sim.value?.status === 'failed' ? (i.sim.value.reason ?? '') : stalled.value ? TRACKER_STALL_REASON : '')),
+    retry,
     /** The failure was a stop (its worker torn down) rather than the simulation's own: said so, with Try again. */
     failStopped: computed(() => i.sim.value?.status === 'failed' && /stopped|terminated|paused/i.test(i.sim.value.reason ?? '')),
   };
