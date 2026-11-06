@@ -8,6 +8,7 @@ import { renderHtml, textOf } from '@/test/renderComponent';
 import { TABS_KEY, resetTabPrefsForTest } from '@/composables/useTabPrefs';
 
 const read = (f: string) => fs.readFileSync(path.resolve(__dirname, f), 'utf8');
+/** Cut (UX fluff review 2, S43, 5 Nov 2026): the labels already say "Show the … tab". */
 const NOTE = 'The Leaderboard and Science tabs show only when you turn them on here.';
 const NONE = 'This build has no leaderboard, so there is nothing to show.';
 
@@ -29,12 +30,12 @@ function box(html: string, id: string): string {
 }
 
 describe('TabsToggle', () => {
-  it('with a collector: two boxes, off by default, each with its line, and the calm note', async () => {
+  it('with a collector: two boxes, off by default, each with its line, and no note above them', async () => {
     vi.stubEnv('VITE_SUBMIT_URL', 'https://collector.test/submit');
     resetTabPrefsForTest(null);
     const html = await renderHtml(TabsToggle, {}, {}, [pinia]);
     const t = textOf(html);
-    expect(t).toContain(NOTE);
+    expect(t).not.toContain(NOTE);
     expect(t).toContain('Show the Leaderboard tab');
     expect(t).toContain('Show the Science tab');
     expect(t).toContain('Everyone’s shared runs: Egg Day, Fastest to 490 TE and the charts.');

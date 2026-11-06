@@ -198,3 +198,17 @@ describe('a save problem is never folded away', () => {
     expect(src).toMatch(/const saveCardIssues = computed\(\(\) =>\s*moreOpen\.value \? store\.setupIssues\.filter\(i => i\.kind !== 'save-past-silos'\) : store\.setupIssues\s*\);/);
   });
 });
+
+describe('the cuts (UX fluff review 2, part B, approved 5 Nov 2026)', () => {
+  it('no "One setup for all three…" (S1), no "not now" bullets (S2), no time-off Insights sentence (S23)', async () => {
+    const t = textOf(await docked());
+    expect(t).not.toContain('One setup for all three Auto Planner screens');
+    expect(t).not.toContain('on the virtue farm, but shifts and prestiges wait for them');
+    expect(t).not.toContain('The searches price every route with the time off in it');
+    expect(t).not.toContain('keeps runs with time off apart from the rest');
+    // Single run's own time off note stays (conditional and true).
+    expect(textOf(await renderHtml(YourSetup, { screen: 'classic', docked: true }, {}, [pinia]))).toContain(
+      'only plans around time off in a plan sent from a search'
+    );
+  });
+});

@@ -134,24 +134,6 @@
     </div>
 
     <div v-if="docked" class="p-4 space-y-4">
-      <p class="text-body text-slate-500 max-w-prose">
-        One setup for all three Auto Planner screens: change it here and {{ NAMES.classic }}, {{ fastestName(store.finalTE) }} and
-        {{ NAMES.byDate }} all use it.
-      </p>
-
-      <!-- The three kinds of "not now" (Jordan, 24 Oct 2026), side by side so none is read as another. -->
-      <ul class="text-body text-slate-500 list-disc pl-5" data-testid="setup-not-now">
-        <li><span class="font-bold text-slate-700">Awake hours:</span> on the virtue farm, but shifts and prestiges wait for them; the farm keeps laying while they wait.</li>
-        <li>
-          <span class="font-bold text-slate-700">No prestige days:</span> stay on virtue; a prestige waits for the
-          next allowed time; shifts still happen.
-        </li>
-        <li>
-          <span class="font-bold text-slate-700">Time off:</span> off the virtue farm, on the home farm, nothing earned on virtue; rebuild when
-          you return.
-        </li>
-      </ul>
-
       <!-- Your save, one line (UX fluff review 2, 5 Nov 2026): Load latest save beside it, its problems under it.
            Loading a save file and the save's figures are under More options. -->
       <div class="space-y-1" data-testid="setup-save-line">
@@ -347,11 +329,6 @@
             {{ NAMES.classic }} only plans around time off in a plan sent from a search (Simulate this plan on
             {{ fastestName(store.finalTE) }} or {{ NAMES.byDate }}). A route typed in here goes
             straight through it for now.
-          </p>
-          <p v-else class="text-body text-slate-500 max-w-prose">
-            The searches price every route with the time off in it, so the winner is the best plan around it. {{ NAMES.compare }} ›
-            {{ NAMES.insights }} keeps runs with time off apart from the rest, since they answer a different
-            question.
           </p>
         </fieldset>
       </div>
