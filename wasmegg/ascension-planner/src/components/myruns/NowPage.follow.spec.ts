@@ -244,8 +244,13 @@ describe('Follow this route buttons', () => {
     expect(read('../auto/MyRunsList.vue')).toContain(':chain="l.row.chain" :goal-key="boardGoalKey(l.row)" from="board"');
     expect(read('../auto/LeaderboardPlanList.vue')).toContain(':chain="p.row.chain" :goal-key="boardGoalKey(p.row)" from="board"');
     const panel = read('../auto/LeaderboardPanel.vue');
-    expect(panel).toContain(':chain="e.best.row.chain" :goal-key="boardGoalKey(e.best.row)" from="board"');
-    expect(panel).toContain(':chain="line.row.chain" :goal-key="boardGoalKey(line.row)" from="board"');
+    // Fastest to N TE (fluff review 2, L13): the closed row has no Follow; the opened player lists the best plan first
+    // in LeaderboardPlanList, whose Follow (above) carries each plan's goal.
+    expect(panel).not.toContain(':chain="e.best.row.chain" :goal-key="boardGoalKey(e.best.row)"');
+    expect(panel).toMatch(/<LeaderboardPlanList\s+:plans="\[e\.best, \.\.\.e\.listed\]"/);
+    // All runs (L19): in the opened row, with the run's goal.
+    const opened = panel.slice(panel.indexOf('<tr v-if="open === line.key"'));
+    expect(opened).toContain(':chain="line.row.chain" :goal-key="boardGoalKey(line.row)" from="board"');
   });
 });
 

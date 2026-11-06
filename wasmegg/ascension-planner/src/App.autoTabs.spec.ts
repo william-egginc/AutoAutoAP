@@ -64,13 +64,19 @@ describe('landing and links after the reorder', () => {
     }
   });
 
-  it('My runs links reach the top tab: #/myruns, and the old Compare › My plans address', () => {
+  it('My runs links reach the top tab: #/myruns, the old Compare › My plans address, and Your latest run\'s', () => {
     expect(routeFromLocation('', '#/myruns')?.section).toBe('myruns');
     expect(routeFromLocation('', '#/compare/mine')?.section).toBe('myruns');
     expect(openingRoute({ fromUrl: null, stored: '#/myruns', savedPlayerId: ID }).route?.section).toBe('myruns');
-    for (const f of ['components/auto/DigDeeperLink.vue', 'components/auto/LeaderboardPanel.vue'])
-      expect(readFileSync(new URL(`./${f}`, import.meta.url), 'utf8')).toContain(
-        "const MY_RUNS_HASH = hashFor({ ...DEFAULT_ROUTE, section: 'myruns' });"
-      );
+    // The Leaderboard's one-line Your latest run tab (its link to My runs) went in the fluff review 2 (L1, 5 Nov 2026):
+    // its addresses, linked or remembered, now open My runs themselves.
+    for (const h of ['#/compare/latest', '#/leaderboard/latest']) {
+      expect(routeFromLocation('', h)?.section).toBe('myruns');
+      expect(openingRoute({ fromUrl: null, stored: h, savedPlayerId: ID }).route?.section).toBe('myruns');
+    }
+    expect(readFileSync(new URL('./components/auto/DigDeeperLink.vue', import.meta.url), 'utf8')).toContain(
+      "const MY_RUNS_HASH = hashFor({ ...DEFAULT_ROUTE, section: 'myruns' });"
+    );
+    expect(readFileSync(new URL('./components/auto/LeaderboardPanel.vue', import.meta.url), 'utf8')).not.toContain('latest-moved');
   });
 });
