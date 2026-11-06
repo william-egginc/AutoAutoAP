@@ -37,6 +37,14 @@ describe('oneMoreTE', () => {
       how: 'run',
     });
   });
+  it("By a date: never a run-cost date at or before the deadline (the search priced that TE and it missed)", () => {
+    // UX review 2, 5 Nov 2026: "One more TE (312) ... about Wed, Jul 14, 6:21 am" before a Jul 14 10 am date,
+    // while the search found 311 best. The run cost is what 311 cost over 310, not a price of 312.
+    const deadline = T0 + 17 * 3600;
+    expect(oneMoreTE({ chain: [166, 247], reachAt: T0, runCost: 14 * 3600, deadline })).toBeNull();
+    expect(oneMoreTE({ chain: [166, 247], reachAt: T0, runCost: 17 * 3600, deadline })).toBeNull();
+    expect(oneMoreTE({ chain: [166, 247], reachAt: T0, runCost: 20 * 3600, deadline })?.at).toBe(T0 + 20 * 3600);
+  });
   it("else the last leg's final rate; nothing at 490 or with noRate", () => {
     const m = oneMoreTE({ chain: [166, 247], legs: [leg({}), endLeg], reachAt: T0 + 100 * 86400 });
     expect(m?.how).toBe('rate');

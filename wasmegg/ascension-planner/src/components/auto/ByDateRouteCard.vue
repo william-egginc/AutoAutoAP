@@ -47,6 +47,7 @@
         :reach-at="route.reachAt"
         :zone="zone"
         :run-cost="runCost"
+        :deadline="deadline"
         no-rate
         green
       />
@@ -291,11 +292,15 @@ function toShare(): void {
   scrollToShownId('share-this-result');
 }
 /** A leg's start: the leg before's end, or its own end less its length for the first. */
+/** An ascension's own start: the prestige before it, which awake hours and no-prestige days can hold
+ *  after the last one's finish (its `sleepDelaySeconds`), so not the last one's finish (UX review 2, 5 Nov). */
 function startOf(i: number): string {
   const leg = legs.value[i];
-  const prev = legs.value[i - 1];
-  if (prev && okNumber(prev.endTime)) return when(prev.endTime);
+  if (leg && okNumber(leg.startTime)) return when(leg.startTime);
   if (leg && okNumber(leg.endTime) && okNumber(leg.durationSeconds)) return when(leg.endTime - leg.durationSeconds);
+  const prev = legs.value[i - 1];
+  if (prev && okNumber(prev.endTime))
+    return when(prev.endTime + (prev.plannedWaitSeconds ?? 0) + (prev.sleepDelaySeconds ?? 0));
   return '—';
 }
 

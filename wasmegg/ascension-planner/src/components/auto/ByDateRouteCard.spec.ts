@@ -41,6 +41,21 @@ describe('ByDateRouteCard', () => {
     expect(t).not.toContain('can still improve');
   });
 
+  it("Start is the ascension's own start (the prestige), not the last one's finish, when the hours held it", async () => {
+    // UX review 2, 5 Nov 2026: A3 reached 278 at 2:21 am, the prestige waited for 8 am (sleepDelaySeconds),
+    // and A4's Start said 2:21 am although its days were counted from 8 am.
+    const reach = DEADLINE - 70 * 86400; // 10:00 am UTC
+    const held = 5 * 3600 + 40 * 60;
+    const legs = [
+      { ...leg(278, reach, 66), sleepDelaySeconds: held },
+      { ...leg(311, DEADLINE - 3600, 70 - (held + 3600) / 86400), startTime: reach + held },
+    ];
+    const t = textOf(await renderHtml(ByDateRouteCard, props({ route: route({ chain: [278, 311], legs }) })));
+    const at = (u: number) => formatMoment(u * 1000, { zone: 'UTC', year: 'always' });
+    expect(t).toContain(`A2 311 ${at(reach + held)}`);
+    expect(t).not.toContain(`A2 311 ${at(reach)}`);
+  });
+
   it('mid-run: labelled the best so far, and says it can still improve', async () => {
     const t = textOf(await renderHtml(ByDateRouteCard, props({ running: true })));
     expect(t).toMatch(/^Best so far · highest by .*2027/);

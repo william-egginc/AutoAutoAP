@@ -50,8 +50,10 @@ const props = withDefaults(
     green?: boolean;
     /** One more TE only from `runCost`, never the final-rate estimate. */
     noRate?: boolean;
+    /** By a date's deadline: no run-cost "one more TE" date at or before it (search/routeExtras.ts). */
+    deadline?: number | null;
   }>(),
-  { runCost: null, green: false, noRate: false }
+  { runCost: null, green: false, noRate: false, deadline: null }
 );
 
 const shifts = computed(() => firstLegShifts(props.legs));
@@ -62,6 +64,7 @@ const more = computed(() =>
     reachAt: props.reachAt,
     runCost: props.runCost,
     noRate: props.noRate,
+    deadline: props.deadline,
   })
 );
 const tone = computed(() => (props.green ? 'text-emerald-900' : 'text-slate-700'));
