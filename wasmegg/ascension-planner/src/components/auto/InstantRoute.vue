@@ -2628,14 +2628,17 @@ onUnmounted(() => {
  * 2026: the same hash as before, so answers saved in players' browsers keep matching). Valid only for the same thing
  * asked of the same account: the player, the mode (target, or the date), the TE and every egg's count (a new save
  * moves them), the inventory and epic research, and the setup (playing hours, time off, dates to hit, the continue
- * rule, the filters). Not the plan start: the saved answer's note says which start its dates are for.
+ * rule, the filters) and the save's own time (6 Nov 2026: research bought moves no TE or egg). Not the plan start: the saved answer's note says which start its dates are for.
  */
 function cacheKey(): string | null {
   const inputs = store.collectInputs();
-  const raw = inputs.context.rawBackup as { eiUserId?: string } | undefined;
+  const raw = inputs.context.rawBackup as
+    | { eiUserId?: string; approxTime?: number; settings?: { lastBackupTime?: number } }
+    | undefined;
   if (!raw?.eiUserId) return null;
   const inv = store.readInventory();
   return instantKey({
+    saveAt: raw.approxTime ?? raw.settings?.lastBackupTime ?? null,
     playerId: raw.eiUserId,
     deadline: props.deadline,
     finalTE: store.finalTE,

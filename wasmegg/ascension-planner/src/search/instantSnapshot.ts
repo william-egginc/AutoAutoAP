@@ -283,6 +283,10 @@ export interface InstantKeyInput {
   /** The ascensions range's lower end (24 Oct 2026): keyed only when set, so every answer saved under "At most N"
    *  keeps its key, and one worked out under other bounds is never put back. */
   minAscensions?: number | null;
+  /** The save's own time (the backup's `approxTime`, unix seconds), 6 Nov 2026: research bought between two saves
+   *  moves neither the TE nor any egg's count, so without it a newer save put back the older save's answer. Keyed
+   *  only when set, so the golden keys below hold; InstantRoute always sets it. */
+  saveAt?: number | null;
 }
 
 /** The first ascension as the boolean it was (true Continue Asc., false Fastest), so answers saved under those
@@ -320,6 +324,7 @@ export function instantKey(i: InstantKeyInput): string {
       ...(i.noPrestige?.length ? [{ noPrestige: i.noPrestige }] : []),
     ],
     filters: [i.useHours, i.maxAscensions, ...(i.minAscensions != null ? [{ min: i.minAscensions }] : [])],
+    ...(i.saveAt != null ? { save: Math.floor(i.saveAt) } : {}),
   };
   // FNV-1a: the key only has to tell setups apart; the id never leaves this browser.
   const text = JSON.stringify(parts);
