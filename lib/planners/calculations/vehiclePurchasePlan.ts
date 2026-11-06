@@ -1,5 +1,5 @@
 import { getVehicleType, type VehicleCostModifiers } from '../vehicles';
-import { boostTransitionsFrom, getTimeToSave, calculateEarningsForTime } from '../engine/apply/math';
+import { boostTransitionsFrom, getTimeToSave, calculateEarningsForTime, type EarningsRateTransition } from '../engine/apply/math';
 import type { BaseCalculationsSnapshot } from '../types/actions/core';
 import type { PlannerPricing } from '../profile';
 
@@ -102,10 +102,14 @@ function applyVirtualVehiclePurchase(
   newCap: number,
   price: number,
   seconds: number,
-  earningsPerEgg: number
+  earningsPerEgg: number,
+  transitions: EarningsRateTransition[] = []
 ): void {
+  // Earned over the wait at the same rates the wait was timed with (2x when a start time was given).
   const earned =
-    seconds > 0 && isFinite(seconds) ? calculateEarningsForTime(seconds, snapshot as unknown as BaseCalculationsSnapshot) : 0;
+    seconds > 0 && isFinite(seconds)
+      ? calculateEarningsForTime(seconds, snapshot as unknown as BaseCalculationsSnapshot, transitions)
+      : 0;
   const P0 = snapshot.population;
   const I = snapshot.offlineIHR / 60;
   // seconds can be Infinity (unaffordable in finite time); P0 + I * Infinity would be
@@ -162,14 +166,14 @@ export function planMaxVehicles(
   const earningsPerEgg = startSnapshot.elr > 0 ? startSnapshot.offlineEarnings / startSnapshot.elr : 0;
 
   const virtualSnapshot: VehiclePlanningSnapshot = { ...startSnapshot };
-  const saveSeconds = (price: number) =>
-    getTimeToSave(
-      price,
-      virtualSnapshot as BaseCalculationsSnapshot,
+  let lastTransitions: EarningsRateTransition[] = [];
+  const saveSeconds = (price: number) => {
+    lastTransitions =
       startAbsoluteTime === undefined
         ? []
-        : boostTransitionsFrom(virtualSnapshot as BaseCalculationsSnapshot, startAbsoluteTime + totalSeconds)
-    );
+        : boostTransitionsFrom(virtualSnapshot as BaseCalculationsSnapshot, startAbsoluteTime + totalSeconds);
+    return getTimeToSave(price, virtualSnapshot as BaseCalculationsSnapshot, lastTransitions);
+  };
 
   for (let i = 0; i < maxSlots; i++) {
     const slot = virtualVehicles[i];
@@ -186,7 +190,7 @@ export function planMaxVehicles(
 
       const oldCap = capacityOf(slot);
       const newCap = capacityOf({ vehicleId: HYPERLOOP_ID, trainLength: 1 });
-      applyVirtualVehiclePurchase(virtualSnapshot, oldCap, newCap, price, seconds, earningsPerEgg);
+      applyVirtualVehiclePurchase(virtualSnapshot, oldCap, newCap, price, seconds, earningsPerEgg, lastTransitions);
 
       virtualVehicles[i] = { vehicleId: HYPERLOOP_ID, trainLength: 1 };
     } else {
@@ -203,7 +207,7 @@ export function planMaxVehicles(
 
       const oldCap = capacityOf({ vehicleId: HYPERLOOP_ID, trainLength: l });
       const newCap = capacityOf({ vehicleId: HYPERLOOP_ID, trainLength: l + 1 });
-      applyVirtualVehiclePurchase(virtualSnapshot, oldCap, newCap, carPrice, seconds, earningsPerEgg);
+      applyVirtualVehiclePurchase(virtualSnapshot, oldCap, newCap, carPrice, seconds, earningsPerEgg, lastTransitions);
 
       virtualVehicles[i].trainLength = l + 1;
     }
@@ -390,7 +394,8 @@ export function planVehiclesForTimeLimit(
       capacityOf(newSlot),
       best.cost,
       best.waitSeconds,
-      earningsPerEgg
+      earningsPerEgg,
+      transitions
     );
     virtualSlots[best.slotIndex] = newSlot;
   }

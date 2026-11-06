@@ -38,7 +38,7 @@ describe('effect text from a file', () => {
     const item = readFileSync(new URL('./ActionHistoryItem.vue', import.meta.url), 'utf8');
     expect(item).not.toMatch(/v-html/);
     for (const f of ['waitForResearchSale', 'waitForEarningsBoost']) {
-      const src = readFileSync(new URL(`../lib/actions/executors/${f}.ts`, import.meta.url), 'utf8');
+      const src = readFileSync(new URL(`../../../../lib/planners/actions/executors/${f}.ts`, import.meta.url), 'utf8');
       expect(src).not.toContain('<b>');
     }
   });

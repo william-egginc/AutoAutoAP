@@ -184,7 +184,12 @@ export function simulateHabPurchases(
     if (shouldStop(elapsedSeconds + best.waitSeconds)) break;
 
     // Advance virtual population/bank through the wait
-    const earned = best.waitSeconds > 0 && isFinite(best.waitSeconds) ? calculateEarningsForTime(best.waitSeconds, virtualSnapshot) : 0;
+    const waitTransitions =
+      startAbsoluteTime === undefined ? [] : boostTransitionsFrom(virtualSnapshot, startAbsoluteTime + elapsedSeconds);
+    const earned =
+      best.waitSeconds > 0 && isFinite(best.waitSeconds)
+        ? calculateEarningsForTime(best.waitSeconds, virtualSnapshot, waitTransitions)
+        : 0;
     const I = startSnapshot.offlineIHR / 60;
     virtualPopulation = Math.min(virtualHabCapacity, virtualPopulation + I * best.waitSeconds);
     // The check-in rule (Jordan, 4 Nov 2026): what a wait earned beyond the price stays in the bank,

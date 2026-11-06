@@ -54,8 +54,8 @@
           >
             <span
               class="text-small font-bold text-slate-400 w-5 h-5 flex items-center justify-center bg-white/50 rounded-full shadow-inner flex-shrink-0"
-              >{{ idx + 1 }}</span
-            >
+              v-text="idx + 1"
+            />
             <template v-if="idx >= slotCount">
               <span class="text-small text-gray-400 italic">Empty slot</span>
               <span

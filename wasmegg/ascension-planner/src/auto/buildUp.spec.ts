@@ -63,7 +63,11 @@ vi.mock('./shifts/helpers/milestones', () => ({
   runBuyResearchLevelByLevel: (s: EngineState) => ({ actions: [], elapsedSeconds: inPlace.C2 ?? 0, endState: s }),
   runTierUnlockMilestone: (s: EngineState) => ({ actions: [], elapsedSeconds: 0, endState: s }),
 }));
-vi.mock('@/calculations/commonResearch', () => ({ getResearchById: () => null, isTierUnlocked: () => true }));
+vi.mock('@/calculations/commonResearch', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  getResearchById: () => null,
+  isTierUnlocked: () => true,
+}));
 vi.mock('./hold', () => ({
   eggOfShift: () => null,
   holdForPlayer: (s: EngineState, _c: unknown, _t: number, e: number) => ({ heldSeconds: 0, actions: [], state: s, elapsedSeconds: e }),

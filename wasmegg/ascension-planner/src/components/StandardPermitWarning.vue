@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="!initialStateStore.proPermit"
-    class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex gap-3"
+    class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-small text-amber-800 flex gap-3"
     role="alert"
   >
     <svg class="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -21,7 +21,7 @@ import {
 
 const SRC = path.resolve(__dirname, '..');
 const read = (f: string) => fs.readFileSync(path.resolve(SRC, f), 'utf8');
-const css = read('styles/components.css');
+const css = read('../../../ui/styles/planners/components.css');
 const theme = resolveConfig(tailwindConfig).theme as unknown as {
   fontSize: Record<string, [string, { lineHeight?: string; letterSpacing?: string }]>;
   letterSpacing: Record<string, string>;

@@ -42,8 +42,9 @@ export const SIM_SOURCES = [
 
 /** sha256 of SIM_SOURCES as simVersion.spec.ts computes it. See the note at the top.
  *  5 Nov 2026 (spec-joo729): re-pasted for the coverage change above (lib/planners added) and Joo's
- *  merged code. Not a SIM_VERSION decision: whether his sim changes move cells is still to measure. */
-export const SIM_SOURCE_HASH = '578d3a7ca821b7743b3d5a800bdf1114b5f63fe341df52b7698e7abd473de7d5';
+ *  merged code, then for the manual-planner-only 2x fix in the shared hab/vehicle planners (the auto
+ *  planner passes no start time, so no transitions). Not a SIM_VERSION decision: see notes joo729-merge. */
+export const SIM_SOURCE_HASH = '453f166495b1a195cc6f56fd5891beeb59b81c31f55ad09802d5ad84d53cb730';
 
 /**
  * Why a table's cells may not match this page's simulator, or null when they do. A table with no

@@ -72,8 +72,9 @@ const STRUCTURE_CACHE_ENABLED = true;
 
 const structureCache = new WeakMap<ei.IBackup, Map<string, (string | null)[]>>();
 
-function structureCacheKey(assumeMax: boolean, excludeGusset: boolean): string {
-  return `${assumeMax ? 1 : 0}${excludeGusset ? 1 : 0}`;
+function structureCacheKey(assumeMax: boolean, excludeGusset: boolean, proPermit?: boolean): string {
+  // The permit is part of the key since Joo's standard permit support (PR #729): Standard fills 2 slots.
+  return `${assumeMax ? 1 : 0}${excludeGusset ? 1 : 0}${proPermit === false ? 0 : 1}`;
 }
 
 /** Every `console.log`/`console.warn` below runs inside a Web Worker during a real search, same as
@@ -368,7 +369,7 @@ export function getOptimalELRSet(backup: ei.IBackup, options: OptimalELRSetOptio
   // this is safe and what it does not cover.
   if (STRUCTURE_CACHE_ENABLED && !options.forcedArtifacts && !options.bypassStructureCache) {
     const perBackup = structureCache.get(backup);
-    const cached = perBackup?.get(structureCacheKey(assumeMax, excludeGusset));
+    const cached = perBackup?.get(structureCacheKey(assumeMax, excludeGusset, options.proPermit));
     if (cached) {
       const t0 = DEBUG_ELR_STRUCTURE_CACHE || DEBUG_ELR_STRUCTURE_VERIFY ? performance.now() : 0;
       const result = getOptimalELRSet(backup, { ...options, forcedArtifacts: cached });
@@ -475,7 +476,7 @@ export function getOptimalELRSet(backup: ei.IBackup, options: OptimalELRSetOptio
         structureCache.set(backup, perBackup);
       }
       perBackup.set(
-        structureCacheKey(assumeMax, excludeGusset),
+        structureCacheKey(assumeMax, excludeGusset, options.proPermit),
         result.map(slot => slot.artifactId)
       );
     }
@@ -517,7 +518,7 @@ export function getOptimalELRSetFromSource(
     // a fresh object on every call (loadout/resolve.ts `deliverySearchFromInputs`): keyed by the
     // pool's contents instead of by object. Only an unforced (`auto` mode) search is cached.
     if (STRUCTURE_CACHE_ENABLED && !forcedArtifacts && !options.bypassStructureCache) {
-      const key = `${structureCacheKey(options.assumeMaxHabsVehicles ?? false, options.excludeGusset ?? false)}|${JSON.stringify(source.pool)}`;
+      const key = `${structureCacheKey(options.assumeMaxHabsVehicles ?? false, options.excludeGusset ?? false, options.proPermit)}|${JSON.stringify(source.pool)}`;
       const cached = poolStructureCache.get(key);
       if (cached) return getOptimalELRSetFromPool(source.pool, { ...options, forcedArtifacts: cached });
       const result = getOptimalELRSetFromPool(source.pool, options);
