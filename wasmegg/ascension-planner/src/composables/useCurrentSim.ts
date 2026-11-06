@@ -31,6 +31,9 @@ import {
   type SimLeg,
 } from '@/lib/followSim';
 import { siloSeconds } from '@/lib/saveAge';
+import { saveFarmFor } from '@/lib/buildUpBought';
+import { saveFarmOf } from '@/lib/farmFacts';
+import { backupSecondsOf } from '@/lib/saveFreshness';
 import { buildUpLog, ensureLongTaskWatch, perfEnd, perfOn, perfStart, perfStep, shortKey } from '@/lib/buildUpDebug';
 
 export interface SimRequest {
@@ -139,6 +142,13 @@ const guarded = new Set<string>();
 function wasStopped(err: unknown): boolean {
   const m = err instanceof Error ? err.message : String(err);
   return /^(stopped|paused)$|pool was terminated/i.test(m.trim());
+}
+/** The save a run simulated from (BuildUpPlan `from`): its own time (else the request's) and its virtue farm, both read
+ *  off the run's inputs. */
+function simulatedFrom(inputs: SearchInputs, requestTime: number): NonNullable<BuildUpPlan['from']> {
+  const raw: unknown = inputs.context?.rawBackup;
+  const farm = saveFarmFor(inputs.currentFarmState ?? saveFarmOf(raw), null);
+  return { backupTime: backupSecondsOf(raw) || requestTime, ...(farm ? { farm } : {}) };
 }
 /** The words of a failure, short and without any ID (an error message names no account). */
 function reasonOf(err: unknown): string {
@@ -263,7 +273,10 @@ export function useCurrentSim(
         : null;
       // What the START farm's silos hold: a fresh ascension starts on 1 silo, not the save's (the synthetic save has 4:
       // 12 h read as 1 silo's worth made the tracker's silo time 4 times too long, 30 Oct 2026).
-      const shaped = made?.start ? { ...made, siloSeconds: siloSeconds(made.start.siloCount, siloLevel) } : made;
+      const shaped0 = made?.start ? { ...made, siloSeconds: siloSeconds(made.start.siloCount, siloLevel) } : made;
+      // The save it was simulated from, carried with it (spec-anchornewer): the tracker's anchor, never the page's save
+      // at the moment the plan is kept (a newer save may have come in meanwhile).
+      const shaped = shaped0 ? { ...shaped0, from: simulatedFrom(inputs, req.backupTime) } : shaped0;
       const buildUp = shaped ? markRaw(shaped) : null;
       if (buildUp) buildUpLog(`plan kept for the sim (${perfStep('recordBuildUpPlan', () => recordBuildUpPlan(req.key, buildUp)) ? 'stored' : 'not stored'})`);
       buildUpLog(`run finished in ${Math.round((at - began) / 100) / 10} s: ${buildUp ? `plan with ${buildUp.actions.length} actions` : want ? 'NO build-up list' : 'leg only (plan not asked)'}`);

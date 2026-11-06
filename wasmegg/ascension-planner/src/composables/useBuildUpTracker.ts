@@ -76,7 +76,8 @@ export type TrackerState =
   | 'notBuilding'
   | 'working'
   | 'failed'
-  | 'ready';
+  | 'ready'
+  | 'checking'; // a plan is kept and a newer save is still coming in: nothing settled to tick from yet
 
 export interface BuildUpTrackerInputs {
   /** The account on screen (its hash), null without one. */
@@ -101,6 +102,9 @@ export interface BuildUpTrackerInputs {
   sim: Ref<{ status: 'working' | 'waiting' | 'failed' | 'done'; reason?: string } | null>;
   /** Phase 2: the loaded save as the tracker ticks from it (useNowPage `buildUpSave`); null without one. */
   saveFarm?: Ref<SaveFarm | null>;
+  /** A save is still coming in (being read, or the stores not holding it yet): the card says so ('checking') rather
+   *  than ticks from no save read as settled (spec-anchornewer, 6 Nov 2026). Absent: never. */
+  saveLoading?: Ref<boolean>;
   /** A1 CHOICE (spec-a1choice, useNowPage `a1Finish`): Right now follows finishing without buying while a build-up
    *  exists, picked by the player ('picked') or as the sooner ('default'); null or absent: not. */
   finishChosen?: Ref<'picked' | 'default' | null>;
@@ -184,7 +188,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
         buildUpLog('the simulated plan buys nothing: not kept, nothing to buy');
         return;
       }
-      const a: AnchoredPlan = { ascensionStart: k, saveSeconds: i.saveSeconds.value, plan: p, ...anchorFarmNow() };
+      const a: AnchoredPlan = { ascensionStart: k, ...anchorOf(p), plan: p };
       // Kept here (compacted): useCurrentSim's own copy of the raw plan (lib/followSim.ts BUILDUP_PLAN_KEY, ~250 kB
       // on the synthetic save) is then not needed, and the plan is not asked for again in this ascension.
       const stored = perfStep('writeAnchoredPlan', () => writeAnchoredPlan(acct, a));
@@ -194,9 +198,17 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     },
     { immediate: true }
   );
-  function anchorFarmNow(): { anchorFarm?: SaveFarm } {
+  /**
+   * THE ANCHOR (spec-anchornewer, 6 Nov 2026): the save the plan was SIMULATED FROM, carried with it (BuildUpPlan
+   * `from`, useCurrentSim), its time and its farm. Never the page's save at the moment the plan is kept: a newer save
+   * loaded in between made the anchor farm newer than the plan's start (nothing ticked: 'beforePrestige') and its time
+   * the save on screen's own (no Re-plan: the save was "not newer than the plan's"). A plan worked out before carries
+   * none: the page's save then, as before.
+   */
+  function anchorOf(p: BuildUpPlan): { saveSeconds: number; anchorFarm?: SaveFarm } {
+    if (p.from) return { saveSeconds: p.from.backupTime, ...(p.from.farm ? { anchorFarm: p.from.farm } : {}) };
     const f = saveFarm.value;
-    return f ? { anchorFarm: f } : {};
+    return { saveSeconds: i.saveSeconds.value, ...(f ? { anchorFarm: f } : {}) };
   }
 
   /** This save's simulated ascension came back and buys nothing (continue, or nothing left to build): no build-up to
@@ -305,17 +317,20 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     return acct && k !== null ? { on: readTicks(acct, k), off: readUnticks(acct, k) } : { on: new Set<string>(), off: new Set<string>() };
   });
   /**
-   * The save to tick from, and the anchor save's farm. A plan kept before Phase 2 has no anchor farm: on the anchor
-   * save itself that save's farm is it; on another save a plan that starts afresh can't tell a save from before its
+   * The save to tick from, and the anchor save's farm. The anchor farm is for a plan that STARTS AFRESH only (it tells
+   * a save from before the prestige): a build-up plan is the same ascension, so a save holding its start is all it
+   * needs, whatever the anchor (spec-anchornewer). A plan kept before Phase 2 has no anchor farm: on the anchor save
+   * itself that save's farm is it; on another save a plan that starts afresh can't tell a save from before its
    * prestige, so nothing is automatic there (the checkbox only) until a re-plan.
    */
   const tickFrom = computed(() => {
     const a = plan.value;
     const save = saveFarm.value;
     if (!a) return { save: null, anchorFarm: null };
-    const anchorFarm = a.anchorFarm ?? (i.saveSeconds.value === a.saveSeconds ? save : null);
     const startsAfresh = a.plan.variantKey !== 'buildup' && a.plan.variantKey !== 'continue';
-    return { save: !anchorFarm && startsAfresh ? null : save, anchorFarm };
+    if (!startsAfresh) return { save, anchorFarm: null };
+    const anchorFarm = a.anchorFarm ?? (i.saveSeconds.value === a.saveSeconds ? save : null);
+    return { save: anchorFarm ? save : null, anchorFarm };
   });
   /** What the save says, line by line. */
   const bought = computed<BoughtResult | null>(() => {
@@ -423,7 +438,7 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
       replanError.value = '';
       return;
     }
-    const a: AnchoredPlan = { ascensionStart: k, saveSeconds: i.saveSeconds.value, plan: p, ...anchorFarmNow() };
+    const a: AnchoredPlan = { ascensionStart: k, ...anchorOf(p), plan: p };
     const zone = i.zone.value;
     const hours = i.hours.value;
     const now = dayOf(i.now.value);
@@ -478,8 +493,11 @@ export function useBuildUpTracker(i: BuildUpTrackerInputs) {
     clearStall();
   }
 
+  /** A kept plan and a save still coming in: nothing to tick from that is settled yet (spec-anchornewer). */
+  const checking = computed(() => !!plan.value && !!i.saveLoading?.value);
   const shown = computed<TrackerState>(() => {
     if (i.onVirtue.value === false) return 'hidden';
+    if (checking.value) return 'checking';
     if (!i.hasSave.value) return 'noSave';
     if (!i.followed.value && !plan.value) return 'noRoute';
     if (finishChosen.value) return 'notBuilding';

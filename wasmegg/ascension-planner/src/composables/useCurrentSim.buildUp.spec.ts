@@ -115,6 +115,8 @@ describe('useCurrentSim, wantBuildUp', () => {
       actions: LIST.actions,
       siloSeconds: expect.any(Number),
       endTime: T0 + 3600,
+      // The save it was simulated from (spec-anchornewer): the request's time (no raw save in these inputs), the farm.
+      from: { backupTime: req().backupTime, farm: expect.objectContaining({ siloCount: 2 }) },
     });
     expect(readBuildUpPlan(req().key)).toEqual(s.buildUp);
     m.scope.stop();

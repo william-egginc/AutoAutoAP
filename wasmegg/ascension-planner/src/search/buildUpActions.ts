@@ -115,6 +115,10 @@ export interface BuildUpPlan {
   /** How many sales the build looks ahead to (the simulator's `buildPhaseSaleCount`: C3's `saleCount`, the Smart Buy
    *  card's sale stepper), when the segment said. Absent on plans kept before 30 Oct 2026 (spec-buylabel). */
   saleCount?: number;
+  /** The save the plan was simulated FROM (spec-anchornewer, 6 Nov 2026): its backup time and its virtue farm, as the
+   *  simulation's own inputs held them, so the tracker anchors on them rather than on whatever save the page holds
+   *  when it keeps the plan (composables/useCurrentSim.ts sets it). Absent on plans worked out before. */
+  from?: { backupTime: number; farm?: import('@/lib/buildUpBought').SaveFarm };
 }
 
 /** What search/leg.ts `LegResult.buildUp` (and search/types.ts `LegSummary.buildUp`) carries for one

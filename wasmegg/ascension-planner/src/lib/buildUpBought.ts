@@ -26,10 +26,13 @@
  *
  * WHETHER THE SAVE CAN TICK THIS PLAN AT ALL (`saveFit`). Within one ascension research levels, silos, habs, vehicles
  * and train lengths only ever go up, so a save that is on this plan holds at least the plan's start farm ('older'
- * otherwise: an older save, or another ascension). A plan that starts afresh (a prestige: its start farm does not hold
- * the anchor save's farm) needs one more thing: the save must not still hold the anchor save's farm, or it is from
- * before the prestige ('beforePrestige': the old farm would read as everything bought). Neither 'older' nor
- * 'beforePrestige' ticks anything; with no save or no plan start nothing is automatic.
+ * otherwise: an older save, or another ascension). A plan that starts afresh (a prestige: its start farm is a fresh
+ * farm, `freshFarm`, that does not hold the anchor save's farm) needs one more thing: the save must not still hold the
+ * anchor save's farm, or it is from before the prestige ('beforePrestige': the old farm would read as everything
+ * bought). A build-up plan (the same ascension, its start farm not fresh) is never 'beforePrestige', whatever the
+ * anchor (spec-anchornewer, 6 Nov 2026: an anchor farm newer than the plan's start read as "before the prestige" and
+ * nothing ticked). Neither 'older' nor 'beforePrestige' ticks anything; with no save or no plan start nothing is
+ * automatic.
  *
  * A LINE: bought when every item is, '3 of 5 bought' when some are, 'to buy' when none; `auto` null when the save
  * can't tell (the silo trick, back online, waits, events, a shift to an egg the plan never visits).
@@ -40,7 +43,9 @@
  * not bought was due more than an hour before the save's time) or has bought things OFF-PLAN (`offPlan`): an item the
  * save holds whose line is not due until more than 10 min after the save's time ('early'), or beyond anything the plan
  * ever buys or starts with ('never': a research level above the plan's highest for that id, a better hab or vehicle or
- * a longer train than the plan's last in that slot, more silos than the plan's last).
+ * a longer train than the plan's last in that slot, more silos than the plan's last). Also when a save NEWER than the
+ * plan's own does not hold the plan's start farm at all ('older' by farm, not by time: another ascension, or a plan
+ * worked out from a farm the save never had): nothing can tick there, so the plan is of no use to it.
  */
 import type { CurrentFarmState } from '@/types';
 import type { BuildUpStart } from '@/search/buildUpActions';
@@ -126,12 +131,17 @@ export function contains(a: SaveFarm, b: SaveFarm): boolean {
 
 export type SaveFit = 'fits' | 'older' | 'beforePrestige' | 'unknown';
 
+/** A farm as a prestige leaves it: one silo and no research bought. A build-up's start (mid-ascension) is never one. */
+export function freshFarm(f: SaveFarm): boolean {
+  return f.siloCount <= 1 && Object.values(f.researchLevels).every(lv => !(lv > 0));
+}
+
 /** Whether the save can tick this plan (see the header). */
 export function saveFit(save: SaveFarm | null | undefined, start: BuildUpStart | null | undefined, anchorFarm?: SaveFarm | null): SaveFit {
   if (!save || !start) return 'unknown';
   const s0 = farmOfStart(start);
   if (!contains(save, s0)) return 'older';
-  if (anchorFarm && !contains(s0, anchorFarm) && contains(save, anchorFarm)) return 'beforePrestige';
+  if (anchorFarm && freshFarm(s0) && !contains(s0, anchorFarm) && contains(save, anchorFarm)) return 'beforePrestige';
   return 'fits';
 }
 
@@ -398,5 +408,5 @@ export function replanOffer(o: {
   const behind = b.fit === 'unknown' ? 0 : Math.max(0, behindSeconds(o.lines, b, o.saveSeconds) ?? 0);
   const off = offPlan(o);
   const newer = o.saveSeconds > o.anchorSeconds;
-  return { show: newer && (behind > REPLAN_BEHIND || off.length > 0), behind, offPlan: off };
+  return { show: newer && (b.fit === 'older' || behind > REPLAN_BEHIND || off.length > 0), behind, offPlan: off };
 }

@@ -446,6 +446,8 @@ const tracker = useBuildUpTracker({
   fresh: page.buildUpPlan,
   sim: page.buildUpSim,
   saveFarm: page.buildUpSave,
+  // A newer save still coming in (the page's own "Reading your save" pair): the tracker says so (spec-anchornewer).
+  saveLoading: computed(() => props.loading || page.saveWaiting.value),
   finishChosen: page.a1Finish,
 });
 /** R7 red-team #3 (31 Oct 2026): the tracker is the shown goal's; with no route followed for it but one for another

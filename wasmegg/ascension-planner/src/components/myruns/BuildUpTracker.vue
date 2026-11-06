@@ -14,7 +14,8 @@
   Phase 2 (lib/buildUpBought.ts): lines tick themselves from the save ("bought", "3 of 5 bought" in amber with the
   bought names struck through); the player's checkbox overrides both ways and "use save" clears it back; where a tick
   came from is in the checkbox's label and title ("from your save" / "ticked by you"). "Re-plan from this save" shows
-  when the save is over 1 h behind the plan or has bought things off-plan.
+  when the save is over 1 h behind the plan or has bought things off-plan, or is newer than the plan's and does not hold
+  its start. While a newer save is still coming in ('checking'), the card says "reading your save" instead.
 
   Plain data in, events out (`toggle`, `tick`, `clear`, `replan`, `retry`): the composable owns the storage. Player words are
   DRAFT (Words).
@@ -25,13 +26,14 @@
       section="buildUpTracker"
       title="Build-up tracker"
       :hint="hint"
-      :hint-busy="state === 'working'"
+      :hint-busy="state === 'working' || state === 'checking'"
       :force="open"
       summary-class="text-body text-indigo-700"
       @player-toggle="emit('toggle', $event)"
     >
       <div class="mt-2 space-y-2 text-body text-slate-700" data-testid="buildup-body">
-        <p v-if="state === 'noSave'" data-testid="buildup-nosave">Load your save to see your build-up here.</p>
+        <p v-if="state === 'checking'" role="status" data-testid="buildup-checking">Reading your save: its ticks show once it is in.</p>
+        <p v-else-if="state === 'noSave'" data-testid="buildup-nosave">Load your save to see your build-up here.</p>
         <div v-else-if="state === 'noRoute' && followedFor" class="space-y-1" data-testid="buildup-followed-for">
           <p>Your followed route is for {{ followedFor.name }}. Its build-up shows here when Right now shows that goal.</p>
           <button
@@ -316,6 +318,9 @@ const hint = computed(() => {
     case 'working':
       // The dots are drawn after it (PanelFold `hintBusy`), never typed (spec-dots, Jordan 1 Nov 2026).
       return 'working it out';
+    case 'checking':
+      // A newer save still coming in (spec-anchornewer): never "0 of N check-ins done" as if settled. Dots drawn.
+      return 'reading your save';
     case 'failed':
       return 'could not be worked out';
   }
